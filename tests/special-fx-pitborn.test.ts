@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { PITBORN_KINDS, createPitbornSpecial, isPitbornSpecial, type PitbornKind } from '../src/special-fx-pitborn.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
-import { LAND_AT, advanceCast } from '../src/special-timing.ts';
+import { PITBORN_KINDS, createPitbornSpecial, isPitbornSpecial, type PitbornKind } from '../src/fight/special-fx-pitborn.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
+import { LAND_AT, advanceCast } from '../src/fight/special-timing.ts';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 
@@ -66,7 +66,7 @@ test('textures are shared by seed: the sprites do not each build their own', () 
 });
 
 test('the module ships lazily and the shared timeline never tracks the Pitborn\'s cast: only its own test does', () => {
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-pitborn\.ts'\)/, 'reached only through the registry entry (special-modes.ts)');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-pitborn\.ts'\)/, 'reached only through the registry entry (special-modes.ts)');
   assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-fx-pitborn\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), 'nothing imports it statically');
   assert.equal(advanceCast(null, [started], fighters, 1, 'pitborn', false), null, 'default test: no cast');
   assert.ok(advanceCast(null, [started], fighters, 1, 'pitborn', false, isPitbornSpecial), 'it passes its own');

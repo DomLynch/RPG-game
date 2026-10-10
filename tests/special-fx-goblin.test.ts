@@ -5,10 +5,10 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
-import { LAND_AT, FALL_AT, advanceCast } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { createGoblinSpecial, isGoblinCast, DIP, SCOOP_TICKS, type GoblinSpecial } from '../src/special-fx-goblin.ts';
+import { LAND_AT, FALL_AT, advanceCast } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { createGoblinSpecial, isGoblinCast, DIP, SCOOP_TICKS, type GoblinSpecial } from '../src/fight/special-fx-goblin.ts';
 
 // The Goblin's boss specials, grey-box (special-fx-goblin.ts): ranks 8, 9, 10 on the same seam and the same 120-tick timeline as the Nightborn's.
 const fighters = (special = 0) => [{ special: 0 }, { special }] as unknown as readonly [Fighter, Fighter];
@@ -179,10 +179,10 @@ test("his casts count only for this effect: advanceCast's default test (Hades') 
 });
 
 test("no Math.random, no lights, no glow: unlit grey dust only; the registry loads the Goblin's chunk lazily", () => {
-  const code = readFileSync(new URL('../src/special-fx-goblin.ts', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '');
+  const code = readFileSync(new URL('../src/fight/special-fx-goblin.ts', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '');
   assert.ok(!/Math\.random/.test(code) && !/\bLight\b/.test(code), 'seeded and unlit');
   for (const kind of ['reynard', 'hermes', 'loki'] as const) { const { root } = make(kind); root.traverse((o) => { assert.ok(!(o instanceof THREE.Light)); if (o instanceof THREE.Mesh) assert.ok(o.material instanceof THREE.MeshBasicMaterial && !o.castShadow); }); }
-  const modes = readFileSync(new URL('../src/special-modes.ts', import.meta.url), 'utf8');
+  const modes = readFileSync(new URL('../src/fight/special-modes.ts', import.meta.url), 'utf8');
   assert.ok(/import\('\.\/special-fx-goblin\.ts'\)/.test(modes), 'a lazy chunk');
 });
 

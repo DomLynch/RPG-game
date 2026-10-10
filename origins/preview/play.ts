@@ -1,7 +1,7 @@
 // Origins greybox, roadmap stage 2: the rules modules behind the panels. Orla's talk (origins/talk) drives the quest journal
 // (origins/quests); the bank reads and moves the character's real items (origins/inventory); the smith is the contracts' performUpgrade.
 // Content is the modules' own fixtures. All state lives in memory for the page session.
-import warriorUrl from '../../src/assets/warrior.glb?url';
+import { heroBodyUrl } from '../../src/fight/index.ts';
 import type { Result } from '../contracts/core.ts';
 import { blacksmith, forgeCosts, graveIronDef, helmetDef, helmetInstance, ironInstance, recordDef, recordInstance, ACCOUNT, PC, smith } from '../contracts/fixtures.ts';
 import { parseServiceDefinition, parseUpgradeCostTable, performUpgrade, type UpgradeReceipt } from '../contracts/economy.ts';
@@ -24,7 +24,7 @@ export const WORLD_TUNING = {
   reach: { forge: 3, bank: 3.6, bankHalfWidth: 13, ore: 2.5, pit: 5 },   // pit: from the Pit's centre, where the duel is offered
 };
 // Every model the preview loads, id → URL; null = a greybox stand-in built in main.ts. Swapping art is a one-line change here.
-export const ASSETS: Record<'hero' | 'orla' | 'ore', string | null> = { hero: warriorUrl, orla: null, ore: null };
+export const ASSETS: Record<'hero' | 'orla' | 'ore', string | null> = { hero: heroBodyUrl(), orla: null, ore: null };
 
 export type Kind = 'talk' | 'journal' | 'bank' | 'blacksmith' | 'ore' | 'bounty';   // bounty: the ?region=1 Bounty giver (enableBounty)
 const must = <T>(r: Result<T>): T => { if (!r.ok) throw new Error(JSON.stringify(r.issues)); return r.value; };

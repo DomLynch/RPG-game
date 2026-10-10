@@ -11,7 +11,7 @@ import { SWORD, ATTACKS, initialPractice } from '../src/fight/combat.ts';
 import { equipNotice } from '../src/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/fight/moves.ts';
 import { bladePathsByRig } from '../src/blade-paths.ts';
-import { BEAST_RENDER_SCALE, BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE, beastRenderScale } from '../src/beast-scale.ts';
+import { BEAST_RENDER_SCALE, BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE, beastRenderScale } from '../src/fight/beast-scale.ts';
 import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
 import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, sizeBeast, armWarriors, retryTransient, transientLoadError, loadTextured, MissingTextures, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/fight/characters.ts';
 
@@ -41,7 +41,7 @@ const WEAPON_OF: Record<(typeof FIGHTERS)[number], WeaponId> = { 'warrior.glb': 
 // The hero as the opponents' reference rig: its clip set without the player-only SKILL casts.
 const asReference = <A extends { animations: { name: string }[] }>(hero: A): A => ({ ...hero, animations: hero.animations.filter(c => !PLAYER_ONLY_CLIPS.includes(c.name)) });
 async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'wolf.glb' | 'boar.glb' | 'bear.glb' | 'wraith.glb' | 'dwarf.glb' | 'weapons/warhammer/veteran-warhammer.glb' | `weapons/player/${'knife' | 'estoc' | 'cleaver' | 'gladius' | 'maul' | 'trident' | 'warhammer'}.glb` = 'warrior.glb') {
-  const bytes = readFileSync(new URL(file === 'boar.glb' || file === 'bear.glb' ? `../public/beasts/${file}` : `../src/assets/${file}`, import.meta.url));   // the on-demand beasts live in public/beasts (src/beast-scale.ts)
+  const bytes = readFileSync(new URL(file === 'boar.glb' || file === 'bear.glb' ? `../public/beasts/${file}` : `../src/assets/${file}`, import.meta.url));   // the on-demand beasts live in public/beasts (src/fight/beast-scale.ts)
   assert.equal(bytes.readUInt32LE(0), 0x46546c67);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   const size = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + size).toString());
@@ -537,7 +537,7 @@ test('return, heavy and riposte authored blades agree with their contact ticks',
 });
 
 test('baked collision paths match the shipped blade throughout every active strike', async () => {
-  const {bladePose}=await import('../src/blade.ts');
+  const {bladePose}=await import('../src/fight/blade.ts');
   const asset=await readWarrior(),mixer=new AnimationMixer(asset.scene),blade=asset.scene.getObjectByName('SwordDrawn')!;
   for(const [kind,spec] of Object.entries(PATHS)) {
     const length=total(spec),clip=asset.animations.find(c=>c.name===spec.clip)!,action=mixer.clipAction(clip).play();
@@ -1001,7 +1001,7 @@ test('the Centurion\'s armed run: the veteran rig carries ArmedRun, a one-hand f
   assert.ok(!/ArmedRun/.test(mirror.playing()), 'a rig without the clip never plays it');
 });
 
-// Dom 2026-10-07: a beast is the same size walking and fighting. The world draws the rig at its mob look's scale, the duel at src/beast-scale.ts (sizeBeast, called by scene.ts): one number per body, and the duel's beast
+// Dom 2026-10-07: a beast is the same size walking and fighting. The world draws the rig at its mob look's scale, the duel at src/fight/beast-scale.ts (sizeBeast, called by scene.ts): one number per body, and the duel's beast
 // stands the rig's native height times it (wolf ~1.29 m, boar ~1.14 m, bear ~1.40 m; Characters' starting constants until Dom's eye has seen the stills).
 test('K6: a beast loses its head at its own row\'s bones (Actor.sever(bones)), once, and unsever grows it back; the humanoid default is unchanged', async () => {
   const hero = await readWarrior('warrior.glb');

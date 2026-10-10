@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
-import { CUTS, cutAt, LAND_AT } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { createSevenCuts, inkLook } from '../src/special-fx-nightborn.ts';
+import { CUTS, cutAt, LAND_AT } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { createSevenCuts, inkLook } from '../src/fight/special-fx-nightborn.ts';
 
 // The Nightborn's rank 4-7 class special, Seven Cuts (special-fx-nightborn.ts): seven DARK strokes across the target, on the Red Wind seam.
 const fighters = (special = 0) => [{ special: 0 }, { special, skill: 'lunge' }] as unknown as readonly [Fighter, Fighter];
@@ -54,8 +54,8 @@ test('a fizzle thins the effect out without a strike, and the sources stay clean
   run(fx, 1, 60, { 1: started(1) }); assert.ok(opacity(all) > 0.05);
   fx.render(1 / 60, [{ tick: 61, type: 'SpecialFizzled', actor: 1 } as unknown as CombatEvent], fighters(), 61, feet, false);
   run(fx, 62, 140); assert.ok(opacity(all) < 0.02, 'dissolved');
-  const src = readFileSync(new URL('../src/special-fx-nightborn.ts', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../src/fight/special-fx-nightborn.ts', import.meta.url), 'utf8');
   assert.ok(!/Math\.random|AdditiveBlending/.test(src));
-  const modes = readFileSync(new URL('../src/special-modes.ts', import.meta.url), 'utf8');
+  const modes = readFileSync(new URL('../src/fight/special-modes.ts', import.meta.url), 'utf8');
   assert.match(modes, /\bcuts: \{/);
 });

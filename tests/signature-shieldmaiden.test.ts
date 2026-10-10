@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
-import { SIGNATURES, SIGNATURE_CAPS, createSignatureMarks } from '../src/signature.ts';
-import { SPLINTER, rimOf, signatureState } from '../src/signature-shieldmaiden.ts';
+import { SIGNATURES, SIGNATURE_CAPS, createSignatureMarks } from '../src/fight/signature.ts';
+import { SPLINTER, rimOf, signatureState } from '../src/fight/signature-shieldmaiden.ts';
 
 const blocked = (actor: 0 | 1, move: string): CombatEvent => ({ tick: 1, type: 'Blocked', actor, target: actor ? 0 : 1, move: move as CombatEvent['move'] });
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];

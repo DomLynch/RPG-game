@@ -7,12 +7,12 @@ import { idleIntent, stepDuel, type Duel, type CombatEvent } from '../src/fight/
 import { loadProfile } from '../src/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { classSpecialFor } from '../src/class-special-identity.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { type SpecialTest } from '../src/special-look.ts';
+import { classSpecialFor } from '../src/fight/class-special-identity.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { type SpecialTest } from '../src/fight/special-look.ts';
 import { specialCueFor } from '../src/sparring-special-runtime.ts';
 import { sparringSpecialOptions } from '../src/sparring-specials.ts';
-import { disposeSpecialGroup } from '../src/special-presentation.ts';
+import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 
 const cases = [
   { id: 'earthfold' as SpecialTest, opponent: 'pitborn' as const, root: 'earth fold' },

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { SHIPPED, SIGNATURES, pickSignature } from '../src/signature.ts';
-import { HOOK, strandPoints } from '../src/signature-goblin.ts';
+import { SHIPPED, SIGNATURES, pickSignature } from '../src/fight/signature.ts';
+import { HOOK, strandPoints } from '../src/fight/signature-goblin.ts';
 import type { CombatEvent } from '../src/fight/duel.ts';
 
 test('Hooked Wound is the Goblin\'s A and answers only a blade blow he lands', () => {

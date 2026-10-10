@@ -5,9 +5,9 @@ import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { RULES } from '../src/fight/moves.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
-import { castPhase, shadowPhase, LAND_AT } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { createRedWind, sandLook } from '../src/special-fx-wind.ts';
+import { castPhase, shadowPhase, LAND_AT } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { createRedWind, sandLook } from '../src/fight/special-fx-wind.ts';
 
 // Set's Red Wind (special-fx-wind.ts): the same seam and the same 120-tick timeline as Hades' cloud, its own art (a ground burst), in its own lazy chunk.
 const fighters = (special = 0) => [{ special: 0 }, { special, skill: 'lunge' }] as unknown as readonly [Fighter, Fighter];
@@ -62,7 +62,7 @@ test("it draws at the TARGET's feet, never at the caster's, and its code never c
   run(fx, 0, 0); run(fx, 1, 60, { 1: started(1) });
   assert.ok(root.position.distanceTo(feet[0]) < 1e-6, "centred on the target's feet");
   // (three.js itself draws UUIDs for each new geometry through Math.random; that has no visual effect, so the rule is checked on this file's own code)
-  const code = readFileSync('src/special-fx-wind.ts', 'utf8').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+  const code = readFileSync('src/fight/special-fx-wind.ts', 'utf8').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
   assert.ok(!/Math\.random/.test(code));
 });
 
@@ -86,7 +86,7 @@ test('special-fx-wind ships in its own lazy chunk: nothing imports it statically
   const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
   // special-fx-nightborn.ts (itself a lazy chunk) borrows its painted-stroke helpers, so it is the one static importer allowed.
   assert.deepEqual(files.filter((f) => f !== 'special-fx-nightborn.ts' && /from\s+['"]\.\/special-fx-wind\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), []);
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-wind\.ts'\)/, 'the registry (special-modes.ts, which the scene reads) loads it on demand');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-wind\.ts'\)/, 'the registry (special-modes.ts, which the scene reads) loads it on demand');
 });
 
 

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
 import { specialGust } from './special-gust.ts';
 import { advanceCast, shadowPhase as castPhase, LAND_AT, type Cast, type isHadesShadow } from './special-timing.ts';
-import { clamp01, hash, noise, smooth } from './fight/fx-math.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 // The Pitborn's rank 8-10 boss specials (Pitborn lane; Dom picked all three on 2026-10-01: Cracking Ground, Ash Fall, Wind Wall). One idea each, drawn
 // from the arena itself, no props, no glow, painted and irregular. Presentation only, on Red Wind's seam (special-timing.ts) and its painted strokes

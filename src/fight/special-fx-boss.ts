@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
 import { advanceCast, LAND_AT, shadowPhase, type Cast } from './special-timing.ts';
 import { BUILD, BUILD_AT, isBossCast, slingAngle, wrathTremor, type BossKind } from './special-boss-timing.ts';
-import { clamp01, hash, noise, smooth } from './fight/fx-math.ts';
+import { clamp01, hash, noise, smooth } from './fx-math.ts';
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
