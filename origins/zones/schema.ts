@@ -35,6 +35,7 @@ export const FIELDS: readonly Field[] = [
   look('look.post', 'list', []),
   // The walk camera's limits (src/fight/follow-camera.ts): where it tightens under a vault. null = none (Zone 2). {zMax, zMin, halfWidth?, back, up}; the page passes this and holds no camera number itself.
   look('camera.passage', 'map', null, { nullable: true, wired: true }),
+  look('camera.presets', 'map', {}, { wired: true }), look('camera.preset', 'string', '', { wired: true }),   // named open-walk framings {back, up, side?, ahead?, lookY?} (a = over the shoulder, b = the fight frame) and which one the zone walks with ('' = the generic framing); ?camera=a|b picks one on a page
   // SOUND (World, sound)
   sound('sound.ambience', 'string', ''), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
   sound('sound.footsteps', 'string', 'dirt'), sound('sound.cries', 'string', 'default'), sound('sound.reverb', 'string', 'open'),

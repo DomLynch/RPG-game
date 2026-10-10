@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from 'three';
-import { createFollowCamera, inPassage } from '../src/fight/follow-camera.ts';
+import { createFollowCamera, inPassage, pickFraming } from '../src/fight/follow-camera.ts';
 
 const S = { x: 3, z: 10, heading: Math.PI / 2, pitch: 0, groundY: 0.4 };
 const cam = () => new THREE.PerspectiveCamera();
@@ -36,4 +36,23 @@ test('Zone 1 carries the passage Zone 1 had in code (PASSAGE.to - 1.5, 3.4 / 2.1
   const one = loadZone('1'), two = loadZone('2'), p = one.fields!['camera.passage'] as { zMax: number; zMin: number; halfWidth: number; back: number; up: number };
   assert.ok(one.set?.includes('camera.passage') && Math.abs(p.zMin - (PASSAGE.to - 1.5)) < 1e-9 && p.zMax === -9 && p.halfWidth === 20 && p.back === 3.4 && p.up === 2.1);
   assert.ok(!two.set?.includes('camera.passage'), 'Zone 2 sets none');
+});
+
+test('presets: a names a framing; the shoulder slides the eye to the right, the gaze ahead is the preset\'s; no choice = the generic walk', () => {
+  const presets = { a: { back: 3.6, up: 2.1, side: 0.8, ahead: 4, lookY: 1.5 }, b: { back: 6.4, up: 3.5 } };
+  assert.equal(pickFraming(presets, null), undefined); assert.equal(pickFraming(presets, 'z'), undefined, 'unknown = generic'); assert.equal(pickFraming(undefined, 'a'), undefined);
+  assert.deepEqual(pickFraming(presets, 'A'), presets.a); assert.deepEqual(pickFraming(presets, null, 'b'), presets.b, 'the zone row\'s own pick'); assert.deepEqual(pickFraming(presets, 'a', 'b'), presets.a, 'the page\'s ?camera= wins');
+  const c = cam(), f = createFollowCamera(c, { open: presets.a }); f.update(1 / 60, { x: 0, z: 0, heading: 0, pitch: 0, groundY: 0 });
+  assert.ok(Math.abs(c.position.x - 0.8) < 1e-9 && Math.abs(c.position.z - -3.6) < 1e-9 && Math.abs(c.position.y - 2.1) < 1e-9, 'heading 0: 3.6 behind (-z), 0.8 to his right (+x), 2.1 up');
+  const dir = new THREE.Vector3(); c.getWorldDirection(dir); assert.ok(dir.z > 0.9, 'still looks along the heading');
+  f.setOpen(undefined); f.snap(); f.update(1 / 60, { x: 0, z: 0, heading: 0, pitch: 0, groundY: 0 }); assert.ok(Math.abs(c.position.z - -5.2) < 1e-9 && Math.abs(c.position.x) < 1e-9, 'setOpen(undefined): the generic walk again');
+});
+
+test('both zones carry presets a and b in their rows and neither SETS camera.preset (nothing on screen changes until a zone or a ?camera= picks one)', async () => {
+  const { loadZone } = await import('../origins/zones/loader.ts');
+  for (const id of ['1', '2']) {
+    const z = loadZone(id), p = z.fields!['camera.presets'] as Record<string, { back: number; up: number }>;
+    assert.deepEqual(Object.keys(p).sort(), ['a', 'b'], `zone ${id}`); assert.ok(p.a!.back < p.b!.back && p.a!.up < p.b!.up, 'a is the close shoulder, b the wide fight frame');
+    assert.ok(!z.set?.includes('camera.preset'), `zone ${id} walks the generic framing until a preset is chosen`);
+  }
 });
