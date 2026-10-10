@@ -69,7 +69,7 @@ try {
     assert.ok(hp0 !== null && hpNow < hp0, `a hit landed on ${target.id} inside the window: ${JSON.stringify(receipt.strike)}`);   // a missed strike fails the run, it never counts as a pass
   }
   receipt.fightMoved = await moved(10000);
-  { const after = await page.evaluate(() => window.originsPreview.owners()); const was = new Set(ownersBefore); receipt.ownersDiff = after.filter((x) => !was.has(x)).slice(0, 12); }   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
+  { const after = await page.evaluate(() => window.originsPreview.owners()); const cut = (x) => x.replace(/\|op=[^|]*/, '').replace(/\|prog=(true|false)/, ''); const prog = (x) => /prog=true/.test(x); receipt.ownersDiff = after.filter((x, k) => prog(x) && !(ownersBefore[k] && prog(ownersBefore[k]) && cut(ownersBefore[k]) === cut(x))).slice(0, 12).map((x) => x + ` (was ${ownersBefore.find((b) => cut(b) === cut(x)) ? (prog(ownersBefore.find((b) => cut(b) === cut(x))) ? 'compiled' : 'NOT compiled') : 'absent'})`); }
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
   { const keys = await page.evaluate(() => window.originsPreview.renderInfo().programKeys); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, keys[n]])); }   // WHICH programs compile at the engage (each one is a stall)
