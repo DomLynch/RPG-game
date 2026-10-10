@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, type LootId } from '../../src/loot.ts';
+import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, type LootId } from '../../src/core/server.ts';
 import { PC } from '../contracts/fixtures.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import type { Db } from './db.ts';

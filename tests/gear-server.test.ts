@@ -70,3 +70,27 @@ test('a signed-in player with NO character yet (open answers an empty list, Back
   assert.equal(await g.refresh(), false); assert.deepEqual(seen, ['open'], 'no gear_open without a character');
   assert.equal(g.act({ kind: 'stow', key: 'head' }), false, 'the device ledger decides'); const real = { loot: undefined }; assert.equal(g.profileFor(real), real);
 });
+
+const legacy: Loot = { owned: ['goblin.Helmet', 'veteran.Body'] as never, equipped: { head: 'goblin.Helmet' } as never, pack: ['veteran.Body'] as never, taken: { 'goblin.Helmet': { opponent: 'goblin', attempt: 1, healthLeft: 3, recordId: null, day: '2026-10-01', tier: 4 } } as never };
+const receipt = (imported: string[]) => ({ imported, alreadyHeld: [], skipped: [], worn: [], bank: [], unworn: [], replayed: false });
+const keep = (kept: Map<string, string>) => ({ getItem: (k: string) => (k === 'frankendom.auth.v1' ? session : kept.get(k) ?? null), setItem: (k: string, v: string) => { kept.set(k, v); } });
+test('gear_import: a signed-in device hands its local ledger over ONCE; an unchanged device asks nothing, a changed one asks again, and the profile is never written', async () => {
+  const seen: string[] = [], bodies: Record<string, unknown>[] = [], kept = new Map<string, string>(); let loot: Loot = legacy;
+  const fetcher = (async (url: string, init: RequestInit) => { const op = String(url).split('/').at(-1)!; seen.push(op); bodies.push(JSON.parse(String(init.body))); return { status: 200, json: async () => ({ ok: true, result: op === 'open' ? opened : receipt(['goblin.Helmet']) }) }; }) as never;
+  const g = createServerGear({ storage: keep(kept), search: '', now: () => NOW, fetch: fetcher, getLoot: () => loot, show: () => {} });
+  assert.equal(await g.importLocal(), true);
+  assert.deepEqual(seen, ['open', 'gear_import']);
+  assert.deepEqual(bodies[1], { character: 'c1', owned: ['goblin.Helmet', 'veteran.Body'], equipped: { head: 'goblin.Helmet' }, tiers: { 'goblin.Helmet': 4 } });
+  assert.equal(await g.importLocal(), false); assert.deepEqual(seen, ['open', 'gear_import'], 'same ledger, same character: no second call');
+  loot = { ...legacy, owned: [...legacy.owned, 'witch.Crest'] as never }; await g.importLocal(); assert.equal(seen.filter((o) => o === 'gear_import').length, 2, 'a piece the first send did not hold goes up');
+  assert.deepEqual(legacy.owned, ['goblin.Helmet', 'veteran.Body'], 'nothing removed from the device');
+});
+test('gear_import: a refusal or a silent writer writes no marker (the next load asks again); a guest and an empty ledger ask nothing', async () => {
+  const seen: string[] = [], kept = new Map<string, string>();
+  const g = createServerGear({ storage: keep(kept), search: '', now: () => NOW, fetch: writer(seen, { open: [opened] }), getLoot: () => legacy, show: () => {} });
+  assert.equal(await g.importLocal(), false); assert.equal(kept.size, 0, 'a 503 leaves no marker'); assert.deepEqual(seen, ['open', 'gear_import']);
+  const none: string[] = [];
+  assert.equal(await createServerGear({ storage: storage(false), search: '', now: () => NOW, fetch: writer(none, {}), getLoot: () => legacy, show: () => {} }).importLocal(), false);
+  assert.equal(await createServerGear({ storage: keep(new Map()), search: '', now: () => NOW, fetch: writer(none, {}), getLoot: () => ({ owned: [], equipped: {} }), show: () => {} }).importLocal(), false);
+  assert.deepEqual(none, [], 'no request for a guest or an empty ledger');
+});

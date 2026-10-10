@@ -2,11 +2,12 @@
 // gear_unequip); a guest, a failed sign-in or a writer that does not answer keeps the local ledger exactly as before. No DOM here: the page hands in storage, the clock and two callbacks.
 import { emptyLoot, type Loot } from './loot.ts';
 import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
-import { isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
+import { importBodyOf, importGear, isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
 import { storedToken, writerBase } from './writer-call.ts';
 import { openCharacter } from './open.ts';
 
-type Deps = { storage: { getItem(key: string): string | null } | null; search: string; now: () => number; fetch?: typeof fetch; getLoot: () => Loot | undefined; show: (loot: Loot) => void; refused?: () => void };
+export const IMPORT_KEY = 'frankendom.gear-import.v1';
+type Deps = { storage: { getItem(key: string): string | null; setItem?(key: string, value: string): void } | null; search: string; now: () => number; fetch?: typeof fetch; getLoot: () => Loot | undefined; show: (loot: Loot) => void; refused?: () => void };
 export function createServerGear(d: Deps) {
   let character: string | null = null, view: GearView | null = null, busy = false, loading = false, shadow: { loot: Loot } | null = null;
   // 8 s, not the 4 s default: the sheet opens while the page is busy drawing the mannequin, and a late answer is better than the device's ledger shown in its place (one browser run missed 4 s under load).
@@ -20,6 +21,17 @@ export function createServerGear(d: Deps) {
     return (character = await openCharacter({ storage: d.storage, search: d.search, now: d.now, ...(d.fetch ? { fetch: d.fetch } : {}) }));   // the page's one `open` (src/core/open.ts), shared with the Pit's own load
   }
   return {
+    // Once per signed-in load that has something new to say: hand the device's own ledger to the server (gear_import mints what it does not hold, removes nothing). The marker is the last list the
+    // server answered for, per character, so an unchanged device asks nothing; a failed call writes no marker and the next load asks again. Never touches the device's profile.
+    async importLocal(): Promise<boolean> {
+      const body = importBodyOf(d.getLoot()); if (!body) return false;
+      const token = storedToken(d.storage, d.now()), id = token ? await who() : null; if (!token || !id) return false;
+      const mark = `${id}|${JSON.stringify([body.owned.slice().sort(), body.equipped, body.tiers])}`;
+      try { if (d.storage?.getItem(IMPORT_KEY) === mark) return false; } catch { /* unreadable storage: ask (idempotent) */ }
+      const got = await importGear(token, id, body, opts()); if ('offline' in got) return false;
+      try { d.storage?.setItem?.(IMPORT_KEY, mark); } catch { /* full or blocked: the next load asks again, the server adds nothing */ }
+      return got.imported.length > 0;
+    },
     // Called whenever the sheet opens: read the ledger; nothing changes on any failure (the local ledger stays on screen).
     async refresh(): Promise<boolean> {
       if (!storedToken(d.storage, d.now())) return false;

@@ -1,4 +1,4 @@
-// POST /origins/gear_import {character, owned, equipped, tiers?}: the ONE-TIME migration of a player's local gear (src/loot.ts's Loot: owned / equipped / the rung each piece was taken at) into
+// POST /origins/gear_import {character, owned, equipped, tiers?}: the ONE-TIME migration of a player's local gear (src/core/loot.ts's Loot: owned / equipped / the rung each piece was taken at) into
 // their server inventory, on their next signed-in load. Idempotent PER PIECE, not per call: the mint key is items.ts legacyUnlockMintKey(account, lootId) (one migrated copy per account per
 // piece, ever), so a repeat adds nothing, and a stale device that signed in later (with pieces the first one never had) adds exactly the difference. Nobody loses armour: nothing is removed
 // anywhere, an unknown LootId is reported (skipped), never fatal, and a refusal commits nothing (one origins_apply batch, all or nothing).
@@ -7,7 +7,7 @@
 // no Exchange); worn pieces count toward neither grid. The whole result is checked by inventory.openInventory (custody, one of each, slots), so no placement rule is re-implemented here.
 import { createHash } from 'node:crypto';
 import { TITLES } from '../../src/career.ts';
-import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/loot.ts';
+import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
 import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../contracts/items.ts';
 import { firstFree, openInventory, type Inventory } from '../inventory/inventory.ts';

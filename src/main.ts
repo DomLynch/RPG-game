@@ -773,7 +773,8 @@ function openJournal() {
   void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
-void openCharacter({ storage, search: location.search });   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
+void openCharacter({ storage, search: location.search });
+void serverGear.importLocal();   // a signed-in device's local gear goes to the server once (gear_import: adds what it lacks, removes nothing)   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
