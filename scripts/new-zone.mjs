@@ -10,7 +10,14 @@ const ZONES_DIR = fileURLToPath(new URL('../origins/zones/', import.meta.url));
 
 // One data ROW (a JSON object with the zone's fields: name, names, world, biome, spawns, kit, looks, and optionally mobLooks and place) writes the whole folder. The row is checked by the loader's own
 // zoneProblems BEFORE anything is written, so a bad row leaves nothing behind. Every file is one typed literal const + export default. zone/spawns/kit/look are on the data-only path list; mob-looks and place are pure literals too but are not on it yet (the Auditor adds them), so a row that has them is reviewed until then.
-const lit = (v) => JSON.stringify(v, null, 2);
+// The top two levels one entry per line, everything deeper on its line (a creature row is one line), so a zone folder stays under the 300-line data budget (tests/k7-engine-parity.test.ts).
+const lit = (v, d = 0) => {
+  if (v === null || typeof v !== 'object' || d >= 2) return JSON.stringify(v);
+  const pad = '  '.repeat(d + 1), end = '  '.repeat(d);
+  if (Array.isArray(v)) return v.length ? `[\n${v.map((x) => pad + lit(x, d + 1)).join(',\n')}\n${end}]` : '[]';
+  const e = Object.entries(v);
+  return e.length ? `{\n${e.map(([k, x]) => `${pad}${JSON.stringify(k)}: ${lit(x, d + 1)}`).join(',\n')}\n${end}}` : '{}';
+};
 const hdr = (row, key, dflt) => `${(row.notes?.[key] ?? dflt).split('\n').map((l) => `// ${l}`.trimEnd()).join('\n')}\n`;   // row.notes[file] carries a file's header comment (a row is JSON: it cannot hold comments itself)
 function rowFiles(n, row) {
   const own = (k) => (row[k] === undefined ? [] : [k]);

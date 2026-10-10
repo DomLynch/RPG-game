@@ -22,60 +22,10 @@ const kit: Zone['kit'] = {
     "landmark_grove"
   ],
   "kinds": [
-    {
-      "nodes": [
-        "tree_dead_a",
-        "tree_dead_b",
-        "tree_dead_c"
-      ],
-      "per": 3,
-      "r": 1.2,
-      "solid": 0.6,
-      "scale": [
-        0.9,
-        1.35
-      ]
-    },
-    {
-      "nodes": [
-        "boulder_a",
-        "boulder_b",
-        "boulder_c"
-      ],
-      "per": 4,
-      "r": 1.4,
-      "solid": 1,
-      "scale": [
-        0.8,
-        1.4
-      ]
-    },
-    {
-      "nodes": [
-        "bush_scrub_a",
-        "bush_scrub_b"
-      ],
-      "per": 8,
-      "r": 0.9,
-      "solid": 0,
-      "scale": [
-        0.8,
-        1.3
-      ]
-    },
-    {
-      "nodes": [
-        "tuft_a",
-        "tuft_b"
-      ],
-      "per": 14,
-      "r": 0.4,
-      "solid": 0,
-      "scale": [
-        0.8,
-        1.5
-      ]
-    }
+    {"nodes":["tree_dead_a","tree_dead_b","tree_dead_c"],"per":3,"r":1.2,"solid":0.6,"scale":[0.9,1.35]},
+    {"nodes":["boulder_a","boulder_b","boulder_c"],"per":4,"r":1.4,"solid":1,"scale":[0.8,1.4]},
+    {"nodes":["bush_scrub_a","bush_scrub_b"],"per":8,"r":0.9,"solid":0,"scale":[0.8,1.3]},
+    {"nodes":["tuft_a","tuft_b"],"per":14,"r":0.4,"solid":0,"scale":[0.8,1.5]}
   ]
 };
 export default kit;

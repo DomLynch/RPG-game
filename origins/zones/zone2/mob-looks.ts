@@ -4,27 +4,10 @@ import type { Zone } from '../loader.ts';
 
 const mobLooks: NonNullable<Zone['mobLooks']> = {
   "looks": {
-    "character:ember-wolf": {
-      "opponent": "wolf",
-      "tint": 9062962,
-      "scale": 2.2,
-      "dressing": {
-        "soot": 0.15,
-        "burnt": 0.6
-      }
-    }
+    "character:ember-wolf": {"opponent":"wolf","tint":9062962,"scale":2.2,"dressing":{"soot":0.15,"burnt":0.6}}
   },
   "spread": {
-    "character:ember-wolf": {
-      "tints": [
-        8011824,
-        10115642,
-        7293498
-      ],
-      "scale": 0.08,
-      "soot": 0.1,
-      "burnt": 0.15
-    }
+    "character:ember-wolf": {"tints":[8011824,10115642,7293498],"scale":0.08,"soot":0.1,"burnt":0.15}
   }
 };
 export default mobLooks;

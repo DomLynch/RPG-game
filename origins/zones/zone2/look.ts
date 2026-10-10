@@ -10,22 +10,10 @@ const looks: Zone['looks'] = {
     "hemiIntensity": 1.25,
     "sunColor": "#ffb46a",
     "sunIntensity": 5.9799999999999995,
-    "sunPos": [
-      -16,
-      15,
-      20
-    ],
+    "sunPos": [-16,15,20],
     "exposure": 1.3,
-    "ground": [
-      0.5,
-      0.47,
-      0.45
-    ],
-    "stone": [
-      1.35,
-      1.2,
-      1
-    ]
+    "ground": [0.5,0.47,0.45],
+    "stone": [1.35,1.2,1]
   },
   "frontier-haze": {
     "fog": "#b9aea4",
@@ -35,17 +23,9 @@ const looks: Zone['looks'] = {
     "hemiIntensity": 1.35,
     "sunColor": "#e8cfb4",
     "sunIntensity": 5.6,
-    "sunPos": [
-      -24,
-      12,
-      -15
-    ],
+    "sunPos": [-24,12,-15],
     "exposure": 1.35,
-    "ground": [
-      1.05,
-      0.98,
-      0.88
-    ]
+    "ground": [1.05,0.98,0.88]
   },
   "cinder-haze": {
     "fog": "#b9aea4",
@@ -55,17 +35,9 @@ const looks: Zone['looks'] = {
     "hemiIntensity": 1.35,
     "sunColor": "#e8cfb4",
     "sunIntensity": 5.6,
-    "sunPos": [
-      -24,
-      12,
-      -15
-    ],
+    "sunPos": [-24,12,-15],
     "exposure": 1.35,
-    "ground": [
-      1.05,
-      0.98,
-      0.88
-    ]
+    "ground": [1.05,0.98,0.88]
   },
   "frontier-duel": {
     "fog": "#b9aea4",
@@ -75,17 +47,9 @@ const looks: Zone['looks'] = {
     "hemiIntensity": 1.35,
     "sunColor": "#e8cfb4",
     "sunIntensity": 5.04,
-    "sunPos": [
-      -24,
-      12,
-      -15
-    ],
+    "sunPos": [-24,12,-15],
     "exposure": 1.35,
-    "ground": [
-      1.2075,
-      1.127,
-      1.012
-    ]
+    "ground": [1.2075,1.127,1.012]
   },
   "frontier-night": {
     "fog": "#141a2a",
@@ -95,17 +59,9 @@ const looks: Zone['looks'] = {
     "hemiIntensity": 0.45,
     "sunColor": "#6a7ab0",
     "sunIntensity": 0.6,
-    "sunPos": [
-      -24,
-      12,
-      -15
-    ],
+    "sunPos": [-24,12,-15],
     "exposure": 1.1,
-    "ground": [
-      0.8,
-      0.8,
-      0.9
-    ]
+    "ground": [0.8,0.8,0.9]
   }
 };
 export default looks;
