@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {poseRig,smooth} from './finisher-pose.mjs';
-import {EXECUTION_BEATS} from '../src/execution.ts';
+import {EXECUTION_BEATS} from '../src/fight/execution.ts';
 export {EXECUTION_BEATS};
 // Execution: the victim is forced to his knees and turned away (head bowed, weapon let go); the killer steps in behind him, raises the blade and holds it
 // (both rigs hold one pose from `raise` to `release`: the held half-second is in the clips, the scene's clock just runs); one cut to the nape; he pitches

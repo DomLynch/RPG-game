@@ -1,6 +1,6 @@
 import {appendFinisher} from './append-finisher.mjs';
 import {poseRig,smooth} from './finisher-pose.mjs';
-import {HAMSTRUNG_BEATS} from '../src/hamstrung.ts';
+import {HAMSTRUNG_BEATS} from '../src/fight/hamstrung.ts';
 export {HAMSTRUNG_BEATS};
 export function hamstrungClips(scene,clips) {
  const rig=poseRig(scene,clips),{knee,back,duration}=HAMSTRUNG_BEATS;
@@ -21,7 +21,7 @@ export function hamstrungClips(scene,clips) {
 }
 
 // Both halves ship as plain clip JSON beside warrior.glb, adopted at runtime by characters.ts adoptClip, so warrior.glb stays untouched: the killer's
-// Fin_Hamstrung (always the player's) and the victim's Death_Hamstrung for every body on the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS). minotaur.glb
+// Fin_Hamstrung (always the player's) and the victim's Death_Hamstrung for every body on the hero rig (src/fight/hamstrung.ts HAMSTRUNG_VICTIMS). minotaur.glb
 // and wraith.glb also carry a Death_Hamstrung appended to them, fitted to the creatures' feet.
 export const KILLER_JSON=new URL('../src/assets/hamstrung-killer.json',import.meta.url);
 export const VICTIM_JSON=new URL('../src/assets/hamstrung-victim-hero.json',import.meta.url);

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { bandOf, FRESH } from '../src/fatigue.ts';
-import { LOW_OFF, LOW_STAMINA, fatiguePreviewFrom, forcedFatigue, previewPractice, staminaLow } from '../src/fatigue-preview.ts';
+import { bandOf, FRESH } from '../src/fight/fatigue.ts';
+import { LOW_OFF, LOW_STAMINA, fatiguePreviewFrom, forcedFatigue, previewPractice, staminaLow } from '../src/fight/fatigue-preview.ts';
 
 test('?look=fatigue-preview parses; absent = today, and the force needs the flag', () => {
   assert.equal(fatiguePreviewFrom(''), null); assert.equal(fatiguePreviewFrom('?stamina=8'), null, 'the force alone does nothing');

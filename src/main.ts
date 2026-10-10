@@ -4,9 +4,9 @@ import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
 import { arenaFor } from './arena-themes.ts';
-import { defenceFlag } from './defence-grade.ts';
-import { kickCloseFlag } from './kick-close.ts';
-import { fatiguePreviewFrom, previewPractice } from './fatigue-preview.ts';
+import { defenceFlag } from './fight/defence-grade.ts';
+import { kickCloseFlag } from './fight/kick-close.ts';
+import { fatiguePreviewFrom, previewPractice } from './fight/fatigue-preview.ts';
 import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
@@ -54,16 +54,16 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
-import { hamstrungPick, resolveHamstrung } from './hamstrung.ts';
-import { executionPick, resolveExecution } from './execution.ts';
+import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
+import { executionPick, resolveExecution } from './fight/execution.ts';
 
 import { HEAVY_MOVES, createHud } from './fight/hud.ts';
 import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './fight/tutorial-ui.ts';
-import { KICK, impactStopMs, impactTier, landedKick } from './hit-impact.ts';
-import { armfeelFrom, weaponHoldMs } from './armfeel.ts';
+import { KICK, impactStopMs, impactTier, landedKick } from './fight/hit-impact.ts';
+import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './detmath.ts';
 import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
 import { lockPageZoom } from './zoom-guard.ts';
@@ -329,7 +329,7 @@ opponentSelect.value = opponent.id;
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
 // Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung, Execution — plus Plain death as the
-// no-finisher control. Hamstrung and Execution play on every playable body of the hero rig (src/hamstrung.ts HAMSTRUNG_VICTIMS, src/execution.ts EXECUTION_VICTIMS); any other body keeps what he played.
+// no-finisher control. Hamstrung and Execution play on every playable body of the hero rig (src/fight/hamstrung.ts HAMSTRUNG_VICTIMS, src/fight/execution.ts EXECUTION_VICTIMS); any other body keeps what he played.
 const FINISHER_OPTIONS: [string, string][] = [
   ['splitCrown', 'Split Crown'],
   ['decapitation', 'Decapitation'],

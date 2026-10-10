@@ -1,5 +1,5 @@
 import { CAST_MARGIN, LAND_AT, type Cast } from './special-timing.ts';
-import { smooth } from './fx-math.ts';
+import { smooth } from './fight/fx-math.ts';
 
 // Nyx's Nightfall, the presentation timeline (World, 2026-09-30; Lead's brief). Three-free, like special-timing.ts, whose Cast it reads: the
 // arena's light drains over the windup (fully dark VEIL_HOLD ticks before the release, so the dark is held for a beat), then on

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { cuesFor } from '../src/fight/sound/cues.ts';
 import type { CombatEvent } from '../src/fight/duel.ts';
-import { defenceFlag, defenceGrade, GRADE_AUDIO, GRADE_LABEL, GRADES, HEAVY_BLOCK } from '../src/defence-grade.ts';
+import { defenceFlag, defenceGrade, GRADE_AUDIO, GRADE_LABEL, GRADES, HEAVY_BLOCK } from '../src/fight/defence-grade.ts';
 
 // The events exactly as duel.ts emits them (~361-370): a defence names the DEFENDER as actor and the attacker as target.
 const parried = { tick: 5, type: 'Parried', actor: 0, target: 1, move: 'heavy_overhead' } as CombatEvent;

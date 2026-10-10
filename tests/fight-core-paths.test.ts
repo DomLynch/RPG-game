@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 
-const CORE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'replay', 'gear-stats', 'gambit', 'stance', 'twist'];
+const CORE = ['duel', 'ai', 'sim', 'moves', 'combat', 'play-radius', 'record', 'replay', 'gear-stats', 'gambit', 'stance', 'twist',
+  'armfeel', 'armfeel-fx', 'camera-kick', 'clash-sparks', 'hit-impact', 'foot-dust', 'defence-grade', 'kick-close', 'dropped-weapon', 'execution', 'fatigue', 'fatigue-layer', 'fatigue-preview', 'fatigue-read', 'fatigue-tune', 'hamstrung', 'hamstrung-assets', 'opened', 'opening-pose', 'spectral', 'stance-pose', 'rank-tint', 'skull', 'fx-math'];
 const ROOTS = ['src', 'tests', 'scripts', 'origins'];
 const SKIP = new Set(['node_modules', 'dist', 'artifacts', 'assets', 'public']);
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, SkinnedMesh, BufferGeometry, MeshStandardMaterial, Points } from 'three';
-import { spectralAppearance } from '../src/spectral.ts';
+import { spectralAppearance } from '../src/fight/spectral.ts';
 
 test('only Wraith gets a private transparent material; death fades and rematch restores it', () => {
   const root = new Group(), shared = new MeshStandardMaterial(), body = new SkinnedMesh(new BufferGeometry(), shared);

@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {AnimationMixer,Box3,LoopOnce,Quaternion,SkinnedMesh,Vector3} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {executionClips} from '../scripts/build-execution.mjs';
-import {EXECUTION_BEATS,executionAt} from '../src/execution.ts';
+import {EXECUTION_BEATS,executionAt} from '../src/fight/execution.ts';
 
 test('Execution authored motion: kneel turned away, a held half-second with both rigs frozen, the cut, the fall onto the face',async()=>{
  const bytes=await readFile(new URL('../src/assets/warrior.glb',import.meta.url)),length=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+length).toString());
