@@ -60,7 +60,7 @@ export function genericJobArgs(argv) {
 // A release job (unit/rows) waits at most this long for a slot; the parent that spawns a `rows` child must outlive the child's WHOLE budget (slot wait + the hf call + the
 // post-launch rank check + the cancel), or it kills the child between `hf jobs run` and the id line and leaves a job nobody ledgered (Auditor on #2079).
 export const RELEASE_SLOT_WAIT_S = 300;
-export const ROWS_CHILD_TIMEOUT_MS = (RELEASE_SLOT_WAIT_S + 60 + 60 + 60 + 60) * 1000;   // wait + one lock wait + the hf call + the rank check's ps + the cancel
+export const ROWS_CHILD_TIMEOUT_MS = (RELEASE_SLOT_WAIT_S + 60 + 60 + 60 + 60 + 60) * 1000;   // wait + one lock wait + the hf call + the rank check's ps + the cancel + 60 s margin (Auditor LOW on #2079: 540 -> 600)
 // The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
 // (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, CPU_WIDTH wide, each under hfArgs' 20m --timeout.
 export const CPU_SHARD = 6;
