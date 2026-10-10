@@ -2,6 +2,14 @@
 # the rest. Always on (Dom 2026-10-09, flags deleted): no receipt for a row = the Mac runs it. The receipt comes from
 # Hugging Face jobs launched before the deploy with scripts/vps-shadow/launch.mjs (unit|rows <sha>); DEPLOY_HF_ROWS_JOBS="id,id" and DEPLOY_HF_UNIT_JOB=id name them, and this
 # step reads each RECEIPT line back (launch.mjs fetch), fresh. VPS_RECEIPT_SHA names the candidate when it is not the revision. Trust is decided by vps-receipt-trust.mjs, not here.
+# The CPU receipt job scripts/pre-launch.sh started at candidate open: its "id;rows" line, only for this exact sha and under PRELAUNCH_MAX_AGE_S (default 4 h).
+prelaunched_cpu() {
+  local file="${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${1}.cpu"
+  [[ -s "$file" ]] || return 1
+  find "$file" -mmin "-$(( ${PRELAUNCH_MAX_AGE_S:-14400} / 60 ))" 2>/dev/null | grep -q . || return 1
+  cat "$file"
+}
+
 vps_receipts_apply() {
   local n
   vps_trusted=""   # global: the Published summary reads it

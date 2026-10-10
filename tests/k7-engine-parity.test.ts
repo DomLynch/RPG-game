@@ -155,3 +155,21 @@ test('the node-safe door src/fight/server.ts is for server-run code only, and it
   assert.notDeepEqual(mutant("export * from './world.ts';"), [], 'the check fails when the door re-exports the world loop');
   assert.notDeepEqual(mutant("import * as T from 'three';"), [], 'the check fails when the door pulls three');
 });
+
+// The camera row (Strategy 2026-10-10): a page under origins/ never places the camera; the engine's follow camera (src/fight/follow-camera.ts) and duel rig (src/fight/camera.ts) do.
+const CAMERA_PLACED = /\bcamera\.(position\.(set|copy|lerp|add\w*|sub\w*)|lookAt)\s*\(/;
+const sources = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? sources(join(d, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\./.test(e.name) ? [join(d, e.name)] : []);
+test('K7 camera row: nothing under origins/ places the camera (camera.position / lookAt); it goes through src/fight', () => {
+  assert.deepEqual(sources('origins').filter((f) => CAMERA_PLACED.test(readFileSync(f, 'utf8'))), [], 'a zone page that moves the camera itself is a zone-own copy of engine code');
+  assert.ok(CAMERA_PLACED.test('camera.position.copy(camAt); camera.lookAt(look);'), 'the detector sees a placed camera (mutation)');
+  assert.ok(CAMERA_PLACED.test('camera.position.set(0, 2, 5)'), 'and a set');
+  assert.ok(!CAMERA_PLACED.test('followCam.update(dt, state)'), 'and passes the engine call');
+});
+
+// Camera limits come only from the zone row: the page passes `loadZone().fields['camera.passage']` and holds no camera number itself (Zone 2 sets none).
+test('K7 camera limits row: createFollowCamera in origins/preview/main.ts is called with zone data, not literals', () => {
+  const call = (src: string) => /createFollowCamera\(camera,\s*\{[^;]*\}\)/.exec(src)?.[0] ?? '';
+  const main = readFileSync('origins/preview/main.ts', 'utf8');
+  assert.ok(call(main), 'the page builds the follow camera'); assert.ok(!/\d/.test(call(main).replace(/camera\.passage/g, '')), `no number in the call: ${call(main)}`);
+  assert.ok(/createFollowCamera\(camera,\s*\{[^;]*\d/.test('createFollowCamera(camera, { passage: { back: 3.4 } });'), 'a literal in the call is seen (mutation)');
+});
