@@ -371,13 +371,13 @@ test('deploy scope: a release runs about 5 rows for what it changed, none for do
 });
 
 test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the first-loss row, the row that boots to a fight from an empty profile', () => {
-  // a2cf3529 (2026-10-06): #1420 fixed the first-loss row in src/first-frame.ts + src/scene.ts, yet the picker left it out of scope (row 51 then, 50 since the Pit exit row went).
+  // a2cf3529 (2026-10-06): #1420 fixed the first-loss row in src/first-frame.ts + src/fight/scene.ts, yet the picker left it out of scope (row 51 then, 50 since the Pit exit row went).
   const picked = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' }).stderr;
-  for (const file of ['src/first-frame.ts', 'src/scene.ts']) {
+  for (const file of ['src/first-frame.ts', 'src/fight/scene.ts']) {
     assert.match(picked(file), /\b50 first-loss-browser-check\b/, `${file} runs row 50 first-loss-browser-check`);
   }
-  assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
-  for (const file of ['src/first-frame.ts', 'src/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
+  assert.match(picked('src/fight/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+  for (const file of ['src/first-frame.ts', 'src/fight/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
   assert.deepEqual(JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', 'scripts/next-fight-black-check.mjs'], { encoding: 'utf8' })).map((r: { name: string }) => r.name), ['next-fight-black-check'], 'a changed check script runs its own row');
 });
 

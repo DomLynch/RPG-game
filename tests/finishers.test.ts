@@ -95,7 +95,7 @@ test('owner 2026-09-20: the same ceremony never plays twice in a row, the pool s
 });
 
 // The measured per-finisher durations (Lead brief 2026-09-22, for Web's loot panel). The game keys on the event
-// (view.finishPhase().complete in src/scene.ts); this table is the published figure Web budgets a layout against, measured by
+// (view.finishPhase().complete in src/fight/scene.ts); this table is the published figure Web budgets a layout against, measured by
 // `node scripts/finisher-preview.mjs --durations`. What is asserted here is the shape and the honesty of the table, not the
 // numbers themselves — those are whatever the harness measured, and the harness is the thing that re-checks them.
 test('finisher durations are per finisher, measured, and every shipped outcome has one', () => {

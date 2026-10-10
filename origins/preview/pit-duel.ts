@@ -1,6 +1,6 @@
 // The Pit duel, the arena game's own combat inside the Origins greybox. Loaded on demand (main.ts `import('./pit-duel.ts')`), so it is its own
 // chunk of the greybox build and the walk never pays for it; nothing here is part of the live game's build.
-// Read-only reuse of src/: the scene (src/scene.ts: rigs, arena, effects and the LIVE locked camera rig, untouched), the input layer
+// Read-only reuse of src/: the scene (src/fight/scene.ts: rigs, arena, effects and the LIVE locked camera rig, untouched), the input layer
 // (src/input.ts), the combat HUD (src/hud.ts) and the match session (src/match.ts) in its sparring mode, which records, awards and writes
 // nothing (its ports here are in memory, never the game's localStorage). The simulation is the live one: stepPractice at 60 Hz on the
 // career level's opponent and AI profile. What a finished duel pays is origins/pit/pit.ts's (award()), decided by the page, not here.
@@ -19,7 +19,7 @@ import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/ind
 import { loadProfile, type StoragePort } from '../../src/profile.ts';
 import { tierAt } from '../../src/grades.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
-import { createScene, type WorldMount } from '../../src/scene.ts';
+import { createScene, type WorldMount } from '../../src/fight/index.ts';
 import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';

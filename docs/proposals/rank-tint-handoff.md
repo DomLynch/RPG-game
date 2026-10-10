@@ -9,7 +9,7 @@ the rung it was taken at (`Provenance.tier`; absent = Recruit), an opponent's ki
 - `src/fight/rank-tint.ts`: `tinted(material, tier)`, a cached clone per (material, tier) that shares textures. After `color_fragment` the
   albedo keeps its luminance and takes the grade's hue: rgb = mix(rgb, chroma(grade)·L·gain, TINT.strength), gain clamped [.35, 2.5].
   One program for every rung (`customProgramCacheKey` 'rank-tint'). Tunables in `TINT`.
-- `src/characters.ts` wear(pieces, failed, tierOf?), `src/scene.ts` (opponent `() => tier`, player `wornTier[id] ?? 'Recruit'`),
+- `src/characters.ts` wear(pieces, failed, tierOf?), `src/fight/scene.ts` (opponent `() => tier`, player `wornTier[id] ?? 'Recruit'`),
   `src/main.ts` wornTiers() and `?perf=1` prints `programs N`, `src/camera.ts` stills-only `?look=foe` (4.4 m in front of the opponent).
 - `tests/rank-tint.test.ts` 3/3 (on e6a23dd4).
 - Base: World's #705 head f85246b6. Rebase when #705 moves or merges.

@@ -30,7 +30,7 @@ import { OPPONENTS } from '/src/fight/moves.ts';
 import { TARGET, initialState } from '/src/fight/sim.ts';
 const status = t => document.getElementById('status').textContent = t;
 const canvas = document.getElementById('world'), GAME_RATIO = 1.5, TICK = 1 / 60;
-// Game renderer settings (src/scene.ts createScene): the lead's, frozen here.
+// Game renderer settings (src/fight/scene.ts createScene): the lead's, frozen here.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#a9a89c'); scene.fog = new THREE.FogExp2('#a9a89c', 0.018);

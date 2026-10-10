@@ -90,12 +90,12 @@ test('an uninstalled Hamstrung pick is the plain death for the picture and the c
   assert.equal(resolveHamstrung('veteran', finish, weapons, plain, null, resolveFinisher('veteran', finish, weapons, plain)), 'plainDeath');
   // scene.ts and main.ts both take their pick from hamstrungPick, so the render and cues.ts see one id.
   const source = (file: string) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
-  assert.match(source('scene.ts'), /hamstrungPick\(finisherOverride, hamstrungLatch === true\)/);
+  assert.match(source('fight/scene.ts'), /hamstrungPick\(finisherOverride, hamstrungLatch === true\)/);
   assert.match(source('main.ts'), /hamstrungPick\([^\n]*view\.hamstrungInstalled\(\)\)/);
 });
 
 test('a normal fight\'s ready path never fetches or awaits the Hamstrung assets', () => {
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   assert.equal([...scene.matchAll(/assets\/hamstrung-/g)].length, 2, 'both clips are imported in one place only');
   const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
   assert.doesNotMatch(load, /import\('\.\/assets\/hamstrung|await[^\n]*hamstrung|prepareHamstrung/i, 'loadFighters neither imports nor awaits them');
@@ -105,7 +105,7 @@ test('a normal fight\'s ready path never fetches or awaits the Hamstrung assets'
 });
 
 test('the Hamstrung prefetch starts only after ready, unawaited, on idle, and its failure stays silent', () => {
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   const ready = scene.indexOf("assetStatus('', 'ready');"), calls = [...scene.matchAll(/\bprefetchHamstrung\(\)/g)].map((m) => m.index!);
   assert.equal(calls.length, 1, 'one call site');
   assert.match(scene.slice(ready, ready + 400), /^assetStatus\('', 'ready'\);\n\s*prefetchHamstrung\(\);/, 'immediately after ready, not awaited');

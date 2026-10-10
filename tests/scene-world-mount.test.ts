@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-const source = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
 const lines = source.split('\n').map((l) => l.replace(/\s*\/\/.*$/, '')).filter((l) => l.trim());   // code only, comments dropped
 const reads = lines.filter((l) => /\bworld\b/.test(l) && !/const world = new THREE\.Vector3|take = \(world: THREE\.Vector3\)|v\.copy\(world\)|take\(o\.getWorldPosition\(world\)\)|take\(world\.set|, world\)/.test(l));
 

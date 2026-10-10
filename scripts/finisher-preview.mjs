@@ -1,4 +1,4 @@
-// Finishers review harness. Drives the REAL scene (src/scene.ts — selection, gore, camera dolly) with REAL simulated kills and
+// Finishers review harness. Drives the REAL scene (src/fight/scene.ts — selection, gore, camera dolly) with REAL simulated kills and
 // captures the death window at phone widths in all three blood modes. Never part of the build or the runtime.
 //   node scripts/finisher-preview.mjs --label finishers-v2
 //
@@ -33,7 +33,7 @@ const order = option('only') ? option('only').split(',') : ['splitCrown', 'decap
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
 <body><canvas id="world"></canvas><script type="module">
-import { createScene } from '/src/scene.ts';
+import { createScene } from '/src/fight/scene.ts';
 import { initialPractice, stepPractice } from '/src/fight/combat.ts';
 import { selectFinisher } from '/src/fight/finishers.ts';
 import { OPPONENTS } from '/src/fight/moves.ts';
@@ -232,7 +232,7 @@ window.__finisher = {
   },
   count(which) { return windows[which]?.frames.length ?? 0; },
   // Finisher-complete duration (Lead brief 2026-09-22): step this window's REAL frames from its first tick and report the
-  // frame at which src/scene.ts first says the ceremony has finished playing ('finishPhase().complete'), counted from the
+  // frame at which src/fight/scene.ts first says the ceremony has finished playing ('finishPhase().complete'), counted from the
   // Killed event. If the captured window runs out first the last frame is held — 'practice.finish' holds until rematch, so
   // the presentation clock keeps running exactly as it does in the game — up to a 12 s cap. Nothing here guesses: the number
   // is where the scene's own latch fired. Rendering is suppressed ('present = false') so this costs no compositor frames.
@@ -397,7 +397,7 @@ try {
     await page.context().close();
   }
   // Finisher-complete durations (Lead brief 2026-09-22, Web's loot panel). Each requested outcome is played frame by frame on
-  // the production path and we record where src/scene.ts's own `finishPhase().complete` first fires, counted from the Killed
+  // the production path and we record where src/fight/scene.ts's own `finishPhase().complete` first fires, counted from the Killed
   // event. This is the measurement behind the FINISHER_SECONDS table in src/fight/finishers.ts — one number per finisher, measured,
   // never one constant for all of them, and never a guessed delay. The runtime keys on the event; the table exists so Web can
   // budget its layout against a real figure and so a drift in the ceremony shows up here as a changed number.

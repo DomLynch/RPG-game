@@ -48,7 +48,6 @@ const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', '
 
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
-  "10 | P1/P2 | origins/preview/pit-duel.ts -> scene",
 ];
 const KNOWN_COPIES: readonly string[] = [
 ];
@@ -118,8 +117,8 @@ test('the checker sees static, re-export and dynamic imports, and passes the doo
   assert.deepEqual(v.unclassified, ['origins/a.ts -> mystery']);
 });
 
-// The goal itself. It FAILS today (reported as TODO so CI stays green) and turns green when the last pinned line is gone; then delete `todo` so it can never fail again unseen.
-test('K7 EXIT: nothing is pinned, every parity row reaches the engine through src/fight only', { todo: 'K7: shrink KNOWN and KNOWN_COPIES to empty (rows 1-16 and 20)' }, () => {
+// The goal itself: every parity row reaches the engine through src/fight only. KNOWN and KNOWN_COPIES are empty; it can never fail unseen.
+test('K7 EXIT: nothing is pinned, every parity row reaches the engine through src/fight only', () => {
   assert.deepEqual(KNOWN, [], `${KNOWN.length} direct engine imports left`);
   assert.deepEqual(KNOWN_COPIES, [], `${KNOWN_COPIES.length} zone-own copies left`);
 });
