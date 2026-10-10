@@ -71,6 +71,14 @@ test('deploy.sh calls both steps, before the gate and the rows they replace (eac
   assert.ok(at(/^vps_receipts_apply\b/) < at(/^\s*(?:[A-Z_]+=\S*\s+)*node scripts\/release-checks\.mjs/));
 });
 
+test('deploy.sh prints one Published summary: merge-to-live minutes and the row placement counts, right after the Published line', () => {
+  const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
+  const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
+  const plan = at(/^placement_line=\$\(node scripts\/lib\/row-placement\.mjs line /), published = at(/^printf '\\nPublished %s\\n' "\$revision"/), summary = at(/^echo "Published summary: merge to live /);
+  assert.ok(plan < published && published < summary && summary - published <= 5, 'summary follows the Published line');
+  assert.match(lines[summary], /\$\{placement_line\/\/\$'\\n'\/ \| \}/, 'carries the placement line (Mac/HF/T4/CPU counts)');
+});
+
 test('rows are combined across shards when no single shard holds them all', () => {
   const all: number[] = trustedFromVps(receipt(), tree, commands, source, sums, JOBS, TREES);
   assert.ok(all.length >= 3);
