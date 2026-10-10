@@ -43,9 +43,9 @@ rc=${PIPESTATUS[0]}
 say "EXIT $rc"
 echo "command wall $(( $(date +%s) - c0 ))s"
 
-# Back to the caller: every file under artifacts/ the command wrote (except the built origins-preview site the zone scripts build there), as one gzip tar in the log (base64, capped).
+# Back to the caller: every file under artifacts/ the command wrote (images, json, text and short clips under 4 MB each; not the built sites the scripts build there), as one gzip tar in the log (base64, capped).
 if [[ -d artifacts ]]; then
-  find artifacts -type f -newer /tmp/run.start -not -path 'artifacts/origins-preview/*' -print0 | tar czf /tmp/artifacts.tgz --null -T - 2>/dev/null
+  find artifacts -type f -newer /tmp/run.start -not -path 'artifacts/origins-preview/*' -size -4M \( -name '*.png' -o -name '*.jpg' -o -name '*.webp' -o -name '*.json' -o -name '*.txt' -o -name '*.log' -o -name '*.md' -o -name '*.mp4' \) -print0 | tar czf /tmp/artifacts.tgz --null -T - 2>/dev/null
   bytes=$(stat -c %s /tmp/artifacts.tgz 2>/dev/null || echo 0)
   if [[ "$bytes" -gt 0 && "$bytes" -le $(( ${ARTIFACT_MAX_MB:-24} * 1048576 )) ]]; then say "ARTIFACTS BEGIN bytes=$bytes"; base64 -w 76 /tmp/artifacts.tgz; say "ARTIFACTS END"
   elif [[ "$bytes" -gt 0 ]]; then say "ARTIFACTS TOO_LARGE bytes=$bytes"; fi
