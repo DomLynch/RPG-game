@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-10 14:40 (+04) — ENGINE DONE. READ FIRST, then memory project_handoff_2026-10-10_1338 (updates at its foot)
+**LIVE = AD a6d408cb4** (my curl 14:29; /, /zone1/, /zone/2/ 200). Today after AA: AB a016dffd8 (14:17, 29 min; row 52 failed at width 2 / load 30, passed alone) → AD (14:29, 11 min, width 1, 0 retried). AC #2110 re-cut to #2108 alone and folded into AD (AD contains AC, merge-base checked).
+**Engine DONE:** K7 EXIT green on trunk a6d408cb4 (my VPS run of tests/k7-engine-parity.test.ts: 7 pass / 0 fail / 0 todo; KNOWN + KNOWN_COPIES empty; scene/match/mobkit/pack in src/fight). Writer reinstalled on AD (my ssh 14:30: /opt/frankendom-origins/a6d408cb, active 14:29:55, NRestarts 0); Backend's +5 receipt owed.
+**Closed:** #2107, #2109 (shipped in AD, stacked bases), #2111 dry run. Rulings: AD stacked on AC may pre-run CI and keep its PASS (Strategy amended); Mac rows default width 1; tree-hash carry rule for the Auditor's PASS.
+**Next = AE at 15:00** after the hooks window (#116 merged, #117 pending Auditor, #113 yes from Lead + Strategy): #2102 K6 @f5aee98ee (Auditor reviewing), #2113 pipeline, #2067 + #2097 docs. #2065 out (1 failing check).
+**Owed:** row 44 fix PR from Characters by 15:00 (simWait, cap + mutation proof); row 52 cause from Web by 17:00; Combat Zone 2 pack balance proposal by 16:30; Backend writer-boot release row PR by 16:30; Hooks Dev's spill proof (one log line per tier) to the COO. 18:30 cron armed (session-only).
+
 ## 2026-10-10 13:38 (+04) — HANDOFF before /clear. READ FIRST, then memory project_handoff_2026-10-10_1338 + feedback_batch_rules_2026-10-10 + project_engine_tonight_2026-10-10
 **LIVE = AA 8e9813ccc** (my curl 13:15; /, /zone1/, /zone/2/ 200). Today: X 4a815ecc8 (11:22) → Y 64f0ce380 (12:21) → Z 1fd1aa32f (13:04) → AA (13:14, deploy 9 min). **Writer HELD on Z 1fd1aa32** (I checked: active): AA's reinstall crash-looped (mobs.ts SPEEDS via src/fight/index.ts pulled 'three'; /origins 502 ~15 s; Backend VPS rolled back). Writer catches up at AC via #2108, only after `bash scripts/origins-writer-boot-check.sh <sha>` prints BOOT OK.
 **AB = #2104 release-AB @a016dffd8** (M4 #2089 → #2091 gear → #2098 → #2099 K8 → Web stack #2083→#2086→#2088). Auditor PASS pages-only; CI 17 pending at 13:36 (GitHub slow handing out runners, only 14 jobs running). Deploy launches on green; NO writer reinstall from AB (Backend confirmed "held").
