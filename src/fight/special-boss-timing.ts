@@ -1,6 +1,6 @@
 // The boss specials' own presentation timing (Multi Chars; special-fx-boss.ts draws them). Pure and three-free like
 // special-timing.ts beside it: ticks at the sim's 60 Hz from the SpecialStarted tick, the strike landing at LAND_AT (the one 120 of RULES.special.windup).
-import type { OpponentId } from './roster.ts';
+import type { OpponentId } from '../roster.ts';
 import { LAND_AT } from './special-timing.ts';
 
 export type BossKind = 'mist' | 'echo' | 'price' | 'flies' | 'stain' | 'breath' | 'sling' | 'haze' | 'storm';   // the ?special= ids special-fx-boss.ts draws

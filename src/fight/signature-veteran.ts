@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { defendedBy, isHeavy, OPPONENT_SIDE, registerSignature, type SignatureEffect, type SignatureFrame } from './signature.ts';
-import { type WoundHit } from './fight/gore.ts';
-import { weaponOf } from './fight/moves.ts';
-import type { CombatEvent } from './fight/duel.ts';
+import { type WoundHit } from './gore.ts';
+import { weaponOf } from './moves.ts';
+import type { CombatEvent } from './duel.ts';
 
 // The Veteran's signature (brief row 1, variant A): Battle Scars. A heavy (or any cut past the light cut's 14) landed ON him scores a fresh
 // gouge across his armour at the site the sim named: bright metal through the bronze patina, laid along the line the blade travelled

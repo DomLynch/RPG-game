@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { createClassSpecial, isClassCast } from '../src/special-fx-class.ts';
-import { BACKS, BACK_PACES, classTravel, STEP_BEATS, STEP_WINDOW, walkOffset, type ClassSpecial } from '../src/special-class-timing.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { LAND_AT, advanceCast } from '../src/special-timing.ts';
+import { createClassSpecial, isClassCast } from '../src/fight/special-fx-class.ts';
+import { BACKS, BACK_PACES, classTravel, STEP_BEATS, STEP_WINDOW, walkOffset, type ClassSpecial } from '../src/fight/special-class-timing.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { LAND_AT, advanceCast } from '../src/fight/special-timing.ts';
 import { RULES } from '../src/fight/moves.ts';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 
@@ -83,7 +83,7 @@ test('the three-step walk: the rig gaits only through the three step windows; th
 });
 
 test('the class specials ship lazily: the registry reaches the effect only by dynamic import', () => {
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-class\.ts'\)/);
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-class\.ts'\)/);
   assert.ok(!readdirSync('src').some((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-fx-class\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8'))), 'nothing imports it statically');
 });
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPECIAL_TESTS, type SpecialTest } from '../src/special-look.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
+import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { SPECIAL_LABELS, SPECIAL_BANDS, specialBand, sparringSpecialOptions, defaultSparringSpecial, resolveSparringPreview, playerSparringChoice } from '../src/sparring-specials.ts';
 import { sparringLink } from '../src/sparring.ts';
 import { Match } from '../src/match.ts';

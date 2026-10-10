@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import * as legion from '../src/special-fx-legion.ts';
-import * as executioner from '../src/special-fx-executioner.ts';
-import * as nightborn from '../src/special-fx-nightborn.ts';
-import { disposeSpecialGroup } from '../src/special-presentation.ts';
+import * as legion from '../src/fight/special-fx-legion.ts';
+import * as executioner from '../src/fight/special-fx-executioner.ts';
+import * as nightborn from '../src/fight/special-fx-nightborn.ts';
+import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import type { OpponentId } from '../src/roster.ts';
-import type { SpecialFx } from '../src/special-modes.ts';
+import type { SpecialFx } from '../src/fight/special-modes.ts';
 
 type Factory = (scene: THREE.Scene, opponent: OpponentId, exposure: number) => SpecialFx;
 const cases = [

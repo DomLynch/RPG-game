@@ -84,8 +84,8 @@ test('specials: a fight with them records the flag (the current version: a live 
 
 // The registry (special-modes.ts): a lane adds one entry, the scene has no per-special branch. Pinned: the scene names no special id and reads the registry.
 import { readFileSync } from 'node:fs';
-import { gait, SPECIAL_MODES, type SpecialMode } from '../src/special-modes.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
+import { gait, SPECIAL_MODES, type SpecialMode } from '../src/fight/special-modes.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 test('the special registry: every entry names a page id, the scene branches on none of them', () => {
   for (const id of Object.keys(SPECIAL_MODES)) assert.ok(Object.hasOwn(SPECIAL_TESTS, id), `${id} is a ?special= page`);
   assert.ok(SPECIAL_MODES.set && SPECIAL_MODES.shield && !SPECIAL_MODES.hades, 'Red Wind and Shield Quake have entries; Hades draws as the default');

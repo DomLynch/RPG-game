@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './fight/duel.ts';
-import type { OpponentId } from './roster.ts';
+import type { CombatEvent, Fighter } from './duel.ts';
+import type { OpponentId } from '../roster.ts';
 import { advanceCast, shadowPhase, type Cast } from './special-timing.ts';
-import { hash } from './fight/fx-math.ts';
+import { hash } from './fx-math.ts';
 
 // Hades' Shadow, the in-game effect (Finishers, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md; timing agreed with Combat in
 // special-timing.ts; 2026-09-30, Dom: "the black cloud is enough", the cloud is the whole move). Presentation only: it reads the sim's special events and the
