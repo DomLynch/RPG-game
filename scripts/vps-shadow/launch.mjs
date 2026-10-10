@@ -42,6 +42,17 @@ export const receiptFrom = (logs, kind) => {
   try { return line ? JSON.parse(line.slice(`RECEIPT ${kind} `.length)) : null; } catch { return null; }
 };
 
+// A unit receipt is tree-bound, so only a batch tree can use one; a unit job per PR push was 5 of the 6 jobs running at once on 2026-10-10 (HF host load 470, timing
+// tests flaked). `launch.mjs unit <sha>` therefore takes a sha that is on trunk or is this checkout's HEAD (the deploy checkout sits on the batch tree), nothing else.
+// LAUNCH_UNIT_ANY=1 forces it. `git` is injectable for the test: (...args) => { status, stdout }.
+export function unitShaRefusal(sha, git = (...args) => spawnSync('git', args, { encoding: 'utf8', timeout: 30_000 }), trunk = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1', force = process.env.LAUNCH_UNIT_ANY === '1') {
+  if (force) return null;
+  if (!/^[0-9a-f]{40}$/.test(sha || '')) return `a unit job needs the full 40-hex sha, got "${sha}"`;
+  if (git('rev-parse', 'HEAD').stdout?.trim() === sha) return null;
+  if (git('merge-base', '--is-ancestor', sha, `origin/${trunk}`).status === 0) return null;
+  return `refusing a unit job for ${sha}: it is not on origin/${trunk} and not this checkout's HEAD. A unit receipt is tree-bound, so only a batch tree can use one (LAUNCH_UNIT_ANY=1 forces it)`;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [cmd, a, b, c] = process.argv.slice(2);
   try {
@@ -65,6 +76,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const file = `${dir}/${unit ? 'unit.json' : `rows-${a}.json`}`; writeFileSync(file, JSON.stringify(receipt, null, 1) + '\n');
       console.log(file);
     } else {
+      if (cmd === 'unit') { const refusal = unitShaRefusal(a); if (refusal) throw new Error(refusal); }
       const args = hfArgs(cmd, a, b, c, process.argv[6]);
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {
