@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import type { CombatEvent } from './fight/duel.ts';
-import { surfaceHit, woundSite } from './fight/gore.ts';
+import type { CombatEvent } from './duel.ts';
+import { surfaceHit, woundSite } from './gore.ts';
 import { heavyHitBy, registerSignature, type SignatureFrame } from './signature.ts';
 
 // The Pitborn's signature A, Butcher's Wake (docs/briefs/signature-effects.md row 2): his landed heavy drags a thick curved sheet of blood
@@ -47,7 +47,7 @@ function build(root: THREE.Object3D) {
   dropMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), material(), WAKE.sheets * WAKE.drops);
   dropMesh.frustumCulled = false; dropMesh.count = 0; top.add(dropMesh);
   drops = Array.from({ length: WAKE.sheets * WAKE.drops }, () => ({ position: new THREE.Vector3(), velocity: new THREE.Vector3(), size: 0, live: false, spot: false }));
-  if (spotMap === undefined) spotMap = typeof document === 'undefined' ? null : new THREE.TextureLoader().load(new URL('./assets/blood/floor-pool-b.png', import.meta.url).href);
+  if (spotMap === undefined) spotMap = typeof document === 'undefined' ? null : new THREE.TextureLoader().load(new URL('../assets/blood/floor-pool-b.png', import.meta.url).href);
 }
 
 // Where the blade leaves the wound, in the struck fighter's frame (+x his left, +z his front). His victim is always the player, and the fight

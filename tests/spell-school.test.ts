@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { SCHOOLS, SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from '../src/spell-school.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 
 test('the flag is ?look=schools only, alone or in a list', () => {
   assert.equal(schoolsFlag(''), true); assert.equal(schoolsStrength(''), 'soft', 'soft is the default');

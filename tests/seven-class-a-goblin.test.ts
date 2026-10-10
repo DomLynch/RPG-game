@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { initialDuel, withSpecials, stepDuel, idleIntent } from '../src/fight/duel.ts';
-import * as goblin from '../src/special-fx-goblin.ts';
-import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/special-timing.ts';
-import { disposeSpecialGroup } from '../src/special-presentation.ts';
+import * as goblin from '../src/fight/special-fx-goblin.ts';
+import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/fight/special-timing.ts';
+import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 
 const fighters = (special = 0, skill = 'jab') => [{ special: 0 }, { special, skill }] as unknown as readonly [Fighter, Fighter];
 const start = (tick = 0, move = 'skill_jab', actor = 1): CombatEvent => ({ type: 'SpecialStarted', tick, move, actor }) as CombatEvent;

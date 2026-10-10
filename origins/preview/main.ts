@@ -7,7 +7,7 @@ import { phoneTier, pixelCap } from '../../src/quality.ts';
 import { LEGEND_OPPONENTS } from '../../src/fight/index.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
-import { SPEEDS } from '../../src/fight/speeds.ts';
+import { SPEEDS } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
 import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
@@ -34,7 +34,7 @@ import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createMeters, createWorldCombat, createZoneFx } from '../../src/fight/index.ts';
+import { ME, createMeters, createWorldCombat, createWoundFx, createZoneFx, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
@@ -307,7 +307,7 @@ function step(dt: number) {
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
-  if (mobs) { mobs.update(dt, state, cardId); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
+  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -556,7 +556,7 @@ function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
   veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
   document.body.append(veil);
-  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; camSnap = true; wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; camSnap = true; woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
 async function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
@@ -572,8 +572,13 @@ async function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
-const zoneFx = createZoneFx({ scene, camera });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
+let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
+const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
+const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const wc = createWorldCombat({
+  onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
+  onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
+  onCreatureGone: (id) => woundFx?.forget(id),
   mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: onCombatEvent(spawnNet, ME),
   onHeroHit: () => meters.flash(),
 });
@@ -586,7 +591,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
-  mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
+  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
-import { SIGNATURE_CAPS, SIGNATURES, createSignatureMarks, createSignatures, defendedBy, heavyHitBy, hitBy, hitOn, pickSignature, registerSignature, resolveSignature, SHIPPED, signatureMode, type SignatureEffect } from '../src/signature.ts';
+import { SIGNATURE_CAPS, SIGNATURES, createSignatureMarks, createSignatures, defendedBy, heavyHitBy, hitBy, hitOn, pickSignature, registerSignature, resolveSignature, SHIPPED, signatureMode, type SignatureEffect } from '../src/fight/signature.ts';
 
 const hit = (actor: 0 | 1, move: string): CombatEvent => ({ tick: 1, type: 'Hit', actor, target: actor ? 0 : 1, move: move as CombatEvent['move'], location: 'torso', heading: 0 });
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];
@@ -79,7 +79,7 @@ test('the frame hook fires only the chosen effect, only on its events, and stand
 });
 
 test('Dwarf Hammer Stamp: a landed heavy by the Dwarf stamps the struck body once; a light, a kick or a heavy by the player does not', async () => {
-  const { STAMP } = await import('../src/signature-dwarf.ts');
+  const { STAMP } = await import('../src/fight/signature-dwarf.ts');
   const { initialDuel } = await import('../src/fight/duel.ts');
   const { OPPONENTS } = await import('../src/fight/moves.ts');
   const duel = initialDuel(OPPONENTS.dwarf);

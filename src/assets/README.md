@@ -330,7 +330,7 @@ charge 1.2 s (cavalry hooves on sand quickening over 0.95 s, arrival at 0.95 s, 
 −24 / −23 / −25 LUFS-M, under the gate's −19 because each sits under a hit. 4.5–11 kB opus, 6.8–19.7 kB m4a. `src/fight/sound/special.ts`:
 `loadSpecial(cue, context)` and `playSpecial` (the gate's player, same fade on a skip).
 Nightborn specials (2026-10-01, Strategy): `redwind` (Set, L8), `hades` (L9), `nyx` (L10) in the same folder and script. All three run on the one
-cast clock (`src/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
+cast clock (`src/fight/special-timing.ts`): they start with SpecialStarted and the payoff (sand burst / cloud landing / veil release) sits on the strike at
 1.983 s (119 ticks); the cue then carries the 0.75 s recovery. Phone-band −25 LUFS-M each, original synthesis, no licence to carry.
 Goblin (Reynard's `fistful`, Hermes' `gone`, Loki's `liars`) and Pitborn (Antaeus' `cracking`, Surtr's `ashfall`, Typhon's `windwall`), the ★ picks of
 `docs/briefs/specials/boss-specials-proposals-2026-10-01.md`: same clock and shape, one cue per move from the cast to the tail (2.4–3.3 s,

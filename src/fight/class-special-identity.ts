@@ -1,4 +1,4 @@
-import type { OpponentId } from './roster.ts';
+import type { OpponentId } from '../roster.ts';
 
 // Approved presentation identities; normal A activation remains gated in Match.
 const CLASS_SPECIALS = {

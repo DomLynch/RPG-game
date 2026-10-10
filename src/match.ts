@@ -36,9 +36,9 @@ import { underRecord } from './fight/detmath.ts';
 import { FIRST_STAB_VERSION, STAB_ON, setStab } from './fight/stab-rule.ts';
 import { FIRST_LATE_NOTICE_VERSION, LATE_NOTICE, PLAY_SCALE, playScaleFor, setLateNotice, setPlayScale } from './fight/play-radius.ts';
 import { sparringSpecialDuel, validateSparringSpecialSelection, type SparringSpecialSelection } from './sparring-special-runtime.ts';
-import { bossSpecialFor } from './special-identity.ts';
-import { classSpecialFor } from './class-special-identity.ts';
-import type { SpecialTest } from './special-look.ts';
+import { bossSpecialFor } from './fight/special-identity.ts';
+import { classSpecialFor } from './fight/class-special-identity.ts';
+import type { SpecialTest } from './fight/special-look.ts';
 
 const CLASS_B_FROM = 1 + RANK_STEPS * TITLES.indexOf('Veteran');   // rank 4, level 16 in the canonical career ladder
 

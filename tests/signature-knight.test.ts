@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
-import { SIGNATURES } from '../src/signature.ts';
-import { rivetBurstA } from '../src/signature-knight.ts';
+import { SIGNATURES } from '../src/fight/signature.ts';
+import { rivetBurstA } from '../src/fight/signature-knight.ts';
 
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];
 const hit = (target: 0 | 1, move: string, damage: number): CombatEvent => ({ tick: 1, type: 'Hit', actor: target ? 0 : 1, target, move: move as CombatEvent['move'], damage, location: 'torso', heading: 0 });
@@ -22,7 +22,7 @@ test('the Rivet Burst answers a substantial blow landed on the Knight, and nothi
 });
 
 test('B (dark dent) is the Knight\'s shipped signature: On resolves to it; A is built but unregistered, on the same trigger', async () => {
-  const { pickSignature } = await import('../src/signature.ts');
+  const { pickSignature } = await import('../src/fight/signature.ts');
   assert.deepEqual(SIGNATURES.knight?.map((e) => e.variant), ['B']);
   assert.equal(pickSignature(SIGNATURES.knight, 'on')?.name, 'Rivet Burst (dark dent)');
   assert.equal(pickSignature(SIGNATURES.knight, 'A'), null);
