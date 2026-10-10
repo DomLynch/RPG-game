@@ -2,7 +2,7 @@
 // and shows the guest's link; `?duel=<token>` joins that room. Then the transport (direct first, the relay when no direct path opens),
 // the handshake and the fight (pvp.ts), and one duel_metrics row per side when the duel ends or the page hides.
 // main.ts reaches this file only through a dynamic import behind `?duel=`: a page without it never loads any of src/net.
-import { idleIntent } from '../duel.ts';
+import { idleIntent } from '../fight/duel.ts';
 import { PvpDuel, SILENCE, type DuelResult } from './pvp.ts';
 import type { Kit, NetMetrics } from './rollback.ts';
 import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';

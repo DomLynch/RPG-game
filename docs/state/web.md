@@ -432,7 +432,7 @@ commit fails once and succeeds on retry. (v) Scratch capture scripts go in `arti
 
 **Pick up: the fight-HUD brief (Dom described it on his Centurion screenshot; Strategy + Lead ruled, NO mockups, ONE 375-wide phone
 still as the receipt, to Lead then Strategy).** Branch off trunk AFTER #664 merges (same rank row); if started earlier, rebase.
-(a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/combat.ts:147–158).
+(a) Keep the small white event line (`#combat-status`, e.g. "Stop-hit thrust hit · −17", text from src/fight/combat.ts:147–158).
     REMOVE the larger red-background banner: that is `#combat-status[data-threat=true]` (style.css ~755 desktop, ~1049 phone:
     `background: #542c23cc`, border-left, padding; hud.ts:93 sets data-threat). Confirm with Lead whether only the red styling goes
     or the "Incoming strike…" threat text too. ANSWERED (Lead, 2026-09-24): BOTH go — the red-background styling AND the
@@ -548,12 +548,12 @@ Still to do: a real fight, the kill screen and the journal at 375×812.
 - #521 (tap-to-take, Undo, gold skin) merged earlier and is live.
 
 **Open.**
-- Deliverable 4 (paperdoll ATK/RES) — see the Open list below; check whether `src/gear-stats.ts` and tiered LootIds are on trunk now.
+- Deliverable 4 (paperdoll ATK/RES) — see the Open list below; check whether `src/fight/gear-stats.ts` and tiered LootIds are on trunk now.
 - Hold between `complete` and the loot panel: none until Dom names a value (one predicate must gate both the hush and the offer).
 - Auditer's grade-C journal fixes: still behind the phone pass.
 
 **Gotchas (new today).**
-- (j) `src/record.ts` is in `tests/record-version-guard.test.ts` SIM_FILES: ANY edit there reads as a sim change. Display helpers
+- (j) `src/fight/record.ts` is in `tests/record-version-guard.test.ts` SIM_FILES: ANY edit there reads as a sim change. Display helpers
   over the record go in their own module (`src/record-header.ts`). Never bump RECORD_VERSION or re-pin the digest for a non-sim edit.
 - (k) `tests/graphics.test.ts` boots main.ts with `runInNewContext` and a hand-written `modules` map: a NEW module main.ts imports
   must be added there, or the page gets `{}` and fails silently (console output from the page is not visible either).

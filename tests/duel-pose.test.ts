@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aim, distance, initialDuel, roundPose } from '../src/duel.ts';
-import { initialState, initialTarget } from '../src/sim.ts';
-import { OPPONENTS } from '../src/moves.ts';
-import { initialPractice } from '../src/combat.ts';
+import { aim, distance, initialDuel, roundPose } from '../src/fight/duel.ts';
+import { initialState, initialTarget } from '../src/fight/sim.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
+import { initialPractice } from '../src/fight/combat.ts';
 
 const marks = { hero: { x: initialState().x, z: initialState().z }, foe: { x: initialTarget().x, z: initialTarget().z }, heroFacing: initialState().heading };
 

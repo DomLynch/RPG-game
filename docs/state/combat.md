@@ -568,7 +568,7 @@ sim has 0 same-beat trades in 926 swing-start casts).
 
 **Gotcha:** 18+ parallel shards took the Mac to load 79 and stalled Deploy's browser rows (14:17). Max 4 shards, only after FREE.
 
-**Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
+**Gotchas:** (1) Any edit to src/fight/ai.ts or src/fight/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
 (2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
 
 ## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
@@ -716,12 +716,12 @@ the 3 recorded below.
 the approach stop. Read it as refinement, not invalidation. The `cramped` branch was NOT redundant and stays.
 
 **Blast radius, narrower than first reported.** Gated on `guardShare === 0`, and `guard: 0` appears on exactly three lines of
-`src/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
+`src/fight/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
 this. But the Goblin is the opponent in many rows, so the whole table was re-scanned, not the knife's.
 
 **Receipts.** `quality:stop` 468 tests / 466 pass / 0 fail (2 skipped). `test:slow` 94/94. `record-replay --write` then verify PASS
 (veteran-walk-in 1677 died, veteran-scripted 1452 died, both digests match). RECORD_VERSION 5 -> 6; SIM_DIGEST `713efc17…` ->
-`86e61b16…`, PINNED_FOR_VERSION 6 — **read AFTER the bump**, because `src/record.ts` is inside its own hashed set.
+`86e61b16…`, PINNED_FOR_VERSION 6 — **read AFTER the bump**, because `src/fight/record.ts` is inside its own hashed set.
 `READABLE_VERSIONS` deliberately untouched: widening the reader belongs with Stats' v5 decoder branch (#503), not this writer bump.
 `knife vs goblin hard: kick only untouched` 3/24 removed from `KNOWN_UNFAIR`; `knife` added to `PLAYER_WEAPONS_OFFERED`, now
 longsword / warhammer / trident / scythe / knife.
@@ -773,7 +773,7 @@ Even with every commitment knob at its limit the fight does not resolve. `reacti
 profile change that half-moves it would be tuning toward a pin without fixing the defect. The fix has to be the approach/in-reach
 disagreement itself in ai.ts — which is shared by every opponent, so it needs the full battery across all weapons.
 
-**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/ai.ts`.** The profile-only prescription is
+**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/fight/ai.ts`.** The profile-only prescription is
 superseded by measurement. Lead's reading, and he is accountable for it: GAME_SPEC's "profiles move reaction/prediction/aggression,
 never data" governs PROFILES; ai.ts approach logic is neither a profile nor weapon data, it is the code profiles feed, so fixing a
 logic defect there is in scope.
@@ -896,7 +896,7 @@ kick-only dies 24/24, all 24 knife fights stalemate at the tick limit). Weapons'
 (estoc/goblin hard ×2, scythe/goblin normal) — **unsigned by Combat**: re-deriving them needs the box, and a signature on someone else's
 numbers is worth nothing.
 
-## Tuning history moved out of src/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
+## Tuning history moved out of src/fight/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
 The comments in moves.ts now keep only why each current rule exists; the dated experiments and probe numbers that set them live here.
 - Anti-turtling band form (owner 2026-09-21): the "no regen while retreating anywhere" form failed 3 of the 24 rung identity pins (a charged-heavy spammer beat the Veteran 13/24, goblin fights ran past 45 s) and halved the hero brain's Veteran-normal wins — the rungs were tuned to recover by backing off. `RULES.retreat.wallOnly: false` restores it.
 - Trident: LIVE since slice V (combat review 2026-09-16) — initialDuel gives the Veteran the trident table; the shaft-guard and thrust-opener rules landed in the same slice.
@@ -918,7 +918,7 @@ Problem: on trunk 3a11413 the hero brain (`artifacts/ladder-levels.ts`, 24 seeds
 Method: nine single-knob experiments per rung. Nightborn: only `lapse` moves him (.25 → 10, .3 → 10, .35 → 9; `read` .7 → 5). Dwarf: only `read` moves him DOWN (.8 → 8, .9 → 3); lapse .2 → 12, parry .3 → 10, reaction 10 → 17, reaction 18 → 18, accuracy .9 + pressure .4 → 14, aggression .65 + lapse .4 → 14, read .9 + discipline 30 → 7, discipline 30 → 13 all make him easier.
 Shipped: Nightborn `lapse` .15 → .3; Dwarf `read` .7 → .8 (own commit). Ladder normal 15/13/5/10/6/8 (was 15/13/5/5/6/10 on 2c0fe0f), hard rows unchanged 6/11/2/1/1/11.
 NOT shipped — the Goblin, handed to Combat as a slice with the data: only `reaction` (+`accuracy`) moves the hero brain against him, and every reaction value tried fails a Combat-signed pin from one side or the other. 13/.7 (hero 8): opponents.test.ts 20/20 but the player-weapons KNOWN_UNFAIR snapshot changes (knife/goblin-normal "kick only untouched 3/24" clears; new knife "thrust from range wins 14/24", estoc "thrust from range untouched 6/24", scythe "thrust from range wins 24/24" + "untouched 3/24"; estoc thrust 23 → 24) and the seed-5 knife light-spam record fixture no longer finishes in 3600 ticks with either weapon. 12/.7 (hero 9): weapon rows smaller (estoc 24/24 + untouched 4/24, scythe 24/24; fixture finishes at tick 2538) but the identity pins fail ("read the feint": light spam 1 ≥ the answer's 1; AI-vs-AI median 52.9 s over the 25–45 s band). 12/.75 → 7, 11/.7 → 10, 13/.75 adds a trident row (an offered weapon). Accuracy alone does nothing: 10/.7 → 5, 10/.65 → 4 (AI-vs-AI median 46.4 s), 10/.6 → 4. Reading: a slower Goblin lets a poker park at range and drags AI-vs-AI fights; his hero-brain difficulty is his approach logic against a reading player, which is Combat's lever, not a profile knob.
-Kill links: `RECORD_VERSION` 2 → 3 in src/record.ts and the decoder now refuses every earlier version (Lead's decision, 02:06): #371 and this retune changed how fights play out, so a link recorded before them would replay a different fight; a version refusal is the honest answer. tests/fixtures/fight-records.json re-recorded (same ticks/outcomes, new encoding); scripts/kill-link-check.mjs (gate row 30 since #332) passes 36 fights with the refusal in place; its missing weapon field, which crashed the script on heads without #332, was fixed by #332 itself minutes before this branch tried to.
+Kill links: `RECORD_VERSION` 2 → 3 in src/fight/record.ts and the decoder now refuses every earlier version (Lead's decision, 02:06): #371 and this retune changed how fights play out, so a link recorded before them would replay a different fight; a version refusal is the honest answer. tests/fixtures/fight-records.json re-recorded (same ticks/outcomes, new encoding); scripts/kill-link-check.mjs (gate row 30 since #332) passes 36 fights with the refusal in place; its missing weapon field, which crashed the script on heads without #332, was fixed by #332 itself minutes before this branch tried to.
 Gates: opponents.test.ts identity/fairness pins 20/20 on the 3-rung candidate that included the Goblin, so Nightborn and Dwarf alone cannot fail them; the over-cap weapon table on 2c0fe0f + all three rungs changed only Goblin rows, so Nightborn and Dwarf add none. PR receipts: full ladder, pins, `npm test`, `npm run test:slow` on 2c0fe0f + these two commits, and `npm run quality:stop` on trunk + these two commits. Remaining validation: humans have not played these rungs; the 24-seed hero brain is a proxy for a reading player, not a phone player; Combat's review is the sign-off.
 
 ## Anti-turtling — combat half (sim rules + warden), 2026-09-21

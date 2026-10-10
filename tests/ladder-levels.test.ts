@@ -3,10 +3,10 @@
 // identity holds, the tick counts round, and the ladder's ceiling agrees with the career's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { READ } from '../src/ai.ts';
+import { READ } from '../src/fight/ai.ts';
 import { MAX_LEVEL } from '../src/career.ts';
 import { LADDER } from '../src/ladder.ts';
-import { LEVELS, LEVEL_ANCHORS, LOADOUT_FROM, LONGSWORD, NOVICE_BODY, OPPONENTS, POISE_FULL_AT, opponentAt, profileAt, type AiProfile, type Opponent } from '../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, LOADOUT_FROM, LONGSWORD, NOVICE_BODY, OPPONENTS, POISE_FULL_AT, opponentAt, profileAt, type AiProfile, type Opponent } from '../src/fight/moves.ts';
 // A re-kitted opponent (moves.ts LOADOUT_FROM: the Centurion's gladius + scutum from level 6, RV18) is his roster body with the kit's weapon and guard on.
 const kitted = (o: Opponent, l: number): Opponent => { const k = LOADOUT_FROM[o.id]; return k && l >= k.from ? { ...o, weapon: k.weapon, guard: { ...o.guard, ...k.guard } } : o; };
 // Identity where nothing is re-kitted (an accidental clone of an unkitted opponent is still caught); structural equality only for a re-kit (Auditer, #942).

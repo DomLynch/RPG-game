@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter, Side } from './duel.ts';
+import type { CombatEvent, Fighter, Side } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { HEAVY_CLASS } from './clash-sparks.ts';
 import { surfaceHit, woundSite, type WoundHit } from './fight/gore.ts';

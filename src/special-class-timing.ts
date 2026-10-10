@@ -1,5 +1,5 @@
-import { RULES } from './moves.ts';
-import type { Fighter } from './duel.ts';
+import { RULES } from './fight/moves.ts';
+import type { Fighter } from './fight/duel.ts';
 import { LAND_AT } from './special-timing.ts';
 import { smooth } from './fx-math.ts';
 

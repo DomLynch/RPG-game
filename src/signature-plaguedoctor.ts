@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { weaponOf, type Direction } from './moves.ts';
+import { weaponOf, type Direction } from './fight/moves.ts';
 import { surfaceHit } from './fight/gore.ts';
 import { hitBy, registerSignature, type MarkLook, type MarkSite, type SignatureFrame } from './signature.ts';
-import type { CombatEvent, Side } from './duel.ts';
+import type { CombatEvent, Side } from './fight/duel.ts';
 
 // The Plague Doctor's signature, A: Rot Bloom (docs/briefs/signature-effects.md row 9). A wound he opens grows a dark branching stain a
 // hand's width round the impact, then stops: corruption under the skin. No cloud, no damage over time, nothing the sim sees. The growth is

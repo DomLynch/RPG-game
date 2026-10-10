@@ -1,9 +1,9 @@
 // The header of a kill link this build refuses (a retired record version): who fought, with which weapon, and how it ended — so the
 // viewer page can say what the fight WAS without replaying a different one. Header only: the intents are never read. Kept out of
-// src/record.ts on purpose: that file is in tests/record-version-guard.test.ts's sim digest, and a display helper is not a sim change.
-// The header layout is src/record.ts's "binary layout" comment; every version since 2 carries the weapon after the opponent (1 was
+// src/fight/record.ts on purpose: that file is in tests/record-version-guard.test.ts's sim digest, and a display helper is not a sim change.
+// The header layout is src/fight/record.ts's "binary layout" comment; every version since 2 carries the weapon after the opponent (1 was
 // always the longsword), and every version since 12 a skill byte after the weapon. OUTCOMES is that file's byte order — tests/graphics.test.ts reads packRecord's own bytes back through here.
-import { fromBase64Url, MAX_RECORD_BYTES, type Outcome } from './record.ts';
+import { fromBase64Url, MAX_RECORD_BYTES, type Outcome } from './fight/record.ts';
 
 const OUTCOMES: Outcome[] = ['killed', 'died', 'draw', 'abandoned'];
 export type RecordHeader = { v: number; build: string; opponent: string; weapon: string; outcome: Outcome };

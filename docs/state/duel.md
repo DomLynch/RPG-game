@@ -96,7 +96,7 @@ Memory (read first): `~/.claude/projects/-Users-domininclynch-Developer-frankend
 
 **Mission (Dom, 19:0x): build real-player PvP for PERMANENT, not a test.** "We will get this working, it's critical to the game's success; we are a Diablo / Path of Exile 2 killer." Live sword duels between real players, worldwide, on phones and desktop. Failure is not an outcome; the only question is how, and in what order.
 
-**What we have.** The duel is a fixed-tick step (`stepDuel` in `src/duel.ts`); the AI (`src/ai.ts`) only emits ordinary Intents judged by the same rules as the player; sim math is deterministic across browser and Node since v20 (release row 48). A good foundation, not proof.
+**What we have.** The duel is a fixed-tick step (`stepDuel` in `src/fight/duel.ts`); the AI (`src/fight/ai.ts`) only emits ordinary Intents judged by the same rules as the player; sim math is deterministic across browser and Node since v20 (release row 48). A good foundation, not proof.
 
 **What must be solved (each one proven with a test and a measured number, not assumed):**
 1. Cross-device determinism in live play (iOS Safari vs Android Chrome vs desktop), not only recorded replays.

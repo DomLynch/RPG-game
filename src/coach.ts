@@ -1,14 +1,14 @@
 // Coach mode, slice 1 (Combat, docs/briefs/coach-mode.md; Lead's GO 2026-10-07: the four LIVE stance names, no extra instruction, Pit duels only): the player's side driven by the SAME brain that drives a
-// warden. `decide()` (src/ai.ts) already works for either side of a duel, so a coach is that brain with a profile shaped by the stance the player picked (the stance battery's `bystance` brains: a
+// warden. `decide()` (src/fight/ai.ts) already works for either side of a duel, so a coach is that brain with a profile shaped by the stance the player picked (the stance battery's `bystance` brains: a
 // human who picks Defensive guards and parries, an Aggressive one presses, a Trickster feints and kicks, Neutral plays it straight) and a player-level base profile.
 // Outside SIM_FILES on purpose, like src/mobkit.ts: it reads a Duel and returns an Intent, writes nothing back. A coached fight's INTENTS are what the record stores, so a coached record is a played
-// record: no RECORD_VERSION, same replay (tests/coach.test.ts replays one). The stance itself is the sim's (src/stance.ts, withStances), picked exactly as a human picks it.
+// record: no RECORD_VERSION, same replay (tests/coach.test.ts replays one). The stance itself is the sim's (src/fight/stance.ts, withStances), picked exactly as a human picks it.
 // Human reaction, by construction identical to the AI's: the coach never overrides `reaction`, `tellReaction`, `anticipate`, `accuracy` or `discipline`, so it notices a cut after the same ticks the
 // warden does at that level, and `decide()` applies the same reaction cap. tests/coach.test.ts pins that no stance brain touches them and that none is faster than the quickest AI profile.
-import { decide, initialAi, type AiState } from './ai.ts';
-import { idleIntent, type Duel, type Intent } from './duel.ts';
-import { PROFILES, type AiProfile, type Level } from './moves.ts';
-import { PICKS, type PickedStance } from './stance.ts';
+import { decide, initialAi, type AiState } from './fight/ai.ts';
+import { idleIntent, type Duel, type Intent } from './fight/duel.ts';
+import { PROFILES, type AiProfile, type Level } from './fight/moves.ts';
+import { PICKS, type PickedStance } from './fight/stance.ts';
 
 // The knobs a stance brain may set: how it PLAYS (cadence, guard, feints, kicks), never how fast it sees. Numbers are the stance battery's BY_STANCE brains (scripts/stance-battery.mjs), which
 // Strategy ruled (2026-10-07) are what a human who picks that stance plays; neutral is the player-level profile untouched.
@@ -29,7 +29,7 @@ export function createCoach(stance: PickedStance, seed: number, level: Level = '
   let ai: AiState = initialAi((seed * 2654435761) >>> 0);
   return {
     stance, level,
-    // A player starts sheathed and taps Fight: any attack press draws (src/duel.ts), so the coach opens with a light press, then the brain takes over (decide() idles against a sheathed side).
+    // A player starts sheathed and taps Fight: any attack press draws (src/fight/duel.ts), so the coach opens with a light press, then the brain takes over (decide() idles against a sheathed side).
     step(duel) { if (duel.fighters[side].phase === 'sheathed') return { ...idleIntent(), action: 'light' }; const r = decide(duel, side, ai, profile); ai = r.ai; return r.intent; },
   };
 }
@@ -61,7 +61,7 @@ export function createCoachDriver(stance: PickedStance, seed: number, level: Lev
 }
 
 // The record's `build` string (Backend, 2026-10-08): `<label> coach:<stance>@<a>-<b>,<c>-<d> kit:<tag>`. The verifier refuses to count any record whose build contains ` coach:` for ratings; kitOfBuild reads the tail,
-// so the kit tag stays LAST. `build` is encoded as len u8 + ascii (src/record.ts), so the whole string is at most 255 bytes: when the spans would push it past that, `coach:<stance>@*` (coached, spans not listed)
+// so the kit tag stays LAST. `build` is encoded as len u8 + ascii (src/fight/record.ts), so the whole string is at most 255 bytes: when the spans would push it past that, `coach:<stance>@*` (coached, spans not listed)
 // is written instead and a span is never cut in half. An open span (coached to the finish) is `<a>-`.
 export const BUILD_MAX = 255;
 const spanText = (s: CoachSpan): string => `${s.from}-${s.to ?? ''}`;

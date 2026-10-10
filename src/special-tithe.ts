@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from './duel.ts';
+import type { CombatEvent, Fighter } from './fight/duel.ts';
 import type { OpponentId } from './roster.ts';
 import { lightRig, type TitheLight } from './special-lighting.ts';
 import { advanceCast, isBloodTithe, shadowPhase, LAND_AT, type Cast } from './special-timing.ts';

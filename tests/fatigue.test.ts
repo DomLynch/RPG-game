@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bandOf, fatigueTarget, FRESH, stepFatigue, TIRED, WINDED } from '../src/fatigue.ts';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent } from '../src/duel.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent } from '../src/fight/duel.ts';
 
 const man = (stamina: number, extra: Partial<{ maxStamina: number; legWound: boolean; exhausted: boolean }> = {}) => ({ stamina, maxStamina: 100, legWound: false, exhausted: false, ...extra });
 

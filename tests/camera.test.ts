@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { SETTLE, TOUR, FRAMING_LOW, FRAMING_TALL, cameraPose, finisherSidePose, framingLow, framingTall } from '../src/camera.ts';
 import { createHash } from 'node:crypto';
-import { OPPONENTS } from '../src/moves.ts';
-import { initialState, RADIUS, TARGET } from '../src/sim.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
+import { initialState, RADIUS, TARGET } from '../src/fight/sim.ts';
 
 test('all edge angles and orbit positions keep camera inside scenery', () => {
   for (let angle = 0; angle < 2 * Math.PI; angle += 0.1) {
@@ -362,7 +362,7 @@ test('the lock camera is the original framing (Dom 2026-10-05): back max(4.2, d*
 });
 
 test('in a smaller arena the lock looks 0.896 m nearer the camera at 0.36, and the default arena is untouched', async () => {
-  const { setPlayScale } = await import('../src/play-radius.ts');
+  const { setPlayScale } = await import('../src/fight/play-radius.ts');
   const state = { x: 0, z: 4, heading: Math.PI, distance: 0 };
   const full = cameraPose(state, 0, 0.5, true);
   setPlayScale(0.36);

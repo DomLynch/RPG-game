@@ -4,12 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TUTORIAL_STEPS, type TutorialStep } from '../src/tutorial.ts';
 import { Match } from '../src/match.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { loadProfile } from '../src/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { STRATEGIES, W, P, act, idle, ready, gap, swingStart, guard } from './strategies.ts';
-import { timing, type Duel, type Intent } from '../src/duel.ts';
+import { timing, type Duel, type Intent } from '../src/fight/duel.ts';
 
 const counting = () => { const m = new Map<string, string>(); let writes = 0; return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { writes++; m.set(k, v); }, removeItem: (k: string) => { m.delete(k); }, writes: () => writes }; };
 // A player who does exactly the step the foe is waiting on (and nothing else); null = a player who never does anything.

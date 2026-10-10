@@ -11,21 +11,21 @@ import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdenti
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './fight/characters.ts';
-import { shieldFor, shieldsFlag, SHIPPING_SHIELDS } from './shields.ts';
+import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './loot.ts';
 import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
-import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
 import { type FinisherId } from './fight/finishers.ts';
 import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './hamstrung.ts';
 import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
 import { createHamstrungAssets } from './hamstrung-assets.ts';
-import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
 import { buildArena, type Arena } from './arena.ts';
 import { arenaFor } from './arena-themes.ts';
 import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
@@ -279,7 +279,7 @@ export function createScene(
       void shapes.get(url)!.then((mesh) => { if (warriors === loaded && urls()[who] === url) { actor.reshape(mesh); ((globalThis as { __weaponShapes?: Record<string, string | undefined> }).__weaponShapes ??= {})[who] = mesh ? url : undefined; } });   // the stills and phone check read what went on
     }
   }
-  const shieldsOn = SHIPPING_SHIELDS.has(opponentId) || (typeof location !== 'undefined' && shieldsFlag(location.search)), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
+  const shieldsOn = SHIPPING_SHIELDS.has(opponentId), shields = new Map<string, THREE.SkinnedMesh>(), shieldLoads = new Set<string>();
   function dress() {
     if (!warriors) return;
     warriors.opponent.grade(tier);   // his weapon wears the rung he is met at, like his kit

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { decodeRecord } from '../src/record.ts';
+import { decodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { createSaveQueue, profileDiffers, readFighter, writeFighter } from '../src/cloud-profile.ts';
 import { mergeLoot, recordTaken, store, unwear, wear, type Loot } from '../src/loot.ts';

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createFighter, type CombatEvent } from '../src/duel.ts';
-import { initialState } from '../src/sim.ts';
+import { createFighter, type CombatEvent } from '../src/fight/duel.ts';
+import { initialState } from '../src/fight/sim.ts';
 import { SCORCH, scorch, scorchLook, scorches } from '../src/scorch.ts';
 import { createSignatureMarks } from '../src/signature.ts';
 

@@ -4,10 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bladePathsByRig } from '../src/blade-paths.ts';
 import { bladeFrames, bladePose } from '../src/blade.ts';
-import { createFighter, opponentFighter } from '../src/duel.ts';
-import { OPPONENTS, PLAYER_WEAPONS, WEAPONS, type WeaponId } from '../src/moves.ts';
+import { createFighter, opponentFighter } from '../src/fight/duel.ts';
+import { OPPONENTS, PLAYER_WEAPONS, WEAPONS, type WeaponId } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
-import { TARGET } from '../src/sim.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 const pairs = (): [string, string, string][] => [
   ...Object.values(OPPONENTS).map((o): [string, string, string] => [o.id, o.rig, o.weapon]),

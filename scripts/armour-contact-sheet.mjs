@@ -33,10 +33,10 @@ if (process.argv.includes('--roster')) {
 <body><canvas id="world"></canvas><script type="module">
 import * as THREE from 'three';
 import { createScene } from '/src/scene.ts';
-import { initialPractice, project } from '/src/combat.ts';
-import { OPPONENTS } from '/src/moves.ts';
+import { initialPractice, project } from '/src/fight/combat.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
 import { LADDER } from '/src/ladder.ts';
-import { TARGET } from '/src/sim.ts';
+import { TARGET } from '/src/fight/sim.ts';
 const q = new URLSearchParams(location.search), id = q.get('opponent'), tier = q.get('tier'), arena = q.get('arena') || undefined, TICK = 1 / 60;
 const canvas = document.getElementById('world'), view = createScene(canvas, () => {}, id, arena);   // one arena for every cell: only the kit differs
 // Both armed. The free camera orbits the HERO, 7.5 m behind him along his heading, so the hero is placed \`gap\` m BEYOND the opponent on the

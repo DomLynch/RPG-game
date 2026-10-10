@@ -1,6 +1,6 @@
 # Legends ladder, bodies and donors (research, 2026-10-07)
 
-Companion to `docs/research/legends-600-ladder.csv`. Analyst output only: nothing in `src/` was touched. Inputs read from trunk `origin/codex/01a09a76/task-1` (CSV, `src/legends.ts`, `src/roster.ts`, `src/moves.ts`, `src/career.ts`, `.claude/skills/legends-rule/SKILL.md`, `docs/specs/origins/legends-500.md`, `body-families.md`, `living-world.md` s10.1), plus the donor library on the VPS and `~/Developer/donors/world-of-claudecraft`.
+Companion to `docs/research/legends-600-ladder.csv`. Analyst output only: nothing in `src/` was touched. Inputs read from trunk `origin/codex/01a09a76/task-1` (CSV, `src/legends.ts`, `src/roster.ts`, `src/fight/moves.ts`, `src/career.ts`, `.claude/skills/legends-rule/SKILL.md`, `docs/specs/origins/legends-500.md`, `body-families.md`, `living-world.md` s10.1), plus the donor library on the VPS and `~/Developer/donors/world-of-claudecraft`.
 
 ## 1. Method and rank distribution
 
@@ -97,9 +97,9 @@ The ~60-per-rank target was not met because the pool is 673: ranks 1-8 have 67 e
 
 ## 3. Body gap analysis
 
-**Existing bodies (confirmed from `git ls-tree` of trunk `src/assets/` and `src/roster.ts`):** warrior (the hero), veteran, knight, goblin, nightborn, witch, dwarf, pitborn, executioner, plaguedoctor, shieldmaiden, plus minotaur, wraith, skeleton, werewolf (built, `hold:true` in `src/roster.ts`; need un-hold plus an `ARCHETYPES` row in `src/moves.ts`). Recoverable from git history (`git log --all --diff-filter=D`): legionary (`src/assets/source/creatures/legionary*.glb`, `src/assets/source/loot/legionary.glb`) and ranger (`src/assets/source/items/ranger.glb`). The `body-families` PR branch is already merged into trunk; its spec is `docs/specs/origins/body-families.md`: humanoid-s/m/l live, giant and quadruped designed (FLUX done, TRELLIS next), undead/spirit live bodies, serpent and flyer "later".
+**Existing bodies (confirmed from `git ls-tree` of trunk `src/assets/` and `src/roster.ts`):** warrior (the hero), veteran, knight, goblin, nightborn, witch, dwarf, pitborn, executioner, plaguedoctor, shieldmaiden, plus minotaur, wraith, skeleton, werewolf (built, `hold:true` in `src/roster.ts`; need un-hold plus an `ARCHETYPES` row in `src/fight/moves.ts`). Recoverable from git history (`git log --all --diff-filter=D`): legionary (`src/assets/source/creatures/legionary*.glb`, `src/assets/source/loot/legionary.glb`) and ranger (`src/assets/source/items/ranger.glb`). The `body-families` PR branch is already merged into trunk; its spec is `docs/specs/origins/body-families.md`: humanoid-s/m/l live, giant and quadruped designed (FLUX done, TRELLIS next), undead/spirit live bodies, serpent and flyer "later".
 
-Roster note: a body also needs a combat row (`ARCHETYPES` in `src/moves.ts`); the roster comment says "Adding an individual must not add AI branches", so new bodies reuse an archetype profile.
+Roster note: a body also needs a combat row (`ARCHETYPES` in `src/fight/moves.ts`); the roster comment says "Adding an individual must not add AI branches", so new bodies reuse an archetype profile.
 
 **Owner steer applied:** most legends are humanoid. Animal-headed figures are a humanoid body plus a swappable HEAD, and winged figures are a humanoid plus a WING KIT; these are counted separately and are not body families.
 

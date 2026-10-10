@@ -1,10 +1,10 @@
 // RV34 battery (docs/specs/origins/combat-study.md, stances ruling: every pair wins 40-60%, none dominant): the SAME body and brain on both sides (the opponent's own profile at the given
 // level), every stance against every stance, each pair fought from both sides so the first-side edge cancels. A cell is the ROW stance's win rate (draws count half) over `seeds` x 2 fights.
 // Usage: [STANCE_TUNE='{"defensive":{"recover":1000}}'] node scripts/stance-battery.mjs [seeds] [opponent] [level]   (STANCE_TUNE overrides table entries for a what-if run)
-import { decide, initialAi } from '../src/ai.ts';
-import { opponentFighter, stepDuel, withStances } from '../src/duel.ts';
-import { OPPONENTS, profileAt } from '../src/moves.ts';
-import { PICKS, STANCES, asStance } from '../src/stance.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { opponentFighter, stepDuel, withStances } from '../src/fight/duel.ts';
+import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
+import { PICKS, STANCES, asStance } from '../src/fight/stance.ts';
 import { arena } from '../tests/strategies.ts';
 
 for (const [id, deltas] of Object.entries(JSON.parse(process.env.STANCE_TUNE ?? '{}'))) Object.assign(STANCES[id], deltas);

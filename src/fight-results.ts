@@ -4,7 +4,7 @@
 // dropped, because the wall is a mirror and the fighter's own profile keeps the real progress.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isLegendOpponent, legendForLevel, portraitKey } from './legends.ts';
-import type { OpponentId } from './moves.ts';
+import type { OpponentId } from './fight/moves.ts';
 
 export type FightResultRow = { kind: 'ai'; opponent_key: string; opponent_name: string; opponent_level: number; opponent_gear: Record<string, never>; result: 'win' | 'loss' | 'draw' };
 

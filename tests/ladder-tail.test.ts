@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { LADDER } from '../src/ladder.ts';
-import { LEVELS, LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt, type AiProfile } from '../src/moves.ts';
+import { LEVELS, LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt, type AiProfile } from '../src/fight/moves.ts';
 import { battery } from './strategies.ts';
 import { setStab } from '../src/stab-rule.ts';
 

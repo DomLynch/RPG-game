@@ -1,5 +1,5 @@
-import { ROSTER, type OpponentId, type RigId } from './roster.ts';
-export type { OpponentId, RigId } from './roster.ts';
+import { ROSTER, type OpponentId, type RigId } from '../roster.ts';
+export type { OpponentId, RigId } from '../roster.ts';
 // Combat data. Every timing is in fixed 60 Hz ticks; every number here is a tuning candidate, not a validated value.
 // Damage is tuned for a Souls-length duel: AI vs AI at normal runs ~9 clean hits / ~35 s (light 11, heavy 18, riposte 24, heavy riposte 30, kick 4).
 // The engine (duel.ts) reads this table; nothing here may depend on rendering, clocks or browser state.
@@ -178,7 +178,7 @@ export const RULES = {
   // hit for `damage` of the target's max health (`bossDamage` for an opponent from level `bossFrom`: career.ts level = 1 + wins, five
   // sub-ranks a title, so rank 8 begins at 36). Cast inside `reach`; the cooldown re-arms `cooldown` ticks after the RELEASE; first available `first` ticks in; after a release the caster starts no attack for `recovery` ticks (the presentation's 45; defence and movement stay his). Final numbers: Dom 2026-10-01, docs/briefs/specials/boss-special-balance-2026-10-01.md. One row,
   // so a ruling is a one-line change; PvP reads the same `damage`.
-  gambit: { stagger: 40 },   // RV33: the ticks a failed Gambit's thrower is staggered (src/gambit.ts: about 1 in 2 lands for 2x; the stagger is what makes it slightly worse than a heavy)
+  gambit: { stagger: 40 },   // RV33: the ticks a failed Gambit's thrower is staggered (src/fight/gambit.ts: about 1 in 2 lands for 2x; the stagger is what makes it slightly worse than a heavy)
   special: { windup: 120, cooldown: 1200, first: 1200, recovery: 45, reach: 3, damage: .2, bossDamage: .25, bossFrom: 36, interruptAt: .1, interruptCooldown: 480 },
   skillCooldown: 900,   // the equipped skill's cooldown (15 s): spent at commitment, so a whiff, a block, a parry and a stuffed windup all spend it; ticks down like parryCooldown (duel.ts)
   regen: 2 / 3, regenDelay: 45, guardRegen: .5, sprintCost: .2, exhaustRecover: 20, exhaustedStun: 36,   // RV29 (3B): a heavy-class blow or a kick landing on an exhausted fighter stuns `exhaustedStun` ticks (.6 s) longer; the existing hurt pose, no ground state
@@ -244,11 +244,11 @@ export type AiProfile = {
   interrupt?: number;  // 0..1 chance to cut INTO a slower tell when his own cut lands first (a fast fighter's counter-swing; 0 = never attacks into a threat)
   kick?: number;       // 0..1 share of answers to a read roller or backstepper that are kicks (the one blow their timing does not escape)
   dash?: number;       // 0..1 chance to sprint into an opening (a whiff, a stagger) from outside reach instead of walking (a darter closes in a few ticks)
-  anticipate?: number; // ticks to notice a read cut-spammer's cut (src/ai.ts; the reaction still caps it). Absent = READ.anticipate (8), every warden as it was
-  tellReaction?: number; // ticks to notice a thrust or a pommel strike (src/ai.ts TELLS), so reaction v lights can stay slow. Absent = the reaction (RV19, the Centurion)
+  anticipate?: number; // ticks to notice a read cut-spammer's cut (src/fight/ai.ts; the reaction still caps it). Absent = READ.anticipate (8), every warden as it was
+  tellReaction?: number; // ticks to notice a thrust or a pommel strike (src/fight/ai.ts TELLS), so reaction v lights can stay slow. Absent = the reaction (RV19, the Centurion)
   stab?: number;         // 0..1: share of openings (a whiffed swing's recovery) answered with the thrust when the cut cannot reach: the knife's 12-tick stab, too short a tell for a reactive guard. Absent = 0 (the Goblin's offence, COMBAT-001 3/3)
   spamBoth?: number;     // 1: keep the old read as well as the early gate (the Shieldmaiden alone: her honest blocker loses 12-15 points on the gate alone). Absent / 0 = the early gate alone
-  spamRun?: number;      // RV31: read a masher EARLY: this many consecutive lights before the player has defended once (src/ai.ts readOpponent). Absent = the old read (11 swings, 70 % lights)
+  spamRun?: number;      // RV31: read a masher EARLY: this many consecutive lights before the player has defended once (src/fight/ai.ts readOpponent). Absent = the old read (11 swings, 70 % lights)
   braceHeavy?: number;   // 0..1: with a guard that stops heavies (the scutum), meet a guard-breaking heavy in that guard, and never walk in on a charging
                          // one: step back out of its reach instead. Absent = 0 (a guard that stops nothing makes it inert) (RV19, the Centurion)
 };
@@ -693,7 +693,7 @@ const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent
   // spec): a cut-spammer farmed him (light spam 18/24 with the cleaver, 12 warhammer, 11 trident; cap 12) because his 14-tick reaction
   // was clamped to the shared 8 on a read spam and still met the cut late. anticipate 3 + lapse .3 → .2 take those three to 8, 7, 7;
   // read .7 → .75 keeps the knife's thrust-from-range row where it was (11/24; .2 lapse alone put it on the cap at 12).
-  // The value lives here, keyed by (opponent, level), because that is all a fight record carries: src/replay.ts rebuilds the profile
+  // The value lives here, keyed by (opponent, level), because that is all a fight record carries: src/fight/replay.ts rebuilds the profile
   // from OPPONENTS[opponent].profiles[level], so a value merged in from outside the sim would replay a different fight.
   executioner: { scale: 1.36, health: 160, poise: 12, profiles: { easy: PROFILES.easy, normal: { ...PROFILES.normal, anticipate: 3, lapse: .2, read: .75 }, hard: PROFILES.hard } },
   // The Knight (armoured, methodical; his own row, RV30, 2026-10-07, Strategy's identity line): the Executioner's archetype and cut-spam

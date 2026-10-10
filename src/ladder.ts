@@ -1,6 +1,6 @@
-import { OPPONENTS, type Opponent, type OpponentId } from './moves.ts';
+import { OPPONENTS, type Opponent, type OpponentId } from './fight/moves.ts';
 import { ARENA_ROTATION, type ArenaKey } from './arena-themes.ts';
-import type { Finish } from './duel.ts';
+import type { Finish } from './fight/duel.ts';
 
 import { ENCOUNTERS, isHeld, isOpponentId } from './roster.ts';
 // Introductory encounter order: the roster's encounters minus the held ones. Career rank is independent of this selection.

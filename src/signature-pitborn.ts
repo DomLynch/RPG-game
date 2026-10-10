@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatEvent } from './duel.ts';
+import type { CombatEvent } from './fight/duel.ts';
 import { surfaceHit, woundSite } from './fight/gore.ts';
 import { heavyHitBy, registerSignature, type SignatureFrame } from './signature.ts';
 

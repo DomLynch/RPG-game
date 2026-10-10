@@ -26,7 +26,7 @@ test('src/fight/ has files (the scan is not empty)', () => assert.ok(engine.leng
 
 // The old home of a src/fight/<sub>/ folder when it is not src/<sub>/ (src/audio/* moved to src/fight/sound/*); a file directly in src/fight moved from src/.
 const OLD_HOME: Record<string, string> = { sound: 'src/audio' };
-/** The engine files whose old path is still present: src/fight/<name> against src/<name>, src/fight/<sub>/<name> against <old home of sub>/<name> (never against src/<name>: src/duel.ts is not a twin of src/fight/sound/duel.ts). */
+/** The engine files whose old path is still present: src/fight/<name> against src/<name>, src/fight/<sub>/<name> against <old home of sub>/<name> (never against src/<name>: src/fight/duel.ts is not a twin of src/fight/sound/duel.ts). */
 const twinsOf = (engineFiles: string[], otherFiles: string[]): string[] => {
   const present = new Set(otherFiles);
   return engineFiles.flatMap((e) => {
@@ -41,7 +41,7 @@ test('no file in src/ is the old path of a src/fight/ file: the old path is abse
 });
 
 test('the twin check is path-aware: a real twin under a sub-folder fails, a same-named file elsewhere does not', () => {
-  assert.deepEqual(twinsOf(['src/fight/sound/duel.ts'], ['src/duel.ts']), [], 'src/duel.ts is not the old path of src/fight/sound/duel.ts');
+  assert.deepEqual(twinsOf(['src/fight/sound/duel.ts'], ['src/fight/duel.ts']), [], 'src/fight/duel.ts is not the old path of src/fight/sound/duel.ts');
   assert.equal(twinsOf(['src/fight/sound/cues.ts'], ['src/audio/cues.ts']).length, 1, 'a copy left in src/audio fails');
   assert.equal(twinsOf(['src/fight/fx/spark.ts'], ['src/fx/spark.ts']).length, 1, 'a copy left in a same-named src/ folder fails');
   assert.equal(twinsOf(['src/fight/gore.ts'], ['src/gore.ts']).length, 1, 'a copy left in src/ fails');

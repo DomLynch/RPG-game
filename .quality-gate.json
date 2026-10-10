@@ -430,7 +430,7 @@
         "src/profile.ts",
         "src/cloud-profile.ts",
         "src/main.ts",
-        "src/moves.ts",
+        "src/fight/moves.ts",
         "index.html",
         "scripts/loot-smoke-check.mjs",
         "scripts/worn-loot-check.mjs",
@@ -582,8 +582,8 @@
     {
       "paths": [
         "scripts/browser-replay-check.mjs",
-        "src/record.ts",
-        "src/replay.ts"
+        "src/fight/record.ts",
+        "src/fight/replay.ts"
       ],
       "rows": [
         "browser-replay-check"

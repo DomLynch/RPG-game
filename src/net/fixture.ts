@@ -2,10 +2,10 @@
 // each folded into one fingerprint chain. Node (tests/net-determinism.test.ts) and each browser engine (scripts/net-engines-check.mjs:
 // Chromium and WebKit on CI, a phone through the same module) must return identical chains — zero tolerance, no "close enough".
 // Imported by nothing in the game.
-import { decide, initialAi, type AiState } from '../ai.ts';
-import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../duel.ts';
-import { PLAYER_WEAPONS, PROFILES } from '../moves.ts';
-import { quantizeIntent } from '../record.ts';
+import { decide, initialAi, type AiState } from '../fight/ai.ts';
+import { idleIntent, stepDuel, type Duel, type Intent, type Side } from '../fight/duel.ts';
+import { PLAYER_WEAPONS, PROFILES } from '../fight/moves.ts';
+import { quantizeIntent } from '../fight/record.ts';
 import { fnv64, hashDuel, NET, pvpDuel } from './rollback.ts';
 
 export type Chain = { fight: number; tick: number; finish: string; chain: string };

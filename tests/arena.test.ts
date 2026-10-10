@@ -5,7 +5,7 @@ import { buildArena, LAYOUT, PLAY_RADIUS, CAMERA_CLAMP, SAND_TILE } from '../src
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { luminance, sandAlbedo } from '../src/assets/arena/textures.ts';
 import { CROWD_DYES } from '../src/assets/arena/crowd.ts';
-import { RADIUS } from '../src/sim.ts';
+import { RADIUS } from '../src/fight/sim.ts';
 
 // The arena's contract with the simulation, the camera and the fighters. The world lane may replace every mesh; these stay true.
 // Mean linear luminance of the hero's skin albedo (warrior.glb material "Skin", baseColorTexture), measured by scripts/arena-preview.mjs

@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { WEAPONS } from '../src/moves.ts';
+import { WEAPONS } from '../src/fight/moves.ts';
 
 const weapon = process.argv[2];
 if (!weapon || !Object.hasOwn(WEAPONS, weapon)) throw new Error(`usage: build-player-weapon.mjs <${Object.keys(WEAPONS).join('|')}>`);
