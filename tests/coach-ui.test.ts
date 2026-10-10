@@ -2,7 +2,7 @@
 // the events carry tick and reason, the spans reach the build string, ?coach=off is the kill switch. Fake start/stop events, no sim: the page contract only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { COACH_KEY, coachKilled, createCoachSession, loadCoachPref, type CoachEvent } from '../src/coach-ui.ts';
+import { COACH_KEY, coachKilled, createCoachSession, loadCoachPref, type CoachEvent } from '../src/fight/coach-ui.ts';
 import { initialPractice } from '../src/fight/combat.ts';
 import { idleIntent } from '../src/fight/duel.ts';
 import { OPPONENTS, opponentAt } from '../src/fight/moves.ts';

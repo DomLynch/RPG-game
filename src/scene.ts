@@ -17,7 +17,7 @@ import { heroPreview } from './hero-preview.ts';
 import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './fight/rank-look.ts';
 import { levelOf, type Tier } from './grades.ts';
 import { kitWorn } from './fight/loot.ts';
-import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
+import { standoffClock, standoffFlag, standoffPose } from './fight/standoff.ts';
 import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
 import { ON_DEMAND_BEASTS, beastBodyUrl } from './fight/beast-scale.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
