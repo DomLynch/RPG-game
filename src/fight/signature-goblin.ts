@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { weaponOf } from './fight/moves.ts';
-import { surfaceHit, woundSite } from './fight/gore.ts';
+import { weaponOf } from './moves.ts';
+import { surfaceHit, woundSite } from './gore.ts';
 import { hitBy, OPPONENT_SIDE, registerSignature, type SignatureFrame } from './signature.ts';
-import type { CombatEvent } from './fight/duel.ts';
+import type { CombatEvent } from './duel.ts';
 
 // Goblin, variant A: Hooked Wound (docs/briefs/signature-effects.md row 3). His knife catches on the wound as it withdraws: a strand of
 // blood runs from the wound to his knuckles and blade, stretches thinner as the knife pulls away, snaps, and the two ends whip back while

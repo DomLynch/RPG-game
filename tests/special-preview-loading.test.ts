@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as THREE from 'three';
-import { createTitheLighting } from '../src/special-lighting.ts';
-import { disposeSpecialGroup } from '../src/special-presentation.ts';
+import { createTitheLighting } from '../src/fight/special-lighting.ts';
+import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 import { createNightfallFx } from '../src/nightfall-fx.ts';
-import { createSpecialFx } from '../src/special-fx.ts';
-import type { SpecialFx } from '../src/special-modes.ts';
+import { createSpecialFx } from '../src/fight/special-fx.ts';
+import type { SpecialFx } from '../src/fight/special-modes.ts';
 
 // The actual scene's loading/reset blocks with real scene containers and effect resources.
 const source = readFileSync('src/scene.ts', 'utf8');

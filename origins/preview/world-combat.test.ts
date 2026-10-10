@@ -34,6 +34,23 @@ test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once
   assert.ok(swings >= 1); assert.deepEqual(kills, ['wolf-1']); assert.ok(!f.driven.has('wolf-1'), 'released after the fall'); assert.equal(wc.target(), null);
 });
 
+test('K5: the loop reports every hit on a creature (fight-seeded, with its hp fraction), a tick each frame it is up, and its release, so its wounds row can draw the blood', () => {
+  const run1 = () => {
+    const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const hits: { seed: number; kill: boolean; hpFrac: number; fromX: number; fromZ: number }[] = [], gone: string[] = []; let ticks = 0, kills = 0;
+    const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills++; }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onCreatureHit: (_s, h) => void hits.push(h), onCreatureTick: () => void ticks++, onCreatureGone: (id) => void gone.push(id) });
+    for (let i = 0; i < 400 && kills === 0; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); } }
+    return { hits, ticks, gone, kills };
+  };
+  const a = run1(), b = run1();
+  assert.ok(a.hits.length >= 1 && a.ticks > 0, `hits ${a.hits.length}, ticks ${a.ticks}`);
+  assert.ok(a.hits.every((h) => h.hpFrac >= 0 && h.hpFrac <= 1), 'hp fraction in [0, 1]');
+  assert.equal(a.hits.filter((h) => h.kill).length, 1, 'exactly the last hit is the kill');
+  assert.equal(a.hits.at(-1)!.kill, true); assert.equal(a.hits.at(-1)!.hpFrac, 0);
+  assert.ok(a.hits[0]!.hpFrac < 1, 'the first hit is reported after it landed');
+  assert.deepEqual(a.gone, ['wolf-1'], 'released once, after the fall');
+  assert.deepEqual(b, a, 'the same fight reports the same seeds and hp: a replay bleeds the same');
+});
+
 test('walking away: past the wolf leash it gives up and walks home (no kill, no death), then leaves the loop', () => {
   const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 6 }]); let kills = 0, died = 0;
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => void kills++, onHeroDied: () => void died++, onHeroHit: () => {}, onSwing: () => {} });

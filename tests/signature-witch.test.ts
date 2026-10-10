@@ -4,8 +4,8 @@ import * as THREE from 'three';
 import type { CombatEvent } from '../src/fight/duel.ts';
 import { initialDuel } from '../src/fight/duel.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { createSignatures, signatureMode } from '../src/signature.ts';
-import { GRASP, SPARK, graspLands } from '../src/signature-witch.ts';
+import { createSignatures, signatureMode } from '../src/fight/signature.ts';
+import { GRASP, SPARK, graspLands } from '../src/fight/signature-witch.ts';
 
 const blow = (type: 'Hit' | 'GuardBroken', actor: 0 | 1, charged: boolean): CombatEvent => ({ tick: 7, type, actor, target: actor ? 0 : 1, move: 'heavy_overhead', location: 'torso', heading: 0, charged });
 

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
-import { pickSignature, SIGNATURES } from '../src/signature.ts';
-import { battleScars } from '../src/signature-veteran.ts';
+import { pickSignature, SIGNATURES } from '../src/fight/signature.ts';
+import { battleScars } from '../src/fight/signature-veteran.ts';
 
 const fighters = [{}, {}] as unknown as readonly [Fighter, Fighter];
 const hit = (target: 0 | 1, move: string, damage: number): CombatEvent => ({ tick: 1, type: 'Hit', actor: target ? 0 : 1, target, move: move as CombatEvent['move'], damage, location: 'torso', heading: 0 });
