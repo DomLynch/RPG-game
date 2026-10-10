@@ -39,6 +39,28 @@ concurrency:
   group: quality-${{ github.event.pull_request.number || github.ref }}${{ (github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) && '-edit' || '' }}
   cancel-in-progress: true
 jobs:
+  plan:
+    # Which heavy jobs does this change need? (Lead 2026-10-10, after trunk's run for S sat queued 13 min behind 12 other runs: 15 jobs a PR
+    # was the load.) A pull request whose files touch nothing the game, its assets or its browser/net gates are built from runs only
+    # `quality` (every test, tsc, lint, build) and the cheap jobs: load-time, browser, net-engines, asset-rows and duel-two-page are skipped.
+    # A trunk push always runs everything (deploy.sh reads `quality` + `browser (combat)` from the trunk run). A listing failure runs everything.
+    # NOT_RETARGET: a title/body `edited` event is not a code change.
+    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      game: ${{ steps.diff.outputs.game }}
+    steps:
+      - id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          GAME_RE='^(src/|public/|origins/|supabase/|index\.html$|vite\.config|package(-lock)?\.json$|tsconfig|tests/fixtures/|\.github/workflows/quality\.yml$|scripts/(lib/|browser-check|stance-panel-check|counter-browser-check|origins-seamless-check|duel-two-page-check|net-|check-budget|load-time)|.*\.(glb|webp|png|jpe?g|ogg|mp3|wav)$)'
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "not a pull request: everything runs"; exit 0; fi
+          if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename'); then echo "game=true" >> "$GITHUB_OUTPUT"; echo "could not list the files: everything runs"; exit 0; fi
+          if printf '%s\n' "$files" | grep -Eq "$GAME_RE"; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "game paths touched: heavy jobs run"; printf '%s\n' "$files" | grep -E "$GAME_RE" | head -5
+          else echo "game=false" >> "$GITHUB_OUTPUT"; echo "no game, asset, browser-gate or net path in the diff: heavy jobs skipped"; fi
   quality:
     # NOT_RETARGET: a title/body `edited` event is not a code change.
     if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
@@ -91,7 +113,8 @@ jobs:
     # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
     # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    needs: plan
+    if: (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event_name != 'pull_request' || needs.plan.outputs.game == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -139,7 +162,8 @@ jobs:
   browser:
     # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
     # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    needs: plan
+    if: (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event_name != 'pull_request' || needs.plan.outputs.game == 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -197,7 +221,8 @@ jobs:
     # Live PvP rollback needs bit-identical state on every phone (docs/duel-architecture.md §2.3): the PvP fixture's fingerprint chains in
     # Node 22 (the verifier's engine), Chromium (Android Chrome's) and WebKit (iOS Safari's) must match fight for fight. CPU only, no GPU.
     # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    needs: plan
+    if: (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event_name != 'pull_request' || needs.plan.outputs.game == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -228,7 +253,8 @@ jobs:
   # inside quality (test:all). Not a gate on docs or code-only PRs: they finish in seconds without installing anything.
   asset-rows:
     # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
+    needs: plan
+    if: (github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))) && (github.event_name != 'pull_request' || needs.plan.outputs.game == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -263,7 +289,8 @@ jobs:
     # A live duel between two real pages over the real path (challenge link, relay, WebRTC when it opens, lobby, rollback): both must settle
     # on the same finish with the same confirmed fingerprints and 0 desyncs (scripts/duel-two-page-check.mjs). CPU only, draws skipped.
     # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    needs: plan
+    if: (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event_name != 'pull_request' || needs.plan.outputs.game == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
