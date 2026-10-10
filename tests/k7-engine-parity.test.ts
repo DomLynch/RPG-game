@@ -180,11 +180,20 @@ test('MAX_ATTACKERS is never exceeded: N creatures on one hero put at most MAX_A
   }
 });
 
-test('no second attacker cap constant exists outside src/fight/attackers.ts (a numeric constant named *ATTACKER* or *TOKEN*)', () => {
-  const CAP = /\b(?:const|let|var)\s+([A-Za-z_]*(?:ATTACKER|TOKEN)S?[A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*-?\d/g;
+test('no second attacker cap exists outside src/fight/attackers.ts: no numeric constant, parameter default or field named *attackers* / *tokens* / *ATTACKER* / *TOKEN*', () => {
+  const CAPS = [
+    /\b(?:const|let|var)\s+([A-Za-z_]*(?:ATTACKER|TOKEN)S?[A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*-?\d/g,   // a constant, typed or renamed
+    /\b([a-z]\w*(?:attackers|tokens)\w*)\s*(?::\s*number\s*)?=\s*-?\d/gi,   // a parameter default (startStreams(duels, tokens = 4))
+    /\b((?:max)?(?:attackers|tokens))\s*:\s*-?\d/gi,   // an object field ({ tokens: 4 })
+  ];
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(join(dir, e.name))) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.ts$/.test(e.name) ? [join(dir, e.name)] : []);
-  const hits = (read: (f: string) => string) => ['src', 'origins'].flatMap(walk).flatMap((f) => [...read(f).matchAll(CAP)].map((m) => `${f}: ${m[1]}`)).filter((h) => !h.startsWith('src/fight/attackers.ts'));
-  assert.deepEqual(hits((f) => readFileSync(f, 'utf8')), [], 'one attacker cap: src/fight/attackers.ts MAX_ATTACKERS');
-  assert.notDeepEqual(hits((f) => readFileSync(f, 'utf8') + (f === 'src/fight/pack.ts' ? '\nexport const TOKENS = 3;\n' : '')), [], 'the check fails when pack.ts declares its own TOKENS');
-  assert.notDeepEqual(hits((f) => readFileSync(f, 'utf8') + (f === 'src/fight/ai.ts' ? '\nconst MAX_ATTACKERS_2: number = 4;\n' : '')), [], 'the check fails on a typed, renamed cap');
+  const hits = (read: (f: string) => string) => ['src', 'origins'].flatMap(walk).flatMap((f) => CAPS.flatMap((re) => [...read(f).matchAll(re)].map((m) => `${f}: ${m[1]}`))).filter((h) => !h.startsWith('src/fight/attackers.ts'));
+  const real = (f: string) => readFileSync(f, 'utf8');
+  assert.deepEqual(hits(real), [], 'one attacker cap: src/fight/attackers.ts MAX_ATTACKERS');
+  const mutate = (file: string, add: string) => hits((f) => real(f) + (f === file ? `\n${add}\n` : ''));
+  assert.notDeepEqual(mutate('src/fight/pack.ts', 'export const TOKENS = 3;'), [], 'the check fails when pack.ts declares its own TOKENS');
+  assert.notDeepEqual(mutate('src/fight/ai.ts', 'const MAX_ATTACKERS_2: number = 4;'), [], 'the check fails on a typed, renamed cap');
+  assert.notDeepEqual(mutate('src/fight/pack.ts', 'export const again = (duels: number[], tokens = 4) => duels;'), [], 'the check fails on a literal parameter default (the Auditor\'s LOW on #2129)');
+  assert.notDeepEqual(mutate('src/fight/pack.ts', 'export const row = { tokens: 4 };'), [], 'the check fails on an object field');
+  assert.deepEqual(mutate('src/fight/pack.ts', 'let fightToken = 0;'), [], 'a singular counter (fightToken) is not a cap');
 });
