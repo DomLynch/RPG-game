@@ -46,7 +46,9 @@ cp -R "$here/src" "$here/origins" "$dest/"
 find "$dest/origins" \( -name '*.test.ts' -o -name 'README.md' \) -delete
 install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer.mjs"
 install -m 0644 "$here/package.json" "$dest/package.json"
+old=$(readlink -f "$opt/current" 2>/dev/null || true)   # the rollback target: kept as `previous` so the prune below never removes it
 ln -sfn "$dest" "$opt/current"
+[ -n "$old" ] && [ -d "$old" ] && [ "$old" != "$(readlink -f "$dest")" ] && ln -sfn "$old" "$opt/previous"
 install -d -m 0700 "$r/etc/frankendom"
 install -d -m 0700 "$backup"   # before any branch: the nginx -t failure path writes its temp file here even on a re-install where the include is already present
 install -d "$r/etc/nginx/snippets" "$r/etc/nginx/conf.d" "$r/etc/systemd/system"
@@ -76,3 +78,5 @@ if [ -s "$venv" ] && grep -q '^DATABASE_URL=' "$venv" && [ -s "$env" ] && grep -
 else
   echo "install-origins-writer: $revision installed, route proxied, service NOT started: needs DATABASE_URL in $venv and SUPABASE_URL + SUPABASE_ANON_KEY in $env"
 fi
+# Old installs pile up at ~400 MB each (33 dirs = 12 GB on 2026-10-10, root disk 86% used): keep current, previous and the newest others, 5 in all. A prune error is logged and never fails the install.
+bash "${ORIGINS_PRUNE:-$here/scripts/lib/prune-releases.sh}" "$opt" 5 "" origins || echo "install-origins-writer: prune failed (exit $?), installs left as they are" >&2
