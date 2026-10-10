@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { LADDER } from '../src/ladder.ts';
 import { LEVELS, LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt, type AiProfile } from '../src/fight/moves.ts';
 import { battery } from './strategies.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 
 const ladder = LADDER.map(o => OPPONENTS[o.id]);
 const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash', 'discipline', 'aggression', 'dodge', 'stab', 'anticipate', 'tellReaction', 'regen', 'braceHeavy'];

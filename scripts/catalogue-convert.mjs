@@ -7,7 +7,7 @@ import { ROSTER } from '../src/roster.ts';
 import { LEGENDS } from '../src/legends.ts';
 import { LOOT } from '../src/loot.ts';
 import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/fight/finishers.ts';
-import { beastRenderScale } from '../src/beast-scale.ts';
+import { beastRenderScale } from '../src/fight/beast-scale.ts';
 import { homePick } from '../src/fight/stance.ts';
 import { THROATS } from '../src/fight/sound/creature.ts';
 import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/rank-look.ts';

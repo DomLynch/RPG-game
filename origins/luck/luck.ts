@@ -6,7 +6,7 @@
 // Where a fight happens. Dom's ruling (2026-10-07): damage rolls apply ONLY to Origins world mobs outside the Pit, in both directions
 // (player -> mob and mob -> player). The Pit (legends and arena AI), PvP and the ladder never roll.
 import { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult } from '../../src/fight/server.ts';
-import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../../src/roll.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
+import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../../src/fight/roll.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
 
 export type FightKind = 'world-mob' | 'pit' | 'pvp' | 'ladder';
 
@@ -27,7 +27,7 @@ export const ROLL_BAND_PERCENT = ROLL_BAND;
 export type DamageRoll = { base: number; percent: number; damage: number };
 export function rollDamage(base: number, u: number, band = ROLL_BAND_PERCENT): DamageRoll {
   if (!(u >= 0 && u < 1)) throw new RangeError(`roll: u must be in [0, 1), got ${u}`);
-  const percent = percentOf(u, band);   // a uniform whole percent in −band..+band (src/roll.ts, the one definition the duel also applies)
+  const percent = percentOf(u, band);   // a uniform whole percent in −band..+band (src/fight/roll.ts, the one definition the duel also applies)
   return { base, percent, damage: rolledDamage(base, percent) };
 }
 // The scope rule: a roll is applied only in an Origins world-mob fight with the flag on, whichever side strikes. Pit, PvP, ladder: never.
@@ -50,4 +50,4 @@ export function luckHud(kind: FightKind, flags: LuckFlags, last: DamageRoll | nu
 }
 
 // The world-mob roll's source: a hash of (fight seed, hit index), never Math.random, so the same fight replays the same rolls.
-export const seededSource: RollSource = rollUnit;   // src/roll.ts: the same draw the duel's Duel.roll uses
+export const seededSource: RollSource = rollUnit;   // src/fight/roll.ts: the same draw the duel's Duel.roll uses
