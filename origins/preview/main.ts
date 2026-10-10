@@ -164,9 +164,9 @@ let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars
 const measureHud = () => {
   const bottom = Math.ceil(document.getElementById('hud')!.getBoundingClientRect().bottom);
   document.documentElement.style.setProperty('--hud-bottom', `${bottom}px`);
-  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.combat-hud')?.getBoundingClientRect().bottom ?? 0));
+  labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.fm-meters')?.getBoundingClientRect().bottom ?? 0));   // the shared meters sit under the HUD stack (meters.css)
 };
-const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!); const barsEl = document.querySelector('.combat-hud'); if (barsEl) hudWatch.observe(barsEl);
+const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
 const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, loadZone().spawns.rows, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
@@ -551,7 +551,7 @@ function engage(spec: MobSpec, x: number, z: number) {
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
 // Zone 1's OWN combat loop (Dom/Strategy 2026-10-08: the wild is continuous and open, no fight start/end), run by the shared fight engine (src/fight/world.ts); world-combat.ts mounts it here.
-const meters = createMeters(document.body);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
+const meters = createMeters(document.body); hudWatch.observe(document.querySelector('.fm-meters')!);   // the shared meters (src/fight/hud.ts createMeters, look in meters.css): health, stamina, the foe in reach, the hit vignette
 function updateBars() {
   const h = wc.hero(), t = wc.target(), full = h.health >= h.max - 0.5 && h.stamina >= h.maxStamina - 0.5;
   meters.update({ hp: h.health, maxHp: h.max, stamina: h.stamina, maxStamina: h.maxStamina, foe: t ? { name: t.name, hp: t.health, max: t.max } : null }, !(full && !t && !wc.inCombat()));
