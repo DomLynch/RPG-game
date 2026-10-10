@@ -1,3 +1,9 @@
+## 2026-10-10 ~12:00 (+04) — BATCH RULES (Dom's order, relayed by Lead) + Web's open engine PRs. READ FIRST: the four rules below, then memory `project_web_handoff_clear_2026-10-10`.
+
+**BATCH RULES (Dom, 2026-10-10):** (1) No edits to a candidate PR after it opens, title or body (Y lost 20 min to a retitle). (2) The Auditor reviews the CANDIDATE once, from Z on; a PASS on your PR's head carries through Deploy's union merge (only deleted KNOWN lines in tests/k7-engine-parity.test.ts and added `export ... from` lines in src/fight/index.ts); pure moves with CI green get their PASS from the candidate review, logic changes need a PASS on their own head. (3) One owner per problem: two lanes on one slice, Lead picks one the same hour. (4) No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
+
+**Now (pick up here):** Web's engine PRs for Z, in order: #2083 (M5 slices 1+2, head dc19d1459, first in Z), #2086 (K7 row 14), #2088 (K7 row 16, quality + warm-gate), #2094 (K7 row 7 detector, head c914d283c), #2091 (gear screen slice 3, stacked on Combat's M4 #2089). Then row 10 as the real slice: move src/scene.ts into src/fight with a lazy import.meta.glob (the Auditor's 840/9 node-side set must pass; #2093 was closed for breaking it); start only once Z and AA are on trunk. Parked: #2040 lint cleanup, WebKit boot-trace re-run.
+
 ## 2026-10-08 ~00:00 (+04) — Web late 2026-10-07: hud-check VPS hang fixed (#1741 open), black-screen measurements (no growth, 2 contexts, shadow pass 35%), #1749 WebKit receipt, Credits live still. READ FIRST: nothing owed by Web; #1741 waits on CI + Deploy
 
 **Now (pick up here):** nothing assigned: ask Lead. #1741 `web/hud-check-vps` @cee01213 has the Auditor's PASS and is on Deploy's list for green CI (state read from gh: OPEN). The Origins wordmark line rides Expansion's #1725 (OPEN, @da8386ac then); my stacked #1732 is closed.
