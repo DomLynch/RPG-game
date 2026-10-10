@@ -25,7 +25,10 @@ try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1${zone === '1' ? '' : `&zone=${zone}`}&worldfight`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
+  page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) console.log('console', m.type(), m.text().slice(0, 240)); });
+  page.on('requestfailed', (r) => console.log('requestfailed', r.url().slice(-80)));
+  try { await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 }); }
+  catch (e) { console.log('DIAG', JSON.stringify(await page.evaluate(() => ({ has: !!window.originsPreview, mobs: window.originsPreview?.mobs?.()?.mobs?.slice(0, 4).map((m) => ({ id: m.id, drawn: m.drawn, body: !!m.body })), n: window.originsPreview?.mobs?.()?.mobs?.length, body: document.body.innerText.slice(0, 300) })))); console.log('errors', JSON.stringify(errors)); throw e; }
   await page.waitForTimeout(8000);
   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
   await shot('idle');
