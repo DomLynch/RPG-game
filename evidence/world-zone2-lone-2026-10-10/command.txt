@@ -1,0 +1,4 @@
+trunk V + world/zone2-swap @ d3bc80286, vite build origins/preview, VPS Chromium software GL, 375x812
+timeout 900 capture --prio 3 world env HOME=/home/lanes ZONE=2 KILL=1 LONE=1 TAGS_TARGET=z2:reach-wolves node scripts/zone1-stab-stills.mjs artifacts/origins-preview <out>
+(scripts/zone1-stab-stills.mjs from #2065; LONE=1 appends &lone to the address, a VPS-local patch)
+result: target z2:reach-wolves-1, infight true, kill: true (foe hp seen 43 -> 0), hero 150/150, errors: 0
