@@ -64,7 +64,7 @@ import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './fight/hit-impact.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
-import { underRecord } from './detmath.ts';
+import { underRecord } from './fight/detmath.ts';
 import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
 import { lockPageZoom } from './zoom-guard.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;

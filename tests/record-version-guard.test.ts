@@ -14,7 +14,7 @@ import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { NO_PATRON_VERSION, PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { duplicateNames, simDigest } from './lib/sim-digest.ts';
 import type { OpponentId } from '../src/roster.ts';
@@ -24,7 +24,7 @@ import type { OpponentId } from '../src/roster.ts';
 // different camera does not change the fight.
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
-const SIM_FILES = ['src/fight/duel.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/detmath.ts', 'src/fight/play-radius.ts', 'src/stab-rule.ts', 'src/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
+const SIM_FILES = ['src/fight/duel.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/blade-paths.ts', 'src/roster.ts', 'src/fight/finishers.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
 const SIM_DIGEST = '6945d756c883ea4048b99139f2f996721c926e65cc3f935385fab99b85484032';   // re-pinned 2026-10-09 for the content digest (tests/lib/sim-digest.ts), NO bump: the old path digest of these same files was f9f4f395... (RV40's pin), so the code is unchanged. RV40 (2026-10-09, K1: the wall is Duel.radius, duel.ts / sim.ts / ai.ts; absent = the Pit's live circle, every Pit duel and every v18-v39 record is byte for byte as before, tests/open-world + the replay rows)   // RV39 (2026-10-08, N attackers on one creature: duel.ts Duel.incoming / SharedHit, the group flag in record.ts; a duel without incoming and an ungrouped record are byte for byte as v38, tests/streams.test.ts and tests/record-group.test.ts)
 const PINNED_FOR_VERSION = 40;
 
