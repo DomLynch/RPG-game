@@ -485,5 +485,23 @@
     "look": "Zone 2's looks (slice 1): the same preset names the page asks for, with the Ash Reach's colder, duskier haze (Zone 1's values with the fog, sky and ground cooled). Read through loadZone only.",
     "mobLooks": "Zone 2's creature looks, as data: the Ember Wolf, the wolf body (public/world/wolf.glb, already in Zone 1's download: no new mesh) dressed ember red-brown instead of ash grey.\nscale = WOLF_RENDER_SCALE (2) x 1.1, a pack leader; a literal because zone data files hold one literal and `import type` only (the rule is src/fight/beast-scale.ts WOLF_RENDER_SCALE).",
     "place": "Zone 2 (the Ash Reach) on the Region 1 map: one open zone off the east road, its entry gate and a cairn at the middle. Its creatures are spawns.ts; this is where it stands and how the road reaches it."
+  },
+  "camera": {
+    "presets": {
+      "a": {
+        "back": 3.6,
+        "up": 2.1,
+        "side": 0.8,
+        "ahead": 4,
+        "lookY": 1.5
+      },
+      "b": {
+        "back": 6.4,
+        "up": 3.5,
+        "side": 0,
+        "ahead": 2,
+        "lookY": 1.1
+      }
+    }
   }
 }
