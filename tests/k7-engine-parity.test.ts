@@ -117,6 +117,18 @@ test('the checker sees static, re-export and dynamic imports, and passes the doo
   assert.deepEqual(v.unclassified, ['origins/a.ts -> mystery']);
 });
 
+// Row 5 (controls), the page side: the controls live in src/fight/input.ts (Strategy 2026-10-10: "controls move into the engine"), so no page module outside src/fight takes it directly: it goes through the door (the zones are already held by ROWS above).
+const importsInputDirectly = (text: string): boolean => [...text.matchAll(IMPORT)].some((m) => /(^|\/)input(\.ts)?$/.test(m[1]!));
+test('row 5: nothing outside src/fight imports the input module except through src/fight/index.ts (mutation)', () => {
+  const pages = files('src').filter((f) => !f.startsWith(join('src', 'fight') + '/'));
+  assert.deepEqual(pages.filter((f) => importsInputDirectly(readFileSync(f, 'utf8'))), [], 'a page module imports input directly: go through src/fight/index.ts');
+  assert.ok(existsSync('src/fight/input.ts') && !existsSync('src/input.ts'), 'the controls live in src/fight/input.ts');
+  const main = readFileSync('src/main.ts', 'utf8');
+  assert.equal(importsInputDirectly(main), false);
+  assert.equal(importsInputDirectly(main + "\nimport { createInput } from './input.ts';"), true, 'a direct ./input.ts import is flagged');
+  assert.equal(importsInputDirectly(main + "\nimport { createInput } from './fight/input.ts';"), true, 'a direct ./fight/input.ts import is flagged');
+});
+
 // The goal itself: every parity row reaches the engine through src/fight only. KNOWN and KNOWN_COPIES are empty; it can never fail unseen.
 test('K7 EXIT: nothing is pinned, every parity row reaches the engine through src/fight only', () => {
   assert.deepEqual(KNOWN, [], `${KNOWN.length} direct engine imports left`);

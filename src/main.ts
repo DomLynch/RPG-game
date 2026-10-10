@@ -1,4 +1,4 @@
-import { createInput } from './input.ts';
+import { createInput } from './fight/index.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
