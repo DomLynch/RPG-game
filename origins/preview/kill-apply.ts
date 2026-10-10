@@ -12,10 +12,10 @@ export function applyServerKill<S extends Source>(session: PitSession, source: S
   const credit = (c: CareerState): CareerState => ({ ...c, credit: c.credit + killed.cp });
   return { session: { ...session, career: credit(session.career) }, source: { saved: credit(source.saved) }, cp: killed.cp };
 }
-/** The kill toast. A signed-in kill (a saved career and a server answer) shows what the server paid, led by the creature ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty paid."); a guest or offline page shows the page's own numbers, labelled preview. */
-export function killToast(source: Source, killed: Killed | Offline, local: string, name: (id: string) => string, creature: string, bountyPaid = false): string {
+/** The kill toast. A signed-in kill (a saved career and a server answer) shows what the server paid, led by the creature ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty paid."); "Bounty paid." only when the server's answer paid bronze, "Bounty done." when the journal step was taken and the server paid none; a guest or offline page shows the page's own numbers, labelled preview. */
+export function killToast(source: Source, killed: Killed | Offline, local: string, name: (id: string) => string, creature: string, bountyTaken = false): string {
   if ('offline' in killed || !('saved' in source)) return `${local} (preview)`;
   const loot = killed.loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
   const paid = [...(killed.cp ? [`+${killed.cp} CP`] : []), ...(killed.bronze ? [`+${killed.bronze} bronze`] : []), ...loot];
-  return `${creature} is down. ${paid.length ? paid.join(' · ') : 'Nothing paid.'}${bountyPaid ? ' Bounty paid.' : ''}`;
+  return `${creature} is down. ${paid.length ? `${paid.join(' · ')}.` : 'Nothing paid.'}${bountyTaken ? (killed.bronze > 0 ? ' Bounty paid.' : ' Bounty done.') : ''}`;
 }
