@@ -83,13 +83,15 @@ if [[ -z "$ci_green" ]]; then
 fi
 deploy_step "quality gate"
 vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
-if [[ "$vps_unit" == ok ]]; then
+if [[ -n "$ci_green" ]]; then
+  # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
+  # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
+  echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
+  npm run build
+elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
-  npm run quality:deploy
-elif [[ -n "$ci_green" ]]; then
-  echo "CI quality is green for $ci_green_for ($ci_green); running quality:deploy"
   npm run quality:deploy
 elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows-for.mjs --full-age . || true) && [[ "$age" =~ ^[0-9]+$ ]] && (( age <= 86400 )); then
   # Change-scoped release (Dom 2026-10-05: a release in about 5 minutes): the fast unit suite instead of test:all; the slow
@@ -110,6 +112,7 @@ fi
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree
 hf_wall_rows_apply  # scripts/lib/deploy-hf.sh: rows the T4 proved for this exact tree join the trusted list; the rest run here
@@ -221,6 +224,10 @@ else
 fi
 REMOTE
 printf '\nPublished %s\n' "$revision"
+# One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
+merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
+if [[ "$merge_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$(( (now_epoch - merge_epoch) / 60 )) min since $(git rev-parse --short=9 "$revision") ($(git rev-parse -q --verify "$revision^2" >/dev/null && echo 'merge commit' || echo 'not a merge commit: its commit time')) was made"; else merge_to_live="unknown (merge commit time unreadable)"; fi
+node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" || true
 # Keep DEPLOY_PRUNE_KEEP releases on the VPS (default 3, Dom 2026-10-08, was 5 since 2026-09-28; "off" skips), current and previous always among them; a failure leaves the release live.
 prune_keep="${DEPLOY_PRUNE_KEEP:-3}"
 if [[ "$prune_keep" =~ ^[0-9]+$ ]]; then
