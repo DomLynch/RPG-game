@@ -1,0 +1,80 @@
+diff --git a/scripts/zone1-stab-stills.mjs b/scripts/zone1-stab-stills.mjs
+index 0cac784d5..2ec2613e2 100644
+--- a/scripts/zone1-stab-stills.mjs
++++ b/scripts/zone1-stab-stills.mjs
+@@ -1,11 +1,13 @@
+ // 375-wide stills of Zone 1 (?region=1&worldfight) for STAB (#1957): ready idle, mid-fight (engaged), then a stab pressed (window.originsPreview.combat press('thrust')) and shot mid-swing.
+ // Usage: node scripts/zone1-stab-stills.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
++//   ZONE=2 shoots another zone (?region=1&zone=2&worldfight, the way zone-hit-stills reaches it); TAGS_TARGET=<id or id prefix> picks the foe;
++//   KILL=1 then cuts until the foe's health is 0 and adds kill.png. Defaults (Zone 1, no kill) are unchanged.
+ import fs from 'node:fs';
+ import http from 'node:http';
+ import path from 'node:path';
+ import { chromium } from 'playwright';
+ 
+-const [dist, out] = process.argv.slice(2), root = process.cwd();
++const [dist, out] = process.argv.slice(2), root = process.cwd(), zone = process.env.ZONE || '1';
+ fs.mkdirSync(out, { recursive: true });
+ const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
+ const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
+@@ -22,18 +24,18 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
+ try {
+   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
+-  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
++  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1${zone === '1' ? '' : `&zone=${zone}`}&worldfight${process.env.LONE ? "&lone" : ""}`, { waitUntil: 'load' });
+   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
+   await page.waitForTimeout(8000);
+   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
+   await shot('idle');
+   const want = process.env.TAGS_TARGET || '';   // a creature id; default the first drawn one in id order, so before and after engage the same foe
+-  const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body).sort((a, b) => (a.id < b.id ? -1 : 1)).find((m) => !id || m.id === id), want);
++  const target = await page.evaluate((id) => window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body).sort((a, b) => (a.id < b.id ? -1 : 1)).find((m) => !id || m.id.startsWith(id)), want);
+   console.log('target:', target.id);
+   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
+-  await page.waitForTimeout(20000);
++  await page.waitForTimeout(zone === '1' ? 20000 : 2500);   // Zone 2's wolf pack aggros within seconds: a 20 s wait gets the hero mauled and respawned in the Pit
+   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
+-  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
++  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate((w) => window.originsPreview.duel()?.ready || (w && document.body.classList.contains('infight')), zone !== '1')) break; }   // other zones: the engine loop runs in the walk, duel() stays null, so wait for the infight class
+   await page.waitForTimeout(600);   // right at the engage: later the software-GL clock can run the whole fight to its end screen
+   console.log('infight:', await page.evaluate(() => document.body.classList.contains('infight')));
+   await shot('fight');
+@@ -41,5 +43,16 @@ try {
+   await page.waitForTimeout(250);
+   await shot('stab');
+   console.log('hero:', JSON.stringify(await page.evaluate(() => window.originsPreview.combat().hero)).slice(0, 200));
++  if (process.env.KILL) {   // cut until the foe's health is 0 (or its fighter is gone), then shoot the kill
++    const read = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { foe: c.target?.health ?? null, st: c.hero?.stamina ?? 0, down: !!c.hero?.dead }; });
++    let seen = null, dead = false;
++    for (let t = 0; t < 150 && !dead; t++) {
++      const { foe, st, down } = await read(); seen ??= foe; dead = !down && ((foe !== null && foe <= 0) || (foe === null && seen !== null)); if (dead || down) break;
++      if (st < 30) { await page.waitForTimeout(1500); continue; }   // out of stamina: let it come back, a cut at 0 lands nothing
++      await page.evaluate(() => window.originsPreview.press('light')); await page.waitForTimeout(400);
++    }
++    console.log('kill:', dead, 'foe hp seen', seen, 'hero:', JSON.stringify(await page.evaluate(() => window.originsPreview.combat().hero)).slice(0, 120));
++    await shot(dead ? 'kill' : 'no-kill');   // no-kill: the hero went down (or the cuts ran out) first; say so rather than call it a kill
++  }
+   console.log('errors:', errors.length, errors.slice(0, 2));
+ } finally { await browser.close(); server.close(); }
+diff --git a/src/fight/world-combat.ts b/src/fight/world-combat.ts
+index d0b181a3a..3d843e8bb 100644
+--- a/src/fight/world-combat.ts
++++ b/src/fight/world-combat.ts
+@@ -37,6 +37,7 @@ type Fx = { finisher: FinisherId; fallS: number; hurtT: number; fallT: number; w
+ /** How a creature dies: the engine's selectFinisher for the kill, kept to the creature's own row (CREATURE_GORE.finishers) and to what the client can play; plainDeath when none fits. */
+ export function finishOf(kind: string, finish: Finish, weapons: readonly [WeaponId, WeaponId], canPlay: (f: FinisherId) => boolean = (f) => f === 'plainDeath'): FinisherId {
+   const row: readonly FinisherId[] = (catalogueRow(kind)?.finisher.cut ? catalogueRow(kind)!.finisher.finishers : ['plainDeath']), pick = selectFinisher(finish, weapons);
++  const forced = (globalThis as { __forceFin?: FinisherId }).__forceFin; if (forced && row.includes(forced)) return forced;
+   return pick && row.includes(pick) && canPlay(pick) ? pick : 'plainDeath';
+ }
+ 
+@@ -96,7 +97,7 @@ export function createWorldCombat<S extends FightMob>(d: WorldCombatDeps<S>) {
+       for (const f of world.fighters.slice(1)) {
+         const s = specs.get(f.id); if (!s) continue; const x = fxOf(f.id);
+         if (f.phase === 'dead') {
+-          x.fallT += dt; mobs.drive(f.id, { x: f.x, z: f.z, facing: f.facing, moving: false, fall: Math.min(1, x.fallT / x.fallS), finisher: x.finisher });   // the death clip's progress
++          x.fallT += dt; (globalThis as { __fin?: unknown }).__fin = x.finisher; mobs.drive(f.id, { x: f.x, z: f.z, facing: f.facing, moving: false, fall: Math.min(1, x.fallT / x.fallS), finisher: x.finisher });   // the death clip's progress
+           if (x.fallT >= x.fallS) { const done = s; release(f.id); d.onKill(done); }
+           continue;
+         }
