@@ -5,9 +5,7 @@
 //   - heroFacing is derived (the hero faces the foe, aim = atan2(dx, dz) as sim headings are), and every number is float32-rounded (duel.ts roundPose) BEFORE it is issued,
 //     so the client's fight, the record (v38) and the server's re-simulation start from the same bits.
 // The issued pose rides in the token (encounter.ts tokenFor): the database holds the token, so settle reads the server's own pose back and a client cannot change it.
-import { roundPose, type DuelPose } from '../../src/fight/duel.ts';
-import { FIRST_POSE_VERSION } from '../../src/fight/record.ts';
-import { BASE_RADIUS, BODY_RADIUS, playScaleFor, WALL_INNER } from '../../src/fight/play-radius.ts';
+import { roundPose, type DuelPose, FIRST_POSE_VERSION, BASE_RADIUS, BODY_RADIUS, playScaleFor, WALL_INNER } from '../../src/fight/server.ts';
 import { BadRequest } from './errors.ts';
 
 export const MIN_GAP = 2, MARK_GAP = 6.5, POSE_BYTES = 20;
