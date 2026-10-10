@@ -61,7 +61,7 @@ test('every wounds row reads real tables, and every part bone is a skin joint of
 
 test('no per-creature code on the wounds or finisher path: none of these files names a creature; a new creature is a catalogue row', () => {
   for (const f of ['src/fight/wounds.ts', 'src/fight/wounds-fx.ts', 'src/fight/finishers.ts', 'src/fight/finisher-blood.ts']) {
-    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\/\/.*$/gm, '');
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.ok(!/['"`](wolf|boar|bear|goblin|ember-wolf)['"`]/.test(src), `${f}: names a creature; put it in a row`);
   }
 });
