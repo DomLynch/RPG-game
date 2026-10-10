@@ -34,7 +34,7 @@ const writer = http.createServer((req, res) => {
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
   if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
   let raw = ''; req.on('data', (c) => (raw += c)); req.on('end', () => {
-    const op = req.url.replace(/^\//, '').split('?')[0], body = raw ? JSON.parse(raw) : {};
+    const op = req.url.split('?')[0].split('/').pop(), body = raw ? JSON.parse(raw) : {};
     requests.push({ op, auth: req.headers.authorization, body });
     const reply = (result) => { res.writeHead(200, { ...cors, 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, result })); };
     if (req.headers.authorization !== `Bearer ${TOKEN}`) { res.writeHead(401, cors); return res.end(); }
