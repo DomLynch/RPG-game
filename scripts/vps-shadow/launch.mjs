@@ -45,7 +45,7 @@ export const receiptFrom = (logs, kind) => {
 // A unit receipt is tree-bound, so only a batch tree can use one; a unit job per PR push was 5 of the 6 jobs running at once on 2026-10-10 (HF host load 470, timing
 // tests flaked). `launch.mjs unit <sha>` therefore takes a sha that is on trunk or is this checkout's HEAD (the deploy checkout sits on the batch tree), nothing else.
 // LAUNCH_UNIT_ANY=1 forces it. `git` is injectable for the test: (...args) => { status, stdout }.
-export function unitShaRefusal(sha, git = (...args) => spawnSync('git', args, { encoding: 'utf8' }), trunk = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1', force = process.env.LAUNCH_UNIT_ANY === '1') {
+export function unitShaRefusal(sha, git = (...args) => spawnSync('git', args, { encoding: 'utf8', timeout: 30_000 }), trunk = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1', force = process.env.LAUNCH_UNIT_ANY === '1') {
   if (force) return null;
   if (!/^[0-9a-f]{40}$/.test(sha || '')) return `a unit job needs the full 40-hex sha, got "${sha}"`;
   if (git('rev-parse', 'HEAD').stdout?.trim() === sha) return null;
