@@ -150,7 +150,8 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   };
   Object.assign(context, { URLSearchParams });   // actual browser query decoding, including malformed suffixes/encoded values
   const gearSheetExports: Record<string, unknown> = {};
-  runInNewContext(gearSheetCode, { require: context.require, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
+  const gearRequire = (id: string) => context.require(id.startsWith('../') ? './' + id.slice(3) : id.startsWith('./') ? './fight/' + id.slice(2) : id);   // gear-sheet.ts now lives in src/fight: its specifiers are rewritten into the harness's src-relative keys
+  runInNewContext(gearSheetCode, { require: gearRequire, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
   modules['./fight/gear-sheet.ts'] = gearSheetExports;
   runInNewContext(code, context);   // main.ts's globalThis is this object:
   element('welcome').hidden = true;
