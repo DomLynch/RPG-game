@@ -31,6 +31,7 @@ try {
     await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
     const target = await page.evaluate((pref) => { const l = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); return (pref && l.find((m) => pref.includes(m.body))) || l[0]; }, KILL ? ['wolf', 'boar', 'bear', 'goblin'] : null);   // a kill still wants a creature that dies inside the run z.target = target.body;
+    if (KILL) await page.evaluate(() => window.originsPreview.reset(40));   // a strong hero (test setup, memory only): the creature goes down in a few cuts, inside the run
     await page.waitForTimeout(4000);
     const at = await page.evaluate((i) => { const m = window.originsPreview.mobs().mobs.find((x) => x.id === i); return [m.x, m.z]; }, target.id);
     await page.evaluate(([x, zz]) => window.originsPreview.place(x, zz - 1.4, 0), at);
@@ -43,7 +44,6 @@ try {
       for (let k = 0; k < 32 && (await hp()) === null; k++) await page.waitForTimeout(250);
     }
     let first = null, shot = false;
-    if (KILL) await page.evaluate(() => window.originsPreview.reset(40));   // a strong hero (test setup, memory only): the creature goes down in a few cuts, inside the run
     for (let t = 0; t < (KILL ? 80 : 90) && !shot; t++) {
       await page.evaluate(() => window.originsPreview.press('light'));
       if (PROBE) { for (let k = 0; k < 40 && !shot; k++) { const r = await page.evaluate((i) => { const c = window.originsPreview.combat(), m = window.originsPreview.mobs().mobs.find((x) => x.id === i), p = (c.fxProbe ?? []).find((q) => q.foe === i); return m && p && p.visible && p.victim === 1 ? { sparks: p.at, mob: [m.x, m.z], struck: p.struck ?? null } : null; }, target.id); if (r) { z.probe = { ...r, dist: +Math.hypot(r.sparks[0] - r.mob[0], r.sparks[2] - r.mob[1]).toFixed(2), distAtContact: r.struck ? +Math.hypot(r.sparks[0] - r.struck[0], r.sparks[2] - r.struck[1]).toFixed(2) : null }; shot = true; } else await page.waitForTimeout(30); } continue; }
