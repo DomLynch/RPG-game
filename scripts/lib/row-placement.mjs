@@ -3,6 +3,10 @@
 // Re-measure monthly. tests/row-placement.test.ts pins this list to what vps-receipts.mjs coverageGaps() computes, so it cannot drift.
 export const MAC_MAX = 8;          // the most rows a release may run on the Mac: the 8 that are Mac-only by nature (Lead 2026-10-09: Mac = the Mac-only rows only)
 export const MAC_ENFORCE = false;  // false: an over-limit release prints the refusal text and runs (Lead 2026-10-09: do not block the next release)
+// Rows 2 and 44 were tried on the T4 again on 2026-10-10 (Strategy asked; job 6aca1214fee2c90070185fa6, release AD's tree a6d408cb4, t4-medium, width 1, 20 min cap):
+// row 2 roster-browser-check was killed at the 600 s ceiling, row 44 sparring-browser-check exited 1 after 337 s and its retry was cut off by the job timeout.
+// The same rows on the Mac at width 1 in that release: 53 s and 74 s. Strategy ruled they stay on the Mac. A VPS run is not a measurement (SwiftShader, no GPU,
+// load 28-34 that day); do not re-measure without a new reason. Row 44 also failed its first attempt on the Mac in releases Y, Z and AA (Characters owns it, #2127).
 export const MAC_ONLY = [
   { row: 2, why: 'roster-browser-check hit the 600 s ceiling on HF', hf_s: 600, mac_s: 73, date: '2026-10-09' },
   { row: 4, why: 'WebKit (Linux WebKit is not Mac Safari)' },
