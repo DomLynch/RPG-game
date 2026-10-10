@@ -27,7 +27,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { origin, physicalPhone: false, errors: [] };
 try {
-  const desktop = process.env.SEAMLESS_VIEWPORT === 'desktop';   // SEAMLESS_VIEWPORT=desktop: 1280x800 mouse, no touch (Proof 2's desktop row); default is the 375x812 phone
+  const desktop = process.env.SEAMLESS_VIEWPORT === 'desktop';   // SEAMLESS_VIEWPORT=desktop: 1280x800 desktop viewport, no touch (Proof 2's desktop row); default is the 375x812 phone
   const page = await (await browser.newContext(desktop ? { viewport: { width: 1280, height: 800 } } : { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   receipt.viewport = desktop ? '1280x800 desktop' : '375x812 touch';
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
