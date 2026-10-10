@@ -48,6 +48,9 @@ const AREAS = [
   { paths: ['src/blade*.ts', 'src/fight/blade*.ts', 'src/fight/characters.ts', 'src/fight/shields.ts', 'src/gear-*.ts', 'src/fight/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
   { paths: ['src/fight/finishers.ts', 'src/fight/gore.ts', 'src/fight/finisher-blood.ts', 'src/fight/opened.ts', 'src/fight/severed-head.ts', 'src/fight/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
   { paths: ['src/fight/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
+  // Thumbnails and portraits (public/game/img/**: loot, blood strips, fighter cards): the roster row (CORE) draws them; the gear rows show the loot tiles. Not a full run (Strategy 2026-10-10: two loot .webp files cost Y 35 extra rows).
+  { paths: ['public/game/img/**'], rows: ['loot-smoke-check', 'equip-fallback-check', 'polearm-browser-check:first', 'worn-loot-check'] },
+  { paths: ['scripts/lib/thumb-row.mjs'], rows: ['endgame-hud-check', 'desktop-layout-check'] },   // the two checks that import it
   { paths: ['src/lessons*.ts', 'src/first-loss*.ts', 'src/main.ts'], rows: ['first-loss-browser-check'] },   // a fresh visitor's first minute (Lead 2026-10-06): no other row boots with an empty profile
   // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
@@ -59,9 +62,14 @@ const AREAS = [
 // below: only the rows it adds or changes run. public/ assets: the folders with a row of their own are in AREAS (an arena or
 // versus .webp used to run all 51 rows, 15-21 min; Lead 2026-10-06); any other public/ folder (GLBs and looks many rows load)
 // still runs every row.
+// scripts/lib/** is a full run except the libraries below that no release row imports (the deploy pipeline's own scripts: their unit tests
+// cover them, as for deploy.sh) or that one or two rows import (AREAS). A lib listed nowhere stays a full run. Strategy 2026-10-10: Z cost 52 rows for scripts/lib/data-only.mjs.
 const FULL = ['package.json', 'package-lock.json', 'vite.config.*', 'tsconfig*.json', 'scripts/lib/**'];
-const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**'];
-const isFull = file => FULL.some(glob => matchesGlob(file, glob)) || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));
+const LIB_NO_ROWS = ['scripts/lib/deploy-*.sh', 'scripts/lib/row-placement.mjs', 'scripts/lib/vps-receipts.mjs', 'scripts/lib/hf-slots.mjs', 'scripts/lib/hf-wall-rows.mjs',
+  'scripts/lib/published-summary.mjs', 'scripts/lib/prune-releases.sh', 'scripts/lib/data-only.mjs', 'scripts/lib/glb-stats.mjs', 'scripts/lib/gpu-run.mjs', 'scripts/lib/stop-workers.mjs', 'scripts/lib/player-bot-*.mjs'];
+const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**', 'public/game/img/**'];
+const isFull = file => (FULL.some(glob => matchesGlob(file, glob)) && !LIB_NO_ROWS.some(glob => matchesGlob(file, glob)) && !AREAS.some(a => a.paths.includes(file)))
+  || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));
 const GATE = '.quality-gate.json';
 const named = spec => { const [name, mode] = spec.split(':'); const hits = rows.filter(r => r.name === name);
   if (!hits.length) throw new Error(`deploy scope names row "${name}", which is not in release_commands`);
