@@ -1,22 +1,22 @@
-// Origins greybox: the player's REAL saved career, read through the Origins writer's `open` op (origins/server) by src/fight/open.ts. Read-only by construction:
+// Origins greybox: the player's REAL saved career, read through the Origins writer's `open` op (origins/server) by src/core/open.ts. Read-only by construction:
 // the only request the page makes here is POST <writer>/open with an empty body and the signed-in player's Supabase access token. No duel
 // result, account, reward or amount ever leaves the page; duel wins in the preview stay in its memory (main.ts) and are marked "(preview)".
 // Any failure (no session, 401/403/404/503, a timeout, the network, a malformed reply) is an answer, never a throw: the page keeps today's
 // in-memory preview career and says so in one line. Pure apart from the injected fetch and timer: no DOM, storage or clock read here.
-import { careerState } from '../server/career.ts';
+import { careerState } from '../../src/core/index.ts';
 import type { CareerRow } from '../server/store.ts';
 import type { CareerState } from '../progression/model.ts';
 import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../patrons/patrons.ts';
 
-export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from '../../src/writer-call.ts';
-import { AUTH_KEY, storedToken } from '../../src/writer-call.ts';
+export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from '../../src/core/index.ts';
+import { AUTH_KEY, storedToken } from '../../src/core/index.ts';
 
 // A stored sign-in of any age counts (an expired token is a signed-in player whose session is refreshing); an unreadable store fails closed. Test flags such as ?lone are ignored when this is true.
 export const signedIn = (storage: { getItem(key: string): string | null } | null): boolean => { try { return !!storage?.getItem(AUTH_KEY); } catch { return true; } };
 export const pageSignedIn = (): boolean => { try { return signedIn(localStorage); } catch { return true; } };
-import { openAccount, type OpenDeps } from '../../src/fight/index.ts';
+import { openAccount, type OpenDeps } from '../../src/core/index.ts';
 
-// Zone 1 renews a stale stored session through supabase-js itself (src/account.ts builds the same client on the same storageKey): getSession() exchanges
+// Zone 1 renews a stale stored session through supabase-js itself (src/core/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
 // stored and its access token is expired or about to be; a fresh token, or none, costs nothing. Any failure leaves the storage as it was = signed out.
 export const RENEW_TIMEOUT_MS = 3000;
@@ -30,12 +30,12 @@ export async function ensureFreshSession(storage: { getItem(key: string): string
 export const authClient = async (env: { url?: string; key?: string }): Promise<AuthClient | null> => {
   if (!env.url || !env.key) return null;
   const { createClient } = await import('@supabase/supabase-js');
-  return createClient(env.url, env.key, { auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: AUTH_KEY, autoRefreshToken: false } });   // src/account.ts options; no timer: one renewal per page
+  return createClient(env.url, env.key, { auth: { flowType: 'pkce', detectSessionInUrl: false, storageKey: AUTH_KEY, autoRefreshToken: false } });   // src/core/account.ts options; no timer: one renewal per page
 };
 
 export type Character = { id: string; name: string };
 export type Opened = { career: CareerState; characters: Character[]; marks: number };
-import type { Offline } from '../../src/writer-call.ts';
+import type { Offline } from '../../src/core/index.ts';
 export const isOffline = (r: Opened | Offline): r is Offline => 'offline' in r;
 
 const count = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
@@ -57,7 +57,7 @@ export function openedOf(result: unknown): Opened | null {
   return { career, characters, marks: count(r.marks) ? r.marks : 0 };
 }
 
-// The page's one `open` (src/fight/open.ts, shared with the Pit and the gear sheet), mapped to the career the HUD shows. Never rejects: a failure is { offline: reason }.
+// The page's one `open` (src/core/open.ts, shared with the Pit and the gear sheet), mapped to the career the HUD shows. Never rejects: a failure is { offline: reason }.
 export async function openedAccount(d: OpenDeps): Promise<Opened | Offline> {
   const got = await openAccount(d);
   return 'offline' in got ? got : openedOf(got.result) ?? { offline: 'bad-reply' };

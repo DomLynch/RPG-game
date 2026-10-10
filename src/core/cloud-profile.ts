@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanName, type Profile } from './profile.ts';
-import { isOpponentId, type OpponentId } from './roster.ts';
-import { cleanLoot, emptyLoot, isLootId, keepsLoot, mergeLoot, sameKill, type Loot, type LootId } from './fight/loot.ts';
-import { marksOf } from './career.ts';
+import { isOpponentId, type OpponentId } from '../roster.ts';
+import { cleanLoot, emptyLoot, isLootId, keepsLoot, mergeLoot, sameKill, type Loot, type LootId } from './loot.ts';
+import { marksOf } from '../career.ts';
 
 export type CloudProfile = { display_name: string; encounter: OpponentId | null; revision: number; victory_marks: number; loot: Loot };
 const columns = 'display_name,encounter,revision,victory_marks,loot';

@@ -1,5 +1,5 @@
 import type { Practice } from './fight/combat.ts';
-import type { StoragePort } from './profile.ts';
+import type { StoragePort } from './core/profile.ts';
 
 // Control trial tally: fights, wins, rematches, duel length and damage on this device, shown under the combat debug view.
 // The right-thumb grammar is the thumb cluster (v5), locked in by the owner on 2026-09-16 and confirmed on 2026-09-20 when the v8

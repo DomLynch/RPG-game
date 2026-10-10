@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { awardFor, kitAt, levelRefusal } from '../src/awards.ts';
 import { DIAL_TRAIL, MAX_LEVEL } from '../src/career.ts';
-import { LOOT, WORN_FROM } from '../src/fight/loot.ts';
+import { LOOT, WORN_FROM } from '../src/core/loot.ts';
 
 // The DB half (seed, verified win, guest convert, forged cache) is scripts/awards-database-check.mjs on real PostgreSQL; this is the rule.
 test('the take is the claimed piece, armour or weapon, at the tier the fight was met at', () => {

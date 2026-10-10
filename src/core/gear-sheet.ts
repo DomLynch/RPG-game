@@ -2,7 +2,7 @@
 // the same screen: every wear / stow / try-on decision is made here and nowhere else. The page hands in what it owns (profile, scene, names) as `d`.
 import { captureException } from '@sentry/browser';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
-import { TIERS, type Tier } from '../grades.ts';
+import { TIERS, type Tier } from './grades.ts';
 import { isLegendOpponent, legendAt } from '../legends.ts';
 import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';

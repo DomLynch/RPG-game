@@ -3,7 +3,7 @@
 import { emptyLoot, type Loot } from './loot.ts';
 import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
 import { isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
-import { storedToken, writerBase } from '../writer-call.ts';
+import { storedToken, writerBase } from './writer-call.ts';
 import { openCharacter } from './open.ts';
 
 type Deps = { storage: { getItem(key: string): string | null } | null; search: string; now: () => number; fetch?: typeof fetch; getLoot: () => Loot | undefined; show: (loot: Loot) => void; refused?: () => void };
@@ -17,7 +17,7 @@ export function createServerGear(d: Deps) {
   async function who(): Promise<string | null> {
     if (character) return character;
     const token = storedToken(d.storage, d.now()); if (!token) return null;
-    return (character = await openCharacter({ storage: d.storage, search: d.search, now: d.now, ...(d.fetch ? { fetch: d.fetch } : {}) }));   // the page's one `open` (src/fight/open.ts), shared with the Pit's own load
+    return (character = await openCharacter({ storage: d.storage, search: d.search, now: d.now, ...(d.fetch ? { fetch: d.fetch } : {}) }));   // the page's one `open` (src/core/open.ts), shared with the Pit's own load
   }
   return {
     // Called whenever the sheet opens: read the ledger; nothing changes on any failure (the local ledger stays on screen).

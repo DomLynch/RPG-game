@@ -8,7 +8,7 @@ export function writerBase(search: string): string {
   return asked && LOOPBACK.test(asked) ? asked.replace(/\/$/, '') : WRITER_PATH;
 }
 
-// The live game's stored Supabase session (src/account.ts storageKey; src/fight/loot-claims.ts AUTH_KEY reads it the same way). The preview is
+// The live game's stored Supabase session (src/core/account.ts storageKey; src/core/loot-claims.ts AUTH_KEY reads it the same way). The preview is
 // served from the same origin (/preview/origins/), so a player signed in on frankendom.com is signed in here. supabase-js is not loaded in
 // the preview, so nothing refreshes the token: one that is expired (or within a minute of it) counts as no session and nothing is sent.
 export const AUTH_KEY = 'frankendom.auth.v1';

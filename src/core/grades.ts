@@ -5,9 +5,9 @@
 //
 // One shared kit library dressed eight ways is what makes a 60-opponent roster affordable: 8 grades × N pieces costs N meshes, not 8N.
 // Pure data — no three, no loader. The runtime reads `gradeFor(tier, material)` and writes the factors onto the piece's own material.
-import { TITLES, rankFor } from './career.ts';
-import type { LootId } from './fight/loot.ts';
-import type { OpponentId } from './roster.ts';
+import { TITLES, rankFor } from '../career.ts';
+import type { LootId } from './loot.ts';
+import type { OpponentId } from '../roster.ts';
 
 // The ladder is the CAREER ladder: a tier and a rank are the same word (owner via Strategy, 2026-09-22), so the journal can say
 // "Praetorian iron" and mean one thing. `TIERS` is `career.ts`'s `TITLES` itself, not a copy — ten names that cannot drift from the

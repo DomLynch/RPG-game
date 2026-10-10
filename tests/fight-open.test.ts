@@ -1,8 +1,8 @@
-// src/fight/open.ts: the page's one writer `open`. One request per page and storage, a slow answer is asked again (Dom's first /zone1/ visit timed out while the writer was still creating his
+// src/core/open.ts: the page's one writer `open`. One request per page and storage, a slow answer is asked again (Dom's first /zone1/ visit timed out while the writer was still creating his
 // character), a refusal is final, and a failure is not kept.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { characterFor, openAccount, openCharacter } from '../src/fight/open.ts';
+import { characterFor, openAccount, openCharacter } from '../src/core/open.ts';
 import { spawnTracker } from '../origins/preview/spawn-net.ts';
 
 const token = () => ({ getItem: () => JSON.stringify({ access_token: 'tok', expires_at: Date.now() / 1000 + 3600 }) });

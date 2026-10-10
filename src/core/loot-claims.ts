@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { StoragePort } from '../profile.ts';
-import { readStanding, type Standing } from '../cloud-profile.ts';
+import type { StoragePort } from './profile.ts';
+import { readStanding, type Standing } from './cloud-profile.ts';
 import { isLootId } from './loot.ts';
+import { AUTH_KEY } from './writer-call.ts';
 
 // The claims outbox (SCOPE 9(a), Backend's contract 2026-09-25): every signed-in ladder win posts one loot_claims row (migration
 // 202609230001), and the verifier replays its record and awards the mark and the piece. An entry is written AT THE KILL, tagged with
@@ -146,7 +147,8 @@ export function flushClaims(db: SupabaseClient, userId: string, storage: Storage
 // Entries stay in the outbox: the next load posts them again and the global record hash answers 23505, which drops them, so it is one
 // claim either way. The token is supabase-js's stored session (account.ts storageKey); none, or expired, sends nothing and the next load
 // posts. Keepalive bodies share 64 KB in flight, so it sends at most what fits.
-export const AUTH_KEY = 'frankendom.auth.v1', KEEPALIVE_BYTES = 60000;
+export { AUTH_KEY };   // one constant, defined in writer-call.ts (both doors re-export the same binding)
+export const KEEPALIVE_BYTES = 60000;
 export function claimOnHide(storage: StoragePort, userId: string, piece: string | null, api: { url: string; key: string } | null, send: typeof fetch, now = Date.now()): number {
   const open = outbox(storage).filter((c) => !c.final && c.userId === userId).at(-1);
   if (open) finaliseClaim(storage, open.record, piece);   // unwritten, the entry is held and sent below all the same

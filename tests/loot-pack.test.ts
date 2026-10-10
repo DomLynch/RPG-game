@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/fight/loot.ts';
-import { loadProfile, saveProfile, type StoragePort } from '../src/profile.ts';
-import { absorbCloud, profileDiffers, type CloudProfile } from '../src/cloud-profile.ts';
+import { PACK, cleanLoot, mergeLoot, packFull, recoverPack, stow, takeWouldDrop, wear, wearFromPack, wearTaken, type Loot } from '../src/core/loot.ts';
+import { loadProfile, saveProfile, type StoragePort } from '../src/core/profile.ts';
+import { absorbCloud, profileDiffers, type CloudProfile } from '../src/core/cloud-profile.ts';
 
 // Dom's profile screenshot, 2026-09-24: Store on a worn slot unwore the piece and it vanished — the Profile tab had no pack to show it in.
 const worn = (): Loot => ({ owned: ['veteran.Helmet', 'veteran.Body', 'pitborn.Boots'], equipped: { head: 'veteran.Helmet', chest: 'veteran.Body', feet: 'pitborn.Boots' } });

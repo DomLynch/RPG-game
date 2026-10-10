@@ -19,10 +19,10 @@ test('the boot-check row is named by its script and picked for the writer\'s doo
   const deploy = (file: string) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: file, encoding: 'utf8' }).stderr;
   const pr = (file: string) => spawnSync('node', ['scripts/release-rows-for.mjs', file], { encoding: 'utf8' }).stdout;
   // loot.ts and duel.ts are deep in the writer's runtime closure (Auditor on #2116): a page import added there would ship without the row if the table listed files by hand.
-  for (const file of ['src/fight/index.ts', 'src/fight/server.ts', 'src/fight/loot.ts', 'src/fight/duel.ts', 'origins/preview/mobs.ts', 'scripts/origins-writer.mjs']) {
+  for (const file of ['src/fight/index.ts', 'src/fight/server.ts', 'src/core/loot.ts', 'src/fight/duel.ts', 'origins/preview/mobs.ts', 'scripts/origins-writer.mjs']) {
     assert.match(deploy(file), new RegExp(`\\b${index} origins-writer-boot-check\\b`), `${file} runs the boot check at deploy`);
   }
-  for (const file of ['origins/preview/mobs.ts', 'src/fight/loot.ts', 'src/fight/duel.ts', 'scripts/origins-writer.mjs', script]) {
+  for (const file of ['origins/preview/mobs.ts', 'src/core/loot.ts', 'src/fight/duel.ts', 'scripts/origins-writer.mjs', script]) {
     assert.match(pr(file), new RegExp(`^${index} origins-writer-boot-check$`, 'm'), `${file} runs it on the PR`);
   }
   assert.doesNotMatch(deploy('src/fight/hud.ts'), /origins-writer-boot-check/, 'an unrelated page file does not');

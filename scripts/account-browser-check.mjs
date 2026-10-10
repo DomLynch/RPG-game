@@ -90,7 +90,7 @@ try {
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
   row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80, loot: { owned: [], equipped: {} } };   // the cloud row carries the loot column (PR #330); a row without it is refused as invalid
-  // The merge ends in location.replace (src/account.ts refresh(merge)): a second full load. `ready` and the opponent can both read true on the
+  // The merge ends in location.replace (src/core/account.ts refresh(merge)): a second full load. `ready` and the opponent can both read true on the
   // first page while that replace is pending, and an evaluate then dies with "Execution context was destroyed" (J4a run 1, row 14, load 30).
   // So count real loads and read nothing until the restart's own load has fired and its page is ready.
   let loads = 0; page.on('load', () => { loads++; });

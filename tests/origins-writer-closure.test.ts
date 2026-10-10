@@ -7,7 +7,7 @@ import test from 'node:test';
 
 import { SERVER_ENTRIES as ENTRIES, stripComments, writerClosure } from '../scripts/writer-closure.mjs';
 
-const BANNED_FILES = ['src/fight/index.ts'];
+const BANNED_FILES = ['src/fight/index.ts', 'src/core/index.ts'];
 const BANNED_PACKAGES = /^three(\/|$)/;
 
 const disk = (f: string): string => readFileSync(f, 'utf8');
@@ -16,7 +16,7 @@ test('no server entry\'s runtime closure reaches the page door src/fight/index.t
   for (const entry of ENTRIES) {
     const { files, packages } = writerClosure(disk, existsSync, entry);
     assert.ok(files.includes(entry), `${entry}: the walk did not start at the entry`);
-    assert.deepEqual(files.filter((f) => BANNED_FILES.includes(f)), [], `${entry} loads src/fight/index.ts: take src/fight/server.ts (re-exports only, no renderer)`);
+    assert.deepEqual(files.filter((f) => BANNED_FILES.includes(f)), [], `${entry} loads a page door (src/fight/index.ts or src/core/index.ts): take src/fight/server.ts or src/core/server.ts (re-exports only, no renderer)`);
     assert.deepEqual(packages.filter((p) => BANNED_PACKAGES.test(p)), [], `${entry} loads three, which is not installed on the box`);
   }
 });

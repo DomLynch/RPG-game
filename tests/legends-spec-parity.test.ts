@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { TIERS } from '../src/grades.ts';
+import { TIERS } from '../src/core/grades.ts';
 import { LEGEND_OPPONENTS, LEGENDS } from '../src/legends.ts';
 
 const spec = readFileSync(new URL('../GAME_SPEC.md', import.meta.url), 'utf8');

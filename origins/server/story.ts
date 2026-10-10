@@ -7,7 +7,7 @@ import type { ConditionFacts, QuestDefinition, QuestState } from '../contracts/s
 import { award, levelOfCredit } from '../progression/model.ts';
 import { loadJournal, type Advanced, type Journal } from '../quests/journal.ts';
 import type { Talk, TalkState } from '../talk/talk.ts';
-import { careerState } from './career.ts';
+import { careerState } from '../../src/core/server.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json, Snapshot } from './store.ts';
 

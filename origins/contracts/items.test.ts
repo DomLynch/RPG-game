@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { levelOf } from '../../src/career.ts';
 import { CAPS, NAKED, loadoutFor } from '../../src/fight/gear-stats.ts';
-import { ARMOUR_SLOTS } from '../../src/fight/loot.ts';
+import { ARMOUR_SLOTS } from '../../src/core/loot.ts';
 import type { Issue, Result } from './core.ts';
 import * as F from './fixtures.ts';
 import type { AccountId, CharacterInstanceId, ItemId } from './ids.ts';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { absorbCloud, cloudProfile, fighterDetails, readAdmin, readStanding, saveFailure, type CloudProfile } from '../src/cloud-profile.ts';
+import { absorbCloud, cloudProfile, fighterDetails, readAdmin, readStanding, saveFailure, type CloudProfile } from '../src/core/cloud-profile.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 test('cloud saves carry the editable practice details and the client-reported mark count, never device identity', () => {
@@ -44,8 +44,8 @@ test('the server standing is my_standing()\'s marks, and anything else — the f
 
 // GPT audit 2026-09-22 (A): wearing a piece or receiving its Watch link changed nothing the save predicate compared, so a signed-in
 // fighter's equip never reached the cloud. Every part of the loot now counts.
-import { createSaveQueue, profileDiffers } from '../src/cloud-profile.ts';
-import type { Profile } from '../src/profile.ts';
+import { createSaveQueue, profileDiffers } from '../src/core/cloud-profile.ts';
+import type { Profile } from '../src/core/profile.ts';
 test('the save predicate sees equip, unequip and provenance-only changes, and stays quiet when nothing changed', () => {
   const cloud = { display_name: 'Aldren', encounter: 'goblin' as const, revision: 3, victory_marks: 4, loot: { owned: ['goblin.Body' as const], equipped: {} } };
   const base: Profile = { version: 1, id: 'dev', name: 'Aldren', encounter: 'goblin', career: { victoryMarks: 4 }, loot: { owned: ['goblin.Body'], equipped: {} } };
@@ -98,7 +98,7 @@ test('an older device never lowers the account: what it writes carries the highe
 });
 
 test('a refresh keeps the declined-loot history on both sides (merged, deduplicated, capped oldest-first)', async () => {
-  const { DECLINED_KEPT } = await import('../src/fight/loot.ts');
+  const { DECLINED_KEPT } = await import('../src/core/loot.ts');
   const kill = (attempt: number, day: string) => ({ opponent: 'goblin' as const, attempt, healthLeft: 40, recordId: null, day });
   const cloud: CloudProfile = { display_name: 'Aldren', encounter: 'goblin', revision: 3, victory_marks: 5, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(1, '2026-09-20')] } };
   const device: Profile = { version: 1, id: 'd', name: 'Aldren', encounter: 'goblin', career: { victoryMarks: 5 }, loot: { owned: ['veteran.Helmet'], equipped: {}, declined: [kill(1, '2026-09-20'), kill(2, '2026-09-23')] } };

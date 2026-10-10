@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { rankFor } from '../src/career.ts';
-import { levelOf } from '../src/grades.ts';
+import { levelOf } from '../src/core/grades.ts';
 import { LEGEND_OPPONENTS, LEGENDS, legendAt, legendForLevel, portraitPath } from '../src/legends.ts';
 import { ROSTER } from '../src/roster.ts';
 

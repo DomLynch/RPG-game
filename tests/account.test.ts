@@ -3,18 +3,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
-import * as profile from '../src/profile.ts';
-import * as cloudProfile from '../src/cloud-profile.ts';
+import * as profile from '../src/core/profile.ts';
+import * as cloudProfile from '../src/core/cloud-profile.ts';
 import * as career from '../src/career.ts';
-import * as loot from '../src/fight/loot.ts';
-import { session } from '../src/session.ts';
+import * as loot from '../src/core/loot.ts';
+import { session } from '../src/core/session.ts';
 import { timedSignal } from '../src/timed-signal.ts';
-import * as lootClaims from '../src/fight/loot-claims.ts';
+import * as lootClaims from '../src/core/loot-claims.ts';
 import * as sparring from '../src/sparring.ts';
 
 // Execute the real account module against a fake Supabase client whose reads answer at once and whose writes answer when the test
 // says so, so the order of responses is the test's to choose.
-const code = ts.transpileModule(readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const code = ts.transpileModule(readFileSync(new URL('../src/core/account.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 class Element extends EventTarget { hidden = false; disabled = false; textContent = ''; dataset: Record<string, string> = {}; }
 
 function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<cloudProfile.CloudProfile | null>>, { admin = false, localDebug = false } = {}) {
@@ -29,8 +29,8 @@ function mount(users: Record<string, cloudProfile.CloudProfile | null | Promise<
     readFighter: async (_db: unknown, id: string) => users[id] ?? null, readAdmin: async () => admin,
     writeFighter: (_db: unknown, id: string, written: profile.Profile, revision: number | null) => new Promise<cloudProfile.CloudProfile>(answer => { writes.push({ userId: id, revision, profile: written, answer }); }),
   };
-  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, './timed-signal.ts': { timedSignal }, './profile.ts': profile, './cloud-profile.ts': cloud, './career.ts': career, './fight/loot.ts': loot, './session.ts': { session }, './sparring.ts': sparring,
-    './fight/loot-claims.ts': { ...lootClaims, flushThenStanding: async () => null }, '@sentry/browser': { captureException() {} } };   // no claims to post here: the outbox has its own tests
+  const modules: Record<string, unknown> = { '@supabase/supabase-js': { createClient: () => db }, '../timed-signal.ts': { timedSignal }, './profile.ts': profile, './cloud-profile.ts': cloud, '../career.ts': career, './loot.ts': loot, './session.ts': { session }, '../sparring.ts': sparring,
+    './loot-claims.ts': { ...lootClaims, flushThenStanding: async () => null }, '@sentry/browser': { captureException() {} } };   // no claims to post here: the outbox has its own tests
   const win = new EventTarget(), exports: { mountAccount?: (url: string, key: string) => Promise<void> } = {};
   runInNewContext(code, { require: (id: string) => modules[id] || {}, exports, window: win, Event, URL, localStorage, crypto: { randomUUID: () => 'test' },
     document: { getElementById: get }, location: { href: 'https://frankendom.com/', origin: 'https://frankendom.com' }, history: { replaceState() {} },
@@ -138,5 +138,5 @@ test('the account fetch signal still builds on a browser without AbortSignal.any
     const late = timedSignal(undefined, 5); await new Promise((r) => setTimeout(r, 30)); assert.equal(late.aborted, true, 'the timeout still fires');
     assert.equal(timedSignal(AbortSignal.abort()).aborted, true);
   } finally { Object.assign(AbortSignal, { any, timeout }); }
-  assert.match(readFileSync(new URL('../src/account.ts', import.meta.url), 'utf8'), /signal: timedSignal\(init\?\.signal\)/);
+  assert.match(readFileSync(new URL('../src/core/account.ts', import.meta.url), 'utf8'), /signal: timedSignal\(init\?\.signal\)/);
 });

@@ -1,7 +1,7 @@
 // Guest startup never waits for an account request or downloads the account SDK.
-import { api } from './api.ts';
-import { autoReload } from './chunk-recover.ts';
-import { rememberZone1 } from './zone1-hop.ts';
+import { api } from '../api.ts';
+import { autoReload } from '../chunk-recover.ts';
+import { rememberZone1 } from '../zone1-hop.ts';
 // main.ts hides the welcome card whenever a fight is on screen (paused() reads !welcome.hidden): only with the card up may a stale chunk reload the page by itself.
 const fightOn = () => document.getElementById('welcome')?.hidden === true;
 const safeStorage = () => { try { return sessionStorage; } catch { return null; } };

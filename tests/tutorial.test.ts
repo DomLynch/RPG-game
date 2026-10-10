@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { TUTORIAL_STEPS, type TutorialStep } from '../src/tutorial.ts';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { STRATEGIES, W, P, act, idle, ready, gap, swingStart, guard } from './strategies.ts';

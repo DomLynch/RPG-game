@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 const ROOT = new URL('..', import.meta.url).pathname, OUT = join(ROOT, 'public/game/img'), HEIGHT = 720, QUALITY = 0.82;
 // `loot.glb <sha256:12> warrior.glb <sha256:12>`: the inputs every layer is a function of (the fixed frame, lights and camera live in this file).
 export const renderedFrom = async () => (await Promise.all(['loot.glb', 'warrior.glb'].map(async (f) => `${f} ${createHash('sha256').update(await readFile(join(ROOT, 'src/assets', f))).digest('hex').slice(0, 12)}`))).join(' ');
-// The drawn half of src/fight/loot.ts PAPERDOLL (main = weapons, a separate render path). An unmapped slot throws: it once wrote #slot-undefined.
+// The drawn half of src/core/loot.ts PAPERDOLL (main = weapons, a separate render path). An unmapped slot throws: it once wrote #slot-undefined.
 const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], off: ['Shield'] };
 const keyOf = (slot) => Object.keys(PAPERDOLL).find((key) => PAPERDOLL[key].includes(slot)) ?? (() => { throw new Error(`loot-layers: no paperdoll key for slot ${slot}`); })();
 
@@ -120,7 +120,7 @@ const save = async (file, data) => { const buf = Buffer.from(data.webp, 'base64'
 await mkdir(join(OUT, 'loot'), { recursive: true });
 let base;
 for (const [id, png] of shots) { const data = await save(id ? join(OUT, 'loot', `${id}.webp`) : join(OUT, 'fighter.webp'), await crop(png)); if (!id) base = data; }
-// Thumbnails for the kill screen's Take-one panel (src/fight/loot-panel.ts): the piece alone, cropped to its own bounds, squared. 192 px: the
+// Thumbnails for the kill screen's Take-one panel (src/core/loot-panel.ts): the piece alone, cropped to its own bounds, squared. 192 px: the
 // E2 take screen (2026-09-26) draws a tile at 54 px and the card's offer at 104 px, on 2x phones.
 // A PAIR (arms, gloves, greaves, boots: one piece worn on both sides) is cropped side by side: each side to its own bounds, the two set
 // close together, so the tile shows the pair large instead of two specks a body-width apart (Dom counted them as extra tiles).
