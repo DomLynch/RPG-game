@@ -60,7 +60,7 @@ const guard = (opts: { parent: string | null; runs: Record<string, [string, stri
   const dir = mkdtempSync(join(tmpdir(), 'qgreen-'));
   try {
     mkdirSync(join(dir, 'bin'));
-    const lists = Object.entries(opts.runs).map(([sha, rs]) => `${sha}) ${rs.map(([id, url]) => `echo '${id} ${url}';`).join(' ')};;`).join(' ');
+    const lists = Object.entries(opts.runs).map(([sha, rs]) => `${sha}) ${rs.map(([id, url]) => `echo '${id} ${url}'`).join('; ')};;`).join(' ');
     const views = Object.entries(opts.verdicts).map(([id, v]) => `${id}) echo ${v};;`).join(' ');
     writeFileSync(join(dir, 'bin/gh'), `#!/bin/sh\nif [ "$2" = list ]; then case "$6" in ${lists} esac; exit 0; fi\ncase "$3" in ${views} esac\n`);
     writeFileSync(join(dir, 'bin/git'), `#!/bin/sh\n${opts.parent ? `echo ${opts.parent}` : 'exit 1'}\n`);
