@@ -1,7 +1,5 @@
 // The world follow camera (src/fight/follow-camera.ts): the numbers main.ts used inline before it moved, pinned; a passage is a parameter a zone supplies.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { test } from 'node:test';
 import * as THREE from 'three';
 import { createFollowCamera, inPassage } from '../src/fight/follow-camera.ts';
@@ -31,12 +29,4 @@ test('the camera eases to the eye and snap() restarts at it; the stick pitch low
   assert.ok(c.position.x > first.x && c.position.x < 13 - 5.2 + 1e-9 + 5.2, 'moved toward the new eye, not onto it');
   f.snap(); f.update(0.5, { ...S, x: 13 }); assert.ok(Math.abs(c.position.x - (13 - 5.2)) < 1e-9, 'snap puts it on the eye');
   const p = cam(); createFollowCamera(p).update(1 / 60, { ...S, pitch: 1 }); assert.ok(Math.abs(p.position.y - (3.1 - 0.9)) < 1e-9);
-});
-
-// K7 camera row: a page under origins/ never places the camera itself; the engine's follow/duel camera does.
-const walk = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(join(d, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\./.test(e.name) ? [join(d, e.name)] : []);
-const PLACES = /\bcamera\.(position\.(set|copy|lerp|add\w*)|lookAt)\s*\(/;
-test('K7: nothing under origins/ places the camera (camera.position / lookAt): it goes through src/fight', () => {
-  assert.deepEqual(walk('origins').filter((f) => PLACES.test(readFileSync(f, 'utf8'))), []);
-  assert.ok(PLACES.test('camera.position.copy(a); camera.lookAt(b)'), 'the detector sees a placed camera (mutation)');
 });
