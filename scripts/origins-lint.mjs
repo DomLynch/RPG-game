@@ -15,7 +15,6 @@ export const DEBT = {
   'origins/preview/mobs.ts': { owner: 'World, Pit & Audio', codes: { '@typescript-eslint/no-unused-vars': 1 } },
   'origins/server/db.ts': { owner: 'Duels & Backend', codes: { '@typescript-eslint/no-unused-expressions': 1 } },
   // Arrived with batch O's zone PRs (#2025/#2033): `_resolved` at :35 (Lead 2026-10-09: pin it, World removes it).
-  'origins/zones/loader.ts': { owner: 'World, Pit & Audio', codes: { '@typescript-eslint/no-unused-vars': 1 } },
 };
 
 /** eslint --format json -> { file (repo-relative): { rule: count } }, errors only (severity 2); a parse error has no rule and counts as 'parse'. */
