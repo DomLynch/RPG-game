@@ -38,7 +38,7 @@ import { ME, createWorldCombat } from '../../src/fight/index.ts';
 import { NAKED } from '../../src/fight/index.ts';
 import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
-import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
+import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
@@ -155,7 +155,7 @@ loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); h
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0, camSnap = true;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search)) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.

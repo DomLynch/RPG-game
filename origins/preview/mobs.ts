@@ -58,8 +58,9 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-// The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. The signature stays for the page and the tests.
-export const previewRows = (_search: string): readonly MobRow[] => FRONTIER_ROWS;
+// The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. `?lone` (a test flag, e.g. /zone/2/?lone) makes every camp one creature (campSize [1, 1]) for a guest or offline load ONLY: a signed-in player is paid per kill by the server, so the flag is ignored for them.
+const LONE_ROWS: readonly MobRow[] = FRONTIER_ROWS.map((r) => ({ ...r, behaviour: { ...r.behaviour, campSize: [1, 1] as const } }));
+export const previewRows = (search: string, signedIn: boolean): readonly MobRow[] => !signedIn && /[?&]lone\b/.test(search) ? LONE_ROWS : FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const ID_PREFIX = f.zone === '1' ? '' : `z${f.zone}:`;   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
