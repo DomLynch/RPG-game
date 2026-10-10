@@ -16,7 +16,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.GPU_RUN_HF || 'hf', flavor = 't4-medium', pollS = Number(process.env.GPU_RUN_POLL_S || 20), SCHEDULE_GRACE_S = 600;
 const say = message => process.stderr.write(`gpu-run: ${message}\n`);
 const run = (args, options = {}) => spawnSync(hf, args, { encoding: 'utf8', timeout: 120_000, ...options });   // every sync child is bounded (tests/child-process-bounds.test.ts)
-const sleep = s => { if (s > 0) spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }); };
+const sleep = s => new Promise(resolve => setTimeout(resolve, s * 1000));   // async: a SIGTERM/SIGINT (GitHub cancelling the run) is only handled when the loop yields
 const PUBLIC_KEYS = ['VITE_SENTRY_DSN', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY'];
 const LIVE = ['SCHEDULING', 'PENDING', 'RUNNING', 'STARTING', 'QUEUED', 'UNKNOWN'];
 
@@ -29,6 +29,8 @@ export async function main(argv) {
   process.env.HF_LEDGER_DIR = ledgerDir;   // before the imports: hf-cleanup reads it once, and this run's ledger must be the only one it cancels (a deploy's jobs are not ours)
   const { ledger } = await import('./vps-shadow/launch.mjs'), { cleanup } = await import('./hf-cleanup.mjs');
   let code = 1, jobId = null, secrets = null;
+  const interrupted = signal => { const { line } = cleanup(); console.log(`${line} (interrupted by ${signal})`); process.exit(130); };   // a cancelled CI run must not leave its job running
+  process.once('SIGINT', interrupted); process.once('SIGTERM', interrupted);
   try {
     let args;
     try { args = parseArgs(argv); } catch (error) { say(error.message); code = 2; return code; }   // nothing launched; the finally below still logs the HF line
@@ -52,7 +54,7 @@ export async function main(argv) {
     let now = stage(jobId), timedOut = false;
     while (LIVE.includes(now)) {
       if ((Date.now() - t0) / 1000 > budgetS) { say(`still ${now} after ${Math.round((Date.now() - t0) / 1000)} s: cancelling`); run(['jobs', 'cancel', jobId]); timedOut = true; break; }
-      sleep(pollS); now = stage(jobId);
+      await sleep(pollS); now = stage(jobId);
     }
     const logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 28, timeout: 300_000 }).stdout || '';
     const parsed = parseJobLog(logs);

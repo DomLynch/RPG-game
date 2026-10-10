@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { isHardware, jobScript, parseArgs, parseJobLog, shellLine } from '../scripts/lib/gpu-run.mjs';
 
@@ -61,7 +61,7 @@ test('the job log parser reads the renderer, blocker, exit, seconds and the arti
 });
 
 // A stub hf: `jobs run` starts job 'a'x24 (or fails), `jobs logs` prints a canned log, `jobs inspect` answers COMPLETED.
-const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail', log = '') => {
+const setup = (mode: 'ok' | 'guard' | 'launch-fails' | 'id-then-fail' | 'hangs', log = '') => {
   const dir = mkdtempSync(join(tmpdir(), 'gpu-run-')), stub = join(dir, 'hf'), logFile = join(dir, 'log'), out = join(dir, 'out'), ledger = join(dir, 'ledger');
   writeFileSync(logFile, log);
   writeFileSync(stub, `#!/usr/bin/env node
@@ -69,7 +69,8 @@ const fs = require('fs'); const [, , , verb] = process.argv;
 if (verb === 'run') { if (${JSON.stringify(mode)} === 'launch-fails') { console.error('quota'); process.exit(1); }
 if (${JSON.stringify(mode)} === 'id-then-fail') { console.log('Job started with ID: ${'a'.repeat(24)}'); process.exit(1); } fs.writeFileSync(${JSON.stringify(join(dir, 'ran'))}, process.argv.join(' ')); console.log('Job started with ID: ${'a'.repeat(24)}'); }
 else if (verb === 'logs') process.stdout.write(fs.readFileSync(${JSON.stringify(logFile)}, 'utf8'));
-else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-medium', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: 'COMPLETED' } }]));
+else if (verb === 'cancel') fs.writeFileSync(${JSON.stringify(join(dir, 'cancelled'))}, 'x');
+else if (verb === 'inspect') console.log(JSON.stringify([{ id: 'x', flavor: 't4-medium', created_at: new Date(Date.now() - 120000).toISOString().replace('T', ' '), status: { stage: ${JSON.stringify(mode)} === 'hangs' && !fs.existsSync(${JSON.stringify(join(dir, 'cancelled'))}) ? 'RUNNING' : 'COMPLETED' } }]));
 `);
   chmodSync(stub, 0o755);
   const run = (...args: string[]) => spawnSync(process.execPath, ['scripts/gpu-run.mjs', ...args], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, GPU_RUN_HF: stub, GPU_RUN_OUT: out, HF_LEDGER_DIR: ledger, GPU_RUN_POLL_S: '0', HF_WALL_ROWS_ENV_FILE: join(dir, 'none.env') } });
@@ -120,4 +121,18 @@ test('a launch that prints a job id but exits nonzero is still ledgered, so the 
   assert.match(r.stderr, /hf jobs run failed/);
   assert.match(r.stdout, /^HF: 1 jobs, 0 running/m);
   assert.ok(readdirSync(t.ledger).length > 0);
+});
+
+test('a cancelled CI run (SIGTERM) cancels its job, logs the HF line and exits 130', async () => {
+  const t = setup('hangs');
+  const child = spawn(process.execPath, ['scripts/gpu-run.mjs', 'HEAD', '--', 'node', 'x.mjs'], { env: { ...process.env, GPU_RUN_HF: join(t.dir, 'hf'), GPU_RUN_OUT: t.out, HF_LEDGER_DIR: t.ledger, GPU_RUN_POLL_S: '0.2', HF_WALL_ROWS_ENV_FILE: join(t.dir, 'none.env') } });
+  let out = ''; child.stdout.on('data', d => { out += d; });
+  for (let i = 0; i < 100 && !existsSync(join(t.dir, 'ran')); i++) await new Promise(r => setTimeout(r, 100));
+  assert.ok(existsSync(join(t.dir, 'ran')), 'the job started');
+  await new Promise(r => setTimeout(r, 600));
+  child.kill('SIGTERM');
+  const code = await new Promise(r => child.on('exit', r));
+  assert.equal(code, 130);
+  assert.match(out, /^HF: 1 jobs, 0 running.*interrupted by SIGTERM/m);
+  assert.ok(existsSync(join(t.dir, 'cancelled')), 'the running job was cancelled');
 });

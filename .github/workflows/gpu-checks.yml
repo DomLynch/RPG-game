@@ -1,0 +1,76 @@
+# The pull request's GPU checks, run by GitHub itself (Dom's form, 2026-10-10: PR CI runs itself, no lane action). A GitHub-hosted runner calls scripts/gpu-run.mjs, which runs
+# scripts/gpu-run/pr-checks.sh on a Hugging Face t4-medium job at the PR head: the /zone1/ and open-once smokes, a Pit fight still and the Zone 1 stills, every browser on the NVIDIA
+# renderer (the job refuses to run on software GL, exit 11). The result is this check. NOT a self-hosted runner: the repo is public and the VPS is production.
+#  - Same-repo branches only (a fork's pull request has no HF_TOKEN and its code would run on our account): the `if:` below.
+#  - HF_TOKEN is a repo secret (a fine-grained Hugging Face token that can run Jobs, nothing else). While it is missing the job says so in the run summary and exits 0
+#    ("NOT RUN"), so a PR is never red for a missing secret and never reads as GPU-checked when it was not.
+#  - A newer push cancels the run; gpu-run.mjs cancels its HF job on SIGINT/SIGTERM and always closes with the "HF: N jobs, 0 running, <=$X" line.
+#  - Never a draft; docs-only diffs are skipped like quality.yml.
+name: gpu-checks
+on:
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit to check (default: the ref you dispatch from)'
+        required: false
+        default: ''
+concurrency:
+  group: gpu-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  gpu:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SHA: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+          sparse-checkout: scripts   # the runner needs scripts/ only; the HF job clones the whole repo itself
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Hugging Face CLI
+        if: env.HF_TOKEN != ''
+        run: pip install --quiet 'huggingface_hub==1.7.2'
+      - name: GPU checks on the T4
+        id: gpu
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "### GPU checks NOT RUN" >> "$GITHUB_STEP_SUMMARY"
+            echo "The repo secret HF_TOKEN is not set, so nothing ran on the T4. This is not a pass." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::HF_TOKEN is not set: the GPU checks did not run"
+            exit 0
+          fi
+          set +e
+          node scripts/gpu-run.mjs "$SHA" --timeout 20m -- bash scripts/gpu-run/pr-checks.sh 2>&1 | tee gpu-run.log
+          code=${PIPESTATUS[0]}
+          {
+            echo "### GPU checks on the T4 (exit $code)"
+            echo '```'
+            grep -E '^(CHECK |gpu-run: (job|renderer|exit|BLOCKER)|HF: )' gpu-run.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+        env:
+          GPU_RUN_OUT: ${{ github.workspace }}/gpu-run-out
+          HF_WALL_ROWS_ENV_FILE: /nonexistent
+      - name: Stills and receipts
+        if: always() && env.HF_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-checks-${{ github.event.pull_request.number || 'dispatch' }}
+          path: gpu-run-out/
+          if-no-files-found: ignore
+          retention-days: 14
