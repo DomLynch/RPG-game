@@ -24,7 +24,7 @@ test('the T4 gets every browser row (wall and virtual clock): never a WebKit row
     assert.doesNotMatch(command, /--engine\s+webkit/, `${index} is a WebKit row`);
     assert.doesNotMatch(command, /arena-audio-check/, `${index} is held (row 22 until it is green in a release)`);
   }
-  const timings = new Map(rowSet(gate.release_commands, source).map((r: { index: number; timing: string }) => [r.index, r.timing]));
+  const timings = new Map<number, string>(rowSet(gate.release_commands, source).map((r: { index: number; timing: string }): [number, string] => [r.index, r.timing]));
   assert.ok(rows.some((i: number) => timings.get(i) === 'virtual'), 'virtual-clock browser rows draw too: they go to the T4');
   for (const i of rows) assert.notEqual(timings.get(i), 'none', `row ${i} opens no browser: it stays on the CPU shard`);
   for (const [i, t] of timings) if (t !== 'none' && !/--engine\s+webkit/.test(gate.release_commands[i - 1].join(' ')) && i !== 22) assert.ok(rows.includes(i), `browser row ${i} must be on the T4 list`);
@@ -34,7 +34,7 @@ test('the T4 gets every browser row (wall and virtual clock): never a WebKit row
 });
 
 test('the HF CPU shard carries no row that draws: every CPU-shard row opens no browser (R job 6ac9806a timed out drawing on CPU)', () => {
-  const timings = new Map(rowSet(gate.release_commands, source).map((r: { index: number; timing: string }) => [r.index, r.timing]));
+  const timings = new Map<number, string>(rowSet(gate.release_commands, source).map((r: { index: number; timing: string }): [number, string] => [r.index, r.timing]));
   const cpu: number[] = cpuShards(gate.release_commands, source).flat();
   for (const i of cpu) assert.equal(timings.get(i), 'none', `CPU shard row ${i} draws`);
 });
