@@ -1,72 +1,74 @@
-import { ROSTER, supportsFinishers, resolveFinisher } from './roster.ts';
+import { ROSTER, supportsFinishers, resolveFinisher } from '../roster.ts';
 import * as THREE from 'three';
-import { SPECIAL_STRUCK, specialStage } from './fight/special-look.ts';
-import { resolveSparringPreview } from './sparring-specials.ts';
-import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './fight/special-modes.ts';
-import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from './spell-school.ts';
-import { createTitheLighting } from './fight/special-lighting.ts';
-import { warmFirstFrame } from './first-frame.ts';
-import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
-import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './fight/special-presentation.ts';
+import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
+import { resolveSparringPreview } from '../sparring-specials.ts';
+import { gait, SPECIAL_MODES, type SpecialFx as ModeFx } from './special-modes.ts';
+import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from '../spell-school.ts';
+import { createTitheLighting } from './special-lighting.ts';
+import { warmFirstFrame } from '../first-frame.ts';
+import { createBossTelegraph, telegraphFlag } from '../boss-telegraph.ts';
+import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './fight/characters.ts';
-import { shieldFor, SHIPPING_SHIELDS } from './fight/shields.ts';
-import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './fight/weapon-shapes.ts';
-import { heroPreview } from './hero-preview.ts';
-import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './fight/rank-look.ts';
-import { levelOf, type Tier } from './grades.ts';
-import { kitWorn } from './fight/loot.ts';
-import { standoffClock, standoffFlag, standoffPose } from './fight/standoff.ts';
-import { actorPose, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
-import { ON_DEMAND_BEASTS, beastBodyUrl } from './fight/beast-scale.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './fight/moves.ts';
-import { type FinisherId } from './fight/finishers.ts';
-import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
-import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './fight/execution.ts';
-import { createHamstrungAssets } from './fight/hamstrung-assets.ts';
-import { PLAY_SCALE, TARGET, wrapAngle, type State } from './fight/sim.ts';
-import { buildArena, type Arena } from './arena.ts';
-import { arenaFor } from './arena-themes.ts';
-import { nightBronzeApplies, toneNightBronze } from './fight/night-armour.ts';
-import { createFootDust, dustToneFor } from './fight/foot-dust.ts';
-import { createWitchfire } from './witchfire.ts';
-import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
-import { createSkillImpact } from './skill-impact.ts';
-import { createFinisherBlood, finisherBloodSources } from './fight/finisher-blood.ts';
-import { phoneTier, pixelCap } from './fight/quality.ts';
-import { lookFrom } from './look-flag.ts';
-import { FOE_TUNE } from './fight/fatigue-tune.ts';
-import { fatigueReadFrom } from './fight/fatigue-read.ts';
-import { stanceFrom } from './fight/stance-pose.ts';
-import { armfeelFrom, Flinch } from './fight/armfeel.ts';
-import { createBurstPool } from './fight/armfeel-fx.ts';
-import { createBloodEdge } from './fight/blood-edge.ts';
-import { hideChildren } from './stage-hide.ts';
-import { createCameraRig, framingLow, framingTall } from './camera.ts';
-import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './fight/severed-head.ts';
-import { createFightFx, impactTexture } from './fight/fx.ts';
-import { createSignatures, resolveSignature } from './fight/signature.ts';
-import { scorch } from './scorch.ts';
-import './fight/signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
-import './fight/signature-knight.ts';   // the Knight's Rivet Burst registers itself
-import './fight/signature-witch.ts';   // registers the Witch's Grasp
-import './fight/signature-pitborn.ts';   // registers the Pitborn's Butcher's Wake
-import './fight/signature-executioner.ts';   // the Executioner's Reaping Scar registers itself
-import './fight/signature-veteran.ts';   // the Veteran's Battle Scars registers itself
-import './fight/signature-nightborn.ts';   // Nightborn A: Blood Recall
-import './fight/signature-goblin.ts';   // Goblin A: Hooked Wound
-import './fight/signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
-import './fight/signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
-import { settleWithin } from './fight/warm-gate.ts';
+import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
+import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
+import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
+import { heroPreview } from '../hero-preview.ts';
+import { bakeSafeFinisher, lookBakeOffFrom, lookBakes, rankLookFlag, runThroughForced, rankLookFor, rankLookStream, SHIPPING_LOOKS } from './rank-look.ts';
+import { levelOf, type Tier } from '../grades.ts';
+import { kitWorn } from './loot.ts';
+import { standoffClock, standoffFlag, standoffPose } from './standoff.ts';
+import { actorPose, initialPractice, type CombatEvent, type Practice } from './combat.ts';
+import { ON_DEMAND_BEASTS, beastBodyUrl } from './beast-scale.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type OpponentId, type WeaponId } from './moves.ts';
+import { type FinisherId } from './finishers.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_SOURCE_PELVIS, HAMSTRUNG_VICTIMS, hamstrungPick, resolveHamstrung } from './hamstrung.ts';
+import { EXECUTION_BEATS, EXECUTION_FLOOR_MARKS, EXECUTION_SOURCE_PELVIS, EXECUTION_VICTIMS, executionPick, poseOf, resolveExecution } from './execution.ts';
+import { createHamstrungAssets } from './hamstrung-assets.ts';
+import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
+import { buildArena, type Arena } from '../arena.ts';
+import { arenaFor } from '../arena-themes.ts';
+import { nightBronzeApplies, toneNightBronze } from './night-armour.ts';
+import { createFootDust, dustToneFor } from './foot-dust.ts';
+import { createWitchfire } from '../witchfire.ts';
+import { createMiasmaMark, marksFlag } from '../miasma-mark.ts';
+import { createSkillImpact } from '../skill-impact.ts';
+import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
+import { phoneTier, pixelCap } from './quality.ts';
+import { lookFrom } from '../look-flag.ts';
+import { FOE_TUNE } from './fatigue-tune.ts';
+import { fatigueReadFrom } from './fatigue-read.ts';
+import { stanceFrom } from './stance-pose.ts';
+import { armfeelFrom, Flinch } from './armfeel.ts';
+import { createBurstPool } from './armfeel-fx.ts';
+import { createBloodEdge } from './blood-edge.ts';
+import { hideChildren } from '../stage-hide.ts';
+import { createCameraRig, framingLow, framingTall } from '../camera.ts';
+import { launchSeveredHead, stepSeveredHead, type SeveredHead } from './severed-head.ts';
+import { createFightFx, impactTexture } from './fx.ts';
+import { createSignatures, resolveSignature } from './signature.ts';
+import { scorch } from '../scorch.ts';
+import './signature-dwarf.ts';   // registers the Dwarf's Hammer Stamp
+import './signature-knight.ts';   // the Knight's Rivet Burst registers itself
+import './signature-witch.ts';   // registers the Witch's Grasp
+import './signature-pitborn.ts';   // registers the Pitborn's Butcher's Wake
+import './signature-executioner.ts';   // the Executioner's Reaping Scar registers itself
+import './signature-veteran.ts';   // the Veteran's Battle Scars registers itself
+import './signature-nightborn.ts';   // Nightborn A: Blood Recall
+import './signature-goblin.ts';   // Goblin A: Hooked Wound
+import './signature-plaguedoctor.ts';   // Plague Doctor A: Rot Bloom
+import './signature-shieldmaiden.ts';   // registers the Shieldmaiden's Splintered Defiance
+import { settleWithin } from './warm-gate.ts';
 const COMPILE_BOUND_MS = 6000;   // a compile (warm-up only) that has not settled by then is given up on: a lost context never settles it, and the walk must not wait
 const SIDES = [0, 1] as const;   // the two fighters, for the per-frame loops: one shared tuple, not a new array every frame (armfeel is on for everyone now)
 
 // One GLB per opponent (moves.ts `OpponentId`); only the hero and the man he faces are ever loaded.
 // The player weapons this build can draw: the longsword is warrior.glb's own, every other needs its equip file (scripts/build-player-weapon.mjs),
 // fetched only when that weapon is the one in hand. main.ts offers the fight only these (loot.ts fightWeapon), so no pick can lack its art.
-const EQUIP_URLS = import.meta.glob<string>('./assets/weapons/player/*.glb', { eager: true, query: '?url', import: 'default' });
-const equipUrl = (weapon: WeaponId): string | undefined => EQUIP_URLS[`./assets/weapons/player/${weapon}.glb`];
+// Vite swaps each import.meta.glob for an object at build; under node (the unit tests load this module through the src/fight barrel) the call does not exist, so it reads as empty there.
+const globbed = <T extends Record<string, string>>(read: () => T): T => { try { return read(); } catch { return {} as T; } };
+const EQUIP_URLS = globbed(() => import.meta.glob<string>('../assets/weapons/player/*.glb', { eager: true, query: '?url', import: 'default' }));
+const equipUrl = (weapon: WeaponId): string | undefined => EQUIP_URLS[`../assets/weapons/player/${weapon}.glb`];
 // A rank look's pre-swap bake takes up to this many ms of each frame (it runs while the fight plays; one bounded step is ~8 ms at worst).
 const LOOK_BAKE_MS = 6;
 export const CARRIED_WEAPONS: readonly WeaponId[] = PLAYER_WEAPONS.filter((weapon) => weapon === 'longsword' || equipUrl(weapon));
@@ -164,8 +166,8 @@ export function createScene(
   const lean = new THREE.Quaternion(), hip = new THREE.Vector3(), swing = new THREE.Vector3(), axis = new THREE.Vector3();
   const burstPool = flinches ? createBurstPool(scene) : null;
   const right = new THREE.Vector3();
-  let look: ReturnType<typeof import('./souls-look.ts').createLook> | undefined;
-  if (lookFlags) void import('./souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
+  let look: ReturnType<typeof import('../souls-look.ts').createLook> | undefined;
+  if (lookFlags) void import('../souls-look.ts').then(({ createLook }) => { look = createLook(lookFlags, { renderer, scene, camera, hemisphere, sun, canvas }); resize(); }).catch(captureException);
   const bloodEdge = createBloodEdge(canvas);   // the player's hits: a crimson streak on the edge the blow came from (blood-edge.ts)
   function mesh(
     geometry: THREE.BufferGeometry,
@@ -239,11 +241,11 @@ export function createScene(
   // Hero preview (hero-preview.ts): a fitted set under /herolook/ stands in for the player's rig. It wears its armour on the rig itself, so
   // the player's loot pieces are never layered over it (the opponent still wears his kit); a file that fails to load falls back to warrior.glb.
   const heroUrl = heroPreview(typeof location === 'undefined' ? '' : location.search);
-  const fighterUrls = import.meta.glob<string>(['./assets/*.glb', '!./assets/minotaur.glb', '!./assets/werewolf.glb', '!./assets/wraith.glb', '!./assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' });
+  const fighterUrls = globbed(() => import.meta.glob<string>(['../assets/*.glb', '!../assets/minotaur.glb', '!../assets/werewolf.glb', '!../assets/wraith.glb', '!../assets/skeleton.glb'], { eager: true, query: '?url', import: 'default' }));
   // The opponent's own cut of loot.glb (scripts/split-loot.mjs): a fight fetches his kit only, never the whole 9.4 MB file.
-  const carrierUrls = import.meta.glob<string>('./assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
+  const carrierUrls = globbed(() => import.meta.glob<string>('../assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' }));
   // The foe's rig file: a roster body from the glob, except the on-demand beasts (boar, bear), which are public/beasts/<id>.glb fetched by an absolute site-root URL (src/fight/beast-scale.ts), like the world bodies' '/world/...': the Origins preview build has no publicDir, so a BASE_URL-relative path would 404 there.
-  const foeUrl = (id: string): string => ON_DEMAND_BEASTS.has(id) ? beastBodyUrl(id) : fighterUrls[`./assets/${ROSTER[id as OpponentId].body}.glb`]!;
+  const foeUrl = (id: string): string => ON_DEMAND_BEASTS.has(id) ? beastBodyUrl(id) : fighterUrls[`../assets/${ROSTER[id as OpponentId].body}.glb`]!;
   // Combat waits for the arena's worker textures and props too (arena.ready never rejects): their GPU uploads then land during the
   // loading screen instead of stalling the first exchange (measured 69 ms p95 in the first window when they arrived late under load).
   // The load is retryable: a phone that sleeps mid-download aborts the fetch (2 MiB of the Nightborn's 5.1 MB, 2026-09-21 09:15) and
@@ -260,10 +262,10 @@ export function createScene(
   let playerTier: Tier | undefined;   // the player's own rung (the rank the HUD shows), for his weapon's shape; setPlayerTier
   // Two-handed or not is the weapon he FIGHTS with (the sim's, `weapons` below): the Centurion's gladius brings his scutum up (SCOPE:76).
   let twoHanded = weaponOf(OPPONENTS[opponentId].weapon).grip === 'two-hand';
-  const carrierUrl = !peerKit && kitWorn(opponentId, false).length ? carrierUrls[`./assets/loot/carriers-${opponentId}.glb`] : undefined;
+  const carrierUrl = !peerKit && kitWorn(opponentId, false).length ? carrierUrls[`../assets/loot/carriers-${opponentId}.glb`] : undefined;
   let worn: readonly string[] = [], wornTier: Readonly<Record<string, Tier>> = {}, lootPieces: THREE.SkinnedMesh[] | undefined, lootLoading: Promise<void> | null = null, carried: THREE.SkinnedMesh[] | undefined;
   // loot.glb, once per page (a failure is forgotten, so the next dress or Pit visit tries again): the worn set and the Pit's pieces share it.
-  const loadLootPieces = () => (lootLoading ??= loadLoot(fighterUrls['./assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; }));
+  const loadLootPieces = () => (lootLoading ??= loadLoot(fighterUrls['../assets/loot.glb']!).then((pieces) => { lootPieces = pieces; dress(); }).catch((error: unknown) => { captureException(error); lootLoading = null; }));
   // Weapon shapes per rank (weapon-shapes.ts shapesFor): his weapon's file at the rung he is met at (`tier`, a ?tier= pin included), the
   // player's own at the player's own rung (`playerTier`, the career rank). A shape is GPT's painted finish: no rank tint over it. The dev
   // flag's table, else the shipping one.
@@ -348,7 +350,7 @@ export function createScene(
       // A weapon his rig does not bake (ROSTER.weapon is what veteran.glb carries) comes from its equip file, grafted as the player's is.
       const opponentEquip = pair[1] === (peer ? 'longsword' : ROSTER[opponentId].weapon) ? undefined : equipUrl(pair[1]);   // the hero's rig bakes the longsword
       const load = (hero: string) => peer ? loadPeerWarriors(hero, pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), opponentEquip, (error) => captureException(error, { tags: { equip: pair[1] } })) : loadWarriors(hero, foeUrl(opponentId), pair, pair[0] === 'longsword' ? undefined : equipUrl(pair[0]), (error) => captureException(error, { tags: { equip: pair[0] } }), opponentEquip, SHIELD_CARRIERS.has(opponentId));
-      return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['./assets/warrior.glb']!)) : load(fighterUrls['./assets/warrior.glb']!);
+      return heroUrl ? load(heroUrl).catch(() => load(fighterUrls['../assets/warrior.glb']!)) : load(fighterUrls['../assets/warrior.glb']!);
     }),
     arena.ready,
     carrierUrl ? loadLoot(carrierUrl).then((pieces) => { carried = pieces; }).catch((error: unknown) => { captureException(error); }) : null,
@@ -418,7 +420,7 @@ export function createScene(
   let severHead: SeveredHead | null = null;
   // Fetched on demand (src/fight/hamstrung-assets.ts), never in loadFighters: the killer's clip, the victim's clip and his weapon-drop bake.
   const hamstrungAssets = createHamstrungAssets(
-    async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/hamstrung-killer.json'), import('./assets/hamstrung-victim-hero.json')]); return { killer, victim }; },
+    async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('../assets/hamstrung-killer.json'), import('../assets/hamstrung-victim-hero.json')]); return { killer, victim }; },
     (loaded: NonNullable<typeof warriors>, { killer, victim }) => {
       const parse = (clip: unknown) => THREE.AnimationClip.parse(clip as Parameters<typeof THREE.AnimationClip.parse>[0]);
       loaded.player.adoptClip('Fin_Hamstrung', parse(killer));
@@ -434,7 +436,7 @@ export function createScene(
   const wantHamstrung = (prefetch = false) => { if ((prefetch || finisherOverride === 'hamstrung') && warriors && HAMSTRUNG_VICTIMS.includes(opponentId)) void hamstrungAssets.request(warriors); };
   // Execution (src/fight/execution.ts) loads on the picker's choice only (no idle prefetch: it re-skins 12 poses), never as part of ready, and a failure is the plain death.
   const executionAssets = createHamstrungAssets(
-    async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('./assets/execution-killer.json'), import('./assets/execution-victim-hero.json')]); return { killer, victim }; },
+    async () => { const [{ default: killer }, { default: victim }] = await Promise.all([import('../assets/execution-killer.json'), import('../assets/execution-victim-hero.json')]); return { killer, victim }; },
     (loaded: NonNullable<typeof warriors>, { killer, victim }) => {
       const parse = (clip: unknown) => THREE.AnimationClip.parse(clip as Parameters<typeof THREE.AnimationClip.parse>[0]);
       loaded.player.adoptClip('Fin_Execution', parse(killer));
@@ -461,7 +463,7 @@ export function createScene(
   // Per-side selections use the common caster adapter, including an explicit foe preset.
   const specialId = 'selection' in preview && preview.selection ? null : preview.special, mode = specialId ? SPECIAL_MODES[specialId] : undefined;
   let slam = 0; const slams = [0, 0], specialLifts = [-0.28, -0.28];   // the Centurion's shield arm this frame (characters.ts slam): the mode's held() sets it from the cast
-  let specialFx: import('./fight/special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
+  let specialFx: import('./special-fx.ts').SpecialFx | ModeFx | undefined, specialFxLoading = false;
   let previewGeneration = 0, previewEpoch = -1, previewTick = -1, previewBlocked = false;
   let previewGroup: THREE.Scene | undefined;
   const previewLighting = createTitheLighting(scene);
@@ -1047,7 +1049,7 @@ export function createScene(
         specialFxLoading = true; const token = previewGeneration, group = new THREE.Scene();
         group.name = 'special preview'; group.background = previewBackground?.clone() ?? null; previewGroup = group; scene.add(group);
         // ?look=schools on the ?special= preview too (spell-school.ts)
-        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./fight/special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } const school = schoolsFlag(globalThis.location?.search ?? '') && specialId ? SCHOOL_OF[specialId] : undefined; if (school) { const tint = schoolTinter(group, school, schoolsStrength(globalThis.location?.search ?? '')), draw = (fx as ModeFx).render.bind(fx); (fx as ModeFx).render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
+        void (mode ? mode.load(group, opponentId, theme.exposure, camera, previewLighting.forGroup(group)) : import('./special-fx.ts').then(({ createSpecialFx }) => createSpecialFx(group, opponentId))).then((fx) => { if (token !== previewGeneration) { fx.clear(); disposeSpecialGroup(group); return; } const school = schoolsFlag(globalThis.location?.search ?? '') && specialId ? SCHOOL_OF[specialId] : undefined; if (school) { const tint = schoolTinter(group, school, schoolsStrength(globalThis.location?.search ?? '')), draw = (fx as ModeFx).render.bind(fx); (fx as ModeFx).render = (...a: Parameters<typeof draw>) => { draw(...a); tint(); }; } specialFx = fx; }).catch((error) => { disposeSpecialGroup(group); if (token === previewGeneration) { specialFxLoading = false; previewBlocked = true; captureException(error); } });
       }
       if (specialFx) {
         previewLighting.beginFrame();   // the effect reads the bones its mode names: the feet for a ground effect, the heads for a cloud

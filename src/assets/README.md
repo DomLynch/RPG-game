@@ -185,7 +185,7 @@ below; one billed job, 2026-09-15). The coverage mask knows the three low camera
 
 `src/assets/veteran.glb` is the opponent: a second man on the same rig, clips and sword as the player's `warrior.glb`
 (`tests/characters.test.ts` asserts every bone track and the sword attachments are identical, so the baked blade paths serve
-both). `src/scene.ts` loads it for the opponent through `loadWarriors(player, opponent)`; with one URL the runtime still
+both). `src/fight/scene.ts` loads it for the opponent through `loadWarriors(player, opponent)`; with one URL the runtime still
 recolours the opponent's Heraldry, with two it does not. Source: seven synthetic portraits of an older man (GPT-generated, no
 real person; `artifacts/source/face/veteran/{front,left35,right35,left90,right90,below_front,below_right}.png`, 1254²) →
 KeenTools Cloud (`scripts/create-head.mjs`, one billed job, 2026-09-16; cameras estimated at 0°, +27°, -22°, +61°, -66°,

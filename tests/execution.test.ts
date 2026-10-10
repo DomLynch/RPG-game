@@ -44,7 +44,7 @@ test('an uninstalled Execution pick is the plain death for the picture and the c
   for (const pick of [null, 'opened', 'splitCrown', 'plainDeath', 'hamstrung'] as const) assert.equal(executionPick(pick, false), pick);
   const weapons = ['longsword', ROSTER.veteran.weapon] as const, plain = executionPick('execution', false);
   assert.equal(resolveExecution('veteran', finish, weapons, plain, null, resolveFinisher('veteran', finish, weapons, plain)), 'plainDeath');
-  assert.match(source('scene.ts'), /executionPick\(hamstrungPick\(finisherOverride, hamstrungLatch === true\), executionLatch === true\)/);
+  assert.match(source('fight/scene.ts'), /executionPick\(hamstrungPick\(finisherOverride, hamstrungLatch === true\), executionLatch === true\)/);
   assert.match(source('main.ts'), /executionPick\(hamstrungPick\([^\n]*view\.hamstrungInstalled\(\)\), view\.executionInstalled\(\)\)/);
   assert.match(source('main.ts'), /\['execution', 'Execution'\]/, 'the dev picker lists it');
 });
@@ -55,7 +55,7 @@ test('the held beat is half a second on the screen\'s own clock and the scene pa
   assert.equal(EXECUTION_BEATS.speed, .75);
   const total = executionAt(1);
   assert.ok(total > 3.2 && total < 3.7, `on-screen length ${total}`);
-  const scene = source('scene.ts');
+  const scene = source('fight/scene.ts');
   assert.match(scene, /executionFinish \? \(dt \* EXECUTION_BEATS\.speed\) \/ EXECUTION_BEATS\.duration/, 'the clock runs the clip at the spec\'s speed');
   const clock = scene.slice(scene.indexOf('if (!practice.finish) { finishClock = -1;'), scene.indexOf('const victimProgress'));
   assert.doesNotMatch(clock, /finishHold = EXECUTION|executionFinish && finishHold/, 'the held half-second is in the clips, never a hit-stop');
@@ -112,7 +112,7 @@ test('Execution bleeds from the nape only, after the cut: a readable jet leaning
 
 // Lazy load, as Hamstrung's (tests/hamstrung.test.ts): a normal fight's ready never waits on, or fetches, the Execution assets.
 test('a normal fight\'s ready path never fetches or awaits the Execution assets; the prefetch is after ready, on idle', () => {
-  const scene = source('scene.ts');
+  const scene = source('fight/scene.ts');
   assert.equal([...scene.matchAll(/assets\/execution-/g)].length, 2, 'both clips are imported in one place only');
   const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
   assert.doesNotMatch(load, /import\('\.\/assets\/execution|await[^\n]*execution|prepareExecution|wantExecution|executionAssets/i, 'loadFighters neither imports, awaits nor asks for them');

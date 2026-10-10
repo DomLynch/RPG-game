@@ -40,7 +40,7 @@ const AREAS = [
   { paths: ['src/fight/ai.ts', 'src/fight/moves.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
   { paths: ['src/loot*.ts', 'src/fight/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
   { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
-  { paths: ['src/arena*.ts', 'src/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
+  { paths: ['src/arena*.ts', 'src/fight/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
   // Row 44, the Stage picker (every arena ship re-pins its list in scripts/sparring-browser-check.mjs): the arena files, the sparring
   // files and main.ts, which builds #arena-select (Lead 2026-10-06: 17ab81e9 needed it and the picker had no mapping for it).
   { paths: ['src/arena*.ts', 'src/sparring*.ts', 'src/stage-hide.ts', 'src/main.ts', 'public/arena/**'], rows: ['sparring-browser-check'] },
@@ -52,7 +52,7 @@ const AREAS = [
   // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
   { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
-  { paths: ['src/first-frame.ts', 'src/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
+  { paths: ['src/first-frame.ts', 'src/fight/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
 ];
 // The build: a change here can break any row, so it runs all of them (Auditor B1 on #1381). deploy.sh and the two release
 // scripts are not here: they build no part of the game and their unit tests cover them. The gate's own row list is handled
