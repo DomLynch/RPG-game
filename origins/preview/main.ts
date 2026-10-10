@@ -345,9 +345,10 @@ const KINDS_WAIT_MS = 20000, MATERIAL_BOUND_MS = 4000;   // each scene-material 
 const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
 function planUpload() {
   wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
-  const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh>();
+  const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>(), materials = new Map<THREE.Material, THREE.Mesh | THREE.Points>();
   scene.traverse((o) => {
     const sp = o as THREE.Sprite; if (sp.isSprite) { const t = sp.material.map; if (t && !uploaded.has(t)) textures.add(t); return; }   // a creature's name label and its '!' are canvas-texture sprites: first drawn at first sight, so they upload here (Metal trace: +1 texture at engage, #1921)
+    const pts = o as THREE.Points; if (pts.isPoints) { for (const mat of Array.isArray(pts.material) ? pts.material : [pts.material]) { if (!uploaded.has(mat) && !materials.has(mat)) materials.set(mat, pts); for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture && !uploaded.has(v)) textures.add(v as THREE.Texture); } return; }   // Points (sparks, dust, impact) are not meshes: a mapped one made hidden was never compiled and linked its program at engage (#74, knight, SwiftShader)
     const m = o as THREE.Mesh; if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return;   // skinned bodies are warmed by their own stage (pit-duel warmStage / warmOwn), not here
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) if (!uploaded.has(mat) && !materials.has(mat)) materials.set(mat, m);
     if (!uploaded.has(m.geometry)) geometries.add(m.geometry);
