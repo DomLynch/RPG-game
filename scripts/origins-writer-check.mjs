@@ -525,7 +525,7 @@ try {
     const gd = body => call('gear_import', 'td', { character: cd, ...body });
     eq((await gd({ owned: ids.slice(0, 5), equipped: {} })).json.result?.imported.length, 5, 'gear_import: five pieces imported');
     const gone = psql(`select id from public.origins_items where loc_owner = '${cd}' order by id limit 1`);
-    psql(`update public.origins_items set loc_kind = null, loc_owner = null, loc_index = null, loc_slot = null, retired_at = now(), retire_reason = 'burn' where id = '${gone}'`);
+    psql(`update public.origins_items set loc_kind = null, loc_owner = null, loc_index = null, loc_slot = null, retired_at = now(), retire_reason = 'burn', version = version + 1 where id = '${gone}'`);
     const next = await gd({ owned: ids.slice(0, 6), equipped: {} });
     eq([next.status, next.json.result?.imported, next.json.result?.alreadyHeld.length], [200, [ids[5]], 5], 'gear_import: a retired migrated piece is alreadyHeld, the one new piece is imported, nothing 500s');
     eq((await gd({ owned: ids.slice(0, 6), equipped: {} })).json.result?.imported.length, 0, 'gear_import: and a replay after that imports nothing');
