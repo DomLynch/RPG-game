@@ -12,7 +12,7 @@ run="$home/runs/$full"; mkdir -p "$run"
 lock_now=$(sha256sum package-lock.json | cut -c1-64)
 [[ "$(cat "$home/.lock-installed" 2>/dev/null || true)" == "$lock_now" ]] || { npm ci --no-audit --no-fund > "$run/unit-npm-ci.log" 2>&1 || { echo "npm ci failed"; exit 4; }; echo "$lock_now" > "$home/.lock-installed"; }
 # tests/quality-green.test.ts runs deploy.sh'"'"'s jq verdict for real (no silent skip): the HF image has no jq, so install it; if that fails the suite fails loudly.
-command -v jq >/dev/null 2>&1 || { apt-get install -y -qq jq >/dev/null 2>&1 || sudo -n apt-get install -y -qq jq >/dev/null 2>&1 || true; }
+command -v jq >/dev/null 2>&1 || { { apt-get update -qq && apt-get install -y -qq jq; } >/dev/null 2>&1 || { sudo -n apt-get update -qq && sudo -n apt-get install -y -qq jq; } >/dev/null 2>&1 || true; }
 command -v jq >/dev/null 2>&1 && echo "LAP jq $(jq --version)" || echo "LAP jq MISSING (tests/quality-green.test.ts will fail)"
 echo "LAP npm-ci-done $(date +%T)"; t0=$(date +%s); npm run test:all > "$run/unit.log" 2>&1; rc=$?
 [[ "$(git rev-parse HEAD^{tree})" == "$want_tree" && -z "$(git status --porcelain)" ]] || { echo "tree changed or dirty at end; no receipt"; exit 5; }

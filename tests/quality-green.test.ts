@@ -95,8 +95,8 @@ test('a gh failure while looking up the trunk commit stops the walk and fails cl
   const dir = mkdtempSync(join(tmpdir(), 'qgreen-'));
   try {
     mkdirSync(join(dir, 'bin'));
-    // list for the candidate works (scoped run); every list call on a parent exits 1; cand~1 is a parent, cand~2 would be an older green trunk.
-    writeFileSync(join(dir, 'bin/gh'), '#!/bin/sh\nif [ "$2" = list ]; then case "$6" in cand) echo "1 https://x/runs/1";; *) exit 1;; esac; exit 0; fi\ncase "$3" in 1) echo scoped;; 2) echo yes;; esac\n');
+    // list for the candidate works (scoped run); the list call on the parent exits 1, while the older trunk HAS a green run (a mutant that steps past the error would trust it); cand~1 is a parent, cand~2 would be an older green trunk.
+    writeFileSync(join(dir, 'bin/gh'), '#!/bin/sh\nif [ "$2" = list ]; then case "$6" in cand) echo "1 https://x/runs/1";; older) echo "2 https://x/runs/2";; *) exit 1;; esac; exit 0; fi\ncase "$3" in 1) echo scoped;; 2) echo yes;; esac\n');
     writeFileSync(join(dir, 'bin/git'), '#!/bin/sh\ncase "$4" in cand~1) echo parent;; cand~2) echo older;; *) exit 1;; esac\n');
     chmodSync(join(dir, 'bin/gh'), 0o755); chmodSync(join(dir, 'bin/git'), 0o755);
     const r = spawnSync('bash', ['-c', `${fn}\nquality_green cand`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
