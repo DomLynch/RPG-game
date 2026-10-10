@@ -185,10 +185,10 @@ test('the Ash Wolf is a live row: ?wolf changes nothing, three wolves stand on t
   assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
-test('?lone makes every camp one creature and nothing else changes: same spawns, one member each, same homes for the first member', () => {
-  const lone = mobSpecs(F, B, previewRows('?lone')), spawns = new Set(SPECS.filter((s) => !s.named).map((s) => s.spawn));
-  assert.deepEqual([...new Set(lone.filter((s) => !s.named).map((s) => s.spawn))].sort(), [...spawns].sort(), 'every spawn is still there');
-  for (const sp of spawns) assert.equal(lone.filter((s) => s.spawn === sp).length, 1, `${sp} is one creature`);
+test('?lone makes every camp one creature and nothing else changes: the same spawns, one member each', () => {
+  const lone = mobSpecs(F, B, previewRows('?lone')), spawns = new Set(SPECS.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`));
+  assert.deepEqual([...new Set(lone.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`))].sort(), [...spawns].sort(), 'every spawn is still there');
+  for (const sp of spawns) assert.equal(lone.filter((s) => `${s.zone}/${s.spawn}` === sp).length, 1, `${sp} is one creature`);
   assert.deepEqual(mobSpecs(F, B, previewRows('?region=1')), SPECS, 'no ?lone, no change');
 });
 
