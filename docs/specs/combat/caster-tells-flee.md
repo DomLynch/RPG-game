@@ -1,5 +1,7 @@
 # Caster tells and the deterministic flee: cost note
 
+**Gap 1 (the style flee) is CUT by Dom 2026-10-11:** every creature takes normal damage and dies at zero; `fleeBelow`/`fleesNow` were removed. The engine's encounter-flag `flee-at` twist stays. If a specific creature ever needs to run (a deer, a scout), it comes back as ONE per-creature row field through that engine flag, never as a style branch. The rulings below about wiring it are history.
+
 Status: note for Lead, Combat, 2026-10-11. No code written. Everything below was read from trunk 8d58991a8 in this session; items marked UNVERIFIED were not run.
 
 ## What is already on trunk
