@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
 import { ROSTER } from '../../src/roster.ts';
-import { MOB_STYLE, MOB_STYLES, styleOpponent } from './styles.ts';
+import { MOB_STYLES, styleOpponent } from './styles.ts';
 
 test('every mob style resolves to a live roster opponent with an AI profile at the first and last ladder level', () => {
   for (const style of MOB_STYLES) {
