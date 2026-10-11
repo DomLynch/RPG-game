@@ -14,11 +14,10 @@ import { createHud } from '../../src/fight/index.ts';
 import { initialPractice, PROFILES, stepPractice, type Practice } from '../../src/fight/index.ts';
 import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
-import { Match } from '../../src/fight/match.ts';
+import { memoryMatch } from '../../src/fight/match.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
-import { loadProfile, mountCareer, renameAccount, type StoragePort } from '../../src/core/index.ts';
+import { mountCareer, renameAccount } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
-import { loadScorecard } from '../../src/scorecard.ts';
 import { authClient } from './save.ts';
 import { loadScene, type WorldMount } from '../../src/fight/index.ts';
 type SceneModule = Awaited<ReturnType<typeof loadScene>>;
@@ -30,7 +29,6 @@ import { Matrix4, Quaternion } from 'three';
 import { mobLayer } from '../mobs/kits.ts';
 import type { MobStyle } from '../mobs/styles.ts';
 import { STEP, wrapAngle } from '../../src/fight/index.ts';
-import { loadTrial } from '../../src/trial.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { recordWorldFight, worldRecord } from './world-record.ts';
 import type { FightRecord } from '../../src/fight/index.ts';
@@ -52,8 +50,6 @@ export type DuelHooks = {
   twisted?(outcome: TwistOutcome, record?: FightRecord | null): void;               // an encounter's twist ended the fight with both fighters standing ('fled', 'escaped'); 'caught' arrives through ended() as the foe's defeat
 };
 
-// In-memory storage for the match's ports: the sparring mode writes nothing, and if it ever did, it would land here, never in localStorage.
-const memory = (): StoragePort => { const m = new Map<string, string>(); return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => { m.set(k, String(v)); } }; };
 const isLegend = (id: string): id is LegendOpponent => (LEGEND_OPPONENTS as readonly string[]).includes(id);
 export const legendName = (opponent: string, level: number): string => (isLegend(opponent) ? legendForLevel(opponent, level).name : opponent);
 
@@ -66,7 +62,7 @@ export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;
 let controls: ReturnType<typeof createInput> | null = null, hud: ReturnType<typeof createHud> | null = null;
-let match: Match | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null, steppedOnce = false;
+let match: ReturnType<typeof memoryMatch> | null = null, fight: DuelFight | null = null, hooks: DuelHooks | null = null, steppedOnce = false;
 let twist: Twist = noTwist(), dressed = false, dressedRoot: Object3D | null = null;
 let running = false, frameId = 0, last = 0, accumulator = 0, next: string | undefined, result: Finished = null;
 let state = { x: 0, z: 0, heading: 0, distance: 0 }, previous = state;
@@ -221,8 +217,7 @@ export function openDuel(host: HTMLElement, asked: DuelFight, page: DuelHooks, l
   fight = asked; hooks = page; steppedOnce = false; next = undefined; result = null; twist = noTwist();
   mounted?.detach(); mounted = null;   // a rematch in the same world: back out of the last mount, then in again below
   stageFor(host, opponent, asked.level, mount);
-  const ports = { storage: memory(), trial: loadTrial(memory()), scorecard: loadScorecard(memory()), profile: loadProfile(memory(), () => 'origins-preview').profile };
-  match = new Match(OPPONENTS[opponent], 'origins-preview', ports, asked.seed, 'longsword', null, asked.level);
+  match = memoryMatch(OPPONENTS[opponent], 'origins-preview', asked.seed, asked.level);
   if (asked.mob) match.layer = mobLayer(asked.mob);
   match.startSparring({ weapon: 'longsword', skill: null, difficulty: asked.level });
   if (asked.record) recordWorldFight(match, asked.opponent, asked.level, asked.seed);
