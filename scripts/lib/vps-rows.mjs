@@ -27,7 +27,7 @@ export function buildRowsRunner({ sha, tree, nonce, runid, rows, total, width = 
   return runnerHead({ sha, tree, nonce, runid }) + `export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"
 npx playwright install --with-deps chromium < /dev/null > "$RUN/pw.log" 2>&1 || { echo '--- playwright install failed ---' >&2; tail -n 20 "$RUN/pw.log" >&2; exit 99; }
 PWVER=$(node -p 'require("playwright-core/package.json").version')
-PWREV=$(node -p 'require("playwright-core/browsers.json").browsers.find(b => b.name === "chromium").revision')
+PWREV=$(node -p 'JSON.parse(require("fs").readFileSync("node_modules/playwright-core/browsers.json", "utf8")).browsers.find(b => b.name === "chromium").revision')
 CHROME=$(ls "$RUN"/pw/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1)
 [ -n "$CHROME" ] || exit 99
 CHROMESHA=$(sha256sum "$CHROME" | cut -c1-64)
@@ -56,7 +56,7 @@ export function parseRowsReceipt({ stdout, status, nonce, sha, tree, rows }) {
   if (r?.sha !== sha || r?.tree !== tree) return fail('RECEIPT sha/tree differ from the deploy commit');
   if (r.exit !== 0) return fail(`RECEIPT says exit ${r.exit}`);
   if (r.node_tarball_sha256 !== NODE_PIN.sha256 || r.node !== NODE_PIN.version) return fail('RECEIPT node is not the pinned tarball');
-  if (typeof r.playwright !== 'string' || typeof r.chromium_revision !== 'string' || !HEX64.test(r.chrome_sha256 || '')) return fail('RECEIPT lacks the playwright / chromium revision / chrome sha256');
+  if (!/^\d+\.\d+\.\d+/.test(r.playwright || '') || !/^\d+$/.test(String(r.chromium_revision || '')) || !HEX64.test(r.chrome_sha256 || '')) return fail('RECEIPT lacks a real playwright version / chromium revision / chrome sha256');
   const got = Array.isArray(r.rows) ? r.rows.map(x => x?.n) : [];
   const want = [...rows].sort((a, b) => a - b);
   if (got.length !== want.length || [...got].sort((a, b) => a - b).some((n, i) => n !== want[i])) return fail(`RECEIPT rows [${got}] are not the requested set [${want}]`);
@@ -68,7 +68,7 @@ export function parseRowsReceipt({ stdout, status, nonce, sha, tree, rows }) {
 export function vpsRowsTrusted(rec, tree, commands, readSource, pw, now = Date.now()) {
   if (!rec || rec.kind !== 'vps-rows-live' || !HEX40.test(tree || '') || rec.tree !== tree || !HEX40.test(rec.sha || '') || rec.exit !== 0) return [];
   if (rec.node_tarball_sha256 !== NODE_PIN.sha256 || rec.node !== NODE_PIN.version || !HEX64.test(rec.chrome_sha256 || '')) return [];
-  if (!pw?.version || !pw?.revision || rec.playwright !== pw.version || rec.chromium_revision !== pw.revision) return [];
+  if (!pw?.version || !pw?.revision || !/^\d+$/.test(String(pw.revision)) || rec.playwright !== pw.version || String(rec.chromium_revision) !== String(pw.revision)) return [];
   const age = now - Date.parse(rec.at);
   if (!(age < MAX_AGE_S * 1000 && age >= -60_000) || !Array.isArray(rec.rows)) return [];
   return rec.rows.filter(r => {

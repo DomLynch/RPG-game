@@ -16,7 +16,7 @@ const read = (p: string) => { try { return readFileSync(p, 'utf8'); } catch { re
 const sha256 = (t: string) => createHash('sha256').update(t).digest('hex');
 const scriptOf = (n: number) => commands[n - 1].find(a => /\.(mjs|js|sh)$/.test(a)) as string;
 const rowOf = (n: number, over: object = {}) => ({ n, ok: true, seconds: 30, script_sha256: sha256(read(scriptOf(n)) as string), ...over });
-const PW = { version: '1.50.0', revision: '1148' };
+const PW = { version: '1.50.0', revision: '1148' };   // a real shape: three-part version, numeric revision
 const body = (rows: number[], over: object = {}) => ({ sha: SHA, tree: TREE, runid: RUNID, node: NODE_PIN.version, node_tarball_sha256: NODE_PIN.sha256, playwright: PW.version, chromium_revision: PW.revision, chrome_sha256: CHROME, width: 4, rows: rows.map(n => rowOf(n)), exit: 0, seconds: 300, ...over });
 const stream = (r: object, n = NONCE) => `noise\nRECEIPT ${n} ${JSON.stringify(r)}\n`;
 const args = (rows: number[], over: object = {}) => ({ stdout: stream(body(rows)), status: 0, nonce: NONCE, sha: SHA, tree: TREE, rows, ...over });
@@ -39,6 +39,7 @@ test('parseRowsReceipt fails closed: row set differs (missing or extra), a row n
     'non-zero ssh exit': { status: 1 }, 'no receipt': { stdout: 'ok\n' }, 'tree mismatch': { tree: 'e'.repeat(40) }, 'sha mismatch': { sha: 'e'.repeat(40) },
     'receipt exit 1': { stdout: stream(body([31, 33], { exit: 1 })) }, 'wrong node tarball': { stdout: stream(body([31, 33], { node_tarball_sha256: 'f'.repeat(64) })) },
     'no chrome sha256': { stdout: stream(body([31, 33], { chrome_sha256: 'x' })) }, 'no playwright version': { stdout: stream(body([31, 33], { playwright: undefined })) },
+    'EMPTY chromium revision (the live run printed one because browsers.json is not an exported subpath)': { stdout: stream(body([31, 33], { chromium_revision: '' })) }, 'non-numeric chromium revision': { stdout: stream(body([31, 33], { chromium_revision: 'latest' })) },
   })) assert.equal(parseRowsReceipt({ ...args([31, 33]), ...(a as object) }).ok, false, why);
 });
 
@@ -52,6 +53,7 @@ test('buildRowsRunner: the unit runner\'s guards (unexported nonce, closed stdin
   assert.equal(s.split('RECEIPT %s').length - 1, 1); assert.match(s, /exit "\$rc"/);
   assert.ok(s.includes('PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"'), 'Chromium is installed per run into the run dir');
   assert.ok(s.includes('chrome_sha256') && s.includes('chromium_revision') && s.includes('"playwright"'), 'the revision and the chrome sha256 ride in the RECEIPT');
+  assert.ok(s.includes('readFileSync("node_modules/playwright-core/browsers.json"') && !s.includes('require("playwright-core/browsers.json")'), 'browsers.json is read by path: it is not an exported subpath of playwright-core');
   assert.match(s, /RELEASE_CHECKS_SKIP='[\d,]+'/); assert.ok(!/RELEASE_CHECKS_SKIP='[^']*\b31\b/.test(s) && !/RELEASE_CHECKS_SKIP='[^']*\b33\b/.test(s) && /RELEASE_CHECKS_SKIP='[^']*\b32\b/.test(s), 'every row but the requested ones is skipped');
 });
 test('buildRowsRunner is valid bash and refuses bad rows, widths and arguments', () => {
