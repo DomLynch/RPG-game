@@ -25,7 +25,7 @@ test('pickTarget: not enough free RAM for the job spills to Hugging Face CPU', (
 test('pickTarget: an unreachable or unreadable VPS (null, NaN) goes to Hugging Face CPU, never to the Mac', () => {
   assert.equal(pickTarget({ vps: null, mem: 1024 }), 'hf-cpu');
   assert.equal(pickTarget({ vps: { load1: NaN, freeRamMb: 9999 }, mem: 1024 }), 'hf-cpu');
-  assert.equal(pickTarget({ vps: { load1: 1, freeRamMb: undefined }, mem: 1024 }), 'hf-cpu');
+  assert.equal(pickTarget({ vps: { load1: 1, freeRamMb: undefined as unknown as number }, mem: 1024 }), 'hf-cpu');
 });
 test('pickTarget: the T4 only with gfx, whatever the VPS looks like; without gfx a job never gets a T4', () => {
   assert.equal(pickTarget({ gfx: true, vps: ok, mem: 1024 }), 'hf-t4');
