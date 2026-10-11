@@ -69,6 +69,8 @@ export function withZoneLook(base: Look, z: ZoneFields): Look {
   if (on('look.ground.tint')) out.ground = f['look.ground.tint'] as [number, number, number];
   return out;
 }
+/** The Pit arena theme key a zone's walk-out is built and lit with: the zone's look.arena when its row SETS it and the themes have it, else Zone 1's '1' (so a zone that says nothing, and every old link, is unchanged). */
+export const zoneArena = (z: ZoneFields, themes: Readonly<Record<string, unknown>>): string => { const k = z.set?.includes('look.arena') ? z.fields?.['look.arena'] : undefined; return typeof k === 'string' && k in themes ? k : '1'; };
 /** A fixed hour of day when the zone says not to follow the clock (look.timeOfDay.follow false), else null. */
 export const zoneHour = (z: ZoneFields): number | null => z.set?.includes('look.timeOfDay.follow') && z.fields?.['look.timeOfDay.follow'] === false ? Number(z.fields['look.timeOfDay.hour'] ?? 12) : null;
 /** False when the zone turns the day/night cycle off (dayNight.on false). */
