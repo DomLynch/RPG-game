@@ -16,7 +16,7 @@ export async function renameAccount(db: Pick<SupabaseClient, 'from' | 'auth'>, n
       try {
         const saved = await writeFighter(db as SupabaseClient, userId, { version: 1, id: userId, name: cleanName(name), ...(cloud.encounter ? { encounter: cloud.encounter } : {}), career: { victoryMarks: cloud.victory_marks }, loot: cloud.loot }, cloud.revision);
         return saved.display_name;
-      } catch (error) { if (saveFailure(error) !== 'conflict' && (error as { code?: unknown } | null)?.code !== 'PGRST116') return null; }   // no row at that revision: writeFighter's own message, or PostgREST's 0-rows error when the client does not turn an update's miss into null
+      } catch (error) { if (saveFailure(error) !== 'conflict') return null; }   // no row at that revision: writeFighter throws the conflict error (PostgREST's PGRST116 included)
     }
     return null;
   } catch { return null; }
