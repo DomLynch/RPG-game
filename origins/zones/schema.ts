@@ -35,7 +35,7 @@ export const FIELDS: readonly Field[] = [
   look('look.post', 'list', []),
   // The walk camera's limits (src/fight/follow-camera.ts): where it tightens under a vault. null = none (Zone 2). {zMax, zMin, halfWidth?, back, up}; the page passes this and holds no camera number itself.
   look('camera.passage', 'map', null, { nullable: true, wired: true }),
-  look('camera.presets', 'map', {}, { wired: true }), look('camera.preset', 'string', '', { wired: true }),   // named open-walk framings {back, up, side?, ahead?, lookY?} (a = over the shoulder, b = the fight frame) and which one the zone walks with ('' = the generic framing); ?camera=a|b picks one on a page
+  look('camera.presets', 'map', { a: { back: 3.6, up: 2.1, side: 0.8, ahead: 4, lookY: 1.5 }, b: { back: 6.4, up: 3.5, side: 0, ahead: 2, lookY: 1.1 } }, { wired: true }), look('camera.preset', 'string', 'b', { wired: true }),   // named open-walk framings {back, up, side?, ahead?, lookY?} (a = over the shoulder, b = the fight frame) and which one the zone walks with (DEFAULT 'b', Dom's pick: every zone walks the fight frame unless its row names another preset or its own presets map; '' = the generic framing); ?camera=a|b picks one on a page
   // SOUND (World, sound)
   sound('sound.ambience', 'string', ''), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
   sound('sound.footsteps', 'string', 'dirt'), sound('sound.cries', 'string', 'default'), sound('sound.reverb', 'string', 'open'),
