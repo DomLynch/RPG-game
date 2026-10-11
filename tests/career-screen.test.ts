@@ -44,9 +44,9 @@ test('the profile record is the account\'s totals (with draws) when its scorecar
 
 test('a guest\'s pencil keeps the cleaned name in the device profile (24 characters, blank becomes Wanderer, the id is kept)', () => {
   const data = new Map<string, string>(), storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
-  assert.equal(renameDevice(storage, '  Ada  ', () => 'id-1'), 'Ada');
-  assert.equal(renameDevice(storage, 'x'.repeat(40), () => 'id-2').length, 24);
-  assert.equal(renameDevice(storage, '   ', () => 'id-3'), 'Wanderer');
+  assert.equal(renameDevice(storage, '  Ada  ', () => 'guest-0001'), 'Ada');
+  assert.equal(renameDevice(storage, 'x'.repeat(40), () => 'guest-0002').length, 24);
+  assert.equal(renameDevice(storage, '   ', () => 'guest-0003'), 'Wanderer');
   const saved = JSON.parse([...data.values()][0]!);
-  assert.equal(saved.id, 'id-1');
+  assert.equal(saved.id, 'guest-0001');
 });
