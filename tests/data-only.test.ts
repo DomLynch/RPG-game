@@ -1,7 +1,7 @@
 // Data-only PRs (scripts/lib/data-only.mjs): which files may skip the Auditor, and the proof that a zone module is data, not code.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { catalogueCitations, citationClashes, classify, dataProblems, legendCitations, legendProblems, moduleValue, onDataPath } from '../scripts/lib/data-only.mjs';
 import { ZONE_CHECK, verdict } from '../scripts/data-only-check.mjs';
