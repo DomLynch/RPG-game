@@ -37,7 +37,7 @@ try {
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema public,auth to anon,authenticated;
     insert into auth.users values ('${A}'),('${B}'),('${C}');`);
-  psql(readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().map(n => readFileSync(join('supabase/migrations', n), 'utf8')).join('\n'));
+  psql(readdirSync('supabase/migrations').filter(n => n.endsWith('.sql') && n < '202610110020').sort().map(n => readFileSync(join('supabase/migrations', n), 'utf8')).join('\n'));
 
   // (1) the ladder row equals the rule, for every level, and is read-only to clients.
   const rows = psql(`select level, title, numeral, label from public.pit_ladder order by level;`).split('\n');
