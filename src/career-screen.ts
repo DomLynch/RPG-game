@@ -1,4 +1,5 @@
-import { RANK_STEPS, TITLES, rankFor, readLeaderboards, readScorecard, type BoardRow, type ScoreRow } from './core/index.ts';
+import { RANK_STEPS, TITLES, loadProfile, rankFor, readLeaderboards, readScorecard, session, shownMarks, type BoardRow, type ScoreRow } from './core/index.ts';
+import { LADDER } from './ladder.ts';
 
 // The Career screen (core slice 2, Web): the 50-rung ladder with the player's rung marked, and the scorecard the career service holds for the account (scorecard_rows(), read through
 // the core's career-client; a screen never calls the server itself). Signed out, offline or on a failed read it says so and keeps the device's own figures: nothing is drawn empty.
@@ -28,12 +29,15 @@ export function boardViews(rows: readonly BoardRow[]): BoardView[] {
 type Db = Parameters<typeof readScorecard>[0];
 export type CareerMount = { render(): Promise<void> };
 // `db()` is the account's client or null when signed out; `marks()` the rank's marks; `deviceNote` the line shown when the server's figures are not available.
-export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks: () => number; name?: (opponent: string) => string }): CareerMount {
+export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks?: () => number; name?: (opponent: string) => string }): CareerMount {
+  // Defaults live HERE so every mode mounts the one component and no zone code reads Pit marks (core-boundary C6): the rank's marks = the account's server figure plus its pending wins, else this device's.
+  const marks = o.marks ?? (() => shownMarks(session.standing?.marks ?? null, loadProfile(localStorage, () => crypto.randomUUID()).profile, session.standing?.pending ?? 0));
+  const nameOf = o.name ?? ((id: string) => LADDER.find((x) => x.id === id)?.name ?? id);
   const doc = root.ownerDocument, el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = doc.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
   return {
     async render() {
-      const rank = rankFor(o.marks()), head = el('p', 'career-rank', rank.label), ladder = el('ol', 'career-ladder'), card = el('div', 'career-card');
-      for (const shelf of ladderView(o.marks())) {
+      const rank = rankFor(marks()), head = el('p', 'career-rank', rank.label), ladder = el('ol', 'career-ladder'), card = el('div', 'career-card');
+      for (const shelf of ladderView(marks())) {
         const li = el('li', 'career-title'), rungs = el('span', 'career-rungs');
         li.append(el('b', '', shelf.title));
         for (const r of shelf.rungs) { const pip = el('i', `career-rung ${r.state}`); pip.title = r.label; if (r.state === 'now') pip.setAttribute('aria-current', 'step'); rungs.append(pip); }
@@ -52,7 +56,7 @@ export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promis
       const table = el('table', 'scorecard-table'), tr = el('tr');
       for (const h of ['Opponent', 'Fights', 'Wins', 'Losses']) tr.append(el('th', '', h));
       table.append(tr);
-      for (const l of scoreLines(rows, o.name)) { const row = el('tr'); row.append(el('td', '', l.name), el('td', '', String(l.fights)), el('td', '', String(l.wins)), el('td', '', l.losses)); table.append(row); }
+      for (const l of scoreLines(rows, nameOf)) { const row = el('tr'); row.append(el('td', '', l.name), el('td', '', String(l.fights)), el('td', '', String(l.wins)), el('td', '', l.losses)); table.append(row); }
       card.append(table);
     },
   };
