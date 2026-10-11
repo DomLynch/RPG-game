@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { zoneRows } from '../../scripts/gen-zones.mjs';
+import { readdirSync } from 'node:fs';
 import { frontierPlan, FRONTIER } from '../preview/frontier-plan.ts';
 import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
@@ -35,7 +35,7 @@ test('the validator names each way a package can be wrong', () => {
 });
 
 test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; zoneIds lists every package', () => {
-  assert.deepEqual(zoneIds(), zoneRows().map((r: { id: string }) => r.id));   // every row, and no more (a new zone row adds no line here)
+  assert.deepEqual(zoneIds(), readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b)));   // every row, and no more (a new zone row adds no line here)
   assert.equal(zoneFromAddress('/zone1/', ''), '1');
   assert.equal(zoneFromAddress('/preview/origins/', '?region=1'), '1');
   assert.equal(zoneFromAddress('/zone/2/', ''), '2');
