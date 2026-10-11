@@ -9,7 +9,6 @@ import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } fr
 export type KitNode = string;   // a node name of the zone's kit (origins/zone-rows/zone1.row.json (kit), checked by the loader)
 export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
 export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
-const { kinds: KIND, landmarks: LANDMARK_NODES } = loadZone().kit, DENSITY = Number(loadZone().fields?.['look.props.density'] ?? 1);   // look.props.density: a multiplier on every kind's per (1 = as the kit says)   // the zone's kit data, through the loader
 const LANDMARK_R = 3.5;   // footprint of a landmark, for the first-view margin and its solid
 
 
@@ -18,7 +17,9 @@ const segDist = (px: number, pz: number, ax: number, az: number, bx: number, bz:
   return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
 };
 
-export function frontierKit(f: Frontier, b: Build, d: Dress, density: number = DENSITY): Kit {
+export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, zoneId?: string): Kit {   // zoneId defaults to the page's zone (loadZone's own default), so Zone 1's kit is unchanged
+  const zone = loadZone(zoneId), { kinds: KIND, landmarks: LANDMARK_NODES } = zone.kit;   // the zone's kit data, through the loader
+  density ??= Number(zone.fields?.['look.props.density'] ?? 1);   // look.props.density: a multiplier on every kind's per (1 = as the kit says)
   const placements: KitPlacement[] = [], solids: Solid[] = [];
   for (const z of f.zones) {
     if (!z.region.includes('frontier')) continue;
