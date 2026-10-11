@@ -1,3 +1,13 @@
+## 2026-10-11 ~14:40 (+04) — HANDOFF #8, PARKED (quota 93%, Lead + Strategy ruling; nothing wakes before 00:00 Dubai). READ FIRST, then memory `project_combat_handoff_2026-10-11.md`
+
+1. **LIVE:** CORE 1a #2152 (a2125a8fd, 10-10 20:04).
+2. **In flight (all frozen, nothing of mine running: no HF jobs, no capture job, VPS clone /root/work-cc clean):**
+   - **#2161 Proof 3 CC ladder, READY, head 0de7564f5** (rebased on trunk 28a7cea6; RECORD_VERSION 41, REACH[41] empty, v40 replay test, CI green run 38126486104). VPS receipt: PR comment 6107405739 (raw node over ssh, not capture: Lead accepted it, rule since: every heavy VPS run goes through `capture`). With the Auditor. Writer reinstall applies (src/fight). Do not push unless the Auditor or CI asks.
+   - **#2197 DRAFT "Camera B is the zone schema default (supersedes #2154)", branch combat/camera-b-after @59d1d4227.** Schema default camera.preset 'b' + presets a/b, zones set nothing, test origins/zones/camera-default.test.ts (imported by tests/origins-zone-loader.test.ts), stills in docs/stills/camera-b/ (HF jobs 6acb575dfee2c90070193b4e before, 6acb5275095c57808931c255 after; HF: 3 jobs, <=$0.10). Receipt in the PR body: focused 33/33 + typechecks on 59d1d4227; the wider run (3644 tests, 1 real fail fixed) was on 4316b31f5, NOT repeated on 59d1d4227. Parked as draft by order; Lead closes #2154 as superseded. Camera B batch PR #2199 (BL) is parked: 5th in tomorrow's order after BK2 and Backend 0020, with the writer reinstall.
+3. **Next (after 00:00 Dubai, Lead's order):** answer the Auditor on #2161 if it holds; when told, mark #2197 ready and run the full gate through `capture` on the exact head (it needs a wider-run receipt on its own head); no new work without Lead.
+4. **Traps:** `capture` takes argv (`capture --prio 3 combat bash /root/script.sh`), not one quoted string, and an ssh pipe through `head` kills the job; heavy VPS runs only via capture, stills only via `node scripts/gpu-run.mjs <sha> -- <cmd>` on the T4; a new origins/**/*.test.ts needs its tests/origins-*.test.ts stub import; `sed -i` needs `''` on BSD; two "Lead Dev" rows in ListAgents (use the local one's [ref]).
+5. **Folder:** app worktree .../worktrees/reverent-khorana-f26f2c; when Dom is home: reopen on ~/Developer/frankendom-combat with the worktree switch off.
+
 ## 2026-10-10 ~22:00 (+04) — HANDOFF #7, PAUSED until Sunday morning (Dom: quota). READ FIRST, then memory `project_combat_handoff_2026-10-10d.md`
 
 1. **LIVE (Lead, a2125a8fd, 20:04):** CORE 1a "the door" #2152 (src/core: index.ts for modes, server.ts node-safe; 16 modules moved from src/fight and src/; careerState in src/core/career-state.ts; tests/core-boundary.test.ts C1-C4 with mutations; k7 LEDGER_UI empty). Last head 40fb6df2f.
