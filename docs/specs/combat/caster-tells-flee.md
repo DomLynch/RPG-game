@@ -27,7 +27,8 @@ Two different things, both presentation unless we want a new rule:
 2. Do the cheap half of Gap 2 only when a zone ships a caster row; today none does.
 3. Do not start the ranged-caster sim work.
 
-## Decisions I need from Lead
-- Flee at "<= 30" (twist) or "< 30" (fleesNow)?
-- Owner of the run-away + wounded-window state (Expansion per mobs.md 5.11, or World)?
-- Is a caster row planned in a zone soon enough to justify the tell now?
+## Lead rulings (2026-10-11)
+- Boundary: flee at `<= percent`, the engine's (`twist.ts`); `fleesNow` is changed to match (it has no callers). Changing the engine would be an RV.
+- The flag synthesis is built as its own PR, no RV, with a fingerprint-unchanged receipt for every fight without a style flee.
+- The world run-away and wounded-window state goes to World, Monday after its zone items (mobs.md 5.11).
+- Caster tells wait until a zone ships a caster row; no ranged-caster sim work.
