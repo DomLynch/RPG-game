@@ -1,5 +1,5 @@
 // Zone page stills at 375x812 for zones 1 and 3 (?zone=<id> on the origins-preview build): the first view at spawn, then the hub (the Pit and the Exchange, placed at the start) the walk starts from.
-// Reads the zone the page reports and its ambience preset. Needs ZONE_DIST (the origins-preview build). Stills: artifacts/zone-theme/.
+// ?daynight=0 pins the light so a before and an after of the same zone are comparable. Reads the zone the page reports and its ambience preset. Needs ZONE_DIST (the origins-preview build). Stills: artifacts/zone-theme/.
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -19,7 +19,7 @@ try {
   for (const zone of ['1', '3']) {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
     const page = await context.newPage(); page.setDefaultTimeout(90000); await page.route('**/*sentry.io/**', (r) => r.abort());
-    await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}`, { waitUntil: 'load' });
+    await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}&daynight=0`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 }); await page.waitForTimeout(3000);
     out[zone] = await page.evaluate(() => ({ ambience: document.body.dataset.ambience, pos: { ...window.originsPreview.pos } }));
     await page.screenshot({ path: `${dir}/${tag}-zone${zone}-spawn.png` });
