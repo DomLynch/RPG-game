@@ -8,6 +8,7 @@ import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCo
 export const VPS_MAX_LOAD1 = 12;
 
 // vps: { load1, freeRamMb } or null when the box cannot be read. mem: the job's RAM need in MB (default 0 = just a readable, quiet box).
+/** @param {{ gfx?: boolean, mem?: number, vps?: { load1: number, freeRamMb: number } | null }} [job] @returns {'vps' | 'hf-cpu' | 'hf-t4'} */
 export function pickTarget({ gfx = false, mem = 0, vps = null } = {}) {
   if (gfx) return 'hf-t4';
   const { load1, freeRamMb } = vps || {};
