@@ -36,8 +36,10 @@ test('pickTarget: a job without a memory need still needs a readable VPS', () =>
   assert.equal(pickTarget({ vps: ok }), 'vps');
   assert.equal(pickTarget({ vps: null }), 'hf-cpu');
 });
-test('parseVpsStatus reads /proc/loadavg + MemAvailable output and refuses anything else', () => {
-  assert.deepEqual(parseVpsStatus('0.83 0.70 0.66 2/911 12345\n16384000'), { load1: 0.83, freeRamMb: 16000 });
+test('parseVpsStatus reads /proc/loadavg + MemAvailable (+ live release run dirs) and refuses anything else', () => {
+  assert.deepEqual(parseVpsStatus('0.83 0.70 0.66 2/911 12345\n16384000'), { load1: 0.83, freeRamMb: 16000, releaseRuns: 0 });
+  assert.deepEqual(parseVpsStatus('0.83 0.70 0.66 2/911 12345\n16384000\n2'), { load1: 0.83, freeRamMb: 16000, releaseRuns: 2 });
+  assert.equal(parseVpsStatus('0.83 0.70 0.66 2/911 12345\n16384000\nx'), null);
   assert.equal(parseVpsStatus(''), null);
   assert.equal(parseVpsStatus('garbage'), null);
   assert.equal(parseVpsStatus('0.5 0.5 0.5 1/2 3\nnotanumber'), null);
@@ -70,4 +72,12 @@ test('boundary: KNOWN only shrinks (a converted script must be deleted from the 
   const found = offenders();
   const stale = KNOWN.filter(f => !found.includes(f));
   assert.deepEqual(stale, [], `converted: delete from KNOWN: ${stale.join(', ')}`);
+});
+
+test('a release run owns the VPS: a lane job spills to Hugging Face CPU while a release run dir exists; a release job (not a lane) is unaffected', () => {
+  const busy = { load1: 1, freeRamMb: 20000, releaseRuns: 1 };
+  assert.equal(pickTarget({ lane: true, vps: busy, mem: 1024 }), 'hf-cpu', 'lane job waits out the release run on HF');
+  assert.equal(pickTarget({ lane: true, vps: { ...busy, releaseRuns: 0 }, mem: 1024 }), 'vps', 'no release run: the lane may use the VPS');
+  assert.equal(pickTarget({ vps: busy, mem: 1024 }), 'vps', 'a release job never waits behind the lock');
+  assert.equal(pickTarget({ lane: true, gfx: true, vps: busy }), 'hf-t4', 'graphics still go to the T4');
 });
