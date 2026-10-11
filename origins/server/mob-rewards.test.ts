@@ -1,12 +1,13 @@
 // What a verified world creature kill pays (mob-rewards.ts): the kill's CP through award(), the loot rolled on the server's seed into the pack as mints,
 // and nothing for a token without a fight id, a run the fight does not describe, a loss-shaped twist, a full pack or a capped Bounty.
+import { loadZone, zoneIds } from '../zones/loader.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ACCOUNT, PC } from '../contracts/fixtures.ts';
 import type { CharacterInstanceId } from '../contracts/ids.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';
-import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, type Kill } from './mob-rewards.ts';
+import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, respawnRows, type Kill } from './mob-rewards.ts';
 import type { Db } from './db.ts';
 import type { CareerRow } from './store.ts';
 
@@ -147,4 +148,10 @@ test('a zone kill leaves the Pit rank alone: it writes only events, the zone car
   assert.ok(paid.batch.every((o) => ['event', 'career_set', 'mint', 'metal'].includes(String(o.op))), `ops: ${paid.batch.map((o) => o.op).join(',')}`);
   assert.ok(!JSON.stringify(paid.batch).includes('victory_marks') && !JSON.stringify(paid.batch).includes('fighter_profiles'), 'no write names the Pit\'s marks');
   for (const o of paid.batch.filter((x) => x.op === 'career_set')) assert.ok(!('seed_credit' in o) && !('pit' in o) && !('pit_wins' in o), 'a zone kill moves world credit and the rested/heat/beaten columns only');
+});
+
+test('respawn window covers every zone: a Zone 2/3 creature (the ember wolf) keeps its own respawnSeconds, not the 300 s fallback', () => {
+  const rows = respawnRows();
+  assert.equal(rows.get('character:ember-wolf'), 75_000);
+  for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) if (r.respawnSeconds !== undefined) assert.equal(rows.get(r.id), r.respawnSeconds * 1000, `zone ${id} ${r.id}`);
 });
