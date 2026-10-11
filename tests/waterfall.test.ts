@@ -51,7 +51,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap(name => {
 });
 // `hf jobs run` (a Hugging Face job) or an ssh that runs a test suite / capture on the box.
 const LAUNCH = /['"]jobs['"]\s*,\s*['"]run['"]|hf\s+jobs\s+run|ssh[^\n]*\b(run-unit|run-rows|capture)\b/;
-const code = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*(\/\/|#)/.test(l)).join('\n');
+const code = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*(\/\/|#)/.test(l)).map(l => l.replace(/\s\/\/\s.*$/, '')).join('\n');
 const offenders = () => walk('scripts').filter(f => f !== 'scripts/lib/waterfall.mjs' && LAUNCH.test(code(readFileSync(f, 'utf8')))).sort();
 
 // Shrink-only (like K7's list): delete a line when its script is converted to call pickTarget; adding one fails the test below.
