@@ -28,11 +28,12 @@ async function before(name) {   // ZR_BEFORE=1 on the base build: the signed-in 
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   await context.addInitScript(([p, s]) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); localStorage.setItem('frankendom.auth.v1', JSON.stringify(s)); }, [profile, session]);
   const page = await context.newPage(); page.setDefaultTimeout(90000); page.on('pageerror', (e) => receipt.errors.push(String(e))); await page.route('**/*sentry.io/**', (r) => r.abort());
-  await page.route('http://sb.test/**', (route) => route.fulfill({ status: 404, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{}' }));
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }, row = { display_name: 'Aldren', encounter: 'goblin', revision: 4, victory_marks: 9, loot: { owned: [], equipped: {} }, public_no: 7 };
+  await page.route('http://sb.test/**', (route) => { const req = route.request(), ok = req.method() === 'OPTIONS' || (req.method() === 'GET' && new URL(req.url()).pathname.endsWith('/fighter_profiles')); return route.fulfill({ status: ok ? 200 : 404, contentType: 'application/json', headers: cors, body: ok && req.method() === 'GET' ? JSON.stringify(row) : '{}' }); });
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 }); await page.waitForTimeout(3000);
   await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(1200);
-  await page.locator('#journal .tab-career').click(); await page.waitForSelector('#career-root .career-name'); await page.waitForTimeout(1500);
+  await page.locator('#journal .tab-career').click(); await page.waitForSelector('#career-root .career-name', { timeout: 60000 }); await page.waitForTimeout(1500);
   assert.equal(await page.locator('#career-root .career-pencil').count(), 0, `${name}: no pencil for a signed-in player on the base build`);
   await page.screenshot({ path: `${dir}/${name}-1-card.png` }); await context.close();
 }
