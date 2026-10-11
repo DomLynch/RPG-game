@@ -34,7 +34,7 @@ try {
   const line = []; const state = () => page.evaluate(() => [document.body.classList.contains('infight') ? 'fight' : 'walk', window.originsPreview.duel()?.ready ? 'ready' : '-', window.originsPreview.mobs().mobs.map((m) => m.mode[0]).join(''), document.title.slice(0, 22)].join(' '));
   if (zone) { for (let i = 0; i < 80 && !(await page.evaluate(() => document.body.classList.contains('infight'))); i++) { if (i % 4 === 0) line.push(`${i / 4}s ${await state()}`); await page.waitForTimeout(250); } console.log('TIMELINE', line.join(' | ')); } else await page.waitForTimeout(20000);
   if (!(await page.evaluate(() => document.body.classList.contains('infight')))) await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
-  for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
+  if (!zone) for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }   // a zone run does not wait for `ready`: the duel is already running and an idle guest does not outlast it
   await page.waitForTimeout(zone ? 1500 : 4000);   // a zone's lone creature kills a standing guest fast on a GPU: the shot is taken as the duel starts
   await shot('fight');
   console.log(JSON.stringify(await page.evaluate(() => ({ infight: document.body.classList.contains('infight'), card: document.getElementById('creature-card')?.hidden ? null : document.getElementById('creature-card')?.innerText, aggro: window.originsPreview.mobs().mobs.filter((m) => m.mode === 'aggro').length }))));
