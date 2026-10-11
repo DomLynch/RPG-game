@@ -129,7 +129,7 @@ test('Auditor #2181: no --with-deps, out-of-scope rows are never stamped ok, the
 });
 test('Auditor #2181: vps_receipts_apply reads the spilled multi-id .cpu file after the .running wait', () => {
   const sh = readSrc('scripts/lib/deploy-vps.sh', 'utf8');
-  assert.match(sh, /\^\[A-Za-z0-9\]\+\(,\[A-Za-z0-9\]\+\)\*\;/);
+  assert.ok(sh.includes('^[A-Za-z0-9]+(,[A-Za-z0-9]+)*\\;[0-9]+'), 'prelaunched_cpu accepts a multi-id spill line');
   assert.ok(sh.indexOf('rowsvps.running') < sh.indexOf('local spilled=') || sh.indexOf('rowsvps.running') < sh.indexOf('local spilled;'));
   assert.ok(sh.indexOf('local spilled;') < sh.indexOf('for job in'));
 });
