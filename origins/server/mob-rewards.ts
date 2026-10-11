@@ -105,7 +105,8 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // last PAID kill of the fight, from the `enc:<token>` events the settle commits with its rewards), so a writer restart forgets nothing, only committed kills count, and a
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = 300_000;
-export const respawnRows = (): Map<string, number> => new Map([...zoneIds().flatMap((id) => loadZone(id).spawns.rows), ...WILDLIFE_ROWS].flatMap((r) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
+type RespawnRow = { id: string; respawnSeconds?: number };
+export const respawnRows = (zoneRows: () => readonly RespawnRow[] = () => zoneIds().flatMap((id) => loadZone(id).spawns.rows)): Map<string, number> => new Map([...zoneRows(), ...WILDLIFE_ROWS].flatMap((r: RespawnRow) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
 const ROW_RESPAWN = respawnRows();
 export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
   const setup = fightSetup(fight, content);

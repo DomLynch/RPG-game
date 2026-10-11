@@ -155,3 +155,9 @@ test('respawn window covers every zone: a Zone 2/3 creature (the ember wolf) kee
   assert.equal(rows.get('character:ember-wolf'), 75_000);
   for (const id of zoneIds()) for (const r of loadZone(id).spawns.rows) if (r.respawnSeconds !== undefined) assert.equal(rows.get(r.id), r.respawnSeconds * 1000, `zone ${id} ${r.id}`);
 });
+
+test('respawn window: a Zone 2 row with respawnSeconds=45 gives 45 000 ms, not the 300 000 fallback', () => {
+  const rows = respawnRows(() => [{ id: 'character:zone2-test', respawnSeconds: 45 }, { id: 'character:plain' }]);
+  assert.equal(rows.get('character:zone2-test'), 45_000);
+  assert.equal(rows.get('character:plain') ?? RESPAWN_MS, RESPAWN_MS);
+});
