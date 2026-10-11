@@ -10,7 +10,8 @@ import ts from 'typescript';
 // checks: they join only once they are split into pure-data files. The catalogue rows are split (src/fight/catalogue-data.ts; the code that reads them stays in catalogue-rows.ts),
 // and a new or changed legend citation in them goes to the Auditor (catalogueCitations below).
 export const DATA_PATHS = [
-  /^origins\/zones\/zone\d+\/(zone|spawns|kit|look|mob-looks|place)\.ts$/,   // mob-looks and place are the optional zone files (gen-zones OPTIONAL); zoneProblems checks mobLooks, tests/zone-place.test.ts checks place
+  /^origins\/zone-rows\/zone[1-9][0-9]*\.row\.json$/,   // a zone IS its row (2026-10-11): spawns, kit, looks, mob looks and place in one JSON file; loadZone + zoneProblems check it (data-only-check.mjs)
+  /^origins\/zones\/zone\d+\/(zone|spawns|kit|look|mob-looks|place)\.ts$/,   // the old per-zone modules (a base older than the rows); mob-looks and place are the optional zone files   // mob-looks and place are the optional zone files (gen-zones OPTIONAL); zoneProblems checks mobLooks, tests/zone-place.test.ts checks place
   /^origins\/zones\/biomes-data\.ts$/,   // the biome presets once World splits them out of biomes.ts as a literal-only module (biomes.ts itself stays code)
   /^src\/assets\/source\/loot\/loot\.json$/,
   /^src\/fight\/catalogue-data\.ts$/,   // the character catalogue's rows: one literal const (Characters 2026-10-10; the legends rule below applies)
@@ -61,6 +62,8 @@ function literalJson(node) {
   if (ts.isObjectLiteralExpression(node)) return Object.fromEntries(node.properties.map(p => [p.name.text, literalJson(p.initializer)]));
   return literalJson(node.expression);   // as const, satisfies, parentheses
 }
+/** A zone's spawn rows, from its row file (JSON) or from the old spawns module: the legends rule reads them either way. */
+export const spawnRowsOf = (file, text) => file.endsWith('.row.json') ? JSON.parse(text)?.spawns?.rows : moduleValue(file, text)?.rows;
 export function moduleValue(file, text) {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const st = sf.statements.find(s => ts.isVariableStatement(s));

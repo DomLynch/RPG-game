@@ -9,6 +9,7 @@
 // Same contract as encounter-net.ts: no DOM, storage or clock read here; every failure (no session, a refusal, 503 off, the network) is an answer ({ offline }), never a throw. The page's own loot,
 // toast and respawn path runs exactly as today whatever the server says; the server's answer is the beta-ledger truth.
 import { call } from './encounter-net.ts';
+import { DEFAULT_ZONE } from '../zones/loader.ts';
 import type { Offline } from './save.ts';
 
 export type Engaged = { token: string; instance: string; generation: number; kind: string; level: number; hp: number; expiresAt: string };
@@ -55,7 +56,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (isSpent(instance)) return Promise.resolve<Offline>({ offline: 'spent' });   // the kill's own late events never open a new token   // FightStarted is once per engage, but a re-fire must never open a second token
     const engage = (async (): Promise<Engaged | Offline> => {
       const character = await d.character();   // a page whose open has not (yet) answered asks the door again here (src/core/open.ts characterFor), so a late character is picked up before the first engage
-      return character ? call('engage', { character, instance, zoneId: d.zone?.() ?? '1' }, d.token(), engagedOf, opts) : { offline: 'no-character' };
+      return character ? call('engage', { character, instance, zoneId: d.zone?.() ?? DEFAULT_ZONE }, d.token(), engagedOf, opts) : { offline: 'no-character' };
     })();
     live.set(instance, { engage, hits: 0, touchedAt: d.now() });
     void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again

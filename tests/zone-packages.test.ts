@@ -8,7 +8,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
-import { loadZone, zoneProblems } from '../origins/zones/loader.ts';
+import { loadZone, zoneIds, zoneProblems } from '../origins/zones/loader.ts';
+import { zoneRows } from '../scripts/gen-zones.mjs';
 
 const LOADER = 'origins/zones/loader.ts', REGISTRY = 'origins/zones/registry.ts';   // the loader reads packages through the generated registry (scripts/gen-zones.mjs): only these two may import one
 export const HOOKS_BUDGET = 300;
@@ -71,7 +72,7 @@ function specifiers(file: string): { spec: string; line: number }[] {
 
 // Files anywhere in the repo (src, tests, scripts, origins) that reach into a zone package without being the loader (or the package itself).
 export function zoneImportOffenders(root: string, loader = LOADER): string[] {
-  const zones = path.join(root, 'origins/zones') + path.sep, bad: string[] = [];
+  const zones = path.join(root, 'origins/zones') + path.sep, rows = path.join(root, 'origins/zone-rows') + path.sep, bad: string[] = [];
   const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) { if (e.name !== 'node_modules' && !e.name.startsWith('.') && e.name !== 'dist') walk(p); continue; }
@@ -82,9 +83,36 @@ export function zoneImportOffenders(root: string, loader = LOADER): string[] {
       const to = path.resolve(path.dirname(p), spec);
       const pkg = to.startsWith(zones) && path.relative(zones, to).includes(path.sep) ? path.join(zones, path.relative(zones, to).split(path.sep)[0]!) + path.sep : null;
       if (pkg && pkg !== ownPackage) bad.push(`${path.relative(root, p)}:${line} imports ${spec}: read a zone through loadZone()`);
+      if (to.startsWith(rows)) bad.push(`${path.relative(root, p)}:${line} imports ${spec}: a zone row is read by the generated registry only`);
     }
   } };
   walk(root);
+  return bad;
+}
+
+// No zone id literal outside the loader (2026-10-11, zones as data): a digit-only string ('1', '2') beside the word "zone" in origins code is a zone id written by hand, and the next zone would need that line edited.
+// Read DEFAULT_ZONE / zoneIds() / zoneKeyPrefix() from the loader instead. The registry (generated) and the loader are the only files that may name one. KNOWN is the shrink-only list of exceptions: file -> count.
+export const ZONE_ID_KNOWN: Readonly<Record<string, number>> = {};
+const ZONE_CONTEXT = new Set([ts.SyntaxKind.BinaryExpression, ts.SyntaxKind.CallExpression, ts.SyntaxKind.ElementAccessExpression, ts.SyntaxKind.Parameter, ts.SyntaxKind.PropertyAssignment, ts.SyntaxKind.VariableDeclaration, ts.SyntaxKind.ArrayLiteralExpression, ts.SyntaxKind.ConditionalExpression]);
+export function zoneIdLiteralOffenders(root: string, skip: readonly string[] = [LOADER, REGISTRY]): string[] {
+  const bad: string[] = [];
+  const walk = (dir: string) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) { if (e.name !== 'node_modules' && !e.name.startsWith('.') && e.name !== 'dist') walk(p); continue; }
+    if (!/\.ts$/.test(e.name) || /\.test\.ts$/.test(e.name) || skip.includes(path.relative(root, p))) continue;
+    const sf = parse(p), hits: string[] = [];
+    const visit = (n: ts.Node) => {
+      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && /^[1-9][0-9]*$/.test(n.text)) {
+        let c: ts.Node | undefined = n.parent; while (c && !ZONE_CONTEXT.has(c.kind)) c = c.parent;
+        if (c && /zone/i.test(c.getText(sf))) hits.push(`${path.relative(root, p)}:${lineOf(sf, n)} the literal '${n.text}' beside "zone"`);
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    const allowed = ZONE_ID_KNOWN[path.relative(root, p)] ?? 0;
+    if (hits.length > allowed) bad.push(...hits);
+  } };
+  const origins = path.join(root, 'origins'); if (fs.existsSync(origins)) walk(origins);
   return bad;
 }
 
@@ -115,23 +143,28 @@ export function packageProblems(root: string): string[] {
 
 // --- The repo ---
 
-test('every zone package loads through the loader and passes its rules', async () => {
-  const dirs = packagesIn(repo);
-  assert.ok(dirs.length >= 1, 'origins/zones has at least Zone 1');
-  for (const dir of dirs) {
-    const own = (await import(path.join(repo, 'origins/zones', dir, 'zone.ts'))).default as { id: string };
-    assert.equal(typeof own.id, 'string', `${dir}/zone.ts names its id`);
-    const z = loadZone(own.id);   // throws for an unregistered or invalid package
-    assert.equal(z.id, own.id, `${dir} is registered in the loader under its own id`);
-    assert.deepEqual(zoneProblems(z), [], dir);
+test('every zone row loads through the loader and passes its rules', () => {
+  const rows = zoneRows();
+  assert.ok(rows.length >= 2, 'origins/zone-rows has at least Zones 1 and 2');
+  for (const { id, n } of rows) {
+    const z = loadZone(id);   // throws for an unregistered or invalid zone
+    assert.deepEqual([z.id, z.level], [id, n], `zone${n}.row.json loads under its own number`);
+    assert.deepEqual(zoneProblems(z), [], id);
   }
+  assert.deepEqual(zoneIds(), rows.map((r) => r.id), 'the registry holds every row and nothing else');
+  assert.deepEqual(packagesIn(repo), [], 'no zone is a TypeScript folder any more: origins/zones holds the loader and its helpers only');
 });
 
 test('zone package files are data (literal-only, import type only) and hooks.ts stays within the budget', () => {
   assert.deepEqual(packageProblems(repo), []);
 });
 
-test('nothing outside the loader imports a zone package, and no zone imports the Pit', () => {
+test('no zone id literal outside the loader and the registry (the KNOWN list only shrinks)', () => {
+  assert.deepEqual(zoneIdLiteralOffenders(repo), [], 'read DEFAULT_ZONE, zoneIds() or zoneKeyPrefix() from origins/zones/loader.ts');
+  assert.deepEqual(ZONE_ID_KNOWN, {}, 'the KNOWN list is empty: add nothing to it');
+});
+
+test('nothing outside the loader imports a zone package or a zone row, and no zone imports the Pit', () => {
   assert.ok(fs.existsSync(path.join(repo, LOADER)), `the loader is at ${LOADER}`);
   assert.deepEqual(zoneImportOffenders(repo), [], 'read a zone through loadZone(), not its files');
   assert.deepEqual(pitImportOffenders(repo), []);
@@ -196,4 +229,14 @@ test('negative control: a zone importing the Pit (src/arena*) fails', () => {
   const root = fixture({ ...GOOD, 'origins/zones/zone9/kit.ts': "import type { ArenaMaterials } from '../../../src/arena.ts';\nexport default {};\n" });
   try { const bad = pitImportOffenders(root); assert.equal(bad.length, 1); assert.match(bad[0]!, /zones import nothing from the Pit/); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('negative control: a zone id written by hand beside "zone" fails, and a comparison with no zone near it passes', () => {
+  const root = fixture({ 'origins/preview/a.ts': "export const f = (zone: string) => zone === '1' ? 'bare' : 'prefixed';\n", 'origins/preview/b.ts': "export const g = (zoneId: string = '2') => zoneId;\n", 'origins/preview/c.ts': "export const h = (code: string) => code === '23505';\nexport const era = { era: '1485' };\n", 'origins/preview/ok.test.ts': "export const t = (zone: string) => zone === '1';\n" });
+  try { assert.deepEqual(zoneIdLiteralOffenders(root).map((m) => m.replace(/:.*/, '')), ['origins/preview/a.ts', 'origins/preview/b.ts']); } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('negative control: a file importing a zone row directly fails (only the generated registry may)', () => {
+  const root = fixture({ ...GOOD, 'origins/zone-rows/zone9.row.json': '{}', 'origins/preview/x.ts': "import row from '../zone-rows/zone9.row.json' with { type: 'json' };\nexport default row;\n" });
+  try { assert.match(zoneImportOffenders(root).join(), /x\.ts:1 imports \.\.\/zone-rows\/zone9\.row\.json: a zone row is read by the generated registry only/); } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

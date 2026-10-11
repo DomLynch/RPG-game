@@ -12,11 +12,11 @@ import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
 import type { WhereFn } from '../presence/where.ts';
-import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zoneOfKey, zone1Spawns, zoneSpawns, type Spawn } from './world-spawns.ts';
+import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zoneOfKey, defaultZoneSpawns, zoneSpawns, type Spawn } from './world-spawns.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
-const content = loaded.value, spawns = zone1Spawns(content);
+const content = loaded.value, spawns = defaultZoneSpawns(content);
 const UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', TOKEN = 'T'.repeat(32);
 const row = (): CareerRow => ({ seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 });
 const emptyPack = () => { const inv = openInventory({ owner: PC as CharacterInstanceId, account: ACCOUNT as never, items: [], packSize: 20, bankSize: 10 }, lookupOf(content)); if (!inv.ok) throw new Error(JSON.stringify(inv.issues)); return inv.value; };

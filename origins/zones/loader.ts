@@ -1,6 +1,6 @@
 // The zone loader (zone-runtime step 1, docs/specs/zone-runtime.md): the ONE place that reads a zone's data package (origins/zones/<id>/) and checks it before anything uses it. Callers get a validated Zone
-// and never import origins/zones/** themselves (loader.test.ts fails if they do). Pure: no three.js, no DOM, so the server may read the same rows. Only Zone 1 exists; a second zone is a second package
-// and nothing else: registry.ts is generated from the origins/zones/zone<N>/ folders (scripts/gen-zones.mjs).
+// and never import origins/zones/** themselves (loader.test.ts fails if they do). Pure: no three.js, no DOM, so the server may read the same rows. A zone is a data row (origins/zone-rows/zone<N>.row.json)
+// and nothing else: registry.ts is generated from the rows (scripts/gen-zones.mjs) and from-row.ts turns each into a Zone.
 import type { MobRow } from '../mobs/row.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
@@ -70,14 +70,18 @@ export function zoneProblems(z: Zone): string[] {
 }
 
 export const zoneIds = (): string[] => Object.keys(PACKAGES);
+/** The zone a page or request names none of (every old link): the lowest-numbered row. The one place a zone id is a value, not a name; callers read this and never write `'1'`. */
+export const DEFAULT_ZONE: string = zoneIds()[0]!;
+/** The prefix of a creature's instance id in this zone: the default zone's ids stay bare (the live rows), every other zone's are `z<id>:` (the server keys a creature by its id alone). */
+export const zoneKeyPrefix = (id: string): string => id === DEFAULT_ZONE ? '' : `z${id}:`;
 export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
 
 // Which zone a page address names: /zone/<id>/ or ?zone=<id> (the path wins), else Zone 1 (/zone1/ and every old link). Pure, so the server and the tests read it the same way. An id that is not a zone is returned as given; loadZone then says so.
 export function zoneFromAddress(pathname: string, search: string): string {
-  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? '1';
+  return /^\/zone\/([^/]+)\/?/.exec(pathname)?.[1] ?? new URLSearchParams(search).get('zone') ?? DEFAULT_ZONE;
 }
 // The page's zone: every loadZone() with no id reads this. No page (the server, the tests) means Zone 1.
-export const pageZoneId = (): string => typeof location === 'undefined' ? '1' : zoneFromAddress(location.pathname, location.search);
+export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
 
 const loaded = new Map<string, Zone>();
 export function loadZone(id: string = pageZoneId()): Zone {

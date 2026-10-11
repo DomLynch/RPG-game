@@ -6,7 +6,7 @@
 // the zone-place tests when a zone's place.ts changed, and the loot tests when the loot table changed.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { catalogueCitations, citationClashes, classify, legendCitations, legendProblems, moduleValue, onDataPath } from './lib/data-only.mjs';
+import { catalogueCitations, citationClashes, classify, legendCitations, legendProblems, moduleValue, onDataPath, spawnRowsOf } from './lib/data-only.mjs';
 
 const REGISTRY = 'origins/zones/registry.ts';
 const sh = (cmd, args, timeoutMs = 300_000) => spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs, killSignal: 'SIGKILL' });   // bounded (tests/child-process-bounds.test.ts)
@@ -17,12 +17,12 @@ export function changedFiles(base) {
   return r.stdout.trim().split('\n').filter(Boolean).map(line => { const [s, file] = line.split('\t'); return { file, status: s === 'D' ? 'removed' : s === 'A' ? 'added' : 'modified' }; });
 }
 
-// The generated registry is data when it is exactly what gen-zones writes from the folders; anything else is a hand edit (code).
+// The generated registry is data when it is exactly what gen-zones writes from the zone rows; anything else is a hand edit (code).
 function registryProblems() {
   const before = readFileSync(REGISTRY, 'utf8'), gen = sh(process.execPath, ['scripts/gen-zones.mjs'], 60_000);
   if (gen.status !== 0) return [`gen-zones failed: ${(gen.stderr || gen.stdout).trim().slice(0, 300)}`];
   const after = readFileSync(REGISTRY, 'utf8');
-  return before === after ? [] : [`${REGISTRY} is not what gen-zones writes from the zone folders (run npm run zones)`];
+  return before === after ? [] : [`${REGISTRY} is not what gen-zones writes from the zone rows (run npm run zones)`];
 }
 
 // Every zone through loadZone + zoneProblems, and every biome row through resolveSpec, not only the biomes a zone names: a bad field in an unused preset must not ride in as data.
@@ -35,9 +35,9 @@ console.log(JSON.stringify(bad));`;
 
 // Every legend citation in the zone spawns files at `base` (trunk): git show, so the working tree (the PR) is not read.
 export function baseCitations(base) {
-  const ls = sh('git', ['ls-tree', '-r', '--name-only', base, 'origins/zones'], 60_000);
-  const files = ls.stdout.split('\n').filter(f => /^origins\/zones\/zone\d+\/spawns\.ts$/.test(f));
-  return Object.assign({}, ...files.map(f => { const t = sh('git', ['show', `${base}:${f}`], 60_000); try { return legendCitations(moduleValue(f, t.stdout)?.rows); } catch { return {}; } }));
+  const ls = sh('git', ['ls-tree', '-r', '--name-only', base, 'origins/zones', 'origins/zone-rows'], 60_000);
+  const files = ls.stdout.split('\n').filter(f => /^origins\/zones\/zone\d+\/spawns\.ts$/.test(f) || /^origins\/zone-rows\/zone[1-9][0-9]*\.row\.json$/.test(f));
+  return Object.assign({}, ...files.map(f => { const t = sh('git', ['show', `${base}:${f}`], 60_000); try { return legendCitations(spawnRowsOf(f, t.stdout)); } catch { return {}; } }));
 }
 
 // Every catalogue citation in src/fight/catalogue-data.ts at `base` (an empty map when the file is not there yet: every legend then counts as new).
@@ -51,9 +51,9 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
   const data = changed.filter(c => c.file !== REGISTRY), first = classify(data, readText);
   if (!first.dataOnly) return { dataOnly: false, code: first.problems.some(p => p.includes('not on the data-only path list')) || !data.length ? 1 : 2, problems: first.problems };
   // A new legend (or a changed citation) is a normal PR for the Auditor, not a red one: code 1.
-  const spawns = data.filter(c => c.status !== 'removed' && c.file.endsWith('/spawns.ts'));
+  const spawns = data.filter(c => c.status !== 'removed' && (c.file.endsWith('/spawns.ts') || c.file.endsWith('.row.json')));
   if (spawns.length && base) {
-    const known = baseCitations(base), legends = spawns.flatMap(c => { const rows = moduleValue(c.file, readText(c.file))?.rows; return [...citationClashes(rows, 'spawns'), ...legendProblems(legendCitations(rows), known)]; });
+    const known = baseCitations(base), legends = spawns.flatMap(c => { const rows = spawnRowsOf(c.file, readText(c.file)); return [...citationClashes(rows, 'spawns'), ...legendProblems(legendCitations(rows), known)]; });
     if (legends.length) return { dataOnly: false, code: 1, problems: legends };
   }
   const catalogue = data.filter(c => c.status !== 'removed' && c.file === CATALOGUE_DATA);
@@ -62,12 +62,12 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
     if (legends.length) return { dataOnly: false, code: 1, problems: legends };
   }
   const problems = [];
-  if (data.some(c => c.file.startsWith('origins/zones/')) || changed.some(c => c.file === REGISTRY)) {
+  if (data.some(c => c.file.startsWith('origins/zones/') || c.file.startsWith('origins/zone-rows/')) || changed.some(c => c.file === REGISTRY)) {
     problems.push(...registryProblems());
     const z = sh(process.execPath, ['--input-type=module', '-e', ZONE_CHECK]);
     try { problems.push(...JSON.parse(z.stdout.trim().split('\n').pop())); } catch { problems.push(`the zone check did not run: ${(z.stderr || z.stdout).trim().slice(0, 300)}`); }
   }
-  if (data.some(c => c.file.endsWith('/place.ts'))) {   // where a zone stands on the map: zoneProblems does not read it, the zone-place tests do (a join to a missing zone throws)
+  if (data.some(c => c.file.endsWith('/place.ts') || c.file.endsWith('.row.json'))) {   // where a zone stands on the map: zoneProblems does not read it, the zone-place tests do (a join to a missing zone throws)
     const t = sh(process.execPath, ['--test', 'tests/zone-place.test.ts']);
     if (t.status !== 0) problems.push(`the zone place tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
