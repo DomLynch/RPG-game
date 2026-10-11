@@ -49,8 +49,8 @@ npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm 
 
 // The slowest test files of a node --test TAP log: a file-level result line (`ok N - /abs/tests/x.test.ts`) is followed by its own two-space `duration_ms:` line.
 // Printed as JSON pairs [["tests/x.test.ts", seconds], ...], slowest first, so a receipt shows where the suite time goes (the suite is as slow as its slowest file).
-export const SLOWEST_AWK = `/^(not )?ok [0-9]+ - .*[.]test[.]ts$/ { n = $0; sub(/^(not )?ok [0-9]+ - /, "", n); sub(/^.*[/]tests[/]/, "tests/", n); next_is = 1; next }
-next_is && /^  duration_ms: / { printf "%s %.1f\n", n, $2 / 1000; next_is = 0 }`;
+export const SLOWEST_AWK = `/^(not )?ok [0-9]+ - .*[.]test[.]ts$/ { n = $0; sub(/^(not )?ok [0-9]+ - /, "", n); sub(/^.*\\/tests\\//, "tests/", n); next_is = 1; next }
+next_is && /^  duration_ms: / { printf "%s %.1f\\n", n, $2 / 1000; next_is = 0 }`;
 
 export function buildRunner(args) {
   const { sha, tree, runid } = args;
