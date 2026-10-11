@@ -2543,10 +2543,13 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 /* Career tab (core slice 2, src/career-screen.ts): the 50-rung ladder as ten rows of five rungs, the player's rung lit, then the account's scorecard. */
 #journal .pane-career { padding: 8px 16px 24px; }
 .career-rank { margin: 8px 0 12px; font: 600 34px/1.05 "Cormorant", Georgia, serif; color: var(--jf); }
-.career-ladder { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 16px; margin: 0 0 16px; padding: 0; list-style: none; }
+.career-ladder { display: grid; grid-template-columns: 1fr; gap: 6px 16px; margin: 0 0 16px; padding: 0; list-style: none; }
 .career-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; font-size: 13px; }
 .career-rungs { display: flex; gap: 4px; }
 .career-rung { width: 14px; height: 14px; border: 1px solid var(--jg); border-radius: 50%; box-sizing: border-box; }
 .career-rung.done { background: var(--jg); opacity: 0.6; }
 .career-rung.now { background: var(--jg2); box-shadow: 0 0 0 2px var(--jg2); }
 .career-note { margin: 8px 0; opacity: 0.8; font-size: 14px; }
+.career-boards h6 { margin: 12px 0 4px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--jm); }
+.career-board { margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.career-board li { padding: 3px 0; }
