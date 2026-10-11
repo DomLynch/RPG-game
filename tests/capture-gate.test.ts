@@ -43,7 +43,7 @@ async function capture(args: string[], load: string, env: Record<string, string>
   let out: string, code = 0;
   try {
     const r = await run('bash', viaMac ? [mac, '--host', 'vps', '--dir', repo, ...args] : [script, ...args], { cwd: repo, timeout: 120000, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
-      CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
+      CAPTURE_LOADAVG: loadavg, CAPTURE_RUNS_DIR: join(dir, 'no-release-runs'), CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
     out = r.stdout + r.stderr;
   } catch (e) { const x = e as { code: number; stdout: string; stderr: string }; code = x.code; out = x.stdout + x.stderr; }
   const read = (f: string) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8') : '');
