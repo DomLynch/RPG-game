@@ -55,6 +55,12 @@ test('deploy-vps.sh prelaunched_cpu returns the CPU job line for the same sha on
   assert.notEqual(run(SHA).status, 0, 'older than 4 h is not taken');
   writeFileSync(join(dir, `${SHA}.cpu`), '');
   assert.notEqual(run(SHA).status, 0, 'an empty file is not a job');
+  for (const garbage of ['cpuJob1', 'cpuJob1;', ';2,3', 'cpuJob1;2,x', 'cpuJob1;2,3\nextra', 'job one;2', 'cpuJob1;2,3 ', 'Error: hf failed;2']) {
+    writeFileSync(join(dir, `${SHA}.cpu`), garbage);
+    assert.notEqual(run(SHA).status, 0, `garbage ${JSON.stringify(garbage)} must relaunch, not suppress`);
+  }
+  writeFileSync(join(dir, `${SHA}.cpu`), '6aca5807fee2c90070189364;31');
+  assert.equal(run(SHA).stdout, '6aca5807fee2c90070189364;31', 'a real launch.mjs line is accepted');
 });
 
 test('deploy.sh asks for the pre-launched CPU job before launching its own', () => {
