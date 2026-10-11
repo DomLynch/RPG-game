@@ -5,6 +5,7 @@ import { renameAccount } from '../src/core/rename.ts';
 
 type Row = Record<string, unknown>;
 // fighter_profiles as the code uses it: select+eq+maybeSingle, and update+eq(user_id)+eq(revision)+select+maybeSingle (no row at that revision = null, like Postgres).
+let miss: 'null' | 'pgrst' = 'null';   // how the client reports an update that matched no row: data null, or PostgREST's PGRST116 error (supabase-js only turns that into null for a read)
 const fake = (row: Row | null, user: string | null = 'user-1') => {
   const writes: Row[] = [];
   const db = {
@@ -12,7 +13,7 @@ const fake = (row: Row | null, user: string | null = 'user-1') => {
     from: () => ({
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row, error: null }) }) }),
       update: (patch: Row) => ({ eq: () => ({ eq: (_: string, rev: unknown) => ({ select: () => ({ maybeSingle: async () => {
-        if (!row || row.revision !== rev) return { data: null, error: null };
+        if (!row || row.revision !== rev) return miss === 'null' ? { data: null, error: null } : { data: null, error: { code: 'PGRST116', details: 'The result contains 0 rows', message: 'x' } };
         writes.push(patch); Object.assign(row, patch, { revision: (row.revision as number) + 1 }); return { data: row, error: null };
       } }) }) }) }),
     }),
@@ -52,6 +53,11 @@ test('a stale revision is refused, never forced: the fighter is read again and t
   assert.equal(f.writes.length, 1, 'the first write at revision 4 matched no row and wrote nothing; the retry wrote once');
   assert.equal(f.row.victory_marks, 11, 'the other save\'s marks are kept, not overwritten with the stale 9');
   assert.equal(f.row.display_name, 'Brand'); assert.equal(f.row.revision, 6);
+});
+test('the same refusal as PostgREST\'s 0-rows error (supabase-js does not turn an update\'s miss into null) is also re-read and retried', async () => {
+  miss = 'pgrst';
+  try { const f = racing(1); assert.equal(await renameAccount(f.db, 'Brand'), 'Brand'); assert.equal(f.row.victory_marks, 11); assert.equal(f.writes.length, 1); }
+  finally { miss = 'null'; }
 });
 test('lost twice (a second stale read) gives up with null and writes nothing', async () => {
   const f = racing(2);
