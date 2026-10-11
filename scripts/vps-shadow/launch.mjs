@@ -8,6 +8,7 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, genericJobCommand, jobCommand } from '../lib/vps-receipts.mjs';
 import { tierLine, withSlot } from '../lib/hf-slots.mjs';
+import { genericJobArgs, hfArgs } from '../lib/waterfall.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
 import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 
@@ -15,48 +16,8 @@ import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
 export { SLOW_ROWS };   // the one list lives in scripts/lib/vps-receipts.mjs (the coverage gate reads it too)
 
-export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '') => {
-  if (width && (kind !== 'rows' || !/^[1-8]$/.test(width))) throw new Error('width must be 1-8 and only for kind rows');
-  if (rows && (kind !== 'rows' || !/^\d+(,\d+)*$/.test(rows))) throw new Error('rows must be a comma list of row numbers and only for kind rows');
-  if (kind !== 'unit' && kind !== 'rows') throw new Error('kind must be unit or rows');
-  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
-  if (!FLAVORS.includes(flavor)) throw new Error(`flavor must be one of ${FLAVORS.join(', ')}`);
-  const slow = rows ? rows.split(',').map(Number).filter(n => SLOW_ROWS.includes(n)) : [];
-  if (slow.length && (rows.includes(',') || width !== '1' || flavor !== 'cpu-upgrade')) throw new Error(`rows ${slow.join(',')} are slow rows: one row per job, width 1, cpu-upgrade`);
-  const [bash, dashC, script] = jobCommand(kind, sha);
-  return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : slow.length ? '35m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), ...(slow.length ? ['-e', `RELEASE_CHECK_CEILING_S=${SLOW_CEILING_S}`] : []), JOB_IMAGE, bash, dashC, script];
-};
+export { hfArgs, genericJobArgs };   // the `hf jobs run` argument builders live in scripts/lib/waterfall.mjs (the one place that starts heavy jobs)
 
-// `launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <argv…>`: a lane's job at a sha on HF (work waterfall, Hooks Dev's submit path).
-// hf-cpu (cpu-upgrade) by default; --gfx = hf-t4 (t4-medium), graphics only: a job without --gfx never gets a T4. Exit 0 started, 75 no slot in --max-wait-s (the caller
-// requeues to the VPS), 2 refused. Lane jobs use their own ledger (artifacts/hf-lane-jobs), never the release ledger deploy.sh's exit cleanup reads.
-export function genericJobArgs(argv) {
-  const dd = argv.indexOf('--');
-  if (dd < 0 || dd === argv.length - 1) throw new Error('usage: launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <command…>');
-  const [sha, ...flags] = argv.slice(0, dd), cmd = argv.slice(dd + 1);
-  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
-  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600, env: [] };
-  for (let i = 0; i < flags.length; i++) {
-    const f = flags[i];
-    if (f === '--gfx') opts.gfx = true;
-    else if (f === '--lane') opts.lane = String(flags[++i] ?? '');
-    else if (f === '--timeout') opts.timeout = String(flags[++i] ?? '');
-    else if (f === '--max-wait-s') opts.maxWaitS = Number(flags[++i]);
-    else if (f === '--env') opts.env.push(String(flags[++i] ?? ''));
-    else throw new Error(`unknown flag ${f}`);
-  }
-  for (const kv of opts.env) {   // repeatable; values are NOT secret (hf shows a job's env), so no tokens here
-    const m = /^([A-Z_][A-Z0-9_]*)=(.*)$/s.exec(kv);
-    if (!m) throw new Error(`--env needs KEY=VALUE with an upper-case key, got "${kv}"`);
-    if (['SHA', 'LANE', 'JOB_ARGV_B64'].includes(m[1]) || /TOKEN|SECRET|PASSWORD|KEY/.test(m[1])) throw new Error(`--env ${m[1]} is reserved or looks like a secret`);
-  }
-  if (!/^\d+[mh]$/.test(opts.timeout)) throw new Error('--timeout must look like 40m or 2h');
-  if (!/^[\w.-]{1,40}$/.test(opts.lane)) throw new Error('--lane must be a short word');
-  if (!Number.isFinite(opts.maxWaitS) || opts.maxWaitS < 0 || opts.maxWaitS > 3600) throw new Error('--max-wait-s must be 0-3600');
-  const flavor = opts.gfx ? 't4-medium' : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
-  const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, ...opts.env.flatMap(kv => ['-e', kv]), JOB_IMAGE, bash, dashC, script];
-  return { args, flavor, opts, sha };
-}
 // A release job (unit/rows) waits at most this long for a slot; the parent that spawns a `rows` child must outlive the child's WHOLE budget (slot wait + the hf call + the
 // post-launch rank check + the cancel), or it kills the child between `hf jobs run` and the id line and leaves a job nobody ledgered (Auditor on #2079).
 export const RELEASE_SLOT_WAIT_S = 300;
