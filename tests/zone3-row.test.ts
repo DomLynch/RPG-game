@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import test from 'node:test';
-import { ACCOUNT, PC } from '../origins/contracts/fixtures.ts';
+import { PC } from '../origins/contracts/fixtures.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
 import { mobSpecs } from '../origins/preview/mobs.ts';
@@ -53,7 +53,7 @@ test('the server prices Zone 3\'s wolf from Zone 3\'s rows and engages it by zon
     return 'null';
   } };
   const ops = worldSpawnOps({ content, spawns: defaultZoneSpawns(content), seed: () => 7, log: () => {} });
-  const out = await ops.engage!({ db: stub, account: ACCOUNT as never }, { character: PC, instance: wolf.spec.id, zoneId: '3' }) as Record<string, unknown>;
+  const out = await ops.engage!({ db: stub, account: '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b' }, { character: PC, instance: wolf.spec.id, zoneId: '3' }) as Record<string, unknown>;
   assert.deepEqual([out.instance, out.zoneId, out.level, out.hp], [wolf.spec.id, '3', 3, wolf.hp]);
 });
 
