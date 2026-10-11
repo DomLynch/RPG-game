@@ -19,8 +19,9 @@ export const newRunId = () => randomBytes(8).toString('hex');
 
 export const SHADOW_REPO = '/opt/frankendom-shadow/repo';   // the box's clone: only its object store is used; the tree hash below is what binds the content
 
-export function buildRunner({ sha, tree, nonce, runid }) {
-  if (!HEX40.test(sha || '') || !HEX40.test(tree || '') || !HEX32.test(nonce || '') || !HEX16.test(runid || '')) throw new Error('buildRunner: sha/tree must be 40 hex, nonce 32 hex, runid 16 hex');
+/** Shared by the unit and rows runners: pinned node, box-side tree check, a real shared clone, npm ci; ends inside the checkout with dependencies installed and t0 set. */
+export function runnerHead({ sha, tree, nonce, runid }) {
+  if (!HEX40.test(sha || '') || !HEX40.test(tree || '') || !HEX32.test(nonce || '') || !HEX16.test(runid || '')) throw new Error('runner: sha/tree must be 40 hex, nonce 32 hex, runid 16 hex');
   return `set -uo pipefail
 NONCE='${nonce}'
 RUN='${RUN_ROOT}/${sha}-${runid}'
@@ -40,7 +41,12 @@ git -C "$RUN/src" checkout -q --detach '${sha}' < /dev/null || exit 98
 cd "$RUN/src" || exit 94
 t0=$(date +%s)
 npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm ci failed; ci.log tail ---' >&2; tail -n 30 "$RUN/ci.log" >&2; exit 95; }
-npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
+`;
+}
+
+export function buildRunner(args) {
+  const { sha, tree, runid } = args;
+  return runnerHead(args) + `npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
 rc=$?
 if [ "$rc" -eq 0 ]; then
   pass=$(grep -E '^# pass ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
