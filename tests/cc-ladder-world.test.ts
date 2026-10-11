@@ -14,7 +14,8 @@ const ms = (ticks: number): number => Math.round(ticks * (1000 / 60));
 function breaks(world: World, victim: string, steps: number, press: (i: number) => Input = () => STILL): { world: World; ms: number[] } {
   const got: number[] = [];
   for (let i = 0; i < steps; i++) {
-    const v = get(world, victim); if (v.posture < RULES.posture.max - 4) v.posture = RULES.posture.max - 4;
+    const v = victim === 'p' ? get(world, victim) : world.streams.p?.duel.fighters[1];   // a creature's posture lives in the bout's duel, a player's on the world Fighter
+    if (v && v.posture < RULES.posture.max - 4) v.posture = RULES.posture.max - 4;
     const r = stepCombat(world, { p: press(i) }, DT); world = r.world;
     for (const e of r.events as Event[]) if (e.type === 'Staggered' && e.id === victim && e.cause === 'posture') got.push(e.ms);
   }
