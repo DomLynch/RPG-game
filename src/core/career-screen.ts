@@ -39,7 +39,7 @@ export function recordView(rows: readonly ScoreRow[] | null, device: { fights: n
 }
 export const recordLine = (r: RecordView): string => `${r.fights} fights · ${r.wins} wins · ${r.losses} losses${r.draws === null ? '' : ` · ${r.draws} draws`}`;
 
-// The device-only rename (the zone's pencil, guests): the cleaned name is kept in this device's profile. A signed-in account's name is saved by the Pit's account mount (account.ts), which the zone page does not have, so it gets no pencil here.
+// The device rename (the zone's pencil): the cleaned name is kept in this device's profile; a signed-in player's account save is the host's `saveName` (rename.ts renameAccount), the Pit's is its own account mount (account.ts).
 export function renameDevice(storage: StoragePort, value: string, createId: () => string = () => crypto.randomUUID()): string {
   const { profile } = loadProfile(storage, createId);
   profile.name = cleanName(value);
@@ -47,16 +47,17 @@ export function renameDevice(storage: StoragePort, value: string, createId: () =
   return profile.name;
 }
 
-// Who gets the name pencil: a host that brings its own rename (the Pit) gets it for the account; a guest anywhere else edits the device's name; a signed-in player in a host with no rename (the zone) gets none. Pure.
+// Who gets the name pencil: a host that brings its own rename (the Pit) gets it for the account; anywhere else the name is edited in the card ('device': the device's name, and the account's too when the host brings `saveName`);
+// a signed-in player in a host with neither gets none. Pure.
 export type Pencil = 'account' | 'device' | null;
-export const pencilFor = (o: { rename: boolean; signedIn: boolean }): Pencil => (o.rename ? 'account' : o.signedIn ? null : 'device');
+export const pencilFor = (o: { rename: boolean; signedIn: boolean; save: boolean }): Pencil => (o.rename ? 'account' : o.signedIn && !o.save ? null : 'device');
 // What a key does in the in-place name field: Enter keeps what was typed, Escape drops it, anything else nothing. Pure.
 export const nameKey = (key: string): 'keep' | 'drop' | null => (key === 'Enter' ? 'keep' : key === 'Escape' ? 'drop' : null);
 
 type Db = Parameters<typeof readScorecard>[0] & Parameters<typeof readPublicNo>[0];
 export type CareerMount = { render(): Promise<void> };
 // `db()` is the account's client or null when signed out; `marks()` the rank's marks; `deviceNote` the line shown when the server's figures are not available.
-export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks?: () => number; name?: (opponent: string) => string; rename?: () => void; links?: { label: string; go: () => void }[] }): CareerMount {
+export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks?: () => number; name?: (opponent: string) => string; rename?: () => void; saveName?: (name: string) => Promise<string | null>; links?: { label: string; go: () => void }[] }): CareerMount {
   // Defaults live HERE so every mode mounts the one component and no zone code reads Pit marks (core-boundary C6): the rank's marks = the account's server figure plus its pending wins, else this device's.
   const marks = o.marks ?? (() => shownMarks(session.standing?.marks ?? null, loadProfile(localStorage, () => crypto.randomUUID()).profile, session.standing?.pending ?? 0));
   const nameOf = o.name ?? ((id: string) => (isOpponentId(id) ? ROSTER[id].name : id));
@@ -75,13 +76,13 @@ export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promis
       const who = el('p', 'career-name'), name = el('strong', '', loadProfile(localStorage, () => crypto.randomUUID()).profile.name);
       who.append(name);
       const pencil = (go: () => void) => { const b = el('button', 'career-pencil', '✎'); b.type = 'button'; b.setAttribute('aria-label', 'Change your name'); b.addEventListener('click', go); who.append(b); return b; };
-      const kind = pencilFor({ rename: !!o.rename, signedIn: !!db });
+      const kind = pencilFor({ rename: !!o.rename, signedIn: !!db, save: !!o.saveName });
       if (kind === 'account') pencil(o.rename!);
       else if (kind === 'device') {   // guest: edit in place, Enter or leaving the field keeps it, Escape drops it
         const edit = pencil(() => {
           const field = el('input', 'career-name-input'); field.type = 'text'; field.maxLength = 24; field.value = name.textContent ?? ''; field.setAttribute('aria-label', 'Your name');
           let done = false;
-          const finish = (keep: boolean) => { if (done) return; done = true; if (keep) name.textContent = renameDevice(localStorage, field.value); field.replaceWith(name); edit.hidden = false; };
+          const finish = (keep: boolean) => { if (done) return; done = true; if (keep) { const typed = renameDevice(localStorage, field.value); name.textContent = typed; if (db && o.saveName) void o.saveName(typed).then((saved) => { if (saved === null) profileCard.insertBefore(el('p', 'career-note', 'Could not save your name to your account. It is kept on this device.'), who.nextSibling); else name.textContent = saved; }); } field.replaceWith(name); edit.hidden = false; };
           field.addEventListener('keydown', (e) => { const k = nameKey(e.key); if (k) finish(k === 'keep'); });
           field.addEventListener('blur', () => finish(true));
           name.replaceWith(field); edit.hidden = true; field.focus(); field.select();

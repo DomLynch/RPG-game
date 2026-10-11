@@ -16,7 +16,7 @@ import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { Match } from '../../src/fight/match.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
-import { loadProfile, mountCareer, type StoragePort } from '../../src/core/index.ts';
+import { loadProfile, mountCareer, renameAccount, type StoragePort } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
 import { authClient } from './save.ts';
@@ -121,9 +121,11 @@ function bind(leave: () => void) {
   element('journal-button').addEventListener('click', () => { controls!.clear(); element<HTMLInputElement>('journal-tab-settings').checked = true; journal!.showModal(); });
   // The Career tab: the SAME component as the Pit's journal (src/core/career-screen.ts), drawn when opened. The account's client is this page's own session (save.ts authClient); no session = the guest note.
   { let client: ReturnType<typeof authClient> | null = null;
+    const signedIn = async () => { const c = await (client ??= authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined })); const got = c ? ((await c.auth.getSession()) as { data?: { session?: unknown } }).data?.session : null; return got ? (c as never) : null; };
     const career = mountCareer(element('career-root'), {
-      db: async () => { const c = await (client ??= authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined })); const got = c ? ((await c.auth.getSession()) as { data?: { session?: unknown } }).data?.session : null; return got ? (c as never) : null; },
-      links: [{ label: 'Gear', go: () => document.getElementById('menu-gear')?.click() }],   // the engine's gear screen (gear-mount.ts); a guest edits the name in the card (core/career-screen.ts); a signed-in rename stays the Pit's
+      db: signedIn,
+      saveName: async (name) => { const db = await signedIn(); return db ? renameAccount(db, name) : null; },   // the card edits the name here; a signed-in player's goes to the account through the core (rename.ts), a guest's stays on the device
+      links: [{ label: 'Gear', go: () => document.getElementById('menu-gear')?.click() }],   // the engine's gear screen (gear-mount.ts)
     });
     element('journal-tab-career').addEventListener('change', () => { void career.render(); }); }
   element('close-journal').addEventListener('click', () => journal!.close());
