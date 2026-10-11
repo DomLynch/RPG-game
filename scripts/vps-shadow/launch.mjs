@@ -8,7 +8,8 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, genericJobCommand, jobCommand } from '../lib/vps-receipts.mjs';
 import { tierLine, withSlot } from '../lib/hf-slots.mjs';
-import { genericJobArgs, hfArgs } from '../lib/waterfall.mjs';
+import { genericJobArgs, hfArgs, pickTarget, vpsStatus } from '../lib/waterfall.mjs';
+import { runUnitOnVps } from '../lib/vps-unit.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
 import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 
@@ -76,6 +77,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const hfBin = process.env.HF_BIN || 'hf';
       const lane = cmd === 'job' ? genericJobArgs(process.argv.slice(3)) : null;
       if (!lane && cmd === 'unit') { const refusal = unitShaRefusal(a); if (refusal) throw new Error(refusal); }
+      // Work waterfall (Dom 2026-10-11): the release unit suite runs on the prepaid VPS when it is quiet and has room; Hugging Face is the spillover (LAUNCH_TARGET=hf forces it).
+      // The VPS receipt is accepted only from this process's own live ssh session (scripts/lib/vps-unit.mjs) and stored for deploy.sh, which re-checks it against the deploy tree.
+      if (!lane && cmd === 'unit' && !process.env.LAUNCH_DRY) {
+        const status = vpsStatus(), target = process.env.LAUNCH_TARGET || pickTarget({ mem: 8192, vps: status });
+        if (target === 'vps') {
+          const tree = spawnSync('git', ['rev-parse', `${a}^{tree}`], { encoding: 'utf8', timeout: 30_000 }).stdout?.trim();
+          console.log(`tier=vps load1=${status?.load1} freeRamMb=${status?.freeRamMb}: running the unit suite on the VPS (about 5-8 min)`);
+          const res = runUnitOnVps({ sha: a, tree });
+          if (res.ok) {
+            const dir = `${process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`}`; mkdirSync(dir, { recursive: true });
+            const file = `${dir}/${a}.unitvps`; writeFileSync(file, JSON.stringify({ kind: 'vps-unit-live', ...res.receipt, host: 'vps', load1: status?.load1, at: new Date().toISOString() }) + '\n');
+            console.log(`VPS unit receipt ${res.receipt.pass} pass, node ${res.receipt.node}, ${res.receipt.seconds} s -> ${file}`);
+            process.exit(0);
+          }
+          console.error(`launch: the VPS unit run was not accepted (${res.reason}); spilling to Hugging Face`);
+        }
+      }
       const args = lane ? lane.args : hfArgs(cmd, a, b, c, process.argv[6]), flavor = args[args.indexOf('--flavor') + 1];
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {

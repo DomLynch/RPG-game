@@ -1,12 +1,14 @@
-// node scripts/vps-receipt-trust.mjs <sha> [--unit]
+// node scripts/vps-receipt-trust.mjs <sha> [--unit|--unit-vps]
 //   (default) prints the trusted row numbers "1,3,7" (empty = trust nothing); every shard receipt artifacts/vps-shadow/<sha>/rows*.json counts.
 //   --unit    prints "ok" when artifacts/vps-shadow/<sha>/unit.json proves test:all for this tree, else nothing.
+//   --unit-vps  prints "ok" when ${PRELAUNCH_DIR:-~/.claude/state/pre-launch}/<sha>.unitvps (written by launch.mjs after a live-verified VPS run, scripts/lib/vps-unit.mjs) is fresh and bound to this tree.
 // Says why on stderr. VPS_RECEIPT_SHA names the candidate commit the VPS ran when it differs from <sha>: the tree, not the sha, binds
 // a receipt, and so do the sha256s of the runner scripts it names (they must equal this tree's own copies).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { coverageGaps, trustedFromShards, unitReceiptOk } from './lib/vps-receipts.mjs';
+import { vpsUnitFileOk } from './lib/vps-unit.mjs';
 
 const [sha, flag] = process.argv.slice(2);
 const rev = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8', timeout: 10_000 });
@@ -29,7 +31,12 @@ const inspectJobs = ids => {
 };
 const json = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-if (flag === '--unit') {
+if (flag === '--unit-vps') {
+  const file = `${process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`}/${sha}.unitvps`;
+  const ok = vpsUnitFileOk(json(file), tree);
+  console.error(`vps-receipts: VPS unit receipt ${ok ? 'trusted' : 'NOT trusted (missing, stale, other tree or failing)'}`);
+  if (ok) process.stdout.write('ok');
+} else if (flag === '--unit') {
   const receipt = json(`${dir}/unit.json`);
   const ok = unitReceiptOk(receipt, tree, own(['run-unit.sh']), inspectJobs([receipt?.job].filter(Boolean)), treesOf([receipt]));
   console.error(`vps-receipts: unit suite ${ok ? `trusted (${receipt.pass} pass, node ${receipt.node}, job ${receipt.job})` : 'NOT trusted (missing, other tree, failed, job not verified or runner checksum mismatch); the Mac runs its own'} from ${dir}/unit.json`);
