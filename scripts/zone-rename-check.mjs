@@ -24,6 +24,18 @@ const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 const receipt = { origin, errors: [], runs: {}, passed: false };
 
+async function before(name) {   // ZR_BEFORE=1 on the base build: the signed-in card has no pencil there
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  await context.addInitScript(([p, s]) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); localStorage.setItem('frankendom.auth.v1', JSON.stringify(s)); }, [profile, session]);
+  const page = await context.newPage(); page.setDefaultTimeout(90000); page.on('pageerror', (e) => receipt.errors.push(String(e))); await page.route('**/*sentry.io/**', (r) => r.abort());
+  await page.route('http://sb.test/**', (route) => route.fulfill({ status: 404, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{}' }));
+  await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 }); await page.waitForTimeout(3000);
+  await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(1200);
+  await page.locator('#journal .tab-career').click(); await page.waitForSelector('#career-root .career-name'); await page.waitForTimeout(1500);
+  assert.equal(await page.locator('#career-root .career-pencil').count(), 0, `${name}: no pencil for a signed-in player on the base build`);
+  await page.screenshot({ path: `${dir}/${name}-1-card.png` }); await context.close();
+}
 async function run(name, { stale }) {
   const row = { display_name: 'Aldren', encounter: 'goblin', revision: 4, victory_marks: 9, loot: { owned: [], equipped: {} }, public_no: 7 };
   const patches = [], gets = []; let staleLeft = stale ? 1 : 0;
@@ -67,8 +79,8 @@ async function run(name, { stale }) {
   await context.close();
 }
 try {
-  await run('signed-in', { stale: false });
-  await run('stale-revision', { stale: true });
+  if (process.env.ZR_BEFORE) await before('before');
+  else { await run('signed-in', { stale: false }); await run('stale-revision', { stale: true }); }
   assert.deepEqual(receipt.errors, [], 'no page errors');
   receipt.passed = true; console.log('zone-rename-check PASS', JSON.stringify(receipt.runs));
 } catch (error) { console.error('zone-rename-check FAIL', error.message); process.exitCode = 1; }
