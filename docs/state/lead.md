@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-11 11:15 — handoff before /clear: LIVE BC f822c41aa; today's FINISH LINE items 2–3 in flight
+**READ FIRST.** The 11:08 entry below is the full day. Restart memory: project_handoff_2026-10-11_1115.md.
+**Finish line (Dom via Strategy 11:0x), in order:** (1) BC live ✅ 11:06. (2) Deploy's rows PR (receipt kind vps-rows-live, the Auditor's design ruling given) + release-owns-the-VPS (branch deploy/release-owns-vps @2eb2a1049; lane jobs → HF while a release run dir exists; stale-lock cap) + the missing-local-sha → HF spill fix → Auditor → live; then ONE quiet-box re-measure of a release unit run (target < HF ~8 min). (3) The notes-only unit-skip PR (docs/** only; a mixed change never skips; tested) → Auditor → live. After (3): NO new PRs; Deploy + Auditor write state entries and park; Lead sends Strategy the close line (lane list, branch heads, live sha, what rolls to Monday).
+**Monitoring:** the COO micromanages the finish line; it reports to Lead only on a miss + the final "all parked". Strategy wants only the close line + misses.
+**Lanes:** Backend PARKED (state PR #2182 @1c654782b, docs only, can ride the notes-only release). Deploy + Auditor working. The others parked until Monday.
+**Quota:** weekly 88% at 10:57; stop rule 93% = park as draft, stop.
+**Monday:** deploy-b + signed VPS attestation + KNOWN conversions (Deploy); career screens + landscape Pit/menus + #2115 (Web); camera B #2154 after Dom's phone verdict; #2161 CC ladder RV41 → Proof 3 Wed (Combat); slice 3 world move after Proof 3.
+
 ## 2026-10-11 11:08 — LIVE BC f822c41aa; Core 1b + 2 live; VPS-first unit runs live (first VPS-gated release)
 **Now.** LIVE = BC f822c41aa (my curl 11:07): #2179 encounter-online deleted + C7. Weekly quota 88% at 10:57 (stop rule 93%, reset Mon 00:00). Working lanes: Lead, Deploy, Auditor, Backend (done for today), COO watching; the others parked until Monday.
 **Done today (live, my curl):** AW c5be47666 08:36 (#1984 gear_import + mig 202610100018, #2162, #2114, #2160, #2164) · AX e85f1683f 08:50 (Core 1b: #2163 kill path, #2165 bank_move, #2166 bank client, C5) · AY2 494e2775f 10:02 (#2169 router PR 1 + #2175 character-preview camera import fix + html-imports guard; AY 433f48a9a failed rows 18/29 on the stale /src/camera.ts from #2126) · BA2 43a9d43c1 ~10:10 (Core 2 server: #2171 career service + #2172 career rows, mig 202610110019, Auditor POST PASS) · BB c7cc3e3fa 10:53 (#2177 VPS-trusted unit runs) · BC f822c41aa 11:06 (#2179; FIRST release gated on a VPS unit receipt: 535 s, 3421/0, zero HF unit minutes).
