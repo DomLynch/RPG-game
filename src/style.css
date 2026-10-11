@@ -1743,9 +1743,9 @@ dialog output { display: block; margin-top: 8px; font: 12px "Instrument Sans", A
 .tab-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--jp); border-radius: 12px; }
 .tab-strip label { text-align: center; padding: 9px 6px; border-radius: 9px; font: 600 12.5px "Instrument Sans", Arial, sans-serif; color: var(--jm); cursor: pointer; white-space: nowrap; overflow: hidden; -webkit-tap-highlight-color: transparent; }
 .tab-strip label[hidden] { display: none; }   /* a player's journal: Profile / Stats / Settings, three equal tabs */
-#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
+#journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal-tab-career:checked ~ .tab-strip .tab-career, #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: #fff; color: var(--jf); box-shadow: 0 1px 2px #0002; }
 .tab-pane { display: none; padding-top: 4px; }
-#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-profile:checked ~ .pane-profile, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
+#journal-tab-fighter:checked ~ .pane-fighter, #journal-tab-career:checked ~ .pane-career, #journal-tab-profile:checked ~ .pane-profile, #journal-tab-arena:checked ~ .pane-arena, #journal-tab-settings:checked ~ .pane-settings { display: block; }
 .tab-pane .chips + .chips { margin-top: 8px; }
 .tab-pane .note { margin: 12px 0 0; }
 dialog .references { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--jl); }
@@ -2283,7 +2283,7 @@ dialog .rank-seg { --rank-fill: var(--js); }
 #journal .app-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* minmax(0, ..): a long exit label ("Back to <zone name>") shrinks and ellipsizes inside its column; with plain 1fr it widened the column and pushed the Gear tab under the Settings cog */
 #journal .app-nav button { min-height: 48px; background: none; border: 0; border-radius: 0; color: var(--jm); font: 600 10px "Cinzel", Georgia, serif; letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
-#journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: none; box-shadow: inset 0 -2px 0 var(--jg); color: var(--jg2); }
+#journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-career:checked ~ .tab-strip .tab-career, #journal #journal-tab-profile:checked ~ .tab-strip .tab-profile, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { background: none; box-shadow: inset 0 -2px 0 var(--jg); color: var(--jg2); }
 #journal .tab-pane { background: var(--jb); padding: 12px 16px; }
 #journal .pane-profile { padding: 0; background: transparent; }
 #journal .references { background: var(--jb); margin: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
@@ -2405,10 +2405,10 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#view):not(#journa
 #journal .tab-strip { position: absolute; top: 6px; right: 8px; z-index: 4; width: auto; margin: 0; padding: 0; display: flex; gap: 0; background: none; border: 0; }
 #journal .tab-strip label { flex-direction: column; justify-content: center; gap: 3px; min-width: 60px; min-height: 60px; padding: 0 4px; letter-spacing: .1em; font-size: 10px; color: var(--jm); background: none; box-shadow: none; }
 #journal .tab-strip label::before { content: ""; width: 26px; height: 26px; background: currentColor; -webkit-mask: var(--ti) center / contain no-repeat; mask: var(--ti) center / contain no-repeat; }
-#journal .tab-strip .tab-fighter { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21V11h4.5v10zM9.75 21V3h4.5v18zM16.5 21v-7H21v7z'/%3E%3C/svg%3E"); }
+#journal .tab-strip .tab-fighter, #journal .tab-strip .tab-career { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21V11h4.5v10zM9.75 21V3h4.5v18zM16.5 21v-7H21v7z'/%3E%3C/svg%3E"); }
 #journal .tab-strip .tab-settings { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3.3' stroke-width='2.2'/%3E%3Ccircle cx='12' cy='12' r='6.6' stroke-width='2.2'/%3E%3Cpath d='M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1' stroke-width='2.6'/%3E%3C/svg%3E"); }
 #journal .tab-strip .tab-arena { --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-linecap='round' stroke-width='2.4'%3E%3Cpath d='M4 20L18 6M14 4h6v6M20 20L6 6M4 10V4h6'/%3E%3C/svg%3E"); }
-#journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
+#journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-career:checked ~ .tab-strip .tab-career, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
 /* the tab bar under the header: sticky, so Gear & pack | Arena stay in reach while a long screen scrolls */
 #journal .app-nav { order: -1; position: sticky; top: 0; bottom: auto; margin: 0; z-index: 3; padding: 0; border: 0; border-image: none; border-top: 1px solid #c8a45e66; border-bottom: 1px solid #c8a45e66; background: var(--jb); }
 #journal .app-nav button { min-height: 52px; font-size: 12px; letter-spacing: .14em; color: var(--jm); background: none; border-radius: 0; }
@@ -2539,3 +2539,14 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .coach-tag[data-live='true'] { pointer-events: auto; cursor: pointer; min-height: var(--touch, 44px); }
 .coach-tag[hidden] { display: none; }
 @media (min-width: 901px) and (not (pointer: coarse)) { .coach-tag { right: auto; left: 50%; transform: translateX(-50%); top: 96px; } }   /* desktop: top centre under the sound chip, clear of the arena title at the right */
+
+/* Career tab (core slice 2, src/career-screen.ts): the 50-rung ladder as ten rows of five rungs, the player's rung lit, then the account's scorecard. */
+#journal .pane-career { padding: 8px 16px 24px; }
+.career-rank { margin: 8px 0 12px; font: 600 34px/1.05 "Cormorant", Georgia, serif; color: var(--jf); }
+.career-ladder { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 16px; margin: 0 0 16px; padding: 0; list-style: none; }
+.career-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; font-size: 13px; }
+.career-rungs { display: flex; gap: 4px; }
+.career-rung { width: 14px; height: 14px; border: 1px solid var(--jg); border-radius: 50%; box-sizing: border-box; }
+.career-rung.done { background: var(--jg); opacity: 0.6; }
+.career-rung.now { background: var(--jg2); box-shadow: 0 0 0 2px var(--jg2); }
+.career-note { margin: 8px 0; opacity: 0.8; font-size: 14px; }
