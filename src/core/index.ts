@@ -15,3 +15,4 @@ export * from './gear-room.ts';
 export * from './gear-sheet.ts';
 export * from './career-ladder.ts';
 export * from './career-model.ts';
+export * from './career-client.ts';
