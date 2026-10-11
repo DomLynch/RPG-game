@@ -21,7 +21,7 @@ try {
     const page = await context.newPage(); page.setDefaultTimeout(90000); await page.route('**/*sentry.io/**', (r) => r.abort());
     await page.goto(`${origin}/preview/origins/?region=1&zone=${zone}`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 }); await page.waitForTimeout(3000);
-    out[zone] = await page.evaluate(() => ({ zone: window.originsPreview.region()?.zone, ambience: document.body.dataset.ambience, pos: { ...window.originsPreview.pos } }));
+    out[zone] = await page.evaluate(() => ({ ambience: document.body.dataset.ambience, pos: { ...window.originsPreview.pos } }));
     await page.screenshot({ path: `${dir}/${tag}-zone${zone}-spawn.png` });
     await page.evaluate(() => window.originsPreview.place(0, 3, 0)); await page.waitForTimeout(2500);   // the hub: the Pit's ring, facing +z (heading 0)
     out[zone].hub = await page.evaluate(() => document.body.dataset.ambience);
