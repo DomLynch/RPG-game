@@ -1,4 +1,6 @@
 // Migration 202610110021 (the production QA account: fighter_profiles.is_test keeps it off leaderboards() and daily_board) on real PostgreSQL, in a disposable socket-only cluster like leaderboards-public-id-database-check.mjs: no DATABASE_URL, no network, no production.
+import console from 'node:console';
+import process from 'node:process';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
