@@ -2553,3 +2553,9 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .career-boards h6 { margin: 12px 0 4px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--jm); }
 .career-board { margin: 0; padding: 0; list-style: none; font-size: 14px; }
 .career-board li { padding: 3px 0; }
+.career-profile { margin: 4px 0 12px; }
+.career-name { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 22px/1.1 "Cormorant", Georgia, serif; color: var(--jf); }
+.career-pencil, .career-link { min-height: 44px; min-width: 44px; padding: 0 12px; border: 1px solid var(--jg); border-radius: 22px; background: transparent; color: var(--jf); font: inherit; font-size: 14px; }
+.career-pencil { padding: 0; font-size: 18px; }
+.career-record { margin: 6px 0 0; font-size: 14px; }
+.career-links { display: flex; gap: 8px; margin: 8px 0 0; }

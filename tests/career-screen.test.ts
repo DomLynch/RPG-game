@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { boardViews, ladderView, scoreLines } from '../src/career-screen.ts';
+import { boardViews, ladderView, recordLine, recordView, scoreLines } from '../src/career-screen.ts';
 
 test('the ladder is ten titles of five rungs, with the rank\'s rung marked and every lower rung done', () => {
   const view = ladderView(0);
@@ -29,4 +29,15 @@ test('the boards are one list per board in place order, the name rendered as the
   assert.deepEqual(views[1]!.lines, [{ place: 1, who: 'Fighter #7', score: 9 }, { place: 2, who: 'Fighter #12', score: 3 }]);
   assert.deepEqual(boardViews([rows[2]]).map((v) => v.title), ['Duel rating'], 'a board with no rows is not drawn');
   assert.deepEqual(boardViews([]), []);
+});
+
+test('the profile record is the account\'s totals (with draws) when its scorecard answers, else the device\'s own, and the line says which figures it has', () => {
+  const rows = [{ opponent: 'a', fights: 3, wins: 2, losses: 0, draws: 1, left: 0, last: [] }, { opponent: 'b', fights: 2, wins: 0, losses: 2, draws: 0, left: 1, last: [] }];
+  const account = recordView(rows, { fights: 99, wins: 99, losses: 99 });
+  assert.deepEqual(account, { fights: 5, wins: 2, losses: 2, draws: 1, source: 'account' });
+  assert.equal(recordLine(account), '5 fights · 2 wins · 2 losses · 1 draws');
+  const device = recordView(null, { fights: 4, wins: 1, losses: 3 });
+  assert.deepEqual(device, { fights: 4, wins: 1, losses: 3, draws: null, source: 'device' });
+  assert.equal(recordLine(device), '4 fights · 1 wins · 3 losses', 'the device keeps no draw count: none is claimed');
+  assert.deepEqual(recordView([], { fights: 4, wins: 1, losses: 3 }), { fights: 0, wins: 0, losses: 0, draws: 0, source: 'account' }, 'a signed-in fighter with no fights yet has an empty account record, not the device\'s');
 });

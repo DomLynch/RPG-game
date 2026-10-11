@@ -783,7 +783,7 @@ element('mobile-name').addEventListener('click', () => {
 });
 element('close-journal').addEventListener('click', () => journal.close());
 // The sheet's app nav (Fitting rail, Strategy 2026-10-01): Gear & pack is this sheet, Arena closes it back to the fight.
-{ const career = mountCareer(element('career-root'), { db: () => session.db ?? null, marks: careerMarks, name: (id) => LADDER.find((o) => o.id === id)?.name ?? id }); element('journal-tab-career').addEventListener('change', () => { void career.render(); }); }   // the Career tab (career-screen.ts): drawn when opened, so the account's scorecard is read then
+{ const career = mountCareer(element('career-root'), { db: () => session.db ?? null, marks: careerMarks, name: (id) => LADDER.find((o) => o.id === id)?.name ?? id, rename: () => element('mobile-name').click(), links: [{ label: 'Gear', go: () => { element<HTMLInputElement>('journal-tab-profile').checked = true; journal.scrollTop = 0; } }] }); element('journal-tab-career').addEventListener('change', () => { void career.render(); }); }   // the Career tab (career-screen.ts): drawn when opened, so the account's scorecard is read then
 element('nav-gear').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; });
 element('stats-gear-view').addEventListener('click', () => { element<HTMLInputElement>('journal-tab-profile').checked = true; journal.scrollTop = 0; });
 element('stats-return').addEventListener('click', () => element('nav-arena').click());

@@ -13,6 +13,18 @@ export type BoardRow = { board: BoardName; place: number; who: string; fighterId
 const count = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 const text = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 64;
 
+// The account's own public fighter number (fighter_profiles.public_no, Backend's migration 0020: identity, never reused, not client-writable). Own row only (RLS). null when it cannot be read
+// (a guest, offline, the column not applied yet, a column-level grant that hides it): the profile then shows no number, never a wrong one.
+export async function readPublicNo(db: Pick<SupabaseClient, 'from' | 'auth'>): Promise<number | null> {
+  try {
+    const id = (await db.auth.getSession()).data.session?.user.id;
+    if (!id) return null;
+    const { data, error } = await db.from('fighter_profiles').select('public_no').eq('user_id', id).maybeSingle();
+    const n = (data as { public_no?: unknown } | null)?.public_no;
+    return !error && count(n) && n > 0 ? n : null;
+  } catch { return null; }
+}
+
 export async function readScorecard(db: Pick<SupabaseClient, 'rpc'>): Promise<ScoreRow[] | null> {
   try {
     const { data, error } = await db.rpc('scorecard_rows');

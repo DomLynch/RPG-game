@@ -1,5 +1,6 @@
-import { RANK_STEPS, TITLES, loadProfile, rankFor, readLeaderboards, readScorecard, session, shownMarks, type BoardRow, type ScoreRow } from './core/index.ts';
+import { RANK_STEPS, TITLES, loadProfile, rankFor, readLeaderboards, readPublicNo, readScorecard, session, shownMarks, type BoardRow, type ScoreRow } from './core/index.ts';
 import { LADDER } from './ladder.ts';
+import { loadScorecard, totals } from './scorecard.ts';
 
 // The Career screen (core slice 2, Web): the 50-rung ladder with the player's rung marked, and the scorecard the career service holds for the account (scorecard_rows(), read through
 // the core's career-client; a screen never calls the server itself). Signed out, offline or on a failed read it says so and keeps the device's own figures: nothing is drawn empty.
@@ -26,25 +27,42 @@ export function boardViews(rows: readonly BoardRow[]): BoardView[] {
   return (Object.keys(BOARD_TITLES) as BoardRow['board'][]).map((b) => ({ title: BOARD_TITLES[b], lines: rows.filter((r) => r.board === b).sort((x, y) => x.place - y.place).map((r) => ({ place: r.place, who: r.who, score: r.score })) })).filter((v) => v.lines.length > 0);
 }
 
-type Db = Parameters<typeof readScorecard>[0];
+// The Profile card (top of the Career tab; Lead's spec): name, "Fighter #n", the record. From the account's scorecard when it answers, else this device's own record (and it says so).
+export type RecordView = { fights: number; wins: number; losses: number; draws: number | null; source: 'account' | 'device' };
+export function recordView(rows: readonly ScoreRow[] | null, device: { fights: number; wins: number; losses: number }): RecordView {
+  if (!rows) return { ...device, draws: null, source: 'device' };
+  const sum = rows.reduce((s, r) => ({ fights: s.fights + r.fights, wins: s.wins + r.wins, losses: s.losses + r.losses, draws: s.draws + r.draws }), { fights: 0, wins: 0, losses: 0, draws: 0 });
+  return { ...sum, source: 'account' };
+}
+export const recordLine = (r: RecordView): string => `${r.fights} fights · ${r.wins} wins · ${r.losses} losses${r.draws === null ? '' : ` · ${r.draws} draws`}`;
+
+type Db = Parameters<typeof readScorecard>[0] & Parameters<typeof readPublicNo>[0];
 export type CareerMount = { render(): Promise<void> };
 // `db()` is the account's client or null when signed out; `marks()` the rank's marks; `deviceNote` the line shown when the server's figures are not available.
-export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks?: () => number; name?: (opponent: string) => string }): CareerMount {
+export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks?: () => number; name?: (opponent: string) => string; rename?: () => void; links?: { label: string; go: () => void }[] }): CareerMount {
   // Defaults live HERE so every mode mounts the one component and no zone code reads Pit marks (core-boundary C6): the rank's marks = the account's server figure plus its pending wins, else this device's.
   const marks = o.marks ?? (() => shownMarks(session.standing?.marks ?? null, loadProfile(localStorage, () => crypto.randomUUID()).profile, session.standing?.pending ?? 0));
   const nameOf = o.name ?? ((id: string) => LADDER.find((x) => x.id === id)?.name ?? id);
   const doc = root.ownerDocument, el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = doc.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
   return {
     async render() {
-      const rank = rankFor(marks()), head = el('p', 'career-rank', rank.label), ladder = el('ol', 'career-ladder'), card = el('div', 'career-card');
+      const rank = rankFor(marks()), head = el('p', 'career-rank', rank.label), profileCard = el('div', 'career-profile'), ladder = el('ol', 'career-ladder'), card = el('div', 'career-card');
       for (const shelf of ladderView(marks())) {
         const li = el('li', 'career-title'), rungs = el('span', 'career-rungs');
         li.append(el('b', '', shelf.title));
         for (const r of shelf.rungs) { const pip = el('i', `career-rung ${r.state}`); pip.title = r.label; if (r.state === 'now') pip.setAttribute('aria-current', 'step'); rungs.append(pip); }
         li.append(rungs); ladder.append(li);
       }
-      root.replaceChildren(head, ladder, el('h5', 'stats-heading', 'Scorecard'), card);
-      const db = await o.db(), [rows, boards] = db ? await Promise.all([readScorecard(db), readLeaderboards(db, 10)]) : [null, null];
+      root.replaceChildren(profileCard, head, ladder, el('h5', 'stats-heading', 'Scorecard'), card);
+      const db = await o.db(), [rows, boards, publicNo] = db ? await Promise.all([readScorecard(db), readLeaderboards(db, 10), readPublicNo(db)]) : [null, null, null];
+      const who = el('p', 'career-name'), name = el('strong', '', loadProfile(localStorage, () => crypto.randomUUID()).profile.name);
+      who.append(name);
+      if (o.rename) { const pencil = el('button', 'career-pencil', '✎'); pencil.type = 'button'; pencil.setAttribute('aria-label', 'Change your name'); pencil.addEventListener('click', o.rename); who.append(pencil); }
+      profileCard.append(who);
+      if (publicNo !== null) profileCard.append(el('p', 'career-note', `Fighter #${publicNo}`));
+      const rec = recordView(rows, totals(loadScorecard(localStorage)));
+      profileCard.append(el('p', 'career-record', recordLine(rec)), el('p', 'career-note', rec.source === 'account' ? 'Kept on your account.' : db ? 'This device\'s record (the account\'s is not available right now).' : 'This device\'s record. Sign in to keep it.'));
+      if (o.links?.length) { const row = el('p', 'career-links'); for (const l of o.links) { const b = el('button', 'career-link', l.label); b.type = 'button'; b.addEventListener('click', l.go); row.append(b); } profileCard.append(row); }
       const tail = el('div', 'career-boards');
       root.append(el('h5', 'stats-heading', 'Boards'), tail);
       if (!db) tail.append(el('p', 'career-note', 'Sign in to see the boards.'));

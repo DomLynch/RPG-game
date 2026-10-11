@@ -124,6 +124,7 @@ function bind(leave: () => void) {
   { let client: ReturnType<typeof authClient> | null = null;
     const career = mountCareer(element('career-root'), {
       db: async () => { const c = await (client ??= authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined })); const got = c ? ((await c.auth.getSession()) as { data?: { session?: unknown } }).data?.session : null; return got ? (c as never) : null; },
+      links: [{ label: 'Gear', go: () => document.getElementById('menu-gear')?.click() }],   // the engine's gear screen (gear-mount.ts); the name is read-only in the zone (the pencil is the Pit's)
     });
     element('journal-tab-career').addEventListener('change', () => { void career.render(); }); }
   element('close-journal').addEventListener('click', () => journal!.close());
