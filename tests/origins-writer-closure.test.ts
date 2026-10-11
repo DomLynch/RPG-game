@@ -1,6 +1,7 @@
 // The box's five node services (systemd ExecStart) run under plain node with no `three` installed. Release AA crash-looped it because origins/preview/mobs.ts
 // (loaded by origins/server/world-spawns.ts) took SPEEDS from the page door src/fight/index.ts, which re-exports characters.ts -> 'three'. The K7 test only guards
 // src/fight/server.ts's own closure; this walks the WRITER's RUNTIME imports (type-only imports are erased by node, so they do not load anything).
+import { zoneRows } from '../scripts/gen-zones.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -56,6 +57,7 @@ test('stripComments leaves division after a postfix ++/-- and after an identifie
 
 test('the writer walk reaches every origins/zones file the loader, registry and resolve import (the walker once lost 15 of them)', () => {
   const { files } = writerClosure(disk, existsSync);
-  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes-data.ts', 'origins/zones/zone1/zone.ts', 'origins/zones/zone1/spawns.ts', 'origins/zones/zone2/zone.ts', 'origins/zones/zone2/mob-looks.ts', 'origins/zones/zone2/place.ts']) assert.ok(files.includes(must), `the walk lost ${must}`);
-  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 17, 'origins/zones/* files in the writer closure (update with the zone files)');
+  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes-data.ts', 'origins/zones/from-row.ts', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone2.row.json']) assert.ok(files.includes(must), `the walk lost ${must}`);
+  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 8, 'origins/zones/* files in the writer closure');
+  assert.deepEqual(files.filter((f) => f.startsWith('origins/zone-rows/')), zoneRows().map((r: { file: string }) => `origins/zone-rows/${r.file}`), 'one row file per zone, and nothing else, rides with the writer (a new zone row adds a file here: update nothing, it is derived)');
 });

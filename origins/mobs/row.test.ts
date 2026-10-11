@@ -1,4 +1,4 @@
-// Mob rows (row.ts), the Frontier's rows (zones/zone1/spawns.ts via zones/loader.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
+// Mob rows (row.ts), the Frontier's rows (zone-rows/zone1.row.json via zones/loader.ts) and the generator (populate.ts): every validator rule has a failing row that yields exactly
 // its code; the shipped rows are valid and agree with the content they sit beside; populateZone is deterministic and stays inside the zone's band.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

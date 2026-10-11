@@ -10,12 +10,12 @@ import { loadEncounterContent } from '../encounters/encounters.ts';
 import { fakeWhere } from '../presence/fixtures.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
-import { minHits, minKillMs, worldSpawnOps, zone1Spawns } from '../server/world-spawns.ts';
+import { minHits, minKillMs, worldSpawnOps, defaultZoneSpawns } from '../server/world-spawns.ts';
 import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
-const content = loaded.value, spawns = zone1Spawns(content), ids = [...spawns.keys()];
+const content = loaded.value, spawns = defaultZoneSpawns(content), ids = [...spawns.keys()];
 const ACCOUNT = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b';
 const career = { seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 };
 
