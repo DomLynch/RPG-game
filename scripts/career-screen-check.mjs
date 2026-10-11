@@ -24,7 +24,7 @@ const verify = async (page, name, W) => {
   assert.equal(v.rows, 10, `${name}: ten titles`); assert.equal(v.rungs, 50, `${name}: fifty rungs`); assert.deepEqual(v.now, ['Legionary III'], `${name}: the rung 7 marks give`);
   assert.equal(v.rank, 'Legionary III'); assert.match(v.note, /Sign in/, `${name}: the guest note`); assert.equal(v.boards, 'Sign in to see the boards.', `${name}: the guest boards note`);
   assert.equal(v.profile.name, 'Wanderer', `${name}: the profile name`); assert.match(v.profile.record, /^0 fights · 0 wins · 0 losses$/, `${name}: the device record`); assert.ok(v.profile.notes.some((n) => /Sign in to keep it/.test(n)), `${name}: the guest record note`);
-  assert.equal(v.profile.pencil, !name.startsWith('zone'), `${name}: the pencil is the Pit's (the zone's name is read-only)`); assert.deepEqual(v.profile.links, ['Gear'], `${name}: the Gear link`);
+  assert.equal(v.profile.pencil, true, `${name}: a guest has the pencil in the Pit and in the zone`); assert.deepEqual(v.profile.links, ['Gear'], `${name}: the Gear link`);
   assert.deepEqual(v.profile.controls.filter((c) => c.h < 44 || c.w < 44).map((c) => c.id), [], `${name}: profile controls >= 44 px`);
   assert.ok(v.wide.every((w) => w <= W + 1), `${name}: no sideways scroll ${v.wide}`);
   assert.deepEqual(v.tabs.filter((t) => t.h < 44).map((t) => t.id), [], `${name}: tab targets >= 44 px`);
