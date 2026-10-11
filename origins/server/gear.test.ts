@@ -79,7 +79,7 @@ const totals = (rows: { item: string; quantity: number }[]) => JSON.stringify(ro
 test('gear_open lists non-gear stacks as `stock` (name, quantity, where) beside the pieces', async () => {
   const s = stub([row(1, 'goblin.Helmet', { kind: 'pack', index: 0 }), iron(2, 7, { kind: 'bank', index: 3 })]);
   const out = await ops.gear_open!(ctx(s.db), { character: PC }) as ReturnType<typeof gearView>;
-  assert.deepEqual(out.stock.map((r) => [r.item, r.quantity, r.where, r.index]), [['item:grave-iron', 7, 'bank', 3]]);
+  assert.deepEqual(out.stock.map((r) => [r.item, r.category, r.quantity, r.where, r.index]), [['item:grave-iron', 'material', 7, 'bank', 3]]);
   assert.equal(out.pieces.length, 1); assert.equal(out.pieces[0]!.level, 0);
 });
 
