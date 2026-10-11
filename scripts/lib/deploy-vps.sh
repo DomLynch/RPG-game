@@ -38,6 +38,13 @@ vps_receipts_apply() {
   # An UNASSIGNED list (above, from vps-receipt-trust.mjs) is information, not a refusal: deploy.sh launches every shardable row itself before the
   # quality gate (launch.mjs cpu), so a row on it is a CI-trusted, out-of-scope, T4 or failed-launch row, and the Mac runs whatever is not trusted.
   rm -f "$trust_err"
+  # Rows run on the prepaid VPS by launch.mjs (scripts/lib/vps-rows.mjs, kind vps-rows-live): wait for a run still in flight, then re-check its stored receipt against the deploy tree.
+  local running="${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.rowsvps.running" waited_vps=0
+  while [[ -n "$(find "$running" -mmin -60 2>/dev/null)" ]] && (( waited_vps < ${DEPLOY_VPS_ROWS_WAIT_S:-1200} )); do
+    echo "vps-receipts: the VPS rows run is still going; waiting ($waited_vps s)"; sleep 20; waited_vps=$((waited_vps + 20))
+  done
+  local vps_live; vps_live=$(node scripts/vps-receipt-trust.mjs "$revision" --rows-vps || true)
+  [[ -z "$vps_live" ]] || vps_trusted=$(printf '%s' "${vps_trusted:+$vps_trusted,}$vps_live" | tr ',' '\n' | awk 'NF && !seen[$0]++' | sort -n | paste -sd, -)
   [[ -n "$vps_trusted" ]] || { echo "0 trusted from VPS receipts; every row not trusted by CI runs here"; return 0; }
   trusted_checks=$(printf '%s' "${trusted_checks:+$trusted_checks,}$vps_trusted" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)
   n=$(printf '%s' "$vps_trusted" | tr ',' '\n' | wc -l | tr -d ' ')

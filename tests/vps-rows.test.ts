@@ -95,3 +95,25 @@ test('runRowsOnVps: one ssh session in lanejobs.slice, the nonce only on stdin, 
   assert.equal(runRowsOnVps({ sha: SHA, tree: TREE, rows: [31, 33], total: 53, nonce: NONCE, runid: RUNID, run: () => ({ status: 1, stdout: '', stderr: '--- failing rows ---\nFAILED 31' }) }).ok, false);
   const t = runRowsOnVps({ sha: 'bad', tree: TREE, rows: [31], total: 53, run }); assert.equal(t.ok, false); assert.match(String(t.reason), /exception/);
 });
+
+test('vps-receipt-trust --rows-vps: the stored receipt is re-checked against the deploy tree (a stale or other-tree file trusts nothing)', () => {
+  const sha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(), tree = spawnSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).stdout.trim();
+  const pkg = JSON.parse(readFileSync('node_modules/playwright-core/package.json', 'utf8')), revision = JSON.parse(readFileSync('node_modules/playwright-core/browsers.json', 'utf8')).browsers.find((b: any) => b.name === 'chromium').revision;
+  const dir = mkdtempSync(join(tmpdir(), 'rowsvps-'));
+  const run = () => spawnSync('node', ['scripts/vps-receipt-trust.mjs', sha, '--rows-vps'], { encoding: 'utf8', env: { ...process.env, PRELAUNCH_DIR: dir } }).stdout;
+  try {
+    assert.equal(run(), '', 'no file, no trust');
+    const good = { ...rec([SAFE]), sha, tree, playwright: pkg.version, chromium_revision: revision };
+    writeFileSync(join(dir, `${sha}.rowsvps`), JSON.stringify(good)); assert.equal(run(), String(SAFE));
+    writeFileSync(join(dir, `${sha}.rowsvps`), JSON.stringify({ ...good, tree: 'e'.repeat(40) })); assert.equal(run(), '', 'another tree');
+    writeFileSync(join(dir, `${sha}.rowsvps`), JSON.stringify({ ...good, chromium_revision: '1' })); assert.equal(run(), '', 'another chromium revision than this tree\'s playwright');
+    writeFileSync(join(dir, `${sha}.rowsvps`), '{trunc'); assert.equal(run(), '', 'garbage');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('the wiring: launch.mjs cpu routes the CPU rows through pickTarget (VPS in the background, HF as spillover, never twice), deploy.sh waits for the running marker and merges the VPS rows', () => {
+  const lm = readFileSync('scripts/vps-shadow/launch.mjs', 'utf8'), dv = readFileSync('scripts/lib/deploy-vps.sh', 'utf8');
+  assert.match(lm, /pickTarget\(\{ mem: \d+, vps: status \}\) === 'vps'/); assert.match(lm, /rows-vps/); assert.match(lm, /spilling to Hugging Face/); assert.match(lm, /already on the VPS/);
+  assert.match(lm, /LAUNCH_TARGET !== 'hf'/);
+  assert.match(dv, /rowsvps\.running/); assert.match(dv, /--rows-vps/);
+  assert.ok(dv.indexOf('--rows-vps') > dv.indexOf('vps-receipt-trust.mjs "$revision" 2>'), 'the VPS rows are merged AFTER the HF receipts are read');
+});

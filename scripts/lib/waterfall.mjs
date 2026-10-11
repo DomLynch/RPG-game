@@ -6,6 +6,8 @@ import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
 
 export const VPS_MAX_LOAD1 = 12;
+// The remote command vpsStatus runs: loadavg, MemAvailable (kB), and the live release run dirs. A run dir is the release lock; one older than 90 minutes is a crashed run and stops counting.
+export const VPS_STATUS_CMD = "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo; find /root/deploy-runs -mindepth 1 -maxdepth 1 -type d -mmin -90 2>/dev/null | wc -l";
 
 // vps: { load1, freeRamMb } or null when the box cannot be read. mem: the job's RAM need in MB (default 0 = just a readable, quiet box).
 /** @param {{ gfx?: boolean, mem?: number, lane?: boolean, vps?: { load1: number, freeRamMb: number, releaseRuns?: number } | null }} [job] @returns {'vps' | 'hf-cpu' | 'hf-t4'} */
@@ -29,7 +31,7 @@ export function parseVpsStatus(text) {
 export const vpsHost = (env = process.env) => { const h = env.VPS_HOST || '49.12.7.18'; return h.includes('@') ? h : `root@${h}`; };
 
 export function vpsStatus({ host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
-  const r = run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host, "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo; ls -d /root/deploy-runs/*/ 2>/dev/null | wc -l"], { encoding: 'utf8', timeout: 20_000 });
+  const r = run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host, VPS_STATUS_CMD], { encoding: 'utf8', timeout: 20_000 });
   return r.status === 0 ? parseVpsStatus(r.stdout) : null;
 }
 
