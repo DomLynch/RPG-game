@@ -33,7 +33,7 @@ try {
   await page.waitForTimeout(20000);
   await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(zone ? 1500 : 4000);   // a zone's lone creature kills a standing guest fast on a GPU: the shot is taken as the duel starts
   await shot('fight');
   console.log(JSON.stringify(await page.evaluate(() => ({ infight: document.body.classList.contains('infight'), card: document.getElementById('creature-card')?.hidden ? null : document.getElementById('creature-card')?.innerText, aggro: window.originsPreview.mobs().mobs.filter((m) => m.mode === 'aggro').length }))));
   console.log('errors:', errors.length, errors.slice(0, 2));
