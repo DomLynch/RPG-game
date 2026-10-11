@@ -80,7 +80,7 @@ test('runUnitOnVps: archives the sha, runs the runner under lanejobs.slice with 
   const ssh = calls.filter(c => c[0] === 'ssh').map(c => c[1].join(' '));
   assert.ok(ssh.some(l => l.includes('lanejobs.slice') && l.includes('bash -s')), 'the runner runs in lanejobs.slice');
   const runnerText = calls.find(c => c[0] === 'ssh' && c[2]?.input)?.[2].input as string;
-  assert.ok(runnerText.includes(`git -C '/opt/frankendom-shadow/repo' archive '${SHA}'`) && runnerText.includes(`rev-parse '${SHA}^{tree}')" = '${TREE}'`), 'a fresh git archive of the sha, after its tree hash is checked on the box');
+  assert.ok(runnerText.includes(`git -C '/opt/frankendom-shadow/repo' archive '${SHA}'`) && runnerText.includes(`rev-parse '${SHA}^{tree}'`) && runnerText.includes(`[ "$BOXTREE" = '${TREE}' ]`), 'a fresh git archive of the sha, after its tree hash is checked on the box');
   assert.ok(!calls.some(c => c[0] === 'git'), 'nothing is archived or uploaded from the Mac (the repo is >1 GB)');
   const runner = calls.find(c => c[0] === 'ssh' && c[2]?.input)?.[2].input as string;
   assert.ok(runner.includes(NONCE), 'the nonce travels on stdin only');
@@ -130,7 +130,7 @@ test('vpsHost: a bare VPS_HOST (this Mac exports one without a user) means root;
 test('runUnitOnVps never throws: a malformed or missing sha is a failed run (so launch.mjs spills to Hugging Face), and the box\'s stderr tail rides in the reason', () => {
   const r = runUnitOnVps({ sha: 'not-a-sha', tree: TREE, run: () => ({ status: 0, stdout: '' }) });
   assert.equal(r.ok, false); assert.match(String(r.reason), /exception/);
-  const failed = runUnitOnVps({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, run: (cmd: string) => ({ status: 1, stdout: '', stderr: '--- unit.log tail (exit 1) ---\nnot ok 7 - a test' }) });
+  const failed = runUnitOnVps({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, run: () => ({ status: 1, stdout: '', stderr: '--- unit.log tail (exit 1) ---\nnot ok 7 - a test' }) });
   assert.equal(failed.ok, false); assert.match(String(failed.reason), /not ok 7 - a test/);
 });
 test('the RECEIPT carries the BOX-computed tree and the run id (so the Published line can cite it)', () => {
