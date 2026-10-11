@@ -112,6 +112,8 @@ test('vps-receipt-trust --unit-vps: trusts the stored receipt only for this comm
 });
 test('deploy-vps.sh asks for the VPS unit receipt before the Hugging Face job, and launch.mjs routes unit through pickTarget', () => {
   const dv = readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), lm = readFileSync('scripts/vps-shadow/launch.mjs', 'utf8');
-  assert.ok(dv.indexOf('--unit-vps') > 0 && dv.indexOf('--unit-vps') < dv.indexOf('DEPLOY_HF_UNIT_JOB:-}" ]] || return 0'));
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.ok(dv.includes('vps_unit_live_ok()') && dv.includes('--unit-vps'));
+  assert.ok(deploy.indexOf('vps_unit=$(vps_unit_receipt_ok)') > 0 && deploy.indexOf('vps_unit=$(vps_unit_live_ok)') > deploy.indexOf('vps_unit=$(vps_unit_receipt_ok)'), 'the live VPS receipt is the second source, after the HF job');
   assert.match(lm, /pickTarget\(\{ mem: \d+, vps: status \}\)/); assert.match(lm, /runUnitOnVps\(/); assert.match(lm, /spilling to Hugging Face/);
 });
