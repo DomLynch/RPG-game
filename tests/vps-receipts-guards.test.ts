@@ -106,8 +106,8 @@ test('the Published summary counts where rows ACTUALLY ran: a refused or failed 
 test('deploy.sh takes the quality gate from CI when CI is green for the tree: the Mac only builds dist, and the CI branch comes first (R lost 1 h 44 m here)', () => {
   const lines = readFileSync('scripts/deploy.sh', 'utf8').split('\n');
   const at = (re: RegExp) => { const i = lines.findIndex(line => re.test(line)); assert.ok(i >= 0, `deploy.sh: no line matching ${re}`); return i; };
-  const ci = at(/^if \[\[ -n "\$ci_green" \]\]; then/), unitBranch = at(/^elif \[\[ "\$vps_unit" == ok \]\]; then/), next = at(/^elif /);   // the first elif after CI may be the notes-only branch (build only too)
-  assert.ok(ci < next && next <= unitBranch, 'the CI branch is tried before every other branch, the VPS-unit branch included');
+  const ci = at(/^if \[\[ -n "\$ci_green" \]\]; then/), unitBranch = at(/^elif \[\[ "\$vps_unit" == ok \]\]; then/), next = lines.findIndex((line, i) => i > ci && /^elif /.test(line));   // the first elif after CI may be the notes-only branch (build only too)
+  assert.ok(next > ci && next <= unitBranch, 'the CI branch is tried before every other branch, the VPS-unit branch included');
   assert.deepEqual(lines.slice(ci + 1, next).filter(l => /^\s+(npm|node) /.test(l)).map(l => l.trim()), ['npm run build'], 'with CI green the Mac runs the build only');
 });
 

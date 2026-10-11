@@ -41,14 +41,14 @@ export function placementLine({ total, ci, hf, vps = [], mac }) {
   const refuse = mac.length > MAC_MAX;
   return { text, refuse, enforce: refuse && MAC_ENFORCE, warning: refuse ? `Mac rows ${mac.length} > MAC_MAX ${MAC_MAX}: rows not on the Mac-only list: ${over.join(',') || 'none'}${MAC_ENFORCE ? ' (REFUSED)' : ' (not enforced yet: MAC_ENFORCE=false)'}` : '' };
 }
-// deploy.sh, once the remote jobs are launched: node scripts/lib/row-placement.mjs line <ci-trusted> <out of scope> <T4 wall rows> <HF CPU rows> (comma lists).
+// deploy.sh, once the remote jobs are launched: node scripts/lib/row-placement.mjs line <ci-trusted> <out of scope> <T4 wall rows> <HF CPU rows> <VPS CPU rows> (comma lists; the VPS rows come from launch.mjs cpu's running marker, so the line already counts them before the receipt is merged).
 // The Mac is every row left. Out-of-scope rows run nowhere (this release's changed files cannot reach them) and are named after the line.
-export function planLine(total, [ci, outOfScope, wall, cpu]) {
+export function planLine(total, [ci, outOfScope, wall, cpu, vpsRows]) {
   const list = text => [...new Set(String(text || '').split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= total))];
-  const [c, o, w, h] = [ci, outOfScope, wall, cpu].map(list), hf = [...new Set([...w, ...h])].filter(n => !c.includes(n)).sort((a, b) => a - b);
-  const mac = Array.from({ length: total }, (_, i) => i + 1).filter(n => !c.includes(n) && !o.includes(n) && !hf.includes(n));
-  const line = placementLine({ total, ci: c, hf, mac });
-  return `${line.text}; out of scope ${o.length}${o.length ? ` (${o.join(',')})` : ''}; T4 ${w.length}, HF CPU ${h.length}${line.warning ? `\n${line.warning}` : ''}`;
+  const [c, o, w, h, v] = [ci, outOfScope, wall, cpu, vpsRows].map(list), hf = [...new Set([...w, ...h])].filter(n => !c.includes(n)).sort((a, b) => a - b);
+  const mac = Array.from({ length: total }, (_, i) => i + 1).filter(n => !c.includes(n) && !o.includes(n) && !hf.includes(n) && !v.includes(n));
+  const line = placementLine({ total, ci: c, hf, vps: v.filter(n => !c.includes(n)), mac });
+  return `${line.text}; out of scope ${o.length}${o.length ? ` (${o.join(',')})` : ''}; T4 ${w.length}, HF CPU ${h.length}, VPS CPU ${v.length}${line.warning ? `\n${line.warning}` : ''}`;
 }
 if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'line') {
   const { readFileSync } = await import('node:fs');

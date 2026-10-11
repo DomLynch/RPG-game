@@ -69,7 +69,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         if (fresh(fileOf) || fresh(runningOf)) { console.error('launch: the CPU rows are already on the VPS (running or done) for this sha'); process.exit(0); }
         const status = vpsStatus();
         if (pickTarget({ mem: 12288, vps: status }) === 'vps') {
-          mkdirSync(stateDir, { recursive: true }); writeFileSync(runningOf, `${Date.now()}\n`);
+          mkdirSync(stateDir, { recursive: true }); writeFileSync(runningOf, `${Date.now()}\n${shards.flat().join(',')}\n`);   // line 2: the rows, for deploy.sh's placement line
           const child = spawn(process.execPath, [process.argv[1], 'rows-vps', a, shards.flat().join(','), String(CPU_WIDTH * 2)], { detached: true, stdio: ['ignore', openLog(`${stateDir}/${a}.rowsvps.log`), openLog(`${stateDir}/${a}.rowsvps.log`)] });
           child.unref();
           console.error(`launch: tier=vps load1=${status?.load1}: ${shards.flat().length} CPU rows run on the VPS in the background (log ${stateDir}/${a}.rowsvps.log)`);
