@@ -24,7 +24,10 @@ export function parseVpsStatus(text) {
 }
 
 // null = cannot read the VPS (the caller treats that as busy and spills to Hugging Face CPU).
-export function vpsStatus({ host = process.env.VPS_HOST || 'root@49.12.7.18', key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
+/** The VPS login: VPS_HOST may be a bare address in some shells (this Mac's is), so a missing user means root. */
+export const vpsHost = (env = process.env) => { const h = env.VPS_HOST || '49.12.7.18'; return h.includes('@') ? h : `root@${h}`; };
+
+export function vpsStatus({ host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
   const r = run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host, "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo"], { encoding: 'utf8', timeout: 20_000 });
   return r.status === 0 ? parseVpsStatus(r.stdout) : null;
 }

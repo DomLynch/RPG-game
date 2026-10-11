@@ -8,6 +8,7 @@
 // Nothing is read from the box afterwards. The accepted receipt is stored on the Mac (~/.claude/state/pre-launch/<sha>.unitvps) for deploy.sh, which re-checks it against the deploy tree.
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { vpsHost } from './waterfall.mjs';
 
 export const NODE_PIN = { version: 'v22.23.3', file: 'node-v22.23.3-linux-x64.tar.xz', sha256: 'df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de' };   // nodejs.org SHASUMS256.txt
 export const RUN_ROOT = '/root/deploy-runs';
@@ -15,6 +16,8 @@ export const MAX_AGE_S = 4 * 3600;
 const HEX40 = /^[0-9a-f]{40}$/, HEX32 = /^[0-9a-f]{32}$/, HEX16 = /^[0-9a-f]{16}$/;
 export const newNonce = () => randomBytes(16).toString('hex');
 export const newRunId = () => randomBytes(8).toString('hex');
+
+export const SHADOW_REPO = '/opt/frankendom-shadow/repo';   // the box's clone: only its object store is used; the tree hash below is what binds the content
 
 export function buildRunner({ sha, tree, nonce, runid }) {
   if (!HEX40.test(sha || '') || !HEX40.test(tree || '') || !HEX32.test(nonce || '') || !HEX16.test(runid || '')) throw new Error('buildRunner: sha/tree must be 40 hex, nonce 32 hex, runid 16 hex');
@@ -29,7 +32,10 @@ echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
 tar -xJf node.tar.xz || exit 93
 PATH="$RUN/node-${NODE_PIN.version}-linux-x64/bin:/usr/bin:/bin"
 hash -r
-cd src || exit 94
+git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null || exit 96
+[ "$(git -C '${SHADOW_REPO}' rev-parse '${sha}^{tree}')" = '${tree}' ] || exit 97
+mkdir -p "$RUN/src" && git -C '${SHADOW_REPO}' archive '${sha}' | tar -x -C "$RUN/src" || exit 98
+cd "$RUN/src" || exit 94
 t0=$(date +%s)
 npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || exit 95
 npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
@@ -66,16 +72,12 @@ export function vpsUnitFileOk(rec, tree, now = Date.now()) {
     && rec.node_tarball_sha256 === NODE_PIN.sha256 && rec.node === NODE_PIN.version && now - Date.parse(rec.at) < MAX_AGE_S * 1000 && now - Date.parse(rec.at) >= -60_000;
 }
 
-// run(cmd, argv, opts) defaults to spawnSync. Two ssh sessions of ours: extract a fresh \`git archive <sha>\`, then pipe the runner and parse ITS live stdout.
+// run(cmd, argv, opts) defaults to spawnSync. ONE ssh session of ours pipes the runner (which fetches the sha into the box's object store, checks its tree hash, `git archive`s it) and we parse ITS live stdout.
 /** @param {{ sha: string, tree: string, nonce?: string, runid?: string, host?: string, key?: string, run?: any }} opts @returns {{ ok: boolean, reason?: string, receipt?: any }} */
-export function runUnitOnVps({ sha, tree, nonce = newNonce(), runid = newRunId(), host = process.env.VPS_HOST || 'root@49.12.7.18', key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
+export function runUnitOnVps({ sha, tree, nonce = newNonce(), runid = newRunId(), host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
   const runner = buildRunner({ sha, tree, nonce, runid });
   const ssh = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host];
   const dir = `${RUN_ROOT}/${sha}-${runid}`;
-  const archive = run('git', ['archive', '--format=tar', sha], { maxBuffer: 1 << 30, timeout: 120_000 });
-  if (archive.status !== 0) return { ok: false, reason: 'git archive failed' };
-  const put = run('ssh', [...ssh, `mkdir -p '${dir}/src' && tar -x -C '${dir}/src'`], { input: archive.stdout, maxBuffer: 1 << 20, timeout: 300_000 });
-  if (put.status !== 0) return { ok: false, reason: 'archive upload failed' };
   const r = run('ssh', [...ssh, 'systemd-run --scope --slice=lanejobs.slice --quiet bash -s'], { input: runner, encoding: 'utf8', maxBuffer: 1 << 20, timeout: 45 * 60_000 });
   const parsed = parseReceipt({ stdout: r.stdout, status: r.status, nonce, sha, tree });
   if (!parsed.ok) run('ssh', [...ssh, `rm -rf '${dir}'`], { timeout: 60_000 });   // a failed run leaves nothing behind

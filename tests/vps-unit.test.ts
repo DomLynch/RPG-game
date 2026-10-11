@@ -79,7 +79,9 @@ test('runUnitOnVps: archives the sha, runs the runner under lanejobs.slice with 
   assert.equal(ok.ok, true);
   const ssh = calls.filter(c => c[0] === 'ssh').map(c => c[1].join(' '));
   assert.ok(ssh.some(l => l.includes('lanejobs.slice') && l.includes('bash -s')), 'the runner runs in lanejobs.slice');
-  assert.ok(calls.some(c => c[0] === 'git' && c[1].includes('archive') && c[1].includes(SHA)), 'a fresh git archive of the sha');
+  const runnerText = calls.find(c => c[0] === 'ssh' && c[2]?.input)?.[2].input as string;
+  assert.ok(runnerText.includes(`git -C '/opt/frankendom-shadow/repo' archive '${SHA}'`) && runnerText.includes(`rev-parse '${SHA}^{tree}')" = '${TREE}'`), 'a fresh git archive of the sha, after its tree hash is checked on the box');
+  assert.ok(!calls.some(c => c[0] === 'git'), 'nothing is archived or uploaded from the Mac (the repo is >1 GB)');
   const runner = calls.find(c => c[0] === 'ssh' && c[2]?.input)?.[2].input as string;
   assert.ok(runner.includes(NONCE), 'the nonce travels on stdin only');
   assert.ok(!calls.some(c => c[1].join(' ').includes(NONCE)), 'the nonce is never in argv');
@@ -116,4 +118,11 @@ test('deploy-vps.sh asks for the VPS unit receipt before the Hugging Face job, a
   assert.ok(dv.includes('vps_unit_live_ok()') && dv.includes('--unit-vps'));
   assert.ok(deploy.indexOf('vps_unit=$(vps_unit_receipt_ok)') > 0 && deploy.indexOf('vps_unit=$(vps_unit_live_ok)') > deploy.indexOf('vps_unit=$(vps_unit_receipt_ok)'), 'the live VPS receipt is the second source, after the HF job');
   assert.match(lm, /pickTarget\(\{ mem: \d+, vps: status \}\)/); assert.match(lm, /runUnitOnVps\(/); assert.match(lm, /spilling to Hugging Face/);
+});
+
+test('vpsHost: a bare VPS_HOST (this Mac exports one without a user) means root; a full user@host is kept', async () => {
+  const { vpsHost } = await import('../scripts/lib/waterfall.mjs');
+  assert.equal(vpsHost({ VPS_HOST: '49.12.7.18' }), 'root@49.12.7.18');
+  assert.equal(vpsHost({ VPS_HOST: 'deploy@box' }), 'deploy@box');
+  assert.equal(vpsHost({}), 'root@49.12.7.18');
 });
