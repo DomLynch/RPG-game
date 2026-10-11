@@ -47,6 +47,11 @@ npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm 
 `;
 }
 
+// The slowest test files of a node --test TAP log: a file-level result line (`ok N - /abs/tests/x.test.ts`) is followed by its own two-space `duration_ms:` line.
+// Printed as JSON pairs [["tests/x.test.ts", seconds], ...], slowest first, so a receipt shows where the suite time goes (the suite is as slow as its slowest file).
+export const SLOWEST_AWK = `/^(not )?ok [0-9]+ - .*[.]test[.]ts$/ { n = $0; sub(/^(not )?ok [0-9]+ - /, "", n); sub(/^.*[/]tests[/]/, "tests/", n); next_is = 1; next }
+next_is && /^  duration_ms: / { printf "%s %.1f\n", n, $2 / 1000; next_is = 0 }`;
+
 export function buildRunner(args) {
   const { sha, tree, runid } = args;
   return runnerHead(args) + `# max 1-minute load seen while the suite runs, sampled every 5 s: the receipt carries its own evidence of how quiet the box was
@@ -56,10 +61,11 @@ FRANKENDOM_RELEASE_RUN=1 npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
 rc=$?
 kill "$LOADPID" 2>/dev/null
 maxload=$(sort -n "$RUN/load.log" 2>/dev/null | tail -1)
+slowest=$(awk '${SLOWEST_AWK}' "$RUN/unit.log" 2>/dev/null | sort -k2 -nr | head -8 | awk 'BEGIN{printf "["} {printf "%s[\\"%s\\",%s]", (NR>1?",":""), $1, $2} END{printf "]"}')
 if [ "$rc" -eq 0 ]; then
   pass=$(grep -E '^# pass ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
   fail=$(grep -E '^# fail ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
-  printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s,"max_load1":%s}\\n' "$NONCE" "$BOXTREE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))" "\${maxload:-null}"
+  printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s,"max_load1":%s,"slowest":%s}\\n' "$NONCE" "$BOXTREE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))" "\${maxload:-null}" "\${slowest:-[]}"
 fi
 [ "$rc" -eq 0 ] || { echo "--- failing tests (exit $rc) ---" >&2; grep -E '^not ok' "$RUN/unit.log" | grep -v '# TODO' | head -40 >&2; echo "--- unit.log tail ---" >&2; tail -n 25 "$RUN/unit.log" >&2; }
 exit "$rc"

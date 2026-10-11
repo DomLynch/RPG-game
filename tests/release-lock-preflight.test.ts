@@ -46,3 +46,19 @@ test('test:all runs the preflight first, the default dir is the one the runners 
   const parsed = parseReceipt({ stdout: line, status: 0, nonce: 'c'.repeat(32), sha: 'a'.repeat(40), tree: 'b'.repeat(40) });
   assert.equal(parsed.ok, true, parsed.reason); assert.equal(parsed.receipt.max_load1, 2.5);
 });
+
+test('the runner records the slowest test files from the TAP log (receipt field "slowest", slowest first, capped at 8, repo-relative names)', () => {
+  const script = buildRunner({ sha: 'a'.repeat(40), tree: 'b'.repeat(40), nonce: 'c'.repeat(32), runid: 'd'.repeat(16) });
+  const lines = script.split('\n'), at = lines.findIndex(l => l.startsWith('slowest=$(awk'));
+  let end = at; while (!lines[end]!.includes('END{printf "]"}')) end++;
+  const snippet = lines.slice(at, end + 1).join('\n');
+  const dir = mkdtempSync(join(tmpdir(), 'slow-'));
+  const tap = (name: string, ms: number, ok = true) => `    ok 1 - inner case\n      ---\n      duration_ms: 1.5\n      ...\n${ok ? '' : 'not '}ok 7 - /root/deploy-runs/x/src/tests/${name}.test.ts\n  ---\n  duration_ms: ${ms}\n  type: 'test'\n  ...\n`;
+  writeFileSync(join(dir, 'unit.log'), tap('fast', 120) + tap('slow', 301234.5) + tap('mid', 9000) + Array.from({ length: 9 }, (_, i) => tap(`f${i}`, 1000 + i)).join(''));
+  const r = spawnSync('bash', ['-c', `RUN='${dir}'\n${snippet}\nprintf '%s' "$slowest"`], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const got = JSON.parse(r.stdout) as Array<[string, number]>;
+  assert.equal(got.length, 8); assert.deepEqual(got[0], ['tests/slow.test.ts', 301.2]); assert.deepEqual(got[1], ['tests/mid.test.ts', 9]);
+  assert.ok(got.every(([n]) => /^tests\/[a-z0-9]+\.test\.ts$/.test(n)), 'names are repo-relative');
+  assert.match(script, /"slowest":%s/);
+});
