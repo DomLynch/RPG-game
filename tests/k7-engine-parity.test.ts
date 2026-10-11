@@ -1,12 +1,13 @@
 // K7 EXIT TEST (Strategy 2026-10-09, written by World): a zone reaches the fight engine ONLY through src/fight/index.ts, for every row of the 22-row parity checklist that is a code path
 // (rows 1-16 and 20; 17 and 22 are by design, 18 and 19 are server tick, post K). It FAILS on any non-test file under origins/ that imports a combat-owned src/ module directly, and on a
 // zone-own copy of engine code. What fails today is pinned below, each entry with the slice that removes it; the lists only shrink (a new violation fails, and a listed one that is gone
-// fails until you delete the line). Zone 2 (and any zone N >= 2) must be data: no src/ import, only `import type`, under 300 lines. Classified by module NAME, so moving a module (src/audio/creature.ts
+// fails until you delete the line). Zone 2 (and any zone N >= 2) must be data: a JSON row (zone-rows/zone<N>.row.json), no code, so no src/ import. Classified by module NAME, so moving a module (src/audio/creature.ts
 // -> src/fight/sound/creature.ts) does not change its row. An import of a src/ module that is neither a row nor ALLOWED fails: classify it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ROW_KEYS } from '../origins/zones/from-row.ts';
 
 type Own = 'K2' | 'P1/P2' | 'K11' | 'K12' | 'server';   // K2: rows 1-7 land with Release K; P1/P2: Combat's fx extraction + Zone 1 per-pair fx; K11: creature dressing; K12: catalogue as runtime source; server: node-run server code that cannot take the renderer-bearing index (Duels & Backend)
 // module name -> [parity row, owner of the slice that moves the zone's use behind src/fight/index.ts]
@@ -82,14 +83,14 @@ test('no zone-own copy of engine code exists (the lists only shrink)', () => {
   assert.deepEqual(KNOWN_COPIES.filter((c) => !copies.includes(c)), [], 'a listed copy is gone: delete its line');
 });
 
-test('Zone 2 and later zones are data: no src/ import, only `import type`, under 300 lines', () => {
-  const zones = readdirSync('origins/zones', { withFileTypes: true }).filter((e) => e.isDirectory() && /^zone(\d+)$/.test(e.name) && Number(e.name.slice(4)) >= 2).map((e) => join('origins/zones', e.name));
-  assert.ok(zones.length >= 1, 'zone2 exists');
-  for (const dir of zones) {
-    const fs = files(dir), text = fs.map((f) => readFileSync(f, 'utf8'));
-    assert.deepEqual(fs.filter((_, i) => [...text[i]!.matchAll(IMPORT)].some((m) => /(^|\/)src\//.test(m[1]!))), [], `${dir}: a zone imports nothing from src/`);
-    assert.deepEqual(fs.filter((_, i) => /^\s*import\s+(?!type\b)[^'"]*from\s/m.test(text[i]!) && !/^\s*import\s+(?!type\b)[^'"]*from\s+'\.\.\/\.\.\/(mobs|preview)\/[a-z-]+\.ts'/m.test(text[i]!)), [], `${dir}: a zone's runtime imports are data helpers only`);
-    assert.ok(text.join('\n').split('\n').length < 300, `${dir}: under 300 lines`);
+test('Zone 2 and later zones are data: a JSON row with the known keys only (no code, so no src/ import is possible), under 64 KB', () => {
+  const rows = readdirSync('origins/zone-rows').filter((f) => /^zone([1-9][0-9]*)\.row\.json$/.test(f) && Number(/\d+/.exec(f)![0]) >= 2).map((f) => join('origins/zone-rows', f));
+  assert.ok(rows.length >= 1, 'zone2 exists');
+  assert.deepEqual(readdirSync('origins/zones', { withFileTypes: true }).filter((e) => e.isDirectory()), [], 'a zone is its row: no zone folder of TypeScript');
+  for (const f of rows) {
+    const text = readFileSync(f, 'utf8'), row = JSON.parse(text) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(row).filter((k) => !ROW_KEYS.includes(k as never)), [], `${f}: only the row keys`);
+    assert.ok(text.length < 64 * 1024, `${f}: under 64 KB`);
   }
 });
 
