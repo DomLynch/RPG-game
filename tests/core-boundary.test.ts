@@ -97,6 +97,24 @@ export function c5(read: (f: string) => string, list: readonly string[]): string
   return bad.sort();
 }
 
+// C7: the world sim (mobs, mobs-view, spawn-net, encounters) is a SHRINK-ONLY list at today's locations. Not a rename: the move into src/core/world waits for #2161 and Proof 3. The list may lose entries (a file moved or deleted), never gain one:
+// a sim file at a new location, or a longer list, is flagged.
+export const WORLD_SIM_KNOWN: readonly string[] = [
+  'origins/encounters/encounters.ts',
+  'origins/mobs/info.ts', 'origins/mobs/kit-version.ts', 'origins/mobs/kits.ts', 'origins/mobs/populate.ts', 'origins/mobs/row.ts', 'origins/mobs/styles.ts', 'origins/mobs/wildlife-rows.ts',
+  'origins/preview/encounter-net.ts', 'origins/preview/mob-dress.ts', 'origins/preview/mob-looks.ts', 'origins/preview/mobs-view.ts', 'origins/preview/mobs.ts', 'origins/preview/spawn-net.ts',
+];
+export const WORLD_SIM_CAP = 14;
+const isWorldSim = (f: string): boolean => /^origins\/(mobs|encounters)\//.test(f) || /^origins\/preview\/(mobs|mobs-view|spawn-net|encounter-net|mob-[a-z0-9-]+)\.ts$/.test(f);
+export function c7(list: readonly string[], known: readonly string[] = WORLD_SIM_KNOWN, cap = WORLD_SIM_CAP): string[] {
+  const bad: string[] = [];
+  const set = new Set(known);
+  if (known.length > cap) bad.push(`world-sim list has ${known.length} entries, cap ${cap}: it only shrinks`);
+  for (const f of list) if (isWorldSim(f) && !set.has(f)) bad.push(`${f}: a world-sim file at a new location; the list only shrinks (the move to src/core/world is a later PR)`);
+  for (const k of known) if (!list.includes(k)) bad.push(`${k}: listed but gone; remove it from WORLD_SIM_KNOWN`);
+  return bad;
+}
+
 const FILES = [...walk('src'), ...walk('origins'), ...walk('scripts')].map((f) => f.replaceAll('\\', '/'));
 const withFile = (name: string, extra: string) => (f: string): string => f === name ? `${disk(f)}\n${extra}` : disk(f);
 
@@ -177,6 +195,20 @@ test('C6 mutation: a second level function, marks in zone code, a seeded zone ch
   assert.equal(c6((f) => f === MIG ? disk(f).replace("where kind = 'duel' and result = 'win'", "where kind = 'ai' and result = 'win'") : disk(f), FILES).length >= 1, true, 'a board counting AI rows');
   assert.equal(c6(withFile('origins/pit/pit.ts', 'const s = careerAtLevel(3);'), FILES).length, 0, 'the Pit session may');
   assert.equal(c6(withFile('origins/server/story.ts', 'const c = newCareer();'), FILES).length, 0);
+});
+
+test('C7: the world sim sits only at its known locations and the list can only shrink', () => {
+  assert.deepEqual(c7(FILES), []);
+  assert.equal(WORLD_SIM_KNOWN.length, WORLD_SIM_CAP);
+});
+test('C7 mutation: a new sim file, a longer list and a stale entry are flagged; a shrunk list is not', () => {
+  assert.equal(c7([...FILES, 'origins/preview/mobs-extra.ts']).length, 0, 'mobs-extra.ts is not a sim name');
+  assert.equal(c7([...FILES, 'origins/mobs/new-rule.ts']).length, 1, 'a new file under origins/mobs');
+  assert.equal(c7([...FILES, 'origins/preview/mob-dress2.ts']).length, 1, 'a new mob-* page module');
+  assert.equal(c7([...FILES, 'origins/encounters/more.ts']).length, 1);
+  assert.equal(c7(FILES, [...WORLD_SIM_KNOWN, 'origins/mobs/extra.ts']).length, 2, 'a longer list (over the cap) and an entry with no file');
+  assert.equal(c7(FILES.filter((f) => f !== 'origins/mobs/populate.ts'), WORLD_SIM_KNOWN).length, 1, 'a known file gone without leaving the list');
+  assert.equal(c7(FILES.filter((f) => f !== 'origins/mobs/populate.ts'), WORLD_SIM_KNOWN.filter((f) => f !== 'origins/mobs/populate.ts')).length, 0, 'shrinking the list with the file is the allowed move');
 });
 
 test('every moved module lives in src/core and nothing is left behind at the old paths', () => {

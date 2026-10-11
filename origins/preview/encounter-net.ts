@@ -1,7 +1,7 @@
 // Origins: the client half of a server-held world creature fight (origins/server/encounter.ts, migration 202610080002). Three calls, in the order a fight lives:
 //   startFight   POST /encounter_start  {character, encounter}  -> the fight to play: token, the SERVER's seed, foe, level, bar, twist flags. The body names no foe, level, seed or reward.
 //   touchFight   POST /encounter_touch  {token, tick}           -> inside the 120 s reconnect grace: the same token and seed continue.
-//   settleFight  POST /encounter_settle {token, record}         -> the fight's FightRecord (encounter-duel's EncounterEnd.record) packed as the Pit packs it; the server re-plays it.
+//   settleFight  POST /encounter_settle {token, record}         -> the fight's FightRecord (the fight's EncounterEnd.record) packed as the Pit packs it; the server re-plays it.
 // Call site (Expansion, ?worldfight): `startFight` replaces `fightSeed`: pass `fight.seed` to startEncounterDuel (and the foe/level/bar/flags it returns to fightSetup's reader), then post
 // `end.record` with `settleFight` when `done` fires. A fight that ends by a twist with both standing records as 'abandoned' (pit-duel), which is what the verifier expects.
 // Same contract as save.ts: no DOM, storage or clock here; any failure (no session, 4xx/5xx, a timeout, the network, a malformed reply) is an answer ({ offline }), never a throw. The preview

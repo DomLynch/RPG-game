@@ -8,7 +8,7 @@ import { judge } from './origins-tsc.mjs';
 
 export const DEBT = {
   // K2d leftovers (the same eight names the tsc ratchet pins as TS6133).
-  'origins/preview/main.ts': { owner: 'Combat & Specials', codes: { '@typescript-eslint/no-unused-vars': 8 } },
+  'origins/preview/main.ts': { owner: 'Combat & Specials', codes: { '@typescript-eslint/no-unused-vars': 5 } },
   'origins/combat/zone1.test.ts': { owner: 'Combat & Specials', codes: { '@typescript-eslint/no-unused-vars': 1 } },
   'origins/preview/gear-mount.ts': { owner: 'Web & UI', codes: { 'prefer-const': 1 } },
   'origins/preview/leave-entry.test.ts': { owner: 'Web & UI', codes: { '@typescript-eslint/no-unused-vars': 2 } },   // :46 and :72 (`made` used only as a type; the second came with #2034)
