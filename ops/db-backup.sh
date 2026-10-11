@@ -32,10 +32,11 @@ r = u.urlparse(sys.stdin.read().strip()); q = dict(u.parse_qsl(r.query))
 v = {"host": r.hostname, "port": r.port, "dbname": (r.path or "/")[1:] or None, "user": u.unquote(r.username) if r.username else None, "password": u.unquote(r.password) if r.password else None, **q}
 print("[fk]"); [print(f"{k}={x}") for k, x in v.items() if x is not None]' <<<"$url" >"$svc" || fail "DATABASE_URL is not a postgres URL"
 if [[ -n ${DUMP_IMAGE:-} ]]; then
+  # --network host: the Supabase direct host (db.<ref>.supabase.co) is IPv6-only and the default docker bridge has no IPv6 ("Network is unreachable", first manual run 10-11).
   # shellcheck disable=SC2206
-  dump=(docker run --rm --user root -v "$svc:/svc:ro" -v "$dir:/out" -e PGSERVICEFILE=/svc -e PGSERVICE=fk ${DOCKER_ARGS:-} "$DUMP_IMAGE" pg_dump -Fc "${args[@]}" -f "/out/${part##*/}")
+  dump=(docker run --rm --network host --user root -v "$svc:/svc:ro" -v "$dir:/out" -e PGSERVICEFILE=/svc -e PGSERVICE=fk ${DOCKER_ARGS:-} "$DUMP_IMAGE" pg_dump -Fc "${args[@]}" -f "/out/${part##*/}")
   restore_list() { docker run --rm -i "$DUMP_IMAGE" pg_restore --list <"$1"; }
-  db_bytes() { docker run --rm -e PGSERVICEFILE=/svc -e PGSERVICE=fk -v "$svc:/svc:ro" ${DOCKER_ARGS:-} "$DUMP_IMAGE" psql -AtX -c 'select pg_database_size(current_database())'; }
+  db_bytes() { docker run --rm --network host -e PGSERVICEFILE=/svc -e PGSERVICE=fk -v "$svc:/svc:ro" ${DOCKER_ARGS:-} "$DUMP_IMAGE" psql -AtX -c 'select pg_database_size(current_database())'; }
 else
   dump=(env PGSERVICEFILE="$svc" PGSERVICE=fk "$pg_dump_bin" -Fc "${args[@]}" -f "$part")
   restore_list() { "$pg_restore_bin" --list "$1"; }
