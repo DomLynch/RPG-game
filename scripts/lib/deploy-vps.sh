@@ -51,6 +51,8 @@ vps_unit_receipt_ok() {
   local receipt_sha="${VPS_RECEIPT_SHA:-$revision}"
   [[ "$receipt_sha" =~ ^[0-9a-f]{40}$ ]] || return 0
   rm -f "artifacts/vps-shadow/$receipt_sha/unit.json"   # fresh or nothing
+  # A suite run on the prepaid VPS in launch.mjs's own live ssh session (scripts/lib/vps-unit.mjs): re-checked here against the deploy tree; HF is the spillover.
+  if [[ "$(VPS_RECEIPT_SHA= node scripts/vps-receipt-trust.mjs "$receipt_sha" --unit-vps || true)" == ok ]]; then printf ok; return 0; fi
   [[ -n "${DEPLOY_HF_UNIT_JOB:-}" ]] || return 0
   # Release R lost its unit receipt to a fetch whose error was thrown away. Three tries with backoff, every error in the deploy log (stderr: stdout is the "ok" the caller reads).
   local try err="" fetched=0

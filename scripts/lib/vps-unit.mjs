@@ -44,7 +44,9 @@ exit "$rc"
 }
 
 // stdout: the ssh session's live stdout; status: its exit code. Only the LAST non-empty line counts.
+/** @returns {{ ok: boolean, reason?: string, receipt?: any }} */
 export function parseReceipt({ stdout, status, nonce, sha, tree }) {
+  /** @type {(reason: string) => { ok: boolean, reason?: string, receipt?: any }} */
   const fail = reason => ({ ok: false, reason });
   if (status !== 0) return fail(`ssh/test exit ${status}`);
   const last = String(stdout || '').split('\n').map(l => l.trimEnd()).filter(Boolean).pop() || '';
@@ -65,6 +67,7 @@ export function vpsUnitFileOk(rec, tree, now = Date.now()) {
 }
 
 // run(cmd, argv, opts) defaults to spawnSync. Two ssh sessions of ours: extract a fresh \`git archive <sha>\`, then pipe the runner and parse ITS live stdout.
+/** @param {{ sha: string, tree: string, nonce?: string, runid?: string, host?: string, key?: string, run?: any }} opts @returns {{ ok: boolean, reason?: string, receipt?: any }} */
 export function runUnitOnVps({ sha, tree, nonce = newNonce(), runid = newRunId(), host = process.env.VPS_HOST || 'root@49.12.7.18', key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
   const runner = buildRunner({ sha, tree, nonce, runid });
   const ssh = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host];

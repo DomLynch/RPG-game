@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -96,4 +96,22 @@ test('vpsUnitFileOk: the stored receipt is trusted only for the deploy tree, fre
   assert.equal(vpsUnitFileOk({ ...rec, node_tarball_sha256: 'f'.repeat(64) }, TREE), false);
   assert.equal(vpsUnitFileOk({ ...rec, at: new Date(Date.now() - 5 * 3600e3).toISOString() }, TREE), false, 'older than 4 h');
   assert.equal(vpsUnitFileOk(null, TREE), false);
+});
+
+test('vps-receipt-trust --unit-vps: trusts the stored receipt only for this commit\'s tree (the deploy-side re-check), fails closed otherwise', () => {
+  const sha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(), tree = spawnSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).stdout.trim();
+  const dir = mkdtempSync(join(tmpdir(), 'unitvps-'));
+  const run = () => spawnSync('node', ['scripts/vps-receipt-trust.mjs', sha, '--unit-vps'], { encoding: 'utf8', env: { ...process.env, PRELAUNCH_DIR: dir } }).stdout;
+  try {
+    assert.equal(run(), '', 'no file, no trust');
+    const rec = { kind: 'vps-unit-live', ...good, sha, tree, at: new Date().toISOString() };
+    writeFileSync(join(dir, `${sha}.unitvps`), JSON.stringify(rec)); assert.equal(run(), 'ok');
+    writeFileSync(join(dir, `${sha}.unitvps`), JSON.stringify({ ...rec, tree: 'e'.repeat(40) })); assert.equal(run(), '', 'another tree');
+    writeFileSync(join(dir, `${sha}.unitvps`), '{truncated'); assert.equal(run(), '', 'garbage');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('deploy-vps.sh asks for the VPS unit receipt before the Hugging Face job, and launch.mjs routes unit through pickTarget', () => {
+  const dv = readFileSync('scripts/lib/deploy-vps.sh', 'utf8'), lm = readFileSync('scripts/vps-shadow/launch.mjs', 'utf8');
+  assert.ok(dv.indexOf('--unit-vps') > 0 && dv.indexOf('--unit-vps') < dv.indexOf('DEPLOY_HF_UNIT_JOB:-}" ]] || return 0'));
+  assert.match(lm, /pickTarget\(\{ mem: \d+, vps: status \}\)/); assert.match(lm, /runUnitOnVps\(/); assert.match(lm, /spilling to Hugging Face/);
 });
