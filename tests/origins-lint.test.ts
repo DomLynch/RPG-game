@@ -22,7 +22,7 @@ test('today\'s pins pass; a new error, a new file and a new rule in a pinned fil
   const today = Object.fromEntries(Object.entries(DEBT).map(([f, { codes }]) => [f, { ...codes }]));
   assert.deepEqual(judge(today, DEBT, 'scripts/origins-lint.mjs'), { over: [], stale: [] });
   assert.equal(judge({ ...today, 'origins/zones/loader.ts': { 'prefer-const': 1 } }, DEBT).over.length, 1, 'a file with no pin');
-  const swapped = judge({ ...today, [MAIN]: { [UNUSED]: 7, 'no-undef': 1 } }, DEBT, 'scripts/origins-lint.mjs');
+  const swapped = judge({ ...today, [MAIN]: { [UNUSED]: DEBT[MAIN].codes[UNUSED] - 1, 'no-undef': 1 } }, DEBT, 'scripts/origins-lint.mjs');
   assert.ok(swapped.over.some((l) => l.includes('no-undef')), 'fixing an unused name does not make room for another rule');
   assert.ok(swapped.stale.some((l) => l.includes('scripts/origins-lint.mjs')), 'and the fixed one asks for its pin in THIS script to come down');
   for (const [file, { owner, codes }] of Object.entries(DEBT)) { assert.ok(owner.trim(), file); assert.ok(Object.values(codes).every((n) => Number.isInteger(n) && n > 0), file); }
