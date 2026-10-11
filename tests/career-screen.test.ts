@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ladderView, scoreLines } from '../src/career-screen.ts';
+import { boardViews, ladderView, scoreLines } from '../src/career-screen.ts';
 
 test('the ladder is ten titles of five rungs, with the rank\'s rung marked and every lower rung done', () => {
   const view = ladderView(0);
@@ -20,4 +20,13 @@ test('the scorecard lines are most-fought first, losses read "n (k left)" only a
   assert.deepEqual(lines[0], { name: 'B', fights: 4, wins: 1, losses: '3 (1 left)' });
   assert.deepEqual(lines[2], { name: 'All fights', fights: 5, wins: 2, losses: '3 (1 left)' });
   assert.deepEqual(scoreLines([]), [{ name: 'All fights', fights: 0, wins: 0, losses: '0' }], 'a new fighter: just the total');
+});
+
+test('the boards are one list per board in place order, the name rendered as the server gave it, an empty board left out', () => {
+  const rows = [{ board: 'duel_wins', place: 2, who: 'Fighter #12', fighterId: 12, score: 3 }, { board: 'duel_wins', place: 1, who: 'Fighter #7', fighterId: 7, score: 9 }, { board: 'duel_rating', place: 1, who: 'Fighter #7', fighterId: 7, score: 1500 }] as const;
+  const views = boardViews(rows);
+  assert.deepEqual(views.map((v) => v.title), ['Duel rating', 'Duel wins']);
+  assert.deepEqual(views[1]!.lines, [{ place: 1, who: 'Fighter #7', score: 9 }, { place: 2, who: 'Fighter #12', score: 3 }]);
+  assert.deepEqual(boardViews([rows[2]]).map((v) => v.title), ['Duel rating'], 'a board with no rows is not drawn');
+  assert.deepEqual(boardViews([]), []);
 });
