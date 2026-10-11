@@ -30,8 +30,9 @@ try {
   const target = await page.evaluate(() => { const ms = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body), near = (a) => ms.filter((b) => b.name === a.name && Math.hypot(a.x - b.x, a.z - b.z) < 8).length; return ms.sort((a, b) => near(b) - near(a))[0]; });   // the drawn creature with the biggest same-kind pack around it
   const mid = await page.evaluate((t) => { const p = window.originsPreview.mobs().mobs.filter((b) => b.name === t.name && Math.hypot(b.x - t.x, b.z - t.z) < 8); return [p.reduce((a, b) => a + b.x, 0) / p.length, p.reduce((a, b) => a + b.z, 0) / p.length]; }, target);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), mid);   // the middle of the pack, so every one of them notices
-  await page.waitForTimeout(20000);
-  await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
+  // A pack waits 20 s so every creature notices. A zone's lone creature is aggro and starts the duel by itself within seconds, and on a GPU it beats a standing guest before a fixed wait ends: poll for the fight instead.
+  if (zone) { for (let i = 0; i < 40 && !(await page.evaluate(() => document.body.classList.contains('infight'))); i++) await page.waitForTimeout(250); } else await page.waitForTimeout(20000);
+  if (!(await page.evaluate(() => document.body.classList.contains('infight')))) await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
   await page.waitForTimeout(zone ? 1500 : 4000);   // a zone's lone creature kills a standing guest fast on a GPU: the shot is taken as the duel starts
   await shot('fight');
