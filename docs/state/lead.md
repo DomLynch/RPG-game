@@ -2,6 +2,12 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-11 14:33 (`date`) — handoff before /clear: UNPARKED (Dom: no 93% stop, run until the credits end); LIVE BJ 2eead4699
+**READ FIRST.** The 14:45-labelled entry below is the same afternoon (its stamp was a guess). Restart memory: project_handoff_2026-10-11_1433.md + feedback_no_quota_stop.md.
+**Dom (direct):** "i never said 93% … keep going till we are out of credits." The 93% park rule is withdrawn; only never start a publish/migration/writer install that can't finish.
+**Next, in order:** BK2 #2200 @786917f3c unit receipt → publish (ship as is; the k7 ALLOWED line has an Auditor PASS) → close #2159/#2194/#2198 as merged-by-candidate → Deploy's 12-VPS-rows PR → BL #2199 camera B (writer parity reinstall) → #2195 0020 apply + Auditor POST → Web Profile #2201 rebased onto trunk.
+**Blocked:** Backend silent since ~14:05 (restart paste sent); fallback = Deploy runs 0020 + the writer reinstall from Backend's recipe, the Auditor checks.
+
 ## 2026-10-11 14:45 — PARKED at 93% weekly quota: LIVE BJ 2eead4699; Proof 3 shipped; resume order below
 **READ FIRST.** LIVE = BJ 2eead4699 = trunk (my curl). Restart memory: project_handoff_2026-10-11_1115.md (bottom lines) + feedback_writer_after_pass.md + feedback_vps_proven_before_review.md + reference_inventory_style.md.
 **Delivered after the 12:30 close (unparked by Dom 12:3x):** BG eb898c0c8 (#2186 rule text, #2065 Zone 2 stills) · BH 0e8ef0774 (#2189 plan line + guard scope) · **BI d76be98a6 = PROOF 3 (#2161, RV41 shared CC ladder; Auditor PASS 13:43; writer d76be98a since 13:27:30, NRestarts 0)** · BJ 2eead4699 (#2191 test:all release preflight + max-load in receipt). #2172 closed (already in BA2).
