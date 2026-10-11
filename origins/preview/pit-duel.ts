@@ -16,9 +16,12 @@ import { createInput, type ControlIntent } from '../../src/fight/index.ts';
 import { bareName, legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../../src/fight/index.ts';
 import { Match } from '../../src/fight/match.ts';
 import { OPPONENTS, RULES, weaponOf, type OpponentId } from '../../src/fight/index.ts';
-import { loadProfile, type StoragePort } from '../../src/core/index.ts';
+import { loadProfile, session, shownMarks, type StoragePort } from '../../src/core/index.ts';
 import { tierAt } from '../../src/core/index.ts';
 import { loadScorecard } from '../../src/scorecard.ts';
+import { mountCareer } from '../../src/career-screen.ts';
+import { LADDER } from '../../src/ladder.ts';
+import { authClient } from './save.ts';
 import { loadScene, type WorldMount } from '../../src/fight/index.ts';
 type SceneModule = Awaited<ReturnType<typeof loadScene>>;
 let sceneModule: SceneModule | undefined;
@@ -118,6 +121,14 @@ function bind(leave: () => void) {
   // index.html). The Pit leaves the duel for the walk (the Pit room in this preview); Arena and ✕ go back to the fight.
   journal = element<HTMLDialogElement>('journal');
   element('journal-button').addEventListener('click', () => { controls!.clear(); element<HTMLInputElement>('journal-tab-settings').checked = true; journal!.showModal(); });
+  // The Career tab: the SAME component as the Pit's journal (src/career-screen.ts), drawn when opened. The account's client is this page's own session (save.ts authClient); no session = the guest note.
+  { let client: ReturnType<typeof authClient> | null = null;
+    const career = mountCareer(element('career-root'), {
+      db: async () => { const c = await (client ??= authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined })); const got = c ? ((await c.auth.getSession()) as { data?: { session?: unknown } }).data?.session : null; return got ? (c as never) : null; },
+      marks: () => shownMarks(session.standing?.marks ?? null, loadProfile(localStorage, () => crypto.randomUUID()).profile, session.standing?.pending ?? 0),
+      name: (id) => LADDER.find((o) => o.id === id)?.name ?? id,
+    });
+    element('journal-tab-career').addEventListener('change', () => { void career.render(); }); }
   element('close-journal').addEventListener('click', () => journal!.close());
   element('nav-arena').addEventListener('click', () => journal!.close());
   addLeaveEntry(element('app-nav'), () => journal!.close(), leave, hostBack?.back, hostBack?.text);   // the game's own nav no longer carries The Pit (the Pit room was removed): the Origins duel adds its exit

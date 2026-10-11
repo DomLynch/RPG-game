@@ -28,7 +28,7 @@ export function boardViews(rows: readonly BoardRow[]): BoardView[] {
 type Db = Parameters<typeof readScorecard>[0];
 export type CareerMount = { render(): Promise<void> };
 // `db()` is the account's client or null when signed out; `marks()` the rank's marks; `deviceNote` the line shown when the server's figures are not available.
-export function mountCareer(root: HTMLElement, o: { db: () => Db | null; marks: () => number; name?: (opponent: string) => string }): CareerMount {
+export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks: () => number; name?: (opponent: string) => string }): CareerMount {
   const doc = root.ownerDocument, el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = doc.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
   return {
     async render() {
@@ -40,7 +40,7 @@ export function mountCareer(root: HTMLElement, o: { db: () => Db | null; marks: 
         li.append(rungs); ladder.append(li);
       }
       root.replaceChildren(head, ladder, el('h5', 'stats-heading', 'Scorecard'), card);
-      const db = o.db(), [rows, boards] = db ? await Promise.all([readScorecard(db), readLeaderboards(db, 10)]) : [null, null];
+      const db = await o.db(), [rows, boards] = db ? await Promise.all([readScorecard(db), readLeaderboards(db, 10)]) : [null, null];
       const tail = el('div', 'career-boards');
       root.append(el('h5', 'stats-heading', 'Boards'), tail);
       if (!db) tail.append(el('p', 'career-note', 'Sign in to see the boards.'));
