@@ -46,14 +46,14 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneDayNight, zoneHour } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
-const theme = ARENA_THEMES['1'], PHONE = phoneTier();
+const theme = ARENA_THEMES[zoneArena(loadZone(), ARENA_THEMES) as keyof typeof ARENA_THEMES], PHONE = phoneTier();   // the zone's own Pit theme (look.arena in its row); Zone 1 and any zone that sets none keep the Ash Pit's
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, pixelCap(PHONE)));

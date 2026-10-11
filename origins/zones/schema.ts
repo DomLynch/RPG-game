@@ -24,7 +24,7 @@ export const FIELDS: readonly Field[] = [
   position('fastTravel', 'list', []), position('instance.mode', 'enum', 'shared', { values: ['shared', 'instanced'], owner: 'Backend', donor: 'EQEmu zone.insttype' }),
   position('instance.cap', 'number', 0, { min: 0, owner: 'Backend', donor: 'EQEmu zone.maxclients' }), position('instance.seeding', 'boolean', false, { owner: 'Backend' }),
   // LOOK. Wire first (Strategy): sky/time, fog, grade, ground, prop density.
-  look('look.sky', 'string', 'default', { donor: 'EQEmu zone.sky' }), look('look.timeOfDay.follow', 'boolean', true), look('look.timeOfDay.hour', 'number', 12, { min: 0, max: 24 }),
+  look('look.sky', 'string', 'default', { donor: 'EQEmu zone.sky' }), look('look.arena', 'string', '1', { donor: 'the Pit\'s arena themes (src/arena-themes.ts): the walk-out\'s Pit, Exchange and base light' }), look('look.timeOfDay.follow', 'boolean', true), look('look.timeOfDay.hour', 'number', 12, { min: 0, max: 24 }),
   look('look.fog.colour', 'color', '#c9a47a', { donor: 'EQEmu zone.fog_*' }), look('look.fog.density', 'number', 0.02, { min: 0, max: 1 }), look('look.fog.far', 'number', 107, { min: 10, max: 2000 }),
   look('look.sun.colour', 'color', '#ffb46a'), look('look.sun.intensity', 'number', 5.2, { min: 0, max: 30 }), look('look.sun.pos', 'list', [-24, 12, -15]),
   look('look.ambient.sky', 'color', '#9fb2d4'), look('look.ambient.ground', 'color', '#4a3426'), look('look.ambient.intensity', 'number', 1.25, { min: 0, max: 10 }),
