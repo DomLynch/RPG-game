@@ -31,7 +31,8 @@ try {
   const mid = await page.evaluate((t) => { const p = window.originsPreview.mobs().mobs.filter((b) => b.name === t.name && Math.hypot(b.x - t.x, b.z - t.z) < 8); return [p.reduce((a, b) => a + b.x, 0) / p.length, p.reduce((a, b) => a + b.z, 0) / p.length]; }, target);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), mid);   // the middle of the pack, so every one of them notices
   // A pack waits 20 s so every creature notices. A zone's lone creature is aggro and starts the duel by itself within seconds, and on a GPU it beats a standing guest before a fixed wait ends: poll for the fight instead.
-  if (zone) { for (let i = 0; i < 40 && !(await page.evaluate(() => document.body.classList.contains('infight'))); i++) await page.waitForTimeout(250); } else await page.waitForTimeout(20000);
+  const line = []; const state = () => page.evaluate(() => [document.body.classList.contains('infight') ? 'fight' : 'walk', window.originsPreview.duel()?.ready ? 'ready' : '-', window.originsPreview.mobs().mobs.map((m) => m.mode[0]).join(''), document.title.slice(0, 22)].join(' '));
+  if (zone) { for (let i = 0; i < 80 && !(await page.evaluate(() => document.body.classList.contains('infight'))); i++) { if (i % 4 === 0) line.push(`${i / 4}s ${await state()}`); await page.waitForTimeout(250); } console.log('TIMELINE', line.join(' | ')); } else await page.waitForTimeout(20000);
   if (!(await page.evaluate(() => document.body.classList.contains('infight')))) await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);
   for (let i = 0; i < 240; i++) { await page.waitForTimeout(500); if (await page.evaluate(() => window.originsPreview.duel()?.ready)) break; }
   await page.waitForTimeout(zone ? 1500 : 4000);   // a zone's lone creature kills a standing guest fast on a GPU: the shot is taken as the duel starts
