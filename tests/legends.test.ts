@@ -2,7 +2,7 @@
 // and the rung read off the career ladder the HUD uses rather than a second mapping.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { rankFor } from '../src/career.ts';
+import { rankFor } from '../src/core/career-ladder.ts';
 import { levelOf } from '../src/core/grades.ts';
 import { LEGEND_OPPONENTS, LEGENDS, legendAt, legendForLevel, portraitPath } from '../src/legends.ts';
 import { ROSTER } from '../src/roster.ts';

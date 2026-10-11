@@ -1,6 +1,6 @@
 // Pure: the career row -> the progression model's state, and a verified Pit claim -> the batch that pays it. No I/O here.
 import { careerState } from '../../src/core/server.ts';
-import { legendKey, levelOfCredit } from '../progression/model.ts';
+import { legendKey, levelOfCredit } from '../../src/core/server.ts';
 import type { CareerRow, Json, PitClaim } from './store.ts';
 
 // The claim was verified by the loot sweep (record replayed, standing checked). Pit wins pay PIT RANKS only (Strategy, 2026-10-09; the unification waits for the post-K7 ledger): the claim is settled once,

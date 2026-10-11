@@ -8,7 +8,7 @@ import { Refused } from '../origins/server/errors.ts';
 import { BadRequest, handlers, openAccount, type Ctx, type Handler } from '../origins/server/handlers.ts';
 import { pitBatch } from '../origins/server/career.ts';
 import type { CareerRow, PitClaim, Snapshot } from '../origins/server/store.ts';
-import { legendKey, levelOfCredit } from '../origins/progression/model.ts';
+import { legendKey, levelOfCredit } from '../src/core/career-model.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const row = (over: Partial<CareerRow> = {}): CareerRow => ({ seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3, ...over });

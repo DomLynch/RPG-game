@@ -6,7 +6,7 @@ import { CATALOGUE } from '../src/fight/catalogue-rows.ts';
 import { catalogueLook } from '../src/fight/catalogue-look.ts';
 import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
 import { rankLookFor } from '../src/fight/rank-look.ts';
-import { MAX_LEVEL } from '../src/career.ts';
+import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 
 const file = (url: string) => new URL(`../public${url}`, import.meta.url);
 

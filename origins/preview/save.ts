@@ -5,7 +5,7 @@
 // in-memory preview career and says so in one line. Pure apart from the injected fetch and timer: no DOM, storage or clock read here.
 import { careerState } from '../../src/core/index.ts';
 import type { CareerRow } from '../server/store.ts';
-import type { CareerState } from '../progression/model.ts';
+import type { CareerState } from '../../src/core/index.ts';
 import { NEW_ALLEGIANCE, parseAllegianceState, type AllegianceState } from '../patrons/patrons.ts';
 
 export { WRITER_PATH, AUTH_KEY, writerBase, storedToken, type Offline } from '../../src/core/index.ts';

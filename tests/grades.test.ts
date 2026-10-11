@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { TITLES } from '../src/career.ts';
+import { TITLES } from '../src/core/career-ladder.ts';
 import { ROSTER } from '../src/roster.ts';
 import { Color, MeshStandardMaterial } from 'three';
 import { tinted } from '../src/fight/rank-tint.ts';

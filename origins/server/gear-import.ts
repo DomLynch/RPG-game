@@ -6,7 +6,7 @@
 // from Recruit), unless the slot is already taken (nothing is displaced: that piece goes to the pack); the rest go to the pack while it has room and the overflow to the BANK grid (a mint,
 // no Exchange); worn pieces count toward neither grid. The whole result is checked by inventory.openInventory (custody, one of each, slots), so no placement rule is re-implemented here.
 import { createHash } from 'node:crypto';
-import { TITLES } from '../../src/career.ts';
+import { TITLES } from '../../src/core/server.ts';
 import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
 import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../contracts/items.ts';

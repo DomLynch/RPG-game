@@ -3,7 +3,7 @@
 import type { PitSession } from '../pit/pit.ts';
 import type { Killed } from './spawn-net.ts';
 import type { Offline } from './save.ts';
-import type { CareerState } from '../progression/model.ts';
+import type { CareerState } from '../../src/core/index.ts';
 
 export type Source = { saved: CareerState } | { offline: string };
 /** The session and source after the server's paid CP, or null when there is nothing to show (offline, not a saved career, a kill that paid 0, or no server answer). */

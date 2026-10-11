@@ -21,7 +21,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
-import { fightLevel, levelOf as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './career.ts';
+import { fightLevel, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';

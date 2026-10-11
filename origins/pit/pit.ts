@@ -1,11 +1,11 @@
 // Origins greybox, the Pit duel's rules glue: which legend the Pit offers next, and what a finished duel pays the ONE career.
 // Pure (no DOM, clock, random or storage): the page passes the time and the fight's id in. The pay itself is the progression model's
-// award() (origins/progression/model.ts): a won duel is an 'arena-win', a legend event keyed opponent@level that pays its first win only.
+// award() (src/core/career-model.ts): a won duel is an 'arena-win', a legend event keyed opponent@level that pays its first win only.
 // The duel is the arena game's own simulation, fought at the career level; this module never sees a tick of it, only how it ended.
 import {
-  fillPermille, legendKey, levelOfCredit, newCareer, nextLegend, requirement, settleAll, cumulative, MAX_LEVEL,
+  fillPermille, legendKey, levelOfCredit, careerAtLevel, nextLegend, requirement, settleAll, cumulative, MAX_LEVEL,
   type Award, type CareerState,
-} from '../progression/model.ts';
+} from '../../src/core/server.ts';
 
 export type Outcome = 'win' | 'loss' | 'draw';
 // The arena's finish (src/fight/duel.ts Finish), by shape: side 1 is the opponent. A draw is never a win.
@@ -15,7 +15,7 @@ export const outcomeOf = (finish: Finished): Outcome | null => (!finish ? null :
 // The preview's session: the career, the server's one-settlement-per-id index (modelled), and how many fights it has started.
 export type PitSession = { career: CareerState; settled: ReadonlySet<string>; fights: number };
 // A character at `level` (the greybox's standing), nothing beaten.
-export const newSession = (level: number): PitSession => ({ career: newCareer(Math.max(0, Math.floor(level) - 1)), settled: new Set(), fights: 0 });
+export const newSession = (level: number): PitSession => ({ career: careerAtLevel(Math.max(1, Math.floor(level))), settled: new Set(), fights: 0 });
 
 // One fight the Pit offers: a legend at the career level. `legend` false = every legend at this level is beaten; the Pit then offers
 // `fallback` again as a re-fight, which pays nothing (the model's 'already-beaten'), so the duel is never locked away in the preview.

@@ -20,7 +20,7 @@ export type AdvanceContext = Omit<ConditionFacts, 'quest' | 'flag'> & {
   member?: boolean;
   at: string; // server time (ISO UTC) stamped on a new journal entry
 };
-// What origins/progression's award() takes as a 'story' event, minus the server's own clock.
+// What src/core/career-model.ts's award() takes as a 'story' event, minus the server's own clock.
 export type StoryEvent = { kind: 'story'; type: 'story-step' | 'story-chapter'; id: string };
 export type Advanced = { journal: Journal; rewards: Stage['rewards'] | null; event: StoryEvent | null };
 

@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as profile from '../src/core/profile.ts';
 import * as cloudProfile from '../src/core/cloud-profile.ts';
-import * as career from '../src/career.ts';
+import * as career from '../src/core/career-ladder.ts';
 import * as loot from '../src/core/loot.ts';
 import { session } from '../src/core/session.ts';
 import { timedSignal } from '../src/timed-signal.ts';

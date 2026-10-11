@@ -5,7 +5,7 @@
 //
 // One shared kit library dressed eight ways is what makes a 60-opponent roster affordable: 8 grades × N pieces costs N meshes, not 8N.
 // Pure data — no three, no loader. The runtime reads `gradeFor(tier, material)` and writes the factors onto the piece's own material.
-import { TITLES, rankFor } from '../career.ts';
+import { TITLES, rankFor } from './career-ladder.ts';
 import type { LootId } from './loot.ts';
 import type { OpponentId } from '../roster.ts';
 

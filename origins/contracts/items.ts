@@ -16,7 +16,7 @@
 import { CAPS, loadoutFor, pointsFor, type Kit, type Loadout, PORTRAIT_KEYS } from '../../src/fight/server.ts';
 import { TIERS, isTier, levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
 import { LOOT_SLOTS, PAPERDOLL, isLootId, paperdollOf, slotOf, type LootId, type LootSlot, type Paperdoll } from '../../src/core/server.ts';
-import { MAX_LEVEL } from '../../src/career.ts';
+import { MAX_LEVEL } from '../../src/core/server.ts';
 import {
   Issues, LOCAL_KEY, MINT_KEY_PATTERN, checkArray, fail, join, ok, readArray, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion, readString, readText,
   readTimestamp, type Issue, type Obj, type Result,

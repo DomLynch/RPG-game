@@ -5,7 +5,7 @@
 import type { ItemInstance, Location } from '../contracts/items.ts';
 import { legacyLootOfItemId } from '../contracts/ids.ts';
 import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../progression/model.ts';
+import { levelOfCredit } from '../../src/core/server.ts';
 import { DbError } from './db.ts';
 import { exchangePlace } from './upgrade.ts';
 import { Refused } from './errors.ts';
