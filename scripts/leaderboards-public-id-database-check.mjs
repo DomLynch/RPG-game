@@ -54,6 +54,17 @@ try {
   ok(as('authenticated', C, `select count(*) from public.leaderboards(1);`) === '2' && as('authenticated', C, `select count(*) from public.leaderboards(-5);`) === '2' && as('authenticated', C, `select count(*) from public.leaderboards(1000);`) === '4', 'the limit is not clamped to 1..50');
   ok(refused('anon', null, `perform * from public.leaderboards()`), 'anon can read the boards');
 
+  // A tie breaks on public_no, not on the uid (D's uid sorts BEFORE B's but D joined after, so D's number is higher).
+  const D = '00000000-0000-4000-8000-000000000004';
+  psql(`insert into auth.users values ('${D}'); insert into public.fighter_profiles (user_id, display_name) values ('${D}', 'Delta');
+    insert into public.duel_ratings (user_id, rating) values ('${D}', 1100);
+    insert into public.fight_results (user_id, kind, opponent_key, opponent_name, opponent_level, result, room) values ('${D}', 'duel', 'k4', 'Alpha', 1, 'win', 'room00006');`);
+  const idD = psql(`select public_no from public.fighter_profiles where user_id = '${D}';`);
+  ok(Number(idD) > Number(idB), `D's number ${idD} is not above B's ${idB}`);
+  const tie = as('authenticated', C, `select board, place, fighter_id, score from public.leaderboards() where score = 1100 or (board = 'duel_wins' and score = 1) order by board, place;`);
+  ok(tie === `duel_rating|1|${idB}|1100\nduel_rating|2|${idD}|1100\nduel_wins|2|${idB}|1\nduel_wins|3|${idD}|1`, `a tie did not break on public_no: ${JSON.stringify(tie)}`);
+  psql(`delete from public.fight_results where user_id = '${D}'; delete from public.duel_ratings where user_id = '${D}'; delete from public.fighter_profiles where user_id = '${D}'; delete from auth.users where id = '${D}';`);
+
   // Stable and never reused; clients cannot choose or change it.
   as('authenticated', A, `update public.fighter_profiles set display_name = 'Renamed';`);
   ok(as('authenticated', C, `select fighter_id from public.leaderboards() where board = 'duel_wins' and place = 1;`) === idA, 'a rename changed the public number');
