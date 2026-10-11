@@ -161,3 +161,7 @@ test('respawn window: a Zone 2 row with respawnSeconds=45 gives 45 000 ms, not t
   assert.equal(rows.get('character:zone2-test'), 45_000);
   assert.equal(rows.get('character:plain') ?? RESPAWN_MS, RESPAWN_MS);
 });
+
+test('respawnMsOf with its default ROW_RESPAWN: the ember wolf (rows in Zones 2 and 3 only) gets its 75 s, so a Zone-1-only map fails', () => {
+  assert.equal(respawnMsOf('character:ember-wolf', content), 75_000);
+});
