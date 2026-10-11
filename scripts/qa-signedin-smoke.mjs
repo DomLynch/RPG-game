@@ -1,5 +1,7 @@
 // MANUAL real signed-in smoke against production (writes: the writer's `open`), run on the VPS by Backend after a release that touches signed-in paths. NOT a CI gate.
 //   sudo node scripts/qa-signedin-smoke.mjs      reads /etc/frankendom/qa-account.env (QA_EMAIL, QA_PASSWORD) and origins-writer.env (SUPABASE_URL, SUPABASE_ANON_KEY, PORT); prints OK/FAIL per step, never a credential or token.
+// The board checks pass vacuously while the QA account has no rating or daily result: the proof that is_test fighters are filtered is 0021's real-PG check (scripts/fighter-is-test-database-check.mjs); here they only catch a leak of a real row.
+// daily_board exposes only display_name, so its check needs the QA fighter's name to be unique.
 // Order is the safety rule: the QA fighter row must already be is_test=true BEFORE `open`, or the client could create it as a normal fighter that reaches the boards.
 import fs from 'node:fs';
 import console from 'node:console';
@@ -19,16 +21,17 @@ const signin = await send(`${base}/auth/v1/token?grant_type=password`, { method:
 step('password sign-in (anon key)', signin.status === 200 && !!signin.json?.access_token, `http ${signin.status}${signin.json?.error_code ? ` ${signin.json.error_code}` : ''}`);
 const token = signin.json.access_token, uid = signin.json.user?.id;
 const auth = { apikey: key, authorization: `Bearer ${token}` };
-const own = async () => (await send(`${base}/rest/v1/fighter_profiles?select=is_test,public_no,display_name&user_id=eq.${uid}`, { headers: auth })).json;
+let ownStatus = 0;
+const own = async () => { const r = await send(`${base}/rest/v1/fighter_profiles?select=is_test,public_no,display_name&user_id=eq.${uid}`, { headers: auth }); ownStatus = r.status; return r.json; };
 
 const before = await own();
-step('profile row is_test=true BEFORE open', Array.isArray(before) && before.length === 1 && before[0].is_test === true, 'row missing or not flagged: Deploy\'s is_test insert has not landed');
+step('profile row is_test=true BEFORE open', Array.isArray(before) && before.length === 1 && before[0].is_test === true, `http ${ownStatus}; row missing or not flagged: Deploy's is_test insert has not landed`);
 
 const open = await send(`http://127.0.0.1:${w.PORT}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}' });
 step('writer open', open.status === 200 && open.json?.ok === true, `http ${open.status}`);
 
 const after = await own();
-step('profile row still is_test=true after open', Array.isArray(after) && after.length === 1 && after[0].is_test === true && after[0].public_no === before[0].public_no);
+step('profile row still is_test=true after open', Array.isArray(after) && after.length === 1 && after[0].is_test === true && after[0].public_no === before[0].public_no, `http ${ownStatus}`);
 const { public_no: no, display_name: name } = after[0];
 
 const lb = await send(`${base}/rest/v1/rpc/leaderboards`, { method: 'POST', headers: { ...auth, 'content-type': 'application/json' }, body: '{"p_limit":50}' });
