@@ -25,7 +25,7 @@ export function putsBetween(before: Inventory, after: Inventory): store.Json[] {
 }
 
 // One piece as the gear screen reads it: the instance, the engine's LootId (null for a non-loot item), where it is. Worn = `slot`, held = grid + index.
-export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number };
+export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number; level: number };
 // A non-gear stack held in the pack or bank (materials, consumables): the smith's inputs and the bank's other rows. Read-only here; bank_move moves it whole.
 export type StockRow = { id: string; item: string; name: string; quantity: number; where: 'pack' | 'bank'; index: number; version: number };
 export function gearView(inv: Inventory, lookup: Lookup): { pieces: GearPiece[]; stock: StockRow[]; worn: Record<string, string>; packSize: number; bankSize: number } {
@@ -34,7 +34,7 @@ export function gearView(inv: Inventory, lookup: Lookup): { pieces: GearPiece[];
     const l = i.location, def = lookup(i.item);
     if (def && def.category !== 'gear' && (l.kind === 'pack' || l.kind === 'bank')) { stock.push({ id: i.id, item: i.item, name: def.name, quantity: i.quantity, where: l.kind, index: l.index, version: i.version }); continue; }
     if (def?.category !== 'gear' || (l.kind !== 'pack' && l.kind !== 'bank' && l.kind !== 'equipped')) continue;
-    pieces.push({ id: i.id, item: i.item, lootId: legacyLootOfItemId(i.item), slot: def.slot, where: l.kind, index: l.kind === 'equipped' ? null : l.index, paperdoll: l.kind === 'equipped' ? l.slot : null, tier: i.tier, version: i.version });
+    pieces.push({ id: i.id, item: i.item, lootId: legacyLootOfItemId(i.item), slot: def.slot, where: l.kind, index: l.kind === 'equipped' ? null : l.index, paperdoll: l.kind === 'equipped' ? l.slot : null, tier: i.tier, version: i.version, level: i.upgradeLevel ?? 0 });
     if (l.kind === 'equipped') worn[l.slot] = i.id;
   }
   return { pieces, stock, worn, packSize: inv.packSize, bankSize: inv.bankSize };

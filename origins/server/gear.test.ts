@@ -80,7 +80,7 @@ test('gear_open lists non-gear stacks as `stock` (name, quantity, where) beside 
   const s = stub([row(1, 'goblin.Helmet', { kind: 'pack', index: 0 }), iron(2, 7, { kind: 'bank', index: 3 })]);
   const out = await ops.gear_open!(ctx(s.db), { character: PC }) as ReturnType<typeof gearView>;
   assert.deepEqual(out.stock.map((r) => [r.item, r.quantity, r.where, r.index]), [['item:grave-iron', 7, 'bank', 3]]);
-  assert.equal(out.pieces.length, 1);
+  assert.equal(out.pieces.length, 1); assert.equal(out.pieces[0]!.level, 0);
 });
 
 test('bank_move: at the Exchange a pack piece and a whole stack go to the bank as ONE put each that changes only the location; the totals are unchanged; withdraw reverses it', async () => {
