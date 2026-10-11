@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-11 ~10:4x (+04) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-11a` + `ruling_vps_unit_trust_v1`
+
+**Live:** BA2 `43a9d43c1` (Core slice 2: #2175 + #2171 + #2172) by my curl. Earlier today: AW (#1984 …), AX `e85f1683f` (Core 1b: #2163/#2165/#2166).
+**Open, in order:** (1) **#2177 @cd95b9f46** (Deploy router PR 2, VPS-trusted unit runs): delta PASS posted; the ONLY open condition is the first live end-to-end `.unitvps` receipt on the PR (a run was in progress on the box at 10:31: `/root/deploy-runs/43a9d43c…-29a07e2e7de3065e`; no `.unitvps` in `~/.claude/state/pre-launch/` at 10:4x). When it lands: check kind `vps-unit-live`, tree == `git rev-parse <sha>^{tree}`, runid present, pinned node, pass > 0, fail 0, then post "condition met". (2) **#2115 @ac5757133** HOLD: Web must make the signed-in fixture's kill deterministic (light-spam loses the duel). (3) Parked to Monday: #2154 #2159 #2161 #2149 #2065.
+**Process (Lead + Strategy, 10-11):** reuse Deploy's unit receipt (HF, or VPS once #2177 lands) as the test:all evidence when COMPLETED + RECEIPT + tree matches; keep my targeted runs (tsc, **typecheck:tests**, typecheck:origins, lint, boundary rows, real-file mutations, Postgres as the `postgres` user on a `git archive` + node_modules).
+**Verdicts today (all on threads):** PASS #1984, #2162, #2114 (my seamless receipts), #2160, #2164, #2163, #2165, #2166, #2168 (AX), #2169 (+delta), #2171, #2172 (final on BA2 receipt 3421/0), #2175; POST PASS migrations 202610100018 (#2167) and 202610110019 (#2172); AX live POST on #2166 (routing only; authenticated live checks impossible without a real account). HOLD #2115.
+
 ## 2026-10-10 ~20:3x (+04) — PAUSE until Sunday morning (Dom's order, weekly quota). READ FIRST, then memory `frankendom_handoff_2026-10-10e` (appended lines = the full evening with every sha)
 
 **Live:** AU a2125a8fd (Core 1a) by my curl; trunk 99e3f10bc (#2157 release-AV candidate) at pause.
