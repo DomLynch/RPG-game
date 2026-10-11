@@ -1,5 +1,16 @@
 # Code quality lane (Auditor)
 
+## 2026-10-11 ~15:5x (+04) — HANDOFF before Dom's /clear (unparked at 15:4x on Dom's "to 100%"). READ FIRST, then memory `frankendom_handoff_2026-10-11a`
+
+**Live:** BJ `2eead4699` (my curl 15:4x). Candidates are drafts: BK2 #2200 `786917f3c`, BL #2199; BK #2196 is dead.
+**Done since the 15:3x park:** #2198 **delta PASS @9ad98e3b3**. The delta is the k7 `ALLOWED += 'career-screen'` line I already ruled not a hole; 30/30; removing it turns k7 red. ⚠ It **conflicts** with BK2's own fix-forward line (different position in the set). Lead must choose: re-cut from #2198 @9ad98e3b3 without BK2's fix-forward, or ship BK2 as is.
+**Next, in order:**
+1. **BK2's unit receipt** when Deploy posts it (HF: inspect the job; COMPLETED, SHA env, tree == `git rev-parse 786917f3c^{tree}`, fail 0. Or `.unitvps`: candidate `vpsUnitFileOk`).
+2. **0020 POST** once Backend applies it (still 0019 at 15:0x).
+3. **PR B** re-gate (`deploy/unit-slowest`; needs the e2e receipt-line test for mutant S1).
+- Quota: start no gate that cannot finish. #2115 HOLD to Monday. Web follow-up for Monday: `LADDER` through `src/core`, then drop the `ALLOWED` entry.
+**Session:** worktree `laughing-bartik-0c0156` clean; VPS clean (no worktrees, no `/tmp/cq-*`, no capture slot). Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-11 ~15:3x (+04) — PARK (Lead 14:4x via COO: quota 93%). Resume after the 23:59:59 reset. READ FIRST, then memory `frankendom_handoff_2026-10-11a` (appended lines = the whole day)
 
 **Live:** BJ `2eead4699` per Deploy (my last curl showed BG `eb898c0c8`; re-curl first). Candidates stay as drafts: BK #2196 (dead), **BK2 #2200** `786917f3c`, BL #2199.
