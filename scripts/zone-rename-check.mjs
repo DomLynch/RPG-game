@@ -68,7 +68,7 @@ async function run(name, { stale }) {
   await page.locator('#career-root .career-pencil').click();
   const field = page.locator('#career-root .career-name-input'); await field.fill('Brand'); await page.screenshot({ path: `${dir}/${name}-2-editing.png` });
   await field.press('Enter');
-  await page.waitForFunction((n) => n === document.querySelector('#career-root .career-name strong')?.textContent, 'Brand'); await page.waitForTimeout(1500);
+  await page.waitForFunction((n) => n === document.querySelector('#career-root .career-name strong')?.textContent, 'Brand'); await page.waitForTimeout(1500); await page.mouse.move(5, 5);   // the game's `dialog button:hover` is white: the pointer must not sit on the pencil in the still
   await page.screenshot({ path: `${dir}/${name}-3-saved.png` });
   const last = patches.at(-1);
   assert.equal(last.body.display_name, 'Brand', `${name}: the PATCH carries the new name`);
