@@ -86,6 +86,7 @@ try {
   // 3. cut it down; the kill is reported on that engage's token
   let down = false;
   for (let t = 0; t < 120 && !down; t++) {
+    await near();   // the foe roams: stand in reach each cut (the seamless STRIKE loop does the same), or the run never reaches its kill (Auditor HOLD @ac5757133)
     await page.evaluate(() => window.originsPreview.press('light'));
     for (let k = 0; k < 12 && !down; k++) { down = await page.evaluate((i) => window.originsPreview.combat().fighters.find((f) => f.id === i)?.phase === 'dead', target.id); if (!down) await page.waitForTimeout(100); }
   }
