@@ -67,6 +67,8 @@ export async function writeFighter(db: SupabaseClient, userId: string, profile: 
   const query = revision === null ? table.insert({ user_id: userId, ...details })
     : table.update(details).eq('user_id', userId).eq('revision', revision);
   const { data, error } = await query.select(columns).maybeSingle();
+  // No row at that revision is a conflict, whichever way the client says it: null data, or PostgREST's 406 / PGRST116 "0 rows" error (supabase-js turns an update's miss into null only for a read).
+  if (error?.code === 'PGRST116') throw Error('Save changed on another device');
   if (error) throw error;
   if (!data) throw Error('Save changed on another device');
   return cloudProfile(data);
