@@ -71,3 +71,43 @@ test('a stale read (the piece moved under us) aborts with the database\'s O0002;
   const { inventory } = await openHoldingsWith(stub([row(1, 'goblin.Helmet', { kind: 'pack', index: 0 })]).db, UID, PC, content);
   assert.deepEqual(putsBetween(inventory, inventory), []);
 });
+
+const AT_EXCHANGE = async () => ({ online: true, placed: true, zone: 'exchange', ageMs: 100 } as never), AWAY = async () => ({ online: true, placed: true, zone: 'zone1', ageMs: 100 } as never);
+const iron = (n: number, qty: number, loc: Record<string, unknown>) => ({ ...row(n, 'goblin.Helmet', loc), id: `inst:t-${n}`, item: 'item:grave-iron', quantity: qty, tier: null, mint_key: `mob:${n}0000`, provenance: { kind: 'loot', at: '2026-10-06T12:00:00Z', wonBy: PC, table: 'loottable:scavenger', encounter: null } });
+const totals = (rows: { item: string; quantity: number }[]) => JSON.stringify(rows.reduce<Record<string, number>>((t, r) => ({ ...t, [r.item]: (t[r.item] ?? 0) + r.quantity }), {}));
+
+test('gear_open lists non-gear stacks as `stock` (name, quantity, where) beside the pieces', async () => {
+  const s = stub([row(1, 'goblin.Helmet', { kind: 'pack', index: 0 }), iron(2, 7, { kind: 'bank', index: 3 })]);
+  const out = await ops.gear_open!(ctx(s.db), { character: PC }) as ReturnType<typeof gearView>;
+  assert.deepEqual(out.stock.map((r) => [r.item, r.quantity, r.where, r.index]), [['item:grave-iron', 7, 'bank', 3]]);
+  assert.equal(out.pieces.length, 1);
+});
+
+test('bank_move: at the Exchange a pack piece and a whole stack go to the bank as ONE put each that changes only the location; the totals are unchanged; withdraw reverses it', async () => {
+  const items = [row(1, 'goblin.Helmet', { kind: 'pack', index: 0 }), iron(2, 7, { kind: 'pack', index: 1 })];
+  const at = gearHandlers(content).bank_move!;
+  for (const id of ['inst:t-1', 'inst:t-2']) {
+    const s = stub(items);
+    const out = await at({ ...ctx(s.db), where: AT_EXCHANGE }, { character: PC, id, to: 'bank', index: 5, quantity: 1, item: 'x' }) as ReturnType<typeof gearView>;
+    const put = s.commits[0]![0]! as { op: string; id: string; expected_version: number; loc: { kind: string; index: number } };
+    assert.deepEqual([s.commits.length, s.commits[0]!.length, put.op, put.id, put.expected_version, put.loc.kind, put.loc.index], [1, 1, 'put', id, 2, 'bank', 5]);
+    assert.equal(Object.keys(put).sort().join(), 'bound_to,expected_version,history_append,id,loc,op,upgrade_level');
+    const held = [...out.pieces.map((p) => ({ item: p.item, quantity: 1 })), ...out.stock.map((r) => ({ item: r.item, quantity: r.quantity }))];
+    assert.equal(totals(held), totals([{ item: 'item:loot.goblin.Helmet', quantity: 1 }, { item: 'item:grave-iron', quantity: 7 }]));
+  }
+  const s = stub([iron(2, 7, { kind: 'bank', index: 2 })]);
+  const back = await at({ ...ctx(s.db), where: AT_EXCHANGE }, { character: PC, id: 'inst:t-2', to: 'pack' }) as ReturnType<typeof gearView>;
+  assert.deepEqual(back.stock.map((r) => [r.where, r.quantity]), [['pack', 7]]);
+});
+
+test('bank_move refuses away from the Exchange, with no presence, a bad direction, a wrong source grid and an unknown piece; nothing is committed', async () => {
+  const s = stub([row(1, 'goblin.Helmet', { kind: 'pack', index: 0 }), row(3, 'goblin.Boots', { kind: 'bank', index: 0 })]);
+  const op = gearHandlers(content).bank_move!, rejected = (w: typeof AWAY | undefined, b: Record<string, unknown>) => assert.rejects(async () => op({ ...ctx(s.db), where: w }, { character: PC, ...b }));
+  await rejected(AWAY, { id: 'inst:t-1', to: 'bank' });
+  await rejected(undefined, { id: 'inst:t-1', to: 'bank' });
+  await rejected(AT_EXCHANGE, { id: 'inst:t-1', to: 'sideways' });
+  await rejected(AT_EXCHANGE, { id: 'inst:t-1', to: 'pack' });
+  await rejected(AT_EXCHANGE, { id: 'inst:t-3', to: 'bank' });
+  await rejected(AT_EXCHANGE, { id: 'inst:nope', to: 'bank' });
+  assert.deepEqual(s.commits, []);
+});
