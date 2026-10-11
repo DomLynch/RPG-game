@@ -14,6 +14,7 @@ import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts'
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../luck/luck.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
+import { styleOf, fleePercent } from '../mobs/styles.ts';
 import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { TIERS, type Tier } from '../../src/core/server.ts';
 
@@ -104,6 +105,9 @@ export function fightSetup(id: unknown, content: EncounterContent, opts: SetupOp
   const flags = [...base, ...overlay];
   const combatFlags = flags.filter((f) => COMBAT_KINDS.includes(f.kind)).map(toCombatFlag);
   const boss = foes[foes.length - 1]!;
+  // An open-world creature whose style flees (MOB_STYLE.beast) carries that flee as an ordinary flee-at flag, no catch window; an explicit flee-at (overlay) wins, and every other fight is unchanged.
+  const style = scope === 'open-world' ? styleOf(boss.body) : undefined, percent = style && fleePercent(style);
+  if (percent !== undefined && !combatFlags.some((f) => f.kind === 'flee-at')) combatFlags.push({ kind: 'flee-at', percent });
   const bar = combatFlags.some((f) => f.kind === 'one-health-bar') ? oneBarHealth(combatFlags, foes.map((f) => f.health)) : boss.health;
   return ok({ fight: id as FightId, kind: 'world-mob', scope, foes, opponent: { ...boss, health: bar }, bar, flags, combatFlags, seedKey: `origins:${id}` });
 }

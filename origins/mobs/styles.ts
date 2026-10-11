@@ -8,7 +8,7 @@ export type MobStyle = (typeof MOB_STYLES)[number];
 
 export type MobStyleRow = {
   opponent: OpponentId;   // whose AI rows and weapon table the mob fights with
-  fleeBelow?: number;     // world behaviour: below this share of max health the mob leaves the fight and walks off (the zone's, never a duel rule); absent = fights to the death
+  fleeBelow?: number;     // world behaviour: at or below this share of max health the mob leaves the fight and walks off (the zone's, never a duel rule); absent = fights to the death
 };
 
 export const MOB_STYLE: Readonly<Record<MobStyle, MobStyleRow>> = {
@@ -24,8 +24,11 @@ export const styleOpponent = (style: string): OpponentId | undefined => (MOB_STY
 // The style a roster body fights as (the first style that points at it), for an encounter that names a body and no style yet.
 export const styleOf = (opponent: string): MobStyle | undefined => MOB_STYLES.find(s => MOB_STYLE[s].opponent === opponent);
 
-// True when a mob of this style, at `health` of `maxHealth`, has had enough. Strictly below the threshold, so a mob at exactly 30% still fights.
+// The flee-at percent a style carries (a whole percent, the twist flag's own unit), or undefined when it fights to the end.
+export const fleePercent = (style: MobStyle): number | undefined => { const below = MOB_STYLE[style].fleeBelow; return below === undefined ? undefined : Math.round(below * 100); };
+
+// True when a mob of this style, at `health` of `maxHealth`, has had enough: at or below the threshold, the same boundary as the flee-at twist (src/fight/twist.ts flees when health% <= percent).
 export const fleesNow = (style: MobStyle, health: number, maxHealth: number): boolean => {
-  const below = MOB_STYLE[style].fleeBelow;
-  return below !== undefined && maxHealth > 0 && health > 0 && health / maxHealth < below;
+  const percent = fleePercent(style);
+  return percent !== undefined && maxHealth > 0 && health > 0 && health / maxHealth * 100 <= percent;
 };
