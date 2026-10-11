@@ -15,7 +15,7 @@ test('env-readback: a key-shaped value is never printed (named or listed), flags
   try {
     const key = randomBytes(32).toString('hex'), other = randomBytes(32).toString('hex');
     const a = join(dir, 'a.env'), b = join(dir, 'b.env');
-    writeFileSync(a, `ORIGINS_WRITER_INTERNAL_KEY=${key}\nORIGINS_REWARDS=1\nPORT=8788\nSUPABASE_ANON_KEY=eyJ.${other}\nWORD=abc\n`);
+    writeFileSync(a, `ORIGINS_WRITER_INTERNAL_KEY=${key}\nORIGINS_REWARDS=1\nPORT=8788\nSUPABASE_ANON_KEY=eyJ.${other}\nWORD=plainword\n`);
     writeFileSync(b, `ORIGINS_WRITER_INTERNAL_KEY=${key}\n`);
     for (const out of [run(a, 'ORIGINS_WRITER_INTERNAL_KEY', 'ORIGINS_REWARDS', 'PORT', 'SUPABASE_ANON_KEY', 'MISSING'), run(a)]) {
       assert.equal(out.status, 0, out.stderr);
@@ -23,7 +23,7 @@ test('env-readback: a key-shaped value is never printed (named or listed), flags
       assert.match(out.stdout, /^ORIGINS_WRITER_INTERNAL_KEY present=y len=64 sha8=[0-9a-f]{8}$/m);
       assert.match(out.stdout, /^ORIGINS_REWARDS present=y value=1$/m);
       assert.match(out.stdout, /^PORT present=y value=8788$/m);
-      assert.doesNotMatch(out.stdout, /abc/, 'a word value is hashed too');
+      assert.doesNotMatch(out.stdout, /plainword/, 'a word value is hashed too');
     }
     assert.match(run(a, 'MISSING').stdout, /^MISSING present=n$/m);
     const sha = (f: string) => /sha8=([0-9a-f]{8})/.exec(run(f, 'ORIGINS_WRITER_INTERNAL_KEY').stdout)?.[1];
