@@ -1,4 +1,4 @@
-// The Career tab (core slice 2, src/career-screen.ts) in the Pit's journal, GUEST (the signed-in read is the stubbed-RPC unit test, tests/career-client.test.ts): ten title rows of five rungs, the rung the seeded
+// The Career tab (core slice 2, src/core/career-screen.ts) in the Pit's journal, GUEST (the signed-in read is the stubbed-RPC unit test, tests/career-client.test.ts): ten title rows of five rungs, the rung the seeded
 // 7 marks give lit (Legionary III), the sign-in note where the account's scorecard would be, nothing scrolls sideways, every tab target >= 44 px, and no two visible controls overlap, at 375x812, 812x375 (landscape) and 1024x768.
 // Stills: artifacts/career-screen/. Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own (software) GL, for the VPS.
 import { chromium } from 'playwright';

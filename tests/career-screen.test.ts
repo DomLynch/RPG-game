@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { boardViews, ladderView, recordLine, recordView, scoreLines } from '../src/career-screen.ts';
+import { boardViews, ladderView, recordLine, recordView, renameDevice, scoreLines } from '../src/core/career-screen.ts';
 
 test('the ladder is ten titles of five rungs, with the rank\'s rung marked and every lower rung done', () => {
   const view = ladderView(0);
@@ -40,4 +40,13 @@ test('the profile record is the account\'s totals (with draws) when its scorecar
   assert.deepEqual(device, { fights: 4, wins: 1, losses: 3, draws: null, source: 'device' });
   assert.equal(recordLine(device), '4 fights · 1 wins · 3 losses', 'the device keeps no draw count: none is claimed');
   assert.deepEqual(recordView([], { fights: 4, wins: 1, losses: 3 }), { fights: 0, wins: 0, losses: 0, draws: 0, source: 'account' }, 'a signed-in fighter with no fights yet has an empty account record, not the device\'s');
+});
+
+test('a guest\'s pencil keeps the cleaned name in the device profile (24 characters, blank becomes Wanderer, the id is kept)', () => {
+  const data = new Map<string, string>(), storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+  assert.equal(renameDevice(storage, '  Ada  ', () => 'id-1'), 'Ada');
+  assert.equal(renameDevice(storage, 'x'.repeat(40), () => 'id-2').length, 24);
+  assert.equal(renameDevice(storage, '   ', () => 'id-3'), 'Wanderer');
+  const saved = JSON.parse([...data.values()][0]!);
+  assert.equal(saved.id, 'id-1');
 });
