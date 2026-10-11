@@ -39,3 +39,17 @@ test('deploy.sh sources the helper and keeps the notes-only branch after CI trus
   assert.match(d, /source scripts\/lib\/deploy-notes-only\.sh/);
   assert.ok(d.indexOf('notes-only release') > d.indexOf('CI quality + browser') && d.indexOf('notes-only release') < d.indexOf('unit suite trusted'));
 });
+
+// The skip is only safe while nothing the suite or a generated file depends on reads docs/state/ (Lead 2026-10-11). A new reader must go on the list below
+// WITH a reason, or move its data out of docs/state/. Comments and path-string fixtures are not readers; a read call or a shell read on the path is.
+const READERS_ALLOWED: Record<string, string> = {
+  'scripts/handover-lanes.sh': 'manual generator of docs/HANDOVER-GPT-lanes.md: no test or build reads its output',
+};
+test('no test, script, src or origins file reads docs/state/ (a docs/state-only diff cannot change any test result)', () => {
+  const files = sh(process.cwd(), "git ls-files tests scripts src origins | grep -E '\\.(ts|mjs|js|sh|py)$'").stdout.split('\n').filter(Boolean);
+  const read = /(readFile|readdir|existsSync|statSync|openSync|createReadStream|glob|ls-tree|git show|cat |open\(|Path\()/;
+  const hits = files.filter((f) => f !== 'tests/deploy-notes-only.test.ts' && !(f in READERS_ALLOWED) && !f.startsWith('scripts/lib/deploy-notes-only'))
+    .filter((f) => sh(process.cwd(), `grep -n 'docs/state' '${f}'`).stdout.split('\n').some((l) => { const code = l.replace(/^\d+:/, '').replace(/\/\/.*$|#.*$/, ''); return code.includes('docs/state') && read.test(code); }));
+  assert.deepEqual(hits, [], `these files read docs/state/: ${hits.join(', ')}`);
+  for (const f of Object.keys(READERS_ALLOWED)) assert.ok(sh(process.cwd(), `test -f ${f}`).status === 0, `${f} is gone: drop it from the list`);
+});
