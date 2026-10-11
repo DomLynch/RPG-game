@@ -62,3 +62,27 @@ test('the runner records the slowest test files from the TAP log (receipt field 
   assert.ok(got.every(([n]) => /^tests\/[a-z0-9]+\.test\.ts$/.test(n)), 'names are repo-relative');
   assert.match(script, /"slowest":%s/);
 });
+
+// The runner's REAL tail (from `slowest=$(awk` to before `exit`) run in bash on a fake unit.log + load.log, its stdout through parseReceipt (Auditor S1: dropping the "$slowest" argument
+// printed `"slowest":}`, which parseReceipt refuses, so every VPS unit run would spill to HF).
+const runTail = (mutate: (tail: string) => string = t => t) => {
+  const sha = 'a'.repeat(40), tree = 'b'.repeat(40), nonce = 'c'.repeat(32);
+  const script = buildRunner({ sha, tree, nonce, runid: 'd'.repeat(16) }), lines = script.split('\n');
+  const from = lines.findIndex(l => l.startsWith('slowest=$(awk')), to = lines.findIndex((l, i) => i > from && l.startsWith('exit "$rc"'));
+  const tail = mutate(lines.slice(from, to).join('\n'));
+  const dir = mkdtempSync(join(tmpdir(), 'tail-'));
+  const file = (name: string, ms: number) => `ok 1 - /root/deploy-runs/x/src/tests/${name}.test.ts\n  ---\n  duration_ms: ${ms}\n  ...\n`;
+  writeFileSync(join(dir, 'unit.log'), file('a', 1200) + file('b', 4500) + '# pass 3447\n# fail 0\n');
+  writeFileSync(join(dir, 'load.log'), '1.5\n2.5\n');
+  const r = spawnSync('bash', ['-c', `RUN='${dir}'; NONCE=${nonce}; BOXTREE=${tree}; t0=$(date +%s); rc=0; maxload=2.5\n${tail}`], { encoding: 'utf8' });
+  return { r, parsed: parseReceipt({ stdout: r.stdout, status: r.status ?? 1, nonce, sha, tree }) };
+};
+test('the runner tail prints a receipt parseReceipt accepts, with max_load1 and the slowest files, slowest first', () => {
+  const { r, parsed } = runTail();
+  assert.equal(parsed.ok, true, `${parsed.reason} | ${r.stdout} | ${r.stderr}`);
+  assert.equal(parsed.receipt.max_load1, 2.5); assert.deepEqual(parsed.receipt.slowest, [['tests/b.test.ts', 4.5], ['tests/a.test.ts', 1.2]]);
+});
+test('the runner tail goes red when the slowest argument is dropped from the receipt printf (the receipt would be invalid JSON)', () => {
+  const { parsed } = runTail(t => t.replace(' "${slowest:-[]}"', ''));
+  assert.equal(parsed.ok, false, 'a receipt without the slowest argument must not parse');
+});
