@@ -70,8 +70,9 @@ export function zoneProblems(z: Zone): string[] {
 }
 
 export const zoneIds = (): string[] => Object.keys(PACKAGES);
-/** The zone a page or request names none of (every old link): the lowest-numbered row. The one place a zone id is a value, not a name; callers read this and never write `'1'`. */
-export const DEFAULT_ZONE: string = zoneIds()[0]!;
+/** The zone a page or request names none of (every old link) and the one whose instance ids stay bare: Zone 1, PINNED. The live database keys are bare for Zone 1 specifically, not for "the lowest row" (the keys were written before there were rows), so this is not derived from the registry; a registry without Zone 1 throws at load. The one place a zone id is a value, not a name; callers read this and never write `'1'`. */
+export const DEFAULT_ZONE = '1';
+if (!zoneIds().includes(DEFAULT_ZONE)) throw new Error(`the zone registry has no zone ${DEFAULT_ZONE}: its live keys are bare`);
 /** The prefix of a creature's instance id in this zone: the default zone's ids stay bare (the live rows), every other zone's are `z<id>:` (the server keys a creature by its id alone). */
 export const zoneKeyPrefix = (id: string): string => id === DEFAULT_ZONE ? '' : `z${id}:`;
 export const zoneNames = (): Record<string, string> => Object.assign({}, ...zoneIds().map((id) => loadZone(id).names));   // every zone's world-zone display names, merged
