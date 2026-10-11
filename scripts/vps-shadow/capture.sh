@@ -50,7 +50,11 @@ max_load="${CAPTURE_MAX_LOAD:-12}"; loadavg="${CAPTURE_LOADAVG:-/proc/loadavg}";
 to_caller=0   # --spill-to-caller: the caller (scripts/capture-mac.sh) runs a spill on HF; set only by that wrapper
 spill_log="$home/capture.spill.log"
 load5() { awk '{ print $2 }' "$loadavg"; }
-load_ok() { awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; }
+# A release run owns the box (Deploy 2026-10-11): while a release marker exists under CAPTURE_RUNS_DIR (younger than 90 min, so a crashed release cannot hold it forever) no lane
+# job takes a slot, and a tagged job spills exactly as it does under load. blender-cpu runs through this script, so it is covered too.
+runs_dir="${CAPTURE_RUNS_DIR:-/run/frankendom-release}"   # one marker file per release run (scripts/lib/vps-unit.mjs runnerHead); /root/deploy-runs is root-only
+release_running() { [[ -n "$(find "$runs_dir" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | head -n 1)" ]]; }
+load_ok() { ! release_running && awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; }
 slot_lock() { [[ $1 -eq 1 ]] && echo "$lock" || echo "$lock.$1"; }
 slot_holder() { [[ $1 -eq 1 ]] && echo "$holder" || echo "$holder.$1"; }
 
