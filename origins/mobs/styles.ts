@@ -24,6 +24,9 @@ export const styleOpponent = (style: string): OpponentId | undefined => (MOB_STY
 // The style a roster body fights as (the first style that points at it), for an encounter that names a body and no style yet.
 export const styleOf = (opponent: string): MobStyle | undefined => MOB_STYLES.find(s => MOB_STYLE[s].opponent === opponent);
 
+// The switch for the style flee in fightSetup. OFF until World's wounded/catch window ships (mobs.md 5.11): with it on, a fleeing creature pays no kill, CP or loot. Turn it on in the same release as that window, writer reinstalled with the client.
+export const STYLE_FLEE_LIVE = false;
+
 // The flee-at percent a style carries (a whole percent, the twist flag's own unit), or undefined when it fights to the end.
 export const fleePercent = (style: MobStyle): number | undefined => { const below = MOB_STYLE[style].fleeBelow; return below === undefined ? undefined : Math.round(below * 100); };
 

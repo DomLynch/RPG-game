@@ -9,7 +9,7 @@ import { openInventory, type Inventory } from '../inventory/inventory.ts';
 import { LUCK_OFF, type FightKind } from '../luck/luck.ts';
 import { BOUNTIES, ENCOUNTERS } from '../region1/content.ts';
 import { FRONTIER_REGION } from '../region1/world.ts';
-import { fleePercent, styleOf } from '../mobs/styles.ts';
+import { STYLE_FLEE_LIVE } from '../mobs/styles.ts';
 import {
   REGION1_LOOT_TIER, fightHit, fightSeed, fightSetup, intoBackpack, loadEncounterContent, lookupOf, oneBarHealth, resolveFight, rollLoot,
   tierOfLootTier, worldMobHit, type FightReport, type FightResolution, type RolledLoot,
@@ -44,20 +44,19 @@ test('every Region 1 encounter and open-world creature sets up from the data, as
   assert.deepEqual([mother.scope, mother.foes[0]!.character, mother.bar], ['public', 'character:mere-brood', 4_000], 'the content boss health (PROVISIONAL), one brood guardian first');
 });
 
-test("a style's flee becomes a flee-at flag for open-world creatures only; every other fight's flags are unchanged", () => {
-  const gained: string[] = [], plain: string[] = [];
-  for (const id of [...content.region.registry.encounters.keys(), ...Object.keys(content.local.creatureLoot)]) {
-    const s = value(fightSetup(id, content)), base = s.flags.filter((f) => f.kind === 'flee-at' || f.kind === 'one-health-bar').length;
-    const styleFlee = s.scope === 'open-world' && styleOf(s.opponent.body) !== undefined && fleePercent(styleOf(s.opponent.body)!) !== undefined && !s.combatFlags.some((f) => f.kind === 'flee-at' && 'catchSeconds' in f);
-    if (styleFlee && s.combatFlags.length === base + 1) gained.push(id);
-    else { assert.equal(s.combatFlags.length, base, `${id}: no style flee, so its flags are exactly the content's`); plain.push(id); }
-  }
-  assert.ok(plain.length > 0 && gained.every((id) => value(fightSetup(id, content)).scope === 'open-world'));
-  for (const id of gained) assert.deepEqual(value(fightSetup(id, content)).combatFlags, [{ kind: 'flee-at', percent: 30 }], id);
-  assert.deepEqual(value(fightSetup('encounter:bounty-peg-powler', content)).combatFlags, [{ kind: 'flee-at', percent: 30, catchSeconds: 15 }], 'a content flee keeps its catch window');
-  assert.deepEqual(value(fightSetup('encounter:mere-mother', content)).combatFlags, [], 'a boss does not flee by style');
-  for (const id of gained) assert.equal(value(resolveFight({ fight: id, result: 'won', twistOutcome: 'fled' }, content)).kill, false, `${id}: a fled creature is no kill`);
-  console.log('style flee gained by:', gained.join(', ') || '(none)');
+test("a style's flee is off by default, and when on becomes a flee-at flag for the four open-world goblin forms only", () => {
+  assert.equal(STYLE_FLEE_LIVE, false, 'turn it on in the release that ships World\'s wounded window');
+  const ids = [...content.region.registry.encounters.keys(), ...Object.keys(content.local.creatureLoot)];
+  const flags = (id: string, on?: boolean) => value(fightSetup(id, content, { styleFlee: on })).combatFlags;
+  const gained = ids.filter((id) => JSON.stringify(flags(id, true)) !== JSON.stringify(flags(id, false)));
+  for (const id of ids) assert.deepEqual(flags(id), flags(id, false), `${id}: off by default`);
+  assert.deepEqual(gained.sort(), ['character:cinder-scavenger', 'character:mere-brood', 'character:pit-goblin', 'character:ruin-ghoul']);
+  for (const id of gained) { assert.deepEqual(flags(id, false), [], id); assert.deepEqual(flags(id, true), [{ kind: 'flee-at', percent: 30 }], id); }
+  assert.deepEqual(flags('encounter:bounty-peg-powler', true), [{ kind: 'flee-at', percent: 30, catchSeconds: 15 }], 'a content flee keeps its catch window');
+  assert.deepEqual(flags('encounter:mere-mother', true), [], 'a boss does not flee by style');
+  const own = value(fightSetup('character:pit-goblin', content, { styleFlee: true, overlay: [{ kind: 'flee-at', percent: 50 }] })).combatFlags;
+  assert.deepEqual(own, [{ kind: 'flee-at', percent: 50 }], 'an explicit flee-at wins over the style');
+  refused(resolveFight({ fight: 'character:pit-goblin', result: 'won', twistOutcome: 'fled' }, content), 'rule-violation', 'twistOutcome');   // off: the writer still refuses a flee here
 });
 
 test('an unknown or malformed id is a typed error, never a throw', () => {
