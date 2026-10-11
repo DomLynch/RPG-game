@@ -320,7 +320,7 @@ function frame(now: number) {
   frameId = requestAnimationFrame(frame);
 }
 
-// An encounter's twist state (src/fight/twist.ts): read by encounter-duel.ts when the fight ends.
+// An encounter's twist state (src/fight/twist.ts): read by the fight entry when the fight ends.
 export const duelTwist = (): Twist => twist;
 
 // For the test hook: what the duel is doing now.

@@ -39,7 +39,6 @@ import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } 
 import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createMeters, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
-import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
@@ -85,9 +84,6 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') !== '0';
-const ONLINE = onlineWanted(location.search);   // ?online=1: a creature fight is played on the server's seed and settled with its record (encounter-online.ts); anything else is the offline path
-const HELD_KEY = 'frankendom:encounter-token';   // the open server fight's token, so a reload or a second try inside its 120 s grace resumes it (a 409 on start names no token)
-const HELD = { get: (): HeldFight | null => { try { const v = JSON.parse(sessionStorage.getItem(HELD_KEY) ?? 'null') as Partial<HeldFight> | null; return v && typeof v.token === 'string' ? { token: v.token, played: v.played === true } : null; } catch { return null; } }, set: (f: HeldFight | null) => { try { if (f) sessionStorage.setItem(HELD_KEY, JSON.stringify(f)); else sessionStorage.removeItem(HELD_KEY); } catch { /* private mode: no resume, offline as before */ } } };
 const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier);
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
@@ -440,7 +436,7 @@ const saveNote = document.getElementById('save')!, allegianceButton = document.g
 // The graduation picker (allegiance.ts): only on the SAVED career at Gladiator or above; the choice lives in the preview's own save.
 let storage: Storage | null = null;
 try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
-let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null, online: Online | null = null;
+let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
@@ -506,7 +502,7 @@ const zoneExit = () => exitFace(loadZone().name);   // the host's words for the 
 function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
-  fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
+  fighting = false; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   lateOpen.settle();   // a saved career that arrived during the fight is adopted now (late-open.ts)
   if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, zoneExit()); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
@@ -514,7 +510,7 @@ function leaveFight() {
 }
 if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
 // ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
-// is Combat's (encounter-duel.ts). A win clears the creature for a while; the server's kill_report pays (kill-apply.ts) and the page holds no loot.
+// is Combat's (pit-duel.ts). A win clears the creature for a while; the server's kill_report pays (kill-apply.ts) and the page holds no loot.
 const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const itemName = itemNamer();
