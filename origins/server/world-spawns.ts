@@ -11,7 +11,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
-import { loadZone, zoneIds } from '../zones/loader.ts';
+import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix } from '../zones/loader.ts';
 import { OPPONENTS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
 import { ROLL_BAND } from '../../src/fight/roll.ts';
 import { DbError } from './db.ts';
@@ -44,7 +44,7 @@ export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: numbe
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
 export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number };
-// One zone's spawns, priced from THAT zone's own rows (origins/zones/<id>/spawns.ts) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
+// One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
   for (const spec of mobSpecs(f, frontierBuild(f), loadZone(zoneId).spawns.rows)) {
@@ -54,22 +54,22 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
   }
   return out;
 }
-export const zone1Spawns = (content: EncounterContent): Map<string, Spawn> => zoneSpawns(content, '1');
+export const defaultZoneSpawns = (content: EncounterContent): Map<string, Spawn> => zoneSpawns(content, DEFAULT_ZONE);
 // The database's spawn key is the spec id as it is: Zone 1 ids are the live rows, Zone N >= 2 ids already carry `z<N>:` (migration 202610090016's rule), so two zones never share a creature's life.
 // A zone id is its folder number: one or more digits, no leading zero, no ceiling (migration 202610090017's rule). A key that starts like a zone (`z` and a digit) but does not parse is NOT Zone 1: null,
 // and the caller refuses it, so a malformed zone key is never stored or priced as Zone 1.
-export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z([1-9][0-9]*):/.exec(key)?.[1] ?? null : '1';
+export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /^z([1-9][0-9]*):/.exec(key)?.[1] ?? null : DEFAULT_ZONE;
 
-// The rule the database column and the writer both read, checked on every registered zone (origins/zones/zone<N>/): ids are numbers without a leading zero, Zone 1 keys are bare, Zone N keys carry
-// `z<N>:`, every key fits the table's key check, and no key is in two zones. The writer refuses to start on a problem (scripts/origins-writer.mjs), so a bad new zone folder fails at install.
+// The rule the database column and the writer both read, checked on every registered zone (origins/zone-rows/): ids are numbers without a leading zero, Zone 1 keys are bare, Zone N keys carry
+// `z<N>:`, every key fits the table's key check, and no key is in two zones. The writer refuses to start on a problem (scripts/origins-writer.mjs), so a bad new zone row fails at install.
 export function zoneKeyProblems(): string[] {
   const problems: string[] = [], seen = new Map<string, string>();
   for (const id of zoneIds()) {
     if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
-    const f = frontierPlan(false, id);
+    const f = frontierPlan(false, id), prefix = zoneKeyPrefix(id);
     for (const spec of mobSpecs(f, frontierBuild(f), loadZone(id).spawns.rows)) {
       if (zoneOfKey(spec.id) !== id) problems.push(`${spec.id} reads as zone ${zoneOfKey(spec.id)}, not ${id}`);
-      else if (id === '1' ? /^z[0-9]/.test(spec.id) : !spec.id.startsWith(`z${id}:`)) problems.push(`${spec.id}: ${id === '1' ? 'a Zone 1 key must be bare' : `a Zone ${id} key must start z${id}:`}`);
+      else if (prefix === '' ? /^z[0-9]/.test(spec.id) : !spec.id.startsWith(prefix)) problems.push(`${spec.id}: ${prefix === '' ? `a Zone ${id} key must be bare` : `a Zone ${id} key must start ${prefix}`}`);
       if (!/^[a-z0-9._:-]{1,96}$/.test(spec.id)) problems.push(`${spec.id} does not fit the table's key check`);
       if (seen.has(spec.id)) problems.push(`${spec.id} is in zone ${seen.get(spec.id)} and zone ${id}`);
       seen.set(spec.id, id);
@@ -102,9 +102,9 @@ export type SpawnDeps = { content: EncounterContent; spawns?: Map<string, Spawn>
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
-  const { content } = deps, lookup = lookupOf(content), zones = new Map<string, Map<string, Spawn>>(deps.spawns ? [['1', deps.spawns]] : []);
+  const { content } = deps, lookup = lookupOf(content), zones = new Map<string, Map<string, Spawn>>(deps.spawns ? [[DEFAULT_ZONE, deps.spawns]] : []);
   // zoneId in a body: one of the loader's zones (Zone 1 when absent); each zone's list is built on first use and kept.
-  const zoneOf = (v: unknown): string => { if (v === undefined) return '1'; if (typeof v !== 'string' || !zoneIds().includes(v)) throw new BadRequest('zoneId: a zone id'); return v; };
+  const zoneOf = (v: unknown): string => { if (v === undefined) return DEFAULT_ZONE; if (typeof v !== 'string' || !zoneIds().includes(v)) throw new BadRequest('zoneId: a zone id'); return v; };
   const spawnsOf = (zoneId: string): Map<string, Spawn> => { let z = zones.get(zoneId) ?? (deps.zones?.[zoneId]); if (!z) z = zoneSpawns(content, zoneId); zones.set(zoneId, z); return z; };
   const seed = deps.seed ?? (() => randomInt(1, 2 ** 31)), now = deps.now ?? (() => new Date()), log = deps.log ?? console.log;
 

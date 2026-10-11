@@ -8,8 +8,8 @@
 import { SPEEDS } from '../../src/fight/server.ts';
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
 import { campCount, type MobRow } from '../mobs/row.ts';
-import { loadZone } from '../zones/loader.ts';
-const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zones/zone1/spawns.ts), through the loader
+import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
+const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
@@ -21,7 +21,7 @@ export type MobSpec = {
 export type Mode = 'idle' | 'wander' | 'aggro';
 export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
-// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zones/zone1/spawns.ts. Named creatures keep these:
+// The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zone-rows/zone1.row.json (spawns). Named creatures keep these:
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
@@ -58,12 +58,12 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const mobStand = (b: Build, zone: ZonePlan) => (x: number, z: number): boolean =>
   inZone(zone, x, z, TUNING.edge) && !b.solids.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + TUNING.clear);
 
-// The Ash Wolf is a live row (zones/zone1/spawns.ts); `?wolf` is accepted and does nothing. `?lone` (a test flag, e.g. /zone/2/?lone) makes every camp one creature (campSize [1, 1]) for a guest or offline load ONLY: a signed-in player is paid per kill by the server, so the flag is ignored for them.
+// The Ash Wolf is a live row (zone-rows/zone1.row.json); `?wolf` is accepted and does nothing. `?lone` (a test flag, e.g. /zone/2/?lone) makes every camp one creature (campSize [1, 1]) for a guest or offline load ONLY: a signed-in player is paid per kill by the server, so the flag is ignored for them.
 const LONE_ROWS: readonly MobRow[] = FRONTIER_ROWS.map((r) => ({ ...r, behaviour: { ...r.behaviour, campSize: [1, 1] as const } }));
 export const previewRows = (search: string, signedIn: boolean): readonly MobRow[] => !signedIn && /[?&]lone\b/.test(search) ? LONE_ROWS : FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
-  const ID_PREFIX = f.zone === '1' ? '' : `z${f.zone}:`;   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
+  const ID_PREFIX = zoneKeyPrefix(f.zone);   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
   for (const sp of reg.spawns) {
     const zone = f.zones.find((z) => z.region === FRONTIER && Object.hasOwn(z.landmarks, sp.at));

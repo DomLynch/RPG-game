@@ -22,7 +22,7 @@ export const PRESETS: Record<string, Look> = {
   'ash-pit': { fog: t1.fog, fogDensity: t1.fogDensity, hemiSky: t1.hemisphere[0], hemiGround: t1.hemisphere[1], hemiIntensity: t1.hemisphere[2], sunColor: t1.sun[0], sunIntensity: t1.sun[1], sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: t1.exposure, ground: [1, 1, 1] },
   // The Concord Exchange: a lamp-lit dusk. The sun is low and deep amber, the fog a warmer, darker haze, the shade cooler so the braziers and the forge read as the light.
   'exchange-dusk': { fog: '#8f5f3f', fogDensity: 0.024, hemiSky: '#7d86ad', hemiGround: '#3a2418', hemiIntensity: 0.95, sunColor: '#ff9a52', sunIntensity: 3.4, sunPos: [-24, 7, -15], exposure: 1.25, ground: [0.92, 0.88, 0.84] },
-  ...loadZone().looks,   // Zone 1's presets (zone1, frontier-haze, cinder-haze, frontier-duel, frontier-night): data in origins/zones/zone1/look.ts, through the loader
+  ...loadZone().looks,   // Zone 1's presets (zone1, frontier-haze, cinder-haze, frontier-duel, frontier-night): data in origins/zone-rows/zone1.row.json (looks), through the loader
 };
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
 

@@ -13,7 +13,7 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
-import { loadZone, zoneNames } from '../zones/loader.ts';
+import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
@@ -56,7 +56,7 @@ function zonePlan(region: RegionId, zone: string, p: Params, mount: Mount, town:
 
 // flat: the hills off (?relief=0), every zone's relief 0 so the plan is the flat greybox again. zoneId: which zone package's world zones the page walks (zone.world); the Frontier is laid out whole so every zone keeps
 // its place, then only that zone's own are kept, with their links, signs and creatures (mobSpecs skips a spawn whose landmark is not in the plan). Zone 1 is the whole of what it was.
-export function frontierPlan(flat = false, zoneId: string = '1'): Frontier {
+export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Frontier {
   const loaded = loadRegion1();
   if (!loaded.ok) throw new Error(`Region 1 does not load: ${JSON.stringify(loaded.issues)}`);
   const data = loaded.value, mounts = concordMounts();

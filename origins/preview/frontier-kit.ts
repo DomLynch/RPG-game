@@ -6,7 +6,7 @@ import { rng, type Dress } from './frontier-dress.ts';
 import { loadZone } from '../zones/loader.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
-export type KitNode = string;   // a node name of the zone's kit (origins/zones/zone1/kit.ts, checked by the loader)
+export type KitNode = string;   // a node name of the zone's kit (origins/zone-rows/zone1.row.json (kit), checked by the loader)
 export type KitPlacement = { node: KitNode; x: number; z: number; rotY: number; scale: number };
 export type Kit = { placements: KitPlacement[]; landmarks: KitPlacement[]; solids: Solid[] };
 const { kinds: KIND, landmarks: LANDMARK_NODES } = loadZone().kit, DENSITY = Number(loadZone().fields?.['look.props.density'] ?? 1);   // look.props.density: a multiplier on every kind's per (1 = as the kit says)   // the zone's kit data, through the loader
