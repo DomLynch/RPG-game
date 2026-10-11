@@ -12,12 +12,13 @@ import { storyOps, withContent } from '../origins/server/handlers.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
+import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
 import * as F from '../origins/contracts/fixtures.ts';
-import { cumulative } from '../origins/progression/model.ts';
+import { cumulative } from '../src/core/server.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
-import { openCharacter } from '../src/fight/open.ts';
+import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { zoneAt } from '../origins/presence/zones.ts';
@@ -69,6 +70,7 @@ try {
     { ...F.helmetDef(), id: 'item:loot.veteran.Body', slot: 'Body', name: "The Centurion's cuirass", appearance: { asset: 'loot.glb/veteran.Body' } },
     { ...F.helmetDef(), id: 'item:loot.veteran.Greaves', slot: 'Greaves', name: "The Centurion's greaves", appearance: { asset: 'loot.glb/veteran.Greaves' } },
     { ...F.helmetDef(), id: 'item:loot.veteran.Arms', slot: 'Arms', name: "The Centurion's vambraces", appearance: { asset: 'loot.glb/veteran.Arms' } }].map(raw => { const d = parseItemDefinition(raw); if (!d.ok) throw Error(JSON.stringify(d.issues)); return [d.value.id, d.value]; }));
+  for (const raw of LOOT_ITEMS) { const d = parseItemDefinition(raw); if (!d.ok) throw Error(`catalogue ${raw.id}`); defs.set(d.value.id, d.value); }   // the one item ledger's catalogue (gear ops)
   writeFileSync(join(root, 'content.json'), JSON.stringify(storyBundle()));
   server = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'), 30_000, 3),   /* the production path: pooled sessions */ verify: async t => TOKENS[t] ?? null, where, handlers: { ...withContent({
     lookup: id => defs.get(id),
@@ -232,6 +234,35 @@ try {
   const bankedAt = await call('apply_upgrade', 'ta', bankedPiece());
   eq([bankedAt.status, bankedAt.json.result?.replayed, bankedAt.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-d', 5]]], 'upgrade: a banked piece is upgraded at the Exchange');
   eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the banked piece stays in the bank at level 1, pack iron burned, conserved');
+  // bank_move (pack <-> bank, only at the Exchange): one location put through the one ledger door; conservation at every commit, the stale path on the real database
+  const bm = (id, to, over = {}) => call('bank_move', 'ta', { character: pc, id, to, ...over });
+  const rowOf = id => psql(`select loc_kind || ':' || upgrade_level || ':v' || version || ':' || quantity from public.origins_items where id = '${id}'`);
+  const ironBefore = irons(), upBefore = upgrades();
+  presence[A] = inPitYard();
+  const bmAway = await bm('inst:greaves-wc', 'pack');
+  eq([bmAway.status, rowOf('inst:greaves-wc'), conserved()], [422, 'bank:1:v2:1', '0'], 'bank_move: away from the Exchange is refused, nothing changed');
+  delete presence[A];
+  eq([(await bm('inst:greaves-wc', 'pack')).status, rowOf('inst:greaves-wc')], [422, 'bank:1:v2:1'], 'bank_move: no presence is refused, nothing changed');
+  presence[A] = atBank();
+  const bmBadTo = await bm('inst:greaves-wc', 'attic');
+  eq([bmBadTo.status, rowOf('inst:greaves-wc')], [400, 'bank:1:v2:1'], 'bank_move: a bad direction is refused');
+  const wd = await bm('inst:greaves-wc', 'pack');
+  eq([wd.status, rowOf('inst:greaves-wc'), wd.json.result.pieces.find(x => x.id === 'inst:greaves-wc').where, conserved()], [200, 'pack:1:v3:1', 'pack', '0'], 'bank_move: withdraw at the Exchange moves the row only (level and quantity kept, version +1), conserved');
+  const wd2 = await bm('inst:iron-c', 'pack');
+  eq([wd2.status, rowOf('inst:iron-c'), wd2.json.result.stock.find(x => x.id === 'inst:iron-c').where, irons(), upgrades(), conserved()], [200, 'pack:0:v3:15', 'pack', ironBefore.replace('inst:iron-c:15:v2', 'inst:iron-c:15:v3'), upBefore, '0'], 'bank_move: a whole stack withdraws with its quantity, no value created, no upgrade event');
+  const dep = await bm('inst:iron-c', 'bank', { index: 1 });
+  eq([dep.status, rowOf('inst:iron-c'), dep.json.result.stock.find(x => x.id === 'inst:iron-c').where, conserved()], [200, 'bank:0:v4:15', 'bank', '0'], 'bank_move: and deposits back');
+  const bmRace = await Promise.all([bm('inst:iron-c', 'pack'), bm('inst:iron-c', 'pack')]);
+  eq([bmRace.map(r => r.status).sort(), rowOf('inst:iron-c'), conserved()], [[200, 422], 'pack:0:v5:15', '0'], 'bank_move race: one move wins, the other is refused, moved once');
+  await bm('inst:iron-c', 'bank', { index: 1 });
+  let stale = '';
+  try { psql(`do $d$ begin perform public.origins_commit('${A}', $j$[{"op":"put","id":"inst:greaves-wc","expected_version":1,"loc":{"kind":"bank","owner":"${pc}","index":2},"bound_to":null,"upgrade_level":1,"history_append":[]}]$j$::jsonb); exception when others then raise exception 'sqlstate=%', sqlstate; end $d$;`); } catch (e) { stale = String(e.stderr || e.message); }
+  if (!/sqlstate=O0002/.test(stale)) throw Error('stale: ' + stale.slice(0, 300));
+  eq([/sqlstate=O0002/.test(stale), rowOf('inst:greaves-wc'), conserved()], [true, 'pack:1:v3:1', '0'], 'bank_move: a put on a stale version aborts with O0002 and changes nothing');
+  await bm('inst:greaves-wc', 'bank', { index: 2 });   // put the piece back where the later checks expect it
+  eq([rowOf('inst:greaves-wc'), conserved()], ['bank:1:v4:1', '0'], 'bank_move: deposit back');
+  presence[A] = atBank();
+
   // a story-critical piece (the fixtures' Oath Gauntlets, bound quest-reward gear): the smith may upgrade it (Strategy, 2026-10-07) and it keeps its story
   // flag, binding, provenance and place; a story piece is never a material, not even the piece itself; afterwards its quest step still burns it
   const oathProv = { kind: 'quest-reward', quest: 'quest:stolen-name', stage: 'oath' };
@@ -247,12 +278,12 @@ try {
   eq([oathMat.status, /story-critical; the smith never takes it as a material/.test(oathMat.json.error)], [400, true], 'upgrade: a story piece offered as a material is refused');
   const oathSelf = await call('apply_upgrade', 'ta', oathAsk({ op: 'smith:oath-wc:self', materials: ['inst:oath-wc', 'inst:iron-b'] }));
   eq([oathSelf.status, /piece being upgraded; it cannot also be spent/.test(oathSelf.json.error)], [400, true], 'upgrade: the piece is never its own material');
-  eq([oathRow(), irons(), upgrades(), conserved()], [oathFresh, 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the story refusals changed nothing');
+  eq([oathRow(), irons(), upgrades(), conserved()], [oathFresh, 'inst:iron-b:8:v2,inst:iron-c:15:v6,inst:iron-d:1:v2', '3', '0'], 'upgrade: the story refusals changed nothing');
   presenceDown = true;   // X1 (c): a pack piece paid with pack iron needs no Exchange, so presence being down does not stop it
   const oathUp = await call('apply_upgrade', 'ta', oathAsk());
   presenceDown = false;
   eq([oathUp.status, oathUp.json.result?.replayed, oathUp.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-b', 5]]], 'upgrade: the story piece is upgraded for 5 iron');
-  eq([oathRow(), irons(), upgrades(), conserved()], [`item:stolen-name-gauntlets|${pc}|pack:0|true|1:v2|upgrade|live`, 'inst:iron-b:3:v3,inst:iron-c:15:v2,inst:iron-d:1:v2', '4', '0'],
+  eq([oathRow(), irons(), upgrades(), conserved()], [`item:stolen-name-gauntlets|${pc}|pack:0|true|1:v2|upgrade|live`, 'inst:iron-b:3:v3,inst:iron-c:15:v6,inst:iron-d:1:v2', '4', '0'],
     'upgrade: the story piece keeps item, binding, place and provenance, is level 1, still live; history gained only the upgrade entry');
   const oathHand = over => handIn({ op: 'quest:stolen-name:oath:handin', itemId: 'item:stolen-name-gauntlets', qty: 1, ...over });
   eq((await call('consume', 'ta', oathHand({ op: 'quest:oath:generic' }))).status, 400, 'consume: the upgraded story piece is still refused to a step that does not name it');
@@ -473,7 +504,7 @@ try {
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
-    // one rule for every door (src/fight/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
+    // one rule for every door (src/core/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
     psql(`insert into public.origins_access(account) values ('${H}');`);
     const pitId = await openCharacter({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
     const zoneOpen = await openedAccount({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
@@ -486,6 +517,48 @@ try {
   psql(down);
   eq(objects(), '0|0', 'down: all gone');
 
+  // The ONE item ledger (gear_import / gear_open / gear_equip / gear_unequip): the whole legacy roster lands in the REAL tables (equipped mint with a slot, pack/bank triggers, the
+  // 'mint' event, the derived legacy mint key), idempotent per piece, and the moved piece is a versioned put. B is a fresh account so the earlier sections' rows do not interfere.
+  {
+    const ids = [...LOOT_IDS].sort(), dolls = Object.keys(PAPERDOLL);
+    const worn = Object.fromEntries(dolls.map(d => [d, ids.find(id => paperdollOf(slotOf(id)) === d)]));
+    const made2 = await call('create_character', 'tb', { name: 'Gearer' });
+    const gc = made2.json.result.id;
+    const gi = body => call('gear_import', 'tb', { character: gc, ...body });
+    const count = where => psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and item like 'item:loot.%' and retired_at is null ${where}`);
+    const imp = await gi({ owned: ids, equipped: worn, tiers: Object.fromEntries(ids.map((id, i) => [id, (i % 10) + 1])) });
+    eq([imp.status, imp.json.result?.imported.length, imp.json.result?.skipped.length], [200, ids.length, 0], 'gear_import: the whole roster is imported, nothing skipped');
+    const packN = Number(count(`and loc_kind = 'pack'`)), bankN = Number(count(`and loc_kind = 'bank'`)), wornN = Number(count(`and loc_kind = 'equipped'`));
+    eq([wornN, packN + bankN + wornN, packN, bankN], [dolls.length, ids.length, 64, ids.length - dolls.length - 64], 'gear_import: worn on the paperdoll (counting toward neither grid), the pack full at 64, the overflow in the bank');
+    eq(psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and provenance ->> 'kind' = 'legacy-unlock' and mint_key like 'legacy:%'`), String(ids.length), 'gear_import: every piece carries the derived legacy mint key and the legacy-unlock provenance');
+    eq(psql(`select count(*) from public.origins_events where account = '${B}' and kind = 'mint' and character = '${gc}'`), '1', 'gear_import: one audit event');
+    const before = psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`);
+    const again = await gi({ owned: ids, equipped: worn });
+    eq([again.status, again.json.result?.imported.length, again.json.result?.alreadyHeld.length], [200, 0, ids.length], 'gear_import: a replay imports nothing');
+    eq(psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`), before, 'gear_import: a replay writes nothing');
+    eq((await gi({ owned: ['nobody.Helmet'], equipped: {} })).json.result?.skipped.map(x => x.lootId), ['nobody.Helmet'], 'gear_import: an unknown LootId is skipped and reported, not fatal');
+    const op = await call('gear_open', 'tb', { character: gc });
+    eq([op.json.result.pieces.length, Object.keys(op.json.result.worn).length], [ids.length, dolls.length], 'gear_open: every piece, the worn map');
+    const head = op.json.result.worn.head;
+    const off = await call('gear_unequip', 'tb', { character: gc, id: head });
+    eq([off.status, off.json.code], [422, 'rule'], 'gear_unequip with a full pack is refused by the inventory (the piece stays worn)');
+    eq(count(`and loc_kind = 'equipped'`), String(dolls.length), 'gear_unequip: the refused piece stays worn');
+  }
+  {
+    // A migrated piece that is later retired keeps its unique mint_key (items are never deleted): the next import calls it alreadyHeld and imports only what is new, it does not fail (Auditor, #1984).
+    psql(`insert into public.origins_access(account) values ('${D}') on conflict do nothing;`);   // an earlier section took D off the allowlist
+    const ids = [...LOOT_IDS].sort(), made3 = await call('create_character', 'td', { name: 'Burner' });
+    eq(made3.status, 200, `a fresh account D makes a character (${JSON.stringify(made3.json)})`);
+    const cd = made3.json.result.id;
+    const gd = body => call('gear_import', 'td', { character: cd, ...body });
+    eq((await gd({ owned: ids.slice(0, 5), equipped: {} })).json.result?.imported.length, 5, 'gear_import: five pieces imported');
+    const gone = psql(`select id from public.origins_items where loc_owner = '${cd}' order by id limit 1`);
+    const ver = psql(`select version from public.origins_items where id = '${gone}'`);
+    psql(`select public.origins_commit('${D}', '[{"op":"burn","id":"${gone}","count":1,"expected_version":${ver}}]'::jsonb);`);   // the real burn: the row stays, retired, its mint_key still unique
+    const next = await gd({ owned: ids.slice(0, 6), equipped: {} });
+    eq([next.status, next.json.result?.imported, next.json.result?.alreadyHeld.length], [200, [ids[5]], 5], 'gear_import: a retired migrated piece is alreadyHeld, the one new piece is imported, nothing 500s');
+    eq((await gd({ owned: ids.slice(0, 6), equipped: {} })).json.result?.imported.length, 0, 'gear_import: and a replay after that imports nothing');
+  }
   // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
   const pre = await call('create_character', 'tb', { name: 'Brin' });
   eq(pre.status, 200, 'without 0009: create_character still creates');

@@ -46,9 +46,9 @@ export function rowsFor(files) {
 // only delays it to the next release. Not a dependency map: the daily full run is what catches a break outside these rows.
 const CORE = ['roster-browser-check', 'record-replay-check', 'finisher-preview:first', 'account-browser-check', 'viewport-check'];
 const AREAS = [
-  { paths: ['supabase/**', 'src/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
+  { paths: ['supabase/**', 'src/core/cloud-profile.ts', 'src/account*.ts'], rows: ['account-database-check'] },
   { paths: ['src/fight/ai.ts', 'src/fight/moves.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/replay.ts', 'tests/fixtures/**'], rows: ['browser-replay-check:first', 'kill-link-check'] },
-  { paths: ['src/loot*.ts', 'src/fight/loot*.ts', 'src/profile.ts'], rows: ['loot-smoke-check'] },
+  { paths: ['src/loot*.ts', 'src/fight/loot*.ts', 'src/core/profile.ts'], rows: ['loot-smoke-check'] },
   { paths: ['src/net/**', 'src/duel*.ts'], rows: ['double-tap-browser-check'] },
   { paths: ['src/arena*.ts', 'src/fight/scene.ts', 'src/colour-grade.ts', 'src/souls-look.ts', 'public/arena/**'], rows: ['arena-preview'] },
   // Row 44, the Stage picker (every arena ship re-pins its list in scripts/sparring-browser-check.mjs): the arena files, the sparring

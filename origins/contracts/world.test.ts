@@ -2,7 +2,7 @@
 // CharacterDefinition (content rule, routines), factions and standing, regions and encounters.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MAX_LEVEL, TITLES, levelOf, rankFor } from '../../src/career.ts';
+import { MAX_LEVEL, TITLES, levelOfMarks as levelOf, rankFor } from '../../src/core/server.ts';
 import type { Result } from './core.ts';
 import * as F from './fixtures.ts';
 import {
@@ -20,14 +20,14 @@ const refused = (r: Result<unknown>, code: string, path?: string): void => {
   assert.ok(r.issues.some((i) => i.code === code && (path === undefined || i.path === path)), `want ${code}${path ? ` at ${path}` : ''}; got ${JSON.stringify(r.issues)}`);
 };
 const must = <T>(r: Result<T>): T => { assert.ok(r.ok, JSON.stringify(!r.ok && r.issues)); return r.value; };
-// The gate input is the server's career level (computed by origins/progression from career credit). For a legacy account the level is
+// The gate input is the server's career level (computed by src/core/career-model.ts from career credit). For a legacy account the level is
 // today's levelOf(marks), so `marks(m)` is the standing an account with m victory marks has today.
 const server = (careerLevel: number): CareerStanding => ({ source: 'server', careerLevel });
 const marks = (m: number): CareerStanding => server(levelOf(m));
 
 // ---- gates ----------------------------------------------------------------------------------------------------------------------------
 
-test('gates: rank is the server career level, titled exactly as src/career.ts; legacy marks keep today\'s rank', () => {
+test('gates: rank is the server career level, titled exactly as src/core/career-ladder.ts; legacy marks keep today\'s rank', () => {
   for (const m of [0, 9, 10, 14, 19, 20, 44, 45, 200]) {
     const today = rankFor(m);
     assert.deepEqual(rankOf(marks(m)), { level: today.level, title: today.title }, `${m} marks`);
@@ -48,7 +48,7 @@ test('gates: titles are cap-parametric — floor((level - 1) / 5), Origin at the
   assert.deepEqual([titleForLevel(1), titleForLevel(5), titleForLevel(6), titleForLevel(11), titleForLevel(45), titleForLevel(MAX_LEVEL)], ['Recruit', 'Recruit', 'Legionary', 'Gladiator', 'Invictus', 'Origin']);
   assert.deepEqual([titleForLevel(46, 50), titleForLevel(50, 50)], ['Origin', 'Origin']);
   assert.deepEqual(checkCareerStanding(server(50), 50), []);
-  assert.equal(checkCareerStanding(server(51))[0]?.code, 'out-of-range', 'past the default cap of src/career.ts MAX_LEVEL');
+  assert.equal(checkCareerStanding(server(51))[0]?.code, 'out-of-range', 'past the default cap of src/core/career-ladder.ts MAX_LEVEL');
 });
 
 test('gates: an out-of-range or non-integer career level is rejected and opens nothing', () => {

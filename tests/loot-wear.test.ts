@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { DoubleSide, FrontSide, Mesh, MeshStandardMaterial, SkinnedMesh, Texture, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootId, lootIds, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
-import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/fight/loot.ts';
+import { LOOT_IDS, type LootId, isWeaponLoot } from '../src/core/loot.ts';
 
 // Parse a shipped GLB in Node: geometry, rig and material names; images are dropped (decoding is the browser's), as tests/characters.test.ts does.
 async function parse(file: string) {
@@ -17,7 +17,7 @@ async function parse(file: string) {
 const pieces = async () => lootPiecesOf((await parse('loot.glb')).scene);   // the game's own reader, so a shared draw resolves here exactly as it does in a fight
 const draws = (root: { traverse(cb: (o: unknown) => void): void }, slot: string) => { const out: Mesh[] = []; root.traverse(o => { if (o instanceof Mesh && o.userData.slot === slot) out.push(o); }); return out; };
 
-test('loot: every piece of loot.glb has an id in src/fight/loot.ts, and the player wears a piece by binding it to his own skeleton beside his body', async () => {
+test('loot: every piece of loot.glb has an id in src/core/loot.ts, and the player wears a piece by binding it to his own skeleton beside his body', async () => {
   const all = await pieces(), { player } = buildWarriors(await parse('warrior.glb'));
   // `lootIds`, not `lootId`: a shared draw (brief 14's gloves, `~kit.Gloves`) answers to every opponent id that resolves to it, so the
   // file's pieces are still exactly the armour ids — the sharing is invisible from here, which is the point of the seam.

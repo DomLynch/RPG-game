@@ -3,7 +3,7 @@
 // guard rings, and arrest as metal and jail, never gear.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MAX_LEVEL } from '../../src/career.ts';
+import { MAX_LEVEL } from '../../src/core/server.ts';
 import {
   CLEAN, DAY_S, DEFAULT_RINGS, GENERATOR_DEFAULTS, GRUDGE_EXPIRY_S, GRUDGE_MIN_LEVEL, GRUDGE_REOFFER_S, SUCCESSOR_MAX_S, SUCCESSOR_MIN_S,
   addNotoriety, alertSpread, arrest, bailBronze, bandOf, canJoin, closeSuccession, giverPricePermille, grudgeAt, grudgeOpen, guardChallenge,

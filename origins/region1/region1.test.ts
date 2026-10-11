@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { WEAPON_SLOTS } from '../../src/fight/loot.ts';
+import { WEAPON_SLOTS } from '../../src/core/loot.ts';
 import type { Issue } from '../contracts/core.ts';
 import { CONCORD } from '../world/concord.ts';
 import { resolveRegion, type WorldData } from '../world/resolve.ts';

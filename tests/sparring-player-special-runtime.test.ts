@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';
 import { idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { SPECIAL_TESTS } from '../src/fight/special-look.ts';

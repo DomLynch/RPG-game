@@ -4,13 +4,15 @@
 // The wearer's rank is the SERVER's (the career row's credit), never the request's. The body names a character and a piece id; it never carries a slot, a tier, a level or a version.
 import type { ItemInstance, Location } from '../contracts/items.ts';
 import { legacyLootOfItemId } from '../contracts/ids.ts';
-import { equip, unequip, type Inventory, type Lookup } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../progression/model.ts';
+import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { levelOfCredit } from '../../src/core/server.ts';
 import { DbError } from './db.ts';
+import { exchangePlace } from './upgrade.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
+import { gearImportHandler } from './gear-import.ts';
 
 const locOf = (l: Location): store.Json => (l.kind === 'equipped' ? { kind: l.kind, owner: l.owner, slot: l.slot } : { ...l });
 // The rows that differ between two reads of one inventory, as origins_apply `put`s (the same shape upgrade.ts commits).
@@ -24,16 +26,19 @@ export function putsBetween(before: Inventory, after: Inventory): store.Json[] {
 }
 
 // One piece as the gear screen reads it: the instance, the engine's LootId (null for a non-loot item), where it is. Worn = `slot`, held = grid + index.
-export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number };
-export function gearView(inv: Inventory, lookup: Lookup): { pieces: GearPiece[]; worn: Record<string, string>; packSize: number; bankSize: number } {
-  const pieces: GearPiece[] = [], worn: Record<string, string> = {};
+export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number; level: number };
+// A non-gear stack held in the pack or bank (materials, consumables): the smith's inputs and the bank's other rows. Read-only here; bank_move moves it whole.
+export type StockRow = { id: string; item: string; name: string; category: string; quantity: number; where: 'pack' | 'bank'; index: number; version: number };
+export function gearView(inv: Inventory, lookup: Lookup): { pieces: GearPiece[]; stock: StockRow[]; worn: Record<string, string>; packSize: number; bankSize: number } {
+  const pieces: GearPiece[] = [], stock: StockRow[] = [], worn: Record<string, string> = {};
   for (const i of inv.items) {
     const l = i.location, def = lookup(i.item);
+    if (def && def.category !== 'gear' && (l.kind === 'pack' || l.kind === 'bank')) { stock.push({ id: i.id, item: i.item, name: def.name, category: def.category, quantity: i.quantity, where: l.kind, index: l.index, version: i.version }); continue; }
     if (def?.category !== 'gear' || (l.kind !== 'pack' && l.kind !== 'bank' && l.kind !== 'equipped')) continue;
-    pieces.push({ id: i.id, item: i.item, lootId: legacyLootOfItemId(i.item), slot: def.slot, where: l.kind, index: l.kind === 'equipped' ? null : l.index, paperdoll: l.kind === 'equipped' ? l.slot : null, tier: i.tier, version: i.version });
+    pieces.push({ id: i.id, item: i.item, lootId: legacyLootOfItemId(i.item), slot: def.slot, where: l.kind, index: l.kind === 'equipped' ? null : l.index, paperdoll: l.kind === 'equipped' ? l.slot : null, tier: i.tier, version: i.version, level: i.upgradeLevel ?? 0 });
     if (l.kind === 'equipped') worn[l.slot] = i.id;
   }
-  return { pieces, worn, packSize: inv.packSize, bankSize: inv.bankSize };
+  return { pieces, stock, worn, packSize: inv.packSize, bankSize: inv.bankSize };
 }
 
 const characterOf = (v: unknown): string => { if (typeof v !== 'string' || v.length > 80) throw new BadRequest('character: a character id'); return v; };
@@ -58,8 +63,23 @@ export function gearHandlers(content: Content): Record<string, Handler> {
     catch (e) { if (e instanceof DbError && e.code === 'O0002') throw new DbError('O0002', 'stale: the piece changed since it was read; open again and retry'); throw e; }
     return gearView(next.value, lookup);
   };
+  // bank_move: one instance (a gear piece or a whole stack) between the pack and the bank, only at the Exchange (the place is presence's, as apply_upgrade reads it: never the request's).
+  // It moves a row and nothing else: the put changes only the location, so no value is created or destroyed. The body names a character, an id, a direction and optionally a slot.
+  const bankMove: Handler = async ({ db, account, where }, body) => {
+    const character = characterOf(body.character), id = idOf(body.id), index = indexOf(body.index);
+    if (body.to !== 'bank' && body.to !== 'pack') throw new BadRequest("to: 'bank' or 'pack'");
+    const place = await exchangePlace(where, account);
+    const { inventory } = await openHoldingsWith(db, account, character, content);
+    const next = (body.to === 'bank' ? deposit : withdraw)(inventory, id, lookup, place, index);
+    if (!next.ok) throw refusal(next.issues);
+    try { await store.commit(db, account, putsBetween(inventory, next.value)); }
+    catch (e) { if (e instanceof DbError && e.code === 'O0002') throw new DbError('O0002', 'stale: the item changed since it was read; open again and retry'); throw e; }
+    return gearView(next.value, lookup);
+  };
   return {
     gear_open: gearOpen,
+    gear_import: gearImportHandler(content),
+    bank_move: bankMove,
     gear_equip: move((inv, id, standing) => equip(inv, id, lookup, standing)),
     gear_unequip: move((inv, id, _s, index) => unequip(inv, id, lookup, index)),
   };

@@ -184,7 +184,7 @@ export function checkArray<T>(issues: Issues, value: unknown, path: string, each
 // ---- schema versions -----------------------------------------------------------------------------------------------------------
 // Every top-level contract carries `schemaVersion`. A reader knows exactly the versions it can read (today: only its current one). A
 // missing version and any other number are both explicit failures: an older build must never half-read a newer record and write it
-// back without the fields it did not understand (the src/fight/loot.ts cleanLoot hazard the O0 baseline names, §5 collision 3).
+// back without the fields it did not understand (the src/core/loot.ts cleanLoot hazard the O0 baseline names, §5 collision 3).
 export function readSchemaVersion(issues: Issues, obj: Obj, path: string, supported: readonly number[]): number | undefined {
   if (!Object.hasOwn(obj, 'schemaVersion')) {
     issues.add('missing-version', join(path, 'schemaVersion'), 'schemaVersion is required on every contract');

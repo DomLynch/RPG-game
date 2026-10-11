@@ -7,6 +7,10 @@
 4. No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
 (Also in lane memory: `batch-rules`.)
 
+## Row 44 and open items (2026-10-10 close)
+- Row 44 flake (Y, Z, AA) was a fixture race: the single-shot manual-cast tap landed after the foe's first hit on slow boxes and was dropped. Fixed by #2127 (merged, e77a86fa5): castTap retries only after a foe Hit, simWait follows sim ticks (4x ceiling), failures name the step. Auditor LOW owed: castTries should record the max or a list.
+- Owed: #2065 (char/zone2-stills-baseline @f824fa9fd) after the boundary count hits 0; five Zone 2 catalogue rows (Sun 10-11, after World confirms the shape); `tests/catalogue.test.ts` known.tables when World's tables leave region1 content.ts.
+
 ## 2026-10-10 11:40 (+04) — Characters (VPS) is now the SOLE Characters lane (Dom; the Mac "Characters & Art" session is archived). READ FIRST; it supersedes the handoff entry below where they differ. Facts from gh/curl this session; relays say "relays".
 1. **LIVE:** release.json `ef916e70f` (curl 11:0x) carries **#2061** (catalogue rows as data, MERGED 06:32Z). #2052, #1897 and #1898 are MERGED; gpu-run.mjs is on trunk (#2050). The stale items 1, 3 and 5 below are closed.
 2. **OPEN PRs (mine):**

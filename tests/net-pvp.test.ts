@@ -13,7 +13,7 @@ import { metricsRow, recordBody, reportBody, reportCalls, RECORD_MAX_BYTES, star
 import { verifyDuel } from '../src/net/verify-duel.ts';
 import { readFileSync } from 'node:fs';
 import { viewAs } from '../src/net/view.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { quantizeIntent, RECORD_VERSION } from '../src/fight/record.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';

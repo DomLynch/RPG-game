@@ -6,7 +6,7 @@ The content is the contracts' `EncounterDefinition` with its optional `boss.leve
 
 **Status:** paper and prototype only. Nothing in `src/` imports it.
 
-**Spec sources** (clean room, specs only): `docs/specs/origins/modernuo-champion-spawns.md` (kill bar → boss → stop → restart delay, minion kills during the boss count for nothing), `docs/specs/origins/progression-proposal.md` with `origins/progression/model.ts` (the world-boss row, ≥ 10% contribution, party of at most 4), and `docs/specs/origins/eqemu-experience.md` (the party levels on the event).
+**Spec sources** (clean room, specs only): `docs/specs/origins/modernuo-champion-spawns.md` (kill bar → boss → stop → restart delay, minion kills during the boss count for nothing), `docs/specs/src/core/career-model.ts-proposal.md` with `src/core/career-model.ts` (the world-boss row, ≥ 10% contribution, party of at most 4), and `docs/specs/origins/eqemu-experience.md` (the party levels on the event).
 
 **Checks** (VPS): `node --test tests/origins-boss.test.ts`, then strict `tsc` and `eslint origins/boss`.
 

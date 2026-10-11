@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Vector3, type Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { armOpponent, buildWarriors, lootPiecesOf, lootWorn } from '../src/fight/characters.ts';
-import { kitWorn } from '../src/fight/loot.ts';
+import { kitWorn } from '../src/core/loot.ts';
 
 // Parse a shipped GLB in Node, as tests/shield-carry.test.ts does (images dropped: decoding is the browser's).
 async function parse(file: string) {

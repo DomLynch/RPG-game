@@ -5,7 +5,7 @@ import * as factories from '../src/fight/special-fx-dwarf-shield.ts';
 import { idleIntent, stepDuel, type Duel, type CombatEvent, type Fighter } from '../src/fight/duel.ts';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { LAND_AT, SPECIAL_RECOVER, CAST_MARGIN } from '../src/fight/special-timing.ts';

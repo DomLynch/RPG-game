@@ -205,7 +205,7 @@ test('launch.mjs launches exactly the canonical job (detached, timed, allowed fl
 
 test('deploy-vps.sh reads the HF receipts back with launch.mjs fetch BEFORE vps-receipt-trust.mjs, in both the rows and the unit step, and no longer pulls from the shared VPS dir', () => {
   const lib = readFileSync('scripts/lib/deploy-vps.sh', 'utf8').replace(/^\s*#.*$/gm, '');   // comments do not count
-  const fetches = [...lib.matchAll(/launch\.mjs fetch/g)].map(m => m.index as number), trusts = [...lib.matchAll(/vps-receipt-trust\.mjs/g)].map(m => m.index as number);
+  const fetches = [...lib.matchAll(/launch\.mjs fetch/g)].map(m => m.index as number), trusts = [...lib.matchAll(/vps-receipt-trust\.mjs(?! "\$(?:receipt_sha|revision)" --(?:unit|rows)-vps)/g)].map(m => m.index as number);   // the --unit-vps / --rows-vps re-checks are the VPS-run receipts, not HF ones
   assert.equal(fetches.length, 2);
   assert.equal(trusts.length, 2);
   fetches.forEach((at, i) => assert.ok(at < trusts[i], `step ${i + 1}: fetch before trust`));

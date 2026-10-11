@@ -1,8 +1,8 @@
-// The item catalogue of the shared fight engine's loot: ONE `item:loot.<LootId>` definition for every piece src/fight/loot.ts knows (LOOT plus RETIRED_LOOT), generated from that file so
+// The item catalogue of the shared fight engine's loot: ONE `item:loot.<LootId>` definition for every piece src/core/loot.ts knows (LOOT plus RETIRED_LOOT), generated from that file so
 // the roster and the server's registry cannot drift. `item:loot.<LootId>` is the legacy embedding (contracts/ids.ts itemIdFromLegacyLoot); the asset is loot.glb's own piece
 // (the fixtures.ts helmetDef pattern), so the gear screen shows and dresses it with no new art; the name is lootName's, capitalised ("The Goblin's helmet"). No number lives here:
 // power is 'slot-weight' as for every loot piece, and every piece is common (rarity is not part of today's ledger).
-import { LOOT_IDS, lootName, slotOf, type LootId, type LootSlot } from '../../src/fight/loot.ts';
+import { LOOT_IDS, lootName, slotOf, type LootId, type LootSlot } from '../../src/core/server.ts';
 import { ROSTER, type OpponentId } from '../../src/fight/server.ts';
 import type { Material } from '../contracts/items.ts';
 

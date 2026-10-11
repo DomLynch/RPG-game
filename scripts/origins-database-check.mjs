@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 import { LEGEND_OPPONENTS } from '../src/legends.ts';
-import { award, creditFromMarks, cumulative, legendKey, levelOfCredit, newCareer, nextLegend } from '../origins/progression/model.ts';
+import { award, cumulative, legendKey, levelOfCredit, newCareer, nextLegend } from '../src/core/server.ts';
 
 const UP = '202610060001_origins_save.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
@@ -86,7 +86,7 @@ try {
   const open0 = JSON.parse(W(`select public.origins_open('${A}')::text;`));
   eq([open0.marks, open0.career], [4, null], 'before the snapshot: marks are returned, no career');
   refused('a snapshot from stale marks', 'marks moved', () => W(`select public.origins_snapshot('${A}', 3, 5000);`));
-  const seed = creditFromMarks(4);
+  const seed = cumulative(5);
   W(`select public.origins_snapshot('${A}', 4, ${seed});`);
   W(`select public.origins_snapshot('${A}', 4, 999999);`);   // a second snapshot, even with another number, changes nothing: the first one stands
   const open1 = JSON.parse(W(`select public.origins_open('${A}')::text;`));
@@ -190,9 +190,9 @@ try {
   psql(`alter table public.loot_claims disable trigger loot_claims_rate;`);   // the live rate cap is sixty claims an hour; the stall below needs sixty-one fixture claims
   const early = claim(C, 'veteran', 1, `now() - interval '1 hour'`);
   W(`select public.origins_open('${C}');`);
-  W(`select public.origins_snapshot('${C}', 0, ${creditFromMarks(0)});`);
+  W(`select public.origins_snapshot('${C}', 0, ${cumulative(1)});`);
   const pcC = W(`select public.origins_create_character('${C}', 'Cass');`);
-  let state = newCareer(0), wins = 0, n = 10;
+  let state = newCareer(), wins = 0, n = 10;
   const pending = () => W(`select claim_id || '|' || opponent from public.origins_pit_pending('${C}');`).split('\n').filter(Boolean);
   eq(pending(), [], 'a win verified before the snapshot is not pending (it is in the seed)');
   for (let opponent = nextLegend(state, LEGEND_OPPONENTS, 0); opponent !== null; opponent = nextLegend(state, LEGEND_OPPONENTS, wins * 7919)) {

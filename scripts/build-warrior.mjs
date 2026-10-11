@@ -310,7 +310,7 @@ if (LOOT) {
   const lootDir = 'src/assets/source', manifest = JSON.parse(await fs.readFile(path.join(lootDir, 'loot/loot.json'), 'utf8'));
   // A piece cut from a TRELLIS surface keeps its baked look: scripts/character/loot_dwarf.py writes <family>_iron_color.jpg / _orm.jpg
   // beside the family's GLB and tags the piece `<Family>Iron`. One such material per family that has the maps; every other piece wears the palette.
-  // A built family (the Witch) bakes <family>_cloth_ / _leather_ maps instead: Leather grades as leather, not as metal (src/grades.ts).
+  // A built family (the Witch) bakes <family>_cloth_ / _leather_ maps instead: Leather grades as leather, not as metal (src/core/grades.ts).
   const baked = (await fs.readdir(path.join(lootDir, 'loot'))).map(f => f.match(/^([a-z]+)_(iron|cloth|leather)_color\.jpg$/)).filter(Boolean);
   const kinds = new Map(); for (const [, family, kind] of baked) kinds.set(family, new Set([...(kinds.get(family) ?? []), ...kind === 'iron' ? ['Iron', 'Cloth'] : [kind[0].toUpperCase() + kind.slice(1)]]));
   for (const [family, has] of kinds) for (const kind of has)
@@ -1114,7 +1114,7 @@ if ((LOOT && [...lootPieces.values()].includes(`${SHARED_PREFIX}kit.Gloves`)) ||
     // Shieldmaiden's boots). loot.glb's shared gloves stay exactly as they shipped.
     const hull = new T.BufferGeometry(); hull.setAttribute('position', new T.Float32BufferAttribute(positions, 3)); if (!LOOT) hull.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2)); hull.computeVertexNormals();
     add(hull, leather, `hand_${side}`);
-    // Two bands of furniture, so the piece has trim for a grade to repaint (src/grades.ts): a cuff ring at the wrist and a knuckle bar
+    // Two bands of furniture, so the piece has trim for a grade to repaint (src/core/grades.ts): a cuff ring at the wrist and a knuckle bar
     // across the back of the hand. Both sized off the fitted hull, not guessed.
     const band = (i, thickness) => { const r = rings[i], radius = r.radii.reduce((n, x) => n + x, 0) / AZIMUTHS * r.scale;
       const g = new T.TorusGeometry(radius, thickness, 5, 14).rotateX(Math.PI / 2);

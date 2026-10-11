@@ -12,6 +12,7 @@ source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
+source scripts/lib/deploy-notes-only.sh
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
 hf_cleanup() { node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
@@ -65,13 +66,35 @@ node scripts/merged-on-trunk.mjs
 # revision. Run-level success would wait for the optional counter gate (continue-on-error, often a ~16 min stall).
 # Any of the commit's quality.yml runs counts, not just the newest: a fast-forward of a pre-run candidate (release-V, 2026-10-10) starts a fresh PUSH run for the same sha,
 # which sorts first and is still queued, while the PULL REQUEST run that already proved the tree sits second (V's Mac then ran its own unit suite for 3 min).
-quality_green() {
-  local run_id run_url green
+# A pull_request run whose plan put the browser gates out of scope skips the whole matrix (its job keeps the unexpanded template name), so no
+# "browser (combat)" job exists: that run is green when `quality` and `plan` succeeded (release AI, 2026-10-10: script-only, the Mac fell back to its own suite).
+quality_green_jq='def c(n): [.jobs[] | select(.name == n) | .conclusion]; if c("quality") == ["success"] and (if (c("browser (combat)") | length) > 0 then c("browser (combat)") == ["success"] else c("plan") == ["success"] and c("browser (${{ matrix.gate.name }})") == ["skipped"] end) then (if (c("browser (combat)") | length) > 0 then "yes" else "scoped" end) else "no" end'
+# The first run of "$1" whose verdict is `want` (yes = quality + browser (combat) both success; scoped = browser matrix skipped as out of scope).
+quality_run_with() {
+  local want="$1" run_id run_url verdict
   while read -r run_id run_url; do
     [[ -n "$run_id" ]] || continue
-    green=$(gh run view "$run_id" --json jobs --jq '[.jobs[] | select(.name == "quality" or .name == "browser (combat)") | .conclusion] | if length == 2 and all(. == "success") then "yes" else "no" end' 2>/dev/null || true)
-    if [[ "$green" == "yes" ]]; then echo "$run_url"; return 0; fi
-  done < <(gh run list --workflow quality.yml --commit "$1" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+    verdict=$(gh run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
+    if [[ "$verdict" == "$want" || "$verdict" == yes ]]; then echo "$run_url"; return 0; fi
+  done < <(gh run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+  return 0
+}
+# A scoped run proves only `quality`: the Mac then skips test:browser, so the trunk under this candidate must have had browser (combat) green itself (Auditor LOW on #2136).
+# Walk the first parents (<= 8): a member merge of a multi-member candidate has no CI run, the trunk commit under the candidate does; the first commit with a run decides.
+# No such commit, its run not green, or gh failing on the walk: fail closed.
+quality_green() {
+  local url n base runs
+  url=$(quality_run_with yes "$1"); if [[ -n "$url" ]]; then echo "$url"; return 0; fi
+  url=$(quality_run_with scoped "$1"); [[ -n "$url" ]] || return 0
+  for n in 1 2 3 4 5 6 7 8; do
+    base=$(git rev-parse -q --verify "$1~$n" 2>/dev/null || true)
+    [[ -n "$base" ]] || return 0
+    runs=$(gh run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
+    if [[ -n "$runs" ]]; then
+      [[ -n "$(quality_run_with yes "$base")" ]] && echo "$url"
+      return 0
+    fi
+  done
   return 0
 }
 ci_green=$(quality_green "$revision")
@@ -85,10 +108,14 @@ if [[ -z "$ci_green" ]]; then
 fi
 deploy_step "quality gate"
 vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
+[[ "$vps_unit" == ok ]] || vps_unit=$(vps_unit_live_ok)   # or one run on the prepaid VPS by launch.mjs (VPS first, Hugging Face only as spillover)
 if [[ -n "$ci_green" ]]; then
   # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
   # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
   echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
+  npm run build
+elif [[ "$(notes_only_release "$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)" "$revision")" == ok ]]; then
+  echo "notes-only release (every changed path is under docs/state/): no unit suite; build only"
   npm run build
 elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"

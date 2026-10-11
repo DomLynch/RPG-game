@@ -1,13 +1,13 @@
 // Origins: the client half of a server-held world creature fight (origins/server/encounter.ts, migration 202610080002). Three calls, in the order a fight lives:
 //   startFight   POST /encounter_start  {character, encounter}  -> the fight to play: token, the SERVER's seed, foe, level, bar, twist flags. The body names no foe, level, seed or reward.
 //   touchFight   POST /encounter_touch  {token, tick}           -> inside the 120 s reconnect grace: the same token and seed continue.
-//   settleFight  POST /encounter_settle {token, record}         -> the fight's FightRecord (encounter-duel's EncounterEnd.record) packed as the Pit packs it; the server re-plays it.
+//   settleFight  POST /encounter_settle {token, record}         -> the fight's FightRecord (the fight's EncounterEnd.record) packed as the Pit packs it; the server re-plays it.
 // Call site (Expansion, ?worldfight): `startFight` replaces `fightSeed`: pass `fight.seed` to startEncounterDuel (and the foe/level/bar/flags it returns to fightSetup's reader), then post
 // `end.record` with `settleFight` when `done` fires. A fight that ends by a twist with both standing records as 'abandoned' (pit-duel), which is what the verifier expects.
 // Same contract as save.ts: no DOM, storage or clock here; any failure (no session, 4xx/5xx, a timeout, the network, a malformed reply) is an answer ({ offline }), never a throw. The preview
 // then plays on its local seed and nothing is settled, exactly as today.
 import { encodeRecord, type FightRecord } from '../../src/fight/index.ts';
-import type { Offline, Opts } from '../../src/writer-call.ts';
+import type { Offline, Opts } from '../../src/core/index.ts';
 
 export type Fight = { token: string; seed: number; enemy: string; level: number; bar: number | null; flags: unknown[]; layer: string | null; startTick: number; lastTick: number; graceS: number; expiresAt: string };
 export type Settled = { result: 'won' | 'lost'; verified: boolean; twist: string | null; ticks: number; event: string; reason?: string };
@@ -25,8 +25,8 @@ export function settledOf(r: unknown): Settled | null {
   return { result: s.result, verified: s.verified, twist: typeof s.twist === 'string' ? s.twist : null, ticks: s.ticks, event: s.event, ...(typeof s.reason === 'string' ? { reason: s.reason } : {}) };
 }
 
-export { call } from '../../src/writer-call.ts';
-import { call } from '../../src/writer-call.ts';
+export { call } from '../../src/core/index.ts';
+import { call } from '../../src/core/index.ts';
 
 export const startFight = (token: string | null, character: string, encounter: string, opts: Opts & { tick?: number } = {}) =>
   call('encounter_start', { character, encounter, ...(opts.tick === undefined ? {} : { tick: opts.tick }) }, token, fightOf, opts);

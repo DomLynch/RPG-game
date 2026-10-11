@@ -4,10 +4,13 @@
 // Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, genericJobCommand, jobCommand } from '../lib/vps-receipts.mjs';
 import { tierLine, withSlot } from '../lib/hf-slots.mjs';
+import { genericJobArgs, hfArgs, pickTarget, vpsStatus } from '../lib/waterfall.mjs';
+import { runUnitOnVps } from '../lib/vps-unit.mjs';
+import { runRowsOnVps } from '../lib/vps-rows.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
 import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 
@@ -15,52 +18,13 @@ import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
 export { SLOW_ROWS };   // the one list lives in scripts/lib/vps-receipts.mjs (the coverage gate reads it too)
 
-export const hfArgs = (kind, sha, flavor = 'cpu-upgrade', rows = '', width = '') => {
-  if (width && (kind !== 'rows' || !/^[1-8]$/.test(width))) throw new Error('width must be 1-8 and only for kind rows');
-  if (rows && (kind !== 'rows' || !/^\d+(,\d+)*$/.test(rows))) throw new Error('rows must be a comma list of row numbers and only for kind rows');
-  if (kind !== 'unit' && kind !== 'rows') throw new Error('kind must be unit or rows');
-  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
-  if (!FLAVORS.includes(flavor)) throw new Error(`flavor must be one of ${FLAVORS.join(', ')}`);
-  const slow = rows ? rows.split(',').map(Number).filter(n => SLOW_ROWS.includes(n)) : [];
-  if (slow.length && (rows.includes(',') || width !== '1' || flavor !== 'cpu-upgrade')) throw new Error(`rows ${slow.join(',')} are slow rows: one row per job, width 1, cpu-upgrade`);
-  const [bash, dashC, script] = jobCommand(kind, sha);
-  return ['jobs', 'run', '--flavor', flavor, '--timeout', kind === 'unit' ? '40m' : slow.length ? '35m' : '20m', '--detach', '-e', `SHA=${sha}`, ...(rows ? ['-e', `ROWS_ONLY=${rows}`] : []), ...(width ? ['-e', `RELEASE_CHECK_CONCURRENCY=${width}`] : []), ...(slow.length ? ['-e', `RELEASE_CHECK_CEILING_S=${SLOW_CEILING_S}`] : []), JOB_IMAGE, bash, dashC, script];
-};
+const openLog = file => { mkdirSync(file.slice(0, file.lastIndexOf('/')), { recursive: true }); return openSync(file, 'a'); };
+export { hfArgs, genericJobArgs };   // the `hf jobs run` argument builders live in scripts/lib/waterfall.mjs (the one place that starts heavy jobs)
 
-// `launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <argv…>`: a lane's job at a sha on HF (work waterfall, Hooks Dev's submit path).
-// hf-cpu (cpu-upgrade) by default; --gfx = hf-t4 (t4-medium), graphics only: a job without --gfx never gets a T4. Exit 0 started, 75 no slot in --max-wait-s (the caller
-// requeues to the VPS), 2 refused. Lane jobs use their own ledger (artifacts/hf-lane-jobs), never the release ledger deploy.sh's exit cleanup reads.
-export function genericJobArgs(argv) {
-  const dd = argv.indexOf('--');
-  if (dd < 0 || dd === argv.length - 1) throw new Error('usage: launch.mjs job <sha40> [--gfx] [--lane L] [--timeout 40m] [--max-wait-s 600] -- <command…>');
-  const [sha, ...flags] = argv.slice(0, dd), cmd = argv.slice(dd + 1);
-  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('sha must be the full 40-hex commit');
-  const opts = { gfx: false, lane: 'lane', timeout: '40m', maxWaitS: 600, env: [] };
-  for (let i = 0; i < flags.length; i++) {
-    const f = flags[i];
-    if (f === '--gfx') opts.gfx = true;
-    else if (f === '--lane') opts.lane = String(flags[++i] ?? '');
-    else if (f === '--timeout') opts.timeout = String(flags[++i] ?? '');
-    else if (f === '--max-wait-s') opts.maxWaitS = Number(flags[++i]);
-    else if (f === '--env') opts.env.push(String(flags[++i] ?? ''));
-    else throw new Error(`unknown flag ${f}`);
-  }
-  for (const kv of opts.env) {   // repeatable; values are NOT secret (hf shows a job's env), so no tokens here
-    const m = /^([A-Z_][A-Z0-9_]*)=(.*)$/s.exec(kv);
-    if (!m) throw new Error(`--env needs KEY=VALUE with an upper-case key, got "${kv}"`);
-    if (['SHA', 'LANE', 'JOB_ARGV_B64'].includes(m[1]) || /TOKEN|SECRET|PASSWORD|KEY/.test(m[1])) throw new Error(`--env ${m[1]} is reserved or looks like a secret`);
-  }
-  if (!/^\d+[mh]$/.test(opts.timeout)) throw new Error('--timeout must look like 40m or 2h');
-  if (!/^[\w.-]{1,40}$/.test(opts.lane)) throw new Error('--lane must be a short word');
-  if (!Number.isFinite(opts.maxWaitS) || opts.maxWaitS < 0 || opts.maxWaitS > 3600) throw new Error('--max-wait-s must be 0-3600');
-  const flavor = opts.gfx ? 't4-medium' : 'cpu-upgrade', [bash, dashC, script] = genericJobCommand(sha);
-  const args = ['jobs', 'run', '--flavor', flavor, '--timeout', opts.timeout, '--detach', '-e', `SHA=${sha}`, '-e', `LANE=${opts.lane}`, '-e', `JOB_ARGV_B64=${Buffer.from(cmd.join(' ')).toString('base64')}`, ...opts.env.flatMap(kv => ['-e', kv]), JOB_IMAGE, bash, dashC, script];
-  return { args, flavor, opts, sha };
-}
 // A release job (unit/rows) waits at most this long for a slot; the parent that spawns a `rows` child must outlive the child's WHOLE budget (slot wait + the hf call + the
 // post-launch rank check + the cancel), or it kills the child between `hf jobs run` and the id line and leaves a job nobody ledgered (Auditor on #2079).
 export const RELEASE_SLOT_WAIT_S = 300;
-export const ROWS_CHILD_TIMEOUT_MS = (RELEASE_SLOT_WAIT_S + 60 + 60 + 60 + 60) * 1000;   // wait + one lock wait + the hf call + the rank check's ps + the cancel
+export const ROWS_CHILD_TIMEOUT_MS = (RELEASE_SLOT_WAIT_S + 60 + 60 + 60 + 60 + 60) * 1000;   // wait + one lock wait + the hf call + the rank check's ps + the cancel + 60 s margin (Auditor LOW on #2079: 540 -> 600)
 // The CPU rows of a release (deploy.sh, before the quality gate): every row a CPU box may vouch for that is not Mac-only, slow, a T4 wall row or on ON_T4
 // (scripts/hf-wall-rows.mjs takes those) or in `skip` (CI-trusted, out of scope). Packed CPU_SHARD to a cpu-upgrade job, CPU_WIDTH wide, each under hfArgs' 20m --timeout.
 export const CPU_SHARD = 6;
@@ -96,13 +60,46 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       // node launch.mjs cpu <full sha> <rows NOT to place: CI-trusted and out-of-scope>: prints "id,id;row,row" (the jobs and the rows they carry) or nothing.
       const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands, read = path => { try { return readFileSync(path, 'utf8'); } catch { return null; } };
       const ids = [], placed = [];
-      for (const rows of cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger))) {
+      const shards = cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger));
+      // Work waterfall (Dom 2026-10-11): the CPU rows run on the prepaid VPS when it is quiet and has room; Hugging Face is the spillover (LAUNCH_TARGET=hf forces it). The VPS run is
+      // started in the background and writes ~/.claude/state/pre-launch/<sha>.rowsvps (a running marker beside it); deploy.sh waits for the marker and re-checks the file against the deploy tree.
+      const stateDir = process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`, fileOf = `${stateDir}/${a}.rowsvps`, runningOf = `${fileOf}.running`;
+      const fresh = f => existsSync(f) && Date.now() - statSync(f).mtimeMs < 4 * 3600e3;
+      if (shards.length && !process.env.LAUNCH_DRY && process.env.LAUNCH_TARGET !== 'hf') {
+        if (fresh(fileOf) || fresh(runningOf)) { console.error('launch: the CPU rows are already on the VPS (running or done) for this sha'); process.exit(0); }
+        const status = vpsStatus();
+        if (pickTarget({ mem: 12288, vps: status }) === 'vps') {
+          mkdirSync(stateDir, { recursive: true }); writeFileSync(runningOf, `${Date.now()}\n`);
+          const child = spawn(process.execPath, [process.argv[1], 'rows-vps', a, shards.flat().join(','), String(CPU_WIDTH * 2)], { detached: true, stdio: ['ignore', openLog(`${stateDir}/${a}.rowsvps.log`), openLog(`${stateDir}/${a}.rowsvps.log`)] });
+          child.unref();
+          console.error(`launch: tier=vps load1=${status?.load1}: ${shards.flat().length} CPU rows run on the VPS in the background (log ${stateDir}/${a}.rowsvps.log)`);
+          process.exit(0);
+        }
+      }
+      for (const rows of shards) {
         if (process.env.LAUNCH_DRY) { placed.push(...rows); continue; }
         const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), String(CPU_WIDTH)], { encoding: 'utf8', timeout: ROWS_CHILD_TIMEOUT_MS });
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
         if (id) { ids.push(id); placed.push(...rows); } else console.error(`launch: no job for CPU rows ${rows.join(',')}; they run on the Mac`);
       }
       process.stdout.write(placed.length ? `${ids.join(',')};${placed.join(',')}` : '');
+    } else if (cmd === 'rows-vps') {
+      // node launch.mjs rows-vps <full sha> <rows csv> [width]: the rows in our own ssh session on the VPS (scripts/lib/vps-rows.mjs); an accepted receipt is stored for deploy.sh, a failed run spills to HF.
+      const stateDir = process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`, fileOf = `${stateDir}/${a}.rowsvps`;
+      mkdirSync(stateDir, { recursive: true });
+      try {
+        const rows = String(b).split(',').map(Number), total = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands.length;
+        const tree = spawnSync('git', ['rev-parse', `${a}^{tree}`], { encoding: 'utf8', timeout: 30_000 }).stdout?.trim();
+        const status = vpsStatus(), res = runRowsOnVps({ sha: a, tree, rows, total, width: Number(c) || 4 });
+        if (res.ok) {
+          writeFileSync(fileOf, JSON.stringify({ kind: 'vps-rows-live', ...res.receipt, host: 'vps', load1: status?.load1, at: new Date().toISOString() }) + '\n');
+          console.log(`VPS rows receipt: ${res.receipt.rows.length} rows, ${res.receipt.seconds} s, chromium ${res.receipt.chromium_revision} -> ${fileOf}`);
+        } else {
+          console.error(`launch: the VPS rows run was not accepted (${res.reason}); spilling to Hugging Face`);
+          const hf = spawnSync(process.execPath, [process.argv[1], 'cpu', a, Array.from({ length: total }, (_, i) => i + 1).filter(n => !rows.includes(n)).join(',')], { encoding: 'utf8', env: { ...process.env, LAUNCH_TARGET: 'hf' }, timeout: 20 * 60_000 }).stdout?.trim();
+          if (hf) writeFileSync(`${stateDir}/${a}.cpu`, hf);
+        }
+      } finally { rmSync(`${fileOf}.running`, { force: true }); }
     } else if (cmd === 'fetch') {
       const logs = spawnSync('hf', ['jobs', 'logs', a], { encoding: 'utf8', timeout: 120_000, maxBuffer: 64 << 20 });
       if (logs.error || logs.status !== 0) throw new Error(`hf jobs logs ${a} failed: ${logs.error?.message || String(logs.stderr || '').trim().slice(-300) || `exit ${logs.status}`}`);
@@ -115,6 +112,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const hfBin = process.env.HF_BIN || 'hf';
       const lane = cmd === 'job' ? genericJobArgs(process.argv.slice(3)) : null;
       if (!lane && cmd === 'unit') { const refusal = unitShaRefusal(a); if (refusal) throw new Error(refusal); }
+      // Work waterfall (Dom 2026-10-11): the release unit suite runs on the prepaid VPS when it is quiet and has room; Hugging Face is the spillover (LAUNCH_TARGET=hf forces it).
+      // The VPS receipt is accepted only from this process's own live ssh session (scripts/lib/vps-unit.mjs) and stored for deploy.sh, which re-checks it against the deploy tree.
+      if (!lane && cmd === 'unit' && !process.env.LAUNCH_DRY) {
+        const status = vpsStatus(), target = process.env.LAUNCH_TARGET || pickTarget({ mem: 8192, vps: status });
+        if (target === 'vps') {
+          const tree = spawnSync('git', ['rev-parse', `${a}^{tree}`], { encoding: 'utf8', timeout: 30_000 }).stdout?.trim();
+          console.log(`tier=vps load1=${status?.load1} freeRamMb=${status?.freeRamMb}: running the unit suite on the VPS (about 5-8 min)`);
+          const res = runUnitOnVps({ sha: a, tree });
+          if (res.ok) {
+            const dir = `${process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`}`; mkdirSync(dir, { recursive: true });
+            const file = `${dir}/${a}.unitvps`; writeFileSync(file, JSON.stringify({ kind: 'vps-unit-live', ...res.receipt, host: 'vps', load1: status?.load1, at: new Date().toISOString() }) + '\n');
+            console.log(`VPS unit receipt ${res.receipt.pass} pass, node ${res.receipt.node}, ${res.receipt.seconds} s -> ${file}`);
+            process.exit(0);
+          }
+          console.error(`launch: the VPS unit run was not accepted (${res.reason}); spilling to Hugging Face`);
+        }
+      }
       const args = lane ? lane.args : hfArgs(cmd, a, b, c, process.argv[6]), flavor = args[args.indexOf('--flavor') + 1];
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {

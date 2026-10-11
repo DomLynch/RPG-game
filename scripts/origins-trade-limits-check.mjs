@@ -8,7 +8,7 @@ import process from 'node:process';
 import console from 'node:console';
 
 const UP = '202610070005_origins_trade_limits.sql', UP6 = '202610070008_origins_trade_reversal.sql';
-import { TIERS } from '../src/grades.ts';
+import { TIERS } from '../src/core/server.ts';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-origins-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -203,7 +203,7 @@ try {
   eq(sorted(lim.counts), sorted({ open: 0, settled: 1, counterparties: 1, pieces: 1, origin_tier: 1 }), 'B settled one trade, gave one piece, and it was an origin-tier one');
   eq(sorted(JSON.parse(W(`select public.origins_trade_counts('${C}', now() - interval '24 hours')::text;`))), sorted({ open: 0, settled: 0, counterparties: 0, pieces: 0, origin_tier: 0 }), 'an account that never traded counts zero');
   eq(JSON.parse(W(`select public.origins_trade_counts('${A}', now() + interval '1 hour')::text;`)).settled, 0, 'a window in the future counts nothing');
-  // the origin-tier cap counts the CANONICAL title string (src/career.ts TITLES[9] = grades.ts TIERS[9], case-sensitive): Strategy 2026-10-07. The config
+  // the origin-tier cap counts the CANONICAL title string (src/core/career-ladder.ts TITLES[9] = grades.ts TIERS[9], case-sensitive): Strategy 2026-10-07. The config
   // list must be that constant (drift guard), and an item carrying it increments the cap while a lowercase twin does not.
   eq(JSON.parse(psql(`select value::text from public.origins_config where key = 'trade_caps'`)).origin_tiers, [TIERS[9]], 'origin_tiers is the canonical TIERS[9] string');
   rewrite(`update public.origins_items set tier = '${TIERS[9].toLowerCase()}' where id = 'it:b1'`);

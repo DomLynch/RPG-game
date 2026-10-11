@@ -2,12 +2,12 @@
 // standing model, RegionDefinition and EncounterDefinition.
 //
 // Rank is NOT computed from marks or credit here. The gate input is the account's CAREER LEVEL, which the server's progression model
-// (origins/progression) computes from career credit on its rising requirement curve; this module only titles that level exactly as
-// src/career.ts does (TITLES, five levels per title, MAX_LEVEL). A legacy account's level is today's levelOf(marks), so every existing
+// (src/core/career-model.ts) computes from career credit on its rising requirement curve; this module only titles that level exactly as
+// src/core/career-ladder.ts does (TITLES, five levels per title, MAX_LEVEL). A legacy account's level is today's levelOf(marks), so every existing
 // rank reads the same. A CharacterInstance stores no marks, credit, level or stats (ruling 7: one career, one rank, one stat set,
 // server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
-import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
-import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
+import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/core/server.ts';
+import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
 import { isOpponentId, type OpponentId } from '../../src/fight/server.ts';
 import {
   Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion,
@@ -31,13 +31,13 @@ export const membershipRequired = (gate: Gate): boolean => gate === 'second-real
 
 // What the server says about the account's career. `careerLevel` is SERVER-VERIFIED: the progression model computes it from the account's
 // career credit (Pit wins and world play alike) and the server hands it over; the browser never derives it. An integer 1..cap, where the
-// cap is src/career.ts MAX_LEVEL unless a caller passes a longer ladder. `device` standing is a guest's or an offline figure: the HUD may
+// cap is src/core/career-ladder.ts MAX_LEVEL unless a caller passes a longer ladder. `device` standing is a guest's or an offline figure: the HUD may
 // show it, but it never opens a gate, equips a ranked piece or buys an upgrade (blueprint §4: the browser "does not validate its own
 // campaign unlock").
 export type CareerStanding = { source: 'server' | 'device'; careerLevel: number };
 export type CareerRank = { level: number; title: Tier };
 
-// src/career.ts rankFor's title rule, cap-parametric: five levels per title (RANK_STEPS), Origin at the top of any ladder.
+// src/core/career-ladder.ts rankFor's title rule, cap-parametric: five levels per title (RANK_STEPS), Origin at the top of any ladder.
 export const titleForLevel = (level: number, cap: number = MAX_LEVEL): Tier =>
   TITLES[Math.min(TITLES.length - 1, Math.floor((Math.min(cap, Math.max(1, Math.floor(level))) - 1) / RANK_STEPS))]!;
 

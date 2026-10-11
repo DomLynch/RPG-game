@@ -13,7 +13,7 @@ import { LOADOUT_FROM, OPPONENTS } from '../src/fight/moves.ts';
 import { optimizeGlb } from '../scripts/optimize-glb.mjs';
 import { bakeSafeFinisher, idleBeat, lookBakeOffFrom, lookBakes, PHONE_LOOKS, rankLookFlag, rankLookFor, rankLookMoves, rankLookStream, runThroughForced, SHIPPING_LOOKS, lookMapCapMiB } from '../src/fight/rank-look.ts';
 import { existsSync } from 'node:fs';
-import { TIERS, levelOf } from '../src/grades.ts';
+import { TIERS, levelOf } from '../src/core/grades.ts';
 import { supportsFinishers } from '../src/roster.ts';
 
 // Parse a shipped GLB in Node (geometry, rig, material names; images dropped), as tests/loot-wear.test.ts does.

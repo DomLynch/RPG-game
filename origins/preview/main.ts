@@ -2,7 +2,8 @@ import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
-import { actorPose, characterFor, loadWarriors, type Practice } from '../../src/fight/index.ts';
+import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
+import { characterFor } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS } from '../../src/fight/index.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
@@ -21,6 +22,7 @@ import { createCreatureCard } from './creature-card.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
+import { itemNamer } from './item-names.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -37,7 +39,6 @@ import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } 
 import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createMeters, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
-import { beginOnline, onlineWanted, type HeldFight, type Online } from './encounter-online.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
@@ -83,9 +84,6 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') !== '0';
-const ONLINE = onlineWanted(location.search);   // ?online=1: a creature fight is played on the server's seed and settled with its record (encounter-online.ts); anything else is the offline path
-const HELD_KEY = 'frankendom:encounter-token';   // the open server fight's token, so a reload or a second try inside its 120 s grace resumes it (a 409 on start names no token)
-const HELD = { get: (): HeldFight | null => { try { const v = JSON.parse(sessionStorage.getItem(HELD_KEY) ?? 'null') as Partial<HeldFight> | null; return v && typeof v.token === 'string' ? { token: v.token, played: v.played === true } : null; } catch { return null; } }, set: (f: HeldFight | null) => { try { if (f) sessionStorage.setItem(HELD_KEY, JSON.stringify(f)); else sessionStorage.removeItem(HELD_KEY); } catch { /* private mode: no resume, offline as before */ } } };
 const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier);
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
@@ -220,6 +218,7 @@ const show = (kind: Panel | null) => { const was = open; open = kind; if (kind =
 function openPanel(kind: Panel | null) {
   play.fresh(); picker.reset(); if (kind === 'ore') play.takeOre();
   show(kind); if (kind) { keys.clear(); releaseSticks(); }
+  if (kind === 'bank' || kind === 'blacksmith') void play.load();
 }
 card.addEventListener('click', (e) => {
   if (open === 'allegiance') {
@@ -438,7 +437,7 @@ const saveNote = document.getElementById('save')!, allegianceButton = document.g
 // The graduation picker (allegiance.ts): only on the SAVED career at Gladiator or above; the choice lives in the preview's own save.
 let storage: Storage | null = null;
 try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
-let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null, online: Online | null = null;
+let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
@@ -504,7 +503,7 @@ const zoneExit = () => exitFace(loadZone().name);   // the host's words for the 
 function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
-  fighting = false; online?.stop(); online = null; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
+  fighting = false; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
   duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
   lateOpen.settle();   // a saved career that arrived during the fight is adopted now (late-open.ts)
   if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, zoneExit()); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
@@ -512,11 +511,11 @@ function leaveFight() {
 }
 if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
 // ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
-// is Combat's (encounter-duel.ts), and hunt.ts sets it up and settles it through the encounters module (resolveFight, rollLoot, intoBackpack).
-// A win clears the creature for a while, rolls its loot into the hunt's pack and pays the Bounty if you hold it. Memory only, like the page.
+// is Combat's (pit-duel.ts). A win clears the creature for a while; the server's kill_report pays (kill-apply.ts) and the page holds no loot.
 const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
-let hunt: import('./hunt.ts').Hunt | null = null, huntMod: typeof import('./hunt.ts') | null = null, sayTimer = 0;
+const itemName = itemNamer();
+let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
 // stalemate shows nothing; the hero's death dims the screen for ~2 s ("You died"), then he stands up in town at full health, everything kept. The Pit keeps its own banner and rules.
@@ -559,19 +558,16 @@ function heroDeathSequence() {
   document.body.append(veil);
   setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
-async function creatureFell(spec: MobSpec) {
+function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
-  const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest, an offline page or a kill that paid 0 changes nothing
-  let local = `${spec.name} is down.`, bountyTaken = false;   // bountyTaken: the journal step's own answer (play.bountyPaid): a refused step says no bounty line
-  try {
-    huntMod ??= await import('./hunt.ts'); hunt ??= huntMod.newHunt();
-    const run = huntMod.prepare(hunt, spec), quest = bountyQuestId(frontier!.giver);
-    if (run.ok) { const out = huntMod.settle(hunt, spec, run.value, { result: 'won', twistOutcome: null }, new Date().toISOString(), () => play.bountyOpen(quest), false); if (out.bounty) bountyTaken = play.bountyPaid(quest, out.bounty.encounter); local = out.text.replace(/\n+/g, ' '); }
-  } catch (error) { console.warn('the kill could not be settled', error); }
-  const k = await answer;   // the toast shows the server's answer when signed in (its numbers, its loot), the page's own only for a guest or offline page, labelled preview
-  worldToast(killToast(source, k, local, (id) => huntMod && hunt ? huntMod.nameOf(hunt, id) : id, spec.name, bountyTaken));
+  const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
+  const quest = bountyQuestId(frontier!.giver);
+  const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
+  void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
+const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
+play.link({ token: () => storedToken(storage, Date.now()), character: characterNow, base: writerBase(location.search), changed: () => { if (open === 'bank' || open === 'blacksmith') show(open); } });
 const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
@@ -598,13 +594,12 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
-  // tap a creature by id as the page would (same reach rule); hunt() is the memory of the hunt: kills, the pack, the metal.
+  // tap a creature by id as the page would (same reach rule).
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
   // where a creature is on screen (CSS px), for a real touch tap in a browser check; null while it is down or off screen.
   mobScreen: (id: string) => { const m = mobs?.find(id); if (!m) return null; const v = new THREE.Vector3(m.x, 1, m.z).project(camera), r = canvas.getBoundingClientRect(); return v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 ? null : { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }; },
-  hunt: () => hunt && { kills: hunt.kills, metal: hunt.metal, bountyWins: hunt.bountyWins, pack: hunt.inventory.items.map((i) => `${i.item}×${i.quantity}`) },
   bounty: (i: number) => { if (open !== 'bounty') openPanel('bounty'); const line = play.lines('bounty')[i]; if (line) { play.say(line.id, 'bounty'); show('bounty'); } return line?.id; },
   talk: (i: number) => { if (open !== 'talk') openPanel('talk'); const line = play.lines()[i]; if (line) { play.say(line.id); show('talk'); } return line?.id; },
   journal: () => openPanel('journal'), state: play.state,

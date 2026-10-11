@@ -19,7 +19,7 @@ test('today\'s pins pass; a new error, a new file and a new code in a pinned fil
 });
 
 test('the walkCam miss: fixing an unused name does not make room for a "cannot find name"', () => {
-  const swapped = { ...Object.fromEntries(Object.entries(DEBT).map(([f, { codes }]) => [f, { ...codes }])), [MAIN]: { TS6133: 7, TS18047: 1, TS2304: 1 } };
+  const swapped = { ...Object.fromEntries(Object.entries(DEBT).map(([f, { codes }]) => [f, { ...codes }])), [MAIN]: { TS6133: DEBT[MAIN].codes.TS6133 - 1, TS18047: 1, TS2304: 1 } };
   const { over, stale } = judge(swapped);
   assert.ok(over.some((l) => l.includes('TS2304')), 'the new code fails');
   assert.ok(stale.some((l) => l.includes('TS6133')), 'and the fixed one asks for its pin to come down');

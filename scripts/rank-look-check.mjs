@@ -185,7 +185,7 @@ if (process.argv.includes('--matched')) {
 // mid-fight frame at 375: the sword drawn and --approach ms given for him to close (the fight camera frames both), then an attack tapped.
 // --tiers Recruit,Origin shoots a subset. No ?perf overlay. Writes artifacts/herolook/<label>/<n>-<Rank>-{idle,fight}.png and rungs.json.
 if (process.argv.includes('--rungs')) {
-  const { TIERS } = await import('../src/grades.ts');
+  const { TIERS } = await import('../src/core/server.ts');
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   // --query '&gfx=phone[&ranklook=/looks/<opp>-L{n}.glb]' adds to each page's URL, {n} = the rank (phone-LOD before/after stills, #1017).
   const rungs = [], only = arg('--tiers', '').split(',').filter(Boolean), approach = Number(arg('--approach', 3000)), query = arg('--query', '');

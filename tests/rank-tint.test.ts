@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MeshStandardMaterial, Texture } from 'three';
-import { TIERS } from '../src/grades.ts';
+import { TIERS } from '../src/core/grades.ts';
 import { tinted } from '../src/fight/rank-tint.ts';
 
 test('rank tint: cloth, bone and authored art are never tinted — the source itself comes back', () => {

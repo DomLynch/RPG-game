@@ -4,10 +4,10 @@
 import type { Issue, Result } from '../contracts/core.ts';
 import type { CharacterId, CharacterInstanceId, ItemId, QuestId } from '../contracts/ids.ts';
 import type { ConditionFacts, QuestDefinition, QuestState } from '../contracts/story.ts';
-import { award, levelOfCredit } from '../progression/model.ts';
+import { award, levelOfCredit } from '../../src/core/server.ts';
 import { loadJournal, type Advanced, type Journal } from '../quests/journal.ts';
 import type { Talk, TalkState } from '../talk/talk.ts';
-import { careerState } from './career.ts';
+import { careerState } from '../../src/core/server.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json, Snapshot } from './store.ts';
 

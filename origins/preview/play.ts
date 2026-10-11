@@ -1,15 +1,15 @@
 // Origins greybox, roadmap stage 2: the rules modules behind the panels. Orla's talk (origins/talk) drives the quest journal
-// (origins/quests); the bank reads and moves the character's real items (origins/inventory); the smith is the contracts' performUpgrade.
-// Content is the modules' own fixtures. All state lives in memory for the page session.
+// (origins/quests). The bank and the smith hold NOTHING here: they show the server's ledger (gear_open) and ask its ops (bank_move, apply_upgrade) through src/core, then show what it answers.
+// The quest journal and the talk are the page session's; no item, coin or bronze is kept on the page.
 import { heroBodyUrl } from '../../src/fight/index.ts';
 import type { Result } from '../contracts/core.ts';
-import { blacksmith, forgeCosts, graveIronDef, helmetDef, helmetInstance, ironInstance, recordDef, recordInstance, ACCOUNT, PC, smith } from '../contracts/fixtures.ts';
-import { parseServiceDefinition, parseUpgradeCostTable, performUpgrade, type UpgradeReceipt } from '../contracts/economy.ts';
-import type { AccountId, CharacterInstanceId, EncounterId, ItemId, QuestId } from '../contracts/ids.ts';
-import { parseItemDefinition, parseItemInstance, upgradeLevelOf, type ItemDefinition, type ItemInstance } from '../contracts/items.ts';
+import { PC, smith } from '../contracts/fixtures.ts';
+import type { CharacterInstanceId, EncounterId, ItemId, QuestId } from '../contracts/ids.ts';
 import { parseQuestDefinition, type QuestDefinition } from '../contracts/story.ts';
 import { parseCharacterDefinition, type CareerStanding } from '../contracts/world.ts';
-import { BANK_PLACE, deposit, find, gridView, openInventory, receive, remove, unequip, withdraw, type Grid } from '../inventory/inventory.ts';
+import { bankMove, openGear, upgradePiece, type GearPiece, type GearView, type Offline } from '../../src/core/index.ts';
+import { itemNamer } from './item-names.ts';
+import { SIGN_IN_HREF } from './save.ts';
 import { concordCommission } from '../quests/fixtures.ts';
 import { advance, entries, newJournal, type Journal } from '../quests/journal.ts';
 import { orla } from '../talk/fixtures.ts';
@@ -37,41 +37,63 @@ const TALK = must(loadTalk(orla())), QUEST = must(parseQuestDefinition(concordCo
 let GIVER: { talk: Talk; name: string } | null = null;
 const talkFor = (kind: Kind): Talk => (kind === 'bounty' && GIVER ? GIVER.talk : TALK);
 const ORE = (QUEST.stages.flatMap((s) => s.transitions.flatMap((t) => t.when)).find((c) => c.kind === 'has-item') as { item: ItemId }).item;
-const DEFS = new Map([helmetDef(), recordDef(), graveIronDef(), { ...graveIronDef(), id: ORE, name: 'Exchange ore' }].map((r) => must(parseItemDefinition(r))).map((d) => [d.id, d]));
-const lookup = (id: ItemId): ItemDefinition | undefined => DEFS.get(id);
-const SERVICE = must(parseServiceDefinition(blacksmith())), COSTS = must(parseUpgradeCostTable(forgeCosts()));
 export const SMITH_NAME = must(parseCharacterDefinition(smith())).name;
 // The career level the gates read: the Origins career's (origins/pit, the Pit duel settles it through award()), starting a Champion: past
 // the outer gate, and may wear a +1 Gladiator piece. The page moves it with play.standAt after a duel pays.
 export const START_LEVEL = 16;
 let STANDING: CareerStanding = { source: 'server', careerLevel: START_LEVEL };
 
-// The character: the contracts' stored instances (helmet worn, record in the pack, grave iron in the bank), helmet taken off to the pack.
-const helm = helmetInstance(), packSize = 8, bankSize = 8;
-let inv = must(unequip(must(openInventory({ owner: PC as CharacterInstanceId, account: ACCOUNT as AccountId, items: [helmetInstance(), recordInstance(), ironInstance()].map((r) => must(parseItemInstance(r))), packSize, bankSize }, lookup)), helm.id, lookup));
-let journal: Journal = newJournal(PC as CharacterInstanceId), talk = newTalkState(), coin = 400;
-const receipts = new Map<string, UpgradeReceipt>();
+// The bank and the smith's link to the one ledger (main.ts supplies it): the sign-in token, the character, where the writer is, and a nudge to redraw the open panel when an answer lands.
+export type Link = { token(): string | null; character(): string | null | Promise<string | null>; base?: string; changed(): void };
+let link: Link | null = null, view: GearView | null = null, busy = false, down: string | null = null;
+let journal: Journal = newJournal(PC as CharacterInstanceId), talk = newTalkState(), oreCarried = false;   // the Concord commission's errand token, spent when handed over: a quest step, not a value
 let reply = '', msg = '', picked: string | null = null, ended = false;
+const itemName = itemNamer();
 
-const hasItem = (item: ItemId) => inv.items.some((i) => i.item === item);
+const hasItem = (item: ItemId) => item === ORE && oreCarried;
 const facts = (): Facts => ({ standing: STANDING, quest: (id) => journal.quests.get(id), hasItem });
 const step = (quest: Parameters<typeof advance>[1], stage: string, choice: string | null, cleared?: (encounter: EncounterId) => boolean): Result<Journal> => {
   const r = advance(journal, quest, stage, { quests: QUESTS, standing: STANDING, at: new Date().toISOString(), choice: choice ?? undefined, hasItem, cleared });
   return r.ok ? { ok: true, value: r.value.journal } : r;
 };
-const nameOf = (i: ItemInstance) => `${lookup(i.item)?.name ?? i.item}${i.quantity > 1 ? ` ×${i.quantity}` : ''}${upgradeLevelOf(i) ? ` +${upgradeLevelOf(i)}` : ''}`;
-const cells = (grid: Grid): Cell[] => must(gridView(inv, grid, BANK_PLACE)).map((i) => i && { id: i.id, label: nameOf(i), on: i.id === picked });
+const pieceName = (p: GearPiece) => `${itemName(p.item)}${p.level ? ` +${p.level}` : ''}`;
+const slots = (where: 'pack' | 'bank', size: number): Cell[] => {
+  const out: Cell[] = Array.from({ length: size }, () => null);
+  for (const p of view?.pieces ?? []) if (p.where === where && p.index !== null && p.index < size) out[p.index] = { id: p.id, label: pieceName(p), on: p.id === picked };
+  for (const r of view?.stock ?? []) if (r.where === where && r.index < size) out[r.index] = { id: r.id, label: `${r.name}${r.quantity > 1 ? ` ×${r.quantity}` : ''}`, on: r.id === picked };
+  return out;
+};
+const pieceOf = (id: string | null) => (id ? view?.pieces.find((p) => p.id === id) : undefined);
+const stockOf = (id: string | null) => (id ? view?.stock.find((r) => r.id === id) : undefined);
+const offlineMsg = (o: Offline) => (o.offline === 'no-session' ? 'Sign in to use the bank.' : o.offline === 'http-422' ? 'The Exchange refused that.' : 'The server did not answer.');
+
+// One server round trip: ask, then show what came back. Nothing is changed on the page before the answer.
+async function ask<T>(run: (token: string | null, character: string) => Promise<T | Offline>, done: (v: T) => string): Promise<void> {
+  if (busy || !link) return;
+  busy = true; msg = 'One moment.'; link.changed();
+  const character = await link.character();
+  const r = link.token() && character ? await run(link.token(), character) : { offline: 'no-session' } as Offline;
+  busy = false;
+  if (r && typeof r === 'object' && 'offline' in r) { msg = offlineMsg(r as Offline); if ((r as Offline).offline !== 'no-session') await refresh(); } else msg = done(r as T);
+  link.changed();
+}
+async function refresh(): Promise<void> {
+  const l = link; if (!l) return;
+  const character = await l.character(), token = l.token();
+  if (!token || !character) { view = null; down = 'no-session'; return; }
+  const v = await openGear(token, character, { base: l.base });
+  if ('offline' in v) { down = v.offline; return; }
+  view = v; down = null; if (picked && !pieceOf(picked) && !stockOf(picked)) picked = null;
+}
 
 export const play = {
   standAt(level: number) { STANDING = { source: 'server', careerLevel: level }; },
+  link(l: Link) { link = l; },
+  /** A bank or smith panel opens: read the ledger again (the server is the only copy). */
+  async load(): Promise<void> { await refresh(); link?.changed(); },
   fresh() { reply = msg = ''; picked = null; ended = false; },
   oreWanted: () => journal.quests.get(QUEST.id)?.stage === 'fetch' && !hasItem(ORE),
-  takeOre() {
-    const r = receive(inv, must(parseItemInstance({ ...ironInstance(), id: 'inst:exchange-ore-1', item: ORE, quantity: 5, location: { kind: 'trade-escrow', container: 'container:quarry-cart', from: PC },
-      provenance: { ...ironInstance().provenance, mintKey: 'loot:quarry-cart:1' } })), lookup);
-    if (r.ok) inv = r.value;
-    msg = r.ok ? 'You take 5 Exchange ore from the cart.' : why(r);
-  },
+  takeOre() { oreCarried = true; msg = 'You take 5 Exchange ore from the cart.'; },
   lines: (kind: Kind = 'talk') => choices(talkFor(kind), talk, facts()),
   // ?region=1: register the Bounty (a quest record wrapping it, bounty.ts) and the talk of the figure who gives it.
   enableBounty(quest: unknown, giverTalk: unknown, name: string) {
@@ -90,9 +112,7 @@ export const play = {
     if (!r.ok) { msg = why(r); return; }
     talk = r.value.state; journal = r.value.journal ?? journal; reply = r.value.reply; msg = '';
     ended = r.value.effects.some((e) => e.kind === 'end');
-    // Handing the ore over (to Orla or the broker) spends it: it leaves the pack through the module's remove.
-    const ore = inv.items.find((i) => i.item === ORE);
-    if (ore && r.value.effects.some((e) => e.kind === 'quest' && (e.stage === 'forge' || e.stage === 'broker'))) { const g = remove(inv, ore.id, lookup); if (g.ok) inv = g.value.inventory; }
+    if (r.value.effects.some((e) => e.kind === 'quest' && (e.stage === 'forge' || e.stage === 'broker'))) oreCarried = false;   // handed over: the errand token is spent
   },
   // A tap inside the open panel: returns the panel to show next (null = close).
   act(el: HTMLElement | null, open: Kind): Kind | null {
@@ -101,28 +121,19 @@ export const play = {
     else if (d.go) { play.fresh(); return d.go as Kind; }
     else if (d.item) { picked = d.item === picked ? null : d.item; msg = ''; }
     else if (d.do === 'move' && picked) {
-      const where = find(inv, picked)?.location.kind, r = (where === 'bank' ? withdraw : deposit)(inv, picked, lookup, BANK_PLACE);
-      if (r.ok) { inv = r.value; picked = null; } msg = why(r);
+      const id = picked, to = (pieceOf(id)?.where ?? stockOf(id)?.where) === 'bank' ? 'pack' : 'bank';
+      void ask((t, c) => bankMove(t, c, id, to, { base: link?.base }), (v) => { view = v; picked = null; return to === 'bank' ? 'Deposited.' : 'Withdrawn.'; });
     } else if (d.do === 'upgrade' && picked) play.upgrade(picked);
     return open;
   },
   upgrade(id: string) {
-    const inst = find(inv, id)!, def = lookup(inst.item)!, key = `upgrade:${inst.id}:v${inst.version}`;
-    const r = performUpgrade({
-      request: { kind: 'upgrade-request', schemaVersion: 1, idempotencyKey: key, character: inv.owner, service: SERVICE.id, instance: inst.id, expectedVersion: inst.version, toLevel: upgradeLevelOf(inst) + 1 },
-      service: SERVICE, costs: COSTS, instance: inst, def, standing: STANDING, balance: coin, materials: inv.items.filter((i) => lookup(i.item)?.category === 'material'),
-      materialDefs: lookup, receipts, now: new Date().toISOString(), place: BANK_PLACE,   // the forge stands at the Exchange
-    });
-    if (!r.ok) { msg = why(r); return; }
-    if (r.value.replayed) return;
-    // No inventory call applies an upgrade outcome (an API gap, reported): rebuild the item list and re-open it through the full invariant.
-    const out = r.value, next = new Map([[out.instance.id, out.instance], ...out.materials.map((m) => [m.id, m] as const)]);
-    const opened = openInventory({ ...inv, items: inv.items.filter((i) => !out.consumed.includes(i.id)).map((i) => next.get(i.id) ?? i) }, lookup);
-    if (!opened.ok) { msg = why(opened); return; }
-    inv = opened.value; coin = out.balance; receipts.set(key, out.receipt); msg = `Upgraded to +${out.receipt.toLevel} for ${out.receipt.coin} coin.`;
+    const p = pieceOf(id); if (!p) return;
+    const mats = (view?.stock ?? []).filter((r) => r.category === 'material' && r.where === 'pack').map((r) => r.id);
+    void ask((t, c) => upgradePiece(t, c, p, mats, { base: link?.base }), (r) => `Upgraded to +${r.toLevel} for ${r.coin} coin.`).then(() => refresh()).then(() => link?.changed());
   },
   render(kind: Kind): string {
-    const sel = picked ? find(inv, picked) : undefined;
+    const piece = pieceOf(picked), row = stockOf(picked);
+    const signIn = () => ui.panel(kind === 'bank' ? 'Bank — Concord Exchange' : `Blacksmith — ${SMITH_NAME}`, ui.text('Sign in to use the bank and the smith: your items live on the server.'), `<a class="act" href="${SIGN_IN_HREF}">Sign in</a>`);
     switch (kind) {
       case 'ore': return ui.panel('Quarry cart', ui.text(msg));
       case 'bounty': return ui.panel(GIVER?.name ?? 'Nobody', ui.text(reply || 'He looks up from the Roll of the hold.'), ended ? '' : ui.choices(play.lines('bounty')), ui.text(msg, true));
@@ -130,22 +141,24 @@ export const play = {
       case 'journal': return ui.panel('Journal', ...(journal.quests.size ? [...journal.quests.values()].map((s) =>
         ui.heading(`${QUESTS.get(s.quest)?.title ?? s.quest} — ${s.status}`) + entries(journal).filter((e) => e.quest === s.quest).map((e) => ui.text(e.text)).join('')) : [ui.text('No quests yet.', true)]));
       case 'bank': {
-        const p = sel?.provenance;
-        return ui.panel('Bank — Concord Exchange', ui.grid(cells('bank')), ui.heading('Backpack'), ui.grid(cells('pack')),
-          ui.text(sel ? `${nameOf(sel)}${p && 'wonBy' in p ? ` · won by ${p.wonBy}${'fromLegend' in p ? ` from ${p.fromLegend} at ${p.atRank}` : ''}, ${p.at.slice(0, 10)}` : ''}` : 'Tap an item.', true),
-          ui.button(sel?.location.kind === 'bank' ? 'Withdraw' : 'Deposit', { do: 'move' }, !sel), ui.text(msg, true));
+        if (down === 'no-session') return signIn();
+        if (!view) return ui.panel('Bank — Concord Exchange', ui.text(down ? 'The server did not answer.' : 'Opening the vault.', true), ui.text(msg, true));
+        const at = piece?.where ?? row?.where;
+        return ui.panel('Bank — Concord Exchange', ui.grid(slots('bank', view.bankSize)), ui.heading('Backpack'), ui.grid(slots('pack', view.packSize)),
+          ui.text(piece ? pieceName(piece) : row ? row.name : 'Tap an item.', true),
+          ui.button(at === 'bank' ? 'Withdraw' : 'Deposit', { do: 'move' }, !(piece || row) || at === 'equipped' || busy), ui.text(msg, true));
       }
       case 'blacksmith': {
-        const gear = inv.items.filter((i) => lookup(i.item)?.power === 'slot-weight');
-        const row = sel && COSTS.rows.find((c) => c.level === upgradeLevelOf(sel) + 1 && c.rarity === lookup(sel.item)?.rarity);
-        return ui.panel(`Blacksmith — ${SMITH_NAME}`, ui.heading(`Upgrade a piece · ${coin} coin`), ...gear.map((i) => ui.row(nameOf(i), `+${upgradeLevelOf(i)}`, { item: i.id }, i.id === picked)),
-          ui.text(row ? `Next level: ${row.coin} coin${row.materials.map((m) => `, ${m.quantity} × ${lookup(m.item)?.name ?? m.item}`).join('')}` : sel ? 'No price for the next level.' : 'Tap a piece.', true),
-          ui.button('Upgrade', { do: 'upgrade' }, !sel), ui.text(msg, true), ui.button(`Talk to ${SMITH_NAME}`, { go: 'talk' }));
+        if (down === 'no-session') return signIn();
+        const gear = (view?.pieces ?? []).filter((p) => p.where !== 'equipped' && p.slot !== null);
+        return ui.panel(`Blacksmith — ${SMITH_NAME}`, ui.heading('Upgrade a piece'), ...gear.map((p) => ui.row(pieceName(p), `+${p.level}`, { item: p.id }, p.id === picked)),
+          ui.text(piece ? 'The Exchange prices it and takes the materials from your pack.' : view ? 'Tap a piece.' : 'Opening the forge.', true),
+          ui.button('Upgrade', { do: 'upgrade' }, !piece || busy), ui.text(msg, true), ui.button(`Talk to ${SMITH_NAME}`, { go: 'talk' }));
       }
     }
   },
   state: () => ({
     quests: [...journal.quests.values()].map((s) => ({ quest: s.quest, stage: s.stage, status: s.status, entries: s.journal.length })),
-    choices: play.lines().map((l) => l.id), coin, pack: must(gridView(inv, 'pack')).filter(Boolean).map((i) => nameOf(i!)), bank: must(gridView(inv, 'bank', BANK_PLACE)).filter(Boolean).map((i) => nameOf(i!)),
+    choices: play.lines().map((l) => l.id), pack: (view?.pieces ?? []).filter((p) => p.where === 'pack').map(pieceName), bank: (view?.pieces ?? []).filter((p) => p.where === 'bank').map(pieceName),
   }),
 };

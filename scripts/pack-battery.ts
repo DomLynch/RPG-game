@@ -3,7 +3,7 @@
 //   node scripts/pack-battery.ts   env: KIND (wolf), LEVELS (2,3), SIZES (1,2,3,4), RUNGS (0,2,4 = Recruit, 3rd, 5th tier), SEEDS (16), BOTS (masher,guard)
 import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
 import { fullSet, loadoutFor, NAKED } from '../src/fight/gear-stats.ts';
-import { TIERS } from '../src/grades.ts';
+import { TIERS } from '../src/core/server.ts';
 
 const DT = 1 / 60, MAX_S = 120, env = (k: string, d: string) => (process.env[k] ?? d).split(',');
 type Bot = (w: World, k: number) => Input;

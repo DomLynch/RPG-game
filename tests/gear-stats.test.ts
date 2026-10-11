@@ -7,8 +7,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CAPS, FULL_POINTS, NAKED, SLOT_WEIGHT, fullSet, kitFrom, loadoutFor, opponentOf, pointsFor, wholePoints, type Kit, type Loadout, type TierOf } from '../src/fight/gear-stats.ts';
-import { TIERS, levelOf, type Tier } from '../src/grades.ts';
-import { ARMOUR_SLOTS, LOOT_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from '../src/fight/loot.ts';
+import { TIERS, levelOf, type Tier } from '../src/core/grades.ts';
+import { ARMOUR_SLOTS, LOOT_SLOTS, WEAPON_SLOTS, isWeaponSlot, type LootSlot } from '../src/core/loot.ts';
 
 const STATS = ['attack', 'res'] as const;
 
@@ -216,8 +216,8 @@ test('gear stats: a shield is worth no RES at any tier — it pays out in the gu
 });
 
 // ---- the paperdoll seam ---------------------------------------------------------------------------------------------------------
-// A LootId carries no tier (src/fight/loot.ts:22 is `<opponent>.<slot>`) and there is no per-opponent table to find one in: a tier belongs to
-// the FIGHT (`tierAt(marks)` in src/grades.ts). So the lookup is keyed on the piece and these hold the behaviour while it does not exist
+// A LootId carries no tier (src/core/loot.ts:22 is `<opponent>.<slot>`) and there is no per-opponent table to find one in: a tier belongs to
+// the FIGHT (`tierAt(marks)` in src/core/grades.ts). So the lookup is keyed on the piece and these hold the behaviour while it does not exist
 // yet: no tier must resolve to the identity, not to a default rung.
 const TIERLESS: TierOf = () => null;
 

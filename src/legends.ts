@@ -8,8 +8,8 @@
 // The rung is the FIGHT's level read through the ladder that already exists (grades.ts tierAt over career.ts rankFor), never a second
 // mapping: a fight at level L is the rank a fighter with L − 1 wins holds, so a dial-down fight shows the legend of the level it is
 // fought at. Cosmetic like grades.ts, so it stays out of the simulation boundary (roster.ts may not import it).
-import { MAX_LEVEL } from './career.ts';
-import { levelOf, tierAt } from './grades.ts';
+import { MAX_LEVEL } from './core/career-ladder.ts';
+import { levelOf, tierAt } from './core/grades.ts';
 import type { OpponentId } from './roster.ts';
 
 export type Legend = { name: string; source: string; backstory: string };

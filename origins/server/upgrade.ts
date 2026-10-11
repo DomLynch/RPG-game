@@ -15,7 +15,7 @@ import {
 } from '../contracts/economy.ts';
 import type { Location } from '../contracts/items.ts';
 import { applyUpgrade, BANK_PLACE, find } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../progression/model.ts';
+import { levelOfCredit } from '../../src/core/server.ts';
 import { inZone, type WhereFn } from '../presence/where.ts';
 import { DbError } from './db.ts';
 import { Refused } from './errors.ts';

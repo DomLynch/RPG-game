@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { creditFromMarks, levelOfCredit, basePay, TYPE_WEIGHTS } from '../origins/progression/model.ts';
+import { cumulative, levelOfCredit, basePay, TYPE_WEIGHTS } from '../src/core/career-model.ts';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { loadStoryContent, readStoryContent } from '../origins/server/content.ts';
 import { Refused } from '../origins/server/errors.ts';
@@ -37,7 +37,7 @@ const talkOp = async (ctx: Ctx, body: Record<string, unknown>): Promise<{ reply:
 type Row = Record<string, unknown>;
 type World = { career: Row; quests: Row[]; journal: Row[]; talk: Row[]; events: Map<string, Row>; items: Row[] };
 const MARKS = 10;   // level 11 (Gladiator I): the Concord Commission's outer gate is open
-const SEED = creditFromMarks(MARKS);
+const SEED = cumulative(1 + MARKS);
 
 // One account's rows (A, owning PA; PB is B's) and the migration's commit rules over them.
 function fakeDb(o: { items?: Row[] } = {}) {

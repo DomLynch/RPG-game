@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAP_GUARD_MS, createLootPanel, tileLabel } from '../src/fight/loot-panel.ts';
-import { LOOT, lootName } from '../src/fight/loot.ts';
+import { TAP_GUARD_MS, createLootPanel, tileLabel } from '../src/core/loot-panel.ts';
+import { LOOT, lootName } from '../src/core/loot.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 
 // The kill screen's panel is DOM-only (main.ts owns the loot rules), so it is tested against a fake element lookup exactly as the

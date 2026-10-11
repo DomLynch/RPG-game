@@ -6,7 +6,7 @@ import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { Match } from '../src/fight/match.ts';
 import { mobLayer } from '../origins/mobs/kits.ts';
 import { LEVELS, OPPONENTS, opponentAt, profileAt, type WeaponId } from '../src/fight/moves.ts';
-import { loadProfile } from '../src/profile.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { quantizeIntent } from '../src/fight/record.ts';
 import { recordSpecials } from '../src/fight/replay.ts';
 import { loadScorecard } from '../src/scorecard.ts';

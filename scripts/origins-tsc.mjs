@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 
 export const DEBT = {
   // K2d leftovers: 8 unused names (TS6133); :522 `mobs` possibly null is guarded at runtime (the handler returns on why = 'no-mobs') but not narrowed for tsc.
-  'origins/preview/main.ts': { owner: 'Combat & Specials', codes: { TS6133: 8, TS18047: 1 } },
+  'origins/preview/main.ts': { owner: 'Combat & Specials', codes: { TS6133: 5, TS18047: 1 } },
   // :194 imports ./vite.config.mjs, which has no declaration file.
   'origins/preview/save.test.ts': { owner: 'Duels & Backend', codes: { TS7016: 1 } },
 };

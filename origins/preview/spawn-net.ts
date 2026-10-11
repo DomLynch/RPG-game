@@ -54,7 +54,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (had) return had.engage;
     if (isSpent(instance)) return Promise.resolve<Offline>({ offline: 'spent' });   // the kill's own late events never open a new token   // FightStarted is once per engage, but a re-fire must never open a second token
     const engage = (async (): Promise<Engaged | Offline> => {
-      const character = await d.character();   // a page whose open has not (yet) answered asks the door again here (src/fight/open.ts characterFor), so a late character is picked up before the first engage
+      const character = await d.character();   // a page whose open has not (yet) answered asks the door again here (src/core/open.ts characterFor), so a late character is picked up before the first engage
       return character ? call('engage', { character, instance, zoneId: d.zone?.() ?? '1' }, d.token(), engagedOf, opts) : { offline: 'no-character' };
     })();
     live.set(instance, { engage, hits: 0, touchedAt: d.now() });

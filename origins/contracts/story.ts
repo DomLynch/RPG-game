@@ -5,7 +5,7 @@
 // conditions that must all hold. Every condition kind is listed below: content that asks for anything else is refused with an explicit
 // "unsupported condition" issue rather than translated into a guess (blueprint Stage B: unsupported script behaviour must be reported).
 // The graph is checked when the content loads, so a soft lock (a stage you can enter and never leave) is a content error, not a bug report.
-import { isTier, levelOf, type Tier } from '../../src/grades.ts';
+import { isTier, levelOf, type Tier } from '../../src/core/server.ts';
 import {
   Issues, LOCAL_KEY, checkString, isPlainObject, join, ok, readArray, readEnum, readInt, readKind, readObject, readSchemaVersion, readString, readText, readTimestamp,
   fail, type Issue, type Obj, type Result,

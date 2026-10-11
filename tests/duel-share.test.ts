@@ -26,7 +26,7 @@ test('DUEL leaves for ?duel=new with the rest of the query dropped', () => {
 });
 
 test('DUEL is hidden from a guest, and shown to any signed-in player and with the admin tools (account.ts, main.ts, style.css)', () => {
-  const css = read('../src/style.css'), account = read('../src/account.ts');
+  const css = read('../src/style.css'), account = read('../src/core/account.ts');
   assert.match(css, /:root:not\(\[data-duel-tools='true'\]\) #duel-button \{ display: none !important; \}/, 'no data-duel-tools, no DUEL: a guest or a non-admin never sees it');
   assert.match(account, /tools\.hidden = !admin && tools\.dataset\.debug !== 'true'; if \(document\.documentElement\) document\.documentElement\.dataset\.duelTools = String\(!tools\.hidden \|\| !!userId\)/, 'a signed-in player or the test tools (roster / ?debug) set it; a guest never does (Dom opened duels 2026-10-02)');
   assert.match(main, /document\.documentElement\.dataset\.duelTools = 'true'/, 'a local ?debug build keeps it for the release checks');
@@ -37,7 +37,7 @@ test('DUEL is hidden from a guest, and shown to any signed-in player and with th
 
 test('the DUEL gate has its own attribute: lobby.ts writes its two-page probe JSON into dataset.duel, so the gate never shares it', () => {
   assert.match(read('../src/net/lobby.ts'), /document\.documentElement\.dataset\.duel = JSON\.stringify/, 'the probe keeps dataset.duel');
-  for (const [name, text] of [['account.ts', read('../src/account.ts')], ['main.ts', main], ['style.css', read('../src/style.css')]]) assert.doesNotMatch(text.replace(/duel-tools|duelTools/g, ''), /(dataset\.duel\s*=\s*(String|'true')|\[data-duel=)/, `${name} does not gate DUEL on the probe's attribute`);
+  for (const [name, text] of [['account.ts', read('../src/core/account.ts')], ['main.ts', main], ['style.css', read('../src/style.css')]]) assert.doesNotMatch(text.replace(/duel-tools|duelTools/g, ''), /(dataset\.duel\s*=\s*(String|'true')|\[data-duel=)/, `${name} does not gate DUEL on the probe's attribute`);
 });
 
 test('the end screen is one bottom-anchored right-hand column: LINK + CLIP above Next, no loot-panel override', () => {

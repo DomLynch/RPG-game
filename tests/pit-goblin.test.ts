@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
 import { loadZone } from '../origins/zones/loader.ts';
 import { ROSTER } from '../src/roster.ts';
-import { LOOT } from '../src/fight/loot.ts';
+import { LOOT } from '../src/core/loot.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
 
 const root = (p: string) => new URL(`../${p}`, import.meta.url);

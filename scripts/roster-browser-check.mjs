@@ -5,7 +5,7 @@ import { ENCOUNTERS, ROSTER } from '../src/roster.ts';
 import { OPPONENTS, PLAYER_WEAPONS, opponentAt } from '../src/fight/moves.ts';
 import { PROPS } from '../src/arena-props.ts';
 import { PHONE_LOOKS, rankLookFor } from '../src/fight/rank-look.ts';
-import { levelOf, tierAt } from '../src/grades.ts';
+import { levelOf, tierAt } from '../src/core/server.ts';
 import { SHIPPING_SHIELDS, shieldFor } from '../src/fight/shields.ts';
 // The fighter rigs are the .glb responses that are not the arena's authored props (src/arena-props.ts) — those load on every page.
 // This check exists to stop a page fetching FIGHTER RIGS it does not need ("fetch only hero and selected opponent" below).

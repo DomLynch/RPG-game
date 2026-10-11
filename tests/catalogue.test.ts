@@ -7,7 +7,7 @@ import { catalogueProblems, catalogueRowsProblems, type CatalogueRow } from '../
 import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { LEVELS, statsAt, opponentAt, OPPONENTS } from '../src/fight/stats.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
-import { LOOT, LOOT_IDS } from '../src/fight/loot.ts';
+import { LOOT, LOOT_IDS } from '../src/core/loot.ts';
 import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/fight/finishers.ts';
 import { WEAPONS } from '../src/fight/moves.ts';
 import { PICKS, homePick } from '../src/fight/stance.ts';
@@ -17,7 +17,7 @@ import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/fight/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
 import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
-import { MAX_LEVEL } from '../src/career.ts';
+import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
 import { LOOT_TABLES } from '../origins/region1/content.ts';
 

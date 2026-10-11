@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { READ } from '../src/fight/ai.ts';
-import { MAX_LEVEL } from '../src/career.ts';
+import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 import { LADDER } from '../src/ladder.ts';
 import { LEVELS, LEVEL_ANCHORS, LOADOUT_FROM, LONGSWORD, NOVICE_BODY, OPPONENTS, POISE_FULL_AT, opponentAt, profileAt, type AiProfile, type Opponent } from '../src/fight/moves.ts';
 // A re-kitted opponent (moves.ts LOADOUT_FROM: the Centurion's gladius + scutum from level 6, RV18) is his roster body with the kit's weapon and guard on.
