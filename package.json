@@ -13,7 +13,7 @@
     "fingerprint:update": "node scripts/rng-fingerprint.mjs --update",
     "test:slow": "node --test --test-name-pattern=\"\\[slow\\]\" tests/*.test.ts",
     "zones": "node scripts/gen-zones.mjs",
-    "test:all": "node --test tests/*.test.ts",
+    "test:all": "node scripts/lib/release-lock-preflight.mjs && node --test tests/*.test.ts",
     "test:bot": "node --test tests/*.test.mjs",
     "quality:stop": "eslint src && npm run typecheck:tests && npm run typecheck:origins && npm run lint:origins && npm test",
     "quality": "eslint src && npm run typecheck:tests && npm run typecheck:origins && npm run lint:origins && npm run test:all && npm run test:bot && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",

@@ -49,12 +49,17 @@ npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm 
 
 export function buildRunner(args) {
   const { sha, tree, runid } = args;
-  return runnerHead(args) + `npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
+  return runnerHead(args) + `# max 1-minute load seen while the suite runs, sampled every 5 s: the receipt carries its own evidence of how quiet the box was
+( while :; do cut -d' ' -f1 /proc/loadavg; sleep 5; done ) > "$RUN/load.log" 2>/dev/null &
+LOADPID=$!
+FRANKENDOM_RELEASE_RUN=1 npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
 rc=$?
+kill "$LOADPID" 2>/dev/null
+maxload=$(sort -n "$RUN/load.log" 2>/dev/null | tail -1)
 if [ "$rc" -eq 0 ]; then
   pass=$(grep -E '^# pass ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
   fail=$(grep -E '^# fail ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
-  printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s}\\n' "$NONCE" "$BOXTREE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))"
+  printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s,"max_load1":%s}\\n' "$NONCE" "$BOXTREE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))" "\${maxload:-null}"
 fi
 [ "$rc" -eq 0 ] || { echo "--- failing tests (exit $rc) ---" >&2; grep -E '^not ok' "$RUN/unit.log" | grep -v '# TODO' | head -40 >&2; echo "--- unit.log tail ---" >&2; tail -n 25 "$RUN/unit.log" >&2; }
 exit "$rc"
