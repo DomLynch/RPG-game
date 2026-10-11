@@ -70,6 +70,16 @@ export function c6(read: (f: string) => string, list: readonly string[]): string
   }
   const pit = read('origins/server/career.ts').replace(/^\s*\/\/.*$/gm, '');
   if (/\baward\s*\(|\btotal_credit\b|\bcredit\s*:/.test(pit) || !/\bcp:\s*0\b/.test(pit)) bad.push('origins/server/career.ts: a Pit win must pay cp 0 and touch no career credit');
+  const CLIENT_WRITABLE = /\b(scorecard_notes|control_trials)\b/;
+  for (const f of list) {
+    if (!NOT_TEST(f) || f.startsWith('scripts/career-service-database-check')) continue;
+    const text = read(f).replace(/^\s*\/\/.*$/gm, '');
+    if (CLIENT_WRITABLE.test(text) && /\b(rankFor|levelOfMarks|levelOfCredit|marksOf|shownMarks|victoryMarks|victory_marks|total_credit|award\s*\(|leaderboards|pit_record)\b/.test(text)) bad.push(`${f} mixes a client-writable table (scorecard_notes, control_trials) with rank, value or a board`);
+  }
+  const mig = read('supabase/migrations/202610110019_career_service_rows.sql'), board = mig.match(/create function public\.leaderboards[\s\S]*?\$\$;/)?.[0] ?? '';
+  const tables = new Set([...board.matchAll(/\b(?:from|join)\s+public\.(\w+)/g)].map((m) => m[1]));
+  if (!board || [...tables].some((t) => !['duel_ratings', 'fight_results', 'fighter_profiles'].includes(t!)) || !tables.has('duel_ratings')) bad.push(`leaderboards() reads ${[...tables].join(', ') || 'nothing'}: only duel_ratings, fight_results (duel rows) and fighter_profiles, never a client-writable table`);
+  if (/\bkind\s*=\s*'ai'/.test(board)) bad.push('leaderboards() counts client-written AI rows');
   return bad.sort();
 }
 
@@ -160,6 +170,11 @@ test('C6 mutation: a second level function, marks in zone code, a seeded zone ch
   assert.equal(c6(withFile('origins/server/story.ts', 'const c = newCareer(12);'), FILES).length, 1);
   assert.equal(c6(withFile('origins/server/career.ts', 'const p = award(state, ev);'), FILES).length, 1);
   assert.equal(c6((f) => f === 'origins/server/career.ts' ? disk(f).replaceAll('cp: 0', 'cp: 5') : disk(f), FILES).length, 1);
+  assert.equal(c6(withFile('origins/server/story.ts', "const q = 'control_trials'; const l = marksOf(p);"), FILES).length >= 1, true, 'a client-writable table beside rank is flagged');
+  assert.equal(c6(withFile('origins/server/shop-buy.ts', "const t = 'scorecard_notes'; const c = award(s, e);"), FILES).length >= 1, true);
+  const MIG = 'supabase/migrations/202610110019_career_service_rows.sql';
+  assert.equal(c6((f) => f === MIG ? disk(f).replace('from public.duel_ratings d', 'from public.control_trials d') : disk(f), FILES).length, 1, 'a board reading a client-writable table');
+  assert.equal(c6((f) => f === MIG ? disk(f).replace("where kind = 'duel' and result = 'win'", "where kind = 'ai' and result = 'win'") : disk(f), FILES).length >= 1, true, 'a board counting AI rows');
   assert.equal(c6(withFile('origins/pit/pit.ts', 'const s = careerAtLevel(3);'), FILES).length, 0, 'the Pit session may');
   assert.equal(c6(withFile('origins/server/story.ts', 'const c = newCareer();'), FILES).length, 0);
 });

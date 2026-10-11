@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { rankFor } from '../src/core/career-ladder.ts';
+import { rankFor } from '../src/core/server.ts';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-career-service-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
 const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 'C' };
