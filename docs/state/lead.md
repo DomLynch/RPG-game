@@ -2,6 +2,13 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-11 18:39 (`date`) — handoff before /clear (Dom). LIVE BR2 6026e0056 (my curl 18:38). READ FIRST; supersedes 17:40
+**Live since 17:40 (my curls):** BQ d2f665687 17:39 (#2211 signed-in zone rename + #2214 PGRST116 guard, defensive only) → BR2 6026e0056 18:21 (#2216 zones as data + #2218 Zone 3 = one row, /zone/3/ 200; #2215 backup ops + #2210 is_test files). Writer reinstalled 18:21:19, Auditor parity 974/974 + row 53 BOOT OK. 9 releases today; cut→live 11–15 min.
+**DB:** 0022 backup_role applied (20261011133917, POST PASS). QA row inserted (is_test, display_name 'QA Smoke', user a7cbfaee…). Dom set frankendom_backup LOGIN+password; /etc/frankendom/backup.env and qa-account.env exist (root 600). I tested the backup login read-only: OK, db 16 MB. Email provider ON (signups stay on).
+**Next, in order:** (1) Backend: run ops/install-db-backup.sh + one manual run → log line → Auditor checks the first dump. (2) Backend: run #2221 QA smoke once (head moved to 06ccd73a6 after the Auditor's delta PASS @973553546 — needs a delta check first). (3) release-BS = #2222 @435da595f + #2221 + #2223 @6d4e3bcd7 (DEFAULT_ZONE pin + wolf still; writer reinstall + parity). (4) Close #2218 as merged by BR2 (still OPEN).
+**Rulings:** Supabase stays FREE; email signup stays open (disable_signup is project-wide); migrations apply from Deploy's Mac session; the Auditor never uses the QA credential.
+**Gotchas:** Dom pastes from Apple Notes → curly quotes break shell; give quote-free commands or nano. Pass DB URLs via --env-file, never argv.
+
 ## 2026-10-11 17:40 (`date`) — handoff at 97% weekly quota (no stop; resets 00:00). LIVE BP 030bbfbd1 (my curl 17:22). READ FIRST
 **Live today (my curls):** BK2 786917f3c 14:44 (landscape, Career tab, boards) → BL2 e4e73361a 15:02 (camera B; writer reinstalled by Deploy, Auditor row-53 BOOT OK + parity) → BM a499ee490 ~16:05 (#2195 Fighter #N client + #2201 Profile card + #2204 freeze-at-cut rule) → BN 5c641399c 16:37 (#2203 zone pencil, one gear path) → BO c5901d78 17:09 (#2209 per-weapon test files: unit suite 487→~156 s; #2205) → BP 030bbfbd1 17:22 (#2207 cancel superseded HF jobs + "orphaned T4 jobs: N"; first print 23 = pre-rule baseline). Cut→live back to 11–12 min (was 16–17).
 **DB (Deploy applied from the Mac, Auditor POST PASS):** 0020 leaderboards_public_id (20261011114107), 0021 fighter_is_test (20261011130811).
