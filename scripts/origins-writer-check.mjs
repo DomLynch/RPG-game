@@ -234,6 +234,35 @@ try {
   const bankedAt = await call('apply_upgrade', 'ta', bankedPiece());
   eq([bankedAt.status, bankedAt.json.result?.replayed, bankedAt.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-d', 5]]], 'upgrade: a banked piece is upgraded at the Exchange');
   eq([greavesRow(), irons(), upgrades(), conserved()], ['bank:1:v2:1', 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the banked piece stays in the bank at level 1, pack iron burned, conserved');
+  // bank_move (pack <-> bank, only at the Exchange): one location put through the one ledger door; conservation at every commit, the stale path on the real database
+  const bm = (id, to, over = {}) => call('bank_move', 'ta', { character: pc, id, to, ...over });
+  const rowOf = id => psql(`select loc_kind || ':' || upgrade_level || ':v' || version || ':' || quantity from public.origins_items where id = '${id}'`);
+  const ironBefore = irons(), upBefore = upgrades();
+  presence[A] = inPitYard();
+  const bmAway = await bm('inst:greaves-wc', 'pack');
+  eq([bmAway.status, rowOf('inst:greaves-wc'), conserved()], [422, 'bank:1:v2:1', '0'], 'bank_move: away from the Exchange is refused, nothing changed');
+  delete presence[A];
+  eq([(await bm('inst:greaves-wc', 'pack')).status, rowOf('inst:greaves-wc')], [422, 'bank:1:v2:1'], 'bank_move: no presence is refused, nothing changed');
+  presence[A] = atBank();
+  const bmBadTo = await bm('inst:greaves-wc', 'attic');
+  eq([bmBadTo.status, rowOf('inst:greaves-wc')], [400, 'bank:1:v2:1'], 'bank_move: a bad direction is refused');
+  const wd = await bm('inst:greaves-wc', 'pack');
+  eq([wd.status, rowOf('inst:greaves-wc'), wd.json.result.pieces.find(x => x.id === 'inst:greaves-wc').where, conserved()], [200, 'pack:1:v3:1', 'pack', '0'], 'bank_move: withdraw at the Exchange moves the row only (level and quantity kept, version +1), conserved');
+  const wd2 = await bm('inst:iron-c', 'pack');
+  eq([wd2.status, rowOf('inst:iron-c'), wd2.json.result.stock.find(x => x.id === 'inst:iron-c').where, irons(), upgrades(), conserved()], [200, 'pack:0:v3:15', 'pack', ironBefore.replace('inst:iron-c:15:v2', 'inst:iron-c:15:v3'), upBefore, '0'], 'bank_move: a whole stack withdraws with its quantity, no value created, no upgrade event');
+  const dep = await bm('inst:iron-c', 'bank', { index: 1 });
+  eq([dep.status, rowOf('inst:iron-c'), dep.json.result.stock.find(x => x.id === 'inst:iron-c').where, conserved()], [200, 'bank:0:v4:15', 'bank', '0'], 'bank_move: and deposits back');
+  const bmRace = await Promise.all([bm('inst:iron-c', 'pack'), bm('inst:iron-c', 'pack')]);
+  eq([bmRace.map(r => r.status).sort(), rowOf('inst:iron-c'), conserved()], [[200, 422], 'pack:0:v5:15', '0'], 'bank_move race: one move wins, the other is refused, moved once');
+  await bm('inst:iron-c', 'bank', { index: 1 });
+  let stale = '';
+  try { psql(`do $d$ begin perform public.origins_commit('${A}', $j$[{"op":"put","id":"inst:greaves-wc","expected_version":1,"loc":{"kind":"bank","owner":"${pc}","index":2},"bound_to":null,"upgrade_level":1,"history_append":[]}]$j$::jsonb); exception when others then raise exception 'sqlstate=%', sqlstate; end $d$;`); } catch (e) { stale = String(e.stderr || e.message); }
+  if (!/sqlstate=O0002/.test(stale)) throw Error('stale: ' + stale.slice(0, 300));
+  eq([/sqlstate=O0002/.test(stale), rowOf('inst:greaves-wc'), conserved()], [true, 'pack:1:v3:1', '0'], 'bank_move: a put on a stale version aborts with O0002 and changes nothing');
+  await bm('inst:greaves-wc', 'bank', { index: 2 });   // put the piece back where the later checks expect it
+  eq([rowOf('inst:greaves-wc'), conserved()], ['bank:1:v4:1', '0'], 'bank_move: deposit back');
+  presence[A] = atBank();
+
   // a story-critical piece (the fixtures' Oath Gauntlets, bound quest-reward gear): the smith may upgrade it (Strategy, 2026-10-07) and it keeps its story
   // flag, binding, provenance and place; a story piece is never a material, not even the piece itself; afterwards its quest step still burns it
   const oathProv = { kind: 'quest-reward', quest: 'quest:stolen-name', stage: 'oath' };
@@ -249,12 +278,12 @@ try {
   eq([oathMat.status, /story-critical; the smith never takes it as a material/.test(oathMat.json.error)], [400, true], 'upgrade: a story piece offered as a material is refused');
   const oathSelf = await call('apply_upgrade', 'ta', oathAsk({ op: 'smith:oath-wc:self', materials: ['inst:oath-wc', 'inst:iron-b'] }));
   eq([oathSelf.status, /piece being upgraded; it cannot also be spent/.test(oathSelf.json.error)], [400, true], 'upgrade: the piece is never its own material');
-  eq([oathRow(), irons(), upgrades(), conserved()], [oathFresh, 'inst:iron-b:8:v2,inst:iron-c:15:v2,inst:iron-d:1:v2', '3', '0'], 'upgrade: the story refusals changed nothing');
+  eq([oathRow(), irons(), upgrades(), conserved()], [oathFresh, 'inst:iron-b:8:v2,inst:iron-c:15:v6,inst:iron-d:1:v2', '3', '0'], 'upgrade: the story refusals changed nothing');
   presenceDown = true;   // X1 (c): a pack piece paid with pack iron needs no Exchange, so presence being down does not stop it
   const oathUp = await call('apply_upgrade', 'ta', oathAsk());
   presenceDown = false;
   eq([oathUp.status, oathUp.json.result?.replayed, oathUp.json.result?.receipt.materials.map(m => [m.instance, m.quantity])], [200, false, [['inst:iron-b', 5]]], 'upgrade: the story piece is upgraded for 5 iron');
-  eq([oathRow(), irons(), upgrades(), conserved()], [`item:stolen-name-gauntlets|${pc}|pack:0|true|1:v2|upgrade|live`, 'inst:iron-b:3:v3,inst:iron-c:15:v2,inst:iron-d:1:v2', '4', '0'],
+  eq([oathRow(), irons(), upgrades(), conserved()], [`item:stolen-name-gauntlets|${pc}|pack:0|true|1:v2|upgrade|live`, 'inst:iron-b:3:v3,inst:iron-c:15:v6,inst:iron-d:1:v2', '4', '0'],
     'upgrade: the story piece keeps item, binding, place and provenance, is level 1, still live; history gained only the upgrade entry');
   const oathHand = over => handIn({ op: 'quest:stolen-name:oath:handin', itemId: 'item:stolen-name-gauntlets', qty: 1, ...over });
   eq((await call('consume', 'ta', oathHand({ op: 'quest:oath:generic' }))).status, 400, 'consume: the upgraded story piece is still refused to a step that does not name it');

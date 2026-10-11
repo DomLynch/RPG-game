@@ -1,11 +1,11 @@
 // The engine's gear screen's network half (origins/preview/gear-net.ts) against a fake writer: the calls, their order, and that a refusal or a bad reply never throws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isOffline, openGear, runOp } from '../src/core/gear-net.ts';
+import { bankMove, isOffline, openGear, runOp, upgradePiece } from '../src/core/gear-net.ts';
 import type { GearPiece, GearView } from '../src/core/gear-ledger.ts';
 
-const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: null, version: 1 });
-const view = (pieces: GearPiece[], worn: Record<string, string>): GearView => ({ pieces, worn, packSize: 8, bankSize: 100 });
+const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: null, version: 1, level: 0 });
+const view = (pieces: GearPiece[], worn: Record<string, string>): GearView => ({ pieces, stock: [], worn, packSize: 8, bankSize: 100 });
 const start = view([piece('i1', 'goblin.Body', 'equipped', 'chest'), piece('i2', 'veteran.Body', 'pack')], { chest: 'i1' });
 const swapped = view([piece('i1', 'goblin.Body', 'pack'), piece('i2', 'veteran.Body', 'equipped', 'chest')], { chest: 'i2' });
 type Seen = { op: string; body: Record<string, unknown>; auth: string | null };
@@ -44,4 +44,19 @@ test('a refusal of the FIRST step has nothing to put back: just the re-read', as
   const seen: Seen[] = [];
   await runOp('tok', 'c1', start, { kind: 'wear', id: 'veteran.Body' as never }, { fetch: writer([422, start], seen) });
   assert.deepEqual(seen.map((s) => s.op), ['gear_unequip', 'gear_open']);
+});
+
+test('bank_move posts {character, id, to} and reads the whole view; no token is offline without a request; a refusal is an answer', async () => {
+  const seen: Seen[] = [];
+  assert.deepEqual(await bankMove('tok', 'c1', 'i2', 'bank', { fetch: writer([start], seen) }), start);
+  assert.deepEqual(seen, [{ op: 'bank_move', body: { character: 'c1', id: 'i2', to: 'bank' }, auth: 'Bearer tok' }]);
+  const none: Seen[] = []; assert.deepEqual(await bankMove(null, 'c1', 'i2', 'pack', { fetch: writer([], none) }), { offline: 'no-session' }); assert.equal(none.length, 0);
+  assert.equal(isOffline(await bankMove('tok', 'c1', 'i2', 'pack', { fetch: writer([422], []) }) as never), true);
+});
+test('apply_upgrade asks one level up with a per-version op id, and reads the receipt; the page sends no price and no place', async () => {
+  const seen: Seen[] = [];
+  const got = await upgradePiece('tok', 'c1', { id: 'inst:a', version: 3, level: 1 }, ['inst:m'], { fetch: writer([{ replayed: false, receipt: { toLevel: 2, coin: 40 } }], seen) });
+  assert.deepEqual(got, { toLevel: 2, coin: 40, replayed: false });
+  assert.deepEqual(seen[0]!.body, { character: 'c1', op: 'up:inst:a:v3', instance: 'inst:a', toLevel: 2, materials: ['inst:m'] });
+  assert.equal(isOffline(await upgradePiece('tok', 'c1', { id: 'inst:a', version: 3, level: 1 }, [], { fetch: writer([{ junk: 1 }], []) }) as never), true);
 });

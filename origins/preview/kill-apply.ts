@@ -12,10 +12,12 @@ export function applyServerKill<S extends Source>(session: PitSession, source: S
   const credit = (c: CareerState): CareerState => ({ ...c, credit: c.credit + killed.cp });
   return { session: { ...session, career: credit(session.career) }, source: { saved: credit(source.saved) }, cp: killed.cp };
 }
-/** The kill toast. A signed-in kill (a saved career and a server answer) shows what the server paid, led by the creature ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done."); "Bounty done." when the journal step was taken (the server pays no bounty bronze yet: killed.bronze is loot bronze, bounty bronze goes to `unpaid`; switch to a server bounty field once Killed carries one); a guest or offline page shows the page's own numbers, labelled preview. */
-export function killToast(source: Source, killed: Killed | Offline, local: string, name: (id: string) => string, creature: string, bountyTaken = false): string {
-  if ('offline' in killed || !('saved' in source)) return `${local} (preview)`;
+export const SIGN_IN_TO_KEEP = 'Sign in to keep loot.', NOT_SAVED = 'Not saved: the server did not answer.';
+/** The kill toast: ONE path. What the server paid ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done."); a guest (no session) gets no loot and is told to sign in to keep it, a signed-in page the server did not answer is told nothing was saved. "Bounty done." is the journal step's own answer (the server pays no bounty bronze yet). */
+export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false): string {
+  const done = bountyTaken ? ' Bounty done.' : '';
+  if ('offline' in killed) return `${creature} is down. ${killed.offline === 'no-session' ? SIGN_IN_TO_KEEP : NOT_SAVED}${done}`;
   const loot = killed.loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
   const paid = [...(killed.cp ? [`+${killed.cp} CP`] : []), ...(killed.bronze ? [`+${killed.bronze} bronze`] : []), ...loot];
-  return `${creature} is down. ${paid.length ? `${paid.join(' · ')}.` : 'Nothing paid.'}${bountyTaken ? ' Bounty done.' : ''}`;
+  return `${creature} is down. ${paid.length ? `${paid.join(' · ')}.` : 'Nothing paid.'}${done}`;
 }

@@ -6,8 +6,8 @@ import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, typ
 import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/core/loot.ts';
 
 const piece = (id: string, lootId: string | null, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
-  ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, ...over });
-const view = (pieces: GearPiece[], worn: Record<string, string> = {}): GearView => ({ pieces, worn, packSize: 8, bankSize: 100 });
+  ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, level: 0, ...over });
+const view = (pieces: GearPiece[], worn: Record<string, string> = {}): GearView => ({ pieces, stock: [], worn, packSize: 8, bankSize: 100 });
 // goblin rank-1 pieces (Strategy 2026-10-09: the first drop): a helmet in the pack, a body worn
 const pack = view([piece('i1', 'goblin.Helmet', 'pack', { index: 1, tier: 'Veteran' }), piece('i2', 'goblin.Body', 'equipped', { paperdoll: 'chest' }), piece('i3', 'dwarf.Greaves', 'pack', { index: 0 }), piece('i4', null, 'pack', { index: 2 })], { chest: 'i2' });
 
