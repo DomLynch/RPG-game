@@ -127,9 +127,11 @@ test('Auditor #2181: no --with-deps, out-of-scope rows are never stamped ok, the
   assert.match(unit, /tar --no-same-owner -xJf node\.tar\.xz/);
   assert.doesNotMatch(launch, /'cpu', a, ''\]/);
 });
-test('Auditor #2181: vps_receipts_apply reads the spilled multi-id .cpu file after the .running wait', () => {
-  const sh = readSrc('scripts/lib/deploy-vps.sh', 'utf8');
-  assert.ok(sh.includes('^[A-Za-z0-9]+(,[A-Za-z0-9]+)*\\;[0-9]+'), 'prelaunched_cpu accepts a multi-id spill line');
-  assert.ok(sh.indexOf('rowsvps.running') < sh.indexOf('local spilled=') || sh.indexOf('rowsvps.running') < sh.indexOf('local spilled;'));
-  assert.ok(sh.indexOf('local spilled;') < sh.indexOf('for job in'));
+test('Auditor #2181: prelaunched_cpu accepts a multi-id spill line and rejects a garbled one; the unit runner leaves a world-listable release marker', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pcpu-')), sha = 'a'.repeat(40);
+  const ask = (line: string) => { writeFileSync(join(dir, `${sha}.cpu`), line); return spawnSync('bash', ['-c', `source scripts/lib/deploy-vps.sh; prelaunched_cpu ${sha}`], { encoding: 'utf8', env: { ...process.env, PRELAUNCH_DIR: dir } }); };
+  assert.equal(ask('abc123,def456;3,4,5').stdout, 'abc123,def456;3,4,5'); assert.equal(ask('abc123;3').stdout, 'abc123;3');
+  for (const bad of ['abc123,;3', ';3', 'abc123;', 'abc 123;3']) assert.equal(ask(bad).status, 1, bad);
+  const sh = readSrc('scripts/lib/vps-unit.mjs', 'utf8');
+  assert.match(sh, /mkdir -p -m 755 '\$\{RELEASE_MARK_DIR\}'/); assert.match(sh, /trap 'rm -rf "\$RUN" "\$MARK"' EXIT/);
 });

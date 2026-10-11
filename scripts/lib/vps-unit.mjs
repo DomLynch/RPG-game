@@ -12,6 +12,7 @@ import { vpsHost } from './waterfall.mjs';
 
 export const NODE_PIN = { version: 'v22.23.3', file: 'node-v22.23.3-linux-x64.tar.xz', sha256: 'df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de' };   // nodejs.org SHASUMS256.txt
 export const RUN_ROOT = '/root/deploy-runs';
+export const RELEASE_MARK_DIR = '/run/frankendom-release';   // tmpfs: a reboot clears a stale lock
 export const MAX_AGE_S = 4 * 3600;
 const HEX40 = /^[0-9a-f]{40}$/, HEX32 = /^[0-9a-f]{32}$/, HEX16 = /^[0-9a-f]{16}$/;
 export const newNonce = () => randomBytes(16).toString('hex');
@@ -25,8 +26,10 @@ export function runnerHead({ sha, tree, nonce, runid }) {
   return `set -uo pipefail
 NONCE='${nonce}'
 RUN='${RUN_ROOT}/${sha}-${runid}'
-trap 'rm -rf "$RUN"' EXIT
+MARK='${RELEASE_MARK_DIR}/${sha}-${runid}'
+trap 'rm -rf "$RUN" "$MARK"' EXIT
 mkdir -p "$RUN" || exit 90
+mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK"   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them
 cd "$RUN" || exit 90
 curl -fsSL "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
 echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
