@@ -1,6 +1,9 @@
-import { RANK_STEPS, TITLES, loadProfile, rankFor, readLeaderboards, readPublicNo, readScorecard, session, shownMarks, type BoardRow, type ScoreRow } from './core/index.ts';
-import { LADDER } from './ladder.ts';
-import { loadScorecard, totals } from './scorecard.ts';
+import { RANK_STEPS, TITLES, rankFor, shownMarks } from './career-ladder.ts';
+import { readLeaderboards, readPublicNo, readScorecard, type BoardRow, type ScoreRow } from './career-client.ts';
+import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
+import { session } from './session.ts';
+import { ROSTER, isOpponentId } from '../roster.ts';
+import { loadScorecard, totals } from '../scorecard.ts';
 
 // The Career screen (core slice 2, Web): the 50-rung ladder with the player's rung marked, and the scorecard the career service holds for the account (scorecard_rows(), read through
 // the core's career-client; a screen never calls the server itself). Signed out, offline or on a failed read it says so and keeps the device's own figures: nothing is drawn empty.
@@ -36,13 +39,27 @@ export function recordView(rows: readonly ScoreRow[] | null, device: { fights: n
 }
 export const recordLine = (r: RecordView): string => `${r.fights} fights · ${r.wins} wins · ${r.losses} losses${r.draws === null ? '' : ` · ${r.draws} draws`}`;
 
+// The device-only rename (the zone's pencil, guests): the cleaned name is kept in this device's profile. A signed-in account's name is saved by the Pit's account mount (account.ts), which the zone page does not have, so it gets no pencil here.
+export function renameDevice(storage: StoragePort, value: string, createId: () => string = () => crypto.randomUUID()): string {
+  const { profile } = loadProfile(storage, createId);
+  profile.name = cleanName(value);
+  saveProfile(storage, profile);
+  return profile.name;
+}
+
+// Who gets the name pencil: a host that brings its own rename (the Pit) gets it for the account; a guest anywhere else edits the device's name; a signed-in player in a host with no rename (the zone) gets none. Pure.
+export type Pencil = 'account' | 'device' | null;
+export const pencilFor = (o: { rename: boolean; signedIn: boolean }): Pencil => (o.rename ? 'account' : o.signedIn ? null : 'device');
+// What a key does in the in-place name field: Enter keeps what was typed, Escape drops it, anything else nothing. Pure.
+export const nameKey = (key: string): 'keep' | 'drop' | null => (key === 'Enter' ? 'keep' : key === 'Escape' ? 'drop' : null);
+
 type Db = Parameters<typeof readScorecard>[0] & Parameters<typeof readPublicNo>[0];
 export type CareerMount = { render(): Promise<void> };
 // `db()` is the account's client or null when signed out; `marks()` the rank's marks; `deviceNote` the line shown when the server's figures are not available.
 export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promise<Db | null>; marks?: () => number; name?: (opponent: string) => string; rename?: () => void; links?: { label: string; go: () => void }[] }): CareerMount {
   // Defaults live HERE so every mode mounts the one component and no zone code reads Pit marks (core-boundary C6): the rank's marks = the account's server figure plus its pending wins, else this device's.
   const marks = o.marks ?? (() => shownMarks(session.standing?.marks ?? null, loadProfile(localStorage, () => crypto.randomUUID()).profile, session.standing?.pending ?? 0));
-  const nameOf = o.name ?? ((id: string) => LADDER.find((x) => x.id === id)?.name ?? id);
+  const nameOf = o.name ?? ((id: string) => (isOpponentId(id) ? ROSTER[id].name : id));
   const doc = root.ownerDocument, el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = doc.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
   return {
     async render() {
@@ -57,7 +74,19 @@ export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promis
       const db = await o.db(), [rows, boards, publicNo] = db ? await Promise.all([readScorecard(db), readLeaderboards(db, 10), readPublicNo(db)]) : [null, null, null];
       const who = el('p', 'career-name'), name = el('strong', '', loadProfile(localStorage, () => crypto.randomUUID()).profile.name);
       who.append(name);
-      if (o.rename) { const pencil = el('button', 'career-pencil', '✎'); pencil.type = 'button'; pencil.setAttribute('aria-label', 'Change your name'); pencil.addEventListener('click', o.rename); who.append(pencil); }
+      const pencil = (go: () => void) => { const b = el('button', 'career-pencil', '✎'); b.type = 'button'; b.setAttribute('aria-label', 'Change your name'); b.addEventListener('click', go); who.append(b); return b; };
+      const kind = pencilFor({ rename: !!o.rename, signedIn: !!db });
+      if (kind === 'account') pencil(o.rename!);
+      else if (kind === 'device') {   // guest: edit in place, Enter or leaving the field keeps it, Escape drops it
+        const edit = pencil(() => {
+          const field = el('input', 'career-name-input'); field.type = 'text'; field.maxLength = 24; field.value = name.textContent ?? ''; field.setAttribute('aria-label', 'Your name');
+          let done = false;
+          const finish = (keep: boolean) => { if (done) return; done = true; if (keep) name.textContent = renameDevice(localStorage, field.value); field.replaceWith(name); edit.hidden = false; };
+          field.addEventListener('keydown', (e) => { const k = nameKey(e.key); if (k) finish(k === 'keep'); });
+          field.addEventListener('blur', () => finish(true));
+          name.replaceWith(field); edit.hidden = true; field.focus(); field.select();
+        });
+      }
       profileCard.append(who);
       if (publicNo !== null) profileCard.append(el('p', 'career-note', `Fighter #${publicNo}`));
       const rec = recordView(rows, totals(loadScorecard(localStorage)));
