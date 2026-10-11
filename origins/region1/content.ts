@@ -238,14 +238,7 @@ export const REGIONS = [
   {
     kind: 'region-definition', schemaVersion: 1, id: 'region:ash-frontier', name: 'The Ash Frontier', gate: 'outer',
     waypoints: [
-      'exchange-gate', 'milestone', 'watchtower', 'fields-turn', 'crossroads',
-      'road-end', 'ferry-house', 'boathouse', 'mere-shore', 'dock',
-      'road-gate', 'ash-pits', 'shrine', 'hold-road',
-      'landing-shore', 'reed-bank', 'mere-hollow', 'causeway', 'causeway-foot',
-      'causeway-end', 'ruin-jetty', 'ruin-gate', 'crypt',
-      'hold-gate', 'hold-centre', 'hold-hall', 'hold-forge', 'hold-fence', 'hold-jail',
-      'end-gate', 'end-centre', 'end-hall', 'end-healer', 'end-jail',
-      ...placedWaypoints(zonePlaces()),   // each zone folder's own landmarks (zone<N>/place.ts)
+      ...placedWaypoints(zonePlaces()),   // each zone row's own landmarks (its place), Zone 1's first
     ],
     portals: [{ id: 'to-exchange', at: 'exchange-gate', to: 'region:concord-exchange', toPortal: 'to-frontier' }],
     landmarks: [
@@ -259,21 +252,7 @@ export const REGIONS = [
       spawn('bounty-toll', 'milestone', 'encounter:bounty-toll'),
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
-      spawn('scavengers', 'ash-pits', null, ['character:cinder-scavenger']),
-      spawn('wolves', 'hold-road', null, ['character:ash-wolf']),   // inert until a preview adds the wolf's mob row (origins/preview/mobs.ts previewRows ?wolf)
-      spawn('brood', 'reed-bank', null, ['character:mere-brood']),
-      spawn('ghouls', 'causeway-end', null, ['character:ruin-ghoul']),
-      spawn('hold-ruler', 'hold-hall', null, ['character:warden-brannoc']),
-      spawn('hold-steward', 'hold-hall', null, ['character:steward-cinder']),
-      spawn('hold-smith', 'hold-forge', null, ['character:smith-cinder']),
-      spawn('hold-fence', 'hold-fence', null, ['character:fence-cinder']),
-      spawn('end-ruler', 'end-hall', null, ['character:reeve-osk']),
-      spawn('end-steward', 'end-hall', null, ['character:steward-mere']),
-      spawn('end-healer', 'end-healer', null, ['character:healer-mere']),
-      spawn('bears', 'ruin-jetty', null, ['character:cinder-bear']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
-      spawn('boars', 'hold-road', null, ['character:ash-boar']),   // last in the list so the creatures placed before it keep their seeds (mobs.golden.json)
-      spawn('pit-goblins', 'watchtower', null, ['character:pit-goblin']),   // the Pit goblin camp by the start path (east road), Zone 1 (Dom 10-09: goblin camp added); the row's size is data (zone1/spawns.ts campSize)
-      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone folder's spawn groups (zone<N>/place.ts), after Region 1's own so their seeds keep
+      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
