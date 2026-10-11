@@ -12,6 +12,7 @@ import { vpsHost } from './waterfall.mjs';
 
 export const NODE_PIN = { version: 'v22.23.3', file: 'node-v22.23.3-linux-x64.tar.xz', sha256: 'df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de' };   // nodejs.org SHASUMS256.txt
 export const RUN_ROOT = '/root/deploy-runs';
+export const RELEASE_MARK_DIR = '/run/frankendom-release';   // tmpfs: a reboot clears a stale lock
 export const MAX_AGE_S = 4 * 3600;
 const HEX40 = /^[0-9a-f]{40}$/, HEX32 = /^[0-9a-f]{32}$/, HEX16 = /^[0-9a-f]{16}$/;
 export const newNonce = () => randomBytes(16).toString('hex');
@@ -19,17 +20,20 @@ export const newRunId = () => randomBytes(8).toString('hex');
 
 export const SHADOW_REPO = '/opt/frankendom-shadow/repo';   // the box's clone: only its object store is used; the tree hash below is what binds the content
 
-export function buildRunner({ sha, tree, nonce, runid }) {
-  if (!HEX40.test(sha || '') || !HEX40.test(tree || '') || !HEX32.test(nonce || '') || !HEX16.test(runid || '')) throw new Error('buildRunner: sha/tree must be 40 hex, nonce 32 hex, runid 16 hex');
+/** Shared by the unit and rows runners: pinned node, box-side tree check, a real shared clone, npm ci; ends inside the checkout with dependencies installed and t0 set. */
+export function runnerHead({ sha, tree, nonce, runid }) {
+  if (!HEX40.test(sha || '') || !HEX40.test(tree || '') || !HEX32.test(nonce || '') || !HEX16.test(runid || '')) throw new Error('runner: sha/tree must be 40 hex, nonce 32 hex, runid 16 hex');
   return `set -uo pipefail
 NONCE='${nonce}'
 RUN='${RUN_ROOT}/${sha}-${runid}'
-trap 'rm -rf "$RUN"' EXIT
+MARK='${RELEASE_MARK_DIR}/${sha}-${runid}'
+trap 'rm -rf "$RUN" "$MARK"' EXIT
 mkdir -p "$RUN" || exit 90
+mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK" || echo 'release marker not set: lane jobs are not locked out of this run' >&2   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them
 cd "$RUN" || exit 90
 curl -fsSL "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
 echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
-tar -xJf node.tar.xz || exit 93
+tar --no-same-owner -xJf node.tar.xz || exit 93
 PATH="$RUN/node-${NODE_PIN.version}-linux-x64/bin:/usr/bin:/bin"
 hash -r
 git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null || exit 96
@@ -40,7 +44,12 @@ git -C "$RUN/src" checkout -q --detach '${sha}' < /dev/null || exit 98
 cd "$RUN/src" || exit 94
 t0=$(date +%s)
 npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm ci failed; ci.log tail ---' >&2; tail -n 30 "$RUN/ci.log" >&2; exit 95; }
-npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
+`;
+}
+
+export function buildRunner(args) {
+  const { sha, tree, runid } = args;
+  return runnerHead(args) + `npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
 rc=$?
 if [ "$rc" -eq 0 ]; then
   pass=$(grep -E '^# pass ' "$RUN/unit.log" | tail -1 | awk '{print $3}')

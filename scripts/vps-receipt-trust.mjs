@@ -1,4 +1,4 @@
-// node scripts/vps-receipt-trust.mjs <sha> [--unit|--unit-vps]
+// node scripts/vps-receipt-trust.mjs <sha> [--unit|--unit-vps|--rows-vps]
 //   (default) prints the trusted row numbers "1,3,7" (empty = trust nothing); every shard receipt artifacts/vps-shadow/<sha>/rows*.json counts.
 //   --unit    prints "ok" when artifacts/vps-shadow/<sha>/unit.json proves test:all for this tree, else nothing.
 //   --unit-vps  prints "ok" when ${PRELAUNCH_DIR:-~/.claude/state/pre-launch}/<sha>.unitvps (written by launch.mjs after a live-verified VPS run, scripts/lib/vps-unit.mjs) is fresh and bound to this tree.
@@ -9,6 +9,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { coverageGaps, trustedFromShards, unitReceiptOk } from './lib/vps-receipts.mjs';
 import { vpsUnitFileOk } from './lib/vps-unit.mjs';
+import { vpsRowsTrusted } from './lib/vps-rows.mjs';
 
 const [sha, flag] = process.argv.slice(2);
 const rev = spawnSync('git', ['rev-parse', `${sha}^{tree}`], { encoding: 'utf8', timeout: 10_000 });
@@ -31,7 +32,18 @@ const inspectJobs = ids => {
 };
 const json = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-if (flag === '--unit-vps') {
+if (flag === '--rows-vps') {
+  // The rows a VPS run vouched for (kind vps-rows-live, written by launch.mjs rows-vps after the live-stream check): re-checked here against the deploy tree, this tree's row scripts,
+  // vpsSafeRow() and this tree's playwright. Prints "1,2,3" or nothing.
+  const file = `${process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`}/${sha}.rowsvps`;
+  const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
+  const source = script => { try { return readFileSync(script, 'utf8'); } catch { return null; } };
+  const pkg = json('node_modules/playwright-core/package.json'), browsers = json('node_modules/playwright-core/browsers.json');
+  const pw = pkg?.version && browsers ? { version: pkg.version, revision: (browsers.browsers || []).find(b => b.name === 'chromium')?.revision } : null;
+  const rows = vpsRowsTrusted(json(file), tree, commands, source, pw);
+  console.error(`vps-receipts: ${rows.length} rows trusted from the VPS rows run (${file})`);
+  process.stdout.write(rows.join(','));
+} else if (flag === '--unit-vps') {
   const file = `${process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`}/${sha}.unitvps`;
   const ok = vpsUnitFileOk(json(file), tree);
   console.error(`vps-receipts: VPS unit receipt ${ok ? 'trusted' : 'NOT trusted (missing, stale, other tree or failing)'}`);

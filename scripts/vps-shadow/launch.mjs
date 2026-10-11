@@ -4,12 +4,13 @@
 // Always --detach and a --timeout (Dom's cost rule: 40m unit suite, 20m a rows shard); flavors cpu-upgrade or t4-medium only. LAUNCH_DRY=1 prints the hf command.
 // The job prints one `RECEIPT unit|rows <json>` line at rc 0 (run-unit.sh / run-rows.sh); `fetch` copies it out of `hf jobs logs`. Trust is not decided here:
 // vps-receipt-trust.mjs still inspects the job (completed, flavor, SHA env, canonical command) and binds the receipt's sha to the deploy tree.
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, coverageGaps, genericJobCommand, jobCommand } from '../lib/vps-receipts.mjs';
 import { tierLine, withSlot } from '../lib/hf-slots.mjs';
 import { genericJobArgs, hfArgs, pickTarget, vpsStatus } from '../lib/waterfall.mjs';
 import { runUnitOnVps } from '../lib/vps-unit.mjs';
+import { runRowsOnVps } from '../lib/vps-rows.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
 import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 
@@ -17,6 +18,7 @@ import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
 export { SLOW_ROWS };   // the one list lives in scripts/lib/vps-receipts.mjs (the coverage gate reads it too)
 
+const openLog = file => { mkdirSync(file.slice(0, file.lastIndexOf('/')), { recursive: true }); return openSync(file, 'a'); };
 export { hfArgs, genericJobArgs };   // the `hf jobs run` argument builders live in scripts/lib/waterfall.mjs (the one place that starts heavy jobs)
 
 // A release job (unit/rows) waits at most this long for a slot; the parent that spawns a `rows` child must outlive the child's WHOLE budget (slot wait + the hf call + the
@@ -58,13 +60,46 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       // node launch.mjs cpu <full sha> <rows NOT to place: CI-trusted and out-of-scope>: prints "id,id;row,row" (the jobs and the rows they carry) or nothing.
       const commands = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands, read = path => { try { return readFileSync(path, 'utf8'); } catch { return null; } };
       const ids = [], placed = [];
-      for (const rows of cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger))) {
+      const shards = cpuShards(commands, read, String(b || '').split(',').map(Number).filter(Number.isInteger));
+      // Work waterfall (Dom 2026-10-11): the CPU rows run on the prepaid VPS when it is quiet and has room; Hugging Face is the spillover (LAUNCH_TARGET=hf forces it). The VPS run is
+      // started in the background and writes ~/.claude/state/pre-launch/<sha>.rowsvps (a running marker beside it); deploy.sh waits for the marker and re-checks the file against the deploy tree.
+      const stateDir = process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`, fileOf = `${stateDir}/${a}.rowsvps`, runningOf = `${fileOf}.running`;
+      const fresh = f => existsSync(f) && Date.now() - statSync(f).mtimeMs < 4 * 3600e3;
+      if (shards.length && !process.env.LAUNCH_DRY && process.env.LAUNCH_TARGET !== 'hf') {
+        if (fresh(fileOf) || fresh(runningOf)) { console.error('launch: the CPU rows are already on the VPS (running or done) for this sha'); process.exit(0); }
+        const status = vpsStatus();
+        if (pickTarget({ mem: 12288, vps: status }) === 'vps') {
+          mkdirSync(stateDir, { recursive: true }); writeFileSync(runningOf, `${Date.now()}\n`);
+          const child = spawn(process.execPath, [process.argv[1], 'rows-vps', a, shards.flat().join(','), String(CPU_WIDTH * 2)], { detached: true, stdio: ['ignore', openLog(`${stateDir}/${a}.rowsvps.log`), openLog(`${stateDir}/${a}.rowsvps.log`)] });
+          child.unref();
+          console.error(`launch: tier=vps load1=${status?.load1}: ${shards.flat().length} CPU rows run on the VPS in the background (log ${stateDir}/${a}.rowsvps.log)`);
+          process.exit(0);
+        }
+      }
+      for (const rows of shards) {
         if (process.env.LAUNCH_DRY) { placed.push(...rows); continue; }
         const r = spawnSync(process.execPath, [process.argv[1], 'rows', a, 'cpu-upgrade', rows.join(','), String(CPU_WIDTH)], { encoding: 'utf8', timeout: ROWS_CHILD_TIMEOUT_MS });
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
         if (id) { ids.push(id); placed.push(...rows); } else console.error(`launch: no job for CPU rows ${rows.join(',')}; they run on the Mac`);
       }
       process.stdout.write(placed.length ? `${ids.join(',')};${placed.join(',')}` : '');
+    } else if (cmd === 'rows-vps') {
+      // node launch.mjs rows-vps <full sha> <rows csv> [width]: the rows in our own ssh session on the VPS (scripts/lib/vps-rows.mjs); an accepted receipt is stored for deploy.sh, a failed run spills to HF.
+      const stateDir = process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`, fileOf = `${stateDir}/${a}.rowsvps`;
+      mkdirSync(stateDir, { recursive: true });
+      try {
+        const rows = String(b).split(',').map(Number), total = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands.length;
+        const tree = spawnSync('git', ['rev-parse', `${a}^{tree}`], { encoding: 'utf8', timeout: 30_000 }).stdout?.trim();
+        const status = vpsStatus(), res = runRowsOnVps({ sha: a, tree, rows, total, width: Number(c) || 4 });
+        if (res.ok) {
+          writeFileSync(fileOf, JSON.stringify({ kind: 'vps-rows-live', ...res.receipt, host: 'vps', load1: status?.load1, at: new Date().toISOString() }) + '\n');
+          console.log(`VPS rows receipt: ${res.receipt.rows.length} rows, ${res.receipt.seconds} s, chromium ${res.receipt.chromium_revision} -> ${fileOf}`);
+        } else {
+          console.error(`launch: the VPS rows run was not accepted (${res.reason}); spilling to Hugging Face`);
+          const hf = spawnSync(process.execPath, [process.argv[1], 'cpu', a, Array.from({ length: total }, (_, i) => i + 1).filter(n => !rows.includes(n)).join(',')], { encoding: 'utf8', env: { ...process.env, LAUNCH_TARGET: 'hf' }, timeout: 20 * 60_000 }).stdout?.trim();
+          if (hf) writeFileSync(`${stateDir}/${a}.cpu`, hf);
+        }
+      } finally { rmSync(`${fileOf}.running`, { force: true }); }
     } else if (cmd === 'fetch') {
       const logs = spawnSync('hf', ['jobs', 'logs', a], { encoding: 'utf8', timeout: 120_000, maxBuffer: 64 << 20 });
       if (logs.error || logs.status !== 0) throw new Error(`hf jobs logs ${a} failed: ${logs.error?.message || String(logs.stderr || '').trim().slice(-300) || `exit ${logs.status}`}`);

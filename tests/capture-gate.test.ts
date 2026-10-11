@@ -43,7 +43,7 @@ async function capture(args: string[], load: string, env: Record<string, string>
   let out: string, code = 0;
   try {
     const r = await run('bash', viaMac ? [mac, '--host', 'vps', '--dir', repo, ...args] : [script, ...args], { cwd: repo, timeout: 120000, env: { ...process.env, PATH: `${stub}:${process.env.PATH}`, STUB: dir, SHADOW_HOME: home,
-      CAPTURE_LOADAVG: loadavg, CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
+      CAPTURE_LOADAVG: loadavg, CAPTURE_RUNS_DIR: join(dir, 'no-release-runs'), CAPTURE_SCRIPT: script, CAPTURE_SSH: join(stub, 'ssh'), CAPTURE_GH: join(stub, 'gh'), CAPTURE_HF: join(stub, 'hf'), CAPTURE_WAIT_S: '4', CAPTURE_SPILL_AFTER_S: '1', CAPTURE_HF_POLL_S: '0.2', ...env } });
     out = r.stdout + r.stderr;
   } catch (e) { const x = e as { code: number; stdout: string; stderr: string }; code = x.code; out = x.stdout + x.stderr; }
   const read = (f: string) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8') : '');
@@ -153,4 +153,17 @@ test('Ctrl-C on the wrapper cancels the HF job it started and logs it (exit 130)
   const calls = readFileSync(join(dir, 'hf-calls'), 'utf8'), spill = readFileSync(join(home, 'capture.spill.log'), 'utf8');
   assert.equal(code, 130, out); assert.match(calls, /^jobs cancel job123$/m);
   assert.match(spill, / hf_job=job123 stage=CANCELED interrupted /); assert.match(out, /interrupted: the HF job was cancelled/);
+});
+
+test('a live release run dir under CAPTURE_RUNS_DIR keeps lane jobs off the box (blender-cpu goes through capture); a stale or absent dir does not', { skip }, async () => {
+  const mk = (age: string | null) => {
+    const d = mkdtempSync(join(tmpdir(), 'runs-'));
+    if (age) { execFileSync('mkdir', [join(d, 'sha-run')]); if (age === 'old') execFileSync('touch', ['-t', '200001010000', join(d, 'sha-run')]); }
+    return d;
+  };
+  const [live, stale, none] = await Promise.all([mk('new'), mk('old'), mk(null)].map((d) => capture(['t', 'npm', 'test'], '1.00 1.00 1.00', { CAPTURE_RUNS_DIR: d })));
+  assert.equal(live.code, 75, live.out); assert.equal(live.ran, '', 'a lane job never starts during a release run');
+  assert.equal(stale.code, 0, stale.out); assert.equal(none.code, 0, none.out);
+  const spilled = await capture(['--hf-ok', '--spill-to-caller', 't', 'npm', 'test'], '1.00 1.00 1.00', { CAPTURE_RUNS_DIR: mk('new') });
+  assert.equal(spilled.code, 76, spilled.out); assert.equal(spilled.ran, '');
 });
