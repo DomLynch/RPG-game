@@ -1,11 +1,11 @@
 // 375-wide stills of Zone 1 (?region=1&worldfight) for a pack of up to three joined creatures (#1958): ready idle, then mid-fight; prints the card text, how many creatures are aggro and body.infight.
-// Usage: node scripts/zone1-pack-stills.mjs <built origins-preview dist> <out dir>   (software GL is fine: it is a layout check)
+// Usage: node scripts/zone1-pack-stills.mjs <built origins-preview dist> <out dir> [zone id]   (software GL is fine: it is a layout check). A zone id (3) stills /zone/3/ instead of Zone 1.
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const [dist, out] = process.argv.slice(2), root = process.cwd();
+const [dist, out, zone] = process.argv.slice(2), root = process.cwd();
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
@@ -22,7 +22,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
-  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
+  await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight${zone ? `&zone=${zone}` : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
   await page.waitForTimeout(8000);
   const shot = (name) => page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });

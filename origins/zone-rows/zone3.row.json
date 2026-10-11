@@ -1,0 +1,323 @@
+{
+  "name": "The Salt Flats",
+  "names": {
+    "salt-flats": "The Salt Flats"
+  },
+  "world": [
+    "salt-flats"
+  ],
+  "spawns": {
+    "openers": {
+      "salt-flats": "character:ember-wolf"
+    },
+    "rows": [
+      {
+        "id": "character:ember-wolf",
+        "source": {
+          "kind": "literature",
+          "work": "Prose Edda, Gylfaginning (Fenrir at Ragnar\u00f6k, fire burning in his eyes and nostrils)",
+          "author": "Snorri Sturluson",
+          "year": 1220,
+          "authorDied": 1241,
+          "locator": "Gylfaginning, the account of Ragnar\u00f6k and Fenrir"
+        },
+        "role": "beast",
+        "loot": "loottable:ember-wolf",
+        "level": [
+          3,
+          4
+        ],
+        "respawnSeconds": 75,
+        "behaviour": {
+          "aggro": 9,
+          "roam": 7,
+          "spread": 5,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kit": {
+    "url": "/world/kit/zone1-kit.glb",
+    "nodes": [
+      "boulder_a",
+      "boulder_b",
+      "boulder_c",
+      "bush_scrub_a",
+      "bush_scrub_b",
+      "tree_dead_a",
+      "tree_dead_b",
+      "tree_dead_c",
+      "tuft_a",
+      "tuft_b"
+    ],
+    "landmarks": [
+      "landmark_camp",
+      "landmark_ruin_arch",
+      "landmark_stone_circle",
+      "landmark_grove"
+    ],
+    "kinds": [
+      {
+        "nodes": [
+          "tree_dead_a",
+          "tree_dead_b",
+          "tree_dead_c"
+        ],
+        "per": 3,
+        "r": 1.2,
+        "solid": 0.6,
+        "scale": [
+          0.9,
+          1.35
+        ]
+      },
+      {
+        "nodes": [
+          "boulder_a",
+          "boulder_b",
+          "boulder_c"
+        ],
+        "per": 4,
+        "r": 1.4,
+        "solid": 1,
+        "scale": [
+          0.8,
+          1.4
+        ]
+      },
+      {
+        "nodes": [
+          "bush_scrub_a",
+          "bush_scrub_b"
+        ],
+        "per": 8,
+        "r": 0.9,
+        "solid": 0,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      },
+      {
+        "nodes": [
+          "tuft_a",
+          "tuft_b"
+        ],
+        "per": 14,
+        "r": 0.4,
+        "solid": 0,
+        "scale": [
+          0.8,
+          1.5
+        ]
+      }
+    ]
+  },
+  "looks": {
+    "zone1": {
+      "fog": "#5d5a60",
+      "fogDensity": 0.012,
+      "hemiSky": "#9fb2d4",
+      "hemiGround": "#4a3426",
+      "hemiIntensity": 1.25,
+      "sunColor": "#ffb46a",
+      "sunIntensity": 5.9799999999999995,
+      "sunPos": [
+        -16,
+        15,
+        20
+      ],
+      "exposure": 1.3,
+      "ground": [
+        0.5,
+        0.47,
+        0.45
+      ],
+      "stone": [
+        1.35,
+        1.2,
+        1
+      ]
+    },
+    "frontier-haze": {
+      "fog": "#b9aea4",
+      "fogDensity": 0.012,
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
+      "hemiIntensity": 1.35,
+      "sunColor": "#e8cfb4",
+      "sunIntensity": 5.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.05,
+        0.98,
+        0.88
+      ]
+    },
+    "cinder-haze": {
+      "fog": "#b9aea4",
+      "fogDensity": 0.0095,
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#443a33",
+      "hemiIntensity": 1.35,
+      "sunColor": "#e8cfb4",
+      "sunIntensity": 5.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.05,
+        0.98,
+        0.88
+      ]
+    },
+    "frontier-duel": {
+      "fog": "#b9aea4",
+      "fogDensity": 0.0095,
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
+      "hemiIntensity": 1.35,
+      "sunColor": "#e8cfb4",
+      "sunIntensity": 5.04,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.2075,
+        1.127,
+        1.012
+      ]
+    },
+    "frontier-night": {
+      "fog": "#141a2a",
+      "fogDensity": 0.02,
+      "hemiSky": "#2a3558",
+      "hemiGround": "#14100e",
+      "hemiIntensity": 0.45,
+      "sunColor": "#6a7ab0",
+      "sunIntensity": 0.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.1,
+      "ground": [
+        0.8,
+        0.8,
+        0.9
+      ]
+    }
+  },
+  "mobLooks": {
+    "looks": {
+      "character:ember-wolf": {
+        "opponent": "wolf",
+        "tint": 9062962,
+        "scale": 2.2,
+        "dressing": {
+          "soot": 0.15,
+          "burnt": 0.6
+        }
+      }
+    },
+    "spread": {
+      "character:ember-wolf": {
+        "tints": [
+          8011824,
+          10115642,
+          7293498
+        ],
+        "scale": 0.08,
+        "soot": 0.1,
+        "burnt": 0.15
+      }
+    }
+  },
+  "place": {
+    "zones": {
+      "salt-flats": {
+        "zoneSize": {
+          "width": 100,
+          "depth": 100
+        },
+        "layout": {
+          "flats-gate": {
+            "u": 0,
+            "v": 0.5,
+            "facing": 90
+          },
+          "flats-cairn": {
+            "u": 0.5,
+            "v": 0.5,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "road": {
+            "to": "ash-reach",
+            "kind": "road",
+            "here": "flats-gate",
+            "there": "reach-far"
+          }
+        },
+        "density": {
+          "creatures": 0.3
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      }
+    },
+    "joins": [
+      {
+        "zone": "ash-reach",
+        "landmark": "reach-far",
+        "at": {
+          "u": 1,
+          "v": 0.5,
+          "facing": -90
+        },
+        "link": "flats",
+        "to": "salt-flats",
+        "here": "reach-far",
+        "there": "flats-gate"
+      }
+    ],
+    "waypoints": [
+      "reach-far",
+      "flats-gate",
+      "flats-cairn"
+    ],
+    "spawns": [
+      {
+        "id": "flats-wolf",
+        "at": "flats-cairn",
+        "characters": [
+          "character:ember-wolf"
+        ]
+      }
+    ]
+  },
+  "notes": {
+    "zone": "Zone 3 (the Salt Flats): the PROOF that a zone is data (Dom 2026-10-11): this one row is the whole zone, no TypeScript. The Ash Reach's biome (the default), kit, looks and the Ember Wolf's look, one wolf at the cairn at the Zone 3 band (3-4), and the track to it from the Reach's far edge. `level` and `id` are the zone number.",
+    "spawns": "Zone 3's creatures: the Ember Wolf, the same cited kind as Zone 2's, one at a time (campSize 1) at the Zone 3 band (3-4). The opener is the wolf: loadZone checks both.",
+    "place": "Zone 3 (the Salt Flats) on the Region 1 map: one open zone beyond the Ash Reach's far edge (reach-far, a landmark added to the Reach), its gate and a cairn at the middle. One spawn group: the wolf at the cairn."
+  }
+}
