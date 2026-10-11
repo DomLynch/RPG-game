@@ -15,7 +15,7 @@ const envOf = (file) => {
 const qa = envOf(QA_ENV), w = envOf(WRITER_ENV);
 step('read credential files', !!(qa?.QA_EMAIL && qa?.QA_PASSWORD && w?.SUPABASE_URL && w?.SUPABASE_ANON_KEY && w?.PORT), 'missing file or key');
 const send = async (url, init) => { try { const res = await globalThis.fetch(url, { ...init, signal: globalThis.AbortSignal.timeout(20_000) }); return { status: res.status, json: await res.json().catch(() => null) }; } catch { return { status: 0, json: null }; } };
-const base = w.SUPABASE_URL, key = w.SUPABASE_ANON_KEY;
+const base = w.SUPABASE_URL, key = w.SUPABASE_ANON_KEY, writerBase = `http://127.0.0.1:${w.PORT}/origins`;
 
 const signin = await send(`${base}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: key, 'content-type': 'application/json' }, body: JSON.stringify({ email: qa.QA_EMAIL, password: qa.QA_PASSWORD }) });
 step('password sign-in (anon key)', signin.status === 200 && !!signin.json?.access_token, `http ${signin.status}${signin.json?.error_code ? ` ${signin.json.error_code}` : ''}`);
@@ -29,7 +29,7 @@ step('profile row is_test=true BEFORE open', Array.isArray(before) && before.len
 
 step('QA fighter name is the unique "QA Smoke" (daily_board matches on display_name)', before[0].display_name === 'QA Smoke', `ask Deploy: update public.fighter_profiles set display_name = 'QA Smoke' where user_id = '${uid}' and is_test`);
 
-const open = await send(`http://127.0.0.1:${w.PORT}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}' });
+const open = await send(`${writerBase}/open`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}' });
 step('writer open', open.status === 200 && open.json?.ok === true, `http ${open.status}`);
 
 const after = await own();
