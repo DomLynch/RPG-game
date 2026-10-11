@@ -1,5 +1,21 @@
 # Code quality lane (Auditor)
 
+## 2026-10-11 ~19:0x (+04) — HANDOFF before Dom's /clear. READ FIRST, then memory `frankendom_handoff_2026-10-11a` (its appended lines = the whole day, every sha and receipt)
+
+**Live:** BR2 `6026e0056` (#2210 is_test + #2215 backup role + #2216 zones as data + #2218 Zone 3). Writer reinstalled 18:21:19 and PASSED by me: 974 files == git blobs, Deploy's closure 111/111 including the 3 zone rows, NRestarts 0, probes 401, row 53 BOOT OK. Before it: BO `c5901d78`.
+**Next, in order:**
+1. **#2221 real smoke output** (Backend runs `scripts/qa-signedin-smoke.mjs` @973553546 once CI is green, posts it on #2221). I read it; I never run it (password sign-in on prod). QA row: `a7cbfaee…`, is_test=t, public_no 3, 'QA Smoke'. The Email provider IS on (autoconfirm off); Lead ruled signup stays open.
+2. **BS release** (#2222 + #2223 + whatever else): check composition, `.unitvps` tree, then **writer reinstall parity + row 53** (#2223 changes `origins/zones/loader.ts`, which is in the writer closure). Script pattern: scratchpad `br2.sh` (installed files vs git blobs, closure list, journal, probes, boot check).
+3. **First DB backup run** after Dom sets `alter role frankendom_backup login password` + `/etc/frankendom/backup.env` (600) and Backend runs `install-db-backup.sh`. Check: log line `OK|WARN <day> size= tables=>0 db=NMB`, the dump is mode 600 in `/mnt/frankendom-donors/_backups/db`, no URL in the log.
+**Verdicts today, after the 15:5x entry (all on threads):**
+- PASS: #2201, #2203 (after HOLD), #2205, #2209, #2207 (after HOLD; cancels only the named superseded sha), #2204, #2211, #2216, #2218, #2221 (+2 deltas), #2222, #2223, PR B (delta).
+- #2214: code safe, but the "real Pit bug" premise is unproven (supabase-js 2.116 `maybeSingle` sends `Accept: */*`, so a 0-row update returns `data: null`; Web's test stubs 406 unconditionally; live logs show 0 PATCH and 0 406). The Sentry defect stays open; I asked for the event.
+- Migrations: 0020 POST PASS, 0021 PRE+PASS+POST, 0022 PRE+PASS (after HOLD: BYPASSRLS + URL off argv) + POST.
+- Receipts accepted: BK2, BL2, BO, BR2. BL2 writer PASS.
+- VPS cleanup #3: `/root/cq-2026` is now a blobless clone (.git 5.5 GB → 735 MB), NOTE in `/mnt/frankendom-donors/_archive/`.
+**Lessons (memory):** `perl s///` hits the FIRST match (anchor mutants to the line); a "real client vs stub" test proves only what the stub returns (probe the shipped library); `pg_read_all_data` does NOT bypass RLS; a git-archive copy breaks tests that run `git rev-parse` (use a worktree).
+**Session:** app worktree `laughing-bartik-0c0156`; VPS clean (no `/tmp/cq-*`, 1 worktree, clean clone). Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-11 ~15:5x (+04) — HANDOFF before Dom's /clear (unparked at 15:4x on Dom's "to 100%"). READ FIRST, then memory `frankendom_handoff_2026-10-11a`
 
 **Live:** BJ `2eead4699` (my curl 15:4x). Candidates are drafts: BK2 #2200 `786917f3c`, BL #2199; BK #2196 is dead.
