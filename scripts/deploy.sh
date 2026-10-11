@@ -115,7 +115,7 @@ if [[ -n "$ci_green" ]]; then
   echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
   npm run build
 elif [[ "$(notes_only_release "$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)" "$revision")" == ok ]]; then
-  echo "notes-only release (every changed path is under docs/): no unit suite; build only"
+  echo "notes-only release (every changed path is under docs/state/): no unit suite; build only"
   npm run build
 elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
