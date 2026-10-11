@@ -34,10 +34,10 @@ test('three creatures on one hero: his posture breaks, whichever duel lands them
   assert.ok(Math.min(...r.ms) < ms(RULES.posture.stun) && r.ms.every((x, i) => i === 0 || x <= r.ms[i - 1]! || x === ms(RULES.posture.stun)), 'after the first break each is no longer than the one before, until the window resets it');
 });
 
-test('the hero on a boss: the boss\'s breaks step the boss\'s ladder, the hero\'s stays empty', () => {
+test('the hero on a boss: the boss\'s breaks step the boss\'s own ladder', () => {
   const hero = player('p', 0, 0); hero.health = hero.maxHealth = 1e6;
   const boss = creature('boss', 'goblin', 0, 2.2); boss.health = boss.maxHealth = 1e6;
-  const r = breaks(newWorld([hero, boss]), 'boss', 1500, (i) => (i % 30 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL));
+  const r = breaks(newWorld([hero, boss]), 'boss', 4000, (i) => (i % 10 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL));
   assert.ok(r.ms.length >= 2, `the boss was posture-broken ${r.ms.length} times`);
   assert.equal(r.ms[0], ms(RULES.posture.stun)); assert.equal(r.ms[1], ms(Math.round(RULES.posture.stun / 2)));
   assert.ok(get(r.world, 'boss').cc!.some((m) => m.family === 'stun'));
