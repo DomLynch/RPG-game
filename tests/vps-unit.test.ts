@@ -80,7 +80,7 @@ test('runUnitOnVps: archives the sha, runs the runner under lanejobs.slice with 
   const ssh = calls.filter(c => c[0] === 'ssh').map(c => c[1].join(' '));
   assert.ok(ssh.some(l => l.includes('lanejobs.slice') && l.includes('bash -s')), 'the runner runs in lanejobs.slice');
   const runnerText = calls.find(c => c[0] === 'ssh' && c[2]?.input)?.[2].input as string;
-  assert.ok(runnerText.includes(`git -C '/opt/frankendom-shadow/repo' archive '${SHA}'`) && runnerText.includes(`rev-parse '${SHA}^{tree}'`) && runnerText.includes(`[ "$BOXTREE" = '${TREE}' ]`), 'a fresh git archive of the sha, after its tree hash is checked on the box');
+  assert.ok(runnerText.includes(`git clone -q --shared --no-checkout '/opt/frankendom-shadow/repo'`) && runnerText.includes(`checkout -q --detach '${SHA}'`) && runnerText.includes(`rev-parse '${SHA}^{tree}'`) && runnerText.includes(`[ "$BOXTREE" = '${TREE}' ]`), 'a real git checkout of the sha (the tests need .git and exec bits), after its tree hash is checked on the box');
   assert.ok(!calls.some(c => c[0] === 'git'), 'nothing is archived or uploaded from the Mac (the repo is >1 GB)');
   const runner = calls.find(c => c[0] === 'ssh' && c[2]?.input)?.[2].input as string;
   assert.ok(runner.includes(NONCE), 'the nonce travels on stdin only');

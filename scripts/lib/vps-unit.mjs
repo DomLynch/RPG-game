@@ -35,7 +35,8 @@ hash -r
 git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null || exit 96
 BOXTREE=$(git -C '${SHADOW_REPO}' rev-parse '${sha}^{tree}')
 [ "$BOXTREE" = '${tree}' ] || exit 97
-mkdir -p "$RUN/src" && git -C '${SHADOW_REPO}' archive '${sha}' | tar -x -C "$RUN/src" || exit 98
+git clone -q --shared --no-checkout '${SHADOW_REPO}' "$RUN/src" < /dev/null || exit 98
+git -C "$RUN/src" checkout -q --detach '${sha}' < /dev/null || exit 98
 cd "$RUN/src" || exit 94
 t0=$(date +%s)
 npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm ci failed; ci.log tail ---' >&2; tail -n 30 "$RUN/ci.log" >&2; exit 95; }
@@ -46,7 +47,7 @@ if [ "$rc" -eq 0 ]; then
   fail=$(grep -E '^# fail ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
   printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s}\\n' "$NONCE" "$BOXTREE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))"
 fi
-[ "$rc" -eq 0 ] || { echo "--- unit.log tail (exit $rc) ---" >&2; tail -n 60 "$RUN/unit.log" >&2; }
+[ "$rc" -eq 0 ] || { echo "--- failing tests (exit $rc) ---" >&2; grep -E '^not ok' "$RUN/unit.log" | grep -v '# TODO' | head -40 >&2; echo "--- unit.log tail ---" >&2; tail -n 25 "$RUN/unit.log" >&2; }
 exit "$rc"
 `;
 }
@@ -74,7 +75,7 @@ export function vpsUnitFileOk(rec, tree, now = Date.now()) {
     && rec.node_tarball_sha256 === NODE_PIN.sha256 && rec.node === NODE_PIN.version && now - Date.parse(rec.at) < MAX_AGE_S * 1000 && now - Date.parse(rec.at) >= -60_000;
 }
 
-// run(cmd, argv, opts) defaults to spawnSync. ONE ssh session of ours pipes the runner (which fetches the sha into the box's object store, checks its tree hash, `git archive`s it) and we parse ITS live stdout.
+// run(cmd, argv, opts) defaults to spawnSync. ONE ssh session of ours pipes the runner (which fetches the sha into the box's object store, checks its tree hash, and checks it out into a real `git clone --shared` so tests see a git checkout like the HF job's) and we parse ITS live stdout.
 /** @param {{ sha: string, tree: string, nonce?: string, runid?: string, host?: string, key?: string, run?: any }} opts @returns {{ ok: boolean, reason?: string, receipt?: any }} */
 export function runUnitOnVps(opts) {
   try { return runUnitOnVpsUnsafe(opts); } catch (e) { return { ok: false, reason: `exception: ${e?.message || e}` }; }   // a throw must spill to Hugging Face, never skip it
