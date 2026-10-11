@@ -24,7 +24,7 @@ test('the roster is the Pit-kept, challengeable set: no parked, blocked or remov
 });
 
 test('the roster page names the ladder\'s own ten rank titles, and carries no script (the site CSP is script-src self)', async () => {
-  const { rankFor } = await import('../src/career.ts');
+  const { rankFor } = await import('../src/core/career-ladder.ts');
   const first = new Map<string, number>();
   for (let m = 0; m <= 1000 && first.size < 10; m++) if (!first.has(rankFor(m).title)) first.set(rankFor(m).title, m);
   assert.deepEqual([...first.keys()], RANKS);

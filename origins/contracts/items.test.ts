@@ -2,7 +2,7 @@
 // level), custody and one-of-each, rank-to-equip, the Attack/RES spine, and LootTable.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { levelOf } from '../../src/career.ts';
+import { levelOfMarks as levelOf } from '../../src/core/server.ts';
 import { CAPS, NAKED, loadoutFor } from '../../src/fight/gear-stats.ts';
 import { ARMOUR_SLOTS } from '../../src/core/loot.ts';
 import type { Issue, Result } from './core.ts';

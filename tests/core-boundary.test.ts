@@ -7,7 +7,7 @@
 //   C5  the bank and the smith panel (origins/preview/play.ts) keep no item or coin of their own (no inventory or economy module, no inv/coin/receipts state), and no mode calls the save server directly (fetch, a database client's rpc/from).
 // Each rule is a pure function of (read, files) so a mutation case can feed it a bad file.
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import test from 'node:test';
 
@@ -50,6 +50,26 @@ export function c3(read: (f: string) => string, list: readonly string[]): string
     if (!(PAGE(f) || (f.startsWith('src/') && !inCore(f)))) continue;
     for (const s of specsOf(f, read(f))) if (!s.typeOnly && /^origins\/server\//.test(s.target)) bad.push(`${f} -> ${s.target}`);
   }
+  return bad.sort();
+}
+
+const NOT_TEST = (f: string): boolean => !/\.test\.ts$|^tests\//.test(f);
+const PIT = (f: string): boolean => f.startsWith('origins/pit/') || f === 'src/core/career-model.ts';
+export function c6(read: (f: string) => string, list: readonly string[]): string[] {
+  const bad: string[] = [];
+  const own: Record<string, string> = { levelOfMarks: 'src/core/career-ladder.ts', levelOfCredit: 'src/core/career-model.ts' };
+  for (const f of list) {
+    if (!NOT_TEST(f)) continue;
+    const text = read(f).replace(/^\s*\/\/.*$/gm, '');
+    for (const m of text.matchAll(/\b(?:const|function|let)\s+(levelOfMarks|levelOfCredit|creditFromMarks|marksToCredit|levelFromMarks|levelFromCredit)\b/g))
+      if (own[m[1]!] !== f) bad.push(`${f} defines ${m[1]} (one level function per input; it lives in ${own[m[1]!] ?? 'nowhere'})`);
+    const zone = f.startsWith('origins/server/') || f.startsWith('origins/preview/') || f.startsWith('origins/mobs/') || f.startsWith('origins/boss/');
+    if (zone && /\b(levelOfMarks|marksOf|shownMarks|rankFor|victoryMarks|victory_marks)\b/.test(text)) bad.push(`${f} reads Pit marks in zone code (Pit marks never seed a zone level)`);
+    if (!PIT(f) && /\bcareerAtLevel\s*\(/.test(text)) bad.push(`${f} stands a career at a level (only the Pit session and tests may; zone characters start at newCareer())`);
+    if (/\bnewCareer\s*\(\s*[^)\s,][^)]*[,)]/.test(text) && f !== 'src/core/career-model.ts') bad.push(`${f} passes a seed to newCareer (a zone character starts at level 1)`);
+  }
+  const pit = read('origins/server/career.ts').replace(/^\s*\/\/.*$/gm, '');
+  if (/\baward\s*\(|\btotal_credit\b|\bcredit\s*:/.test(pit) || !/\bcp:\s*0\b/.test(pit)) bad.push('origins/server/career.ts: a Pit win must pay cp 0 and touch no career credit');
   return bad.sort();
 }
 
@@ -127,11 +147,29 @@ test('C5 mutation: page-memory values and direct save-server calls are flagged; 
   assert.equal(c5(withFile(play, "import type { Grid } from '../inventory/inventory.ts';"), FILES).length, 0);
 });
 
+test('C6: one level function per input; Pit marks never seed a zone level; zone characters start at level 1; Pit wins pay Pit ranks only', () => {
+  assert.deepEqual(c6(disk, FILES), []);
+  assert.ok(FILES.includes('src/core/career-model.ts') && FILES.includes('src/core/career-ladder.ts') && FILES.includes('origins/server/career.ts'));
+});
+test('C6 mutation: a second level function, marks in zone code, a seeded zone character and a paying Pit win are flagged', () => {
+  assert.equal(c6(withFile('origins/server/story.ts', 'const levelOfMarks = (m: number) => 1 + m;'), FILES).length, 2, 'a second definition, and the zone file now names Pit marks');
+  assert.equal(c6(withFile('origins/server/shop-buy.ts', 'const creditFromMarks = (m: number) => m;'), FILES).length, 1);
+  assert.equal(c6(withFile('origins/server/mob-rewards.ts', 'const l = rankFor(row.victory_marks);'), FILES).length, 1);
+  assert.equal(c6(withFile('origins/preview/save.ts', 'const lvl = marksOf(profile);'), FILES).length, 1);
+  assert.equal(c6(withFile('origins/server/story.ts', 'const c = careerAtLevel(12);'), FILES).length, 1);
+  assert.equal(c6(withFile('origins/server/story.ts', 'const c = newCareer(12);'), FILES).length, 1);
+  assert.equal(c6(withFile('origins/server/career.ts', 'const p = award(state, ev);'), FILES).length, 1);
+  assert.equal(c6((f) => f === 'origins/server/career.ts' ? disk(f).replaceAll('cp: 0', 'cp: 5') : disk(f), FILES).length, 1);
+  assert.equal(c6(withFile('origins/pit/pit.ts', 'const s = careerAtLevel(3);'), FILES).length, 0, 'the Pit session may');
+  assert.equal(c6(withFile('origins/server/story.ts', 'const c = newCareer();'), FILES).length, 0);
+});
+
 test('every moved module lives in src/core and nothing is left behind at the old paths', () => {
-  const moved = ['gear-ledger', 'gear-net', 'gear-server', 'gear-sheet', 'gear-room', 'loot', 'loot-claims', 'loot-panel', 'open'];
+  const moved = ['career-ladder', 'career-model', 'gear-ledger', 'gear-net', 'gear-server', 'gear-sheet', 'gear-room', 'loot', 'loot-claims', 'loot-panel', 'open'];
   const top = ['writer-call', 'account', 'account-entry', 'session', 'profile', 'cloud-profile', 'grades'];
   const src = new Set(readdirSync('src')), fight = new Set(readdirSync('src/fight')), core = new Set(readdirSync('src/core'));
   assert.deepEqual(moved.filter((n) => fight.has(`${n}.ts`)), []);
   assert.deepEqual(top.filter((n) => src.has(`${n}.ts`)), []);
+  assert.equal(src.has('career.ts') || existsSync('origins/progression'), false, 'the old career paths are gone');
   assert.deepEqual([...moved, ...top].filter((n) => !core.has(`${n}.ts`)), []);
 });

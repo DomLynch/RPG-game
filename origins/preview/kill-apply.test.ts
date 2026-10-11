@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newCareer } from '../progression/model.ts';
+import { newCareer } from '../../src/core/index.ts';
 import { applyServerKill } from './kill-apply.ts';
 import type { Killed } from './spawn-net.ts';
 
-const career = newCareer(0), session = { career, settled: new Set<string>(), fights: 0 };
+const career = newCareer(), session = { career, settled: new Set<string>(), fights: 0 };
 const killed = (cp: number): Killed => ({ result: 'killed', instance: 'wolves-1', respawnAt: null, loot: [], cp, bronze: 3, beta: true });
 
 test('a paid server kill moves the saved career on screen by exactly its CP, in the session and in the saved baseline', () => {

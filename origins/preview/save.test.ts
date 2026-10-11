@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AUTH_KEY as GAME_AUTH_KEY } from '../../src/core/loot-claims.ts';
-import { creditFromMarks, levelOfCredit } from '../progression/model.ts';
+import { cumulative, levelOfCredit } from '../../src/core/index.ts';
 import { careerLine, nextFight, settle } from '../pit/pit.ts';
 import { ALLEGIANCE_KEY, AUTH_KEY, CHECKING, careerOf, openedAccount, isOffline, loadAllegiance, previewCp, saveLine, storeAllegiance, storedToken, WRITER_PATH, writerBase, ensureFreshSession, RENEW_TIMEOUT_MS, type Opened } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -125,13 +125,13 @@ test('storedToken: the live game\'s stored session, unexpired, else none', () =>
 });
 
 test('preview wins sit on top of the saved career, counted as preview CP; offline says so', () => {
-  const saved = careerOf({ ...row, beaten: [], total_credit: creditFromMarks(4) })!;
+  const saved = careerOf({ ...row, beaten: [], total_credit: cumulative(1 + 4) })!;
   const session = { career: saved, settled: new Set<string>(), fights: 0 };
   const fight = nextFight(session, ['knight', 'pitborn'], 0)!;
   const won = settle(session, fight, 'win', 1000);
   assert.ok(won.award!.cp > 0);
   assert.equal(previewCp({ saved }, won.session.career), won.award!.cp);
-  assert.equal(saved.credit, creditFromMarks(4), 'the saved career itself is untouched');
+  assert.equal(saved.credit, cumulative(1 + 4), 'the saved career itself is untouched');
   assert.equal(previewCp({ offline: 'http-404' }, won.session.career), 0);
   assert.equal(saveLine({ offline: 'http-404' }), 'Not signed in: progress isn’t saved');
   assert.match(saveLine({ saved }), /saved career/);

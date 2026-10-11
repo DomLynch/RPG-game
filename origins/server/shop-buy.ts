@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
 import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
 import { receive } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../progression/model.ts';
+import { levelOfCredit } from '../../src/core/server.ts';
 import { checkBuy } from '../shops/shop.ts';
 import { standsWithin, type WhereFn } from '../presence/where.ts';
 import { landmarkCm } from '../presence/zones.ts';
