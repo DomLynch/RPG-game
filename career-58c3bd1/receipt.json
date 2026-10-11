@@ -1,0 +1,115 @@
+{
+  "origin": "http://127.0.0.1:38201",
+  "errors": [],
+  "views": {
+    "portrait": {
+      "rows": 10,
+      "rungs": 50,
+      "now": [
+        "Legionary III"
+      ],
+      "rank": "Legionary III",
+      "note": "Sign in to keep your scorecard on your account. Your device keeps its own record under Stats.",
+      "tabs": [
+        {
+          "id": "tab-fighter",
+          "x": 180.96875,
+          "y": 6,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "tab-career",
+          "x": 240.96875,
+          "y": 6,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "tab-settings",
+          "x": 300.96875,
+          "y": 6,
+          "w": 66.03125,
+          "h": 60
+        }
+      ],
+      "wide": [
+        375,
+        375
+      ]
+    },
+    "landscape": {
+      "rows": 10,
+      "rungs": 50,
+      "now": [
+        "Legionary III"
+      ],
+      "rank": "Legionary III",
+      "note": "Sign in to keep your scorecard on your account. Your device keeps its own record under Stats.",
+      "tabs": [
+        {
+          "id": "tab-fighter",
+          "x": 471.96875,
+          "y": 28.5,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "tab-career",
+          "x": 531.96875,
+          "y": 28.5,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "tab-settings",
+          "x": 591.96875,
+          "y": 28.5,
+          "w": 66.03125,
+          "h": 60
+        }
+      ],
+      "wide": [
+        812,
+        520
+      ]
+    },
+    "ipad": {
+      "rows": 10,
+      "rungs": 50,
+      "now": [
+        "Legionary III"
+      ],
+      "rank": "Legionary III",
+      "note": "Sign in to keep your scorecard on your account. Your device keeps its own record under Stats.",
+      "tabs": [
+        {
+          "id": "tab-fighter",
+          "x": 577.96875,
+          "y": 117.15625,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "tab-career",
+          "x": 637.96875,
+          "y": 117.15625,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "tab-settings",
+          "x": 697.96875,
+          "y": 117.15625,
+          "w": 66.03125,
+          "h": 60
+        }
+      ],
+      "wide": [
+        1024,
+        520
+      ]
+    }
+  },
+  "passed": true
+}
