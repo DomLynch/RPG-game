@@ -1,5 +1,20 @@
 # Code quality lane (Auditor)
 
+## 2026-10-11 ~12:3x (+04) — PARK (Lead's order after BF live). READ FIRST, then memory `frankendom_handoff_2026-10-11a` (appended lines = the full day) + `ruling_vps_proven_before_review` + `feedback_gate_all_readers`
+
+**Live:** BF `28a7cea61` (#2181 VPS rows + release lock, #2183 notes-only skip, #2182 Backend state) by my curl ~12:3x. Earlier today: BC `f822c41aa` (#2179 encounter cleanup), BB (#2177 VPS unit runs).
+**Open, owed by others:** (1) **Deploy: the `capture` install on the VPS is NOT done.** At ~12:3x `/opt/frankendom-shadow/bin/capture` and `/usr/local/bin/capture` were still 10-09 18:41, `grep -c release_running` = 0, sha256 2978291f… vs trunk `scripts/vps-shadow/capture.sh` d90a469f…. So lane jobs are not locked out of release runs until it is installed. Next session: verify the install line, the grep and both sha256s on #2181. (2) **#2186** (AGENTS.md, the "VPS-proven before review" rule, docs only): Monday's first batch. (3) **#2115 @ac5757133 HOLD** (Web's signed-in fixture loses its duel) and anything visual: Monday. (4) Parked to Monday: #2154 #2159 #2161 #2149 #2065; VPS trust-model hardening (signed non-root attestation, [[ruling_vps_unit_trust_v1]]).
+**New standing rule (Dom + Strategy + Lead, 12:0x), from the first PR after BE:** no VPS receipt on the PR's CURRENT head (touched tests; + test:all for scripts/waterfall/release tooling) = not READY, so I bounce it in one line and don't start. Every new behaviour needs a red→green test shown in the receipt. Tests never read live box state (`/run`, `/root/deploy-runs`, real locks, the live site); release-tooling PRs are tested with a release marker present. Docs-only PRs passing the notes-only skip are exempt. I never fix.
+**Verdicts today (all on threads):**
+- #2177 delta PASS @4dda8bc1c, then condition MET (run 3: 3423/0, tree = mine).
+- #2179 HOLD → HOLD → PASS @4ff0696f3 (C7 at BC: 14/14, 0 violations).
+- BC #2180 `.unitvps` accepted (the first real one).
+- #2181: HOLD (lock unwired, spill invisible, `--with-deps`) → HOLD (2 broken test edits) → HOLD (K1/K2/D2 uncaught) → HOLD (capture-gate read the box's REAL marker, so every VPS unit run would trip its own lock: what killed BD) → **PASS @7b36c8314** (351/0 with live markers; 12 real-file mutants red).
+- #2183: HOLD (rename into docs/ skipped; docs/ is test data) → Lead narrowed it to `docs/state/**` → PASS @9daca2fbe → BE CI red on `vps-receipts-guards:106` (**my miss: I had not run every test that reads `deploy.sh`**) → re-PASS @b80e39bd8 (all 10 readers 94/0).
+- BE #2185 `.rowsvps` accepted. BF #2187 `.rowsvps` [30,31,33,53] + `.unitvps` 3444/0 accepted.
+**Lessons (memory):** gate every test that reads a changed shared script (`git grep -l <path> -- tests`); release-tooling tests must run with a live marker present; a mutant count must be read against a clean baseline taken at the same moment.
+**Session:** app worktree `laughing-bartik-0c0156` on `code-quality/state-1010-pause`; VPS `/root/cq-2026` detached and clean. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-11 ~10:4x (+04) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-11a` + `ruling_vps_unit_trust_v1`
 
 **Live:** BA2 `43a9d43c1` (Core slice 2: #2175 + #2171 + #2172) by my curl. Earlier today: AW (#1984 …), AX `e85f1683f` (Core 1b: #2163/#2165/#2166).
