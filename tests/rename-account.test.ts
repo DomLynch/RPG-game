@@ -31,13 +31,33 @@ test('a signed-in rename writes the new name at the revision it read and leaves 
   assert.deepEqual((f.writes[0]!.loot as { owned: string[] }).owned, ['goblin.Body']);
   assert.equal(f.row!.revision, 5);
 });
-test('no session, no saved fighter, or a moved revision is null and writes nothing: the caller keeps the name on the device', async () => {
+test('no session or no saved fighter is null and writes nothing: the caller keeps the name on the device', async () => {
   const none = fake(saved(), null); assert.equal(await renameAccount(none.db, 'X'), null); assert.equal(none.writes.length, 0);
-  const empty = fake(null); assert.equal(await renameAccount(empty.db, 'X'), null);
-  const row = saved(), moved = fake(row);
-  const real = (moved.db as { from: () => { select: () => unknown } }).from;
-  (moved.db as { from: unknown }).from = () => { const t = real(); return { ...t, select: () => ({ eq: () => ({ maybeSingle: async () => { row.revision = 99; return { data: { ...row, revision: 4 }, error: null }; } }) }) }; };   // another device saved between the read and the write
-  assert.equal(await renameAccount(moved.db, 'X'), null); assert.equal(moved.writes.length, 0);
+  assert.equal(await renameAccount(fake(null).db, 'X'), null);
+});
+// Another save lands between our read and our write: the Pit saved marks 9 -> 11 at revision 4 -> 5. `staleReads` is how many reads still see the old revision.
+const racing = (staleReads: number) => {
+  const row = saved(), f = fake(row), real = (f.db as { from: () => { select: () => unknown } }).from;
+  let reads = 0;
+  (f.db as { from: unknown }).from = () => ({ ...real(), select: () => ({ eq: () => ({ maybeSingle: async () => {
+    const old = reads++ < staleReads; const seen = { ...row, revision: old ? 4 : 5 };
+    if (old) { row.revision = 5; row.victory_marks = 11; }   // the other save lands right after this read
+    return { data: seen, error: null };
+  } }) }) });
+  return { ...f, row };
+};
+test('a stale revision is refused, never forced: the fighter is read again and the name written at the new revision, keeping what the other save added', async () => {
+  const f = racing(1);
+  assert.equal(await renameAccount(f.db, 'Brand'), 'Brand');
+  assert.equal(f.writes.length, 1, 'the first write at revision 4 matched no row and wrote nothing; the retry wrote once');
+  assert.equal(f.row.victory_marks, 11, 'the other save\'s marks are kept, not overwritten with the stale 9');
+  assert.equal(f.row.display_name, 'Brand'); assert.equal(f.row.revision, 6);
+});
+test('lost twice (a second stale read) gives up with null and writes nothing', async () => {
+  const f = racing(2);
+  assert.equal(await renameAccount(f.db, 'Brand'), null);
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.row.display_name, 'Aldren');
 });
 test('a name is cleaned like the Pit\'s (24 characters, no control characters)', async () => {
   const f = fake(saved());
