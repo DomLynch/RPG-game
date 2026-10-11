@@ -1,12 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // The career service's READS for the screens (Backend's slice 2b, migration 202610110019, live since BA2): the player's scorecard (scorecard_rows(), an invoker
-// function: the caller's own rows only) and the boards (leaderboards(p_limit), authenticated only; a display name and a number, never a user id). The ladder itself
+// function: the caller's own rows only) and the boards (leaderboards(p_limit), authenticated only). The ladder itself
 // is NOT read: pit_ladder is pinned to career-ladder.ts rankFor by a test, so the screens draw it from the core. Same contract as readStanding (cloud-profile.ts):
 // null when the server has no answer (offline, signed out, the function missing, a malformed row), never a throw, so a screen draws "unavailable" and keeps the device's own figures.
 export type ScoreRow = { opponent: string; fights: number; wins: number; losses: number; draws: number; left: number; last: string[] };
 export type BoardName = 'duel_rating' | 'duel_wins';
-export type BoardRow = { board: BoardName; place: number; name: string; score: number };
+// Strategy ruling C (2026-10-11): the boards show rank + score + "Fighter #<id>", no names. The RPC shape this client EXPECTS (Backend's pending migration): leaderboards(p_limit) returns
+// (board text, place int, fighter_id text, score int), a stable public id, and NO display_name. `who` is the one name-or-id field: today the id, later a name from the same place with no UI rebuild.
+export type BoardRow = { board: BoardName; place: number; who: string; score: number };
 const count = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 const text = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 64;
 
@@ -30,8 +32,8 @@ export async function readLeaderboards(db: Pick<SupabaseClient, 'rpc'>, limit = 
     if (error || !Array.isArray(data)) return null;
     const rows: BoardRow[] = [];
     for (const r of data as Record<string, unknown>[]) {
-      if ((r?.board !== 'duel_rating' && r?.board !== 'duel_wins') || !count(r.place) || r.place < 1 || !text(r.display_name) || !count(r.score)) return null;
-      rows.push({ board: r.board, place: r.place, name: r.display_name, score: r.score });
+      if ((r?.board !== 'duel_rating' && r?.board !== 'duel_wins') || !count(r.place) || r.place < 1 || !text(r.fighter_id) || !count(r.score)) return null;   // display_name is never read, whatever the server sends
+      rows.push({ board: r.board, place: r.place, who: r.fighter_id, score: r.score });
     }
     return rows;
   } catch { return null; }
