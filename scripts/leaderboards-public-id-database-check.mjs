@@ -1,9 +1,10 @@
 // Migration 202610110020 (leaderboards show a stable public fighter number, not the display name) on real PostgreSQL, in a disposable socket-only cluster like career-service-database-check.mjs: no DATABASE_URL, no SUPABASE_* and no service-role key is read.
+import console from 'node:console';
+import process from 'node:process';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { rankFor } from '../src/core/server.ts';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-career-service-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
 const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 'C' };
