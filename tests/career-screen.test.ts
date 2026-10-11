@@ -52,18 +52,19 @@ test('a guest\'s pencil keeps the cleaned name in the device profile (24 charact
   assert.equal(saved.id, 'guest-0001');
 });
 
-test('the name pencil: the Pit\'s own rename is the account\'s, a guest elsewhere edits the device name, a signed-in player in the zone gets none', () => {
-  assert.equal(pencilFor({ rename: true, signedIn: true }), 'account');
-  assert.equal(pencilFor({ rename: true, signedIn: false }), 'account');
-  assert.equal(pencilFor({ rename: false, signedIn: false }), 'device');
-  assert.equal(pencilFor({ rename: false, signedIn: true }), null);
+test('the name pencil: the Pit\'s own rename is the account\'s; elsewhere the card edits the name, for a signed-in player only when the host can save it to the account', () => {
+  assert.equal(pencilFor({ rename: true, signedIn: true, save: false }), 'account');
+  assert.equal(pencilFor({ rename: true, signedIn: false, save: false }), 'account');
+  assert.equal(pencilFor({ rename: false, signedIn: false, save: false }), 'device');
+  assert.equal(pencilFor({ rename: false, signedIn: true, save: false }), null);
+  assert.equal(pencilFor({ rename: false, signedIn: true, save: true }), 'device');
 });
 test('in the name field Enter keeps the typed name, Escape drops it, other keys do nothing', () => {
   assert.equal(nameKey('Enter'), 'keep'); assert.equal(nameKey('Escape'), 'drop'); assert.equal(nameKey('a'), null);
 });
 test('the render takes the pencil from pencilFor with the real signed-in state, and both Gear links open the one gear sheet', () => {
   const screen = readFileSync('src/core/career-screen.ts', 'utf8'), main = readFileSync('src/main.ts', 'utf8'), zone = readFileSync('origins/preview/pit-duel.ts', 'utf8');
-  assert.match(screen, /pencilFor\(\{ rename: !!o\.rename, signedIn: !!db \}\)/, 'the pencil follows the account state');
+  assert.match(screen, /pencilFor\(\{ rename: !!o\.rename, signedIn: !!db, save: !!o\.saveName \}\)/, 'the pencil follows the account state and the host\'s saveName');
   assert.match(screen, /const k = nameKey\(e\.key\); if \(k\) finish\(k === 'keep'\)/, 'the field takes its keys from nameKey');
   assert.match(main, /label: 'Gear', go: \(\) => \{ enterGear\(\); element<HTMLInputElement>\('journal-tab-profile'\)\.checked = true/, 'the Pit\'s Gear link enters the gear sheet before it shows the tab');
   assert.match(zone, /label: 'Gear', go: \(\) => document\.getElementById\('menu-gear'\)\?\.click\(\)/, 'the zone\'s Gear link is the menu-gear entry (createGearSheet via gear-mount)');
