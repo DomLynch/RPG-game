@@ -13,6 +13,7 @@ import { runUnitOnVps } from '../lib/vps-unit.mjs';
 import { runRowsOnVps } from '../lib/vps-rows.mjs';
 import { selectWallRows } from '../lib/hf-wall-rows.mjs';
 import { MAC_ONLY, ON_T4 } from '../lib/row-placement.mjs';
+import { recordUnitJob } from '../lib/prelaunch-jobs.mjs';
 
 // Rows that hit the 600 s per-row ceiling on cpu-upgrade even alone (Backend's width-1 probe, 2026-10-08), or cannot run in the container at all (13: initdb refuses root).
 // Sharding one of them loses the whole shard to the job timeout, so every flavor refuses them. The t4-medium trial of 5/7/16 (HF job 6ac7f57efee2c9007016dd66, 2026-10-09) hit the 600 s ceiling on all three too: they are not GPU-bound in this container.
@@ -138,6 +139,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         const r = slot.value; process.stdout.write(`${tierLine(flavor, slot.slot, slot.queuedS)}\n${r.stdout || ''}`); process.stderr.write(r.stderr || '');
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
         if (id) ledger(id, lane ? lane.sha : a, args[args.indexOf('--timeout') + 1], lane ? 'artifacts/hf-lane-jobs' : undefined);
+        if (id && !lane && cmd === 'unit') recordUnitJob(process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`, a, id);   // the re-cut cancel (scripts/lib/prelaunch-jobs.mjs) finds the unit job in the candidate's .wall
         process.exit(r.status ?? 1);
       }
     }

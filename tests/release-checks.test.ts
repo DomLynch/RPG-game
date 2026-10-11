@@ -407,7 +407,7 @@ test('deploy scope: a loot thumbnail or a deploy-pipeline library is not a full 
   const kept = (...files: string[]) => ROWS - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
   assert.ok(kept('public/game/img/loot/witch.Helmet.webp', 'public/game/img/loot/witch.Helmet.thumb.webp') < 12, 'loot images run the gear rows and the core five, not every row');
   assert.match(pick('public/game/img/loot/witch.Helmet.webp').stderr, /\b36 loot-smoke-check\b/, 'a loot image runs the loot smoke row');
-  for (const lib of ['data-only.mjs', 'row-placement.mjs', 'vps-receipts.mjs', 'hf-slots.mjs', 'hf-wall-rows.mjs', 'published-summary.mjs', 'deploy-hf.sh', 'prune-releases.sh', 'glb-stats.mjs'])
+  for (const lib of ['data-only.mjs', 'row-placement.mjs', 'vps-receipts.mjs', 'hf-slots.mjs', 'hf-wall-rows.mjs', 'published-summary.mjs', 'prelaunch-jobs.mjs', 'deploy-hf.sh', 'prune-releases.sh', 'glb-stats.mjs'])
     assert.equal(kept(`scripts/lib/${lib}`), 5, `scripts/lib/${lib} builds no part of the game: the core five only`);
   assert.match(pick('scripts/lib/thumb-row.mjs').stderr, /\bendgame-hud-check\b/, 'a library one row imports runs that row');
   for (const file of ['scripts/lib/harness.mjs', 'scripts/lib/harness-clock.mjs', 'scripts/lib/a-library-nobody-listed.mjs'])

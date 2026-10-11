@@ -77,7 +77,7 @@ const AREAS = [
 // cover them, as for deploy.sh) or that one or two rows import (AREAS). A lib listed nowhere stays a full run. Strategy 2026-10-10: Z cost 52 rows for scripts/lib/data-only.mjs.
 const FULL = ['package.json', 'package-lock.json', 'vite.config.*', 'tsconfig*.json', 'scripts/lib/**'];
 const LIB_NO_ROWS = ['scripts/lib/deploy-*.sh', 'scripts/lib/row-placement.mjs', 'scripts/lib/vps-receipts.mjs', 'scripts/lib/hf-slots.mjs', 'scripts/lib/hf-wall-rows.mjs',
-  'scripts/lib/published-summary.mjs', 'scripts/lib/prune-releases.sh', 'scripts/lib/data-only.mjs', 'scripts/lib/glb-stats.mjs', 'scripts/lib/gpu-run.mjs', 'scripts/lib/stop-workers.mjs', 'scripts/lib/player-bot-*.mjs'];
+  'scripts/lib/published-summary.mjs', 'scripts/lib/prelaunch-jobs.mjs', 'scripts/lib/prune-releases.sh', 'scripts/lib/data-only.mjs', 'scripts/lib/glb-stats.mjs', 'scripts/lib/gpu-run.mjs', 'scripts/lib/stop-workers.mjs', 'scripts/lib/player-bot-*.mjs'];
 const PUBLIC_SCOPED = ['public/arena/**', 'public/versus/**', 'public/licenses/**', 'public/game/img/**'];
 const isFull = file => (FULL.some(glob => matchesGlob(file, glob)) && !LIB_NO_ROWS.some(glob => matchesGlob(file, glob)) && !AREAS.some(a => a.paths.includes(file)))
   || (matchesGlob(file, 'public/**') && !PUBLIC_SCOPED.some(glob => matchesGlob(file, glob)));

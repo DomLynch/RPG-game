@@ -11,11 +11,11 @@ export function actualPlacement(detail, { ci = '', vps = '', hf = '' } = {}) {
   const other = [...trusted].filter(n => ![...c, ...v, ...h].includes(n));   // ruled-trusted rows (DEPLOY_TRUST_ROWS) and anything unattributed
   return { total: detail.length, mac, ci: c, vps: v, hf: h, other, outOfScope: detail.filter(d => d.out_of_scope).length, retried: detail.filter(d => d.retried).length };
 }
-export const summaryLine = ({ total, mac, ci, vps, hf, other, outOfScope, retried }, mergeToLive, deployMin) =>
-  `Published summary: merge to live ${mergeToLive}; deploy.sh ran ${deployMin} min; rows actually run: ${total} total = ${ci.length} CI + ${vps.length} VPS + ${hf.length} HF/T4 + ${other.length} other trusted + ${outOfScope} out of scope + ${mac.length} on the Mac (${mac.join(',') || 'none'}; includes any receipt fallback), ${retried} retried`;
+export const summaryLine = ({ total, mac, ci, vps, hf, other, outOfScope, retried }, mergeToLive, deployMin, orphans = '?') =>
+  `Published summary: merge to live ${mergeToLive}; deploy.sh ran ${deployMin} min; rows actually run: ${total} total = ${ci.length} CI + ${vps.length} VPS + ${hf.length} HF/T4 + ${other.length} other trusted + ${outOfScope} out of scope + ${mac.length} on the Mac (${mac.join(',') || 'none'}; includes any receipt fallback), ${retried} retried; orphaned T4 jobs: ${orphans}`;
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [receipt, ci, vps, hf, mergeToLive, deployMin] = process.argv.slice(2);
-  try { console.log(summaryLine(actualPlacement(JSON.parse(readFileSync(receipt, 'utf8')).checks_detail, { ci, vps, hf }), mergeToLive, deployMin)); }
-  catch (e) { console.log(`Published summary: merge to live ${mergeToLive}; deploy.sh ran ${deployMin} min; row counts unavailable (${e.message})`); }
+  const [receipt, ci, vps, hf, mergeToLive, deployMin, orphans] = process.argv.slice(2);
+  try { console.log(summaryLine(actualPlacement(JSON.parse(readFileSync(receipt, 'utf8')).checks_detail, { ci, vps, hf }), mergeToLive, deployMin, orphans)); }
+  catch (e) { console.log(`Published summary: merge to live ${mergeToLive}; deploy.sh ran ${deployMin} min; row counts unavailable (${e.message}); orphaned T4 jobs: ${orphans ?? '?'}`); }
 }
