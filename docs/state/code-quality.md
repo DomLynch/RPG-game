@@ -1,5 +1,21 @@
 # Code quality lane (Auditor)
 
+## 2026-10-11 ~15:3x (+04) — PARK (Lead 14:4x via COO: quota 93%). Resume after the 23:59:59 reset. READ FIRST, then memory `frankendom_handoff_2026-10-11a` (appended lines = the whole day)
+
+**Live:** BJ `2eead4699` per Deploy (my last curl showed BG `eb898c0c8`; re-curl first). Candidates stay as drafts: BK #2196 (dead), **BK2 #2200** `786917f3c`, BL #2199.
+**First job on resume:** BK2's k7 `ALLOWED += 'career-screen'` verdict is **already posted: PASS, not a hole** (#2200, 2nd comment). `career-screen` exports only view functions and `mountCareer`, with no `src/fight` re-export; `trial` is precedent. Follow-up for Web (Monday): draw `LADDER` through `src/core`, then remove the entry. So first: **check BK2's unit receipt** (HF or `.unitvps`: tree, SHA env, fail 0) before it publishes.
+**Owed:**
+- **0020 POST** after Backend applies `202610110020_leaderboards_public_id`. Still 0019 at 15:0x. Check: `public_no` not null and identity, both rows numbered; fn result is the 5-column TABLE; ACL {postgres, authenticated}; migration row recorded; the board shows only `Fighter #n`.
+- **PR B** (`deploy/unit-slowest` @735ebddd1, no PR number) HOLD: mutant S1 (the RECEIPT `printf` drops `slowest`, so the JSON is invalid and every VPS unit run spills) is caught by 0 tests. Needs an e2e test: run the real runner tail, then `parseReceipt`.
+- #2115 HOLD (Web), parked to Monday.
+**Verdicts since the 12:3x entry (all on threads):**
+- PASS: #2065, #2186, #2189 (batch 2), #2191 (`test:all` preflight), #2161 (Proof 3, RV41; writer stays on d76be98a), #2159, #2195 (+PRE GREEN for 0020), #2197 (camera B schema default; server effect none), #2194 + #2198.
+- GO for BG #2188, BH #2190, BI #2192, BJ #2193.
+**Lessons (memory):**
+- `feedback_capture_heavy_runs`: gate runs over 2 files go through `capture --prio 2 auditor`. Use `node --test` for record/guard files (tsx breaks record-version-guard). Kill by PID, never with a `pkill -f` pattern that matches the ssh command line.
+- `feedback_gate_all_readers`, two misses today: #2183 → `vps-receipts-guards`; #2198 → `k7-engine-parity`. Any new `origins/` import means flow-boundary + core-boundary + k7.
+**Session:** app worktree `laughing-bartik-0c0156` on `code-quality/state-1010-pause`. VPS `/root/cq-2026` clean, no worktrees, `/tmp/cq-*` removed. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-11 ~12:3x (+04) — PARK (Lead's order after BF live). READ FIRST, then memory `frankendom_handoff_2026-10-11a` (appended lines = the full day) + `ruling_vps_proven_before_review` + `feedback_gate_all_readers`
 
 **Live:** BF `28a7cea61` (#2181 VPS rows + release lock, #2183 notes-only skip, #2182 Backend state) by my curl ~12:3x. Earlier today: BC `f822c41aa` (#2179 encounter cleanup), BB (#2177 VPS unit runs).
