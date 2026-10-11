@@ -85,7 +85,7 @@ try {
 
   // 3. cut it down; the kill is reported on that engage's token
   let down = false; const trace = [];
-  for (let t = 0; t < 120 && !down; t++) {
+  for (let t = 0; t < 300 && !down; t++) {   // a software-GL fight lands about one cut in two (trace: foe 63 -> 3 hp in 120 cuts), so the budget is 300
     if (t % 10 === 0) trace.push(await page.evaluate((i) => window.originsPreview.combat().fighters.map((f) => `${f.id === i ? 'foe' : f.id}:${f.hp}:${f.phase}`).join(' '), target.id));
     await near();   // the foe roams: stand in reach each cut (the seamless STRIKE loop does the same), or the run never reaches its kill (Auditor HOLD @ac5757133)
     await page.evaluate(() => window.originsPreview.press('light'));
