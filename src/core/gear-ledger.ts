@@ -4,8 +4,10 @@
 import { TIERS, type Tier } from './grades.ts';
 import { paperdollOf, slotOf, stow, unwear, wear, wearFromPack, type Loot, type LootId, type Paperdoll, type Provenance } from './loot.ts';
 
-export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number };
-export type GearView = { pieces: GearPiece[]; worn: Record<string, string>; packSize: number; bankSize: number };
+export type GearPiece = { id: string; item: string; lootId: string | null; slot: string | null; where: 'pack' | 'bank' | 'equipped'; index: number | null; paperdoll: string | null; tier: string | null; version: number; level: number };
+// A non-gear stack in the pack or bank (the smith's materials): the server's `stock` list, read-only on the page.
+export type StockRow = { id: string; item: string; name: string; category: string; quantity: number; where: 'pack' | 'bank'; index: number; version: number };
+export type GearView = { pieces: GearPiece[]; stock: StockRow[]; worn: Record<string, string>; packSize: number; bankSize: number };
 export type Step = { op: 'gear_equip' | 'gear_unequip'; id: string };
 
 const isPiece = (p: unknown): p is GearPiece => {
@@ -13,11 +15,14 @@ const isPiece = (p: unknown): p is GearPiece => {
   return !!x && typeof x === 'object' && typeof x.id === 'string' && typeof x.item === 'string' && (x.lootId === null || typeof x.lootId === 'string') && (x.where === 'pack' || x.where === 'bank' || x.where === 'equipped')
     && (x.paperdoll === null || typeof x.paperdoll === 'string') && (x.tier === null || typeof x.tier === 'string') && (x.index === null || Number.isInteger(x.index));
 };
+const isStock = (r: unknown): r is StockRow => { const x = r as Partial<StockRow> | null; return !!x && typeof x.id === 'string' && typeof x.item === 'string' && typeof x.name === 'string' && typeof x.category === 'string' && Number.isInteger(x.quantity) && (x.where === 'pack' || x.where === 'bank') && Number.isInteger(x.index); };
 // A reply that is not the documented shape is no reply (the caller keeps what it has and says offline).
 export function viewOf(r: unknown): GearView | null {
   const v = r as Partial<GearView> | null;
   if (!v || typeof v !== 'object' || !Array.isArray(v.pieces) || !v.pieces.every(isPiece) || !v.worn || typeof v.worn !== 'object' || !Number.isInteger(v.packSize) || !Number.isInteger(v.bankSize)) return null;
-  return { pieces: v.pieces, worn: v.worn, packSize: v.packSize!, bankSize: v.bankSize! };
+  const stock = Array.isArray(v.stock) ? v.stock : [];
+  if (!stock.every(isStock)) return null;
+  return { pieces: v.pieces.map((p) => ({ ...p, level: Number.isInteger(p.level) ? p.level : 0 })), stock, worn: v.worn, packSize: v.packSize!, bankSize: v.bankSize! };
 }
 // The Loot the sheet draws: every held piece owned; the pack in grid order; the worn set by paperdoll key. A piece's rung rides as the take's tier (rank text, finish);
 // the server keeps no attempt / health-left, so a piece from it carries none (the rack's provenance line reads only what exists).

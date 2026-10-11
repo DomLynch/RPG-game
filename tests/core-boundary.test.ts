@@ -4,6 +4,7 @@
 //   C2  nothing outside src/core imports writer-call or POSTs the writer (`/origins/<op>`).
 //   C3  no page module imports origins/server/** at runtime (a type-only import is erased and loads nothing).
 //   C4  k7-engine-parity's LEDGER_UI list is empty and stays empty.
+//   C5  the bank and the smith panel (origins/preview/play.ts) keep no item or coin of their own (no inventory or economy module, no inv/coin/receipts state), and no mode calls the save server directly (fetch, a database client's rpc/from).
 // Each rule is a pure function of (read, files) so a mutation case can feed it a bad file.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -52,6 +53,20 @@ export function c3(read: (f: string) => string, list: readonly string[]): string
   return bad.sort();
 }
 
+export function c5(read: (f: string) => string, list: readonly string[]): string[] {
+  const bad: string[] = [];
+  for (const f of list) {
+    if (!PAGE(f) || inCore(f)) continue;
+    const text = read(f).replace(/^\s*\/\/.*$/gm, '');
+    if (/\bnavigator\.sendBeacon\s*\(|(?<![\w.])fetch\s*\(|\.rpc\(|\.from\(\s*['"`]/.test(text)) bad.push(`${f} calls the save server directly`);
+    if (f === 'origins/preview/play.ts') {
+      for (const s of specsOf(f, text)) if (!s.typeOnly && /(^|\/)(inventory|economy)(\.ts|\/)|inventory\/inventory|contracts\/(economy|items)/.test(s.target)) bad.push(`${f} imports ${s.target}`);
+      if (/\b(?:let|var)\s+(?:inv|coin|balance|receipts|bronze)\b|\bconst\s+(?:inv|coin|balance|receipts|bronze)\s*=|coin\s*=\s*\d/.test(text)) bad.push(`${f} holds an item or coin value`);
+    }
+  }
+  return bad.sort();
+}
+
 const FILES = [...walk('src'), ...walk('origins'), ...walk('scripts')].map((f) => f.replaceAll('\\', '/'));
 const withFile = (name: string, extra: string) => (f: string): string => f === name ? `${disk(f)}\n${extra}` : disk(f);
 
@@ -92,6 +107,24 @@ test('C4: the ledger-UI allow-list in k7-engine-parity is empty and cannot grow 
   const k7 = disk('tests/k7-engine-parity.test.ts');
   assert.match(k7, /const LEDGER_UI: readonly string\[\] = \[\];/, 'LEDGER_UI is an empty list');
   assert.doesNotMatch('const LEDGER_UI: readonly string[] = [\n  \'a -> b\',\n];', /const LEDGER_UI: readonly string\[\] = \[\];/, 'mutation: a non-empty list does not match the exit assert');
+});
+
+test('C5: the bank and the smith hold nothing of their own and no mode calls the save server directly', () => {
+  assert.deepEqual(c5(disk, FILES), []);
+  assert.ok(FILES.includes('origins/preview/play.ts'));
+});
+test('C5 mutation: page-memory values and direct save-server calls are flagged; the core door is not', () => {
+  const play = 'origins/preview/play.ts';
+  assert.equal(c5(withFile(play, 'let inv = openInventory();'), FILES).length, 1);
+  assert.equal(c5(withFile(play, 'let coin = 400;'), FILES).length, 1);
+  assert.equal(c5(withFile(play, 'const receipts = new Map();'), FILES).length, 1);
+  assert.equal(c5(withFile(play, "import { deposit } from '../inventory/inventory.ts';"), FILES).length, 1);
+  assert.equal(c5(withFile(play, "import { performUpgrade } from '../contracts/economy.ts';"), FILES).length, 1);
+  assert.equal(c5(withFile(play, "void fetch(url, { method: 'POST' });"), FILES).length, 1);
+  assert.equal(c5(withFile('origins/preview/main.ts', "await client.rpc('origins_save', {});"), FILES).length, 1);
+  assert.equal(c5(withFile('src/main.ts', "await client.from('origins_events').insert({});"), FILES).length, 1);
+  assert.equal(c5(withFile(play, "import { bankMove } from '../../src/core/index.ts';"), FILES).length, 0);
+  assert.equal(c5(withFile(play, "import type { Grid } from '../inventory/inventory.ts';"), FILES).length, 0);
 });
 
 test('every moved module lives in src/core and nothing is left behind at the old paths', () => {

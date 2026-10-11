@@ -22,3 +22,14 @@ export async function runOp(token: string | null, character: string, view: GearV
   }
   return { view: now, refused: false };
 }
+
+// The Exchange's bank and smith (origins/server/gear.ts bank_move, upgrade.ts apply_upgrade): the writer decides and answers; the page only asks. bank_move answers the whole view.
+export const bankMove = (token: string | null, character: string, id: string, to: 'bank' | 'pack', opts: Opts = {}) => call('bank_move', { character, id, to }, token, viewOf, opts);
+export type UpgradeReceipt = { toLevel: number; coin: number; replayed: boolean };
+const upgradeOf = (r: unknown): UpgradeReceipt | null => {
+  const x = r as { replayed?: unknown; receipt?: { toLevel?: unknown; coin?: unknown } } | null;
+  return x && typeof x.replayed === 'boolean' && Number.isInteger(x.receipt?.toLevel) && Number.isInteger(x.receipt?.coin) ? { toLevel: x.receipt!.toLevel as number, coin: x.receipt!.coin as number, replayed: x.replayed } : null;
+};
+// One piece one level up. The op id is the one-time token: the same piece at the same version asks the same op, so a retry is answered from the stored receipt.
+export const upgradePiece = (token: string | null, character: string, piece: { id: string; version: number; level: number }, materials: string[], opts: Opts = {}) =>
+  call('apply_upgrade', { character, op: `up:${piece.id}:v${piece.version}`.replace(/[^a-z0-9:._-]/g, '-'), instance: piece.id, toLevel: piece.level + 1, materials }, token, upgradeOf, opts);

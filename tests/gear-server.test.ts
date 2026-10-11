@@ -5,9 +5,9 @@ import { createServerGear } from '../src/core/gear-server.ts';
 import type { Loot } from '../src/core/loot.ts';
 import type { GearPiece, GearView } from '../src/core/gear-ledger.ts';
 
-const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: null, version: 1 });
-const dropped: GearView = { pieces: [piece('i1', 'goblin.Helmet', 'pack')], worn: {}, packSize: 8, bankSize: 100 };
-const worn: GearView = { pieces: [piece('i1', 'goblin.Helmet', 'equipped', 'head')], worn: { head: 'i1' }, packSize: 8, bankSize: 100 };
+const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: null, version: 1, level: 0 });
+const dropped: GearView = { pieces: [piece('i1', 'goblin.Helmet', 'pack')], stock: [], worn: {}, packSize: 8, bankSize: 100 };
+const worn: GearView = { pieces: [piece('i1', 'goblin.Helmet', 'equipped', 'head')], stock: [], worn: { head: 'i1' }, packSize: 8, bankSize: 100 };
 const NOW = 1_800_000_000_000, session = JSON.stringify({ access_token: 'tok', expires_at: NOW / 1000 + 3600 });
 const storage = (signedIn: boolean) => ({ getItem: (k: string) => (signedIn && k === 'frankendom.auth.v1' ? session : null) });
 const opened = { career: { totalCredit: 0 }, characters: [{ id: 'c1', name: 'Dom' }], marks: 0 };
