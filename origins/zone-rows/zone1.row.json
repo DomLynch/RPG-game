@@ -409,6 +409,546 @@
       ]
     }
   },
+  "place": {
+    "zones": {
+      "east-road": {
+        "zoneSize": {
+          "width": 40,
+          "depth": 100
+        },
+        "layout": {
+          "exchange-gate": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "milestone": {
+            "u": 0.5,
+            "v": 0.3,
+            "facing": 0
+          },
+          "watchtower": {
+            "u": 0.82,
+            "v": 0.55,
+            "facing": -90
+          },
+          "fields-turn": {
+            "u": 0,
+            "v": 0.7,
+            "facing": 90
+          },
+          "crossroads": {
+            "u": 0.5,
+            "v": 1,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "ferry": {
+            "to": "ferry-landing",
+            "kind": "road",
+            "here": "crossroads",
+            "there": "road-end"
+          },
+          "fields": {
+            "to": "cinder-fields",
+            "kind": "road",
+            "here": "fields-turn",
+            "there": "road-gate"
+          }
+        },
+        "difficulty": {
+          "levelMin": 11,
+          "levelMax": 12
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "ferry-landing": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 60
+        },
+        "layout": {
+          "road-end": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "ferry-house": {
+            "u": 0.2,
+            "v": 0.5,
+            "facing": 90
+          },
+          "boathouse": {
+            "u": 0.8,
+            "v": 0.7,
+            "facing": -90
+          },
+          "mere-shore": {
+            "u": 1,
+            "v": 0.4,
+            "facing": -90
+          },
+          "dock": {
+            "u": 0.5,
+            "v": 0.9,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "road": {
+            "to": "east-road",
+            "kind": "road",
+            "here": "road-end",
+            "there": "crossroads"
+          },
+          "mere": {
+            "to": "black-mere",
+            "kind": "road",
+            "here": "mere-shore",
+            "there": "landing-shore"
+          },
+          "night-boat": {
+            "to": "blood-ruin",
+            "kind": "portal",
+            "here": "dock",
+            "there": "ruin-jetty"
+          }
+        },
+        "density": {
+          "npcs": 0.4,
+          "creatures": 0
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "cinder-fields": {
+        "zoneSize": {
+          "width": 120,
+          "depth": 120
+        },
+        "layout": {
+          "road-gate": {
+            "u": 1,
+            "v": 0.5,
+            "facing": -90
+          },
+          "ash-pits": {
+            "u": 0.5,
+            "v": 0.5,
+            "facing": 0
+          },
+          "shrine": {
+            "u": 0.2,
+            "v": 0.8,
+            "facing": 0
+          },
+          "hold-road": {
+            "u": 0,
+            "v": 0.3,
+            "facing": 90
+          }
+        },
+        "connections": {
+          "road": {
+            "to": "east-road",
+            "kind": "road",
+            "here": "road-gate",
+            "there": "fields-turn"
+          },
+          "hold": {
+            "to": "cinder-hold",
+            "kind": "road",
+            "here": "hold-road",
+            "there": "hold-gate"
+          }
+        },
+        "density": {
+          "creatures": 0.35
+        },
+        "spawns": {
+          "respawnSeconds": 240
+        },
+        "difficulty": {
+          "levelMin": 11,
+          "levelMax": 13
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "black-mere": {
+        "zoneSize": {
+          "width": 100,
+          "depth": 140
+        },
+        "layout": {
+          "landing-shore": {
+            "u": 0,
+            "v": 0.3,
+            "facing": 90
+          },
+          "reed-bank": {
+            "u": 0.35,
+            "v": 0.4,
+            "facing": 0
+          },
+          "mere-hollow": {
+            "u": 0.5,
+            "v": 0.65,
+            "facing": 0
+          },
+          "causeway": {
+            "u": 0.5,
+            "v": 1,
+            "facing": 0
+          },
+          "causeway-foot": {
+            "u": 0.75,
+            "v": 0.95,
+            "facing": -90
+          }
+        },
+        "connections": {
+          "landing": {
+            "to": "ferry-landing",
+            "kind": "road",
+            "here": "landing-shore",
+            "there": "mere-shore"
+          },
+          "causeway": {
+            "to": "blood-ruin",
+            "kind": "road",
+            "here": "causeway",
+            "there": "causeway-end"
+          },
+          "mere-end": {
+            "to": "mere-end",
+            "kind": "road",
+            "here": "causeway-foot",
+            "there": "end-gate"
+          }
+        },
+        "spawns": {
+          "boss": "mere-hollow"
+        },
+        "density": {
+          "creatures": 0.2
+        },
+        "difficulty": {
+          "levelMin": 12,
+          "levelMax": 15
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "blood-ruin": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 80
+        },
+        "layout": {
+          "causeway-end": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "ruin-jetty": {
+            "u": 0,
+            "v": 0.2,
+            "facing": 90
+          },
+          "ruin-gate": {
+            "u": 0.5,
+            "v": 0.45,
+            "facing": 0
+          },
+          "crypt": {
+            "u": 0.5,
+            "v": 0.85,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "causeway": {
+            "to": "black-mere",
+            "kind": "road",
+            "here": "causeway-end",
+            "there": "causeway"
+          },
+          "night-boat": {
+            "to": "ferry-landing",
+            "kind": "portal",
+            "here": "ruin-jetty",
+            "there": "dock"
+          }
+        },
+        "spawns": {
+          "boss": "crypt"
+        },
+        "density": {
+          "creatures": 0.15
+        },
+        "difficulty": {
+          "levelMin": 13,
+          "levelMax": 14
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "cinder-hold": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 60
+        },
+        "layout": {
+          "hold-gate": {
+            "u": 1,
+            "v": 0.3,
+            "facing": -90
+          },
+          "hold-centre": {
+            "u": 0.45,
+            "v": 0.5,
+            "facing": 0
+          },
+          "hold-hall": {
+            "u": 0.3,
+            "v": 0.85,
+            "facing": 0
+          },
+          "hold-forge": {
+            "u": 0.2,
+            "v": 0.45,
+            "facing": 90
+          },
+          "hold-fence": {
+            "u": 0.7,
+            "v": 0.75,
+            "facing": 180
+          },
+          "hold-jail": {
+            "u": 0.1,
+            "v": 0.8,
+            "facing": 90
+          }
+        },
+        "connections": {
+          "fields": {
+            "to": "cinder-fields",
+            "kind": "road",
+            "here": "hold-gate",
+            "there": "hold-road"
+          }
+        },
+        "density": {
+          "npcs": 0.3,
+          "creatures": 0
+        },
+        "difficulty": {
+          "levelMin": 11,
+          "levelMax": 13
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "mere-end": {
+        "zoneSize": {
+          "width": 50,
+          "depth": 50
+        },
+        "layout": {
+          "end-gate": {
+            "u": 0,
+            "v": 0.5,
+            "facing": 90
+          },
+          "end-centre": {
+            "u": 0.55,
+            "v": 0.5,
+            "facing": 0
+          },
+          "end-hall": {
+            "u": 0.6,
+            "v": 0.88,
+            "facing": 180
+          },
+          "end-healer": {
+            "u": 0.85,
+            "v": 0.4,
+            "facing": -90
+          },
+          "end-jail": {
+            "u": 0.9,
+            "v": 0.85,
+            "facing": -90
+          }
+        },
+        "connections": {
+          "mere": {
+            "to": "black-mere",
+            "kind": "road",
+            "here": "end-gate",
+            "there": "causeway-foot"
+          }
+        },
+        "density": {
+          "npcs": 0.2,
+          "creatures": 0
+        },
+        "difficulty": {
+          "levelMin": 12,
+          "levelMax": 15
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      }
+    },
+    "joins": [],
+    "waypoints": [
+      "exchange-gate",
+      "milestone",
+      "watchtower",
+      "fields-turn",
+      "crossroads",
+      "road-end",
+      "ferry-house",
+      "boathouse",
+      "mere-shore",
+      "dock",
+      "road-gate",
+      "ash-pits",
+      "shrine",
+      "hold-road",
+      "landing-shore",
+      "reed-bank",
+      "mere-hollow",
+      "causeway",
+      "causeway-foot",
+      "causeway-end",
+      "ruin-jetty",
+      "ruin-gate",
+      "crypt",
+      "hold-gate",
+      "hold-centre",
+      "hold-hall",
+      "hold-forge",
+      "hold-fence",
+      "hold-jail",
+      "end-gate",
+      "end-centre",
+      "end-hall",
+      "end-healer",
+      "end-jail"
+    ],
+    "spawns": [
+      {
+        "id": "scavengers",
+        "at": "ash-pits",
+        "characters": [
+          "character:cinder-scavenger"
+        ]
+      },
+      {
+        "id": "wolves",
+        "at": "hold-road",
+        "characters": [
+          "character:ash-wolf"
+        ]
+      },
+      {
+        "id": "brood",
+        "at": "reed-bank",
+        "characters": [
+          "character:mere-brood"
+        ]
+      },
+      {
+        "id": "ghouls",
+        "at": "causeway-end",
+        "characters": [
+          "character:ruin-ghoul"
+        ]
+      },
+      {
+        "id": "hold-ruler",
+        "at": "hold-hall",
+        "characters": [
+          "character:warden-brannoc"
+        ]
+      },
+      {
+        "id": "hold-steward",
+        "at": "hold-hall",
+        "characters": [
+          "character:steward-cinder"
+        ]
+      },
+      {
+        "id": "hold-smith",
+        "at": "hold-forge",
+        "characters": [
+          "character:smith-cinder"
+        ]
+      },
+      {
+        "id": "hold-fence",
+        "at": "hold-fence",
+        "characters": [
+          "character:fence-cinder"
+        ]
+      },
+      {
+        "id": "end-ruler",
+        "at": "end-hall",
+        "characters": [
+          "character:reeve-osk"
+        ]
+      },
+      {
+        "id": "end-steward",
+        "at": "end-hall",
+        "characters": [
+          "character:steward-mere"
+        ]
+      },
+      {
+        "id": "end-healer",
+        "at": "end-healer",
+        "characters": [
+          "character:healer-mere"
+        ]
+      },
+      {
+        "id": "bears",
+        "at": "ruin-jetty",
+        "characters": [
+          "character:cinder-bear"
+        ]
+      },
+      {
+        "id": "boars",
+        "at": "hold-road",
+        "characters": [
+          "character:ash-boar"
+        ]
+      },
+      {
+        "id": "pit-goblins",
+        "at": "watchtower",
+        "characters": [
+          "character:pit-goblin"
+        ]
+      }
+    ]
+  },
   "notes": {
     "zone": "Zone 1 (zone-runtime step 1): the zone's own facts. `level` is the zone number = its base level (Dom 2026-10-08: Zone N = level N); the common creatures are [level, level+1], the named rares level+2.",
     "spawns": "Zone 1's creatures as data (zone-runtime step 1): the Ash Frontier's mob rows (mobs.md 7.3), moved verbatim from origins/mobs/frontier-rows.ts with the sources spelled out and the level band as numbers\n(Zone N's common creatures are level N near the town and N+1 at the edge, the named rares N+2, Dom 2026-10-08: loadZone checks every common row is [level, level+1]). Every source is public-domain folklore,\nchronicle or literature (legends-rule), no living-religion scripture. Named creatures (Hrungnir, the Mere-Mother, the bounty foes) stay on their encounters and have no row. origins/preview/mobs.golden.json pins the list.\n`openers`: a zone that is not safe opens with a fight inside 10 s of its entry (zone-rules.ts); where the data has no creature near the entry, this names the kind that stands there as a lone opener. Zone id -> row id.\nDonor: field names only (ModernUO spawn fields, Cataclysm place_monsters), nothing copied.",

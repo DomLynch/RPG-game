@@ -28,7 +28,7 @@ test('Region 1 loads clean: both regions resolve, the bundle resolves, every loc
   const r = loadRegion1();
   assert.ok(r.ok, JSON.stringify(issuesOf(r), null, 1));
   const v = r.value;
-  assert.deepEqual([...v.zones.get(FRONTIER_REGION as never)!.keys()].sort(), ['black-mere', 'blood-ruin', 'cinder-fields', 'cinder-hold', 'east-road', 'ferry-landing', 'mere-end', ...zonePlaces().flatMap((pl) => Object.keys(pl.zones))].sort());   // the zones the rows place are not named here: a new zone row adds no line
+  assert.deepEqual([...v.zones.get(FRONTIER_REGION as never)!.keys()].sort(), [...zonePlaces().flatMap((pl) => Object.keys(pl.zones))].sort());   // Zone 1's seven and every later zone are the rows' places, not named here: a new zone row adds no line
   assert.deepEqual([...v.zones.get(EXCHANGE_REGION as never)!.keys()].sort(), ['exchange', 'exchange-quarter', 'pit-yard']);
   assert.deepEqual(v.towns.map((t) => t.name), ['The Exchange Quarter', 'Cinder Hold', 'Mere End']);
   assert.equal(v.bounties.length, 3);
