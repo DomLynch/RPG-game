@@ -12,6 +12,7 @@ source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
+source scripts/lib/deploy-notes-only.sh
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
 hf_cleanup() { node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
@@ -112,6 +113,9 @@ if [[ -n "$ci_green" ]]; then
   # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
   # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
   echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
+  npm run build
+elif [[ "$(notes_only_release "$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)" "$revision")" == ok ]]; then
+  echo "notes-only release (every changed path is under docs/state/): no unit suite; build only"
   npm run build
 elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
