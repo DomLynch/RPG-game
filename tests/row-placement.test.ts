@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { MAC_ENFORCE, MAC_MAX, MAC_ONLY, ON_T4, placementLine } from '../scripts/lib/row-placement.mjs';
+import { MAC_ENFORCE, MAC_MAX, MAC_ONLY, ON_T4, placementLine, planLine } from '../scripts/lib/row-placement.mjs';
 import { coverageGaps, SLOW_ROWS } from '../scripts/lib/vps-receipts.mjs';
 
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -31,4 +31,11 @@ test('the first line counts trusted / HF / VPS / Mac, and an over-limit Mac list
   assert.equal(many.refuse, true);
   assert.equal(many.enforce, MAC_ENFORCE);
   assert.match(many.warning, /Mac rows 20 > MAC_MAX 8: rows not on the Mac-only list: 1,3,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20/);
+});
+
+test('rows the VPS run carries are counted as VPS in the plan line, not as Mac rows (BF printed "0 VPS / 12 Mac" before the receipt merge)', () => {
+  const line = planLine(10, ['1', '', '5', '6', '2,3']);
+  assert.match(line, /^Release rows: 10 total: 5 trusted \/ 2 HF \(5,6\) \/ 2 VPS \(2,3\) \/ 5 Mac \(4,7,8,9,10\)/);
+  assert.match(planLine(10, ['', '', '', '', '']), /\/ 0 VPS \/ 10 Mac/);
+  assert.match(readFileSync('scripts/vps-shadow/launch.mjs', 'utf8'), /writeFileSync\(runningOf, `\$\{Date\.now\(\)\}\\n\$\{shards\.flat\(\)\.join\(','\)\}\\n`\)/);
 });

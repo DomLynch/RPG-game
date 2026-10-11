@@ -53,7 +53,9 @@ placed_skip="${early_trusted:+$early_trusted,}$out_of_scope"
 hf_wall_rows_launch
 cpu_out=$(prelaunched_cpu "$revision" || node scripts/vps-shadow/launch.mjs cpu "$revision" "$placed_skip" || true); hf_cpu_rows=""
 if [[ "$cpu_out" == *";"* ]]; then hf_cpu_rows="${cpu_out#*;}"; DEPLOY_HF_ROWS_JOBS="${DEPLOY_HF_ROWS_JOBS:+$DEPLOY_HF_ROWS_JOBS,}${cpu_out%%;*}"; fi
-node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows"
+vps_cpu_rows=$(sed -n 2p "${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.rowsvps.running" 2>/dev/null || true)   # rows the VPS run is carrying (launch.mjs cpu writes them on line 2)
+[[ -n "$vps_cpu_rows" ]] || vps_cpu_rows=$(node -e 'try{const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));if(r.kind==="vps-rows-live")console.log(r.rows.map(x=>x.n).join(","))}catch{}' "${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.rowsvps" 2>/dev/null || true)   # or the finished receipt's rows
+node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows" "$vps_cpu_rows"
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
 deploy_step "merged-on-trunk"
 node scripts/merged-on-trunk.mjs
