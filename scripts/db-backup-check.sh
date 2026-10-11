@@ -28,6 +28,17 @@ tail -n 1 "$root/log" | grep -q " FAIL $(date +%Y%m%d) pg_dump:" || fail "no FAI
 psql() { "$bin/psql" -h "$root" -p $port -d postgres -qXAt -v ON_ERROR_STOP=1 "$@"; }
 psql -c "create schema auth; create table auth.users(id uuid); insert into auth.users values (gen_random_uuid())"
 psql -f supabase/migrations/202610110022_backup_role.sql
+psql -c "create table public.secret(id int); insert into public.secret values (7); alter table public.secret enable row level security; alter table public.secret force row level security; create table auth.refresh_tokens(t text); insert into auth.refresh_tokens values ('live-token')"
+[[ $(psql -c "set role frankendom_backup; select count(*) from public.secret") == 1 ]] || fail "backup role cannot read an RLS table"
+psql -c "alter role frankendom_backup login"
+printf 'DATABASE_URL=postgresql:///postgres?host=%s&port=%s&user=frankendom_backup\n' "$root" "$port" >"$root/backup.env"
+rm -f "$f"; out=$(DB_SCHEMAS="public auth" bash ops/db-backup.sh) || fail "dump AS frankendom_backup failed (RLS?): $out"
+lst=$("$bin/pg_restore" --list "$f")
+grep -q 'TABLE DATA public secret' <<<"$lst" || fail "RLS table data missing from the dump"
+grep -q 'TABLE auth refresh_tokens' <<<"$lst" || fail "token table schema missing"
+if grep -q 'TABLE DATA auth refresh_tokens' <<<"$lst"; then fail "live-token data was dumped"; fi
+psql -c "alter role frankendom_backup nologin"
+if grep -nE 'python3[^\n]*"\$url"|"\$url"[^<]*\)|"\$url" *>' ops/db-backup.sh | grep -v '<<<'; then fail "URL reaches a command line"; fi
 [[ $(psql -c "select rolcanlogin from pg_roles where rolname = 'frankendom_backup'") == f ]] || fail "backup role can log in"
 [[ $(psql -c "set role frankendom_backup; select count(*) from auth.users") == 1 ]] || fail "backup role cannot read auth.users"
 [[ $(psql -c "set role frankendom_backup; select count(*) from public.a") == 1 ]] || fail "backup role cannot read public"

@@ -25,11 +25,12 @@ url=${url#[\"\']}; url=${url%[\"\']}
 [[ -n $url ]] || fail "no DATABASE_URL in $env_file"
 mkdir -p "$dir" || fail "cannot create $dir"
 args=(); for s in $schemas; do args+=(-n "$s"); done
+for t in auth.refresh_tokens auth.sessions auth.one_time_tokens auth.mfa_challenges auth.flow_state; do args+=(--exclude-table-data "$t"); done
 svc=$(mktemp) || fail "cannot create the service file"; trap 'rm -f "$svc" "$part.err"' EXIT
 python3 -c 'import sys, urllib.parse as u
-r = u.urlparse(sys.argv[1]); q = dict(u.parse_qsl(r.query))
+r = u.urlparse(sys.stdin.read().strip()); q = dict(u.parse_qsl(r.query))
 v = {"host": r.hostname, "port": r.port, "dbname": (r.path or "/")[1:] or None, "user": u.unquote(r.username) if r.username else None, "password": u.unquote(r.password) if r.password else None, **q}
-print("[fk]"); [print(f"{k}={x}") for k, x in v.items() if x is not None]' "$url" >"$svc" || fail "DATABASE_URL is not a postgres URL"
+print("[fk]"); [print(f"{k}={x}") for k, x in v.items() if x is not None]' <<<"$url" >"$svc" || fail "DATABASE_URL is not a postgres URL"
 if [[ -n ${DUMP_IMAGE:-} ]]; then
   # shellcheck disable=SC2206
   dump=(docker run --rm --user root -v "$svc:/svc:ro" -v "$dir:/out" -e PGSERVICEFILE=/svc -e PGSERVICE=fk ${DOCKER_ARGS:-} "$DUMP_IMAGE" pg_dump -Fc "${args[@]}" -f "/out/${part##*/}")
@@ -52,7 +53,7 @@ size=$(stat -c %s "$part")
 (( size > 0 )) || fail "dump is empty"
 mv -f "$part" "$out" || fail "cannot move dump into place"
 find "$dir" -maxdepth 1 -type f -name 'frankendom-????????.dump' -mtime "+$((keep - 1))" -delete
-status=OK; dbmb=unknown
+status=OK; dbmb='?'
 if bytes=$(db_bytes 2>/dev/null) && [[ $bytes =~ ^[0-9]+$ ]]; then
   dbmb=$((bytes / 1048576))
   (( dbmb > ${DB_WARN_MB:-400} )) && status=WARN
