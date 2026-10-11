@@ -33,18 +33,20 @@ tar -xJf node.tar.xz || exit 93
 PATH="$RUN/node-${NODE_PIN.version}-linux-x64/bin:/usr/bin:/bin"
 hash -r
 git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null || exit 96
-[ "$(git -C '${SHADOW_REPO}' rev-parse '${sha}^{tree}')" = '${tree}' ] || exit 97
+BOXTREE=$(git -C '${SHADOW_REPO}' rev-parse '${sha}^{tree}')
+[ "$BOXTREE" = '${tree}' ] || exit 97
 mkdir -p "$RUN/src" && git -C '${SHADOW_REPO}' archive '${sha}' | tar -x -C "$RUN/src" || exit 98
 cd "$RUN/src" || exit 94
 t0=$(date +%s)
-npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || exit 95
+npm ci --no-audit --no-fund < /dev/null > "$RUN/ci.log" 2>&1 || { echo '--- npm ci failed; ci.log tail ---' >&2; tail -n 30 "$RUN/ci.log" >&2; exit 95; }
 npm run test:all < /dev/null > "$RUN/unit.log" 2>&1
 rc=$?
 if [ "$rc" -eq 0 ]; then
   pass=$(grep -E '^# pass ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
   fail=$(grep -E '^# fail ' "$RUN/unit.log" | tail -1 | awk '{print $3}')
-  printf 'RECEIPT %s {"sha":"${sha}","tree":"${tree}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s}\\n' "$NONCE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))"
+  printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","pass":%s,"fail":%s,"exit":0,"seconds":%s}\\n' "$NONCE" "$BOXTREE" "\${pass:-0}" "\${fail:-1}" "$(( $(date +%s) - t0 ))"
 fi
+[ "$rc" -eq 0 ] || { echo "--- unit.log tail (exit $rc) ---" >&2; tail -n 60 "$RUN/unit.log" >&2; }
 exit "$rc"
 `;
 }
@@ -74,12 +76,16 @@ export function vpsUnitFileOk(rec, tree, now = Date.now()) {
 
 // run(cmd, argv, opts) defaults to spawnSync. ONE ssh session of ours pipes the runner (which fetches the sha into the box's object store, checks its tree hash, `git archive`s it) and we parse ITS live stdout.
 /** @param {{ sha: string, tree: string, nonce?: string, runid?: string, host?: string, key?: string, run?: any }} opts @returns {{ ok: boolean, reason?: string, receipt?: any }} */
-export function runUnitOnVps({ sha, tree, nonce = newNonce(), runid = newRunId(), host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
+export function runUnitOnVps(opts) {
+  try { return runUnitOnVpsUnsafe(opts); } catch (e) { return { ok: false, reason: `exception: ${e?.message || e}` }; }   // a throw must spill to Hugging Face, never skip it
+}
+function runUnitOnVpsUnsafe({ sha, tree, nonce = newNonce(), runid = newRunId(), host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
   const runner = buildRunner({ sha, tree, nonce, runid });
   const ssh = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host];
   const dir = `${RUN_ROOT}/${sha}-${runid}`;
-  const r = run('ssh', [...ssh, 'systemd-run --scope --slice=lanejobs.slice --quiet bash -s'], { input: runner, encoding: 'utf8', maxBuffer: 1 << 20, timeout: 45 * 60_000 });
+  const r = run('ssh', [...ssh, 'systemd-run --scope --slice=lanejobs.slice --quiet bash -s'], { input: runner, encoding: 'utf8', maxBuffer: 1 << 24, timeout: 45 * 60_000 });
   const parsed = parseReceipt({ stdout: r.stdout, status: r.status, nonce, sha, tree });
+  if (!parsed.ok) parsed.reason = `${parsed.reason}${r.stderr ? `; box said: ${String(r.stderr).slice(-1500)}` : ''}`;
   if (!parsed.ok) run('ssh', [...ssh, `rm -rf '${dir}'`], { timeout: 60_000 });   // a failed run leaves nothing behind
   return parsed;
 }

@@ -126,3 +126,15 @@ test('vpsHost: a bare VPS_HOST (this Mac exports one without a user) means root;
   assert.equal(vpsHost({ VPS_HOST: 'deploy@box' }), 'deploy@box');
   assert.equal(vpsHost({}), 'root@49.12.7.18');
 });
+
+test('runUnitOnVps never throws: a malformed or missing sha is a failed run (so launch.mjs spills to Hugging Face), and the box\'s stderr tail rides in the reason', () => {
+  const r = runUnitOnVps({ sha: 'not-a-sha', tree: TREE, run: () => ({ status: 0, stdout: '' }) });
+  assert.equal(r.ok, false); assert.match(String(r.reason), /exception/);
+  const failed = runUnitOnVps({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, run: (cmd: string) => ({ status: 1, stdout: '', stderr: '--- unit.log tail (exit 1) ---\nnot ok 7 - a test' }) });
+  assert.equal(failed.ok, false); assert.match(String(failed.reason), /not ok 7 - a test/);
+});
+test('the RECEIPT carries the BOX-computed tree and the run id (so the Published line can cite it)', () => {
+  const s = buildRunner({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID });
+  assert.match(s, /BOXTREE=\$\(git [^\n]*rev-parse/); assert.match(s, /"\$NONCE" "\$BOXTREE"/); assert.ok(s.includes(`"runid":"${RUNID}"`));
+  assert.ok(s.indexOf('"$BOXTREE" = ') > 0 && s.indexOf('exit 97') < s.indexOf('npm ci'), 'the tree is checked on the box before anything runs');
+});
