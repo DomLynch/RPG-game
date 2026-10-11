@@ -24,6 +24,7 @@ url=$(sed -n 's/^DATABASE_URL=//p' "$env_file" | head -n 1)
 url=${url#[\"\']}; url=${url%[\"\']}
 [[ -n $url ]] || fail "no DATABASE_URL in $env_file"
 mkdir -p "$dir" || fail "cannot create $dir"
+exec 9>"$dir/.lock"; command -v flock >/dev/null && { flock -n 9 || { say "SKIP $day another run holds $dir/.lock"; exit 1; }; }
 args=(); for s in $schemas; do args+=(-n "$s"); done
 for t in auth.refresh_tokens auth.sessions auth.one_time_tokens auth.mfa_challenges auth.flow_state; do args+=(--exclude-table-data "$t"); done
 svc=$(mktemp) || fail "cannot create the service file"; trap 'rm -f "$svc" "$part.err"' EXIT
@@ -52,7 +53,7 @@ tables=$(printf '%s\n' "$list" | grep -cP '^\d+; \d+ \d+ TABLE (?!DATA )' || tru
 (( tables > 0 )) || fail "dump has no TABLE entries"
 size=$(stat -c %s "$part")
 (( size > 0 )) || fail "dump is empty"
-mv -f "$part" "$out" || fail "cannot move dump into place"
+chmod 600 "$part" && mv -f "$part" "$out" || fail "cannot move dump into place"
 find "$dir" -maxdepth 1 -type f -name 'frankendom-????????.dump' -mtime "+$((keep - 1))" -delete
 status=OK; dbmb='?'
 if bytes=$(db_bytes 2>/dev/null) && [[ $bytes =~ ^[0-9]+$ ]]; then
