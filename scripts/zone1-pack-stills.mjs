@@ -29,6 +29,7 @@ try {
   await shot('idle');
   const target = await page.evaluate(() => { const ms = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body), near = (a) => ms.filter((b) => b.name === a.name && Math.hypot(a.x - b.x, a.z - b.z) < 8).length; return ms.sort((a, b) => near(b) - near(a))[0]; });   // the drawn creature with the biggest same-kind pack around it
   const mid = await page.evaluate((t) => { const p = window.originsPreview.mobs().mobs.filter((b) => b.name === t.name && Math.hypot(b.x - t.x, b.z - t.z) < 8); return [p.reduce((a, b) => a + b.x, 0) / p.length, p.reduce((a, b) => a + b.z, 0) / p.length]; }, target);
+  if (zone) { await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 7, 0), mid); await page.waitForTimeout(400); await shot('wolf-in-view'); }   // a zone run first stands 7 m south of the creature, facing it: the creature in view
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), mid);   // the middle of the pack, so every one of them notices
   // A pack waits 20 s so every creature notices. A zone's lone creature is aggro and starts the duel by itself within seconds, and on a GPU it beats a standing guest before a fixed wait ends: poll for the fight instead.
   const line = []; const state = () => page.evaluate(() => [document.body.classList.contains('infight') ? 'fight' : 'walk', window.originsPreview.duel()?.ready ? 'ready' : '-', window.originsPreview.mobs().mobs.map((m) => m.mode[0]).join(''), document.title.slice(0, 22)].join(' '));

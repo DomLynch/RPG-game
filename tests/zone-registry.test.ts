@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { registrySource, ROWS_DIR, ZONES_DIR, zoneRows } from '../scripts/gen-zones.mjs';
-import { loadZone, zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
+import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 
 test('the committed registry is what the zone rows generate (npm run zones writes it)', () => {
   assert.equal(readFileSync(`${ZONES_DIR}registry.ts`, 'utf8'), registrySource(), 'stale registry: run `npm run zones`');
@@ -40,4 +40,11 @@ test('a file in origins/zone-rows that is not a zone row name is an error, never
     writeFileSync(`${scratch}/zone07.row.json`, '{}');
     assert.throws(() => registrySource(`${scratch}/`), /zone07.row.json is not a zone row name/);
   } finally { rmSync(scratch, { recursive: true, force: true }); }
+});
+
+test('DEFAULT_ZONE is pinned to Zone 1, not "the lowest row": live keys are bare for Zone 1 and z<N>: for every other zone', () => {
+  assert.equal(DEFAULT_ZONE, '1');
+  assert.ok(zoneIds().includes(DEFAULT_ZONE));
+  assert.equal(zoneKeyPrefix('1'), ''); assert.equal(zoneKeyPrefix('2'), 'z2:'); assert.equal(zoneKeyPrefix('3'), 'z3:'); assert.equal(zoneKeyPrefix('10'), 'z10:');
+  assert.match(readFileSync(`${ZONES_DIR}loader.ts`, 'utf8'), /export const DEFAULT_ZONE = '1';/, 'a literal, never zoneIds()[0]: the registry order must not move the keys');
 });
