@@ -27,13 +27,14 @@ const own = async () => { const r = await send(`${base}/rest/v1/fighter_profiles
 const before = await own();
 step('profile row is_test=true BEFORE open', Array.isArray(before) && before.length === 1 && before[0].is_test === true, `http ${ownStatus}; row missing or not flagged: Deploy's is_test insert has not landed`);
 
+step('QA fighter name is the unique "QA Smoke" (daily_board matches on display_name)', before[0].display_name === 'QA Smoke', `ask Deploy: update public.fighter_profiles set display_name = 'QA Smoke' where user_id = '${uid}' and is_test`);
+
 const open = await send(`http://127.0.0.1:${w.PORT}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}' });
 step('writer open', open.status === 200 && open.json?.ok === true, `http ${open.status}`);
 
 const after = await own();
 step('profile row still is_test=true after open', Array.isArray(after) && after.length === 1 && after[0].is_test === true && after[0].public_no === before[0].public_no, `http ${ownStatus}`);
 const { public_no: no, display_name: name } = after[0];
-step('QA fighter name is the unique "QA Smoke" (daily_board matches on display_name)', name === 'QA Smoke', 'ask Deploy: update public.fighter_profiles set display_name = \'QA Smoke\' where is_test');
 
 const lb = await send(`${base}/rest/v1/rpc/leaderboards`, { method: 'POST', headers: { ...auth, 'content-type': 'application/json' }, body: '{"p_limit":50}' });
 step('leaderboards() readable', lb.status === 200 && Array.isArray(lb.json), `http ${lb.status}`);
