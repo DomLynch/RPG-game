@@ -47,6 +47,12 @@ export function renameDevice(storage: StoragePort, value: string, createId: () =
   return profile.name;
 }
 
+// Who gets the name pencil: a host that brings its own rename (the Pit) gets it for the account; a guest anywhere else edits the device's name; a signed-in player in a host with no rename (the zone) gets none. Pure.
+export type Pencil = 'account' | 'device' | null;
+export const pencilFor = (o: { rename: boolean; signedIn: boolean }): Pencil => (o.rename ? 'account' : o.signedIn ? null : 'device');
+// What a key does in the in-place name field: Enter keeps what was typed, Escape drops it, anything else nothing. Pure.
+export const nameKey = (key: string): 'keep' | 'drop' | null => (key === 'Enter' ? 'keep' : key === 'Escape' ? 'drop' : null);
+
 type Db = Parameters<typeof readScorecard>[0] & Parameters<typeof readPublicNo>[0];
 export type CareerMount = { render(): Promise<void> };
 // `db()` is the account's client or null when signed out; `marks()` the rank's marks; `deviceNote` the line shown when the server's figures are not available.
@@ -69,13 +75,14 @@ export function mountCareer(root: HTMLElement, o: { db: () => Db | null | Promis
       const who = el('p', 'career-name'), name = el('strong', '', loadProfile(localStorage, () => crypto.randomUUID()).profile.name);
       who.append(name);
       const pencil = (go: () => void) => { const b = el('button', 'career-pencil', '✎'); b.type = 'button'; b.setAttribute('aria-label', 'Change your name'); b.addEventListener('click', go); who.append(b); return b; };
-      if (o.rename) pencil(o.rename);
-      else if (!db) {   // guest: edit in place, Enter or leaving the field keeps it, Escape drops it
+      const kind = pencilFor({ rename: !!o.rename, signedIn: !!db });
+      if (kind === 'account') pencil(o.rename!);
+      else if (kind === 'device') {   // guest: edit in place, Enter or leaving the field keeps it, Escape drops it
         const edit = pencil(() => {
           const field = el('input', 'career-name-input'); field.type = 'text'; field.maxLength = 24; field.value = name.textContent ?? ''; field.setAttribute('aria-label', 'Your name');
           let done = false;
           const finish = (keep: boolean) => { if (done) return; done = true; if (keep) name.textContent = renameDevice(localStorage, field.value); field.replaceWith(name); edit.hidden = false; };
-          field.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+          field.addEventListener('keydown', (e) => { const k = nameKey(e.key); if (k) finish(k === 'keep'); });
           field.addEventListener('blur', () => finish(true));
           name.replaceWith(field); edit.hidden = true; field.focus(); field.select();
         });

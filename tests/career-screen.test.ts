@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { boardViews, ladderView, recordLine, recordView, renameDevice, scoreLines } from '../src/core/career-screen.ts';
+import { boardViews, ladderView, recordLine, nameKey, pencilFor, recordView, renameDevice, scoreLines } from '../src/core/career-screen.ts';
 
 test('the ladder is ten titles of five rungs, with the rank\'s rung marked and every lower rung done', () => {
   const view = ladderView(0);
@@ -49,4 +50,21 @@ test('a guest\'s pencil keeps the cleaned name in the device profile (24 charact
   assert.equal(renameDevice(storage, '   ', () => 'guest-0003'), 'Wanderer');
   const saved = JSON.parse([...data.values()][0]!);
   assert.equal(saved.id, 'guest-0001');
+});
+
+test('the name pencil: the Pit\'s own rename is the account\'s, a guest elsewhere edits the device name, a signed-in player in the zone gets none', () => {
+  assert.equal(pencilFor({ rename: true, signedIn: true }), 'account');
+  assert.equal(pencilFor({ rename: true, signedIn: false }), 'account');
+  assert.equal(pencilFor({ rename: false, signedIn: false }), 'device');
+  assert.equal(pencilFor({ rename: false, signedIn: true }), null);
+});
+test('in the name field Enter keeps the typed name, Escape drops it, other keys do nothing', () => {
+  assert.equal(nameKey('Enter'), 'keep'); assert.equal(nameKey('Escape'), 'drop'); assert.equal(nameKey('a'), null);
+});
+test('the render takes the pencil from pencilFor with the real signed-in state, and both Gear links open the one gear sheet', () => {
+  const screen = readFileSync('src/core/career-screen.ts', 'utf8'), main = readFileSync('src/main.ts', 'utf8'), zone = readFileSync('origins/preview/pit-duel.ts', 'utf8');
+  assert.match(screen, /pencilFor\(\{ rename: !!o\.rename, signedIn: !!db \}\)/, 'the pencil follows the account state');
+  assert.match(screen, /const k = nameKey\(e\.key\); if \(k\) finish\(k === 'keep'\)/, 'the field takes its keys from nameKey');
+  assert.match(main, /label: 'Gear', go: \(\) => \{ enterGear\(\); element<HTMLInputElement>\('journal-tab-profile'\)\.checked = true/, 'the Pit\'s Gear link enters the gear sheet before it shows the tab');
+  assert.match(zone, /label: 'Gear', go: \(\) => document\.getElementById\('menu-gear'\)\?\.click\(\)/, 'the zone\'s Gear link is the menu-gear entry (createGearSheet via gear-mount)');
 });
