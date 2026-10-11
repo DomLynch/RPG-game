@@ -16,7 +16,7 @@ test('every mob style resolves to a live roster opponent with an AI profile at t
   assert.equal(styleOpponent('dragon'), undefined);
 });
 
-test('only the beast flees, and only at or below its threshold (the flee-at twist's boundary); a dead or zero-max mob never flees', () => {
+test('only the beast flees, and only at or below its threshold (the flee-at twist boundary); a dead or zero-max mob never flees', () => {
   assert.equal(MOB_STYLE.beast.fleeBelow, 0.3);
   assert.equal(fleesNow('beast', 100, 100), false);
   assert.equal(fleesNow('beast', 31, 100), false);
