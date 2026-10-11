@@ -5,11 +5,11 @@ import type * as THREE from 'three';
 import { createGearSheet } from '../../src/core/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
-import { createZone1GearStage } from './gear-stage.ts';
+import { createGearStage } from './gear-stage.ts';
 
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string };
 export function mountGear(d: Deps) {
-  const profile = loadProfile(d.storage, () => crypto.randomUUID()).profile, zone = createZone1GearStage(d.renderer, d.bodyUrl);
+  const profile = loadProfile(d.storage, () => crypto.randomUUID()).profile, zone = createGearStage(d.renderer, d.bodyUrl);
   const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({

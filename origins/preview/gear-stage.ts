@@ -1,4 +1,4 @@
-// The Zone 1 gear sheet's mannequin: the engine's own player rig (src/fight loadWarriors, the warrior the Zone 1 hero is) in a small scene of its own, dressed with the engine's
+// The gear sheet's mannequin (zone-agnostic: it takes only the hero rig url, so any zone mounts it): the engine's own player rig (src/fight loadWarriors, the warrior the Zone 1 hero is) in a small scene of its own, dressed with the engine's
 // own loot pieces (loadLoot -> actor.wear, the call src/fight/scene.ts makes for the Pit's player). src/core/gear-room.ts draws it through the GearStage seam; it borrows only Zone 1's renderer, so the
 // walk's scene is never touched. Presentation only: the rig and pieces load on the first open, and what was asked to be worn before they land goes on when they do.
 import * as THREE from 'three';
@@ -9,7 +9,7 @@ import type { Tier } from '../../src/core/index.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 
 // `bodyUrl` is the hero rig's url as the page already holds it (play.ts ASSETS.hero, the build's optimized file): the stage never imports the .glb itself, which would ship a second, unoptimized copy.
-export function createZone1GearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) {
+export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
   scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.1));   // the room's key and rim come from gear-room.ts; this is the fill the Pit borrows from its arena
   let actor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, pieces: Awaited<ReturnType<typeof loadLoot>> | undefined, worn: readonly string[] = [], tiers: Record<string, Tier> = {}, started = false;
