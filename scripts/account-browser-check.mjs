@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { rankFor } from '../src/career.ts';
+import { rankFor } from '../src/core/server.ts';
 import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';

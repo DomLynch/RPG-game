@@ -1,17 +1,17 @@
-// Pins the ONE-career proposal (docs/specs/origins/progression-proposal.md): the rising requirement curve, the universal pay rule
+// Pins the ONE-career proposal (docs/specs/src/core/career-model.ts-proposal.md): the rising requirement curve, the universal pay rule
 // (kill value × falloff × type weight), first-win-only bosses reopened at the top, its worked examples and the properties ruling 7
 // asks for — existing players' level unchanged, credit monotonic, farm yield bounded, no NaN.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MAX_LEVEL as careerMaxLevel, levelOf as careerLevelOf } from '../../src/career.ts';
-import { LEGEND_OPPONENTS, rungOf } from '../../src/legends.ts';
+import { MAX_LEVEL, MAX_LEVEL as careerMaxLevel, levelOfMarks } from '../src/core/career-ladder.ts';
+import { LEGEND_OPPONENTS, rungOf } from '../src/legends.ts';
 import {
-  DAY_S, HEAT_UNIT_S, MAX_LEVEL, RESTED_CAP_CP, RESTED_PER_DAY_CP, TYPE_WEIGHTS,
-  allBossesOpen, award, basePay, weightAt, creditFromMarks, cumulative, falloffPermille, fillPermille, heatAt, heatKills, killValue, legendKey,
-  levelOfCredit, levelOfMarks, newCareer, nextLegend, partyEligible, partySharePermille, repeatPermille, requirement, restedAvailable,
+  DAY_S, HEAT_UNIT_S, RESTED_CAP_CP, RESTED_PER_DAY_CP, TYPE_WEIGHTS,
+  allBossesOpen, award, basePay, weightAt, cumulative, falloffPermille, fillPermille, heatAt, heatKills, killValue, legendKey,
+  levelOfCredit, careerAtLevel, newCareer, nextLegend, partyEligible, partySharePermille, repeatPermille, requirement, restedAvailable,
   settleAll, tierOf, type CareerEvent, type CareerState, type TypeTable,
-} from './model.ts';
-import { CASUAL, HEAVY, HOUR, MIN, boss, botDay, farmGrey, farmLow, mobs, playerDays, regionClear } from './scenarios.ts';
+} from '../src/core/career-model.ts';
+import { CASUAL, HEAVY, HOUR, MIN, boss, botDay, farmGrey, farmLow, mobs, playerDays, regionClear } from './career-scenarios.ts';
 
 const OPP = LEGEND_OPPONENTS; // today's Pit: the ten opponents (content, read only by the scenarios, never by the pay)
 const win = (id: string, at: number, opponent = 'veteran'): CareerEvent => ({ kind: 'arena-win', id, at, opponent });
@@ -70,21 +70,18 @@ test('curve: the rank bar fills by the part of the current level earned; empty a
 // ---------------------------------------------------------------------------------------------------------------------------------
 // What drives rank, and the migration.
 
-test('what drives rank: levelOfCredit(creditFromMarks(m)) is today\'s levelOf(m) for marks 0..120, at cap 46 and at cap 50', () => {
-  for (let m = 0; m <= 120; m++) {
-    assert.equal(levelOfMarks(m), careerLevelOf(m));
-    assert.equal(levelOfCredit(creditFromMarks(m)), careerLevelOf(m), `default cap, ${m} marks`);
-    assert.equal(levelOfCredit(creditFromMarks(m, 46), 46), Math.min(46, careerLevelOf(m)), `cap 46, ${m} marks`);
-    // src/career.ts levelOf is min(MAX_LEVEL, 1 + wins); at cap 50 that same rule reads min(50, 1 + m).
-    assert.equal(levelOfCredit(creditFromMarks(m, 50), 50), Math.min(50, 1 + m), `cap 50, ${m} marks`);
-  }
-  assert.equal(levelOfCredit(creditFromMarks(Number.NaN)), 1);
+test('two ladders, no bridge: the Pit reads levelOfMarks(marks), the zone reads levelOfCredit(credit); a new zone character is level 1 whatever the Pit holds', () => {
+  for (const cap of [46, 50]) for (let l = 1; l <= cap; l++) assert.equal(levelOfCredit(cumulative(l), cap), l, `cap ${cap}, level ${l}`);
+  for (let m = 0; m <= 120; m++) assert.equal(levelOfMarks(m), Math.min(careerMaxLevel, 1 + m));
+  assert.equal(levelOfCredit(Number.NaN), 1);
+  const fresh = newCareer();
+  assert.deepEqual([fresh.credit, levelOfCredit(fresh.credit), fresh.beaten.length, fresh.pitWins], [0, 1, 0, 0]);
 });
-test('migration: a live account resumes the Pit at its own level with nothing beaten, and keeps its win count for the board', () => {
-  const s = newCareer(23);
+test('careerAtLevel(L) stands at exactly level L (the Pit session, sims, tests): credit is the cumulative requirement, the Pit rung is L', () => {
+  const s = careerAtLevel(24);
   assert.deepEqual([s.credit, s.pit.rung, s.beaten.length, s.pitWins], [cumulative(24), 24, 0, 23]);
 });
-test('ladder cap: the model reads src/career.ts MAX_LEVEL and declares no cap of its own', () => {
+test('ladder cap: the model reads career-ladder.ts MAX_LEVEL and declares no cap of its own', () => {
   assert.equal(MAX_LEVEL, careerMaxLevel);
   assert.equal(levelOfCredit(1e12), careerMaxLevel);
 });
@@ -115,7 +112,7 @@ test('one pay rule: every row pays killValue(min(target, you)) × falloff × wei
       if (you + d < 1) continue;
       for (const [type, row] of Object.entries(TYPE_WEIGHTS)) {
         if (row.atOwn) continue;
-        const a = award(newCareer(you - 1, 0, 50), kill('k', type, 'x', you + d), 50);
+        const a = award(careerAtLevel(1 + you - 1, 0, 50), kill('k', type, 'x', you + d), 50);
         const want = Math.floor((killValue(Math.min(you + d, you)) * falloffPermille(d) * weightAt(row, Math.min(you + d, you))) / 1e6);
         assert.equal(a.cp, want, `${type} at level ${you}, d ${d}`);
       }
@@ -133,11 +130,11 @@ test('shares shrink from Gladiator I: each row\'s even-level pay is a fixed part
 test('a new content type plugs in with ONE row and no curve change: a minotaur, first kill only', () => {
   const curveBefore = [1, 11, 30, 50].map(l => [requirement(l), cumulative(l), killValue(l)]);
   const types: TypeTable = { ...TYPE_WEIGHTS, minotaur: { weight: 300, once: true, rested: false, party: 'each' } };
-  const r = settleAll(newCareer(19), [kill('m1', 'minotaur', 'labyrinth-bull', 20), kill('m2', 'minotaur', 'labyrinth-bull', 20)], new Set(), MAX_LEVEL, types);
+  const r = settleAll(careerAtLevel(1 + 19), [kill('m1', 'minotaur', 'labyrinth-bull', 20), kill('m2', 'minotaur', 'labyrinth-bull', 20)], new Set(), MAX_LEVEL, types);
   assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[Math.floor((killValue(20) * 300) / 1000), 'ok'], [0, 'already-beaten']]);
   assert.equal(r.awards[0].cp, 870);
   assert.deepEqual(r.state.beaten, ['minotaur:labyrinth-bull']);
-  assert.equal(award(newCareer(19), kill('m3', 'minotaur', 'labyrinth-bull', 20)).reason, 'bad-event'); // not in the shipped table
+  assert.equal(award(careerAtLevel(1 + 19), kill('m3', 'minotaur', 'labyrinth-bull', 20)).reason, 'bad-event'); // not in the shipped table
   assert.deepEqual([1, 11, 30, 50].map(l => [requirement(l), cumulative(l), killValue(l)]), curveBefore);
 });
 
@@ -145,7 +142,7 @@ test('a new content type plugs in with ONE row and no curve change: a minotaur, 
 // The Pit.
 
 test('Pit: a legend pays a fifth of a level to L10 and a tenth from Gladiator I (Dom 2026-10-06), its first win only; a second win pays 0', () => {
-  const r = settleAll(newCareer(4), [win('a', 0, 'goblin'), win('b', 1, 'goblin'), win('c', 2, 'knight')]);
+  const r = settleAll(careerAtLevel(1 + 4), [win('a', 0, 'goblin'), win('b', 1, 'goblin'), win('c', 2, 'knight')]);
   assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[280, 'ok'], [0, 'already-beaten'], [280, 'ok']]);
   assert.equal(280 * 5, requirement(5));
   assert.deepEqual([basePay(TYPE_WEIGHTS.legend, 10, 10) * 5, basePay(TYPE_WEIGHTS.legend, 11, 11)], [requirement(10), 200]); // the taper at Gladiator I
@@ -153,7 +150,7 @@ test('Pit: a legend pays a fifth of a level to L10 and a tenth from Gladiator I 
   assert.equal(r.state.pitWins, 6); // 4 migrated + 2 paid wins
 });
 test('Pit alone: levels 1 to 10 are reachable on the Pit alone — five first wins at each level pay exactly that level', () => {
-  let s = newCareer(0);
+  let s = careerAtLevel(1 + 0);
   for (let level = 1; level <= 10; level++) {
     let w = 0;
     while (levelOfCredit(s.credit) === level) {
@@ -167,7 +164,7 @@ test('Pit alone: levels 1 to 10 are reachable on the Pit alone — five first wi
 });
 test('Pit alone stalls at Gladiator I, below Origin V at caps 46 and 50: it falls out of the weights, there is no cap on the Pit', () => {
   for (const cap of [46, 50]) {
-    let s = newCareer(0, 0, cap);
+    let s = careerAtLevel(1 + 0, 0, cap);
     let wins = 0;
     for (let opponent = nextLegend(s, OPP, 0, cap); opponent !== null; opponent = nextLegend(s, OPP, wins * 7919, cap)) {
       s = award(s, win(`w${wins}`, wins, opponent), cap).state;
@@ -186,32 +183,32 @@ test('Pit: the next opponent is never one already beaten at your level; null whe
   const rnd = lcg(11);
   for (let i = 0; i < 300; i++) {
     const level = 1 + Math.floor(rnd() * 45);
-    const s: CareerState = { ...newCareer(level - 1), beaten: OPP.filter(() => rnd() < 0.5).map(o => legendKey(o, level)) };
+    const s: CareerState = { ...careerAtLevel(1 + level - 1), beaten: OPP.filter(() => rnd() < 0.5).map(o => legendKey(o, level)) };
     const pick = nextLegend(s, OPP, Math.floor(rnd() * 2 ** 32));
     if (s.beaten.length === OPP.length) assert.equal(pick, null);
     else assert.ok(pick !== null && !s.beaten.includes(legendKey(pick, level)));
   }
 });
 test('Pit: an empty or malformed opponent is refused', () => {
-  for (const opponent of ['', 'a@3', 7 as unknown as string]) assert.equal(award(newCareer(5), win('x', 0, opponent)).reason, 'bad-event');
+  for (const opponent of ['', 'a@3', 7 as unknown as string]) assert.equal(award(careerAtLevel(1 + 5), win('x', 0, opponent)).reason, 'bad-event');
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Bosses: first win only; the top reopens them.
 
 test('world boss: the first kill pays half a kill value at even level; the second kill of the same boss pays 0 (already-beaten)', () => {
-  const r = settleAll(newCareer(29), [kill('a', 'world-boss', 'steward', 30), kill('b', 'world-boss', 'steward', 30)]);
+  const r = settleAll(careerAtLevel(1 + 29), [kill('a', 'world-boss', 'steward', 30), kill('b', 'world-boss', 'steward', 30)]);
   assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[1950, 'ok'], [0, 'already-beaten']]);
   assert.deepEqual(r.state.beaten, ['world-boss:steward']);
 });
 test('world boss: a grey kill and a low share pay 0 and do not use the boss up; ≥ 10% of the fight is needed', () => {
-  assert.deepEqual(settleAll(newCareer(30), [kill('g', 'world-boss', 'count', 16)]).state.beaten, []);
-  assert.equal(award(newCareer(15), kill('c', 'world-boss', 'b', 16, { contributionPermille: 99 })).reason, 'low-contribution');
-  assert.equal(award(newCareer(15), kill('c', 'world-boss', 'b', 16, { contributionPermille: 100 })).cp, Math.floor((killValue(16) * 500) / 1000));
+  assert.deepEqual(settleAll(careerAtLevel(1 + 30), [kill('g', 'world-boss', 'count', 16)]).state.beaten, []);
+  assert.equal(award(careerAtLevel(1 + 15), kill('c', 'world-boss', 'b', 16, { contributionPermille: 99 })).reason, 'low-contribution');
+  assert.equal(award(careerAtLevel(1 + 15), kill('c', 'world-boss', 'b', 16, { contributionPermille: 100 })).cp, Math.floor((killValue(16) * 500) / 1000));
 });
 test('Origin V reopens every boss: reaching the cap clears the beaten flags, and while there none is kept', () => {
   for (const cap of [46, 50]) {
-    const near: CareerState = { ...newCareer(cap - 2, 0, cap), credit: cumulative(cap) - 1, beaten: ['world-boss:steward', legendKey('goblin', cap - 1)] };
+    const near: CareerState = { ...careerAtLevel(1 + cap - 2, 0, cap), credit: cumulative(cap) - 1, beaten: ['world-boss:steward', legendKey('goblin', cap - 1)] };
     assert.equal(allBossesOpen(levelOfCredit(near.credit, cap), cap), false);
     assert.equal(award(near, kill('x', 'world-boss', 'steward', cap - 1), cap).reason, 'already-beaten');
     const top = award(near, kill('y', 'world-boss', 'warden', cap - 1), cap);
@@ -249,25 +246,25 @@ test('repeat heat rounds UP: three kills in a row pay in full and the fourth is 
   assert.deepEqual([0, 1, 359, 360, 361, 719, 720, 721].map(heatKills), [0, 1, 1, 1, 2, 2, 2, 3]);
   // The rule in one line: four kills of one kind inside six minutes (gaps under 120 s), and the fourth is reduced. Level 15, even mob: 48.
   for (const gap of [1, 30, 75, 119]) {
-    const r = settleAll(newCareer(14), mobs(0, gap, 4, `kind-${gap}`, 'mob', 15));
+    const r = settleAll(careerAtLevel(1 + 14), mobs(0, gap, 4, `kind-${gap}`, 'mob', 15));
     assert.deepEqual(r.awards.map(a => a.cp), [48, 48, 48, 36], `kills ${gap} s apart`);
   }
   for (const gap of [120, 179]) {
-    const r = settleAll(newCareer(14), mobs(0, gap, 4, `kind-${gap}`, 'mob', 15));
+    const r = settleAll(careerAtLevel(1 + 14), mobs(0, gap, 4, `kind-${gap}`, 'mob', 15));
     assert.deepEqual(r.awards.map(a => a.cp), [48, 48, 48, 48], `kills ${gap} s apart`);
   }
-  assert.deepEqual(settleAll(newCareer(14), mobs(0, HEAT_UNIT_S, 6, 'slow', 'mob', 15)).awards.map(a => a.cp), [48, 48, 48, 48, 48, 48]);
+  assert.deepEqual(settleAll(careerAtLevel(1 + 14), mobs(0, HEAT_UNIT_S, 6, 'slow', 'mob', 15)).awards.map(a => a.cp), [48, 48, 48, 48, 48, 48]);
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Worked examples.
 
 const regionEvents = regionClear();
-const region = settleAll(newCareer(10), regionEvents);
+const region = settleAll(careerAtLevel(1 + 10), regionEvents);
 const by = (pick: (e: CareerEvent) => boolean): number => region.awards.reduce((sum, a, i) => sum + (pick(regionEvents[i]) ? a.cp : 0), 0);
 const isType = (t: string) => (e: CareerEvent): boolean => e.kind === 'kill' && e.type === t;
 test('worked example A: a Gladiator I clears region 1 and chapter one: pins the evening', () => {
-  assert.equal(newCareer(10).credit, 14_500);
+  assert.equal(careerAtLevel(1 + 10).credit, 14_500);
   assert.deepEqual(region.awards.filter((_, i) => isType('world-boss')(regionEvents[i])).map(a => a.cp), [1100, 1312, 1375]);
   assert.equal(by(isType('world-boss')), 3787);
   assert.equal(by(e => e.kind === 'story'), 1980);
@@ -281,7 +278,7 @@ test('worked example A: a Gladiator I clears region 1 and chapter one: pins the 
   assert.equal(region.state.pit.rung, 11); // the Pit waits at Gladiator I
 });
 
-const lvl30 = newCareer(29);
+const lvl30 = careerAtLevel(1 + 29);
 test('worked example B: a level-30 farming low creatures: B1: an hour on region-1 hounds (grey) pays nothing, but still heats the kind', () => {
   const r = settleAll(lvl30, farmGrey(0));
   assert.equal(r.state.credit - lvl30.credit, 0);
@@ -313,17 +310,17 @@ const party = [14, 15, 16, 20];
 const share = [300, 250, 350, 100];
 const others = (i: number, levels = party): number[] => levels.filter((_, j) => j !== i);
 test('worked example C: a party of four kills a boss: each eligible member gets their own award; the over-level member gets the falloff', () => {
-  const cps = party.map((lvl, i) => award(newCareer(lvl - 1), boss(`count-${i}`, 0, 'count', 16, share[i], others(i))).cp);
+  const cps = party.map((lvl, i) => award(careerAtLevel(1 + lvl - 1), boss(`count-${i}`, 0, 'count', 16, share[i], others(i))).cp);
   assert.deepEqual(cps, [1265, 1320, 1250, 625]);
 });
 test('worked example C: an Origin carry earns nothing and makes the others ineligible', () => {
   const levels = [15, 16, 20, 46];
-  const reasons = levels.map((lvl, i) => award(newCareer(lvl - 1), boss(`c-${i}`, 0, 'count', 16, 250, others(i, levels))).reason);
+  const reasons = levels.map((lvl, i) => award(careerAtLevel(1 + lvl - 1), boss(`c-${i}`, 0, 'count', 16, 250, others(i, levels))).reason);
   assert.deepEqual(reasons, ['not-eligible', 'not-eligible', 'not-eligible', 'grey']);
 });
 test('worked example C: their elite kills split EverQuest-style and take the highest member\'s colour', () => {
   const elite = (lvl: number, partyLevels: number[]): number =>
-    award(newCareer(lvl - 1), { kind: 'kill', id: 'e', at: 0, type: 'elite', target: 'court-sentinel', targetLevel: 15, partyLevels }).cp;
+    award(careerAtLevel(1 + lvl - 1), { kind: 'kill', id: 'e', at: 0, type: 'elite', target: 'court-sentinel', targetLevel: 15, partyLevels }).cp;
   assert.equal(elite(15, [14, 16, 20]), 17); // the level 20's colour (×0.2), his value, ×0.45
   assert.equal(elite(15, [14, 16]), 97); // the level 16's colour (×0.9), ×0.566
   assert.equal(elite(15, []), 192);
@@ -377,8 +374,8 @@ function randomStream(seed: number, n: number): CareerEvent[] {
 test('properties: credit and level never go down, no award is negative, the Pit rung is never above the level, nothing paid twice (random streams)', () => {
   for (const cap of [46, 50]) {
     for (let seed = 1; seed <= 20; seed++) {
-      const r = settleAll(newCareer(10 + seed, 0, cap), randomStream(seed, 1500), new Set(), cap);
-      let credit = creditFromMarks(10 + seed, cap);
+      const r = settleAll(careerAtLevel(1 + 10 + seed, 0, cap), randomStream(seed, 1500), new Set(), cap);
+      let credit = cumulative(Math.min(cap, 11 + seed));
       for (const a of r.awards) {
         assert.ok(Number.isSafeInteger(a.cp) && a.cp >= 0);
         assert.ok(a.state.credit >= credit);
@@ -394,7 +391,7 @@ test('properties: credit and level never go down, no award is negative, the Pit 
 test('properties: a retried event id pays once', () => {
   const e = win('fight-hash-1', 0);
   const settled = new Set<string>();
-  const first = settleAll(newCareer(12), [e], settled);
+  const first = settleAll(careerAtLevel(1 + 12), [e], settled);
   const again = settleAll(first.state, [e, e], settled);
   assert.deepEqual(again.awards.map(a => a.reason), ['duplicate', 'duplicate']);
   assert.equal(again.state.credit, cumulative(13) + basePay(TYPE_WEIGHTS.legend, 13, 13));
@@ -403,7 +400,7 @@ test('properties: bounded farm yield: creature credit in any span ≤ the pool a
   for (let seed = 1; seed <= 12; seed++) {
     const rnd = lcg(seed * 7919);
     const level = 11 + Math.floor(rnd() * 30);
-    const start = newCareer(level - 1);
+    const start = careerAtLevel(1 + level - 1);
     const kinds = 1 + Math.floor(rnd() * 50);
     const events: CareerEvent[] = [];
     let t = 0;
@@ -425,7 +422,7 @@ test('properties: bounded farm yield: creature credit in any span ≤ the pool a
   }
 });
 test('properties: an empty pool pays nothing for creatures until it refills; Pit wins and bosses ignore it', () => {
-  const dry: CareerState = { ...newCareer(14), rested: 0, restedAt: 0 };
+  const dry: CareerState = { ...careerAtLevel(1 + 14), rested: 0, restedAt: 0 };
   const creature = (id: string, at: number): CareerEvent => ({ kind: 'kill', id, at, type: 'mob', target: `k-${id}`, targetLevel: 15 });
   assert.equal(award(dry, creature('a', 0)).reason, 'rested-out');
   assert.equal(restedAvailable(dry, 12 * HOUR), 750);
@@ -434,33 +431,33 @@ test('properties: an empty pool pays nothing for creatures until it refills; Pit
   assert.equal(award(dry, kill('x', 'world-boss', 'x', 15, { contributionPermille: 200 })).cp, 1200);
 });
 test('properties: a late event never rewinds the clocks (no free refill from clock skew)', () => {
-  const s = settleAll({ ...newCareer(14), rested: 0, restedAt: 0 }, mobs(HOUR, 1, 1, 'k', 'mob', 15)).state;
+  const s = settleAll({ ...careerAtLevel(1 + 14), rested: 0, restedAt: 0 }, mobs(HOUR, 1, 1, 'k', 'mob', 15)).state;
   const late = award(s, { kind: 'kill', id: 'late', at: 0, type: 'mob', target: 'k2', targetLevel: 15 });
   assert.equal(late.cp, 14); // the 62 CP refilled by HOUR, less the 48 already paid: nothing extra for arriving late
   assert.equal(late.state.restedAt, HOUR);
   assert.equal(restedAvailable(late.state, HOUR), restedAvailable(s, HOUR) - late.cp); // no refill was invented
 });
 test('properties: story pays once per step (a tenth of a kill value a step, half a chapter: 100 and 500 at level 1); an unknown story type is refused', () => {
-  const r = settleAll(newCareer(0), [story('a', 0, 'ch1/1'), story('b', 1, 'ch1/1'), story('c', 2, 'ch1', true)]);
+  const r = settleAll(careerAtLevel(1 + 0), [story('a', 0, 'ch1/1'), story('b', 1, 'ch1/1'), story('c', 2, 'ch1', true)]);
   assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[100, 'ok'], [0, 'already-done'], [500, 'ok']]);
-  const bad = award(newCareer(0), { kind: 'story', id: 'd', at: 0, step: 'ch2', type: 'mob' as 'story-step' });
+  const bad = award(careerAtLevel(1 + 0), { kind: 'story', id: 'd', at: 0, step: 'ch2', type: 'mob' as 'story-step' });
   assert.equal(bad.reason, 'bad-event');
 });
 test('properties: a party larger than four is refused, and a solo row refuses a party', () => {
-  assert.equal(award(newCareer(14), { kind: 'kill', id: 'p5', at: 0, type: 'mob', target: 'm', targetLevel: 15, partyLevels: [15, 15, 15, 15] }).reason, 'bad-event');
-  assert.equal(award(newCareer(14), kill('p', 'legend', 'goblin', 15, { partyLevels: [15] })).reason, 'bad-event');
+  assert.equal(award(careerAtLevel(1 + 14), { kind: 'kill', id: 'p5', at: 0, type: 'mob', target: 'm', targetLevel: 15, partyLevels: [15, 15, 15, 15] }).reason, 'bad-event');
+  assert.equal(award(careerAtLevel(1 + 14), kill('p', 'legend', 'goblin', 15, { partyLevels: [15] })).reason, 'bad-event');
 });
 test('properties: hostile keys: an Object.prototype name as creature kind, boss id or type is a plain key or a refusal, never NaN', () => {
-  const repro = award(newCareer(10), { kind: 'kill', id: 'x', at: 0, type: 'mob', target: 'toString', targetLevel: 11 });
+  const repro = award(careerAtLevel(1 + 10), { kind: 'kill', id: 'x', at: 0, type: 'mob', target: 'toString', targetLevel: 11 });
   assert.deepEqual([repro.cp, repro.reason, repro.levelBefore, repro.levelAfter], [40, 'ok', 11, 11]);
   assert.equal(restedAvailable(repro.state, 0), 2960);
   assert.deepEqual(repro.state.heat.toString, { units: 360, at: 0 });
   for (const type of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf', 'boss', '']) {
-    const a = award(newCareer(10), { kind: 'kill', id: 'y', at: 0, type, target: 'm', targetLevel: 11 });
+    const a = award(careerAtLevel(1 + 10), { kind: 'kill', id: 'y', at: 0, type, target: 'm', targetLevel: 11 });
     assert.deepEqual([a.cp, a.reason, a.levelAfter], [0, 'bad-event', 11], `type ${type}`);
-    assert.deepEqual(a.state, newCareer(10), `type ${type}: state untouched`);
+    assert.deepEqual(a.state, careerAtLevel(1 + 10), `type ${type}: state untouched`);
   }
-  const b = settleAll(newCareer(10), [kill('b1', 'world-boss', '__proto__', 11), kill('b2', 'world-boss', '__proto__', 11)]);
+  const b = settleAll(careerAtLevel(1 + 10), [kill('b1', 'world-boss', '__proto__', 11), kill('b2', 'world-boss', '__proto__', 11)]);
   assert.deepEqual(b.awards.map(a => a.reason), ['ok', 'already-beaten']);
 });
 test('properties: hostile keys, property run: random streams over prototype names never lower a level or put a non-finite number in state', () => {
@@ -472,7 +469,7 @@ test('properties: hostile keys, property run: random streams over prototype name
   for (let seed = 1; seed <= 20; seed++) {
     const rnd = lcg(seed * 104_729);
     const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)];
-    let s = newCareer(5 + seed);
+    let s = careerAtLevel(1 + 5 + seed);
     for (let i = 0; i < 600; i++) {
       const at = i * (1 + Math.floor(rnd() * 90));
       const e: CareerEvent = rnd() < 0.9
@@ -489,11 +486,11 @@ test('properties: hostile keys, property run: random streams over prototype name
   assert.equal(({} as Record<string, unknown>).polluted, undefined);
 });
 
-// Dom's 2026-10-05 ruling: 50 levels, the top rank becoming Origin I–V. Not live yet (the arena Combat track changes src/career.ts);
+// Dom's 2026-10-05 ruling: 50 levels, the top rank becoming Origin I–V. Not live yet (the arena Combat track changes src/core/career-ladder.ts);
 // these hold the model to it ahead of time by passing the cap.
 test('ladder cap 50: a level-46 player under the old top keeps climbing under the new one; a boss tops out the ladder', () => {
-  const near50: CareerState = { ...newCareer(48, 0, 50), credit: cumulative(50) - 100 };
+  const near50: CareerState = { ...careerAtLevel(1 + 48, 0, 50), credit: cumulative(50) - 100 };
   assert.equal(award(near50, kill('b', 'world-boss', 'b', 49), 50).levelAfter, 50);
-  assert.equal(award({ ...newCareer(45, 0, 50), credit: cumulative(47) - 1 }, win('x', 0), 50).levelAfter, 47);
-  assert.equal(award({ ...newCareer(45), credit: cumulative(47) - 1 }, win('x', 0), 46).levelAfter, 46);
+  assert.equal(award({ ...careerAtLevel(1 + 45, 0, 50), credit: cumulative(47) - 1 }, win('x', 0), 50).levelAfter, 47);
+  assert.equal(award({ ...careerAtLevel(1 + 45), credit: cumulative(47) - 1 }, win('x', 0), 46).levelAfter, 46);
 });

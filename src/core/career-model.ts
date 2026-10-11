@@ -1,7 +1,7 @@
 // Frankendom: Origins — the ONE career (Dom's ruling 7), reference model. Pure, integer-only, not under src/.
-// Its one import is the ladder itself (src/career.ts: MAX_LEVEL, RANK_STEPS), so the cap is never declared twice.
+// Its one import is the ladder itself (src/core/career-ladder.ts: MAX_LEVEL, RANK_STEPS), so the cap is never declared twice.
 //
-// Spec: docs/specs/origins/progression-proposal.md (this file is its executable half; the numbers below are the proposal's numbers
+// Spec: docs/specs/src/core/career-model.ts-proposal.md (this file is its executable half; the numbers below are the proposal's numbers
 // and every one is pinned in model.test.ts). Clean room (ruling 8): written from the specs in docs/specs/origins/ only.
 //
 // The whole idea (Dom, 2026-10-06: a UNIVERSAL levelling system, content later): the career is a single integer, CAREER CREDIT (CP).
@@ -23,8 +23,8 @@
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Constants (the proposal's table; change them only with the doc).
 
-import { MAX_LEVEL, RANK_STEPS } from '../../src/career.ts';
-export { MAX_LEVEL };
+import { MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
+
 
 // The requirement curve. requirement(L) = REQ_BASE + REQ_STEP·(L − 1) + REQ_CURVE·max(0, L − REQ_KNEE)², integer for every L.
 // Level 1 → 2 costs 1,000; level 10 → 11 costs 1,900 (gentle); from Gladiator I (level 11) a square term is added, so level 49 → 50
@@ -63,7 +63,7 @@ export const TYPE_WEIGHTS: TypeTable = {
 export const isType = (types: TypeTable, t: unknown): t is string => typeof t === 'string' && own(types, t) !== undefined;
 
 // Level-difference falloff, permille, by d = target level − your level. CAP-INDEPENDENT by construction: it reads only the
-// difference d, never an absolute level. The one ladder fact it uses is the title width (src/career.ts RANK_STEPS, five sub-ranks a
+// difference d, never an absolute level. The one ladder fact it uses is the title width (src/core/career-ladder.ts RANK_STEPS, five sub-ranks a
 // title): exactly one title below you pays a fifth, and anything more than a whole title below you is grey and pays nothing.
 export function falloffPermille(d: number): number {
   if (d >= 3) return 1250;
@@ -113,7 +113,7 @@ export const RESTED_CAP_CP = 3000;
 const RESTED_CAP_UNITS = RESTED_CAP_CP * DAY_S;
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Levels. Every level function takes the ladder cap, defaulting to src/career.ts MAX_LEVEL, so the model follows the arena's cap
+// Levels. Every level function takes the ladder cap, defaulting to src/core/career-ladder.ts MAX_LEVEL, so the model follows the arena's cap
 // change (46 → 50) without an edit here and tests can run both ladders.
 
 const wholeLevel = (level: number): number => (Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1);
@@ -139,12 +139,7 @@ export function levelOfCredit(credit: number, cap: number = MAX_LEVEL): number {
   while (level < cap && cumulative(level + 1) <= credit) level++;
   return level;
 }
-// Today's rule, at any cap: src/career.ts levelOf(marks) = min(MAX_LEVEL, 1 + wins).
-export const levelOfMarks = (marks: number, cap: number = MAX_LEVEL): number =>
-  Math.min(cap, 1 + (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0));
-// The migration: a live account keeps its exact level. Its credit is the cumulative requirement to reach levelOf(marks).
-export const creditFromMarks = (marks: number, cap: number = MAX_LEVEL): number => cumulative(levelOfMarks(marks, cap));
-// The rank bar's partial fill (src/career.ts Rank.fill, kept at 0 today "so the bar code reads unchanged"), permille of the level.
+// The rank bar's partial fill (src/core/career-ladder.ts Rank.fill, kept at 0 today "so the bar code reads unchanged"), permille of the level.
 export function fillPermille(credit: number, cap: number = MAX_LEVEL): number {
   const level = levelOfCredit(credit, cap);
   if (level === cap) return 0;
@@ -196,13 +191,18 @@ export type CareerState = {
 // Event ids already settled are NOT career state: they are the server's unique index (loot_claims.fight_hash today; an encounter id
 // for world kills). `settleAll` models that index with a Set so a retried event pays nothing.
 
-// A new or migrated character: credit to its exact live level, the Pit resumed at that same level, nothing beaten yet (the live ladder
-// re-offers opponents today, so there is no beaten-once record to carry over), a full allowance.
-export const newCareer = (marks = 0, at = 0, cap: number = MAX_LEVEL): CareerState => ({
-  credit: creditFromMarks(marks, cap), pit: { rung: levelOfMarks(marks, cap) },
-  pitWins: Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0, rested: RESTED_CAP_UNITS, restedAt: at,
-  heat: {}, beaten: [], story: [],
-});
+// A new zone character: level 1, no credit, nothing beaten, a full allowance. Pit marks never seed it (C6): the Pit's wins pay Pit ranks only (levelOf in career-ladder.ts), the zone's level is read from credit alone (levelOfCredit).
+export const newCareer = (at = 0): CareerState => careerAtLevel(1, at);
+// A career standing at an exact level: the Pit session's own track, simulations and tests. Never a path from a Pit win count to a zone level.
+export const careerAtLevel = (level: number, at = 0, cap: number = MAX_LEVEL): CareerState => {
+  const l = Math.min(cap, wholeLevel(level));
+  return { credit: cumulative(l), pit: { rung: l }, pitWins: l - 1, rested: RESTED_CAP_UNITS, restedAt: at, heat: {}, beaten: [], story: [] };
+};
+// Pure: the writer's career row -> the career state. The one mapping the server (career, mob-rewards, story) and the zone page (origins/preview/save.ts) share.
+export type CareerRowShape = { total_credit: number; rested: number; rested_at: number; heat: Record<string, unknown>; beaten: string[]; story: string[] };
+export function careerState(row: CareerRowShape): CareerState {
+  return { credit: Number(row.total_credit), pit: { rung: 0 }, pitWins: 0, rested: Number(row.rested), restedAt: Number(row.rested_at), heat: row.heat as CareerState['heat'], beaten: row.beaten, story: row.story };
+}
 
 // Every event has an id the server made (fight hash, encounter id, story step) and a server time in whole seconds.
 export type ArenaWin = { kind: 'arena-win'; id: string; at: number; opponent: string }; // the opponent the server says was beaten

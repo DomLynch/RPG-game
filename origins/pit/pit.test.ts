@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { LEGEND_OPPONENTS } from '../../src/legends.ts';
-import { basePay, cumulative, legendKey, levelOfCredit, requirement, TYPE_WEIGHTS } from '../progression/model.ts';
+import { basePay, cumulative, legendKey, levelOfCredit, requirement, TYPE_WEIGHTS } from '../../src/core/server.ts';
 import { careerLine, fightSeed, newSession, nextFight, outcomeOf, settle, started } from './pit.ts';
 
 const POOL = [...LEGEND_OPPONENTS];

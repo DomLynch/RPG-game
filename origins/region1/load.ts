@@ -7,7 +7,7 @@ import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoo
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../contracts/ids.ts';
 import { loadContent, type Registry } from '../contracts/registry.ts';
 import { parseBossDefinition } from '../boss/boss.ts';
-import { TYPE_WEIGHTS } from '../progression/model.ts';
+import { TYPE_WEIGHTS } from '../../src/core/server.ts';
 import { toMetres } from '../world/derive.ts';
 import { loadWorld, resolveRegion } from '../world/resolve.ts';
 import type { Params } from '../world/schema.ts';

@@ -14,7 +14,7 @@ import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../origins/contracts/items.ts';
 import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
 import * as F from '../origins/contracts/fixtures.ts';
-import { cumulative } from '../origins/progression/model.ts';
+import { cumulative } from '../src/core/server.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';

@@ -12,7 +12,7 @@ import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type Encoun
 import type { Inventory } from '../inventory/inventory.ts';
 import { loadZone } from '../zones/loader.ts';
 import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
-import { award } from '../progression/model.ts';
+import { award } from '../../src/core/server.ts';
 import type { TwistOutcome } from '../../src/fight/server.ts';
 import { careerState } from '../../src/core/server.ts';
 import type { Db } from './db.ts';

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { loadProfile, saveProfile, withoutHeld, type Profile } from './profile.ts';
 import { absorbCloud, createSaveQueue, profileDiffers, readAdmin, readFighter, readStanding, saveFailure, writeFighter, type CloudProfile } from './cloud-profile.ts';
 import { captureException } from '@sentry/browser';
-import { marksOf } from '../career.ts';
+import { marksOf } from './career-ladder.ts';
 import { keepsLoot, mergeLoot } from './loot.ts';
 import { session } from './session.ts';
 import { timedSignal } from '../timed-signal.ts';

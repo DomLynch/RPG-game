@@ -1,8 +1,9 @@
-// The proposal's worked examples as event lists (docs/specs/origins/progression-proposal.md §7). Shared by model.test.ts so the doc's
+// The proposal's worked examples as event lists (docs/specs/src/core/career-model.ts-proposal.md §7). Shared by career-model.test.ts so the doc's
 // numbers and the pinned numbers come from one place. Region and creature names are placeholders for the region-1 content lane.
 import {
-  DAY_S, MAX_LEVEL, TYPE_WEIGHTS, award, levelOfCredit, newCareer, nextLegend, tierOf, type CareerEvent, type CareerState, type TypeTable,
-} from './model.ts';
+  DAY_S, TYPE_WEIGHTS, award, levelOfCredit, careerAtLevel, nextLegend, tierOf, type CareerEvent, type CareerState, type TypeTable,
+} from '../src/core/career-model.ts';
+import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 
 export const MIN = 60;
 export const HOUR = 3600;
@@ -81,7 +82,7 @@ export type PlayerRun = {
 };
 
 export function playerDays(
-  p: Player, opponents: readonly string[], maxDays: number, cap: number = MAX_LEVEL, start: CareerState = newCareer(0, 0, cap),
+  p: Player, opponents: readonly string[], maxDays: number, cap: number = MAX_LEVEL, start: CareerState = careerAtLevel(1 + 0, 0, cap),
   types: TypeTable = TYPE_WEIGHTS,
 ): PlayerRun {
   let s = start;

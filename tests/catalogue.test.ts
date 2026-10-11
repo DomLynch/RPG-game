@@ -17,7 +17,7 @@ import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/fight/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
 import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
-import { MAX_LEVEL } from '../src/career.ts';
+import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
 import { LOOT_TABLES } from '../origins/region1/content.ts';
 

@@ -8,7 +8,7 @@
 // A mob layer (src/fight/mobkit.ts via origins/mobs/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
 // build cannot step. A refusal is a normal loss, never a reward.
 import { initialPractice, stepPractice, underRecord, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
-import { RANK_STEPS, TITLES } from '../../src/career.ts';
+import { RANK_STEPS, TITLES } from '../../src/core/server.ts';
 import { mobLayer } from '../mobs/kits.ts';
 import { kitOfBuild, kitTag } from '../mobs/kit-version.ts';
 import { MOB_STYLES, type MobStyle } from '../mobs/styles.ts';

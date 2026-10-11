@@ -6,7 +6,7 @@
 //   - `u` (world units) for the PLACE: zone size, passages. They go through scale.metresPerUnit, so one knob rescales a whole world.
 //   - `m` (metres) for the BODY and the CAMERA: walking, reach, view, terrain height. The hero stays 1.8 m whatever the world's scale.
 // Layout is never authored in metres: a landmark is (u, v) in 0..1 of its zone, so a resized zone keeps its plan.
-import { TITLES } from '../../src/career.ts';
+import { TITLES } from '../../src/core/server.ts';
 import { ACROSS_SECONDS, MAX_ACROSS_M } from './zone-rules.ts';
 
 export type Field =

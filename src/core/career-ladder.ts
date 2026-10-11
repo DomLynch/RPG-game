@@ -1,4 +1,4 @@
-import type { Profile } from './core/profile.ts';
+import type { Profile } from './profile.ts';
 
 // Career rank from victory marks — the 50-level ladder (Dom via Strategy, 2026-09-27; 2026-10-05: Origin gets its own I–V, was singular at 46):
 // level = 1 + wins, capped at 50. Ten street-plain titles, sub-ranks I–V on all ten; ONE win per
@@ -27,7 +27,7 @@ export function awardMark(profile: Profile): number {
 export const RANK_STEPS = NUMERALS.length;
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 50 at Origin V.
-export const levelOf = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));
+export const levelOfMarks = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));
 // The difficulty dial (Dom via Strategy, 2026-09-27): the opponent fights at the dial, not the rank; the HUD shows rank only. The dial
 // normally equals the rank level. Two straight losses at the same dial: dial −1 (rank unchanged, never below 1). Each win: dial +1, never
 // above the rank; three straight wins: the dial snaps to the rank. It never trails the rank by more than DIAL_TRAIL. Device-only state.
@@ -37,7 +37,7 @@ export const dialLevel = (dial: Pick<Dial, 'level'> | undefined, rank: number): 
   Math.min(rank, Math.max(1, rank - DIAL_TRAIL, Number.isInteger(dial?.level) ? dial!.level : rank));
 // The level a ladder fight is fought at: the dial against the career count's rank level. main.ts builds the Match and every career rematch
 // with it, from the count the rank shows (shownMarks: the server figure once there), so a rematch never skips the dial.
-export const fightLevel = (dial: Pick<Dial, 'level'> | undefined, marks: number): number => dialLevel(dial, levelOf(marks));
+export const fightLevel = (dial: Pick<Dial, 'level'> | undefined, marks: number): number => dialLevel(dial, levelOfMarks(marks));
 // `rank`: the rank level the fight was fought at (before its result lands).
 export function turnDial(dial: Dial | undefined, rank: number, won: boolean): Dial {
   const level = dialLevel(dial, rank);
@@ -49,7 +49,7 @@ export function turnDial(dial: Dial | undefined, rank: number, won: boolean): Di
   return losses >= 2 ? { level: Math.max(1, rank - DIAL_TRAIL, level - 1), losses: 0, wins: 0 } : { level, losses, wins: 0 };
 }
 export function rankFor(marks: number): Rank {
-  const level = levelOf(marks), index = level - 1;
+  const level = levelOfMarks(marks), index = level - 1;
   const title = TITLES[Math.floor(index / NUMERALS.length)], step = index % NUMERALS.length, numeral = NUMERALS[step];
   return { title, numeral, level, label: `${title} ${numeral}`, next: TITLES[Math.floor(index / NUMERALS.length) + 1] ?? '', step, fill: 0 };
 }

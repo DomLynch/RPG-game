@@ -5,14 +5,14 @@
 //
 // Pure like the rest of origins/: no DOM, clock, Math.random or storage. The caller (the preview page, later the world writer) passes
 // the server time `at` in whole seconds and the server seed in; the same inputs give the same output byte for byte, so a retried
-// writer op can be checked against its first run. Its imports are the ladder (src/career.ts, read only) and the shared mulberry32
+// writer op can be checked against its first run. Its imports are the ladder (src/core/career-ladder.ts, read only) and the shared mulberry32
 // (origins/world/generate.ts), so neither the cap nor the PRNG is declared twice.
 //
 // Deliberate scope (see the PR): §3 generator and grudge holding, §2 guardrails, §4 notoriety, §5 stand-in and successor, §5.1 trade
 // shunning, §6 succession outcome, §7 guards / arrest / jail, §7.1 alert spread, rings and the escalation table. Deferred: retaliation
 // grudges (§3 source 3, open question 3), patron-strike and bouncer fight details (§7.1.3–4), NPC hunters (§8), the PvP bounty (§9).
 
-import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
+import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/core/server.ts';
 import { prng } from '../world/generate.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
