@@ -3,7 +3,7 @@
 // without gfx never gets a T4. Pure decision (pickTarget) + one reader for the VPS (vpsStatus); the launchers call both, so the rule lives in one place.
 // tests/waterfall.test.ts pins every branch and fails when a script starts a heavy job without going through here (shrink-only KNOWN list).
 import { spawnSync } from 'node:child_process';
-import { FLAVORS, JOB_IMAGE, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
+import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
 
 export const VPS_MAX_LOAD1 = 12;
 
