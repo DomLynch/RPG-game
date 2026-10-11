@@ -1,0 +1,1 @@
+ZONE=2 KILL=1 TAGS_TARGET=z2:reach-wolves node scripts/zone1-stab-stills.mjs artifacts/origins-preview artifacts/char/zone2-before-2026-10-10
