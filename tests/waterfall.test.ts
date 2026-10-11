@@ -60,7 +60,6 @@ const KNOWN = [
   'scripts/gpu-run.mjs',               // GPU rows (HF GPU only for GPU rows; converted Monday)
   'scripts/hf-wall-rows.mjs',          // T4 wall rows of a release (converted with release rows)
   'scripts/vps-shadow-rows.sh',        // the older ssh rows runner
-  'scripts/vps-shadow/launch.mjs',     // release unit + rows and the lane `job` path
 ];
 test('boundary: no script starts a heavy job outside waterfall.mjs except the shrink-only KNOWN list', () => {
   const found = offenders();
