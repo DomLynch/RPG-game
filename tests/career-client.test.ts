@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readLeaderboards, readScorecard } from '../src/core/career-client.ts';
+import { readLeaderboards, readPublicNo, readScorecard } from '../src/core/career-client.ts';
 
 const db = (data: unknown, error: unknown = null, calls: unknown[][] = []) => ({ rpc: async (...args: unknown[]) => { calls.push(args); return { data, error }; } }) as never;
 const row = { opponent: 'crixus', fights: 3, wins: 2, losses: 1, draws: 0, left_count: 1, last: ['win', 'loss'] };
@@ -29,4 +29,16 @@ test('the boards are leaderboards(p_limit) with the limit held to 1..50; a bad b
   assert.equal(await readLeaderboards(db([{ ...good[0], fighter_id: 'x' }])), null, 'the public id is an integer');
   assert.equal(await readLeaderboards(db([{ board: 'duel_rating', place: 1, display_name: 'Fighter #7', score: 1 }])), null, 'a row without fighter_id (the old shape) is refused');
   assert.equal(await readLeaderboards(db(null, { code: '42501' })), null, 'signed out: the function is authenticated-only');
+});
+
+test('the public fighter number is the own profile row\'s public_no; anything else (no session, an error, a zero, a non-integer, a throw) is null', async () => {
+  const dbOf = (session: unknown, row: unknown, error: unknown = null) => ({ auth: { getSession: async () => ({ data: { session } }) }, from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row, error }) }) }) }) }) as never;
+  const signed = { user: { id: 'u1' } };
+  assert.equal(await readPublicNo(dbOf(signed, { public_no: 42 })), 42);
+  assert.equal(await readPublicNo(dbOf(null, { public_no: 42 })), null, 'a guest has no number');
+  assert.equal(await readPublicNo(dbOf(signed, { public_no: 0 })), null);
+  assert.equal(await readPublicNo(dbOf(signed, { public_no: 1.5 })), null);
+  assert.equal(await readPublicNo(dbOf(signed, null)), null);
+  assert.equal(await readPublicNo(dbOf(signed, { public_no: 7 }, { code: '42703' })), null, 'the column not applied yet');
+  assert.equal(await readPublicNo({ auth: { getSession: async () => { throw new Error('offline'); } } } as never), null);
 });
