@@ -8,19 +8,20 @@ import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCo
 export const VPS_MAX_LOAD1 = 12;
 
 // vps: { load1, freeRamMb } or null when the box cannot be read. mem: the job's RAM need in MB (default 0 = just a readable, quiet box).
-/** @param {{ gfx?: boolean, mem?: number, vps?: { load1: number, freeRamMb: number } | null }} [job] @returns {'vps' | 'hf-cpu' | 'hf-t4'} */
-export function pickTarget({ gfx = false, mem = 0, vps = null } = {}) {
+/** @param {{ gfx?: boolean, mem?: number, lane?: boolean, vps?: { load1: number, freeRamMb: number, releaseRuns?: number } | null }} [job] @returns {'vps' | 'hf-cpu' | 'hf-t4'} */
+export function pickTarget({ gfx = false, mem = 0, vps = null, lane = false } = {}) {
   if (gfx) return 'hf-t4';
-  const { load1, freeRamMb } = vps || {};
+  const { load1, freeRamMb, releaseRuns = 0 } = vps || {};
   if (!Number.isFinite(load1) || !Number.isFinite(freeRamMb)) return 'hf-cpu';
+  if (lane && releaseRuns > 0) return 'hf-cpu';   // a RELEASE run owns the VPS while it runs (Strategy 2026-10-11): a lane job never shares the box with one; a release never waits behind a lane job
   return load1 < VPS_MAX_LOAD1 && freeRamMb >= mem ? 'vps' : 'hf-cpu';
 }
 
-// Output of: cut -d' ' -f1-3 /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo   (two lines: loadavg, MemAvailable in kB).
+// Output of vpsStatus's remote command: /proc/loadavg, MemAvailable in kB, and the number of live release run dirs under /root/deploy-runs (a release run's dir exists only while it runs: it IS the lock).
 export function parseVpsStatus(text) {
-  const [loadLine = '', memLine = ''] = String(text || '').trim().split('\n');
-  const load1 = Number(loadLine.trim().split(/\s+/)[0]), kb = Number(memLine.trim());
-  return loadLine && memLine && Number.isFinite(load1) && Number.isFinite(kb) && kb >= 0 ? { load1, freeRamMb: Math.floor(kb / 1024) } : null;
+  const [loadLine = '', memLine = '', runsLine = '0'] = String(text || '').trim().split('\n');
+  const load1 = Number(loadLine.trim().split(/\s+/)[0]), kb = Number(memLine.trim()), releaseRuns = Number(runsLine.trim() || 0);
+  return loadLine && memLine && Number.isFinite(load1) && Number.isFinite(kb) && kb >= 0 && Number.isInteger(releaseRuns) && releaseRuns >= 0 ? { load1, freeRamMb: Math.floor(kb / 1024), releaseRuns } : null;
 }
 
 // null = cannot read the VPS (the caller treats that as busy and spills to Hugging Face CPU).
@@ -28,7 +29,7 @@ export function parseVpsStatus(text) {
 export const vpsHost = (env = process.env) => { const h = env.VPS_HOST || '49.12.7.18'; return h.includes('@') ? h : `root@${h}`; };
 
 export function vpsStatus({ host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
-  const r = run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host, "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo"], { encoding: 'utf8', timeout: 20_000 });
+  const r = run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host, "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo; ls -d /root/deploy-runs/*/ 2>/dev/null | wc -l"], { encoding: 'utf8', timeout: 20_000 });
   return r.status === 0 ? parseVpsStatus(r.stdout) : null;
 }
 
