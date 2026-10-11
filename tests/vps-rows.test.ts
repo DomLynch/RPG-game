@@ -4,12 +4,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const { buildRowsRunner, parseRowsReceipt, vpsRowsTrusted, runRowsOnVps } = await import('../scripts/lib/vps-rows.mjs');
-const { NODE_PIN } = await import('../scripts/lib/vps-unit.mjs');
+const { NODE_PIN, RELEASE_MARK_DIR } = await import('../scripts/lib/vps-unit.mjs');
 const SHA = 'a'.repeat(40), TREE = 'b'.repeat(40), NONCE = 'c'.repeat(32), RUNID = '1'.repeat(16), CHROME = 'd'.repeat(64);
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
 const read = (p: string) => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
@@ -133,5 +133,13 @@ test('Auditor #2181: prelaunched_cpu accepts a multi-id spill line and rejects a
   assert.equal(ask('abc123,def456;3,4,5').stdout, 'abc123,def456;3,4,5'); assert.equal(ask('abc123;3').stdout, 'abc123;3');
   for (const bad of ['abc123,;3', ';3', 'abc123;', 'abc 123;3']) assert.equal(ask(bad).status, 1, bad);
   const sh = readSrc('scripts/lib/vps-unit.mjs', 'utf8');
+  // run the runner's own marker lines in a temp dir: the file appears while the run lives and vanishes with the EXIT trap
+  const mdir = mkdtempSync(join(tmpdir(), 'mark-')), head = buildRowsRunner({ sha: 'b'.repeat(40), tree: 'c'.repeat(40), nonce: 'd'.repeat(32), runid: 'e'.repeat(16), rows: [1], total: 2, width: 1 }).replaceAll('/run/frankendom-release', mdir);
+  const lines = head.split('\n'), mi = lines.findIndex((l) => l.startsWith('MARK=')), ti = lines.findIndex((l) => l.startsWith('trap '));
+  const probe = spawnSync('bash', ['-c', `RUN=${mdir}/run; ${lines[mi]}\n${lines[ti]}\nmkdir -p "$RUN"\n${lines.find((l) => l.startsWith('mkdir -p -m 755'))}\nls ${mdir} | grep -c b > ${mdir}/seen`], { encoding: 'utf8' });
+  assert.equal(readSrc(join(mdir, 'seen'), 'utf8').trim(), '1', probe.stderr); assert.deepEqual(readdirSync(mdir).filter((f) => f !== 'seen' && f !== 'run'), [], 'the EXIT trap removes the marker');
+  assert.match(readSrc('scripts/vps-shadow/capture.sh', 'utf8'), new RegExp(`CAPTURE_RUNS_DIR:-${RELEASE_MARK_DIR.replaceAll('/', '\\/')}\\}`));
+  const apply = readSrc('scripts/lib/deploy-vps.sh', 'utf8'), a0 = apply.indexOf('vps_receipts_apply()');
+  assert.ok(apply.indexOf('prelaunched_cpu "$receipt_sha"', a0) > apply.indexOf('.rowsvps.running', a0) && apply.indexOf('prelaunched_cpu "$receipt_sha"', a0) < apply.indexOf('for job in', a0), 'the spilled .cpu is read after the .running wait and before the job loop');
   assert.match(sh, /mkdir -p -m 755 '\$\{RELEASE_MARK_DIR\}'/); assert.match(sh, /trap 'rm -rf "\$RUN" "\$MARK"' EXIT/);
 });

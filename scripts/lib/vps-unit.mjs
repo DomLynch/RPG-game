@@ -29,7 +29,7 @@ RUN='${RUN_ROOT}/${sha}-${runid}'
 MARK='${RELEASE_MARK_DIR}/${sha}-${runid}'
 trap 'rm -rf "$RUN" "$MARK"' EXIT
 mkdir -p "$RUN" || exit 90
-mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK"   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them
+mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK" || echo 'release marker not set: lane jobs are not locked out of this run' >&2   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them
 cd "$RUN" || exit 90
 curl -fsSL "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
 echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
