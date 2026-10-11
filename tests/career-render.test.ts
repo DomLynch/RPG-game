@@ -5,7 +5,8 @@ import { mountCareer } from '../src/core/career-screen.ts';
 // A DOM stub just big enough for mountCareer's render (no jsdom in the repo): elements keep their class, text and children; `find` walks them.
 class El {
   className = ''; textContent = ''; type = ''; hidden = false; value = ''; maxLength = 0; children: El[] = []; attrs: Record<string, string> = {}; title = ''; parent: El | null = null;
-  constructor(public tag: string, public ownerDocument: { createElement(tag: string): El }) {}
+  tag: string; ownerDocument: { createElement(tag: string): El };
+  constructor(tag: string, ownerDocument: { createElement(tag: string): El }) { this.tag = tag; this.ownerDocument = ownerDocument; }
   append(...kids: El[]) { for (const k of kids) { k.parent = this; this.children.push(k); } }
   replaceChildren(...kids: El[]) { this.children = []; this.append(...kids); }
   replaceWith(other: El) { const p = this.parent; if (p) { p.children[p.children.indexOf(this)] = other; other.parent = p; } }
