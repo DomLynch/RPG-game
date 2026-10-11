@@ -96,7 +96,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
           console.log(`VPS rows receipt: ${res.receipt.rows.length} rows, ${res.receipt.seconds} s, chromium ${res.receipt.chromium_revision} -> ${fileOf}`);
         } else {
           console.error(`launch: the VPS rows run was not accepted (${res.reason}); spilling to Hugging Face`);
-          const hf = spawnSync(process.execPath, [process.argv[1], 'cpu', a, ''], { encoding: 'utf8', env: { ...process.env, LAUNCH_TARGET: 'hf' }, timeout: 20 * 60_000 }).stdout?.trim();
+          const hf = spawnSync(process.execPath, [process.argv[1], 'cpu', a, Array.from({ length: total }, (_, i) => i + 1).filter(n => !rows.includes(n)).join(',')], { encoding: 'utf8', env: { ...process.env, LAUNCH_TARGET: 'hf' }, timeout: 20 * 60_000 }).stdout?.trim();
           if (hf) writeFileSync(`${stateDir}/${a}.cpu`, hf);
         }
       } finally { rmSync(`${fileOf}.running`, { force: true }); }

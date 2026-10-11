@@ -119,3 +119,17 @@ test('the wiring: launch.mjs cpu routes the CPU rows through pickTarget (VPS in 
   assert.match(dv, /rowsvps\.running/); assert.match(dv, /--rows-vps/);
   assert.ok(dv.indexOf('--rows-vps') > dv.indexOf('vps-receipt-trust.mjs "$revision" 2>'), 'the VPS rows are merged AFTER the HF receipts are read');
 });
+
+import { readFileSync as readSrc } from 'node:fs';
+test('Auditor #2181: no --with-deps, out-of-scope rows are never stamped ok, the node tarball extracts without the archive owner, a spill places the same rows', () => {
+  const rows = readSrc('scripts/lib/vps-rows.mjs', 'utf8'), unit = readSrc('scripts/lib/vps-unit.mjs', 'utf8'), launch = readSrc('scripts/vps-shadow/launch.mjs', 'utf8');
+  assert.doesNotMatch(rows, /--with-deps/); assert.match(rows, /r\.trusted\|\|r\.out_of_scope/);
+  assert.match(unit, /tar --no-same-owner -xJf node\.tar\.xz/);
+  assert.doesNotMatch(launch, /'cpu', a, ''\]/);
+});
+test('Auditor #2181: vps_receipts_apply reads the spilled multi-id .cpu file after the .running wait', () => {
+  const sh = readSrc('scripts/lib/deploy-vps.sh', 'utf8');
+  assert.match(sh, /\^\[A-Za-z0-9\]\+\(,\[A-Za-z0-9\]\+\)\*\;/);
+  assert.ok(sh.indexOf('rowsvps.running') < sh.indexOf('local spilled=') || sh.indexOf('rowsvps.running') < sh.indexOf('local spilled;'));
+  assert.ok(sh.indexOf('local spilled;') < sh.indexOf('for job in'));
+});

@@ -30,7 +30,7 @@ mkdir -p "$RUN" || exit 90
 cd "$RUN" || exit 90
 curl -fsSL "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
 echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
-tar -xJf node.tar.xz || exit 93
+tar --no-same-owner -xJf node.tar.xz || exit 93
 PATH="$RUN/node-${NODE_PIN.version}-linux-x64/bin:/usr/bin:/bin"
 hash -r
 git -C '${SHADOW_REPO}' fetch -q origin '${sha}' < /dev/null || exit 96

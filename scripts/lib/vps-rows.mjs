@@ -25,7 +25,7 @@ export function buildRowsRunner({ sha, tree, nonce, runid, rows, total, width = 
   if (!Number.isInteger(width) || width < 1 || width > 8) throw new Error('width must be 1-8');
   const skip = Array.from({ length: total }, (_, i) => i + 1).filter(n => !rows.includes(n)).join(',');
   return runnerHead({ sha, tree, nonce, runid }) + `export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"
-npx playwright install --with-deps chromium < /dev/null > "$RUN/pw.log" 2>&1 || { echo '--- playwright install failed ---' >&2; tail -n 20 "$RUN/pw.log" >&2; exit 99; }
+npx playwright install chromium < /dev/null > "$RUN/pw.log" 2>&1 || { echo '--- playwright install failed ---' >&2; tail -n 20 "$RUN/pw.log" >&2; exit 99; }
 PWVER=$(node -p 'require("playwright-core/package.json").version')
 PWREV=$(node -p 'JSON.parse(require("fs").readFileSync("node_modules/playwright-core/browsers.json", "utf8")).browsers.find(b => b.name === "chromium").revision')
 CHROME=$(ls "$RUN"/pw/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1)
@@ -35,7 +35,7 @@ npm run build < /dev/null > "$RUN/build.log" 2>&1 || { echo '--- build failed --
 RELEASE_CHECKS_SKIP='${skip}' RELEASE_CHECKS_SKIP_SOURCE= RELEASE_CHECK_CONCURRENCY=${width} node scripts/release-checks.mjs < /dev/null > "$RUN/rows.log" 2>&1
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  ROWS=$(node -e 'const fs=require("fs"),c=require("crypto");const d=JSON.parse(fs.readFileSync("artifacts/release-checks.json","utf8")).checks_detail||[];const out=[];for(const r of d){if(r.trusted)continue;const f=String(r.command||"").split(" ").find(a=>/[.](mjs|js|sh)$/.test(a));out.push({n:r.index,ok:true,seconds:r.seconds,script_sha256:f&&fs.existsSync(f)?c.createHash("sha256").update(fs.readFileSync(f)).digest("hex"):null})}console.log(JSON.stringify(out))')
+  ROWS=$(node -e 'const fs=require("fs"),c=require("crypto");const d=JSON.parse(fs.readFileSync("artifacts/release-checks.json","utf8")).checks_detail||[];const out=[];for(const r of d){if(r.trusted||r.out_of_scope)continue;const f=String(r.command||"").split(" ").find(a=>/[.](mjs|js|sh)$/.test(a));out.push({n:r.index,ok:true,seconds:r.seconds,script_sha256:f&&fs.existsSync(f)?c.createHash("sha256").update(fs.readFileSync(f)).digest("hex"):null})}console.log(JSON.stringify(out))')
   printf 'RECEIPT %s {"sha":"${sha}","tree":"%s","runid":"${runid}","node":"${NODE_PIN.version}","node_tarball_sha256":"${NODE_PIN.sha256}","playwright":"%s","chromium_revision":"%s","chrome_sha256":"%s","width":${width},"rows":%s,"exit":0,"seconds":%s}\\n' "$NONCE" "$BOXTREE" "$PWVER" "$PWREV" "$CHROMESHA" "$ROWS" "$(( $(date +%s) - t0 ))"
 fi
 [ "$rc" -eq 0 ] || { echo "--- failing rows (exit $rc) ---" >&2; grep -E 'FAILED|CEILING' "$RUN/rows.log" | head -20 >&2; echo "--- rows.log tail ---" >&2; tail -n 25 "$RUN/rows.log" >&2; }
