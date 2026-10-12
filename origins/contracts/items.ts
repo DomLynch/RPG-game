@@ -410,7 +410,7 @@ export function checkInstance(inst: ItemInstance, def: ItemDefinition, path = ''
   if (inst.item !== def.id) issues.add('rule-violation', at('item'), `instance names ${inst.item} but was checked against ${def.id}`);
   if (inst.quantity > def.stack) issues.add('out-of-range', at('quantity'), `quantity ${inst.quantity} exceeds the definition's stack ${def.stack}`);
   if (powerOf(def.power).tiered && inst.tier === null) issues.add('rule-violation', at('tier'), 'a gear piece with a power budget records the tier it was won at');
-  if (def.power === 'none' && inst.tier !== null) issues.add('rule-violation', at('tier'), 'only gear with a power budget carries a tier');
+  if (!powerOf(def.power).tiered && inst.tier !== null) issues.add('rule-violation', at('tier'), 'only gear with a power budget carries a tier');
   if (upgradeLevelOf(inst) > 0 && !powerOf(def.power).upgradeable) issues.add('rule-violation', at('upgradeLevel'), 'only gear with a power budget can be upgraded');
   const loc = inst.location;
   if (loc.kind === 'equipped') {

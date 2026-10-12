@@ -63,6 +63,7 @@ console.log(JSON.stringify({ item: item('mythic', 'mithril'), unknownRarity: ite
 // ---- part 2: powers, categories, story tags, provenance kinds (Strategy's four overturns) --------------------------------------------------------------------------------------------------------------
 
 import { DEFINITIONS, categoryOf, powerOf, provenanceOf, storyOf } from '../origins/contracts/definitions.ts';
+import { checkInstance } from '../origins/contracts/items.ts';
 import { rarityPriceGaps, tradeCooldown } from '../origins/contracts/economy.ts';
 import * as F from '../origins/contracts/fixtures.ts';
 
@@ -121,4 +122,16 @@ test('a rarity row either has price rows or says sellable:false: a rarity silent
   assert.deepEqual(rarityPriceGaps({ rows: full.filter((r) => r.rarity !== 'fine') } as never), ['fine']);
   assert.deepEqual(rarityPriceGaps(F.forgeCosts() as never), ['fine', 'rare'], 'the shared fixture leaves fine and rare unpriced, and the check says so');
   assert.deepEqual(rarityPriceGaps({ rows: [] } as never), ['common', 'fine', 'rare', 'relic']);
+});
+
+test('a tier is refused on any power row without `tiered`, by the flag and not by the id: a new untiered power (one row) rejects a tier at `tier`', () => {
+  const powers = DEFINITIONS.powers as Record<string, object>;
+  powers.glamour = {};
+  try {
+    const d = parseItemDefinition({ ...F.graveIronDef(), power: 'glamour' }), i = parseItemInstance({ ...F.ironInstance(), tier: 'Recruit' });
+    assert.ok(d.ok && i.ok, JSON.stringify([d, i]));
+    assert.ok(checkInstance(i.value, d.value).some((x) => x.code === 'rule-violation' && x.path === 'tier'), 'a tier on an untiered power is a rule-violation at tier');
+    const clean = parseItemInstance({ ...F.ironInstance(), tier: null });
+    assert.ok(clean.ok && checkInstance(clean.value, d.value).length === 0, 'no tier on it is clean');
+  } finally { delete powers.glamour; }
 });
