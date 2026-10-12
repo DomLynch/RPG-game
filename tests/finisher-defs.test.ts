@@ -12,6 +12,7 @@ import type { WeaponId } from '../src/fight/moves.ts';
 import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
 import { PerspectiveCamera } from 'three';
 import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
+import { anyOfTemplate, isPlainDeath, isShelved, isTemplate } from '../src/fight/finisher-look.ts';
 import { initialState } from '../src/fight/sim.ts';
 
 const text = readFileSync(new URL('../src/fight/finisher-defs.json', import.meta.url), 'utf8');
@@ -107,4 +108,27 @@ test('a new finisher\'s camera is ONE row: its own dolly, a reveal onto its own 
   assert.throws(() => load([...ok, { ...row, camera: { ...row.camera, reveal: { from: 0, over: 0.3, side: 'decapitation' } } }]), /must name a row with a camera.side view/);
   assert.throws(() => load([...ok, { ...row, camera: { ...row.camera, side: { angle: 0.9, eyeY: 2.6, minBack: 4 } } }]), /camera.side needs angle, eyeY, minBack and either beyond or beyondBody \+ reachPad/);
   assert.throws(() => finisherSidePose({ x: 0, z: 0 }, { x: 0, z: 1 }, 1, 'decapitation'), /has no camera.side view/);
+});
+
+// ---- scene.ts reads the rows (the finisher name-switches, consumer group 2). Every compare it made on a name is now a question about the row (finisher-look.ts):
+// for every finisher (and none), each new answer is the old compare's answer, so the scene takes the same branch on every frame.
+test('scene.ts\'s questions about a finisher, answered from its row, match the name compares they replaced for every finisher and none', () => {
+  const ids: (string | null)[] = [null, ...Object.keys(FINISHER_POSE)];
+  const supportsOnly = (allowed: readonly string[]) => (f: string) => allowed.includes(f);
+  for (const f of ids) {
+    assert.equal(isTemplate(f, 'bisect'), f === 'opened', `${f}: the waist-cut bake (openWaist, the measured reach, the rank-look drain)`);
+    assert.equal(isTemplate(f, 'cleave'), f === 'splitCrown', `${f}: splitCrown`);
+    assert.equal(isTemplate(f, 'sever'), f === 'decapitation', `${f}: the severed head`);
+    assert.equal(isTemplate(f, 'impale'), f === 'runThrough', `${f}: the run-through hold`);
+    assert.equal(isTemplate(f, 'hamstring'), f === 'hamstrung', `${f}: Hamstrung's clock and fetch`);
+    assert.equal(isTemplate(f, 'execute'), f === 'execution', `${f}: Execution's clock, fetch and reach`);
+    assert.equal(isTemplate(f, 'hamstring', 'execute'), f === 'hamstrung' || f === 'execution', `${f}: a picker-only pick`);
+    assert.equal(f !== null && !isPlainDeath(f), f !== null && f !== 'plainDeath', `${f}: a ceremony's body takes over (flinch, marks)`);
+    assert.equal(!isPlainDeath(f), f !== 'plainDeath', `${f}: detailed blood`);
+    assert.equal(isShelved(f), f === 'quietOne', `${f}: the shelved clip plays the plain fall`);
+  }
+  for (const allowed of [[], ['opened'], ['plainDeath', 'decapitation'], Object.keys(FINISHER_POSE)])
+    assert.equal(anyOfTemplate('bisect', supportsOnly(allowed)), supportsOnly(allowed)('opened'), `the bake is prepared for ${JSON.stringify(allowed)}`);
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
+  assert.deepEqual(scene.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'scene.ts names no finisher');
 });
