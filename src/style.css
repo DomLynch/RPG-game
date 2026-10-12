@@ -2317,6 +2317,9 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#view):not(#journa
 #journal #fitting-rank, #journal #fitting-note { font: 500 12px/1.3 "Instrument Sans", Arial, sans-serif; color: var(--jm); }
 #journal .fitting-actions { display: flex; gap: 10px; margin-top: 12px; }
 #journal .fitting-actions { position: sticky; bottom: 0; z-index: 2; padding: 8px 0 max(4px, env(safe-area-inset-bottom)); background: var(--jp); }   /* Cancel / Wear this stay in view while a 375-high landscape screen scrolls the compare under them */
+@media (orientation: landscape) and (max-height: 430px) {   /* a short landscape phone: the cards already name and rank both pieces, so the summary line and the thumbnails go and the whole compare fits above the action bar */
+  #journal .fitting[data-mode='try'] .fitting-head, #journal .fit-compare img { display: none; }
+}
 #journal .fitting-actions button { min-height: 48px; border-radius: 6px; font: 600 14px "Instrument Sans", Arial, sans-serif; }
 #journal #fitting-cancel { flex: 0 0 104px; background: none; border: 1px solid var(--jl); color: var(--jf); }
 #journal #fitting-wear { flex: 1; background: var(--jg); border: 1px solid var(--jg2); color: #14110c; }
