@@ -1,4 +1,4 @@
-// Specials as data: the Pitborn's and the Dwarf's / Shieldmaiden's rank 8-10 specials are rows of src/fight/special-defs.json over the module's template verbs. The drawn effect is
+// Specials as data: the Pitborn's, the Dwarf's / Shieldmaiden's and the Executioner's rank 8-10 specials are rows of src/fight/special-defs.json over the module's template verbs. The drawn effect is
 // byte-identical to the code it replaced, a special is one row, and the loader refuses a broken row at load.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,6 +9,8 @@ import { PITBORN_KINDS, PITBORN_TEMPLATES, createPitbornSpecial, isPitbornSpecia
 import { loadSpecialDefs, specialFamily, type SpecialRow } from '../src/fight/special-rows.ts';
 import { DWARF_SHIELD_KINDS, NIGHT_CAP_OF, STRIDE, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/fight/special-fx-dwarf-shield.ts';
 import { LAND_AT } from '../src/fight/special-timing.ts';
+import { BOSS_KINDS, EXECUTIONER_TEMPLATES, bossLook, createExecutionerSpecial, isExecutionerCast } from '../src/fight/special-fx-executioner.ts';
+import { crowdWave } from '../src/arena.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { isOpponentId } from '../src/roster.ts';
 import type { Manifest } from '../src/core/registry.ts';
@@ -132,4 +134,59 @@ test('the Dwarf/Shieldmaiden rows refuse a template the module does not draw and
   assert.throws(() => loadDS([...raw.specials, { id: 'a', family: 'dwarf-shield', template: 'avalanche', opponent: 'dwarf', cast: { actor: 1 }, params: { size: 1, alpha: 1, cap: 0.5 } }]), /template "avalanche" is not a dwarf-shield verb/);
   assert.throws(() => loadDS([...raw.specials, { id: 'a', family: 'dwarf-shield', template: 'theWord', opponent: 'dwarf', cast: { actor: 1 }, params: { size: 1, alpha: 1 } }]), /params.cap is required by the theWord template/);
   assert.throws(() => fillBoss('nothing', makeField(), 0, makeGeo()), /unknown dwarf-shield special "nothing"/);
+});
+
+// ---- The Executioner's ranks 8-10 (special-fx-executioner.ts): the baying / longShadow / harvest templates. The proof is the whole drawn scene as for the Pitborn,
+// plus the grit Points buffer and the crowd's lean (the Harvest Sweep registers arena.ts crowdWave.lean), computed on trunk 411fbdf31 BEFORE the rows existed.
+const reaping = { started: { tick: 1, type: 'SpecialStarted', actor: 1, move: 'skill_reaping' } as unknown as CombatEvent, landed: (tick: number) => ({ tick, type: 'SpecialLanded', actor: 1, target: 0, move: 'skill_reaping', damage: 30 }) as unknown as CombatEvent };
+function execHash(kind: string | SpecialRow, exposure: number): string {
+  const h = createHash('sha256'), scene = new THREE.Scene(), look = bossLook(kind, exposure), fx = createExecutionerSpecial(scene, 'executioner', kind, look), tex = new Set<THREE.Texture>();
+  const feet2 = [new THREE.Vector3(0, 0, 1.4), new THREE.Vector3(0.3, 0, -0.6)] as const, fighters2 = [{ special: 0 }, { special: 0, skill: 'reaping' }] as unknown as readonly [Fighter, Fighter];
+  h.update(JSON.stringify([look.core.toArray(), look.edge.toArray(), look.dim].flat(2).map((v) => (typeof v === 'number' ? r6(v) : v))));
+  for (let t = 0; t <= LAND_AT + 240; t++) {
+    fx.render(1 / 60, t === 1 ? [reaping.started] : t === LAND_AT ? [reaping.landed(t)] : [], fighters2, t, feet2, false);
+    scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material as (THREE.MeshBasicMaterial & THREE.PointsMaterial) | undefined;
+      if (m?.map) tex.add(m.map);
+      const pos = (o as THREE.Points).isPoints ? Array.from((o as THREE.Points).geometry.attributes.position!.array as Float32Array).map(r6).join(',') : '';
+      h.update(`${o.name}|${o.visible}|${o.position.toArray().map(r6)}|${o.quaternion.toArray().map(r6)}|${o.scale.toArray().map(r6)}|${m ? `${r6(m.opacity)}|${m.color?.getHexString()}|${m.depthTest}|${m.size ?? ''}|${o.renderOrder}` : ''}|${pos};`);
+    });
+    h.update(`lean:${crowdWave.lean ? [0, 1, 2, 3, 4, 5].map((a) => r6(crowdWave.lean!(a))).join(',') : 'null'}`);
+  }
+  for (const t of tex) { const d = (t.image as { data?: Uint8Array } | undefined)?.data; if (d) h.update(createHash('sha256').update(Buffer.from(d.buffer)).digest('hex')); }
+  fx.clear();
+  return h.digest('hex');
+}
+const EXEC_BEFORE: Record<string, [string, string]> = {
+  arawn: ['d7d435a3a53ff78018d3d7f751becf665039a74e826d52bc3638debec9866a54', 'e9ac1f30cd2b1e15346fdffe8a6e86e3bee8772b4e312afc6d5d32d2a9e9e973'],
+  thanatos: ['d594432b4ba4d559823720091df406060c5efe2e9abe96d948cb06ae484d5f2a', '69f80441e9673e4eebad3d4a22272cd377f0a1b2d5816cc302adba37b69f8a91'],
+  reaper: ['58dcaa803105182530d2c66ff8fdd40992feec6a306b6ff0b2dcbb5389e86066', '13b310afe6441f272798b9df824d2ad00cbe94a785be4d850a6ac9140fbc5b1b'],
+};
+const loadEx = (rows: unknown[]) => specialFamily(loadSpecialDefs({ specials: rows }, manifest), 'executioner', EXECUTIONER_TEMPLATES);
+
+test('the Executioner specials drawn from their rows are byte-identical to the code they replaced (every object, the grit buffer and the crowd lean, every tick; day and Night Pit)', () => {
+  assert.deepEqual([...BOSS_KINDS], Object.keys(EXEC_BEFORE));
+  for (const kind of BOSS_KINDS) assert.deepEqual([execHash(kind, 1.3), execHash(kind, PIT)], EXEC_BEFORE[kind], kind);
+  for (const row of loadEx(raw.specials)) for (const o of ['executioner', 'veteran']) for (const actor of [0, 1]) for (const move of ['skill_reaping', 'skill_lunge', undefined])
+    assert.equal(o === row.opponent && actor === row.cast.actor && move === row.cast.move, isExecutionerCast(o as 'executioner', actor, move), `${row.id} ${o} ${actor} ${move}`);
+});
+
+test('a fourth Executioner special is ONE row naming an existing template, through the real loader, with no code edit', () => {
+  const row = { id: 'anubis', family: 'executioner', template: 'longShadow', opponent: 'executioner', cast: { actor: 1, move: 'skill_reaping' },
+    params: { look: { day: { core: [0.02, 0.015, 0.01], edge: [0.06, 0.05, 0.04] }, night: { core: [0.01, 0.008, 0.006], edge: [0.03, 0.025, 0.02] } }, shadowAlpha: { day: 0.5, night: 0.6 }, poolAlpha: { day: 0.4, night: 0.5 }, dimAlpha: { day: 0.1, night: 0.1 }, gritSize: 0.1, gritShade: 1 } };
+  const rows = loadEx([...raw.specials, row]), mine = rows.find((r) => r.id === 'anubis')!;
+  assert.equal(rows.length, 4);
+  assert.equal(bossLook(mine, 1.3).core.r, 0.02, 'its own colours');
+  const scene = new THREE.Scene(), fx = createExecutionerSpecial(scene, 'executioner', mine, bossLook(mine, 1.3)), fighters2 = [{ special: 0 }, { special: 0, skill: 'reaping' }] as unknown as readonly [Fighter, Fighter];
+  let top = 0;
+  for (let t = 0; t <= LAND_AT + 30; t++) { fx.render(1 / 60, t === 1 ? [reaping.started] : t === LAND_AT ? [reaping.landed(t)] : [], fighters2, t, feet, false); top = Math.max(top, ((scene.getObjectByName('long shadow') as THREE.Mesh).material as THREE.Material).opacity); }
+  assert.ok(top > 0.1 && top <= 0.5 + 1e-9, `the long shadow is drawn, under its own ceiling (${top})`);
+  assert.notEqual(execHash(mine, 1.3), EXEC_BEFORE.thanatos![0], 'its parameters, not Thanatos\'s');
+});
+
+test('the Executioner rows refuse a template the module does not draw and a missing param', () => {
+  assert.doesNotThrow(() => loadEx(raw.specials));
+  assert.throws(() => loadEx([...raw.specials, { id: 'a', family: 'executioner', template: 'guillotine', opponent: 'executioner', cast: { actor: 1 }, params: {} }]), /template "guillotine" is not a executioner verb/);
+  assert.throws(() => loadEx([...raw.specials, { id: 'a', family: 'executioner', template: 'harvest', opponent: 'executioner', cast: { actor: 1 }, params: { look: {} } }]), /params.crescentAlpha is required by the harvest template/);
+  assert.throws(() => bossLook('nothing', 1), /unknown executioner special "nothing"/);
 });
