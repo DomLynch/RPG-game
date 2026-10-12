@@ -3,7 +3,7 @@ import { initialPractice, stepPractice, OPPONENTS, opponentAt, profileAt, create
 import { gzipSync } from 'node:zlib';
 import { DbError, type Db } from './db.ts';
 import type { EncounterDeps } from './encounter.ts';
-import { kitBuild } from '../mobs/kit-version.ts';
+import { kitBuild } from '../../src/core/server.ts';
 import { liveSpecials, verifyEncounter } from './encounter-verify.ts';
 
 export const ACCOUNT = '11111111-1111-4111-8111-111111111111', CHAR = 'pc:one';

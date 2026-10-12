@@ -2,16 +2,16 @@
 // its code; the shipped rows are valid and agree with the content they sit beside; populateZone is deterministic and stays inside the zone's band.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { generateZone, type Template } from '../world/generate.ts';
-import { frontierPlan } from '../preview/frontier-plan.ts';
-import { mobLook } from '../preview/mob-looks.ts';
-import { CREATURE_LOOT } from '../region1/content.ts';
-import { loadZone } from '../zones/loader.ts';
+import { generateZone, type Template } from '../origins/world/generate.ts';
+import { frontierPlan } from '../origins/preview/frontier-plan.ts';
+import { mobLook } from '../origins/preview/mob-looks.ts';
+import { CREATURE_LOOT } from '../origins/region1/content.ts';
+import { loadZone } from '../origins/zones/loader.ts';
 const FRONTIER_ROWS = loadZone().spawns.rows;
-import { populateZone } from './populate.ts';
-import { styleOpponent } from './styles.ts';
-import { WILDLIFE_ROWS } from './wildlife-rows.ts';
-import { BOSS_CAMP_MAX, CAMP_MAX, rungWeights, validateMobRow, validateRows, type MobRow, type RowContext } from './row.ts';
+import { populateZone } from '../origins/mobs/populate.ts';
+import { styleOpponent } from '../src/core/world/styles.ts';
+import { WILDLIFE_ROWS } from '../src/core/world/wildlife-rows.ts';
+import { BOSS_CAMP_MAX, CAMP_MAX, rungWeights, validateMobRow, validateRows, type MobRow, type RowContext } from '../src/core/world/row.ts';
 
 const registry = frontierPlan().data.registry;
 const ctx: RowContext = { look: mobLook, lootTables: new Set(registry.lootTables.keys()) };
