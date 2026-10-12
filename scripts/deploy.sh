@@ -5,9 +5,11 @@ cd "$(dirname "$0")/.."
 # One deployer, one Mac: while this runs, the Claude hooks refuse other sessions' browser checks, test suites and bakes
 # (the BUSY/FREE handshake, made mechanical). The lock names the revision, the start and this pid; it goes on any exit, and
 # a lock whose pid is dead or older than 45 min is ignored by the hooks, so a killed deploy cannot wedge the lanes.
+# Pipelining (scripts/lib/deploy-lock.sh): two runs may be in flight, each in its own checkout; only the publish window is exclusive.
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 mkdir -p "$(dirname "$DEPLOY_LOCK")"
-printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$PWD" > "$DEPLOY_LOCK"
+source scripts/lib/deploy-lock.sh
+deploy_lock_take "$(git rev-parse HEAD)"
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
@@ -16,7 +18,7 @@ source scripts/lib/deploy-notes-only.sh
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
 hf_cleanup() { node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
-trap 'rm -f "$DEPLOY_LOCK"; hf_cleanup; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+trap 'deploy_lock_release; hf_cleanup; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
 node scripts/check-account-config.mjs
@@ -142,6 +144,8 @@ fi
 # Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
+# One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
+deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
@@ -151,6 +155,7 @@ deploy_trust_apply  # scripts/lib/deploy-trust.sh
 out_of_scope=""
 deploy_scope_apply
 RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
@@ -165,6 +170,15 @@ release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
+# The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. A candidate the live
+# release already contains (N+1 published first) stops here: publishing it would roll the site back.
+deploy_step "publish lock"
+deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" "publish"
+live_now=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
+if [[ "$(deploy_superseded "$live_now" "$revision")" == superseded ]]; then
+  echo "superseded: live $live_now already contains $revision; nothing published"
+  exit 3
+fi
 deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
@@ -267,6 +281,7 @@ if [[ "$prune_keep" =~ ^[0-9]+$ ]]; then
 else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
 fi
+deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 if [[ "$previews_ok" != 1 ]]; then
   echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1
