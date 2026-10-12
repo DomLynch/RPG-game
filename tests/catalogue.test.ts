@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { catalogueProblems, catalogueRowsProblems, type CatalogueRow } from '../src/fight/catalogue.ts';
-import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
+import { CATALOGUE, DEFS, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { LEVELS, statsAt, opponentAt, OPPONENTS } from '../src/fight/stats.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 import { LOOT, LOOT_IDS } from '../src/core/loot.ts';
@@ -25,7 +25,7 @@ import { LOOT_TABLES } from '../origins/region1/content.ts';
 const known = {
   roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
-  weapons: new Set(Object.keys(WEAPONS)), stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
+  refs: { weapons: new Set(Object.keys(WEAPONS)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
 };
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
@@ -94,7 +94,7 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { Object.assign(r, { sparring: undefined }); }), 'sparring', 'a ranked opponent needs a sparring.order');
   assert.equal(edit((r) => { Object.assign(r, { sparring: { order: 0 } }); }), 'sparring', 'a 1-based order');
   assert.equal(edit((r) => { r.render = { scale: 0 }; }), 'render');
-  assert.equal(edit((r) => { r.weapon = 'lightsaber'; }), 'weapon');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, weapon: 'lightsaber' }; }), 'field');
   assert.equal(edit((r) => { (r as { home: string }).home = 'berserk'; }), 'home');
   assert.equal(edit((r) => { r.voice = 'dragon'; }), 'voice');
   assert.equal(edit((r) => { r.look = { ...r.look, levels: [3, 2] }; }), 'look');
@@ -133,7 +133,7 @@ test('the new fields are what their sources say: render scale, weapon, home stan
   for (const row of BODIES) {
     const id = row.id as OpponentId;
     assert.equal(row.render.scale, beastRenderScale(id), `${id}: render scale`);
-    assert.equal(row.weapon, ROSTER[id].weapon, `${id}: weapon`);
+    assert.equal(row.fields.weapon, ROSTER[id].weapon, `${id}: weapon`);
     assert.equal(row.home, homePick(id), `${id}: home stance`);
     assert.equal(row.voice, THROATS[ROSTER[id].body] ? ROSTER[id].body : null, `${id}: voice`);
     assert.deepEqual(row.look.levels, SHIPPING_LOOKS[id] ?? [], `${id}: rank looks`);
@@ -154,4 +154,21 @@ test('a variant row shares its body: everything but its own name, lore, level ba
     const strip = (r: CatalogueRow) => { const { id, body: b, name, summary, stats, loot, legend, ...rest } = r; void id; void b; void name; void summary; void loot; void legend; return { ...rest, archetype: stats.archetype }; };
     assert.deepEqual(strip(row), strip(body), `${row.id}: shares ${row.body}'s rig, assets, clips, finishers, blood, wounds, weapon, voice`);
   }
+});
+
+test('the catalogue is open (Dom 2026-10-12): a field is a defs row and a rig is a defs row, never a type edit', () => {
+  const edit = (f: (r: CatalogueRow) => void, defs: typeof DEFS = DEFS) => { const r = goblin(); f(r); return catalogueProblems(r, { ...known, defs }).map((p) => p.code).join(','); };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }), 'field', 'a key with no definition is refused');
+  assert.equal(edit((r) => { r.fields = {}; }), 'field', 'a required field must be present');
+  assert.equal(edit((r) => { r.fields = { weapon: 7 }; }), 'field', 'a ref must be a string in its table');
+  const withStamina = { ...DEFS, fields: [...DEFS.fields, { id: 'stamina', kind: 'number' as const, min: 0, max: 200 }] };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }, withStamina), '', 'ONE defs row makes the attribute legal on any row, with no code edit');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 999 }; }, withStamina), 'field', 'and its range is enforced');
+  assert.equal(edit((r) => { r.rig = 'dragon'; }), 'rig');
+  assert.equal(edit((r) => { r.rig = 'dragon'; }, { ...DEFS, rigs: [...DEFS.rigs, { id: 'dragon' }] }), '', 'a new rig family is one defs row');
+});
+
+test('every rig family in the defs has a baked blade table (the one thing a rig row needs besides its row)', async () => {
+  const { bladePathsByRig } = await import('../src/fight/blade-paths.ts');
+  for (const rig of DEFS.rigs) assert.ok(Object.hasOwn(bladePathsByRig, rig.id), `${rig.id}: a blade table in blade-paths.ts`);
 });
