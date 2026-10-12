@@ -83,7 +83,7 @@ test('a new legend opponent is ONE catalogue row: it joins LEGEND_OPPONENTS in i
   assert.deepEqual([...LEGEND_OPPONENTS].sort(), ranked.map((r) => r.id).sort(), 'the list is exactly the rows that carry ranks');
   assert.deepEqual(LEGEND_OPPONENTS, [...ranked].sort((a, b) => a.sparring!.order - b.sparring!.order).map((r) => r.id), 'in sparring.order');
   const rows = JSON.parse(JSON.stringify(DATA)) as { id: string; name: string; ranks: { name: string }[]; sparring: { order: number } }[];
-  const extra = { ...JSON.parse(JSON.stringify(rows.find((r) => r.id === 'knight'))), id: 'testlegend', name: 'the Test Legend', sparring: { order: 0 }, ladder: { order: null, hold: true } };
+  const extra = { ...JSON.parse(JSON.stringify(rows.find((r) => r.id === 'knight'))), id: 'testlegend', name: 'the Test Legend', sparring: { order: 11 }, ladder: { order: null, hold: true } };
   extra.ranks = extra.ranks.map((r: { name: string }, i: number) => ({ ...r, name: `Test Rung ${i + 1}` }));
   const dir = mkdtempSync(`${tmpdir()}/legend-row-`);
   try {
@@ -92,7 +92,7 @@ test('a new legend opponent is ONE catalogue row: it joins LEGEND_OPPONENTS in i
     writeFileSync(hook, `export async function resolve(s, c, next) { return s.endsWith('catalogue-data.ts') ? { url: ${JSON.stringify(pathToFileURL(data).href)}, shortCircuit: true } : next(s, c); }\n`);
     writeFileSync(probe, `import { register } from 'node:module';\nregister(${JSON.stringify(pathToFileURL(hook).href)});\nconst m = await import(${JSON.stringify(pathToFileURL('src/legends.ts').href)});\nconsole.log(JSON.stringify({ list: m.LEGEND_OPPONENTS, name: m.legendAt('testlegend', 3).name, old: m.legendAt('knight', 3).name }));\n`);
     const out = JSON.parse(execFileSync(process.execPath, [probe], { encoding: 'utf8' }).trim().split('\n').pop()!) as { list: string[]; name: string; old: string };
-    assert.deepEqual(out.list, ['testlegend', ...LEGEND_OPPONENTS], 'sparring.order 0 puts the new row first');
+    assert.deepEqual(out.list, [...LEGEND_OPPONENTS, 'testlegend'], 'sparring.order 11 puts the new row last');
     assert.equal(out.name, 'Test Rung 3'); assert.equal(out.old, legendAt('knight', 3).name, 'the others are untouched');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
