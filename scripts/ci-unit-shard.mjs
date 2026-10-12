@@ -3,4 +3,4 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { parseShard } from './lib/ci-unit.mjs';
 
 const [log, shard, of, exit, seconds, out] = process.argv.slice(2);
-writeFileSync(out, JSON.stringify(parseShard({ log: readFileSync(log, 'utf8'), shard: Number(shard), of: Number(of), exit: Number(exit), seconds: Number(seconds) })));
+writeFileSync(out, JSON.stringify(parseShard({ log: readFileSync(log, 'utf8'), shard: Number(shard), of: Number(of), exit: Number(exit), seconds: Number(seconds), node: process.version })));

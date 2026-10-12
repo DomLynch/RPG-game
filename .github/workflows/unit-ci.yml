@@ -34,9 +34,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.UNIT_SHA }}
+      # The exact node the VPS receipt is pinned to (NODE_PIN): record/replay fingerprints depend on its float behaviour.
+      - id: pin
+        run: echo "node=$(node -e "import('./scripts/lib/vps-unit.mjs').then((m) => console.log(m.NODE_PIN.version.slice(1)))")" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ steps.pin.outputs.node }}
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Drop the Microsoft apt source
@@ -79,7 +82,7 @@ jobs:
           merge-multiple: true
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.23.3
       - run: node scripts/ci-unit-receipt.mjs shards unit-receipt.json
       - uses: actions/upload-artifact@v4
         with:
