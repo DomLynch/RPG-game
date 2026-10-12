@@ -64,9 +64,11 @@ try {
     await page.locator('#journal-button').click(); await page.waitForTimeout(1200);
     for (const tab of ['profile', 'fighter', 'career', 'settings']) {
       await page.locator(tab === 'profile' ? '#journal #nav-gear' : `#journal .tab-${tab}`).click(); await page.waitForTimeout(600); await snap(`journal-${tab}`, '#journal');
-      if (tab === 'profile') {   // the sticky tab strip has solid ground above it: scrolled, the point just over its top edge belongs to the strip or the dialog, never to the content scrolling by
-        const above = await page.evaluate(() => { const j = document.getElementById('journal'), n = j.querySelector('.app-nav'); j.scrollTop = 150; const r = n.getBoundingClientRect(), jr = j.getBoundingClientRect(), y = Math.round(r.top) - 6, el = y > jr.top ? document.elementFromPoint(r.left + r.width / 2, y) : null; return { y, top: Math.round(r.top), jTop: Math.round(jr.top), scrolled: j.scrollTop, hit: el ? el.id || el.className || el.tagName : null, ok: !el || el === j || !!el.closest('.app-nav') }; });
-        if (above.scrolled > 0 && !above.ok) v.states['journal-profile'].bad.push(`content shows above the sticky tab strip: ${JSON.stringify(above)}`);
+      if (tab === 'profile') {   // the sticky tab strip has solid ground above it: scrolled until it sticks, the point just over its top edge belongs to the strip or the dialog, never to the content scrolling by
+        for (const account of [false, true]) {   // a signed-in fighter has the account block above the strip, so the strip sticks later: scroll PAST its own place (release DE2, row 54: a fixed 150 px had not reached it)
+          const above = await page.evaluate((showAccount) => { const j = document.getElementById('journal'), n = j.querySelector('.app-nav'), a = document.getElementById('account'), was = a.hidden; a.hidden = !showAccount; j.scrollTop = 0; const natural = n.getBoundingClientRect().top - j.getBoundingClientRect().top; j.scrollTop = natural + 150; const r = n.getBoundingClientRect(), jr = j.getBoundingClientRect(), y = Math.round(r.top) - 6, el = y > jr.top ? document.elementFromPoint(r.left + r.width / 2, y) : null; const out = { account: showAccount, y, top: Math.round(r.top), jTop: Math.round(jr.top), scrolled: j.scrollTop, stuck: r.top <= jr.top + 20, hit: el ? el.id || el.className || el.tagName : null, ok: !el || el === j || !!el.closest('.app-nav') }; a.hidden = was; j.scrollTop = 0; return out; }, account);
+          if (above.stuck && !above.ok) v.states['journal-profile'].bad.push(`content shows above the sticky tab strip: ${JSON.stringify(above)}`);
+        }
         await page.evaluate(() => { document.getElementById('journal').scrollTop = 0; });
       }
       if (tab === 'profile' && await page.$('#gear-stats')) {   // the paper-doll: six worn slots tinted by rung, the strip's rows drawn
