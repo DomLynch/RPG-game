@@ -6,7 +6,7 @@ import { MeshStandardMaterial, type Mesh } from 'three';
 import type { RankLook } from './characters.ts';
 
 export const NIGHT_BRONZE = { color: [0.34, 0.215, 0.1], gain: 1.5, metalness: 0.55, roughness: 0.62, env: 0.55 } as const;
-export const nightBronzeApplies = (arenaId: string, opponent: string, level: number): boolean => { const n = catalogueRow(opponent)?.nightBronze; return !!n && arenaId === n.arena && level === n.level; };
+export const nightBronzeApplies = (arenaId: string, opponent: string, level: number): boolean => arenaId === 'a' && level === catalogueRow(opponent)?.fields.nightBronzeLevel;
 
 export function toneNightBronze(look: RankLook): void {
   const done = new Set<MeshStandardMaterial>();

@@ -12,5 +12,5 @@ export const GIVE_UP_UNSEEN_S = 10;   // s out of sight before any creature give
 export const OUT_OF_COMBAT_S = 6;     // s with no damage taken or dealt before a fighter counts as out of combat (regen starts)
 export const DISENGAGE_M = 12, DISENGAGE_S = 3;   // the hero-side disengage: a world fight ends silently when the hero has been farther than 12 m from the foe for 3 s
 export const ENGAGE_GAP_MAX_M = 6.5, COMMIT_RANGE_M = 8;   // Strategy's spec numbers the disengage must stay beyond (the max start gap before spawnScale, the commit range)
-export const chaseSpeed = (kind: string): number => catalogueRow(kind)?.pace?.chase ?? SPEEDS.creature.chase;
-export const leashOf = (kind: string): number => catalogueRow(kind)?.pace?.leash ?? LEASH.default;
+export const chaseSpeed = (kind: string): number => (catalogueRow(kind)?.fields.chase as number | undefined) ?? SPEEDS.creature.chase;
+export const leashOf = (kind: string): number => (catalogueRow(kind)?.fields.leash as number | undefined) ?? LEASH.default;

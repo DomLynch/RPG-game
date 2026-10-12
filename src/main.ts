@@ -1,6 +1,6 @@
 import { createInput } from './fight/index.ts';
 import { gearNumbers } from './fight/gear-numbers.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './fight/moves.ts';
+import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
@@ -1085,7 +1085,7 @@ if (replayText || sharedId) {
 // Sparring (src/sparring.ts, Dom 2026-09-26): `?spar=1` boots the picked kit on the `?opponent=` rig for this fight only. The match's
 // 'sparring' mode keeps no recorder and awards nothing; the page skips the AFK mark and the loot offer, and never saves the kit.
 // `?special=hades` (special-look.ts) is a sparring page too: its warden at his rank's level, the longsword, no move, Special Moves on.
-const sparKit = replayText || sharedId || invalidSparringPreview ? null : sparPreview.kit ?? (specialTest ? { weapon: CARRIED_WEAPONS.includes('longsword') ? 'longsword' as const : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null } : null);
+const sparKit = replayText || sharedId || invalidSparringPreview ? null : sparPreview.kit ?? (specialTest ? { weapon: CARRIED_WEAPONS.includes(DEFAULT_WEAPON) ? DEFAULT_WEAPON : CARRIED_WEAPONS[0], difficulty: SPECIAL_TESTS[specialTest].level, skill: null } : null);
 if (sparKit) {
   welcome.hidden = true; watching = false;
   match.startSparring(sparKit, specialTest ? { first: SPECIAL_TESTS[specialTest].first, level: SPECIAL_TESTS[specialTest].level } : sparPreview.off ? { first: 0, enabled: false } : null, sparPreview.selection);

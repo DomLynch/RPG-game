@@ -100,7 +100,7 @@ test('a normal fight\'s ready path never fetches or awaits the Hamstrung assets'
   const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
   assert.doesNotMatch(load, /import\('\.\/assets\/hamstrung|await[^\n]*hamstrung|prepareHamstrung/i, 'loadFighters neither imports nor awaits them');
   assert.doesNotMatch(load, /wantHamstrung|prefetchHamstrung/, 'ready neither asks for nor awaits the clips');
-  assert.match(scene, /const wantHamstrung = \(prefetch = false\) => \{ if \(\(prefetch \|\| finisherOverride === 'hamstrung'\) && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
+  assert.match(scene, /const wantHamstrung = \(prefetch = false\) => \{ if \(\(prefetch \|\| isTemplate\(finisherOverride, 'hamstring'\)\) && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
   assert.match(scene, /setFinisherOverride\(id: FinisherId \| null\) \{\n\s*finisherOverride = id;\n\s*wantHamstrung\(\);/, 'the picker choosing it starts the fetch');
 });
 

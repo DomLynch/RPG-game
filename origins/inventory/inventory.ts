@@ -28,14 +28,15 @@
 // '__proto__' or 'toString' are just strings that name nothing.
 import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
 import { paperdollOf, type Paperdoll } from '../../src/core/server.ts';
-import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
-import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../contracts/economy.ts';
-import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';
+import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../../src/core/server.ts';
+import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../../src/core/server.ts';
+import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../../src/core/server.ts';
 import {
   BANK_SLOTS, PACK_SLOTS, checkCustody, checkHistoryKept, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
   type ItemDefinition, type ItemInstance, type Location,
-} from '../contracts/items.ts';
-import { verifiedTier, type CareerStanding } from '../contracts/world.ts';
+} from '../../src/core/server.ts';
+import { verifiedTier, type CareerStanding } from '../../src/core/server.ts';
+import { storyOf } from '../../src/core/server.ts';
 
 export const GRIDS = ['pack', 'bank'] as const;
 export type Grid = (typeof GRIDS)[number];
@@ -259,7 +260,7 @@ export function remove(inv: Inventory, id: unknown, lookup: Lookup, place?: unkn
     const gate = bankGate(place);
     if (!gate.ok) return gate;
   }
-  if (inst.value.boundTo !== null || def.value.story === 'story-critical') return fail('rule-violation', 'id', `${inst.value.id} is bound to ${inst.value.boundTo ?? inv.owner} and never leaves them`);
+  if (inst.value.boundTo !== null || storyOf(def.value.story).staysWithCharacter) return fail('rule-violation', 'id', `${inst.value.id} is bound to ${inst.value.boundTo ?? inv.owner} and never leaves them`);
   const next = commit(inv, lookup, new Map([[inst.value.id, null]]), [], false);
   return next.ok ? ok({ inventory: next.value, removed: inst.value }) : next;
 }
@@ -429,7 +430,7 @@ function burn(state: Holdings, entry: Burn, changes: ReadonlyMap<string, ItemIns
   const next = commit(state.inventory, lookup, changes, [], true, [entry]);
   return next.ok ? ok({ inventory: next.value, ledger: [...state.ledger, entry], burn: entry, replayed: false }) : next;
 }
-const isStory = (lookup: Lookup, inst: ItemInstance): boolean => defOf(lookup, inst.item)?.story === 'story-critical';
+const isStory = (lookup: Lookup, inst: ItemInstance): boolean => storyOf(defOf(lookup, inst.item)?.story ?? '').staysWithCharacter === true;
 
 // Burn `qty` units from the BACKPACK only (what the character hands over is what they carry; the bank stays shut away from the
 // Exchange, and worn pieces are never spent), lowest slot first. All or nothing: too few units, an unknown item, a story-critical piece

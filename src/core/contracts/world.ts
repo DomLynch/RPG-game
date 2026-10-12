@@ -6,9 +6,10 @@
 // src/core/career-ladder.ts does (TITLES, five levels per title, MAX_LEVEL). A legacy account's level is today's levelOf(marks), so every existing
 // rank reads the same. A CharacterInstance stores no marks, credit, level or stats (ruling 7: one career, one rank, one stat set,
 // server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
-import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/core/server.ts';
-import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
-import { isOpponentId, type OpponentId } from '../../src/fight/server.ts';
+import { MAX_LEVEL, RANK_STEPS, TITLES } from '../career-ladder.ts';
+import { DEFINITIONS, ids } from './definitions.ts';
+import { levelOf as tierLevel, type Tier } from '../grades.ts';
+import { isOpponentId, type OpponentId } from '../../fight/server.ts';
 import {
   Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion,
   readString, readText, readTimestamp, type Issue, type Obj, type Result,
@@ -22,12 +23,12 @@ import {
 
 // Ruling 2: Gladiator opens the outer gate (the Exchange, the first region, chapter one), Champion the next realm, Origin the endgame.
 // The Pit is open from level 1. These are TIERS (rank titles, 1..10), not career levels (1..50): Gladiator I is level 11, 10 wins.
-export const GATES = ['pit', 'outer', 'second-realm', 'endgame'] as const;
-export type Gate = (typeof GATES)[number];
-export const GATE_TIER: Readonly<Record<Gate, Tier>> = { pit: 'Recruit', outer: 'Gladiator', 'second-realm': 'Champion', endgame: 'Origin' };
-// Ruling 3: the Exchange, the first region and chapter one are free; every realm after that needs membership. Derived from the gate, not
+export const GATES: readonly string[] = ids(DEFINITIONS.gates);   // the rows of definitions.json `gates`: a new gate is a row (tier, open, membership)
+export type Gate = string;
+export const GATE_TIER: Readonly<Record<Gate, Tier>> = Object.fromEntries(Object.entries(DEFINITIONS.gates).map(([id, g]) => [id, g.tier as Tier]));
+// Ruling 3: the Exchange, the first region and chapter one are free; every realm after that needs membership. Derived from the gate's row, not
 // stored on content, so no region can be authored free past the outer gate by mistake.
-export const membershipRequired = (gate: Gate): boolean => gate === 'second-realm' || gate === 'endgame';
+export const membershipRequired = (gate: Gate): boolean => DEFINITIONS.gates[gate]?.membership === true;
 
 // What the server says about the account's career. `careerLevel` is SERVER-VERIFIED: the progression model computes it from the account's
 // career credit (Pit wins and world play alike) and the server hands it over; the browser never derives it. An integer 1..cap, where the
@@ -67,7 +68,7 @@ export type Denial = 'unverified' | 'invalid' | 'rank' | 'membership';
 export type Access = { ok: true } | { ok: false; reason: Denial; needs: Tier | 'membership' | 'a server-verified career level' | 'a valid career level' };
 
 export function gateAccess(gate: Gate, standing: CareerStanding, hasMembership: boolean, cap: number = MAX_LEVEL): Access {
-  if (gate === 'pit') return { ok: true };
+  if (DEFINITIONS.gates[gate]?.open) return { ok: true };
   if (checkCareerStanding(standing, cap).length) return { ok: false, reason: 'invalid', needs: 'a valid career level' };
   if (standing.source !== 'server') return { ok: false, reason: 'unverified', needs: 'a server-verified career level' };
   const need = GATE_TIER[gate];
@@ -109,8 +110,8 @@ export function parseCharacterInstance(raw: unknown, path = ''): Result<Characte
 // ---- CharacterDefinition (a named figure) -----------------------------------------------------------------------------------------
 
 export const CHARACTER_DEFINITION_VERSION = 1;
-export const RELATIONS = ['ally', 'rival', 'enemy', 'kin', 'patron', 'servant'] as const;
-export const QUEST_ROLES = ['giver', 'witness', 'target', 'ally', 'boss'] as const;
+export const RELATIONS: readonly string[] = ids(DEFINITIONS.relations);   // rows of definitions.json: a new relation or quest role is a row
+export const QUEST_ROLES: readonly string[] = ids(DEFINITIONS.questRoles);
 export type Routine = { start: string; end: string; activity: string; region: RegionId; waypoint: string };
 export type CharacterDefinition = {
   kind: 'character-definition';
@@ -121,8 +122,8 @@ export type CharacterDefinition = {
   faction: FactionId | null;
   // An essential figure cannot be removed from the shared world by one player's private campaign (blueprint §9).
   essential: boolean;
-  relationships: { character: CharacterId; relation: (typeof RELATIONS)[number] }[];
-  questRoles: { quest: QuestId; role: (typeof QUEST_ROLES)[number] }[];
+  relationships: { character: CharacterId; relation: string }[];
+  questRoles: { quest: QuestId; role: string }[];
   presentations: { id: string; asset: string }[];
   // How the figure fights. `opponent` routes the fight through today's duel (src/fight/duel.ts opponentFighter) at `level` (1..50).
   encounterForms: { id: string; opponent: OpponentId | null; level: number | null; encounter: EncounterId | null }[];
@@ -243,12 +244,11 @@ export function parseCharacterDefinition(raw: unknown, path = ''): Result<Charac
 export const FACTION_DEFINITION_VERSION = 1;
 export const FACTION_STANDING_VERSION = 1;
 // Four attitudes (the Gothic set): only hostile is "enemy"; angry fights when provoked.
-export const ATTITUDES = ['hostile', 'angry', 'neutral', 'friendly'] as const;
-export type Attitude = (typeof ATTITUDES)[number];
+export const ATTITUDES: readonly string[] = ids(DEFINITIONS.attitudes);   // rows of definitions.json `attitudes`: ordered, each band a threshold, one default between them
+export type Attitude = string;
 // Standing is a bounded integer. Bounded on purpose: repeated safe actions must not buy unlimited favour (blueprint §7).
 export const STANDING_MIN = -1000;
 export const STANDING_MAX = 1000;
-export const ATTITUDE_BANDS = { hostileAtOrBelow: -500, angryAtOrBelow: -100, friendlyAtOrAbove: 250 } as const;
 export const MAX_RANKS = 10;
 
 export type FactionRank = { id: string; title: string; minStanding: number };
@@ -338,16 +338,16 @@ export function checkStanding(standing: FactionStanding, def: FactionDefinition,
 export const clampStanding = (value: number): number => Math.min(STANDING_MAX, Math.max(STANDING_MIN, Math.trunc(value)));
 export const adjustStanding = (standing: FactionStanding, delta: number): FactionStanding => ({ ...standing, standing: clampStanding(standing.standing + delta) });
 
+// The bands, walked in row order: the first at-or-below band the standing falls in, else the first at-or-above band it reaches, else the default row (the one with neither).
+const BELOW = ATTITUDES.filter((id) => DEFINITIONS.attitudes[id]!.atOrBelow !== undefined), ABOVE = ATTITUDES.filter((id) => DEFINITIONS.attitudes[id]!.atOrAbove !== undefined), DEFAULT_ATTITUDE = ATTITUDES.find((id) => !BELOW.includes(id) && !ABOVE.includes(id))!;
 export function attitudeFor(standing: number): Attitude {
-  if (standing <= ATTITUDE_BANDS.hostileAtOrBelow) return 'hostile';
-  if (standing <= ATTITUDE_BANDS.angryAtOrBelow) return 'angry';
-  if (standing >= ATTITUDE_BANDS.friendlyAtOrAbove) return 'friendly';
-  return 'neutral';
+  return BELOW.find((id) => standing <= DEFINITIONS.attitudes[id]!.atOrBelow!) ?? ABOVE.find((id) => standing >= DEFINITIONS.attitudes[id]!.atOrAbove!) ?? DEFAULT_ATTITUDE;
 }
-// An expelled member is at best angry, whatever the number says.
+// An expelled member is at best the row flagged expelledCeiling (angry), whatever the number says.
+const CEILING = ATTITUDES.find((id) => DEFINITIONS.attitudes[id]!.expelledCeiling)!;
 export const attitudeOf = (standing: FactionStanding): Attitude => {
   const band = attitudeFor(standing.standing);
-  return standing.expelled && (band === 'neutral' || band === 'friendly') ? 'angry' : band;
+  return standing.expelled && DEFINITIONS.attitudes[band]!.order > DEFINITIONS.attitudes[CEILING]!.order ? CEILING : band;
 };
 // Promotion is offered, never automatic: content (a quest stage, a mentor's line) acts on this answer.
 export const canPromote = (standing: FactionStanding, def: FactionDefinition): boolean => {

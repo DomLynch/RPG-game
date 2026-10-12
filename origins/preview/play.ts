@@ -2,11 +2,12 @@
 // (origins/quests). The bank and the smith hold NOTHING here: they show the server's ledger (gear_open) and ask its ops (bank_move, apply_upgrade) through src/core, then show what it answers.
 // The quest journal and the talk are the page session's; no item, coin or bronze is kept on the page.
 import { heroBodyUrl } from '../../src/fight/index.ts';
-import type { Result } from '../contracts/core.ts';
-import { PC, smith } from '../contracts/fixtures.ts';
-import type { CharacterInstanceId, EncounterId, ItemId, QuestId } from '../contracts/ids.ts';
-import { parseQuestDefinition, type QuestDefinition } from '../contracts/story.ts';
-import { parseCharacterDefinition, type CareerStanding } from '../contracts/world.ts';
+import type { Result } from '../../src/core/index.ts';
+import { PC, smith } from '../../src/core/index.ts';
+import type { CharacterInstanceId, EncounterId, ItemId, QuestId } from '../../src/core/index.ts';
+import { parseQuestDefinition, type QuestDefinition } from '../../src/core/index.ts';
+import { parseCharacterDefinition, type CareerStanding } from '../../src/core/index.ts';
+import { categoryOf } from '../../src/core/index.ts';
 import { bankMove, openGear, upgradePiece, type GearPiece, type GearView, type Offline } from '../../src/core/index.ts';
 import { itemNamer } from './item-names.ts';
 import { SIGN_IN_HREF } from './save.ts';
@@ -128,7 +129,7 @@ export const play = {
   },
   upgrade(id: string) {
     const p = pieceOf(id); if (!p) return;
-    const mats = (view?.stock ?? []).filter((r) => r.category === 'material' && r.where === 'pack').map((r) => r.id);
+    const mats = (view?.stock ?? []).filter((r) => categoryOf(r.category).craftInput && r.where === 'pack').map((r) => r.id);
     void ask((t, c) => upgradePiece(t, c, p, mats, { base: link?.base }), (r) => `Upgraded to +${r.toLevel} for ${r.coin} coin.`).then(() => refresh()).then(() => link?.changed());
   },
   render(kind: Kind): string {

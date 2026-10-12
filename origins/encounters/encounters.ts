@@ -6,12 +6,13 @@
 // 9, 10). Data: origins/region1 (content.ts + the loader). Loot roll semantics: docs/specs/origins/eqemu-loot.md §5 (clean-room
 // behaviour spec; no donor code was read). The twist outcome mirrors Combat's src/fight/twist.ts (PR #1626, branch combat/twist-flags),
 // which is on trunk and imported below.
-import { Issues, fail, ok, type Issue, type Result } from '../contracts/core.ts';
-import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanceId, LootTableId } from '../contracts/ids.ts';
-import { parseItemInstance, type LootTable } from '../contracts/items.ts';
+import { Issues, fail, ok, type Issue, type Result } from '../../src/core/server.ts';
+import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanceId, LootTableId } from '../../src/core/server.ts';
+import { parseItemInstance, type LootTable } from '../../src/core/server.ts';
+import { powerOf } from '../../src/core/server.ts';
 import { sha256, shortHash } from '../boss/hash.ts';
 import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts';
-import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../luck/luck.ts';
+import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
 import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
@@ -292,7 +293,7 @@ export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: Loot
     if (!def) return fail('unknown-id', `drops.items[${n}].item`, `${d.item} is not a Region 1 item`);
     const parsed = parseItemInstance({
       kind: 'item-instance', schemaVersion: 1, id: `inst:loot-${hash}-${n}`, item: d.item, version: 0, quantity: d.quantity,
-      tier: def.power === 'slot-weight' ? REGION1_LOOT_TIER : null,
+      tier: powerOf(def.power).tiered ? REGION1_LOOT_TIER : null,
       location: { kind: 'trade-escrow', container: 'container:loot-mint', from: mint.wonBy },   // where a fresh drop sits until `receive` places it
       boundTo: null,
       provenance: { kind: 'loot', mintKey: `loot:${mint.killId}:${n}`, at: mint.at, wonBy: mint.wonBy, table: drops.table, encounter: mint.encounter },

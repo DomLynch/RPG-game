@@ -1,7 +1,7 @@
 // Origins O2: zones from a template and a seed. A template is a base layer plus declared ranges for any numeric field ("group.field")
 // and a layout jitter; a seed picks inside them. Same template + seed → the same zone, byte for byte (a seeded PRNG, never Math.random),
 // and every generated zone goes through the same validation as authored data.
-import { Issues, fail, ok, type Obj, type Result } from '../contracts/core.ts';
+import { Issues, fail, ok, type Obj, type Result } from '../../src/core/server.ts';
 import { defaultsOf, fieldDefaults, merge, validate, SCHEMA_VERSION, type Layer, type WorldData } from './resolve.ts';
 import { SCHEMA, type Params } from './schema.ts';
 

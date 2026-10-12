@@ -33,7 +33,7 @@ export function* openWaistSteps(root: Object3D, anchor: Group, cornerSupports = 
   const hip = pelvis.getWorldPosition(new Vector3()).applyMatrix4(inverse);
   const waist = hip.y + (spine.getWorldPosition(new Vector3()).applyMatrix4(inverse).y - hip.y) * .6;
   const group = new Group(); group.name = 'Opened';
-  const spectral = !!catalogueRow(root.getObjectByName('CreatureBody')?.userData.creature)?.spectral;
+  const spectral = !!catalogueRow(root.getObjectByName('CreatureBody')?.userData.creature)?.fields.spectral;
   const materials = new Map<MeshStandardMaterial, MeshStandardMaterial>();
   const cut = new MeshStandardMaterial({ color: '#501c20', roughness: .88, side: DoubleSide, vertexColors: true });
   if (spectral) { cut.transparent = true; cut.depthWrite = false; }

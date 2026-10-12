@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mirror, stepDuel, withGambit, type Duel } from '../src/fight/duel.ts';
 import { GAMBIT_KILL_FLOOR, GAMBIT_ODDS, gambitMean, gambitUnit, resolveGambit } from '../src/fight/gambit.ts';
-import * as luck from '../origins/luck/luck.ts';
+import * as luck from '../src/core/luck.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { packRecord, unpackRecord } from '../src/fight/record.ts';

@@ -3,12 +3,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import type { Result } from './core.ts';
-import * as F from './fixtures.ts';
-import type { CharacterId, ItemId, QuestId } from './ids.ts';
-import { parseItemInstance } from './items.ts';
-import type { UpgradeCostTable } from './economy.ts';
-import { character, checkCostTablePayable, checkInstances, costTable, itemDef, loadContent, quest, service } from './registry.ts';
+import type { Result } from '../src/core/contracts/core.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
+import type { CharacterId, ItemId, QuestId } from '../src/core/contracts/ids.ts';
+import { parseItemInstance } from '../src/core/contracts/items.ts';
+import type { UpgradeCostTable } from '../src/core/contracts/economy.ts';
+import { character, checkCostTablePayable, checkInstances, costTable, itemDef, loadContent, quest, service } from '../src/core/contracts/registry.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {
@@ -103,7 +103,7 @@ test('registry: a cost line must be payable — never more than one of a stack-1
 });
 
 test('registry: every material line in the blacksmith cost proposal is payable', () => {
-  const doc = readFileSync(new URL('../../docs/specs/origins/blacksmith-costs-proposal.md', import.meta.url), 'utf8');
+  const doc = readFileSync(new URL('../docs/specs/origins/blacksmith-costs-proposal.md', import.meta.url), 'utf8');
   const json = /```json\n([\s\S]*?)```/.exec(doc);
   assert.ok(json, 'the proposal carries its cost table as JSON');
   const table = JSON.parse(json[1]!) as UpgradeCostTable; // abridged on purpose (not every level), so only the lines are checked here

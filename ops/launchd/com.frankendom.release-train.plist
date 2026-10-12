@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The release train's publisher on the Mac (scripts/release-train-publish.sh), every 2 min, as Deploy's user (not inside a Claude session).
+     Install: bash scripts/release-train-setup.sh from any frankendom checkout, in a Terminal: it makes ~/Developer/frankendom-train a STANDALONE clone
+       (never a worktree: macOS TCC keeps a launchd job out of ~/Desktop, where the main repo's .git lives; Lead 2026-10-12, no Full Disk Access) and
+       refuses any Desktop-backed checkout the job would touch. Then replace __HOME__ with $HOME, copy to ~/Library/LaunchAgents/, and
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.frankendom.release-train.plist
+     Proof without publishing: touch ~/.claude/state/release-train.dry-run; launchctl kickstart gui/$(id -u)/com.frankendom.release-train; the log shows
+       "DRY RUN: would publish …" or "no candidate …" and no git error; then rm the dry-run file.
+     Stop the train without unloading: touch ~/.claude/state/release-train.stopped. Unload: launchctl bootout gui/$(id -u)/com.frankendom.release-train -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.frankendom.release-train</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>exec bash "$HOME/Developer/frankendom-train/scripts/release-train-publish.sh"</string>
+  </array>
+  <key>StartInterval</key><integer>120</integer>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>__HOME__/.claude/state/release-train.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/.claude/state/release-train.log</string>
+</dict>
+</plist>

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import { PC } from '../contracts/fixtures.ts';
+import { PC } from '../../src/core/index.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
 import { fakeWhere } from '../presence/fixtures.ts';
 import type { Db } from '../server/db.ts';

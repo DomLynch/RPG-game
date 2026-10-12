@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import test from 'node:test';
-import { PC } from '../origins/contracts/fixtures.ts';
+import { PC } from '../src/core/contracts/fixtures.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
 import { mobSpecs } from '../origins/preview/mobs.ts';

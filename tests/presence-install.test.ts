@@ -28,7 +28,7 @@ test('presence-files: a multi-line import/export clause is followed, and no list
   } finally { rmSync(dir, { recursive: true, force: true }); }
   // the real entry: economy.ts imports items.ts across lines; and every relative import of every listed file resolves inside the list
   const files: string[] = presenceFiles(repo);
-  assert.ok(files.includes('origins/contracts/items.ts'), 'the multi-line import of items.ts is in the closure');
+  assert.ok(files.includes('src/core/contracts/items.ts'), 'the multi-line import of items.ts is in the closure');
   for (const f of files) {
     for (const m of readFileSync(join(repo, f), 'utf8').matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
       const target = relative(repo, resolve(repo, dirname(f), m[1]!));

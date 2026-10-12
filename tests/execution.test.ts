@@ -116,7 +116,7 @@ test('a normal fight\'s ready path never fetches or awaits the Execution assets;
   assert.equal([...scene.matchAll(/assets\/execution-/g)].length, 2, 'both clips are imported in one place only');
   const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
   assert.doesNotMatch(load, /import\('\.\/assets\/execution|await[^\n]*execution|prepareExecution|wantExecution|executionAssets/i, 'loadFighters neither imports, awaits nor asks for them');
-  assert.match(scene, /const wantExecution = \(prefetch = false\) => \{ if \(\(prefetch \|\| finisherOverride === 'execution'\) && warriors && EXECUTION_VICTIMS\.includes\(opponentId\)\) void executionAssets\.request\(warriors\); \};/);
+  assert.match(scene, /const wantExecution = \(prefetch = false\) => \{ if \(\(prefetch \|\| isTemplate\(finisherOverride, 'execute'\)\) && warriors && EXECUTION_VICTIMS\.includes\(opponentId\)\) void executionAssets\.request\(warriors\); \};/);
   assert.match(scene, /setFinisherOverride\(id: FinisherId \| null\) \{\n\s*finisherOverride = id;\n\s*wantHamstrung\(\);\n\s*wantExecution\(\);/, 'the picker choosing it starts the fetch');
   const ready = scene.indexOf("assetStatus('', 'ready');");
   assert.match(scene.slice(ready, ready + 400), /^assetStatus\('', 'ready'\);\n\s*prefetchHamstrung\(\);/, 'the one idle prefetch (Hamstrung\'s only; Execution loads on the picker\'s choice) follows ready, unawaited');

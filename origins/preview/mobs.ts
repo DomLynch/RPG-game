@@ -7,7 +7,7 @@
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode, type Mob } from '../../src/core/server.ts';
 export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode as Mode, type Mob };   // the pure behaviour lives in src/core/world-sim.ts (core slice 3)
-import type { CharacterId, EncounterId } from '../contracts/ids.ts';
+import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader

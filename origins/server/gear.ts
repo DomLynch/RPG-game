@@ -2,8 +2,9 @@
 // authority (the pure module's receive / equip / unequip), these ops only open the character's holdings, run it and commit the moved piece as a versioned `put` (a stale read aborts the
 // batch, O0002). No new rule lives here: the rank check, the empty-slot rule ("take it off first", no silent swap) and the on-equip binding are inventory.equip's and items.ts equipItem's.
 // The wearer's rank is the SERVER's (the career row's credit), never the request's. The body names a character and a piece id; it never carries a slot, a tier, a level or a version.
-import type { ItemInstance, Location } from '../contracts/items.ts';
-import { legacyLootOfItemId } from '../contracts/ids.ts';
+import type { ItemInstance, Location } from '../../src/core/server.ts';
+import { legacyLootOfItemId } from '../../src/core/server.ts';
+import { categoryOf } from '../../src/core/server.ts';
 import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../../src/core/server.ts';
 import { DbError } from './db.ts';
@@ -33,8 +34,8 @@ export function gearView(inv: Inventory, lookup: Lookup): { pieces: GearPiece[];
   const pieces: GearPiece[] = [], stock: StockRow[] = [], worn: Record<string, string> = {};
   for (const i of inv.items) {
     const l = i.location, def = lookup(i.item);
-    if (def && def.category !== 'gear' && (l.kind === 'pack' || l.kind === 'bank')) { stock.push({ id: i.id, item: i.item, name: def.name, category: def.category, quantity: i.quantity, where: l.kind, index: l.index, version: i.version }); continue; }
-    if (def?.category !== 'gear' || (l.kind !== 'pack' && l.kind !== 'bank' && l.kind !== 'equipped')) continue;
+    if (def && categoryOf(def.category).path !== 'gear' && (l.kind === 'pack' || l.kind === 'bank')) { stock.push({ id: i.id, item: i.item, name: def.name, category: def.category, quantity: i.quantity, where: l.kind, index: l.index, version: i.version }); continue; }
+    if (!def || categoryOf(def.category).path !== 'gear' || (l.kind !== 'pack' && l.kind !== 'bank' && l.kind !== 'equipped')) continue;
     pieces.push({ id: i.id, item: i.item, lootId: legacyLootOfItemId(i.item), slot: def.slot, where: l.kind, index: l.kind === 'equipped' ? null : l.index, paperdoll: l.kind === 'equipped' ? l.slot : null, tier: i.tier, version: i.version, level: i.upgradeLevel ?? 0 });
     if (l.kind === 'equipped') worn[l.slot] = i.id;
   }

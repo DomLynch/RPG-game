@@ -8,7 +8,8 @@
 // answered from the stored receipt (replayed: true), a different request under the same op id is a 409, and a racing retry (O0001) answers from what committed.
 // Gear (power 'slot-weight') is minted at REGION1_LOOT_TIER, the tier a Region 1 drop carries. Beta: the shelf is per account (a global shelf needs its own table and a lock). Open hours are World's schedule; until it exists `open` says every shop is open.
 import { createHash } from 'node:crypto';
-import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
+import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
+import { powerOf } from '../../src/core/server.ts';
 import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
 import { receive } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../../src/core/server.ts';
@@ -73,7 +74,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     const minted: ItemInstance[] = [];
     for (const [n, q] of lines.entries()) {
       const parsed = parseItemInstance({
-        kind: 'item-instance', schemaVersion: 1, id: `inst:shop-${key.slice(0, 16)}-${n}`, item, version: 0, quantity: q, tier: def?.power === 'slot-weight' ? REGION1_LOOT_TIER : null,   // shop gear carries the Region's loot tier, as a drop does
+        kind: 'item-instance', schemaVersion: 1, id: `inst:shop-${key.slice(0, 16)}-${n}`, item, version: 0, quantity: q, tier: def && powerOf(def.power).tiered ? REGION1_LOOT_TIER : null,   // shop gear carries the Region's loot tier, as a drop does
         location: { kind: 'trade-escrow', container: 'container:shop-mint', from: character }, boundTo: null,
         provenance: { kind: 'shop', mintKey: `shop:${key}:${n}`, at, boughtBy: character, shop }, history: [],
       }, `items[${n}]`);

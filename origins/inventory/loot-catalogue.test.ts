@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { legacyLootOfItemId, itemIdFromLegacyLoot } from '../contracts/ids.ts';
-import { parseItemDefinition } from '../contracts/items.ts';
+import { legacyLootOfItemId, itemIdFromLegacyLoot } from '../../src/core/server.ts';
+import { parseItemDefinition } from '../../src/core/server.ts';
 import { LOOT_IDS, slotOf } from '../../src/core/loot.ts';
 import { BUNDLE } from '../region1/content.ts';
 import { loadRegion1 } from '../region1/load.ts';

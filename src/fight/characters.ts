@@ -5,7 +5,7 @@ import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, POMMEL_BASH, type Attack, type Practice } from './combat.ts';
-import { weaponOf, type Direction, type WeaponId } from './moves.ts';
+import { weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, type Direction, type WeaponId } from './moves.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
 import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
@@ -27,6 +27,10 @@ import { EXECUTION_BEATS } from './execution.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
 import { tinted } from './rank-tint.ts';
 import type { Tier } from '../core/grades.ts';
+import { finisherBodyPose } from './finisher-look.ts';
+// What a rig is asked to do: a combat pose (code), or a finisher body's pose word (a row of src/fight/finisher-defs.json: finisher-look.ts finisherBodyPose).
+export type CombatPose = 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected';
+export type BodyPose = CombatPose | (string & {});
 
 export const COMBAT_CLIPS = ['Armed', 'Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'ArmedWalk', 'StrafeLeft', 'StrafeRight', 'Kick', 'BlockImpact', 'Parry', 'Deflected'] as const;
 export const CLIPS = ['Idle', 'Walk', 'Jog', 'Run'] as const;
@@ -155,7 +159,7 @@ async function loadFighter(url: string) {
 // rig carries, and the entry point fights with that one (drawn = simulated).
 // `opponentEquipUrl`: the equip file of a weapon the opponent's rig does not bake (the Centurion's gladius over his trident, SCOPE:76). It is
 // grafted onto his rig the same way; a file that fails is reported and he keeps the weapon his rig bakes (a fight never waits on it).
-export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}, opponentEquipUrl?: string, carry = false) {
+export async function loadWarriors(url: string, opponentUrl = url, weapons: [WeaponId, WeaponId] = [DEFAULT_WEAPON, DEFAULT_WEAPON], equipUrl?: string, equipFailed: (error: unknown) => void = () => {}, opponentEquipUrl?: string, carry = false) {
   const equip = (u?: string) => u ? loadEquip(u).catch((error: unknown) => (error instanceof Error ? error : Error(String(error)))) : undefined;
   const [hero, enemy, part, enemyPart] = await Promise.all([
     loadFighter(url),
@@ -193,7 +197,7 @@ export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined,
   if (carry && enemy) withShieldCarry(enemy);
   if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
   if (part) equipFailed(part);
-  const playerWeapon: WeaponId = part ? 'longsword' : weapons[0];
+  const playerWeapon: WeaponId = part ? DEFAULT_WEAPON : weapons[0];
   return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon };
 }
 // A player weapon's equip file (scripts/build-player-weapon.mjs, the #309 contract): its WeaponDrawn part, placed under hand_r exactly as
@@ -413,7 +417,7 @@ export function sizeBeast(warriors: { opponent: { anchor: Group } }, opponentId:
   const k = beastRenderScale(opponentId);
   if (k !== 1) warriors.opponent.anchor.scale.setScalar(k);
 }
-export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = ['longsword', 'longsword'], solo = false) {   // solo: the caller poses ONE actor (a zone creature): the opponent is not built, `.opponent` aliases `.player`
+export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset, weapons: [WeaponId, WeaponId] = [DEFAULT_WEAPON, DEFAULT_WEAPON], solo = false) {   // solo: the caller poses ONE actor (a zone creature): the opponent is not built, `.opponent` aliases `.player`
   const hero = { asset, weapon: weapons[0], clips: fighterClips(asset, weapons[0], true) }, enemy = opponentAsset ? { asset: opponentAsset, weapon: weapons[1], clips: fighterClips(opponentAsset, weapons[1], false) } : undefined;
   if (!enemy && weapons[1] !== weapons[0]) throw new Error('A shared rig carries one weapon');
   function create(opponent: boolean) {
@@ -700,12 +704,14 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       covered: (): readonly Mesh[] => [...covered.keys()],   // his own draws a `replace` piece hides (the debug probe asserts they stay hidden)
       // The clip carrying most of the pose right now and the node the weapon hangs from (the debug probe's word for what the rig is doing): `role:clip@node`.
       playing(): string { if (opened?.group.visible) return `Opened:WaistCut@${blade.name}`; let best: Role = 'Idle'; for (const role of roles) if (actions[role].getEffectiveWeight() > actions[best].getEffectiveWeight()) best = role; return `${best}:${clips[best].name}@${blade.name}`; },
-      update(travelSpeed: number, dt: number, pose: 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'splitCrown' | 'decapitation' | 'runThrough' | 'runThroughHold' | 'opened' | 'hamstrung' | 'hamstrungStrike' | 'execution' | 'executionStrike' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected' = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null, lean: ChargeLean | null = null, holding = false) {
+      update(travelSpeed: number, dt: number, pose: BodyPose = 'sheathed', progress = 0, attack: Attack = 'light', contact = .35, lateral = 0, recoil = 0, guardSide: Direction | null = null, lean: ChargeLean | null = null, holding = false) {
         // dt 0 evaluates the pose for the current tick without advancing anything (the frame loop's hit-stop): clip times still follow `progress`,
         // weights and gait hold, the mixer applies at zero, and no trail sample is taken.
-        if (pose !== 'opened' && opened) { opened.group.visible = false; root.visible = true; }
-        if ((pose === 'hamstrung' || pose === 'hamstrungStrike') && !clips[pose === 'hamstrung' ? 'Death_Hamstrung' : 'Fin_Hamstrung']) throw new Error('Hamstrung clips are not installed on this rig');
-        if ((pose === 'execution' || pose === 'executionStrike') && !clips[pose === 'execution' ? 'Death_Execution' : 'Fin_Execution']) throw new Error('Execution clips are not installed on this rig');
+        // A finisher body is its row's (finisher-look.ts): the clip role its pose word plays, which side it is, and its template's own code path
+        // (bisect: the waist-cut group; hamstring / execute: clips adopted on demand, weights that snap once the scene is under way).
+        const fin = finisherBodyPose(pose), tmpl = fin?.row.template, staged = tmpl === 'hamstring' || tmpl === 'execute', fell = fin?.side === 'victim';
+        if (tmpl !== 'bisect' && opened) { opened.group.visible = false; root.visible = true; }
+        if (fin && staged && !clips[fin.role as Role]) throw new Error(`${fin.row.id[0]!.toUpperCase()}${fin.row.id.slice(1)} clips are not installed on this rig`);
         const step = Math.max(0, Math.min(dt, 0.1));
         speed += (Math.abs(travelSpeed) - speed) * (1 - Math.exp(-step * 14));
         if (speed < 0.015) speed = 0;
@@ -716,18 +722,18 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         actions.ArmedRun.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.5,speed/(5.2*stride)));   // the sprint's ground speed is the gait table's 5.2 m/s knot
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : pose === 'splitCrown' || pose === 'decapitation' || pose === 'opened' ? 'Death_SplitCrown' : pose === 'runThrough' ? 'Death_RunThrough' : pose === 'runThroughHold' ? 'Fin_RunThrough' : pose === 'hamstrung' ? 'Death_Hamstrung' : pose === 'hamstrungStrike' ? 'Fin_Hamstrung' : pose === 'execution' ? 'Death_Execution' : pose === 'executionStrike' ? 'Fin_Execution' : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : fin ? fin.role as Role : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
-        const dead = pose === 'death' || pose === 'splitCrown' || pose === 'decapitation' || pose === 'runThrough' || pose === 'opened' || pose === 'hamstrung' || pose === 'execution';
+        const dead = pose === 'death' || fell;
         for (const role of roles) {
           const a = actions[role];
-          const fade = pose === 'opened' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected','runThroughHold','hamstrungStrike','executionStrike'].includes(pose) ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
+          const fade = tmpl === 'bisect' ? Math.min(1,progress/.04) : combatRole === null ? 0 : ['draw','guard','block','parry','deflected'].includes(pose) || fin?.side === 'killer' ? 1 : Math.min(1, progress * 12, dead ? 1 : (1 - progress) * 10);
           const target = (weights[role] || 0) * (1 - fade) + Number(role === combatRole) * fade;
           const activeBlade = pose === 'attack' && progress >= contact-1/specs[attack].recovery && progress <= contact+4/specs[attack].recovery;
           // A parried attacker is thrown off line on the impact tick itself (Strategy 2026-09-24: the parry's tell is the attacker, not a spark):
           // the weight snaps like a live blade does — the parry's hit-stop runs at dt 0, where an eased weight would hold the attack pose.
-          a.setEffectiveWeight(pose === 'opened' || ((pose === 'hamstrung' || pose === 'hamstrungStrike' || pose === 'execution' || pose === 'executionStrike') && progress >= .05) ? target : activeBlade || pose === 'deflected' ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
+          a.setEffectiveWeight(tmpl === 'bisect' || (staged && progress >= .05) ? target : activeBlade || pose === 'deflected' ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
           if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : pose === 'deflected' ? DEFLECT_FROM + progress * (1 - DEFLECT_FROM) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
@@ -788,13 +794,13 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         carry += (Number(shieldHeld) - carry) * ease; raise += (Number(guardUp) * gap.guard * (1 - GUARD_DROP * Math.max(tired.level, tired.gassed) * calmWeight) - raise) * ease; strike += (Number(cutting) - strike) * ease;
         if (carry < .001) carry = 0;
         carryShield(carry, raise, strike);
-        spectralLife = spectral?.(step, dead, progress, pose === 'opened' || pose === 'hamstrung' || pose === 'execution', pose === 'hamstrung' ? HAMSTRUNG_BEATS.duration + .6 : pose === 'execution' ? EXECUTION_BEATS.duration / EXECUTION_BEATS.speed + .6 : 3.6) ?? 1;   // the ghost outlasts the whole scene, as it outlasts Opened's separation
-        droppedWeapon?.apply(pose === 'hamstrung' ? (progress - HAMSTRUNG_BEATS.knee) * HAMSTRUNG_BEATS.duration : pose === 'execution' ? (progress - EXECUTION_BEATS.drop) * EXECUTION_BEATS.duration / EXECUTION_BEATS.speed : -1);   // seconds since the knee blow; negative keeps it in his hand
+        spectralLife = spectral?.(step, dead, progress, fell && (tmpl === 'bisect' || staged), fell && tmpl === 'hamstring' ? HAMSTRUNG_BEATS.duration + .6 : fell && tmpl === 'execute' ? EXECUTION_BEATS.duration / EXECUTION_BEATS.speed + .6 : 3.6) ?? 1;   // the ghost outlasts the whole scene, as it outlasts Opened's separation
+        droppedWeapon?.apply(fell && tmpl === 'hamstring' ? (progress - HAMSTRUNG_BEATS.knee) * HAMSTRUNG_BEATS.duration : fell && tmpl === 'execute' ? (progress - EXECUTION_BEATS.drop) * EXECUTION_BEATS.duration / EXECUTION_BEATS.speed : -1);   // seconds since the knee blow; negative keeps it in his hand
         root.rotation.z = pose === 'hit' ? Math.sin(Math.PI*Math.min(1,progress))*(attack === 'return' ? -.12 : .12) : recoil*.06;
         root.position.z = -Math.abs(recoil)*.045;
         // The enlarged Wraith lowers its attacking arm toward the original strike height.
         // Blend through wind-up/recovery; keep its body, grip and simulation untouched.
-        if (spectral && weapon !== 'reaper' && upperArm?.parent && pose === 'attack') {
+        if (spectral && WEAPON_LOOK[weapon]?.lowerArm !== false && upperArm?.parent && pose === 'attack') {
           root.updateWorldMatrix(true, true);
           const middle = blade.localToWorld(new Vector3(0, (segment[0] + segment[1]) / 2, 0));
           const target = root.worldToLocal(middle.clone()); target.y /= root.scale.y;

@@ -51,14 +51,14 @@ test('the cut labels every candidate ci:release-checks, and release-checks.yml r
   assert.ok(LABELS.includes('ci:release-checks') && LABELS.includes('auditor:ready'));
   const wf = readFileSync('.github/workflows/release-checks.yml', 'utf8');
   assert.match(wf, /max-parallel: 20/);
-  assert.match(wf, /draft == false \|\| startsWith\(github\.head_ref, 'release-'\)/);
+  assert.match(wf, /if: github\.event_name != 'pull_request' \|\| \(startsWith\(github\.head_ref, 'release-'\) && \(github\.event\.action != 'labeled' \|\| github\.event\.label\.name == 'ci:release-checks'\)\)\n/, 'a release-* candidate runs, drafts included; a feature PR schedules nothing (tests/ci-static-first.test.ts)');
   assert.match(wf, /HEAD_REF\.startsWith\("release-"\)/);
 });
 
 test('a failed git push or gh pr create exits non-zero before any background job launches', () => {
   const src = readFileSync(new URL('../scripts/cut-release.mjs', import.meta.url), 'utf8');
   const launch = src.indexOf("bg('prelaunch.log'");
-  for (const guard of ['pushed.status !== 0', 'created.status !== 0']) {
+  for (const guard of ['!pushed.ok', 'created.status !== 0']) {
     const at = src.indexOf(guard);
     assert.ok(at > 0 && at < launch, `${guard} must be checked before the background launch`);
   }
