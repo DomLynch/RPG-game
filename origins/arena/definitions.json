@@ -20,5 +20,12 @@
     "sand":  {"order": 1, "color": "#b99a68", "opacity": 0.6},
     "stone": {"order": 2, "color": "#7a7062", "opacity": 0.36},
     "clay":  {"order": 3, "color": "#2a1c1a", "opacity": 0.4}
+  },
+  "patches": {
+    "sand":   {"order": 1},
+    "flag":   {"order": 2},
+    "clay":   {"order": 3},
+    "puddle": {"order": 4, "water": true},
+    "blood":  {"order": 5}
   }
 }

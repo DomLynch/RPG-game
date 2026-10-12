@@ -34,3 +34,11 @@ test('the foot-dust tone comes from the floor row: for every theme it equals wha
   assert.deepEqual(Object.keys(FLOOR_ROWS), ['sand', 'flag', 'clay']);
   assert.throws(() => dustToneFor({ textures: { floor: 'lava' } }), /unknown floor "lava"/);
 });
+
+test('floor patches are rows: only puddle is water; every theme patch and floor-default patch names a row; the old puddle compare is gone', async () => {
+  const { PATCH_ROWS, patchRow } = await import('../src/arena-rows.ts');
+  assert.deepEqual(Object.entries(PATCH_ROWS).filter(([, v]) => v.water).map(([k]) => k), ['puddle']);
+  assert.deepEqual(Object.keys(PATCH_ROWS), ['sand', 'flag', 'clay', 'puddle', 'blood']);
+  for (const theme of Object.values(ARENA_THEMES)) { const kind = theme.textures.patch ?? (theme.textures.floor !== 'sand' ? theme.textures.floor : undefined); if (kind) assert.ok(patchRow(kind), `${theme.id}: patch ${kind}`); }
+  assert.throws(() => patchRow('lava'), /unknown floor patch "lava"/);
+});

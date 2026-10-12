@@ -15,3 +15,7 @@ export type FloorRow = { order: number; dust: string; wetDust: string };
 export type DustToneRow = { order: number; color: string; opacity: number };
 export const FLOOR_ROWS = rows.floors as Readonly<Record<string, FloorRow>>;
 export const DUST_TONES = rows.dustTones as Readonly<Record<string, DustToneRow>>;
+// A floor patch (the world-space mask over the pit): `water` = standing water, the floor shader drops its roughness there. The patch GENERATORS (textures.ts patchPixels) stay code, one per row.
+export type PatchRow = { order: number; water?: boolean };
+export const PATCH_ROWS = rows.patches as Readonly<Record<string, PatchRow>>;
+export const patchRow = (kind: string): PatchRow => PATCH_ROWS[kind] ?? (() => { throw new Error(`unknown floor patch "${kind}" (origins/arena/definitions.json)`); })();

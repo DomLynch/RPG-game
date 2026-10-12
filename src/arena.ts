@@ -10,6 +10,7 @@ import { riseMetres, riseStep } from './gate-rise.ts';
 import { bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, weatherRow, type ArenaTheme } from './arena-themes.ts';
+import { patchRow } from './arena-rows.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -127,9 +128,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
         .replace('#include <project_vertex>', `#include <project_vertex>\nvPatchUv = (modelMatrix * vec4(transformed, 1.0)).xz / ${PATCH_SPAN.toFixed(1)} + 0.5;`);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D patchMap;\nvarying vec2 vPatchUv;')
         .replace('#include <map_fragment>', '#include <map_fragment>\nvec4 patchSample = texture2D(patchMap, vPatchUv); diffuseColor.rgb *= mix(vec3(1.0), patchSample.rgb * 2.0, patchSample.a);')
-        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${patchKind === 'puddle' ? 'roughnessFactor = mix(roughnessFactor, 0.04, patchSample.a);' : ''}`);   // standing water: a mirror
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${patchRow(patchKind).water ? 'roughnessFactor = mix(roughnessFactor, 0.04, patchSample.a);' : ''}`);   // standing water: a mirror
     };
-    sand.customProgramCacheKey = () => `floor-patch-${patchKind === 'puddle' ? 'water' : 'dry'}`;
+    sand.customProgramCacheKey = () => `floor-patch-${patchRow(patchKind).water ? 'water' : 'dry'}`;
   }
   gradeMaterial(sand, BACKGROUND_GRADE.sand, 'sand'); gradeMaterial(stone, BACKGROUND_GRADE.stone, 'stone');   // slight desaturation so bodies separate; the worn palette stays
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
