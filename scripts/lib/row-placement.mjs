@@ -37,6 +37,9 @@ export const ON_T4 = [
 // (release-checks.yml on every candidate) and the CPU waterfall. Row 13 is not here: its CPU gap is initdb refusing root, not the renderer (a runner is not root).
 export const ROW_CEILING_S = 600;
 export const GPU_ONLY = [5, 7, 16, 21, 28, 34, 36];
+// The Mac's rows by nature: Safari's engine (WebKit/iPhone). CI never vouches for them (ci-trusted-checks.mjs) and never schedules them: the runner
+// has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit").
+export const WEBKIT_ROWS = MAC_ONLY.filter(entry => /webkit/i.test(entry.why)).map(entry => entry.row);
 // The first log line of a release: how every row is being handled. ci = trusted from CI, hf = trusted from an HF receipt, vps = trusted from the
 // VPS, mac = rows running on the Mac. Over the limit the refusal text names the rows that are not on the Mac list.
 export function placementLine({ total, ci, hf, vps = [], mac }) {
