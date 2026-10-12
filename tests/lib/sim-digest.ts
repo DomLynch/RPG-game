@@ -64,6 +64,7 @@ function declaredNames(st: ts.Statement): string[] {
 function parse(path: string, source: string) {
   const sf = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const statements: string[] = [], rebinds: string[] = [], names: string[] = [];
+  for (const st of sf.statements) {
     if (ts.isImportDeclaration(st) || (ts.isExportDeclaration(st) && st.moduleSpecifier)) {
       const clause = ts.isImportDeclaration(st) ? st.importClause : undefined, bindings = ts.isImportDeclaration(st) ? clause?.namedBindings : st.exportClause;
       if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) for (const el of bindings.elements) if (el.propertyName) rebinds.push(`${el.propertyName.getText(sf)} as ${el.name.text}`);
