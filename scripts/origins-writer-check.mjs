@@ -504,6 +504,7 @@ try {
       eq(psql(`select string_agg(version || ':' || level || ':' || placed::text, ' ' order by version) from public.origins_character_build where character = '${daraTwo}'`), '1:1:{"attack": 1} 2:1:{"sword": 1} 3:7:{"sword": 1}', 'build: every version is kept, append-only');
       eq(JSON.parse(asW(`select public.origins_get_build('${D}', '${daraTwo}', 1)::text;`)).placed, { attack: 1 }, 'build: an old version reads back exactly');
       eq(asW(`select coalesce(public.origins_get_build('${D}', '${daraTwo}', 9)::text, 'null');`), 'null', 'build: an unknown version reads null');
+      eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_build('${D}', '${daraTwo}', 1)::text;`).split('\n').pop()).placed, { attack: 1 }, 'build: the verifier role reads one exact version');
       eq(get('pc:nobody'), null, 'build: not this account\'s character reads null');
       eq(set('pc:nobody', {}, 1, 0), null, 'build: and cannot be written');
       eq(String((() => { try { lvl(51); return 'ok'; } catch (e) { return /check constraint/.test(String(e.stderr ?? e.message)) ? 'refused' : 'other'; } })()), 'refused', 'build: level 51 is refused by the table');

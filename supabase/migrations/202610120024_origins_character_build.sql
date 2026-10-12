@@ -66,4 +66,5 @@ end $$;
 
 revoke all on function public.origins_get_build(uuid, text, int), public.origins_set_build(uuid, text, jsonb, int, int), public.origins_set_level(uuid, text, int) from public, anon, authenticated;
 grant execute on function public.origins_get_build(uuid, text, int), public.origins_set_build(uuid, text, jsonb, int, int), public.origins_set_level(uuid, text, int) to frankendom_origins;
+grant execute on function public.origins_get_build(uuid, text, int) to frankendom_verifier;   -- the sweeps read the exact build version a record names (read only; the verifier never sets one)
 commit;
