@@ -1,4 +1,4 @@
-// The item and service vocabularies that are data (origins/contracts/definitions.json): rarities, materials, loot presentations and what a service accepts. A new value is one row; an unknown id still rejects; the
+// The item and service vocabularies that are data (src/core/contracts/definitions.json): rarities, materials, loot presentations and what a service accepts. A new value is one row; an unknown id still rejects; the
 // lists whose values select code (CATEGORIES, STORY, BINDINGS, POWERS, LOCATION/PROVENANCE/HISTORY kinds, ROLL_MODES, SERVICE_KINDS, DISTRIBUTIONS) stay code. 'common' is pinned: loot-catalogue.ts and the fixtures assign it.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,10 +7,10 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { buildTables, checkTables } from '../src/core/server.ts';
-import defs from '../origins/contracts/definitions.json' with { type: 'json' };
-import manifest from '../origins/contracts/definitions.manifest.json' with { type: 'json' };
-import { BINDINGS, CATEGORIES, DISTRIBUTIONS, HISTORY_KINDS, LOCATION_KINDS, MATERIALS, POWERS, PRESENTATIONS, PROVENANCE_KINDS, RARITIES, ROLL_MODES, STORY } from '../origins/contracts/items.ts';
-import { SERVICE_ACCEPTS, SERVICE_KINDS } from '../origins/contracts/economy.ts';
+import defs from '../src/core/contracts/definitions.json' with { type: 'json' };
+import manifest from '../src/core/contracts/definitions.manifest.json' with { type: 'json' };
+import { BINDINGS, CATEGORIES, DISTRIBUTIONS, HISTORY_KINDS, LOCATION_KINDS, MATERIALS, POWERS, PRESENTATIONS, PROVENANCE_KINDS, RARITIES, ROLL_MODES, STORY } from '../src/core/contracts/items.ts';
+import { SERVICE_ACCEPTS, SERVICE_KINDS } from '../src/core/contracts/economy.ts';
 
 const problems = (d: unknown) => checkTables(buildTables(manifest.tables.map((m) => ({ manifest: m as never, parsed: d, file: 'definitions.json' })))).problems.map((p) => `${p.id} ${p.rule}: ${p.message}`);
 
@@ -42,12 +42,12 @@ test('a new rarity, material, presentation and service acceptance is ONE ROW in 
   try {
     cpSync('origins', join(dir, 'origins'), { recursive: true });
     for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
-    const file = join(dir, 'origins/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    const file = join(dir, 'src/core/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
     rows.rarities.mythic = { order: 4 }; rows.materials.mithril = { order: 10 }; rows.presentations.pile = {}; rows.serviceAccepts.rings = { armour: false, weapons: false };
     writeFileSync(file, JSON.stringify(rows));
-    writeFileSync(join(dir, 'probe.ts'), `import * as F from './origins/contracts/fixtures.ts';
-import { parseItemDefinition, parseLootTable, RARITIES, MATERIALS } from './origins/contracts/items.ts';
-import { parseServiceDefinition, parseUpgradeCostTable } from './origins/contracts/economy.ts';
+    writeFileSync(join(dir, 'probe.ts'), `import * as F from './src/core/contracts/fixtures.ts';
+import { parseItemDefinition, parseLootTable, RARITIES, MATERIALS } from './src/core/contracts/items.ts';
+import { parseServiceDefinition, parseUpgradeCostTable } from './src/core/contracts/economy.ts';
 const item = (rarity: string, material: string) => parseItemDefinition({ ...F.helmetDef(), rarity, material }).ok;
 const loot = (presentation: string) => parseLootTable({ ...F.bossLoot(), presentation }).ok;
 const service = (accepts: string) => parseServiceDefinition({ ...F.blacksmith(), accepts }).ok;
