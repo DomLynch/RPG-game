@@ -10,11 +10,15 @@ import type { Manifest } from '../src/core/registry.ts';
 import type { Finish } from '../src/fight/duel.ts';
 import type { WeaponId } from '../src/fight/moves.ts';
 import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
+import { PerspectiveCamera } from 'three';
+import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
+import { initialState } from '../src/fight/sim.ts';
 
 const text = readFileSync(new URL('../src/fight/finisher-defs.json', import.meta.url), 'utf8');
 const raw = JSON.parse(text) as { finishers: Record<string, unknown>[] };
 const manifest = (JSON.parse(readFileSync(new URL('../src/fight/finisher-defs.manifest.json', import.meta.url), 'utf8')) as { tables: Manifest[] }).tables[0]!;
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+const CAM = { dolly: { push: 0.38, slide: 0.95, turn: 0.6 } };   // the camera field every finisher row carries (camera.ts)
 
 // Both computed on trunk 411fbdf31 BEFORE any of this moved: (a) the resolved table the code built (the rotation, and per finisher its pose
 // and finisherSeconds), (b) every selectFinisher pick over a 16 128-kill sweep (victim, draw, 8 moves, 3 locations, 24 headings, 7 previous
@@ -43,12 +47,12 @@ test('the rows file has no duplicate key and every row names an engine template'
 });
 
 test('a ninth finisher is ONE row through the real loader, with no code edit', () => {
-  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5 };
+  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM };
   const t = loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest);
   assert.equal(t.rows.length, 9);
   assert.equal(t.byId.get('gutted')!.template, 'bisect');
   assert.deepEqual(t.rotation, [...ROTATION], 'a new row is not in the automatic pick until it says so');
-  const borrowed = loadFinisherDefs({ finishers: [...raw.finishers, { id: 'gutted', template: 'hamstring', rotation: true, pose: null, secondsFrom: 'opened' }] }, manifest);
+  const borrowed = loadFinisherDefs({ finishers: [...raw.finishers, { id: 'gutted', template: 'hamstring', rotation: true, pose: null, secondsFrom: 'opened', camera: CAM }] }, manifest);
   assert.deepEqual(borrowed.rotation, [...ROTATION, 'gutted'], 'rotation: true joins the pool, in file order');
 });
 
@@ -56,14 +60,51 @@ test('the loader refuses a duplicate id, an unknown template or pose, a missing 
   const ok = raw.finishers, load = (rows: unknown[]) => loadFinisherDefs({ finishers: rows }, manifest);
   assert.doesNotThrow(() => load(ok));
   assert.throws(() => load([...ok, { ...ok[0] }]), /duplicate-id/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'juggle', rotation: false, pose: null, seconds: 2 }]), /template "juggle" is not an engine verb/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 'cartwheel', seconds: 2 }]), /pose "cartwheel"/);
-  assert.throws(() => load([...ok, { id: 'a', rotation: false, pose: null, seconds: 2 }]), /missing-field: template is required/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: 'yes', pose: null, seconds: 2 }]), /wrong-type: rotation must be boolean/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null }]), /exactly one of seconds and secondsFrom/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, secondsFrom: 'plainDeath' }]), /exactly one of seconds and secondsFrom/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: -1 }]), /seconds must be a positive number/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'nothing' }]), /unknown-ref: secondsFrom = "nothing" is not a finisher id/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'hamstrung' }]), /must name a row with measured seconds/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'juggle', rotation: false, pose: null, seconds: 2, camera: CAM }]), /template "juggle" is not an engine verb/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 'cartwheel', seconds: 2, camera: CAM }]), /pose "cartwheel"/);
+  assert.throws(() => load([...ok, { id: 'a', rotation: false, pose: null, seconds: 2, camera: CAM }]), /missing-field: template is required/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: 'yes', pose: null, seconds: 2, camera: CAM }]), /wrong-type: rotation must be boolean/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, camera: CAM }]), /exactly one of seconds and secondsFrom/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, secondsFrom: 'plainDeath', camera: CAM }]), /exactly one of seconds and secondsFrom/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: -1, camera: CAM }]), /seconds must be a positive number/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'nothing', camera: CAM }]), /unknown-ref: secondsFrom = "nothing" is not a finisher id/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'hamstrung', camera: CAM }]), /must name a row with measured seconds/);
   assert.throws(() => finisherSeconds('nothing'), /unknown finisher "nothing"/);
+});
+
+// ---- camera.ts reads the rows' `camera` field (the finisher name-switches, consumer group 1). Both hashes were computed on trunk BEFORE the field
+// existed: every finisherSidePose over a grid of positions, aspects, body scales and reaches, and the camera rig's position and orientation over 150
+// frames of every finisher (and none) × victim × big × locked × severed head × reach.
+const SIDE_BEFORE = '5ffdb12a51960298a733956e2e11e169486b3581c72cfb8b99d442d148216d2d', RIG_BEFORE = '40f9403edaf11252abaa6671d00e77dd2e2810117b9dc8ba9de4b4de0143241a';
+const r9 = (n: number) => Math.round(n * 1e9) / 1e9;
+test('the finisher camera driven by the rows is byte-identical to the name-switches it replaced (side views and the whole rig)', () => {
+  const side = createHash('sha256');
+  for (const f of ['runThrough', 'splitCrown', 'opened']) for (const [kx, kz, fx, fz] of [[0, 0, 0, 1.6], [3, 4, 1, 2], [8, 6, 9, 7.5], [-10, 2, -9, 1]] as const) for (const aspect of [393 / 852, 1.6]) for (const scale of [1, 1.5]) for (const reach of [0, 1.2, 3]) {
+    const p = finisherSidePose({ x: kx, z: kz }, { x: fx, z: fz }, aspect, f, scale, reach); side.update(JSON.stringify([p.x, p.y, p.z, p.lookX, p.lookY, p.lookZ].map(r9)));
+  }
+  assert.equal(side.digest('hex'), SIDE_BEFORE);
+  const rig = createHash('sha256');
+  for (const finisher of [null, 'splitCrown', 'decapitation', 'runThrough', 'plainDeath', 'quietOne', 'opened', 'hamstrung', 'execution']) for (const victim of [0, 1]) for (const big of [false, true]) for (const locked of [true, false]) for (const head of [null, { x: 1.2, z: -0.4 }]) for (const reach of [0, 2]) {
+    const camera = new PerspectiveCamera(51, 393 / 852, 0.1, 180), cr = createCameraRig(camera, false);
+    const state = { ...initialState(), x: 3, z: 4, heading: 1 }, enemy = { x: 0, z: 0, heading: 0 };
+    cr.update(1 / 60, state, enemy, locked, null); cr.recenter();
+    for (let i = 0; i < 150; i++) {
+      cr.update(1 / 60, state, enemy, locked, { finisher, posed: finisher !== null && finisher !== 'plainDeath', draw: false, victim, clock: i / 100, head, big, reach });
+      rig.update(JSON.stringify([...camera.position.toArray(), ...camera.quaternion.toArray()].map(r9)));
+    }
+  }
+  assert.equal(rig.digest('hex'), RIG_BEFORE);
+});
+
+test('a new finisher\'s camera is ONE row: its own dolly, a reveal onto its own side view, through the real loader', () => {
+  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5,
+    camera: { dolly: { push: 0.2, slide: 0.5, turn: 0.4 }, reveal: { from: 0.1, over: 0.3, side: 'gutted' }, side: { angle: 0.9, eyeY: 2.6, minBack: 4, beyond: 0.6 } } };
+  const t = loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest);
+  assert.deepEqual(t.byId.get('gutted')!.camera.side, row.camera.side);
+  const ok = raw.finishers, load = (rows: unknown[]) => loadFinisherDefs({ finishers: rows }, manifest);
+  assert.throws(() => load([...ok, { ...row, camera: { reveal: row.camera.reveal } }]), /missing-field: camera.dolly.push is required/);
+  assert.throws(() => load([...ok, { ...row, camera: { ...row.camera, reveal: { from: 0, over: 0.3, side: 'nothing' } } }]), /unknown-ref: camera.reveal.side = "nothing" is not a finisher id/);
+  assert.throws(() => load([...ok, { ...row, camera: { ...row.camera, reveal: { from: 0, over: 0.3, side: 'decapitation' } } }]), /must name a row with a camera.side view/);
+  assert.throws(() => load([...ok, { ...row, camera: { ...row.camera, side: { angle: 0.9, eyeY: 2.6, minBack: 4 } } }]), /camera.side needs angle, eyeY, minBack and either beyond or beyondBody \+ reachPad/);
+  assert.throws(() => finisherSidePose({ x: 0, z: 0 }, { x: 0, z: 1 }, 1, 'decapitation'), /has no camera.side view/);
 });
