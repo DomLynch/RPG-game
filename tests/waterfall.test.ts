@@ -6,16 +6,16 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const { pickTarget, VPS_MAX_LOAD1, VPS_STATUS_CMD, parseVpsStatus } = await import('../scripts/lib/waterfall.mjs');
+const { pickTarget, routeProbe, MAC_MAX_LOAD5, VPS_MAX_LOAD1, VPS_STATUS_CMD, parseVpsStatus } = await import('../scripts/lib/waterfall.mjs');
 const ok = { load1: 0.8, freeRamMb: 20000 };
 
 test('pickTarget: a quiet VPS with room takes the job', () => {
   assert.equal(pickTarget({ vps: ok, mem: 4096 }), 'vps');
 });
-test('pickTarget: the VPS load limit is 12 (below takes it, at or above spills to Hugging Face CPU)', () => {
-  assert.equal(VPS_MAX_LOAD1, 12);
-  assert.equal(pickTarget({ vps: { ...ok, load1: 11.9 }, mem: 1024 }), 'vps');
-  assert.equal(pickTarget({ vps: { ...ok, load1: 12 }, mem: 1024 }), 'hf-cpu');
+test('pickTarget: the VPS load limit is 16, the box\'s cores (below takes it, at or above spills to Hugging Face CPU; Dom 2026-10-12)', () => {
+  assert.equal(VPS_MAX_LOAD1, 16);
+  assert.equal(pickTarget({ vps: { ...ok, load1: 15.9 }, mem: 1024 }), 'vps');
+  assert.equal(pickTarget({ vps: { ...ok, load1: 16 }, mem: 1024 }), 'hf-cpu');
   assert.equal(pickTarget({ vps: { ...ok, load1: 40 }, mem: 1024 }), 'hf-cpu');
 });
 test('pickTarget: not enough free RAM for the job spills to Hugging Face CPU', () => {
@@ -87,4 +87,60 @@ test('the release lock is a run dir under /root/deploy-runs and goes stale after
   assert.equal(parseVpsStatus('1 1 1 1/1 1\n20000000\n0')!.releaseRuns, 0, 'only stale dirs counted as zero by the find: lane jobs may use the VPS again');
   assert.equal(pickTarget({ lane: true, vps: parseVpsStatus('1 1 1 1/1 1\n20000000\n0') }), 'vps');
   assert.equal(pickTarget({ lane: true, vps: parseVpsStatus('1 1 1 1/1 1\n20000000\n1') }), 'hf-cpu');
+});
+
+// routeProbe: the four branches of Mac first (Hooks Dev's probe lines, 2026-10-12), and the refusals.
+test('routeProbe branch 1: the Mac says would=mac -> mac (the VPS is not consulted)', () => {
+  assert.deepEqual(routeProbe({ mac: 'would=mac', vps: 'would=vps' }), { target: 'mac', reason: 'mac-free' });
+  assert.deepEqual(routeProbe({ mac: 'would=mac', gfx: true }), { target: 'mac', reason: 'mac-free' }, 'a --gpu job the Mac accepts runs on the Mac');
+});
+test('routeProbe branch 2: the Mac skips, the VPS takes it -> vps, with the Mac\'s reason', () => {
+  assert.deepEqual(routeProbe({ mac: 'would=skip reason=load=9.4', vps: 'would=vps' }), { target: 'vps', reason: 'mac-load=9.4' });
+  assert.deepEqual(routeProbe({ mac: '', vps: 'would=vps' }), { target: 'vps', reason: 'no-mac' }, 'no Mac tier (the VPS itself, a cloud lane)');
+});
+test('routeProbe branch 3: the Mac skips and the VPS spills -> Hugging Face CPU; an unreadable VPS spills too, never onto it', () => {
+  for (const r of ['slots', 'release-lock', 'load']) assert.deepEqual(routeProbe({ mac: 'would=skip reason=slot-busy', vps: `would=spill reason=${r}` }), { target: 'hf-cpu', reason: `mac-slot-busy,vps-${r}` });
+  assert.deepEqual(routeProbe({ mac: 'would=skip reason=release-in-flight', vps: '' }), { target: 'hf-cpu', reason: 'mac-release-in-flight,vps-unreadable' });
+});
+test('routeProbe branch 4: graphics the Mac skips go to the T4, never the VPS (no GPU there)', () => {
+  assert.deepEqual(routeProbe({ mac: 'would=skip reason=mac-row-running', vps: 'would=vps', gfx: true }), { target: 'hf-t4', reason: 'gpu-only,mac-mac-row-running' });
+  assert.deepEqual(routeProbe({ mac: '', gfx: true }), { target: 'hf-t4', reason: 'gpu-only,no-mac' });
+});
+test('routeProbe: a refusal from either tier is final', () => {
+  assert.equal(routeProbe({ mac: 'would=refuse', vps: 'would=vps' }).target, 'refuse');
+  assert.equal(routeProbe({ mac: 'would=skip reason=denied', vps: 'would=refuse' }).target, 'refuse');
+});
+
+test('the router\'s numbers cannot drift from the scripts that enforce them', () => {
+  // lanejob.sh reads VPS_MAX_LOAD1 with sed on this exact line shape (Hooks Dev): keep it a literal.
+  const src = readFileSync('scripts/lib/waterfall.mjs', 'utf8');
+  assert.match(src, new RegExp(`^export const VPS_MAX_LOAD1 = ${VPS_MAX_LOAD1};$`, 'm'));
+  assert.match(src, new RegExp(`^export const MAC_MAX_LOAD5 = ${MAC_MAX_LOAD5};$`, 'm'));
+  // The Mac gate lives in lanejob-mac.sh (5-minute load); the router's copy must be that number.
+  const mac = readFileSync('scripts/lanejob/lanejob-mac.sh', 'utf8');
+  const gate = /busy\(\) \{ awk -v l="\$\(load1\)" 'BEGIN \{ exit !\(l >= ([0-9.]+)\) \}'; \}/.exec(mac);
+  assert.ok(gate, 'the Mac wrapper\'s busy() gate');
+  assert.equal(Number(gate![1]), MAC_MAX_LOAD5);
+  assert.equal(MAC_MAX_LOAD5, 8);
+});
+
+test('route-probe.mjs: one line from the two real probes, the VPS asked only when it can matter', async () => {
+  const { mkdtempSync, writeFileSync, chmodSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { spawnSync } = await import('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'route-probe-')), log = join(dir, 'log');
+  const stub = (name: string, answer: string) => { const p = join(dir, name); writeFileSync(p, `#!/bin/sh\necho "${name} $*" >> '${log}'\necho '${answer}'\n`); chmodSync(p, 0o755); return p; };
+  const probe = (mac: string, vps: string, extra: string[] = []) => spawnSync(process.execPath, ['scripts/route-probe.mjs', ...extra, '--', 'npm', 'test'], { encoding: 'utf8',
+    env: { ...process.env, ROUTE_MAC_PROBE: mac, ROUTE_VPS_PROBE: vps } });
+  let r = probe(stub('mac', 'would=mac'), stub('vps', 'would=vps'));
+  assert.equal(r.stdout, 'would=mac reason=mac-free\n');
+  assert.equal(readFileSync(log, 'utf8'), 'mac --probe npm test\n', 'the Mac said yes: the VPS is not asked');
+  r = probe(stub('mac2', 'would=skip reason=load=9'), stub('vps2', 'would=spill reason=slots'));
+  assert.equal(r.stdout, 'would=hf-cpu reason=mac-load=9,vps-slots\n');
+  r = probe(stub('mac3', 'would=skip reason=slot-busy'), stub('vps3', 'would=vps'), ['--gfx']);
+  assert.equal(r.stdout, 'would=hf-t4 reason=gpu-only,mac-slot-busy\n');
+  assert.match(readFileSync(log, 'utf8'), /mac3 --probe --gpu -- npm test\n$/, 'graphics: the Mac is asked in its --gpu form and the VPS is not asked');
+  r = probe('off', join(dir, 'missing-binary'));
+  assert.equal(r.stdout, 'would=hf-cpu reason=no-mac,vps-unreadable\n', 'a probe that cannot run answers nothing: spill, never onto an unread box');
+  assert.equal(spawnSync(process.execPath, ['scripts/route-probe.mjs'], { encoding: 'utf8' }).status, 2);
 });

@@ -1,11 +1,16 @@
-// The work waterfall's one router (Dom 2026-10-11). Mac = coding + WebKit rows only. Every heavy job goes to the VPS first; to Hugging Face CPU when the VPS is busy
-// (1-minute load >= VPS_MAX_LOAD1) or has no room for the job; to the T4 only when the job needs graphics (gfx). A job never lands on the Mac from here, and a job
-// without gfx never gets a T4. Pure decision (pickTarget) + one reader for the VPS (vpsStatus); the launchers call both, so the rule lives in one place.
+// The work waterfall's one router (Dom 2026-10-11, Mac first 2026-10-12). Lane jobs: routeProbe composes the Mac wrapper's and the VPS's probe answers (Mac ->
+// VPS -> Hugging Face CPU; graphics to the T4 when the Mac skips). Release jobs launched from the Mac: pickTarget sends a heavy job to the VPS first; to Hugging
+// Face CPU when the VPS is busy (1-minute load >= VPS_MAX_LOAD1) or has no room for the job; to the T4 only when the job needs graphics (gfx). Pure decisions
+// (routeProbe, pickTarget) + one reader for the VPS (vpsStatus); the launchers call them, so the rule lives in one place.
 // tests/waterfall.test.ts pins every branch and fails when a script starts a heavy job without going through here (shrink-only KNOWN list).
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
 
-export const VPS_MAX_LOAD1 = 12;
+// The waterfall's numbers (Dom 2026-10-12: Mac first -> VPS -> Hugging Face; the T4 only for graphics). Each is ONE literal line on purpose:
+// scripts/lanejob/lanejob.sh reads VPS_MAX_LOAD1 with sed on exactly `export const VPS_MAX_LOAD1 = <number>`, and tests/waterfall.test.ts pins
+// MAC_MAX_LOAD5 to the 5-minute gate in scripts/lanejob/lanejob-mac.sh (that script owns the Mac gate; this copy must not drift from it).
+export const VPS_MAX_LOAD1 = 16;
+export const MAC_MAX_LOAD5 = 8;
 // The remote command vpsStatus runs: loadavg, MemAvailable (kB), and the live release run dirs. A run dir is the release lock; one older than 90 minutes is a crashed run and stops counting.
 export const VPS_STATUS_CMD = "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo; find /root/deploy-runs -mindepth 1 -maxdepth 1 -type d -mmin -90 2>/dev/null | wc -l";
 
@@ -17,6 +22,25 @@ export function pickTarget({ gfx = false, mem = 0, vps = null, lane = false } = 
   if (!Number.isFinite(load1) || !Number.isFinite(freeRamMb)) return 'hf-cpu';
   if (lane && releaseRuns > 0) return 'hf-cpu';   // a RELEASE run owns the VPS while it runs (Strategy 2026-10-11): a lane job never shares the box with one; a release never waits behind a lane job
   return load1 < VPS_MAX_LOAD1 && freeRamMb >= mem ? 'vps' : 'hf-cpu';
+}
+
+// The waterfall from the two probes (Hooks Dev's spec, 2026-10-12; there is no combined probe, the answer is composed here):
+//   mac: the one line of `scripts/lanejob/lanejob-mac.sh --probe [--gpu --] CMD` (would=mac | would=skip reason=<r> | would=refuse), or '' when no Mac tier
+//   vps: the one line of `lanejob --probe CMD` on the VPS (would=vps | would=spill reason=slots|release-lock|load | would=refuse), or '' when unreadable
+// Mac first; on a Mac skip a graphics job goes to the T4 (the VPS has no GPU) and anything else asks the VPS; a VPS spill (or no answer) goes to Hugging
+// Face CPU. A refusal from either tier is final. reason is the one word the logs print: why this tier and not the one above it.
+/** @param {{ mac?: string, vps?: string, gfx?: boolean }} probes @returns {{ target: 'mac' | 'vps' | 'hf-cpu' | 'hf-t4' | 'refuse', reason: string }} */
+export function routeProbe({ mac = '', vps = '', gfx = false } = {}) {
+  const field = (line, key) => (new RegExp(`(?:^|\\s)${key}=(\\S+)`).exec(line || '') || [])[1] || '';
+  const m = field(mac, 'would');
+  if (m === 'mac') return { target: 'mac', reason: 'mac-free' };
+  if (m === 'refuse') return { target: 'refuse', reason: 'mac-refused' };
+  const macWhy = m === 'skip' ? `mac-${field(mac, 'reason') || 'skip'}` : 'no-mac';
+  if (gfx) return { target: 'hf-t4', reason: `gpu-only,${macWhy}` };
+  const v = field(vps, 'would');
+  if (v === 'vps') return { target: 'vps', reason: macWhy };
+  if (v === 'refuse') return { target: 'refuse', reason: 'vps-refused' };
+  return { target: 'hf-cpu', reason: `${macWhy},vps-${v === 'spill' ? field(vps, 'reason') || 'spill' : 'unreadable'}` };
 }
 
 // Output of vpsStatus's remote command: /proc/loadavg, MemAvailable in kB, and the number of live release run dirs under /root/deploy-runs (a release run's dir exists only while it runs: it IS the lock).
