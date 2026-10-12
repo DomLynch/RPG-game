@@ -1,4 +1,4 @@
-// Arena vocabularies as rows (origins/arena/definitions.json, loaded and checked by the registry loader). Weather: what each kind does is a row of flags
+// Arena vocabularies as rows (src/fight/arena-defs.json, loaded and checked by the registry loader). Weather: what each kind does is a row of flags
 // the Points cloud reads (src/arena.ts), never a name. These pin the rows to what the old name branches did, and that a theme can only name a row.
 import assert from 'node:assert/strict';
 import test from 'node:test';

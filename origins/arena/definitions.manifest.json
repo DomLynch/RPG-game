@@ -1,9 +1,0 @@
-{
-  "tables": [
-    {"table": "weather", "file": "definitions.json", "at": "weather", "keyed": true, "key": "id", "required": {"order": "integer"}},
-    {"table": "bloodMode", "file": "definitions.json", "at": "bloodModes", "keyed": true, "key": "id", "required": {"order": "integer"}},
-    {"table": "floor", "file": "definitions.json", "at": "floors", "keyed": true, "key": "id", "required": {"order": "integer", "dust": "string", "wetDust": "string"}, "refs": {"dust": "dustTone", "wetDust": "dustTone"}},
-    {"table": "dustTone", "file": "definitions.json", "at": "dustTones", "keyed": true, "key": "id", "required": {"order": "integer", "color": "string", "opacity": "number"}},
-    {"table": "patch", "file": "definitions.json", "at": "patches", "keyed": true, "key": "id", "required": {"order": "integer"}}
-  ]
-}
