@@ -47,7 +47,8 @@ export const RELAY = {
 const BEAT = Buffer.from('{"t":"beat"}'), GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', ROOM = /^[a-z0-9]{16}$/;
 export const ROOM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 // The shard that owns a room: its first character's place, modulo the shard count. A room minted before a re-shard still routes, as nginx uses the same rule.
-export const shardOf = (room, shards) => ROOM_CHARS.indexOf(room[0]) % shards;
+// -1 (no shard) for a room that does not start with a room character: never `-1 % 1`, which is -0 and would equal shard 0.
+export const shardOf = (room, shards) => { const at = ROOM_CHARS.indexOf(String(room)[0]); return at < 0 ? -1 : at % shards; };
 // The shard rows (ops/duel-relay.json): 1 to 36 rows, each a distinct loopback port; row 0 also mints and answers health.
 export function relayShards(config) {
   const rows = config?.shards;
