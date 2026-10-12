@@ -1,7 +1,24 @@
 {
-  "about": "Sites the as-data checker sees but does not count: a string literal that spells a content id but is not one. One entry per (file, literal) with a one-line reason; it covers every occurrence of that literal in that file. The checker lists these separately, and an entry whose site no longer exists is STALE and fails (tests/as-data-check.test.ts), so this list cannot rot.",
-  "allow": [
-    { "file": "src/fight/sound/creature.ts", "literal": "bite", "reason": "the 'bite' creature sound cue name, not the bite weapon" },
-    { "file": "src/fight/characters.ts", "literal": "pommel", "reason": "the pommel attack-clip name (an Attack key), not the Pommel Strike skill id" }
+  "about": "Sites the as-data checker sees but does not count: a string literal that spells a content id but is not one. One entry per (file, literal) with a one-line reason; it covers every occurrence of that literal in that file. The checker lists these separately, and an entry whose site no longer exists is STALE and fails (tests/as-data-check.test.ts), so this list cannot rot. `verbs` are closed lists kept in code on purpose (an id scheme with its own parser, generator geometry, a row schema): each names its dispatch and its sunset, is listed apart and never counted, and a verb whose declaration is gone fails the run.",
+  "allow": [],
+  "verbs": [
+    {
+      "file": "origins/region1/load.ts",
+      "name": "LOCAL_NAMESPACES",
+      "dispatch": "localId",
+      "sunset": "deleted when the region1 tables move onto the shared loader (the namespace becomes the manifest's table key)"
+    },
+    {
+      "file": "origins/world/town.ts",
+      "name": "TOWN_NODES",
+      "dispatch": "building()",
+      "sunset": null
+    },
+    {
+      "file": "origins/zones/from-row.ts",
+      "name": "ROW_KEYS",
+      "dispatch": "zoneFromRow",
+      "sunset": "becomes the zone manifest's field list when zones adopt the shared loader"
+    }
   ]
 }
