@@ -1,0 +1,9 @@
+{
+  "weather": {
+    "ash":    {"order": 1},
+    "embers": {"order": 2, "rises": true},
+    "rain":   {"order": 3, "falls": true, "streaks": true, "radius": 11, "phoneCount": 500},
+    "dust":   {"order": 4, "low": true},
+    "drips":  {"order": 5, "falls": true}
+  }
+}

@@ -5,6 +5,7 @@
 // Pure data, no three.js: the texture worker imports the texture half of it.
 import type { OpponentId } from './fight/moves.ts';
 import { LADDER } from './ladder.ts';
+import rows from '../origins/arena/definitions.json' with { type: 'json' };
 
 type RGB = [number, number, number];
 export type SkyLook = { base: RGB; sun: RGB; ground: RGB; sunV?: number };   // sunV: the sun's height on the dome (0.77 = Arena 1's)
@@ -17,7 +18,14 @@ export type Patch = Floor | 'puddle' | 'blood';
 export type TextureLook = { floor: Floor; patch?: Patch; sand: RGB; sandSeed: number; stone: RGB; stoneSeed: number; wall?: WallStyle; sky: SkyLook };
 // Weather: what the one Points cloud does (arena.ts). ash drifts (Arena 1), embers rise and glow, rain falls as streaks, dust hangs
 // low, drips fall from the dark. Count, sprite size (m) and opacity are the cost and the read.
-export type Weather = { kind: 'ash' | 'embers' | 'rain' | 'dust' | 'drips'; color: string; count: number; size: number; opacity: number };
+// What each kind does is a ROW (origins/arena/definitions.json, loaded by the registry loader): flags the cloud reads, never a name. A new weather
+// is a row; a new MOTION is a new flag and code. falls: spawned through the whole 8 m and drops (6 m/s); rises: climbs from the pit floor and weaves;
+// streaks: drawn as the thin rain quads, not Points; low: hangs near the floor; radius: spawn radius (m) instead of the near/far ring;
+// phoneCount: the count on a phone tier. Neither falls nor rises = the slow drift (ash, dust).
+export type WeatherRow = { order: number; falls?: boolean; rises?: boolean; streaks?: boolean; low?: boolean; radius?: number; phoneCount?: number };
+export const WEATHER_ROWS = rows.weather as Readonly<Record<string, WeatherRow>>;
+export const weatherRow = (kind: string): WeatherRow => WEATHER_ROWS[kind] ?? (() => { throw new Error(`unknown weather "${kind}" (origins/arena/definitions.json)`); })();
+export type Weather = { kind: string; color: string; count: number; size: number; opacity: number };
 export type ArenaTheme = {
   id: ArenaKey; name: string; textures: TextureLook;
   fog: string; fogDensity: number; hemisphere: [string, string, number]; sun: [string, number]; exposure: number;

@@ -9,7 +9,7 @@ import { loadArenaProps } from './arena-props.ts';
 import { riseMetres, riseStep } from './gate-rise.ts';
 import { bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
-import { ARENA_THEMES, type ArenaTheme } from './arena-themes.ts';
+import { ARENA_THEMES, weatherRow, type ArenaTheme } from './arena-themes.ts';
 
 // The arena: everything that is not a fighter, a light, the camera or an effect. Owned by the world lane.
 // Contract (tests/arena.test.ts): the playable surface is a flat circle (sim.ts RADIUS 8.55 m); nothing solid stands inside it above the
@@ -30,7 +30,6 @@ export type SimView = { tick: number; fighters: readonly { x: number; z: number 
 
 const ABYSS_ONE = { map: 'arena/abyss.webp', haze: [176, 194, 214] as [number, number, number], cream: [227, 204, 189] as [number, number, number] };   // Arena 1's abyss: the haze its disc's rim and the horizon bowl meet in equals HAZE in scripts/arena-abyss.py
 const TAU = Math.PI * 2, smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const RAIN_PHONE_COUNT = 500;
 const RAIN_TAN = Math.tan(51 / 2 * Math.PI / 180);   // the game camera's half-fov (scene.ts): a point sprite's size in world terms at any depth
 const ruinNoise = fbm(6, 3, 5), ruin = (angle: number) => smooth(0.56, 0.78, ruinNoise(angle / TAU, 0.37));   // where the tiers have collapsed
 // Height of tier `i`'s tread at an angle: its base height less the collapse, jittered per segment, never below the tier beneath it.
@@ -105,6 +104,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // flat 2×2 stand-ins in the sand's and stone's own mean colours, so the first frame is the right value and the detail arrives about a
   // second later. Without Workers (Node tests, an old browser) they generate here, synchronously, exactly as before.
   const [sunX, sunY, sunZ] = theme.light?.sun ?? [-15, 26, -18], weather = theme.weather ?? { kind: 'ash', color: theme.motes, count: 520, size: 0.1, opacity: 0.62 };
+  const row = weatherRow(weather.kind);
   const skyU = ((Math.atan2(sunZ, -sunX) / TAU) % 1 + 1) % 1, tint = (c: [number, number, number], t: [number, number, number]) => c.map((v, i) => Math.round(Math.min(255, v * t[i]))) as [number, number, number], solid = (r: number, g: number, b: number) => ({ width: 2, height: 2, data: new Uint8Array([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]) });
   const worker = typeof Worker === 'function' ? new Worker(new URL('./assets/arena/texture-worker.ts', import.meta.url), { type: 'module' }) : null;
   const heavy: HeavyTextures | null = worker ? null : generateHeavyTextures(phone, skyU, theme.textures);
@@ -377,9 +377,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // 8 m, embers rise, dust hangs low. Rain covers the camera's view, so it spreads to the wall; the rest keep the ash's spread.
   // The phone tier draws a third of the rain (2026-09-25, Dom's iPhone slower on the rain arena): 1,500 double-sided transparent
   // streaks never culled is fill the phone GPU pays every frame; the look survives at 500, the fog and the streak itself are unchanged.
-  const moteCount = phone && weather.kind === 'rain' ? RAIN_PHONE_COUNT : weather.count, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2), falls = weather.kind === 'rain' || weather.kind === 'drips';
+  const moteCount = phone && row.phoneCount !== undefined ? row.phoneCount : weather.count, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2), falls = !!row.falls;
   for (let i = 0; i < moteCount; i++) {
-    const a = hash(i, 0, 61) * TAU, near = hash(i, 5, 61) < 0.62, r = Math.sqrt(hash(i, 1, 61)) * (weather.kind === 'rain' ? 11 : near ? 7.2 : 10.6), y = falls ? hash(i, 2, 61) * 8 : weather.kind === 'dust' ? 0.2 + Math.pow(hash(i, 2, 61), 2) * 2.4 : 0.5 + Math.pow(hash(i, 2, 61), 1.3) * 4.9;
+    const a = hash(i, 0, 61) * TAU, near = hash(i, 5, 61) < 0.62, r = Math.sqrt(hash(i, 1, 61)) * (row.radius ?? (near ? 7.2 : 10.6)), y = falls ? hash(i, 2, 61) * 8 : row.low ? 0.2 + Math.pow(hash(i, 2, 61), 2) * 2.4 : 0.5 + Math.pow(hash(i, 2, 61), 1.3) * 4.9;
     moteBase[i * 3] = r * Math.sin(a); moteBase[i * 3 + 1] = y; moteBase[i * 3 + 2] = r * Math.cos(a);
     motePhase[i * 2] = hash(i, 3, 61) * TAU; motePhase[i * 2 + 1] = 0.5 + hash(i, 4, 61);
   }
@@ -391,7 +391,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // instead a thin quad the streak just fills, facing the camera about its fall axis, falling in the vertex shader on one time uniform:
   // one static upload, no per-frame loop, ~1/9 of the blended fragments. Same drops, speeds, slant and wrap as the cloud had; the quad is
   // sized to the point's on-screen size at the same depth (a sprite of `size` px-per-metre-of-depth spans size·tan(fov/2) of world).
-  const rainTime = { value: 0 }, rain = weather.kind === 'rain' ? rainStreaks(weather.size * RAIN_TAN) : null;
+  const rainTime = { value: 0 }, rain = row.streaks ? rainStreaks(weather.size * RAIN_TAN) : null;
   group.add(rain ?? motes);
   function rainStreaks(length: number) {
     const width = length * 0.12, n = moteCount, corner = new Float32Array(n * 8), drop = new Float32Array(n * 8), base = new Float32Array(n * 12), uv = new Float32Array(n * 8), index = new Uint32Array(n * 6);
@@ -569,9 +569,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     // Ash motes: a two-frequency drift fast enough to catch the eye, a barely-there settle, and a gust that swirls them when a blow lands.
     rainTime.value = time;   // rain falls in its vertex shader (rainStreaks): nothing to write per drop
     if (!rain) { const p = moteGeometry.attributes.position as THREE.BufferAttribute;
-      if (weather.kind === 'drips') {   // falling at 6 m/s, wrapping at 8 m
+      if (row.falls) {   // falling at 6 m/s, wrapping at 8 m
         for (let i = 0; i < moteCount; i++) { const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], y = (((moteBase[i * 3 + 1] - time * 6 * (0.8 + 0.3 * sp) + ph) % 8) + 8) % 8; p.setXYZ(i, moteBase[i * 3], y, moteBase[i * 3 + 2]); }
-      } else if (weather.kind === 'embers') {   // rising from low in the pit to 6 m, weaving, the gust of a landed blow spreading them
+      } else if (row.rises) {   // rising from low in the pit to 6 m, weaving, the gust of a landed blow spreading them
         for (let i = 0; i < moteCount; i++) { const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], y = 0.3 + (((moteBase[i * 3 + 1] + time * 0.45 * sp + ph) % 6) + 6) % 6, g = 1 + flare * 2;
           p.setXYZ(i, moteBase[i * 3] + 0.35 * Math.sin(time * 0.7 * sp + ph + y) * g, y, moteBase[i * 3 + 2] + 0.35 * Math.cos(time * 0.6 * sp + ph * 1.3 + y) * g); }
       } else for (let i = 0; i < moteCount; i++) {
