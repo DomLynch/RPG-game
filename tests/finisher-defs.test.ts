@@ -13,7 +13,7 @@ import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
 import { BoxGeometry, Group, Mesh, Object3D, PerspectiveCamera, Texture } from 'three';
 import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
 import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
-import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate, PLAIN_DEATH } from '../src/fight/finisher-look.ts';
+import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate, PICKER_OPTIONS, PLAIN_DEATH } from '../src/fight/finisher-look.ts';
 import { hamstrungPick, poseOf as hamstrungPoseOf, resolveHamstrung } from '../src/fight/hamstrung.ts';
 import { executionPick, poseOf as executionPoseOf, resolveExecution } from '../src/fight/execution.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
@@ -62,12 +62,12 @@ test('the rows file has no duplicate key and every row names an engine template'
 });
 
 test('a ninth finisher is ONE row through the real loader, with no code edit', () => {
-  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM, blood: BLD, sound: SND };
+  const row = { id: 'gutted', label: 'Test', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM, blood: BLD, sound: SND };
   const t = loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest);
   assert.equal(t.rows.length, 9);
   assert.equal(t.byId.get('gutted')!.template, 'bisect');
   assert.deepEqual(t.rotation, [...ROTATION], 'a new row is not in the automatic pick until it says so');
-  const borrowed = loadFinisherDefs({ finishers: [...raw.finishers, { id: 'gutted', template: 'hamstring', rotation: true, pose: null, secondsFrom: 'opened', camera: CAM, blood: BLD }] }, manifest);
+  const borrowed = loadFinisherDefs({ finishers: [...raw.finishers, { id: 'gutted', label: 'Test', template: 'hamstring', rotation: true, pose: null, secondsFrom: 'opened', camera: CAM, blood: BLD }] }, manifest);
   assert.deepEqual(borrowed.rotation, [...ROTATION, 'gutted'], 'rotation: true joins the pool, in file order');
 });
 
@@ -75,17 +75,17 @@ test('the loader refuses a duplicate id, an unknown template, a bad pose or body
   const ok = raw.finishers, load = (rows: unknown[]) => loadFinisherDefs({ finishers: rows }, manifest);
   assert.doesNotThrow(() => load(ok));
   assert.throws(() => load([...ok, { ...ok[0] }]), /duplicate-id/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'juggle', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /template "juggle" is not an engine verb/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 7, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /pose must be a clip word or null/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND, body: { victim: { pose: 'opened', role: 'Death_SplitCrown' } } }]), /body pose "opened" is used twice/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND, body: { victim: { pose: 'x' } } }]), /body parts need a pose word and a clip role/);
-  assert.throws(() => load([...ok, { id: 'a', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /missing-field: template is required/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: 'yes', pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /wrong-type: rotation must be boolean/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, camera: CAM, blood: BLD, sound: SND }]), /exactly one of seconds and secondsFrom/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, secondsFrom: 'plainDeath', camera: CAM, blood: BLD, sound: SND }]), /exactly one of seconds and secondsFrom/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: -1, camera: CAM, blood: BLD, sound: SND }]), /seconds must be a positive number/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'nothing', camera: CAM, blood: BLD, sound: SND }]), /unknown-ref: secondsFrom = "nothing" is not a finisher id/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'hamstrung', camera: CAM, blood: BLD, sound: SND }]), /must name a row with measured seconds/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'juggle', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /template "juggle" is not an engine verb/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: 7, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /pose must be a clip word or null/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND, body: { victim: { pose: 'opened', role: 'Death_SplitCrown' } } }]), /body pose "opened" is used twice/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND, body: { victim: { pose: 'x' } } }]), /body parts need a pose word and a clip role/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', rotation: false, pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /missing-field: template is required/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: 'yes', pose: null, seconds: 2, camera: CAM, blood: BLD, sound: SND }]), /wrong-type: rotation must be boolean/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, camera: CAM, blood: BLD, sound: SND }]), /exactly one of seconds and secondsFrom/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, seconds: 2, secondsFrom: 'plainDeath', camera: CAM, blood: BLD, sound: SND }]), /exactly one of seconds and secondsFrom/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, seconds: -1, camera: CAM, blood: BLD, sound: SND }]), /seconds must be a positive number/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, secondsFrom: 'nothing', camera: CAM, blood: BLD, sound: SND }]), /unknown-ref: secondsFrom = "nothing" is not a finisher id/);
+  assert.throws(() => load([...ok, { id: 'a', label: 'Test', template: 'fall', rotation: false, pose: null, secondsFrom: 'hamstrung', camera: CAM, blood: BLD, sound: SND }]), /must name a row with measured seconds/);
   assert.throws(() => finisherSeconds('nothing'), /unknown finisher "nothing"/);
 });
 
@@ -114,7 +114,7 @@ test('the finisher camera driven by the rows is byte-identical to the name-switc
 });
 
 test('a new finisher\'s camera is ONE row: its own dolly, a reveal onto its own side view, through the real loader', () => {
-  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, sound: SND, blood: BLD,
+  const row = { id: 'gutted', label: 'Test', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, sound: SND, blood: BLD,
     camera: { dolly: { push: 0.2, slide: 0.5, turn: 0.4 }, reveal: { from: 0.1, over: 0.3, side: 'gutted' }, side: { angle: 0.9, eyeY: 2.6, minBack: 4, beyond: 0.6 } } };
   const t = loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest);
   assert.deepEqual(t.byId.get('gutted')!.camera.side, row.camera.side);
@@ -197,7 +197,7 @@ test('the kill sounds driven by the rows are byte-identical to the name-switches
   assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'cues.ts names no finisher');
 });
 test('a new finisher\'s sound is ONE row through the real loader; a staged template carries none, every other needs a fall', () => {
-  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM, blood: BLD, sound: { fall: { cue: 'kill', gain: 0.5, room: 0.2, at: 1.8 }, wound: [{ cue: 'flesh_tear', gain: 0.4, room: 0.1, atDeath: 0.1 }] } };
+  const row = { id: 'gutted', label: 'Test', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM, blood: BLD, sound: { fall: { cue: 'kill', gain: 0.5, room: 0.2, at: 1.8 }, wound: [{ cue: 'flesh_tear', gain: 0.4, room: 0.1, atDeath: 0.1 }] } };
   assert.deepEqual(loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest).byId.get('gutted')!.sound, row.sound);
   const load = (r: unknown) => loadFinisherDefs({ finishers: [...raw.finishers, r] }, manifest);
   assert.throws(() => load({ ...row, sound: undefined }), /a bisect row needs sound.fall/);
@@ -285,4 +285,14 @@ test('zone-finisher and the fx waist sparks ask the row exactly what the name co
     assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], `${file}.ts names no finisher`);
   }
   assert.doesNotMatch(readFileSync(new URL('../src/fight/fx.ts', import.meta.url), 'utf8'), /finisher === '/, 'fx.ts compares no finisher name');
+});
+
+// ---- main.ts FINISHER_OPTIONS (Web's file; Lead's ruling 2026-10-12): the dev picker is the rows with a `picker` place, in that order, under their `label`.
+// The list is exactly the one main.ts hard-coded on trunk.
+test('the dev picker built from the rows is byte-identical to the hard-coded list it replaced; main.ts names no finisher', () => {
+  assert.deepEqual(PICKER_OPTIONS.map(([id, label]) => [id, label]), [['splitCrown', 'Split Crown'], ['decapitation', 'Decapitation'], ['runThrough', 'Run Through'], ['opened', 'Opened'], ['hamstrung', 'Hamstrung'], ['execution', 'Execution'], ['plainDeath', 'Plain death']]);
+  const src = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'main.ts names no finisher');
+  assert.throws(() => loadFinisherDefs({ finishers: raw.finishers.map((r) => (r.id === 'opened' ? { ...r, picker: 1 } : r)) }, manifest), /picker places must be distinct integers/);
+  assert.throws(() => loadFinisherDefs({ finishers: raw.finishers.map((r) => (r.id === 'opened' ? { ...r, label: undefined } : r)) }, manifest), /missing-field: label is required/);
 });
