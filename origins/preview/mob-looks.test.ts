@@ -82,7 +82,7 @@ test('a zone\'s own mob look wins over the central table, and a zone without one
   assert.equal(mobLook(id, z1), mobLook(id), 'Zone 1: the central look, untouched');
   assert.deepEqual({ ...mobLook(id), scale: undefined }, { ...Z1.looks[id], scale: undefined }, 'the default zone off a page is Zone 1 (its own row, the scale resolved)');
   assert.equal(mobLook(id, zone), own, 'the zone\'s entry first');
-  assert.equal(mobLook('character:ash-boar', zone), mobLook('character:ash-boar'), 'a kind the zone does not dress falls back to the central table');
+  assert.equal(mobLook('character:ash-boar', zone), null, 'a kind the zone does not dress has no look: the roster body is drawn as it is (the central table is empty)');
   assert.equal(variantLook('character:ember-wolf', 0, zone), own, 'variant 0 IS the zone look');
   assert.equal(variantLook(id, 3, zone), own, 'no spread for the wolf: the look as it is');
   assert.ok(new Set([1, 2, 3, 4, 5, 6, 7].map((v) => variantLook('character:ember-wolf', v, zone)!.tint)).size > 1, 'the zone spread gives a pack its variety');
@@ -103,7 +103,7 @@ test('an omitted scale is the body\'s own (its catalogue render.scale), a litera
 });
 
 test('a look is a row edit: changing a tint or a spread in Zone 1\'s row changes what mobLook / variantLook return, with no code', () => {
-  const id = 'character:cinder-scavenger', z1 = loadZone('1'), edited = { ...z1, mobLooks: { looks: { ...Z1.looks, [id]: { ...Z1.looks[id]!, tint: 0xff0000 } }, spread: { ...Z1.spread, [id]: { ...Z1.spread[id]!, tints: [0x00ff00] } } } } as unknown as Zone;
+  const id = 'character:cinder-scavenger', z1 = loadZone('1'), edited = { ...z1, id: 'edited', mobLooks: { looks: { ...Z1.looks, [id]: { ...Z1.looks[id]!, tint: 0xff0000 } }, spread: { ...Z1.spread, [id]: { ...Z1.spread[id]!, tints: [0x00ff00] } } } } as unknown as Zone;
   assert.equal(mobLook(id, edited)!.tint, 0xff0000, 'the row\'s tint is the look');
   assert.equal(variantLook(id, 0, edited)!.tint, 0xff0000, 'variant 0 is the row\'s look');
   assert.ok([1, 2, 3, 4, 5, 6, 7].some((v) => variantLook(id, v, edited)!.tint === 0x00ff00), 'the row\'s spread pool feeds the variants');
