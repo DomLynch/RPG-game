@@ -5,8 +5,9 @@
 // commit, is what lets a run on the PR branch (or on GitHub's pull_request merge ref, or on a branch trunk never
 // contains) count after the merge: a rebased branch merged onto an unmoved trunk produces a merge commit with the very
 // same tree, so the checks' inputs are
-// identical. Runs still in progress count job by job, so deploy.sh never has to wait for the slow runner jobs: whatever
-// CI has finished is trusted, the rest runs on the Mac. Conservative by construction: any missing run, unfinished or
+// identical. Runs still in progress count job by job: whatever CI has finished is trusted, the rest runs on the Mac. With CI_ROWS_WAIT_S (deploy.sh's
+// "release checks" step: 900) it first WAITS, bounded, while a run for this tree still has a CI row queued or running (Lead 2026-10-12, CP: the Mac ran ~32
+// rows because deploy.sh looked 13 min into a 20-wide matrix; rows 18/20/23/25 went green on CI minutes later). Default 0: look once, as before. Conservative by construction: any missing run, unfinished or
 // failed job, missing receipt, receipt for another tree, gh/git error or RELEASE_CHECKS_TRUST_CI=0 leaves a check off
 // the list, which means it runs locally as before.
 // One exception to "same tree" (Lead's ruling 2026-09-24, option a'): a receipt for another tree still counts when every
@@ -14,7 +15,7 @@
 // i.e. trunk moved under the PR only by files no release row can see. Any other file, or a tree git cannot diff, and the
 // row runs locally. The trigger table (release_triggers) is deliberately NOT used: it is a curated subset, and a row it
 // does not name would be trusted across any code change.
-//   node scripts/ci-trusted-checks.mjs <full-sha>   -> stdout "1,3,4"  (may be empty); one summary line on stderr
+//   node scripts/ci-trusted-checks.mjs <full-sha>   -> stdout "1,3,4"  (may be empty); one summary line on stderr. Env: CI_ROWS_WAIT_S, CI_ROWS_POLL_S (30).
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,10 +45,11 @@ const visibleDelta = (from, to) => {
   return deltas.get(from);
 };
 
-try {
-  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('expected a full 40-hex revision');
-  if (process.env.RELEASE_CHECKS_TRUST_CI === '0') { say('disabled by RELEASE_CHECKS_TRUST_CI=0'); process.exit(0); }
-  const tree = git(['rev-parse', `${sha}^{tree}`]);
+const waitS = Number(process.env.CI_ROWS_WAIT_S || 0), pollS = Number(process.env.CI_ROWS_POLL_S || 30), deadline = Date.now() + waitS * 1000;
+const sleep = s => spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 });
+
+/** One look at CI: { list, line, pending } (pending = CI rows still queued or running in a run for this tree), or null when no run exists. */
+function look(tree) {
   // Runs are looked up by commit: the revision itself (trunk push) and, for a merge commit, the branch head that was
   // merged (pull_request and workflow_dispatch runs are recorded against that head). The receipt's tree decides.
   const [, ...parents] = git(['rev-list', '--parents', '-n', '1', sha]).split(/\s+/);
@@ -81,12 +83,14 @@ try {
     if (seen(run)) continue;
     if (treeOf(run.headSha) === tree) runs.push(run);
   }
-  if (!runs.length) { say(`no release-checks run for ${sha.slice(0, 7)}, its merged branch or tree ${tree.slice(0, 7)}; all checks run locally`); process.exit(0); }
+  if (!runs.length) return null;
 
   const trusted = new Map(); // index -> run url
   const reasons = new Map(); // index -> why the latest run looked at could not vouch for it
+  let started = false;
   for (const run of runs) {
     const jobs = ghJson(['run', 'view', String(run.databaseId), '--json', 'jobs', '--jq', '[.jobs[] | {name, conclusion}]']);
+    if (jobs.some(job => /^check \d+ /.test(job.name || ''))) started = true;
     const dir = mkdtempSync(join(tmpdir(), 'ci-trusted-checks-'));
     // Only the tiny receipt artifacts, never the screenshots/videos the full check artifacts carry.
     const download = spawnSync(gh, ['run', 'download', String(run.databaseId), '--pattern', 'release-check-*-receipt', '--dir', dir], { encoding: 'utf8' });
@@ -123,11 +127,30 @@ try {
     }
   }
   const list = [...trusted.keys()].sort((a, b) => a - b);
+  // still coming: a CI row not yet trusted whose job has no conclusion, or a run not completed whose matrix has not started
+  const pending = [...reasons.entries()].filter(([, why]) => why.startsWith('unfinished')).map(([i]) => i);
+  if (!started && runs.some(run => run.status !== 'completed')) pending.push(0);
   // A run whose matrix has not started (or was gated off) lists no "check N" jobs at all: say so instead of "[]".
   const local = reasons.size || list.length ? [...reasons.entries()].sort((a, b) => a[0] - b[0]).map(([i, why]) => `${i}:${why}`) : ['all: no check jobs in the run(s) yet'];
   const why = list.map(i => `${i}:${trusted.get(i).how}`);
-  say(`${[...new Set([...trusted.values()].map(t => t.url))].join(' ') || runs[0].url}: trusting ${list.length} check(s) [${list.join(',')}] for tree ${tree.slice(0, 7)} (${why.join(' ') || 'none'}); running locally: [${local.join(' ')}]`);
-  process.stdout.write(list.join(','));
+  return { list, pending, line: `${[...new Set([...trusted.values()].map(t => t.url))].join(' ') || runs[0].url}: trusting ${list.length} check(s) [${list.join(',')}] for tree ${tree.slice(0, 7)} (${why.join(' ') || 'none'}); running locally: [${local.join(' ')}]` };
+}
+
+try {
+  if (!/^[0-9a-f]{40}$/.test(sha || '')) throw new Error('expected a full 40-hex revision');
+  if (process.env.RELEASE_CHECKS_TRUST_CI === '0') { say('disabled by RELEASE_CHECKS_TRUST_CI=0'); process.exit(0); }
+  const tree = git(['rev-parse', `${sha}^{tree}`]);
+  const t0 = Date.now();
+  let seen = look(tree);
+  while (seen?.pending.length && Date.now() < deadline) {
+    say(`waiting for ${seen.pending.filter(Boolean).length ? `CI row(s) [${seen.pending.filter(Boolean).join(',')}]` : 'the row matrix to start'} (${Math.round((Date.now() - t0) / 1000)}s of ${waitS}s)`);
+    sleep(Math.max(1, Math.min(pollS, Math.ceil((deadline - Date.now()) / 1000))));
+    seen = look(tree);
+  }
+  if (!seen) { say(`no release-checks run for ${sha.slice(0, 7)}, its merged branch or tree ${tree.slice(0, 7)}; all checks run locally`); process.exit(0); }
+  if (seen.pending.length && waitS > 0) say(`stopped waiting after ${waitS}s with CI row(s) [${seen.pending.filter(Boolean).join(',')}] unfinished: they run locally`);
+  say(seen.line);
+  process.stdout.write(seen.list.join(','));
 } catch (error) {
   say(`${error.message}; all checks run locally`);
   process.exit(0);
