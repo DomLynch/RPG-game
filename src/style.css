@@ -2561,6 +2561,15 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .career-record { margin: 6px 0 0; font-size: 14px; }
 .career-links { display: flex; gap: 8px; margin: 8px 0 0; }
 
+/* Paper-doll reference (Web, 2026-10-12; Dom's inventory reference 2026-10-11): a worn slot is a framed card tinted by the rung the piece was taken at (--tier 1..10 from the ledger, one
+   hue per rung, so no name list), the selected slot gets the reference's red frame, and the numbers sit under the doll (gear-stats.ts: a row per stat, drawn only when it has a value). */
+#journal .doll .slot.on:not([data-loot=''])::after { content: ""; position: absolute; inset: 0; border-radius: 4px; background: hsl(calc(var(--tier, 1) * 33 + 195) 70% 50% / .38); pointer-events: none; }   /* the rail's frame is a border-image (fill), so the tint is an overlay */
+#journal .doll .slot.sel { border-color: #e0584f; box-shadow: 0 0 0 2px #e0584f99; }
+.gear-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--jl, #c8a45e66); background: var(--jb, #14110d); }
+.gear-stats[hidden] { display: none; }
+.gear-stats > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.gear-stats dt { margin: 0; color: var(--jm, #a89a7c); font: 600 13px/1.5 "Instrument Sans", Arial, sans-serif; }
+.gear-stats dd { margin: 0; color: var(--jf2, #f3ead6); font: 600 14px/1.5 "Instrument Sans", Arial, sans-serif; font-variant-numeric: tabular-nums; }
 /* Landscape part B (Web, 2026-10-12; scripts/pit-landscape-check.mjs). The stance panel (inline-styled, top 64 right 8, two rows) sat on the SKILL button and the menu button in every landscape view:
    on a short screen it moves left of the action cluster (the cluster's left edge is 81 px in; the notch's right inset is added). The journal name no longer runs under the Stats / Career / Settings icons:
    it ellipsizes before them (the pencil is the name's own background so a long name keeps it). */
