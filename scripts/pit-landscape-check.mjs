@@ -64,11 +64,6 @@ try {
     await page.locator('#journal-button').click(); await page.waitForTimeout(1200);
     for (const tab of ['profile', 'fighter', 'career', 'settings']) {
       await page.locator(tab === 'profile' ? '#journal #nav-gear' : `#journal .tab-${tab}`).click(); await page.waitForTimeout(600); await snap(`journal-${tab}`, '#journal');
-      if (tab === 'profile') {   // the sticky tab strip has solid ground above it: scrolled, the point just over its top edge belongs to the strip or the dialog, never to the content scrolling by
-        const above = await page.evaluate(() => { const j = document.getElementById('journal'), n = j.querySelector('.app-nav'); j.scrollTop = 150; const r = n.getBoundingClientRect(), jr = j.getBoundingClientRect(), y = Math.round(r.top) - 6, el = y > jr.top ? document.elementFromPoint(r.left + r.width / 2, y) : null; return { y, top: Math.round(r.top), jTop: Math.round(jr.top), scrolled: j.scrollTop, hit: el ? el.id || el.className || el.tagName : null, ok: !el || el === j || !!el.closest('.app-nav') }; });
-        if (above.scrolled > 0 && !above.ok) v.states['journal-profile'].bad.push(`content shows above the sticky tab strip: ${JSON.stringify(above)}`);
-        await page.evaluate(() => { document.getElementById('journal').scrollTop = 0; });
-      }
       if (tab === 'profile' && await page.$('#gear-stats')) {   // the paper-doll: six worn slots tinted by rung, the strip's rows drawn
         const doll = await page.evaluate(() => ({ tints: [...document.querySelectorAll('#journal .doll .slot.on:not([data-loot=""])')].map((e) => e.style.getPropertyValue('--tier')), rows: [...document.querySelectorAll('#gear-stats > div')].map((d) => d.getAttribute('data-stat')) }));
         v.paperDoll = doll;

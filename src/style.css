@@ -2413,7 +2413,6 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#view):not(#journa
 #journal #journal-tab-fighter:checked ~ .tab-strip .tab-fighter, #journal #journal-tab-career:checked ~ .tab-strip .tab-career, #journal #journal-tab-arena:checked ~ .tab-strip .tab-arena, #journal #journal-tab-settings:checked ~ .tab-strip .tab-settings { color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
 /* the tab bar under the header: sticky, so Gear & pack | Arena stay in reach while a long screen scrolls */
 #journal .app-nav { order: -1; position: sticky; top: 0; bottom: auto; margin: 0; z-index: 3; padding: 0; border: 0; border-image: none; border-top: 1px solid #c8a45e66; border-bottom: 1px solid #c8a45e66; background: var(--jb); }
-@media (min-width: 701px) { #journal .app-nav::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 16px; background: var(--jb); } }   /* the centred dialog has 16px top padding: the sticky strip sticks below it, so the strip carries a solid backing up to the dialog's edge and the stats row no longer shows above it */
 #journal .app-nav button { min-height: 52px; font-size: 12px; letter-spacing: .14em; color: var(--jm); background: none; border-radius: 0; }
 #journal .app-nav button + button { border-left: 1px solid var(--jl); }
 #journal #journal-tab-profile:checked ~ .app-nav #nav-gear { background: none; color: var(--jg2); box-shadow: inset 0 -2px 0 var(--jg); }
