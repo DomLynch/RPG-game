@@ -69,13 +69,13 @@ test('the allow-list: an allowed literal is listed apart and never counted, and 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('the real allow-list has no stale entry or stale verb, and the three ratified verbs are listed with a dispatch', () => {
+test('the real allow-list has no stale entry or stale verb, and the four ratified verbs are listed with a dispatch', () => {
   const r = run('src');
   assert.equal(r.status, 0, `${r.stderr}${r.stdout.slice(0, 400)}`);
   const report = JSON.parse(r.stdout) as Report;
   assert.deepEqual(report.stale, []);
   assert.deepEqual(report.staleVerbs, []);
-  assert.deepEqual(report.verbs.map((v) => [v.name, v.dispatch]), [['LOCAL_NAMESPACES', 'localId'], ['TOWN_NODES', 'building()'], ['ROW_KEYS', 'zoneFromRow']]);
+  assert.deepEqual(report.verbs.map((v) => [v.name, v.dispatch]), [['LOCAL_NAMESPACES', 'localId'], ['TOWN_NODES', 'building()'], ['ROW_KEYS', 'zoneFromRow'], ['GRIDS', 'sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)']]);
   assert.ok(report.verbs.every((v) => v.line >= 1));
 });
 
