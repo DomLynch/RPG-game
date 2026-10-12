@@ -338,3 +338,26 @@ test('--accept still refuses a non-reach hold on a v20+ record (its replay is en
   await assert.rejects(acceptHeld(db, 9, 'chromium @10 on 0d2d9996'), /is a v31 record: its replay is engine-independent/);
   assert.equal(db.settled.size, 0);
 });
+
+test('a won claim whose record carries a sheet is replayed with the stored build version it names; forged, unknown, or no store means refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 10 } }, honest = sheetOf(stored)!;
+  const fightWith = async (sheet: Record<string, number>, buildVersion = 1) => {
+    const rec = liveRecorder({ build: 'test', opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1, sheet, characterId: 'one', buildVersion });
+    let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, sheet);
+    for (let t = 0; t < 20000 && !practice.finish; t++) {
+      const acts = ['light', 'heavy', 'thrust'] as const;
+      practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+    }
+    assert.equal(practice.finish?.victim, 1, 'a player win');
+    return encodeRecord(rec.finish('killed'));
+  };
+  const asked: string[] = [];
+  const build = async (character: string, version: number) => { asked.push(`${character}@${version}`); return character === 'pc:one' && version === 1 ? stored : null; };
+  const row = (record: string) => ({ opponent: 'goblin', record });
+  assert.equal(await refusal(row(await fightWith(honest)), FRESH, { build }), null, 'the build the record names gives this sheet: the win stands');
+  assert.match(String(await refusal(row(await fightWith({ ...honest, attack: 100 })), FRESH, { build })), /not the one the player's stored build/);
+  assert.match(String(await refusal(row(await fightWith(honest, 5)), FRESH, { build })), /build version this server does not hold/);
+  assert.match(String(await refusal(row(await fightWith(honest)), FRESH)), /build version this server does not hold/, 'a caller with no store refuses a sheet');
+  assert.deepEqual(asked, ['pc:one@1', 'pc:one@1', 'pc:one@5']);
+});
