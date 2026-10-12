@@ -5,7 +5,7 @@
 import { LOOT_ITEM_IDS } from '../inventory/loot-catalogue.ts';
 import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoolean, readEnum, readInt, readObject, readString, readText, type Obj, type Result } from '../../src/core/server.ts';
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../../src/core/server.ts';
-import { loadContent, type Registry } from '../../src/core/server.ts';
+import { loadContent, type ContractRegistry } from '../../src/core/server.ts';
 import { parseBossDefinition } from '../boss/boss.ts';
 import { TYPE_WEIGHTS } from '../../src/core/server.ts';
 import { toMetres } from '../world/derive.ts';
@@ -75,7 +75,7 @@ export type Bounty = { id: string; name: string; region: RegionId; encounter: En
 export type RiftSite = { id: string; region: RegionId; zone: string; at: string; weight: number };
 export type Region1 = {
   zones: ReadonlyMap<RegionId, ReadonlyMap<string, Params>>;
-  registry: Registry;
+  registry: ContractRegistry;
   towns: Town[];
   bounties: Bounty[];
   flags: ReadonlyMap<EncounterId, Twist[]>;
@@ -319,7 +319,7 @@ function readBounty(issues: Issues, raw: unknown, path: string): Bounty | undefi
   return { id: id!, name: name!, region: region!, encounter: encounter!, twist: twist!, metal: metal!, dailyCap: dailyCap! };
 }
 
-function readRifts(issues: Issues, records: readonly Obj[], registry: Registry, zones: ReadonlyMap<RegionId, ReadonlyMap<string, Params>>, townZones: ReadonlySet<string>): Region1['rifts'] | undefined {
+function readRifts(issues: Issues, records: readonly Obj[], registry: ContractRegistry, zones: ReadonlyMap<RegionId, ReadonlyMap<string, Params>>, townZones: ReadonlySet<string>): Region1['rifts'] | undefined {
   const before = issues.list.length, sites: RiftSite[] = [];
   let boss: Obj | undefined, scheduler: Obj | undefined;
   records.forEach((raw, i) => {
