@@ -7,7 +7,7 @@
 # (f) SPILL (Dom's work waterfall, Deploy's launch.mjs job, PR #2079): when all 4 slots are busy, or the wait passes 120 s, a job whose
 # checkout HEAD is pushed goes to Hugging Face CPU instead of waiting: it prints `tier=hf-cpu slot=n queued=Ns job=<id>` and exits 0
 # (the HF job runs detached; follow it with `hf jobs logs <id>`). Exit 75 from launch.mjs (no HF slot) = keep waiting for a VPS slot.
-# The root path is unchanged.
+# Root takes a slot and the load gate too (2026-10-12); it keeps its unlimited scope (no memory/CPU cap, no timeout).
 refuse_re='(^|[[:space:];&|(])(npm[[:space:]]+run[[:space:]]+(test:all|test:slow|test:browser|quality(:[[:alnum:]_-]+)?)|npm[[:space:]]+(run[[:space:]]+)?test|(node|tsx|npx[[:space:]]+tsx)[[:space:]]+([^[:space:]]+[[:space:]]+)*--test(([[:space:]]+[^[:space:]-][^[:space:]]*){2,}|[[:space:]]+[^[:space:]]*[*][^[:space:]]*))([[:space:]]|$)'
 # 2026-10-12 (Lead, Strategy defects 1+2): a job goes to the VPS only when a slot is free AND load1 < VPS_MAX_LOAD1 (read from scripts/lib/waterfall.mjs, the
 # waterfall's one number: the repo checkout this script sits in, else the ~/.spill-tools checkout; LANEJOB_WATERFALL overrides; unreadable = the gate FAILS CLOSED:
