@@ -40,11 +40,13 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 dest="$opt/$revision"
 
 # The writer imports ../src and ../origins (type-stripped .ts, Node >= 22.18); no node_modules: it has no dependencies.
-install -d "$dest/scripts"
+install -d "$dest/scripts" "$dest/scripts/lib"
 rm -rf "$dest/src" "$dest/origins"
 cp -R "$here/src" "$here/origins" "$dest/"
 find "$dest/origins" \( -name '*.test.ts' -o -name 'README.md' \) -delete
 install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer.mjs"
+# every writer-closure file outside src/ and origins/ is copied here by name (tests/origins-writer-closure.test.ts fails when one is missing: CH's loader.ts imported this and the writer crash-looped)
+install -m 0644 "$here/scripts/lib/json-dup-keys.mjs" "$dest/scripts/lib/json-dup-keys.mjs"
 install -m 0644 "$here/package.json" "$dest/package.json"
 old=$(readlink -f "$opt/current" 2>/dev/null || true)   # the rollback target: kept as `previous` so the prune below never removes it
 ln -sfn "$dest" "$opt/current"
