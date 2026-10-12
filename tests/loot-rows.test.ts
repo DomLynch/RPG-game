@@ -24,7 +24,8 @@ test('a new loot table is one real row: edit only loot-tables.json in a copy of 
   const dir = mkdtempSync(join(tmpdir(), 'loot-rows-'));
   try {
     cpSync('origins', join(dir, 'origins'), { recursive: true });
-    for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    cpSync('scripts', join(dir, 'scripts'), { recursive: true });
+    for (const link of ['src', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
     const file = join(dir, ROWS_FILE), all = JSON.parse(readFileSync(file, 'utf8')) as Record<string, any>[];
     const row = structuredClone(all.find((t) => t.id === 'loottable:ember-wolf')!);
     row.id = 'loottable:zone-test-new';
@@ -40,20 +41,37 @@ console.log(JSON.stringify({ ok: r.ok, issues: r.ok ? [] : r.issues, rolls: LOCA
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('a creature listed by two loot rows is a duplicate-id, not a silent last-wins', () => {
+test('a creature listed by two loot rows is a duplicate-id (the registry loader), at load and in the gate, not a silent last-wins', () => {
   const dir = mkdtempSync(join(tmpdir(), 'loot-dup-'));
   try {
     cpSync('origins', join(dir, 'origins'), { recursive: true });
-    for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    cpSync('scripts', join(dir, 'scripts'), { recursive: true });
+    for (const link of ['src', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
     const file = join(dir, ROWS_FILE), all = JSON.parse(readFileSync(file, 'utf8')) as Record<string, any>[];
     all.find((t) => t.id === 'loottable:ash-wolf')!.rolledBy.push('character:ember-wolf');
     writeFileSync(file, JSON.stringify(all));
-    writeFileSync(join(dir, 'probe.ts'), `import { loadRegion1 } from './origins/region1/load.ts';
-const r = loadRegion1();
-console.log(JSON.stringify(r.ok ? [] : r.issues.map((i) => i.code + ' ' + i.path)));`);
-    const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
-    assert.equal(out.status, 0, out.stderr);
-    assert.deepEqual(JSON.parse(out.stdout.trim().split('\n').pop()!), ['duplicate-id creatureLoot.character:ember-wolf']);
+    const gate = spawnSync(process.execPath, ['scripts/registry-check.mjs', 'origins'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(gate.status, 1);
+    assert.match(gate.stderr, /loot-tables\.json:\d+:character:ember-wolf duplicate-id/);
+    writeFileSync(join(dir, 'probe.ts'), "import './origins/region1/content.ts';");
+    const run = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
+    assert.notEqual(run.status, 0);
+    assert.match(run.stderr, /character:ember-wolf duplicate-id/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a rolledBy that names no character is an unknown-ref in the gate', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'loot-ref-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true });
+    cpSync('scripts', join(dir, 'scripts'), { recursive: true });
+    for (const link of ['src', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, ROWS_FILE), all = JSON.parse(readFileSync(file, 'utf8')) as Record<string, any>[];
+    all.find((t) => t.id === 'loottable:ash-wolf')!.rolledBy = ['character:ghost'];
+    writeFileSync(file, JSON.stringify(all));
+    const gate = spawnSync(process.execPath, ['scripts/registry-check.mjs', 'origins'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(gate.status, 1);
+    assert.match(gate.stderr, /character:ghost unknown-ref/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

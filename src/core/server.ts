@@ -14,3 +14,4 @@ export * from './world/kits.ts';
 export * from './world/kit-version.ts';
 export * from './world/info.ts';
 export * from './world/wildlife-rows.ts';
+export * from './registry.ts';

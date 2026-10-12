@@ -20,6 +20,10 @@ import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
 import { placedSpawns, placedWaypoints } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import lootTableRows from './loot-tables.json' with { type: 'json' };
+import townRows from './towns.json' with { type: 'json' };
+import townManifest from './towns.manifest.json' with { type: 'json' };
+import lootManifest from './loot-tables.manifest.json' with { type: 'json' };
+import { buildTables, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
@@ -212,32 +216,13 @@ export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LO
 
 // ---- 2. kinds the contracts do not have yet --------------------------------------------------------------------------------------
 
-// Towns (living-world §3.1, §12). Tier at start comes from startProsperity (§3.3); services open never exceed the tier's count.
-// Patrons are strike sources only, never foes (feuds §12–§13). `services[].trade` is the feuds §11 `trade` key.
-const town = (
-  id: string, name: string, region: string, zone: string, startProsperity: number, patron: string,
-  ruler: { title: string; character: string; temperament: string; standIn: string },
-  centre: string, jail: string, services: { trade: string; npc: string; at: string }[], resources: string[], riverside: boolean,
-) => ({ kind: 'town-definition', schemaVersion: 1, id, name, region, zone, safe: false, startProsperity, patron, ruler: { ...ruler, successors: [] }, centre, jail, services, resources, riverside });
-
-export const TOWNS = [
-  town('town:exchange-quarter', 'The Exchange Quarter', 'region:concord-exchange', 'exchange-quarter', 500, 'patron:zeus',
-    { title: 'mayor', character: 'character:mayor-hollin', temperament: 'mercantile', standIn: 'character:steward-quarter' },
-    'quarter-centre', 'quarter-jail', [
-      { trade: 'smith', npc: 'character:smith-quarter', at: 'quarter-forge' },
-      { trade: 'healer', npc: 'character:healer-quarter', at: 'quarter-healer' },
-      { trade: 'fence', npc: 'character:fence-quarter', at: 'quarter-fence' },
-    ], ['rents', 'tolls'], false),
-  town('town:cinder-hold', 'Cinder Hold', 'region:ash-frontier', 'cinder-hold', 260, 'patron:hel',
-    { title: 'reeve', character: 'character:warden-brannoc', temperament: 'ambitious', standIn: 'character:steward-cinder' },
-    'hold-centre', 'hold-jail', [
-      { trade: 'smith', npc: 'character:smith-cinder', at: 'hold-forge' },
-      { trade: 'fence', npc: 'character:fence-cinder', at: 'hold-fence' },
-    ], ['grave-iron', 'ash-salt'], false),
-  town('town:mere-end', 'Mere End', 'region:ash-frontier', 'mere-end', 180, 'patron:poseidon',
-    { title: 'reeve', character: 'character:reeve-osk', temperament: 'cautious', standIn: 'character:steward-mere' },
-    'end-centre', 'end-jail', [{ trade: 'healer', npc: 'character:healer-mere', at: 'end-healer' }], ['eels', 'reed'], true),
-];
+// Towns (living-world §3.1, §12) are rows: origins/region1/towns.json holds the definitions table (trades, temperaments, ruler titles) and
+// the town rows. Tier at start comes from startProsperity (§3.3); patrons are strike sources only, never foes (feuds §12-§13);
+// `services[].trade` is the feuds §11 `trade` key. A new trade, temperament or town is one row there.
+// The shared registry loader (src/core/registry.ts) reads the manifest beside the rows: a duplicate id, unknown ref, missing field or wrong type throws here.
+loadRegistry(townManifest.tables.map((m) => tableFromFile(m as Manifest, townRows, `origins/region1/${m.file}`)));
+export const TOWN_DEFS: Record<string, Record<string, Record<string, unknown>>> = townRows.definitions;
+export const TOWNS = townRows.towns;
 
 // Twists: Origins encounter flags only (region1 §7 ruling 10). The fight reads the encounter's flag; a Bounty's copy is display only
 // and must match it. Kinds are the section 4 list; nothing here touches the live ladder, its RNG or src/.
@@ -307,7 +292,11 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 ];
 
 // Which table each creature rolls in the open world is the loot row's own `rolledBy` (no encounter: a plain kill); row order = creature order.
-export const CREATURE_LOOT_PAIRS: (readonly [string, string])[] = lootTableRows.flatMap((t) => ((t as { rolledBy?: string[] }).rolledBy ?? []).map((c) => [c, t.id] as const));
-export const CREATURE_LOOT: Record<string, string> = Object.fromEntries(CREATURE_LOOT_PAIRS);
+// Loaded through the shared registry (src/core/registry.ts): loot-tables.manifest.json derives the creature->table link from the rows' `rolledBy`, so a creature in two
+// rows is a duplicate-id and an unknown creature or table is an unknown-ref, here at load and in scripts/registry-check.mjs. Order = row order.
+// Ids other tables point at come from the contracts bundle (characters here); the gate asks for the same sets.
+export const REGISTRY_EXTERNAL: Record<string, string[]> = { character: BUNDLE.map((r) => String(r.id)).filter((id) => id.startsWith('character:')) };
+const lootRegistry = loadRegistry(buildTables(lootManifest.tables.map((m) => ({ manifest: m as Manifest, parsed: lootTableRows, file: 'origins/region1/loot-tables.json' }))), REGISTRY_EXTERNAL);
+export const CREATURE_LOOT: Record<string, string> = Object.fromEntries([...lootRegistry.rows.get('creatureLoot')!.values()].map((r) => [r.id as string, r.loottable as string]));
 
-export const LOCAL = { towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT, creatureLootPairs: CREATURE_LOOT_PAIRS };
+export const LOCAL = { townDefs: TOWN_DEFS, towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT };

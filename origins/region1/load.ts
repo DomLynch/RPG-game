@@ -31,8 +31,6 @@ export const TIERS = [
   { tier: 'city', from: 750, services: 4, title: 'lord' },
 ] as const;
 export const tierOf = (prosperity: number) => [...TIERS].reverse().find((t) => prosperity >= t.from)!;
-export const TEMPERAMENTS = ['ambitious', 'vengeful', 'mercantile', 'cautious'] as const;
-export const TRADES = ['smith', 'healer', 'fence'] as const;
 
 // The twist flags (region1 §4 and §7 ruling 10), each with exactly its fields. Origins encounter flags only: they are read by the Origins
 // fight, never by the ladder, its RNG or anything in src/.
@@ -71,6 +69,7 @@ export type Town = {
   id: string; name: string; region: RegionId; zone: string; startProsperity: number; patron: string;
   ruler: { title: string; character: CharacterId; temperament: string; standIn: CharacterId; successors: CharacterId[] };
   centre: string; jail: string; services: { trade: string; npc: CharacterId; at: string }[]; resources: string[]; riverside: boolean;
+  ext: Record<string, unknown>;
 };
 export type Bounty = { id: string; name: string; region: RegionId; encounter: EncounterId; twist: Twist; metal: number; dailyCap: number };
 export type RiftSite = { id: string; region: RegionId; zone: string; at: string; weight: number };
@@ -149,7 +148,7 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   }
 
   // 7. Towns.
-  const towns = local.towns.map((raw, i) => readTown(issues, raw, `towns[${i}]`)).filter((t): t is Town => t !== undefined);
+  const towns = local.towns.map((raw, i) => readTown(issues, raw, `towns[${i}]`, local.townDefs)).filter((t): t is Town => t !== undefined);
   for (const t of towns) {
     const p = t.id, rz = zones.get(t.region), zp = rz?.get(t.zone);
     if (!rz) { issues.add('unknown-id', join(p, 'region'), `${t.region} is not a Region 1 region`); continue; }
@@ -229,11 +228,6 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   const neverTables = new Set<LootTableId>(), rolledTables = new Set<LootTableId>();
   for (const e of registry.encounters.values()) (rule.get(e.id)?.rule === 'never' ? neverTables : rolledTables).add(e.boss.loot);
   for (const t of neverTables) if (rolledTables.has(t)) issues.add('rule-violation', t, 'a never-rolled table is also a rolled boss table');
-  const rolledBy = new Map<string, string>();
-  for (const [c, t] of local.creatureLootPairs) {
-    if (rolledBy.has(c)) issues.add('duplicate-id', `creatureLoot.${c}`, `${c} is rolled by ${rolledBy.get(c)} and ${t}: a creature rolls one table`);
-    rolledBy.set(c, t);
-  }
   for (const [c, t] of Object.entries(local.creatureLoot)) {
     if (!registry.characters.has(c as CharacterId)) issues.add('unknown-id', `creatureLoot.${c}`, `${c} is not a character in Region 1`);
     if (!registry.lootTables.has(t as LootTableId)) issues.add('unknown-id', `creatureLoot.${c}`, `${t} is not a loot table in Region 1`);
@@ -269,10 +263,20 @@ function readTwist(issues: Issues, raw: unknown, path: string): Twist | undefine
 }
 const sameTwist = (a: Twist, b: Twist): boolean => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 
+// Fields a town row may carry that the loader knows; any other field is passed through in `ext`, never refused. An id (trade,
+// temperament, ruler title) must be a key of the definitions table: an unknown id is a data error.
 const TOWN_KEYS = ['kind', 'schemaVersion', 'id', 'name', 'region', 'zone', 'safe', 'startProsperity', 'patron', 'ruler', 'centre', 'jail', 'services', 'resources', 'riverside'];
-function readTown(issues: Issues, raw: unknown, path: string): Town | undefined {
-  const before = issues.list.length, obj = readObject(issues, raw, path, TOWN_KEYS);
+type TownDefs = Record<string, Record<string, unknown>>;
+function defId(issues: Issues, obj: Obj, key: string, path: string, table: string, defs: TownDefs): string | undefined {
+  const v = readString(issues, obj, key, path, { pattern: LOCAL_ID });
+  if (v !== undefined && !Object.hasOwn(defs[table] ?? {}, v)) { issues.add('unknown-id', join(path, key), `"${v}" is not in the ${table} definitions`); return undefined; }
+  return v;
+}
+function readTown(issues: Issues, raw: unknown, path: string, defs: TownDefs): Town | undefined {
+  const before = issues.list.length, obj = readObject(issues, raw, path, Object.keys(isPlainObject(raw) ? raw : {}));
   if (!obj) return undefined;
+  const ext: Record<string, unknown> = {};
+  for (const k of Object.keys(obj)) if (!TOWN_KEYS.includes(k)) ext[k] = obj[k];
   kindOf(issues, obj, path, 'town-definition');
   const id = localId(issues, obj.id, join(path, 'id'), 'town'), name = readText(issues, obj, 'name', path, { max: 60 });
   const region = ref(issues, obj.region, join(path, 'region'), 'region'), zone = readString(issues, obj, 'zone', path, { pattern: LOCAL_KEY });
@@ -281,23 +285,23 @@ function readTown(issues: Issues, raw: unknown, path: string): Town | undefined 
   const r = readObject(issues, obj.ruler, join(path, 'ruler'), ['title', 'character', 'temperament', 'standIn', 'successors']);
   const rp = join(path, 'ruler');
   const ruler = r && {
-    title: readEnum(issues, r, 'title', rp, ['reeve', 'mayor', 'lord'] as const)!,
+    title: defId(issues, r, 'title', rp, 'rulerTitles', defs)!,
     character: ref(issues, r.character, join(rp, 'character'), 'character')!,
-    temperament: readEnum(issues, r, 'temperament', rp, TEMPERAMENTS)!,
+    temperament: defId(issues, r, 'temperament', rp, 'temperaments', defs)!,
     standIn: ref(issues, r.standIn, join(rp, 'standIn'), 'character')!,
     successors: readArray(issues, r, 'successors', rp, (v, p) => ref(issues, v, p, 'character'), { max: 8 })!,
   };
   const centre = readString(issues, obj, 'centre', path, { pattern: LOCAL_KEY }), jail = readString(issues, obj, 'jail', path, { pattern: LOCAL_KEY });
   const services = readArray(issues, obj, 'services', path, (v, p) => {
     const s = readObject(issues, v, p, ['trade', 'npc', 'at']);
-    const trade = s && readEnum(issues, s, 'trade', p, TRADES), npc = s && ref(issues, s.npc, join(p, 'npc'), 'character'), at = s && readString(issues, s, 'at', p, { pattern: LOCAL_KEY });
+    const trade = s && defId(issues, s, 'trade', p, 'trades', defs), npc = s && ref(issues, s.npc, join(p, 'npc'), 'character'), at = s && readString(issues, s, 'at', p, { pattern: LOCAL_KEY });
     return trade && npc && at ? { trade, npc, at } : undefined;
   }, { max: 4 });
   if (services && new Set(services.map((s) => s.trade)).size !== services.length) issues.add('duplicate-id', join(path, 'services'), 'one trade twice in a town');
   const resources = readArray(issues, obj, 'resources', path, (v, p) => checkString(issues, v, p, { pattern: LOCAL_KEY }), { max: 8 });
   const riverside = readBoolean(issues, obj, 'riverside', path);
   if (issues.list.length !== before) return undefined;
-  return { id: id!, name: name!, region: region!, zone: zone!, startProsperity: startProsperity!, patron: patron!, ruler: ruler!, centre: centre!, jail: jail!, services: services!, resources: resources!, riverside: riverside! };
+  return { id: id!, name: name!, region: region!, zone: zone!, startProsperity: startProsperity!, patron: patron!, ruler: ruler!, centre: centre!, jail: jail!, services: services!, resources: resources!, riverside: riverside!, ext };
 }
 
 const BOUNTY_KEYS = ['kind', 'schemaVersion', 'id', 'name', 'region', 'gate', 'encounter', 'twist', 'metal', 'dailyCap'];
