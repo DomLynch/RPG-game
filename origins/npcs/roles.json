@@ -1,0 +1,11 @@
+{
+  "roles": {
+    "banker":    {"order": 1},
+    "vendor":    {"order": 2, "shop": true},
+    "smith":     {"order": 3},
+    "healer":    {"order": 4},
+    "fence":     {"order": 5},
+    "innkeeper": {"order": 6},
+    "recorder":  {"order": 7}
+  }
+}
