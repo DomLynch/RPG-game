@@ -264,3 +264,13 @@ test('a camp\'s size is drawn inside the row\'s campSize range, not its upper bo
   assert.deepEqual([...seen].sort(), [2, 3, 4], 'every size in [2,4] comes up across seeds');
   assert.equal(campCount([3, 3], 0.999), 3); assert.equal(campCount(undefined, 0), 2, 'no campSize: the default [2,3]');
 });
+
+test('arrival: a wandering creature stops inside TUNING.arrive of its spot and keeps walking outside it (pins the 0.35 m number)', () => {
+  assert.equal(TUNING.arrive, 0.35);
+  const stand = () => true, spec = { home: { x: 0, z: 0 }, roam: 6, aggro: 7 };
+  const wanderer = (gap: number) => ({ x: 0, z: 0, facing: Math.PI / 2, mode: 'wander' as const, wait: 3, tx: gap, tz: 0, rng: 1 });   // facing +x, the spot straight ahead
+  const inside = stepMob(wanderer(TUNING.arrive - 0.01), spec, null, 1 / 60, stand), outside = stepMob(wanderer(TUNING.arrive + 0.01), spec, null, 1 / 60, stand);
+  assert.equal(inside.mode, 'idle', 'closer than arrive: it has arrived');
+  assert.equal(outside.mode, 'wander', 'farther than arrive: it walks on');
+  assert.ok(outside.x > 0, 'and it has taken a step toward the spot');
+});
