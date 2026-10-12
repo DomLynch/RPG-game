@@ -1,7 +1,7 @@
 #!/bin/bash
 # lanejob-mac CMD ARGS... : the Mac middle tier (Strategy + Dom 2026-10-12; order vps -> mac -> hf-cpu -> hf-t4). Runs a CPU-only job on THIS Mac
 # only when the VPS would queue or spill. Exit 75 = "not here, route it on" (tier line says why); 126 = refused; otherwise the job's exit code.
-# Gates, all must pass: LANEJOB_NO_MAC unset; the VPS probe (`lanejob --probe`) says would=spill; load1 < 6 now and again after 60 s;
+# Gates, all must pass: LANEJOB_NO_MAC unset; the VPS probe (`lanejob --probe`) says would=spill; 5-min load < 6 now and again after 60 s;
 # no scripts/deploy.sh running; one Mac slot (a lock dir under the state dir); the job is CPU-only (no browser, full suite, build, Blender).
 # Then: nice 15, 30 min cap (kill, exit 75 so the caller re-routes to hf-cpu). Logs `tier=mac ...` to <state>/lanejob-mac.log, then best-effort
 # to the VPS /var/log/lanejob.log. macOS bash 3.2 compatible. Test overrides: LANEJOB_MAC_STATE/_LOAD/_PROBE/_RECHECK/_CAP/_NO_REMOTE_LOG/_DEPLOY_RE/_HOLD/_ROWS/_ROWS_RE.
@@ -20,7 +20,7 @@ note() {
   [ -n "${LANEJOB_MAC_NO_REMOTE_LOG:-}" ] || printf '%s\n' "$line" | $ssh_vps 'cat >> /var/log/lanejob.log' >/dev/null 2>&1 || true
 }
 skip() { note "skip reason=$1"; exit 75; }
-load1() { if [ -n "${LANEJOB_MAC_LOAD:-}" ]; then echo "$LANEJOB_MAC_LOAD"; else uptime | sed 's/.*load averages*: *//' | tr -d ',' | awk '{print $1}'; fi; }
+load1() { if [ -n "${LANEJOB_MAC_LOAD:-}" ]; then echo "$LANEJOB_MAC_LOAD"; else uptime | sed 's/.*load averages*: *//' | tr -d ',' | awk '{print $2}'; fi; }   # the 5-MINUTE average (Dom, via Lead 2026-10-12): a spike must not skip the Mac
 busy() { awk -v l="$(load1)" 'BEGIN { exit !(l >= 6) }'; }
 
 gpu_job_ok() {

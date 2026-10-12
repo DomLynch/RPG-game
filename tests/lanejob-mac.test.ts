@@ -142,3 +142,17 @@ test('--gpu is skipped while a Mac release row or WebKit run is active, at load 
   assert.equal(b.run(['--gpu', '--', 'touch', b.ran], { LANEJOB_MAC_ROWS: rows, LANEJOB_NO_MAC: '1' }).status, 75);
   assert.ok(!existsSync(b.ran));
 });
+
+test('the load gate reads the 5-MINUTE average: a 1-minute spike does not skip the Mac, a busy 5-minute average does', () => {
+  const b = box();
+  const bin = join(b.dir, 'bin');
+  mkdirSync(bin);
+  const uptime = (a: string) => { writeFileSync(join(bin, 'uptime'), `#!/bin/bash\necho "10:00  up 1 day, load averages: ${a}"\n`); chmodSync(join(bin, 'uptime'), 0o755); };
+  const env = { LANEJOB_MAC_LOAD: '', PATH: `${bin}:${process.env.PATH}` };
+  uptime('9.00 2.00 2.00');   // spike now, quiet 5-minute average
+  assert.equal(b.run(['touch', b.ran], env).status, 0);
+  uptime('1.00 7.00 7.00');   // quiet now, busy 5-minute average
+  const r = b.run(['touch', join(b.dir, 'ran2')], env);
+  assert.equal(r.status, 75);
+  assert.match(b.log(), /reason=load=7\.00/);
+});
