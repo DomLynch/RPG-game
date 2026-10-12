@@ -20,11 +20,19 @@ export async function serveDist(env = process.env) {
 // Headless Chromium from Playwright's own download (the runner has no system Chrome). Extra launch options pass through.
 export const launch = (options = {}) => chromium.launch({ headless: true, executablePath: chromium.executablePath(), ...options });
 
+// The debug overlay (?debug=1, #debug) is how the harness reads the sim, and it paints over the top of every still (Dom/Strategy 2026-10-12: stills carry no overlay).
+// Capture scripts hide it by default: display:none keeps its text for the gates that read it. SHOW_DEBUG=1 is the opt-in to see it in a still.
+export const DEBUG_HIDE_CSS = '#debug { display: none !important; }';
+export async function quietDebug(page, env = process.env) {
+  if (env.SHOW_DEBUG === '1') return;
+  await page.addInitScript((css) => { const add = () => { const style = document.createElement('style'); style.textContent = css; (document.head || document.documentElement).append(style); }; if (document.head) add(); else addEventListener('DOMContentLoaded', add, { once: true }); }, DEBUG_HIDE_CSS);
+}
+
 // A phone-shaped page with the gates' standard wiring: page errors collected into `errors` (the caller's array when given,
 // so a receipt can own it), Sentry blocked so a deliberate failure never files a production incident, one default timeout.
 export async function phonePage(browser, { viewport = PHONE, deviceScaleFactor, timeout = 12000, errors = [] } = {}) {
   const page = await browser.newPage({ viewport, isMobile: true, hasTouch: true, ...(deviceScaleFactor ? { deviceScaleFactor } : {}) });
-  page.setDefaultTimeout(timeout);
+  page.setDefaultTimeout(timeout); await quietDebug(page);
   await page.route('**/*sentry.io/**', (route) => route.abort());
   page.on('pageerror', (e) => errors.push(String(e)));
   return { page, errors };
