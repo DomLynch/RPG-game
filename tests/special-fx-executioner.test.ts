@@ -24,7 +24,7 @@ test('?special=arawn|thanatos|reaper are the Executioner at ranks 8, 9, 10 (leve
   assert.ok(isExecutionerCast('executioner', 1, 'skill_reaping'));
   assert.ok(!isExecutionerCast('executioner', 0, 'skill_reaping') && !isExecutionerCast('executioner', 1, 'skill_lunge') && !isExecutionerCast('nightborn', 1, 'skill_lunge'));
   assert.ok(!isHadesShadow('executioner', 1, 'skill_reaping'), 'Hades\' cloud never draws on him');
-  for (const name of BOSS_KINDS) assert.equal(SPECIAL_MODES[name]?.at, 'feet', `${name} has a registry entry`);
+  for (const name of BOSS_KINDS) assert.equal((SPECIAL_MODES as Record<string, { at?: string } | undefined>)[name]?.at, 'feet', `${name} has a registry entry`);
 });
 
 test('Baying Circle schedule: the last trail arrives on the landing tick, none sets off before the build-up, every cast differs', () => {
