@@ -11,13 +11,15 @@ on:
       - 'docs/**'
   pull_request:
     branches: [codex/01a09a76/task-1]
-    types: [opened, synchronize, reopened]
+    # `labeled` (Strategy 2026-10-12 21:5x, runner queue: 37 open PRs x 8 shards was the flood): a feature PR runs this only once it carries
+    # auditor:ready (adding it starts the run) or when it is a release-* candidate; any other label runs nothing (its own group below).
+    types: [opened, synchronize, reopened, labeled]
     paths-ignore:
       - '**.md'
       - 'docs/**'
   workflow_dispatch:
 concurrency:
-  group: unit-ci-${{ github.event.pull_request.number || github.ref }}
+  group: unit-ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'auditor:ready' && format('-inert-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
   UNIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -25,7 +27,8 @@ jobs:
   static:
     # Static first (Lead + Strategy 2026-10-12, runner budget): eslint + both typechecks + the origins lint, about a minute. On a pull request the 8
     # shards `needs:` it, so a red tsc costs this one job, not 9. A push or a dispatch skips it and the shards run as before.
-    if: github.event_name == 'pull_request'
+    # A pull request runs it (and so the shards and the receipt) only with auditor:ready or as a release-* candidate (Strategy 2026-10-12 21:5x).
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
