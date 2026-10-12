@@ -19,7 +19,7 @@ export function buildReceipt({ shards, sha, tree, runId, node, repo }) {
     if (seen.has(s.shard)) return fail(`shard ${s.shard} reported twice`);
     seen.add(s.shard);
     if (s.node !== node) return fail(`shard ${s.shard} ran node ${s.node}, not ${node}`);
-    if (s.exit !== 0 || s.fail !== 0 || !Number.isInteger(s.pass)) return fail(`shard ${s.shard}: exit ${s.exit}, ${s.fail} failed, pass ${s.pass}`);
+    if (s.exit !== 0 || s.fail !== 0 || !(s.pass > 0)) return fail(`shard ${s.shard}: exit ${s.exit}, ${s.fail} failed, pass ${s.pass}`);
   }
   if (seen.size !== SHARDS) return fail(`${seen.size} of ${SHARDS} shards reported`);
   const pass = shards.reduce((n, s) => n + s.pass, 0);

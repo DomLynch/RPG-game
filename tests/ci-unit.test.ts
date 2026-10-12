@@ -54,3 +54,7 @@ test('a shard on another node than the pin is refused, and so is a receipt that 
   assert.ok(r.ok);
   if (r.ok) assert.equal(ciUnitReceiptOk({ ...r.receipt, node: 'v22.1.0' }, { tree, run: { id: 77, conclusion: 'success', headSha: sha, path: '.github/workflows/unit-ci.yml' }, repo: 'o/r' }), false);
 });
+
+test('a shard that ran no tests cannot hide inside the total', () => {
+  assert.equal(build(all({ pass: 0 })).ok, false);
+});
