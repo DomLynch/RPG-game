@@ -77,7 +77,7 @@ test('powers, categories, story tags and provenance kinds are the rows, with the
   assert.ok(DEFINITIONS.powers['slot-weight'] && DEFINITIONS.provenanceKinds['loot'], "'slot-weight' (loot-catalogue) and 'loot' (the encounter mint) are pinned rows: code assigns them");
 });
 
-test('the trade rules read the rows: story-critical and cash-shop never trade, a shop-minted non-gear never trades, everything else cools down', () => {
+test('the trade rule reads the provenance row: a cash-shop piece is refused with its row\'s blockReason, a loot piece is not', () => {
   const def = (extra: object) => { const r = parseItemDefinition({ ...F.helmetDef(), ...extra }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
   const inst = (prov: object) => { const r = parseItemInstance({ ...F.helmetInstance(), provenance: prov }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
   const NOW = Date.parse('2030-01-01T00:00:00Z');
