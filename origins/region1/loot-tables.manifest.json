@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "loottable", "file": "loot-tables.json", "key": "id", "required": { "kind": "string", "presentation": "string", "distribution": "string", "rolls": "array" } },
+    { "table": "creatureLoot", "from": "loottable", "fan": "rolledBy[]", "key": "id", "required": {}, "refs": { "id": "character", "loottable": "loottable" } }
+  ]
+}

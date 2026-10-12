@@ -12,7 +12,7 @@ import { equipNotice } from '../src/fight/match.ts';
 import { OPPONENTS, PATHS, PLAYER_WEAPONS, WEAPONS, total, type WeaponId } from '../src/fight/moves.ts';
 import { bladePathsByRig } from '../src/fight/blade-paths.ts';
 import { BEAST_RENDER_SCALE, BEAR_RENDER_SCALE, BOAR_RENDER_SCALE, WOLF_RENDER_SCALE, beastRenderScale } from '../src/fight/beast-scale.ts';
-import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
+import { mobLook } from '../origins/preview/mob-looks.ts';
 import { CLIPS, COMBAT_CLIPS, FINISHER_CLIPS, PLAYER_ONLY_CLIPS, GUARD_TILT, ROLES, WEAPON_CLIPS, clipFor, buildWarriors, sizeBeast, armWarriors, retryTransient, transientLoadError, loadTextured, MissingTextures, gaitWeights, swingProgress, defenceReaction, equipWeapon, shapeMeshOf, type Role } from '../src/fight/characters.ts';
 
 test('gaits blend continuously, stay normalized and settle to idle at rest', () => {
@@ -1020,7 +1020,7 @@ test('K6: a beast loses its head at its own row\'s bones (Actor.sever(bones)), o
 });
 
 test('each beast is drawn the same size in the duel as in the world: one scale per body, the rig times it', async () => {
-  assert.equal(MOB_LOOKS['character:ash-wolf']!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale (the wolf; a boar or bear look must use its constant too)');
+  assert.equal(mobLook('character:ash-wolf')!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale (the wolf; a boar or bear look must use its constant too)');
   assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');
   const hero = await readWarrior('warrior.glb');
   for (const [id, file, k, height] of [['wolf', 'wolf.glb', WOLF_RENDER_SCALE, 1.29], ['boar', 'boar.glb', BOAR_RENDER_SCALE, 1.14], ['bear', 'bear.glb', BEAR_RENDER_SCALE, 1.40]] as const) {
