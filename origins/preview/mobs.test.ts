@@ -274,3 +274,21 @@ test('arrival: a wandering creature stops inside TUNING.arrive of its spot and k
   assert.equal(outside.mode, 'wander', 'farther than arrive: it walks on');
   assert.ok(outside.x > 0, 'and it has taken a step toward the spot');
 });
+
+test('the hero faces the camp of whichever creature row says firstSight: not a body name. Without the flag he stands 25-35 m off like the others; on another row it is that creature', async () => {
+  const { catalogueRow } = await import('../../src/fight/catalogue-rows.ts');
+  const row = (id: string) => catalogueRow(id) as unknown as { firstSight?: boolean };
+  const nearest = (at: { x: number; z: number }, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
+  assert.equal(row('wolf').firstSight, true, 'the Ash Wolf row carries the flag');
+  const wolf = row('wolf'), goblin = row('goblin');
+  try {
+    wolf.firstSight = false;
+    const plain = spawnAmong(F, B, SPECS)!;
+    assert.ok(nearest(plain, SPECS) >= 25, 'no flagged creature: every creature is 25 m or more off');
+    goblin.firstSight = true;
+    const goblins = SPECS.filter((s) => s.body === 'goblin');
+    if (goblins.length) { const at = spawnAmong(F, B, SPECS)!, d = nearest(at, goblins); assert.ok(d >= 15 && d <= 25, `a flagged goblin is the one 15-25 m ahead (${d.toFixed(1)} m)`); }
+  } finally { wolf.firstSight = true; delete goblin.firstSight; }
+  assert.deepEqual(spawnAmong(F, B, SPECS), spawnAmong(F, B, SPECS), 'deterministic again once the rows are restored');
+});
+
