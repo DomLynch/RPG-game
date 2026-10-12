@@ -20,16 +20,18 @@ export const newRunId = () => randomBytes(8).toString('hex');
 
 export const SHADOW_REPO = '/opt/frankendom-shadow/repo';   // the box's clone: only its object store is used; the tree hash below is what binds the content
 
-/** Shared by the unit and rows runners: pinned node, box-side tree check, a real shared clone, npm ci; ends inside the checkout with dependencies installed and t0 set. */
-export function runnerHead({ sha, tree, nonce, runid }) {
+/** Shared by the unit and rows runners: pinned node, box-side tree check, a real shared clone, npm ci; ends inside the checkout with dependencies installed and t0 set.
+ * release=false (a lane's receipt run) writes no release marker: the marker tells lanejob/capture.sh a RELEASE owns the box, and a lane receipt holding it
+ * sent every lane job to hf-cpu for the run's lifetime (Lead/COO 2026-10-12, #2332's receipt at 15:54). */
+export function runnerHead({ sha, tree, nonce, runid, release = true }) {
   if (!HEX40.test(sha || '') || !HEX40.test(tree || '') || !HEX32.test(nonce || '') || !HEX16.test(runid || '')) throw new Error('runner: sha/tree must be 40 hex, nonce 32 hex, runid 16 hex');
   return `set -uo pipefail
 NONCE='${nonce}'
 RUN='${RUN_ROOT}/${sha}-${runid}'
-MARK='${RELEASE_MARK_DIR}/${sha}-${runid}'
+MARK='${release ? `${RELEASE_MARK_DIR}/${sha}-${runid}` : ''}'
 trap 'rm -rf "$RUN" "$MARK"' EXIT
 mkdir -p "$RUN" || exit 90
-mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK" || echo 'release marker not set: lane jobs are not locked out of this run' >&2   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them
+${release ? `mkdir -p -m 755 '${RELEASE_MARK_DIR}' && : > "$MARK" || echo 'release marker not set: lane jobs are not locked out of this run' >&2   # world-listable release lock for the lane jobs (capture.sh): /root is 750, so the run dir alone is invisible to them` : `# a lane receipt run: no release marker (lane jobs keep the box)`}
 cd "$RUN" || exit 90
 curl -fsSL "https://nodejs.org/dist/${NODE_PIN.version}/${NODE_PIN.file}" -o node.tar.xz < /dev/null || exit 91
 echo "${NODE_PIN.sha256}  node.tar.xz" | sha256sum -c - > /dev/null || exit 92
@@ -90,12 +92,12 @@ export function vpsUnitFileOk(rec, tree, now = Date.now()) {
 }
 
 // run(cmd, argv, opts) defaults to spawnSync. ONE ssh session of ours pipes the runner (which fetches the sha into the box's object store, checks its tree hash, and checks it out into a real `git clone --shared` so tests see a git checkout like the HF job's) and we parse ITS live stdout.
-/** @param {{ sha: string, tree: string, nonce?: string, runid?: string, host?: string, key?: string, run?: any }} opts @returns {{ ok: boolean, reason?: string, receipt?: any }} */
+/** @param {{ sha: string, tree: string, release?: boolean, nonce?: string, runid?: string, host?: string, key?: string, run?: any }} opts @returns {{ ok: boolean, reason?: string, receipt?: any }} */
 export function runUnitOnVps(opts) {
   try { return runUnitOnVpsUnsafe(opts); } catch (e) { return { ok: false, reason: `exception: ${e?.message || e}` }; }   // a throw must spill to Hugging Face, never skip it
 }
-function runUnitOnVpsUnsafe({ sha, tree, nonce = newNonce(), runid = newRunId(), host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
-  const runner = buildRunner({ sha, tree, nonce, runid });
+function runUnitOnVpsUnsafe({ sha, tree, release = false, nonce = newNonce(), runid = newRunId(), host = vpsHost(), key = process.env.VPS_KEY || `${process.env.HOME}/.ssh/binance_futures_tool`, run = spawnSync } = {}) {
+  const runner = buildRunner({ sha, tree, nonce, runid, release });
   const ssh = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-i', key, host];
   const dir = `${RUN_ROOT}/${sha}-${runid}`;
   const r = run('ssh', [...ssh, 'systemd-run --scope --slice=lanejobs.slice --quiet bash -s'], { input: runner, encoding: 'utf8', maxBuffer: 1 << 24, timeout: 45 * 60_000 });

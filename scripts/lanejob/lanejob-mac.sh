@@ -1,14 +1,17 @@
 #!/bin/bash
-# lanejob-mac CMD ARGS... : the Mac middle tier (Strategy + Dom 2026-10-12; order vps -> mac -> hf-cpu -> hf-t4). Runs a CPU-only job on THIS Mac
-# only when the VPS would queue or spill. Exit 75 = "not here, route it on" (tier line says why); 126 = refused; otherwise the job's exit code.
-# Gates, all must pass: LANEJOB_NO_MAC unset; the VPS probe (`lanejob --probe`) says would=spill; 5-min load < 6 now and again after 60 s;
-# no scripts/deploy.sh running; one Mac slot (a lock dir under the state dir); the job is CPU-only (no browser, full suite, build, Blender).
-# Then: nice 15, 30 min cap (kill, exit 75 so the caller re-routes to hf-cpu). Logs `tier=mac ...` to <state>/lanejob-mac.log, then best-effort
-# to the VPS /var/log/lanejob.log. macOS bash 3.2 compatible. Test overrides: LANEJOB_MAC_STATE/_LOAD/_PROBE/_RECHECK/_CAP/_NO_REMOTE_LOG/_DEPLOY_RE/_HOLD/_ROWS/_ROWS_RE.
-[ $# -gt 0 ] || { echo "usage: lanejob-mac.sh [--gpu --] CMD ARGS..." >&2; exit 2; }
-# --gpu -- CMD (Dom's word via Lead and the COO 2026-10-12, Deploy's gate): the Mac FIRST for release browser rows and stills (real GPU), no VPS probe.
+# lanejob-mac [--probe] [--gpu --] CMD ARGS... : the Mac tier, tried FIRST (Dom 2026-10-12, Strategy defect 3: order Mac -> VPS -> hf-cpu, hf-t4 only with --gfx).
+# Runs a CPU-only job on THIS Mac when it is quiet. Exit 75 = "not here, route it on to lanejob (VPS), then hf-cpu" (tier line says why); 126 = refused;
+# otherwise the job's exit code. Gates, one read each, all must pass: LANEJOB_NO_MAC unset; the job is not on the deny list (browser, full suite, build, Blender:
+# a denied job skips the Mac); no release in flight (scripts/deploy.sh, deploy_hold, live VPS run dirs/release lock); the 5-MINUTE load average < 8 (Dom raised
+# 6 to 8; a spike must not skip the Mac; no re-check); one Mac slot (a lock dir under the state dir). Then: nice 15, 30 min cap (kill, exit 75 so the caller
+# re-routes). --probe CMD prints `would=mac` or `would=skip reason=<why>` (`would=refuse` for a --gpu form that is not allowed), runs nothing, takes no slot,
+# writes no log. Logs `tier=mac ...` to <state>/lanejob-mac.log, then best-effort to the VPS /var/log/lanejob.log. macOS bash 3.2 compatible.
+# Test overrides: LANEJOB_MAC_STATE/_LOAD/_CAP/_NO_REMOTE_LOG/_DEPLOY_RE/_HOLD/_ROWS/_ROWS_RE.
+[ $# -gt 0 ] || { echo "usage: lanejob-mac.sh [--probe] [--gpu --] CMD ARGS..." >&2; exit 2; }
+# --gpu -- CMD (Dom's word via Lead and the COO 2026-10-12, Deploy's gate): release browser rows and stills that need the real GPU.
 # CMD must be a release_commands row of trunk's .quality-gate.json (LANEJOB_MAC_ROWS file overrides, for tests) or node scripts/*-still*.mjs /
 # *-contact-sheet.mjs; refused while a Mac-only release row or a WebKit run is active. RELEASE_CHECK_CONCURRENCY=1, PIT_GL unset.
+probe=0; [ "$1" = "--probe" ] && { probe=1; shift; [ $# -gt 0 ] || { echo "usage: lanejob-mac.sh --probe [--gpu --] CMD ARGS..." >&2; exit 2; }; }
 gpu=0
 if [ "$1" = "--gpu" ]; then gpu=1; shift; [ "$1" = "--" ] && [ $# -gt 1 ] || { echo "usage: lanejob-mac.sh --gpu -- CMD ARGS..." >&2; exit 2; }; shift; fi
 state="${LANEJOB_MAC_STATE:-$HOME/.claude/state}"; log="$state/lanejob-mac.log"; mkdir -p "$state"
@@ -21,7 +24,7 @@ note() {
 }
 skip() { note "skip reason=$1"; exit 75; }
 load1() { if [ -n "${LANEJOB_MAC_LOAD:-}" ]; then echo "$LANEJOB_MAC_LOAD"; else uptime | sed 's/.*load averages*: *//' | tr -d ',' | awk '{print $2}'; fi; }   # the 5-MINUTE average (Dom, via Lead 2026-10-12): a spike must not skip the Mac
-busy() { awk -v l="$(load1)" 'BEGIN { exit !(l >= 6) }'; }
+busy() { awk -v l="$(load1)" 'BEGIN { exit !(l >= 8) }'; }
 
 gpu_job_ok() {
   local a; for a in "$@"; do case "$a" in *..*|*[Ww]eb[Kk]it*) return 1 ;; esac; done   # same fence as the guard: no `..` anywhere
@@ -31,40 +34,37 @@ gpu_job_ok() {
 }
 mac_row_running() { pgrep -f "${LANEJOB_MAC_ROWS_RE:-scripts/(roster-browser-check|audio-preview|arena-audio-check|sparring-browser-check|double-tap-browser-check|browser-replay-check|next-fight-black-check|pit-landscape-webkit)[.]mjs|--engine webkit}" >/dev/null 2>&1; }
 
-[ -z "${LANEJOB_NO_MAC:-}" ] || skip off-switch
-if [ $gpu = 1 ]; then
-  gpu_job_ok "$@" || { echo "lanejob-mac: refused, --gpu takes only a release_commands row or a stills/contact-sheet script" >&2; exit 126; }
-  ans="would=spill"   # Mac first: no VPS probe
-elif printf '%s\n' "$*" | grep -Eiq "$deny"; then echo "lanejob-mac: refused, not a CPU-only job (browser, full suite, build, Blender stay on the VPS/HF)" >&2; exit 126
-elif [ -n "${LANEJOB_MAC_PROBE:-}" ]; then ans="$($LANEJOB_MAC_PROBE "$@" 2>/dev/null)"
-else ans="$($ssh_vps "sudo -u lanes -H /usr/local/bin/lanejob --probe $(printf '%q ' "$@")" 2>/dev/null)"; fi
-case "$ans" in
-  "would=spill reason=release-lock"*) skip release-in-flight ;;   # a VPS release marker (/run/frankendom-release)
-  "would=spill"*) ;;
-  "would=vps"*) skip vps-has-room ;;
-  "would=refuse"*) echo "lanejob-mac: the VPS probe refuses this job" >&2; exit 126 ;;
-  *) skip probe-failed ;;
-esac
 released() {   # Deploy's three signs of a release: deploy.sh running, ~/.claude/state/deploy_hold (touched before, removed after Published), live /root/deploy-runs on the VPS
   pgrep -f "${LANEJOB_MAC_DEPLOY_RE:-scripts/deploy\.sh}" >/dev/null 2>&1 && return 0
   [ -e "${LANEJOB_MAC_HOLD:-$HOME/.claude/state/deploy_hold}" ] && return 0
-  [ -n "${LANEJOB_MAC_PROBE:-}${LANEJOB_MAC_NO_REMOTE_LOG:-}" ] && return 1
+  [ -n "${LANEJOB_MAC_NO_REMOTE_LOG:-}" ] && return 1
   [ -n "$($ssh_vps 'find /root/deploy-runs /run/frankendom-release -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | head -1' 2>/dev/null)" ]
 }
-released && skip release-in-flight
-[ $gpu = 1 ] && mac_row_running && skip mac-row-running
-busy && skip "load=$(load1)"
 lock="$state/lanejob-mac.slot"
+gate() {   # prints why the Mac cannot take this job now ("" = it can); no side effects
+  [ -z "${LANEJOB_NO_MAC:-}" ] || { echo off-switch; return; }
+  if [ $gpu = 1 ]; then gpu_job_ok "$@" || { echo refused-gpu; return; }
+  elif printf '%s\n' "$*" | grep -Eiq "$deny"; then echo denied; return; fi
+  released && { echo release-in-flight; return; }
+  [ $gpu = 1 ] && mac_row_running && { echo mac-row-running; return; }
+  busy && { echo "load=$(load1)"; return; }
+  local old; old="$(cat "$lock/pid" 2>/dev/null)"
+  [ -d "$lock" ] && [ -n "$old" ] && kill -0 "$old" 2>/dev/null && echo slot-busy
+  return 0
+}
+why="$(gate "$@")"
+if [ $probe = 1 ]; then
+  case "$why" in "") echo "would=mac" ;; refused-gpu) echo "would=refuse" ;; *) echo "would=skip reason=$why" ;; esac
+  exit 0
+fi
+if [ "$why" = refused-gpu ]; then echo "lanejob-mac: refused, --gpu takes only a release_commands row or a stills/contact-sheet script" >&2; exit 126; fi
+[ -z "$why" ] || skip "$why"
 if ! mkdir "$lock" 2>/dev/null; then
   old="$(cat "$lock/pid" 2>/dev/null)"
   if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then skip slot-busy; fi
   rm -rf "$lock"; mkdir "$lock" 2>/dev/null || skip slot-busy
 fi
 echo $$ > "$lock/pid"; trap 'rm -rf "$lock"' EXIT
-sleep "${LANEJOB_MAC_RECHECK:-60}"
-busy && skip "load=$(load1) recheck"
-released && skip release-in-flight
-[ $gpu = 1 ] && mac_row_running && skip mac-row-running
 note "mac slot=1 host=mac gpu=$gpu load=$(load1)"
 if [ $gpu = 1 ]; then env -u PIT_GL RELEASE_CHECK_CONCURRENCY=1 nice -n 15 "$@" & job=$!; else nice -n 15 "$@" & job=$!; fi
 # the guard `kill -0` matters: killing the dog's sleep (below) lets the subshell run on, and it must not call a finished job capped

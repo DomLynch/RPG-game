@@ -131,6 +131,7 @@ export function createGearSheet(d: GearSheetDeps) {
     const after = applyLocal(loot, { kind: 'wearFromPack', id: fitId }), ctx = (l: Loot) => ({ base: d.numbers?.(l) ?? {}, worn: wornIdsOf(l) });
     const card = (id: LootId) => ({ name: sentence(pieceName(id)), image: lootThumb(id), sub: rankText(id) });
     renderCompare(compare, { now: replaced ? card(replaced) : null, next: card(fitId), rows: compareRows(ctx(loot), ctx(after)) }, document);
+    holder.scrollIntoView?.({ block: 'nearest' });   // opens clear of the sticky tab strip (scroll-margin-top in style.css); a no-op when already in view
   }
   d.element('fitting-thumb').addEventListener('error', () => { d.element('fitting-thumb').hidden = true; });
   d.element('fitting-cancel').addEventListener('click', () => tryOn(null));
