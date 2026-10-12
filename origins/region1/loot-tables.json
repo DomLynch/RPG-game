@@ -50,7 +50,10 @@
       "min": 3,
       "max": 12
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:cinder-scavenger"
+    ]
   },
   {
     "kind": "loot-table",
@@ -115,7 +118,10 @@
       "min": 2,
       "max": 6
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:pit-goblin"
+    ]
   },
   {
     "kind": "loot-table",
@@ -142,7 +148,10 @@
       }
     ],
     "currency": null,
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:ruin-ghoul"
+    ]
   },
   {
     "kind": "loot-table",
@@ -195,7 +204,10 @@
       "min": 3,
       "max": 10
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:ash-wolf"
+    ]
   },
   {
     "kind": "loot-table",
@@ -248,7 +260,10 @@
       "min": 4,
       "max": 11
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:ember-wolf"
+    ]
   },
   {
     "kind": "loot-table",
@@ -294,7 +309,10 @@
       "min": 2,
       "max": 8
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:cinder-bear"
+    ]
   },
   {
     "kind": "loot-table",
@@ -347,7 +365,10 @@
       "min": 5,
       "max": 15
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:ash-boar"
+    ]
   },
   {
     "kind": "loot-table",
@@ -374,7 +395,10 @@
       }
     ],
     "currency": null,
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:mere-brood"
+    ]
   },
   {
     "kind": "loot-table",
@@ -418,7 +442,10 @@
       "min": 10,
       "max": 30
     },
-    "fallback": null
+    "fallback": null,
+    "rolledBy": [
+      "character:court-thrall"
+    ]
   },
   {
     "kind": "loot-table",

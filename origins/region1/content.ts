@@ -51,7 +51,7 @@ export const ITEMS = [
 ];
 
 // Loot tables (region1 §5) are ROWS: origins/region1/loot-tables.json, one object per table in the contract's own shape (a new table is one row, no code).
-export const LOOT_TABLES: Record<string, unknown>[] = lootTableRows;
+export const LOOT_TABLES: Record<string, unknown>[] = lootTableRows.map((t: Record<string, unknown>) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'rolledBy')));   // `rolledBy` is the link to creatures, not part of the contract's table
 
 // Factions. `faction:concord` would come from an Exchange bundle that does not exist yet, so it is here. The Ferry Court belonged to
 // the superseded Feud and has no member left, so it is not defined.
@@ -306,17 +306,9 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
   { encounter: 'encounter:bounty-peg-powler', rule: 'never' },
 ];
 
-// Which encounter each creature table is rolled from in the open world (no encounter: a plain kill).
-export const CREATURE_LOOT: Record<string, string> = {
-  'character:cinder-scavenger': 'loottable:cinder-scavenger',
-  'character:pit-goblin': 'loottable:pit-goblin',
-  'character:ruin-ghoul': 'loottable:ruin-ghoul',
-  'character:mere-brood': 'loottable:mere-brood',
-  'character:ash-wolf': 'loottable:ash-wolf',
-  'character:ember-wolf': 'loottable:ember-wolf',
-  'character:cinder-bear': 'loottable:cinder-bear',
-  'character:ash-boar': 'loottable:ash-boar',
-  'character:court-thrall': 'loottable:court-thrall',
-};
+// Which table each creature rolls in the open world is the loot row's own `rolledBy` (no encounter: a plain kill); row order = creature order.
+export const CREATURE_LOOT: Record<string, string> = Object.fromEntries(
+  lootTableRows.flatMap((t) => ((t as { rolledBy?: string[] }).rolledBy ?? []).map((c) => [c, t.id] as const)),
+);
 
 export const LOCAL = { towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT };
