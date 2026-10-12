@@ -1,7 +1,7 @@
 // Where a release row runs (Dom 2026-10-09, "the Mac is the exception"): placement is DATA here, not a switch. A row is on the Mac only
 // when it is listed below with its reason; a row joins the list only with a reason and, for "slower on HF", a MEASURED number.
 // Re-measure monthly. tests/row-placement.test.ts pins this list to what vps-receipts.mjs coverageGaps() computes, so it cannot drift.
-export const MAC_MAX = 8;          // the most rows a release may run on the Mac: the 8 that are Mac-only by nature (Lead 2026-10-09: Mac = the Mac-only rows only)
+export const MAC_MAX = 9;          // the most rows a release may run on the Mac: the 9 that are Mac-only by nature (row 54, the WebKit landscape Pit, Lead 2026-10-12) (Lead 2026-10-09: Mac = the Mac-only rows only)
 export const MAC_ENFORCE = false;  // false: an over-limit release prints the refusal text and runs (Lead 2026-10-09: do not block the next release)
 // Rows 2 and 44 were tried on the T4 again on 2026-10-10 (Strategy asked; job 6aca1214fee2c90070185fa6, release AD's tree a6d408cb4, t4-medium, width 1, 20 min cap):
 // row 2 roster-browser-check was killed at the 600 s ceiling, row 44 sparring-browser-check exited 1 after 337 s and its retry was cut off by the job timeout.
@@ -16,6 +16,7 @@ export const MAC_ONLY = [
   { row: 48, why: 'WebKit' },
   { row: 49, why: 'WebKit' },
   { row: 52, why: 'WebKit and clock.resume (real clock)' },
+  { row: 54, why: 'WebKit (the landscape Pit, the journal tabs and the paper-doll in Safari\'s engine)' },
 ];
 // Rows the CPU receipt rules keep off a CPU box (vps-receipts.mjs SLOW_ROWS; row 13's initdb refuses root) that the T4 job runs instead, as pwuser
 // with #2044's GPU flags. Measured 2026-10-09 on tree ebee1959e, each row alone (width 1), seconds; the fastest box wins, and the T4 won every row
