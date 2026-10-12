@@ -1,6 +1,6 @@
-// THE SHEET counts in a fight (Wave A1 PR1, RV48; Dom's LOCKED sheet): level 1 to 50, ten dials and any number of skills on a 50-to-100 line, ONE point a level (50 a career) on any dial or skill, a worn
+// THE SHEET counts in a fight (Wave A1 PR1, RV48; Dom's LOCKED sheet): level 0 to 100, ten dials and any number of skills on a 0-to-100 line, ONE point a level (100 a career) on any dial or skill, a worn
 // set worth 50 more (25 shape, 25 quality). The duel reads attack, armour, health, poise and recovery from the dial ROWS. These tests pin the bar: the naked fight is the fight it was (byte for byte), a
-// dial never moves a duration, ONE validator holds the build (no number past 100, no point past 50 a career), a record cannot smuggle a sheet past the verifiers, a new dial / skill / set / school / piece
+// dial never moves a duration, ONE validator holds the build (no number past 100, no point past the level), a record cannot smuggle a sheet past the verifiers, a new dial / skill / set / school / piece
 // is a row, and a recorded sheet fight replays with its first differing tick named.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,66 +24,66 @@ const duel = (): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.
 const run = (d: Duel, n: number, a: Intent = idle(), b: Intent = idle()): Duel => { for (let i = 0; i < n; i++) d = stepDuel(d, [a, b]); return d; };
 const light = MOVES.light_right;
 
-test('the sheet rows: ten dials on a 50 base with a 100 cap, ONE pool of a point a level up to 50 (and 50 of gear), skills as rows on the same line, codes 1..n, and no dial names a timing', () => {
+test('the sheet rows: ten dials on a 0 base with a 100 cap, ONE pool of a point a level up to 100 (and 50 of gear), skills as rows on the same line, codes 1..n, and no dial names a timing', () => {
   assert.deepEqual(DIALS.map((d) => d.id), ['attack', 'spellPower', 'armour', 'magicResist', 'health', 'stamina', 'poise', 'luck', 'focus', 'recovery']);
   assert.deepEqual(DIALS.map((d) => d.code), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  for (const d of DIALS) { assert.equal(d.base, 50, d.id); assert.equal(d.cap, 100, `${d.id}: a player number past 100 fails review`); assert.ok(!/tick|window|windup|duration/i.test(d.id), `${d.id}: no dial names a timing`); }
-  assert.deepEqual({ perLevel: POINTS.perLevel, maxLevel: POINTS.maxLevel, total: POINTS.total, gear: POINTS.gear }, { perLevel: 1, maxLevel: 50, total: 50, gear: 50 });
-  assert.equal(pointsAt(1), 1, 'level 1 already carries its point'); assert.equal(pointsAt(50), 50); assert.equal(pointsAt(60), 50, 'never past 50 in a career');
-  for (const s of SHEET_SKILLS) { assert.equal(s.base, 50, `${s.id}: anyone wields anything at half effect`); assert.equal(s.cap, 100, s.id); }
+  for (const d of DIALS) { assert.equal(d.base, 0, d.id); assert.equal(d.floor, 0, d.id); assert.equal(d.cap, 100, `${d.id}: a player number past 100 fails review`); assert.ok(!/tick|window|windup|duration/i.test(d.id), `${d.id}: no dial names a timing`); }
+  assert.deepEqual({ perLevel: POINTS.perLevel, maxLevel: POINTS.maxLevel, total: POINTS.total, gear: POINTS.gear }, { perLevel: 1, maxLevel: 100, total: 100, gear: 50 });
+  assert.equal(pointsAt(0), 0, 'level 0 has placed nothing'); assert.equal(pointsAt(1), 1, 'level 1 carries its point'); assert.equal(pointsAt(100), 100); assert.equal(pointsAt(120), 100, 'never past 100 in a career');
+  for (const s of SHEET_SKILLS) { assert.equal(s.base, 0, `${s.id}: anyone wields anything at base effect`); assert.equal(s.cap, 100, s.id); }
   for (const school of SCHOOL_IDS) assert.ok(SHEET_SKILLS.some((s) => s.id === school), `${school}: one skill per magic school`);
   for (const weapon of ['sword', 'axe', 'spear', 'bow']) assert.ok(SHEET_SKILLS.some((s) => s.id === weapon), weapon);
 });
 
 test('ONE build validator: a legal build passes; a dial or skill past 100, points past the level\'s budget (dials and skills share it), a bad skill value, an unknown row and a bad level are each refused', () => {
-  assert.deepEqual(validateBuild({ level: 50, placed: { attack: 50 } }), [], 'all 50 points on one dial maxes it');
-  assert.deepEqual(validateBuild({ level: 50, placed: { attack: 20, health: 10, sword: 20 }, values: { sword: 60 } }), []);
-  assert.deepEqual(validateBuild({ level: 1, placed: {} }), []);
-  assert.deepEqual(validateBuild({ level: 1, placed: { sword: 1 }, values: { sword: 51 } }), [], 'a skill value fills up to its ceiling');
-  assert.match(validateBuild({ level: 50, placed: { attack: 51 } }).join(), /past its cap 100/);
-  assert.match(validateBuild({ level: 50, placed: { sword: 51 } }).join(), /past its cap 100/);
-  assert.match(validateBuild({ level: 50, placed: { attack: 50, health: 1 } }).join(), /51 points placed, the budget at level 50 is 50/);
+  assert.deepEqual(validateBuild({ level: 100, placed: { attack: 100 } }), [], 'all 100 points on one dial maxes it');
+  assert.deepEqual(validateBuild({ level: 50, placed: { attack: 20, health: 10, sword: 20 }, values: { sword: 15 } }), []);
+  assert.deepEqual(validateBuild({ level: 0, placed: {} }), []);
+  assert.deepEqual(validateBuild({ level: 1, placed: { sword: 1 }, values: { sword: 1 } }), [], 'a skill value fills up to its ceiling');
+  assert.match(validateBuild({ level: 100, placed: { attack: 101 } }).join(), /past its cap 100/);
+  assert.match(validateBuild({ level: 100, placed: { sword: 101 } }).join(), /past its cap 100/);
+  assert.match(validateBuild({ level: 100, placed: { attack: 100, health: 1 } }).join(), /101 points placed, the budget at level 100 is 100/);
   assert.match(validateBuild({ level: 10, placed: { attack: 5, sword: 6 } }).join(), /11 points placed, the budget at level 10 is 10/);
   assert.match(validateBuild({ level: 1, placed: { attack: 2 } }).join(), /budget at level 1 is 1/);
-  assert.match(validateBuild({ level: 10, placed: { sword: 5 }, values: { sword: 56 } }).join(), /its value 56.*ceiling 55/);
-  assert.match(validateBuild({ level: 10, placed: { sword: 5 }, values: { sword: 49 } }).join(), /its value 49/);
-  assert.match(validateBuild({ level: 10, placed: {}, values: { attack: 60 } }).join(), /not a skill row/);
+  assert.match(validateBuild({ level: 10, placed: { sword: 5 }, values: { sword: 6 } }).join(), /its value 6.*ceiling 5/);
+  assert.match(validateBuild({ level: 10, placed: { sword: 5 }, values: { sword: -1 } }).join(), /its value -1/);
+  assert.match(validateBuild({ level: 10, placed: {}, values: { attack: 6 } }).join(), /not a skill row/);
   assert.match(validateBuild({ level: 10, placed: { attack: -1 } }).join(), /whole number from 0/);
   assert.match(validateBuild({ level: 10, placed: { attack: 1.5 } }).join(), /whole number from 0/);
   assert.match(validateBuild({ level: 10, placed: { agility: 5 } }).join(), /not a dial or skill row/);
-  assert.match(validateBuild({ level: 0, placed: {} }).join(), /from 1 to 50/);
-  assert.match(validateBuild({ level: 51, placed: {} }).join(), /from 1 to 50/);
+  assert.match(validateBuild({ level: -1, placed: {} }).join(), /from 0 to 100/);
+  assert.match(validateBuild({ level: 101, placed: {} }).join(), /from 0 to 100/);
   assert.throws(() => sheetOf({ level: 1, placed: { attack: 40 } }), /budget/);
 });
 
-test('a build resolves to a sheet: placed points above 50 on the dials (skills are not dials), the worn set\'s deltas on top held between each dial\'s floor and 100, dials at base absent, nothing at all is no sheet', () => {
-  assert.equal(sheetOf({ level: 1, placed: {} }), undefined);
-  assert.equal(sheetOf({ level: 50, placed: { sword: 50 } }), undefined, 'a skill is not a dial');
-  assert.deepEqual(sheetOf({ level: 50, placed: { attack: 30, health: 20 } }), { attack: 80, health: 70 });
-  assert.deepEqual(sheetOf({ level: 50, placed: { armour: 30 } }, { armour: 25, magicResist: -25 }), { armour: 100, magicResist: 25 }, 'plate adds 25 to an armour of 80 but never past the cap');
-  assert.deepEqual(sheetOf({ level: 1, placed: {} }, { armour: -25, magicResist: 25 }), { armour: 25, magicResist: 75 });
-  assert.equal(sheetOf({ level: 50, placed: { armour: 25 } }, { armour: -25 }), undefined, 'gear that cancels the placed points leaves the dial at its base');
-  assert.deepEqual(sheetOf({ level: 1, placed: {} }, { armour: -49 }), { armour: 1 }, 'floored at the dial\'s floor, never zero');
-  assert.throws(() => sheetOf({ level: 1, placed: {} }, { agility: 5 }), /not a dial row/);
+test('a build resolves to a sheet: placed points on the dials (skills are not dials), the worn set\'s deltas on top held between each dial\'s floor and 100, dials at base absent, nothing at all is no sheet', () => {
+  assert.equal(sheetOf({ level: 0, placed: {} }), undefined);
+  assert.equal(sheetOf({ level: 100, placed: { sword: 100 } }), undefined, 'a skill is not a dial');
+  assert.deepEqual(sheetOf({ level: 50, placed: { attack: 30, health: 20 } }), { attack: 30, health: 20 });
+  assert.deepEqual(sheetOf({ level: 100, placed: { armour: 90 } }, { armour: 25, magicResist: -25 }), { armour: 100 }, 'plate adds 25 to an armour of 90 but never past the cap, and a tilt below zero is a normal fighter, not less');
+  assert.deepEqual(sheetOf({ level: 0, placed: {} }, { armour: -25, magicResist: 25 }), { magicResist: 25 });
+  assert.equal(sheetOf({ level: 25, placed: { armour: 25 } }, { armour: -25 }), undefined, 'gear that cancels the placed points leaves the dial at its base');
+  assert.equal(sheetOf({ level: 0, placed: {} }, { armour: -49 }), undefined, 'floored at 0');
+  assert.throws(() => sheetOf({ level: 0, placed: {} }, { agility: 5 }), /not a dial row/);
 });
 
-test('a sheet is validated by the same validator: whole numbers from floor to 100, known ids, and the points it accounts for fit a career plus the gear pool - so a forged all-100 sheet is refused, not just bounded dial by dial', () => {
+test('a sheet is validated by the same validator: whole numbers from 0 to 100, known ids, and the points it accounts for fit a career plus the gear pool - so a forged all-100 sheet is refused, not just bounded dial by dial', () => {
   assert.throws(() => checkSheet({ timing: 80 }), /not a dial row/);
-  assert.throws(() => checkSheet({ attack: 0 }), /from 1 to 100/);
-  assert.throws(() => checkSheet({ attack: 101 }), /from 1 to 100/);
+  assert.throws(() => checkSheet({ attack: -1 }), /from 0 to 100/);
+  assert.throws(() => checkSheet({ attack: 101 }), /from 0 to 100/);
   assert.throws(() => checkSheet({ attack: 60.5 }), /whole number/);
   const all = Object.fromEntries(DIALS.map((d) => [d.id, 100]));
-  assert.throws(() => checkSheet(all), /500 points placed, the budget at level 50 is 50 \(\+50 gear\)/);
-  assert.throws(() => checkSheet({ attack: 100, armour: 100, health: 60 }), /110 points placed/);
-  assert.deepEqual(checkSheet({ attack: 100, armour: 100 }), { attack: 100, armour: 100 }, '50 career points and 50 of gear is the most a sheet can account for');
-  assert.deepEqual(checkSheet({ recovery: 60, armour: 50, attack: 80 }), { attack: 80, recovery: 60 });
-  assert.equal(checkSheet({ attack: 50 }), undefined);
-  assert.equal(statValue(undefined, 'attack'), 50);
+  assert.throws(() => checkSheet(all), /1000 points placed, the budget at level 100 is 100 \(\+50 gear\)/);
+  assert.throws(() => checkSheet({ attack: 100, armour: 100, health: 60 }), /260 points placed/);
+  assert.deepEqual(checkSheet({ attack: 100, armour: 50 }), { attack: 100, armour: 50 }, '100 career points and 50 of gear is the most a sheet can account for');
+  assert.deepEqual(checkSheet({ recovery: 60, armour: 0, attack: 80 }), { attack: 80, recovery: 60 });
+  assert.equal(checkSheet({ attack: 0 }), undefined);
+  assert.equal(statValue(undefined, 'attack'), 0);
   assert.equal(statUp(undefined, 'attack', 10), 10); assert.equal(statDown({ armour: 100 }, 'armour', 10), 5); assert.equal(statUp({ attack: 100 }, 'attack', 10), 20);
 });
 
 test('no sheet is the fight it was: an absent or all-at-base sheet steps byte for byte like a duel that never heard of the sheet', () => {
-  const plain = run(duel(), 140, act('light')), none = run(withSheet(duel(), [undefined, undefined]), 140, act('light')), base = run(withSheet(duel(), [{}, { attack: 50 }]), 140, act('light'));
+  const plain = run(duel(), 140, act('light')), none = run(withSheet(duel(), [undefined, undefined]), 140, act('light')), base = run(withSheet(duel(), [{}, { attack: 0 }]), 140, act('light'));
   assert.deepEqual(none, plain); assert.deepEqual(base, plain);
   assert.equal(none.fighters[0].sheet, undefined);
 });
@@ -93,12 +93,12 @@ test('attack scales the blow up, armour scales it down (armour 100 takes half), 
   assert.equal(hit(), light.damage);
   assert.equal(hit({ attack: 100 }), Math.round(light.damage * 2));
   assert.equal(hit(undefined, { armour: 100 }), Math.round(light.damage / 2));
-  assert.equal(hit({ attack: 75 }, { armour: 75 }), Math.round((light.damage * 75 / 50) * 50 / 75));
+  assert.equal(hit({ attack: 100 }, { armour: 50 }), Math.round((light.damage * 200 / 100) * 100 / 150));
   assert.ok(hit(undefined, { armour: 100 }) >= 1);
 });
 
 test('health, poise and recovery: the bar scales once at the start, posture taken and stamina regeneration scale; nothing changes a phase, an age, a move or a stun on any tick', () => {
-  const sheet = { health: 100, poise: 100 };   // 50 career points + 50 of gear is the most a sheet accounts for
+  const sheet = { health: 100, poise: 50 };   // 100 career points is the most a sheet accounts for (plus 50 of gear)
   const fat = withSheet(duel(), [sheet, undefined]);
   assert.equal(fat.fighters[0].maxHealth, RULES.health * 2); assert.equal(fat.fighters[0].health, RULES.health * 2);
   assert.equal(withSheet(duel(), [{ recovery: 100 }, undefined]).fighters[0].regen, duel().fighters[0].regen * 2);
@@ -114,7 +114,7 @@ test('health, poise and recovery: the bar scales once at the start, posture take
 });
 
 test('the dials the duel does not read yet (spellPower, magicResist, stamina, luck, focus) are carried and change nothing in a duel', () => {
-  const carried = { spellPower: 60, magicResist: 60, stamina: 60, luck: 60, focus: 60 };
+  const carried = { spellPower: 30, magicResist: 30, stamina: 30, luck: 30, focus: 30 };
   assert.deepEqual(run(withSheet(duel(), [carried, carried]), 140, act('light')).fighters.map((f) => ({ ...f, sheet: undefined })), run(duel(), 140, act('light')).fighters.map((f) => ({ ...f, sheet: undefined })));
 });
 
@@ -139,7 +139,7 @@ test('gear rows: a set is shape (dials up and down, held to 25) plus quality (25
   assert.equal(quality(gearDeltas('plate', 0.5, 0.5), 'plate', 0.5), 13); assert.equal(gearDeltas('plate', 0.5, 0.5).magicResist, -13);
   assert.equal(quality(gearDeltas('robes', 0.3, 0.3), 'robes', 0.3), Math.round(25 * 0.3), 'the points are always all spent (largest remainder)');
   assert.deepEqual(gearDeltas('plate', 0), {});
-  assert.deepEqual(sheetOf({ level: 50, placed: { armour: 50 } }, gearDeltas('plate', 1, 1)), { armour: 100, magicResist: 25, health: 60, poise: 55 }, 'a 100-armour build\'s plate pays into health and poise instead');
+  assert.deepEqual(sheetOf({ level: 100, placed: { armour: 100 } }, gearDeltas('plate', 1, 1)), { armour: 100, health: 10, poise: 5 }, 'a 100-armour build\'s plate cannot lift the armour past the cap: the cap holds, the rest still pays');
   assert.throws(() => gearDeltas('chain'), /not a set row/);
   const piece = { id: 'plate.body', slot: 'Body', extends: 'heavy', weight: 18, wearMax: 160, resist: { fire: 1, earth: -1 } };
   const t = loadGearDefs({ ...gearDefs, gear: [...gearDefs.gear, piece] });
@@ -168,7 +168,7 @@ test('schools are rows: the five and earth and wind, each with a colour, and a n
 
 test('a sheet fight records as v48 with its dials, round-trips, replays, and a sheet-less fight keeps its version', () => {
   assert.equal(RECORD_VERSION, FIRST_SHEET_VERSION);
-  const sheet = { attack: 80, armour: 75, recovery: 60 };
+  const sheet = { attack: 40, armour: 30, recovery: 20 };
   const meta = { build: 't', opponent: 'veteran' as const, weapon: 'longsword' as const, level: 1, seed: 7 };
   setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);   // a live fight: the era a v48 record can only be made in
   const rec = createRecorder({ ...meta, sheet }), plain = createRecorder(meta);
@@ -183,9 +183,8 @@ test('a sheet fight records as v48 with its dials, round-trips, replays, and a s
   assert.equal(bytes[at], 3, 'three pairs');
   const broken = (edit: (u: Uint8Array) => void) => { const u = bytes.slice(); edit(u); return () => unpackRecord(u); };
   assert.throws(broken((u) => { u[at + 1] = 11; }), /unknown sheet/, 'a code no row has');
-  assert.throws(broken((u) => { u[at + 2] = 0; }), /unknown sheet/, 'below the floor');
-  assert.throws(broken((u) => { u[at + 2] = 101; }), /unknown sheet/, 'past the cap');
-  assert.throws(broken((u) => { u[at + 2] = 50; }), /unknown sheet/, 'a pair at base is not how the writer says it');
+    assert.throws(broken((u) => { u[at + 2] = 101; }), /unknown sheet/, 'past the cap');
+  assert.throws(broken((u) => { u[at + 2] = 0; }), /unknown sheet/, 'a pair at base is not how the writer says it');
   assert.throws(broken((u) => { u[at] = 4; }), /unknown sheet|truncated|length/, 'a count that runs into the level');
   const ref = createRecorder({ ...meta, sheet, characterId: 'char-42_a', buildVersion: 7 }); for (let i = 0; i < 30; i++) ref.push(idle());
   const withRef = ref.finish('abandoned');
@@ -202,7 +201,7 @@ test('a sheet fight records as v48 with its dials, round-trips, replays, and a s
   assert.throws(() => unpackRecord(zeroVersion), /unknown sheet/, 'a named character with build version 0');
   const spent = Object.fromEntries(DIALS.map((d) => [d.id, 100]));
   assert.throws(() => createRecorder({ ...meta, sheet: spent }), /budget/, 'a forged all-100 sheet cannot even be written');
-  const forged = bytes.slice(); forged[at] = 3; forged[at + 2] = 100; forged[at + 4] = 100; forged[at + 6] = 100;   // attack, armour, recovery at 100: 150 points, past a career plus the gear pool
+  const forged = bytes.slice(); forged[at] = 3; forged[at + 2] = 100; forged[at + 4] = 100; forged[at + 6] = 100;   // attack, armour, recovery at 100: 300 points, past a career plus the gear pool
   assert.throws(() => unpackRecord(forged), /unknown sheet/, 'and one forged in the bytes is refused on read');
 });
 
@@ -210,11 +209,11 @@ test('the verifiers do not take a sheet on trust: a record that carries one is R
   setPlayScale(playScaleFor('veteran', RECORD_VERSION)); setLateNotice(true); setStab(true);
   const meta = { build: 't', opponent: 'veteran' as const, weapon: 'longsword' as const, level: 1, seed: 7 };
   const mk = (sheet?: Record<string, number>) => { const r = createRecorder({ ...meta, ...(sheet ? { sheet } : {}) }); for (let i = 0; i < 30; i++) r.push(idle()); return r.finish('abandoned'); };
-  const within = mk({ attack: 100, armour: 100 }), plain = mk();   // 100 points: a within-budget claim the validator cannot tell from a real one
+  const within = mk({ attack: 100, armour: 50 }), plain = mk();   // 150 points, a career plus the gear pool: a within-budget claim the validator cannot tell from a real one
   assert.match(verifyRecord(within).ok ? '' : (verifyRecord(within) as { reason: string }).reason, /carries a sheet.*no build/);
   assert.equal(verifyRecord(within, undefined, { sheet: 'trust' }).ok, true, 'a page checking its own fight before it shares it');
-  assert.equal(verifyRecord(within, undefined, { sheet: { attack: 100, armour: 100 } }).ok, true, 'the sheet the server derives from the stored build equals the record\'s');
-  assert.match((verifyRecord(within, undefined, { sheet: { attack: 100, armour: 90 } }) as { reason: string }).reason, /not the one the player/);
+  assert.equal(verifyRecord(within, undefined, { sheet: { attack: 100, armour: 50 } }).ok, true, 'the sheet the server derives from the stored build equals the record\'s');
+  assert.match((verifyRecord(within, undefined, { sheet: { attack: 100, armour: 40 } }) as { reason: string }).reason, /not the one the player/);
   assert.equal(sheetRefusal(plain), null); assert.equal(verifyRecord(plain).ok, true, 'a record without a sheet is not affected');
   const p = { enemy: 'veteran', level: 1, seed: 7, layer: null, flags: [], bar: null, pose: null } as never;
   const e = verifyEncounter(within, p);
