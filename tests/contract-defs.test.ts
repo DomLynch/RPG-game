@@ -1,4 +1,4 @@
-// The contract vocabularies that are data (origins/contracts/definitions.json): gates, relations, quest roles, attitudes and quest scopes are ROWS. A new value is one row and no code, an unknown id still
+// The contract vocabularies that are data (src/core/contracts/definitions.json): gates, relations, quest roles, attitudes and quest scopes are ROWS. A new value is one row and no code, an unknown id still
 // rejects, and the lists whose values select their own code path (ENCOUNTER_SCOPES, STAGE_KINDS, CONDITION_KINDS, QUEST_STATUSES) stay code.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,10 +7,10 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { buildTables, checkTables } from '../src/core/server.ts';
-import defs from '../origins/contracts/definitions.json' with { type: 'json' };
-import manifest from '../origins/contracts/definitions.manifest.json' with { type: 'json' };
-import { ATTITUDES, GATES, GATE_TIER, QUEST_ROLES, RELATIONS, attitudeFor, attitudeOf, membershipRequired } from '../origins/contracts/world.ts';
-import { QUEST_SCOPES, STAGE_KINDS, CONDITION_KINDS, QUEST_STATUSES } from '../origins/contracts/story.ts';
+import defs from '../src/core/contracts/definitions.json' with { type: 'json' };
+import manifest from '../src/core/contracts/definitions.manifest.json' with { type: 'json' };
+import { ATTITUDES, GATES, GATE_TIER, QUEST_ROLES, RELATIONS, attitudeFor, attitudeOf, membershipRequired } from '../src/core/contracts/world.ts';
+import { QUEST_SCOPES, STAGE_KINDS, CONDITION_KINDS, QUEST_STATUSES } from '../src/core/contracts/story.ts';
 
 const problems = (d: unknown) => checkTables(buildTables(manifest.tables.map((m) => ({ manifest: m as never, parsed: d, file: 'definitions.json' })))).problems.map((p) => `${p.id} ${p.rule}: ${p.message}`);
 
@@ -45,14 +45,14 @@ test('the lists whose values select their own code path stay code (the verb test
 test('a new relation, quest role, quest scope and gate is ONE ROW in a copy of the tree, no code; an unknown id still rejects', () => {
   const dir = mkdtempSync(join(tmpdir(), 'contract-defs-'));
   try {
-    cpSync('origins', join(dir, 'origins'), { recursive: true });
-    for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
-    const file = join(dir, 'origins/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    cpSync('origins', join(dir, 'origins'), { recursive: true }); cpSync('src', join(dir, 'src'), { recursive: true });
+    for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, 'src/core/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
     rows.relations.mentor = {}; rows.questRoles.herald = {}; rows.questScopes.guild = {}; rows.gates.deep = { order: 4, tier: 'Origin', membership: true };
     writeFileSync(file, JSON.stringify(rows));
-    writeFileSync(join(dir, 'probe.ts'), `import { courier } from './origins/contracts/fixtures.ts';
-import { parseCharacterDefinition, GATES, RELATIONS, QUEST_ROLES, membershipRequired } from './origins/contracts/world.ts';
-import { QUEST_SCOPES } from './origins/contracts/story.ts';
+    writeFileSync(join(dir, 'probe.ts'), `import { courier } from './src/core/contracts/fixtures.ts';
+import { parseCharacterDefinition, GATES, RELATIONS, QUEST_ROLES, membershipRequired } from './src/core/contracts/world.ts';
+import { QUEST_SCOPES } from './src/core/contracts/story.ts';
 const mk = (relation: string, role: string) => { const c = courier(); c.relationships[0]!.relation = relation; c.questRoles[0]!.role = role; return parseCharacterDefinition(c).ok; };
 console.log(JSON.stringify({ mentorHerald: mk('mentor', 'herald'), unknown: mk('stranger', 'witness'), unknownRole: mk('enemy', 'jester'), gates: GATES, deepMembership: membershipRequired('deep'), rel: RELATIONS.includes('mentor'), roles: QUEST_ROLES.includes('herald'), scope: QUEST_SCOPES.includes('guild') }));`);
     const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });

@@ -1,8 +1,8 @@
 // POST /origins/talk_pick {character, npc, line}: one of the account's characters says one line to an NPC. The server rebuilds the talk state
 // and the journal from its snapshot, runs the O2 talk module's pick() (every condition evaluated on the server's facts) and commits the talk
 // row, the once-line's talk event and any quest step the line triggers, all in one batch.
-import type { CharacterId, QuestId } from '../contracts/ids.ts';
-import type { Result } from '../contracts/core.ts';
+import type { CharacterId, QuestId } from '../../src/core/server.ts';
+import type { Result } from '../../src/core/server.ts';
 import { advance, type Advanced, type Journal } from '../quests/journal.ts';
 import { pick } from '../talk/talk.ts';
 import { BadRequest, Refused } from './errors.ts';

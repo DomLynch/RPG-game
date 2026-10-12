@@ -1,9 +1,9 @@
 // Pure: the snapshot's quest, journal and talk rows -> the O2 modules' journal and talk state, the facts their conditions read, and the
 // commit batch for one advanced quest (quest_set + its journal lines, the quest-stage event, the story event and its career_set). No I/O.
 // Every fact comes from the snapshot the server read; nothing here reads the client's body.
-import type { Issue, Result } from '../contracts/core.ts';
-import type { CharacterId, CharacterInstanceId, ItemId, QuestId } from '../contracts/ids.ts';
-import type { ConditionFacts, QuestDefinition, QuestState } from '../contracts/story.ts';
+import type { Issue, Result } from '../../src/core/server.ts';
+import type { CharacterId, CharacterInstanceId, ItemId, QuestId } from '../../src/core/server.ts';
+import type { ConditionFacts, QuestDefinition, QuestState } from '../../src/core/server.ts';
 import { award, levelOfCredit } from '../../src/core/server.ts';
 import { loadJournal, type Advanced, type Journal } from '../quests/journal.ts';
 import type { Talk, TalkState } from '../talk/talk.ts';

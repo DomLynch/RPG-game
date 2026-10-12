@@ -1,8 +1,8 @@
 // Origins O2 content: the walk out — the Pit yard and the Concord Exchange — as world data. It reproduces the greybox's numbers
 // (origin/expansion/origins-greybox origins/preview/exchange.ts and main.ts) so the greybox can read them from here with no visible change;
 // concord.test.ts pins every one to 1 cm. Region-wide: the Covenant makes the walk out a safe, trading, creature-free place.
-import { fail, ok, type Result } from '../contracts/core.ts';
-import { CONCORD_EXCHANGE } from '../contracts/economy.ts';
+import { fail, ok, type Result } from '../../src/core/server.ts';
+import { CONCORD_EXCHANGE } from '../../src/core/server.ts';
 import { toMetres, toWorld, type Mount } from './derive.ts';
 import { resolveZone, SCHEMA_VERSION, type WorldData } from './resolve.ts';
 

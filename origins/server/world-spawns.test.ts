@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ACCOUNT, PC } from '../contracts/fixtures.ts';
+import { ACCOUNT, PC } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
-import type { CharacterInstanceId } from '../contracts/ids.ts';
+import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { mobBatch } from './mob-rewards.ts';
 import { OPPONENTS, opponentAt } from '../../src/fight/moves.ts';
 import { createFighter, idleIntent, opponentFighter, stepDuel, type Duel } from '../../src/fight/duel.ts';

@@ -9,11 +9,11 @@
 // Materials only (Strategy, 2026-10-06): there is no coin balance anywhere, so the smith runs with balance 0 and a cost row that charges coin
 // is a 501 until the metals ledger exists. Idempotency is consume's: the piece's put, the burns and the event upgrade:<character>:<op> commit
 // in ONE batch; the stored receipt answers an identical retry (replayed: true), a different request under that op id is a 409.
-import type { Issue } from '../contracts/core.ts';
+import type { Issue } from '../../src/core/server.ts';
 import {
   parseServiceDefinition, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, type UpgradeOutcome, type UpgradeReceipt,
-} from '../contracts/economy.ts';
-import type { Location } from '../contracts/items.ts';
+} from '../../src/core/server.ts';
+import type { Location } from '../../src/core/server.ts';
 import { applyUpgrade, BANK_PLACE, find } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../../src/core/server.ts';
 import { inZone, type WhereFn } from '../presence/where.ts';

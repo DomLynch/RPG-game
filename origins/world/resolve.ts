@@ -1,8 +1,8 @@
 // Origins O2: loading world data and resolving a zone. WORLD defaults (the schema's, then the data's `world` layer) → REGION overrides →
 // ZONE overrides, deep-merged as partial objects, then validated as a whole: a field may be set at any layer, and only the merged result
 // has to be valid. A zone file that omits a group, or a field, gets the default.
-import { Issues, LOCAL_KEY, checkEnum, checkString, fail, isPlainObject, join, ok, readObject, type Obj, type Result } from '../contracts/core.ts';
-import { parseId } from '../contracts/ids.ts';
+import { Issues, LOCAL_KEY, checkEnum, checkString, fail, isPlainObject, join, ok, readObject, type Obj, type Result } from '../../src/core/server.ts';
+import { parseId } from '../../src/core/server.ts';
 import { CHECKS, SCHEMA, type Field, type Resolved, type Schema } from './schema.ts';
 
 export const SCHEMA_VERSION = 1;

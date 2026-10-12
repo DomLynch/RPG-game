@@ -2,7 +2,7 @@
 // or a patron's clan). The rules are origins/patrons; this file is the panel only, built from the ui.ts kit. It opens only on the SAVED
 // career at Gladiator or above (a preview or offline career never opens it), and the choice is kept in the preview's own save (save.ts
 // ALLEGIANCE_KEY), never in the live game's storage. Perks are shown, never applied: the preview's Pit duel is the live arena fight.
-import { gateAccess } from '../contracts/world.ts';
+import { gateAccess } from '../../src/core/index.ts';
 import { allegianceName, bookLine, chooseAtGraduation, PATRONS, PERK_TEMPLATES, templateOf, templateText, type Allegiance, type AllegianceState, type PatronId } from '../patrons/patrons.ts';
 import { ui } from './ui.ts';
 

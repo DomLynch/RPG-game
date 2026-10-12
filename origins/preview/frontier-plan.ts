@@ -6,7 +6,7 @@
 // preview mounts them: the Exchange where concordMounts() puts it, the Frontier's east road at the far end of the Exchange's `west-road`
 // passage, and every further zone, walking the road connections outward, with its `there` landmark on the known zone's `here` landmark,
 // facing back at it. Portals (the night boat) are not walked: they get a signpost only.
-import type { CharacterId, EncounterId, RegionId } from '../contracts/ids.ts';
+import type { CharacterId, EncounterId, RegionId } from '../../src/core/server.ts';
 import { loadRegion1, type Bounty, type Region1, type Town } from '../region1/load.ts';
 import { CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';

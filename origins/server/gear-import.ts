@@ -8,8 +8,8 @@
 import { createHash } from 'node:crypto';
 import { TITLES } from '../../src/core/server.ts';
 import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
-import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
-import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../contracts/items.ts';
+import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
+import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { firstFree, openInventory, type Inventory } from '../inventory/inventory.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';

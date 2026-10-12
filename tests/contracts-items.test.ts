@@ -2,17 +2,17 @@
 // level), custody and one-of-each, rank-to-equip, the Attack/RES spine, and LootTable.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { levelOfMarks as levelOf } from '../../src/core/server.ts';
-import { CAPS, NAKED, loadoutFor } from '../../src/fight/gear-stats.ts';
-import { ARMOUR_SLOTS } from '../../src/core/loot.ts';
-import type { Issue, Result } from './core.ts';
-import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId } from './ids.ts';
+import { levelOfMarks as levelOf } from '../src/core/career-ladder.ts';
+import { CAPS, NAKED, loadoutFor } from '../src/fight/gear-stats.ts';
+import { ARMOUR_SLOTS } from '../src/core/loot.ts';
+import type { Issue, Result } from '../src/core/contracts/core.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
+import type { AccountId, CharacterInstanceId, ItemId } from '../src/core/contracts/ids.ts';
 import {
   checkCustody, checkHistoryKept, checkInstance, checkOneOfEach, effectiveTier, equipItem, legacyUnlockMintKey, moveItem, parseItemDefinition,
   parseItemInstance, parseLootTable, piecePoints, resolveLoadout, upgradeLevelOf, type ItemDefinition, type ItemInstance, type Location,
-} from './items.ts';
-import type { CareerStanding } from './world.ts';
+} from '../src/core/contracts/items.ts';
+import type { CareerStanding } from '../src/core/contracts/world.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { WEAPON_SLOTS } from '../../src/core/loot.ts';
-import type { Issue } from '../contracts/core.ts';
+import type { Issue } from '../../src/core/server.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import { CONCORD } from '../world/concord.ts';
 import { resolveRegion, type WorldData } from '../world/resolve.ts';

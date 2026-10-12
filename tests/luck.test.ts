@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import {
   GAMBIT_KILL_FLOOR, GAMBIT_ODDS, LUCK_OFF, gambitMean, hitDamage, luckHud, oddsLabel, parseLuckFlags, resolveGambit, rollDamage, rollLabel,
   rollsApply, seededSource, type FightKind,
-} from './luck.ts';
+} from '../src/core/luck.ts';
 
 const ON = { monsterRolls: true, gambit: true };
 
