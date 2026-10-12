@@ -1,6 +1,17 @@
 {
   "about": "Sites the as-data checker sees but does not count: a string literal that spells a content id but is not one. One entry per (file, literal) with a one-line reason; it covers every occurrence of that literal in that file. The checker lists these separately, and an entry whose site no longer exists is STALE and fails (tests/as-data-check.test.ts), so this list cannot rot. `verbs` are closed lists kept in code on purpose (an id scheme with its own parser, generator geometry, a row schema): each names its dispatch and its sunset, is listed apart and never counted, and a verb whose declaration is gone fails the run.",
-  "allow": [],
+  "allow": [
+    {
+      "file": "src/fight/sound/creature.ts",
+      "literal": "bite",
+      "reason": "the 'bite' creature sound cue name, not the bite weapon"
+    },
+    {
+      "file": "src/fight/characters.ts",
+      "literal": "pommel",
+      "reason": "the pommel attack-clip name (an Attack key), not the Pommel Strike skill id"
+    }
+  ],
   "verbs": [
     {
       "file": "origins/region1/load.ts",
