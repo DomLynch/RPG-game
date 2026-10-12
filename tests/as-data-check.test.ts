@@ -5,11 +5,13 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
-type Report = { compares: number; byCategory: Record<string, number>; unions: number; sites: { file: string; line: number; kind: string; category: string; text: string }[] };
-const check = (root: string): Report => {
-  const r = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', root], { encoding: 'utf8', maxBuffer: 64 << 20 });
+type Site = { file: string; line: number; kind: string; category: string; text: string };
+type Report = { compares: number; byCategory: Record<string, number>; unions: number; sites: Site[]; allowed: (Site & { reason: string })[]; stale: { file: string; literal: string }[] };
+const run = (root: string, allow?: string) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', root, ...(allow ? ['--allow', allow] : [])], { encoding: 'utf8', maxBuffer: 64 << 20 });
+const check = (root: string, allow?: string): Report => {
+  const r = run(root, allow);
   assert.equal(r.status, 0, r.stderr);
   return JSON.parse(r.stdout) as Report;
 };
@@ -44,4 +46,30 @@ test('the live repo scan runs and reports every category (report-only: the numbe
   const report = check('src');
   assert.ok(report.compares >= 1 && report.sites.length >= report.compares);
   for (const c of ['opponent', 'weapon', 'skill', 'special', 'finisher']) assert.ok(c in report.byCategory, c);
+});
+
+test('the allow-list: an allowed literal is listed apart and never counted, and an entry whose site is gone is stale and fails', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'as-data-allow-'));
+  try {
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'sample.ts'), FIXTURE);
+    const site = relative(process.cwd(), join(dir, 'src', 'sample.ts'));   // the checker prints repo-relative paths
+    const allowFile = join(dir, 'allow.json');
+    writeFileSync(allowFile, JSON.stringify({ allow: [{ file: site, literal: 'veteran', reason: 'a test: not content' }] }));
+    const report = check(join(dir, 'src'), allowFile);
+    assert.equal(report.compares, 2, 'the allowed compare is not counted');
+    assert.deepEqual(report.allowed.map((s) => [s.text, s.reason]), [["'veteran'", 'a test: not content']]);
+    assert.deepEqual(report.stale, []);
+    writeFileSync(allowFile, JSON.stringify({ allow: [{ file: site, literal: 'veteran', reason: 'x' }, { file: site, literal: 'knight', reason: 'no such site' }] }));
+    const rotted = run(join(dir, 'src'), allowFile);
+    assert.equal(rotted.status, 3, 'a stale entry fails the run');
+    assert.deepEqual((JSON.parse(rotted.stdout) as Report).stale.map((a) => a.literal), ['knight']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the real allow-list has no stale entry', () => {
+  const r = run('src');
+  assert.equal(r.status, 0, `${r.stderr}${r.stdout.slice(0, 400)}`);
+  assert.deepEqual((JSON.parse(r.stdout) as Report).stale, []);
+  assert.ok((JSON.parse(r.stdout) as Report).allowed.length >= 1);
 });

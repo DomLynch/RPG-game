@@ -17,6 +17,9 @@ type Category = (typeof CATEGORIES)[number];
 
 const arg = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1]; };
 const root = arg('--root') ?? 'src';
+const allowFile = arg('--allow') ?? join(HERE, 'allow.json');
+type Allow = { file: string; literal: string; reason: string };
+const allow: Allow[] = (JSON.parse(readFileSync(allowFile, 'utf8')) as { allow: Allow[] }).allow;
 const read = (f: string) => (existsSync(join(REPO, f)) ? readFileSync(join(REPO, f), 'utf8') : '');
 const quoted = (text: string) => [...text.matchAll(/'([A-Za-z][\w-]*)'/g)].map((m) => m[1]!);
 const unionOf = (file: string, type: string) => { const m = new RegExp(`export type ${type}\\s*=([^;]*);`).exec(read(file)); return m ? quoted(m[1]!) : []; };
@@ -51,11 +54,18 @@ try {
     ...run('compare.yml').map((m) => ({ kind: 'compare', category: categoryOf(m.text.slice(1, -1)) ?? 'unknown', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text })),
     ...run('union.yml').map((m) => ({ kind: 'union', category: 'union', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  const entryFor = (s: { file: string; text: string }) => allow.find((a) => a.file === s.file && `'${a.literal}'` === s.text);
+  const allowed = sites.filter((s) => s.kind === 'compare' && entryFor(s)).map((s) => ({ ...s, reason: entryFor(s)!.reason }));
+  const stale = allow.filter((a) => !allowed.some((s) => s.file === a.file && s.text === `'${a.literal}'`));
+  for (let i = sites.length - 1; i >= 0; i--) if (sites[i]!.kind === 'compare' && entryFor(sites[i]!)) sites.splice(i, 1);   // allowed sites are listed apart and never counted
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
   const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union') };
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites }));
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}`);
+    for (const s of allowed) console.log(`allowed ${s.file}:${s.line} ${s.text}  (${s.reason})`);
+    for (const a of stale) console.log(`STALE allow entry ${a.file} ${a.literal}: no such site any more, delete it (${a.reason})`);
     console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}`);
   }
+  if (stale.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
 } finally { rmSync(dir, { recursive: true, force: true }); }
