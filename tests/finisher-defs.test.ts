@@ -14,6 +14,9 @@ import { PerspectiveCamera } from 'three';
 import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
 import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate } from '../src/fight/finisher-look.ts';
 import { ADDITIVE_ROLES, FINISHER_CLIPS } from '../src/fight/characters.ts';
+import { cuesFor } from '../src/fight/sound/cues.ts';
+import { MANIFEST } from '../src/audio/manifest.ts';
+import type { CombatEvent } from '../src/fight/combat.ts';
 const ROLES = [...FINISHER_CLIPS, ...ADDITIVE_ROLES];
 import { initialState } from '../src/fight/sim.ts';
 
@@ -22,6 +25,7 @@ const raw = JSON.parse(text) as { finishers: Record<string, unknown>[] };
 const manifest = (JSON.parse(readFileSync(new URL('../src/fight/finisher-defs.manifest.json', import.meta.url), 'utf8')) as { tables: Manifest[] }).tables[0]!;
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const CAM = { dolly: { push: 0.38, slide: 0.95, turn: 0.6 } };   // the camera field every finisher row carries (camera.ts)
+const SND = { fall: { cue: 'kill', gain: 0.65, room: 0.25, at: 1.4 } };   // the sound every finisher row but a staged one carries (sound/cues.ts)
 
 // Both computed on trunk 411fbdf31 BEFORE any of this moved: (a) the resolved table the code built (the rotation, and per finisher its pose
 // and finisherSeconds), (b) every selectFinisher pick over a 16 128-kill sweep (victim, draw, 8 moves, 3 locations, 24 headings, 7 previous
@@ -50,7 +54,7 @@ test('the rows file has no duplicate key and every row names an engine template'
 });
 
 test('a ninth finisher is ONE row through the real loader, with no code edit', () => {
-  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM };
+  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM, sound: SND };
   const t = loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest);
   assert.equal(t.rows.length, 9);
   assert.equal(t.byId.get('gutted')!.template, 'bisect');
@@ -63,17 +67,17 @@ test('the loader refuses a duplicate id, an unknown template, a bad pose or body
   const ok = raw.finishers, load = (rows: unknown[]) => loadFinisherDefs({ finishers: rows }, manifest);
   assert.doesNotThrow(() => load(ok));
   assert.throws(() => load([...ok, { ...ok[0] }]), /duplicate-id/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'juggle', rotation: false, pose: null, seconds: 2, camera: CAM }]), /template "juggle" is not an engine verb/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 7, seconds: 2, camera: CAM }]), /pose must be a clip word or null/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, body: { victim: { pose: 'opened', role: 'Death_SplitCrown' } } }]), /body pose "opened" is used twice/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, body: { victim: { pose: 'x' } } }]), /body parts need a pose word and a clip role/);
-  assert.throws(() => load([...ok, { id: 'a', rotation: false, pose: null, seconds: 2, camera: CAM }]), /missing-field: template is required/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: 'yes', pose: null, seconds: 2, camera: CAM }]), /wrong-type: rotation must be boolean/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, camera: CAM }]), /exactly one of seconds and secondsFrom/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, secondsFrom: 'plainDeath', camera: CAM }]), /exactly one of seconds and secondsFrom/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: -1, camera: CAM }]), /seconds must be a positive number/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'nothing', camera: CAM }]), /unknown-ref: secondsFrom = "nothing" is not a finisher id/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'hamstrung', camera: CAM }]), /must name a row with measured seconds/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'juggle', rotation: false, pose: null, seconds: 2, camera: CAM, sound: SND }]), /template "juggle" is not an engine verb/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 7, seconds: 2, camera: CAM, sound: SND }]), /pose must be a clip word or null/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, sound: SND, body: { victim: { pose: 'opened', role: 'Death_SplitCrown' } } }]), /body pose "opened" is used twice/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, sound: SND, body: { victim: { pose: 'x' } } }]), /body parts need a pose word and a clip role/);
+  assert.throws(() => load([...ok, { id: 'a', rotation: false, pose: null, seconds: 2, camera: CAM, sound: SND }]), /missing-field: template is required/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: 'yes', pose: null, seconds: 2, camera: CAM, sound: SND }]), /wrong-type: rotation must be boolean/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, camera: CAM, sound: SND }]), /exactly one of seconds and secondsFrom/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, secondsFrom: 'plainDeath', camera: CAM, sound: SND }]), /exactly one of seconds and secondsFrom/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: -1, camera: CAM, sound: SND }]), /seconds must be a positive number/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'nothing', camera: CAM, sound: SND }]), /unknown-ref: secondsFrom = "nothing" is not a finisher id/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, secondsFrom: 'hamstrung', camera: CAM, sound: SND }]), /must name a row with measured seconds/);
   assert.throws(() => finisherSeconds('nothing'), /unknown finisher "nothing"/);
 });
 
@@ -102,7 +106,7 @@ test('the finisher camera driven by the rows is byte-identical to the name-switc
 });
 
 test('a new finisher\'s camera is ONE row: its own dolly, a reveal onto its own side view, through the real loader', () => {
-  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5,
+  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, sound: SND,
     camera: { dolly: { push: 0.2, slide: 0.5, turn: 0.4 }, reveal: { from: 0.1, over: 0.3, side: 'gutted' }, side: { angle: 0.9, eyeY: 2.6, minBack: 4, beyond: 0.6 } } };
   const t = loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest);
   assert.deepEqual(t.byId.get('gutted')!.camera.side, row.camera.side);
@@ -160,4 +164,35 @@ test('characters.ts: every pose word maps to the clip role, side and template th
   assert.deepEqual(characters.match(new RegExp(`'(${Object.keys(OLD_ROLE).join('|')})'`, 'g')) ?? [], [], 'characters.ts names no finisher pose word');
   const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   assert.deepEqual(scene.match(/'(runThroughHold|hamstrungStrike|executionStrike)'/g) ?? [], [], 'nor does scene.ts name a killer pose');
+});
+
+// ---- sound/cues.ts reads the rows (consumer group 4). The fall, the gore cues, the stab rule and the wound cues are each row's `sound`; Hamstrung's
+// and Execution's sequences stay their templates' own beats. The hash covers 138 240 cue lists computed on trunk BEFORE the field existed: every
+// kill (victim, draw, 6 moves, 3 locations, 6 headings) × 2 weapon pairs × every override (and none) × gore on/off × 4 opponents (bloodless included)
+// × one or two deaths.
+const CUES_BEFORE = 'fae1722f951e1944607b48d28c50de3b0ce50bd04ce7e231a891e606c58a7ff6';
+test('the kill sounds driven by the rows are byte-identical to the name-switches they replaced; every row cue is a real cue; cues.ts names no finisher', () => {
+  const h = createHash('sha256'); let n = 0;
+  for (const victim of [0, 1]) for (const draw of [false, true]) for (const move of ['heavy_overhead', 'light_right', 'thrust', 'riposte', 'kick', 'skill_pommel']) for (const location of ['head', 'torso', 'legs']) for (let hd = 0; hd < 6; hd++) {
+    const f = { victim, draw, move, location, heading: hd / 3 } as unknown as Finish;
+    for (const weapons of [['longsword', 'longsword'], ['estoc', 'trident']] as [WeaponId, WeaponId][]) for (const override of [undefined, null, ...Object.keys(FINISHER_POSE)]) for (const gore of [undefined, false]) for (const opponent of [undefined, 'veteran', 'skeleton', 'wolf'] as const) for (const twoDeaths of [false, true]) {
+      const killed = { tick: 100, type: 'Killed', actor: 1 - victim, target: victim, move, weapon: weapons[1 - victim] };
+      const events = [{ tick: 99, type: 'Hit', actor: 1 - victim, target: victim, move, damage: 20 }, killed, ...(twoDeaths ? [{ ...killed, actor: victim, target: 1 - victim }] : [])] as unknown as CombatEvent[];
+      h.update(JSON.stringify(cuesFor(events, { finish: f, weapons, override, gore }, opponent))); n++;
+    }
+  }
+  assert.equal(n, 138240);
+  assert.equal(h.digest('hex'), CUES_BEFORE);
+  for (const row of FINISHERS.rows) for (const c of row.sound ? [row.sound.fall, row.sound.goreFall, ...(row.sound.goreAfter ?? []), ...(row.sound.wound ?? [])] : []) if (c) assert.ok(Object.hasOwn(MANIFEST, c.cue), `${row.id}: ${c.cue} is a cue in the audio manifest`);
+  const src = readFileSync(new URL('../src/fight/sound/cues.ts', import.meta.url), 'utf8');
+  assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'cues.ts names no finisher');
+});
+test('a new finisher\'s sound is ONE row through the real loader; a staged template carries none, every other needs a fall', () => {
+  const row = { id: 'gutted', template: 'bisect', rotation: false, pose: 'opened', seconds: 3.5, camera: CAM, sound: { fall: { cue: 'kill', gain: 0.5, room: 0.2, at: 1.8 }, wound: [{ cue: 'flesh_tear', gain: 0.4, room: 0.1, atDeath: 0.1 }] } };
+  assert.deepEqual(loadFinisherDefs({ finishers: [...raw.finishers, row] }, manifest).byId.get('gutted')!.sound, row.sound);
+  const load = (r: unknown) => loadFinisherDefs({ finishers: [...raw.finishers, r] }, manifest);
+  assert.throws(() => load({ ...row, sound: undefined }), /a bisect row needs sound.fall/);
+  assert.throws(() => load({ ...row, template: 'hamstring' }), /sounds on its template's own beats and carries none/);
+  assert.throws(() => load({ ...row, sound: { fall: { cue: 'kill', gain: 0.5, room: 0.2, at: 1, atDeath: 0.1 } } }), /needs sound.fall/);
+  assert.throws(() => load({ ...row, sound: { ...row.sound, wound: [{ cue: 'flesh_tear', gain: 0.4, room: 0.1 }] } }), /exactly one of at and atDeath/);
 });
