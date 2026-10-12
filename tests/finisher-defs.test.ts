@@ -21,6 +21,7 @@ import { ADDITIVE_ROLES, FINISHER_CLIPS } from '../src/fight/characters.ts';
 import { cuesFor } from '../src/fight/sound/cues.ts';
 import { MANIFEST } from '../src/audio/manifest.ts';
 import { CUE_PROBES } from '../src/audio/exchange.ts';
+import { bakeSafeFinisher } from '../src/fight/rank-look.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 const ROLES = [...FINISHER_CLIPS, ...ADDITIVE_ROLES];
 import { initialState } from '../src/fight/sim.ts';
@@ -260,4 +261,14 @@ test('the audio probes over the finishers come from the rows, in the same order 
   assert.equal(createHash('sha256').update(JSON.stringify(CUE_PROBES)).digest('hex'), 'a2344ce050fb54852a669f96fc7e3e7f26ccdfdee9719e9a4c975bd496ab5cfe');
   const src = readFileSync(new URL('../src/audio/exchange.ts', import.meta.url), 'utf8');
   assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'exchange.ts names no finisher');
+});
+
+// ---- rank-look.ts:130 bakeSafeFinisher (Characters' file, one line, with Characters' OK 2026-10-12): a bisect finisher whose bake is pending plays its
+// row's bakeFallback where the body allows it, else the plain death. Every finisher (and none) × victim × pending × five allow-lists, as on trunk.
+test('bakeSafeFinisher driven by the rows picks exactly what the name compare picked', () => {
+  const ids = [null, ...Object.keys(FINISHER_POSE)], sets = [[], ['runThrough'], ['plainDeath'], ['opened', 'runThrough'], Object.keys(FINISHER_POSE)], out: (string | null)[] = [];
+  for (const f of ids) for (const v of [0, 1]) for (const p of [true, false]) for (const a of sets) out.push(bakeSafeFinisher(f, v, p, (x) => a.includes(x)));
+  assert.equal(out.length, 180);
+  assert.equal(createHash('sha256').update(JSON.stringify(out)).digest('hex'), '66c2baac37e52c0f24da6061aac9fc4ff6e9fda214d5dbd5cb0b440140625df4');
+  assert.throws(() => loadFinisherDefs({ finishers: raw.finishers.map((r) => (r.id === 'opened' ? { ...r, bakeFallback: 'nothing' } : r)) }, manifest), /unknown-ref: bakeFallback = "nothing" is not a finisher id/);
 });
