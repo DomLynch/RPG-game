@@ -7,6 +7,7 @@ import { liveRecorder } from '../../tests/lib/live-recorder.ts';
 import { recordSpecials } from '../../src/fight/replay.ts';
 import { noTwist, stepTwist, type TwistFlag } from '../../src/fight/twist.ts';
 import { mobLayer } from '../../src/core/server.ts';
+import { isOpponentId } from '../../src/fight/server.ts';
 import type { MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
@@ -15,11 +16,13 @@ import { PICKS, type PickedStance } from '../../src/fight/stance.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;
 const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32; };
-type Spec = { enemy: 'knight' | 'veteran'; level: number; seed: number; bar?: number; flags?: TwistFlag[]; layer?: MobStyle; stances?: PickedStance };
+type Spec = { enemy: string; level: number; seed: number; bar?: number; flags?: TwistFlag[]; layer?: MobStyle; stances?: PickedStance };
 
 // The client side, as the preview host plays it (pit-duel.ts): initialPractice, withBar, then per tick the quantized intent, stepPractice and stepTwist; recorded by the Pit's recorder.
 function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; twist: string | null } {
-  const { enemy, level, seed } = spec, flags = spec.flags ?? [], opponent = OPPONENTS[enemy], profile = profileAt(opponent, level), rand = lcg(intentSeed);
+  const { enemy, level, seed } = spec;
+  if (!isOpponentId(enemy)) throw new Error(`unknown opponent ${enemy}: not a row of the roster`);
+  const flags = spec.flags ?? [], opponent = OPPONENTS[enemy], profile = profileAt(opponent, level), rand = lcg(intentSeed);
   const specials = liveSpecials(level);
   const rec = (spec.stances ? liveRecorder : createRecorder)({ build: kitBuild('test'), opponent: enemy, weapon: 'longsword', level, seed, ...(specials ? { specials: true } : {}), ...(spec.stances ? { stances: spec.stances } : {}) });
   let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }), undefined, spec.stances);
@@ -126,4 +129,10 @@ test('a stances record verifies with its pick (v34), win or loss, for every pick
     assert.equal(v.ok, true, v.ok ? '' : `${pick}: ${v.reason}`);
     if (v.ok) assert.equal(v.result, record.outcome === 'killed' ? 'won' : 'lost');
   }
+});
+
+test('an enemy id that is not a roster row is refused, by the spec helper and by the verifier', () => {
+  assert.throws(() => play({ enemy: 'ghost', level: 6, seed: 731 }, 1), /unknown opponent ghost/);
+  const spec: Spec = { enemy: 'knight', level: 6, seed: 731 }, { record } = finished(spec), v = verifyEncounter({ ...record, opponent: 'ghost' } as unknown as FightRecord, params(spec, { enemy: 'ghost' }));
+  assert.equal(v.ok, false);
 });
