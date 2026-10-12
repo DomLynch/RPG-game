@@ -1,0 +1,11 @@
+# as-data check (b): a closed TypeScript union of content ids: the OUTERMOST union_type whose members are all string literals and at least two of which
+# are ids (__IDS__, filled in by the runner). A type like that is a list of content kept in code; the id belongs in a data row.
+id: as-data-union
+language: typescript
+rule:
+  kind: union_type
+  all:
+    - regex: "^(?s)(?:\\|\\s*)?'[^']*'(?:(?:\\s|//[^\\n]*\\n|/\\*.*?\\*/)*\\|(?:\\s|//[^\\n]*\\n|/\\*.*?\\*/)*'[^']*')+\\s*$"
+    - regex: "(?s)'(?:__IDS__)'.*'(?:__IDS__)'"
+  not:
+    inside: { kind: union_type, stopBy: neighbor }

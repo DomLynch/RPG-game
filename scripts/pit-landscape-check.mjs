@@ -14,7 +14,7 @@ const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.ind
 if (!['chromium', 'webkit'].includes(ENGINE)) throw new Error(`--engine ${ENGINE}: chromium or webkit`);
 const worn = { head: 'veteran.Helmet', chest: 'nightborn.Body', arms: 'executioner.Arms', hands: 'goblin.Gloves', legs: 'pitborn.Greaves', feet: 'dwarf.Boots' };
 const taken = Object.fromEntries(Object.values(worn).map((id, i) => [id, { opponent: id.split('.')[0], attempt: 1, healthLeft: 50, recordId: null, day: '2026-10-12', tier: [2, 4, 6, 8, 9, 10][i] }]));
-const profile = { version: 1, id: 'career-fighter-0001', name: 'Wanderer', career: { victoryMarks: 7 }, loot: { owned: Object.values(worn), equipped: worn, taken } };
+const profile = { version: 1, id: 'career-fighter-0001', name: 'Wanderer', career: { victoryMarks: 7 }, loot: { owned: [...Object.values(worn), 'knight.Helmet'], equipped: worn, pack: ['knight.Helmet'], taken: { ...taken, 'knight.Helmet': { opponent: 'knight', attempt: 1, healthLeft: 50, recordId: null, day: '2026-10-12', tier: 8 } } } };
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
 const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 // [name, w, h, safe-area insets {l, r, t, b}] as in landscape-check.mjs
@@ -69,6 +69,15 @@ try {
         v.paperDoll = doll;
         if (doll.tints.length !== 6 || new Set(doll.tints).size !== 6) v.states[`journal-${tab}`].bad.push(`paper-doll: ${doll.tints.length} tinted slots (${doll.tints}), want six distinct rungs`);
         if (!['health', 'stamina', 'attack', 'res'].every((id) => doll.rows.includes(id))) v.states[`journal-${tab}`].bad.push(`stat strip rows: ${doll.rows}`);
+        // the try-on compare: the stored helmet beside the worn one, the strip's rows under each card, Resistance up
+        await page.locator('#pack li button[data-fit]').first().scrollIntoViewIfNeeded(); await page.locator('#pack li button[data-fit]').first().click(); await page.waitForTimeout(600);
+        // no script-side scroll: the sheet itself must open the compare clear of the sticky tab strip (cards' top edge at or below the strip's bottom edge, inside the viewport)
+        const clear = await page.evaluate(() => { const c = document.getElementById('fitting-compare').getBoundingClientRect(), n = document.querySelector('#journal .app-nav').getBoundingClientRect(); return { top: Math.round(c.top), navBottom: Math.round(n.bottom), bottom: Math.round(c.bottom), vh: innerHeight }; });
+        await snap('journal-fit', '#journal');
+        if (clear.top < clear.navBottom - 1 || clear.bottom > clear.vh + 1) v.states['journal-fit'].bad.push(`try-on compare not clear of the strip: ${JSON.stringify(clear)}`);
+        const fit = await page.evaluate(() => ({ sides: [...document.querySelectorAll('#fitting-compare > div')].map((d) => d.getAttribute('data-side')), delta: document.querySelector('#fitting-compare [data-side="new"] [data-stat="res"] .cmp-delta')?.textContent ?? null }));
+        v.fit = fit;
+        if (fit.sides.join() !== 'new,held' || !/^\+\d+$/.test(fit.delta ?? '')) v.states['journal-fit'].bad.push(`try-on compare: ${JSON.stringify(fit)}`);
       }
     }
     await context.close();

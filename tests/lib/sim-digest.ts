@@ -19,6 +19,8 @@ const printer = ts.createPrinter({ removeComments: true });
 // roster.ts derives from a row today; variant rows (a `body` key) are not roster entries and are left out, as roster.ts leaves them out.
 type Lit = string | number | boolean | null | Lit[] | { [k: string]: Lit };
 const CATALOGUE_DATA = /(^|\/)catalogue-data\.ts$/, CATALOGUE_DEFS = /(^|\/)catalogue-defs\.ts$/;
+const POOL_DEFS = /(^|\/)pool-defs\.json$/;
+const poolProjection = (source: string): string => JSON.stringify(((JSON.parse(source) as { pools?: { id: string; sim?: boolean }[] }).pools ?? []).filter((p) => p.sim !== false).sort((a, b) => (a.id < b.id ? -1 : 1)));   // a missing flag counts as sim: fail closed
 const SIM_BASE = ['rig', 'stats', 'weapon'];
 const literalHost = (n: ts.Expression): ts.Expression => (ts.isAsExpression(n) || ts.isParenthesizedExpression(n) ? literalHost(n.expression) : n);
 function literal(n: ts.Node): Lit {
@@ -81,6 +83,7 @@ export function simDigest(files: Readonly<Record<string, string>>): string {
   const parts: string[] = [], rebinds = new Set<string>();
   let rows: Lit | undefined, defs: Lit | undefined;
   for (const [path, source] of Object.entries(files)) {
+    if (POOL_DEFS.test(path)) { parts.push(`pools\0${poolProjection(source)}`); continue; }   // resource pool definitions: only the sim rows matter (a sim: false pool cannot change a fight)
     if (!isCode(path)) { parts.push(`data\0${source}`); continue; }
     if (CATALOGUE_DATA.test(path)) { rows = dataOf(path, source); continue; }   // the catalogue reaches the digest as its sim projection, below
     if (CATALOGUE_DEFS.test(path)) { defs = dataOf(path, source); continue; }

@@ -37,3 +37,17 @@ test('row order and variant rows: a roster row added moves the digest, a variant
   assert.notEqual(simDigest(files(`${A}, ${b}`)), base);
   assert.equal(simDigest(files(`${A}, { id: "ember", body: "a", name: "Ember", weapon: "cleaver" }`)), base);
 });
+
+test('pool definitions reach the digest as their sim rows: a sim: false pool, added or edited, does not move it; a sim pool or a changed sim default does', () => {
+  const pools = (rows: string) => `{ "about": "x", "pools": [ ${rows} ] }`;
+  const H = '{ "id": "health", "default": 150, "min": 1, "sim": true }', S = '{ "id": "stamina", "default": 100, "min": 1, "sim": true }', M = '{ "id": "mana", "default": 0, "min": 0, "sim": false }';
+  const d = (rows: string) => simDigest({ ...files(A), 'src/fight/pool-defs.json': pools(rows) });
+  const base = d(`${H}, ${S}, ${M}`);
+  assert.equal(d(`${H}, ${S}, ${M.replace('"default": 0', '"default": 7')}`), base, 'a sim: false default is not the fight');
+  assert.equal(d(`${H}, ${S}, ${M}, { "id": "intelligence", "default": 10, "min": 0, "max": 100, "sim": false }`), base, 'a new data-only pool is one row and moves nothing');
+  assert.equal(d(`${S}, ${M}, ${H}`), base, 'row order is not the fight');
+  assert.notEqual(d(`${H}, ${S.replace('100', '120')}, ${M}`), base, 'stamina\'s default is the fight');
+  assert.notEqual(d(`${H}, ${S}, ${M}, { "id": "rage", "default": 0, "min": 0, "sim": true }`), base, 'a new sim pool is the fight');
+  assert.notEqual(d(`${H}, ${S}, ${M.replace('"sim": false', '"sim": true')}`), base, 'flipping a pool to sim is a change the guard sees');
+  assert.notEqual(d(`${H}, ${S}, ${M.replace(', "sim": false', '')}`), base, 'a missing sim flag counts as sim (fail closed)');
+});

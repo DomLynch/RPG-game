@@ -1,7 +1,8 @@
 import { bladeImpact, type HitLocation } from './blade.ts';
-import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, isInterruptible, type Timing, type WeaponId } from './moves.ts';
+import { DAY_ONE_SKILL, OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, isInterruptible, type Timing, type WeaponId } from './moves.ts';
 import { advance, initialState, initialTarget, RADIUS, wrapAngle, type Input, type State } from './sim.ts';
 import { M } from './detmath.ts';
+import { poolsOf, type PoolValues } from './pools.ts';
 import { rolledDamage, rollPercent } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { ccApply, type CcLadder, type CcSource } from './cc-ladder.ts';
@@ -103,9 +104,9 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.at
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero'): Fighter => ({ weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health, maxHealth: health, stamina: 100, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: 100, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 });
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = 'longsword', scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
-export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig);
+export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools);
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 // `pose` (seamless step 3, World's signature): start the fight where the hero and the foe ALREADY stand instead of at the pit marks. Metres in the arena's own axes (the caller subtracts the fight circle's
@@ -186,7 +187,7 @@ export function inBufferWindow(f: Fighter): boolean {
   return length !== null && f.age >= length - RULES.bufferWindow;
 }
 function chooseMove(f: Fighter, action: Action): MoveId {
-  if (action === 'skill') return SKILL_MOVE[f.skill ?? 'witchfire'];   // the equipped skill's move (legal() refuses SKILL with none); never a riposte or a counter, whatever window is open
+  if (action === 'skill') return SKILL_MOVE[f.skill ?? DAY_ONE_SKILL]!;   // the equipped skill's move (legal() refuses SKILL with none); never a riposte or a counter, whatever window is open
   if (action === 'heavy') return f.critical > 0 ? 'critical' : f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return action === 'thrust' ? 'riposte' : 'slash_riposte';
@@ -207,7 +208,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
   if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail);   // a special: no stamina, any class
-  if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]].stamina;   // as a heavy, plus an equipped skill that has cooled
+  if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
   return (f.phase === 'ready' && !f.exposed) || feintable(f);
@@ -506,7 +507,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!releasing[i]) continue;
     A.special = 0; delete A.castHurt; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
-    const move: MoveId = SKILL_MOVE[A.skill ?? 'pommel'], damage = Math.round(A.specialShare! * D.maxHealth);
+    const move: MoveId = SKILL_MOVE[A.skill ?? DAY_ONE_SKILL]!, damage = Math.round(A.specialShare! * D.maxHealth);
     D.health = Math.max(0, D.health - damage);
     events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}) });
     if (D.health) continue;
@@ -535,7 +536,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // Shared creature health (RV39, N attackers on one creature, src/fight/pack.ts): each attacker fights their own ordinary duel against their own copy of the creature, and `incoming` is the damage the OTHER streams dealt to it on the
   // previous tick, summed by the lockstep layer. It lands after this tick's blows and specials, once (the returned duel does not carry it), and kills through the same door a blow does. Absent or 0 = today's fight byte for byte.
   if (duel.incoming && duel.incoming > 0 && fighters[1].health > 0) {
-    const D = fighters[1], A = fighters[0], move: MoveId = A.lastMove ?? SKILL_MOVE.pommel;
+    const D = fighters[1], A = fighters[0], move: MoveId = A.lastMove ?? SKILL_MOVE[DAY_ONE_SKILL]!;
     D.health = Math.max(0, D.health - duel.incoming);
     events.push({ tick, type: 'SharedHit', actor: 0, target: 1, damage: duel.incoming });
     if (!D.health) {

@@ -6,14 +6,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
-import { SIM } from '../eslint.config.js';
+import { SIM, SIM_DATA } from '../eslint.config.js';
 
 const IMPORT = /^\s*(?:import|export)\b[^'"]*?\bfrom\s+['"]([^'"]+)['"]|^\s*import\s+['"]([^'"]+)['"]/gm;
 const imports = (file: string) => [...readFileSync(join(process.cwd(), file), 'utf8').matchAll(IMPORT)].map(m => m[1] ?? m[2]!);
 
 test('simulation modules import only simulation modules', () => {
   assert.ok(SIM.length >= 9 && SIM.every(f => f.startsWith('src/') && f.endsWith('.ts')), 'SIM lists src/*.ts files');
-  const allowed = new Set(SIM);
+  const allowed = new Set([...SIM, ...SIM_DATA]);
   const foreign: string[] = [];
   // a relative import is resolved against the importing file, so a sim file may live in src/fight/ (K5/K6 S1 moved finishers.ts there); a bare specifier ('three') is foreign
   for (const file of SIM) for (const source of imports(file)) if (!source.startsWith('.') || !allowed.has(normalize(join(dirname(file), source)))) foreign.push(`${file} imports ${source}`);

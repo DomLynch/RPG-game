@@ -38,14 +38,54 @@ if ! { [ "${major:-0}" -gt 22 ] || { [ "${major:-0}" -eq 22 ] && [ "${minor:-0}"
 fi
 here="$(cd "$(dirname "$0")/.." && pwd)"
 dest="$opt/$revision"
+# What the writer loads outside src/ and origins/ comes from its computed import closure (scripts/writer-closure.mjs, shared with deploy.sh's verifier
+# install), never a hand list: CH's loader.ts imported scripts/lib/json-dup-keys.mjs, the old list missed it and the writer crash-looped. An import that
+# resolves to no file stops the install here, before anything is copied.
+closure="$(cd "$here" && node scripts/writer-closure-list.mjs --paths writer)" || { echo "install-origins-writer: the writer's import closure has an unresolved import; nothing installed" >&2; exit 1; }
 
 # The writer imports ../src and ../origins (type-stripped .ts, Node >= 22.18); no node_modules: it has no dependencies.
-install -d "$dest/scripts"
+install -d "$dest/scripts" "$dest/scripts/lib"
 rm -rf "$dest/src" "$dest/origins"
 cp -R "$here/src" "$here/origins" "$dest/"
 find "$dest/origins" \( -name '*.test.ts' -o -name 'README.md' \) -delete
-install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer.mjs"
+for f in $closure; do   # src/ and origins/ are copied whole above (a superset: rows read through fs, not imports, stay covered)
+  case "$f" in src/*|origins/*) ;; *) install -d "$dest/$(dirname "$f")"; install -m 0644 "$here/$f" "$dest/$f" ;; esac
+done
 install -m 0644 "$here/package.json" "$dest/package.json"
+# Before current flips: every closure module except the entry (importing it would start the server) is imported with this box's node. A missing
+# file fails here and the running writer stays on the previous install.
+(cd "$dest" && printf '%s\n' $closure | grep -vx 'scripts/origins-writer.mjs' | grep -E '\.(ts|mjs)$' | tr '\n' '\0' \
+  | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+  || { echo "install-origins-writer: dry import failed in $dest with node $(node -v); current left on $(readlink "$opt/current" 2>/dev/null || echo none)" >&2; exit 1; }
+# Blue-green (Strategy after the CH incident, part B): when the writer can start (both env files complete), the NEW install is started on a side port with
+# the box's env and must answer one real request, POST /origins/consume without a token -> 401 "sign in" (it booted, loaded its handler table and routes),
+# before current flips. Anything else (a crash, 404, no answer in ORIGINS_SIDE_WAIT_S) is failed-at-writer: nothing flips and the running writer is untouched.
+writer_ready() { [ -s "$venv" ] && grep -q '^DATABASE_URL=' "$venv" && [ -s "$env" ] && grep -q '^SUPABASE_URL=' "$env" && grep -q '^SUPABASE_ANON_KEY=' "$env"; }
+if writer_ready; then
+  if grep -q '^DATABASE_URL=' "$env"; then echo "install-origins-writer: $env sets DATABASE_URL and would override the verifier's: remove that line; service NOT started" >&2; exit 1; fi
+  side="${ORIGINS_SIDE_PORT:-8789}"; sidelog="$dest/.side-health.log"
+  # The 401 must come from THIS install: a listener already on the side port (a side writer leaked by an interrupted earlier install) would answer
+  # for a writer that crashed at boot. So the port must be free first, the side writer is killed on any exit, and the answer counts only while the
+  # new process is alive and has logged its own listening line.
+  if curl -s -o /dev/null -m 3 "http://127.0.0.1:$side/"; then echo "install-origins-writer: side port $side busy (something already answers there); current left on $(readlink "$opt/current" 2>/dev/null || echo none)" >&2; exit 1; fi
+  ( set -a; . "$venv"; . "$env"; set +a; cd "$dest" && PORT="$side" exec node scripts/origins-writer.mjs ) > "$sidelog" 2>&1 &
+  sidepid=$!; code=""
+  trap 'kill "$sidepid" 2>/dev/null || true' EXIT
+  for _ in $(seq 1 "${ORIGINS_SIDE_WAIT_S:-20}"); do
+    code=$(curl -s -o /dev/null -m 3 -w '%{http_code}' -X POST "http://127.0.0.1:$side/origins/consume" || true)
+    [ "$code" = 401 ] && break
+    kill -0 "$sidepid" 2>/dev/null || break
+    sleep 1
+  done
+  if [ "$code" = 401 ] && ! { kill -0 "$sidepid" 2>/dev/null && grep -qF "origins-writer listening on 127.0.0.1:$side" "$sidelog"; }; then code="401-not-ours"; fi
+  kill "$sidepid" 2>/dev/null || true; wait "$sidepid" 2>/dev/null || true; trap - EXIT
+  if [ "$code" != 401 ]; then
+    echo "install-origins-writer: failed-at-writer: $revision on :$side answered '${code:-nothing}' to POST /origins/consume (want 401); current left on $(readlink "$opt/current" 2>/dev/null || echo none)" >&2
+    { grep -m 3 -iE 'error' "$sidelog"; tail -n 3 "$sidelog"; } >&2 || true   # the error line, not only the stack tail
+    exit 1
+  fi
+  echo "install-origins-writer: side-port health ok: $revision on :$side answered 401 to POST /origins/consume"
+fi
 old=$(readlink -f "$opt/current" 2>/dev/null || true)   # the rollback target: kept as `previous` so the prune below never removes it
 ln -sfn "$dest" "$opt/current"
 [ -n "$old" ] && [ -d "$old" ] && [ "$old" != "$(readlink -f "$dest")" ] && ln -sfn "$old" "$opt/previous"
