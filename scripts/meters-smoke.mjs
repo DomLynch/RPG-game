@@ -4,6 +4,7 @@
 //   node scripts/meters-smoke.mjs [--build] [zone dist=artifacts/origins-preview] [pit dist=artifacts/pit-build] [out=artifacts/meters-smoke]
 // Stills are 375x812 CSS pixels (gpu-run returns only small files, ~2.5 MB in all). --build makes both pages first (what a gpu-run job needs: its build step is the Pit's, not the zone's).
 import fs from 'node:fs';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import http from 'node:http';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -32,7 +33,7 @@ const result = { zone: {}, pit: {} };
 try {
   // ZONE 1
   {
-    const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
+    const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage(); await quietDebug(page);
     const errors = [], warnings = []; page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`http://127.0.0.1:${zoneServer.address().port}/preview/origins/?region=1`, { waitUntil: 'load' });
     page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) warnings.push(m.type() + ': ' + m.text().slice(0, 160)); });
@@ -55,7 +56,7 @@ try {
   }
   // THE PIT
   {
-    const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
+    const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage(); await quietDebug(page);
     const errors = []; page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`http://127.0.0.1:${pitServer.address().port}/?opponent=goblin&debug=1`, { waitUntil: 'load' });
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 240000 });
