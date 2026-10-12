@@ -141,8 +141,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (process.env.LAUNCH_DRY) console.log(['hf', ...args].map(x => JSON.stringify(x)).join(' '));
       else {
         // Work waterfall: a slot under the shared HF caps (scripts/lib/hf-slots.mjs); a lane's job keeps off the slot reserved for the deploy lane's unit/rows jobs.
-        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : RELEASE_SLOT_WAIT_S, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }), idOf: r => /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1] ?? null, cancel: id => spawnSync(hfBin, ['jobs', 'cancel', id], { encoding: 'utf8', timeout: 60_000 }) });
-        if (!slot.ok) { console.error(`launch: no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s; run it on the VPS queue instead`); process.exit(75); }
+        const slot = withSlot({ hf: hfBin, flavor, generic: !!lane, maxWaitS: lane ? lane.opts.maxWaitS : RELEASE_SLOT_WAIT_S, launch: () => spawnSync(hfBin, args, { encoding: 'utf8', timeout: 60_000 }), cost: { timeout: args[args.indexOf('--timeout') + 1], reason: process.env.HF_REASON || (lane ? `lane-${cmd}` : cmd) }, idOf: r => /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1] ?? null, cancel: id => spawnSync(hfBin, ['jobs', 'cancel', id], { encoding: 'utf8', timeout: 60_000 }) });
+        if (!slot.ok) { console.error(`launch: ${slot.refused || `no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`}; run it on the VPS queue instead`); process.exit(75); }
         const r = slot.value; process.stdout.write(`${tierLine(flavor, slot.slot, slot.queuedS)}\n${r.stdout || ''}`); process.stderr.write(r.stderr || '');
         const id = /Job started with ID: ([0-9a-f]{24})/.exec(r.stdout || '')?.[1];
         if (id) ledger(id, lane ? lane.sha : a, args[args.indexOf('--timeout') + 1], lane ? 'artifacts/hf-lane-jobs' : undefined);

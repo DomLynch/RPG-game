@@ -52,6 +52,8 @@ requeue() {   # back to the VPS queue at the back: keep --prio, drop --hf-ok (it
 launch=$("$hf" jobs run --flavor cpu-upgrade --timeout "$hf_timeout" --detach node:22 bash -c "$script" 2>&1) || true
 id=$(sed -n 's/.*Job started with ID: \([^[:space:]]*\).*/\1/p' <<<"$launch" | head -n 1)
 [[ -n "$id" ]] || requeue "the HF launch failed ($(head -c 200 <<<"$launch"))"
+# The one HF cost ledger (scripts/lib/hf-ledger.mjs, Auditor on #2329): this launch counts in the day's total like every other launcher's. Never blocks the job.
+"${CAPTURE_NODE:-node}" "$(dirname "$0")/lib/hf-ledger.mjs" record "$id" cpu-upgrade "$hf_timeout" "capture-spill-$lane" || echo "capture-mac: job $id not recorded in the HF cost ledger" >&2
 # Ctrl-C or a kill of this wrapper cancels the HF job it started (Lead, #2018) and logs it like a quiet cancel.
 # t_end is set BEFORE the trap: an interrupt landing between the trap and the poll loop must not be reset to 0 (it was, 1 run in 20 under load).
 cancelled() { "$hf" jobs cancel "$id" >/dev/null 2>&1 || true; t_end=1; }
