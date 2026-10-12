@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { activeEvents, cronMatches, eventActive, loadLiveOps, parseCron, switchOn, EMPTY_LIVE_OPS, type Cron, type LiveEvent } from '../src/core/live-ops.ts';
+import { readFileSync } from 'node:fs';
 
 const at = (iso: string) => Date.parse(iso);
 const cron = (t: string): Cron => { const c = parseCron(t); assert.ok(typeof c !== 'string', String(c)); return c as Cron; };
@@ -67,4 +68,12 @@ test('nonsense in, defaults out', () => {
     assert.deepEqual([ops.events.length, ops.switches.size], [0, 0]);
   }
   assert.equal(switchOn(EMPTY_LIVE_OPS, 'anything'), true);
+});
+
+test('the production entry wires the live-ops rows: created from the shared db, started, handed to the writer and its internal route, stopped on SIGTERM', () => {
+  const entry = readFileSync(new URL('../scripts/origins-writer.mjs', import.meta.url), 'utf8');
+  assert.match(entry, /createLiveOps\(db\)/);
+  assert.match(entry, /liveOps\.start\(\)/);
+  assert.match(entry, /internal: [^;]*\{ key: [^}]*liveOps \}[^;]*, liveOps \}\)/, 'createWriter gets liveOps for the op switches AND the internal route for GET /internal/live-ops');
+  assert.match(entry, /process\.once\(sig, \(\) => \{[^}]*liveOps\.stop\(\)/);
 });
