@@ -21,7 +21,8 @@ const specsOf = (file: string, text: string): Spec[] => [...text.matchAll(IMPORT
   return { spec, typeOnly: /^\s*type\b/.test(m[1] ?? '') && !m[0].includes('import('), target: spec.startsWith('.') ? posix.normalize(posix.join(posix.dirname(file.replaceAll('\\', '/')), spec.replace(/[?#].*$/, ''))) : spec };
 });
 
-const PAGE = (f: string): boolean => f === 'src/main.ts' || f.startsWith('origins/preview/');
+const NODE_SIM = ['origins/preview/mobs.ts'];   // world-sim files that live under preview/ but run in the writer's node closure (origins-writer-closure.test.ts walks them): they take the server door, like every other sim file. Shrink-only, with C7.
+const PAGE = (f: string): boolean => f === 'src/main.ts' || (f.startsWith('origins/preview/') && !NODE_SIM.includes(f));
 const SERVER = (f: string): boolean => (f.startsWith('origins/') && !PAGE(f)) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));   // every other origins/ dir (server, contracts, encounters, inventory, region1, mobs, zones, ...) and the node scripts
 const inCore = (t: string): boolean => /^src\/core\//.test(t);
 
