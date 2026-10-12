@@ -6,6 +6,7 @@ import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, handlers as defaults, type Handler } from './handlers.ts';
 import type { WhereFn } from '../presence/where.ts';
+import type { LiveOpsState } from './live-ops.ts';
 import { internalRoute, type InternalOptions } from './location.ts';
 
 const MAX_BODY = 64 * 1024;
@@ -39,7 +40,8 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
 // `where` is presence's answer to "where does this account stand" (origins/presence/where.ts presenceWhere in production, a fixture in tests): the writer's
 // only source of a player's place (launch gate X1). It is required so no writer can be built that silently takes a place from somewhere else.
 // `internal`: the shared key presence presents on the writer's internal routes (origins/server/location.ts, X2 Stage 2). Unset: those routes do not exist.
-export function createWriter({ db, verify, where, handlers = defaults, internal }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions }): Server {
+// `liveOps`: the kill-switch rows (origins/server/live-ops.ts). A row `op:<name>` set off answers that op 503 without a restart; no row means on.
+export function createWriter({ db, verify, where, handlers = defaults, internal, liveOps }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions; liveOps?: Pick<LiveOpsState, 'switchOn'> }): Server {
   const inside = internal ? internalRoute(db, internal) : null;
   const serial = serialQueue();
   return createServer(async (req, res) => {
@@ -48,6 +50,7 @@ export function createWriter({ db, verify, where, handlers = defaults, internal 
     try {
       const op = /^\/origins\/([a-z_]{1,32})$/.exec(req.url ?? '')?.[1];
       if (req.method !== 'POST' || !op || !Object.hasOwn(handlers, op)) return send(404, { ok: false, error: 'not found' });
+      if (liveOps && !liveOps.switchOn(`op:${op}`)) return send(503, { ok: false, error: 'switched off', code: 'switched-off' });
       const token = /^Bearer (\S+)$/.exec(req.headers.authorization ?? '')?.[1];
       const account = token ? await verify(token) : null;
       if (!account) return send(401, { ok: false, error: 'sign in' });

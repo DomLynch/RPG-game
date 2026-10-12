@@ -48,11 +48,13 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
   return async (req, res) => {
     const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     const url = new URL(req.url ?? '/', 'http://writer');
-    if (url.pathname !== '/internal/location' || (req.method !== 'GET' && req.method !== 'POST')) return reply(404, { error: 'not found' });
+    const isLive = url.pathname === '/internal/live-ops' && req.method === 'GET' && liveOps !== undefined;   // the live-ops rows as the writer holds them (events, which are active, switches)
+    if (!isLive && (url.pathname !== '/internal/location' || (req.method !== 'GET' && req.method !== 'POST'))) return reply(404, { error: 'not found' });
     const sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
     const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
     if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) { req.resume(); return reply(401, { error: 'unauthorised' }); }
     try {
+      if (isLive) return reply(200, liveOps!.snapshot());
       if (req.method === 'GET') {
         const account = url.searchParams.get('account')?.toLowerCase();
         if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
