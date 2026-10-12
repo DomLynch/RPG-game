@@ -51,7 +51,7 @@ test('the cut labels every candidate ci:release-checks, and release-checks.yml r
   assert.ok(LABELS.includes('ci:release-checks') && LABELS.includes('auditor:ready'));
   const wf = readFileSync('.github/workflows/release-checks.yml', 'utf8');
   assert.match(wf, /max-parallel: 20/);
-  assert.match(wf, /if: github\.event_name != 'pull_request' \|\| startsWith\(github\.head_ref, 'release-'\)\n/, 'a release-* candidate runs, drafts included; a feature PR schedules nothing (tests/ci-static-first.test.ts)');
+  assert.match(wf, /if: github\.event_name != 'pull_request' \|\| \(startsWith\(github\.head_ref, 'release-'\) && \(github\.event\.action != 'labeled' \|\| github\.event\.label\.name == 'ci:release-checks'\)\)\n/, 'a release-* candidate runs, drafts included; a feature PR schedules nothing (tests/ci-static-first.test.ts)');
   assert.match(wf, /HEAD_REF\.startsWith\("release-"\)/);
 });
 
