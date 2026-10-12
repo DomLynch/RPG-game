@@ -11,6 +11,6 @@ export const SHIPPING_SHIELDS: ReadonlySet<string> = new Set(Object.keys(SHIELD_
 // The Centurion has no rank-1 shield (his trident fights at Recruit). undefined = his own board, as on trunk.
 export function shieldFor(opponentId: string, level: number, on: boolean): string | undefined {
   const stem = SHIELD_STEM[opponentId];
-  if (!stem || !on || level < (catalogueRow(opponentId)?.fields.shieldFrom ?? 1)) return undefined;
+  if (!stem || !on || level < Number(catalogueRow(opponentId)?.fields.shieldFrom ?? 1)) return undefined;
   return `/shields/${stem}-${bandOf(level)}.glb`;
 }
