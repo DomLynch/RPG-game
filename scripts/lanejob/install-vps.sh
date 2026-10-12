@@ -19,7 +19,9 @@ git -C "$repo" show "$sha:scripts/lib/waterfall.mjs" > "$stage/scripts/lib/water
 chmod 755 "$stage/scripts/lanejob/lanejob.sh"; chmod 644 "$stage/scripts/lib/waterfall.mjs"
 bash -n "$stage/scripts/lanejob/lanejob.sh" || { echo "install-vps: staged lanejob.sh does not parse" >&2; exit 1; }
 grep -Eq '^export const VPS_MAX_LOAD1 = [0-9]+(\.[0-9]+)?;' "$stage/scripts/lib/waterfall.mjs" || { echo "install-vps: waterfall.mjs has no VPS_MAX_LOAD1 line" >&2; exit 1; }
-probe=$(LANEJOB_LOAD=0 RELEASE_LOCK_DIR="$stage/.no-locks" LANEJOB_SLOTS="$stage/.no-slots" "$stage/scripts/lanejob/lanejob.sh" --probe true 2>&1) || { echo "install-vps: staged --probe failed: $probe" >&2; exit 1; }
+mkdir "$stage/.no-locks" "$stage/.no-slots"   # empty: no marker, four free slots (the slot files are created by the probe's open)
+probe=$(LANEJOB_LOAD=0 RELEASE_LOCK_DIR="$stage/.no-locks" LANEJOB_SLOTS="$stage/.no-slots" "$stage/scripts/lanejob/lanejob.sh" --probe true 2>/dev/null) || { echo "install-vps: staged --probe failed (rc $?)" >&2; exit 1; }
+rm -rf "$stage/.no-locks" "$stage/.no-slots"
 case "$probe" in would=vps|would=spill*) ;; *) echo "install-vps: staged --probe answered '$probe'" >&2; exit 1 ;; esac
 if [ -e "$dest" ] || [ -L "$dest" ]; then
   if diff -rq "$stage" "$dest" >/dev/null 2>&1; then rm -rf "$stage"; else mv "$dest" "$root/.$sha.bad-$stamp"; mv -T "$stage" "$dest"; fi
