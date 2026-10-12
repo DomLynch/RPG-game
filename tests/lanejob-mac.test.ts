@@ -29,8 +29,8 @@ test('would=spill with a quiet Mac runs the job, passes its exit code and logs t
   const r = b.run(['bash', '-c', `touch ${b.ran}; exit 3`]);
   assert.equal(r.status, 3);
   assert.ok(existsSync(b.ran));
-  assert.match(b.log(), /tier=mac slot=1 load=2\.5/);
-  assert.match(r.stderr, /tier=mac slot=1/);
+  assert.match(b.log(), /tier=mac slot=1 host=mac gpu=0 load=2\.5/);
+  assert.match(r.stderr, /tier=mac slot=1 host=mac/);
   assert.ok(!existsSync(join(b.dir, 'lanejob-mac.slot')), 'the slot is released');
 });
 
@@ -100,4 +100,45 @@ test('Deploy\'s deploy_hold marker or a VPS release-lock answer sends the job on
   assert.equal(c.run(['touch', c.ran]).status, 75);
   assert.ok(!existsSync(c.ran));
   assert.match(c.log(), /reason=release-in-flight/);
+});
+
+test('--gpu runs a trunk release row on the Mac FIRST (no VPS probe), with RELEASE_CHECK_CONCURRENCY=1 and PIT_GL unset', () => {
+  const b = box('would=vps');   // the CPU-only form would send this on; --gpu ignores the probe
+  const probeEnv = join(b.dir, 'envprobe.sh');
+  writeFileSync(probeEnv, `#!/bin/bash\necho "c=$RELEASE_CHECK_CONCURRENCY pit=\${PIT_GL-unset}" > ${b.ran}\n`);
+  const rows = join(b.dir, 'rows.txt');
+  writeFileSync(rows, `bash ${probeEnv}\nnode scripts/other-check.mjs\n`);
+  const r = b.run(['--gpu', '--', 'bash', probeEnv], { LANEJOB_MAC_ROWS: rows, PIT_GL: 'swiftshader' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(readFileSync(b.ran, 'utf8').trim(), 'c=1 pit=unset');
+  assert.match(b.log(), /tier=mac slot=1 host=mac gpu=1/);
+});
+
+test('--gpu refuses anything that is not a listed row or a stills script (126) and malformed forms (2)', () => {
+  const b = box();
+  const rows = join(b.dir, 'rows.txt');
+  writeFileSync(rows, 'node scripts/only-check.mjs\n');
+  for (const cmd of [['npm', 'test'], ['node', 'scripts/only-check.mjs', '--extra'], ['npx', 'playwright', 'test'], ['node', 'scripts/x-stills.mjs', '../evil']]) {
+    assert.equal(b.run(['--gpu', '--', ...cmd], { LANEJOB_MAC_ROWS: rows }).status, 126, cmd.join(' '));
+  }
+  assert.ok(!existsSync(b.ran));
+  assert.equal(b.run(['--gpu', 'node', 'scripts/a-still.mjs']).status, 2);   // no `--`
+  assert.equal(b.run(['--gpu', '--']).status, 2);
+});
+
+test('--gpu is skipped while a Mac release row or WebKit run is active, at load >= 6, or with the off-switch', () => {
+  const b = box();
+  const rows = join(b.dir, 'rows.txt');
+  writeFileSync(rows, 'touch ' + b.ran + '\n');
+  const tag = `mac-row-${b.dir.split('-').pop()}`;
+  const holder = spawn('bash', ['-c', 'sleep 30; :', tag], { stdio: 'ignore' });
+  spawnSync('sleep', ['0.3']);
+  try {
+    const r = b.run(['--gpu', '--', 'touch', b.ran], { LANEJOB_MAC_ROWS: rows, LANEJOB_MAC_ROWS_RE: tag });
+    assert.equal(r.status, 75);
+    assert.match(b.log(), /reason=mac-row-running/);
+  } finally { holder.kill(); }
+  assert.equal(b.run(['--gpu', '--', 'touch', b.ran], { LANEJOB_MAC_ROWS: rows, LANEJOB_MAC_LOAD: '7' }).status, 75);
+  assert.equal(b.run(['--gpu', '--', 'touch', b.ran], { LANEJOB_MAC_ROWS: rows, LANEJOB_NO_MAC: '1' }).status, 75);
+  assert.ok(!existsSync(b.ran));
 });
