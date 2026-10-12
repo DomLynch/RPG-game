@@ -9,7 +9,7 @@ import test from 'node:test';
 import { buildTables, checkTables } from '../src/core/server.ts';
 import defs from '../src/core/contracts/definitions.json' with { type: 'json' };
 import manifest from '../src/core/contracts/definitions.manifest.json' with { type: 'json' };
-import { BINDINGS, CATEGORIES, DISTRIBUTIONS, HISTORY_KINDS, LOCATION_KINDS, MATERIALS, POWERS, PRESENTATIONS, PROVENANCE_KINDS, RARITIES, ROLL_MODES, STORY } from '../src/core/contracts/items.ts';
+import { BINDINGS, CATEGORIES, DISTRIBUTIONS, HISTORY_KINDS, LOCATION_KINDS, MATERIALS, POWERS, PRESENTATIONS, PROVENANCE_KINDS, RARITIES, ROLL_MODES, STORY, parseItemDefinition, parseItemInstance } from '../src/core/contracts/items.ts';
 import { SERVICE_ACCEPTS, SERVICE_KINDS } from '../src/core/contracts/economy.ts';
 
 const problems = (d: unknown) => checkTables(buildTables(manifest.tables.map((m) => ({ manifest: m as never, parsed: d, file: 'definitions.json' })))).problems.map((p) => `${p.id} ${p.rule}: ${p.message}`);
@@ -58,4 +58,81 @@ console.log(JSON.stringify({ item: item('mythic', 'mithril'), unknownRarity: ite
     assert.equal(out.status, 0, out.stderr);
     assert.deepEqual(JSON.parse(out.stdout.trim().split('\n').pop()!), { item: true, unknownRarity: false, unknownMaterial: false, loot: true, unknownLoot: false, service: true, unknownService: false, gap: false, rarities: 5, materials: 11 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---- part 2: powers, categories, story tags, provenance kinds (Strategy's four overturns) --------------------------------------------------------------------------------------------------------------
+
+import { DEFINITIONS, categoryOf, powerOf, provenanceOf, storyOf } from '../src/core/contracts/definitions.ts';
+import { checkInstance } from '../src/core/contracts/items.ts';
+import { rarityPriceGaps, tradeCooldown } from '../src/core/contracts/economy.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
+
+test('powers, categories, story tags and provenance kinds are the rows, with the flags the old name branches had', () => {
+  assert.deepEqual(POWERS, ['slot-weight', 'none']); assert.deepEqual([...CATEGORIES], ['gear', 'material', 'quest', 'cosmetic']); assert.deepEqual([...STORY], ['none', 'notable', 'story-critical']);
+  assert.deepEqual([...PROVENANCE_KINDS], ['arena-award', 'legacy-unlock', 'loot', 'quest-reward', 'creator-mint', 'shop', 'cash-shop']);
+  assert.deepEqual([powerOf('slot-weight'), powerOf('none')], [{ tiered: true, upgradeable: true, gearOnly: true }, {}]);
+  assert.deepEqual(['gear', 'material', 'quest', 'cosmetic'].map((c) => [categoryOf(c).path, categoryOf(c).slot, !!categoryOf(c).single, !!categoryOf(c).craftInput]), [['gear', 'required', true, false], ['stock', 'none', false, true], ['stock', 'none', false, false], ['stock', 'allowed', true, false]]);
+  assert.deepEqual(['none', 'notable', 'story-critical'].map((s) => !!storyOf(s).blocksTrade), [false, false, true]);
+  assert.deepEqual(['cash-shop', 'shop', 'loot'].map((k) => [provenanceOf(k).tradeable, provenanceOf(k).blockReason ?? null]), [[false, 'cash-shop'], [true, 'shop-not-gear'], [true, null]]);
+  assert.deepEqual(provenanceOf('creator-mint').onlyCategories, ['cosmetic']);
+  assert.ok(DEFINITIONS.powers['slot-weight'] && DEFINITIONS.provenanceKinds['loot'], "'slot-weight' (loot-catalogue) and 'loot' (the encounter mint) are pinned rows: code assigns them");
+});
+
+test('the trade rule reads the provenance row: a cash-shop piece is refused with its row\'s blockReason, a loot piece is not', () => {
+  const def = (extra: object) => { const r = parseItemDefinition({ ...F.helmetDef(), ...extra }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
+  const inst = (prov: object) => { const r = parseItemInstance({ ...F.helmetInstance(), provenance: prov }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
+  const NOW = Date.parse('2030-01-01T00:00:00Z');
+  const reason = (d: ReturnType<typeof def>, i: ReturnType<typeof inst>) => tradeCooldown(i, d, NOW).reason;
+  assert.equal(reason(def({}), inst({ kind: 'cash-shop', mintKey: 'cash:0001', at: '2026-01-01T00:00:00Z', account: 'account:11111111-1111-4111-8111-111111111111', sku: 'skin' })), 'cash-shop', 'the cash-shop row says tradeable:false with its blockReason');
+  assert.notEqual(reason(def({}), inst({ kind: 'loot', mintKey: 'loot:0001', at: '2026-01-01T00:00:00Z', wonBy: F.PC, table: 'loottable:ghoul', encounter: null })), 'cash-shop', 'a tradeable row is not blocked by provenance');
+});
+
+test('a new provenance row with no shape case parses through the base shape (kind, mintKey, at): ONE ROW in a copy of the tree, no code; an unknown kind and an extra field still reject', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'item-defs2-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true }); cpSync('src', join(dir, 'src'), { recursive: true });   // src is COPIED: the probe edits src/core/contracts/definitions.json, and a symlink would write the real file
+    for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, 'src/core/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    rows.provenanceKinds['event-reward'] = { tradeable: false, blockReason: 'provenance' };
+    rows.rarities.mythic = { order: 4 }; rows.powers.aura = { tiered: false }; rows.categories.relicware = { path: 'stock', slot: 'none' }; rows.story.heirloom = { blocksTrade: true };
+    writeFileSync(file, JSON.stringify(rows));
+    writeFileSync(join(dir, 'probe.ts'), `import * as F from './src/core/contracts/fixtures.ts';
+import { parseItemDefinition, parseItemInstance } from './src/core/contracts/items.ts';
+import { tradeCooldown } from './src/core/contracts/economy.ts';
+const inst = (prov: object) => parseItemInstance({ ...F.helmetInstance(), provenance: prov });
+const ok = inst({ kind: 'event-reward', mintKey: 'event:0001', at: '2026-01-01T00:00:00Z' });
+const extra = inst({ kind: 'event-reward', mintKey: 'event:0001', at: '2026-01-01T00:00:00Z', winner: 'x' });
+const unknown = inst({ kind: 'mystery', mintKey: 'event:0001', at: '2026-01-01T00:00:00Z' });
+const def = parseItemDefinition({ ...F.helmetDef() });
+const reason = ok.ok && def.ok ? tradeCooldown(ok.value, def.value, Date.parse('2030-01-01T00:00:00Z')).reason : null;
+const newDef = parseItemDefinition({ ...F.helmetDef(), power: 'aura' }).ok, newCat = parseItemDefinition({ ...F.graveIronDef(), category: 'relicware' }).ok, newStory = parseItemDefinition({ ...F.graveIronDef(), story: 'heirloom' }).ok;
+console.log(JSON.stringify({ ok: ok.ok, extra: extra.ok, unknown: unknown.ok, reason, newDef, newCat, newStory }));`);
+    const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(out.status, 0, out.stderr);
+    const got = JSON.parse(out.stdout.trim().split('\n').pop()!);
+    assert.deepEqual({ ok: got.ok, extra: got.extra, unknown: got.unknown, reason: got.reason }, { ok: true, extra: false, unknown: false, reason: 'provenance' });
+    assert.equal(got.newStory, true); assert.equal(got.newCat, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a rarity row either has price rows or says sellable:false: a rarity silently missing prices is reported', () => {
+  const base = (F.forgeCosts() as { rows: { rarity: string }[] }).rows;
+  const full = [...base, { level: 1, rarity: 'fine', coin: 150, materials: [] }, { level: 1, rarity: 'rare', coin: 220, materials: [] }];   // the shared fixture prices common and relic only; a full list adds the other two
+  assert.deepEqual(rarityPriceGaps({ rows: full } as never), []);
+  assert.deepEqual(rarityPriceGaps({ rows: full.filter((r) => r.rarity !== 'fine') } as never), ['fine']);
+  assert.deepEqual(rarityPriceGaps(F.forgeCosts() as never), ['fine', 'rare'], 'the shared fixture leaves fine and rare unpriced, and the check says so');
+  assert.deepEqual(rarityPriceGaps({ rows: [] } as never), ['common', 'fine', 'rare', 'relic']);
+});
+
+test('a tier is refused on any power row without `tiered`, by the flag and not by the id: a new untiered power (one row) rejects a tier at `tier`', () => {
+  const powers = DEFINITIONS.powers as Record<string, object>;
+  powers.glamour = {};
+  try {
+    const d0 = parseItemDefinition(F.graveIronDef()), i = parseItemInstance({ ...F.ironInstance(), tier: 'Recruit' });
+    assert.ok(d0.ok && i.ok, JSON.stringify([d0, i]));
+    const d = { ok: true as const, value: { ...d0.value, power: 'glamour' } };   // the parse list is built at load (a new power row needs the next load); the rule reads the row at check time
+    assert.ok(checkInstance(i.value, d.value).some((x) => x.code === 'rule-violation' && x.path === 'tier'), 'a tier on an untiered power is a rule-violation at tier');
+    const clean = parseItemInstance({ ...F.ironInstance(), tier: null });
+    assert.ok(clean.ok && checkInstance(clean.value, d.value).length === 0, 'no tier on it is clean');
+  } finally { delete powers.glamour; }
 });

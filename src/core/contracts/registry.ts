@@ -3,6 +3,7 @@
 // Parsing a single record checks its shape and its own rules. Loading a bundle into the registry checks that every id it mentions exists
 // (an unknown id is an 'unknown-id' issue with the path that named it) and that no id is defined twice. Lookups return a Result, never
 // undefined, so "this id is not in the content" is always an explicit, typed answer.
+import { categoryOf } from './definitions.ts';
 import { Issues, KINDS, fail, isPlainObject, join, ok, type Issue, type Result } from './core.ts';
 import type { CharacterId, CostTableId, EncounterId, FactionId, ItemId, LootTableId, QuestId, RegionId, ServiceId } from './ids.ts';
 import { parseServiceDefinition, parseUpgradeCostTable, type ServiceDefinition, type UpgradeCostTable } from './economy.ts';
@@ -172,7 +173,7 @@ export function checkCostTablePayable(table: UpgradeCostTable, lookup: (id: Item
     const mp = `${table.id}.rows[${i}].materials[${j}]`;
     const def = lookup(m.item);
     if (!def) return issues.add('unknown-id', join(mp, 'item'), `item ${m.item} is not defined in this content`);
-    if (def.category !== 'material') issues.add('rule-violation', join(mp, 'item'), `${m.item} is not a material`);
+    if (!categoryOf(def.category).craftInput) issues.add('rule-violation', join(mp, 'item'), `${m.item} is not a material`);
     if (m.quantity > def.stack) {
       issues.add('rule-violation', join(mp, 'quantity'), def.stack === 1
         ? `${m.item} is a single-copy material (one of each), so a line can ask for 1, not ${m.quantity}`
