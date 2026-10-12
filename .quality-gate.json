@@ -343,6 +343,12 @@
     ],
     [
       "node",
+      "scripts/pit-landscape-webkit.mjs",
+      "--engine",
+      "webkit"
+    ],
+    [
+      "node",
       "scripts/first-loss-browser-check.mjs"
     ],
     [
@@ -488,6 +494,18 @@
     },
     {
       "paths": [
+        "scripts/pit-landscape-check.mjs",
+        "scripts/pit-landscape-webkit.mjs",
+        "src/core/gear-*.ts",
+        "src/core/loot-panel.ts",
+        "src/fight/stance-panel.ts"
+      ],
+      "rows": [
+        "pit-landscape-webkit"
+      ]
+    },
+    {
+      "paths": [
         "src/scene.ts",
         "src/camera.ts",
         "src/style.css",
@@ -506,7 +524,8 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "next-fight-black-check"
+        "next-fight-black-check",
+        "pit-landscape-webkit"
       ]
     },
     {
