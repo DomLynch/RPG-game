@@ -17,6 +17,7 @@ import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/fight/rank-look.ts';
 import { LADDER } from '../src/ladder.ts';
 import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
+import { POOLS } from '../src/fight/pools.ts';
 import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 import { glbStats } from '../scripts/lib/glb-stats.mjs';
 import { LOOT_TABLES } from '../origins/region1/content.ts';
@@ -70,7 +71,9 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { r.stats.pools = { health: 90, stamina: 120, mana: 0, focus: 5 }; }), '', 'pools: a row may name any of the four');
   assert.equal(edit((r) => { r.stats.pools = { stamina: 0 }; }), 'stats', 'a stamina bar of 0 is no bar');
   assert.equal(edit((r) => { r.stats.pools = { mana: -1 }; }), 'stats');
-  assert.equal(edit((r) => { r.stats.pools = { rage: 10 } as never; }), 'stats', 'an unknown pool is refused');
+  assert.equal(edit((r) => { r.stats.pools = { rage: 10 }; }), 'stats', 'an unknown pool is refused');
+  const withIntelligence = { ...known, pools: [...POOLS, { id: 'intelligence', default: 10, min: 0, max: 100 }] };
+  assert.equal(catalogueProblems(Object.assign(goblin(), { stats: { ...goblin().stats, pools: { intelligence: 14 } } }), withIntelligence).map((p) => p.code).join(','), '', 'a new pool is one definition row: a row may name it with no code change');
   assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'dragon'; }), 'id', 'a variant row whose body is not a roster id');
