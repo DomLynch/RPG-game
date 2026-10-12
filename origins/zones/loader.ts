@@ -31,7 +31,7 @@ export const zonePlaces = (): Place[] => placesInOrder(PACKAGES);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
-export function zoneProblems(z: Zone): string[] {
+export function zoneProblems(z: Zone, known?: ReadonlySet<string>): string[] {   // `known`: every character id the content names (strings, no union: Dom 2026-10-12); given, a mob look or spread for an id outside it is a problem
   const bad: string[] = [], ids = new Set<string>();
   if (!z.name.trim()) bad.push('no display name');
   const own: Record<string, unknown> = { ...z };
@@ -61,6 +61,7 @@ export function zoneProblems(z: Zone): string[] {
     if (l.scale !== undefined && !(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
     if (!unit(l.dressing.soot) || !unit(l.dressing.burnt)) bad.push(`mob look ${id}: soot/burnt must be 0..1`);
   }
+  if (known) for (const id of [...Object.keys(z.mobLooks?.looks ?? {}), ...Object.keys(z.mobLooks?.spread ?? {})]) if (!known.has(id)) bad.push(`mob look ${id}: no such character (not a spawn row or a region foe)`);
   for (const [id, sp] of Object.entries(z.mobLooks?.spread ?? {})) {
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);

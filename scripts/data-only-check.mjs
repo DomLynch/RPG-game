@@ -27,9 +27,11 @@ function registryProblems() {
 
 // Every zone through loadZone + zoneProblems, and every biome row through resolveSpec, not only the biomes a zone names: a bad field in an unused preset must not ride in as data.
 export const ZONE_CHECK = `import { loadZone, zoneIds, zoneProblems } from './origins/zones/loader.ts';
+import { FOES } from './origins/region1/content.ts';
 import { BIOMES } from './origins/zones/biomes.ts';
 import { resolveSpec } from './origins/zones/resolve.ts';
-const bad = zoneIds().flatMap((id) => { try { return zoneProblems(loadZone(id)).map((p) => 'zone ' + id + ': ' + p); } catch (e) { return ['zone ' + id + ': ' + e.message]; } });
+const known = new Set([...FOES.map((f) => f.id), ...zoneIds().flatMap((id) => loadZone(id).spawns.rows.map((r) => r.id))]);   // a character id is a string some spawn row or region foe names; a look for any other id is an error
+const bad = zoneIds().flatMap((id) => { try { return zoneProblems(loadZone(id), known).map((p) => 'zone ' + id + ': ' + p); } catch (e) { return ['zone ' + id + ': ' + e.message]; } });
 for (const b of Object.keys(BIOMES)) { try { bad.push(...resolveSpec({ biome: b }).problems.map((p) => p.startsWith('biome ' + b + ':') ? p : 'biome ' + b + ': ' + p)); } catch (e) { bad.push('biome ' + b + ': ' + e.message); } }
 console.log(JSON.stringify(bad));`;
 
