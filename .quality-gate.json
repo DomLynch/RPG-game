@@ -29,6 +29,8 @@
     ],
     [
       "node",
+      "scripts/mac-only-row.mjs",
+      "node",
       "scripts/sparring-browser-check.mjs",
       "--source"
     ]
