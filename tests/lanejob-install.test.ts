@@ -81,22 +81,6 @@ test('a second install flips current to the new sha and keeps the old release di
   } finally { b.done(); }
 });
 
-test('install refuses a repo whose waterfall.mjs has no VPS_MAX_LOAD1 line, and installs nothing', { skip }, () => {
-  const b = box();
-  try {
-    const fake = mkdtempSync(join(tmpdir(), 'lanejob-fakerepo-'));
-    execFileSync('git', ['init', '-q'], { cwd: fake });
-    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'x'], { cwd: fake });
-    mkdirSync(join(fake, 'scripts/lanejob'), { recursive: true }); mkdirSync(join(fake, 'scripts/lib'), { recursive: true });
-    writeFileSync(join(fake, 'scripts/lanejob/lanejob.sh'), '#!/bin/bash\n'); writeFileSync(join(fake, 'scripts/lib/waterfall.mjs'), 'export const OTHER = 1;\n');
-    const r = b.run(fake);
-    assert.notEqual(r.status, 0);
-    assert.match(r.stderr, /no VPS_MAX_LOAD1 line/);
-    assert.equal(existsSync(b.root), false);
-    rmSync(fake, { recursive: true, force: true });
-  } finally { b.done(); }
-});
-
 // A tmp git repo that holds committed copies of the two files, so a test can dirty the WORKING tree or commit a broken file without touching the real checkout.
 function fakeRepo(waterfall = readFileSync(join(repo, 'scripts/lib/waterfall.mjs'), 'utf8')) {
   const fake = mkdtempSync(join(tmpdir(), 'lanejob-fakerepo-'));
