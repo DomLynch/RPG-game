@@ -21,6 +21,38 @@ test('receiptFrom: the rows release-checks ran; all passed only when it exited 0
   assert.deepEqual([failed.rows, failed.ran], [[], []], 'a red run vouches for nothing: every Mac row runs in deploy.sh');
 });
 
+test('a red early run vouches for nothing (Auditor LOW on #2353): exit != 0 OR passed: false trusts no row, at record and at trust', () => {
+  const checks = (passed: boolean) => ({ passed, checks_detail: [{ index: 2, seconds: 70 }, { index: 4, seconds: 30 }] });
+  assert.deepEqual(receiptFrom({ sha: SHA, tree: TREE, checks: checks(true), started: 's', ended: 'e', exit: 1 }).rows, [], 'exit 1 with passed: true');
+  assert.deepEqual(receiptFrom({ sha: SHA, tree: TREE, checks: checks(false), started: 's', ended: 'e', exit: 0 }).rows, [], 'exit 0 with passed: false');
+  assert.deepEqual(receiptFrom({ sha: SHA, tree: TREE, checks: checks(true), started: 's', ended: 'e', exit: 0 }).rows, [2, 4], 'only a green run vouches');
+  const dir = mkdtempSync(join(tmpdir(), 'macrows-red-'));
+  try {
+    writeFileSync(join(dir, `${SHA}.macrows.json`), JSON.stringify(receiptFrom({ sha: SHA, tree: TREE, checks: checks(true), started: 's', ended: 'e', exit: 1 })));
+    const t = trust(dir, TREE);
+    assert.deepEqual(t.receipt?.rows, [], 'the red receipt is found but trusts no row');
+    assert.match(t.why, /0\/2 passed .*; the rest run here/);
+    // the CLI deploy.sh calls prints nothing to trust for that tree
+    const repo = mkdtempSync(join(tmpdir(), 'macrows-red-repo-'));
+    execFileSync('git', ['init', '-q', repo]); execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'c']);
+    const tree = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim();
+    writeFileSync(join(dir, `${SHA}.macrows.json`), JSON.stringify(receiptFrom({ sha: SHA, tree, checks: checks(false), started: 's', ended: 'e', exit: 0 })));
+    const r = spawnSync(process.execPath, [join(process.cwd(), 'scripts/lib/mac-rows-early.mjs'), 'trust', 'HEAD'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PRELAUNCH_DIR: dir } });
+    assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout, '', 'deploy.sh trusts no row from a red run');
+    rmSync(repo, { recursive: true, force: true });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('trust never vouches for a row that is not a Mac row (Auditor LOW on #2353): the receipt\'s rows are intersected with MAC_ROWS', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'macrows-only-'));
+  try {
+    const nonMac = [1, 3, 9, 13].find(n => !MAC_ROWS.includes(n))!;
+    writeFileSync(join(dir, `${SHA}.macrows.json`), JSON.stringify(receipt({ rows: [MAC_ROWS[0], nonMac], ran: [MAC_ROWS[0], nonMac] })));
+    assert.deepEqual(trust(dir, TREE).receipt?.rows, [MAC_ROWS[0]], `row ${nonMac} is not a Mac row: never trusted from an early receipt`);
+    assert.deepEqual(receiptFrom({ sha: SHA, tree: TREE, checks: { passed: true, checks_detail: [{ index: MAC_ROWS[0] }, { index: nonMac }] }, started: 's', ended: 'e', exit: 0 }).rows, [MAC_ROWS[0]], 'nor recorded as passed');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('trust: by TREE; waits (bounded) only while a live run for that tree is going; a dead run or no run is not waited for', () => {
   const dir = mkdtempSync(join(tmpdir(), 'macrows-'));
   try {
