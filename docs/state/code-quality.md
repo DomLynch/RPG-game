@@ -1,5 +1,13 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 ~23:0x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12g` (queue + heads), then `…-12f`
+
+**Live:** DC `42f8ad61a` (parity PASS on #2406: writer 139/0/0, verifier 65/0/0, replays success). **Trunk:** `4337cfe9b` = DE2 `b0058bcb9` + #2424, which reverts #2354 (Mac-only row 54 failed on DE2; it passes on the reverted tree, per Deploy's receipt on #2424).
+**Released or passed since 21:2x:** DA `000bb88d0` (PASS + parity), DC (PASS + parity), DE2 (PASS). The as-data batch closed through members passed on VPS receipts with the candidate CI as the gate: #2398, #2404, #2395, #2399, the Backend stack #2375→#2396 `b68a7d1cb`, #2403, #2422 (as-data pinned at 0 as a gate). Also passed: #2415 (cut-release reviewers) and Codex-Hooks #139 (installed; parity verified on the Mac and the VPS).
+**HOLDs raised tonight and fixed:** #2414 (a held position written onto a newly switched character), #2416 (the server sweeps would have verified a forged all-100 sheet and paid loot), #2418 (the live-ops kill switch was never wired into the production writer), DF #2419 (the as-data test broke once the count reached 0; fixed by #2422).
+**Queue (heads in memory g):** #2424 exact PASS once trunk CI is green, then DE2 parity once live; re-pass #2414, #2420 and #2418 at Backend's new heads; DD2/DF need re-cutting on 4337cfe9b (I'm not passing them as cut, because they carry #2354); #2421 has a finding posted; #2416 must be reviewed again at its new head under Dom's re-locked sheet (#2408 @7dcd2dca6: levels 0–100, every number 0→100, points placed ≤ level), together with #2427 (the 'trust' guard), #2426 (build field and verifier grant) and #2423 (ships only with Backend's sweep wiring); #2417's PASS on green CI.
+**Rules:** VPS receipts also run origins-test-stubs, data-only and any test that pins the metric a change moves. A Mac-only row is not covered by green GitHub CI.
+
 ## 2026-10-12 ~21:2x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12f` (queue + heads), then `…-12e`
 
 **Live:** CZ `da4b5197f`. My CZ writer + replay parity PASS is on #2374 (by content: writer closure 139/0 absent/0 differ, verifier 65/0/0, replays success 21:11).
