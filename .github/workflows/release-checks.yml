@@ -43,7 +43,9 @@ jobs:
   plan:
     # A release candidate (head branch release-*) runs as a DRAFT and carries ci:release-checks from the cut (scripts/cut-release.mjs): plan runs for it (Dom 2026-10-12, CI runners first).
     # Only for it (Lead + Strategy 2026-10-12): a feature PR schedules nothing here, whatever its labels; a dispatch is unchanged.
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-')
+    # On a candidate, adding any label but ci:release-checks (candidate:pass, release:go after the Auditor's PASS) schedules no job at all (Lead on CW:
+    # those runs queued and read as pending at push time); its group is the run id (concurrency above), so it never cancels the rows in flight.
+    if: github.event_name != 'pull_request' || (startsWith(github.head_ref, 'release-') && (github.event.action != 'labeled' || github.event.label.name == 'ci:release-checks'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
