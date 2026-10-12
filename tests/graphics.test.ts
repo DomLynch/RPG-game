@@ -69,6 +69,7 @@ import * as match from '../src/fight/match.ts';
 import * as stancePanel from '../src/fight/stance-panel.ts';
 import * as zone1Hop from '../src/zone1-hop.ts';
 import * as gearLedger from '../src/core/gear-ledger.ts';
+import * as gearStats from '../src/core/gear-stats.ts';
 import * as gearServer from '../src/core/gear-server.ts';
 import * as fightOpen from '../src/core/open.ts';
 import * as coachUi from '../src/fight/coach-ui.ts';
@@ -122,6 +123,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fight/execution.ts'] = execution; modules['./fight/hamstrung.ts'] = hamstrung; modules['./fight/hamstrung-assets.ts'] = hamstrungAssets;
   modules['./core/open.ts'] = fightOpen;   // the page's one writer `open` (no session in the harness: it asks nothing)
   modules['./core/gear-server.ts'] = gearServer;   // a signed-in character's gear is the server's ledger (no session in the harness: it stays local)
+  modules['./core/gear-stats.ts'] = gearStats;   // the stat strip's rows (gear-sheet.ts imports it)
   modules['./core/gear-ledger.ts'] = gearLedger;   // the gear sheet's pure ledger half (gear-sheet.ts imports it)
   modules['./zone1-hop.ts'] = zone1Hop;   // Play -> Zone 1 (off until World's default is live: the harness stays on the arena)
   modules['./lessons.ts'] = lessons;   // the first-loss prompts and trigger (main.ts imports firstLossDue)
