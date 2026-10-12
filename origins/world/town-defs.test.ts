@@ -13,9 +13,11 @@ const SEEDS = ['ferry', 'cinder', 'mere-end', 'a', 'z9', 'Frankendom', 'x', 'tow
 const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
 const withRows = (edit: (d: { lotKinds: Record<string, Record<string, unknown>>; trades: Record<string, Record<string, unknown>> }) => void): TownDefs => { const d = structuredClone(TOWN_DEFS) as unknown as Parameters<typeof edit>[0]; edit(d); return d as unknown as TownDefs; };
 
-test('the generated towns are byte for byte what the closed-list code made (10 seeds x 12 wealths, pinned before the move to rows)', () => {
-  const all = SEEDS.flatMap((s) => WEALTHS.map((w) => generateTown(s, w)));
-  assert.equal(sha(all), '674c7fb45c8d0a14'); assert.equal(all.reduce((n, t) => n + t.lots.length, 0), 3288);
+test('the generated towns are the closed-list code\'s towns (10 seeds x 12 wealths, pinned before the move to rows): every lot, kind, ring, trade and piece, in order', () => {
+  // The coordinates are floats from Math.sin/cos, which differ between Node versions (the whole-town hash is 674c7fb45c8d0a14 on Node 25 and 04d52981ca469571 on Node 22, for the OLD code and the new alike),
+  // so the pin is the structure, which does not: ids, kinds, rings, trades and each lot's piece nodes, variants and slots (the variants are the rng stream, so any change in draw order shows here).
+  const all = SEEDS.flatMap((s) => WEALTHS.map((w) => generateTown(s, w).lots.map((l) => [l.id, l.kind, l.ring, l.trade ?? null, l.pieces.map((p) => [p.node, p.variant, p.slot ?? null])])));
+  assert.equal(sha(all), '74daaee5d70e07d5'); assert.equal(all.reduce((n, t) => n + t.length, 0), 3288);
 });
 
 test('the kit pieces chosen for those towns are unchanged (the bank sign and counter, the gate arch, the inn and smithy signs are rows now)', () => {
@@ -49,8 +51,8 @@ test('a new trade with its chimney and sign is ONE ROW: the weaver gets shops, a
   assert.ok(!generateTown('ferry', 1).lots.some((l) => l.trade === 'weaver'), 'the real definitions have no weaver');
 });
 
-test('a new lot kind is ONE ROW: a chapel in ring 2 with its own kit sign', () => {
-  const defs = withRows((d) => { d.lotKinds.chapel = { order: 7, ring: 2, count: [2, 0], size: { w: [6, 0, 0], d: [6, 0, 0] }, walls: true, sign: true, kit: { sign: 'sign_smith_a' } }; });
+test('a new lot kind is ONE ROW: a chapel in ring 2 (placed before the houses fill the ring) with its own kit sign', () => {
+  const defs = withRows((d) => { d.lotKinds.chapel = { order: 3.5, ring: 2, count: [2, 0], size: { w: [6, 0, 0], d: [6, 0, 0] }, walls: true, sign: true, kit: { sign: 'sign_smith_a' } }; });
   assert.deepEqual(defsProblems(defs as never), []);
   const chapels = generateTown('cinder', 1, defs).lots.filter((l) => l.kind === 'chapel');
   assert.ok(chapels.length >= 1 && chapels.every((l) => l.ring === 2 && l.id.startsWith('chapel-')));
