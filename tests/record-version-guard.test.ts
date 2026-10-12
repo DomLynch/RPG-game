@@ -25,7 +25,7 @@ import type { OpponentId } from '../src/roster.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/fight/duel.ts', 'src/fight/cc-ladder.ts', 'src/fight/pools.ts', 'src/fight/pool-defs.json', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/fight/blade-paths.ts', 'src/roster.ts', 'src/fight/catalogue-data.ts', 'src/fight/finishers.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
-const SIM_DIGEST = '3b53c662cb861297a980fd285f949cf832f14cc40f44ace5b2775b7f7301a67e';   // RV43 (2026-10-12, Combat): resource pools as an open registry (pools.ts + pool-defs.ts, createFighter reads a row's pools); every default is what it always used, so no fight moves (REACH[43] empty). Chains from RV42 c95e1f2c... (the projection digest, #2269)
+const SIM_DIGEST = 'cb6f58d4cbb78ed5ad6a77245f178ea08c7d56101d833b5b9e7789d8a7c772eb';   // RV43 (2026-10-12, Combat): resource pools as an open registry (pools.ts + pool-defs.ts, createFighter reads a row's pools); every default is what it always used, so no fight moves (REACH[43] empty). Chains from RV42 c95e1f2c... (the projection digest, #2269)
 const PINNED_FOR_VERSION = 43;
 
 const simSources = (): Record<string, string> => Object.fromEntries(SIM_FILES.map((file) => [file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')]));
@@ -125,10 +125,10 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
       return rec.finish('draw');
     };
     const none = fightOf(), withPatron = fightOf(5);
-    assert.equal(none.v, 43, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
-    assert.equal(m.packRecord(none)[2], 43);
+    assert.equal(none.v, 44, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
+    assert.equal(m.packRecord(none)[2], 44);
     assert.deepEqual(m.unpackRecord(m.packRecord(none)), none, 'a v38 record with patron byte 0 round-trips with no patron');
-    assert.equal(withPatron.v, 43); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
+    assert.equal(withPatron.v, 44); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
     const v32 = m.packRecord(withPatron).slice(); v32[2] = 32;
     const at = v32.length - 6 * 20 - 4 - 4 - 1 - 1 - 1; assert.equal(v32[at], 5); v32[at] = 0;
     assert.throws(() => m.unpackRecord(v32), /names a patron/, 'a v32 record with no patron is refused: it was always written as v31');
