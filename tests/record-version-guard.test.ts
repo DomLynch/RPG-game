@@ -152,7 +152,7 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
 
 // The catalogue rows reach the digest as their SIM PROJECTION (tests/lib/sim-digest.ts), so a cosmetic row edit needs no RECORD_VERSION bump, and a sim edit still does (Lead, 2026-10-12).
 test('catalogue digest: a cosmetic row edit (name, voice, look, ranks, a brand-new cosmetic field) leaves it alone; a sim edit (weapon, rig, archetype, finishers, hold, a new roster row) moves it', () => {
-  const real = simSources(), before = simDigest(real), path = 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/catalogue-defs.ts', src = real[path]!;
+  const real = simSources(), before = simDigest(real), path = 'src/fight/catalogue-data.ts', src = real[path]!;
   const edit = (from: RegExp, to: string, all = false) => { const out = src.replace(all ? new RegExp(from.source, 'g') : from, to); assert.notEqual(out, src, `the probe edit applies: ${from}`); return simDigest({ ...real, [path]: out }); };
   assert.equal(edit(/name: "the Centurion"/, 'name: "the Legate"'), before, 'a rename is not the fight');
   assert.equal(edit(/voice: null,/, 'voice: "changed",'), before, 'a voice is not the fight');
