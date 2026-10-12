@@ -40,8 +40,8 @@ test('the registry manifest holds for the real rows, and the loader names a miss
 test('a new rarity, material, presentation and service acceptance is ONE ROW in a copy of the tree, no code; an unknown id still rejects; a gap in the new rarity\'s ladder is caught', () => {
   const dir = mkdtempSync(join(tmpdir(), 'item-defs-'));
   try {
-    cpSync('origins', join(dir, 'origins'), { recursive: true });
-    for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    cpSync('origins', join(dir, 'origins'), { recursive: true }); cpSync('src', join(dir, 'src'), { recursive: true });   // src is COPIED: the probe edits src/core/contracts/definitions.json, and a symlink would write the real file
+    for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
     const file = join(dir, 'src/core/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
     rows.rarities.mythic = { order: 4 }; rows.materials.mithril = { order: 10 }; rows.presentations.pile = {}; rows.serviceAccepts.rings = { armour: false, weapons: false };
     writeFileSync(file, JSON.stringify(rows));
