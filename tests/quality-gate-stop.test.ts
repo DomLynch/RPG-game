@@ -3,14 +3,17 @@
 // GitHub (release-checks) and in every release; the Stop gate keeps only fast, browser-free checks (Lead 2026-10-12).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8')) as { completion_commands: string[][]; release_commands: string[][] };
 
-test('no Stop-gate completion command is a browser check', () => {
+test('no Stop-gate completion command is a browser check (by name or by a playwright import in the script it runs)', () => {
   for (const argv of gate.completion_commands) {
     const line = argv.join(' ');
     assert.doesNotMatch(line, /browser|playwright|webkit|chromium/i, `browser row in completion_commands: ${line}`);
+    for (const file of argv.filter((a) => /\.(m?[jt]s)$/.test(a) && existsSync(a))) {
+      assert.doesNotMatch(readFileSync(file, 'utf8'), /from ['"](@?playwright)|require\(['"]@?playwright/, `${file} launches playwright`);
+    }
   }
 });
 
