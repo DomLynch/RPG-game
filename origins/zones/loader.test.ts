@@ -110,3 +110,11 @@ test('Zone 2 has a camp where at least three creatures sit within JOIN_M of a wa
   assert.ok(pack.every((a) => pack.every((b) => Math.hypot(a.home.x - b.home.x, a.home.z - b.home.z) <= AGGRO_M)), 'all four ruin wolves hunt inside one AGGRO_M');
   assert.ok([...pack, ...cairn].every((m) => m.id.startsWith('z2:')));
 });
+
+test('a mob look for a character nothing names is a problem once the known ids are given (ids stay strings: no union of creature ids)', () => {
+  const z = loadZone('1'), id = 'character:cinder-scavenger', known = new Set(Object.keys(z.mobLooks!.looks));
+  assert.deepEqual(zoneProblems(z, known), [], 'Zone 1\'s looks are all known');
+  const typo = { ...z, mobLooks: { looks: { ...z.mobLooks!.looks, 'character:cinder-scavanger': z.mobLooks!.looks[id]! }, spread: z.mobLooks!.spread } } as unknown as Zone;
+  assert.match(zoneProblems(typo, known).join('; '), /character:cinder-scavanger: no such character/);
+  assert.deepEqual(zoneProblems(typo), [], 'without a known set the old check is unchanged');
+});

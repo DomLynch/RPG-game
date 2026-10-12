@@ -7,12 +7,14 @@ import { isLegendOpponent, legendAt } from '../legends.ts';
 import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
 import { shortLink } from '../share-store.ts';
+import { compareRows, renderCompare, renderStats, statRows } from './gear-strip.ts';
 
 export const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
 type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; gearStage?: () => Parameters<typeof enterGearRoom>[0] };
 export type GearSheetDeps = {
   element: <T extends HTMLElement = HTMLElement>(id: string) => T; journal: HTMLElement; canvas: HTMLElement;
   profile: () => { loot?: Loot }; persist: () => void; view: () => View; weapon: () => string;
+  numbers?: (loot: Loot | undefined) => Record<string, number>;   // the host's numbers for the stat strip (gear-strip.ts): the Pit and the zone read their combat constants, so the core imports no fight code
   emptyPack?: string;   // the empty rack's line: a host that is not the Pit says its own words
   act?: (op: GearOp) => boolean;   // a signed-in character's wear / stow goes to the server (gear-ledger.ts stepsFor): true = handled; false or absent = the local ledger (a guest, the Pit today)
 };
@@ -52,6 +54,7 @@ export function createGearSheet(d: GearSheetDeps) {
       const id = loot.equipped[key];
       d.element(`slot-${key}-name`).textContent = id ? pieceName(id) : key === 'main' ? d.weapon()[0]!.toUpperCase() + d.weapon().slice(1) : 'Empty';
       d.element(`slot-${key}`).classList.toggle('on', !!id || key === 'main');
+      d.element(`slot-${key}`).style.setProperty('--tier', String(id ? loot.taken?.[id]?.tier ?? 1 : 0));   // the card's tint (style.css: one hue per rung)
       d.element(`slot-${key}`).setAttribute('data-loot', id ?? '');   // the worn id, for the paperdoll's image layers (style.css loot-layers block)
       d.element(`slot-${key}`).hidden = key === 'crest' && !id;   // the rail shows the crest only while one is worn (Strategy 2026-10-01)
       thumbFor(d.element(`slot-${key}`), id);
@@ -59,6 +62,7 @@ export function createGearSheet(d: GearSheetDeps) {
       off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
       off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
     }
+    renderStats(d.element('gear-stats'), statRows({ base: d.numbers?.(d.profile().loot) ?? {}, worn: wornIdsOf(d.profile().loot) }), document);
     // The pack (loot.ts PACK): the open slots hold what Store put there, each with Wear; the rest are drawn locked, a placeholder only.
     const pack = Array.from({ length: PACK.total }, (_, i) => {
       const li = document.createElement('li'), id = loot.pack?.[i];
@@ -121,6 +125,12 @@ export function createGearSheet(d: GearSheetDeps) {
     d.element('fitting-cancel').hidden = d.element('fitting-wear').hidden = !fitId;
     const store = d.element<HTMLButtonElement>('fitting-store'); store.hidden = !!fitId; store.disabled = full;
     holder.dataset.mode = fitId ? 'try' : 'worn';
+    // A try-on shows NEW beside EQUIPPED with the strip's rows (gear-strip.ts); a worn piece needs no comparison.
+    const compare = d.element('fitting-compare');
+    if (!fitId) { compare.hidden = true; compare.replaceChildren(); return; }
+    const after = applyLocal(loot, { kind: 'wearFromPack', id: fitId }), ctx = (l: Loot) => ({ base: d.numbers?.(l) ?? {}, worn: wornIdsOf(l) });
+    const card = (id: LootId) => ({ name: sentence(pieceName(id)), image: lootThumb(id), sub: rankText(id) });
+    renderCompare(compare, { now: replaced ? card(replaced) : null, next: card(fitId), rows: compareRows(ctx(loot), ctx(after)) }, document);
   }
   d.element('fitting-thumb').addEventListener('error', () => { d.element('fitting-thumb').hidden = true; });
   d.element('fitting-cancel').addEventListener('click', () => tryOn(null));

@@ -23,7 +23,8 @@ test('a new trade and temperament are real rows: edit only towns.json in a copy 
   const dir = mkdtempSync(join(tmpdir(), 'town-rows-'));
   try {
     cpSync('origins', join(dir, 'origins'), { recursive: true });
-    for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    cpSync('scripts', join(dir, 'scripts'), { recursive: true });
+    for (const link of ['src', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
     const file = join(dir, 'origins/region1/towns.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
     rows.definitions.trades.armourer = {};
     rows.definitions.temperaments.brooding = {};
