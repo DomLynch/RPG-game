@@ -48,7 +48,9 @@ async function load(w, h, { signedIn = true } = {}) {
   if (signedIn) await context.addInitScript((t) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: '00000000-0000-4000-8000-000000000001' } })); } catch { /* none */ } }, TOKEN);
   const page = await context.newPage(); page.setDefaultTimeout(60000);
   page.on('pageerror', (e) => fails.push(`${w}: ${String(e).slice(0, 160)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
-  await page.goto(`${origin}/?writer=${encodeURIComponent(writerUrl)}`);
+  // The Pit page's CSP only lets it call its own origin, so the page keeps its default writer path (/origins) and the stub answers it through the browser's routing (not a ?writer= override).
+  await context.route('**/origins/*', async (route) => { const op = new URL(route.request().url()).pathname.split('/').pop(); await route.fulfill({ response: await route.fetch({ url: `${writerUrl}/${op}` }) }); });
+  await page.goto(`${origin}/`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
   if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click();
   await page.waitForFunction(() => document.querySelector('#welcome').hidden); await page.waitForTimeout(1500);
