@@ -20,6 +20,7 @@ import { ROSTER, type OpponentId } from '../src/roster.ts';
 import { ADDITIVE_ROLES, FINISHER_CLIPS } from '../src/fight/characters.ts';
 import { cuesFor } from '../src/fight/sound/cues.ts';
 import { MANIFEST } from '../src/audio/manifest.ts';
+import { CUE_PROBES } from '../src/audio/exchange.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 const ROLES = [...FINISHER_CLIPS, ...ADDITIVE_ROLES];
 import { initialState } from '../src/fight/sim.ts';
@@ -252,4 +253,11 @@ test('the staged templates driven by the rows are byte-identical to the name-swi
     const src = readFileSync(new URL(`../src/fight/${file}.ts`, import.meta.url), 'utf8');
     assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], `${file}.ts names no finisher`);
   }
+});
+
+// ---- audio/exchange.ts (consumer group 7): its finisher probes are every rotation row, the plain death first; the whole probe list hashes as on trunk.
+test('the audio probes over the finishers come from the rows, in the same order as the list they replaced', () => {
+  assert.equal(createHash('sha256').update(JSON.stringify(CUE_PROBES)).digest('hex'), 'a2344ce050fb54852a669f96fc7e3e7f26ccdfdee9719e9a4c975bd496ab5cfe');
+  const src = readFileSync(new URL('../src/audio/exchange.ts', import.meta.url), 'utf8');
+  assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'exchange.ts names no finisher');
 });
