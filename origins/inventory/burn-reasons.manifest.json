@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "burnReason",
+      "file": "burn-reasons.json",
+      "at": "reasons",
+      "key": "id",
+      "required": {
+        "consumesStoryItem": "boolean"
+      }
+    }
+  ]
+}
