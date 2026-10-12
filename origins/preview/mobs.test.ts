@@ -287,7 +287,7 @@ test('the hero faces the camp of whichever creature row says firstSight: not a b
     const plain = spawnAmong(F, B, SPECS)!;
     assert.ok(nearest(plain, SPECS) >= 25, 'no flagged creature: every creature is 25 m or more off');
     goblin.firstSight = true;
-    const goblins = SPECS.filter((s) => s.body === 'goblin');
+    const goblins = SPECS.filter((s) => row(s.body) === goblin);
     if (goblins.length) { const at = spawnAmong(F, B, SPECS)!, d = nearest(at, goblins); assert.ok(d >= 15 && d <= 25, `a flagged goblin is the one 15-25 m ahead (${d.toFixed(1)} m)`); }
   } finally { wolf.firstSight = true; delete goblin.firstSight; }
   assert.deepEqual(spawnAmong(F, B, SPECS), spawnAmong(F, B, SPECS), 'deterministic again once the rows are restored');
