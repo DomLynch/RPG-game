@@ -49,7 +49,8 @@ busy && skip "load=$(load1) recheck"
 released && skip release-in-flight
 note "mac slot=1 load=$(load1)"
 nice -n 15 "$@" & job=$!
-( sleep "${LANEJOB_MAC_CAP:-1800}"; touch "$lock/capped"; kill -TERM "$job" 2>/dev/null; sleep 5; kill -KILL "$job" 2>/dev/null ) >/dev/null 2>&1 & dog=$!
+# the guard `kill -0` matters: killing the dog's sleep (below) lets the subshell run on, and it must not call a finished job capped
+( sleep "${LANEJOB_MAC_CAP:-1800}"; kill -0 "$job" 2>/dev/null || exit 0; touch "$lock/capped"; kill -TERM "$job" 2>/dev/null; sleep 5; kill -KILL "$job" 2>/dev/null ) >/dev/null 2>&1 & dog=$!
 wait "$job"; rc=$?
 pkill -P "$dog" 2>/dev/null; kill "$dog" 2>/dev/null; wait "$dog" 2>/dev/null
 [ -e "$lock/capped" ] && { note "mac cap=exceeded"; exit 75; }
