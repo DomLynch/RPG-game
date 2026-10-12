@@ -12,6 +12,7 @@
 4. Release with #2246 (Zone 4): writer reinstall + parity.
 **Verdicts 10-12 (all on threads, labels removed):** PASS #2241, #2243, #2149, #2231, #2246, #2248, Codex-Hooks #126. HOLD Codex-Hooks #127 (twice: 8 probes, then the stripper).
 **Rulings:** "ready" is the `auditor:ready` label, polled every 10 minutes (#2235); clear above 250k before the day's first task, and subagents are Sonnet/Haiku only, one at a time (#2248); creature fleeing is cut (Dom 10-11).
+**10:3x amendment (Dom cleared after "keep going"):** since 09:3x: GO BX #2250, PASS Codex-Hooks #127 @b79648797, PASS #2252, HOLD #2233 (banner says flee cut, body still orders it). **Lead order now:** #2244 then #2253 (both go live today), then #2242, #2251, #2115. My #2244 gate was queued on the VPS at the clear, so re-run it. Main check: #2244 is based on BV, but #2241 (live in BW) edited two of the files it moves, so merge it into the current trunk and confirm `fleeBelow` stays gone (details in memory `frankendom_handoff_2026-10-12a`).
 **Session:** app worktree `laughing-bartik-0c0156`, branch `code-quality/state-1010-pause`. VPS: `/root/cq-2026` clean, no `/tmp/cq-*`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
 
 ## 2026-10-11 ~19:0x (+04) — HANDOFF before Dom's /clear. READ FIRST, then memory `frankendom_handoff_2026-10-11a` (its appended lines = the whole day, every sha and receipt)
