@@ -51,7 +51,9 @@ try {
     const page = await context.newPage(); page.setDefaultTimeout(60000);
     if (safe && ENGINE === 'chromium') { const cdp = await context.newCDPSession(page); try { await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { left: safe.l, right: safe.r, top: safe.t, bottom: safe.b } }); } catch (error) { v.safeAreaUnsupported = String(error).slice(0, 120); } }
     page.on('pageerror', (e) => receipt.errors.push(`${name}: ${String(e).slice(0, 200)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
-    const snap = async (state, scope) => { if (!process.env.PIT_STILLS || new RegExp(process.env.PIT_STILLS).test(state)) await page.screenshot({ path: `${out}/${name}-${state}.png` });   // PIT_STILLS=<regex of states>: the T4's artifact copy keeps ~24 files, so a still run names the few it needs
+    const snap = async (state, scope) => {
+      await page.evaluate(() => document.fonts.ready);   // measure with the page's own faces, not the fallback (Safari's fallback is wider and broke names the real face fits)
+      if (!process.env.PIT_STILLS || new RegExp(process.env.PIT_STILLS).test(state)) await page.screenshot({ path: `${out}/${name}-${state}.png` });   // PIT_STILLS=<regex of states>: the T4's artifact copy keeps ~24 files, so a still run names the few it needs
     const m = await measure(page, scope); v.states[state] = { count: m.list.length, bad: judge(m, w, h, ENGINE === 'chromium' ? safe : undefined), list: m.list }; };
     await page.goto(`${origin}/`);
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
