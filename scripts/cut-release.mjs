@@ -38,7 +38,7 @@ export function mergeAll(git, name, specs) {
 
 /** git push with 3 tries and backoff (2 s, 4 s): a transient GitHub "remote rejected" stopped CO's cut. sleep is injectable for the test.
  * @param {(args: string[]) => { status: number | null, stderr?: unknown, stdout?: unknown }} git @param {string} branch @param {{ tries?: number, sleep?: (s: number) => unknown }} [opts] */
-export function pushWithRetry(git, branch, { tries = 3, sleep = s => spawnSync('sleep', [String(s)]) } = {}) {
+export function pushWithRetry(git, branch, { tries = 3, sleep = s => spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }) } = {}) {
   let err = '';
   for (let i = 1; i <= tries; i++) {
     const r = git(['push', '-q', 'origin', branch]);
