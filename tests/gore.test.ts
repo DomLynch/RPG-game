@@ -370,6 +370,7 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
   try {
     const out = new Vector3(0, 0, 1), raycaster = new Raycaster();
     raycaster.set(bones[0].getWorldPosition(new Vector3()).addScaledVector(out, 0.5), out.clone().negate()); raycaster.far = 0.5;
+    raycaster.intersectObjects([skin], false);   // warm-up: the first ray of a skin also builds its bounding sphere (one read per vertex), which is not the ray's own cost
     calls = 0; const plain = raycaster.intersectObjects([skin], false)[0], plainCalls = calls;
     calls = 0; const met = surfaceHit(root, bones[0], out), memoCalls = calls;
     assert.ok(plain && met, 'both rays met the skin');
