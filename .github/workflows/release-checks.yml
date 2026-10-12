@@ -74,8 +74,8 @@ jobs:
           RUN_REF: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
           # Rows CI never schedules because it never trusts them (row-placement.mjs): GPU_ONLY (the T4's: they miss the 600 s row ceiling without a GPU)
-          # and WEBKIT_ROWS (the Mac's: the runner has no WebKit install, and Linux WebKit is not Safari).
-          export CI_SKIP_ROWS=$(node --input-type=module -e 'import { GPU_ONLY, WEBKIT_ROWS } from "./scripts/lib/row-placement.mjs"; console.log([...GPU_ONLY, ...WEBKIT_ROWS].join(","))')
+          # and MAC_ROWS (every MAC_ONLY row, the list deploy.sh places on the Mac: WebKit has no install here, rows 2 and 44 fail off the Mac).
+          export CI_SKIP_ROWS=$(node --input-type=module -e 'import { GPU_ONLY, MAC_ROWS } from "./scripts/lib/row-placement.mjs"; console.log([...GPU_ONLY, ...MAC_ROWS].join(","))')
           node -e '
             const { execFileSync } = require("child_process");
             const gate = require("./.quality-gate.json");

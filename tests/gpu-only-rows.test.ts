@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GPU_ONLY, MAC_ONLY, ON_T4, ROW_CEILING_S, WEBKIT_ROWS } from '../scripts/lib/row-placement.mjs';
+import { GPU_ONLY, MAC_ONLY, MAC_ROWS, ON_T4, ROW_CEILING_S } from '../scripts/lib/row-placement.mjs';
 
 test('GPU_ONLY is the ceiling rule over ON_T4; row 13 (initdb as root) and row 9 (369 s on CPU) are CI rows', () => {
   const expected = ON_T4.filter(e => e.row !== 13 && (e.cpu_s == null || e.cpu_s > ROW_CEILING_S)).map(e => e.row);
@@ -30,13 +30,14 @@ const plan = (env: Record<string, string>) => {
   return JSON.parse(/checks=(.*)/.exec(readFileSync(out, 'utf8'))![1]).map((c: { index: number }) => c.index) as number[];
 };
 
-test('the release-checks plan matrix and GPU_ONLY ∪ WEBKIT_ROWS are disjoint: CI never schedules a row it will never trust', () => {
-  const never = [...GPU_ONLY, ...WEBKIT_ROWS];
-  assert.deepEqual(WEBKIT_ROWS, [4, 22, 45, 48, 49, 52, 54], 'the Safari rows (row 52: CK #2317 job 114771865725 died on the missing WebKit)');
-  assert.deepEqual(WEBKIT_ROWS, MAC_ONLY.filter(e => /webkit/i.test(e.why)).map(e => e.row));
+test('the release-checks plan matrix and GPU_ONLY ∪ every MAC_ONLY row are disjoint: CI never schedules a row it will never trust', () => {
+  const never = [...GPU_ONLY, ...MAC_ROWS];
+  assert.deepEqual(MAC_ROWS, MAC_ONLY.map(e => e.row), 'all of MAC_ONLY, the list deploy.sh places on the Mac');
+  for (const row of [2, 4, 22, 44, 45, 48, 49, 52, 54]) assert.ok(MAC_ROWS.includes(row), `row ${row} is the Mac's`);
   const rows = plan({});
   assert.ok(rows.length > 20, `a candidate still runs the matrix: ${rows.length} rows`);
   assert.deepEqual(rows.filter(r => never.includes(r)), []);
-  assert.ok(rows.includes(9) && rows.includes(13) && rows.includes(2) && rows.includes(44), 'non-gpu T4 rows and the HF-reason Mac rows are CI rows');
+  assert.ok(rows.includes(9) && rows.includes(13), 'the T4 rows that are not gpu-only are CI rows');
+  assert.ok(!rows.includes(2) && !rows.includes(44), 'rows 2 and 44 (Mac-only for failing off the Mac) are not scheduled either');
   assert.deepEqual(plan({ GITHUB_EVENT_NAME: 'workflow_dispatch' }).filter(r => never.includes(r)), [], 'a dispatch run skips them too');
 });
