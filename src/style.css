@@ -2568,3 +2568,10 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal #journal-name { display: block; width: fit-content; max-width: calc(100% - 180px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 44px; padding-right: 30px; background: url(/gear-ui/edit.png) right center / 24px no-repeat; }
 #journal #journal-name::after { content: none; }
 #journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
+/* part B, round 2: portrait: the stance panel drops under the HUD (it covered the opponent's health bar); iPad: clear of the menu button; very short landscape: SKILL below the menu button;
+   the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
+@media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 136px !important; } }
+@media (min-width: 900px) { #stance-panel { top: 84px !important; } }
+@media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button { top: -44px; } }
+#journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
+#journal #journal-rank { margin-top: 6px; }
