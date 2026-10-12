@@ -15,6 +15,8 @@ import { parseItemDefinition } from '../src/core/server.ts';
 import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
 import * as F from '../src/core/server.ts';
 import { cumulative } from '../src/core/server.ts';
+import { createLiveOps } from '../origins/server/live-ops.ts';
+import { createLocationFlusher } from '../origins/server/location-flush.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
@@ -488,6 +490,68 @@ try {
     eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false }, { character: null, stored: false }], 'flag off: nothing served, nothing stored');
     psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'flag off wrote nothing');
+    // item 25: the dirty map. Posts are held and written as ONE statement (the same origins_save_location), a read flushes first (read your own write), the stale guard still stands
+    {
+      const flusher = createLocationFlusher(psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), 60_000, () => undefined);
+      const fw = createWriter({ db: psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), verify: async t => TOKENS[t] ?? null, where, handlers: clientOps, internal: { key: KEY, flusher } });
+      await new Promise(r => fw.listen(0, '127.0.0.1', r));
+      try {
+        const fbase = `http://127.0.0.1:${fw.address().port}`, post = (account, x, z, at) => globalThis.fetch(`${fbase}/internal/location`, { method: 'POST', headers: { authorization: `Bearer ${KEY}` }, body: JSON.stringify({ account, x, z, at }) }).then(r => r.json());
+        const fnow = Date.now() + 5000, was = locRow(pc), wasDara = locRow(daraTwo);
+        eq([await post(A, 15100, 16100, fnow), await post(D, 14900, 15900, fnow)], [{ queued: true }, { queued: true }], 'a post is queued, not written');
+        eq([locRow(pc), locRow(daraTwo)], [was, wasDara], 'nothing reached the database before the flush');
+        eq(flusher.size(), 2, 'two accounts dirty');
+        eq(await flusher.flush(), { rows: 2, batches: 1 }, 'both written in one statement');
+        eq([locRow(pc), locRow(daraTwo)], [`pit-yard:15100:16100`, `pit-yard:14900:15900`], 'each account\'s active character holds its spot');
+        await post(A, 15200, 16200, fnow + 1000);
+        eq((await globalThis.fetch(`${fbase}/internal/location?account=${A}`, { headers: { authorization: `Bearer ${KEY}` } }).then(r => r.json())).x, 15200, 'a read flushes the account first: the spot it just posted is served');
+        await post(A, 1, 1, fnow - 60_000);
+        await flusher.flush();
+        eq(locRow(pc), `pit-yard:15200:16200`, 'a stale observation in a later batch changes nothing');
+        // the switch race (Lead, #2414): a held spot is written to the character that was active when it was posted, not to the one a switch makes active before the flush
+        const fOpen = (token, body) => globalThis.fetch(`${fbase}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.status);
+        eq(activeOf(D), daraTwo, 'D starts on Dara Two');
+        const daraWas = locRow(dara);
+        await post(D, 14800, 15800, Date.now() + 5000);
+        eq(flusher.has(D), true, 'D\'s spot is held');
+        eq(await fOpen('td', { character: dara }), 200, 'D switches to Dara');
+        eq([locRow(daraTwo), locRow(dara), flusher.has(D)], [`pit-yard:14800:15800`, daraWas, false], 'the held spot landed on Dara Two (active when posted), nothing leaked onto Dara, nothing left held');
+        eq(await fOpen('td', { character: daraTwo }), 200, 'D switches back');
+      } finally { await flusher.stop(); fw.close(); }
+    }
+    // item 28: live-ops rows. The writer reads them (one function, one round trip), a switch row turns an op off with no restart, a bad row is ignored, the tables are closed to clients and to the writer's own writes
+    {
+      const lodb = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'));
+      const lo = createLiveOps(lodb, 60_000, Date.now, () => undefined);
+      const lw = createWriter({ db: lodb, verify: async t => TOKENS[t] ?? null, where, handlers: clientOps, internal: { key: KEY, liveOps: lo }, liveOps: lo });
+      await new Promise(r => lw.listen(0, '127.0.0.1', r));
+      try {
+        const lbase2 = `http://127.0.0.1:${lw.address().port}`;
+        const openStatus = () => globalThis.fetch(`${lbase2}/origins/open`, { method: 'POST', headers: { authorization: 'Bearer ta' }, body: '{}' }).then(r => r.status);
+        await lo.refresh();
+        eq([lo.snapshot().events.length, lo.snapshot().switches, await openStatus()], [0, {}, 200], 'no rows: no events, every switch on');
+        psql(`insert into public.origins_live_events (id, cron, length_min, kind, params) values ('every-minute', '* * * * *', 5, 'double-xp', '{"mult":2}'), ('never', '0 0 31 2 *', 5, 'ghost', '{}');
+              insert into public.origins_switches (key, enabled, note) values ('op:open', false, 'check'), ('rewards', true, null);`);
+        eq(await openStatus(), 200, 'rows written but not yet read: the writer still holds the old state');
+        await lo.refresh();
+        const snap = lo.snapshot();
+        eq([snap.events.map(e => e.id), snap.active, snap.switches], [['every-minute', 'never'], ['every-minute'], { 'op:open': false, rewards: true }], 'both events held, only the matching one active; switches read');
+        eq(snap.events[0].params, { mult: 2 }, 'params carried');
+        eq(await openStatus(), 503, 'op:open off -> 503 with no restart');
+        eq((await globalThis.fetch(`${lbase2}/internal/live-ops`, { headers: { authorization: `Bearer ${KEY}` } }).then(r => r.json())).active, ['every-minute'], 'the internal read shows what the writer holds');
+        eq((await globalThis.fetch(`${lbase2}/internal/live-ops`)).status, 401, 'and needs the key');
+        psql(`update public.origins_switches set enabled = true where key = 'op:open';`);
+        await lo.refresh();
+        eq(await openStatus(), 200, 'switch row back on -> the op runs again');
+        const asClient2 = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message).slice(0, 80); } };
+        for (const sql of [`select * from public.origins_switches;`, `select * from public.origins_live_events;`, `select public.origins_live_ops();`, `update public.origins_switches set enabled = false;`])
+          eq(asClient2(sql), 'permission denied', `a client may not: ${sql}`);
+        eq(String((() => { try { return psql(`set role frankendom_origins; insert into public.origins_switches values ('op:x', false);`); } catch (e) { return /permission denied/.test(String(e.stderr)) ? 'permission denied' : 'other'; } })()), 'permission denied', 'the writer role reads the rows, it does not write them');
+        psql(`insert into public.origins_live_events (id, cron, length_min, kind) values ('typo', 'not a cron', 5, 'x');`);
+        await lo.refresh();
+        eq([lo.snapshot().rejected, lo.snapshot().events.map(e => e.id)], [1, ['every-minute', 'never']], 'a typo\'d event is ignored and every other row still applies');
+      } finally { lo.stop(); lw.close(); psql(`delete from public.origins_live_events; delete from public.origins_switches;`); }
+    }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)
     psql(`select public.origins_purge_account('${D}');`);
     eq([activeOf(D), locRow(dara), locRow(daraTwo)], ['none', 'none', 'none'], 'purge: active character and saved locations gone');

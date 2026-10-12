@@ -8,6 +8,7 @@ export * from './gear-ledger.ts';
 export * from './career-ladder.ts';
 export * from './career-model.ts';
 export * from './registry.ts';
+export * from './live-ops.ts';
 export * from './world-sim.ts';
 export * from './world/row.ts';
 export * from './world/styles.ts';
