@@ -50,3 +50,8 @@ export function writerClosure(read, has, entry = WRITER_ENTRY) {
   }
   return { files: [...seen].sort(), packages: [...packages].sort() };
 }
+
+/** The files ALL the box's node services load: the union of every SERVER_ENTRIES closure (the writer entry alone misses match.ts, profile.ts, trial.ts, scorecard.ts). */
+export function serverClosure(read, has) {
+  return [...new Set(SERVER_ENTRIES.flatMap((e) => writerClosure(read, has, e).files))].sort();
+}
