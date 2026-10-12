@@ -4,14 +4,14 @@
 // entry yet. So the preview wraps the Bounty record in a two-stage quest record, built here from the Bounty's own data (its name, foe,
 // twist, metal and daily cap): `posted` when the ruler gives it, `won` behind the encounter's clear. No Bounty fight runs in this slice,
 // so `won` is never reached. Talk is an `npc-talk` record, loaded by origins/talk like Orla's.
-import type { Twist } from '../region1/load.ts';
+import { HAZARD_ROWS, type Twist } from '../region1/load.ts';
 import type { Giver } from './frontier-plan.ts';
 
 const none = () => ({ loot: null, standing: [] });
 // The twist as the player reads it (region1 §3's Bounties table wording, from the flag's own fields).
 export function twistText(t: Twist): string {
   switch (t.kind) {
-    case 'hazard': return t.hazard === 'embers' ? `Embers: the floor burns whoever stands still for ${t.stillSeconds as number} s` : `Breaking planks: they give under whoever stands still for ${t.stillSeconds as number} s`;
+    case 'hazard': return (HAZARD_ROWS[t.hazard as string]?.text ?? '').replace('{s}', String(t.stillSeconds as number));
     case 'flee-at': return `Flees at ${t.percent as number}%: catch them within ${t.catchSeconds as number} s or the attempt is forfeit`;
     case 'one-health-bar': return 'Two in a row, one health bar';
     case 'no-block': return 'No blocking';
