@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
-import { buildRunner, parsePreflight, receiptFrom } from '../scripts/preflight.mjs';
+import { buildRunner, parsePreflight, receiptFrom, runsLocal } from '../scripts/preflight.mjs';
 
 const STEPS = resolve('scripts/preflight-steps.sh'), TSC = resolve('node_modules/.bin/tsc');
 const git = (cwd: string, ...args: string[]): string => {
@@ -82,4 +82,17 @@ test('the runner takes full shas only and keeps its run dir out of /root/deploy-
   assert.throws(() => buildRunner({ head: 'abc', trunk: 'b'.repeat(40), runid: '0'.repeat(16), steps: 'x' }));
   const text = buildRunner({ head: 'a'.repeat(40), trunk: 'b'.repeat(40), runid: '0'.repeat(16), steps: 'echo steps' });
   assert.ok(!text.includes('/root/deploy-runs')); assert.match(text, /preflight-runs/); assert.match(text, /steps\.sh/);
+});
+
+test('on the box a lane user runs it locally through lanejob with its own checkout and a run dir under $HOME; from the Mac it uses ssh (PREFLIGHT_LOCAL overrides)', () => {
+  const has = () => true, none = () => false;
+  assert.equal(runsLocal({}, 'linux', has), true);    // the VPS
+  assert.equal(runsLocal({}, 'darwin', has), false);  // the Mac
+  assert.equal(runsLocal({}, 'linux', none), false);  // a linux box without lanejob
+  assert.equal(runsLocal({ PREFLIGHT_LOCAL: '0' }, 'linux', has), false);
+  assert.equal(runsLocal({ PREFLIGHT_LOCAL: '1' }, 'darwin', none), true);
+  const text = buildRunner({ head: 'a'.repeat(40), trunk: 'b'.repeat(40), runid: '0'.repeat(16), steps: 's', root: '/home/lane/.preflight-runs', repo: '/home/lane/Developer/frankendom-x' });
+  assert.match(text, /RUN='\/home\/lane\/\.preflight-runs\/aaaaaaaa-/);
+  assert.match(text, /git -C '\/home\/lane\/Developer\/frankendom-x' fetch/);
+  assert.ok(!text.includes('/opt/frankendom-shadow') && !text.includes('/root/'));
 });
