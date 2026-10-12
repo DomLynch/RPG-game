@@ -27,7 +27,7 @@ const repo = gh('repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwn
 const RUN = '{databaseId: .id, status, conclusion, headSha: .head_sha, path, event}';
 const asRun = r => r && { id: r.databaseId, conclusion: r.conclusion, status: r.status, headSha: r.headSha, path: r.path, event: r.event };
 const why = [];
-for (const cand of [sha, git('rev-parse', '-q', '--verify', `${sha}^2`)].filter(Boolean)) {
+for (const cand of [git('rev-parse', '-q', '--verify', `${sha}^{commit}`), git('rev-parse', '-q', '--verify', `${sha}^2`)].filter(Boolean)) {   // full 40-hex: the REST head_sha filter matches nothing for a short sha (Auditor LOW on #2322)
   if (git('rev-parse', `${cand}^{tree}`) !== tree) continue;
   const runs = json(gh('api', `repos/{owner}/{repo}/actions/workflows/unit-ci.yml/runs?head_sha=${cand}&per_page=10`, '--jq', `[.workflow_runs[] | ${RUN}]`), []).map(asRun);
   let run = runs.find(r => r.conclusion === 'success');
