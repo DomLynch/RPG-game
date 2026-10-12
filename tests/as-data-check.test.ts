@@ -75,3 +75,37 @@ test('the real allow-list has no stale entry', () => {
   assert.deepEqual((JSON.parse(r.stdout) as Report).stale, []);
   assert.ok((JSON.parse(r.stdout) as Report).allowed.length >= 1);
 });
+
+// Fail closed: a measuring stick that reads a broken tree as "0 left" reads as progress. --repo points the id lists at a fixture tree.
+const fixtureRepo = (roster: string) => {
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-repo-'));
+  mkdirSync(join(repo, 'src', 'fight'), { recursive: true });
+  writeFileSync(join(repo, 'src', 'roster.ts'), roster);
+  writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+  writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+  return repo;
+};
+const runRepo = (repo: string) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--root', 'src', '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 });
+
+test('fail closed: a healthy fixture repo exits 0, and a roster whose import throws exits 2 naming the file, with no report', () => {
+  const good = fixtureRepo("export const ROSTER = { veteran: {} };\n");
+  const broken = fixtureRepo("import './no-such-module.ts';\nexport const ROSTER = { veteran: {} };\n");
+  try {
+    const ok = runRepo(good);
+    assert.equal(ok.status, 0, ok.stderr);
+    const bad = runRepo(broken);
+    assert.equal(bad.status, 2);
+    assert.match(bad.stderr, /cannot import src\/roster\.ts/);
+    assert.equal(bad.stdout, '', 'no count is printed for a broken tree');
+  } finally { rmSync(good, { recursive: true, force: true }); rmSync(broken, { recursive: true, force: true }); }
+});
+
+test('fail closed: an empty id list exits 2 naming the category', () => {
+  const repo = fixtureRepo("export const ROSTER = {};\n");
+  try {
+    const r = runRepo(repo);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /the opponent id list is empty/);
+    assert.equal(r.stdout, '');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
