@@ -552,9 +552,29 @@ try {
         eq([lo.snapshot().rejected, lo.snapshot().events.map(e => e.id)], [1, ['every-minute', 'never']], 'a typo\'d event is ignored and every other row still applies');
       } finally { lo.stop(); lw.close(); psql(`delete from public.origins_live_events; delete from public.origins_switches;`); }
     }
+    // the build field (migration 202610120024): get / set with a version check, a level that only rises, ownership, closed to clients
+    {
+      const asW = sql => psql(`set role frankendom_origins; ${sql}`).split('\n').pop();
+      const get = c => JSON.parse(asW(`select coalesce(public.origins_get_build('${D}', '${c}')::text, 'null');`));
+      const set = (c, placed, rank, ver) => JSON.parse(asW(`select coalesce(public.origins_set_build('${D}', '${c}', '${JSON.stringify(placed)}'::jsonb, ${rank}, ${ver})::text, 'null');`));
+      const lvl = n => JSON.parse(asW(`select coalesce(public.origins_set_level('${D}', '${daraTwo}', ${n})::text, 'null');`));
+      eq(get(daraTwo), { level: 1, placed: {}, version: 0, respreadRank: 1 }, 'build: no row reads as level 1, nothing placed, version 0');
+      eq(set(daraTwo, { attack: 1 }, 1, 0), { level: 1, placed: { attack: 1 }, version: 1, respreadRank: 1 }, 'build: the first save from version 0');
+      eq(set(daraTwo, { sword: 1 }, 1, 0).conflict, true, 'build: a stale version is a conflict');
+      eq(get(daraTwo).placed, { attack: 1 }, 'build: a conflict changed nothing');
+      eq(set(daraTwo, { sword: 1 }, 2, 1), { level: 1, placed: { sword: 1 }, version: 2, respreadRank: 2 }, 'build: the next save from version 1, and the re-spread rank moves with it');
+      eq([lvl(7), lvl(3)], [7, 7], 'build: the writer raises the level and never lowers it');
+      eq([get(daraTwo).level, get(daraTwo).placed], [7, { sword: 1 }], 'build: the level rides the same row, the placement is untouched');
+      eq(get('pc:nobody'), null, 'build: not this account\'s character reads null');
+      eq(set('pc:nobody', {}, 1, 0), null, 'build: and cannot be written');
+      eq(String((() => { try { lvl(51); return 'ok'; } catch (e) { return /check constraint/.test(String(e.stderr ?? e.message)) ? 'refused' : 'other'; } })()), 'refused', 'build: level 51 is refused by the table');
+      const asClient3 = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message).slice(0, 80); } };
+      for (const sql of [`select * from public.origins_character_build;`, `select public.origins_get_build('${D}', '${daraTwo}');`, `update public.origins_character_build set level = 50;`])
+        eq(asClient3(sql), 'permission denied', `a client may not: ${sql}`);
+    }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)
     psql(`select public.origins_purge_account('${D}');`);
-    eq([activeOf(D), locRow(dara), locRow(daraTwo)], ['none', 'none', 'none'], 'purge: active character and saved locations gone');
+    eq([activeOf(D), locRow(dara), locRow(daraTwo), psql(`select count(*) from public.origins_character_build`)], ['none', 'none', 'none', '0'], 'purge: active character, saved locations and builds gone');
   } finally { locWriter.close(); }
   // The first open makes the account's first character (Lead's ruling 2026-10-09; runs while 0009 is applied, before its down-script below): no page code creates one, so a signed-in player had none and nothing could persist.
   {
