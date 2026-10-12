@@ -27,6 +27,7 @@ import {
   type ServiceId,
 } from './ids.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
+import { DEFINITIONS, ids } from './definitions.ts';
 
 // ---- ItemDefinition ---------------------------------------------------------------------------------------------------------------
 
@@ -34,11 +35,11 @@ export const ITEM_DEFINITION_VERSION = 1;
 export const CATEGORIES = ['gear', 'material', 'quest', 'cosmetic'] as const;
 export type Category = (typeof CATEGORIES)[number];
 // Four rarities (blueprint §7: "start with four rarity categories"). A label and a drop-rate band, never a stat.
-export const RARITIES = ['common', 'fine', 'rare', 'relic'] as const;
-export type Rarity = (typeof RARITIES)[number];
+export const RARITIES: readonly string[] = ids(DEFINITIONS.rarities);   // rows of definitions.json `rarities` ('common' is pinned: loot-catalogue and the fixtures assign it, tests/item-defs.test.ts)
+export type Rarity = string;
 // The material language of the art direction (blueprint §10). Presentation and crafting input; never a stat.
-export const MATERIALS = ['iron', 'steel', 'bronze', 'gold', 'leather', 'cloth', 'bone', 'wood', 'stone', 'none'] as const;
-export type Material = (typeof MATERIALS)[number];
+export const MATERIALS: readonly string[] = ids(DEFINITIONS.materials);   // rows of definitions.json `materials`
+export type Material = string;
 export const STORY = ['none', 'notable', 'story-critical'] as const;
 export type Story = (typeof STORY)[number];
 export const BINDINGS = ['none', 'on-acquire', 'on-equip'] as const;
@@ -565,7 +566,7 @@ export function piecePoints(inst: Pick<ItemInstance, 'tier' | 'upgradeLevel'>, d
 // ---- LootTable --------------------------------------------------------------------------------------------------------------------
 
 export const LOOT_TABLE_VERSION = 1;
-export const PRESENTATIONS = ['take-one', 'collect'] as const; // take-one: the Pit rule, kept for elites and bosses; collect: everyday drops
+export const PRESENTATIONS: readonly string[] = ids(DEFINITIONS.presentations); // take-one: the Pit rule, kept for elites and bosses; collect: everyday drops
 export const DISTRIBUTIONS = ['personal'] as const; // personal group loot first (blueprint §8); a shared mode is a later version
 export const ROLL_MODES = ['independent', 'weighted'] as const;
 export const MAX_CURRENCY = 1_000_000_000;
@@ -576,7 +577,7 @@ export type LootTable = {
   kind: 'loot-table';
   schemaVersion: 1;
   id: LootTableId;
-  presentation: (typeof PRESENTATIONS)[number];
+  presentation: string;
   distribution: (typeof DISTRIBUTIONS)[number];
   rolls: LootRoll[];
   currency: { min: number; max: number } | null;

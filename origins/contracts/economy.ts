@@ -32,6 +32,7 @@ import {
   type AccountOf, type ItemDefinition, type ItemInstance, type Rarity,
 } from './items.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
+import { DEFINITIONS, ids } from './definitions.ts';
 
 // The neutral plaza beside the Pit (blueprint §8). The only place a trade settles.
 export const CONCORD_EXCHANGE = 'region:concord-exchange' as RegionId;
@@ -276,7 +277,7 @@ export function settleTrade(
 // armourer's repair or a merchant's buy/sell later adds a kind here and its own request/receipt pair, reusing the same pattern.
 export const SERVICE_DEFINITION_VERSION = 1;
 export const SERVICE_KINDS = ['upgrade'] as const;
-export const SERVICE_ACCEPTS = ['armour', 'weapons', 'all'] as const;
+export const SERVICE_ACCEPTS: readonly string[] = ids(DEFINITIONS.serviceAccepts);   // rows of definitions.json `serviceAccepts`: flags for what the service works (armour, weapons)
 export type ServiceDefinition = {
   kind: 'service-definition';
   schemaVersion: 1;
@@ -286,7 +287,7 @@ export type ServiceDefinition = {
   region: RegionId;
   service: (typeof SERVICE_KINDS)[number];
   costTable: CostTableId;
-  accepts: (typeof SERVICE_ACCEPTS)[number];
+  accepts: string;
 };
 
 export function parseServiceDefinition(raw: unknown, path = ''): Result<ServiceDefinition> {
@@ -467,7 +468,7 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   if (ownerOf(instance.location) !== request.character) return fail('rule-violation', 'instance', `${instance.id} is not worn or carried by ${request.character} (bank, pack or paperdoll)`);
   if (def.category !== 'gear' || def.power !== 'slot-weight' || def.slot === null) return fail('rule-violation', 'item', `${def.name} isn't gear the smith can work, so it can't be upgraded.`);   // one plain line for the player (Strategy, 2026-10-07)
   const weapon = isWeaponSlot(def.slot);
-  if ((service.accepts === 'armour' && weapon) || (service.accepts === 'weapons' && !weapon)) return fail('rule-violation', 'item', `${service.name} does not work ${weapon ? 'weapons' : 'armour'}`);
+  if (!(weapon ? DEFINITIONS.serviceAccepts[service.accepts]?.weapons : DEFINITIONS.serviceAccepts[service.accepts]?.armour)) return fail('rule-violation', 'item', `${service.name} does not work ${weapon ? 'weapons' : 'armour'}`);
   // A banked piece is reached through the bank, which opens only at the Exchange (Strategy, 2026-10-06); worn or packed, it upgrades wherever the smith is.
   if (instance.location.kind === 'bank' && input.place !== CONCORD_EXCHANGE) return fail('rule-violation', 'place', `${instance.id} is in the bank, which opens only at the Concord Exchange`);
   const from = upgradeLevelOf(instance);
