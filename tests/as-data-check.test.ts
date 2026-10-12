@@ -79,12 +79,25 @@ test('the real allow-list has no stale entry or stale verb, and the four ratifie
   assert.ok(report.verbs.every((v) => v.line >= 1));
 });
 
-test('with no --root the checker scans src AND origins; a verb whose declaration is gone is stale and fails', () => {
-  const both = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
-  assert.equal(both.status, 0, both.stderr);
-  const srcOnly = JSON.parse(run('src').stdout) as Report;   // the same real allow-list on both sides, so the allowed sites leave both counts alike
-  assert.ok((JSON.parse(both.stdout) as Report).sites.some((s) => s.file.startsWith('origins/')), 'origins sites are counted');
-  assert.ok((JSON.parse(both.stdout) as Report).compares > srcOnly.compares, 'the denominator covers both roots');
+test('with no --root the checker scans src AND origins (shown on a fixture tree with one compare in each root); the real tree is done: 0 compares', () => {
+  // The real tree: as-data is finished (every name-switch is a row or an allowed verb), so the count is pinned to 0 and a new compare anywhere fails here. It is a gate now, not a measure.
+  const real = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  assert.equal(real.status, 0, real.stderr);
+  assert.equal((JSON.parse(real.stdout) as Report).compares, 0, 'a new content-name compare in src or origins');
+  // The both-roots behaviour, on a tree that has the compares: one in src, one in origins.
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-roots-'));
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+    writeFileSync(join(repo, 'src', 'a.ts'), "export const a = (o: string) => o === 'veteran';\n");
+    writeFileSync(join(repo, 'origins', 'b.ts'), "export const b = (o: string) => o === 'goblin';\n");
+    const go = (...extra: string[]) => JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as Report;
+    const both = go(), srcOnly = go('--root', 'src'), originsOnly = go('--root', 'origins');
+    assert.equal(both.compares, 2, 'no --root: src AND origins'); assert.deepEqual(both.sites.map((x) => x.file), ['origins/b.ts', 'src/a.ts']);
+    assert.equal(srcOnly.compares, 1); assert.equal(originsOnly.compares, 1);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
   const dir = mkdtempSync(join(tmpdir(), 'as-data-verb-'));
   try {
     const allowFile = join(dir, 'allow.json');
