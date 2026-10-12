@@ -63,9 +63,18 @@ jobs:
           if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then echo "game=true" >> "$GITHUB_OUTPUT"; echo "could not list the files: everything runs"; exit 0; fi
           if printf '%s\n' "$files" | grep -Eq "$GAME_RE"; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "game paths touched: heavy jobs run"; printf '%s\n' "$files" | grep -E "$GAME_RE" | head -5
           else echo "game=false" >> "$GITHUB_OUTPUT"; echo "no game, asset, browser-gate or net path in the diff: heavy jobs skipped"; fi
-  quality:
+  quality-shard:
+    # `quality:ci` as a matrix of 4 (Dom, CI runners first, 2026-10-12: one 12-minute job, target under 5). test:all was 368 s of the 428 s
+    # quality:ci step, so it splits three ways by file (node --test-shard); everything else in quality:ci (`quality:static`: lint, both
+    # typechecks, origins lint, registry gate, test:bot, build, audit, budget) and the database checks take the fourth runner. Same checks,
+    # same result: tests/quality-shards.test.ts fails if quality:static + test:all ever stops being exactly quality:ci, or a shard goes missing.
     # NOT_RETARGET: a title/body `edited` event is not a code change.
     if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [static, tests-1, tests-2, tests-3]
+    name: quality (${{ matrix.part }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -82,16 +91,38 @@ jobs:
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - name: Lossless JPEG build tool
         run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
-      - run: npm run quality:ci
-      - name: Account database isolation
+      - if: matrix.part == 'static'
+        run: npm run quality:static
+      # test:all split by file: the same release-lock preflight, then shard k of 3 (QUALITY_TEST_SHARDS in tests/quality-shards.test.ts).
+      - if: startsWith(matrix.part, 'tests-')
+        name: test:all, shard ${{ matrix.part }} of 3
+        run: node scripts/lib/release-lock-preflight.mjs && node --test --test-shard="${PART#tests-}/3" tests/*.test.ts
+        env:
+          PART: ${{ matrix.part }}
+      - if: matrix.part == 'static'
+        name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
-      - name: Server awards database
+      - if: matrix.part == 'static'
+        name: Server awards database
         run: PG_BIN="$(pg_config --bindir)" node scripts/awards-database-check.mjs
       # The Origins save/verify invariants on real PostgreSQL (GPT audit 2026-10-06, finding B: the harness existed but no required job ran it).
-      - name: Origins database
+      - if: matrix.part == 'static'
+        name: Origins database
         run: PG_BIN="$(pg_config --bindir)" node scripts/origins-database-check.mjs
-      - name: Duel season archive database
+      - if: matrix.part == 'static'
+        name: Duel season archive database
         run: PG_BIN="$(pg_config --bindir)" node scripts/duel-season-database-check.mjs
+  quality:
+    # The one verdict deploy.sh reads (`quality` == success, scripts/deploy.sh:73): green only when every shard concluded success. A failed,
+    # cancelled or skipped shard makes it red, never green. Same NOT_RETARGET skip as the shards, so a title/body edit still skips everything.
+    needs: quality-shard
+    if: always() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: '[ "$SHARDS" = success ] || { echo "quality: a shard did not succeed (result: $SHARDS)"; exit 1; }'
+        env:
+          SHARDS: ${{ needs.quality-shard.result }}
   base:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
     if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
