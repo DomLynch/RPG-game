@@ -2,7 +2,7 @@
 // together. Everything is derived: danger from the level gap through the progression model's own payout ladder (so the colour and the payout can
 // never disagree), commonness from the row's weight against the rows of its zone, the group from the row's camp size. Nothing here is hand-authored
 // per creature. Pure: no DOM, no clock. The card is a view of this (origins/preview/creature-card.ts).
-import { falloffPermille } from '../../src/core/server.ts';
+import { falloffPermille } from '../career-model.ts';
 import { DEFAULTS, type MobRow } from './row.ts';
 
 export type Band = { id: string; permille: number; label: string; color: string };

@@ -1,4 +1,5 @@
 import { createInput } from './fight/index.ts';
+import { gearNumbers } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -203,7 +204,8 @@ function offerLoot(healthLeft: number) {
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); void settleClaim(null); }, LOOT_LINE_MS);   // a move is not a loot_claims piece: the win is claimed alone
   };
-  lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image }, pieces, {
+  const worn = isLootId(offer) && profile.loot ? displacedBy(profile.loot, offer) : null;   // the piece the offer would replace: NEW beside EQUIPPED
+  lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image, ...(worn && isLootId(offer) ? { compare: { slot: slotOf(offer), held: { name: pieceName(worn), image: lootThumb(worn) } } } : {}) }, pieces, {
     onTake: (id: string) => take(id),
     // A refused kill records the tier a take records (loot.ts killAt: the fight's rung), so it still backfills its skull (loot.ts defeats).
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
@@ -245,7 +247,7 @@ if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: locat
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 // eslint-disable-next-line prefer-const -- assigned after storage exists (below); closures above read it as undefined until then, which const would turn into a TDZ throw
 let serverGear: ReturnType<typeof createServerGear> | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
-const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon });
+const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');

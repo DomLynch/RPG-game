@@ -16,7 +16,9 @@
 // `gives`: what a take costs. One skill slot (Dom 2026-09-25): a foe's move offered to a player who holds another is a swap too, and the
 // held move is named in the tile's title and label.
 export type LootPanelPiece = { id: string; name: string; owned: boolean; image?: string; gives?: { name: string; image?: string } };
-export type LootPanelCard = { eyebrow: string; offer: string; name: string; image?: string };
+// `held`: what the offer would replace (the piece worn in the same slot): with it the card becomes NEW beside EQUIPPED (Dom's pickup-compare reference, 2026-10-11), same slot label on both, nothing else invented (stats are Origin season 1).
+export type LootPanelCompare = { slot: string; held: { name: string; image?: string } };
+export type LootPanelCard = { eyebrow: string; offer: string; name: string; image?: string; compare?: LootPanelCompare };
 export type LootPanelHandlers = { onTake: (id: string) => void; onDecline: () => void };
 type Doc = { createElement: (tag: string) => HTMLElement };
 
@@ -40,8 +42,18 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
       handlers = on; undo = null; openedAt = now(); offer = card.offer;
       element('loot-panel-title').textContent = card.eyebrow;
       element('loot-panel-name').textContent = card.name;
-      hero.hidden = !card.image; if (card.image) hero.src = card.image;
-      element('loot-panel-head').hidden = false;
+      hero.hidden = !card.image || !!card.compare; if (card.image) hero.src = card.image;
+      element('loot-panel-head').hidden = false; element('loot-panel-name').hidden = !!card.compare;   // compare: the cards carry the names; the "Won at ..." line and the pick hint stay
+      const compare = element('loot-panel-compare');
+      compare.hidden = !card.compare;
+      compare.replaceChildren(...(card.compare ? [['new', 'New', card.name, card.image], ['held', 'Equipped', card.compare.held.name, card.compare.held.image]] as const : []).map(([side, tag, name, image]) => {
+        const box = make('div'), head = make('p'), img = make<HTMLImageElement>('img'), slot = make('p'), title = make('p');
+        box.setAttribute('data-side', side); head.textContent = tag; head.setAttribute('class', 'loot-card-tag');
+        if (image) { img.src = image; img.alt = ''; img.width = img.height = 64; img.decoding = 'async'; box.append(head, img); } else box.append(head);
+        title.textContent = name[0]!.toUpperCase() + name.slice(1); title.setAttribute('class', 'loot-card-name'); slot.textContent = card.compare!.slot; slot.setAttribute('class', 'loot-card-slot');
+        box.append(title, slot);   // both names in one form (capitalised): "Kobold's helmet" beside "the Pitborn's helmet" read as two styles
+        return box;
+      }));
       element('loot-panel-note-text').textContent = '';
       element('loot-panel-note').hidden = true; element('loot-undo').hidden = true;
       list.replaceChildren(...pieces.map((piece) => {
@@ -67,7 +79,7 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
     // After a take: the tiles and Leave it go, and one line with Undo stays in their place until the caller's timer hides the
     // panel. `onUndo` puts the piece back — the caller restores the whole ledger, provenance included.
     confirm(text: string, onUndo?: () => void): void {
-      element('loot-panel-pieces').hidden = true; element('loot-panel-head').hidden = true; element('loot-panel-actions').hidden = true; element('loot-decline').hidden = true;
+      element('loot-panel-pieces').hidden = true; element('loot-panel-head').hidden = true; element('loot-panel-compare').hidden = true; element('loot-panel-actions').hidden = true; element('loot-decline').hidden = true;
       element('loot-panel-note-text').textContent = text;
       element('loot-panel-note').hidden = false;
       undo = onUndo ?? null;
@@ -83,7 +95,7 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
     },
     hide(): void {
       const panel = element('loot-panel');
-      panel.hidden = true; element('loot-panel-actions').hidden = true; element('loot-panel-note').hidden = true; element('loot-undo').hidden = true;
+      panel.hidden = true; element('loot-panel-compare').hidden = true; element('loot-panel-actions').hidden = true; element('loot-panel-note').hidden = true; element('loot-undo').hidden = true;
       panel.setAttribute('data-on', '0'); handlers = null; undo = null;   // '0', not removeAttribute: the CSS keys on data-on='1' and the entry point's harness element has no removeAttribute
     },
     wire(): void {

@@ -6,11 +6,11 @@ import { createRecorder, type FightRecord } from '../../src/fight/record.ts';
 import { liveRecorder } from '../../tests/lib/live-recorder.ts';
 import { recordSpecials } from '../../src/fight/replay.ts';
 import { noTwist, stepTwist, type TwistFlag } from '../../src/fight/twist.ts';
-import { mobLayer } from '../mobs/kits.ts';
-import type { MobStyle } from '../mobs/styles.ts';
+import { mobLayer } from '../../src/core/server.ts';
+import type { MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
-import { kitBuild } from '../mobs/kit-version.ts';
+import { kitBuild } from '../../src/core/server.ts';
 import { PICKS, type PickedStance } from '../../src/fight/stance.ts';
 
 const ACTIONS = ['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry'] as const;

@@ -19,22 +19,16 @@
 import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
 import { placedSpawns, placedWaypoints } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
+import lootTableRows from './loot-tables.json' with { type: 'json' };
 import townRows from './towns.json' with { type: 'json' };
 import townManifest from './towns.manifest.json' with { type: 'json' };
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import lootManifest from './loot-tables.manifest.json' with { type: 'json' };
+import { buildTables, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
-const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
-// The goblin's six armour pieces are generated (origins/inventory/loot-catalogue.ts: item:loot.goblin.<Slot>); only the loot entry lives here.
-const goblinEntry = (slot: string) => ({ item: `item:loot.goblin.${slot}`, chance: 25, quantity: 1, levelMin: null, levelMax: null });
-const table = (id: string, presentation: 'take-one' | 'collect', rolls: unknown[], currency: { min: number; max: number } | null) => ({
-  kind: 'loot-table', schemaVersion: 1, id, presentation, distribution: 'personal', rolls, currency, fallback: null, // crafting is out
-});
-const independent = (probability: number, entries: unknown[]) => ({ probability, repeat: 1, mode: 'independent', dropLimit: 0, minDrop: 0, entries });
-const weighted = (probability: number, entries: unknown[]) => ({ probability, repeat: 1, mode: 'weighted', dropLimit: 1, minDrop: 1, entries });
 const figure = (
   id: string, name: string, source: string, summary: string, faction: string | null,
   forms: { id: string; opponent: string; level: number; encounter: string | null }[], asset: string,
@@ -60,51 +54,8 @@ export const ITEMS = [
   },
 ];
 
-// Loot tables (region1 §5): personal, fallback null; gear entries levelMin 11, levelMax null.
-export const LOOT_TABLES = [
-  table('loottable:cinder-scavenger', 'collect', [
-    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
-    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
-  ], { min: 3, max: 12 }),
-  // The Pit goblin camp's table (Zone 1, Dom's loot/inventory test; Backend 2026-10-09): each of his six armour pieces rolls on its own at 25 %, a level-1 kill may drop gear (levelMin null), bronze 2-6.
-  table('loottable:pit-goblin', 'collect', [independent(100, ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'].map(goblinEntry))], { min: 2, max: 6 }),
-  table('loottable:ruin-ghoul', 'collect', [independent(60, [{ item: 'item:grave-iron', chance: 30, quantity: 3, levelMin: null, levelMax: null }])], null),
-  // The Ash Wolf's table (Backend 2026-10-08): a pack beast of 2-3 at L11-13, each kill a scavenger's worth; Frontier gear only.
-  table('loottable:ash-wolf', 'collect', [
-    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
-    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
-  ], { min: 3, max: 10 }),
-  // The Ember Wolf's table (Backend ruled 2026-10-09: Ash Wolf items, bronze x1.1).
-  table('loottable:ember-wolf', 'collect', [
-    independent(50, [{ item: 'item:grave-iron', chance: 40, quantity: 1, levelMin: null, levelMax: null }]),
-    independent(100, [gearEntry('item:frontier.ash-helm', 2), gearEntry('item:frontier.watch-greaves', 2)]),
-  ], { min: 4, max: 11 }),
-  // The Cinder Bear (Backend's ruling, 2026-10-08, Dom's animal rule): a material most kills, a little bronze every kill, a rare piece of common Frontier gear.
-  table('loottable:cinder-bear', 'collect', [
-    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
-    independent(100, [gearEntry('item:frontier.watch-greaves', 2)]),
-  ], { min: 2, max: 8 }),
-  // The Ash Boar's table (Backend 2026-10-08): a lone uncommon beast, level 13-14, a little richer than a scavenger camp's single kill; Frontier gear only.
-  table('loottable:ash-boar', 'collect', [
-    independent(60, [{ item: 'item:grave-iron', chance: 40, quantity: 2, levelMin: null, levelMax: null }]),
-    independent(100, [gearEntry('item:frontier.ash-helm', 3), gearEntry('item:frontier.watch-greaves', 3)]),
-  ], { min: 5, max: 15 }),
-  table('loottable:mere-brood', 'collect', [independent(40, [{ item: 'item:grave-iron', chance: 30, quantity: 1, levelMin: null, levelMax: null }])], null),
-  table('loottable:court-thrall', 'take-one', [weighted(25, [
-    gearEntry('item:frontier.thrall-gloves', 50), gearEntry('item:frontier.ferryman-boots', 30), gearEntry('item:frontier.watch-greaves', 20),
-  ])], { min: 10, max: 30 }),
-  // The matriarch's boss table: rolled only on the kill that pays the world-boss once-row (BOSS_LOOT below).
-  table('loottable:mere-mother', 'take-one', [weighted(100, [
-    gearEntry('item:frontier.mere-shield', 25), gearEntry('item:frontier.mere-arms', 45), gearEntry('item:frontier.ferryman-boots', 30),
-  ])], { min: 100, max: 250 }),
-  // PROPOSED: the rift worm's personal table (living-world §8.4 names it, gives no entries). Frontier armour only, no weapons.
-  table('loottable:rift-worm', 'take-one', [weighted(100, [
-    gearEntry('item:frontier.mere-arms', 40), gearEntry('item:frontier.thrall-gloves', 30), gearEntry('item:frontier.ferryman-boots', 30),
-  ])], { min: 50, max: 150 }),
-  // A Bounty pays metal only (region1 §5). The contract requires every encounter boss to name a table with at least one entry, so the
-  // Bounty encounters name this one and BOSS_LOOT marks it `never` rolled: contract gap, `boss.loot` nullable (see the loader).
-  table('loottable:bounty-unrolled', 'collect', [independent(1, [{ item: 'item:grave-iron', chance: 1, quantity: 1, levelMin: null, levelMax: null }])], null),
-];
+// Loot tables (region1 §5) are ROWS: origins/region1/loot-tables.json, one object per table in the contract's own shape (a new table is one row, no code).
+export const LOOT_TABLES: Record<string, unknown>[] = lootTableRows.map((t: Record<string, unknown>) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'rolledBy')));   // `rolledBy` is the link to creatures, not part of the contract's table
 
 // Factions. `faction:concord` would come from an Exchange bundle that does not exist yet, so it is here. The Ferry Court belonged to
 // the superseded Feud and has no member left, so it is not defined.
@@ -340,17 +291,12 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
   { encounter: 'encounter:bounty-peg-powler', rule: 'never' },
 ];
 
-// Which encounter each creature table is rolled from in the open world (no encounter: a plain kill).
-export const CREATURE_LOOT: Record<string, string> = {
-  'character:cinder-scavenger': 'loottable:cinder-scavenger',
-  'character:pit-goblin': 'loottable:pit-goblin',
-  'character:ruin-ghoul': 'loottable:ruin-ghoul',
-  'character:mere-brood': 'loottable:mere-brood',
-  'character:ash-wolf': 'loottable:ash-wolf',
-  'character:ember-wolf': 'loottable:ember-wolf',
-  'character:cinder-bear': 'loottable:cinder-bear',
-  'character:ash-boar': 'loottable:ash-boar',
-  'character:court-thrall': 'loottable:court-thrall',
-};
+// Which table each creature rolls in the open world is the loot row's own `rolledBy` (no encounter: a plain kill); row order = creature order.
+// Loaded through the shared registry (src/core/registry.ts): loot-tables.manifest.json derives the creature->table link from the rows' `rolledBy`, so a creature in two
+// rows is a duplicate-id and an unknown creature or table is an unknown-ref, here at load and in scripts/registry-check.mjs. Order = row order.
+// Ids other tables point at come from the contracts bundle (characters here); the gate asks for the same sets.
+export const REGISTRY_EXTERNAL: Record<string, string[]> = { character: BUNDLE.map((r) => String(r.id)).filter((id) => id.startsWith('character:')) };
+const lootRegistry = loadRegistry(buildTables(lootManifest.tables.map((m) => ({ manifest: m as Manifest, parsed: lootTableRows, file: 'origins/region1/loot-tables.json' }))), REGISTRY_EXTERNAL);
+export const CREATURE_LOOT: Record<string, string> = Object.fromEntries([...lootRegistry.rows.get('creatureLoot')!.values()].map((r) => [r.id as string, r.loottable as string]));
 
 export const LOCAL = { townDefs: TOWN_DEFS, towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT };

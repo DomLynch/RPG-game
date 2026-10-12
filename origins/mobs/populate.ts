@@ -7,7 +7,7 @@
 import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
 import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
-import { RARE_DEFAULT, campCount, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from './row.ts';
+import { RARE_DEFAULT, campCount, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from '../../src/core/server.ts';
 
 export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
