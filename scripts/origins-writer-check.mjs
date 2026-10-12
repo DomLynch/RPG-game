@@ -527,7 +527,7 @@ try {
       await new Promise(r => lw.listen(0, '127.0.0.1', r));
       try {
         const lbase2 = `http://127.0.0.1:${lw.address().port}`;
-        const openStatus = () => globalThis.fetch(`${lbase2}/origins/open`, { method: 'POST', headers: { authorization: 'Bearer ta' }, body: '{}' }).then(r => r.status);
+        const openStatus = (op = "open") => globalThis.fetch(`${lbase2}/origins/${op}`, { method: 'POST', headers: { authorization: 'Bearer ta' }, body: '{}' }).then(r => r.status);
         await lo.refresh();
         eq([lo.snapshot().events.length, lo.snapshot().switches, await openStatus()], [0, {}, 200], 'no rows: no events, every switch on');
         psql(`insert into public.origins_live_events (id, cron, length_min, kind, params) values ('every-minute', '* * * * *', 5, 'double-xp', '{"mult":2}'), ('never', '0 0 31 2 *', 5, 'ghost', '{}');
