@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs, updates or rolls back the Origins writer on the VPS (origins/server). Run by Deploy on the box, as root, from a trunk checkout:
 #   bash ops/install-origins-writer.sh <revision>     install / update (idempotent)
-#   bash ops/install-origins-writer.sh --if-changed <revision>   the same, unless what it would install is byte-identical to the installed writer
+#   bash ops/install-origins-writer.sh --if-changed <revision>   the same (from a checkout AT <revision>, refused otherwise), unless what it would install is byte-identical to the installed writer
 #     (current): every closure file, src/, origins/ and package.json, file by file, both ways. Lead 2026-10-12 (CV): a skip judged by the closure
 #     LIST missed #2352's src/fight/record.ts (RV46 -> RV47) and a v46 writer read v47 records for 7 minutes; this is the only skip there is.
 #   bash ops/install-origins-writer.sh --rollback     stop + disable the unit, remove the nginx include and limits, reload nginx
@@ -48,6 +48,9 @@ dest="$opt/$revision"
 # resolves to no file stops the install here, before anything is copied.
 closure="$(cd "$here" && node scripts/writer-closure-list.mjs --paths writer)" || { echo "install-origins-writer: the writer's import closure has an unresolved import; nothing installed" >&2; exit 1; }
 if [ -n "$if_changed" ]; then
+  # It compares THIS checkout's files, so the checkout must be AT <revision> (Auditor on #2370): a stale one must never "match" the box.
+  head=$(git -C "$here" rev-parse HEAD 2>/dev/null) || { echo "install-origins-writer: --if-changed needs a git checkout at $revision ($here is not one); nothing installed" >&2; exit 1; }
+  case "$head" in "$revision"*) ;; *) echo "install-origins-writer: --if-changed: this checkout is at ${head:0:12}, not $revision; check out $revision first; nothing installed" >&2; exit 1 ;; esac
   cur=$(readlink -f "$opt/current" 2>/dev/null || true)
   if [ -z "$cur" ] || [ ! -d "$cur" ]; then echo "install-origins-writer: --if-changed: no installed writer (current); installing $revision"
   else
