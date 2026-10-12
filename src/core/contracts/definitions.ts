@@ -9,6 +9,10 @@ export type AttitudeRow = { order: number; atOrBelow?: number; atOrAbove?: numbe
 // Item rules read these flags, never a name: powers {tiered: gets a loot tier, upgradeable: the smith works it, gearOnly: only gear carries it}; categories {path: gear (a worn piece) or stock (a counted thing),
 // slot: required | allowed | none, single: stack 1, craftInput: an upgrade material}; story tags {blocksTrade, single, bindsOnAcquire, staysWithCharacter}; provenance kinds {tradeable, blockReason (the trade-block
 // reason a refusal carries), needsPath (an item of another category path never trades), onlyCategories (a mint limited to these categories)}.
+// A DRAW material (a name on a model's material, src/core/grades.ts): class = the grade class it takes (metal, trim, leather, cloth, stone), exempt = a deliberate
+// no-grade (bone, skin, wood, authored artwork), variants = `<Name>_<anything>` resolves to this row (Gambeson_veteran). A suffix row (`<Family>Iron`) classes a whole TRELLIS family.
+export type DrawMaterialRow = { order: number; class?: string; exempt?: boolean; variants?: boolean };
+export type DrawSuffixRow = { order: number; class: string };
 export type PowerRow = { tiered?: boolean; upgradeable?: boolean; gearOnly?: boolean };
 export type CategoryRow = { path: string; slot: string; single?: boolean; craftInput?: boolean };
 export type StoryRow = { blocksTrade?: boolean; single?: boolean; bindsOnAcquire?: boolean; staysWithCharacter?: boolean };

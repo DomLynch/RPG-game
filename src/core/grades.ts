@@ -6,6 +6,7 @@
 // One shared kit library dressed eight ways is what makes a 60-opponent roster affordable: 8 grades × N pieces costs N meshes, not 8N.
 // Pure data — no three, no loader. The runtime reads `gradeFor(tier, material)` and writes the factors onto the piece's own material.
 import { TITLES, rankFor } from './career-ladder.ts';
+import { DEFINITIONS } from './contracts/definitions.ts';
 import type { LootId } from './loot.ts';
 import type { OpponentId } from '../roster.ts';
 
@@ -54,38 +55,23 @@ export const opponentAt = (id: OpponentId, marks: number): OpponentAt => ({ id, 
 export type Finish = { color: string; metalness: number; roughness: number };
 export type Grade = { metal: Finish; trim: Finish; leather: Finish };
 
-// The palette material names that loot.glb actually carries (scripts/build-warrior.mjs's palette), mapped to what a grade repaints.
+// The palette material names that loot.glb actually carries (scripts/build-warrior.mjs's palette), mapped to what a grade repaints: ROWS (drawMaterials in
+// src/core/contracts/definitions.json, read by classOf below), not a table in code.
 // `null` is deliberate exemption, not an oversight: bone is bone at every grade, and the Nightborn's Ruby crown is authored artwork the
 // owner approved (2026-09-18), not a tier — note that tier 'ruby' and material 'Ruby' are different things and neither implies the other.
 // Gambeson_<opponent> is the house dye's business. A material missing from this table is a build error, not a silent pass-through.
-export const CLASS_OF: Record<string, keyof Grade | 'cloth' | 'stone' | null> = {
-  Steel: 'metal', Bronze: 'metal', DwarfIron: 'metal', Blade: 'metal',
-  'Antique brass': 'trim',
-  Leather: 'leather', 'Waxed leather': 'leather',   // the Plague Doctor's coat and hood (2026-09-24)
-  Heraldry: 'cloth', Gambeson: 'cloth', Wrap: 'cloth',   // Wrap is linen binding (the Veteran's wrists and ankles), not hide
-  Felt: 'cloth',   // the Plague Doctor's hat, crown and brim (Armour, 2026-09-26): matte plain colour, never tinted
-  Bone: null, BoneWorn: null, Ruby: null, Skin: null, Hair: null, Eyes: null,
-  Wood: null,   // the Shieldmaiden's shield boards: wood at every grade (her signature splits wood off it); its rim and boss are Steel and grade
-  // The opponents' weapons (Lead via Strategy, 2026-09-27: per-rank weapon looks; characters.ts `grade`). The blade or head carries the rung
-  // as metal, a hilt or guard as trim; wood, stone and bone stay what they are. ScytheIron and WarhammerIron grade by the <Family>Iron rule.
-  WeaponLongsword: 'metal', WeaponLongswordShaft: 'trim', WeaponCleaver: 'metal', WeaponCleaverShaft: 'trim',
-  WeaponKnife: 'metal', WeaponKnifeShaft: 'trim', WeaponEstoc: 'metal', WeaponEstocShaft: 'trim',
-  WeaponTrident: 'metal', WeaponTridentShaft: null,   // the fork grades; the shaft is wood
-  GladiusSteel: 'metal', GladiusBronze: 'trim', GladiusBoneGrip: null, MaulIronBands: 'metal',
-  Haft: null, Ash: null, MaulAshHaft: null, StaffWood: null,   // wood stays wood
-  // A stone head (Lead, 2026-09-27: every opponent at every rank) takes the rung's trim hue part-way and, if it glows, a glow that grows with the
-  // rung (rank-tint.ts TINT.stone); its roughness and metalness stay stone. The Witch's green fire-stone and the Knight's maul head.
-  WitchStone: 'stone', WeatheredStone: 'stone',
-};
 // `<opponent>.<slot>.<material>`: the material is everything after the second dot, and a per-opponent tunic (Gambeson_veteran) grades as
 // its base (Gambeson).
 export const materialOf = (drawName: string): string => drawName.split('.').slice(2).join('.');
 // A piece cut from a TRELLIS surface (scripts/character/loot_dwarf.py) wears its family's baked maps as `<Family>Iron` (grades as metal)
 // or `<Family>Cloth` (a coat or hood: cloth); a built family's own bake (the Witch) adds `<Family>Leather`. A new family needs no row here.
-export const classOf = (material: string): keyof Grade | 'cloth' | 'stone' | null | undefined => {
-  const key = material.split('_')[0] === 'Gambeson' ? 'Gambeson' : material;
-  if (Object.hasOwn(CLASS_OF, key)) return CLASS_OF[key];   // null is a deliberate exemption, not a miss
-  return /^[A-Z][a-z]+Iron$/.test(material) ? 'metal' : /^[A-Z][a-z]+Cloth$/.test(material) ? 'cloth' : /^[A-Z][a-z]+Leather$/.test(material) ? 'leather' : undefined;
+export type DrawClass = keyof Grade | 'cloth' | 'stone';
+export const classOf = (material: string): DrawClass | null | undefined => {
+  const rows = DEFINITIONS.drawMaterials, head = material.split('_')[0]!;
+  const row = Object.hasOwn(rows, head) && rows[head]!.variants ? rows[head] : Object.hasOwn(rows, material) ? rows[material] : undefined;   // `<Name>_<anything>` resolves to a `variants` row (Gambeson_veteran)
+  if (row) return row.exempt ? null : (row.class as DrawClass);   // exempt is a deliberate no-grade, not a miss
+  const suffix = Object.entries(DEFINITIONS.drawSuffixes).find(([name]) => new RegExp(`^[A-Z][a-z]+${name}$`).test(material));
+  return suffix ? (suffix[1].class as DrawClass) : undefined;
 };
 
 export const GRADES: Record<Tier, Grade> = {
