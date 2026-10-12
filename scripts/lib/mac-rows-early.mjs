@@ -31,10 +31,13 @@ export function runningFor(dir, tree) {
     .find(r => r?.tree === tree && alive(r.pid)) || null;
 }
 
+/** Only a Mac row is ever vouched for by an early run (Auditor on #2353): whatever a receipt says, a non-Mac row runs where it always does. */
+const macOnly = rows => rows.filter(r => MAC_ROWS.includes(Number(r)));
+
 /** The receipt from release-checks.mjs's own receipt (RELEASE_CHECKS_RECEIPT): rows it ran, and the ones that passed (all of them when it exited 0). */
 export function receiptFrom({ sha, tree, checks, started, ended, exit }) {
   const ran = (checks?.checks_detail || []).filter(d => !d.trusted && !d.out_of_scope).map(d => d.index);
-  return { kind: 'mac-rows-early', sha, tree, rows: exit === 0 && checks?.passed ? ran : [], ran, started, ended, exit };
+  return { kind: 'mac-rows-early', sha, tree, rows: exit === 0 && checks?.passed ? macOnly(ran) : [], ran, started, ended, exit };
 }
 
 /** What deploy.sh trusts: a receipt for this tree; while a live run for it is still going, wait up to waitS (poll injectable).
@@ -43,6 +46,7 @@ export function trust(dir, tree, { waitS = 0, pollS = 15, sleep = s => spawnSync
   const deadline = now() + waitS * 1000;
   let receipt = findReceipt(dir, tree);
   while (!receipt && runningFor(dir, tree) && now() < deadline) { sleep(Math.max(1, Math.min(pollS, Math.ceil((deadline - now()) / 1000)))); receipt = findReceipt(dir, tree); }
+  if (receipt) receipt = { ...receipt, rows: macOnly(receipt.rows) };
   if (receipt) return { receipt, why: `mac rows (early, from the cut): ${receipt.rows.length}/${receipt.ran.length} passed on tree ${tree.slice(0, 7)} (${receipt.sha.slice(0, 9)}), ${receipt.started} - ${receipt.ended}${receipt.rows.length < receipt.ran.length ? `; the rest run here` : ''}` };
   return { receipt: null, why: runningFor(dir, tree) ? `mac rows (early): still running after ${waitS}s; they run here` : 'mac rows (early): no run for this tree; they run here' };
 }
