@@ -36,10 +36,25 @@ export function browserRowsMissing(rollup, headRef = '') {
     && !rows.some(c => c.__typename === 'StatusContext' && c.context === 'browser-rows' && String(c.state).toUpperCase() === 'SUCCESS');
 }
 
-/** A rollup is green when every check is (and an empty rollup is not), and a feature head carries its browser-rows status at SUCCESS. */
+/** The attempt that decides each check on the head (Lead, #2359): a rollup lists every run of a check, so a run the concurrency group or
+ * cancel-member-runs CANCELLED stays beside its newer SUCCESS. Per CheckRun (workflow + name) the LATEST attempt that is not SKIPPED decides (a later
+ * inert run, a title edit or a label, skips every job and must never hide a red); all skipped is skipped. A status context is already one per context. */
+export function decisiveChecks(rollup) {
+  const latest = new Map(), out = [];
+  for (const c of rollup || []) {
+    if (c.__typename === 'StatusContext') { out.push(c); continue; }
+    const key = `${c.workflowName}/${c.name}`, prev = latest.get(key);
+    const rank = x => [String(x.conclusion).toUpperCase() !== 'SKIPPED' ? 1 : 0, String(x.startedAt || x.completedAt || '')];
+    const [a, b] = [rank(c), prev && rank(prev)];
+    if (!prev || a[0] > b[0] || (a[0] === b[0] && a[1] >= b[1])) latest.set(key, c);
+  }
+  return [...out, ...latest.values()];
+}
+
+/** A rollup is green when the deciding attempt of every check is (and an empty rollup is not), and a feature head carries its browser-rows status at SUCCESS. */
 export function checksGreen(rollup, headRef = '') {
   if (!Array.isArray(rollup) || !rollup.length) return false;
-  return rollup.every(checkGreen) && !browserRowsMissing(rollup, headRef);
+  return decisiveChecks(rollup).every(checkGreen) && !browserRowsMissing(rollup, headRef);
 }
 
 /**
@@ -153,7 +168,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (cmd === 'verify') {   // stdin: `gh pr view <n> --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments` (ALL checks:
     // `gh pr list` stops at 100, CQ #2342 had 144, Lead on #2336) + argv sha: exit 0 only when that one candidate still passes the whole gate at that sha
     const p = JSON.parse(readFileSync(0, 'utf8') || 'null'), want = rest[0];
-    const why = !p ? 'no PR' : p.headRefOid !== want ? `head moved to ${String(p.headRefOid).slice(0, 9)}` : !pickPublish([p]) ? `gate not met on the full check list (${p.statusCheckRollup?.length ?? 0} checks; missing/red: ${[...missingRows(p.statusCheckRollup), ...(p.statusCheckRollup || []).filter(c => !checkGreen(c)).map(c => c.context || `${c.workflowName}/${c.name}`), ...(browserRowsMissing(p.statusCheckRollup, p.headRefName) ? ['browser-rows status'] : [])].slice(0, 5).join(', ') || 'label or PASS'})` : '';
+    const why = !p ? 'no PR' : p.headRefOid !== want ? `head moved to ${String(p.headRefOid).slice(0, 9)}` : !pickPublish([p]) ? `gate not met on the full check list (${p.statusCheckRollup?.length ?? 0} checks; missing/red: ${[...missingRows(p.statusCheckRollup), ...decisiveChecks(p.statusCheckRollup).filter(c => !checkGreen(c)).map(c => c.context || `${c.workflowName}/${c.name}`), ...(browserRowsMissing(p.statusCheckRollup, p.headRefName) ? ['browser-rows status'] : [])].slice(0, 5).join(', ') || 'label or PASS'})` : '';
     if (why) { console.log(why); process.exit(1); }
     process.exit(0);
   }
