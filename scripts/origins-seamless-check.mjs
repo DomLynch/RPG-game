@@ -44,8 +44,11 @@ try {
   };
   await page.waitForTimeout(8000);   // let the walk settle before the control reading
   receipt.walkMoved = await moved(10000);
-  await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
-  await page.waitForTimeout(25000);   // the walk: the creatures near him settle and the zone warms up meanwhile
+  // SEAMLESS_QUIET=1: no walk beside the foe, so no fight, hit or fx happens before [zone ready] (the first contact is the engage itself). The default walk lets a creature near him fight first, which compiles the particle programs by luck of timing; a runner fast enough to be ready before that (CI #2289/#2299: ready at 20-37 s) linked two 'points' programs at the engage. This variant makes that case every run.
+  if (!process.env.SEAMLESS_QUIET) {
+    await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [target.x, target.z]);
+    await page.waitForTimeout(25000);   // the walk: the creatures near him settle and the zone warms up meanwhile
+  }
   await page.evaluate(() => { window.__gaps = []; let last = performance.now(); const tick = (t) => { window.__gaps.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
   await page.waitForTimeout(6000);
   const walkGaps = (await page.evaluate(() => window.__gaps.slice())).slice(0, -1);
