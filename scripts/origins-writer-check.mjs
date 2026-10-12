@@ -15,6 +15,7 @@ import { parseItemDefinition } from '../src/core/server.ts';
 import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
 import * as F from '../src/core/server.ts';
 import { cumulative } from '../src/core/server.ts';
+import { createLiveOps } from '../origins/server/live-ops.ts';
 import { createLocationFlusher } from '../origins/server/location-flush.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
@@ -517,6 +518,39 @@ try {
         eq([locRow(daraTwo), locRow(dara), flusher.has(D)], [`pit-yard:14800:15800`, daraWas, false], 'the held spot landed on Dara Two (active when posted), nothing leaked onto Dara, nothing left held');
         eq(await fOpen('td', { character: daraTwo }), 200, 'D switches back');
       } finally { await flusher.stop(); fw.close(); }
+    }
+    // item 28: live-ops rows. The writer reads them (one function, one round trip), a switch row turns an op off with no restart, a bad row is ignored, the tables are closed to clients and to the writer's own writes
+    {
+      const lodb = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'));
+      const lo = createLiveOps(lodb, 60_000, Date.now, () => undefined);
+      const lw = createWriter({ db: lodb, verify: async t => TOKENS[t] ?? null, where, handlers: clientOps, internal: { key: KEY, liveOps: lo }, liveOps: lo });
+      await new Promise(r => lw.listen(0, '127.0.0.1', r));
+      try {
+        const lbase2 = `http://127.0.0.1:${lw.address().port}`;
+        const openStatus = () => globalThis.fetch(`${lbase2}/origins/open`, { method: 'POST', headers: { authorization: 'Bearer ta' }, body: '{}' }).then(r => r.status);
+        await lo.refresh();
+        eq([lo.snapshot().events.length, lo.snapshot().switches, await openStatus()], [0, {}, 200], 'no rows: no events, every switch on');
+        psql(`insert into public.origins_live_events (id, cron, length_min, kind, params) values ('every-minute', '* * * * *', 5, 'double-xp', '{"mult":2}'), ('never', '0 0 31 2 *', 5, 'ghost', '{}');
+              insert into public.origins_switches (key, enabled, note) values ('op:open', false, 'check'), ('rewards', true, null);`);
+        eq(await openStatus(), 200, 'rows written but not yet read: the writer still holds the old state');
+        await lo.refresh();
+        const snap = lo.snapshot();
+        eq([snap.events.map(e => e.id), snap.active, snap.switches], [['every-minute', 'never'], ['every-minute'], { 'op:open': false, rewards: true }], 'both events held, only the matching one active; switches read');
+        eq(snap.events[0].params, { mult: 2 }, 'params carried');
+        eq(await openStatus(), 503, 'op:open off -> 503 with no restart');
+        eq((await globalThis.fetch(`${lbase2}/internal/live-ops`, { headers: { authorization: `Bearer ${KEY}` } }).then(r => r.json())).active, ['every-minute'], 'the internal read shows what the writer holds');
+        eq((await globalThis.fetch(`${lbase2}/internal/live-ops`)).status, 401, 'and needs the key');
+        psql(`update public.origins_switches set enabled = true where key = 'op:open';`);
+        await lo.refresh();
+        eq(await openStatus(), 200, 'switch row back on -> the op runs again');
+        const asClient2 = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message).slice(0, 80); } };
+        for (const sql of [`select * from public.origins_switches;`, `select * from public.origins_live_events;`, `select public.origins_live_ops();`, `update public.origins_switches set enabled = false;`])
+          eq(asClient2(sql), 'permission denied', `a client may not: ${sql}`);
+        eq(String((() => { try { return psql(`set role frankendom_origins; insert into public.origins_switches values ('op:x', false);`); } catch (e) { return /permission denied/.test(String(e.stderr)) ? 'permission denied' : 'other'; } })()), 'permission denied', 'the writer role reads the rows, it does not write them');
+        psql(`insert into public.origins_live_events (id, cron, length_min, kind) values ('typo', 'not a cron', 5, 'x');`);
+        await lo.refresh();
+        eq([lo.snapshot().rejected, lo.snapshot().events.map(e => e.id)], [1, ['every-minute', 'never']], 'a typo\'d event is ignored and every other row still applies');
+      } finally { lo.stop(); lw.close(); psql(`delete from public.origins_live_events; delete from public.origins_switches;`); }
     }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)
     psql(`select public.origins_purge_account('${D}');`);
