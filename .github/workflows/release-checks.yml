@@ -7,9 +7,9 @@
 #
 # Job budget (Lead 2026-09-29, Dom "solve it"): the repo shares GitHub's 20 concurrent jobs, and run AR's 39 rows sat queued
 # > 40 min behind 20 in-progress jobs while deploy.sh runs every row on the Mac anyway (RELEASE_CHECKS_TRUST_CI=0). So:
-#   - a pull request runs the row matrix ONLY while it carries the `ci:release-checks` label (Lead applies it when slotting a
-#     run, at most 2 PRs at a time): the full matrix on every labelled event, unless its diff triggers no row (docs-only);
-#   - no label: `plan` + "release rows (none for this diff)" only; quality.yml (quality, base, browser, load-time) is unchanged;
+#   - a pull request runs the row matrix ONLY for a release candidate (head branch release-*, Lead + Strategy 2026-10-12: a feature PR, labelled
+#     ci:release-checks or not, schedules no job here; its rows run in the candidate it rides): the full matrix, unless its diff triggers no row;
+#   - a feature PR: no job at all (every job is skipped); quality.yml and unit-ci.yml are its gate;
 #   - trunk pushes run nothing here: at 8 wide a trunk matrix took 51–111 min and trunk moves every 1–2 h, so a 2-wide one
 #     would be cancelled before it finished — pure spend. Measure trunk by dispatch (`gh workflow run release-checks.yml`);
 #   - max-parallel 20 (2026-10-12, Pro plan: 40 concurrent jobs): one run never holds more than 20 of the 40, so a labelled run and quality.yml
@@ -42,7 +42,8 @@ env:
 jobs:
   plan:
     # A release candidate (head branch release-*) runs as a DRAFT and carries ci:release-checks from the cut (scripts/cut-release.mjs): plan runs for it (Dom 2026-10-12, CI runners first).
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || startsWith(github.head_ref, 'release-')
+    # Only for it (Lead + Strategy 2026-10-12): a feature PR schedules nothing here, whatever its labels; a dispatch is unchanged.
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -69,7 +70,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_ACTION: ${{ github.event.action }}
           PR_LABEL: ${{ github.event.label.name }}
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           HEAD_REF: ${{ github.head_ref }}
           RUN_REF: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -81,10 +81,11 @@ jobs:
             const gate = require("./.quality-gate.json");
             const pr = process.env.GITHUB_EVENT_NAME === "pull_request";
             let run = true;
-            // A release candidate (release-*) is labelled by definition: a label added by the workflow token would not re-trigger a run, and a cut that forgot it must not cost a release its CI rows.
-            const labelled = pr && (process.env.PR_LABELS.split(",").includes("ci:release-checks") || process.env.HEAD_REF.startsWith("release-"));
-            // No label: no rows, whatever the event. Another label being added (merged-elsewhere, a lane tag) is not a request either.
-            if (pr && !labelled) { run = false; console.log("no ci:release-checks label: release rows not run (Lead labels a PR when slotting its run)"); }
+            // Only a release candidate (release-*) reaches here on a pull request (the job `if`); it counts as labelled by definition: a label added by the
+            // workflow token would not re-trigger a run, and a cut that forgot it must not cost a release its CI rows. The ci:release-checks label alone does nothing.
+            const labelled = pr && process.env.HEAD_REF.startsWith("release-");
+            if (pr && !labelled) { run = false; console.log("not a release-* candidate: release rows not run (the rows of a feature PR run in the candidate it rides)"); }
+            // Another label being added to a candidate (merged-elsewhere, a lane tag) is not a request to run the rows.
             else if (pr && process.env.PR_ACTION === "labeled" && process.env.PR_LABEL !== "ci:release-checks") { run = false; console.log(`label ${process.env.PR_LABEL} added: not a request to run the rows`); }
             if (pr && run) {
               // A labelled PR whose changed files trigger no row (release_triggers in .quality-gate.json, printed locally by
