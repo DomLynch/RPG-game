@@ -12,10 +12,10 @@ const ok = { load1: 0.8, freeRamMb: 20000 };
 test('pickTarget: a quiet VPS with room takes the job', () => {
   assert.equal(pickTarget({ vps: ok, mem: 4096 }), 'vps');
 });
-test('pickTarget: the VPS load limit is 16, the box\'s cores (below takes it, at or above spills to Hugging Face CPU; Dom 2026-10-12)', () => {
-  assert.equal(VPS_MAX_LOAD1, 16);
-  assert.equal(pickTarget({ vps: { ...ok, load1: 15.9 }, mem: 1024 }), 'vps');
-  assert.equal(pickTarget({ vps: { ...ok, load1: 16 }, mem: 1024 }), 'hf-cpu');
+test('pickTarget: the VPS load limit is 12 (below takes it, at or above spills to Hugging Face CPU; Strategy 2026-10-12)', () => {
+  assert.equal(VPS_MAX_LOAD1, 12);
+  assert.equal(pickTarget({ vps: { ...ok, load1: 11.9 }, mem: 1024 }), 'vps');
+  assert.equal(pickTarget({ vps: { ...ok, load1: 12 }, mem: 1024 }), 'hf-cpu');
   assert.equal(pickTarget({ vps: { ...ok, load1: 40 }, mem: 1024 }), 'hf-cpu');
 });
 test('pickTarget: not enough free RAM for the job spills to Hugging Face CPU', () => {
@@ -112,7 +112,7 @@ test('routeProbe: a refusal from either tier is final', () => {
 });
 
 test('the router\'s numbers cannot drift from the scripts that enforce them', () => {
-  // lanejob.sh reads VPS_MAX_LOAD1 with sed on this exact line shape (Hooks Dev): keep it a literal.
+  // After #2304, lanejob.sh reads VPS_MAX_LOAD1 with sed on this exact line shape (Hooks Dev): keep it a literal.
   const src = readFileSync('scripts/lib/waterfall.mjs', 'utf8');
   assert.match(src, new RegExp(`^export const VPS_MAX_LOAD1 = ${VPS_MAX_LOAD1};$`, 'm'));
   assert.match(src, new RegExp(`^export const MAC_MAX_LOAD5 = ${MAC_MAX_LOAD5};$`, 'm'));

@@ -6,10 +6,11 @@
 import { spawnSync } from 'node:child_process';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
 
-// The waterfall's numbers (Dom 2026-10-12: Mac first -> VPS -> Hugging Face; the T4 only for graphics). Each is ONE literal line on purpose:
-// scripts/lanejob/lanejob.sh reads VPS_MAX_LOAD1 with sed on exactly `export const VPS_MAX_LOAD1 = <number>`, and tests/waterfall.test.ts pins
-// MAC_MAX_LOAD5 to the 5-minute gate in scripts/lanejob/lanejob-mac.sh (that script owns the Mac gate; this copy must not drift from it).
-export const VPS_MAX_LOAD1 = 16;
+// The waterfall's numbers (Mac first -> VPS -> Hugging Face; the T4 only for graphics). Each is ONE literal line on purpose: after #2304,
+// scripts/lanejob/lanejob.sh reads VPS_MAX_LOAD1 with sed on exactly `export const VPS_MAX_LOAD1 = <number>` (Strategy's 13:5x audit, 2026-10-12:
+// slots AND load1 < 12), and tests/waterfall.test.ts pins MAC_MAX_LOAD5 to the 5-minute gate in scripts/lanejob/lanejob-mac.sh (that script owns the
+// Mac gate; this copy must not drift from it).
+export const VPS_MAX_LOAD1 = 12;
 export const MAC_MAX_LOAD5 = 8;
 // The remote command vpsStatus runs: loadavg, MemAvailable (kB), and the live release run dirs. A run dir is the release lock; one older than 90 minutes is a crashed run and stops counting.
 export const VPS_STATUS_CMD = "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo; find /root/deploy-runs -mindepth 1 -maxdepth 1 -type d -mmin -90 2>/dev/null | wc -l";
