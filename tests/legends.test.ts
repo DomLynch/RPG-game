@@ -59,3 +59,22 @@ test('legends: no source is the scripture of a living religion (known fails name
   assert.deepEqual(failing.filter((n) => !SCRIPTURE_KNOWN_FAIL.includes(n)), [], 'new rows sourced from living-religion scripture');
   assert.deepEqual(SCRIPTURE_KNOWN_FAIL.filter((n) => !failing.includes(n)), [], 'swapped out: remove these from SCRIPTURE_KNOWN_FAIL');
 });
+
+test('a legend name is catalogue data: legends.ts holds no names, and renaming one rank is a one-row data edit that skips the Auditor', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { verdict } = await import('../scripts/data-only-check.mjs');
+  const CAT = 'src/fight/catalogue-data.ts', text = readFileSync(CAT, 'utf8');
+  assert.ok(!/row\('/.test(readFileSync('src/legends.ts', 'utf8')), 'src/legends.ts carries no legend rows any more');
+  const first = LEGENDS.veteran[0]!;
+  assert.ok(text.includes(`name: ${JSON.stringify(first.name)}`), 'the veteran rung 1 name is read from its catalogue row');
+  const renamed = text.replace(`name: ${JSON.stringify(first.name)}`, 'name: "Renamed Legend"');
+  assert.notEqual(renamed, text);
+  assert.equal(verdict([{ file: CAT, status: 'modified' }], () => renamed, 'HEAD' as never).code, 0, 'a renamed rung with its citation unchanged is data-only: one row, no code');
+});
+
+test('LEGEND_OPPONENTS is exactly the catalogue rows that carry ranks, each with ten', async () => {
+  const { CATALOGUE } = await import('../src/fight/catalogue-rows.ts');
+  const ranked = CATALOGUE.filter((r) => r.ranks.length > 0);
+  assert.deepEqual([...LEGEND_OPPONENTS].sort(), ranked.map((r) => r.id).sort(), 'a row with ranks is in the list, and nothing else is');
+  for (const r of ranked) assert.equal(r.ranks.length, 10, `${r.id}: ten rungs`);
+});
