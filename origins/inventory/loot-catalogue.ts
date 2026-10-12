@@ -4,7 +4,7 @@
 // power is 'slot-weight' as for every loot piece, and every piece is common (rarity is not part of today's ledger).
 import { LOOT_IDS, lootName, slotOf, type LootId, type LootSlot } from '../../src/core/server.ts';
 import { ROSTER, type OpponentId } from '../../src/fight/server.ts';
-import type { Material } from '../contracts/items.ts';
+import type { Material } from '../../src/core/server.ts';
 
 const MATERIAL: Partial<Record<LootSlot, Material>> = { Body: 'leather', Gloves: 'leather', Boots: 'cloth' };   // every other slot (plate, crest, shield, weapon) is iron
 const sentence = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

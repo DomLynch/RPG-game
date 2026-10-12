@@ -19,7 +19,7 @@ import { questAdvance } from '../origins/server/quest-advance.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { fakeWhere } from '../origins/presence/fixtures.ts';
 import type { StoryContent } from '../origins/server/story.ts';
-import type { QuestId } from '../origins/contracts/ids.ts';
+import type { QuestId } from '../src/core/contracts/ids.ts';
 import type { Talk } from '../origins/talk/talk.ts';
 import { talkPick } from '../origins/server/talk-pick.ts';
 

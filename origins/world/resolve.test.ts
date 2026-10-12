@@ -1,7 +1,7 @@
 // Validation boundaries for every field, layering precedence, hostile ids, two-way links, and the add-a-group / version contract.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Obj } from '../contracts/core.ts';
+import type { Obj } from '../../src/core/server.ts';
 import { CONCORD, CONCORD_REGION } from './concord.ts';
 import { defaultsOf, loadWorld, resolveRegion, resolveZone, validate, type WorldData } from './resolve.ts';
 import { SCHEMA, type Field, type Schema } from './schema.ts';

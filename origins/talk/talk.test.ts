@@ -1,8 +1,8 @@
 // O2 NPC talk: load-time validation, condition filtering, priority order, once-lines, quest hooks, refusals, and a seeded property run.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fail, ok, type Result } from '../contracts/core.ts';
-import type { ItemId, QuestId } from '../contracts/ids.ts';
+import { fail, ok, type Result } from '../../src/core/server.ts';
+import type { ItemId, QuestId } from '../../src/core/server.ts';
 import { orla } from './fixtures.ts';
 import { choices, loadTalk, newTalkState, pick, type Advance, type Facts, type TalkState } from './talk.ts';
 

@@ -2,16 +2,16 @@
 // CharacterDefinition (content rule, routines), factions and standing, regions and encounters.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MAX_LEVEL, TITLES, levelOfMarks as levelOf, rankFor } from '../../src/core/server.ts';
-import type { Result } from './core.ts';
-import * as F from './fixtures.ts';
+import { MAX_LEVEL, TITLES, levelOfMarks as levelOf, rankFor } from '../src/core/career-ladder.ts';
+import type { Result } from '../src/core/contracts/core.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
 import {
   ATTITUDE_BANDS, GATE_TIER, STANDING_MAX, STANDING_MIN, adjustStanding, attitudeFor, attitudeOf, canPromote, checkStanding, gateAccess, membershipRequired,
   parseCharacterDefinition, parseCharacterInstance, parseEncounterDefinition, parseFactionDefinition, parseFactionStanding, parseRegionDefinition, rankOf,
   checkCareerStanding, titleForLevel,
   reactionOf, regionAccess, type CareerStanding, type FactionDefinition, type FactionStanding,
-} from './world.ts';
-import type { FactionId } from './ids.ts';
+} from '../src/core/contracts/world.ts';
+import type { FactionId } from '../src/core/contracts/ids.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {

@@ -129,8 +129,8 @@ test('C1 mutation: a deep core import from the Pit, the zone page or a server mo
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/profile.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/preview/save.ts', "import { call } from '../../src/core/writer-call.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/mobs/populate.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
-  assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
-  assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
+  assert.equal(c1(withFile('origins/inventory/inventory.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
+  assert.equal(c1(withFile('origins/inventory/inventory.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
   assert.equal(c1(withFile('src/main.ts', "import { x } from './core/server.ts';"), FILES).length, 1, 'a page may not take the server door');
   assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/index.ts';"), FILES).length, 1, 'a page file the box loads must take the server door (the AA crash)');
   assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/server.ts';"), FILES).length, 0);
@@ -237,7 +237,21 @@ test('C8 mutation: a new internal sim import and a stale entry are flagged; the 
   assert.equal(c8(disk, SIM_CONSUMERS, [...SIM_INTERNALS_KNOWN, 'origins/server/mob-rewards.ts -> origins/preview/mobs.ts']).length, 1);
 });
 
+// C9: the core imports nothing from origins/. The world-sim stages move origins packages INTO the core; none may bring an origins import with it, not even for one PR.
+export function c9(read: (f: string) => string, list: readonly string[]): string[] {
+  return list.filter((f) => inCore(f)).flatMap((f) => specsOf(f, read(f)).filter((s) => /^origins\//.test(s.target)).map((s) => `${f} -> ${s.target}`)).sort();
+}
+test('C9: nothing in src/core imports from origins/', () => {
+  assert.deepEqual(c9(disk, FILES), []);
+});
+test('C9 mutation: an origins import inside the core is flagged; a core-relative one is not', () => {
+  assert.equal(c9(withFile('src/core/luck.ts', "import { x } from '../../origins/zones/loader.ts';"), FILES).length, 1);
+  assert.equal(c9(withFile('src/core/luck.ts', "import { x } from './grades.ts';"), FILES).length, 0);
+});
+
 test('every moved module lives in src/core and nothing is left behind at the old paths', () => {
+  const contracts = ['core', 'economy', 'ids', 'items', 'registry', 'story', 'world', 'fixtures'];
+  assert.deepEqual(contracts.filter((n) => !existsSync(`src/core/contracts/${n}.ts`)).concat(existsSync('origins/contracts') ? ['origins/contracts'] : [], existsSync('origins/luck') ? ['origins/luck'] : [], existsSync('src/core/luck.ts') ? [] : ['luck']), [], 'contracts and luck live in src/core');
   const world = ['row', 'styles', 'kits', 'kit-version', 'info', 'wildlife-rows'];
   assert.deepEqual(world.filter((n) => !existsSync(`src/core/world/${n}.ts`) || existsSync(`origins/mobs/${n}.ts`)), [], 'the mob data lives in src/core/world, not origins/mobs');
   const moved = ['career-ladder', 'career-model', 'gear-ledger', 'gear-net', 'gear-server', 'gear-sheet', 'gear-room', 'loot', 'loot-claims', 'loot-panel', 'open'];

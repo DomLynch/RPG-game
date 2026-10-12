@@ -2,7 +2,7 @@
 // env or a file. Item definitions are Region 1's registry (lookupOf, origins/encounters). The smith is DATA, never invented here: it is the first service-definition of kind 'upgrade'
 // whose cost table is in the registry; Region 1 ships none today, so apply_upgrade answers 501 "there is no smith in this content" until a service and its cost table are authored, and
 // then it just works. `consume` needs only the item definitions.
-import type { Result } from '../contracts/core.ts';
+import type { Result } from '../../src/core/server.ts';
 import { lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import type { Content } from './holdings.ts';
 import { handlers, withContent, type Handler } from './handlers.ts';

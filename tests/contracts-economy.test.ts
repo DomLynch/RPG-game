@@ -2,17 +2,17 @@
 // upgrade service (caps never passed, no-effect refused, idempotent receipts, stale versions refused, priced from a data table).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CAPS } from '../../src/fight/gear-stats.ts';
-import type { Result } from './core.ts';
+import { CAPS } from '../src/fight/gear-stats.ts';
+import type { Result } from '../src/core/contracts/core.ts';
 import {
   CONCORD_EXCHANGE, MAX_UPGRADE_MATERIAL_INPUTS, acceptTrade, changeOffer, parseServiceDefinition, parseTrade, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, settleTrade,
   type ServiceDefinition, type Trade, type UpgradeCostTable, type UpgradeInput, type UpgradeReceipt, type UpgradeRequest,
-} from './economy.ts';
-import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId, RegionId } from './ids.ts';
+} from '../src/core/contracts/economy.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
+import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId, RegionId } from '../src/core/contracts/ids.ts';
 import {
   PACK_SLOTS, checkHistoryKept, parseItemDefinition, parseItemInstance, piecePoints, resolveLoadout, type ItemDefinition, type ItemInstance,
-} from './items.ts';
+} from '../src/core/contracts/items.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {

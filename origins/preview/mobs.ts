@@ -6,7 +6,7 @@
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import { SPEEDS } from '../../src/fight/server.ts';
-import type { CharacterId, EncounterId } from '../contracts/ids.ts';
+import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader

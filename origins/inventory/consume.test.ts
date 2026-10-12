@@ -3,11 +3,11 @@
 // Story-critical pieces burn only on a quest step that names them.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Result } from '../contracts/core.ts';
-import { parseServiceDefinition, parseUpgradeCostTable, parseUpgradeRequest, performUpgrade, type UpgradeOutcome } from '../contracts/economy.ts';
-import * as F from '../contracts/fixtures.ts';
-import type { ItemId } from '../contracts/ids.ts';
-import { checkHistoryKept, type ItemInstance } from '../contracts/items.ts';
+import type { Result } from '../../src/core/server.ts';
+import { parseServiceDefinition, parseUpgradeCostTable, parseUpgradeRequest, performUpgrade, type UpgradeOutcome } from '../../src/core/server.ts';
+import * as F from '../../src/core/server.ts';
+import type { ItemId } from '../../src/core/server.ts';
+import { checkHistoryKept, type ItemInstance } from '../../src/core/server.ts';
 import {
   applyUpgrade, checkConservation, consume, deposit, find, merge, mintTotals, move, receive, split, type Burn, type ConsumeOp, type Holdings, type Inventory,
 } from './inventory.ts';

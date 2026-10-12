@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import * as F from '../origins/contracts/fixtures.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
 import { cumulative } from '../src/core/career-model.ts';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { withContent } from '../origins/server/handlers.ts';

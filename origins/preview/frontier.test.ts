@@ -3,8 +3,8 @@
 import { zonePlaces } from '../zones/loader.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CharacterInstanceId, QuestId } from '../contracts/ids.ts';
-import { parseQuestDefinition } from '../contracts/story.ts';
+import type { CharacterInstanceId, QuestId } from '../../src/core/index.ts';
+import { parseQuestDefinition } from '../../src/core/index.ts';
 import { advance, entries, newJournal } from '../quests/journal.ts';
 import { loadRegion1 } from '../region1/load.ts';
 import { choices, loadTalk, newTalkState, pick } from '../talk/talk.ts';

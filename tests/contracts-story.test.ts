@@ -2,12 +2,12 @@
 // checked against content, migrated or refused).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Issues, type Result } from './core.ts';
-import * as F from './fixtures.ts';
+import { Issues, type Result } from '../src/core/contracts/core.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
 import {
   checkQuestState, grantStageRewards, holdsCondition, migrateQuestState, parseQuestDefinition, parseQuestState, readCondition,
   type Condition, type ConditionFacts, type QuestDefinition, type QuestState,
-} from './story.ts';
+} from '../src/core/contracts/story.ts';
 
 type Raw = Record<string, unknown>;
 const refused = (r: Result<unknown>, code: string, path?: string): void => {

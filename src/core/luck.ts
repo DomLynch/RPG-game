@@ -5,8 +5,8 @@
 
 // Where a fight happens. Dom's ruling (2026-10-07): damage rolls apply ONLY to Origins world mobs outside the Pit, in both directions
 // (player -> mob and mob -> player). The Pit (legends and arena AI), PvP and the ladder never roll.
-import { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult } from '../../src/fight/server.ts';
-import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../../src/fight/server.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
+import { GAMBIT_ODDS, GAMBIT_KILL_FLOOR, gambitMean, resolveGambit, type GambitOdds, type GambitResult } from '../fight/server.ts';
+import { ROLL_BAND, percentOf, rolledDamage, rollUnit } from '../fight/server.ts';   // the one definition of the roll (also applied by the duel's Duel.roll)
 
 export type FightKind = 'world-mob' | 'pit' | 'pvp' | 'ladder';
 

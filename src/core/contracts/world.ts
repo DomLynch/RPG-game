@@ -6,9 +6,9 @@
 // src/core/career-ladder.ts does (TITLES, five levels per title, MAX_LEVEL). A legacy account's level is today's levelOf(marks), so every existing
 // rank reads the same. A CharacterInstance stores no marks, credit, level or stats (ruling 7: one career, one rank, one stat set,
 // server-verified); access is derived at the moment it is asked for from a CareerStanding the caller reads from the server.
-import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/core/server.ts';
-import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
-import { isOpponentId, type OpponentId } from '../../src/fight/server.ts';
+import { MAX_LEVEL, RANK_STEPS, TITLES } from '../career-ladder.ts';
+import { levelOf as tierLevel, type Tier } from '../grades.ts';
+import { isOpponentId, type OpponentId } from '../../fight/server.ts';
 import {
   Issues, LOCAL_KEY, checkString, fail, join, ok, readArray, readBoolean, readEnum, readInt, readKind, readObject, readOptionalInt, readSchemaVersion,
   readString, readText, readTimestamp, type Issue, type Obj, type Result,
