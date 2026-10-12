@@ -64,15 +64,21 @@ writer_ready() { [ -s "$venv" ] && grep -q '^DATABASE_URL=' "$venv" && [ -s "$en
 if writer_ready; then
   if grep -q '^DATABASE_URL=' "$env"; then echo "install-origins-writer: $env sets DATABASE_URL and would override the verifier's: remove that line; service NOT started" >&2; exit 1; fi
   side="${ORIGINS_SIDE_PORT:-8789}"; sidelog="$dest/.side-health.log"
+  # The 401 must come from THIS install: a listener already on the side port (a side writer leaked by an interrupted earlier install) would answer
+  # for a writer that crashed at boot. So the port must be free first, the side writer is killed on any exit, and the answer counts only while the
+  # new process is alive and has logged its own listening line.
+  if curl -s -o /dev/null -m 3 "http://127.0.0.1:$side/"; then echo "install-origins-writer: side port $side busy (something already answers there); current left on $(readlink "$opt/current" 2>/dev/null || echo none)" >&2; exit 1; fi
   ( set -a; . "$venv"; . "$env"; set +a; cd "$dest" && PORT="$side" exec node scripts/origins-writer.mjs ) > "$sidelog" 2>&1 &
   sidepid=$!; code=""
+  trap 'kill "$sidepid" 2>/dev/null || true' EXIT
   for _ in $(seq 1 "${ORIGINS_SIDE_WAIT_S:-20}"); do
     code=$(curl -s -o /dev/null -m 3 -w '%{http_code}' -X POST "http://127.0.0.1:$side/origins/consume" || true)
     [ "$code" = 401 ] && break
     kill -0 "$sidepid" 2>/dev/null || break
     sleep 1
   done
-  kill "$sidepid" 2>/dev/null || true; wait "$sidepid" 2>/dev/null || true
+  if [ "$code" = 401 ] && ! { kill -0 "$sidepid" 2>/dev/null && grep -qF "origins-writer listening on 127.0.0.1:$side" "$sidelog"; }; then code="401-not-ours"; fi
+  kill "$sidepid" 2>/dev/null || true; wait "$sidepid" 2>/dev/null || true; trap - EXIT
   if [ "$code" != 401 ]; then
     echo "install-origins-writer: failed-at-writer: $revision on :$side answered '${code:-nothing}' to POST /origins/consume (want 401); current left on $(readlink "$opt/current" 2>/dev/null || echo none)" >&2
     { grep -m 3 -iE 'error' "$sidelog"; tail -n 3 "$sidelog"; } >&2 || true   # the error line, not only the stack tail

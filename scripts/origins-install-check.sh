@@ -150,8 +150,9 @@ contains "and says current was left alone" "$out" "dry import failed in"
 expect "current still points at the last good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/f1"
 # Blue-green B: with both env files complete the new install must answer one real request on the side port before current flips.
 envs() { mkdir -p "$tmp/root/etc/frankendom"; printf 'DATABASE_URL=postgresql://x\n' > "$tmp/root/etc/frankendom/verifier.env"; printf 'SUPABASE_URL=https://x\nSUPABASE_ANON_KEY=y\n' > "$tmp/root/etc/frankendom/origins-writer.env"; }
-writer() {   # a fake writer: $1 = the status it answers POST /origins/consume with, or "crash"
-  printf "import { createServer } from 'node:http';\nimport { x } from './lib/extra.mjs';\nif ('%s' === 'crash') throw new Error('boot failed');\ncreateServer((q, s) => { s.writeHead(q.method === 'POST' && q.url === '/origins/consume' ? %s : 404); s.end('{}'); }).listen(Number(process.env.PORT), '127.0.0.1');\nexport const writer = x;\n" "$1" "${1/crash/500}" > "$fake/scripts/origins-writer.mjs"
+writer() {   # a fake writer: $1 = the status it answers POST /origins/consume with, or "crash"; $2 = "quiet" to skip the real writer's listening line
+  local say="console.log('origins-writer listening on 127.0.0.1:' + process.env.PORT)"; [ "${2:-}" = quiet ] && say=""
+  printf "import { createServer } from 'node:http';\nimport { x } from './lib/extra.mjs';\nif ('%s' === 'crash') throw new Error('boot failed');\ncreateServer((q, s) => { s.writeHead(q.method === 'POST' && q.url === '/origins/consume' ? %s : 404); s.end('{}'); }).listen(Number(process.env.PORT), '127.0.0.1', () => { %s });\nexport const writer = x;\n" "$1" "${1/crash/500}" "$say" > "$fake/scripts/origins-writer.mjs"
 }
 printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
 fresh; envs; writer 401; fakerun g1
@@ -169,4 +170,19 @@ expect "a writer that crashes at boot is failed-at-writer" "$rc" 1
 contains "with no answer" "$out" "answered '000'"
 contains "and its own error in the log tail" "$out" "boot failed"
 expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+# Auditor HOLD on #2316: a stale listener on the side port (a side writer leaked by an interrupted install) answers 401 for a writer that crashes at boot.
+"$REAL_NODE" -e "require('node:http').createServer((q, s) => { s.writeHead(401); s.end('{}'); }).listen($ORIGINS_SIDE_PORT, '127.0.0.1')" & stale=$!
+for _ in $(seq 1 50); do curl -s -o /dev/null -m 1 "http://127.0.0.1:$ORIGINS_SIDE_PORT/" && break; sleep 0.1; done
+writer crash; fakerun g4
+kill "$stale" 2>/dev/null; wait "$stale" 2>/dev/null
+expect "a stale 401 listener + a crashing writer is refused" "$rc" 1
+contains "as a busy side port" "$out" "side port $ORIGINS_SIDE_PORT busy"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+writer 401 quiet; fakerun g5
+expect "a 401 without the new writer's own listening line is not proof" "$rc" 1
+contains "named" "$out" "answered '401-not-ours'"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+writer 401; fakerun g6
+expect "a writer that answers 401 and logs its own listening line installs" "$rc" 0
+curl -s -o /dev/null -m 2 "http://127.0.0.1:$ORIGINS_SIDE_PORT/" && fail "the side writer is still listening after the install" || ok
 echo "origins-install-check: $checks checks passed"
