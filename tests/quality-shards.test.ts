@@ -1,6 +1,7 @@
-// Dom 2026-10-12 (CI runners first): quality.yml runs `quality:ci` as a matrix of 4 shards instead of one 12-minute job. The sharded
-// run must stay the SAME gate: quality:static + test:all is exactly quality:ci, every test-file shard runs, and the one `quality` job
-// deploy.sh reads (scripts/deploy.sh:73) is green only when every shard is.
+// Dom 2026-10-12 (CI runners first): `quality:ci` is split across two workflows. quality.yml runs quality:static (+ the database checks);
+// unit-ci.yml owns test:all (8 shards, the unit receipt), so the suite runs once per PR, not twice (Lead, after #2298 went live in CK).
+// Together they must stay the SAME gate: quality:static + test:all is exactly quality:ci, every unit shard runs, the one `quality` job
+// deploy.sh reads (scripts/deploy.sh:73) is green only when its shard is, and deploy.sh skips the Mac's suite only with BOTH.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -16,23 +17,29 @@ test('quality:static + test:all is exactly quality:ci, so the shards run the sam
   assert.equal(ci.filter((s) => s === 'npm run test:all').length, 1, 'quality:ci runs test:all once');
 });
 
-test('the shard matrix: the static part runs quality:static and the database checks, and every test-file shard 1..N of N is listed', () => {
+test('quality.yml runs quality:static and the database checks, and no test:all shard (unit-ci.yml owns the suite)', () => {
   const block = jobBlock('quality-shard');
   const parts = /\n {8}part: \[([^\]]+)\]/.exec(block)?.[1]?.split(',').map((s) => s.trim()) ?? [];
-  assert.equal(parts.length, 4, `a matrix of 4: ${parts.join(' ')}`);
-  assert.ok(parts.includes('static'));
+  assert.deepEqual(parts, ['static']);
+  assert.doesNotMatch(text, /--test-shard|tests\/\*\.test\.ts|npm run test:all/, 'the suite is not run here a second time');
   assert.match(block, /if: matrix\.part == 'static'\n {8}run: npm run quality:static\n/);
   for (const db of ['account', 'awards', 'origins', 'duel-season']) assert.match(block, new RegExp(`if: matrix\\.part == 'static'\\n {8}name: [^\\n]+\\n {8}run: PG_BIN="\\$\\(pg_config --bindir\\)" node scripts/${db}-database-check\\.mjs`), db);
-  const total = Number(/--test-shard="\$\{PART#tests-\}\/(\d+)"/.exec(block)?.[1]);
-  const shards = parts.filter((p) => p.startsWith('tests-')).map((p) => Number(p.slice('tests-'.length))).sort((a, b) => a - b);
-  assert.deepEqual(shards, Array.from({ length: total }, (_, i) => i + 1), `shards 1..${total} each listed once`);
   assert.match(block, /fail-fast: false/, 'one red shard does not cancel the others (every failure shows)');
 });
 
-test('a test shard runs test:all\'s own command with --test-shard, nothing dropped', () => {
-  const [pre, run] = scripts['test:all']!.split(' && ');
+test('unit-ci.yml runs test:all\'s own command over shards 1..8, nothing dropped', () => {
+  const unit = readFileSync('.github/workflows/unit-ci.yml', 'utf8');
+  const [, run] = scripts['test:all']!.split(' && ');
   assert.equal(run, 'node --test tests/*.test.ts');
-  assert.match(jobBlock('quality-shard'), new RegExp(`run: ${pre!.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')} && node --test --test-shard="\\$\\{PART#tests-\\}/\\d+" tests/\\*\\.test\\.ts\\n`));
+  assert.match(unit, /node --test --test-shard=\$\{\{ matrix\.shard \}\}\/8 tests\/\*\.test\.ts/);
+  assert.match(unit, /shard: \[1, 2, 3, 4, 5, 6, 7, 8\]/);
+});
+
+test('deploy.sh skips the Mac\'s suite only when quality AND the unit receipt hold (quality no longer runs test:all)', () => {
+  const d = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(d, /^if \[\[ -n "\$ci_green" && "\$vps_unit" == ok \]\]; then$/m);
+  assert.doesNotMatch(d, /^if \[\[ -n "\$ci_green" \]\]; then$/m);
+  assert.ok(d.indexOf('vps_unit=$(node scripts/ci-unit-trust.mjs') < d.indexOf('if [[ -n "$ci_green" && "$vps_unit" == ok ]]'), 'the unit receipt is read first');
 });
 
 test('`quality` is the one verdict: it needs every shard, runs even when one failed, and is green only on success', () => {

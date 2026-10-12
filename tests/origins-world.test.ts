@@ -6,3 +6,4 @@ import '../origins/world/town-kit.test.ts';
 import '../origins/world/resolve.test.ts';
 import '../origins/world/zone-rules.test.ts';
 import '../origins/world/relief.test.ts';   // Zone 1 quality step 1: the ground's relief (pure, seeded)
+import '../origins/world/town-defs.test.ts';   // the town lot-kind and trade rows (the stub rule: every origins test has a CI entry)
