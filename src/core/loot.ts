@@ -5,7 +5,7 @@
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career-ladder.ts';
 import type { Tier } from './grades.ts';
-import { PLAYER_WEAPONS, type SkillId, type WeaponId } from '../fight/moves.ts';
+import { PLAYER_WEAPONS, DEFAULT_WEAPON, type SkillId, type WeaponId } from '../fight/moves.ts';
 import { ROSTER, isOpponentId, type OpponentId } from '../roster.ts';
 import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey, rungOf } from '../legends.ts';
 
@@ -122,7 +122,7 @@ export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if 
 // `carried`: the weapons this build can draw (scene.ts CARRIED_WEAPONS, those with an equip file).
 export const fightWeapon = (loot: Loot | undefined, carried: readonly WeaponId[] = PLAYER_WEAPONS): WeaponId => {
   const weapon = loot?.equipped.main && weaponOf(loot.equipped.main);
-  return weapon && PLAYER_WEAPONS.includes(weapon) && carried.includes(weapon) ? weapon : 'longsword';
+  return weapon && PLAYER_WEAPONS.includes(weapon) && carried.includes(weapon) ? weapon : DEFAULT_WEAPON;
 };
 export const paperdollOf = (slot: LootSlot): Paperdoll => (Object.keys(PAPERDOLL) as Paperdoll[]).find(key => (PAPERDOLL[key] as readonly LootSlot[]).includes(slot))!;
 // A piece's name for a line of copy: "the Veteran's helmet".
