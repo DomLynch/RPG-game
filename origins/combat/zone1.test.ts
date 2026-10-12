@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/fight/moves.ts';
 import { CAPS } from '../../src/fight/gear-stats.ts';
-import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS } from '../../src/fight/speeds.ts';
+import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS, leashOf } from '../../src/fight/speeds.ts';
 import { AGGRO_M, ENGAGE_M, duelFor, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from '../../src/fight/world.ts';
 
 const DT = 1 / 60, STILL: Input = { x: 0, z: 0 };
@@ -71,7 +71,7 @@ test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the c
   assert.equal(get(w, 'b').health, get(w, 'b').maxHealth, 'healed');
   assert.equal(of(events, 'Hit', 'b').length, 0, 'it never landed a blow');
   assert.ok(Math.hypot(get(w, 'b').x, get(w, 'b').z - 8) < 0.5, 'and is back home');
-  assert.ok(LEASH.wolf < LEASH.default, 'the wolf gives up sooner');
+  assert.ok(leashOf('wolf') < LEASH.default, 'the wolf gives up sooner');
 });
 
 test('#1936 c(a): a pack joins - the nearest fights on his lock-on, the others join on their own duel and hit him too; a fourth holds off at the ring; each engage is one FightStarted; when the foe falls the next takes his lock-on', () => {
