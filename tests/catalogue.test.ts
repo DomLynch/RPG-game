@@ -177,3 +177,13 @@ test('every field definition says whether it is sim (it feeds the record digest)
   for (const f of DEFS.fields) assert.equal(typeof f.sim, 'boolean', `${f.id}: sim: true|false`);
   assert.equal(DEFS.fields.find((f) => f.id === 'weapon')!.sim, true);
 });
+
+test('species switches are row fields: wolf chase/leash, veteran shield level, wraith spectral, shieldmaiden night bronze, crowd slots (no species name left in the readers)', async () => {
+  const { chaseSpeed, leashOf } = await import('../src/fight/speeds.ts'), { shieldFor } = await import('../src/fight/shields.ts');
+  const { nightBronzeApplies } = await import('../src/fight/night-armour.ts'), { CROWD_KINDS } = await import('../src/assets/arena/crowd.ts');
+  assert.equal(chaseSpeed('wolf'), 6); assert.equal(chaseSpeed('bear'), 4.5); assert.equal(leashOf('wolf'), 15); assert.equal(leashOf('bear'), 30);
+  assert.equal(shieldFor('veteran', 1, true), undefined); assert.ok(shieldFor('veteran', 2, true)); assert.ok(shieldFor('shieldmaiden', 1, true));
+  assert.ok(nightBronzeApplies('a', 'shieldmaiden', 9)); assert.ok(!nightBronzeApplies('a', 'shieldmaiden', 8)); assert.ok(!nightBronzeApplies('b', 'shieldmaiden', 9)); assert.ok(!nightBronzeApplies('a', 'knight', 9));
+  assert.deepEqual(CROWD_KINDS, ['human', 'goblin', 'pitborn', 'executioner', 'nightborn']);
+  assert.deepEqual(CATALOGUE.filter((r) => r.fields.spectral).map((r) => r.id), ['wraith']);
+});
