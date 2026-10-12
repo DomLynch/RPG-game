@@ -243,13 +243,20 @@ curl --fail --silent --show-error --output /dev/null https://frankendom.com/prev
 # /etc/frankendom/verifier.env (written by hand on the VPS, never in git); until that file exists the timer is left alone.
 verifier="/opt/frankendom-verifier/$revision"
 deploy_step "verifier"
-ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier/src' '$verifier/scripts'"
-rsync -az --delete --include='*/' --include='*.ts' --exclude='*' -e "$remote_shell" src/ "$host:$verifier/src/"
-rsync -az -e "$remote_shell" scripts/verify-daily.mjs scripts/verify-loot.mjs "$host:$verifier/scripts/"
+# The install is the verifiers' computed import closure (scripts/writer-closure.mjs, shared with the writer), not "src/**/*.ts": CI2 (96a71d70) shipped
+# without src/fight/pool-defs.json, imported `with { type: 'json' }`, and both verifiers died ERR_MODULE_NOT_FOUND. An import that resolves to no file stops here.
+verifier_files=$(node scripts/writer-closure-list.mjs --paths verifier)
+ssh "${ssh_options[@]}" "$host" "mkdir -p '$verifier'"
+printf '%s\n' "$verifier_files" | rsync -az --files-from=- -e "$remote_shell" ./ "$host:$verifier/"
 rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-verify-daily.timer \
   ops/frankendom-verify-loot.service ops/frankendom-verify-loot.timer "$host:$verifier/"
 ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
+# Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
+# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
+(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+  || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
+echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
 ln -sfn "$1" /opt/frankendom-verifier/current
 if test -s /etc/frankendom/verifier.env; then
   test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }
