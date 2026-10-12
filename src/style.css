@@ -2616,7 +2616,10 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
   #journal .cmp-rows { margin-top: 2px; }
   #journal .cmp-rows dt, #journal .cmp-rows dd { line-height: 1.15; }   /* WebKit's text metrics ran 13 px taller than Chromium's at 844x340 (release CT row 54): about 26 px of room now */
 }
-@media (orientation: landscape) and (max-height: 360px) { #journal .cmp-sub { display: none; } }   /* 844x340 only: WebKit's text metrics leave the compare 6 px under the action bar after the tightening above, and the rank sub-line is 14 px; every taller landscape keeps it */
+@media (orientation: landscape) and (max-height: 360px) {   /* 844x340: the rank rides the card's banner (NEW / EQUIPPED sit right, the rank takes the empty left), so it costs no height even when WebKit wraps a long title */
+  #journal .fit-compare > div { position: relative; }
+  #journal .cmp-sub { position: absolute; top: 3px; left: 8px; color: #fff; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .18em; text-transform: uppercase; }
+}
 #journal .cmp-delta[data-sign='up'] { color: #6fcf6f; }
 #journal .cmp-delta[data-sign='down'] { color: #e0584f; }
 @media (min-width: 600px), (orientation: landscape) { #stance-panel { max-width: 244px !important; } #stance-panel button { font-size: 11px !important; padding: 4px 2px !important; } }   /* Safari: "Aggressive" was 68 px in a 63 px button */
