@@ -2560,3 +2560,13 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .career-name-input { min-height: 44px; max-width: 14em; padding: 0 12px; border: 1px solid var(--jg); border-radius: 8px; background: transparent; color: var(--jf); font: inherit; }
 .career-record { margin: 6px 0 0; font-size: 14px; }
 .career-links { display: flex; gap: 8px; margin: 8px 0 0; }
+
+/* Paper-doll reference (Web, 2026-10-12; Dom's inventory reference 2026-10-11): a worn slot is a framed card tinted by the rung the piece was taken at (--tier 1..10 from the ledger, one
+   hue per rung, so no name list), the selected slot gets the reference's red frame, and the numbers sit under the doll (gear-stats.ts: a row per stat, drawn only when it has a value). */
+#journal .doll .slot.on { background: linear-gradient(#0000, #0006), hsl(calc(var(--tier, 1) * 33 + 195) 40% 24%); border-color: hsl(calc(var(--tier, 1) * 33 + 195) 45% 52%); box-shadow: inset 0 0 0 1px #ffffff14; }
+#journal .doll .slot.sel { border-color: #e0584f; box-shadow: 0 0 0 2px #e0584f99; }
+.gear-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--jl, #c8a45e66); background: var(--jb, #14110d); }
+.gear-stats[hidden] { display: none; }
+.gear-stats > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.gear-stats dt { margin: 0; color: var(--jm, #a89a7c); font: 600 13px/1.5 "Instrument Sans", Arial, sans-serif; }
+.gear-stats dd { margin: 0; color: var(--jf2, #f3ead6); font: 600 14px/1.5 "Instrument Sans", Arial, sans-serif; font-variant-numeric: tabular-nums; }
