@@ -39,6 +39,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - name: Lossless JPEG build tool
         run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
       - name: Run this shard
