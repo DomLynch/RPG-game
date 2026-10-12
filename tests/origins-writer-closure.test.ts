@@ -33,6 +33,13 @@ test('the parity list is the union of every service entry, so it holds the files
   assert.ok(all.length > writerClosure(disk, existsSync).files.length, 'the union must be larger than the writer entry alone');
 });
 
+test('the installer copies every writer-closure file that lives outside src/ and origins/ (CH: loader.ts imported scripts/lib/json-dup-keys.mjs, the installer did not copy it, the writer crash-looped)', () => {
+  const installer = readFileSync('ops/install-origins-writer.sh', 'utf8');
+  const outside = writerClosure(disk, existsSync).files.filter((f) => !f.startsWith('src/') && !f.startsWith('origins/'));
+  assert.ok(outside.includes('scripts/origins-writer.mjs') && outside.includes('scripts/lib/json-dup-keys.mjs'), `the walk should reach both: ${outside.join(', ')}`);
+  for (const f of outside) assert.ok(installer.includes(f), `${f} is in the writer's runtime closure but ops/install-origins-writer.sh never copies it`);
+});
+
 test('the walk goes red on the AA mistake (mobs.ts taking the page door) and ignores type-only imports', () => {
   const real = (f: string): string => disk(f);
   const bad = (f: string): string => f === 'origins/preview/mobs.ts' ? real(f).replace('src/core/server.ts', 'src/core/index.ts') : real(f);
