@@ -75,7 +75,8 @@ test('a live slot holder sends the job on; a dead holder is reclaimed', () => {
 
 test('a running deploy.sh sends the job on', () => {
   const b = box();
-  const holder = spawn('bash', ['-c', `sleep 30 # ${b.deployRe}`], { stdio: 'ignore' });   // a process whose command line names deploy.sh
+  const holder = spawn('bash', ['-c', 'sleep 30; :', b.deployRe], { stdio: 'ignore' });   // bash stays alive and its command line carries the tag
+  spawnSync('sleep', ['0.3']);
   try {
     const r = b.run(['touch', b.ran]);
     assert.equal(r.status, 75);
