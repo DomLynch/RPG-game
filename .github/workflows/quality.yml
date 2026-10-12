@@ -184,6 +184,8 @@ jobs:
           - { name: counter-heavy, script: scripts/counter-browser-check.mjs, required: false, only: heavy_riposte }
           # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional until it has a sample on this runner; builds the origins preview itself.
           - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
+          # The same gate with no fight before [zone ready] (SEAMLESS_QUIET), a forced first hit (SEAMLESS_STRIKE) and the program rule on any renderer (SEAMLESS_PROGRAMS): the first-contact particle programs must be warmed by the zone, not by luck of timing (#2289/#2299). Fails on trunk before the planUpload Points warm-up.
+          - { name: seamless-quiet, script: scripts/origins-seamless-check.mjs, required: false, seamless: '1' }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}
@@ -208,6 +210,9 @@ jobs:
         run: node ${{ matrix.gate.script }}
         env:
           COUNTER_ONLY: ${{ matrix.gate.only }}
+          SEAMLESS_QUIET: ${{ matrix.gate.seamless }}
+          SEAMLESS_STRIKE: ${{ matrix.gate.seamless }}
+          SEAMLESS_PROGRAMS: ${{ matrix.gate.seamless }}
         timeout-minutes: 30
       - if: always()
         continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
