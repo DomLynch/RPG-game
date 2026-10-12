@@ -47,6 +47,18 @@ test('parseSpec reads PR@sha and refuses anything else; passAt wants the Auditor
   assert.equal(passAt(['Auditor: HOLD @23b4f51e0'], '23b4f51e0'), false);
 });
 
+test('passAt takes the four full reviewers (Auditor, Lead, Combat A, Deploy B; Strategy 2026-10-12) at the exact head, 9-char prefix, trailing text allowed', () => {
+  const head = '23b4f51e0'.padEnd(40, 'a');
+  for (const who of ['Auditor', 'Lead', 'Combat A', 'Deploy B']) {
+    assert.ok(passAt([`${who}: PASS @23b4f51e0`], head), `${who} at the head`);
+    assert.ok(passAt([`**${who}: PASS @23b4f51e0** (notes)`], head), `${who} bold, trailing text`);
+    assert.ok(!passAt([`${who}: PASS @11111111a`], head), `${who} at another head is not a PASS`);
+  }
+  assert.ok(passAt(['Deploy B: PASS @23b4f51e0 (VPS receipt; as-data batch candidate CI is the gate)'], head), 'the #2406 Deploy B verdict');
+  for (const no of ['Combat B: PASS @23b4f51e0', 'Deploy A: PASS @23b4f51e0', 'Strategy: PASS @23b4f51e0', 'Combat: PASS @23b4f51e0', 'waiting for Combat A: PASS @23b4f51e0'])
+    assert.ok(!passAt([no], head), `${no} is not a PASS`);
+});
+
 test('the cut labels every candidate ci:release-checks, and release-checks.yml runs release-* candidates (drafts included) 20 wide', () => {
   assert.ok(LABELS.includes('ci:release-checks') && LABELS.includes('auditor:ready'));
   const wf = readFileSync('.github/workflows/release-checks.yml', 'utf8');
