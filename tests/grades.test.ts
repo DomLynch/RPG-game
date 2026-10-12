@@ -6,7 +6,7 @@ import { TITLES } from '../src/core/career-ladder.ts';
 import { ROSTER } from '../src/roster.ts';
 import { Color, MeshStandardMaterial } from 'three';
 import { tinted } from '../src/fight/rank-tint.ts';
-import { CLASS_OF, GRADES, TIERS, WEAPON_METAL, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/core/grades.ts';
+import { GRADES, TIERS, WEAPON_METAL, classOf, gradeFor, houseFor, levelOf, materialOf } from '../src/core/grades.ts';
 
 const draws = (() => {
   const bytes = readFileSync(new URL('../src/assets/loot.glb', import.meta.url)), length = bytes.readUInt32LE(12);
@@ -17,7 +17,7 @@ const draws = (() => {
 test('grades: every material the shipped kit uses is classified — a new piece cannot land ungraded', () => {
   const materials = [...new Set(draws.map(materialOf))];
   assert.ok(materials.length >= 10, `loot.glb carries a palette: ${materials.length}`);
-  for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (src/core/grades.ts CLASS_OF)`);
+  for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (drawMaterials in src/core/contracts/definitions.json)`);
 });
 
 test('grades: the ladder IS the career ladder — one word for a rank and its kit', () => {
@@ -54,7 +54,7 @@ test('grades: a grade repaints metal and leather, never bone, authored artwork o
   assert.deepEqual(gradeFor('Origin', 'Antique brass'), GRADES.Origin.trim);
   for (const material of ['Bone', 'BoneWorn', 'Ruby']) assert.equal(gradeFor('Origin', material), null, `${material} is the same at every grade (the Origin tier's ruby trim is a factor; the material 'Ruby' is the Nightborn's authored crown)`);
   for (const material of ['Gambeson_veteran', 'Heraldry', 'Wrap']) assert.equal(gradeFor('Origin', material), null, `${material} is the house dye's, not the grade's`);
-  assert.equal(CLASS_OF.Bone, null, 'bone is exempt by decision, not by omission');
+  assert.equal(classOf('Bone'), null, 'bone is exempt by decision, not by omission');
 });
 
 test('grades: the house dye reaches cloth and only cloth', () => {
@@ -68,7 +68,7 @@ test('grades: the material is read off a draw name, per-opponent tunics included
   assert.equal(classOf('Gambeson_nightborn'), 'cloth');
 });
 
-test('grades: a TRELLIS-cut family grades by its material kind with no CLASS_OF row, and a null exemption stays exempt', () => {
+test('grades: a TRELLIS-cut family grades by its material kind with no drawMaterials row, and a null exemption stays exempt', () => {
   assert.equal(classOf('PlaguedoctorIron'), 'metal'); assert.equal(classOf('PlaguedoctorCloth'), 'cloth'); assert.equal(classOf('WitchLeather'), 'leather');
   assert.equal(classOf('Bone'), null); assert.equal(classOf('DwarfIron'), 'metal'); assert.equal(classOf('Nonsense'), undefined);
 });
@@ -133,4 +133,18 @@ test('grades: a weapon-metal blade never grades below iron, armour metal keeps e
     for (const [tier, row] of Object.entries(before)) assert.deepEqual(gradeFor(tier as typeof TIERS[number], material), row, `${tier} ${material} armour is untouched`);
   assert.deepEqual(gradeFor('Recruit', 'GladiusBronze'), GRADES.Recruit.trim, 'the guard stays trim');
   assert.equal(gradeFor('Recruit', 'WeaponTridentShaft'), null, 'wood stays wood');
+});
+
+test('the draw-material class table is ROWS: every old CLASS_OF entry classes the same (null = exempt), Gambeson_<x> and <Family>Iron/Cloth/Leather still resolve, and a new draw material is one row', async () => {
+  const OLD: Record<string, string | null> = {"Steel": "metal", "Bronze": "metal", "DwarfIron": "metal", "Blade": "metal", "Antique brass": "trim", "Leather": "leather", "Waxed leather": "leather", "Heraldry": "cloth", "Gambeson": "cloth", "Wrap": "cloth", "Felt": "cloth", "Bone": null, "BoneWorn": null, "Ruby": null, "Skin": null, "Hair": null, "Eyes": null, "Wood": null, "WeaponLongsword": "metal", "WeaponLongswordShaft": "trim", "WeaponCleaver": "metal", "WeaponCleaverShaft": "trim", "WeaponKnife": "metal", "WeaponKnifeShaft": "trim", "WeaponEstoc": "metal", "WeaponEstocShaft": "trim", "WeaponTrident": "metal", "WeaponTridentShaft": null, "GladiusSteel": "metal", "GladiusBronze": "trim", "GladiusBoneGrip": null, "MaulIronBands": "metal", "Haft": null, "Ash": null, "MaulAshHaft": null, "StaffWood": null, "WitchStone": "stone", "WeatheredStone": "stone"};
+  for (const [name, cls] of Object.entries(OLD)) assert.equal(classOf(name), cls, name);
+  assert.equal(classOf('Gambeson_veteran'), 'cloth'); assert.equal(classOf('Steel_veteran'), undefined, 'only a variants row takes _suffixes');
+  assert.equal(classOf('constructor'), undefined, 'prototype names are not rows');
+  const { DEFINITIONS } = await import('../src/core/contracts/definitions.ts');
+  const rows = DEFINITIONS.drawMaterials as Record<string, object>;
+  rows.Mithril = { order: 99, class: 'metal' };
+  try { assert.equal(classOf('Mithril'), 'metal', 'a new metal is one row'); } finally { delete rows.Mithril; }
+  assert.equal(classOf('Mithril'), undefined);
+  for (const [name, row] of Object.entries(DEFINITIONS.drawMaterials)) assert.ok(!!row.exempt !== !!row.class && (row.exempt || ['metal', 'trim', 'leather', 'cloth', 'stone'].includes(row.class!)), `material ${name}: exempt xor a known class`);
+  for (const [name, row] of Object.entries(DEFINITIONS.drawSuffixes)) assert.ok(['metal', 'trim', 'leather', 'cloth', 'stone'].includes(row.class), `suffix ${name}: a known class`);
 });
