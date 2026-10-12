@@ -1,4 +1,4 @@
-// Specials as data: the Pitborn's rank 8-10 specials are rows of src/fight/special-defs.json over the module's template verbs. The drawn effect is
+// Specials as data: the Pitborn's and the Dwarf's / Shieldmaiden's rank 8-10 specials are rows of src/fight/special-defs.json over the module's template verbs. The drawn effect is
 // byte-identical to the code it replaced, a special is one row, and the loader refuses a broken row at load.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { PITBORN_KINDS, PITBORN_TEMPLATES, createPitbornSpecial, isPitbornSpecial } from '../src/fight/special-fx-pitborn.ts';
 import { loadSpecialDefs, specialFamily, type SpecialRow } from '../src/fight/special-rows.ts';
+import { DWARF_SHIELD_KINDS, NIGHT_CAP_OF, STRIDE, fillBoss, isDwarfShieldCast, makeField, makeGeo, setGeo } from '../src/fight/special-fx-dwarf-shield.ts';
 import { LAND_AT } from '../src/fight/special-timing.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { isOpponentId } from '../src/roster.ts';
@@ -85,4 +86,50 @@ test('the loader refuses a duplicate id, a missing field, a template the module 
   assert.throws(() => load([...ok, { id: 'a', family: 'pitborn', template: 'quake', opponent: 'pitborn', cast: { actor: 1 }, params: {} }]), /template "quake" is not a pitborn verb/);
   assert.throws(() => load([...ok, { id: 'a', family: 'pitborn', template: 'gale', opponent: 'pitborn', cast: { actor: 1 }, params: { streaks: 3 } }]), /params.sand is required by the gale template/);
   assert.throws(() => createPitbornSpecial(new THREE.Scene(), 'pitborn', 'nothing', DAY), /unknown pitborn special "nothing"/);
+});
+
+// ---- The Dwarf's and the Shieldmaiden's ranks 8-10 (special-fx-dwarf-shield.ts): the theWord / threeBlows / rimShake / baredFace / theRing / aegisSweep templates.
+// fillBoss is pure, so the proof is its output: the dust and grit buffers over the whole cast (rel -130..100 in half ticks), two geometries, day and night, two fades,
+// computed on trunk 411fbdf31 BEFORE the rows existed. createBossFx only writes that field to sprites, and its cast test is pinned below.
+const fillHash = (kind: string | SpecialRow): string => {
+  const h = createHash('sha256'), f = makeField();
+  const geos = [[new THREE.Vector3(0, 1.6, -0.6), new THREE.Vector3(0, 1.6, 1.4)], [new THREE.Vector3(1, 1.5, 0), new THREE.Vector3(-1.5, 1.7, 0.5)]].map(([c, t]) => { const g = makeGeo(); setGeo(g, c!, t!); return g; });
+  for (const g of geos) for (const night of [false, true]) for (const fade of [1, 0.4]) for (let rel = -130; rel <= 100; rel += 0.5) {
+    fillBoss(kind, f, rel, g, fade, night); h.update(Buffer.from(f.dust.buffer)); h.update(Buffer.from(f.grit.buffer));
+  }
+  return h.digest('hex');
+};
+const FILL_BEFORE: Record<string, string> = {
+  dwarf8: 'c5d3872e4fb38f04c7d4062e4cef4671c2c9af1b43c4654e4ed79c7f4d0c9772', dwarf9: '6dffaf38c710ba2fbcfc5ee6e6634fa582de7460ea43e3cb5d5b9cb634859044',
+  dwarf10: '1234e5406de394a974a44fcbacbcfc249e6e006acf7f89b794549e410bd68721', shield8: '99a5f31384a75bc964df96534680dce38351edac86500750378d8337aff2f032',
+  shield9: '36d465f81785c241b0aacd8f9f42da930e05b63358ad9705b70f650e5643b580', shield10: 'c05d41f0cc280269ed12fa55bf1cfa40f2b3bc81a1ffdd051f35c6c6d2d49d8c',
+};
+const loadDS = (rows: unknown[]) => specialFamily(loadSpecialDefs({ specials: rows }, manifest), 'dwarf-shield', DS_TEMPLATES);
+const DS_TEMPLATES = Object.fromEntries(['theWord', 'threeBlows', 'rimShake', 'baredFace', 'theRing', 'aegisSweep'].map((t) => [t, ['size', 'alpha', 'cap']]));
+
+test('the Dwarf/Shieldmaiden specials drawn from their rows are byte-identical to the code they replaced (fillBoss output, day and night; the cast each page draws)', () => {
+  assert.deepEqual([...DWARF_SHIELD_KINDS], Object.keys(FILL_BEFORE));
+  for (const kind of DWARF_SHIELD_KINDS) assert.equal(fillHash(kind), FILL_BEFORE[kind], kind);
+  // the cast test, as trunk had it: the kind's opponent, the opponent's side, any move
+  for (const kind of DWARF_SHIELD_KINDS) for (const o of ['dwarf', 'shieldmaiden', 'veteran'] as const) for (const actor of [0, 1])
+    assert.equal(isDwarfShieldCast(kind)(o, actor), o === (kind.startsWith('dwarf') ? 'dwarf' : 'shieldmaiden') && actor === 1, `${kind} ${o} ${actor}`);
+  assert.deepEqual(NIGHT_CAP_OF, { dwarf10: 0.7 });
+});
+
+test('a seventh Dwarf/Shieldmaiden special is ONE row naming an existing template, through the real loader, with no code edit', () => {
+  const row = { id: 'shield11', family: 'dwarf-shield', template: 'theRing', opponent: 'shieldmaiden', cast: { actor: 1 }, params: { size: 1.6, alpha: 1.2, cap: 0.3 } };
+  const rows = loadDS([...raw.specials, row]), mine = rows.find((r) => r.id === 'shield11')!;
+  assert.equal(rows.length, 7);
+  const f = makeField(), g = makeGeo(); setGeo(g, new THREE.Vector3(0, 1.6, -0.6), new THREE.Vector3(0, 1.6, 1.4));
+  let top = 0; for (let rel = -LAND_AT; rel <= 80; rel++) { fillBoss(mine, f, rel, g); for (let o = 6; o < f.dust.length; o += STRIDE) top = Math.max(top, f.dust[o]!); }
+  assert.ok(top > 0.1 && top <= 0.3 + 1e-6, `drawn, under its own cap (${top}; the field is float32)`);
+  assert.notEqual(fillHash(mine), FILL_BEFORE.shield9, 'its own gain, not The Ring\'s');
+  assert.equal(isDwarfShieldCast(mine)('shieldmaiden', 1), true);
+});
+
+test('the Dwarf/Shieldmaiden rows refuse a template the module does not draw and a missing gain', () => {
+  assert.doesNotThrow(() => loadDS(raw.specials));
+  assert.throws(() => loadDS([...raw.specials, { id: 'a', family: 'dwarf-shield', template: 'avalanche', opponent: 'dwarf', cast: { actor: 1 }, params: { size: 1, alpha: 1, cap: 0.5 } }]), /template "avalanche" is not a dwarf-shield verb/);
+  assert.throws(() => loadDS([...raw.specials, { id: 'a', family: 'dwarf-shield', template: 'theWord', opponent: 'dwarf', cast: { actor: 1 }, params: { size: 1, alpha: 1 } }]), /params.cap is required by the theWord template/);
+  assert.throws(() => fillBoss('nothing', makeField(), 0, makeGeo()), /unknown dwarf-shield special "nothing"/);
 });
