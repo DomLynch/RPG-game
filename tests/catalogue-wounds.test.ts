@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bodytypeProblems, catalogueProblems, type Bodytype, type CatalogueRow } from '../src/fight/catalogue.ts';
-import { CATALOGUE, catalogueRow } from '../src/fight/catalogue-rows.ts';
+import { CATALOGUE, DEFS, catalogueRow } from '../src/fight/catalogue-rows.ts';
 import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LOOT_IDS } from '../src/core/loot.ts';
@@ -16,7 +16,7 @@ import { glbStats } from '../scripts/lib/glb-stats.mjs';
 const known = {
   roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
-  weapons: new Set(Object.keys(WEAPONS)), stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)),
+  refs: { weapons: new Set(Object.keys(WEAPONS)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)),
   bodytypes: BODYTYPES, species: SPECIES,
 };
 const beasts = ['wolf', 'boar', 'bear'];
