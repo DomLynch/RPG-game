@@ -182,6 +182,8 @@ export const forgeCosts = () => ({
   rows: [
     { level: 1, rarity: 'common', coin: 100, materials: [] },
     { level: 2, rarity: 'common', coin: 250, materials: [{ item: 'item:grave-iron', quantity: 5 }] },
+    { level: 1, rarity: 'fine', coin: 150, materials: [] },
+    { level: 1, rarity: 'rare', coin: 220, materials: [] },
     { level: 1, rarity: 'relic', coin: 300, materials: [] },
   ],
 });

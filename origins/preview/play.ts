@@ -3,6 +3,7 @@
 // The quest journal and the talk are the page session's; no item, coin or bronze is kept on the page.
 import { heroBodyUrl } from '../../src/fight/index.ts';
 import type { Result } from '../contracts/core.ts';
+import { categoryOf } from '../contracts/definitions.ts';
 import { PC, smith } from '../contracts/fixtures.ts';
 import type { CharacterInstanceId, EncounterId, ItemId, QuestId } from '../contracts/ids.ts';
 import { parseQuestDefinition, type QuestDefinition } from '../contracts/story.ts';
@@ -128,7 +129,7 @@ export const play = {
   },
   upgrade(id: string) {
     const p = pieceOf(id); if (!p) return;
-    const mats = (view?.stock ?? []).filter((r) => r.category === 'material' && r.where === 'pack').map((r) => r.id);
+    const mats = (view?.stock ?? []).filter((r) => categoryOf(r.category).craftInput && r.where === 'pack').map((r) => r.id);
     void ask((t, c) => upgradePiece(t, c, p, mats, { base: link?.base }), (r) => `Upgraded to +${r.toLevel} for ${r.coin} coin.`).then(() => refresh()).then(() => link?.changed());
   },
   render(kind: Kind): string {

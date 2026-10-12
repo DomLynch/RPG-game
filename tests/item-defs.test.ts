@@ -59,3 +59,64 @@ console.log(JSON.stringify({ item: item('mythic', 'mithril'), unknownRarity: ite
     assert.deepEqual(JSON.parse(out.stdout.trim().split('\n').pop()!), { item: true, unknownRarity: false, unknownMaterial: false, loot: true, unknownLoot: false, service: true, unknownService: false, gap: false, rarities: 5, materials: 11 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+// ---- part 2: powers, categories, story tags, provenance kinds (Strategy's four overturns) --------------------------------------------------------------------------------------------------------------
+
+import { DEFINITIONS, categoryOf, powerOf, provenanceOf, storyOf } from '../origins/contracts/definitions.ts';
+import { rarityPriceGaps, tradeCooldown } from '../origins/contracts/economy.ts';
+import { PROVENANCE_KINDS, parseItemDefinition, parseItemInstance, POWERS } from '../origins/contracts/items.ts';
+import * as F from '../origins/contracts/fixtures.ts';
+
+test('powers, categories, story tags and provenance kinds are the rows, with the flags the old name branches had', () => {
+  assert.deepEqual(POWERS, ['slot-weight', 'none']); assert.deepEqual([...CATEGORIES], ['gear', 'material', 'quest', 'cosmetic']); assert.deepEqual([...STORY], ['none', 'notable', 'story-critical']);
+  assert.deepEqual([...PROVENANCE_KINDS], ['arena-award', 'legacy-unlock', 'loot', 'quest-reward', 'creator-mint', 'shop', 'cash-shop']);
+  assert.deepEqual([powerOf('slot-weight'), powerOf('none')], [{ tiered: true, upgradeable: true, gearOnly: true }, {}]);
+  assert.deepEqual(['gear', 'material', 'quest', 'cosmetic'].map((c) => [categoryOf(c).path, categoryOf(c).slot, !!categoryOf(c).single, !!categoryOf(c).craftInput]), [['gear', 'required', true, false], ['stock', 'none', false, true], ['stock', 'none', false, false], ['stock', 'allowed', true, false]]);
+  assert.deepEqual(['none', 'notable', 'story-critical'].map((s) => !!storyOf(s).blocksTrade), [false, false, true]);
+  assert.deepEqual(['cash-shop', 'shop', 'loot'].map((k) => [provenanceOf(k).tradeable, provenanceOf(k).blockReason ?? null]), [[false, 'cash-shop'], [true, 'shop-not-gear'], [true, null]]);
+  assert.deepEqual(provenanceOf('creator-mint').onlyCategories, ['cosmetic']);
+  assert.ok(DEFINITIONS.powers['slot-weight'] && DEFINITIONS.provenanceKinds['loot'], "'slot-weight' (loot-catalogue) and 'loot' (the encounter mint) are pinned rows: code assigns them");
+});
+
+test('the trade rules read the rows: story-critical and cash-shop never trade, a shop-minted non-gear never trades, everything else cools down', () => {
+  const def = (extra: object) => { const r = parseItemDefinition({ ...F.helmetDef(), ...extra }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
+  const inst = (prov: object) => { const r = parseItemInstance({ ...F.helmetInstance(), provenance: prov }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
+  const NOW = Date.parse('2030-01-01T00:00:00Z');
+  const reason = (d: ReturnType<typeof def>, i: ReturnType<typeof inst>) => tradeCooldown(i, d, NOW).reason;
+  assert.equal(reason(def({}), inst({ kind: 'cash-shop', mintKey: 'cash:1', at: '2026-01-01T00:00:00Z', account: F.ACCOUNT ?? 'account:11111111-1111-4111-8111-111111111111', sku: 'skin' })), 'cash-shop');
+});
+
+test('a new provenance row with no shape case parses through the base shape (kind, mintKey, at): ONE ROW in a copy of the tree, no code; an unknown kind and an extra field still reject', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'item-defs2-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true });
+    for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, 'origins/contracts/definitions.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    rows.provenanceKinds['event-reward'] = { tradeable: false, blockReason: 'provenance' };
+    rows.rarities.mythic = { order: 4 }; rows.powers.aura = { tiered: false }; rows.categories.relicware = { path: 'stock', slot: 'none' }; rows.story.heirloom = { blocksTrade: true };
+    writeFileSync(file, JSON.stringify(rows));
+    writeFileSync(join(dir, 'probe.ts'), `import * as F from './origins/contracts/fixtures.ts';
+import { parseItemDefinition, parseItemInstance } from './origins/contracts/items.ts';
+import { tradeCooldown } from './origins/contracts/economy.ts';
+const inst = (prov: object) => parseItemInstance({ ...F.helmetInstance(), provenance: prov });
+const ok = inst({ kind: 'event-reward', mintKey: 'event:1', at: '2026-01-01T00:00:00Z' });
+const extra = inst({ kind: 'event-reward', mintKey: 'event:1', at: '2026-01-01T00:00:00Z', winner: 'x' });
+const unknown = inst({ kind: 'mystery', mintKey: 'event:1', at: '2026-01-01T00:00:00Z' });
+const def = parseItemDefinition({ ...F.helmetDef() });
+const reason = ok.ok && def.ok ? tradeCooldown(ok.value, def.value, Date.parse('2030-01-01T00:00:00Z')).reason : null;
+const newDef = parseItemDefinition({ ...F.helmetDef(), power: 'aura' }).ok, newCat = parseItemDefinition({ ...F.graveIronDef(), category: 'relicware' }).ok, newStory = parseItemDefinition({ ...F.graveIronDef(), story: 'heirloom' }).ok;
+console.log(JSON.stringify({ ok: ok.ok, extra: extra.ok, unknown: unknown.ok, reason, newDef, newCat, newStory }));`);
+    const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(out.status, 0, out.stderr);
+    const got = JSON.parse(out.stdout.trim().split('\n').pop()!);
+    assert.deepEqual({ ok: got.ok, extra: got.extra, unknown: got.unknown, reason: got.reason }, { ok: true, extra: false, unknown: false, reason: 'provenance' });
+    assert.equal(got.newStory, true); assert.equal(got.newCat, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a rarity row either has price rows or says sellable:false: a rarity silently missing prices is reported', () => {
+  assert.deepEqual(rarityPriceGaps(F.forgeCosts() as never), [], 'the fixture price list covers every rarity');
+  const rows = (F.forgeCosts() as { rows: { rarity: string }[] }).rows;
+  assert.deepEqual(rarityPriceGaps({ rows: rows.filter((r) => r.rarity !== 'fine') } as never), ['fine']);
+  assert.deepEqual(rarityPriceGaps({ rows: [] } as never), ['common', 'fine', 'rare', 'relic']);
+});
