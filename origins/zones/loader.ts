@@ -1,7 +1,7 @@
 // The zone loader (zone-runtime step 1, docs/specs/zone-runtime.md): the ONE place that reads a zone's data package (origins/zones/<id>/) and checks it before anything uses it. Callers get a validated Zone
 // and never import origins/zones/** themselves (loader.test.ts fails if they do). Pure: no three.js, no DOM, so the server may read the same rows. A zone is a data row (origins/zone-rows/zone<N>.row.json)
 // and nothing else: registry.ts is generated from the rows (scripts/gen-zones.mjs) and from-row.ts turns each into a Zone.
-import type { MobRow } from '../mobs/row.ts';
+import type { MobRow } from '../../src/core/server.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/fight/server.ts';

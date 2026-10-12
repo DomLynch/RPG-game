@@ -7,6 +7,12 @@
 4. No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
 (Also in lane memory: `batch-rules`.)
 
+## 2026-10-11 (+04) — Zone 1 data parity (Characters VPS). Facts from gh/tool output this session.
+- LIVE/in flight: #2228 (3a: createGearStage, frontierKit zoneId) Auditor PASS @ebe3fd5a6; #2230 (4: zone1.row.json `place`) Auditor PASS @6561aaa56. Neither merged by me; deploy session merges. #2230 needs a writer reinstall (content.ts, world.ts, zone1.row.json are in the writer closure).
+- 3b (kit placements into the row) is DROPPED by Lead: the kit already reads kinds/landmarks/density from the row, placements are seeded.
+- Next: first `frontierKit(..., undefined, '2')` test when a zoneId caller lands (Auditor LOW on #2228); a test pinning a zone's difficulty (Auditor LOW on #2230, M6 survives); #2065 after the boundary count hits 0; five Zone 2 creature rows; `castTries` max/list LOW; tests/catalogue.test.ts known.tables when World's zone tables leave content.ts.
+- Gotcha: Zone 1's landmarks are still named in content.ts (encounters, towns), so tests/zone-place.test.ts checks place names from Zone 2 on (`zonePlaces().slice(1)`).
+
 ## Row 44 and open items (2026-10-10 close)
 - Row 44 flake (Y, Z, AA) was a fixture race: the single-shot manual-cast tap landed after the foe's first hit on slow boxes and was dropped. Fixed by #2127 (merged, e77a86fa5): castTap retries only after a foe Hit, simWait follows sim ticks (4x ceiling), failures name the step. Auditor LOW owed: castTries should record the max or a list.
 - Owed: #2065 (char/zone2-stills-baseline @f824fa9fd) after the boundary count hits 0; five Zone 2 catalogue rows (Sun 10-11, after World confirms the shape); `tests/catalogue.test.ts` known.tables when World's tables leave region1 content.ts.

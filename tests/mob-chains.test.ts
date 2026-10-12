@@ -4,8 +4,8 @@ import { decide, initialAi } from '../src/fight/ai.ts';
 import { stepDuel, type Duel } from '../src/fight/duel.ts';
 import { CHAIN_CAP, initialKit, kitIntent, validateChains, type ChainRow } from '../src/fight/mobkit.ts';
 import { OPPONENTS, profileAt } from '../src/fight/moves.ts';
-import { CHAINS, KITS } from '../origins/mobs/kits.ts';
-import { MOB_STYLE, MOB_STYLES, type MobStyle } from '../origins/mobs/styles.ts';
+import { CHAINS, KITS } from '../src/core/world/kits.ts';
+import { MOB_STYLE, MOB_STYLES, type MobStyle } from '../src/core/world/styles.ts';
 import { hashDuel } from '../src/net/rollback.ts';
 import { arena, idle } from './strategies.ts';
 

@@ -21,15 +21,17 @@ const specsOf = (file: string, text: string): Spec[] => [...text.matchAll(IMPORT
   return { spec, typeOnly: /^\s*type\b/.test(m[1] ?? '') && !m[0].includes('import('), target: spec.startsWith('.') ? posix.normalize(posix.join(posix.dirname(file.replaceAll('\\', '/')), spec.replace(/[?#].*$/, ''))) : spec };
 });
 
-const NODE_SIM = ['origins/preview/mobs.ts'];   // world-sim files that live under preview/ but run in the writer's node closure (origins-writer-closure.test.ts walks them): they take the server door, like every other sim file. Shrink-only, with C7.
-const PAGE = (f: string): boolean => f === 'src/main.ts' || (f.startsWith('origins/preview/') && !NODE_SIM.includes(f));
+import { SERVER_ENTRIES, writerClosure } from '../scripts/writer-closure.mjs';
+// Page-folder files the box's node services load at runtime (origins/preview/mobs.ts, frontier-plan.ts, via world-spawns): they cannot take the renderer-bearing page door, so C1 gives them the server door.
+const NODE_RUN_PAGES: ReadonlySet<string> = new Set(SERVER_ENTRIES.flatMap((e) => writerClosure((f: string) => readFileSync(f, 'utf8'), existsSync, e).files).filter((f: string) => f.startsWith('origins/preview/')));
+const PAGE = (f: string): boolean => f === 'src/main.ts' || f.startsWith('origins/preview/');
 const SERVER = (f: string): boolean => (f.startsWith('origins/') && !PAGE(f)) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));   // every other origins/ dir (server, contracts, encounters, inventory, region1, mobs, zones, ...) and the node scripts
 const inCore = (t: string): boolean => /^src\/core\//.test(t);
 
 export function c1(read: (f: string) => string, list: readonly string[]): string[] {
   const bad: string[] = [];
   for (const f of list) {
-    const door = PAGE(f) ? 'src/core/index.ts' : SERVER(f) ? 'src/core/server.ts' : null;
+    const door = NODE_RUN_PAGES.has(f) ? 'src/core/server.ts' : PAGE(f) ? 'src/core/index.ts' : SERVER(f) ? 'src/core/server.ts' : null;
     if (!door) continue;
     for (const s of specsOf(f, read(f))) if (inCore(s.target) && s.target !== door) bad.push(`${f} -> ${s.target} (take ${door})`);
   }
@@ -102,10 +104,10 @@ export function c5(read: (f: string) => string, list: readonly string[]): string
 // a sim file at a new location, or a longer list, is flagged.
 export const WORLD_SIM_KNOWN: readonly string[] = [
   'origins/encounters/encounters.ts',
-  'origins/mobs/info.ts', 'origins/mobs/kit-version.ts', 'origins/mobs/kits.ts', 'origins/mobs/populate.ts', 'origins/mobs/row.ts', 'origins/mobs/styles.ts', 'origins/mobs/wildlife-rows.ts',
+  'origins/mobs/populate.ts',
   'origins/preview/encounter-net.ts', 'origins/preview/mob-dress.ts', 'origins/preview/mob-looks.ts', 'origins/preview/mobs-view.ts', 'origins/preview/mobs.ts', 'origins/preview/spawn-net.ts',
 ];
-export const WORLD_SIM_CAP = 14;
+export const WORLD_SIM_CAP = 8;
 const isWorldSim = (f: string): boolean => /^origins\/(mobs|encounters)\//.test(f) || /^origins\/preview\/(mobs|mobs-view|spawn-net|encounter-net|mob-[a-z0-9-]+)\.ts$/.test(f);
 export function c7(list: readonly string[], known: readonly string[] = WORLD_SIM_KNOWN, cap = WORLD_SIM_CAP): string[] {
   const bad: string[] = [];
@@ -126,10 +128,12 @@ test('C1: modes reach the core only through src/core/index.ts, server code only 
 test('C1 mutation: a deep core import from the Pit, the zone page or a server module is flagged; the door is not', () => {
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/profile.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/preview/save.ts', "import { call } from '../../src/core/writer-call.ts';"), FILES).length, 1);
-  assert.equal(c1(withFile('origins/mobs/info.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
+  assert.equal(c1(withFile('origins/mobs/populate.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
   assert.equal(c1(withFile('src/main.ts', "import { x } from './core/server.ts';"), FILES).length, 1, 'a page may not take the server door');
+  assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/index.ts';"), FILES).length, 1, 'a page file the box loads must take the server door (the AA crash)');
+  assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/server.ts';"), FILES).length, 0);
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/index.ts';"), FILES).length, 0);
 });
 
@@ -212,7 +216,30 @@ test('C7 mutation: a new sim file, a longer list and a stale entry are flagged; 
   assert.equal(c7(FILES.filter((f) => f !== 'origins/mobs/populate.ts'), WORLD_SIM_KNOWN.filter((f) => f !== 'origins/mobs/populate.ts')).length, 0, 'shrinking the list with the file is the allowed move');
 });
 
+// C8: the two server consumers of the world sim (placement and the kill's loot) take the sim from the core door; what they still reach into origins directly is a SHRINK-ONLY list
+// (encounters and the frontier plan need the contracts/inventory/luck/region1 modules in the core first). A new internal import is flagged.
+export const SIM_CONSUMERS = ['origins/server/world-spawns.ts', 'origins/server/mob-rewards.ts'];
+export const SIM_INTERNALS_KNOWN: readonly string[] = [
+  'origins/server/world-spawns.ts -> origins/encounters/encounters.ts', 'origins/server/world-spawns.ts -> origins/preview/mobs.ts', 'origins/server/world-spawns.ts -> origins/preview/frontier-plan.ts',
+  'origins/server/mob-rewards.ts -> origins/encounters/encounters.ts',
+];
+export function c8(read: (f: string) => string, consumers: readonly string[] = SIM_CONSUMERS, known: readonly string[] = SIM_INTERNALS_KNOWN): string[] {
+  const seen = consumers.flatMap((f) => specsOf(f, read(f)).filter((s) => /^origins\/(mobs|encounters|preview)\//.test(s.target)).map((s) => `${f} -> ${s.target}`));
+  return [...seen.filter((x) => !known.includes(x)).map((x) => `${x}: a new sim internal import; take it from src/core/server.ts`), ...known.filter((x) => !seen.includes(x)).map((x) => `${x}: listed but gone; remove it from SIM_INTERNALS_KNOWN`)];
+}
+test('C8: world-spawns and mob-rewards reach the sim through the core door; the remaining internal imports only shrink', () => {
+  assert.deepEqual(c8(disk), []);
+});
+test('C8 mutation: a new internal sim import and a stale entry are flagged; the core door is not', () => {
+  const add = (extra: string) => (f: string): string => f === 'origins/server/mob-rewards.ts' ? `${disk(f)}\n${extra}` : disk(f);
+  assert.equal(c8(add("import { x } from '../mobs/populate.ts';")).length, 1);
+  assert.equal(c8(add("import { x } from '../../src/core/server.ts';")).length, 0);
+  assert.equal(c8(disk, SIM_CONSUMERS, [...SIM_INTERNALS_KNOWN, 'origins/server/mob-rewards.ts -> origins/preview/mobs.ts']).length, 1);
+});
+
 test('every moved module lives in src/core and nothing is left behind at the old paths', () => {
+  const world = ['row', 'styles', 'kits', 'kit-version', 'info', 'wildlife-rows'];
+  assert.deepEqual(world.filter((n) => !existsSync(`src/core/world/${n}.ts`) || existsSync(`origins/mobs/${n}.ts`)), [], 'the mob data lives in src/core/world, not origins/mobs');
   const moved = ['career-ladder', 'career-model', 'gear-ledger', 'gear-net', 'gear-server', 'gear-sheet', 'gear-room', 'loot', 'loot-claims', 'loot-panel', 'open'];
   const top = ['writer-call', 'account', 'account-entry', 'session', 'profile', 'cloud-profile', 'grades'];
   const src = new Set(readdirSync('src')), fight = new Set(readdirSync('src/fight')), core = new Set(readdirSync('src/core'));
