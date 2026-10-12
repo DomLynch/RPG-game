@@ -37,6 +37,20 @@ test('the registry manifest holds for the real definitions, and the loader names
   assert.match(text, /shop missing-field: ring is required/); assert.match(text, /house wrong-type: ring must be integer/);
 });
 
+// Kept LOCAL until the shared loader enforces a `unique` manifest field (asked on #2272): two rows of one table must not claim the same `order` (the slot a trade takes in a shop ring, a lot kind in the build sequence).
+const duplicateOrders = (defs: Record<string, Record<string, { order?: number }>>): string[] => ['trades', 'lotKinds'].flatMap((table) => {
+  const seen = new Map<number, string>(), out: string[] = [];
+  for (const [id, row] of Object.entries(defs[table] ?? {})) if (row.order !== undefined) { if (seen.has(row.order)) out.push(`${table}: order ${row.order} is on both ${seen.get(row.order)} and ${id}`); seen.set(row.order, id); }
+  return out;
+});
+
+test('no two trades and no two lot kinds share an order (a local check until the loader has `unique`)', () => {
+  assert.deepEqual(duplicateOrders(towns.definitions as never), []);
+  const bad = structuredClone(towns.definitions) as Record<string, Record<string, { order?: number }>>;
+  bad.trades!.inn!.order = bad.trades!.smith!.order; bad.lotKinds!.house!.order = bad.lotKinds!.shop!.order;
+  assert.deepEqual(duplicateOrders(bad), ['trades: order 0 is on both smith and inn', 'lotKinds: order 3 is on both shop and house']);
+});
+
 test('no lot kind or trade name is compared in the generator or the kit mapping', () => {
   for (const f of ['town.ts', 'town-kit.ts']) { const code = readFileSync(new URL(`./${f}`, import.meta.url), 'utf8').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n'); assert.doesNotMatch(code, /\b(?:kind|trade)\s*[!=]==?\s*'/, `${f} compares a kind or trade name`); assert.doesNotMatch(code, /type LotKind = '/, `${f}: LotKind is a string, not a union`); }
 });
