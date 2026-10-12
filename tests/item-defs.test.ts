@@ -9,7 +9,7 @@ import test from 'node:test';
 import { buildTables, checkTables } from '../src/core/server.ts';
 import defs from '../origins/contracts/definitions.json' with { type: 'json' };
 import manifest from '../origins/contracts/definitions.manifest.json' with { type: 'json' };
-import { BINDINGS, CATEGORIES, DISTRIBUTIONS, HISTORY_KINDS, LOCATION_KINDS, MATERIALS, POWERS, PRESENTATIONS, PROVENANCE_KINDS, RARITIES, ROLL_MODES, STORY } from '../origins/contracts/items.ts';
+import { BINDINGS, CATEGORIES, DISTRIBUTIONS, HISTORY_KINDS, LOCATION_KINDS, MATERIALS, POWERS, PRESENTATIONS, PROVENANCE_KINDS, RARITIES, ROLL_MODES, STORY, parseItemDefinition, parseItemInstance } from '../origins/contracts/items.ts';
 import { SERVICE_ACCEPTS, SERVICE_KINDS } from '../origins/contracts/economy.ts';
 
 const problems = (d: unknown) => checkTables(buildTables(manifest.tables.map((m) => ({ manifest: m as never, parsed: d, file: 'definitions.json' })))).problems.map((p) => `${p.id} ${p.rule}: ${p.message}`);
@@ -64,7 +64,6 @@ console.log(JSON.stringify({ item: item('mythic', 'mithril'), unknownRarity: ite
 
 import { DEFINITIONS, categoryOf, powerOf, provenanceOf, storyOf } from '../origins/contracts/definitions.ts';
 import { rarityPriceGaps, tradeCooldown } from '../origins/contracts/economy.ts';
-import { PROVENANCE_KINDS, parseItemDefinition, parseItemInstance, POWERS } from '../origins/contracts/items.ts';
 import * as F from '../origins/contracts/fixtures.ts';
 
 test('powers, categories, story tags and provenance kinds are the rows, with the flags the old name branches had', () => {
