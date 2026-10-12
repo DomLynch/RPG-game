@@ -52,7 +52,7 @@ try {
     if (safe && ENGINE === 'chromium') { const cdp = await context.newCDPSession(page); try { await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { left: safe.l, right: safe.r, top: safe.t, bottom: safe.b } }); } catch (error) { v.safeAreaUnsupported = String(error).slice(0, 120); } }
     page.on('pageerror', (e) => receipt.errors.push(`${name}: ${String(e).slice(0, 200)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
     const snap = async (state, scope) => { if (!process.env.PIT_STILLS || new RegExp(process.env.PIT_STILLS).test(state)) await page.screenshot({ path: `${out}/${name}-${state}.png` });   // PIT_STILLS=<regex of states>: the T4's artifact copy keeps ~24 files, so a still run names the few it needs
-    const m = await measure(page, scope); v.states[state] = { count: m.list.length, bad: judge(m, w, h, safe), list: m.list }; };
+    const m = await measure(page, scope); v.states[state] = { count: m.list.length, bad: judge(m, w, h, ENGINE === 'chromium' ? safe : undefined), list: m.list }; };
     await page.goto(`${origin}/`);
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
     await snap('welcome');
@@ -62,7 +62,7 @@ try {
     await page.locator('#journal-button').click(); await page.waitForTimeout(1200);
     for (const tab of ['profile', 'fighter', 'career', 'settings']) {
       await page.locator(tab === 'profile' ? '#journal #nav-gear' : `#journal .tab-${tab}`).click(); await page.waitForTimeout(600); await snap(`journal-${tab}`, '#journal');
-      if (tab === 'profile') {   // the paper-doll: six worn slots tinted by rung, the strip's rows drawn
+      if (tab === 'profile' && await page.$('#gear-stats')) {   // the paper-doll: six worn slots tinted by rung, the strip's rows drawn
         const doll = await page.evaluate(() => ({ tints: [...document.querySelectorAll('#journal .doll .slot.on:not([data-loot=""])')].map((e) => e.style.getPropertyValue('--tier')), rows: [...document.querySelectorAll('#gear-stats > div')].map((d) => d.getAttribute('data-stat')) }));
         v.paperDoll = doll;
         if (doll.tints.length !== 6 || new Set(doll.tints).size !== 6) v.states[`journal-${tab}`].bad.push(`paper-doll: ${doll.tints.length} tinted slots (${doll.tints}), want six distinct rungs`);
