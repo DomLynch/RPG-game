@@ -112,13 +112,15 @@ function publisher() {
   mkdirSync(bin); mkdirSync(state); mkdirSync(join(repo, 'scripts'), { recursive: true });
   for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
-  sh('gh', `echo "gh $*" >> "${log}"; case "$1 $2" in "pr list") [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]' ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
+  sh('gh', `echo "gh $*" >> "${log}"; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
+case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
   sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
   sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
+  sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
   writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)' }], statusCheckRollup: OK }]));
-  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
+  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
   return { dir, state, run, calls, cand, reset: () => writeFileSync(log, '') };
 }
@@ -222,6 +224,24 @@ test('publisher (Lead on #2336): the gate is re-checked on the FULL rollup: gh p
     const moved = { ...listed[0], headRefOid: 'e'.repeat(40), statusCheckRollup: OK };
     writeFileSync(join(p.dir, 'view.json'), JSON.stringify(moved));
     assert.match(p.run({ VIEW: join(p.dir, 'view.json') }).stdout, /head moved to eeeeeeeee/);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher: starts the Mac-only rows at the cut for the OLDEST open candidate without a receipt (Strategy + Lead 2026-10-12)', async () => {
+  const p = publisher();
+  try {
+    const listed = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8'));
+    const newer = { ...listed[0], number: 2401, headRefName: 'release-T2', headRefOid: 'd'.repeat(40), createdAt: '2026-10-12T18:00:00Z', labels: [] };
+    writeFileSync(join(p.dir, 'prs.json'), JSON.stringify([newer, listed[0]]));
+    writeFileSync(join(p.state, 'deploy_hold'), '');   // held: no publish this tick, but the early rows still start
+    let r = p.run();
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    await new Promise((done) => setTimeout(done, 300));
+    assert.match(p.calls(), new RegExp(`mac-rows ${'c'.repeat(40)}`), 'the oldest candidate (it publishes first)');
+    mkdirSync(join(p.state, 'pre-launch'), { recursive: true });
+    writeFileSync(join(p.state, 'pre-launch', `${'c'.repeat(40)}.macrows.json`), '{}');
+    p.reset(); r = p.run();
+    assert.match(r.stdout, /mac rows \(early\) for ddddddddd: started/, 'next: the newer one, once the oldest has a receipt');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 

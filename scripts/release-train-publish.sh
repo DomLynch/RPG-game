@@ -24,6 +24,16 @@ trunk="${TRUNK_BRANCH:-codex/01a09a76/task-1}"
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) release-train: $*"; }
 mkdir -p "$state"
 [ -e "$stopped" ] && { log "stopped ($(head -n 1 "$stopped")); remove $stopped and $hold to restart"; exit 0; }
+# The Mac-only rows start at the CUT (Strategy + Lead 2026-10-12): the oldest open candidate without a receipt gets scripts/mac-rows-early.sh in the
+# background (one run at a time, its own checkout, under deploy.sh's Mac-rows lock); deploy.sh trusts the rows that passed for that tree.
+early_dir="${PRELAUNCH_DIR:-$state/pre-launch}"
+early=$(gh pr list --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
+  --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[].headRefOid' 2>/dev/null \
+  | while read -r c; do [ -e "$early_dir/$c.macrows.json" ] || { echo "$c"; break; }; done)
+if [ -n "$early" ] && [ -d "$repo" ]; then
+  ( cd "$repo" && PRELAUNCH_DIR="$early_dir" nohup ${RELEASE_TRAIN_MAC_ROWS:-bash scripts/mac-rows-early.sh} "$early" >> "$state/mac-rows-early.log" 2>&1 & )
+  log "mac rows (early) for ${early:0:9}: started or already running (log $state/mac-rows-early.log)"
+fi
 deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-flight marker and one file per run), hand-run or ours
   local f p
   for f in "${DEPLOY_LOCK:-$state/deploy_in_flight.json}" "${DEPLOY_RUNS_DIR:-$state/deploy_runs}"/*.json; do
