@@ -5,5 +5,10 @@
     "rain":   {"order": 3, "falls": true, "streaks": true, "radius": 11, "phoneCount": 500},
     "dust":   {"order": 4, "low": true},
     "drips":  {"order": 5, "falls": true}
+  },
+  "bloodModes": {
+    "red":  {"order": 1},
+    "dark": {"order": 2, "dark": true},
+    "off":  {"order": 3, "hidden": true}
   }
 }

@@ -17,3 +17,10 @@ test('every theme names a weather row, and an unknown kind is an error, not a si
   for (const theme of Object.values(ARENA_THEMES)) if (theme.weather) assert.ok(weatherRow(theme.weather.kind), `${theme.id}: weather ${theme.weather.kind}`);
   assert.throws(() => weatherRow('hail'), /unknown weather "hail"/);
 });
+
+test('the blood settings are rows: red plain, dark = dark flag, off = hidden flag; an unknown mode is an error; the helpers read the flags', async () => {
+  const { BLOOD_MODES, bloodDark, bloodHidden } = await import('../src/fight/blood-mode.ts');
+  assert.deepEqual(Object.keys(BLOOD_MODES), ['red', 'dark', 'off']);
+  assert.deepEqual(['red', 'dark', 'off'].map((m) => [bloodDark(m), bloodHidden(m)]), [[false, false], [true, false], [false, true]]);
+  assert.throws(() => bloodHidden('crimson'), /unknown blood mode "crimson"/);
+});

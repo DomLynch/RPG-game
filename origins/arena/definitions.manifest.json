@@ -1,5 +1,6 @@
 {
   "tables": [
-    {"table": "weather", "file": "definitions.json", "at": "weather", "keyed": true, "key": "id", "required": {"order": "integer"}}
+    {"table": "weather", "file": "definitions.json", "at": "weather", "keyed": true, "key": "id", "required": {"order": "integer"}},
+    {"table": "bloodMode", "file": "definitions.json", "at": "bloodModes", "keyed": true, "key": "id", "required": {"order": "integer"}}
   ]
 }
