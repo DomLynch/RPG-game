@@ -356,6 +356,12 @@
     [
       "bash",
       "scripts/origins-writer-boot-check.sh"
+    ],
+    [
+      "node",
+      "scripts/pit-landscape-webkit.mjs",
+      "--engine",
+      "webkit"
     ]
   ],
   "release_triggers": [
@@ -506,7 +512,8 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "next-fight-black-check"
+        "next-fight-black-check",
+        "pit-landscape-webkit"
       ]
     },
     {
@@ -617,6 +624,15 @@
       ],
       "rows": [
         "next-fight-black-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/pit-landscape-check.mjs",
+        "scripts/pit-landscape-webkit.mjs"
+      ],
+      "rows": [
+        "pit-landscape-webkit"
       ]
     }
   ],

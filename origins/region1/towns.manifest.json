@@ -1,0 +1,12 @@
+{
+  "tables": [
+    { "table": "trade", "file": "towns.json", "at": "definitions.trades", "keyed": true, "key": "id", "required": {} },
+    { "table": "temperament", "file": "towns.json", "at": "definitions.temperaments", "keyed": true, "key": "id", "required": {} },
+    { "table": "rulerTitle", "file": "towns.json", "at": "definitions.rulerTitles", "keyed": true, "key": "id", "required": {} },
+    {
+      "table": "town", "file": "towns.json", "at": "towns", "key": "id",
+      "required": { "name": "string", "startProsperity": "integer", "ruler.title": "string", "ruler.temperament": "string", "services": "array", "services[].trade": "string", "resources": "array" },
+      "refs": { "ruler.title": "rulerTitle", "ruler.temperament": "temperament", "services[].trade": "trade" }
+    }
+  ]
+}

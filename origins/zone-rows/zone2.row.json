@@ -363,6 +363,49 @@
   },
   "mobLooks": {
     "looks": {
+      "character:cinder-scavenger": {
+        "opponent": "goblin",
+        "tint": 7035464,
+        "scale": 0.9,
+        "dressing": {
+          "soot": 0.7,
+          "burnt": 0.3
+        }
+      },
+      "character:mere-brood": {
+        "opponent": "goblin",
+        "tint": 7244366,
+        "scale": 0.75,
+        "dressing": {
+          "soot": 0,
+          "burnt": 0
+        }
+      },
+      "character:ruin-ghoul": {
+        "opponent": "goblin",
+        "tint": 7829114,
+        "scale": 1.1,
+        "dressing": {
+          "soot": 0.5,
+          "burnt": 0.6
+        }
+      },
+      "character:cinder-bear": {
+        "opponent": "bear",
+        "tint": 7300442,
+        "dressing": {
+          "soot": 0.5,
+          "burnt": 0.1
+        }
+      },
+      "character:ash-boar": {
+        "opponent": "boar",
+        "tint": 8021330,
+        "dressing": {
+          "soot": 0.35,
+          "burnt": 0
+        }
+      },
       "character:ember-wolf": {
         "opponent": "wolf",
         "tint": 9062962,
@@ -374,6 +417,36 @@
       }
     },
     "spread": {
+      "character:cinder-scavenger": {
+        "tints": [
+          6115135,
+          8021584,
+          5196357
+        ],
+        "scale": 0.08,
+        "soot": 0.2,
+        "burnt": 0.2
+      },
+      "character:mere-brood": {
+        "tints": [
+          6258522,
+          8229974,
+          5798499
+        ],
+        "scale": 0.08,
+        "soot": 0,
+        "burnt": 0
+      },
+      "character:ruin-ghoul": {
+        "tints": [
+          6974576,
+          8749178,
+          7367272
+        ],
+        "scale": 0.08,
+        "soot": 0.2,
+        "burnt": 0.2
+      },
       "character:ember-wolf": {
         "tints": [
           8011824,
