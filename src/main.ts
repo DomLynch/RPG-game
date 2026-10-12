@@ -2,6 +2,7 @@ import { createInput } from './fight/index.ts';
 import { gearNumbers } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
+import { isTemplate } from './fight/finisher-look.ts';   // the finisher's template comes from its row (finisher-defs.json), never from its name
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
 import { arenaFor } from './arena-themes.ts';
@@ -1539,7 +1540,7 @@ function frame(now: number) {
                     deathWeapons,
                     deathPick,
                     view.previousFinisher(),
-                    resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick === 'execution' ? null : deathPick, view.previousFinisher()),
+                    resolveFinisher(opponent.id, practice.finish, deathWeapons, isTemplate(deathPick, 'execute') ? null : deathPick, view.previousFinisher()),
                   ),
                 ) ?? 'plainDeath',
               gore: true,
