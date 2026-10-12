@@ -380,6 +380,12 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
     for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(met.point[axis], plain.point[axis], 1e-12), `${axis}: the same point (the two rays start at different distances, so the last bit of the hit may differ)`);
     assert.ok(near(met.normal.dot(plain.normal!.clone().transformDirection(skin.matrixWorld)), 1, 1e-9), 'the same face');
     calls = 0; raycaster.intersectObjects([skin], false); assert.equal(calls, plainCalls, 'outside a pass nothing is cached: a later plain ray skins as before');
+    // A new pass is a new pose: nothing memoised may survive from the last ray (a stale vertex would glue a wound to where the body WAS).
+    bones[0].rotation.set(-.4, .3, -.5); bones[1].position.set(.04, -.02, .03); root.updateMatrixWorld(true);
+    const moved = surfaceHit(root, bones[0], out), fresh = raycaster.intersectObjects([skin], false)[0];
+    assert.ok(moved && fresh, 'both rays met the re-posed skin');
+    assert.ok(Math.abs(moved.point.z - met.point.z) > 1e-3, `the re-pose moved the hit (z ${met.point.z} -> ${moved.point.z})`);
+    for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(moved.point[axis], fresh.point[axis], 1e-12), `${axis}: the second pass sees the new pose, not the first pass's vertices`);
   } finally { proto.applyBoneTransform = original; }
 });
 

@@ -12,7 +12,9 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 async function serve(dir) {
   const srv = http.createServer(async (req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p.endsWith('/')) p += 'index.html';
-    let file = path.join(dir, p), data; try { data = await fs.readFile(file); } catch { file = path.join(dir, 'index.html'); data = await fs.readFile(file); }
+    const root = path.resolve(dir), asked = path.resolve(root, `.${p}`);   // %2e%2e decodes to '..' only after URL parsing: resolve, then refuse anything outside the root
+    if (asked !== root && !asked.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
+    let file = asked, data; try { data = await fs.readFile(file); } catch { file = path.join(root, 'index.html'); data = await fs.readFile(file); }
     const gz = zlib.gzipSync(data, { level: 6 }); res.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream', 'content-encoding': 'gzip', 'content-length': gz.length, 'cache-control': 'no-store' }); res.end(gz);
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
