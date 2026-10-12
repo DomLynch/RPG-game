@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -28,6 +28,37 @@ test('readOrder, checksGreen and the train name', () => {
   assert.equal(checksGreen([]), false, 'no checks at all is not green');
   assert.equal(trainName(new Date('2026-10-12T17:40:05Z'), '38251416111'), 'T1012174005r38251416111', 'seconds + run id: a label event and a cron tick in one minute get two names');
   assert.notEqual(trainName(new Date('2026-10-12T17:40:05Z'), '1'), trainName(new Date('2026-10-12T17:40:05Z'), '2'));
+});
+
+test('checksGreen: a feature head under the new quality.yml needs the browser-rows status SUCCESS; missing or pending is not green; release-* and old heads are exempt (#2359 (d))', () => {
+  const REPORTER = { __typename: 'CheckRun', workflowName: 'quality', name: 'browser-rows (status)', status: 'COMPLETED', conclusion: 'SKIPPED' };
+  const status = (state: string) => ({ __typename: 'StatusContext', context: 'browser-rows', state });
+  const fresh = [...OK, REPORTER];   // the new quality.yml ran on this head: its plan always sets browser-rows on a feature PR
+  assert.equal(checksGreen(fresh, 'lane/x'), false, 'a game-diff feature PR whose browser jobs were skipped and that has no browser-rows status is not green');
+  assert.equal(browserRowsMissing(fresh, 'lane/x'), true);
+  assert.equal(checksGreen([...fresh, status('PENDING')], 'lane/x'), false, 'pending (waiting for auditor:ready) is not green');
+  assert.equal(checksGreen([...fresh, status('FAILURE')], 'lane/x'), false);
+  assert.equal(checksGreen([...fresh, status('SUCCESS')], 'lane/x'), true);
+  assert.equal(checksGreen([...fresh, { ...status('SUCCESS'), context: 'other' }], 'lane/x'), false, 'another context is not browser-rows');
+  assert.equal(checksGreen(fresh, 'release-T1012191800r1'), true, 'a release-* candidate gets no status (it always runs the browser jobs)');
+  assert.equal(checksGreen(OK, 'lane/x'), true, 'a head the old quality.yml ran on (no reporter check) is not held');
+  assert.equal(checksGreen(fresh), false, 'no head ref: the rule applies (fail closed)');
+  assert.equal(pickPublish([{ headRefName: 'release-CV', baseRefName: TRUNK, headRefOid: 'c'.repeat(40), labels: ['candidate:pass'], comments: [`Lead: PASS @${'c'.repeat(9)}`], statusCheckRollup: fresh, createdAt: 'x' }])?.headRefName, 'release-CV', 'the publish gate passes a candidate');
+});
+
+test('checksGreen: per check on the head, the latest attempt that is not SKIPPED decides: a superseded CANCELLED is ignored; a later SKIPPED never hides a red (Lead, #2359)', () => {
+  const run = (wf: string, name: string, conclusion: string, startedAt: string, status = 'COMPLETED') => ({ __typename: 'CheckRun', workflowName: wf, name, status, conclusion, startedAt, completedAt: startedAt });
+  // #2359's live shape at 8700061b6: wording cancelled by the concurrency group, then green; quality green, then three inert (skipped) runs
+  const live = [...OK.filter(c => c.name !== 'quality'), run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T14:40:23Z'), run('pr-wording', 'wording', 'SUCCESS', '2026-10-12T14:44:20Z'),
+    run('quality', 'quality', 'SKIPPED', '2026-10-12T14:40:33Z'), run('quality', 'quality', 'SUCCESS', '2026-10-12T14:48:36Z'), run('quality', 'quality', 'SKIPPED', '2026-10-12T15:18:46Z')];
+  assert.equal(checksGreen(live), true, 'a superseded CANCELLED with a newer SUCCESS of the same check is ignored');
+  assert.equal(checksGreen([...OK, run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T14:40:23Z')]), false, 'a CANCELLED with no newer run stays not green');
+  assert.equal(checksGreen([...OK, run('pr-wording', 'wording', 'SUCCESS', '2026-10-12T14:40:23Z'), run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T14:50:00Z')]), false, 'the latest attempt decides: a later cancel is not green');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), false, 'a later skipped (inert) run never hides a red');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'SUCCESS', '2026-10-12T14:00:00Z'), run('x', 'job', '', '2026-10-12T15:00:00Z', 'IN_PROGRESS')]), false, 'a newer attempt still running is not green');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('x', 'job', 'SUCCESS', '2026-10-12T15:00:00Z')]), true, 'a re-run that passed decides');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('y', 'job', 'SUCCESS', '2026-10-12T15:00:00Z')]), false, 'another workflow\'s check of the same name does not supersede');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'SKIPPED', '2026-10-12T14:00:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), true, 'all skipped is green');
 });
 
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
