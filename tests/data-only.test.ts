@@ -131,3 +131,8 @@ test('bosses.json and its manifest are on the path list and classify as data', (
   }
   assert.equal(onDataPath('src/fight/boss-rows.ts'), false, 'the reader is code');
 });
+
+test('the burn reason rows are data; the inventory code that reads them is not', () => {
+  for (const f of ['origins/inventory/burn-reasons.json', 'origins/inventory/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['origins/inventory/inventory.ts', 'origins/inventory/burn-reasons.test.ts', 'origins/inventory/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
+});
