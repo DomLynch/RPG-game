@@ -154,7 +154,7 @@ fi
 deploy_step "release checks"
 # One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
 deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
-trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree
