@@ -1,0 +1,8 @@
+{
+  "about": "Patron perk STAT rows (data, Backend 2026-10-12): the quantities a perk template can move, one row per stat, keyed by id. benefit: which way is good for the holder (1 = more is good, -1 = less is good); text: the word the Exchange's book prints for it. A row here lets a template NAME the stat and the reader accept it; it does not by itself make any fight read it: resolvePerk returns the per-mille delta for every stat row, but only a combat reader that takes that field changes a fight. Today no code outside patrons.ts reads these fields.",
+  "stats": [
+    { "id": "damageDealtPermille", "benefit": 1, "text": "damage" },
+    { "id": "damageTakenPermille", "benefit": -1, "text": "damage taken" },
+    { "id": "staminaCostPermille", "benefit": -1, "text": "stamina cost" }
+  ]
+}

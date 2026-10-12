@@ -23,15 +23,25 @@ import { fail, Issues, join, ok, readEnum, readInt, readObject, readString, type
 import { gateAccess, type CareerStanding } from '../../src/core/server.ts';
 import type { PatronRow } from './csv.ts';
 import { PATRON_ROWS } from './patrons.data.ts';
+import STAT_DEFS from './stat-defs.json' with { type: 'json' };
+import STAT_MANIFEST from './stat-defs.manifest.json' with { type: 'json' };
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // 1. Perk templates.
 
 export const PERK_BUDGET_PERMILLE = 30;   // ±3% (Dom's override 1, living-world §10)
-export const STATS = ['damageDealtPermille', 'damageTakenPermille', 'staminaCostPermille'] as const;
-export type Stat = (typeof STATS)[number];
-// Which way is good for the holder: more damage dealt, less damage taken, cheaper stamina.
-const BENEFIT: Readonly<Record<Stat, 1 | -1>> = { damageDealtPermille: 1, damageTakenPermille: -1, staminaCostPermille: -1 };
+// The stats are ROWS (stat-defs.json through the shared loader): ids are strings checked against the rows, never a union. benefit = which way is good for the holder
+// (more damage dealt, less damage taken, cheaper stamina); text = the word the book prints. A new row is accepted by the reader; a fight changes only when a combat reader takes that field.
+export type StatRow = { readonly id: string; readonly benefit: 1 | -1; readonly text: string };
+export function loadStatDefs(raw: { stats?: readonly unknown[] }): readonly StatRow[] {
+  loadRegistry([tableFromFile(STAT_MANIFEST.tables[0] as Manifest, raw, 'stat-defs.json')]);
+  return (raw.stats ?? []) as readonly StatRow[];
+}
+const STAT_ROWS = loadStatDefs(STAT_DEFS);
+export const STATS: readonly string[] = STAT_ROWS.map((r) => r.id);
+export type Stat = string;
+const BENEFIT: Readonly<Record<string, 1 | -1>> = Object.fromEntries(STAT_ROWS.map((r) => [r.id, r.benefit]));
 
 // Conditions (§10.7). Each has exactly one complement of equal measure that exists in every fight, Pit included; `always` pairs only with
 // itself. Equal level and exactly-half health are in neither half of their pair, so a template there is 0 on both sides.
@@ -52,7 +62,7 @@ export type Side = { when: When; stat: Stat; value: number };
 export type PerkTemplate = { kind: 'perk-template'; schemaVersion: 1; id: string; gain: Side; cost: Side };
 const TEMPLATE_ID = /^[a-z][a-z0-9-]{1,31}$/;
 
-const benefit = (s: Side): number => s.value * BENEFIT[s.stat];
+const benefit = (s: Side): number => s.value * (BENEFIT[s.stat] ?? 0);
 
 function readSide(issues: Issues, raw: unknown, path: string): Side | undefined {
   const obj = readObject(issues, raw, path, ['when', 'stat', 'value']);
@@ -114,7 +124,7 @@ const WHEN_TEXT: Readonly<Record<When, string>> = {
   'foe-level:lower': 'against a lower-level foe', 'foe-health:below-half': 'against a foe under half health', 'foe-health:above-half': 'against a foe above half health',
   'self-health:below-half': 'while you are under half health', 'self-health:above-half': 'while you are above half health', always: '',
 };
-const STAT_TEXT: Readonly<Record<Stat, string>> = { damageDealtPermille: 'damage', damageTakenPermille: 'damage taken', staminaCostPermille: 'stamina cost' };
+const STAT_TEXT: Readonly<Record<string, string>> = Object.fromEntries(STAT_ROWS.map((r) => [r.id, r.text]));
 const sideText = (s: Side): string => `${s.value > 0 ? '+' : '−'}${Math.abs(s.value) / 10}% ${STAT_TEXT[s.stat]}${WHEN_TEXT[s.when] ? ` ${WHEN_TEXT[s.when]}` : ''}`;
 export const templateText = (t: PerkTemplate): string => `${sideText(t.gain)} · ${sideText(t.cost)}`;
 
@@ -300,8 +310,9 @@ export type FightContext = {
   selfLevel: number; foeLevel: number;
   selfHealthPermille: number; foeHealthPermille: number;   // 0..1000 of max health
 };
-export type OriginsModifiers = { scope: 'origins'; template: string | null } & Record<Stat, number>;
-export const NO_MODIFIERS: OriginsModifiers = { scope: 'origins', template: null, damageDealtPermille: 0, damageTakenPermille: 0, staminaCostPermille: 0 };
+export type OriginsModifiers = { scope: 'origins'; template: string | null; [stat: string]: number | string | null };   // one number per stat row, read through deltaOf
+export const deltaOf = (m: OriginsModifiers, stat: string): number => m[stat] as number;
+export const NO_MODIFIERS: OriginsModifiers = { scope: 'origins', template: null, ...Object.fromEntries(STATS.map((id) => [id, 0])) };
 export const FIGHT_HALF_TICKS = 20 * 60;   // "a fight's first 20 s"
 
 export function holds(when: When, f: FightContext): boolean {
@@ -326,7 +337,7 @@ export function resolvePerk(allegiance: Allegiance | null, f: FightContext): Ori
   const t = f.venue === 'origins-pve' ? templateOf(allegiance) : null;
   if (!t) return NO_MODIFIERS;
   const out: OriginsModifiers = { ...NO_MODIFIERS, template: t.id };
-  for (const s of [t.gain, t.cost]) if (holds(s.when, f)) out[s.stat] += s.value;
+  for (const s of [t.gain, t.cost]) if (holds(s.when, f)) out[s.stat] = deltaOf(out, s.stat) + s.value;
   return out;
 }
 
