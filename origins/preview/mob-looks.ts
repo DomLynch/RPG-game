@@ -12,48 +12,23 @@ import { loadZone, type Zone } from '../zones/loader.ts';
 const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
 export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
+/** A look as a table or a zone row writes it: `scale` is optional, and an omitted scale means the body's own (its catalogue row's render.scale), resolved in mobLook(). A literal scale wins. */
+export type MobLookRow = Omit<MobLook, 'scale'> & { scale?: number };
 
-export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
-  // The matriarch: the Witch grown huge, mere-green and drowned, long wet rags.
-  'character:mere-mother': { opponent: 'witch', tint: 0x4f6b5a, scale: 1.35, dressing: { soot: .15, burnt: .1 } },
-  // The giant of the Cinder Fields: the Knight scaled up, stone and ash grey, the maul he already carries.
-  'character:hrungnir': { opponent: 'knight', tint: 0x8a867f, scale: 1.5, dressing: { soot: .6, burnt: .2 } },
-  // The river hag: lean (smaller than the matriarch), green-grey and wet, the trident for a reed-spear.
-  'character:peg-powler': { opponent: 'witch', tint: 0x6f8577, scale: .95, gear: 'trident', dressing: { soot: .05, burnt: 0 } },
-  // The Blood Court's bonded brawler: Blood Court red rags, scorched, the cleaver.
-  'character:court-thrall': { opponent: 'pitborn', tint: 0x8c2f2f, scale: 1, dressing: { soot: .35, burnt: .5 } },
-  // Small, quick, iron bits: the Goblin in ash brown, its own knife.
-  'character:cinder-scavenger': { opponent: 'goblin', tint: 0x6b5a48, scale: .9, dressing: { soot: .7, burnt: .3 } },
-  // The Zone 1 goblin camp (Lead 2026-10-09, for Dom's loot/inventory test): the engine goblin as he fights, level-1 armour and all, on the generated world body (public/world/goblin.glb, 8k tris, scripts/character/world_body.py from src/assets/goblin.glb): no tint, no soot, native height.
-  'character:pit-goblin': { opponent: 'goblin', tint: 0xffffff, scale: 1, dressing: { soot: 0, burnt: 0 } },
-  // The mere's spawn: smaller still, reed green, no soot (it is wet, not burnt).
-  'character:mere-brood': { opponent: 'goblin', tint: 0x6e8a4e, scale: .75, dressing: { soot: 0, burnt: 0 } },
-  // Starved servant of the ruin: tall for a goblin, grey and ragged.
-  'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
-  // The Ash Wolf (preview only, ?wolf): the wolf rig's own body, ash grey and sooted, at twice its size (Dom, 2026-10-07 23:08: "very small").
-  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: bodyScale('wolf'), dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (its catalogue row's render.scale)
-  // The Cinder Bear: the bear rig's own body, soot-dark brown, at the duel's scale (its catalogue row's render.scale: walking == fighting).
-  'character:cinder-bear': { opponent: 'bear', tint: 0x6f655a, scale: bodyScale('bear'), dressing: { soot: .5, burnt: .1 } },
-  // The Ash Boar: the boar rig's own body, earth brown with ash, at the duel's scale (its catalogue row's render.scale): walking == fighting.
-  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, scale: bodyScale('boar'), dressing: { soot: .35, burnt: 0 } },
-  // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
-  'character:lambton-worm': { opponent: 'minotaur', tint: 0x5a4a3a, scale: 1.2, dressing: { soot: .8, burnt: .4 }, later: true },
-  'character:rift-spawn': { opponent: 'goblin', tint: 0x7a5f8c, scale: 1, dressing: { soot: .2, burnt: .1 }, later: true },
-};
+/** The central table is EMPTY: every Frontier look now lives in its zone's row (origins/zone-rows/zone<N>.row.json, `mobLooks`), Zone 1's included. Kept as the fallback `mobLook` reads after a zone's own table. */
+export const MOB_LOOKS: Readonly<Record<string, MobLookRow>> = {};
 
 /** The look for a character id, or null for a figure with no entry (a friendly NPC): the caller draws the roster body as it is. */
-export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => zone.mobLooks?.looks[id] ?? MOB_LOOKS[id] ?? null;   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
+const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object per row, so the cloth-clone cache and the variant memo see the same look every call
+function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined) return row as MobLook; let r = resolved.get(row); if (!r) { r = { ...row, scale: bodyScale(row.opponent) }; resolved.set(row, r); } return r; }
+export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? resolve(row) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
 // swap the tint from a small pool, step the height within +-`scale` of the kind's, and nudge the soot and scorch within +-`soot` / `burnt`. Named foes and
 // friendly figures have no spread. Gear is NOT varied here: `MobLook.gear` has no reader yet, and a weapon change belongs to the roster, not to a look.
 export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number };
-export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {
-  'character:cinder-scavenger': { tints: [0x5d4f3f, 0x7a6650, 0x4f4a45], scale: .08, soot: .2, burnt: .2 },   // ash browns and a charred grey
-  'character:mere-brood': { tints: [0x5f7f5a, 0x7d9456, 0x587a63], scale: .08, soot: 0, burnt: 0 },   // reeds and pond greens; wet, never burnt
-  'character:ruin-ghoul': { tints: [0x6a6c70, 0x85807a, 0x706a68], scale: .08, soot: .2, burnt: .2 },   // grave greys
-};
+export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {};   // empty for the same reason: the spreads are in the zone rows
 export const VARIANTS = 8;
 const memo = new Map<string, MobLook>();
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
