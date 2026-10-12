@@ -35,6 +35,7 @@ test('relay shards: nginx routes every room character to the shard shardOf names
   }
   assert.deepEqual(routed(nginxSnippet(ROWS), ROWS), [...ROOM_CHARS].map((c) => shardOf(c, ROWS.length)));
   assert.ok(ROWS.length >= 2, 'the relay runs as more than one process (the point of item 25)');
+  for (const bad of ['', 'A234567890123456', '-abc', '.0.123']) for (let n = 1; n <= 3; n++) assert.equal(shardOf(bad, n), -1, `${JSON.stringify(bad)} belongs to no shard, so every shard refuses it (fails closed; readToken already rejects such a room)`);
 });
 
 test('relay shards: ops/nginx/frankendom-duel-relay.conf is exactly what ops/duel-relay.json generates (run `node scripts/duel-relay.mjs --nginx`)', () => {
