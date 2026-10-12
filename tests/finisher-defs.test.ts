@@ -13,7 +13,10 @@ import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
 import { BoxGeometry, Group, Mesh, Object3D, PerspectiveCamera, Texture } from 'three';
 import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
 import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
-import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate } from '../src/fight/finisher-look.ts';
+import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate, PLAIN_DEATH } from '../src/fight/finisher-look.ts';
+import { hamstrungPick, poseOf as hamstrungPoseOf, resolveHamstrung } from '../src/fight/hamstrung.ts';
+import { executionPick, poseOf as executionPoseOf, resolveExecution } from '../src/fight/execution.ts';
+import { ROSTER, type OpponentId } from '../src/roster.ts';
 import { ADDITIVE_ROLES, FINISHER_CLIPS } from '../src/fight/characters.ts';
 import { cuesFor } from '../src/fight/sound/cues.ts';
 import { MANIFEST } from '../src/audio/manifest.ts';
@@ -229,4 +232,24 @@ test('the finisher blood driven by the rows is byte-identical to the name-switch
   assert.deepEqual({ sources: hs.digest('hex'), update: hu.digest('hex') }, BLOOD_BEFORE);
   const src = readFileSync(new URL('../src/fight/finisher-blood.ts', import.meta.url), 'utf8');
   assert.deepEqual(src.match(new RegExp(`'(${kinds.join('|')})'`, 'g')) ?? [], [], 'finisher-blood.ts names no finisher');
+});
+
+// ---- hamstrung.ts and execution.ts read the rows (consumer group 6): each is its template's own code (the beats, the victims), and asks the row
+// whether a pick is its template, which pose word its victim plays (body.victim.pose) and which row is the plain death to fall back to. The hash
+// covers both poseOf, both picks (installed or not) and both resolvers over every roster body × victim × move × heading × override × resolved,
+// computed on trunk BEFORE the change.
+const STAGED_BEFORE = '821d5223a2376130b03c6016ad111b4fed073d76f039afcd22678380c4c7a8a0';
+test('the staged templates driven by the rows are byte-identical to the name-switches they replaced; hamstrung.ts and execution.ts name no finisher', () => {
+  const ids = [null, ...Object.keys(FINISHER_POSE)], h = createHash('sha256');
+  for (const id of ids) { if (id) h.update(JSON.stringify([hamstrungPoseOf(id), executionPoseOf(id)])); for (const inst of [true, false]) h.update(JSON.stringify([hamstrungPick(id, inst), executionPick(id, inst)])); }
+  for (const opp of Object.keys(ROSTER) as OpponentId[]) for (const victim of [0, 1]) for (const move of ['heavy_overhead', 'kick', 'thrust']) for (let hd = 0; hd < 5; hd++) for (const override of ids) for (const resolved of ids) {
+    const f = { victim, draw: false, move, location: 'torso', heading: hd / 4 } as unknown as Finish;
+    h.update(JSON.stringify([resolveHamstrung(opp, f, ['longsword', 'longsword'], override, null, resolved), resolveExecution(opp, f, ['longsword', 'longsword'], override, 'splitCrown', resolved)]));
+  }
+  assert.equal(h.digest('hex'), STAGED_BEFORE);
+  assert.equal(PLAIN_DEATH, 'plainDeath', 'the plain death is the fall row with no clip');
+  for (const file of ['hamstrung', 'execution']) {
+    const src = readFileSync(new URL(`../src/fight/${file}.ts`, import.meta.url), 'utf8');
+    assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], `${file}.ts names no finisher`);
+  }
 });
