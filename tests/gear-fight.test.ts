@@ -132,12 +132,12 @@ test('gear rows: a set is shape (dials up and down, held to 25) plus quality (25
   assert.deepEqual(Object.values(GEAR.sets).map((t) => [t.id, t.shape]), [['plate', { armour: 25, magicResist: -25 }], ['robes', { magicResist: 25, armour: -25 }], ['leathers', { stamina: 25, armour: -25 }]]);
   assert.deepEqual(['light', 'medium', 'heavy'].map((id) => [GEAR.rows[id]!.preset, GEAR.rows[id]!.set]), [[true, 'leathers'], [true, null], [true, 'plate']]);
   assert.equal(GEAR.owners.veteran, 'plate'); assert.equal(GEAR.owners.witch, 'robes');
-  const quality = (d: Record<string, number>, set: string) => Object.entries(d).reduce((n, [dial, v]) => n + v - (GEAR.sets[set]!.shape[dial] ?? 0), 0);
+  const quality = (d: Record<string, number>, set: string, c = 1) => Object.entries(d).reduce((n, [dial, v]) => n + v - Math.sign(GEAR.sets[set]!.shape[dial] ?? 0) * Math.round(Math.abs(GEAR.sets[set]!.shape[dial] ?? 0) * c), 0);   // what is left of the deltas after the (scaled) shape
   assert.deepEqual(gearDeltas('plate', 1, 0), { armour: 25, magicResist: -25 }, 'a full COMMON set is all shape and no quality');
   assert.equal(quality(gearDeltas('plate', 1, 1), 'plate'), 25, 'a full LEGENDARY set adds the whole 25 of quality');
   assert.deepEqual(gearDeltas('plate', 1, 1), { armour: 35, magicResist: -25, health: 10, poise: 5 }, 'spread over armour 2 : health 2 : poise 1');
-  assert.equal(quality(gearDeltas('plate', 0.5, 0.5), 'plate'), 13); assert.equal(gearDeltas('plate', 0.5, 0.5).magicResist, -13);
-  assert.equal(quality(gearDeltas('robes', 0.3, 0.3), 'robes'), Math.round(25 * 0.3), 'the points are always all spent (largest remainder)');
+  assert.equal(quality(gearDeltas('plate', 0.5, 0.5), 'plate', 0.5), 13); assert.equal(gearDeltas('plate', 0.5, 0.5).magicResist, -13);
+  assert.equal(quality(gearDeltas('robes', 0.3, 0.3), 'robes', 0.3), Math.round(25 * 0.3), 'the points are always all spent (largest remainder)');
   assert.deepEqual(gearDeltas('plate', 0), {});
   assert.deepEqual(sheetOf({ level: 50, placed: { armour: 50 } }, gearDeltas('plate', 1, 1)), { armour: 100, magicResist: 25, health: 60, poise: 55 }, 'a 100-armour build\'s plate pays into health and poise instead');
   assert.throws(() => gearDeltas('chain'), /not a set row/);
