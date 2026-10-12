@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HF_COST, ledgerPath, record, spentOn, t4Refusal, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
+import { HF_COST, SHARED_LEDGER, ledgerPath, ledgerStore, localStore, record, spentOn, sshStore, t4Refusal, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
 import { withSlot } from '../scripts/lib/hf-slots.mjs';
 import { USD_PER_HOUR } from '../scripts/hf-cleanup.mjs';
 
@@ -91,4 +91,36 @@ test('under node --test without HF_COST_LEDGER the ledger is a throwaway file, n
   assert.ok(path.startsWith(tmpdir()) && !path.includes('.claude'), path);
   assert.equal(ledgerPath({ HOME: '/home/x' } as NodeJS.ProcessEnv), '/home/x/.claude/state/hf-cost-ledger.tsv');
   assert.ok(!existsSync('/home/x'));
+});
+
+test('Auditor HOLD on #2329: ONE ledger for the account: VPS root, the VPS lanes user and the Mac share one day total; unreadable refuses a T4', () => {
+  const vps = (HOME: string) => ledgerStore({ HOME } as NodeJS.ProcessEnv, { onVps: true });
+  assert.equal(vps('/root').where, SHARED_LEDGER); assert.equal(vps('/home/lanes').where, SHARED_LEDGER, 'not per HOME');
+  const mac = ledgerStore({ HOME: '/Users/dom' } as NodeJS.ProcessEnv, { onVps: false, ssh: () => ({ where: 'root@vps:' + SHARED_LEDGER, read: () => '', append: () => true }) });
+  assert.equal(mac.where, `root@vps:${SHARED_LEDGER}`, 'the Mac reads and appends the VPS ledger');
+  // two launchers (root's HOME, lanes' HOME) on one shared file: $2.70 + $2.70 crosses the $5 stop for the next T4, whoever launches it
+  const { dir } = box(), shared = join(dir, 'shared.tsv');
+  const root = localStore(shared, { shared: true }), lanes = localStore(shared, { shared: true });
+  for (let i = 0; i < 6; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
+  assert.equal(t4Refusal('t4-medium', { store: lanes, now: NOON }), null, '$2.70: under the stop');
+  assert.equal(spentOn(readFileSync(shared, 'utf8'), NOON).toFixed(2), '2.70');
+  for (let i = 6; i < 12; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
+  assert.match(t4Refusal('t4-medium', { store: root, now: NOON })!, /\$5\.40 spent on HF today/, 'the day total spans both launchers');
+  assert.equal(readFileSync(shared, 'utf8').split('\n').filter(l => l.startsWith('ALARM\t')).length, 1, 'one alarm for the account, not one per launcher');
+  // fail closed: the shared directory not set up, or the VPS unreachable
+  const missing = localStore(join(dir, 'nodir', 'x.tsv'), { shared: true });
+  assert.match(t4Refusal('t4-medium', { store: missing, now: NOON })!, /cannot be read: no new T4 job until it can.*install -d -m 2775 -g lanes \/var\/lib\/frankendom/);
+  assert.equal(t4Refusal('cpu-upgrade', { store: missing, now: NOON }), null, 'CPU continues');
+  const calls: { argv: string[], input?: string }[] = [];
+  const down = sshStore({ host: 'root@h', key: 'k', run: ((_c: string, argv: string[], o: { input?: string }) => { calls.push({ argv, input: o?.input }); return { status: 255, stdout: '' }; }) as never });
+  assert.match(t4Refusal('t4-medium', { store: down, now: NOON })!, /root@h:\/var\/lib\/frankendom\/hf-cost-ledger\.tsv\) cannot be read/);
+  const up = sshStore({ host: 'root@h', key: 'k', run: ((_c: string, argv: string[], o: { input?: string }) => { calls.push({ argv, input: o?.input }); return { status: 0, stdout: '' }; }) as never });
+  record({ id: job(20), flavor: 'cpu-upgrade', timeout: '20m', reason: 'capture' }, { store: up, now: NOON, alarmDir: dir, say: () => {} });
+  const last = calls.at(-1)!;
+  assert.match(last.argv.at(-1)!, /cat >> \/var\/lib\/frankendom\/hf-cost-ledger\.tsv/); assert.match(last.input!, new RegExp(`\\t${job(20)}\\tcpu-upgrade\\t20\\t`));
+  const said: string[] = [];
+  record({ id: job(21), flavor: 'cpu-upgrade', timeout: '20m', reason: 'x' }, { store: down, now: NOON, alarmDir: dir, say: (m: string) => said.push(m) });
+  assert.match(said.join('\n'), /could not append job .* NOT counted/);
+  // capture-mac.sh's direct `hf jobs run` records through the same call
+  assert.match(readFileSync('scripts/capture-mac.sh', 'utf8'), /lib\/hf-ledger\.mjs" record "\$id" cpu-upgrade "\$hf_timeout"/);
 });
