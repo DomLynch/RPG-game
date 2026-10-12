@@ -174,3 +174,10 @@ export const spawnKill = async (db: Db, account: string, token: string, minMs: n
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };
+
+// The live-ops rows (migration 202610120023): events + switches as one jsonb. 'absent' when the migration is not applied: the writer then runs on its defaults (no events, every switch on).
+const HAS_LIVE_OPS = `select to_regprocedure('public.origins_live_ops()') is not null as liveops \\gset\n`;
+export const liveOps = async (db: Db): Promise<Json | 'absent'> => {
+  const out = await gated(db, 'live_ops', HAS_LIVE_OPS, 'liveops', `select public.origins_live_ops()::text;`, {});
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
