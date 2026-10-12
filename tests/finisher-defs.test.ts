@@ -12,7 +12,9 @@ import type { WeaponId } from '../src/fight/moves.ts';
 import { duplicateKeys } from '../scripts/lib/json-dup-keys.mjs';
 import { PerspectiveCamera } from 'three';
 import { createCameraRig, finisherSidePose } from '../src/fight/camera.ts';
-import { anyOfTemplate, isPlainDeath, isShelved, isTemplate } from '../src/fight/finisher-look.ts';
+import { anyOfTemplate, finisherBodyPose, isPlainDeath, isShelved, isTemplate } from '../src/fight/finisher-look.ts';
+import { ADDITIVE_ROLES, FINISHER_CLIPS } from '../src/fight/characters.ts';
+const ROLES = [...FINISHER_CLIPS, ...ADDITIVE_ROLES];
 import { initialState } from '../src/fight/sim.ts';
 
 const text = readFileSync(new URL('../src/fight/finisher-defs.json', import.meta.url), 'utf8');
@@ -57,12 +59,14 @@ test('a ninth finisher is ONE row through the real loader, with no code edit', (
   assert.deepEqual(borrowed.rotation, [...ROTATION, 'gutted'], 'rotation: true joins the pool, in file order');
 });
 
-test('the loader refuses a duplicate id, an unknown template or pose, a missing field, a bad duration and a secondsFrom naming no measured row, at load', () => {
+test('the loader refuses a duplicate id, an unknown template, a bad pose or body, a missing field, a bad duration and a secondsFrom naming no measured row, at load', () => {
   const ok = raw.finishers, load = (rows: unknown[]) => loadFinisherDefs({ finishers: rows }, manifest);
   assert.doesNotThrow(() => load(ok));
   assert.throws(() => load([...ok, { ...ok[0] }]), /duplicate-id/);
   assert.throws(() => load([...ok, { id: 'a', template: 'juggle', rotation: false, pose: null, seconds: 2, camera: CAM }]), /template "juggle" is not an engine verb/);
-  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 'cartwheel', seconds: 2, camera: CAM }]), /pose "cartwheel"/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: 7, seconds: 2, camera: CAM }]), /pose must be a clip word or null/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, body: { victim: { pose: 'opened', role: 'Death_SplitCrown' } } }]), /body pose "opened" is used twice/);
+  assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, seconds: 2, camera: CAM, body: { victim: { pose: 'x' } } }]), /body parts need a pose word and a clip role/);
   assert.throws(() => load([...ok, { id: 'a', rotation: false, pose: null, seconds: 2, camera: CAM }]), /missing-field: template is required/);
   assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: 'yes', pose: null, seconds: 2, camera: CAM }]), /wrong-type: rotation must be boolean/);
   assert.throws(() => load([...ok, { id: 'a', template: 'fall', rotation: false, pose: null, camera: CAM }]), /exactly one of seconds and secondsFrom/);
@@ -131,4 +135,29 @@ test('scene.ts\'s questions about a finisher, answered from its row, match the n
     assert.equal(anyOfTemplate('bisect', supportsOnly(allowed)), supportsOnly(allowed)('opened'), `the bake is prepared for ${JSON.stringify(allowed)}`);
   const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   assert.deepEqual(scene.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], 'scene.ts names no finisher');
+});
+
+// ---- characters.ts reads the rows (consumer group 3). What a rig plays for a finisher pose word is its row's `body` (the clip role, victim or killer)
+// and its template's own code path; the old word compares are pinned here for every word the rigs were ever handed, combat poses included.
+test('characters.ts: every pose word maps to the clip role, side and template the old compares gave it; characters.ts names no finisher pose word', () => {
+  const OLD_ROLE: Record<string, string> = { splitCrown: 'Death_SplitCrown', decapitation: 'Death_SplitCrown', opened: 'Death_SplitCrown', runThrough: 'Death_RunThrough', runThroughHold: 'Fin_RunThrough',
+    hamstrung: 'Death_Hamstrung', hamstrungStrike: 'Fin_Hamstrung', execution: 'Death_Execution', executionStrike: 'Fin_Execution' };
+  const OLD_DEAD = ['splitCrown', 'decapitation', 'runThrough', 'opened', 'hamstrung', 'execution'], OLD_HELD = ['runThroughHold', 'hamstrungStrike', 'executionStrike'];
+  const words = [...Object.keys(OLD_ROLE), 'sheathed', 'draw', 'ready', 'attack', 'hit', 'death', 'roll', 'guard', 'kick', 'block', 'parry', 'deflected', 'quietOne'];
+  for (const w of words) {
+    const fin = finisherBodyPose(w), t = fin?.row.template;
+    assert.equal(fin?.role, OLD_ROLE[w], `${w}: the clip role`);
+    assert.equal(fin?.side === 'victim', OLD_DEAD.includes(w), `${w}: a dead pose`);
+    assert.equal(fin?.side === 'killer', OLD_HELD.includes(w), `${w}: held at full weight`);
+    assert.equal(t === 'bisect', w === 'opened', `${w}: the waist-cut group, its own fade and snap`);
+    assert.equal(t === 'hamstring' || t === 'execute', ['hamstrung', 'hamstrungStrike', 'execution', 'executionStrike'].includes(w), `${w}: clips adopted on demand, weights snap from 0.05`);
+    assert.equal(fin?.side === 'victim' && (t === 'bisect' || t === 'hamstring' || t === 'execute'), ['opened', 'hamstrung', 'execution'].includes(w), `${w}: the ghost outlasts the scene`);
+    assert.equal(fin?.side === 'victim' && t === 'hamstring', w === 'hamstrung', `${w}: Hamstrung's beats`);
+    assert.equal(fin?.side === 'victim' && t === 'execute', w === 'execution', `${w}: Execution's beats`);
+  }
+  for (const row of FINISHERS.rows) for (const part of row.body ? [row.body.victim, row.body.killer] : []) if (part) assert.ok((ROLES as readonly string[]).includes(part.role), `${row.id}: ${part.role} is a rig clip role`);
+  const characters = readFileSync(new URL('../src/fight/characters.ts', import.meta.url), 'utf8');
+  assert.deepEqual(characters.match(new RegExp(`'(${Object.keys(OLD_ROLE).join('|')})'`, 'g')) ?? [], [], 'characters.ts names no finisher pose word');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
+  assert.deepEqual(scene.match(/'(runThroughHold|hamstrungStrike|executionStrike)'/g) ?? [], [], 'nor does scene.ts name a killer pose');
 });
