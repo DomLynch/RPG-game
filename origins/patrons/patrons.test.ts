@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { parseCsv, patronsFromCsv, renderData } from './csv.ts';
 import { PATRON_ROWS } from './patrons.data.ts';
 import {
-  applyPermille, bookLine, changeAllegiance, chooseAtGraduation, FIGHT_HALF_TICKS, holds, loadPatrons, NEW_ALLEGIANCE, NO_MODIFIERS, parseAllegianceState,
-  deltaOf, loadStatDefs, parsePerkTemplate, PATRONS, PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA, PERK_TEMPLATES, resolvePerk, RULES, STATS, templateText, VENUES, WHENS, COMPLEMENT,
+  applyPermille, bookLine, changeAllegiance, chooseAtGraduation, FIGHT_HALF_TICKS, holds, loadPatrons, loadVenues, NEW_ALLEGIANCE, NO_MODIFIERS, parseAllegianceState,
+  deltaOf, loadStatDefs, parsePerkTemplate, PATRONS, PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA, PERK_TEMPLATES, resolvePerk, RULES, STATS, templateText, VENUES, venuePerks, WHENS, COMPLEMENT,
   type Allegiance, type AllegianceState, type FightContext, type PatronId, type When,
 } from './patrons.ts';
 
@@ -277,4 +277,31 @@ test('every patron resolves inside the ±3% budget on every stat, in every conte
     const m = resolvePerk({ kind: 'patron-clan', patron: p.patron }, f);
     for (const s of STATS) assert.ok(Math.abs(deltaOf(m, s)) <= PERK_BUDGET_PERMILLE, `${p.id} ${s}`);
   }
+});
+
+test('venues are rows: the flag, not the name, decides who gets the damage templates; a venue the rows do not name gets none', () => {
+  assert.equal(venuePerks('origins-pve'), true);
+  assert.equal(venuePerks('arena'), false);
+  assert.equal(venuePerks('duel-ring'), false, 'an unknown venue fails closed');
+  const rows = loadVenues({ venues: [{ id: 'origins-pve', perks: true }, { id: 'dungeon', perks: true }] });
+  assert.equal(venuePerks('dungeon', rows), true);
+  assert.throws(() => loadVenues({ venues: [{ id: 'arena', perks: false }, { id: 'arena', perks: true }] }), /arena/, 'a duplicate id is refused by the shared loader');
+  assert.throws(() => loadVenues({ venues: [{ id: 'arena' }] }), /perks/, 'a row without its flag is refused');
+});
+test('a new venue is ONE row in a copy of the tree, no code: it resolves the templates; the rows it does not flag still do not', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'venue-defs-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true }); cpSync('src', join(dir, 'src'), { recursive: true });
+    for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, 'origins/patrons/venue-defs.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    rows.venues.push({ id: 'dungeon', perks: true }, { id: 'tavern-brawl', perks: false });
+    writeFileSync(file, JSON.stringify(rows));
+    writeFileSync(join(dir, 'probe.ts'), `import { PATRONS, VENUES, resolvePerk } from './origins/patrons/patrons.ts';
+const a = { kind: 'patron-clan', patron: 'patron:zeus' } as const;
+const f = (venue: string) => resolvePerk(a, { venue, clockHalf: 'day', moon: 0, fightTicks: 0, selfLevel: 12, foeLevel: 12, selfHealthPermille: 1000, foeHealthPermille: 1000 }).damageDealtPermille;
+console.log(JSON.stringify({ venues: VENUES, dungeon: f('dungeon'), brawl: f('tavern-brawl'), arena: f('arena'), unknown: f('nowhere'), zeus: PATRONS.has('patron:zeus' as never) }));`);
+    const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(out.status, 0, out.stderr);
+    assert.deepEqual(JSON.parse(out.stdout.trim().split('\n').pop()!), { venues: ['origins-pve', 'arena', 'pvp', 'dungeon', 'tavern-brawl'], dungeon: 30, brawl: 0, arena: 0, unknown: 0, zeus: true });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

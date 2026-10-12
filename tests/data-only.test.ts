@@ -136,3 +136,19 @@ test("the patron stat rows are data; the module that reads them is code", () => 
   for (const f of ["origins/patrons/stat-defs.json", "origins/patrons/stat-defs.manifest.json"]) assert.equal(onDataPath(f), true, f);
   for (const f of ["origins/patrons/patrons.ts", "origins/patrons/patrons.data.ts", "origins/patrons/stat-defs.json.bak"]) assert.equal(onDataPath(f), false, f);
 });
+
+test('the patron venue rows are data; the module that reads them (patrons.ts) is not', () => {
+  for (const f of ['origins/patrons/venue-defs.json', 'origins/patrons/venue-defs.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['origins/patrons/patrons.ts', 'origins/patrons/venue-defs.json.bak', 'origins/patrons/venue-defs.ts']) assert.equal(onDataPath(f), false, f);
+});
+
+test('the burn reason rows are data; the inventory code that reads them is not', () => {
+  for (const f of ['origins/inventory/burn-reasons.json', 'origins/inventory/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['origins/inventory/inventory.ts', 'origins/inventory/burn-reasons.test.ts', 'origins/inventory/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
+});
+
+test('the contract vocabulary rows are data at their moved home src/core/contracts/, not at the old origins/contracts/ path; the loader beside them stays code', () => {
+  for (const f of ['src/core/contracts/definitions.json', 'src/core/contracts/definitions.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['origins/contracts/definitions.json', 'origins/contracts/definitions.manifest.json', 'src/core/contracts/definitions.ts', 'src/core/contracts/world.ts',
+    'src/core/contracts/definitions.json.bak']) assert.equal(onDataPath(f), false, f);
+});
