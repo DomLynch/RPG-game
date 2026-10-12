@@ -3,7 +3,7 @@
 // and nothing else: registry.ts is generated from the rows (scripts/gen-zones.mjs) and from-row.ts turns each into a Zone.
 import type { MobRow } from '../mobs/row.ts';
 import type { Look } from '../preview/look.ts';
-import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
+import type { MobLookRow, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/fight/server.ts';
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, type Place } from './place.ts';
@@ -23,7 +23,7 @@ export type Zone = {
   set?: readonly string[];
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
-  mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
+  mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
 /** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
@@ -58,7 +58,7 @@ export function zoneProblems(z: Zone): string[] {
   for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
     if (!Object.hasOwn(ROSTER, l.opponent)) bad.push(`mob look ${id}: ${l.opponent} is not a roster body`);
     if (!rgb(l.tint)) bad.push(`mob look ${id}: tint is not a 0xrrggbb number`);
-    if (!(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
+    if (l.scale !== undefined && !(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
     if (!unit(l.dressing.soot) || !unit(l.dressing.burnt)) bad.push(`mob look ${id}: soot/burnt must be 0..1`);
   }
   for (const [id, sp] of Object.entries(z.mobLooks?.spread ?? {})) {

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { test } from 'node:test';
 import { CATALOGUE } from '../src/fight/catalogue-rows.ts';
 import { catalogueLook } from '../src/fight/catalogue-look.ts';
-import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
+import { MOB_LOOKS, mobLook } from '../origins/preview/mob-looks.ts';
 import { rankLookFor } from '../src/fight/rank-look.ts';
 import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 
@@ -14,7 +14,7 @@ test('a mob look body draws at the scale the catalogue says (the beasts at the s
   for (const [id, look] of Object.entries(MOB_LOOKS)) {
     const row = CATALOGUE.find((r) => r.id === look.opponent);
     if (!row) continue;   // a held body the catalogue does not carry
-    if (row.shape === 'quadruped') assert.equal(look.scale, catalogueLook(look.opponent, 1)!.scale, `${id}: a beast's mob look is its catalogue scale`);
+    if (row.shape === 'quadruped') assert.equal(mobLook(id)!.scale, catalogueLook(look.opponent, 1)!.scale, `${id}: a beast's mob look is its catalogue scale`);
     assert.equal(catalogueLook(look.opponent, 1)!.scale, row.render.scale);
   }
   assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueLook(id, 5)!.scale), [2, 1.8, 2.2]);

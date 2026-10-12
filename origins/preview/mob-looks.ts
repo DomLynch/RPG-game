@@ -12,8 +12,10 @@ import { loadZone, type Zone } from '../zones/loader.ts';
 const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
 export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
+/** A look as a table or a zone row writes it: `scale` is optional, and an omitted scale means the body's own (its catalogue row's render.scale), resolved in mobLook(). A literal scale wins. */
+export type MobLookRow = Omit<MobLook, 'scale'> & { scale?: number };
 
-export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
+export const MOB_LOOKS: Readonly<Record<string, MobLookRow>> = {
   // The matriarch: the Witch grown huge, mere-green and drowned, long wet rags.
   'character:mere-mother': { opponent: 'witch', tint: 0x4f6b5a, scale: 1.35, dressing: { soot: .15, burnt: .1 } },
   // The giant of the Cinder Fields: the Knight scaled up, stone and ash grey, the maul he already carries.
@@ -31,18 +33,20 @@ export const MOB_LOOKS: Readonly<Record<string, MobLook>> = {
   // Starved servant of the ruin: tall for a goblin, grey and ragged.
   'character:ruin-ghoul': { opponent: 'goblin', tint: 0x77767a, scale: 1.1, dressing: { soot: .5, burnt: .6 } },
   // The Ash Wolf (preview only, ?wolf): the wolf rig's own body, ash grey and sooted, at twice its size (Dom, 2026-10-07 23:08: "very small").
-  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, scale: bodyScale('wolf'), dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (its catalogue row's render.scale)
+  'character:ash-wolf': { opponent: 'wolf', tint: 0x8a8378, dressing: { soot: .4, burnt: 0 } },   // the same number the duel draws it at (its catalogue row's render.scale)
   // The Cinder Bear: the bear rig's own body, soot-dark brown, at the duel's scale (its catalogue row's render.scale: walking == fighting).
-  'character:cinder-bear': { opponent: 'bear', tint: 0x6f655a, scale: bodyScale('bear'), dressing: { soot: .5, burnt: .1 } },
+  'character:cinder-bear': { opponent: 'bear', tint: 0x6f655a, dressing: { soot: .5, burnt: .1 } },
   // The Ash Boar: the boar rig's own body, earth brown with ash, at the duel's scale (its catalogue row's render.scale): walking == fighting.
-  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, scale: bodyScale('boar'), dressing: { soot: .35, burnt: 0 } },
+  'character:ash-boar': { opponent: 'boar', tint: 0x7a6552, dressing: { soot: .35, burnt: 0 } },
   // Later (held bodies / rift): kept in the table so the ids stay complete; not drawn in this sprint.
   'character:lambton-worm': { opponent: 'minotaur', tint: 0x5a4a3a, scale: 1.2, dressing: { soot: .8, burnt: .4 }, later: true },
   'character:rift-spawn': { opponent: 'goblin', tint: 0x7a5f8c, scale: 1, dressing: { soot: .2, burnt: .1 }, later: true },
 };
 
 /** The look for a character id, or null for a figure with no entry (a friendly NPC): the caller draws the roster body as it is. */
-export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => zone.mobLooks?.looks[id] ?? MOB_LOOKS[id] ?? null;   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
+const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object per row, so the cloth-clone cache and the variant memo see the same look every call
+function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined) return row as MobLook; let r = resolved.get(row); if (!r) { r = { ...row, scale: bodyScale(row.opponent) }; resolved.set(row, r); } return r; }
+export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? resolve(row) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others

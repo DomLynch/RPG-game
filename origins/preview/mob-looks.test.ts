@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FOES } from '../region1/content.ts';
 import { ROSTER } from '../../src/roster.ts';
+import { catalogueLook } from '../../src/fight/catalogue-look.ts';
 import { MOB_LOOKS, MOB_SPREAD, VARIANTS, mobLook, mobVariant, variantLook } from './mob-looks.ts';
 import { loadZone, zoneIds, type Zone } from '../zones/loader.ts';
 
@@ -20,7 +21,8 @@ test('every Frontier foe has exactly one look, on the body content.ts names', ()
 
 test('ranges: scale, dressing and tint are sane; a friendly figure has no look', () => {
   for (const [id, l] of Object.entries(MOB_LOOKS)) {
-    assert.ok(l.scale >= .7 && l.scale <= 2.2, `${id} scale ${l.scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/fight/beast-scale.ts)
+    const scale = mobLook(id)!.scale;   // the resolved scale: a literal in the row, else the body's own
+    assert.ok(scale >= .7 && scale <= 2.2, `${id} scale ${scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/fight/beast-scale.ts)
     for (const v of [l.dressing.soot, l.dressing.burnt]) assert.ok(v >= 0 && v <= 1, `${id} dressing ${v}`);
     assert.ok(Number.isInteger(l.tint) && l.tint >= 0 && l.tint <= 0xffffff, `${id} tint`);
   }
@@ -42,7 +44,7 @@ test('figures that share a body differ in tint and in height', () => {
 
 test('visual spread: variant 0 is the table look, the others are distinct, stable and inside the kind\'s ranges', () => {
   for (const [id, spread] of Object.entries(MOB_SPREAD)) {
-    const base = MOB_LOOKS[id]!;
+    const base = mobLook(id)!;
     assert.equal(variantLook(id, 0), base, `${id}: variant 0 IS the table look, so a lone figure is unchanged`);
     const seen = new Set<string>();
     for (let v = 0; v < VARIANTS; v++) {
@@ -64,7 +66,7 @@ test('visual spread: a creature always gets the same variant, a camp of four mos
   assert.equal(mobVariant(id, 'zone1-mob-3'), mobVariant(id, 'zone1-mob-3'));
   const camp = new Set([0, 1, 2, 3, 4, 5].map((i) => mobVariant(id, `scavengers-${i}`)));
   assert.ok(camp.size >= 4, `six creatures wear ${camp.size} different looks`);
-  assert.equal(mobVariant('character:hrungnir', 'x'), MOB_LOOKS['character:hrungnir'], 'a named foe has no spread');
+  assert.equal(mobVariant('character:hrungnir', 'x'), mobLook('character:hrungnir'), 'a named foe has no spread');
   assert.equal(mobVariant('character:warden-brannoc', 'x'), null, 'a friendly figure has no look');
   const band = (id: string) => { const h = Array.from({ length: VARIANTS }, (_, v) => variantLook(id, v)!.scale); return [Math.min(...h), Math.max(...h)]; };
   const [scav, brood, ghoul] = ['character:cinder-scavenger', 'character:mere-brood', 'character:ruin-ghoul'].map(band) as [number[], number[], number[]];
@@ -74,12 +76,25 @@ test('visual spread: a creature always gets the same variant, a camp of four mos
 test('a zone\'s own mob look wins over the central table, and a zone without one changes nothing', () => {
   const z1 = loadZone('1'), id = 'character:ash-wolf', own = { opponent: 'wolf', tint: 0x8a4a32, scale: 1.5, dressing: { soot: .1, burnt: .6 } };
   const zone = { ...z1, id: 'test', mobLooks: { looks: { [id]: own, 'character:ember-wolf': own }, spread: { 'character:ember-wolf': { tints: [0x7a4030, 0x9a5a3a], scale: .08, soot: .1, burnt: .1 } } } } as unknown as Zone;
-  assert.equal(mobLook(id, z1), MOB_LOOKS[id], 'Zone 1: the central look, untouched');
+  assert.equal(mobLook(id, z1), mobLook(id), 'Zone 1: the central look, untouched');
   assert.equal(mobLook(id), MOB_LOOKS[id], 'the default zone off a page is Zone 1');
   assert.equal(mobLook(id, zone), own, 'the zone\'s entry first');
-  assert.equal(mobLook('character:ash-boar', zone), MOB_LOOKS['character:ash-boar'], 'a kind the zone does not dress falls back to the central table');
+  assert.equal(mobLook('character:ash-boar', zone), mobLook('character:ash-boar'), 'a kind the zone does not dress falls back to the central table');
   assert.equal(variantLook('character:ember-wolf', 0, zone), own, 'variant 0 IS the zone look');
   assert.equal(variantLook(id, 3, zone), own, 'no spread for the wolf: the look as it is');
   assert.ok(new Set([1, 2, 3, 4, 5, 6, 7].map((v) => variantLook('character:ember-wolf', v, zone)!.tint)).size > 1, 'the zone spread gives a pack its variety');
   assert.equal(variantLook('character:ember-wolf', 3, zone), variantLook('character:ember-wolf', 3, zone), 'the same object every call (the cloth-clone cache)');
+});
+
+test('an omitted scale is the body\'s own (its catalogue render.scale), a literal scale wins, and the answer is one object per row', () => {
+  for (const id of ['character:ash-wolf', 'character:cinder-bear', 'character:ash-boar']) {
+    assert.equal(MOB_LOOKS[id]!.scale, undefined, `${id}: the central row writes no scale`);
+    assert.equal(mobLook(id)!.scale, catalogueLook(MOB_LOOKS[id]!.opponent, 1)!.scale, `${id}: resolved to the catalogue's scale`);
+    assert.equal(mobLook(id), mobLook(id), `${id}: the same resolved object every call (cloth cache and variant memo key on it)`);
+  }
+  assert.equal(mobLook('character:cinder-scavenger')!.scale, MOB_LOOKS['character:cinder-scavenger']!.scale, 'a literal scale is returned as written');
+  const z1 = loadZone('1'), own = { opponent: 'wolf', tint: 0x445566, dressing: { soot: 0, burnt: 0 } }, lit = { ...own, scale: 1.5 };
+  const zone = { ...z1, id: 'test', mobLooks: { looks: { 'character:ember-wolf': own, 'character:ember-wolf2': lit }, spread: {} } } as Zone;
+  assert.equal(mobLook('character:ember-wolf', zone)!.scale, catalogueLook('wolf', 1)!.scale, 'a zone row with no scale reads the catalogue');
+  assert.equal(mobLook('character:ember-wolf2', zone)!.scale, 1.5, 'a zone row\'s own scale wins');
 });
