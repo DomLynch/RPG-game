@@ -8,10 +8,10 @@ export const MAC_ENFORCE = false;  // false: an over-limit release prints the re
 // The same rows on the Mac at width 1 in that release: 53 s and 74 s. Strategy ruled they stay on the Mac. A VPS run is not a measurement (SwiftShader, no GPU,
 // load 28-34 that day); do not re-measure without a new reason. Row 44 also failed its first attempt on the Mac in releases Y, Z and AA (Characters owns it, #2127).
 export const MAC_ONLY = [
-  { row: 2, why: 'roster-browser-check hit the 600 s ceiling on HF', hf_s: 600, mac_s: 73, date: '2026-10-09' },
+  { row: 2, why: 'roster-browser-check hit the 600 s ceiling on HF; 11x slower on a runner, measured 10-12 run 38251416111 (807 s, pass)', hf_s: 600, gh_s: 807, mac_s: 73, date: '2026-10-12' },
   { row: 4, why: 'WebKit (Linux WebKit is not Mac Safari)' },
   { row: 22, why: 'WebKit' },
-  { row: 44, why: 'sparring-browser-check exits 1 on HF', hf_s: null, mac_s: 145, date: '2026-10-09' },
+  { row: 44, why: 'sparring-browser-check exits 1 on HF; 6.6x slower on a runner, measured 10-12 run 38251416111 (953 s, pass)', hf_s: null, gh_s: 953, mac_s: 145, date: '2026-10-12' },
   { row: 45, why: 'WebKit' },
   { row: 48, why: 'WebKit' },
   { row: 49, why: 'WebKit' },

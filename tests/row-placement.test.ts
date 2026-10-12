@@ -39,3 +39,12 @@ test('rows the VPS run carries are counted as VPS in the plan line, not as Mac r
   assert.match(planLine(10, ['', '', '', '', '']), /\/ 0 VPS \/ 10 Mac/);
   assert.match(readFileSync('scripts/vps-shadow/launch.mjs', 'utf8'), /writeFileSync\(runningOf, `\$\{Date\.now\(\)\}\\n\$\{shards\.flat\(\)\.join\(','\)\}\\n`\)/);
 });
+
+test('Strategy 2026-10-12: rows 2 and 44 stay MAC_ONLY with the runner measurement beside the flag (run 38251416111)', () => {
+  for (const [row, ratio, gh, mac] of [[2, '11x', 807, 73], [44, '6.6x', 953, 145]] as const) {
+    const e = MAC_ONLY.find((m) => m.row === row) as { why: string, gh_s?: number, mac_s?: number } | undefined;
+    assert.ok(e, `row ${row} is MAC_ONLY`);
+    assert.ok(e.why.includes(`${ratio} slower on a runner, measured 10-12 run 38251416111`), e.why);
+    assert.deepEqual([e.gh_s, e.mac_s], [gh, mac]);
+  }
+});
