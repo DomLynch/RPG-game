@@ -7,3 +7,4 @@ export * from './loot.ts';
 export * from './gear-ledger.ts';
 export * from './career-ladder.ts';
 export * from './career-model.ts';
+export * from './world-sim.ts';
