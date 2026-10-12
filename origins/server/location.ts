@@ -10,6 +10,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { inTradeArea, REJOIN_EDGE, zoneAt } from '../presence/zones.ts';
 import type { Db } from './db.ts';
+import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
 
 export const ZONE_CM = 30000;   // presence's town square (origins/presence/interest.ts RULES.zoneCm); the migration's x/z check uses the same bound
@@ -39,11 +40,12 @@ const MAX_BODY = 1024;
 const loopback = (a: string | undefined): boolean => a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 const cm = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= ZONE_CM;
 
-export type InternalOptions = { key: string; held?: HeldFn; now?: () => number };
+// `flusher`: when set, presence's posts go into the dirty map (answer {queued:true}) and are written in one statement per interval; unset, each post is written through as before.
+export type InternalOptions = { key: string; held?: HeldFn; now?: () => number; flusher?: LocationFlusher };
 
 // The writer's internal routes (server.ts sends every /internal/ path here when a key is configured; without one those paths are a plain 404).
 export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
-  const { key, held = noServerHeldState, now = Date.now } = opts;
+  const { key, held = noServerHeldState, now = Date.now, flusher } = opts;
   if (!key) throw new Error('writer: the internal key is empty');
   return async (req, res) => {
     const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
@@ -58,6 +60,7 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
       if (req.method === 'GET') {
         const account = url.searchParams.get('account')?.toLowerCase();
         if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
+        if (flusher?.has(account)) await flusher.flush();   // read your own write: presence rejoining right after a leave sees the spot it just posted
         const saved = await store.savedLocation(db, account);
         const character = saved?.character ?? await store.active(db, account);
         return reply(200, serve(saved, character ? await held(db, account, character) : null));
@@ -76,8 +79,9 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
       if (!cm(body.x) || !cm(body.z)) return reply(400, { error: `x, z: whole centimetres 0..${ZONE_CM}` });
       if (body.at !== undefined && !(Number.isInteger(body.at) && (body.at as number) > 0)) return reply(400, { error: 'at: epoch milliseconds' });
       // The zone is the writer's own computation from x, z in the one Concord frame (the same zoneAt presence uses), never a field of the post.
-      const result = await store.saveLocation(db, account, { x: body.x, z: body.z, zone: zoneAt(body.x, body.z), atMs: (body.at as number | undefined) ?? now() });
-      return reply(200, result);
+      const seen = { x: body.x, z: body.z, zone: zoneAt(body.x, body.z), atMs: (body.at as number | undefined) ?? now() };
+      if (flusher) { flusher.mark(account, seen); return reply(200, { queued: true }); }
+      return reply(200, await store.saveLocation(db, account, seen));
     } catch (e) {
       console.error('origins-writer internal:', e instanceof Error ? e.message : e);
       return reply(500, { error: 'server error' });

@@ -44,6 +44,14 @@ const readBody = (req: IncomingMessage): Promise<string> => new Promise((resolve
 export function createWriter({ db, verify, where, handlers = defaults, internal, liveOps }: { db: Db; verify: Verify; where: WhereFn; handlers?: Record<string, Handler>; internal?: InternalOptions; liveOps?: Pick<LiveOpsState, 'switchOn'> }): Server {
   const inside = internal ? internalRoute(db, internal) : null;
   const serial = serialQueue();
+  // A held position belongs to the character that was active when presence saw it; origins_save_location resolves the active character at WRITE time, and open / create_character switch it. So
+  // before ANY op of that account runs, its pending spot is written (or, if the database refuses it, dropped: a lost position is a lesson in the 5-minute class, a spot on the wrong character is not).
+  const flusher = internal?.flusher;
+  const settleHeldSpot = async (account: string): Promise<void> => {
+    if (!flusher?.has(account)) return;
+    try { await flusher.flush(); } catch { /* the flusher logs and keeps its refused rows */ }
+    flusher.drop(account);
+  };
   return createServer(async (req, res) => {
     const send = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     if (inside && (req.url ?? '').startsWith('/internal/')) return void inside(req, res);
@@ -58,7 +66,7 @@ export function createWriter({ db, verify, where, handlers = defaults, internal,
       const text = await readBody(req);
       if (text) { try { body = JSON.parse(text); } catch { throw new BadRequest('body is not JSON'); } }
       if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadRequest('body must be an object');
-      send(200, { ok: true, result: await serial(account, () => handlers[op]!({ db, account, where }, body as Record<string, unknown>)) });
+      send(200, { ok: true, result: await serial(account, async () => { await settleHeldSpot(account); return handlers[op]!({ db, account, where }, body as Record<string, unknown>); }) });
     } catch (e) {
       if (e instanceof BadRequest) return send(400, { ok: false, error: e.message });
       if (e instanceof Conflict) return send(409, { ok: false, error: e.message, code: 'op-conflict' });
