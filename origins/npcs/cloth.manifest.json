@@ -1,0 +1,6 @@
+{
+  "tables": [
+    {"table": "clothSlot", "file": "cloth.json", "at": "slots", "keyed": true, "key": "id", "required": {"order": "integer", "shift": "integer"}},
+    {"table": "clothPiece", "file": "cloth.json", "at": "pieces", "keyed": true, "key": "id", "required": {"order": "integer", "slot": "string"}, "refs": {"slot": "clothSlot"}}
+  ]
+}
