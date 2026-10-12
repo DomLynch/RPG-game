@@ -67,6 +67,10 @@ test('stats resolve inside the engine: every row at every level of its band thro
 test('each fault is named', () => {
   const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => p.code).join(','); };
   assert.equal(edit(() => {}), '');
+  assert.equal(edit((r) => { r.stats.pools = { health: 90, stamina: 120, mana: 0, focus: 5 }; }), '', 'pools: a row may name any of the four');
+  assert.equal(edit((r) => { r.stats.pools = { stamina: 0 }; }), 'stats', 'a stamina bar of 0 is no bar');
+  assert.equal(edit((r) => { r.stats.pools = { mana: -1 }; }), 'stats');
+  assert.equal(edit((r) => { r.stats.pools = { rage: 10 } as never; }), 'stats', 'an unknown pool is refused');
   assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'dragon'; }), 'id', 'a variant row whose body is not a roster id');
