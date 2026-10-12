@@ -66,7 +66,7 @@ export function planTrain({ prs, order, inBase, trunk = TRUNK }) {
   const eligible = [], skipped = [];
   for (const p of prs) {
     if (!p.labels.includes(GO) || /^release-/.test(p.headRef)) continue;
-    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A or Deploy B) at its current head` }); continue; }
+    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B or Deploy B) at its current head` }); continue; }
     if (!p.green) { skipped.push({ pr: p.number, why: 'checks not all green' }); continue; }
     if (inBase(p.head)) continue;   // already riding in the candidate we build on
     eligible.push(p);
@@ -98,7 +98,7 @@ export const missingRows = rollup => REQUIRED_ROWS.filter(([wf, name]) => !(roll
  * gate alone is not enough: a label survives a head move. */
 export function pickPublish(prs, trunk = TRUNK) {
   const ok = prs.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === trunk && (p.labels || []).some(l => (l.name || l) === 'candidate:pass')
-    && passAt((p.comments || []).map(c => c.body ?? c), p.headRefOid) && checksGreen(p.statusCheckRollup, p.headRefName) && !missingRows(p.statusCheckRollup).length);
+    && passAt(p.comments || [], p.headRefOid) && checksGreen(p.statusCheckRollup, p.headRefName) && !missingRows(p.statusCheckRollup).length);
   return ok.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))[0] || null;
 }
 
@@ -125,7 +125,7 @@ function cut({ dryRun }) {
   const gos = open.filter(p => p.labels.some(l => l.name === GO) && !/^release-/.test(p.headRefName));
   const prs = gos.map(p => {
     const view = ghJson(['pr', 'view', String(p.number), '--json', 'comments,statusCheckRollup']);
-    const pass = (view.comments || []).filter(c => passAt([c.body], p.headRefOid)).pop();
+    const pass = (view.comments || []).filter(c => passAt([c], p.headRefOid)).pop();
     return { number: p.number, head: p.headRefOid, headRef: p.headRefName, baseRef: p.baseRefName, labels: p.labels.map(l => l.name), green: checksGreen(view.statusCheckRollup, p.headRefName), passedAt: pass?.createdAt || null, comments: (view.comments || []).map(c => c.body) };
   });
   let order = []; try { order = readOrder(readFileSync('docs/release-order.txt', 'utf8')); } catch { /* no file: oldest PASS first */ }
