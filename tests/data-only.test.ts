@@ -117,3 +117,11 @@ test('a legend cited twice in the head with different values is the Auditor\'s (
   const v = verdict([{ file: CAT, status: 'modified' }], () => text.replace(/(=\s*\[)/, `$1\n  ${twin}`), 'HEAD' as never);
   assert.equal(v.code, 1); assert.match(v.problems.join(), /cited twice/);
 });
+
+test('bosses.json and its manifest are on the path list and classify as data', () => {
+  for (const f of ['src/fight/bosses.json', 'src/fight/bosses.manifest.json']) {
+    assert.equal(onDataPath(f), true, f);
+    assert.deepEqual(classify([{ file: f, status: 'modified' }], (p: string) => readFileSync(p, 'utf8')).problems, [], f);
+  }
+  assert.equal(onDataPath('src/fight/boss-rows.ts'), false, 'the reader is code');
+});
