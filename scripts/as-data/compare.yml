@@ -1,0 +1,11 @@
+# as-data check (a): a string literal compared (=== / !== / case) against what is, by its spelling, a content id. __IDS__ is replaced by the runner
+# (scripts/as-data/check.mjs) with the alternation of every opponent, weapon, skill, special and finisher id the repo has today, so a new row is counted
+# without editing this file. ast-grep matches syntax, not types: the literal being an id is the signal, the compared value is not checked.
+id: as-data-compare
+language: typescript
+rule:
+  kind: string
+  regex: "^['\"](__IDS__)['\"]$"
+  any:
+    - inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^[!=]==$" } }
+    - inside: { kind: switch_case, stopBy: neighbor }

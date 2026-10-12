@@ -71,8 +71,10 @@ try {
         if (!['health', 'stamina', 'attack', 'res'].every((id) => doll.rows.includes(id))) v.states[`journal-${tab}`].bad.push(`stat strip rows: ${doll.rows}`);
         // the try-on compare: the stored helmet beside the worn one, the strip's rows under each card, Resistance up
         await page.locator('#pack li button[data-fit]').first().scrollIntoViewIfNeeded(); await page.locator('#pack li button[data-fit]').first().click(); await page.waitForTimeout(600);
-        await page.evaluate(() => document.getElementById('fitting')?.scrollIntoView({ block: 'center' })); await page.waitForTimeout(300);
+        // no script-side scroll: the sheet itself must open the compare clear of the sticky tab strip (cards' top edge at or below the strip's bottom edge, inside the viewport)
+        const clear = await page.evaluate(() => { const c = document.getElementById('fitting-compare').getBoundingClientRect(), n = document.querySelector('#journal .app-nav').getBoundingClientRect(); return { top: Math.round(c.top), navBottom: Math.round(n.bottom), bottom: Math.round(c.bottom), vh: innerHeight }; });
         await snap('journal-fit', '#journal');
+        if (clear.top < clear.navBottom - 1 || clear.bottom > clear.vh + 1) v.states['journal-fit'].bad.push(`try-on compare not clear of the strip: ${JSON.stringify(clear)}`);
         const fit = await page.evaluate(() => ({ sides: [...document.querySelectorAll('#fitting-compare > div')].map((d) => d.getAttribute('data-side')), delta: document.querySelector('#fitting-compare [data-side="new"] [data-stat="res"] .cmp-delta')?.textContent ?? null }));
         v.fit = fit;
         if (fit.sides.join() !== 'new,held' || !/^\+\d+$/.test(fit.delta ?? '')) v.states['journal-fit'].bad.push(`try-on compare: ${JSON.stringify(fit)}`);

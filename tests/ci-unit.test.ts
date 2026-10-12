@@ -1,5 +1,6 @@
 // The CI unit receipt (scripts/lib/ci-unit.mjs): eight green shards make one receipt; anything short of that is refused, and deploy trust re-checks tree and run.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { NODE_PIN } from '../scripts/lib/vps-unit.mjs';
 import { buildReceipt, ciUnitReceiptOk, parseShard, SHARDS, type Shard } from '../scripts/lib/ci-unit.mjs';
@@ -57,4 +58,14 @@ test('a shard on another node than the pin is refused, and so is a receipt that 
 
 test('a shard that ran no tests cannot hide inside the total', () => {
   assert.equal(build(all({ pass: 0 })).ok, false);
+});
+
+test('unit-ci: a stalled shard is cut at 10 minutes and can only fail the receipt job, never pass it', () => {
+  const wf = readFileSync('.github/workflows/unit-ci.yml', 'utf8');
+  const job = (name: string) => wf.split(new RegExp(`^  ${name}:\\n`, 'm'))[1]?.split(/^  \S/m)[0] ?? '';
+  const shardJob = job('shard'), receiptJob = job('receipt');
+  assert.ok(shardJob && receiptJob, 'both jobs found');
+  assert.equal(Number(/^    timeout-minutes: (\d+)$/m.exec(shardJob)?.[1]), 10, 'every shard job is cut at 10 minutes (the slowest test time is about 3.5; a stalled checkout has taken 5)');
+  assert.match(receiptJob, /^    needs: shard$/m, 'the receipt waits for all shards');
+  assert.doesNotMatch(receiptJob, /^    if:/m, 'no job-level condition: a failed, cancelled or timed-out shard skips the receipt job');
 });

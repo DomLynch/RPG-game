@@ -12,6 +12,7 @@ import { mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { record, t4Refusal } from './hf-ledger.mjs';
 
 export const CAPS = { 'cpu-upgrade': { total: 4, generic: 3, tier: 'hf-cpu' }, 't4-medium': { total: 4, generic: 4, tier: 'hf-t4' } };
 const LIVE = /^(RUNNING|STARTING|PENDING|SCHEDULING|QUEUED)$/;
@@ -55,16 +56,22 @@ export function livePs(hf = 'hf') {
   try { const parsed = JSON.parse(r.stdout || '[]'); return r.status === 0 && Array.isArray(parsed) ? parsed : null; } catch { return null; }
 }
 
-// Returns { ok: true, slot, queuedS, value } (value = what launch() returned) or { ok: false, used, limit, queuedS }.
+// Returns { ok: true, slot, queuedS, value } (value = what launch() returned) or { ok: false, used, limit, queuedS[, refused] }.
 // An hf that cannot list jobs (null) fails OPEN: a cap is a courtesy to the pool, never a reason to lose a job.
-export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now, idOf = /** @type {any} */ (null), cancel = /** @type {any} */ (null) }) {
+// cost { timeout, reason } (scripts/lib/hf-ledger.mjs): a T4 launch is refused once the day reached the $5 stop ({ ok: false, refused }), and every launched
+// job is recorded in the cost ledger. Without cost nothing is checked or recorded (a caller that has not been converted).
+export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, pollS = 15, launch, ps = livePs, sleep = sleepMs, now = Date.now, idOf = /** @type {any} */ (null), cancel = /** @type {any} */ (null), cost = /** @type {any} */ (null) }) {
   const t0 = now();
+  const refused = cost ? t4Refusal(flavor) : null;
+  if (refused) return { ok: false, used: -1, limit: -1, queuedS: 0, refused };
+  const jobId = value => (idOf ? idOf(value) : null) || /Job started with ID: ([0-9a-f]{24})/.exec(String(value?.stdout || ''))?.[1] || null;
   for (;;) {
     if (!lock(Math.max(5_000, Math.min(60_000, maxWaitS * 1000 - (now() - t0))))) return { ok: false, used: -1, limit: -1, queuedS: (now() - t0) / 1000 };
     try {
       const jobs = ps(hf), d = jobs === null ? { ok: true, used: 0, limit: 0, slot: 1 } : slotDecision(flavor, jobs, generic);
       if (d.ok) {
-        const value = launch(), id = idOf ? idOf(value) : null;
+        const value = launch(), id = idOf ? idOf(value) : null, launched = jobId(value);
+        if (cost && launched) record({ id: launched, flavor, timeout: cost.timeout, reason: cost.reason });   // before the rank check: a job cancelled below still ran
         const after = id && cancel ? ps(hf) : null, rank = after ? rankOf(flavor, after, id) : 0;
         if (!rank || rank <= d.limit || d.limit === 0) return { ok: true, slot: rank || d.slot, queuedS: (now() - t0) / 1000, value };
         cancel(id);   // another host took the slot first: this job is the youngest beyond the cap, so it backs off and queues again
