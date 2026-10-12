@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, withSheet, type Action, type Duel, type Intent } from '../src/fight/duel.ts';
 import { MOVES, RULES } from '../src/fight/moves.ts';
 import { TARGET } from '../src/fight/sim.ts';
-import { SHEET_LAYERS, SHEET_STATS, checkSheet, sheetOf, statDown, statUp, statValue } from '../src/fight/sheet-rows.ts';
+import { SHEET_LAYERS, SHEET_STATS, checkSheet, perkPoints, sheetOf, statDown, statUp, statValue } from '../src/fight/sheet-rows.ts';
 import { GEAR, loadGearDefs } from '../src/fight/gear-rows.ts';
 import { NAKED, fullSet, gearLayer, gearSheet, loadoutFor } from '../src/fight/gear-stats.ts';
 import { SCHOOLS, SCHOOL_IDS } from '../src/fight/schools.ts';
@@ -22,7 +22,7 @@ const duel = (): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.
 const run = (d: Duel, n: number, a: Intent = idle(), b: Intent = idle()): Duel => { for (let i = 0; i < n; i++) d = stepDuel(d, [a, b]); return d; };
 const light = MOVES.light_right;
 
-test('the sheet rows: four layers that sum to the 100 points, every stat on a 100-based line capped at 200 (burden at 125, gear only), codes 1..n, and no stat names a timing', () => {
+test('the sheet rows: four layers that sum to the 100 points, every stat on a 100-based line capped at 200 (burden at 125, from gear and perks only), codes 1..n, and no stat names a timing', () => {
   assert.deepEqual(SHEET_LAYERS, { level: 50, gear: 25, skill: 15, title: 10 });
   assert.equal(Object.values(SHEET_LAYERS).reduce((a, b) => a + b, 0), 100);
   assert.deepEqual(SHEET_STATS.map((r) => [r.id, r.code, r.base, r.cap]), [['attack', 1, 100, 200], ['armour', 2, 100, 200], ['resist', 3, 100, 200], ['burden', 4, 100, 125]]);
@@ -39,6 +39,16 @@ test('layers add and are capped by their rows: level 50 + gear 25 + skill 15 + t
   assert.throws(() => sheetOf({ luck: { attack: 5 } }), /not a layer row/);
   assert.throws(() => sheetOf({ gear: { speed: 5 } }), /not a stat row/);
   assert.throws(() => sheetOf({ gear: { attack: 1.5 } }), /whole points/);
+});
+
+test('the patron-perk reader is the sheet reader: a perk\'s per-mille deltas, read through the perk stat rows, are title-layer points on the sheet (ten per-mille to a point, in the row\'s direction)', () => {
+  const deltas: Record<string, number> = { damageDealtPermille: 30, damageTakenPermille: -20, staminaCostPermille: 10 };
+  const pts = perkPoints((stat) => deltas[stat] ?? 0);
+  assert.deepEqual(pts, { attack: 3, armour: 2, burden: 1 }, 'more damage dealt, less taken (armour up), costlier stamina (burden up)');
+  assert.deepEqual(sheetOf({ title: pts, gear: { attack: 25, armour: 25 } }), { attack: 128, armour: 127, burden: 101 }, 'layers add');
+  assert.deepEqual(perkPoints(() => 0), {});
+  assert.deepEqual(sheetOf({ gear: { armour: 25 }, title: perkPoints((s) => (s === 'damageTakenPermille' ? 30 : 0)) }), { armour: 122 }, 'a perk cost (damage taken +3%) takes points off, and the sheet never goes below base');
+  assert.equal(sheetOf({ title: perkPoints((s) => (s === 'damageTakenPermille' ? 30 : 0)) }), undefined);
 });
 
 test('a sheet is validated against the stat rows: whole numbers from base to cap, known ids; stats at base are dropped and the rest come back in code order', () => {
