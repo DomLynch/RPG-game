@@ -71,6 +71,7 @@ try {
         if (!['health', 'stamina', 'attack', 'res'].every((id) => doll.rows.includes(id))) v.states[`journal-${tab}`].bad.push(`stat strip rows: ${doll.rows}`);
         // the try-on compare: the stored helmet beside the worn one, the strip's rows under each card, Resistance up
         await page.locator('#pack li button[data-fit]').first().scrollIntoViewIfNeeded(); await page.locator('#pack li button[data-fit]').first().click(); await page.waitForTimeout(600);
+        await page.evaluate(() => document.getElementById('fitting')?.scrollIntoView({ block: 'center' })); await page.waitForTimeout(300);
         await snap('journal-fit', '#journal');
         const fit = await page.evaluate(() => ({ sides: [...document.querySelectorAll('#fitting-compare > div')].map((d) => d.getAttribute('data-side')), delta: document.querySelector('#fitting-compare [data-side="new"] [data-stat="res"] .cmp-delta')?.textContent ?? null }));
         v.fit = fit;
