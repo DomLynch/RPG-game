@@ -10,7 +10,8 @@
 # The root path is unchanged.
 refuse_re='(^|[[:space:];&|(])(npm[[:space:]]+run[[:space:]]+(test:all|test:slow|test:browser|quality(:[[:alnum:]_-]+)?)|npm[[:space:]]+(run[[:space:]]+)?test|(node|tsx|npx[[:space:]]+tsx)[[:space:]]+([^[:space:]]+[[:space:]]+)*--test(([[:space:]]+[^[:space:]-][^[:space:]]*){2,}|[[:space:]]+[^[:space:]]*[*][^[:space:]]*))([[:space:]]|$)'
 # 2026-10-12 (Lead, Strategy defects 1+2): a job goes to the VPS only when a slot is free AND load1 < VPS_MAX_LOAD1 (read from scripts/lib/waterfall.mjs, the
-# waterfall's one number: the repo checkout this script sits in, else the ~/.spill-tools checkout; LANEJOB_WATERFALL overrides; unreadable = no load gate).
+# waterfall's one number: the repo checkout this script sits in, else the ~/.spill-tools checkout; LANEJOB_WATERFALL overrides; unreadable = the gate FAILS CLOSED:
+# it counts as over, a tierlog line says so, the spill is tried, and a refused spill still falls back to the slot queue). Root runs take a slot and the load gate too (Lead 2026-10-12).
 # Over the gate the job spills to hf-cpu at once (no 120 s wait); if the spill is refused it falls back to the slot queue. LANEJOB_LOAD overrides load1 (tests).
 vps_max() {
   local f
@@ -19,7 +20,8 @@ vps_max() {
   done
 }
 over_load() {
-  local m l; m=$(vps_max); [ -n "$m" ] || return 1
+  local m l; m=$(vps_max)
+  [ -n "$m" ] || { [ -n "$gate_said" ] || { gate_said=1; [ "${1:-}" = quiet ] || tierlog "lanejob: waterfall.mjs unreadable, load gate fails closed (spill tried first)"; }; return 0; }
   l="${LANEJOB_LOAD:-$(cut -d' ' -f1 /proc/loadavg)}"
   awk -v l="$l" -v m="$m" 'BEGIN{exit !(l+0>=m+0)}'
 }
@@ -30,7 +32,7 @@ if [ "$1" = "--probe" ]; then
   shift
   printf '%s\n' "$*" | grep -Eq "$refuse_re" && { echo "would=refuse"; exit 0; }
   if find "${RELEASE_LOCK_DIR:-/run/frankendom-release}" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | grep -q .; then echo "would=spill reason=release-lock"; exit 0; fi
-  if over_load; then echo "would=spill reason=load"; exit 0; fi
+  if over_load quiet; then echo "would=spill reason=load"; exit 0; fi
   for i in 1 2 3 4; do
     exec {fd}>>"${LANEJOB_SLOTS:-/run/lanejobs}/slot$i" || { echo "would=vps"; exit 0; }
     if flock -n "$fd"; then echo "would=vps"; exit 0; fi
@@ -39,10 +41,7 @@ if [ "$1" = "--probe" ]; then
   echo "would=spill reason=slots"; exit 0
 fi
 long=0; [ "$1" = "--long" ] && { long=1; shift; }
-if [ "$(id -u)" -eq 0 ]; then
-  exec systemd-run --scope --quiet --collect --slice=lanejobs.slice "$@"
-fi
-if printf '%s\n' "$*" | grep -Eq "$refuse_re"; then
+if [ "$(id -u)" -ne 0 ] && printf '%s\n' "$*" | grep -Eq "$refuse_re"; then
   echo "lanejob: refused. full suites run on HF via Deploy (launch.mjs unit)" >&2; exit 126
 fi
 start=$SECONDS
@@ -85,6 +84,9 @@ while [ -z "$got" ]; do
 done
 echo $$ > "$slots/slot$got"
 tierlog "tier=vps slot=$got queued=$((SECONDS-start))s"
+if [ "$(id -u)" -eq 0 ]; then   # root keeps its unlimited scope (no memory/CPU cap, no timeout), but inside the slot
+  systemd-run --scope --quiet --collect --slice=lanejobs.slice "$@"; exit $?
+fi
 u="$(id -un)"; h="$(getent passwd "$u" | cut -d: -f6)"
 t=(timeout 1800); [ "$long" = 1 ] && t=()
 # the outer sudo resets HOME to /root, so hand the caller's HOME/USER/LOGNAME back to the job
