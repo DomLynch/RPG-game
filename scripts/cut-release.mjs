@@ -1,5 +1,5 @@
-// `node scripts/cut-release.mjs <name> <PR>@<head sha> [<PR>@<head sha> ...] [--live <sha>]`: the release cut in one command (Dom 2026-10-12, CI runners first).
-// From trunk: a branch release-<name>, one `Merge pull request #N (release-<name> candidate)` merge per PR in the order given (a PR that conflicts is aborted and named, the rest
+// `node scripts/cut-release.mjs <name> <PR>@<head sha> [<PR>@<head sha> ...] [--base <release branch>] [--live <sha>]`: the release cut in one command (Dom 2026-10-12, CI runners first).
+// From trunk (or --base release-<N>: the next candidate on the last one's tip): a branch release-<name>, one `Merge pull request #N (release-<name> candidate)` merge per PR in the order given (a PR that conflicts is aborted and named, the rest
 // still merge), ONE push, a draft PR labelled ci:release-checks (the rows run on GitHub's 40 runners) and auditor:ready, then the pre-launch jobs (T4/CPU rows)
 // in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
 // Run it in the release worktree, which must be clean. The Auditor's PASS at each head is checked from the PR thread unless --no-verify.
@@ -17,8 +17,8 @@ export function parseSpec(spec) {
   return { pr: Number(m[1]), head: m[2] };
 }
 
-/** Does a PR comment list hold the Auditor's PASS for exactly this head? */
-export const passAt = (bodies, head) => bodies.some(b => new RegExp(`Auditor: PASS @${head.slice(0, 9)}`).test(b));
+/** Does a PR comment list hold a reviewer's PASS for exactly this head: the Auditor's, or Lead's for an independent platform review (Lead 2026-10-12, #2326)? */
+export const passAt = (bodies, head) => bodies.some(b => new RegExp(`^\\*{0,2}(?:Auditor|Lead): PASS @${head.slice(0, 9)}`, 'm').test(b));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails
@@ -36,14 +36,27 @@ export function mergeAll(git, name, specs) {
   return { merged, skipped };
 }
 
+/** git push with 3 tries and backoff (2 s, 4 s): a transient GitHub "remote rejected" stopped CO's cut. sleep is injectable for the test.
+ * @param {(args: string[]) => { status: number | null, stderr?: unknown, stdout?: unknown }} git @param {string} branch @param {{ tries?: number, extra?: string[], sleep?: (s: number) => unknown }} [opts] */
+export function pushWithRetry(git, branch, { tries = 3, extra = [], sleep = s => spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }) } = {}) {
+  let err = '';
+  for (let i = 1; i <= tries; i++) {
+    const r = git(['push', '-q', ...extra, 'origin', branch]);
+    if (r.status === 0) return { ok: true, tries: i };
+    err = String(r.stderr || r.stdout || '').trim().slice(0, 200);
+    if (i < tries) sleep(2 ** i);
+  }
+  return { ok: false, tries, err };
+}
+
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL', ...opts });
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const argv = process.argv.slice(2);
-  const flag = f => { const i = argv.indexOf(f); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, f === '--live' ? 2 : 1); return v ?? true; };
-  const live = flag('--live'), noVerify = flag('--no-verify');
+  const flag = f => { const i = argv.indexOf(f); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, f === '--no-verify' ? 1 : 2); return v ?? true; };
+  const live = flag('--live'), base = flag('--base'), noVerify = flag('--no-verify');   // --base release-CN: N+1 built on N's tip (default trunk)
   const [name, ...rest] = argv;
-  if (!/^[A-Za-z0-9]+$/.test(name || '') || !rest.length) { console.error('usage: node scripts/cut-release.mjs <name> <PR>@<head sha>... [--live <sha>] [--no-verify]'); process.exit(2); }
+  if (!/^[A-Za-z0-9]+$/.test(name || '') || !rest.length) { console.error('usage: node scripts/cut-release.mjs <name> <PR>@<head sha>... [--base <release branch>] [--live <sha>] [--no-verify]'); process.exit(2); }
   const specs = rest.map(parseSpec);
   const git = args => run('git', args);
   if (git(['status', '--porcelain']).stdout.trim()) { console.error('cut-release: the worktree is dirty'); process.exit(2); }
@@ -52,14 +65,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const bodies = JSON.parse(run('gh', ['pr', 'view', String(pr), '--json', 'comments', '--jq', '[.comments[].body]']).stdout || '[]');
     if (!passAt(bodies, head)) { console.error(`cut-release: no "Auditor: PASS @${head.slice(0, 9)}" on #${pr} (--no-verify to skip)`); process.exit(2); }
   }
-  const trunk = git(['rev-parse', `origin/${TRUNK}`]).stdout.trim();
-  if (git(['switch', '-q', '-c', `release-${name}`, `origin/${TRUNK}`]).status !== 0) { console.error(`cut-release: cannot create release-${name} (exists?)`); process.exit(2); }
+  const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
+  if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }
+  if (git(['switch', '-q', '-c', `release-${name}`, from]).status !== 0) { console.error(`cut-release: cannot create release-${name} (exists?)`); process.exit(2); }
   const { merged, skipped } = mergeAll(git, name, specs);
   if (!merged.length) { console.error(`cut-release: nothing merged: ${JSON.stringify(skipped)}`); process.exit(1); }
   const sha = git(['rev-parse', 'HEAD']).stdout.trim();
-  const pushed = git(['push', '-q', 'origin', `release-${name}`]);
-  if (pushed.status !== 0) { console.error(`cut-release: git push failed: ${String(pushed.stderr).trim().slice(0, 200)}`); process.exit(1); }
-  const body = `Release candidate ${name} = trunk ${trunk.slice(0, 9)} + ${merged.map(pr => `#${pr} @${specs.find(s => s.pr === pr).head}`).join(' + ')}, each with Auditor PASS at head.${skipped.length ? ` Not included: ${skipped.map(s => `#${s.pr} (${s.why})`).join('; ')}.` : ''}\n\nDonor: n/a (release merge)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
+  const pushed = pushWithRetry(git, `release-${name}`);
+  if (!pushed.ok) { console.error(`cut-release: git push failed after ${pushed.tries} tries: ${pushed.err}`); process.exit(1); }
+  const body = `Release candidate ${name} = ${base || 'trunk'} ${trunk.slice(0, 9)} + ${merged.map(pr => `#${pr} @${specs.find(s => s.pr === pr).head}`).join(' + ')}, each with Auditor PASS at head.${skipped.length ? ` Not included: ${skipped.map(s => `#${s.pr} (${s.why})`).join('; ')}.` : ''}\n\nDonor: n/a (release merge)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
   const created = run('gh', ['pr', 'create', '--draft', '--base', TRUNK, '--head', `release-${name}`, '--title', `release-${name}: ${merged.map(pr => `#${pr}`).join(' + ')}`, '--body', body, ...LABELS.flatMap(l => ['--label', l])]);
   const pr = Number((/\/pull\/(\d+)/.exec(created.stdout) || [])[1]) || null;
   if (created.status !== 0 || !pr) { console.error(`cut-release: gh pr create failed: ${String(created.stderr || created.stdout).trim().slice(0, 200)}`); process.exit(1); }
