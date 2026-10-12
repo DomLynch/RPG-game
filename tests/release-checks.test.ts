@@ -193,9 +193,9 @@ esac
   const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake, ...env } });
   let r = call([m]);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, '1,4', 'merge commit M: queued branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
-  assert.match(r.stderr, /trusting 2 check\(s\) \[1,4\] for tree/);
-  assert.match(r.stderr, /running locally: \[2:failure\/receipt-status=3 3:unfinished\/no-receipt\]/);
+  assert.equal(r.stdout, '1', 'merge commit M: queued branch run vouches for 1 (green + receipt 0 + same tree); 4 is green but a WebKit row (the Mac runs it, 2026-10-12); 2 failed; 3 unfinished: ' + r.stderr);
+  assert.match(r.stderr, /trusting 1 check\(s\) \[1\] for tree/);
+  assert.match(r.stderr, /running locally: \[2:failure\/receipt-status=3 3:unfinished\/no-receipt 4:webkit\(the Mac runs it\)\]/);
   r = call([t0]);
   assert.equal(r.stdout, '', 'T0 has a green job 3 but its receipt is for another tree -> nothing trusted');
   assert.match(r.stderr, /3:other-tree/);
@@ -203,7 +203,7 @@ esac
   assert.equal(r.stdout, '', 'run found but its matrix has not started -> nothing trusted');
   assert.match(r.stderr, /running locally: \[all: no check jobs in the run\(s\) yet\]/);
   r = call([b]);
-  assert.equal(r.stdout, '1,4', 'deploying the branch head itself uses the same run');
+  assert.equal(r.stdout, '1', 'deploying the branch head itself uses the same run (row 4 is WebKit: the Mac runs it)');
   r = call([m], { RELEASE_CHECKS_TRUST_CI: '0' });
   assert.equal(r.stdout, '', 'kill switch');
   r = call(['abc']);

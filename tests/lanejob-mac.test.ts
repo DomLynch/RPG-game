@@ -101,3 +101,12 @@ test('Deploy\'s deploy_hold marker or a VPS release-lock answer sends the job on
   assert.ok(!existsSync(c.ran));
   assert.match(c.log(), /reason=release-in-flight/);
 });
+
+test('a finished job is never called capped, even when many jobs end at once (the dog\'s sleep is killed on exit)', () => {
+  for (let i = 0; i < 25; i++) {
+    const b = box();
+    const r = b.run(['bash', '-c', 'exit 3']);
+    assert.equal(r.status, 3, `run ${i}: ${r.stderr}\n${b.log()}`);
+    assert.ok(!/cap=exceeded/.test(b.log()), `run ${i}`);
+  }
+});
