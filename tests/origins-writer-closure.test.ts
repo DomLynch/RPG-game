@@ -29,8 +29,8 @@ test('the writer walk reaches the files the AA crash came through', () => {
 
 test('the walk goes red on the AA mistake (mobs.ts taking the page door) and ignores type-only imports', () => {
   const real = (f: string): string => disk(f);
-  const bad = (f: string): string => f === 'origins/preview/mobs.ts' ? real(f).replace('src/fight/server.ts', 'src/fight/index.ts') : real(f);
-  assert.ok(writerClosure(bad, existsSync).files.includes('src/fight/index.ts'), 'the AA import must pull the page door into the closure');
+  const bad = (f: string): string => f === 'origins/preview/mobs.ts' ? real(f).replace('src/core/server.ts', 'src/core/index.ts') : real(f);
+  assert.ok(writerClosure(bad, existsSync).files.includes('src/core/index.ts'), 'the AA import must pull the page door into the closure');
   const typeOnly = (f: string): string => f === 'origins/preview/mobs.ts' ? `import type { X } from '../../src/fight/index.ts';\n${real(f)}` : real(f);
   assert.ok(!writerClosure(typeOnly, existsSync).files.includes('src/fight/index.ts'), 'a type-only import loads nothing and must not count');
 });
