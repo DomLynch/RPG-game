@@ -5,7 +5,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { RegistryError, checkTables, keyedRows, loadRegistry, type Manifest, type TableData } from '../src/core/server.ts';
+import { RegistryError, buildTables, checkTables, keyedRows, loadRegistry, type Manifest, type TableData } from '../src/core/server.ts';
 
 const creature: Manifest = { table: 'creature', file: 'c.json', key: 'id', required: { name: 'string' } };
 const loot: Manifest = { table: 'loot', file: 'l.json', key: 'id', required: { rolls: 'array', 'rolls[].chance': 'integer' }, refs: { 'rolledBy[]': 'creature', biome: 'biome' } };
@@ -79,4 +79,13 @@ test('the runtime load throws on the same break (content.ts loads the towns thro
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /town:mere-end unknown-ref/);
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
+});
+
+test('a derived table makes a link carried on a row checkable: one creature in two rows is a duplicate-id, each end is a ref', () => {
+  const lootT: Manifest = { table: 'loottable', file: 'l.json', key: 'id', required: {} };
+  const link: Manifest = { table: 'creatureLoot', from: 'loottable', fan: 'rolledBy[]', key: 'id', required: {}, refs: { id: 'creature' } };
+  const mk = (rows: object[]) => buildTables([{ manifest: creature, parsed: [{ id: 'wolf', name: 'W' }, { id: 'bear', name: 'B' }] }, { manifest: lootT, parsed: rows }, { manifest: link }]);
+  assert.deepEqual(checkTables(mk([{ id: 't1', rolledBy: ['wolf'] }, { id: 't2', rolledBy: ['bear'] }])).problems, []);
+  assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['wolf'] }, { id: 't2', rolledBy: ['wolf'] }])), ['creatureLoot:1:wolf duplicate-id']);
+  assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['ghost'] }])), ['creatureLoot:0:ghost unknown-ref']);
 });
