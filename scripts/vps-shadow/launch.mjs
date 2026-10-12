@@ -54,6 +54,13 @@ export function unitShaRefusal(sha, git = (...args) => spawnSync('git', args, { 
   return `refusing a unit job for ${sha}: it is not on origin/${trunk} and not this checkout's HEAD. A unit receipt is tree-bound, so only a batch tree can use one (LAUNCH_UNIT_ANY=1 forces it)`;
 }
 
+// Only a RELEASE unit run holds the box's release marker (/run/frankendom-release, which sends lane jobs to hf-cpu): FRANKENDOM_RELEASE=1 from deploy.sh or the
+// cutter, or a sha that is the tip of an origin/release-* branch. A lane's receipt run never does (Lead/COO 2026-10-12). `git` is injectable for the test.
+export function isReleaseSha(sha, git = (...args) => spawnSync('git', args, { encoding: 'utf8', timeout: 30_000 }), env = process.env) {
+  if (env.FRANKENDOM_RELEASE === '1') return true;
+  return /^[0-9a-f]{40}$/.test(sha || '') && Boolean(git('for-each-ref', '--points-at', sha, '--format=%(refname)', 'refs/remotes/origin/release-*').stdout?.trim());
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [cmd, a, b, c] = process.argv.slice(2);
   try {
@@ -120,7 +127,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         if (target === 'vps') {
           const tree = spawnSync('git', ['rev-parse', `${a}^{tree}`], { encoding: 'utf8', timeout: 30_000 }).stdout?.trim();
           console.log(`tier=vps load1=${status?.load1} freeRamMb=${status?.freeRamMb}: running the unit suite on the VPS (about 5-8 min)`);
-          const res = runUnitOnVps({ sha: a, tree });
+          const res = runUnitOnVps({ sha: a, tree, release: isReleaseSha(a) });
           if (res.ok) {
             const dir = `${process.env.PRELAUNCH_DIR || `${process.env.HOME}/.claude/state/pre-launch`}`; mkdirSync(dir, { recursive: true });
             const file = `${dir}/${a}.unitvps`; writeFileSync(file, JSON.stringify({ kind: 'vps-unit-live', ...res.receipt, host: 'vps', load1: status?.load1, at: new Date().toISOString() }) + '\n');
