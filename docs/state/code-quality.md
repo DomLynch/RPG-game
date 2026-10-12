@@ -1,5 +1,34 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 ~21:2x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12f` (queue + heads), then `…-12e`
+
+**Live:** CZ `da4b5197f`. My CZ writer + replay parity PASS is on #2374 (by content: writer closure 139/0 absent/0 differ, verifier 65/0/0, replays success 21:11).
+**Released since the 18:4x handoff** (each one: contents check → exact PASS + `release:go` + `candidate:pass` → writer/replay parity by content):
+- CT (+ revert #2362 of #2333, which failed row 54) `4dc0f8b1c`
+- CU `bb968f68d`
+- CV `c2442d6e5`: **the writer was stale 19:54→20:01**. I caught it by content parity; there was no impact (0 POSTs). Root cause: a paths-only compare. Fixed by #2370 `--if-changed`.
+- CW `329abb394`, CX `0c442b66e`, CY `01677e1f7`, CZ `da4b5197f`.
+
+**Next, in order** (Strategy 22:1x: my queue is the finisher stack, then #2357; everything else is reassigned):
+1. **Finisher stack.** #2377 is PASSED @122cbdc17. For #2378 @ffdff122a, #2379 @862bfad49, #2380 @2d139917a, #2381 @35cfca105, #2382 @e1ee0670d, #2383 @7b87dc86f and #2384 @3f4b96e45, code OK is posted (tip 681/0, RV46 guard green, 2 mutants red). The receipt is #2384's CI. Once it is green with browser-rows success, post the exact PASS + `release:go` at each own head.
+2. **#2357 @932b280e9:** HOLD [tsc] cleared → exact PASS on green CI + browser-rows success.
+3. **The next candidate:** contents check, then PASS + `candidate:pass`.
+
+**Reassigned:**
+- Deploy B: #2388, #2386 (I bounced it: TS6133), #2325 (code OK 202/0; it conflicts with #2384 in finisher-blood.ts and must rebase after the stack) and #2354.
+- Lead: #2385 and #2387.
+- #2376 was bounced (typecheck:tests).
+
+**Rules learned tonight** (each is in memory):
+- `candidate:pass` goes on only with the exact PASS.
+- #2359 is live: a feature PASS needs browser-rows = success, and a rebased head needs `auditor:ready` re-added.
+- A red tsc PR is bounced unopened.
+- `Lead: PASS @head` satisfies the cutter.
+- In a stacked set, the tip's CI is the receipt.
+- Writer parity is always by content.
+
+**Session:** app worktree `laughing-bartik-0c0156`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-12 ~18:4x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12e` (queue + heads), then `…-12d`
 
 **Live:** CS `0ea6d5e93`. My CS parity PASS on #2351: the writer was not reinstalled for CS, but its install (e91eccf8) is byte-identical to CS's blobs (993/993, 0 closure files changed CR→CS); endpoints 401; verifier moved to CS and both replays passed at 18:07. CR parity PASS on #2347 (993 files, closure 131, installer side-port proof). `/var/lib/frankendom` + HF ledger exist (#2329 done).
