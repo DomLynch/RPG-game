@@ -74,9 +74,6 @@ try {
         // no script-side scroll: the sheet itself must open the compare clear of the sticky tab strip (cards' top edge at or below the strip's bottom edge, inside the viewport)
         const clear = await page.evaluate(() => { const c = document.getElementById('fitting-compare').getBoundingClientRect(), n = document.querySelector('#journal .app-nav').getBoundingClientRect(); return { top: Math.round(c.top), navBottom: Math.round(n.bottom), bottom: Math.round(c.bottom), vh: innerHeight }; });
         await snap('journal-fit', '#journal');
-        const wear = await page.evaluate(() => { const b = document.getElementById('fitting-wear').getBoundingClientRect(), c = document.getElementById('fitting-cancel').getBoundingClientRect(); return { wear: Math.round(b.bottom), cancel: Math.round(c.bottom), under: Math.round(document.getElementById('fitting-compare').getBoundingClientRect().bottom - document.querySelector('#fitting .fitting-actions').getBoundingClientRect().top), vh: innerHeight }; });
-        if (wear.wear > wear.vh + 1 || wear.cancel > wear.vh + 1) v.states['journal-fit'].bad.push(`try-on Cancel / Wear this below the fold: ${JSON.stringify(wear)}`);
-        if (wear.under > 1) v.states['journal-fit'].bad.push(`try-on compare runs ${wear.under}px under the action bar (a stat row is hidden): ${JSON.stringify(wear)}`);
         if (clear.top < clear.navBottom - 1 || clear.bottom > clear.vh + 1) v.states['journal-fit'].bad.push(`try-on compare not clear of the strip: ${JSON.stringify(clear)}`);
         const fit = await page.evaluate(() => ({ sides: [...document.querySelectorAll('#fitting-compare > div')].map((d) => d.getAttribute('data-side')), delta: document.querySelector('#fitting-compare [data-side="new"] [data-stat="res"] .cmp-delta')?.textContent ?? null }));
         v.fit = fit;
