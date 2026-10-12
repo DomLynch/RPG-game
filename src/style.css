@@ -2575,4 +2575,4 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 @media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button { top: -44px; } }
 #journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
 #journal #journal-rank { margin-top: 6px; }
-@media (max-width: 440px) { #journal #journal-name { font-size: 24px; max-width: calc(100% - 176px); padding-right: 26px; background-size: 20px; } }
+@media (max-width: 440px) { #journal #journal-name { font-size: 24px; max-width: calc(100vw - 208px);   /* vw, not %: the header cell is shrink-wrapped, so a % of it cut "Wanderer" to "Wa…" */ padding-right: 26px; background-size: 20px; } }
