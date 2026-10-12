@@ -145,6 +145,6 @@ test('the draw-material class table is ROWS: every old CLASS_OF entry classes th
   rows.Mithril = { order: 99, class: 'metal' };
   try { assert.equal(classOf('Mithril'), 'metal', 'a new metal is one row'); } finally { delete rows.Mithril; }
   assert.equal(classOf('Mithril'), undefined);
-  for (const [name, row] of Object.entries(DEFINITIONS.drawMaterials)) assert.ok(!!row.exempt !== !!row.class && (row.exempt || ['metal', 'trim', 'leather', 'cloth', 'stone'].includes(row.class!)), );
+  for (const [name, row] of Object.entries(DEFINITIONS.drawMaterials)) assert.ok(!!row.exempt !== !!row.class && (row.exempt || ['metal', 'trim', 'leather', 'cloth', 'stone'].includes(row.class!)), `material ${name}: exempt xor a known class`);
   for (const [name, row] of Object.entries(DEFINITIONS.drawSuffixes)) assert.ok(['metal', 'trim', 'leather', 'cloth', 'stone'].includes(row.class), `suffix ${name}: a known class`);
 });
