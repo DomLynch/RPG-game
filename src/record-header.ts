@@ -27,7 +27,7 @@ export async function peekRecordHeader(s: string): Promise<RecordHeader | null> 
     const v = bytes[2];
     o = 3;
     const str = () => { const len = bytes[o++]; if (len === undefined || o + len > bytes.length) throw Error('truncated'); let t = ''; for (let i = 0; i < len; i++) t += String.fromCharCode(bytes[o + i]); o += len; return t; };
-    const build = str(), opponent = str(), weapon = v >= 2 ? str() : 'longsword';
+    const build = str(), opponent = str(), weapon = v >= 2 ? str() : 'longsword';   // a v1 header has no weapon byte: those fights were fought with the longsword, a fact of the old format (not DEFAULT_WEAPON, which a later row may change)
     if (v >= 12) o++;   // the skill byte (version 12)
     if (v >= 21) o++;   // the specials flag (version 21)
     if (v >= 26) o++;   // the arena byte (version 26)

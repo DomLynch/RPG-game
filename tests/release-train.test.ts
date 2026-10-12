@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -28,6 +28,37 @@ test('readOrder, checksGreen and the train name', () => {
   assert.equal(checksGreen([]), false, 'no checks at all is not green');
   assert.equal(trainName(new Date('2026-10-12T17:40:05Z'), '38251416111'), 'T1012174005r38251416111', 'seconds + run id: a label event and a cron tick in one minute get two names');
   assert.notEqual(trainName(new Date('2026-10-12T17:40:05Z'), '1'), trainName(new Date('2026-10-12T17:40:05Z'), '2'));
+});
+
+test('checksGreen: a feature head under the new quality.yml needs the browser-rows status SUCCESS; missing or pending is not green; release-* and old heads are exempt (#2359 (d))', () => {
+  const REPORTER = { __typename: 'CheckRun', workflowName: 'quality', name: 'browser-rows (status)', status: 'COMPLETED', conclusion: 'SKIPPED' };
+  const status = (state: string) => ({ __typename: 'StatusContext', context: 'browser-rows', state });
+  const fresh = [...OK, REPORTER];   // the new quality.yml ran on this head: its plan always sets browser-rows on a feature PR
+  assert.equal(checksGreen(fresh, 'lane/x'), false, 'a game-diff feature PR whose browser jobs were skipped and that has no browser-rows status is not green');
+  assert.equal(browserRowsMissing(fresh, 'lane/x'), true);
+  assert.equal(checksGreen([...fresh, status('PENDING')], 'lane/x'), false, 'pending (waiting for auditor:ready) is not green');
+  assert.equal(checksGreen([...fresh, status('FAILURE')], 'lane/x'), false);
+  assert.equal(checksGreen([...fresh, status('SUCCESS')], 'lane/x'), true);
+  assert.equal(checksGreen([...fresh, { ...status('SUCCESS'), context: 'other' }], 'lane/x'), false, 'another context is not browser-rows');
+  assert.equal(checksGreen(fresh, 'release-T1012191800r1'), true, 'a release-* candidate gets no status (it always runs the browser jobs)');
+  assert.equal(checksGreen(OK, 'lane/x'), true, 'a head the old quality.yml ran on (no reporter check) is not held');
+  assert.equal(checksGreen(fresh), false, 'no head ref: the rule applies (fail closed)');
+  assert.equal(pickPublish([{ headRefName: 'release-CV', baseRefName: TRUNK, headRefOid: 'c'.repeat(40), labels: ['candidate:pass'], comments: [`Lead: PASS @${'c'.repeat(9)}`], statusCheckRollup: fresh, createdAt: 'x' }])?.headRefName, 'release-CV', 'the publish gate passes a candidate');
+});
+
+test('checksGreen: per check on the head, the latest attempt that is not SKIPPED decides: a superseded CANCELLED is ignored; a later SKIPPED never hides a red (Lead, #2359)', () => {
+  const run = (wf: string, name: string, conclusion: string, startedAt: string, status = 'COMPLETED') => ({ __typename: 'CheckRun', workflowName: wf, name, status, conclusion, startedAt, completedAt: startedAt });
+  // #2359's live shape at 8700061b6: wording cancelled by the concurrency group, then green; quality green, then three inert (skipped) runs
+  const live = [...OK.filter(c => c.name !== 'quality'), run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T14:40:23Z'), run('pr-wording', 'wording', 'SUCCESS', '2026-10-12T14:44:20Z'),
+    run('quality', 'quality', 'SKIPPED', '2026-10-12T14:40:33Z'), run('quality', 'quality', 'SUCCESS', '2026-10-12T14:48:36Z'), run('quality', 'quality', 'SKIPPED', '2026-10-12T15:18:46Z')];
+  assert.equal(checksGreen(live), true, 'a superseded CANCELLED with a newer SUCCESS of the same check is ignored');
+  assert.equal(checksGreen([...OK, run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T14:40:23Z')]), false, 'a CANCELLED with no newer run stays not green');
+  assert.equal(checksGreen([...OK, run('pr-wording', 'wording', 'SUCCESS', '2026-10-12T14:40:23Z'), run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T14:50:00Z')]), false, 'the latest attempt decides: a later cancel is not green');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), false, 'a later skipped (inert) run never hides a red');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'SUCCESS', '2026-10-12T14:00:00Z'), run('x', 'job', '', '2026-10-12T15:00:00Z', 'IN_PROGRESS')]), false, 'a newer attempt still running is not green');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('x', 'job', 'SUCCESS', '2026-10-12T15:00:00Z')]), true, 'a re-run that passed decides');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('y', 'job', 'SUCCESS', '2026-10-12T15:00:00Z')]), false, 'another workflow\'s check of the same name does not supersede');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'SKIPPED', '2026-10-12T14:00:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), true, 'all skipped is green');
 });
 
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
@@ -106,21 +137,26 @@ test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at
   assert.equal(pickPublish([]), null);
 });
 
+const runEnv = (p: { env: Record<string, string> }) => p.env;
+
 // The publisher with gh, git and the deploy stubbed: nothing here touches GitHub, this checkout or a box.
 function publisher() {
   const dir = mkdtempSync(join(tmpdir(), 'pub-')), bin = join(dir, 'bin'), state = join(dir, 'state'), repo = join(dir, 'repo'), log = join(dir, 'calls');
   mkdirSync(bin); mkdirSync(state); mkdirSync(join(repo, 'scripts'), { recursive: true });
   for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
-  sh('gh', `echo "gh $*" >> "${log}"; case "$1 $2" in "pr list") [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]' ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
+  sh('gh', `echo "gh $*" >> "${log}"; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
+case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
   sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
   sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
+  sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
   writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)' }], statusCheckRollup: OK }]));
-  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
+  const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
-  return { dir, state, run, calls, cand, reset: () => writeFileSync(log, '') };
+  const env = { PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
+  return { dir, state, run, calls, cand, env, reset: () => writeFileSync(log, '') };
 }
 
 test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge commit), deploys with FRANKENDOM_RELEASE=1, removes deploy_hold and comments the Published line', () => {
@@ -222,6 +258,68 @@ test('publisher (Lead on #2336): the gate is re-checked on the FULL rollup: gh p
     const moved = { ...listed[0], headRefOid: 'e'.repeat(40), statusCheckRollup: OK };
     writeFileSync(join(p.dir, 'view.json'), JSON.stringify(moved));
     assert.match(p.run({ VIEW: join(p.dir, 'view.json') }).stdout, /head moved to eeeeeeeee/);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher: starts the Mac-only rows at the cut for the OLDEST open candidate without a receipt (Strategy + Lead 2026-10-12)', async () => {
+  const p = publisher();
+  try {
+    const listed = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8'));
+    const newer = { ...listed[0], number: 2401, headRefName: 'release-T2', headRefOid: 'd'.repeat(40), createdAt: '2026-10-12T18:00:00Z', labels: [] };
+    writeFileSync(join(p.dir, 'prs.json'), JSON.stringify([newer, listed[0]]));
+    writeFileSync(join(p.state, 'deploy_hold'), '');   // held: no publish this tick, but the early rows still start
+    let r = p.run();
+    assert.match(r.stdout, /mac rows \(early\) for ccccccccc: started/);
+    await new Promise((done) => setTimeout(done, 300));
+    assert.match(p.calls(), new RegExp(`mac-rows ${'c'.repeat(40)}`), 'the oldest candidate (it publishes first)');
+    mkdirSync(join(p.state, 'pre-launch'), { recursive: true });
+    writeFileSync(join(p.state, 'pre-launch', `${'c'.repeat(40)}.macrows.json`), '{}');
+    p.reset(); r = p.run();
+    assert.match(r.stdout, /mac rows \(early\) for ddddddddd: started/, 'next: the newer one, once the oldest has a receipt');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher under launchd (Lead 2026-10-12): a Desktop-backed repo or release slot is refused BEFORE any git call, hold or push; the train never runs from one', () => {
+  const p = publisher();
+  try {
+    const home = join(p.dir, 'home'), deskRepo = join(p.dir, 'deskrepo');
+    mkdirSync(join(deskRepo, 'scripts'), { recursive: true });
+    for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(deskRepo, 'scripts', f));
+    writeFileSync(join(deskRepo, '.git'), `gitdir: ${join(home, 'Desktop/Business/frankendom/.git/worktrees/frankendom-train')}\n`);
+    const r = p.run({ HOME: home, RELEASE_TRAIN_REPO: deskRepo });
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /refusing to run: .*deskrepo: a worktree of a repo under ~\/Desktop/);
+    assert.doesNotMatch(p.calls(), /^git /m, 'no git call: under launchd it would only fail with "not a git repository"');
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false);
+    p.reset();
+    const slot = join(p.dir, 'slot'); mkdirSync(slot); writeFileSync(join(slot, '.git'), `gitdir: ${join(home, 'Desktop/x/.git/worktrees/slot')}\n`);
+    const s = p.run({ HOME: home, RELEASE_SLOTS: slot });
+    assert.equal(s.status, 1);
+    assert.match(s.stdout, /refusing to run: .*slot: a worktree of a repo under ~\/Desktop/);
+    assert.doesNotMatch(p.calls(), /git push|deploy FRANKENDOM/, 'nothing pushed, nothing deployed');
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false);
+    assert.match(readFileSync('scripts/release-train-publish.sh', 'utf8'), /RELEASE_SLOTS="\$\{RELEASE_SLOTS:-\$HOME\/Developer\/frankendom-train-deploy\}"/, 'its own release slot, a worktree of the train clone');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher dry run (--dry-run or the release-train.dry-run file): the tick reads, picks and verifies, logs what it would publish, and writes nothing', () => {
+  const p = publisher();
+  try {
+    for (const how of ['arg', 'file']) {
+      p.reset();
+      if (how === 'file') writeFileSync(join(p.state, 'release-train.dry-run'), '');
+      writeFileSync(join(p.state, 'deploy_hold'), 'Deploy by hand\n');   // a held box: a dry run still reports, never waits
+      const r = how === 'arg' ? spawnSync('bash', ['scripts/release-train-publish.sh', '--dry-run'], { encoding: 'utf8', env: { ...process.env, ...runEnv(p) } }) : p.run();
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /DRY RUN: deploy_hold present/);
+      assert.match(r.stdout, new RegExp(`DRY RUN: would start mac rows \\(early\\) for ${p.cand.slice(0, 9)} in .*frankendom-train-macrows`), 'the early rows are only named');
+      assert.doesNotMatch(p.calls(), /mac-rows /, 'and not started');
+      assert.match(r.stdout, new RegExp(`DRY RUN: would publish #2400 @${p.cand.slice(0, 9)}`));
+      assert.match(p.calls(), /git fetch -q origin/, 'the tick still reads git: that is what launchd must prove');
+      assert.doesNotMatch(p.calls(), /git push|gh pr ready|gh pr comment|deploy FRANKENDOM/, `${how}: nothing written`);
+      assert.equal(readFileSync(join(p.state, 'deploy_hold'), 'utf8'), 'Deploy by hand\n', 'the hold is untouched');
+      rmSync(join(p.state, 'deploy_hold'));
+    }
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 

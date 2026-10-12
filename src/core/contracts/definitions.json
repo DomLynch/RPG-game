@@ -1,9 +1,24 @@
 {
   "gates": {
-    "pit": { "order": 0, "tier": "Recruit", "open": true },
-    "outer": { "order": 1, "tier": "Gladiator" },
-    "second-realm": { "order": 2, "tier": "Champion", "membership": true },
-    "endgame": { "order": 3, "tier": "Origin", "membership": true }
+    "pit": {
+      "order": 0,
+      "tier": "Recruit",
+      "open": true
+    },
+    "outer": {
+      "order": 1,
+      "tier": "Gladiator"
+    },
+    "second-realm": {
+      "order": 2,
+      "tier": "Champion",
+      "membership": true
+    },
+    "endgame": {
+      "order": 3,
+      "tier": "Origin",
+      "membership": true
+    }
   },
   "relations": {
     "ally": {},
@@ -21,14 +36,158 @@
     "boss": {}
   },
   "attitudes": {
-    "hostile": { "order": 0, "atOrBelow": -500 },
-    "angry": { "order": 1, "atOrBelow": -100, "expelledCeiling": true },
-    "neutral": { "order": 2 },
-    "friendly": { "order": 3, "atOrAbove": 250 }
+    "hostile": {
+      "order": 0,
+      "atOrBelow": -500
+    },
+    "angry": {
+      "order": 1,
+      "atOrBelow": -100,
+      "expelledCeiling": true
+    },
+    "neutral": {
+      "order": 2
+    },
+    "friendly": {
+      "order": 3,
+      "atOrAbove": 250
+    }
   },
   "questScopes": {
     "personal": {},
     "party": {},
     "world": {}
+  },
+  "rarities": {
+    "common": {
+      "order": 0
+    },
+    "fine": {
+      "order": 1
+    },
+    "rare": {
+      "order": 2
+    },
+    "relic": {
+      "order": 3
+    }
+  },
+  "materials": {
+    "iron": {
+      "order": 0
+    },
+    "steel": {
+      "order": 1
+    },
+    "bronze": {
+      "order": 2
+    },
+    "gold": {
+      "order": 3
+    },
+    "leather": {
+      "order": 4
+    },
+    "cloth": {
+      "order": 5
+    },
+    "bone": {
+      "order": 6
+    },
+    "wood": {
+      "order": 7
+    },
+    "stone": {
+      "order": 8
+    },
+    "none": {
+      "order": 9
+    }
+  },
+  "presentations": {
+    "take-one": {},
+    "collect": {}
+  },
+  "serviceAccepts": {
+    "armour": {
+      "armour": true,
+      "weapons": false
+    },
+    "weapons": {
+      "armour": false,
+      "weapons": true
+    },
+    "all": {
+      "armour": true,
+      "weapons": true
+    }
+  },
+  "powers": {
+    "slot-weight": {
+      "tiered": true,
+      "upgradeable": true,
+      "gearOnly": true
+    },
+    "none": {}
+  },
+  "categories": {
+    "gear": {
+      "path": "gear",
+      "slot": "required",
+      "single": true
+    },
+    "material": {
+      "path": "stock",
+      "slot": "none",
+      "craftInput": true
+    },
+    "quest": {
+      "path": "stock",
+      "slot": "none"
+    },
+    "cosmetic": {
+      "path": "stock",
+      "slot": "allowed",
+      "single": true
+    }
+  },
+  "story": {
+    "none": {},
+    "notable": {},
+    "story-critical": {
+      "blocksTrade": true,
+      "single": true,
+      "bindsOnAcquire": true,
+      "staysWithCharacter": true
+    }
+  },
+  "provenanceKinds": {
+    "arena-award": {
+      "tradeable": true
+    },
+    "legacy-unlock": {
+      "tradeable": true
+    },
+    "loot": {
+      "tradeable": true
+    },
+    "quest-reward": {
+      "tradeable": true
+    },
+    "creator-mint": {
+      "tradeable": true,
+      "onlyCategories": [
+        "cosmetic"
+      ]
+    },
+    "shop": {
+      "tradeable": true,
+      "needsPath": "gear",
+      "blockReason": "shop-not-gear"
+    },
+    "cash-shop": {
+      "tradeable": false,
+      "blockReason": "cash-shop"
+    }
   }
 }

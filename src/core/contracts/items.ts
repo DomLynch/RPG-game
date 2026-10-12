@@ -27,25 +27,26 @@ import {
   type ServiceId,
 } from './ids.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
+import { DEFINITIONS, categoryOf, ids, powerOf, provenanceOf, storyOf } from './definitions.ts';
 
 // ---- ItemDefinition ---------------------------------------------------------------------------------------------------------------
 
 export const ITEM_DEFINITION_VERSION = 1;
-export const CATEGORIES = ['gear', 'material', 'quest', 'cosmetic'] as const;
-export type Category = (typeof CATEGORIES)[number];
+export const CATEGORIES: readonly string[] = ids(DEFINITIONS.categories);   // rows of definitions.json `categories` (path gear|stock, slot, single, craftInput)
+export type Category = string;
 // Four rarities (blueprint §7: "start with four rarity categories"). A label and a drop-rate band, never a stat.
-export const RARITIES = ['common', 'fine', 'rare', 'relic'] as const;
-export type Rarity = (typeof RARITIES)[number];
+export const RARITIES: readonly string[] = ids(DEFINITIONS.rarities);   // rows of definitions.json `rarities` ('common' is pinned: loot-catalogue and the fixtures assign it, tests/item-defs.test.ts)
+export type Rarity = string;
 // The material language of the art direction (blueprint §10). Presentation and crafting input; never a stat.
-export const MATERIALS = ['iron', 'steel', 'bronze', 'gold', 'leather', 'cloth', 'bone', 'wood', 'stone', 'none'] as const;
-export type Material = (typeof MATERIALS)[number];
-export const STORY = ['none', 'notable', 'story-critical'] as const;
-export type Story = (typeof STORY)[number];
+export const MATERIALS: readonly string[] = ids(DEFINITIONS.materials);   // rows of definitions.json `materials`
+export type Material = string;
+export const STORY: readonly string[] = ids(DEFINITIONS.story);   // rows of definitions.json `story` (blocksTrade, single, bindsOnAcquire, staysWithCharacter)
+export type Story = string;
 export const BINDINGS = ['none', 'on-acquire', 'on-equip'] as const;
 export type Binding = (typeof BINDINGS)[number];
 // The power budget. 'slot-weight': the slot's SLOT_WEIGHT × (tier level − 1), exactly as src/fight/gear-stats.ts prices today's loot.
-export const POWERS = ['slot-weight', 'none'] as const;
-export type Power = (typeof POWERS)[number];
+export const POWERS: readonly string[] = ids(DEFINITIONS.powers);   // rows of definitions.json `powers` (tiered, upgradeable, gearOnly)
+export type Power = string;
 export const MAX_STACK = 9999;
 
 export type ItemDefinition = {
@@ -95,17 +96,17 @@ export function parseItemDefinition(raw: unknown, path = ''): Result<ItemDefinit
 
   // Cross-field rules. Each is a design decision written down, not a shape check.
   const def: ItemDefinition = { kind: 'item-definition', schemaVersion: 1, id: id!, name: name!, category: category!, rarity: rarity!, slot: slot ?? null, power: power!, material: material!, appearance: appearance!, story: story!, binding: binding!, stack: stack! };
-  if (def.category === 'gear' && def.slot === null) issues.add('rule-violation', join(path, 'slot'), 'gear must name its slot');
-  if (def.slot !== null && def.category !== 'gear' && def.category !== 'cosmetic') issues.add('rule-violation', join(path, 'slot'), `a ${def.category} item is not worn and has no slot`);
-  if (def.power === 'slot-weight' && def.category !== 'gear') issues.add('rule-violation', join(path, 'power'), 'only gear carries a power budget (cosmetics, materials and quest items are power "none")');
-  if ((def.category === 'gear' || def.category === 'cosmetic' || def.story === 'story-critical') && def.stack !== 1) issues.add('rule-violation', join(path, 'stack'), 'gear, cosmetics and story-critical items are single copies (stack 1)');
-  if (def.story === 'story-critical' && def.binding !== 'on-acquire') issues.add('rule-violation', join(path, 'binding'), 'a story-critical item binds on acquire so it can never be traded away or lost (blueprint §8)');
+  if (categoryOf(def.category).slot === 'required' && def.slot === null) issues.add('rule-violation', join(path, 'slot'), 'gear must name its slot');
+  if (def.slot !== null && categoryOf(def.category).slot === 'none') issues.add('rule-violation', join(path, 'slot'), `a ${def.category} item is not worn and has no slot`);
+  if (powerOf(def.power).gearOnly && categoryOf(def.category).path !== 'gear') issues.add('rule-violation', join(path, 'power'), 'only gear carries a power budget (cosmetics, materials and quest items are power "none")');
+  if ((categoryOf(def.category).single || storyOf(def.story).single) && def.stack !== 1) issues.add('rule-violation', join(path, 'stack'), 'gear, cosmetics and story-critical items are single copies (stack 1)');
+  if (storyOf(def.story).bindsOnAcquire && def.binding !== 'on-acquire') issues.add('rule-violation', join(path, 'binding'), 'a story-critical item binds on acquire so it can never be traded away or lost (blueprint §8)');
   const legacy = legacyLootOfItemId(def.id);
   if (legacy !== null) {
     // A legacy loot definition is today's piece: gear in its own slot with the slot-weight budget. Anything else would re-price a piece
     // players already own.
     // Pit-won pieces are tradeable (Dom, 2026-10-06), so they never bind.
-    if (def.category !== 'gear' || def.slot !== slotOf(legacy) || def.power !== 'slot-weight' || def.binding !== 'none') {
+    if (categoryOf(def.category).path !== 'gear' || def.slot !== slotOf(legacy) || !powerOf(def.power).tiered || def.binding !== 'none') {
       issues.add('rule-violation', path || '(root)', `${def.id} is today's ${legacy}: it must be category gear, slot ${slotOf(legacy)}, power slot-weight, binding none`);
     }
   }
@@ -150,7 +151,7 @@ export type Provenance =
   | (Minted & { kind: 'creator-mint'; creator: AccountId })
   | (Minted & { kind: 'shop'; boughtBy: CharacterInstanceId; shop: ServiceId })
   | (Minted & { kind: 'cash-shop'; account: AccountId; sku: string });
-export const PROVENANCE_KINDS = ['arena-award', 'legacy-unlock', 'loot', 'quest-reward', 'creator-mint', 'shop', 'cash-shop'] as const;
+export const PROVENANCE_KINDS: readonly string[] = ids(DEFINITIONS.provenanceKinds);   // rows of definitions.json `provenanceKinds` (tradeable, blockReason, needsPath, onlyCategories); the 7 below keep their own field shapes, a new row takes the base shape
 
 // Append-only history: what happened to the piece after it was minted. A trade and an upgrade each add one entry; nothing removes or
 // edits one (checkHistoryKept).
@@ -323,7 +324,10 @@ function readProvenance(issues: Issues, raw: unknown, path: string): Provenance 
       return account && sku ? { kind, mintKey, at, account, sku } : undefined;
     }
     default:
-      return undefined;
+      // A provenance ROW with no shape case above (a new kind added to definitions.json): the base shape, kind + mintKey + at. A failed kind read has no row and returns undefined.
+      if (kind === undefined) return undefined;
+      only([]);
+      return { kind, mintKey, at } as unknown as Provenance;   // typed as the 7 known shapes; code narrows on those kinds, a row-only kind matches none of them
   }
 }
 
@@ -405,9 +409,9 @@ export function checkInstance(inst: ItemInstance, def: ItemDefinition, path = ''
   const at = (key: string): string => join(path, key);
   if (inst.item !== def.id) issues.add('rule-violation', at('item'), `instance names ${inst.item} but was checked against ${def.id}`);
   if (inst.quantity > def.stack) issues.add('out-of-range', at('quantity'), `quantity ${inst.quantity} exceeds the definition's stack ${def.stack}`);
-  if (def.power === 'slot-weight' && inst.tier === null) issues.add('rule-violation', at('tier'), 'a gear piece with a power budget records the tier it was won at');
-  if (def.power === 'none' && inst.tier !== null) issues.add('rule-violation', at('tier'), 'only gear with a power budget carries a tier');
-  if (upgradeLevelOf(inst) > 0 && def.power !== 'slot-weight') issues.add('rule-violation', at('upgradeLevel'), 'only gear with a power budget can be upgraded');
+  if (powerOf(def.power).tiered && inst.tier === null) issues.add('rule-violation', at('tier'), 'a gear piece with a power budget records the tier it was won at');
+  if (!powerOf(def.power).tiered && inst.tier !== null) issues.add('rule-violation', at('tier'), 'only gear with a power budget carries a tier');
+  if (upgradeLevelOf(inst) > 0 && !powerOf(def.power).upgradeable) issues.add('rule-violation', at('upgradeLevel'), 'only gear with a power budget can be upgraded');
   const loc = inst.location;
   if (loc.kind === 'equipped') {
     if (def.slot === null) issues.add('rule-violation', at('location'), `${def.id} has no slot and cannot be equipped`);
@@ -420,11 +424,11 @@ export function checkInstance(inst: ItemInstance, def: ItemDefinition, path = ''
   } else if (def.binding === 'on-acquire' && owner !== null) {
     issues.add('rule-violation', at('boundTo'), `${def.id} binds on acquire; held by ${owner} it must be bound`);
   }
-  if (def.story === 'story-critical' && (loc.kind === 'trade-escrow' || loc.kind === 'guild-vault' || loc.kind === 'account-vault')) {
+  if (storyOf(def.story).staysWithCharacter && (loc.kind === 'trade-escrow' || loc.kind === 'guild-vault' || loc.kind === 'account-vault')) {
     issues.add('rule-violation', at('location'), 'a story-critical item cannot leave its character (blueprint §8)');
   }
   const prov = inst.provenance;
-  if (prov.kind === 'creator-mint' && def.category !== 'cosmetic') issues.add('rule-violation', at('provenance'), 'creator-minted items are cosmetics only (ruling 6)');
+  { const only = provenanceOf(prov.kind).onlyCategories; if (only && !only.includes(def.category)) issues.add('rule-violation', at('provenance'), `${prov.kind} items are ${only.join('/')} only (ruling 6)`); }
   if ((prov.kind === 'arena-award' || prov.kind === 'legacy-unlock') && legacyLootOfItemId(def.id) !== prov.lootId) {
     issues.add('rule-violation', at('provenance.lootId'), `${prov.kind} for ${prov.lootId} cannot mint ${def.id}`);
   }
@@ -548,7 +552,7 @@ export function resolveLoadout(owner: CharacterInstanceId, instances: readonly I
     const def = lookup(inst.item);
     if (!def) return fail('unknown-id', inst.id, `equipped ${inst.id} names unknown item ${inst.item}`);
     const tier = effectiveTier(inst);
-    if (def.power === 'slot-weight' && def.slot !== null && tier !== null) kit[def.slot] = tier;
+    if (powerOf(def.power).tiered && def.slot !== null && tier !== null) kit[def.slot] = tier;
   }
   const loadout = loadoutFor(kit);
   // Belt and braces: loadoutFor cannot exceed the caps for any kit, and this says so at the seam.
@@ -559,13 +563,13 @@ export function resolveLoadout(owner: CharacterInstanceId, instances: readonly I
 // What one piece is worth on today's per-piece score scale (src/fight/gear-stats.ts pointsFor), at its effective tier. 0 for no power.
 export function piecePoints(inst: Pick<ItemInstance, 'tier' | 'upgradeLevel'>, def: ItemDefinition): number {
   const tier = effectiveTier(inst);
-  return def.power === 'slot-weight' && def.slot !== null && tier !== null ? pointsFor(tier, def.slot) : 0;
+  return powerOf(def.power).tiered && def.slot !== null && tier !== null ? pointsFor(tier, def.slot) : 0;
 }
 
 // ---- LootTable --------------------------------------------------------------------------------------------------------------------
 
 export const LOOT_TABLE_VERSION = 1;
-export const PRESENTATIONS = ['take-one', 'collect'] as const; // take-one: the Pit rule, kept for elites and bosses; collect: everyday drops
+export const PRESENTATIONS: readonly string[] = ids(DEFINITIONS.presentations); // take-one: the Pit rule, kept for elites and bosses; collect: everyday drops
 export const DISTRIBUTIONS = ['personal'] as const; // personal group loot first (blueprint §8); a shared mode is a later version
 export const ROLL_MODES = ['independent', 'weighted'] as const;
 export const MAX_CURRENCY = 1_000_000_000;
@@ -576,7 +580,7 @@ export type LootTable = {
   kind: 'loot-table';
   schemaVersion: 1;
   id: LootTableId;
-  presentation: (typeof PRESENTATIONS)[number];
+  presentation: string;
   distribution: (typeof DISTRIBUTIONS)[number];
   rolls: LootRoll[];
   currency: { min: number; max: number } | null;

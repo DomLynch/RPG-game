@@ -8,6 +8,8 @@ import { isCharge } from '../src/fight/charge-timing.ts';
 import { isShieldQuake } from '../src/fight/special-fx-quake.ts';
 import { isGoblinCast } from '../src/fight/special-fx-goblin.ts';
 import { isPitbornSpecial } from '../src/fight/special-fx-pitborn.ts';
+import { isHewer, isStomp } from '../src/fight/special-fx-dwarf-shield.ts';
+import { isExecutionerCast } from '../src/fight/special-fx-executioner.ts';
 
 // Lead 2026-10-12 (check:as-data, #2323): a cast test names the class skill it draws (special-timing.ts skillCast); the skill's row says whose it is.
 // Byte-identical: every opponent x actor x move answers exactly as the opponent-named test it replaced.
@@ -20,6 +22,9 @@ export const CASES: [string, Test, Test][] = [
   ['isShieldQuake', isShieldQuake, was('veteran', 'skill_shove')],
   ['isGoblinCast', isGoblinCast, was('goblin')],
   ['isPitbornSpecial', isPitbornSpecial, was('pitborn', 'skill_cleave')],
+  ['isStomp', isStomp, was('dwarf', 'skill_stomp')],
+  ['isHewer', isHewer, was('shieldmaiden', 'skill_hewer')],
+  ['isExecutionerCast', isExecutionerCast, was('executioner', 'skill_reaping')],
 ];
 export const sweep = (cases: readonly [string, Test, Test][]) => {
   const opponents = Object.keys(ROSTER) as OpponentId[], moves = [undefined, 'none', ...Object.keys(MOVES)];
@@ -29,6 +34,6 @@ export const sweep = (cases: readonly [string, Test, Test][]) => {
 test('the cast tests read the skill rows and answer exactly as the opponent-named tests they replaced', () => sweep(CASES));
 
 test('the special cast tests name no opponent', () => {
-  for (const file of ['special-timing.ts', 'charge-timing.ts', 'special-fx-quake.ts', 'special-fx-goblin.ts', 'special-fx-pitborn.ts'])
+  for (const file of ['special-timing.ts', 'charge-timing.ts', 'special-fx-quake.ts', 'special-fx-goblin.ts', 'special-fx-pitborn.ts', 'special-fx-dwarf-shield.ts', 'special-fx-executioner.ts'])
     assert.doesNotMatch(readFileSync(new URL(`../src/fight/${file}`, import.meta.url), 'utf8'), /(opponent|id) === '[a-z]+' && actor/, file);
 });

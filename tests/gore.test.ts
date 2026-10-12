@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3, Vector4, Matrix4 } from 'three';
+import { Raycaster, Bone, BoxGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3, Vector4, Matrix4 } from 'three';
 import { createBladeBlood, createBodyWounds, createSplatPool, woundSite, woundSeed, lcg, surfaceHit, clampRadius, DRIP, DRY, WOUND_THRESHOLD, WOUNDS_PER_FIGHTER, WOUND_ART, WOUND_SIZE, DROPS } from '../src/fight/gore.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
 
@@ -354,6 +354,39 @@ test('applyBoneTransform (gore.ts override of three 0.186): the same vertex as t
     assert.equal(dir.w, 0, 'a direction (w = 0) stays a direction');
   }
   assert.ok(!SkinnedMesh.prototype.applyBoneTransform.toString().includes('...'), 'no spread over the target: that generator was the allocation');
+});
+
+test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue skinned every vertex ~6x with a fresh bone product) and meets the very same point and face as an unmemoised ray', () => {
+  // Two bones with mixed weights, both posed hard, so the memo has to return what the per-triangle path returned (bit for bit) and an unskinned read would show.
+  const bones = [new Bone(), new Bone()], geometry = new BoxGeometry(.2, .2, .2, 3, 3, 3), n = geometry.attributes.position.count;
+  const index = new Uint16Array(n * 4), weight = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) { const w = (i % 5) / 4; index[i * 4] = 0; index[i * 4 + 1] = 1; weight[i * 4] = 1 - w; weight[i * 4 + 1] = w; }
+  geometry.setAttribute('skinIndex', new Uint16BufferAttribute(index, 4)); geometry.setAttribute('skinWeight', new Float32BufferAttribute(weight, 4));
+  const skin = new SkinnedMesh(geometry, new MeshStandardMaterial()); bones.forEach((b) => skin.add(b)); skin.bind(new Skeleton(bones));
+  bones[0].position.set(.02, .01, 0); bones[0].rotation.set(.5, .4, .3); bones[1].position.set(0, .03, .01); bones[1].rotation.set(.3, -.4, .2);
+  const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
+  const proto = SkinnedMesh.prototype, original = proto.applyBoneTransform; let calls = 0;
+  proto.applyBoneTransform = function (this: SkinnedMesh, i: number, target: Vector3 | Vector4) { calls++; return original.call(this, i, target); } as typeof original;
+  try {
+    const out = new Vector3(0, 0, 1), raycaster = new Raycaster();
+    raycaster.set(bones[0].getWorldPosition(new Vector3()).addScaledVector(out, 0.5), out.clone().negate()); raycaster.far = 0.5;
+    raycaster.intersectObjects([skin], false);   // warm-up: the first ray of a skin also builds its bounding sphere (one read per vertex), which is not the ray's own cost
+    calls = 0; const plain = raycaster.intersectObjects([skin], false)[0], plainCalls = calls;
+    calls = 0; const met = surfaceHit(root, bones[0], out), memoCalls = calls;
+    assert.ok(plain && met, 'both rays met the skin');
+    assert.ok(plainCalls > n, `the unmemoised ray skins vertices more than once (${plainCalls} calls for ${n} vertices)`);
+    assert.ok(memoCalls > 0 && memoCalls <= n, `one ray skins each vertex at most once, and does skin (${memoCalls} calls for ${n} vertices)`);
+    assert.ok(Math.abs(met.point.z - .1) > 1e-3, `the pose moved the face (z ${met.point.z}): a ray over unskinned vertices would read .1`);
+    for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(met.point[axis], plain.point[axis], 1e-12), `${axis}: the same point (the two rays start at different distances, so the last bit of the hit may differ)`);
+    assert.ok(near(met.normal.dot(plain.normal!.clone().transformDirection(skin.matrixWorld)), 1, 1e-9), 'the same face');
+    calls = 0; raycaster.intersectObjects([skin], false); assert.equal(calls, plainCalls, 'outside a pass nothing is cached: a later plain ray skins as before');
+    // A new pass is a new pose: nothing memoised may survive from the last ray (a stale vertex would glue a wound to where the body WAS).
+    bones[0].rotation.set(-.4, .3, -.5); bones[1].position.set(.04, -.02, .03); root.updateMatrixWorld(true);
+    const moved = surfaceHit(root, bones[0], out), fresh = raycaster.intersectObjects([skin], false)[0];
+    assert.ok(moved && fresh, 'both rays met the re-posed skin');
+    assert.ok(Math.abs(moved.point.z - met.point.z) > 1e-3, `the re-pose moved the hit (z ${met.point.z} -> ${moved.point.z})`);
+    for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(moved.point[axis], fresh.point[axis], 1e-12), `${axis}: the second pass sees the new pose, not the first pass's vertices`);
+  } finally { proto.applyBoneTransform = original; }
 });
 
 // The override mirrors three 0.186.0's method body. This fails the day three changes: a new version, a different signature, or the

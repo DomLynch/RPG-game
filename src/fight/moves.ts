@@ -1,7 +1,7 @@
 import WEAPON_DEFS from './weapon-defs.json' with { type: 'json' };
 import SKILL_DEFS from './skill-defs.json' with { type: 'json' };
 import { loadSkillDefs } from './skills.ts';
-import { loadWeaponDefs } from './weapons.ts';
+import { loadWeaponDefs, type WeaponLook } from './weapons.ts';
 import type { PoolValues } from './pools.ts';
 import { ROSTER, type OpponentId, type RigId } from '../roster.ts';
 export type { OpponentId, RigId } from '../roster.ts';
@@ -284,6 +284,9 @@ export const isSkillId = (id: unknown): id is SkillId => typeof id === 'string' 
 /** The skill a move belongs to, or null: the row whose `move` it is. */
 export const skillOfMove = (move: string | null | undefined): SkillId | null => (move == null ? null : Object.values(SKILL_ROWS).find((r) => r.move === move)?.id ?? null);
 export const WEAPONS: Record<WeaponId, Weapon> = LOADED.weapons;
+export const DEFAULT_WEAPON: WeaponId = LOADED.defaultId;   // the row marked `default`: the weapon a fighter gets when none is named
+export const WEAPON_LOOK: Readonly<Record<WeaponId, WeaponLook>> = LOADED.looks;   // the rows' presentation flags (baked, pommelBash, lowerArm, stabs); not on the Weapon, so they move no fight
+export const NATURAL_WEAPONS: ReadonlySet<WeaponId> = new Set(LOADED.natural);   // a creature's own weapon (the bite), not a player item
 export const weaponOf = (id: WeaponId): Weapon => { const w = WEAPONS[id]; if (!w) throw Error(`unknown weapon "${id}"`); return w; };
 export const isWeaponId = (id: unknown): id is WeaponId => typeof id === 'string' && Object.hasOwn(WEAPONS, id);
 export const LONGSWORD = WEAPONS.longsword!, TRIDENT = WEAPONS.trident!, CLEAVER = WEAPONS.cleaver!, KNIFE = WEAPONS.knife!, ESTOC = WEAPONS.estoc!, GLADIUS = WEAPONS.gladius!, SCYTHE = WEAPONS.scythe!;

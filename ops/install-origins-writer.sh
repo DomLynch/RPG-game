@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Installs, updates or rolls back the Origins writer on the VPS (origins/server). Run by Deploy on the box, as root, from a trunk checkout:
 #   bash ops/install-origins-writer.sh <revision>     install / update (idempotent)
+#   bash ops/install-origins-writer.sh --if-changed <revision>   the same (from a checkout AT <revision>, refused otherwise), unless what it would install is byte-identical to the installed writer
+#     (current): every closure file, src/, origins/ and package.json, file by file, both ways. Lead 2026-10-12 (CV): a skip judged by the closure
+#     LIST missed #2352's src/fight/record.ts (RV46 -> RV47) and a v46 writer read v47 records for 7 minutes; this is the only skip there is.
 #   bash ops/install-origins-writer.sh --rollback     stop + disable the unit, remove the nginx include and limits, reload nginx
 # It never creates or prints a secret: it only checks which keys exist. DATABASE_URL comes from /etc/frankendom/verifier.env (the verifier's own file, role frankendom_verifier;
 # no second role password). /etc/frankendom/origins-writer.env is writer-only: SUPABASE_URL, SUPABASE_ANON_KEY (public values), PORT=8788, later PRESENCE_INTERNAL_KEY from
@@ -31,7 +34,9 @@ if [ "${1:-}" = "--rollback" ]; then
   exit 0
 fi
 
-revision="${1:?usage: install-origins-writer.sh <revision> | --rollback}"
+if_changed=""; [ "${1:-}" = "--if-changed" ] && { if_changed=1; shift; }
+revision="${1:?usage: install-origins-writer.sh [--if-changed] <revision> | --rollback}"
+case "$revision" in -*) echo "install-origins-writer: unknown option $revision" >&2; exit 2 ;; esac
 nv="$(node -v 2>/dev/null || true)"; nv="${nv#v}"; major="${nv%%.*}"; minor="${nv#*.}"; minor="${minor%%.*}"
 if ! { [ "${major:-0}" -gt 22 ] || { [ "${major:-0}" -eq 22 ] && [ "${minor:-0}" -ge 18 ]; }; } 2>/dev/null; then
   echo "install-origins-writer: node >= 22.18 is required (the writer runs type-stripped .ts); found ${nv:-none}" >&2; exit 1
@@ -42,6 +47,22 @@ dest="$opt/$revision"
 # install), never a hand list: CH's loader.ts imported scripts/lib/json-dup-keys.mjs, the old list missed it and the writer crash-looped. An import that
 # resolves to no file stops the install here, before anything is copied.
 closure="$(cd "$here" && node scripts/writer-closure-list.mjs --paths writer)" || { echo "install-origins-writer: the writer's import closure has an unresolved import; nothing installed" >&2; exit 1; }
+if [ -n "$if_changed" ]; then
+  # It compares THIS checkout's files, so the checkout must be AT <revision> (Auditor on #2370): a stale one must never "match" the box.
+  head=$(git -C "$here" rev-parse HEAD 2>/dev/null) || { echo "install-origins-writer: --if-changed needs a git checkout at $revision ($here is not one); nothing installed" >&2; exit 1; }
+  case "$head" in "$revision"*) ;; *) echo "install-origins-writer: --if-changed: this checkout is at ${head:0:12}, not $revision; check out $revision first; nothing installed" >&2; exit 1 ;; esac
+  cur=$(readlink -f "$opt/current" 2>/dev/null || true)
+  if [ -z "$cur" ] || [ ! -d "$cur" ]; then echo "install-origins-writer: --if-changed: no installed writer (current); installing $revision"
+  else
+    # What this install would put down (as the copy below does) vs what current holds; a file on one side only is a difference too.
+    want=$( { printf '%s\n' $closure package.json; (cd "$here" && find src -type f; find origins -type f ! -name '*.test.ts' ! -name 'README.md'); } | sort -u)
+    have=$( { (cd "$cur" && find src origins scripts package.json -type f 2>/dev/null) || true; } | sort -u)
+    differ=$( { comm -3 <(printf '%s\n' "$want") <(printf '%s\n' "$have") | tr -d '\t'; printf '%s\n' "$want" | while read -r f; do if [ -f "$cur/$f" ] && ! cmp -s "$here/$f" "$cur/$f"; then echo "$f"; fi; done; } | sort -u | sed '/^$/d')
+    n=$(printf '%s\n' "$want" | wc -l | tr -d ' ')
+    if [ -z "$differ" ]; then echo "install-origins-writer: $revision: closure identical to the installed $(basename "$cur") ($n files, byte for byte); nothing installed"; exit 0; fi
+    echo "install-origins-writer: $revision: closure differs from the installed $(basename "$cur") in $(printf '%s\n' "$differ" | wc -l | tr -d ' ') of $n files: $(printf '%s\n' "$differ" | head -n 10 | tr '\n' ' '); installing"
+  fi
+fi
 
 # The writer imports ../src and ../origins (type-stripped .ts, Node >= 22.18); no node_modules: it has no dependencies.
 install -d "$dest/scripts" "$dest/scripts/lib"

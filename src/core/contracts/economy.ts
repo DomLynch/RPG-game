@@ -32,6 +32,7 @@ import {
   type AccountOf, type ItemDefinition, type ItemInstance, type Rarity,
 } from './items.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
+import { DEFINITIONS, categoryOf, ids, powerOf, provenanceOf, storyOf } from './definitions.ts';
 
 // The neutral plaza beside the Pit (blueprint §8). The only place a trade settles.
 export const CONCORD_EXCHANGE = 'region:concord-exchange' as RegionId;
@@ -49,7 +50,7 @@ export const COOLDOWN_STEPS_S: readonly number[] = Object.freeze([7 * DAY_S, 14 
 
 // Why a piece can or cannot be offered right now. 'cooling' is the only reason that passes with time; every other refusal is permanent
 // for that piece as it stands (a bound piece stays bound; a stackable never becomes single-copy).
-export type TradeBlock = 'bound' | 'story-critical' | 'stackable' | 'cash-shop' | 'shop-not-gear' | 'wrong-definition' | 'bad-clock';
+export type TradeBlock = 'bound' | 'story-critical' | 'stackable' | 'cash-shop' | 'shop-not-gear' | 'provenance' | 'wrong-definition' | 'bad-clock';
 export type TradeCooldown = {
   tradeable: boolean;
   until: number | null; // epoch milliseconds the cooldown ends (may be in the past); null when the piece can never be offered
@@ -71,10 +72,11 @@ export function cooldownSecondsFor(hops: number): number {
 function tradeBlock(inst: ItemInstance, def: ItemDefinition): TradeBlock | null {
   if (inst.item !== def.id) return 'wrong-definition';
   if (inst.boundTo !== null) return 'bound';
-  if (def.story === 'story-critical') return 'story-critical';
+  if (storyOf(def.story).blocksTrade) return 'story-critical';
   if (def.stack !== 1) return 'stackable';
-  if (inst.provenance.kind === 'cash-shop') return 'cash-shop';
-  if (inst.provenance.kind === 'shop' && def.category !== 'gear') return 'shop-not-gear';
+  const prov = provenanceOf(inst.provenance.kind);   // the provenance row says whether it trades (tradeable), why not (blockReason) and which category path it needs
+  if (prov.tradeable === false) return (prov.blockReason ?? 'provenance') as TradeBlock;
+  if (prov.needsPath && categoryOf(def.category).path !== prov.needsPath) return (prov.blockReason ?? 'provenance') as TradeBlock;
   return null;
 }
 
@@ -97,6 +99,7 @@ const BLOCK_TEXT: Record<TradeBlock, string> = {
   'story-critical': 'is story-critical and cannot change hands',
   'stackable': 'is a stackable and never trades',
   'cash-shop': 'was bought from the cash shop and never trades',
+  'provenance': 'was minted in a way that never trades',
   'shop-not-gear': 'was bought from a shop and only shop gear trades',
   'wrong-definition': 'was checked against the wrong definition',
   'bad-clock': 'has no readable trade clock',
@@ -276,7 +279,7 @@ export function settleTrade(
 // armourer's repair or a merchant's buy/sell later adds a kind here and its own request/receipt pair, reusing the same pattern.
 export const SERVICE_DEFINITION_VERSION = 1;
 export const SERVICE_KINDS = ['upgrade'] as const;
-export const SERVICE_ACCEPTS = ['armour', 'weapons', 'all'] as const;
+export const SERVICE_ACCEPTS: readonly string[] = ids(DEFINITIONS.serviceAccepts);   // rows of definitions.json `serviceAccepts`: flags for what the service works (armour, weapons)
 export type ServiceDefinition = {
   kind: 'service-definition';
   schemaVersion: 1;
@@ -286,7 +289,7 @@ export type ServiceDefinition = {
   region: RegionId;
   service: (typeof SERVICE_KINDS)[number];
   costTable: CostTableId;
-  accepts: (typeof SERVICE_ACCEPTS)[number];
+  accepts: string;
 };
 
 export function parseServiceDefinition(raw: unknown, path = ''): Result<ServiceDefinition> {
@@ -349,6 +352,10 @@ export function parseUpgradeCostTable(raw: unknown, path = ''): Result<UpgradeCo
   }
   return issues.finish({ kind: 'upgrade-cost-table', schemaVersion: 1, id: id!, revision: revision!, currency: currency!, rows: rows! });
 }
+
+/** The rarities a cost table leaves without any price row. Every rarity row in definitions.json must either have price rows or carry an explicit `sellable: false`, so a rarity silently missing prices is a problem. Exported for the
+ *  content gate and the tests; NOT part of parseUpgradeCostTable (a live price list this repo does not hold must not start failing to load). */
+export const rarityPriceGaps = (table: Pick<UpgradeCostTable, 'rows'>): string[] => RARITIES.filter((r) => DEFINITIONS.rarities[r]?.sellable !== false && !table.rows.some((row) => row.rarity === r));
 
 // The most material instances one upgrade may spend, and so the most lines its receipt can carry: the smith writes one line per instance
 // (an instance holds one item, so it pays at most one cost line), refuses a repeated instance, and refuses an offer longer than this,
@@ -465,9 +472,9 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   if (request.instance !== instance.id || instance.item !== def.id) return fail('rule-violation', 'instance', 'request, instance and definition do not name the same piece');
   if (instance.version !== request.expectedVersion) return fail('version-conflict', 'expectedVersion', `the piece is at version ${instance.version}, not ${request.expectedVersion}`);
   if (ownerOf(instance.location) !== request.character) return fail('rule-violation', 'instance', `${instance.id} is not worn or carried by ${request.character} (bank, pack or paperdoll)`);
-  if (def.category !== 'gear' || def.power !== 'slot-weight' || def.slot === null) return fail('rule-violation', 'item', `${def.name} isn't gear the smith can work, so it can't be upgraded.`);   // one plain line for the player (Strategy, 2026-10-07)
+  if (categoryOf(def.category).path !== 'gear' || !powerOf(def.power).upgradeable || def.slot === null) return fail('rule-violation', 'item', `${def.name} isn't gear the smith can work, so it can't be upgraded.`);   // one plain line for the player (Strategy, 2026-10-07)
   const weapon = isWeaponSlot(def.slot);
-  if ((service.accepts === 'armour' && weapon) || (service.accepts === 'weapons' && !weapon)) return fail('rule-violation', 'item', `${service.name} does not work ${weapon ? 'weapons' : 'armour'}`);
+  if (!(weapon ? DEFINITIONS.serviceAccepts[service.accepts]?.weapons : DEFINITIONS.serviceAccepts[service.accepts]?.armour)) return fail('rule-violation', 'item', `${service.name} does not work ${weapon ? 'weapons' : 'armour'}`);
   // A banked piece is reached through the bank, which opens only at the Exchange (Strategy, 2026-10-06); worn or packed, it upgrades wherever the smith is.
   if (instance.location.kind === 'bank' && input.place !== CONCORD_EXCHANGE) return fail('rule-violation', 'place', `${instance.id} is in the bank, which opens only at the Concord Exchange`);
   const from = upgradeLevelOf(instance);
@@ -493,7 +500,7 @@ export function performUpgrade(input: UpgradeInput): Result<UpgradeOutcome> {
   // it burns only on a quest step that names it, so the smith never takes one as a material, and the piece being worked is never its own.
   for (const mat of input.materials) {
     if (mat.id === instance.id) return fail('rule-violation', 'materials', `${mat.id} is the piece being upgraded; it cannot also be spent on itself`);
-    if (input.materialDefs(mat.item)?.story === 'story-critical') return fail('rule-violation', 'materials', `${mat.item} is story-critical; the smith never takes it as a material`);
+    if (storyOf(input.materialDefs(mat.item)?.story ?? '').staysWithCharacter) return fail('rule-violation', 'materials', `${mat.item} is story-critical; the smith never takes it as a material`);
   }
   const issues = new Issues();
   const spent: UpgradeReceipt['materials'] = [], updated: ItemInstance[] = [], consumed: ItemInstanceId[] = [];

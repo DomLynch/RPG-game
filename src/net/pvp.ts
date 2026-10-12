@@ -13,7 +13,7 @@
 import { initialAi } from '../fight/ai.ts';
 import { project, type Practice } from '../fight/combat.ts';
 import type { Intent, Side } from '../fight/duel.ts';
-import { PLAYER_WEAPONS, isSkillId, type OpponentId } from '../fight/moves.ts';
+import { DEFAULT_WEAPON, PLAYER_WEAPONS, isSkillId, type OpponentId } from '../fight/moves.ts';
 import { fromBase64Url, MAX_RECORD_TICKS, packRecord, RECORD_VERSION, toBase64Url, unpackRecord } from '../fight/record.ts';
 import { delayFor, NET, pvpDuel, quantile, RollbackSession, type Kit, type NetMetrics, type NetPacket } from './rollback.ts';
 import { viewAs } from './view.ts';
@@ -21,7 +21,7 @@ import { viewAs } from './view.ts';
 // On the wire a packet's intents ride the fight record's own 6-byte columns (record.ts packRecord, base64url): the bits a replay reads
 // are the bits the peer stepped, and a packet of 15 unacked intents is about 210 characters instead of ~1.3 KB of JSON (the relay caps a room at 64 KB/s).
 export type WirePacket = { f: number; a: number; h: [number, string] | null; i: string };
-const HEADER = { v: RECORD_VERSION, build: '', opponent: 'pvp' as OpponentId, weapon: 'longsword', level: 1, seed: 0, outcome: 'draw' } as const;
+const HEADER = { v: RECORD_VERSION, build: '', opponent: 'pvp' as OpponentId, weapon: DEFAULT_WEAPON, level: 1, seed: 0, outcome: 'draw' } as const;
 export const packIntents = (intents: Intent[]): string => toBase64Url(packRecord({ ...HEADER, ticks: intents.length, intents }));
 export const unpackIntents = (text: string): Intent[] => unpackRecord(fromBase64Url(text)).intents;
 export const toWire = (p: NetPacket): WirePacket => ({ f: p.from, a: p.ack, h: p.hash, i: packIntents(p.intents) });
@@ -77,7 +77,7 @@ export function parseMessage(raw: unknown, room: string): DuelMessage | null {
 export function cleanKit(kit: Partial<Kit> | null | undefined): Kit {
   const weapon = kit?.weapon, skill = kit?.skill, gear: unknown = kit?.gear;
   return {
-    weapon: weapon && PLAYER_WEAPONS.includes(weapon) ? weapon : 'longsword',
+    weapon: weapon && PLAYER_WEAPONS.includes(weapon) ? weapon : DEFAULT_WEAPON,
     skill: isSkillId(skill) ? skill : null,
     gear: Array.isArray(gear) ? gear.filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,64}$/.test(id)).slice(0, 16) : [],
   };
