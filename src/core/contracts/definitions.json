@@ -121,5 +121,73 @@
       "armour": true,
       "weapons": true
     }
+  },
+  "powers": {
+    "slot-weight": {
+      "tiered": true,
+      "upgradeable": true,
+      "gearOnly": true
+    },
+    "none": {}
+  },
+  "categories": {
+    "gear": {
+      "path": "gear",
+      "slot": "required",
+      "single": true
+    },
+    "material": {
+      "path": "stock",
+      "slot": "none",
+      "craftInput": true
+    },
+    "quest": {
+      "path": "stock",
+      "slot": "none"
+    },
+    "cosmetic": {
+      "path": "stock",
+      "slot": "allowed",
+      "single": true
+    }
+  },
+  "story": {
+    "none": {},
+    "notable": {},
+    "story-critical": {
+      "blocksTrade": true,
+      "single": true,
+      "bindsOnAcquire": true,
+      "staysWithCharacter": true
+    }
+  },
+  "provenanceKinds": {
+    "arena-award": {
+      "tradeable": true
+    },
+    "legacy-unlock": {
+      "tradeable": true
+    },
+    "loot": {
+      "tradeable": true
+    },
+    "quest-reward": {
+      "tradeable": true
+    },
+    "creator-mint": {
+      "tradeable": true,
+      "onlyCategories": [
+        "cosmetic"
+      ]
+    },
+    "shop": {
+      "tradeable": true,
+      "needsPath": "gear",
+      "blockReason": "shop-not-gear"
+    },
+    "cash-shop": {
+      "tradeable": false,
+      "blockReason": "cash-shop"
+    }
   }
 }
