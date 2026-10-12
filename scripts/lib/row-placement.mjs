@@ -32,6 +32,15 @@ export const ON_T4 = [
   { row: 28, t4_s: 55, cpu_s: 787, vps_s: null, mac_s: 66 }, { row: 34, t4_s: 86, cpu_s: null, vps_s: null, mac_s: 158 },
   { row: 36, t4_s: 34, cpu_s: 697, vps_s: null, mac_s: 52 },
 ];
+// The T4 is for GPU-ONLY rows (Dom/Lead 2026-10-12, the 40-runner work): rows that cannot finish inside the 600 s row ceiling without a GPU, i.e. their
+// measured CPU time above (cpu_s, SwiftShader, the same renderer a GitHub runner has) is over 600 s or never finished. Every other row goes to CI
+// (release-checks.yml on every candidate) and the CPU waterfall. Row 13 is not here: its CPU gap is initdb refusing root, not the renderer (a runner is not root).
+export const ROW_CEILING_S = 600;
+export const GPU_ONLY = [5, 7, 16, 21, 28, 34, 36];
+// Every MAC_ONLY row, the list deploy.sh's placement uses: CI never vouches for one (ci-trusted-checks.mjs) and never schedules one (release-checks.yml
+// plan). The WebKit rows because the runner has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit");
+// rows 2 and 44 because they fail off the Mac (CK: row 2 failed after 15 min on CI, 63 s on the Mac).
+export const MAC_ROWS = MAC_ONLY.map(entry => entry.row);
 // The first log line of a release: how every row is being handled. ci = trusted from CI, hf = trusted from an HF receipt, vps = trusted from the
 // VPS, mac = rows running on the Mac. Over the limit the refusal text names the rows that are not on the Mac list.
 export function placementLine({ total, ci, hf, vps = [], mac }) {

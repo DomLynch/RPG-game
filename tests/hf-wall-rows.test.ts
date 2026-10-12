@@ -183,10 +183,10 @@ test('the release selection launches T4_JOBS parallel jobs, each in the ledger; 
 case "$1 $2" in
   "jobs run") n=$(( $(cat "${dir}/n" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/n"; for a in "$@"; do case "$a" in SKIP=*) echo "\${a#SKIP=}" > "${dir}/skip$n";; esac; done; echo "Job started with ID: job$n";;
   "jobs inspect") if [ "$3" = job2 ]; then echo '{"status": {"stage": "ERROR"}}'; else echo '{"status": {"stage": "COMPLETED"}}'; fi;;
-  "jobs logs") echo "=== HEAD ${sha} TREE ${tree} ==="; for r in 1 3 6 8; do echo "=== RECEIPT {\\"index\\":$r,\\"status\\":0,\\"seconds\\":5,\\"tree\\":\\"${tree}\\"} ==="; done; echo '=== COST seconds=100 rows_wall=20 ===';;
+  "jobs logs") echo "=== HEAD ${sha} TREE ${tree} ==="; for r in 5 7 16 21; do echo "=== RECEIPT {\\"index\\":$r,\\"status\\":0,\\"seconds\\":5,\\"tree\\":\\"${tree}\\"} ==="; done; echo '=== COST seconds=100 rows_wall=20 ===';;
   "jobs cancel") :;;
 esac`, { mode: 0o755 });
-  const total = gate.release_commands.length, keep = [1, 3, 6, 8];
+  const total = gate.release_commands.length, keep = [5, 7, 16, 21];   // gpu-only rows (row-placement.mjs GPU_ONLY)
   const env = { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: state, HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_WALL_ROWS_POLL_S: '0', HF_LEDGER_DIR: ledgerDir };
   const run = (args: string[]) => execFileSync(process.execPath, ['scripts/hf-wall-rows.mjs', ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] });
   const skip = Array.from({ length: total }, (_, i) => i + 1).filter(i => !keep.includes(i)).join(',');
@@ -201,6 +201,11 @@ esac`, { mode: 0o755 });
   const receipt = JSON.parse(readFileSync(`${state}.json`, 'utf8'));
   for (const r of job2Rows) assert.equal(receipt.untrusted[r], 'job ended ERROR');
   assert.equal(receipt.seconds, 400, 'every job\'s seconds, summed: the failed one cost compute too');
+  // The T4 is gpu-only (Dom/Lead 2026-10-12): rows 1 and 9 are free too, yet never launched; they are CI's.
+  const free = Array.from({ length: total }, (_, i) => i + 1).filter(i => ![1, 5, 9].includes(i)).join(',');
+  rmSync(join(dir, 'n'), { force: true });
+  run(['launch', sha, '--skip', free]);
+  assert.deepEqual(JSON.parse(readFileSync(state, 'utf8')).rows, [5], 'only the gpu-only row goes to the T4');
   rmSync(dir, { recursive: true, force: true });
 });
 
