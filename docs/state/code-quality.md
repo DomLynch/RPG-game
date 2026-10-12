@@ -1,5 +1,18 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 ~14:3x (+04) — HANDOFF before /clear (250k rule). READ FIRST, then memory `frankendom_handoff_2026-10-12b` (queue + every sha), then `…-12a`
+
+**Live since the 09:3x entry:** CA2 `fa3b7f136` (#2253 + #2242 + #2115): my live parity PASS (writer 976 files == blobs, NRestarts 0, row 53 OK, closure 142 == Deploy's list; the verifier runs the CA2 install, and the relay's one file == blob). Releases BY/BZ/CB/CC/CD/CE followed (contents PASSed where labelled).
+**Next, in order:**
+1. **Re-arm the auditor:ready poll** (session cron `3,13,23,33,43,53 * * * *`) and send Lead the CronList line.
+2. **#2272** Backend registry loader: CONFLICTING @8b40e496e. Gate it when rebased (check:registry, registry tests, towns.json real-file mutants, and measure the raw dup-key gap in `keyed` tables, which closes via #2275's json-dup-keys.mjs). Then **#2279** World towns (stacked).
+3. Re-gates: **#2275** HOLD [shape] (dup JSON key in mobLooks → 0 fail), **#2260** HOLD [shape] (rolledBy last-wins; waits on #2272), **#2254** (conflicting; rerun the C9 real-tree mutant myself), #2256.
+4. **ast-grep preflight PR** (my assignment): closed content unions/enums, switch on content names, in-memory one-row tests, JSON outside the loader. Verb allowlist per Strategy/Lead; output = the closed-union count, baseline **30**.
+**Verdicts since 09:3x (all on threads, labels removed):** PASS #2255, #2244, #2233, #2251, #2253, #2242, #2115, #2263, #2268, #2261, #2267, #2266, #2264, #2269, #2259, #2265, #2271, #2274, #2276, #2280; Codex-Hooks #129–#132. HOLD #2275, #2260 (shape). Bounced for conflicts: #2254, #2272.
+**Rulings:** open sets for data PRs (Dom 10-12); HOLD any table that can silently last-win until the loader lands; every HOLD carries a cause tag; tooling-only light pass only off src/, origins/, scripts/lib/, deploy and CI; at most 2 gates at once.
+**Watch:** the VPS lanejob has no `--probe` yet (Mac tier inert until #2251 is installed); ~/.claude/hooks awaits Hooks Dev's #129–#132 install, after which I check it == main.
+**Session:** app worktree `laughing-bartik-0c0156`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-12 09:3x (+04) — HANDOFF before /clear (the 250k rule, AGENTS.md #2248). READ FIRST, then the 10-11 ~19:0x entry, then memory `frankendom_handoff_2026-10-12a`
 
 **Live:** BW `aafe0b0f6` (my curl 09:16) = BV + #2241 (creature flee cut). Writer reinstall PASSED by me: 974 files == blobs, NRestarts 0, row 53 BOOT OK. ⚠ My HOLD on #2245 was wrong (the HF unit job was in `.wall` unitJob, 3511/0, tree matched); I posted a correction. Lesson in memory `feedback_unit_receipt_in_wall`.
