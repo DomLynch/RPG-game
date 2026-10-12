@@ -229,3 +229,16 @@ test('loot panel E2: the card shows the default offer; Take takes exactly it, be
   h.panel.show({ ...CARD, offer: '', image: undefined }, PIECES, { onTake: () => {}, onDecline: () => {} });
   assert.equal(h.element('loot-take').hidden, true, 'no offer, no Take'); assert.equal(h.element('loot-panel-hero').hidden, true, 'no render, no image');
 });
+
+test('the card is NEW beside EQUIPPED when the offer replaces a worn piece, and the plain card otherwise', () => {
+  const h = harness(), on = { onTake: () => {}, onDecline: () => {} };
+  h.panel.show(CARD, PIECES, on);
+  assert.equal(h.element('loot-panel-compare').hidden, true, 'nothing worn in that slot: no compare'); assert.equal(h.element('loot-panel-head').hidden, false); assert.equal(h.element('loot-panel-name').hidden, false);
+  h.panel.show({ ...CARD, compare: { slot: 'Helmet', held: { name: "Mars's helmet", image: '/held.webp' } } }, PIECES, on);
+  const cards = h.element('loot-panel-compare').children;
+  assert.equal(h.element('loot-panel-compare').hidden, false); assert.equal(h.element('loot-panel-head').hidden, false, 'the "Won at" line and the pick hint stay'); assert.equal(h.element('loot-panel-name').hidden, true, 'the cards carry the names'); assert.equal(h.element('loot-panel-hero').hidden, true);
+  assert.deepEqual(cards.map((c) => c.getAttribute('data-side')), ['new', 'held']);
+  assert.deepEqual(cards.map((c) => c.children[0]!.textContent), ['New', 'Equipped']);
+  assert.equal(cards[0]!.children.at(-2)!.textContent, "The Nightborn's helmet", 'both names in one form: capitalised'); assert.equal(cards[1]!.children.at(-2)!.textContent, "Mars's helmet"); assert.equal(cards[1]!.children.at(-1)!.textContent, 'Helmet');
+  h.panel.confirm('x'); assert.equal(h.element('loot-panel-compare').hidden, true, 'the take line hides the compare');
+});
