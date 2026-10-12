@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, rmSync, existsSync } from 'node:fs';
-import { PHONE, serveDist, waitForGame, writeReceipt } from '../scripts/lib/harness.mjs';
+import { DEBUG_HIDE_CSS, PHONE, phonePage, quietDebug, serveDist, waitForGame, writeReceipt } from '../scripts/lib/harness.mjs';
 
 test('harness: QA_URL points a gate at a deployed site without starting a server, and close is still safe', async () => {
   const site = await serveDist({ QA_URL: 'https://example.invalid/' });
@@ -45,4 +45,23 @@ test('harness: waitForGame keeps polling while the attack button or art status i
     elements.set('#art-status', { textContent: '' });
     assert.equal(predicate!(true), true, 'both rigs loaded');
   } finally { if (had === undefined) delete (globalThis as { document?: unknown }).document; else (globalThis as { document?: unknown }).document = had; }
+});
+
+// Stills carry no debug overlay by default (Strategy 2026-10-12): the capture page injects a rule hiding #debug before the game paints; SHOW_DEBUG=1 opts in; the text stays readable.
+test('harness: a capture page hides the debug overlay by default and SHOW_DEBUG=1 shows it', async () => {
+  const run = async (env: Record<string, string>) => {
+    const scripts: { fn: (css: string) => void; arg: string }[] = [];
+    const page = { addInitScript: async (fn: (css: string) => void, arg: string) => { scripts.push({ fn, arg }); } };
+    await quietDebug(page, env);
+    return scripts;
+  };
+  const on = await run({});
+  assert.equal(on.length, 1, 'default: one init script'); assert.equal(on[0]!.arg, DEBUG_HIDE_CSS); assert.match(DEBUG_HIDE_CSS, /#debug\s*\{\s*display:\s*none\s*!important/);
+  const appended: string[] = [], had = (globalThis as { document?: unknown }).document;
+  (globalThis as { document?: unknown }).document = { head: { append: (el: { textContent: string }) => appended.push(el.textContent) }, createElement: () => ({ textContent: '' }) };
+  try { on[0]!.fn(on[0]!.arg); } finally { (globalThis as { document?: unknown }).document = had; }
+  assert.deepEqual(appended, [DEBUG_HIDE_CSS], 'the rule reaches the page head');
+  assert.equal((await run({ SHOW_DEBUG: '1' })).length, 0, 'SHOW_DEBUG=1: the overlay is left alone');
+  let used = 0; const browser = { newPage: async () => ({ setDefaultTimeout() {}, route: async () => {}, on() {}, addInitScript: async () => { used++; } }) };
+  await phonePage(browser as never); assert.equal(used, 1, 'phonePage opts every gate page in');
 });

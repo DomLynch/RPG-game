@@ -6,6 +6,7 @@
 // serves this tree's build with vite preview (run `npm run build` first). Time is the harness clock's (scripts/lib/harness-clock.mjs)
 // from the first press on; the duel is quiet-one-browser-check.mjs's goblin win, trimmed to what a win needs.
 import { chromium } from 'playwright';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -17,7 +18,7 @@ const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.addre
 const url = new URL('/?opponent=goblin&debug=1', origin).href, dir = process.env.LOOT_RECEIPT_DIR || 'artifacts/loot-smoke';
 await fs.mkdir(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
-const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage(); await quietDebug(page);
 // A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev
 // override since #917 (practice only: no loot), so the row fights on the rank's own level to keep proving the reward path. Only when no
 // profile exists yet, so the row's own reloads keep what the fight wrote.
