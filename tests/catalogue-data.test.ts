@@ -9,6 +9,7 @@ import CATALOGUE_ROWS from '../src/fight/catalogue-data.ts';
 
 const FILE = 'src/fight/catalogue-data.ts';
 const literalProblems = (n: ts.Node, at: string): string[] => {
+  if (ts.isAsExpression(n) && ts.isTypeReferenceNode(n.type) && n.type.typeName.getText() === 'const') return literalProblems(n.expression, at);   // `[...] as const`: the literal types src/roster.ts derives OpponentId from
   if (ts.isStringLiteral(n) || ts.isNumericLiteral(n) || n.kind === ts.SyntaxKind.TrueKeyword || n.kind === ts.SyntaxKind.FalseKeyword || n.kind === ts.SyntaxKind.NullKeyword) return [];
   if (ts.isPrefixUnaryExpression(n) && n.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(n.operand)) return [];
   if (ts.isArrayLiteralExpression(n)) return n.elements.flatMap((e) => literalProblems(e, at));
@@ -34,9 +35,10 @@ test('catalogue-data.ts is literal-only: type imports and one const, no code', (
 });
 
 test('the purity check catches a call, a spread, a template string, a value import and a second const', () => {
-  const rows = (init: string, extra = '') => `import type { CatalogueRow } from './catalogue.ts';\n${extra}const CATALOGUE_ROWS: readonly CatalogueRow[] = ${init};\nexport default CATALOGUE_ROWS;\n`;
+  const rows = (init: string, extra = '') => `${extra}const CATALOGUE_ROWS = ${init} as const;\nexport default CATALOGUE_ROWS;\n`;
   assert.deepEqual(problems(rows('[{ id: "a" }]')), []);
   assert.ok(problems(rows('[{ id: f("a") }]')).length);
+  assert.ok(problems(rows('[{ id: "a" }]').replace(' as const', ' as number')).length, 'only `as const` is allowed');
   assert.ok(problems(rows('[{ ...x }]')).length);
   assert.ok(problems(rows('[{ id: `a${b}` }]')).length);
   assert.ok(problems(rows('[{ id: b }]')).length);
