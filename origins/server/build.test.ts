@@ -72,6 +72,21 @@ test('re-spread: free to level 10; at level 11-19 taking a point off is refused,
   assert.equal((await save(f.db, { sword: 4 }, 4)).respreadRank, 3);
 });
 
+test('re-spread boundaries at levels 10, 11, 20 and 100: free at 10; refused at 11 and at 100 inside a rank; one allowed after a rank-up', async () => {
+  const at = async (lv: number) => { const f = fake(lv); await save(f.db, { attack: 5, sword: 5 }, 0); return f; };
+  const f10 = await at(10);
+  assert.equal((await save(f10.db, { attack: 2, sword: 5 }, 1)).respreadRank, 1, 'level 10 re-spread is free and costs no rank');
+  const f11 = await at(11);
+  assert.equal(await refused(save(f11.db, { attack: 4, sword: 5, luck: 1 }, 1)), '409:respread-spent', 'level 11 is no longer free');
+  assert.equal((await save(f11.db, { attack: 5, sword: 5, luck: 1 }, 1)).version, 2, 'spending only is fine at 11');
+  const f20 = await at(20);
+  assert.equal((await save(f20.db, { attack: 4, sword: 5, luck: 1 }, 1)).respreadRank, 2, 'level 20 allows one');
+  assert.equal(await refused(save(f20.db, { attack: 3, sword: 5, luck: 2 }, 2)), '409:respread-spent', 'and only one');
+  const f100 = await at(100);
+  assert.equal((await save(f100.db, { attack: 4, sword: 5, luck: 1 }, 1)).respreadRank, 10, 'level 100 is rank 10');
+  assert.equal(await refused(save(f100.db, { attack: 3, sword: 5, luck: 2 }, 2)), '409:respread-spent');
+});
+
 test('a character that is not the account\'s reads and writes as a 400, and the ops are absent-safe', async () => {
   const f = fake(5, false);
   await assert.rejects(buildGet(ctx(f.db), { character: PC }), /not one of this account/);
