@@ -60,6 +60,20 @@ test('a creature listed by two loot rows is a duplicate-id (the registry loader)
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('a loot row repeating a key is a duplicate-key failure in the gate (raw text), not a silent last-wins', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'loot-rawdup-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true });
+    cpSync('scripts', join(dir, 'scripts'), { recursive: true });
+    for (const link of ['src', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, ROWS_FILE), text = readFileSync(file, 'utf8');
+    writeFileSync(file, text.replace('"presentation": "collect",', '"presentation": "collect", "presentation": "pick",'));
+    const gate = spawnSync(process.execPath, ['scripts/registry-check.mjs', 'origins'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(gate.status, 1);
+    assert.match(gate.stderr, /loot-tables\.json:\d+: duplicate key "presentation"/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('a rolledBy that names no character is an unknown-ref in the gate', () => {
   const dir = mkdtempSync(join(tmpdir(), 'loot-ref-'));
   try {

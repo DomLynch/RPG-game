@@ -90,3 +90,14 @@ test('a derived table makes a link carried on a row checkable: one creature in t
   assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['wolf'] }, { id: 't2', rolledBy: ['wolf'] }])), ['l.json:1:wolf duplicate-id']);
   assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['ghost'] }])), ['l.json:0:ghost unknown-ref']);
 });
+
+test('a duplicate key inside one JSON object (which JSON.parse would silently resolve to the last) fails the gate on the raw text', () => {
+  const t = treeWith(() => {});
+  try {
+    const file = join(t.dir, 'origins/region1/towns.json'), text = readFileSync(file, 'utf8');
+    writeFileSync(file, text.replace(/"smith":\s*\{\}/, "\"smith\":{},\"smith\":{\"x\":1}"));
+    const r = t.run();
+    assert.equal(r.status, 1);
+    assert.match(r.err, /towns\.json:\d+: duplicate key "smith"/);
+  } finally { rmSync(t.dir, { recursive: true, force: true }); }
+});
