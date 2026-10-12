@@ -117,8 +117,8 @@ test('--gpu runs a trunk release row on the Mac FIRST (no VPS probe), with RELEA
 test('--gpu refuses anything that is not a listed row or a stills script (126) and malformed forms (2)', () => {
   const b = box();
   const rows = join(b.dir, 'rows.txt');
-  writeFileSync(rows, 'node scripts/only-check.mjs\n');
-  for (const cmd of [['npm', 'test'], ['node', 'scripts/only-check.mjs', '--extra'], ['npx', 'playwright', 'test'], ['node', 'scripts/x-stills.mjs', '../evil'], ['node', 'scripts/deploy-stillness.mjs'], ['node', 'scripts/x-stills.mjs', '/etc/passwd']]) {
+  writeFileSync(rows, 'node scripts/only-check.mjs\nnode scripts/only-check.mjs --engine webkit\n');
+  for (const cmd of [['npm', 'test'], ['node', 'scripts/only-check.mjs', '--extra'], ['npx', 'playwright', 'test'], ['node', 'scripts/x-stills.mjs', '../evil'], ['node', 'scripts/deploy-stillness.mjs'], ['node', 'scripts/only-check.mjs', '--engine', 'webkit'], ['node', 'scripts/x-stills.mjs', '/etc/passwd']]) {
     assert.equal(b.run(['--gpu', '--', ...cmd], { LANEJOB_MAC_ROWS: rows }).status, 126, cmd.join(' '));
   }
   assert.ok(!existsSync(b.ran));
