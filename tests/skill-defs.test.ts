@@ -27,7 +27,7 @@ test('adding a skill is one row: a test row loads, takes the next record byte an
   assert.deepEqual(t.byCode.slice(-2), ['hewer', 'x']); assert.equal(t.rows.x!.move, 'skill_x');
 });
 test('the loader refuses a bad table at load', () => {
-  const ok = raw.skills, load = (rows: unknown[], moves: object = { ...MOVES, skill_x: {} }) => loadSkillDefs({ skills: rows }, moves);
+  const ok = raw.skills, load = (rows: unknown[], moves: Record<string, unknown> = { ...MOVES, skill_x: {} }) => loadSkillDefs({ skills: rows }, moves);
   assert.doesNotThrow(() => load(ok));
   assert.throws(() => load([...ok, { ...ROW, id: 'pommel' }]), /duplicate-id/);
   assert.throws(() => load([...ok, { ...ROW, code: undefined }]), /missing-field: code is required/);
