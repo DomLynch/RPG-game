@@ -26,11 +26,11 @@ over_load() {
   awk -v l="$l" -v m="$m" 'BEGIN{exit !(l+0>=m+0)}'
 }
 # --probe CMD (Strategy + Dom 2026-10-12, the Mac middle tier): print where CMD WOULD go and run nothing, take no slot, write no log.
-#   would=vps | would=spill reason=slots|release-lock|load | would=refuse (root goes through the same gates).  A Mac caller runs this over ssh and only
+#   would=vps | would=spill reason=slots|release-lock|load | would=refuse (non-root only, like the run; root goes through the load, release and slot gates).  A Mac caller runs this over ssh and only
 #   considers its own slot when the answer is would=spill. LANEJOB_SLOTS / RELEASE_LOCK_DIR override the live paths (tests use a tmp dir).
 if [ "$1" = "--probe" ]; then
   shift
-  printf '%s\n' "$*" | grep -Eq "$refuse_re" && { echo "would=refuse"; exit 0; }
+  [ "$(id -u)" -ne 0 ] && printf '%s\n' "$*" | grep -Eq "$refuse_re" && { echo "would=refuse"; exit 0; }   # the refusal is a non-root rule in the run path, so root is not refused here either
   if find "${RELEASE_LOCK_DIR:-/run/frankendom-release}" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | grep -q .; then echo "would=spill reason=release-lock"; exit 0; fi
   if over_load quiet; then echo "would=spill reason=load"; exit 0; fi
   for i in 1 2 3 4; do

@@ -138,14 +138,14 @@ test('an unreadable waterfall.mjs fails CLOSED: the probe answers spill, writes 
   } finally { b.done(); }
 });
 
-test('probe: root is no longer exempt (a fake uid 0 still hits the load, refuse and slots gates)', { skip }, async () => {
+test('probe: root is no longer exempt from load and slots, and is not refused a full suite (same as the run)', { skip }, async () => {
   const b = box();
   try {
     asRoot(b);
     b.env.LANEJOB_LOAD = '40';
     assert.equal(await b.probe('tsc'), 'would=spill reason=load');
     b.env.LANEJOB_LOAD = '0.5';
-    assert.equal(await b.probe('npm', 'run', 'test:all'), 'would=refuse');
+    assert.equal(await b.probe('npm', 'run', 'test:all'), 'would=vps');   // the probe predicts the run: only non-root is refused a full suite
     b.hold(1, 2, 3, 4);
     assert.equal(await b.probe('tsc'), 'would=spill reason=slots');
   } finally { b.done(); }
