@@ -4,8 +4,8 @@
 import { SPEEDS } from '../fight/server.ts';
 
 export type Pos = { x: number; z: number };
-export type Mode = 'idle' | 'wander' | 'aggro';
-export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
+export type MobMode = 'idle' | 'wander' | 'aggro';
+export type Mob = { x: number; z: number; facing: number; mode: MobMode; wait: number; tx: number; tz: number; rng: number };
 
 /** What the stepper reads of a creature's spec: its home, how far it roams and how far it notices. origins' MobSpec has these and more. */
 export type Roamer = { home: Pos; roam: number; aggro: number };
