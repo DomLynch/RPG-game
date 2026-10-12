@@ -376,7 +376,7 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
     assert.ok(plainCalls > n, `the unmemoised ray skins vertices more than once (${plainCalls} calls for ${n} vertices)`);
     assert.ok(memoCalls > 0 && memoCalls <= n, `one ray skins each vertex at most once, and does skin (${memoCalls} calls for ${n} vertices)`);
     assert.ok(Math.abs(met.point.z - .1) > 1e-3, `the pose moved the face (z ${met.point.z}): a ray over unskinned vertices would read .1`);
-    assert.equal(met.point.x, plain.point.x); assert.equal(met.point.y, plain.point.y); assert.equal(met.point.z, plain.point.z);
+    for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(met.point[axis], plain.point[axis], 1e-12), `${axis}: the same point (the two rays start at different distances, so the last bit of the hit may differ)`);
     assert.ok(near(met.normal.dot(plain.normal!.clone().transformDirection(skin.matrixWorld)), 1, 1e-9), 'the same face');
     calls = 0; raycaster.intersectObjects([skin], false); assert.equal(calls, plainCalls, 'outside a pass nothing is cached: a later plain ray skins as before');
   } finally { proto.applyBoneTransform = original; }
