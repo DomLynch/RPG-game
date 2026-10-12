@@ -1,7 +1,7 @@
 // Landscape / portrait layout check of the Pit page (/) and its ☰ journal (Gear, Stats, Career, Settings), the part-B sequel to scripts/landscape-check.mjs (the zone page).
 // For each view and state: a still, the rects of every visible control; FAIL on two controls overlapping, a control off screen or outside the safe area, a tab strip wrapping to more than one row,
 // a control under 44 px, or text clipped by its own box (scrollWidth > clientWidth on a non-scrolling element). Serves this tree's build (run `npx vite build` first). PIT_GL=1 = the browser's own GL (the VPS).
-// Usage: OUT=<dir> node scripts/pit-landscape-check.mjs. Stills: artifacts/pit-landscape/.
+// Usage: PIT_STILLS=<state regex> OUT=<dir> node scripts/pit-landscape-check.mjs. Stills: artifacts/pit-landscape/.
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
@@ -46,7 +46,8 @@ try {
     const page = await context.newPage(); page.setDefaultTimeout(60000);
     if (safe) { const cdp = await context.newCDPSession(page); try { await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { left: safe.l, right: safe.r, top: safe.t, bottom: safe.b } }); } catch (error) { v.safeAreaUnsupported = String(error).slice(0, 120); } }
     page.on('pageerror', (e) => receipt.errors.push(`${name}: ${String(e).slice(0, 200)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
-    const snap = async (state, scope) => { await page.screenshot({ path: `${out}/${name}-${state}.png` }); const m = await measure(page, scope); v.states[state] = { count: m.list.length, bad: judge(m, w, h, safe), list: m.list }; };
+    const snap = async (state, scope) => { if (!process.env.PIT_STILLS || new RegExp(process.env.PIT_STILLS).test(state)) await page.screenshot({ path: `${out}/${name}-${state}.png` });   // PIT_STILLS=<regex of states>: the T4's artifact copy keeps ~24 files, so a still run names the few it needs
+    const m = await measure(page, scope); v.states[state] = { count: m.list.length, bad: judge(m, w, h, safe), list: m.list }; };
     await page.goto(`${origin}/`);
     await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
     await snap('welcome');

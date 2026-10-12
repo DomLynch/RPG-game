@@ -2570,8 +2570,9 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
 /* part B, round 2: portrait: the stance panel drops under the HUD (it covered the opponent's health bar); iPad: clear of the menu button; very short landscape: SKILL below the menu button;
    the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
-@media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 136px !important; } }
+@media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 64px !important; max-width: 72px !important; padding: 4px !important; } #stance-panel > div:last-child { flex-direction: column !important; } #stance-panel button { min-width: 0 !important; font-size: 11px !important; padding: 4px 2px !important; } #stance-reveal { font-size: 10px; } }   /* a column down the right edge: clear of the HUD bars (x < 290), the opponent and the cluster */
 @media (min-width: 900px) { #stance-panel { top: 84px !important; } }
 @media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button { top: -44px; } }
 #journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
 #journal #journal-rank { margin-top: 6px; }
+@media (max-width: 440px) { #journal #journal-name { font-size: 24px; max-width: calc(100% - 176px); padding-right: 26px; background-size: 20px; } }
