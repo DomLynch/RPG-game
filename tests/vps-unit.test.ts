@@ -138,3 +138,32 @@ test('the RECEIPT carries the BOX-computed tree and the run id (so the Published
   assert.match(s, /BOXTREE=\$\(git [^\n]*rev-parse/); assert.match(s, /"\$NONCE" "\$BOXTREE"/); assert.ok(s.includes(`"runid":"${RUNID}"`));
   assert.ok(s.indexOf('"$BOXTREE" = ') > 0 && s.indexOf('exit 97') < s.indexOf('npm ci'), 'the tree is checked on the box before anything runs');
 });
+
+test('Lead/COO 2026-10-12: only a RELEASE unit run writes the release marker; a lane receipt run leaves /run/frankendom-release empty (lane jobs keep the box)', async () => {
+  const { isReleaseSha } = await import('../scripts/vps-shadow/launch.mjs');
+  const markLines = (release: boolean | undefined, dir: string) => {   // the runner's own MARK / trap / mkdir lines, run in a temp dir
+    const head = buildRunner({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, ...(release === undefined ? {} : { release }) }).replaceAll('/run/frankendom-release', dir).split('\n');
+    const pick = (p: string) => head.find((l) => l.startsWith(p)) || '';
+    const r = spawnSync('bash', ['-c', `RUN=${dir}/run; ${pick('MARK=')}\n${pick('trap ')}\nmkdir -p "$RUN"\n${pick('mkdir -p -m 755')}\nls ${dir} | grep -c ${SHA} > ${dir}/../seen-${release}; true`], { encoding: 'utf8' });
+    return { seen: readFileSync(join(dir, '..', `seen-${release}`), 'utf8').trim(), stderr: r.stderr };
+  };
+  const base = mkdtempSync(join(tmpdir(), 'relmark-'));
+  try {
+    for (const [release, want] of [[true, '1'], [undefined, '1'], [false, '0']] as const) {
+      const dir = join(base, `m-${release}`); spawnSync('mkdir', ['-p', dir]);
+      assert.equal(markLines(release, dir).seen, want, `release=${release}: marker files seen while the run lives`);
+    }
+    const calls: string[] = [];
+    const fake = (cmd: string, argv: string[], opts: any) => { if (opts?.input) calls.push(opts.input); return { status: 0, stdout: cmd === 'ssh' && argv.join(' ').includes('bash -s') ? stream() : '' }; };
+    runUnitOnVps({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, run: fake });
+    runUnitOnVps({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, release: true, run: fake });
+    assert.doesNotMatch(calls[0], /: > "\$MARK"/, 'runUnitOnVps defaults to a lane run: no marker');
+    assert.match(calls[1], /: > "\$MARK"/, 'release: true writes it');
+    const git = (refs: string) => (() => ({ status: 0, stdout: refs })) as any;
+    assert.equal(isReleaseSha(SHA, git(''), {}), false, 'a lane head is not a release');
+    assert.equal(isReleaseSha(SHA, git('refs/remotes/origin/release-CO\n'), {}), true, 'the tip of release-CO is');
+    assert.equal(isReleaseSha(SHA, git(''), { FRANKENDOM_RELEASE: '1' }), true, 'deploy.sh / the cutter say so explicitly');
+    assert.equal(isReleaseSha('abc', git('refs/remotes/origin/release-CO\n'), {}), false, 'a short sha never matches');
+    assert.match(readFileSync('scripts/vps-shadow/launch.mjs', 'utf8'), /runUnitOnVps\(\{ sha: a, tree, release: isReleaseSha\(a\) \}\)/);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});

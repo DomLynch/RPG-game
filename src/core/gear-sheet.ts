@@ -7,7 +7,7 @@ import { isLegendOpponent, legendAt } from '../legends.ts';
 import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
 import { shortLink } from '../share-store.ts';
-import { renderStats, statRows } from './gear-strip.ts';
+import { compareRows, renderCompare, renderStats, statRows } from './gear-strip.ts';
 
 export const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
 type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; gearStage?: () => Parameters<typeof enterGearRoom>[0] };
@@ -125,6 +125,13 @@ export function createGearSheet(d: GearSheetDeps) {
     d.element('fitting-cancel').hidden = d.element('fitting-wear').hidden = !fitId;
     const store = d.element<HTMLButtonElement>('fitting-store'); store.hidden = !!fitId; store.disabled = full;
     holder.dataset.mode = fitId ? 'try' : 'worn';
+    // A try-on shows NEW beside EQUIPPED with the strip's rows (gear-strip.ts); a worn piece needs no comparison.
+    const compare = d.element('fitting-compare');
+    if (!fitId) { compare.hidden = true; compare.replaceChildren(); return; }
+    const after = applyLocal(loot, { kind: 'wearFromPack', id: fitId }), ctx = (l: Loot) => ({ base: d.numbers?.(l) ?? {}, worn: wornIdsOf(l) });
+    const card = (id: LootId) => ({ name: sentence(pieceName(id)), image: lootThumb(id), sub: rankText(id) });
+    renderCompare(compare, { now: replaced ? card(replaced) : null, next: card(fitId), rows: compareRows(ctx(loot), ctx(after)) }, document);
+    holder.scrollIntoView?.({ block: 'nearest' });   // opens clear of the sticky tab strip (scroll-margin-top in style.css); a no-op when already in view
   }
   d.element('fitting-thumb').addEventListener('error', () => { d.element('fitting-thumb').hidden = true; });
   d.element('fitting-cancel').addEventListener('click', () => tryOn(null));

@@ -163,7 +163,7 @@ test('ci-trusted-checks trusts a check only when its job is green and its receip
   const fake = join(dir, 'gh');
   // Fake gh: run 7 (still `queued` at run level, jobs already concluding) is recorded against branch head B, run 9
   // (completed) against trunk T0.
-  // Receipts: run 7 has 1 (ok), 2 (exit 3), 4 (ok); 3 is still running with no receipt. Run 9 has 3 ok but for T0's tree.
+  // Receipts: run 7 has 1 (ok), 6 (exit 3), 4 and 44 (ok, but MAC_ONLY rows: never trusted from CI); 3 is still running with no receipt. Run 9 has 3 ok but for T0's tree.
   writeFileSync(fake, `#!/bin/bash
 case "$1 $2" in
   "run list")
@@ -172,15 +172,16 @@ case "$1 $2" in
     elif [ "$commit" = "${t0}" ]; then echo '[{"databaseId":9,"headSha":"${t0}","url":"https://x/runs/9","status":"completed"}]'
     else echo '[]'; fi;;
   "run view")
-    if [ "$3" = "7" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 2 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":null},{"name":"check 4 (d)","conclusion":"success"},{"name":"plan","conclusion":"success"}]'
+    if [ "$3" = "7" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 6 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":null},{"name":"check 4 (d)","conclusion":"success"},{"name":"check 44 (sparring)","conclusion":"success"},{"name":"plan","conclusion":"success"}]'
     elif [ -n "$NO_CHECK_JOBS" ]; then echo '[{"name":"plan","conclusion":null},{"name":"check","conclusion":null}]'
     else echo '[{"name":"check 3 (c)","conclusion":"success"}]'; fi;;
   "run download")
     for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done
     if [ "$3" = "7" ]; then
-      mkdir -p "$dir/release-check-1-receipt" "$dir/release-check-2-receipt" "$dir/release-check-4-receipt"
+      mkdir -p "$dir/release-check-1-receipt" "$dir/release-check-6-receipt" "$dir/release-check-4-receipt" "$dir/release-check-44-receipt"
       printf '%s' '${receipt(1, 0)}' > "$dir/release-check-1-receipt/release-check-1.json"
-      printf '%s' '${receipt(2, 3)}' > "$dir/release-check-2-receipt/release-check-2.json"
+      printf '%s' '${receipt(6, 3)}' > "$dir/release-check-6-receipt/release-check-6.json"
+      printf '%s' '${receipt(44, 0)}' > "$dir/release-check-44-receipt/release-check-44.json"
       printf '%s' '${receipt(4, 0)}' > "$dir/release-check-4-receipt/release-check-4.json"
     else
       mkdir -p "$dir/release-check-3-receipt"; printf '%s' '${receipt(3, 0, 'f'.repeat(40))}' > "$dir/release-check-3-receipt/release-check-3.json"
@@ -193,9 +194,9 @@ esac
   const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake, ...env } });
   let r = call([m]);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, '1,4', 'merge commit M: queued branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
-  assert.match(r.stderr, /trusting 2 check\(s\) \[1,4\] for tree/);
-  assert.match(r.stderr, /running locally: \[2:failure\/receipt-status=3 3:unfinished\/no-receipt\]/);
+  assert.equal(r.stdout, '1', 'merge commit M: queued branch run vouches for 1 (green + receipt 0 + same tree); 4 (WebKit) and 44 (fails off the Mac) are green but MAC_ONLY (the Mac runs them, 2026-10-12); 6 failed; 3 unfinished: ' + r.stderr);
+  assert.match(r.stderr, /trusting 1 check\(s\) \[1\] for tree/);
+  assert.match(r.stderr, /running locally: \[3:unfinished\/no-receipt 4:mac-only\(the Mac runs it\) 6:failure\/receipt-status=3 44:mac-only\(the Mac runs it\)\]/);
   r = call([t0]);
   assert.equal(r.stdout, '', 'T0 has a green job 3 but its receipt is for another tree -> nothing trusted');
   assert.match(r.stderr, /3:other-tree/);
@@ -203,7 +204,7 @@ esac
   assert.equal(r.stdout, '', 'run found but its matrix has not started -> nothing trusted');
   assert.match(r.stderr, /running locally: \[all: no check jobs in the run\(s\) yet\]/);
   r = call([b]);
-  assert.equal(r.stdout, '1,4', 'deploying the branch head itself uses the same run');
+  assert.equal(r.stdout, '1', 'deploying the branch head itself uses the same run (row 4 is WebKit: the Mac runs it)');
   r = call([m], { RELEASE_CHECKS_TRUST_CI: '0' });
   assert.equal(r.stdout, '', 'kill switch');
   r = call(['abc']);

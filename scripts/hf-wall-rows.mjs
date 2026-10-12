@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
 import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 import { ledger } from './vps-shadow/launch.mjs';
-import { MAC_ONLY, ON_T4, T4_JOBS } from './lib/row-placement.mjs';
+import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOBS } from './lib/row-placement.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || 'hf';
@@ -39,7 +39,7 @@ function launch(sha, rowsArg, skipArg) {
   // wall rows whose scripts launch WebKit (selectWallRows reads the command only), and Linux WebKit is not Mac Safari.
   const skipRows = [...String(skipArg || '').split(',').map(Number), ...(rowsArg ? [] : MAC_ONLY.map(entry => entry.row))];
   const rows = (rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
-    : [...new Set([...selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } }), ...ON_T4.map(entry => entry.row)])].sort((a, b) => a - b)).filter(n => !skipRows.includes(n));   // + the rows measured fastest on the T4 (row-placement.mjs ON_T4)
+    : [...new Set([...selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } }), ...ON_T4.map(entry => entry.row)])].sort((a, b) => a - b)).filter(n => !skipRows.includes(n) && (rowsArg || GPU_ONLY.includes(n)));   // the release's T4 leg is gpu-only (row-placement.mjs GPU_ONLY); every other row is CI's and the CPU waterfall's
   if (!rows.length) throw new Error('no wall rows to run');
   // An explicit --rows (a benchmark, a test) is one job; the release's own selection is split across T4_JOBS parallel jobs, longest rows first.
   const expected = new Map(ON_T4.map(entry => [entry.row, entry.t4_s ?? 60])), groups = rowsArg ? [rows] : splitRows(rows, T4_JOBS, row => expected.get(row) ?? 60);
@@ -57,8 +57,8 @@ function launch(sha, rowsArg, skipArg) {
       const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`,
         ...(secrets ? ['--secrets-file', secrets] : []), 'mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh'];
       // Work waterfall: the release's T4 jobs take their slots under the shared cap (scripts/lib/hf-slots.mjs), waiting up to 5 min for a lane's graphics job to finish.
-      const slot = withSlot({ hf, flavor, generic: false, maxWaitS: 300, launch: () => run(args) });
-      if (!slot.ok) { say(`no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s: rows [${group.join(',')}] run on the Mac`); continue; }
+      const slot = withSlot({ hf, flavor, generic: false, maxWaitS: 300, launch: () => run(args), cost: { timeout, reason: 'gpu-only' } });
+      if (!slot.ok) { say(`${slot.refused || `no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`}: rows [${group.join(',')}] run on the Mac`); continue; }
       say(tierLine(flavor, slot.slot, slot.queuedS));
       const result = slot.value, id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
       if (result.status !== 0 || !id) { say(`hf jobs run failed for rows [${group.join(',')}] (they run on the Mac): ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`); continue; }
@@ -71,7 +71,7 @@ function launch(sha, rowsArg, skipArg) {
   mkdirSync(dirname(state), { recursive: true });
   rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this run's (deploy-hf.sh's cancel checks for it)
   writeFileSync(state, JSON.stringify({ jobId: ids, jobs, sha, rows: placed, flavor, width, launchedAt: Date.now() }) + '\n');
-  say(`${jobs.length} job(s) ${ids} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: ${jobs.map(j => `[${j.rows.join(',')}]`).join(' ')}; the other ${commands.length - placed.length} rows are not on the T4`);
+  say(`${jobs.length} job(s) ${ids} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: ${jobs.map(j => `[${j.rows.join(',')}]`).join(' ')}; reason=${rowsArg ? 'explicit-rows' : 'gpu-only'}; the other ${commands.length - placed.length} rows are not on the T4`);
   process.stdout.write(`${ids}\n`);
 }
 

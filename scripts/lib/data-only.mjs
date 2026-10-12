@@ -16,6 +16,8 @@ export const DATA_PATHS = [
   /^src\/assets\/source\/loot\/loot\.json$/,
   /^origins\/region1\/loot-tables\.json$/,   // the loot tables as rows (Lead 2026-10-12): a new table is one row; tests/loot-rows.test.ts runs every row through the contract and loadRegion1
   /^origins\/region1\/towns\.(manifest\.)?json$/,   // the towns as rows: a definitions table (trades, temperaments, ruler titles) and the town rows; loadRegion1 + tests/town-rows.test.ts check it
+  /^origins\/contracts\/definitions\.(manifest\.)?json$/,   // the contract vocabularies that are data (gates, relations, quest roles, attitudes, quest scopes): rows + a manifest, loaded by the registry loader
+  /^src\/fight\/(pool|weapon|skill)-defs(\.manifest)?\.json$/,   // resource pool, weapon and skill definitions: rows keyed by id, and the manifest each loader hands to the shared loadRegistry (Combat 2026-10-12)
   /^src\/fight\/catalogue-data\.ts$/,   // the character catalogue's rows: one literal const (Characters 2026-10-10; the legends rule below applies)
 ];
 export const onDataPath = file => DATA_PATHS.some(re => re.test(file));

@@ -6,7 +6,7 @@ import { MAX_LEVEL, TITLES, levelOfMarks as levelOf, rankFor } from '../src/core
 import type { Result } from '../src/core/contracts/core.ts';
 import * as F from '../src/core/contracts/fixtures.ts';
 import {
-  ATTITUDE_BANDS, GATE_TIER, STANDING_MAX, STANDING_MIN, adjustStanding, attitudeFor, attitudeOf, canPromote, checkStanding, gateAccess, membershipRequired,
+  GATE_TIER, STANDING_MAX, STANDING_MIN, adjustStanding, attitudeFor, attitudeOf, canPromote, checkStanding, gateAccess, membershipRequired,
   parseCharacterDefinition, parseCharacterInstance, parseEncounterDefinition, parseFactionDefinition, parseFactionStanding, parseRegionDefinition, rankOf,
   checkCareerStanding, titleForLevel,
   reactionOf, regionAccess, type CareerStanding, type FactionDefinition, type FactionStanding,
@@ -165,7 +165,7 @@ test('faction standing: a bounded number, membership and expulsion', () => {
 });
 
 test('faction standing: four attitudes, expulsion caps at angry, promotion is offered not automatic', () => {
-  assert.deepEqual([ATTITUDE_BANDS.hostileAtOrBelow, -499, ATTITUDE_BANDS.angryAtOrBelow, -99, 0, 249, ATTITUDE_BANDS.friendlyAtOrAbove].map(attitudeFor),
+  assert.deepEqual([-500, -499, -100, -99, 0, 249, 250].map(attitudeFor),
     ['hostile', 'angry', 'angry', 'neutral', 'neutral', 'neutral', 'friendly']);
   const def = must(parseFactionDefinition(F.ferryCourt()));
   const s = must(parseFactionStanding({ ...F.standing(), standing: 400 }));

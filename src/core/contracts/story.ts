@@ -11,12 +11,13 @@ import {
   fail, type Issue, type Obj, type Result,
 } from './core.ts';
 import { readId, readOptionalId, type CharacterInstanceId, type EncounterId, type FactionId, type ItemId, type LootTableId, type QuestId } from './ids.ts';
+import { DEFINITIONS, ids } from './definitions.ts';
 import { GATES, STANDING_MAX, STANDING_MIN, verifiedTier, type CareerStanding, type Gate } from './world.ts';
 
 export const QUEST_DEFINITION_VERSION = 1;
 export const QUEST_STATE_VERSION = 1;
 // The three kinds of story state (blueprint §9): a personal journal decision, a party-instance decision, a shared world-event outcome.
-export const QUEST_SCOPES = ['personal', 'party', 'world'] as const;
+export const QUEST_SCOPES: readonly string[] = ids(DEFINITIONS.questScopes);   // rows of definitions.json `questScopes`
 export const STAGE_KINDS = ['progress', 'finish', 'fail'] as const;
 export type StageKind = (typeof STAGE_KINDS)[number];
 
@@ -46,7 +47,7 @@ export type QuestDefinition = {
   id: QuestId;
   title: string;
   storyVersion: number;
-  scope: (typeof QUEST_SCOPES)[number];
+  scope: string;
   gate: Gate;
   start: string;
   stages: Stage[];
