@@ -25,7 +25,7 @@ import type { OpponentId } from '../src/roster.ts';
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
 const SIM_FILES = ['src/fight/duel.ts', 'src/fight/cc-ladder.ts', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/fight/blade-paths.ts', 'src/roster.ts', 'src/fight/catalogue-data.ts', 'src/fight/finishers.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
-const SIM_DIGEST = 'b726ff13e1987b209304d86d33a2a89ac20b0aa9a4d39e017a846d69da631d96';   // RV42 (2026-10-12, Characters): catalogue-data.ts joins the sim (the roster is built from its rows); same fights. RV41 (2026-10-10, Combat): the shared crowd-control ladder (cc-ladder.ts, duel.ts stunned()); opt-in per fighter, so every older record replays as before
+const SIM_DIGEST = 'c95e1f2caaf18a84d2ca526e627c6a65bc26db35891536720c3c187bc23795b3';   // RV42, RE-PINNED 2026-10-12 (Combat) with NO version bump: the sim did not change, the digest now hashes the catalogue rows' SIM PROJECTION (tests/lib/sim-digest.ts) instead of the whole data file
 const PINNED_FOR_VERSION = 42;
 
 const simSources = (): Record<string, string> => Object.fromEntries(SIM_FILES.map((file) => [file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')]));
@@ -134,4 +134,22 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
     assert.throws(() => m.unpackRecord(v32), /names a patron/, 'a v32 record with no patron is refused: it was always written as v31');
   } finally { rmSync(dir, { recursive: true, force: true }); setLateNotice(false); setStab(false); setPlayScale(1); }
   void createRecorder;
+});
+
+// The catalogue rows reach the digest as their SIM PROJECTION (tests/lib/sim-digest.ts), so a cosmetic row edit needs no RECORD_VERSION bump, and a sim edit still does (Lead, 2026-10-12).
+test('catalogue digest: a cosmetic row edit (name, voice, look, ranks, a brand-new cosmetic field) leaves it alone; a sim edit (weapon, rig, archetype, finishers, hold, a new roster row) moves it', () => {
+  const real = simSources(), before = simDigest(real), path = 'src/fight/catalogue-data.ts', src = real[path]!;
+  const edit = (from: RegExp, to: string, all = false) => { const out = src.replace(all ? new RegExp(from.source, 'g') : from, to); assert.notEqual(out, src, `the probe edit applies: ${from}`); return simDigest({ ...real, [path]: out }); };
+  assert.equal(edit(/name: "the Centurion"/, 'name: "the Legate"'), before, 'a rename is not the fight');
+  assert.equal(edit(/voice: null,/, 'voice: "changed",'), before, 'a voice is not the fight');
+  assert.equal(edit(/ranks: \[/, 'ranks: [{ rank: 0, legend: "x" },'), before, 'ranks are not the fight');
+  assert.equal(edit(/ladder: \{ order: 1,/, 'ladder: { order: 9,'), before, 'the ladder order is not a replayed fight');
+  assert.equal(edit(/\{ id: "veteran", name:/, '{ id: "veteran", futureCosmetic: { anything: [1, 2] }, name:'), before, 'a field nobody listed is left out automatically');
+  assert.notEqual(edit(/weapon: "trident"/, 'weapon: "cleaver"'), before, 'a weapon is the fight');
+  assert.notEqual(edit(/rig: "hero"/, 'rig: "goblin"'), before, 'the rig picks the blade table');
+  assert.notEqual(edit(/archetype: "veteran"/, 'archetype: "pitborn"'), before, 'the archetype is the combat tuning');
+  assert.notEqual(edit(/stats: \{ archetype: "veteran",/, 'stats: { pools: { stamina: 120 }, archetype: "veteran",'), before, 'a pool is the fight');
+  assert.notEqual(edit(/ladder: \{ order: 1, hold: false \}/, 'ladder: { order: 1, hold: true }'), before, 'hold changes who the roster fields');
+  assert.notEqual(simDigest({ ...real, [path]: src.replace('const CATALOGUE_ROWS = [', 'const CATALOGUE_ROWS = [\n  { id: "newcomer", name: "N", rig: "hero", weapon: "trident", stats: { archetype: "veteran", levels: [1, 5] }, finisher: {}, blood: {}, ladder: { order: 99, hold: false } },') }), before, 'a new roster row is a new opponent');
+  assert.equal(simDigest({ ...real, [path]: src.replace('const CATALOGUE_ROWS = [', 'const CATALOGUE_ROWS = [\n  { id: "ember", body: "veteran", name: "Ember", weapon: "cleaver", rig: "goblin" },') }), before, 'a variant row is not a roster entry');
 });
