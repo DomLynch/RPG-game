@@ -190,3 +190,12 @@ test('browser-rows commit status: PENDING on every feature push until the browse
   assert.ok(!schedule(Q, rel, {}, game).has('browser-rows'));
   assert.ok(!schedule(Q, { event_name: 'push', ref: 'r', event: {} }, {}, game).has('browser-rows'), 'a push writes no status');
 });
+
+test('release-checks on a candidate: adding any label but ci:release-checks schedules 0 jobs (Lead on CW: candidate:pass and release:go queued runs that read as pending)', () => {
+  const cand = (action: string, label?: string): Ctx => ({ ...withLabelNames(pr(action, ['ci:release-checks', ...(label ? [label] : [])], label ? { label: { name: label } } : {})), head_ref: 'release-CW' });
+  const rows = { plan: { checks: '[{"index":1}]' } };
+  for (const l of ['candidate:pass', 'release:go', 'auditor:ready']) assert.deepEqual([...schedule(R, cand('labeled', l), {}, rows)], [], `${l} added: 0 jobs`);
+  for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has(j), `ci:release-checks added: ${j} runs`);
+  for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('synchronize'), {}, rows).has(j), `a push to the candidate: ${j} runs`);
+  assert.ok(schedule(R, { event_name: 'workflow_dispatch', event: {} }, {}, rows).has('check'), 'a dispatch is unchanged');
+});
