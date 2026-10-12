@@ -2,6 +2,7 @@
 // contracts' registry (loadContent), reads the kinds the contracts do not have yet (towns, Bounties, twist flags, rifts, boss loot
 // rules), and checks every cross-reference between the three. No clock, no randomness, no DOM; every failure is a Result issue with a
 // path, never a throw. Nothing in src/ imports this module.
+import hazards from './hazards.json' with { type: 'json' };
 import { LOOT_ITEM_IDS } from '../inventory/loot-catalogue.ts';
 import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoolean, readEnum, readInt, readObject, readString, readText, type Obj, type Result } from '../../src/core/server.ts';
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../../src/core/server.ts';
@@ -44,7 +45,10 @@ export const TWISTS = {
   candlelight: [],
 } as const satisfies Record<string, readonly string[]>;
 export type TwistKind = keyof typeof TWISTS;
-export const HAZARDS = ['embers', 'breaking-planks'] as const;
+// The hazards a Bounty twist can name are ROWS (hazards.json, loaded and checked by the registry loader): `text` is the line the player reads, `{s}` its stillSeconds. A new hazard is one row.
+export type HazardRow = { order: number; text: string };
+export const HAZARD_ROWS = hazards.hazards as Readonly<Record<string, HazardRow>>;
+export const HAZARDS: readonly string[] = Object.entries(HAZARD_ROWS).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
 export type Twist = { kind: TwistKind } & Record<string, unknown>;
 
 // Namespaces the contracts do not list yet (region1 §7 open 1g; feuds §13 open 4; living-world §14). Same local-part rule as ids.ts.
