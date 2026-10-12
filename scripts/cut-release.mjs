@@ -1,7 +1,7 @@
 // `node scripts/cut-release.mjs <name> <PR>@<head sha> [<PR>@<head sha> ...] [--live <sha>]`: the release cut in one command (Dom 2026-10-12, CI runners first).
 // From trunk: a branch release-<name>, one `Merge pull request #N (release-<name> candidate)` merge per PR in the order given (a PR that conflicts is aborted and named, the rest
-// still merge), ONE push, a draft PR labelled ci:release-checks (the rows run on GitHub's 40 runners) and auditor:ready, then the pre-launch jobs (T4/CPU rows) and the unit
-// receipt job in the background. Prints one JSON line: { name, sha, pr, merged, skipped, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
+// still merge), ONE push, a draft PR labelled ci:release-checks (the rows run on GitHub's 40 runners) and auditor:ready, then the pre-launch jobs (T4/CPU rows)
+// in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
 // Run it in the release worktree, which must be clean. The Auditor's PASS at each head is checked from the PR thread unless --no-verify.
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, openSync } from 'node:fs';
@@ -66,6 +66,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const logs = join(process.env.HOME, '.claude/state', `cut-${name}`); mkdirSync(logs, { recursive: true });
   const bg = (file, cmd, args) => spawn(cmd, args, { detached: true, stdio: ['ignore', openSync(join(logs, file), 'a'), openSync(join(logs, file), 'a')] }).unref();
   if (live) bg('prelaunch.log', 'bash', ['scripts/pre-launch.sh', sha, live]);
-  bg('unit.log', 'node', ['scripts/vps-shadow/launch.mjs', 'unit', sha]);
   console.log(JSON.stringify({ name, sha, pr, merged, skipped, logs }));
 }
