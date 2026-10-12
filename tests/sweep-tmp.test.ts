@@ -72,7 +72,8 @@ test('refuses /opt, /mnt, home and a symlink that resolves into them', () => {
   const s = scratch();
   try {
     symlinkSync('/opt', join(s.base, 'via-link'));
-    for (const root of ['/opt', '/mnt', '/home', '/', join(s.base, 'via-link')]) {
+    // macOS has no /mnt (a missing root exits 1, not the refusal): check only the protected roots this host has. Linux has all of them.
+    for (const root of ['/opt', '/mnt', '/home', '/', join(s.base, 'via-link')].filter((r) => existsSync(r))) {
       const r = spawnSync('bash', [script, '--dry-run'], { encoding: 'utf8', env: { ...process.env, SWEEP_ROOT: root, LSOF: s.lsof } });
       assert.equal(r.status, 2, `${root} is refused`);
       assert.match(r.stdout, /refusing root/);
