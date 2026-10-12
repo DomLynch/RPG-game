@@ -1,4 +1,4 @@
-// The Gear tab's stat strip (the paper-doll reference, Dom 2026-10-11: Health / Stamina / ... under the slots). A stat is a ROW: an id, a label and a
+// The Gear tab's stat strip (src/fight/gear-stats.ts is the Attack/RES TABLE; this file is only the strip's rows) (the paper-doll reference, Dom 2026-10-11: Health / Stamina / ... under the slots). A stat is a ROW: an id, a label and a
 // `read` over what the sheet knows; the strip draws the rows that have a value and nothing else (a stat nothing computes yet is not invented), so a new
 // attribute (mana, intelligence) is one more row and no markup or CSS. Today the rows are this array; the follow-up feeds it from Combat's pool/attribute
 // definitions table (id, label, default...): `statRows(ctx, thatTable.map(toRow))`, after which adding a stat is a data row only.
@@ -13,6 +13,8 @@ export type StatRow = { id: string; label: string; value: string };
 export const GEAR_STATS: readonly GearStat[] = [
   { id: 'health', label: 'Health', read: (c) => c.base.health ?? null },
   { id: 'stamina', label: 'Stamina', read: (c) => c.base.stamina ?? null },
+  { id: 'attack', label: 'Attack', read: (c) => c.base.attack ?? null },   // gear's tilt in whole points, brief 19 Addendum C: "ATK 15 · RES 20", unsigned
+  { id: 'res', label: 'Resistance', read: (c) => c.base.res ?? null },
 ];
 
 export const statRows = (ctx: StatContext, stats: readonly GearStat[] = GEAR_STATS): StatRow[] =>

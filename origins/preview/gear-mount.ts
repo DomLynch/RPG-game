@@ -6,7 +6,7 @@ import { createGearSheet } from '../../src/core/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
-import { RULES, world } from '../../src/fight/index.ts';
+import { gearNumbers } from '../../src/fight/index.ts';
 
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string };
 export function mountGear(d: Deps) {
@@ -15,7 +15,7 @@ export function mountGear(d: Deps) {
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
     element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
-    view: () => ({ wear: zone.wear, gearStage: () => zone.stage }), weapon: () => 'longsword', baseStats: () => ({ health: RULES.health, stamina: world.STAMINA_MAX }), emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
+    view: () => ({ wear: zone.wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
   const leave = () => { sheet.leaveGear(); d.layer.classList.remove('gearing'); };
