@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -95,4 +95,69 @@ test('install refuses a repo whose waterfall.mjs has no VPS_MAX_LOAD1 line, and 
     assert.equal(existsSync(b.root), false);
     rmSync(fake, { recursive: true, force: true });
   } finally { b.done(); }
+});
+
+// A tmp git repo that holds committed copies of the two files, so a test can dirty the WORKING tree or commit a broken file without touching the real checkout.
+function fakeRepo(waterfall = readFileSync(join(repo, 'scripts/lib/waterfall.mjs'), 'utf8')) {
+  const fake = mkdtempSync(join(tmpdir(), 'lanejob-fakerepo-'));
+  const g = (...a: string[]) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd: fake, stdio: 'ignore' });
+  g('init', '-q');
+  mkdirSync(join(fake, 'scripts/lanejob'), { recursive: true }); mkdirSync(join(fake, 'scripts/lib'), { recursive: true });
+  copyFileSync(join(repo, 'scripts/lanejob/lanejob.sh'), join(fake, 'scripts/lanejob/lanejob.sh'));
+  writeFileSync(join(fake, 'scripts/lib/waterfall.mjs'), waterfall);
+  g('add', '-A'); g('commit', '-q', '-m', 'x');
+  return { fake, sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: fake, encoding: 'utf8' }).trim(), done: () => rmSync(fake, { recursive: true, force: true }) };
+}
+
+test('the installer copies the COMMITTED files: a dirty working-tree file never installs under a clean sha', { skip }, () => {
+  const b = box(), f = fakeRepo();
+  try {
+    writeFileSync(join(f.fake, 'scripts/lanejob/lanejob.sh'), '# dirty\n' + readFileSync(join(f.fake, 'scripts/lanejob/lanejob.sh'), 'utf8'));
+    writeFileSync(join(f.fake, 'scripts/lib/waterfall.mjs'), 'export const VPS_MAX_LOAD1 = 1;\n');
+    const r = b.run(f.fake);
+    assert.equal(r.status, 0, r.stderr);
+    const dest = join(b.root, f.sha);
+    assert.doesNotMatch(readFileSync(join(dest, 'scripts/lanejob/lanejob.sh'), 'utf8'), /# dirty/);
+    assert.equal(readFileSync(join(dest, 'scripts/lib/waterfall.mjs'), 'utf8'), readFileSync(join(repo, 'scripts/lib/waterfall.mjs'), 'utf8'));
+  } finally { b.done(); f.done(); }
+});
+
+test('a staged copy that fails its checks flips nothing and leaves no half-built release dir', { skip }, () => {
+  const b = box();
+  const good = fakeRepo(), bad = fakeRepo('export const NOT_THE_GATE = 12;\n');
+  try {
+    assert.equal(b.run(good.fake).status, 0);
+    const r = b.run(bad.fake);
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /no VPS_MAX_LOAD1 line/);
+    assert.equal(readlinkSync(join(b.root, 'current')), good.sha, 'current still points at the good release');
+    assert.deepEqual(readdirSync(b.root).filter(n => n.includes(bad.sha)), [], 'no staged or partial dir left for the bad sha');
+  } finally { b.done(); good.done(); bad.done(); }
+});
+
+test('a damaged existing release dir (waterfall.mjs is a directory) is moved aside, replaced and verified: the install reports success only when the shim works', { skip }, () => {
+  const b = box(), f = fakeRepo();
+  try {
+    mkdirSync(join(b.root, f.sha, 'scripts/lib/waterfall.mjs'), { recursive: true });
+    const r = b.run(f.fake);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(statSync(join(b.root, f.sha, 'scripts/lib/waterfall.mjs')).isFile());
+    assert.ok(readdirSync(b.root).some(n => n.startsWith(`.${f.sha}.bad-`)), 'the damaged dir is kept aside');
+    assert.equal(b.probe('0.5', 'tsc').stdout.trim(), 'would=vps');
+  } finally { b.done(); f.done(); }
+});
+
+test('the flip never leaves current absent: it is ln -sfn to a temp name plus mv -T, with no rm of current (source check)', { skip }, () => {
+  const src = readFileSync(install, 'utf8');
+  assert.match(src, /ln -sfn "\$sha" "\$root\/\.current\.\$\$" && mv -T "\$root\/\.current\.\$\$" "\$root\/current"/);
+  assert.doesNotMatch(src, /rm [^\n]*current(?!\.)/);
+});
+
+test('install runs --probe on the staged copy before the flip, and an unreadable gate value is refused (VPS_MAX_LOAD1 = . is not a number)', { skip }, () => {
+  const b = box(), f = fakeRepo('export const VPS_MAX_LOAD1 = .;\n');
+  try {
+    const r = b.run(f.fake);
+    assert.notEqual(r.status, 0);
+    assert.equal(existsSync(join(b.root, 'current')), false);
+  } finally { b.done(); f.done(); }
 });

@@ -210,3 +210,35 @@ test('real run as root with all four slots held and no spill: waits in the queue
     assert.match(r.stderr, /queued behind/);
   } finally { b.done(); }
 });
+
+test('probe: an unreadable router plus a FRESH release marker still answers would=refuse reason=router-unreadable (75), like the run path (Deploy B on #2332)', { skip }, async () => {
+  const b = box();
+  try {
+    writeFileSync(join(b.locks, 'release-run'), '');   // fresh marker: the release-lock check would otherwise answer first
+    b.env.LANEJOB_WATERFALL = '/nonexistent/waterfall.mjs';
+    const lone = join(b.dir, 'inst/bin'); mkdirSync(lone, { recursive: true });
+    copyFileSync(script, join(lone, 'lanejob.sh'));   // no ../lib/waterfall.mjs next to it either
+    const p = spawnSync('bash', [join(lone, 'lanejob.sh'), '--probe', 'tsc'], { env: b.env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(p.status, 75);
+    assert.equal(p.stdout.trim(), 'would=refuse reason=router-unreadable');
+    const r = spawnSync('bash', [join(lone, 'lanejob.sh'), 'true'], { env: b.env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(r.status, 75);
+  } finally { b.done(); }
+});
+
+test('the gate value must be a real number: VPS_MAX_LOAD1 = . and 1e3 are not read (router unreadable, 75)', { skip }, async () => {
+  const b = box();
+  try {
+    const wf = join(b.dir, 'wf.mjs');
+    for (const bad of ['export const VPS_MAX_LOAD1 = .;\n', 'export const VPS_MAX_LOAD1 = 1e3;\n']) {
+      writeFileSync(wf, bad);
+      b.env.LANEJOB_WATERFALL = wf;
+      const lone = join(b.dir, 'inst2/bin'); mkdirSync(lone, { recursive: true });
+      copyFileSync(script, join(lone, 'lanejob.sh'));
+      const p = spawnSync('bash', [join(lone, 'lanejob.sh'), '--probe', 'tsc'], { env: b.env, encoding: 'utf8', timeout: 10000 });
+      assert.equal(p.status, 75, bad);
+    }
+    writeFileSync(wf, 'export const VPS_MAX_LOAD1 = 12.5;\n');
+    assert.equal(await b.probe('12.4', 'tsc'), 'would=vps');
+  } finally { b.done(); }
+});

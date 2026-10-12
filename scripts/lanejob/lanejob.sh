@@ -21,7 +21,7 @@ router_unreadable() {
 vps_max() {
   local f
   for f in "${LANEJOB_WATERFALL:-}" "$(dirname "$(readlink -f "$0")")/../lib/waterfall.mjs"; do
-    [ -r "$f" ] && { sed -n 's/^export const VPS_MAX_LOAD1 = \([0-9.]*\).*/\1/p' "$f" | head -1; return; }
+    [ -r "$f" ] && { sed -n 's/^export const VPS_MAX_LOAD1 = \([0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\);.*/\1/p' "$f" | head -1; return; }
   done
 }
 over_load() {
@@ -35,6 +35,7 @@ over_load() {
 #   considers its own slot when the answer is would=spill. LANEJOB_SLOTS / RELEASE_LOCK_DIR override the live paths (tests use a tmp dir).
 if [ "$1" = "--probe" ]; then
   shift; probing=1
+  [ -n "$(vps_max)" ] || router_unreadable   # before any other answer: an unreadable router must never read as spill (Deploy B on #2332)
   [ "$(id -u)" -ne 0 ] && printf '%s\n' "$*" | grep -Eq "$refuse_re" && { echo "would=refuse"; exit 0; }   # the refusal is a non-root rule in the run path, so root is not refused here either
   if find "${RELEASE_LOCK_DIR:-/run/frankendom-release}" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | grep -q .; then echo "would=spill reason=release-lock"; exit 0; fi
   if over_load; then echo "would=spill reason=load"; exit 0; fi
