@@ -57,8 +57,8 @@ function launch(sha, rowsArg, skipArg) {
       const args = ['jobs', 'run', '--detach', '--flavor', flavor, '--timeout', timeout, '--env', `SHA=${sha}`, '--env', `SKIP=${skip.join(',')}`, '--env', `WIDTH=${width}`, '--env', `JOB_B64=${job.toString('base64')}`,
         ...(secrets ? ['--secrets-file', secrets] : []), 'mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh'];
       // Work waterfall: the release's T4 jobs take their slots under the shared cap (scripts/lib/hf-slots.mjs), waiting up to 5 min for a lane's graphics job to finish.
-      const slot = withSlot({ hf, flavor, generic: false, maxWaitS: 300, launch: () => run(args) });
-      if (!slot.ok) { say(`no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s: rows [${group.join(',')}] run on the Mac`); continue; }
+      const slot = withSlot({ hf, flavor, generic: false, maxWaitS: 300, launch: () => run(args), cost: { timeout, reason: 'gpu-only' } });
+      if (!slot.ok) { say(`${slot.refused || `no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`}: rows [${group.join(',')}] run on the Mac`); continue; }
       say(tierLine(flavor, slot.slot, slot.queuedS));
       const result = slot.value, id = /Job started with ID: (\S+)/.exec(result.stdout || '')?.[1];
       if (result.status !== 0 || !id) { say(`hf jobs run failed for rows [${group.join(',')}] (they run on the Mac): ${(result.stderr || result.stdout || '').trim().slice(0, 200)}`); continue; }
