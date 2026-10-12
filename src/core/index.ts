@@ -19,6 +19,7 @@ export * from './career-model.ts';
 export * from './career-client.ts';
 export * from './career-screen.ts';
 export * from './rename.ts';
+export * from './registry.ts';
 export * from './world/row.ts';
 export * from './world/styles.ts';
 export * from './world/kits.ts';
