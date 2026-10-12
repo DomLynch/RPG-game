@@ -538,7 +538,7 @@ Tapping a creature starts Combat's duel; the creature's **kind** decides how it 
 
 ### 5.3 Behaviour: the four kinds
 
-**Authority (Strategy ruling 2026-10-07, 12:23).** The roles are `brute`, `skirmisher`, `caster`, `beast` (the earlier "archer" was renamed). Combat's `origins/mobs/styles.ts` (PR #1646, `origin/combat/mob-styles`; our code) is the single definition: `MOB_STYLES`, `MOB_STYLE[id]` (the roster `opponent` the duel uses, plus optional `fleeBelow`), `styleOpponent(id)` (the opponent, or `undefined` for an unknown id) and `fleesNow(style, health, maxHealth)` (true strictly below the threshold; beasts flee below 30 percent, every other style never). This spec **does not define a role, an opponent mapping or a flee threshold**; a mob row names a style id and reads these. Today the file maps brute to `pitborn`, skirmisher to `nightborn`, caster to `witch`, beast to `goblin`.
+**Authority (Strategy ruling 2026-10-07, 12:23).** The roles are `brute`, `skirmisher`, `caster`, `beast` (the earlier "archer" was renamed). Combat's `origins/mobs/styles.ts` (PR #1646, `origin/combat/mob-styles`; our code) is the single definition: `MOB_STYLES`, `MOB_STYLE[id]` (the roster `opponent` the duel uses, ), and `styleOpponent(id)` (the opponent, or `undefined` for an unknown id). Creature fleeing is cut (Dom, 2026-10-11): `fleeBelow` and `fleesNow` are gone. This spec **does not define a role or an opponent mapping**; a mob row names a style id and reads these. Today the file maps brute to `pitborn`, skirmisher to `nightborn`, caster to `witch`, beast to `goblin`.
 
 **Skirmisher is a name, not a ranged system.** It is the Nightborn's poke-and-withdraw at the estoc's reach. Ranged stays out of the duel (combat-study). A "volley while you approach" behaviour (a skirmisher shooting as the hero closes) is **parked**, a post-sprint world-layer idea; nothing in this spec builds it, and the in-world approach set below only gives a skirmisher a longer stand-off and a back-off, never a projectile.
 
@@ -548,12 +548,12 @@ UO-style roles (ModernUO `Mobiles/AI/*`, GPL-behaviour-only, behaviour in our wo
 
 | Kind | World approach (in-world, before and after the duel) | Opening | Leans on (existing `AiProfile` knobs) | Leans on (existing moves) | Flees at low health | Source |
 |---|---|---|---|---|---|---|
-| `brute` | advances steadily, never circles, never backs off; fights to the end | charged heavy (combat-study "Brute" role) | high `pressure` toward heavy, low `dodge`, high `braceHeavy`/`guard`, slow `reaction` | `heavy_overhead`, `heavy_riposte`, `heavy_counter`, `kick` | no (`fleesNow` is never true for `brute`) | ModernUO melee role (a plain melee fighter flees only rarely and late): GPL, behaviour; combat-study 2E |
+| `brute` | advances steadily, never circles, never backs off; fights to the end | charged heavy (combat-study "Brute" role) | high `pressure` toward heavy, low `dodge`, high `braceHeavy`/`guard`, slow `reaction` | `heavy_overhead`, `heavy_riposte`, `heavy_counter`, `kick` | no | ModernUO melee role (a plain melee fighter flees only rarely and late): GPL, behaviour; combat-study 2E |
 | `skirmisher` | keeps a stand-off distance `standOff`, backs away when closed, regains line of sight if blocked, leaves the fight when out of "ammo" | none in v1 (poke and withdraw at the estoc's reach; no projectile) | high `disengage`, high `step`, `circle`, low `guard`, high `dash` to close gaps | `thrust`, `light_left`, `light_right`, `riposte` | no | ModernUO ranged role (its `ArcherAI.cs`; GPL, behaviour), kept as a role name only |
 | `caster` | keeps range and line of sight, closes to regain line of sight when blocked, acts on a cooldown | a telegraphed marker (same marker) or a `skill_*` opener | high `accuracy`, `discipline`, low `aggression` between casts, `disengage` | `skill_witchfire` and the other `skill_*` as Combat assigns | no by default; content may set | ModernUO mage role (GPL, behaviour) |
-| `beast` | skittish: while not committed it backs off from a nearby hero with `backoffChance`; once committed it closes fast; fights hard but runs when badly hurt | a lunge | high `aggression`, `dash`, `circle`, `disengage`, low `guard` | `light_right`, `light_left`, `thrust`, `skill_lunge` | **yes** (`fleesNow`, below 30 percent) | ModernUO animal role (GPL, behaviour); world-of-claudecraft flee rules (MIT-adapt) |
+| `beast` | skittish: while not committed it backs off from a nearby hero with `backoffChance`; once committed it closes fast; fights hard to the death | a lunge | high `aggression`, `dash`, `circle`, `disengage`, low `guard` | `light_right`, `light_left`, `thrust`, `skill_lunge` | no (cut by Dom 2026-10-11) | ModernUO animal role (GPL, behaviour); world-of-claudecraft flee rules (MIT-adapt) |
 
-Current roster mapping (proposal; the id is the row's `role`, section 7): cinder scavengers `brute` or `beast` (content decides per form), mere brood `beast`, ruin ghouls `brute`. Named creatures and bosses use their encounter's own opponent profile and never use `fleesNow` unless the twist says `flee-at`.
+Current roster mapping (proposal; the id is the row's `role`, section 7): cinder scavengers `brute` or `beast` (content decides per form), mere brood `beast`, ruin ghouls `brute`. Named creatures and bosses use their encounter's own opponent profile and never flee unless the twist says `flee-at`.
 
 ### 5.4 Behaviour: action rows (the style row's move table shape)
 
@@ -592,6 +592,8 @@ The radii blend by an `offence` ratio in `[0,1]` (1 = eager): `inner = lerp(min,
 
 ### 5.6 Behaviour: animals flee at low health
 
+**CUT by Dom 2026-10-11.** Every creature takes normal damage and dies at zero; `MOB_STYLE.beast.fleeBelow` and `fleesNow` were removed. The engine's encounter-flag `flee-at` twist (`src/fight/twist.ts`, Bounties and feuds) stays. If a specific creature ever needs to run (a deer, a scout), it comes back as ONE per-creature row field through that engine flag, never as a style branch. The text below is history and is not to be built.
+
 Fleeing reuses the existing `flee-at` twist (`origins/encounters/encounters.ts`: `{ percent, catchSeconds? }`) so no new outcome type exists and `resolveFight`'s rules hold (a flee with no catch window ends `fled`: no kill, no pay; a flee with a catch window ends `caught` or `escaped`).
 
 | Rule | Behaviour | Source |
@@ -611,7 +613,7 @@ Bounties keep their own `flee-at` twists (Peg Powler flees at 30 percent with a 
 
 | Name | Default | Range | Source |
 |---|---|---|---|
-| flee threshold | `MOB_STYLE[style].fleeBelow` (beast 0.3) | Combat's | `origins/mobs/styles.ts` (ours) |
+| flee threshold | CUT (Dom 2026-10-11); see 5.6 | n/a | n/a |
 | `fleeTime` | 8 s | 4 to 15 | world-of-claudecraft 5 s (MIT), ModernUO 10 to 30 s (GPL, behaviour): ours between |
 | `woundWindow` | 30 s | 10 to 90 | ours |
 | `fleeMult`, `fleeCap` | 1.4, 0.85 | 1 to 2, 0.5 to 0.95 | world-of-claudecraft 1.4 and 0.65 (MIT-adapt) |
@@ -622,13 +624,13 @@ Bounties keep their own `flee-at` twists (Peg Powler flees at 30 percent with a 
 
 ### 5.8 Data-driven content fields
 
-Per creature form: `role` (a `MobStyle` id; see section 7), `style` (the approach set and optional `rows`), `standOff`. Flee is not a field: it comes from `fleesNow`. Combat's `opponent` profile reference stays as the form's existing `opponent` field (the roster body). A new content kind `creature-style` holds the rows by kind so many forms share one.
+Per creature form: `role` (a `MobStyle` id; see section 7), `style` (the approach set and optional `rows`), `standOff`. Flee is not a field (creature fleeing is cut, see 5.6). Combat's `opponent` profile reference stays as the form's existing `opponent` field (the roster body). A new content kind `creature-style` holds the rows by kind so many forms share one.
 
 ### 5.9 Acceptance tests
 
 1. Tapping a creature in each allowed state starts exactly one duel with the right `fightId`; tapping `return`, `flee` or `down` starts none.
 2. The style row for the creature's kind is passed to `startEncounterDuel`; a missing style leaves behaviour unchanged (bit for bit with today's tap flow).
-3. A `beast` whose health falls strictly below 30 percent (`fleesNow` true) ends the duel `fled`: no loot, no Bounty, no kill count; at exactly 30 percent it still fights; `brute`, `skirmisher` and `caster` never flee by this rule.
+3. ~~A `beast` whose health falls strictly below 30 percent (`fleesNow` true) ends the duel `fled`: no loot, no Bounty, no kill count; at exactly 30 percent it still fights; `brute`, `skirmisher` and `caster` never flee by this rule.~~ (CUT by Dom 2026-10-11, see 5.6)
 4. A named creature, an elite and a boss never flee unless the form has an explicit `flee-at` twist.
 5. A re-tap inside `woundWindow` starts the next duel with the saved fraction; outside the window health is full.
 6. A fleeing creature at `fleeSpeed` is slower than the hero; a hero chasing reaches it; at the leash edge it returns.
