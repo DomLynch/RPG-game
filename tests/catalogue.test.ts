@@ -95,6 +95,9 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { Object.assign(r, { sparring: { order: 0 } }); }), 'sparring', 'a 1-based order');
   assert.equal(edit((r) => { r.render = { scale: 0 }; }), 'render');
   assert.equal(edit((r) => { r.weapon = 'lightsaber'; }), 'weapon');
+  assert.equal(edit((r) => { r.pace = { chase: 0, leash: 15 }; }), 'traits', 'a pace needs a chase speed and a leash above zero');
+  assert.equal(edit((r) => { r.shield = { stem: 'x', fromLevel: 0 }; }), 'traits', 'a shield shows from level 1 up');
+  assert.equal(edit((r) => { r.nightBronze = { arena: '', level: 9 }; }), 'traits', 'night bronze names an arena');
   assert.equal(edit((r) => { (r as { home: string }).home = 'berserk'; }), 'home');
   assert.equal(edit((r) => { r.voice = 'dragon'; }), 'voice');
   assert.equal(edit((r) => { r.look = { ...r.look, levels: [3, 2] }; }), 'look');
@@ -154,4 +157,11 @@ test('a variant row shares its body: everything but its own name, lore, level ba
     const strip = (r: CatalogueRow) => { const { id, body: b, name, summary, stats, loot, legend, ...rest } = r; void id; void b; void name; void summary; void loot; void legend; return { ...rest, archetype: stats.archetype }; };
     assert.deepEqual(strip(row), strip(body), `${row.id}: shares ${row.body}'s rig, assets, clips, finishers, blood, wounds, weapon, voice`);
   }
+});
+
+test('the row fields replace the name compares: the wolf paces itself, the Wraith is spectral, the Centurion and the Shieldmaiden carry shields, only the Shieldmaiden takes night bronze', () => {
+  assert.deepEqual(catalogueRow('wolf')!.pace, { chase: 6, leash: 15 });
+  assert.deepEqual(CATALOGUE.filter((r) => r.spectral).map((r) => r.id), ['wraith']);
+  assert.deepEqual(CATALOGUE.filter((r) => r.shield).map((r) => [r.id, r.shield!.stem, r.shield!.fromLevel]), [['veteran', 'centurion', 2], ['shieldmaiden', 'shieldmaiden', 1]]);
+  assert.deepEqual(CATALOGUE.filter((r) => r.nightBronze).map((r) => [r.id, r.nightBronze]), [['shieldmaiden', { arena: 'a', level: 9 }]]);
 });

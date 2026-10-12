@@ -43,10 +43,14 @@ export type CatalogueRow = {
   loot: { table: string | null };               // a loot-table id; null = the Pit's own loot (src/core/loot.ts pieces), no zone table
   legend: Legend | null;                        // a creature's citation; null for a ranked opponent (its ranks carry the names)
   sparring?: { order: number };                 // the Sparring tab's place for a ranked opponent, 1 = first (src/legends.ts LEGEND_OPPONENTS); required exactly when it has ranks
+  pace?: { chase: number; leash: number };      // the open world's chase speed (m/s) and leash (m) for this creature, read by speeds.ts; absent = the shared creature numbers
+  spectral?: true;                              // the body dissolves into ash and its cut face is see-through (spectral.ts, opened.ts): a flag on the row, not a compare on the name
+  shield?: { stem: string; fromLevel: number }; // the painted shield files it carries (public/shields/<stem>-<band>.glb) and the first level that shows one (src/fight/shields.ts)
+  nightBronze?: { arena: string; level: number }; // the one arena and level where its armour takes the night-bronze finish (night-armour.ts)
   ranks: readonly RankLegend[];                 // the ten Pit ranks' named opponents, rank 1 first (src/legends.ts); [] for a creature
 };
 
-export type RowCode = 'id' | 'asset' | 'budget' | 'armour' | 'stats' | 'animations' | 'finisher' | 'blood' | 'loot' | 'legend' | 'render' | 'weapon' | 'home' | 'voice' | 'look' | 'ladder' | 'timing' | 'wounds' | 'bodytype' | 'sparring' | 'dup-id' | 'dup-sparring';
+export type RowCode = 'id' | 'asset' | 'budget' | 'armour' | 'stats' | 'animations' | 'finisher' | 'blood' | 'loot' | 'legend' | 'render' | 'weapon' | 'home' | 'voice' | 'look' | 'ladder' | 'timing' | 'wounds' | 'bodytype' | 'traits' | 'sparring' | 'dup-id' | 'dup-sparring';
 export type RowIssue = { code: RowCode; path: string; message: string };
 const HEX = /^#[0-9a-f]{6}$/i, WORLD_MAX_TRIS = 10000;   // the world ceiling a row may not raise (the world goblin is ~8k)
 
@@ -72,6 +76,9 @@ export function catalogueProblems(row: CatalogueRow, known: { pools?: readonly P
   if (row.loot.table !== null && !known.tables.has(row.loot.table)) add('loot', 'loot.table', `${row.loot.table} is not a loot table`);   // body and variant rows alike: the table must resolve (a typo would silently drop loot)
   if (!(row.render.scale > 0 && row.render.scale <= 4)) add('render', 'render.scale', 'a draw scale in (0, 4]');
   if (!known.weapons.has(row.weapon)) add('weapon', 'weapon', `${row.weapon} is not a weapon`);
+  if (row.pace && !(row.pace.chase > 0 && row.pace.leash > 0)) add('traits', 'pace', 'a chase speed and a leash that are both above zero');
+  if (row.shield && !(row.shield.stem && Number.isInteger(row.shield.fromLevel) && row.shield.fromLevel >= 1)) add('traits', 'shield', 'a stem and a first level that is a whole number from 1');
+  if (row.nightBronze && !(row.nightBronze.arena && Number.isInteger(row.nightBronze.level))) add('traits', 'nightBronze', 'an arena id and a whole level');
   if (!known.stances.has(row.home)) add('home', 'home', `${row.home} is not a stance pick`);
   if (row.voice !== null && !known.voices.has(row.voice)) add('voice', 'voice', `${row.voice} has no throat`);
   const { levels } = row.look;
