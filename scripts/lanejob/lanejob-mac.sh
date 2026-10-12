@@ -25,7 +25,7 @@ busy() { awk -v l="$(load1)" 'BEGIN { exit !(l >= 6) }'; }
 
 gpu_job_ok() {
   local a; for a in "$@"; do case "$a" in *..*) return 1 ;; esac; done   # same fence as the guard: no `..` anywhere
-  if [ "$1" = node ]; then case "$2" in scripts/*-still*.mjs|scripts/*-stills.mjs|scripts/*-contact-sheet.mjs|./scripts/*-still*.mjs|./scripts/*-contact-sheet.mjs) shift 2; for a in "$@"; do printf '%s\n' "$a" | grep -Eq '^[A-Za-z0-9_.:=@/-]+$' || return 1; done; return 0 ;; esac; fi
+  if [ "$1" = node ]; then case "$2" in scripts/*-still.mjs|scripts/*-stills.mjs|scripts/*-still-*.mjs|scripts/*-stills-*.mjs|scripts/*-contact-sheet.mjs|./scripts/*-still.mjs|./scripts/*-stills.mjs|./scripts/*-still-*.mjs|./scripts/*-stills-*.mjs|./scripts/*-contact-sheet.mjs) shift 2; for a in "$@"; do printf '%s\n' "$a" | grep -Eq '^[A-Za-z0-9_.:=@-][A-Za-z0-9_.:=@/-]*$' || return 1; done; return 0 ;; esac; fi
   local rows; rows="$(if [ -n "${LANEJOB_MAC_ROWS:-}" ]; then cat "$LANEJOB_MAC_ROWS"; else git show refs/remotes/origin/HEAD:.quality-gate.json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const r of JSON.parse(s).release_commands)console.log(r.join(" "))})' 2>/dev/null; fi)"
   printf '%s\n' "$rows" | grep -Fxq -- "$*"
 }
