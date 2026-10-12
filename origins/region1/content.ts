@@ -307,8 +307,7 @@ export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 
 ];
 
 // Which table each creature rolls in the open world is the loot row's own `rolledBy` (no encounter: a plain kill); row order = creature order.
-export const CREATURE_LOOT: Record<string, string> = Object.fromEntries(
-  lootTableRows.flatMap((t) => ((t as { rolledBy?: string[] }).rolledBy ?? []).map((c) => [c, t.id] as const)),
-);
+export const CREATURE_LOOT_PAIRS: (readonly [string, string])[] = lootTableRows.flatMap((t) => ((t as { rolledBy?: string[] }).rolledBy ?? []).map((c) => [c, t.id] as const));
+export const CREATURE_LOOT: Record<string, string> = Object.fromEntries(CREATURE_LOOT_PAIRS);
 
-export const LOCAL = { towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT };
+export const LOCAL = { towns: TOWNS, bounties: BOUNTIES, flags: ENCOUNTER_FLAGS, rifts: RIFTS, killRows: KILL_ROWS, bossLoot: BOSS_LOOT, creatureLoot: CREATURE_LOOT, creatureLootPairs: CREATURE_LOOT_PAIRS };

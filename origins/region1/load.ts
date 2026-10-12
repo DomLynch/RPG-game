@@ -229,6 +229,11 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   const neverTables = new Set<LootTableId>(), rolledTables = new Set<LootTableId>();
   for (const e of registry.encounters.values()) (rule.get(e.id)?.rule === 'never' ? neverTables : rolledTables).add(e.boss.loot);
   for (const t of neverTables) if (rolledTables.has(t)) issues.add('rule-violation', t, 'a never-rolled table is also a rolled boss table');
+  const rolledBy = new Map<string, string>();
+  for (const [c, t] of local.creatureLootPairs) {
+    if (rolledBy.has(c)) issues.add('duplicate-id', `creatureLoot.${c}`, `${c} is rolled by ${rolledBy.get(c)} and ${t}: a creature rolls one table`);
+    rolledBy.set(c, t);
+  }
   for (const [c, t] of Object.entries(local.creatureLoot)) {
     if (!registry.characters.has(c as CharacterId)) issues.add('unknown-id', `creatureLoot.${c}`, `${c} is not a character in Region 1`);
     if (!registry.lootTables.has(t as LootTableId)) issues.add('unknown-id', `creatureLoot.${c}`, `${t} is not a loot table in Region 1`);
