@@ -1,0 +1,6 @@
+{
+  "reasons": [
+    { "id": "quest-handin", "consumesStoryItem": true },
+    { "id": "upgrade-cost", "consumesStoryItem": false }
+  ]
+}
