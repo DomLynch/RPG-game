@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
 import { signedIn } from './save.ts';
-import { campCount } from '../mobs/row.ts';
+import { campCount } from '../../src/core/index.ts';
 import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;

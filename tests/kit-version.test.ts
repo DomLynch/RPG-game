@@ -1,19 +1,20 @@
-// The mob kit's version tag (origins/mobs/kit-version.ts): any change to the kit tables changes the tag, and the kit CODE is pinned by its text, like SIM_DIGEST in record-version-guard.test.ts, so a
+// The mob kit's version tag (src/core/world/kit-version.ts): any change to the kit tables changes the tag, and the kit CODE is pinned by its text, like SIM_DIGEST in record-version-guard.test.ts, so a
 // behaviour change in code (which no table hash can see) cannot slip through without somebody deciding whether KIT_LOGIC_VERSION must be bumped.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../src/fight/mobkit.ts';
-import { CHAINS, KITS, MODE } from '../origins/mobs/kits.ts';
-import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } from '../origins/mobs/kit-version.ts';
+import { CHAINS, KITS, MODE } from '../src/core/world/kits.ts';
+import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } from '../src/core/world/kit-version.ts';
 
-// sha-256 of the text of src/fight/mobkit.ts + origins/mobs/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
-const KIT_CODE_DIGEST = 'c8edc9196174ac569a407e13ce3b8ea501f38a8ef8ae049fe1360a1e84e9af80';
+// sha-256 of the text of src/fight/mobkit.ts + src/core/world/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
+// Re-pinned for the move to src/core/world (core slice 3): only the file path, the import specifier and a comment changed; behaviour did not, KIT_LOGIC_VERSION stays.
+const KIT_CODE_DIGEST = '5b95cfa62f40ecc324e267e2352b58ecc3f32dcf7be3f3e7be789be187bee99a';
 
-test('the kit code is pinned: a change in src/fight/mobkit.ts or origins/mobs/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
-  const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../origins/mobs/kits.ts', import.meta.url))).digest('hex');
-  assert.equal(digest, KIT_CODE_DIGEST, `the kit code changed: decide if behaviour moved, bump KIT_LOGIC_VERSION (now ${KIT_LOGIC_VERSION}) in origins/mobs/kit-version.ts if so, then re-pin KIT_CODE_DIGEST = '${digest}' in tests/kit-version.test.ts`);
+test('the kit code is pinned: a change in src/fight/mobkit.ts or src/core/world/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
+  const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../src/core/world/kits.ts', import.meta.url))).digest('hex');
+  assert.equal(digest, KIT_CODE_DIGEST, `the kit code changed: decide if behaviour moved, bump KIT_LOGIC_VERSION (now ${KIT_LOGIC_VERSION}) in src/core/world/kit-version.ts if so, then re-pin KIT_CODE_DIGEST = '${digest}' in tests/kit-version.test.ts`);
 });
 
 test('a changed kit table, mode, constant or logic version is a different tag; the same tables are the same tag', () => {

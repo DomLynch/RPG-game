@@ -65,7 +65,7 @@ test('a coached fight is a pure function of seed and stance, and the stances pla
 // ---- the on/off switch, the hand-over and the `build` string (TOP10 row 8; the contract Web builds against) ----
 import { BUILD_MAX, FOE_LAPSE, FOE_LAPSE_SCALE, coachBuild, coachOfBuild, createCoachDriver } from '../src/coach.ts';
 import { idleIntent, type Intent } from '../src/fight/duel.ts';
-import { kitOfBuild } from '../origins/mobs/kit-version.ts';
+import { kitOfBuild } from '../src/core/world/kit-version.ts';
 
 test('one intent per tick: the coach drives only while on, the player only while off; a press hands over on the SAME tick with the tap as that tick\'s input', () => {
   const seed = 7, opp = opponentAt(OPPONENTS.veteran, 6);

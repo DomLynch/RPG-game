@@ -11,7 +11,7 @@ import type { ItemInstance } from '../contracts/items.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';
-import { WILDLIFE_ROWS } from '../mobs/wildlife-rows.ts';
+import { WILDLIFE_ROWS } from '../../src/core/server.ts';
 import { award } from '../../src/core/server.ts';
 import type { TwistOutcome } from '../../src/fight/server.ts';
 import { careerState } from '../../src/core/server.ts';
