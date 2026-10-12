@@ -12,7 +12,7 @@ import { FX_VERBS, SPECIAL_MODES, TRAVEL_VERBS } from '../src/fight/special-mode
 import { bossSpecialId } from '../src/fight/special-identity.ts';
 import { specialOf } from '../src/fight/moves.ts';
 import { SPECIAL_CUES, SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
-import { SPECIAL_TESTS, type BossPreviewId } from '../src/fight/special-look.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 import { checkTables, tableFromFile, type Manifest } from '../src/core/registry.ts';
 import { BOSS_KINDS, bossLook, isExecutionerCast } from '../src/fight/special-fx-executioner.ts';
 import { isBossCast } from '../src/fight/special-boss-timing.ts';
@@ -92,10 +92,8 @@ test('every row has an effect maker that builds (an fx boss kind with no maker w
 
 const MANIFEST = JSON.parse(readFileSync('src/fight/bosses.manifest.json', 'utf8')).tables[0] as Manifest;
 
-test('SPECIAL_TESTS boss previews are the rows (opponent, level = 36 + 5 * (rank - 8)); BossPreviewId lists exactly the rows', () => {
-  const ids: Record<BossPreviewId, true> = { arawn: true, thanatos: true, reaper: true, mist: true, echo: true, price: true, flies: true, stain: true, breath: true, sling: true, haze: true, storm: true };
-  assert.deepEqual(Object.keys(ids).sort(), BOSSES.map((r) => r.id).sort(), 'a row and BossPreviewId disagree');
-  for (const r of BOSSES) assert.deepEqual(SPECIAL_TESTS[r.id as BossPreviewId], { opponent: r.opponent, level: 36 + (r.rank - 8) * 5, first: 180 }, r.id);
+test('SPECIAL_TESTS (hand-written, sim side) carries each boss row: opponent and level = 36 + 5 * (rank - 8); the sim never imports the rows', () => {
+  for (const r of BOSSES) assert.deepEqual((SPECIAL_TESTS as Record<string, unknown>)[r.id], { opponent: r.opponent, level: 36 + (r.rank - 8) * 5, first: 180 }, r.id);
 });
 
 test('the shared loader gates the table: the rows are clean, and a duplicate id, a missing field or a wrong type is a problem, never last-wins', () => {
