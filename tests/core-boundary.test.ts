@@ -21,6 +21,9 @@ const specsOf = (file: string, text: string): Spec[] => [...text.matchAll(IMPORT
   return { spec, typeOnly: /^\s*type\b/.test(m[1] ?? '') && !m[0].includes('import('), target: spec.startsWith('.') ? posix.normalize(posix.join(posix.dirname(file.replaceAll('\\', '/')), spec.replace(/[?#].*$/, ''))) : spec };
 });
 
+import { SERVER_ENTRIES, writerClosure } from '../scripts/writer-closure.mjs';
+// Page-folder files the box's node services load at runtime (origins/preview/mobs.ts, frontier-plan.ts, via world-spawns): they cannot take the renderer-bearing page door, so C1 gives them the server door.
+const NODE_RUN_PAGES: ReadonlySet<string> = new Set(SERVER_ENTRIES.flatMap((e) => writerClosure((f: string) => readFileSync(f, 'utf8'), existsSync, e).files).filter((f: string) => f.startsWith('origins/preview/')));
 const PAGE = (f: string): boolean => f === 'src/main.ts' || f.startsWith('origins/preview/');
 const SERVER = (f: string): boolean => (f.startsWith('origins/') && !PAGE(f)) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));   // every other origins/ dir (server, contracts, encounters, inventory, region1, mobs, zones, ...) and the node scripts
 const inCore = (t: string): boolean => /^src\/core\//.test(t);
@@ -28,7 +31,7 @@ const inCore = (t: string): boolean => /^src\/core\//.test(t);
 export function c1(read: (f: string) => string, list: readonly string[]): string[] {
   const bad: string[] = [];
   for (const f of list) {
-    const door = PAGE(f) ? 'src/core/index.ts' : SERVER(f) ? 'src/core/server.ts' : null;
+    const door = NODE_RUN_PAGES.has(f) ? 'src/core/server.ts' : PAGE(f) ? 'src/core/index.ts' : SERVER(f) ? 'src/core/server.ts' : null;
     if (!door) continue;
     for (const s of specsOf(f, read(f))) if (inCore(s.target) && s.target !== door) bad.push(`${f} -> ${s.target} (take ${door})`);
   }
@@ -129,6 +132,8 @@ test('C1 mutation: a deep core import from the Pit, the zone page or a server mo
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/contracts/ids.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
   assert.equal(c1(withFile('src/main.ts', "import { x } from './core/server.ts';"), FILES).length, 1, 'a page may not take the server door');
+  assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/index.ts';"), FILES).length, 1, 'a page file the box loads must take the server door (the AA crash)');
+  assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/server.ts';"), FILES).length, 0);
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/index.ts';"), FILES).length, 0);
 });
 
