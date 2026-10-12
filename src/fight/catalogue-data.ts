@@ -219,6 +219,6 @@ const CATALOGUE_ROWS = [
       ] }, blood: { start: "#5a0b0a", end: "#1c0403", amount: 0.7 }, render: { scale: 2 }, weapon: "bite", home: "neutral", voice: "wolf", look: { levels: [], phone: false, tint: false }, ladder: { order: null, hold: true }, wounds: { body: "quadruped", species: "beast", size: 0.7, bleedRate: 0.4, tiers: [
         { below: 0.5, decals: 1, drip: 0.6 },
         { below: 0.2, decals: 2, drip: 1.2 },
-      ] }, loot: { table: "loottable:ember-wolf" }, legend: { pending: "original" }, ranks: [] },
+      ] }, loot: { table: "loottable:ember-wolf" }, legend: { pending: "original" }, pace: { chase: 6, leash: 15 }, ranks: [] },
 ] as const;
 export default CATALOGUE_ROWS;
