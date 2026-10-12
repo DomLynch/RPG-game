@@ -1,0 +1,34 @@
+{
+  "gates": {
+    "pit": { "order": 0, "tier": "Recruit", "open": true },
+    "outer": { "order": 1, "tier": "Gladiator" },
+    "second-realm": { "order": 2, "tier": "Champion", "membership": true },
+    "endgame": { "order": 3, "tier": "Origin", "membership": true }
+  },
+  "relations": {
+    "ally": {},
+    "rival": {},
+    "enemy": {},
+    "kin": {},
+    "patron": {},
+    "servant": {}
+  },
+  "questRoles": {
+    "giver": {},
+    "witness": {},
+    "target": {},
+    "ally": {},
+    "boss": {}
+  },
+  "attitudes": {
+    "hostile": { "order": 0, "atOrBelow": -500 },
+    "angry": { "order": 1, "atOrBelow": -100, "expelledCeiling": true },
+    "neutral": { "order": 2 },
+    "friendly": { "order": 3, "atOrAbove": 250 }
+  },
+  "questScopes": {
+    "personal": {},
+    "party": {},
+    "world": {}
+  }
+}
