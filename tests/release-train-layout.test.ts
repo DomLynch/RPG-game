@@ -4,7 +4,7 @@
 // refusal (scripts/lib/train-layout.sh), the setup (scripts/release-train-setup.sh) and the publisher's dry run.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -32,7 +32,7 @@ test('train_checkout_ok refuses a worktree whose gitdir is under ~/Desktop (or ~
 });
 
 test('release-train-setup.sh: no checkout -> a standalone clone of origin, detached on trunk, with the .env*.local files; a Desktop worktree is refused and left untouched', () => {
-  const home = mkdtempSync(join(tmpdir(), 'tcc-setup-'));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'tcc-setup-')));   // macOS: /var -> /private/var, and git writes the resolved gitdir
   try {
     const g = (...a: string[]) => execFileSync('git', a, { encoding: 'utf8' }).trim();
     const origin = join(home, 'origin.git'), src = join(home, 'Desktop', 'Business', 'frankendom');
