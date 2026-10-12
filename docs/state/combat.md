@@ -1,3 +1,11 @@
+## 2026-10-12 ~12:00 (+04) — HANDOFF #11 before /clear: core slice 3, digest projection, pools registry, weapons as data, creature flee CUT. READ FIRST, then memory `project_combat_handoff_2026-10-12.md`
+
+1. **Landed:** #2253 core slice 3 sim side (src/core/world-sim.ts), #2229 boundary shrink, #2241 creature flee CUT (Dom 2026-10-11), #2233 note.
+2. **Open, all auditor:ready, stacked (merge 2269 -> 2278 -> 2289):** #2269 digest projection (no RV; the sim digest hashes the catalogue's SIM projection driven by the field defs' `sim` flag); #2278 pools registry (pool-defs.json + loadPoolDefs, RV43); #2289 weapons as data (weapon-defs.json + weapons.ts, WeaponId=string, resolved-table sha256 b45aecd8... pinned before/after, RV44). #2252 magic-rules note. VPS receipts are on each PR's current head.
+3. **Series (Lead, RVs reserved, REACH empty unless a fight changes, then STOP and tell Lead):** 45 SkillId, 46 FinisherId, 47 boss sim side, 48-50 specials by family; next free 51. Each PR also deletes the content name switches (see the memory file) and goes through Backend's loader #2272 with a manifest. Characters owns presentation fields on skill rows and asked for the skills table path + shape.
+4. **Rules learned:** the bump checklist and the loader by-reference rule are in the memory file; READY is a label after the receipt on the current head; never push to another PR's branch.
+5. **Folder:** app worktree .../worktrees/reverent-khorana-f26f2c (on combat/weapons-data); when Dom is home: reopen on ~/Developer/frankendom-combat with the worktree switch off.
+
 ## 2026-10-11 ~18:30 (+04) — HANDOFF #10 before /clear: zones as data DONE (#2216, #2218 merged in release-BR2 #2220), follow-up #2223 open. READ FIRST, then memory `project_combat_handoff_2026-10-11b.md`
 
 1. **LIVE / MERGED (release-BR2 #2220):** #2197 camera B default; #2216 zones as data part 1 (Zone 1 + Zone 2 are origins/zone-rows/zone<N>.row.json, registry generated from rows through origins/zones/from-row.ts, per-zone TS folders gone, DEFAULT_ZONE/zoneKeyPrefix in the loader, boundary test "no zone id literal outside the loader", ZONE_ID_KNOWN empty); #2218 Zone 3 = zone3.row.json ONLY (proof, stills docs/stills/zone3/). src/ untouched: RV/fingerprint unchanged. Writer reinstall applies (world-spawns.ts + closure walks zone-rows/*.json).
