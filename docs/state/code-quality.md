@@ -1,5 +1,19 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 09:3x (+04) — HANDOFF before /clear (the 250k rule, AGENTS.md #2248). READ FIRST, then the 10-11 ~19:0x entry, then memory `frankendom_handoff_2026-10-12a`
+
+**Live:** BW `aafe0b0f6` (my curl 09:16) = BV + #2241 (creature flee cut). Writer reinstall PASSED by me: 974 files == blobs, NRestarts 0, row 53 BOOT OK. ⚠ My HOLD on #2245 was wrong (the HF unit job was in `.wall` unitJob, 3511/0, tree matched); I posted a correction. Lesson in memory `feedback_unit_receipt_in_wall`.
+**Since the 10-11 entry, live:** BS 8d58991a8 (#2222 + #2221 + #2223), BT (#2224 backup fix), BU 84e8855d7 (#2226 + #2228 + #2230), BV 9fed82ba1 (#2232 + #2229 + #2234 + #2235 + #2238), BW. I passed every writer reinstall (posted on #2225, #2237, #2240, #2245).
+**Database backup:** installed and verified 10-11 19:4x (the cron has no DOCKER_ARGS, script == trunk, dump mode 600, OK line, no URL in the log). The 03:17 run on 10-12 is not checked yet.
+**Next, in order:**
+1. **Re-arm the auditor:ready poll** (session cron `3,13,23,33,43,53 * * * *`; it dies with the session) and send the CronList line to Lead.
+2. **#2242 @d342fdd2d** (catalogue 20a: the Pit reads roster, OPPONENTS and ladder order from catalogue data). Labelled, not started. Fights must be byte-identical: replay fingerprints, k7, ladder tests, writer closure, real-file mutants.
+3. **Codex-Hooks #127** HOLD @bf3632c6f: `_SUGGESTION_RE` strips to the end of the body, so a defect written after the "Replace with" advice is downgraded. Re-gate on the next head with that probe. #126 merged; its install waits for a gap between releases.
+4. Release with #2246 (Zone 4): writer reinstall + parity.
+**Verdicts 10-12 (all on threads, labels removed):** PASS #2241, #2243, #2149, #2231, #2246, #2248, Codex-Hooks #126. HOLD Codex-Hooks #127 (twice: 8 probes, then the stripper).
+**Rulings:** "ready" is the `auditor:ready` label, polled every 10 minutes (#2235); clear above 250k before the day's first task, and subagents are Sonnet/Haiku only, one at a time (#2248); creature fleeing is cut (Dom 10-11).
+**Session:** app worktree `laughing-bartik-0c0156`, branch `code-quality/state-1010-pause`. VPS: `/root/cq-2026` clean, no `/tmp/cq-*`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-11 ~19:0x (+04) — HANDOFF before Dom's /clear. READ FIRST, then memory `frankendom_handoff_2026-10-11a` (its appended lines = the whole day, every sha and receipt)
 
 **Live:** BR2 `6026e0056` (#2210 is_test + #2215 backup role + #2216 zones as data + #2218 Zone 3). Writer reinstalled 18:21:19 and PASSED by me: 974 files == git blobs, Deploy's closure 111/111 including the 3 zone rows, NRestarts 0, probes 401, row 53 BOOT OK. Before it: BO `c5901d78`.
