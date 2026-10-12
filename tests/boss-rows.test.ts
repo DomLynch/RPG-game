@@ -104,3 +104,10 @@ test('the shared loader gates the table: the rows are clean, and a duplicate id,
   assert.equal(rules([{ ...file[0], cue: undefined }]), 'missing-field');
   assert.equal(rules([{ ...file[0], rank: '8' }]), 'wrong-type');
 });
+
+test('the BossPreview type in special-look.ts names exactly the rows (the previews themselves derive from bosses.json, a SIM_DATA file)', () => {
+  const src = readFileSync('src/fight/special-look.ts', 'utf8');
+  const named = [...(/type BossPreview = ([^;]+);/.exec(src)?.[1] ?? '').matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
+  assert.deepEqual(named, BOSSES.map((r) => r.id).sort());
+  assert.match(src, /from '\.\/bosses\.json'/);
+});
