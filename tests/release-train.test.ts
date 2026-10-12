@@ -137,6 +137,8 @@ test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at
   assert.equal(pickPublish([]), null);
 });
 
+const runEnv = (p: { env: Record<string, string> }) => p.env;
+
 // The publisher with gh, git and the deploy stubbed: nothing here touches GitHub, this checkout or a box.
 function publisher() {
   const dir = mkdtempSync(join(tmpdir(), 'pub-')), bin = join(dir, 'bin'), state = join(dir, 'state'), repo = join(dir, 'repo'), log = join(dir, 'calls');
@@ -153,7 +155,8 @@ case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | 
   writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)' }], statusCheckRollup: OK }]));
   const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
-  return { dir, state, run, calls, cand, reset: () => writeFileSync(log, '') };
+  const env = { PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
+  return { dir, state, run, calls, cand, env, reset: () => writeFileSync(log, '') };
 }
 
 test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge commit), deploys with FRANKENDOM_RELEASE=1, removes deploy_hold and comments the Published line', () => {
@@ -273,6 +276,50 @@ test('publisher: starts the Mac-only rows at the cut for the OLDEST open candida
     writeFileSync(join(p.state, 'pre-launch', `${'c'.repeat(40)}.macrows.json`), '{}');
     p.reset(); r = p.run();
     assert.match(r.stdout, /mac rows \(early\) for ddddddddd: started/, 'next: the newer one, once the oldest has a receipt');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher under launchd (Lead 2026-10-12): a Desktop-backed repo or release slot is refused BEFORE any git call, hold or push; the train never runs from one', () => {
+  const p = publisher();
+  try {
+    const home = join(p.dir, 'home'), deskRepo = join(p.dir, 'deskrepo');
+    mkdirSync(join(deskRepo, 'scripts'), { recursive: true });
+    for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(deskRepo, 'scripts', f));
+    writeFileSync(join(deskRepo, '.git'), `gitdir: ${join(home, 'Desktop/Business/frankendom/.git/worktrees/frankendom-train')}\n`);
+    const r = p.run({ HOME: home, RELEASE_TRAIN_REPO: deskRepo });
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /refusing to run: .*deskrepo: a worktree of a repo under ~\/Desktop/);
+    assert.doesNotMatch(p.calls(), /^git /m, 'no git call: under launchd it would only fail with "not a git repository"');
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false);
+    p.reset();
+    const slot = join(p.dir, 'slot'); mkdirSync(slot); writeFileSync(join(slot, '.git'), `gitdir: ${join(home, 'Desktop/x/.git/worktrees/slot')}\n`);
+    const s = p.run({ HOME: home, RELEASE_SLOTS: slot });
+    assert.equal(s.status, 1);
+    assert.match(s.stdout, /refusing to run: .*slot: a worktree of a repo under ~\/Desktop/);
+    assert.doesNotMatch(p.calls(), /git push|deploy FRANKENDOM/, 'nothing pushed, nothing deployed');
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false);
+    assert.match(readFileSync('scripts/release-train-publish.sh', 'utf8'), /RELEASE_SLOTS="\$\{RELEASE_SLOTS:-\$HOME\/Developer\/frankendom-train-deploy\}"/, 'its own release slot, a worktree of the train clone');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher dry run (--dry-run or the release-train.dry-run file): the tick reads, picks and verifies, logs what it would publish, and writes nothing', () => {
+  const p = publisher();
+  try {
+    for (const how of ['arg', 'file']) {
+      p.reset();
+      if (how === 'file') writeFileSync(join(p.state, 'release-train.dry-run'), '');
+      writeFileSync(join(p.state, 'deploy_hold'), 'Deploy by hand\n');   // a held box: a dry run still reports, never waits
+      const r = how === 'arg' ? spawnSync('bash', ['scripts/release-train-publish.sh', '--dry-run'], { encoding: 'utf8', env: { ...process.env, ...runEnv(p) } }) : p.run();
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /DRY RUN: deploy_hold present/);
+      assert.match(r.stdout, new RegExp(`DRY RUN: would start mac rows \\(early\\) for ${p.cand.slice(0, 9)} in .*frankendom-train-macrows`), 'the early rows are only named');
+      assert.doesNotMatch(p.calls(), /mac-rows /, 'and not started');
+      assert.match(r.stdout, new RegExp(`DRY RUN: would publish #2400 @${p.cand.slice(0, 9)}`));
+      assert.match(p.calls(), /git fetch -q origin/, 'the tick still reads git: that is what launchd must prove');
+      assert.doesNotMatch(p.calls(), /git push|gh pr ready|gh pr comment|deploy FRANKENDOM/, `${how}: nothing written`);
+      assert.equal(readFileSync(join(p.state, 'deploy_hold'), 'utf8'), 'Deploy by hand\n', 'the hold is untouched');
+      rmSync(join(p.state, 'deploy_hold'));
+    }
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
