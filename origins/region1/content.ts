@@ -20,6 +20,8 @@ import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
 import { placedSpawns, placedWaypoints } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import townRows from './towns.json' with { type: 'json' };
+import townManifest from './towns.manifest.json' with { type: 'json' };
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
@@ -266,6 +268,8 @@ export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LO
 // Towns (living-world §3.1, §12) are rows: origins/region1/towns.json holds the definitions table (trades, temperaments, ruler titles) and
 // the town rows. Tier at start comes from startProsperity (§3.3); patrons are strike sources only, never foes (feuds §12-§13);
 // `services[].trade` is the feuds §11 `trade` key. A new trade, temperament or town is one row there.
+// The shared registry loader (src/core/registry.ts) reads the manifest beside the rows: a duplicate id, unknown ref, missing field or wrong type throws here.
+loadRegistry(townManifest.tables.map((m) => tableFromFile(m as Manifest, townRows, `origins/region1/${m.file}`)));
 export const TOWN_DEFS: Record<string, Record<string, Record<string, unknown>>> = townRows.definitions;
 export const TOWNS = townRows.towns;
 
