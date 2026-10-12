@@ -76,19 +76,29 @@ test('stop() writes what is left; an interval of 0 is refused', async () => {
   assert.throws(() => createLocationFlusher(db, 0), /positive integer/);
 });
 
-test('the writer settles an account\'s held spot BEFORE any op of that account runs (open / create_character switch the active character); a refused spot is dropped, never kept for the new character', async () => {
+test('the writer settles an account\'s held spot BEFORE open-with-a-character / create_character (the ops that switch the active character); other ops leave it batched; a refused spot is dropped, never kept for the new character', async () => {
   const order: string[] = [];
   let refuse = false;
   const db: Db = { async run(_sql, vars = {}) { if (vars.rows !== undefined || vars.a !== undefined) { order.push('write'); if (refuse) throw new Error('refused'); } return vars.a === undefined ? '' : '{"character":null,"stored":true}'; } };
   const f = createLocationFlusher(db, 90_000, quiet);
-  const w = createWriter({ db, verify: async () => A, where: async () => ({ online: false }), handlers: { open: async () => { order.push('open'); return {}; } }, internal: { key: 'k', flusher: f } });
+  const w = createWriter({ db, verify: async () => A, where: async () => ({ online: false }), handlers: { open: async () => { order.push('open'); return {}; }, create_character: async () => { order.push('create'); return {}; }, ping: async () => { order.push('ping'); return {}; } }, internal: { key: 'k', flusher: f } });
   await new Promise<void>(r => w.listen(0, '127.0.0.1', r));
   try {
-    const open = () => globalThis.fetch(`http://127.0.0.1:${(w.address() as AddressInfo).port}/origins/open`, { method: 'POST', headers: { authorization: 'Bearer t' }, body: '{}' });
+    const post = (op: string, body: string) => globalThis.fetch(`http://127.0.0.1:${(w.address() as AddressInfo).port}/origins/${op}`, { method: 'POST', headers: { authorization: 'Bearer t' }, body });
+    const open = () => post('open', '{"character":"c"}');
     f.mark(A, seen(1, 100));
+    assert.equal((await post('ping', '{}')).status, 200);
+    assert.equal((await post('open', '{}')).status, 200);
+    assert.deepEqual(order, ['ping', 'open'], 'ops that do not switch the character leave the spot batched');
+    assert.equal(f.has(A), true);
+    order.length = 0;
     assert.equal((await open()).status, 200);
     assert.deepEqual(order, ['write', 'open'], 'the spot is written first');
     assert.equal(f.has(A), false);
+    order.length = 0;
+    f.mark(A, seen(1, 100));
+    assert.equal((await post('create_character', '{}')).status, 200);
+    assert.deepEqual(order, ['write', 'create'], 'create_character settles too');
     order.length = 0;
     assert.equal((await open()).status, 200);
     assert.deepEqual(order, ['open'], 'nothing held: no extra write');
