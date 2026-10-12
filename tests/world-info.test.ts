@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BANDS, bandOf, commonOf, conBand, creatureInfo, groupOf } from './info.ts';
-import { loadZone } from '../zones/loader.ts';
+import { BANDS, bandOf, commonOf, conBand, creatureInfo, groupOf } from '../src/core/world/info.ts';
+import { loadZone } from '../origins/zones/loader.ts';
 const FRONTIER_ROWS = loadZone().spawns.rows;
-import { falloffPermille } from '../../src/core/server.ts';
-import { cardLines, nearestNoticing } from '../preview/creature-card.ts';
-import type { MobRow } from './row.ts';
+import { falloffPermille } from '../src/core/server.ts';
+import { cardLines, nearestNoticing } from '../origins/preview/creature-card.ts';
+import type { MobRow } from '../src/core/world/row.ts';
 
 const row = (over: Partial<MobRow> & { behaviour?: MobRow['behaviour'] } = {}): MobRow => ({ id: 'character:x', source: { pending: 'p' }, role: 'beast', loot: 'loottable:x', level: [1, 2], behaviour: {}, ...over });
 
@@ -40,7 +40,7 @@ test('the card: the nearest noticing creature, three lines, marks carry the band
 
 test('while the card is up the creature\'s own name label is hidden (no overlap at 375): the card reports its creature, the view hides that label', async () => {
   const { readFileSync } = await import('node:fs');
-  const read = (f: string) => readFileSync(new URL(`../preview/${f}`, import.meta.url), 'utf8');
+  const read = (f: string) => readFileSync(new URL(`../origins/preview/${f}`, import.meta.url), 'utf8');
   assert.match(read('main.ts'), /mobs\.update\(dt, state, cardId\)[\s\S]*cardId = creatureCard\.update\(/, 'main hands the card\'s creature to the view');
   assert.match(read('mobs-view.ts'), /v\.label\.visible = s\.id !== hideLabel/, 'the view hides that creature\'s label only');
 });
@@ -54,7 +54,7 @@ test('#1936 c(a): a pack of three joined on one player - the card names one crea
   const lines = cardLines(creatureInfo({ name: 'Cinder scavenger', level: 12 }, FRONTIER_ROWS[0], 16, FRONTIER_ROWS));
   assert.equal(lines.length, 3); for (const l of lines) assert.ok(l.length <= 32, `a card line fits a 375-wide card: "${l}"`);
   // the view draws one tag per kind (the nearest of that name), so three of one kind show one tag, and the card's own creature shows none
-  const { readFileSync } = await import('node:fs'), view = readFileSync(new URL('../preview/mobs-view.ts', import.meta.url), 'utf8');
+  const { readFileSync } = await import('node:fs'), view = readFileSync(new URL('../origins/preview/mobs-view.ts', import.meta.url), 'utf8');
   assert.match(view, /nearestOf\.get\(s\.name\) === i/, 'one tag per kind of creature');
   assert.match(view, /v\.label\.visible = s\.id !== hideLabel/, 'the card\'s creature draws no tag');
 });

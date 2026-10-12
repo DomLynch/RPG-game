@@ -1,5 +1,5 @@
 // Origins mob rows (docs/specs/origins/mobs.md section 7): ONE content row per kind of creature, and the validator that rejects a bad one before
-// it ships. A row holds only what is not already elsewhere: the source, the role (a MobStyle id, Combat's origins/mobs/styles.ts), a behaviour row,
+// it ships. A row holds only what is not already elsewhere: the source, the role (a MobStyle id, Combat's src/core/world/styles.ts), a behaviour row,
 // the camp size, the level band and the loot id. The LOOK is Characters' MobLook (origins/preview/mob-looks.ts), looked up by the row's character
 // id through `ctx.look`: a row never carries a look, so there is one look table. The name, body and encounter forms come from the character record.
 // Pure: no DOM, no clock, no storage. Not built yet (they need data this branch does not have): tint-contrast, loot-tier, habitat (spec 7.5).
