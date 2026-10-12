@@ -13,12 +13,15 @@ const script = join(process.cwd(), 'scripts/lanejob/lanejob-mac.sh');
 function box() {
   const dir = mkdtempSync(join(tmpdir(), 'lanejob-mac-'));
   const ran = join(dir, 'ran');
+  const ssh = join(dir, 'ssh-stub.sh'), sshLog = join(dir, 'ssh.log');   // tests never ssh the live VPS (AGENTS.md): every ssh call lands here
+  writeFileSync(ssh, `#!/bin/bash\necho "$*" >> ${sshLog}\n`);
+  chmodSync(ssh, 0o755);
   const deployRe = `no-deploy-${dir.split('-').pop()}`;   // the real pgrep pattern would match a live deploy.sh or a sibling test's holder
   const run = (args: string[], env: Record<string, string> = {}) => spawnSync('bash', [script, ...args], {
     encoding: 'utf8', timeout: 20000,
-    env: { ...process.env, LANEJOB_MAC_STATE: dir, LANEJOB_MAC_LOAD: '2.5', LANEJOB_MAC_RECHECK: '0', LANEJOB_MAC_NO_REMOTE_LOG: '1', LANEJOB_MAC_DEPLOY_RE: deployRe, LANEJOB_MAC_HOLD: join(dir, 'deploy_hold'), LANEJOB_MAC_ROWS_RE: `no-row-${dir.split('-').pop()}`, ...env },
+    env: { ...process.env, LANEJOB_MAC_STATE: dir, LANEJOB_MAC_SSH: ssh, LANEJOB_MAC_LOAD: '2.5', LANEJOB_MAC_RECHECK: '0', LANEJOB_MAC_NO_REMOTE_LOG: '1', LANEJOB_MAC_DEPLOY_RE: deployRe, LANEJOB_MAC_HOLD: join(dir, 'deploy_hold'), LANEJOB_MAC_ROWS_RE: `no-row-${dir.split('-').pop()}`, ...env },
   });
-  return { dir, ran, run, deployRe, log: () => (existsSync(join(dir, 'lanejob-mac.log')) ? readFileSync(join(dir, 'lanejob-mac.log'), 'utf8') : '') };
+  return { dir, ran, run, deployRe, ssh, sshLog, log: () => (existsSync(join(dir, 'lanejob-mac.log')) ? readFileSync(join(dir, 'lanejob-mac.log'), 'utf8') : '') };
 }
 
 test('a quiet Mac runs the job FIRST, passes its exit code and logs tier=mac', () => {
@@ -44,14 +47,12 @@ test('the off-switch and a denied job send the job on (75) and run nothing; brow
   }
 });
 
-test('the Mac never asks the VPS probe: no ssh call carries --probe', () => {
+test('the Mac never asks the VPS probe: no ssh call carries --probe, and the box never reaches the live VPS', () => {
   const b = box();
-  const sshLog = join(b.dir, 'ssh.log'), ssh = join(b.dir, 'ssh.sh');
-  writeFileSync(ssh, `#!/bin/bash\necho "$*" >> ${sshLog}\n`);
-  chmodSync(ssh, 0o755);
-  const r = b.run(['true'], { LANEJOB_MAC_SSH: ssh, LANEJOB_MAC_NO_REMOTE_LOG: '' });
+  const r = b.run(['true'], { LANEJOB_MAC_NO_REMOTE_LOG: '' });   // lets released() and note() use the (stubbed) ssh
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(!existsSync(sshLog) || !/--probe/.test(readFileSync(sshLog, 'utf8')));
+  assert.ok(existsSync(b.sshLog), 'the stub, not a real ssh, took the call');
+  assert.ok(!/--probe/.test(readFileSync(b.sshLog, 'utf8')));
 });
 
 test('a loaded Mac (5-minute load >= 8) sends the job on; 7.9 still runs it (Dom raised the gate from 6 to 8)', () => {
