@@ -10,7 +10,9 @@ import { join, relative } from 'node:path';
 type Site = { file: string; line: number; kind: string; category: string; text: string };
 type Report = { compares: number; byCategory: Record<string, number>; unions: number; sites: Site[]; allowed: (Site & { reason: string })[]; stale: { file: string; literal: string }[] };
 const run = (root: string, allow?: string) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', root, ...(allow ? ['--allow', allow] : [])], { encoding: 'utf8', maxBuffer: 64 << 20 });
-const check = (root: string, allow?: string): Report => {
+const EMPTY = join(mkdtempSync(join(tmpdir(), 'as-data-empty-')), 'allow.json');   // a fixture tree has none of the repo's allowed sites: it gets an empty list, not the real one (whose entries would be stale there)
+writeFileSync(EMPTY, '{"allow":[]}');
+const check = (root: string, allow: string = EMPTY): Report => {
   const r = run(root, allow);
   assert.equal(r.status, 0, r.stderr);
   return JSON.parse(r.stdout) as Report;
