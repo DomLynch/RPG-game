@@ -41,13 +41,13 @@ test('wornGear: no piece with a rung is nothing; a part set scales the shape and
   assert.deepEqual(wornGear({ head: 'veteran.Helmet', chest: 'witch.Body' }, top), gearDeltas('robes', 0.3, 0.3), 'plate helmet (20) against robes body (30): the robes are the set worn, at 30 of 100');
 });
 
-test('sheetOfLoot: the default build with nothing worn is no sheet; plate raises armour and lowers magic resist, robes the reverse; the build rows validate', () => {
+test('sheetOfLoot: the default build with nothing worn is no sheet; plate raises armour (its magic-resist tilt sits below a normal fighter, so that dial stays at 0), robes the reverse; the build rows validate', () => {
   assert.deepEqual(validateBuild(buildOf()), []);
   assert.equal(sheetOfLoot(undefined), undefined);
   assert.equal(sheetOfLoot({ owned: ['veteran.Helmet'], equipped: { head: 'veteran.Helmet' } }), undefined);
   const a = sheetOfLoot(plate)!, b = sheetOfLoot(robes)!;
-  assert.ok(a.armour! > 50 && a.magicResist! < 50 && a.attack === undefined, JSON.stringify(a));
-  assert.ok(b.magicResist! > 50 && b.armour! < 50, JSON.stringify(b));
+  assert.ok(a.armour! > 0 && a.magicResist === undefined && a.attack === undefined, JSON.stringify(a));
+  assert.ok(b.magicResist! > 0 && b.armour === undefined, JSON.stringify(b));
   assert.ok(gearNumbers(plate).res > 0, 'the Gear tab reads the same worn pieces');
 });
 
