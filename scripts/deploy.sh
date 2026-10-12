@@ -5,9 +5,11 @@ cd "$(dirname "$0")/.."
 # One deployer, one Mac: while this runs, the Claude hooks refuse other sessions' browser checks, test suites and bakes
 # (the BUSY/FREE handshake, made mechanical). The lock names the revision, the start and this pid; it goes on any exit, and
 # a lock whose pid is dead or older than 45 min is ignored by the hooks, so a killed deploy cannot wedge the lanes.
+# Pipelining (scripts/lib/deploy-lock.sh): two runs may be in flight, each in its own checkout; only the publish window is exclusive.
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 mkdir -p "$(dirname "$DEPLOY_LOCK")"
-printf '{"revision":"%s","started":"%s","pid":%d,"cwd":"%s"}\n' "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$PWD" > "$DEPLOY_LOCK"
+source scripts/lib/deploy-lock.sh
+deploy_lock_take "$(git rev-parse HEAD)"
 source scripts/lib/deploy-ceiling.sh
 source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
@@ -16,7 +18,7 @@ source scripts/lib/deploy-notes-only.sh
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
 hf_cleanup() { node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
-trap 'rm -f "$DEPLOY_LOCK"; hf_cleanup; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
+trap 'deploy_lock_release; hf_cleanup; deploy_ceiling_off' EXIT   # deploy_ceiling_off last: it exits 124 when the ceiling fired
 deploy_trust_check   # after the trap, so a missing reason still releases the lock
 deploy_step "preflight"
 node scripts/check-account-config.mjs
@@ -111,6 +113,7 @@ fi
 deploy_step "quality gate"
 vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
 [[ "$vps_unit" == ok ]] || vps_unit=$(vps_unit_live_ok)   # or one run on the prepaid VPS by launch.mjs (VPS first, Hugging Face only as spillover)
+[[ "$vps_unit" == ok ]] || vps_unit=$(node scripts/ci-unit-trust.mjs "$revision" || true)   # or a green unit-ci.yml run (test:all over 8 GitHub runners) for this tree: scripts/ci-unit-trust.mjs
 if [[ -n "$ci_green" ]]; then
   # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
   # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
@@ -120,7 +123,7 @@ elif [[ "$(notes_only_release "$(curl --fail --silent https://frankendom.com/rel
   echo "notes-only release (every changed path is under docs/state/): no unit suite; build only"
   npm run build
 elif [[ "$vps_unit" == ok ]]; then
-  echo "unit suite trusted from VPS receipt for this tree; running typecheck:tests + quality:deploy (no local test:all)"
+  echo "unit suite trusted from a tree-bound receipt (VPS, Hugging Face or the CI unit-ci run); running typecheck:tests + quality:deploy (no local test:all)"
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
   npm run quality:deploy
@@ -142,6 +145,8 @@ fi
 # Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
 # the rest run locally. Any doubt in the lookup means an empty list and everything runs, as before.
 deploy_step "release checks"
+# One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
+deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
 trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
@@ -151,6 +156,7 @@ deploy_trust_apply  # scripts/lib/deploy-trust.sh
 out_of_scope=""
 deploy_scope_apply
 RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
 # The env check above passes a guest-only build; the bundle about to ship must carry accounts (2026-09-24 incident).
@@ -165,6 +171,18 @@ release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
+# The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. The site only moves
+# forward (scripts/lib/deploy-lock.sh deploy_publish_order): a candidate live already contains, or one diverged from live, stops here.
+deploy_step "publish lock"
+deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" "publish"
+live_now=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
+publish_order=$(deploy_publish_order "$live_now" "$revision")
+case "$publish_order" in
+  forward) echo "publish order: live ${live_now:0:9} -> $revision (forward)" ;;
+  unknown) echo "publish order: live unknown (release.json unreadable); publishing $revision without the order guard" ;;
+  superseded) echo "superseded: live $live_now already contains $revision; nothing published"; exit 3 ;;
+  *) echo "diverged: live $live_now and $revision do not contain each other; nothing published (re-cut on top of live)" >&2; exit 3 ;;
+esac
 deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
@@ -267,6 +285,7 @@ if [[ "$prune_keep" =~ ^[0-9]+$ ]]; then
 else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
 fi
+deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 if [[ "$previews_ok" != 1 ]]; then
   echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1
