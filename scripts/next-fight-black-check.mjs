@@ -11,6 +11,7 @@
 // The live site over the network reads 1.4-2.4 s (not this row). 1200 still fails a hang or Dom's 2 s.
 //   node scripts/next-fight-black-check.mjs        receipt: artifacts/next-fight/receipt.json
 import { webkit } from 'playwright';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
@@ -41,7 +42,7 @@ const browser = await webkit.launch({ headless: true });
 async function fightTo(opponent, win) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await context.addInitScript((p) => { if (!localStorage.getItem('frankendom.fighter.v1')) localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
-  const page = await context.newPage();
+  const page = await context.newPage(); await quietDebug(page);
   page.setDefaultTimeout(15000);
   page.on('pageerror', (e) => receipt.errors.push(`${opponent}: ${e.message}`));
   await page.goto(`${origin}/?opponent=${opponent}&debug=1`);
@@ -124,7 +125,7 @@ try {
     if (ready === null && await page.evaluate(() => document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false').catch(() => false)) ready = Date.now() - t0;
   }
   for (const f of frames) f.at -= t0;
-  const helper = await page.context().newPage();
+  const helper = await page.context().newPage(); await quietDebug(helper);
   await helper.goto(origin + '/release.json').catch(() => {});   // a same-origin document, so the canvas works in WebKit
   for (const f of frames) {
     f.luma = await helper.evaluate(async (b64) => {

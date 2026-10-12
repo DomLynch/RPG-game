@@ -1,0 +1,133 @@
+{
+  "definitions": {
+    "trades": {
+      "smith": {},
+      "healer": {},
+      "fence": {}
+    },
+    "temperaments": {
+      "ambitious": {},
+      "vengeful": {},
+      "mercantile": {},
+      "cautious": {}
+    },
+    "rulerTitles": {
+      "reeve": {},
+      "mayor": {},
+      "lord": {}
+    }
+  },
+  "towns": [
+    {
+      "kind": "town-definition",
+      "schemaVersion": 1,
+      "id": "town:exchange-quarter",
+      "name": "The Exchange Quarter",
+      "region": "region:concord-exchange",
+      "zone": "exchange-quarter",
+      "safe": false,
+      "startProsperity": 500,
+      "patron": "patron:zeus",
+      "ruler": {
+        "title": "mayor",
+        "character": "character:mayor-hollin",
+        "temperament": "mercantile",
+        "standIn": "character:steward-quarter",
+        "successors": []
+      },
+      "centre": "quarter-centre",
+      "jail": "quarter-jail",
+      "services": [
+        {
+          "trade": "smith",
+          "npc": "character:smith-quarter",
+          "at": "quarter-forge"
+        },
+        {
+          "trade": "healer",
+          "npc": "character:healer-quarter",
+          "at": "quarter-healer"
+        },
+        {
+          "trade": "fence",
+          "npc": "character:fence-quarter",
+          "at": "quarter-fence"
+        }
+      ],
+      "resources": [
+        "rents",
+        "tolls"
+      ],
+      "riverside": false
+    },
+    {
+      "kind": "town-definition",
+      "schemaVersion": 1,
+      "id": "town:cinder-hold",
+      "name": "Cinder Hold",
+      "region": "region:ash-frontier",
+      "zone": "cinder-hold",
+      "safe": false,
+      "startProsperity": 260,
+      "patron": "patron:hel",
+      "ruler": {
+        "title": "reeve",
+        "character": "character:warden-brannoc",
+        "temperament": "ambitious",
+        "standIn": "character:steward-cinder",
+        "successors": []
+      },
+      "centre": "hold-centre",
+      "jail": "hold-jail",
+      "services": [
+        {
+          "trade": "smith",
+          "npc": "character:smith-cinder",
+          "at": "hold-forge"
+        },
+        {
+          "trade": "fence",
+          "npc": "character:fence-cinder",
+          "at": "hold-fence"
+        }
+      ],
+      "resources": [
+        "grave-iron",
+        "ash-salt"
+      ],
+      "riverside": false
+    },
+    {
+      "kind": "town-definition",
+      "schemaVersion": 1,
+      "id": "town:mere-end",
+      "name": "Mere End",
+      "region": "region:ash-frontier",
+      "zone": "mere-end",
+      "safe": false,
+      "startProsperity": 180,
+      "patron": "patron:poseidon",
+      "ruler": {
+        "title": "reeve",
+        "character": "character:reeve-osk",
+        "temperament": "cautious",
+        "standIn": "character:steward-mere",
+        "successors": []
+      },
+      "centre": "end-centre",
+      "jail": "end-jail",
+      "services": [
+        {
+          "trade": "healer",
+          "npc": "character:healer-mere",
+          "at": "end-healer"
+        }
+      ],
+      "resources": [
+        "eels",
+        "reed"
+      ],
+      "riverside": true
+    }
+  ]
+}

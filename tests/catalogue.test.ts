@@ -35,7 +35,7 @@ const BODIES = CATALOGUE.filter((r) => !r.body);
 test('the catalogue is valid, ids are unique, and every roster character has a row', () => {
   assert.deepEqual(catalogueRowsProblems(CATALOGUE, known), []);
   assert.deepEqual(BODIES.map((r) => r.id).sort(), Object.keys(ROSTER).sort());
-  assert.deepEqual(catalogueRowsProblems([CATALOGUE[0]!, CATALOGUE[0]!], known).map((p) => p.code), ['dup-id']);
+  assert.deepEqual(catalogueRowsProblems([CATALOGUE[0]!, CATALOGUE[0]!], known).map((p) => p.code), ['dup-id', 'dup-sparring']);
 });
 
 test('every Pit rank resolves to a catalogue row: the ten legends of each of the ten opponents, at every ladder level', () => {
@@ -83,7 +83,9 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { r.finisher.finishers = ['decapitation']; }), 'finisher,timing');   // the picks and their timing rows must agree
   assert.equal(edit((r) => { r.blood = { start: 'red', end: '#000000', amount: 1 }; }), 'blood');
   assert.equal(edit((r) => { r.loot = { table: 'loottable:nothing' }; }), 'loot');
-  assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'look,legend');   // rank looks need the ten ranks too
+  assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'look,sparring,legend');   // rank looks need the ten ranks too, and a row with no ranks has no sparring place
+  assert.equal(edit((r) => { Object.assign(r, { sparring: undefined }); }), 'sparring', 'a ranked opponent needs a sparring.order');
+  assert.equal(edit((r) => { Object.assign(r, { sparring: { order: 0 } }); }), 'sparring', 'a 1-based order');
   assert.equal(edit((r) => { r.render = { scale: 0 }; }), 'render');
   assert.equal(edit((r) => { r.weapon = 'lightsaber'; }), 'weapon');
   assert.equal(edit((r) => { (r as { home: string }).home = 'berserk'; }), 'home');

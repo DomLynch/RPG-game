@@ -16,7 +16,7 @@ import { gateAccess } from '../../src/core/server.ts';
 export type Journal = { character: CharacterInstanceId; quests: ReadonlyMap<QuestId, QuestState> };
 // The condition lookups (contracts' ConditionFacts) minus quest and flag, which come from the journal itself; the standing also opens the gate.
 export type AdvanceContext = Omit<ConditionFacts, 'quest' | 'flag'> & {
-  quests: ReadonlyMap<QuestId, QuestDefinition>; // the loaded content (Registry['quests'])
+  quests: ReadonlyMap<QuestId, QuestDefinition>; // the loaded content (ContractRegistry['quests'])
   member?: boolean;
   at: string; // server time (ISO UTC) stamped on a new journal entry
 };
