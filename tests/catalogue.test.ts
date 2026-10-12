@@ -72,7 +72,7 @@ test('each fault is named', () => {
   assert.equal(edit((r) => { r.stats.pools = { stamina: 0 }; }), 'stats', 'a stamina bar of 0 is no bar');
   assert.equal(edit((r) => { r.stats.pools = { mana: -1 }; }), 'stats');
   assert.equal(edit((r) => { r.stats.pools = { rage: 10 }; }), 'stats', 'an unknown pool is refused');
-  const withIntelligence = { ...known, pools: [...POOLS, { id: 'intelligence', default: 10, min: 0, max: 100 }] };
+  const withIntelligence = { ...known, pools: [...POOLS, { id: 'intelligence', default: 10, min: 0, max: 100, sim: false }] };
   assert.equal(catalogueProblems(Object.assign(goblin(), { stats: { ...goblin().stats, pools: { intelligence: 14 } } }), withIntelligence).map((p) => p.code).join(','), '', 'a new pool is one definition row: a row may name it with no code change');
   assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
   assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
