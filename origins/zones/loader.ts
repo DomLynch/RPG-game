@@ -5,6 +5,7 @@ import type { MobRow } from '../../src/core/server.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLookRow, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/fight/server.ts';
+import { duplicateKeys, describeDuplicates } from '../../scripts/lib/json-dup-keys.mjs';
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
@@ -31,8 +32,8 @@ export const zonePlaces = (): Place[] => placesInOrder(PACKAGES);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
-export function zoneProblems(z: Zone, known?: ReadonlySet<string>): string[] {   // `known`: every character id the content names (strings, no union: Dom 2026-10-12); given, a mob look or spread for an id outside it is a problem
-  const bad: string[] = [], ids = new Set<string>();
+export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: string): string[] {   // `known`: every character id the content names (strings, no union: Dom 2026-10-12); given, a mob look or spread for an id outside it is a problem
+  const bad: string[] = rowText === undefined ? [] : describeDuplicates(`zone ${z.id} row`, duplicateKeys(rowText)), ids = new Set<string>();   // rowText: the row's raw JSON when the caller has it: a repeated key is invisible in the parsed Zone (JSON.parse keeps the last), so it is scanned in the text
   if (!z.name.trim()) bad.push('no display name');
   const own: Record<string, unknown> = { ...z };
   delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec

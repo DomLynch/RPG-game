@@ -6,6 +6,7 @@
 // the zone-place tests when a zone's place.ts changed, and the loot tests when the loot table changed.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { duplicateKeys, describeDuplicates } from './lib/json-dup-keys.mjs';
 import { catalogueCitations, citationClashes, classify, legendCitations, legendProblems, moduleValue, onDataPath, spawnRowsOf } from './lib/data-only.mjs';
 
 const REGISTRY = 'origins/zones/registry.ts';
@@ -26,12 +27,13 @@ function registryProblems() {
 }
 
 // Every zone through loadZone + zoneProblems, and every biome row through resolveSpec, not only the biomes a zone names: a bad field in an unused preset must not ride in as data.
-export const ZONE_CHECK = `import { loadZone, zoneIds, zoneProblems } from './origins/zones/loader.ts';
+export const ZONE_CHECK = `import { readFileSync, existsSync } from 'node:fs';
+import { loadZone, zoneIds, zoneProblems } from './origins/zones/loader.ts';
 import { FOES } from './origins/region1/content.ts';
 import { BIOMES } from './origins/zones/biomes.ts';
 import { resolveSpec } from './origins/zones/resolve.ts';
 const known = new Set([...FOES.map((f) => f.id), ...zoneIds().flatMap((id) => loadZone(id).spawns.rows.map((r) => r.id))]);   // a character id is a string some spawn row or region foe names; a look for any other id is an error
-const bad = zoneIds().flatMap((id) => { try { return zoneProblems(loadZone(id), known).map((p) => 'zone ' + id + ': ' + p); } catch (e) { return ['zone ' + id + ': ' + e.message]; } });
+const bad = zoneIds().flatMap((id) => { try { return zoneProblems(loadZone(id), known, existsSync('origins/zone-rows/zone' + id + '.row.json') ? readFileSync('origins/zone-rows/zone' + id + '.row.json', 'utf8') : undefined).map((p) => 'zone ' + id + ': ' + p); } catch (e) { return ['zone ' + id + ': ' + e.message]; } });
 for (const b of Object.keys(BIOMES)) { try { bad.push(...resolveSpec({ biome: b }).problems.map((p) => p.startsWith('biome ' + b + ':') ? p : 'biome ' + b + ': ' + p)); } catch (e) { bad.push('biome ' + b + ': ' + e.message); } }
 console.log(JSON.stringify(bad));`;
 
@@ -50,7 +52,11 @@ export function baseCatalogueCitations(base) {
 }
 
 export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base = null) {
-  const data = changed.filter(c => c.file !== REGISTRY), first = classify(data, readText);
+  const data = changed.filter(c => c.file !== REGISTRY);
+  // A repeated key in a data JSON file: JSON.parse keeps the last one silently, so no check on the parsed value can see it. Scanned raw, over EVERY changed .json file on the data path (CI red, code 2).
+  const dups = data.filter(c => c.status !== 'removed' && c.file.endsWith('.json') && onDataPath(c.file)).flatMap(c => describeDuplicates(c.file, duplicateKeys(readText(c.file))));
+  if (dups.length) return { dataOnly: false, code: 2, problems: dups };
+  const first = classify(data, readText);
   if (!first.dataOnly) return { dataOnly: false, code: first.problems.some(p => p.includes('not on the data-only path list')) || !data.length ? 1 : 2, problems: first.problems };
   // A new legend (or a changed citation) is a normal PR for the Auditor, not a red one: code 1.
   const spawns = data.filter(c => c.status !== 'removed' && (c.file.endsWith('/spawns.ts') || c.file.endsWith('.row.json')));
