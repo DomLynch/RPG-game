@@ -95,7 +95,7 @@ test('a duplicate key inside one JSON object (which JSON.parse would silently re
   const t = treeWith(() => {});
   try {
     const file = join(t.dir, 'origins/region1/towns.json'), text = readFileSync(file, 'utf8');
-    writeFileSync(file, text.replace(/"smith":\s*\{\}/, "\"smith\":{},\"smith\":{\"x\":1}"));
+    writeFileSync(file, text.replace(/"smith":\s*\{/, "\"smith\":{\"x\":1},\"smith\":{"));
     const r = t.run();
     assert.equal(r.status, 1);
     assert.match(r.err, /towns\.json:\d+: duplicate key "smith"/);
