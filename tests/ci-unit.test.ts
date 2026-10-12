@@ -60,12 +60,12 @@ test('a shard that ran no tests cannot hide inside the total', () => {
   assert.equal(build(all({ pass: 0 })).ok, false);
 });
 
-test('unit-ci: a stalled shard is cut at 8 minutes and can only fail the receipt job, never pass it', () => {
+test('unit-ci: a stalled shard is cut at 10 minutes and can only fail the receipt job, never pass it', () => {
   const wf = readFileSync('.github/workflows/unit-ci.yml', 'utf8');
   const job = (name: string) => wf.split(new RegExp(`^  ${name}:\\n`, 'm'))[1]?.split(/^  \S/m)[0] ?? '';
   const shardJob = job('shard'), receiptJob = job('receipt');
   assert.ok(shardJob && receiptJob, 'both jobs found');
-  assert.equal(Number(/^    timeout-minutes: (\d+)$/m.exec(shardJob)?.[1]), 8, 'every shard job is cut at 8 minutes (the slowest runs about 3.5)');
+  assert.equal(Number(/^    timeout-minutes: (\d+)$/m.exec(shardJob)?.[1]), 10, 'every shard job is cut at 10 minutes (the slowest test time is about 3.5; a stalled checkout has taken 5)');
   assert.match(receiptJob, /^    needs: shard$/m, 'the receipt waits for all shards');
   assert.doesNotMatch(receiptJob, /^    if:/m, 'no job-level condition: a failed, cancelled or timed-out shard skips the receipt job');
 });
