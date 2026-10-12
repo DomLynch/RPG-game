@@ -3,7 +3,9 @@
 # Takes scripts/lanejob/lanejob.sh and scripts/lib/waterfall.mjs from REPO_DIR's COMMITTED HEAD (git show, never the working tree: a dirty file cannot install under a clean sha),
 # stages them in DIR/.<sha>.tmp, checks the staged copy (bash -n, a VPS_MAX_LOAD1 line, and a --probe self-check that must answer would=...), moves it to DIR/<sha> (a differing
 # existing DIR/<sha> is kept aside as DIR/.<sha>.bad-<stamp>), flips DIR/current with ln -sfn + mv -T, (re)writes the 3-line shim PATH that execs DIR/current/scripts/lanejob/lanejob.sh
-# (a changed old shim or binary is kept as PATH.bak-<stamp>), and logs "lanejob installed <sha>". Modes: dirs 755, lanejob.sh 755, waterfall.mjs 644. deploy.sh's publish step calls it.
+# (a changed old shim or binary is kept as PATH.bak-<stamp>), and logs "lanejob installed <sha>". Modes: dirs 755, lanejob.sh 755, waterfall.mjs 644.
+# NO caller yet: Deploy B wires `bash scripts/lanejob/install-vps.sh` into deploy.sh's publish step once this is on trunk. Until then run it by hand on the VPS as root,
+# and prove the result with scripts/lanejob/parity-vps.sh (installed lanejob.sh + waterfall.mjs + shim against a commit), which the Auditor's parity walk and Deploy's step can run.
 set -eu
 root=/opt/frankendom/lanejob; shim=/usr/local/bin/lanejob
 while [ $# -gt 0 ]; do case "$1" in --root) root=$2; shift 2 ;; --shim) shim=$2; shift 2 ;; *) break ;; esac; done

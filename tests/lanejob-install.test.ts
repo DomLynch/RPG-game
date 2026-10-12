@@ -145,3 +145,44 @@ test('install runs --probe on the staged copy before the flip, and an unreadable
     assert.equal(existsSync(join(b.root, 'current')), false);
   } finally { b.done(); f.done(); }
 });
+
+// scripts/lanejob/parity-vps.sh (Auditor on #2332): the VPS copy must match a commit, so the next lanejob.sh / VPS_MAX_LOAD1 change cannot silently miss /usr/local/bin/lanejob.
+function parityBox(b: ReturnType<typeof box>) {
+  const stub = join(b.dir, 'ssh-local.sh');
+  writeFileSync(stub, '#!/bin/bash\nexec bash -c "$*"\n'); execFileSync('chmod', ['755', stub]);
+  const parity = join(repo, 'scripts/lanejob/parity-vps.sh');
+  return (...a: string[]) => spawnSync('bash', [parity, '--ssh', stub, '--root', b.root, '--shim', b.shim, ...a], { encoding: 'utf8', timeout: 20000 });
+}
+
+test('parity-vps.sh: right after an install it reports diffs=0; a changed installed file or shim is reported and exits 1', { skip }, () => {
+  const b = box(), f = fakeRepo();
+  try {
+    assert.equal(b.run(f.fake).status, 0);
+    const parity = parityBox(b);
+    const ok = parity(f.fake);
+    assert.equal(ok.status, 0, ok.stdout);
+    assert.match(ok.stdout, new RegExp(`lanejob parity installed=${f.sha} ref=${f.sha} diffs=0`));
+    writeFileSync(join(b.root, f.sha, 'scripts/lib/waterfall.mjs'), 'export const VPS_MAX_LOAD1 = 99;\n');
+    const bad = parity(f.fake);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stdout, /DIFF scripts\/lib\/waterfall\.mjs/);
+    assert.match(bad.stdout, /diffs=1/);
+    writeFileSync(b.shim, '#!/bin/sh\necho old lanejob\n');
+    assert.match(parity(f.fake).stdout, /DIFF .*shim|DIFF .*lanejob \(not the shim/);
+  } finally { b.done(); f.done(); }
+});
+
+test('parity-vps.sh: a newer commit that changes lanejob.sh is a DIFF until it is installed (the #2304 gap)', { skip }, () => {
+  const b = box(), f = fakeRepo();
+  try {
+    assert.equal(b.run(f.fake).status, 0);
+    writeFileSync(join(f.fake, 'scripts/lanejob/lanejob.sh'), '# newer\n' + readFileSync(join(f.fake, 'scripts/lanejob/lanejob.sh'), 'utf8'));
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qam', 'newer'], { cwd: f.fake, stdio: 'ignore' });
+    const parity = parityBox(b);
+    const r = parity(f.fake);
+    assert.equal(r.status, 1);
+    assert.match(r.stdout, /DIFF scripts\/lanejob\/lanejob\.sh/);
+    assert.equal(b.run(f.fake).status, 0);
+    assert.equal(parity(f.fake).status, 0, 'after installing the newer commit the parity check is clean');
+  } finally { b.done(); f.done(); }
+});
