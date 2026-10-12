@@ -59,3 +59,40 @@ test('legends: no source is the scripture of a living religion (known fails name
   assert.deepEqual(failing.filter((n) => !SCRIPTURE_KNOWN_FAIL.includes(n)), [], 'new rows sourced from living-religion scripture');
   assert.deepEqual(SCRIPTURE_KNOWN_FAIL.filter((n) => !failing.includes(n)), [], 'swapped out: remove these from SCRIPTURE_KNOWN_FAIL');
 });
+
+test('a legend name is catalogue data: legends.ts holds no names, and renaming one rank is a one-row data edit that skips the Auditor', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { verdict } = await import('../scripts/data-only-check.mjs');
+  const CAT = 'src/fight/catalogue-data.ts', text = readFileSync(CAT, 'utf8');
+  assert.ok(!/row\('/.test(readFileSync('src/legends.ts', 'utf8')), 'src/legends.ts carries no legend rows any more');
+  const first = LEGENDS.veteran[0]!;
+  assert.ok(text.includes(`name: ${JSON.stringify(first.name)}`), 'the veteran rung 1 name is read from its catalogue row');
+  const renamed = text.replace(`name: ${JSON.stringify(first.name)}`, 'name: "Renamed Legend"');
+  assert.notEqual(renamed, text);
+  assert.equal(verdict([{ file: CAT, status: 'modified' }], () => renamed, 'HEAD' as never).code, 0, 'a renamed rung with its citation unchanged is data-only: one row, no code');
+});
+
+test('a new legend opponent is ONE catalogue row: it joins LEGEND_OPPONENTS in its sparring.order and legendAt reads its names, with no code edit', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { pathToFileURL } = await import('node:url');
+  const { default: DATA } = await import('../src/fight/catalogue-data.ts');
+  const { CATALOGUE } = await import('../src/fight/catalogue-rows.ts');
+  const ranked = CATALOGUE.filter((r) => r.ranks.length > 0);
+  assert.deepEqual([...LEGEND_OPPONENTS].sort(), ranked.map((r) => r.id).sort(), 'the list is exactly the rows that carry ranks');
+  assert.deepEqual(LEGEND_OPPONENTS, [...ranked].sort((a, b) => a.sparring!.order - b.sparring!.order).map((r) => r.id), 'in sparring.order');
+  const rows = JSON.parse(JSON.stringify(DATA)) as { id: string; name: string; ranks: { name: string }[]; sparring: { order: number } }[];
+  const extra = { ...JSON.parse(JSON.stringify(rows.find((r) => r.id === 'knight'))), id: 'testlegend', name: 'the Test Legend', sparring: { order: 11 }, ladder: { order: null, hold: true } };
+  extra.ranks = extra.ranks.map((r: { name: string }, i: number) => ({ ...r, name: `Test Rung ${i + 1}` }));
+  const dir = mkdtempSync(`${tmpdir()}/legend-row-`);
+  try {
+    const data = `${dir}/catalogue-data.ts`, hook = `${dir}/hook.mjs`, probe = `${dir}/probe.ts`;
+    writeFileSync(data, `const CATALOGUE_ROWS = ${JSON.stringify([...rows, extra])} as const;\nexport default CATALOGUE_ROWS;\n`);
+    writeFileSync(hook, `export async function resolve(s, c, next) { return s.endsWith('catalogue-data.ts') ? { url: ${JSON.stringify(pathToFileURL(data).href)}, shortCircuit: true } : next(s, c); }\n`);
+    writeFileSync(probe, `import { register } from 'node:module';\nregister(${JSON.stringify(pathToFileURL(hook).href)});\nconst m = await import(${JSON.stringify(pathToFileURL('src/legends.ts').href)});\nconsole.log(JSON.stringify({ list: m.LEGEND_OPPONENTS, name: m.legendAt('testlegend', 3).name, old: m.legendAt('knight', 3).name }));\n`);
+    const out = JSON.parse(execFileSync(process.execPath, [probe], { encoding: 'utf8' }).trim().split('\n').pop()!) as { list: string[]; name: string; old: string };
+    assert.deepEqual(out.list, [...LEGEND_OPPONENTS, 'testlegend'], 'sparring.order 11 puts the new row last');
+    assert.equal(out.name, 'Test Rung 3'); assert.equal(out.old, legendAt('knight', 3).name, 'the others are untouched');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
