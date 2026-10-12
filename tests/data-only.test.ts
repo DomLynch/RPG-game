@@ -131,3 +131,9 @@ test('bosses.json and its manifest are on the path list and classify as data', (
   }
   assert.equal(onDataPath('src/fight/boss-rows.ts'), false, 'the reader is code');
 });
+
+test('the contract vocabulary rows are data at their moved home src/core/contracts/, not at the old origins/contracts/ path; the loader beside them stays code', () => {
+  for (const f of ['src/core/contracts/definitions.json', 'src/core/contracts/definitions.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['origins/contracts/definitions.json', 'origins/contracts/definitions.manifest.json', 'src/core/contracts/definitions.ts', 'src/core/contracts/world.ts',
+    'src/core/contracts/definitions.json.bak']) assert.equal(onDataPath(f), false, f);
+});
