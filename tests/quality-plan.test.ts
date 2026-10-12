@@ -5,14 +5,16 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 
 const text = readFileSync('.github/workflows/quality.yml', 'utf8');
-const jobBlock = (name: string) => { const i = text.indexOf(`\n  ${name}:\n`); assert.ok(i >= 0, `quality.yml has no job ${name}`); const rest = text.slice(i + 1); const next = rest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/); return next < 0 ? rest : rest.slice(0, next + 1); };
+const jobBlock = (name: string) => { const i = text.indexOf(`\n  ${name}:\n`); assert.ok(i >= 0, `quality.yml has no job ${name}`); const rest = text.slice(i + 1); const next = rest.slice(1).search(/\n {2}[a-z][a-z0-9-]*:\n/); return next < 0 ? rest : rest.slice(0, next + 1); };
 const gameRe = (() => { const m = /GAME_RE='([^']+)'/.exec(jobBlock('plan')); assert.ok(m, 'plan job defines GAME_RE'); return new RegExp(m[1]); })();
 
 test('the heavy jobs wait for the plan and run on a PR only when it says the diff touches game paths; push always runs them', () => {
   for (const job of ['load-time', 'browser', 'net-engines', 'asset-rows', 'duel-two-page']) {
     const block = jobBlock(job);
-    assert.match(block, /\n    needs: plan\n/, `${job} needs plan`);
-    assert.match(block, /github\.event_name != 'pull_request' \|\| needs\.plan\.outputs\.game == 'true'/, `${job} is gated on the plan, and a push is not`);
+    assert.match(block, /\n {4}needs: \[plan, static\]\n/, `${job} needs plan (and static first: tests/ci-static-first.test.ts)`);
+    assert.match(block, /needs\.plan\.result == 'success'/, `${job} runs only after its plan`);
+    assert.match(block, /needs\.plan\.outputs\.game == 'true'/, `${job} is gated on the plan`);
+    assert.ok(job === 'asset-rows' || /github\.event_name != 'pull_request' \|\|/.test(block), `${job}: a push is not gated`);
   }
   const quality = jobBlock('quality');
   assert.doesNotMatch(quality, /needs: plan/, '`quality` (lint, tsc, every test, build) runs on every PR');
@@ -50,6 +52,6 @@ test('the plan lists a renamed file under its old path too', () => {
 });
 
 test('a trunk push never cancels the run in progress; a pull request still cancels its superseded run (a batch head\'s run must finish)', () => {
-  assert.match(text, /\nconcurrency:\n(?:  #[^\n]*\n)*  group: [^\n]*\n(?:  #[^\n]*\n)*  cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/);
+  assert.match(text, /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: [^\n]*\n(?: {2}#[^\n]*\n)* {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/);
   assert.doesNotMatch(text, /cancel-in-progress: true/);
 });

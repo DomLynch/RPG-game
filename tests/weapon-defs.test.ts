@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { GRIPS, GUARDS, MATERIALS, MOVES, PATHS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS, isWeaponId, weaponOf } from '../src/fight/moves.ts';
 import { loadWeaponDefs } from '../src/fight/weapons.ts';
+import { DEFAULT_WEAPON, NATURAL_WEAPONS, WEAPON_LOOK } from '../src/fight/moves.ts';
 
 const raw = JSON.parse(readFileSync(new URL('../src/fight/weapon-defs.json', import.meta.url), 'utf8')) as { weapons: Record<string, unknown>[] };
 const base = { moves: MOVES, paths: PATHS }, enums = { materials: MATERIALS, guards: GUARDS, grips: GRIPS };
@@ -49,4 +50,20 @@ test('the loader refuses a duplicate id, an extends cycle, an unknown parent, a 
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', reach: 'long' }]), /reach is a number/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', fight: 5 }]), /fight needs/);
   assert.throws(() => load([{ guard: 'blade' }]), /bad-key/);
+});
+
+test('the row markers (default, natural, look) are read as data, never inherited and never on the Weapon', () => {
+  assert.equal(DEFAULT_WEAPON, 'longsword');
+  assert.deepEqual([...NATURAL_WEAPONS], ['bite']);
+  const pommel = Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.pommelBash);
+  assert.deepEqual(pommel.sort(), ['cleaver', 'estoc', 'gladius', 'knife', 'longsword', 'maul', 'trident', 'warhammer']);
+  assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.baked), ['longsword']);
+  assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.stabs), ['estoc']);
+  assert.deepEqual(Object.keys(WEAPON_LOOK).filter((id) => WEAPON_LOOK[id]!.lowerArm === false), ['reaper']);
+  for (const w of Object.values(WEAPONS)) for (const k of ['default', 'natural', 'look']) assert.ok(!(k in w), `${w.id} carries no ${k}`);
+  const ok = raw.weapons, load = (rows: unknown[]) => loadWeaponDefs({ weapons: rows }, base, enums);
+  assert.throws(() => load(ok.map((r) => ({ ...r, default: undefined }))), /exactly one row is the `default`/);
+  assert.throws(() => load([...ok, { id: 'a', extends: 'knife', default: true }]), /exactly one row is the `default`/);
+  assert.throws(() => load([...ok, { id: 'a', extends: 'knife', look: { shiny: true } }]), /look holds only/);
+  assert.throws(() => load([...ok, { id: 'a', extends: 'knife', look: { baked: 'yes' } }]), /look holds only/);
 });
