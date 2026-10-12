@@ -8,6 +8,7 @@ import { HAMSTRUNG_VICTIMS, resolveHamstrung } from '../src/fight/hamstrung.ts';
 import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
 import { cuesFor, type DeathPresentation } from '../src/fight/sound/cues.ts';
 import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
+import { PICKER_OPTIONS } from '../src/fight/finisher-look.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 import type { Finish } from '../src/fight/duel.ts';
 
@@ -46,7 +47,8 @@ test('an uninstalled Execution pick is the plain death for the picture and the c
   assert.equal(resolveExecution('veteran', finish, weapons, plain, null, resolveFinisher('veteran', finish, weapons, plain)), 'plainDeath');
   assert.match(source('fight/scene.ts'), /executionPick\(hamstrungPick\(finisherOverride, hamstrungLatch === true\), executionLatch === true\)/);
   assert.match(source('main.ts'), /executionPick\(hamstrungPick\([^\n]*view\.hamstrungInstalled\(\)\), view\.executionInstalled\(\)\)/);
-  assert.match(source('main.ts'), /\['execution', 'Execution'\]/, 'the dev picker lists it');
+  assert.ok(PICKER_OPTIONS.some(([id, label]) => id === 'execution' && label === 'Execution'), 'the dev picker lists it');
+  assert.match(source('main.ts'), /const FINISHER_OPTIONS = PICKER_OPTIONS;/, 'main.ts offers the rows');
 });
 
 test('the held beat is half a second on the screen\'s own clock and the scene paces Execution at the spec\'s 0.75x with no frame-loop hit-stop', () => {

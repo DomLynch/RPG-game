@@ -55,7 +55,7 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
-import { PICKER_OPTIONS } from './fight/finisher-look.ts';
+import { PICKER_OPTIONS, PLAIN_DEATH, isTemplate } from './fight/finisher-look.ts';
 import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
@@ -1533,9 +1533,9 @@ function frame(now: number) {
                     deathWeapons,
                     deathPick,
                     view.previousFinisher(),
-                    resolveFinisher(opponent.id, practice.finish, deathWeapons, deathPick === 'execution' ? null : deathPick, view.previousFinisher()),
+                    resolveFinisher(opponent.id, practice.finish, deathWeapons, isTemplate(deathPick, 'execute') ? null : deathPick, view.previousFinisher()),
                   ),
-                ) ?? 'plainDeath',
+                ) ?? PLAIN_DEATH,
               gore: true,
             }
           : undefined;
