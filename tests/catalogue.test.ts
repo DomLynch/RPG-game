@@ -161,7 +161,7 @@ test('the catalogue is open (Dom 2026-10-12): a field is a defs row and a rig is
   assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }), 'field', 'a key with no definition is refused');
   assert.equal(edit((r) => { r.fields = {}; }), 'field', 'a required field must be present');
   assert.equal(edit((r) => { r.fields = { weapon: 7 }; }), 'field', 'a ref must be a string in its table');
-  const withStamina = { ...DEFS, fields: [...DEFS.fields, { id: 'stamina', kind: 'number' as const, min: 0, max: 200 }] };
+  const withStamina = { ...DEFS, fields: [...DEFS.fields, { id: 'stamina', kind: 'number' as const, min: 0, max: 200, sim: true }] };
   assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }, withStamina), '', 'ONE defs row makes the attribute legal on any row, with no code edit');
   assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 999 }; }, withStamina), 'field', 'and its range is enforced');
   assert.equal(edit((r) => { r.rig = 'dragon'; }), 'rig');
@@ -171,4 +171,9 @@ test('the catalogue is open (Dom 2026-10-12): a field is a defs row and a rig is
 test('every rig family in the defs has a baked blade table (the one thing a rig row needs besides its row)', async () => {
   const { bladePathsByRig } = await import('../src/fight/blade-paths.ts');
   for (const rig of DEFS.rigs) assert.ok(Object.hasOwn(bladePathsByRig, rig.id), `${rig.id}: a blade table in blade-paths.ts`);
+});
+
+test('every field definition says whether it is sim (it feeds the record digest), and weapon is', () => {
+  for (const f of DEFS.fields) assert.equal(typeof f.sim, 'boolean', `${f.id}: sim: true|false`);
+  assert.equal(DEFS.fields.find((f) => f.id === 'weapon')!.sim, true);
 });
