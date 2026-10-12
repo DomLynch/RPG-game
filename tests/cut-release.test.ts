@@ -54,3 +54,12 @@ test('the cut labels every candidate ci:release-checks, and release-checks.yml r
   assert.match(wf, /draft == false \|\| startsWith\(github\.head_ref, 'release-'\)/);
   assert.match(wf, /HEAD_REF\.startsWith\("release-"\)/);
 });
+
+test('a failed git push or gh pr create exits non-zero before any background job launches', () => {
+  const src = readFileSync(new URL('../scripts/cut-release.mjs', import.meta.url), 'utf8');
+  const launch = src.indexOf("bg('unit.log'");
+  for (const guard of ['pushed.status !== 0', 'created.status !== 0']) {
+    const at = src.indexOf(guard);
+    assert.ok(at > 0 && at < launch, `${guard} must be checked before the background launch`);
+  }
+});
