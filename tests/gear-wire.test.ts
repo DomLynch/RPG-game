@@ -1,11 +1,11 @@
-// Wave A1 PR1b: what the player wears reaches the fight. `wornTilt` reads the paperdoll and the rung each piece was won at (the same lookup as the Gear tab's numbers) and gives the worn SET's
-// tilt (plate: +armour / -magic resist; robes the reverse); `sheetOfLoot` puts it on the player's build (`buildOf`: the default build until Backend stores the real one), and a live
+// Wave A1 PR1b: what the player wears reaches the fight. `wornGear` reads the paperdoll and the rung each piece was won at (the same lookup as the Gear tab's numbers) and gives the worn SET's
+// dial deltas (plate: +armour / -magic resist; robes the reverse; plus quality); `sheetOfLoot` puts it on the player's build (`buildOf`: the default build until Backend stores the real one), and a live
 // career/practice Match takes that from its `sheet` port at EVERY begin(), so a piece swapped since boot counts, the record carries it (v48), and a naked player fights exactly as before.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
-import { wornTilt } from '../src/fight/gear-stats.ts';
-import { GEAR } from '../src/fight/gear-rows.ts';
+import { wornGear } from '../src/fight/gear-stats.ts';
+import { GEAR, gearDeltas } from '../src/fight/gear-rows.ts';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
@@ -24,20 +24,21 @@ const origin = TIERS.length;
 const plate: Loot = { owned: ['veteran.Helmet', 'veteran.Body'], equipped: { head: 'veteran.Helmet', chest: 'veteran.Body' }, taken: { 'veteran.Helmet': took(origin), 'veteran.Body': took(origin) } };
 const robes: Loot = { owned: ['witch.Helmet', 'witch.Body'], equipped: { head: 'witch.Helmet', chest: 'witch.Body' }, taken: { 'witch.Helmet': took(origin), 'witch.Body': took(origin) } };
 
-test('the set rows: every opponent named is a real opponent and every tilt a real tilt row', () => {
-  for (const [opponent, tilt] of Object.entries(GEAR.sets)) { assert.ok(opponent in ROSTER, opponent); assert.ok(tilt in GEAR.tilts, `${opponent}: ${tilt}`); }
-  assert.equal(GEAR.sets.veteran, 'plate'); assert.equal(GEAR.sets.witch, 'robes'); assert.equal(GEAR.sets.goblin, undefined, 'an opponent no row names gives no tilt');
+test('the owner rows: every opponent named is a real opponent and every set a real set row', () => {
+  for (const [opponent, set] of Object.entries(GEAR.owners)) { assert.ok(opponent in ROSTER, opponent); assert.ok(set in GEAR.sets, `${opponent}: ${set}`); }
+  assert.equal(GEAR.owners.veteran, 'plate'); assert.equal(GEAR.owners.witch, 'robes'); assert.equal(GEAR.owners.goblin, 'leathers'); assert.equal(GEAR.owners.skeleton, undefined, 'an opponent no row names gives no set');
 });
 
-test('wornTilt: no piece with a rung is no tilt; a part set tilts in proportion; ONE set is worn, the one with the most points', () => {
+test('wornGear: no piece with a rung is nothing; a part set scales the shape and the quality; ONE set is worn, the one with the most weight', () => {
   const rung = (loot: Loot) => (id: LootId) => { const l = loot.taken?.[id]?.tier; return l ? TIERS[l - 1] : undefined; };
-  assert.deepEqual(wornTilt({}, () => undefined), {});
-  assert.deepEqual(wornTilt({ head: 'veteran.Helmet' }, () => undefined), {}, 'a piece with no rung is the identity, never a guess');
   const top = () => TIERS[origin - 1];
-  assert.deepEqual(wornTilt(plate.equipped, rung(plate)), { armour: 13, magicResist: -13 }, 'a helmet and a body at the top rung are 450 of the 900 points of a full set: half of the 25');
+  assert.deepEqual(wornGear({}, () => undefined), {});
+  assert.deepEqual(wornGear({ head: 'veteran.Helmet' }, () => undefined), {}, 'a piece with no rung is the identity, never a guess');
+  assert.deepEqual(wornGear(plate.equipped, rung(plate)), gearDeltas('plate', 0.5, 0.5), 'a helmet and a body at the top rung are half a set (50 of 100 slot weight), all of it top quality');
   const fullSet = Object.fromEntries(['Helmet', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots'].map((slot, i) => [`piece${i}`, `veteran.${slot}`])) as never;
-  assert.deepEqual(wornTilt(fullSet, top), { armour: 25, magicResist: -25 }, 'a full plate set at the top rung is the whole 25');
-  assert.deepEqual(wornTilt({ head: 'veteran.Helmet', chest: 'witch.Body' }, top), { magicResist: 8, armour: -8 }, 'plate helmet (180 points) against robes body (270): the robes are the set worn, at 270 of 900');
+  assert.deepEqual(wornGear(fullSet, top), gearDeltas('plate', 1, 1), 'a full legendary plate set is the whole 50: 25 shape, 25 quality');
+  assert.deepEqual(wornGear(fullSet, () => TIERS[0]), gearDeltas('plate', 1, 0), 'a full common set is the shape alone');
+  assert.deepEqual(wornGear({ head: 'veteran.Helmet', chest: 'witch.Body' }, top), gearDeltas('robes', 0.3, 0.3), 'plate helmet (20) against robes body (30): the robes are the set worn, at 30 of 100');
 });
 
 test('sheetOfLoot: the default build with nothing worn is no sheet; plate raises armour and lowers magic resist, robes the reverse; the build rows validate', () => {
