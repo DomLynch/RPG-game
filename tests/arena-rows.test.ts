@@ -24,3 +24,13 @@ test('the blood settings are rows: red plain, dark = dark flag, off = hidden fla
   assert.deepEqual(['red', 'dark', 'off'].map((m) => [bloodDark(m), bloodHidden(m)]), [[false, false], [true, false], [false, true]]);
   assert.throws(() => bloodHidden('crimson'), /unknown blood mode "crimson"/);
 });
+
+test('the foot-dust tone comes from the floor row: for every theme it equals what the old floor-name branches picked, and the tone rows keep the old colours', async () => {
+  const { dustToneFor } = await import('../src/fight/foot-dust.ts');
+  const { DUST_TONES, FLOOR_ROWS } = await import('../src/arena-rows.ts');
+  const old = (t: { textures: { floor: string }; wet?: number }) => t.textures.floor === 'clay' ? 'clay' : t.textures.floor !== 'sand' || t.wet !== undefined ? 'stone' : 'sand';
+  for (const theme of Object.values(ARENA_THEMES)) assert.equal(dustToneFor(theme), old(theme), `${theme.id}: ${theme.textures.floor}${theme.wet !== undefined ? ' wet' : ''}`);
+  assert.deepEqual(Object.entries(DUST_TONES).map(([k, v]) => [k, v.color, v.opacity]), [['sand', '#b99a68', 0.6], ['stone', '#7a7062', 0.36], ['clay', '#2a1c1a', 0.4]]);
+  assert.deepEqual(Object.keys(FLOOR_ROWS), ['sand', 'flag', 'clay']);
+  assert.throws(() => dustToneFor({ textures: { floor: 'lava' } }), /unknown floor "lava"/);
+});
