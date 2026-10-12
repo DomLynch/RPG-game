@@ -185,4 +185,37 @@ expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom
 writer 401; fakerun g6
 expect "a writer that answers 401 and logs its own listening line installs" "$rc" 0
 curl -s -o /dev/null -m 2 "http://127.0.0.1:$ORIGINS_SIDE_PORT/" && fail "the side writer is still listening after the install" || ok
+# Lead 2026-10-12 (CV): the reinstall was skipped as "closure identical to CU (138 files, no hash differences)" while #2352 had changed
+# src/fight/record.ts (RV46 -> RV47): the live client sent v47 records to a v46 writer for 7 minutes. --if-changed decides by the CONTENT of every
+# closure file at this revision against the INSTALLED tree (current), file by file: same list + one changed file reinstalls.
+unset ORIGINS_PRUNE; fresh; printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"; printf "import { x } from './lib/extra.mjs';\nexport const writer = x;\n" > "$fake/scripts/origins-writer.mjs"
+# --if-changed compares THIS checkout's files, so it must be AT the revision it is asked about (Auditor on #2370): the fake repo is a git repo here.
+git -C "$fake" init -q; commit() { git -C "$fake" add -A && git -C "$fake" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "$1" && git -C "$fake" rev-parse --short=12 HEAD; }
+h1=$(commit h1); fakerun "$h1"
+expect "the first install" "$rc" 0
+h2=$(commit h2); fakerun --if-changed "$h2"
+expect "an identical closure is not reinstalled" "$rc" 0
+contains "and says so, with the file count" "$out" "closure identical to the installed $h1 (3 files, byte for byte); nothing installed"
+expect "current stays" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/$h1"
+[ ! -e "$tmp/root/opt/frankendom-origins/$h2" ] && ok || fail "an identical closure was copied anyway"
+printf "export const x = 2;   // RV47\n" > "$fake/scripts/lib/extra.mjs"; h3=$(commit h3)
+fakerun --if-changed "$h3"
+expect "same file list, one changed file: reinstalled" "$rc" 0
+contains "naming the file that differs" "$out" "closure differs from the installed $h1 in 1 of 3 files: scripts/lib/extra.mjs"
+expect "current moved to the new revision" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/$h3"
+expect "with the new content" "$(cat "$tmp/root/opt/frankendom-origins/$h3/scripts/lib/extra.mjs")" "export const x = 2;   // RV47"
+# a stale checkout (HEAD is not the revision asked for) never "matches" the box: refused, nothing compared or installed
+git -C "$fake" checkout -q "$h1"; fakerun --if-changed "$h3"
+expect "a checkout that is not at the revision is refused" "$rc" 1
+contains "named" "$out" "--if-changed: this checkout is at $h1"
+expect "current untouched" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/$h3"
+git -C "$fake" checkout -q "$h3"
+rm -f "$tmp/root/opt/frankendom-origins/$h3/scripts/lib/extra.mjs"
+fakerun --if-changed "$h3"
+expect "a closure file missing from the installed tree: reinstalled" "$rc" 0
+contains "named" "$out" "in 1 of 3 files: scripts/lib/extra.mjs"
+rm -rf "$tmp/root/opt/frankendom-origins/current"
+fakerun --if-changed "$h3"
+expect "nothing installed yet: installed" "$rc" 0
+contains "said" "$out" "no installed writer (current)"
 echo "origins-install-check: $checks checks passed"
