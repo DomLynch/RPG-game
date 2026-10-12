@@ -190,3 +190,9 @@ test('the Executioner rows refuse a template the module does not draw and a miss
   assert.throws(() => loadEx([...raw.specials, { id: 'a', family: 'executioner', template: 'harvest', opponent: 'executioner', cast: { actor: 1 }, params: { look: {} } }]), /params.crescentAlpha is required by the harvest template/);
   assert.throws(() => bossLook('nothing', 1), /unknown executioner special "nothing"/);
 });
+
+test('an Executioner special with neither a bosses.json row nor its own look is refused by name', () => {
+  const row = loadEx([...raw.specials, { id: 'nolook', family: 'executioner', template: 'harvest', opponent: 'executioner', cast: { actor: 1, move: 'skill_reaping' },
+    params: { crescentAlpha: { day: 0.6, night: 0.4 }, cutAlpha: 0.9, gritSize: 0.13, gritShade: 0.9, gritAlpha: 0.8 } }]).find((r) => r.id === 'nolook')!;
+  assert.throws(() => bossLook(row, 1.3), /executioner special "nolook" has no look/);
+});
