@@ -33,7 +33,13 @@ export function gather(rootDir) {
 const raw = rawDuplicates(root);
 for (const r of raw) console.error(r);
 if (raw.length) process.exit(1);
-const { problems } = checkTables(gather(root));
+let external = {};
+try { external = (await import('../origins/region1/content.ts')).REGISTRY_EXTERNAL; } catch (e) {
+  if (!e.problems) throw e;   // the runtime load threw a RegistryError: its problems are the gate's answer
+  for (const p of e.problems) console.error(`${p.file}:${p.row}:${p.id} ${p.rule}: ${p.message}`);
+  process.exit(1);
+}
+const { problems } = checkTables(gather(root), external);
 for (const p of problems) console.error(`${p.file}:${p.row}:${p.id} ${p.rule}: ${p.message}`);
 if (problems.length) process.exit(1);
 console.log(`registry: ${gather(root).length} tables clean`);

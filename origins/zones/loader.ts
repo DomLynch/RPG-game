@@ -3,8 +3,9 @@
 // and nothing else: registry.ts is generated from the rows (scripts/gen-zones.mjs) and from-row.ts turns each into a Zone.
 import type { MobRow } from '../../src/core/server.ts';
 import type { Look } from '../preview/look.ts';
-import type { MobLook, MobSpread } from '../preview/mob-looks.ts';
+import type { MobLookRow, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/fight/server.ts';
+import { duplicateKeys, describeDuplicates } from '../../scripts/lib/json-dup-keys.mjs';
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
@@ -23,7 +24,7 @@ export type Zone = {
   set?: readonly string[];
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
-  mobLooks?: { looks: Readonly<Record<string, MobLook>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
+  mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
 /** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
@@ -31,8 +32,8 @@ export const zonePlaces = (): Place[] => placesInOrder(PACKAGES);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
-export function zoneProblems(z: Zone): string[] {
-  const bad: string[] = [], ids = new Set<string>();
+export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: string): string[] {   // `known`: every character id the content names (strings, no union: Dom 2026-10-12); given, a mob look or spread for an id outside it is a problem
+  const bad: string[] = rowText === undefined ? [] : describeDuplicates(`zone ${z.id} row`, duplicateKeys(rowText)), ids = new Set<string>();   // rowText: the row's raw JSON when the caller has it: a repeated key is invisible in the parsed Zone (JSON.parse keeps the last), so it is scanned in the text
   if (!z.name.trim()) bad.push('no display name');
   const own: Record<string, unknown> = { ...z };
   delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
@@ -58,9 +59,10 @@ export function zoneProblems(z: Zone): string[] {
   for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
     if (!Object.hasOwn(ROSTER, l.opponent)) bad.push(`mob look ${id}: ${l.opponent} is not a roster body`);
     if (!rgb(l.tint)) bad.push(`mob look ${id}: tint is not a 0xrrggbb number`);
-    if (!(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
+    if (l.scale !== undefined && !(l.scale >= 0.3 && l.scale <= 3)) bad.push(`mob look ${id}: scale ${l.scale} is out of range (0.3-3)`);
     if (!unit(l.dressing.soot) || !unit(l.dressing.burnt)) bad.push(`mob look ${id}: soot/burnt must be 0..1`);
   }
+  if (known) for (const id of [...Object.keys(z.mobLooks?.looks ?? {}), ...Object.keys(z.mobLooks?.spread ?? {})]) if (!known.has(id)) bad.push(`mob look ${id}: no such character (not a spawn row or a region foe)`);
   for (const [id, sp] of Object.entries(z.mobLooks?.spread ?? {})) {
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);

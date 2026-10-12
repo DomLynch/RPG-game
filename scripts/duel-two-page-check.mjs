@@ -14,7 +14,7 @@ import process from 'node:process';
 import console from 'node:console';
 import { startRelay } from './duel-relay.mjs';
 import { skipDraws } from './lib/harness-clock.mjs';
-import { launch } from './lib/harness.mjs';
+import { launch, quietDebug } from './lib/harness.mjs';
 
 const BUDGET_MS = Number(process.env.DUEL_BUDGET_MS ?? 180_000), dir = 'artifacts/duel-two-page';
 const started = Date.now();
@@ -31,7 +31,7 @@ const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await launch();
 const state = (page) => page.evaluate(() => JSON.parse(document.documentElement.dataset.duel ?? 'null'));
 const open = async (url, name) => {
-  const context = await browser.newContext({ viewport: { width: 375, height: 812 } }), page = await context.newPage();   // the phone width the stills are taken at
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } }), page = await context.newPage(); await quietDebug(context);   // the phone width the stills are taken at
   page.setDefaultTimeout(120_000);
   page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.endsWith('.glb')) glbs[name].push(`${u.pathname}${u.search} (${r.resourceType()})`); });   // every .glb request with its type: a dev server also lists each glob'd file once, so the rig rule below counts
   await page.route('**/*sentry.io/**', (route) => route.abort());

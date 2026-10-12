@@ -1,6 +1,7 @@
 // Actual game playback, no pose/simulation overrides. The rig test checks anatomy;
 // this receipt checks routing, loaded bytes, gait/attack selection and browser errors.
 import assert from 'node:assert/strict';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
@@ -31,7 +32,7 @@ try {
       // Receipts render at native DPR on the Mac; on the software-GL runner every extra pixel is wall time (HARNESS_DPR / CI → 1).
       const deviceScaleFactor = Number(process.env.HARNESS_DPR) || (process.env.CI ? 1 : mobile ? 2 : 1.5);
       const context = await browser.newContext({ viewport, deviceScaleFactor, isMobile: mobile, hasTouch: mobile });
-      const page = await context.newPage(); page.on('pageerror', e => receipt.errors.push(String(e)));
+      const page = await context.newPage(); await quietDebug(page); page.on('pageerror', e => receipt.errors.push(String(e)));
       await page.route('**/*sentry.io/**', r => r.abort());
       const asset = page.waitForResponse(r => new RegExp(`/${opponent}(?:-[\\w-]+)?\\.glb(?:\\?|$)`).test(r.url()), { timeout: 90000 });
       await page.goto(`${origin}/?opponent=${opponent}&debug=1`);

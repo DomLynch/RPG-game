@@ -53,7 +53,8 @@ test('external id sets satisfy refs, and keyed tables become rows', () => {
 const treeWith = (edit: (towns: any) => void): { dir: string; run: () => { status: number | null; err: string; out: string } } => {
   const dir = mkdtempSync(join(tmpdir(), 'registry-'));
   cpSync('origins', join(dir, 'origins'), { recursive: true });
-  for (const link of ['src', 'scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+  cpSync('scripts', join(dir, 'scripts'), { recursive: true });
+  for (const link of ['src', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
   const file = join(dir, 'origins/region1/towns.json'), towns = JSON.parse(readFileSync(file, 'utf8'));
   edit(towns);
   writeFileSync(file, JSON.stringify(towns));
