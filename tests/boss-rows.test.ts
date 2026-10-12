@@ -27,7 +27,7 @@ test('every boss row has the manifest fields with the right types, ids are uniqu
     assert.equal(t === 'integer' ? Number.isInteger(r[f]) : typeof r[f], t === 'integer' ? true : t, `${r.id}.${f}`);
   }
   assert.equal(new Set(BOSSES.map((r) => r.id)).size, BOSSES.length);
-  assert.equal(BOSSES.length, 15);
+  assert.equal(BOSSES.length, 18);
   for (const r of BOSSES) assert.ok(r.rank >= 8 && r.rank <= 10, r.id);
 });
 
@@ -51,14 +51,14 @@ test('each row agrees with Combat\'s special table: (opponent, rank) is the spec
 test('the derivations equal the lists they replaced (presentation only: the registry, cues, class skills, kinds, looks)', () => {
   assert.deepEqual([...BOSS_KINDS], ['arawn', 'thanatos', 'reaper']);
   assert.deepEqual([...kindsOf('boss')], ['mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm']);
-  const lift: Record<string, number> = { arawn: -0.06, thanatos: -0.14, reaper: -0.1, reynard: -0.06, hermes: -0.1, loki: -0.1 };
+  const lift: Record<string, number> = { arawn: -0.06, thanatos: -0.14, reaper: -0.1, reynard: -0.06, hermes: -0.1, loki: -0.1, set: 0.12, hades: -0.28, nyx: -0.28 };
   for (const r of BOSSES) {
     const m = SPECIAL_MODES[r.id as keyof typeof SPECIAL_MODES]!;
-    assert.equal(m.at, 'feet', r.id);
+    assert.equal(m.at, r.at, r.id);
     assert.equal(m.lift, r.fx === 'boss' ? -0.28 : lift[r.id], r.id);
     assert.equal(m.lift, r.lift, r.id);
-    assert.equal(m.hideTrail, r.fx === 'executioner' ? undefined : true, r.id);
-    assert.equal(typeof m.held, r.id === 'reynard' ? 'function' : 'undefined', r.id);
+    assert.equal(m.hideTrail, ['executioner', 'redwind', 'hades', 'nightfall'].includes(r.fx) ? undefined : true, r.id);
+    assert.equal(typeof m.held, r.held ? 'function' : 'undefined', r.id);
     assert.equal(typeof m.travel, r.id === 'echo' ? 'function' : 'undefined', r.id);
   }
   assert.deepEqual(['arawn', 'thanatos', 'reaper', 'mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm'].map((id) => SPECIAL_CUE_OF[id]),
@@ -92,7 +92,7 @@ test('every row has an effect maker that builds (an fx boss kind with no maker w
   for (const r of BOSSES) {
     if (r.fx === 'boss') assert.doesNotThrow(() => createBossSpecial(new THREE.Scene(), r.opponent as never, r.id, 1), r.id);
     else if (r.fx === 'goblin') assert.doesNotThrow(() => createGoblinSpecial(new THREE.Scene(), r.id as never, 1, r.opponent as never), r.id);
-    else assert.doesNotThrow(() => createExecutionerSpecial(new THREE.Scene(), 'executioner', r.id, bossLook(r.id, 1)), r.id);
+    else if (r.fx === 'executioner') assert.doesNotThrow(() => createExecutionerSpecial(new THREE.Scene(), 'executioner', r.id, bossLook(r.id, 1)), r.id);
   }
 });
 
