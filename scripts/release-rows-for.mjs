@@ -58,6 +58,8 @@ const AREAS = [
   { paths: ['src/blade*.ts', 'src/fight/blade*.ts', 'src/fight/characters.ts', 'src/fight/shields.ts', 'src/gear-*.ts', 'src/fight/gear-*.ts'], rows: ['polearm-browser-check:first', 'equip-fallback-check'] },
   { paths: ['src/fight/finishers.ts', 'src/fight/gore.ts', 'src/fight/finisher-blood.ts', 'src/fight/opened.ts', 'src/fight/severed-head.ts', 'src/fight/blood-edge.ts'], rows: ['quiet-one-browser-check:first', 'finisher-preview:last'] },
   { paths: ['src/fight/hud.ts', 'src/style.css', 'src/scorecard.ts', 'index.html'], rows: ['endgame-hud-check', 'desktop-layout-check:first'] },
+  // The landscape Pit, the ☰ journal tabs and the paper-doll in Safari's engine (Mac row; Lead 2026-10-12): the layout files and the screens it draws.
+  { paths: ['src/style.css', 'index.html', 'src/core/gear-*.ts', 'src/core/loot-panel.ts', 'src/fight/stance-panel.ts', 'scripts/pit-landscape-*.mjs'], rows: ['pit-landscape-webkit'] },
   // Thumbnails and portraits (public/game/img/**: loot, blood strips, fighter cards): the roster row (CORE) draws them; the gear rows show the loot tiles. Not a full run (Strategy 2026-10-10: two loot .webp files cost Y 35 extra rows).
   { paths: ['public/game/img/**'], rows: ['loot-smoke-check', 'equip-fallback-check', 'polearm-browser-check:first', 'worn-loot-check'] },
   { paths: ['scripts/lib/thumb-row.mjs'], rows: ['endgame-hud-check', 'desktop-layout-check'] },   // the two checks that import it
