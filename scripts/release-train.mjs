@@ -140,7 +140,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (p) console.log(`${p.number} ${p.headRefOid} ${p.isDraft ? 'draft' : 'ready'}`);
     process.exit(0);
   }
-  if (cmd !== 'cut') { console.error('usage: node scripts/release-train.mjs cut [--dry-run] | pick < prs.json'); process.exit(2); }
+  if (cmd === 'verify') {   // stdin: `gh pr view <n> --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments` (ALL checks:
+    // `gh pr list` stops at 100, CQ #2342 had 144, Lead on #2336) + argv sha: exit 0 only when that one candidate still passes the whole gate at that sha
+    const p = JSON.parse(readFileSync(0, 'utf8') || 'null'), want = rest[0];
+    const why = !p ? 'no PR' : p.headRefOid !== want ? `head moved to ${String(p.headRefOid).slice(0, 9)}` : !pickPublish([p]) ? `gate not met on the full check list (${p.statusCheckRollup?.length ?? 0} checks; missing/red: ${[...missingRows(p.statusCheckRollup), ...(p.statusCheckRollup || []).filter(c => !checksGreen([c])).map(c => `${c.workflowName}/${c.name}`)].slice(0, 5).join(', ') || 'label or PASS'})` : '';
+    if (why) { console.log(why); process.exit(1); }
+    process.exit(0);
+  }
+  if (cmd !== 'cut') { console.error('usage: node scripts/release-train.mjs cut [--dry-run] | pick < prs.json | verify <sha> < pr.json'); process.exit(2); }
   try { console.log(JSON.stringify(cut({ dryRun: rest.includes('--dry-run') }))); }
   catch (e) { console.error(`release-train: ${e?.message || e}`); process.exit(1); }
 }

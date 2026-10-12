@@ -56,6 +56,10 @@ pick=$(gh pr list --state open --base "$trunk" --label candidate:pass --limit 50
   | node scripts/release-train.mjs pick) || { log "gh pr list failed; next tick"; exit 0; }
 [ -n "$pick" ] || { log "no candidate with candidate:pass, a PASS at its head and green unit-ci/quality/release-checks"; exit 0; }
 read -r pr sha draft <<< "$pick"
+# `gh pr list` returns at most 100 checks per PR (CQ #2342: 144 via `gh pr view`, exactly 100 via list): re-read THIS candidate's full rollup and re-check the gate.
+if ! why=$(gh pr view "$pr" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments | node scripts/release-train.mjs verify "$sha"); then
+  log "#$pr @${sha:0:9} not publishable on its full check list: ${why:-gh pr view failed}; next tick"; exit 0
+fi
 log "publishing #$pr @${sha:0:9}"
 
 stop() {   # $1 = reason: the train stays stopped until a person removes both files

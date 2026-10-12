@@ -112,7 +112,7 @@ function publisher() {
   mkdirSync(bin); mkdirSync(state); mkdirSync(join(repo, 'scripts'), { recursive: true });
   for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
-  sh('gh', `echo "gh $*" >> "${log}"; case "$1 $2" in "pr list") [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]' ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
+  sh('gh', `echo "gh $*" >> "${log}"; case "$1 $2" in "pr list") [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]' ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
   sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
   sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
@@ -202,6 +202,26 @@ test('publisher (Lead #2336 finding 5): a live hand-run deploy.sh blocks the tic
     assert.match(r.stdout, /no candidate with candidate:pass, a PASS at its head/); assert.doesNotMatch(p.calls(), /git push/);
     const src = readFileSync('scripts/release-train-publish.sh', 'utf8');
     assert.match(src, /\( set -o noclobber; echo "\$\$" > "\$hold" \)/, 'the hold is created atomically, holding the pid');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead on #2336): the gate is re-checked on the FULL rollup: gh pr list stops at 100 checks, a red row at index 120 blocks the publish', () => {
+  const p = publisher();
+  try {
+    const green = (i: number) => ({ __typename: 'CheckRun', workflowName: 'release-checks', name: `check ${i} (row)`, status: 'COMPLETED', conclusion: 'SUCCESS' });
+    const full = [...OK, ...Array.from({ length: 130 }, (_, i) => green(i))];
+    full[120] = { ...full[120], conclusion: 'FAILURE' };
+    const listed = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8'));
+    writeFileSync(join(p.dir, 'view.json'), JSON.stringify({ ...listed[0], statusCheckRollup: full }));
+    listed[0].statusCheckRollup = full.slice(0, 100);   // what `gh pr list` returns: the first 100, all green
+    writeFileSync(join(p.dir, 'prs.json'), JSON.stringify(listed));
+    const r = p.run({ VIEW: join(p.dir, 'view.json') });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /#2400 @ccccccccc not publishable on its full check list: gate not met on the full check list \(134 checks; missing\/red: release-checks\/check 116 \(row\)/);
+    assert.doesNotMatch(p.calls(), /git push|deploy FRANKENDOM/);
+    const moved = { ...listed[0], headRefOid: 'e'.repeat(40), statusCheckRollup: OK };
+    writeFileSync(join(p.dir, 'view.json'), JSON.stringify(moved));
+    assert.match(p.run({ VIEW: join(p.dir, 'view.json') }).stdout, /head moved to eeeeeeeee/);
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
