@@ -11,11 +11,12 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const AST_GREP = '@ast-grep/cli@0.45.3';   // pinned: the rules below were written against its output
-const HERE = dirname(fileURLToPath(import.meta.url)), REPO = join(HERE, '..', '..');
+const HERE = dirname(fileURLToPath(import.meta.url));
+const arg = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1]; };
+const REPO = arg('--repo') ?? join(HERE, '..', '..');   // --repo: the tree whose id lists are read (a test points it at a fixture)
 const CATEGORIES = ['opponent', 'weapon', 'skill', 'special', 'finisher'] as const;   // when a literal is several, the first wins
 type Category = (typeof CATEGORIES)[number];
 
-const arg = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1]; };
 const root = arg('--root') ?? 'src';
 const allowFile = arg('--allow') ?? join(HERE, 'allow.json');
 type Allow = { file: string; literal: string; reason: string };
@@ -24,8 +25,10 @@ const read = (f: string) => (existsSync(join(REPO, f)) ? readFileSync(join(REPO,
 const quoted = (text: string) => [...text.matchAll(/'([A-Za-z][\w-]*)'/g)].map((m) => m[1]!);
 const unionOf = (file: string, type: string) => { const m = new RegExp(`export type ${type}\\s*=([^;]*);`).exec(read(file)); return m ? quoted(m[1]!) : []; };
 const rowIds = (file: string, key: string) => { try { return ((JSON.parse(read(file)) as Record<string, { id: string }[]>)[key] ?? []).map((r) => r.id); } catch { return []; } };
+// A measuring stick must never read a broken tree as progress: a failed import or an empty id list stops the run (exit 2) and names what is missing.
+function fail(message: string): never { console.error(`as-data: ${message}`); process.exit(2); }
 async function ids(): Promise<Record<Category, string[]>> {
-  const imp = async (f: string) => { try { return (await import(pathToFileURL(join(REPO, f)).href)) as Record<string, any>; } catch { return {}; } };
+  const imp = async (f: string) => { try { return (await import(pathToFileURL(join(REPO, f)).href)) as Record<string, any>; } catch (e) { fail(`cannot import ${f}: ${(e as Error).message.split('\n')[0]}`); } };
   const roster = await imp('src/roster.ts'), fin = await imp('src/fight/finishers.ts');
   const specials = /const SPECIAL_SETS = \{([\s\S]*?)\n\} as const/.exec(read('src/fight/moves.ts'));
   return {
@@ -40,7 +43,7 @@ async function ids(): Promise<Record<Category, string[]>> {
 const sets = await ids();
 const categoryOf = (id: string): Category | undefined => CATEGORIES.find((c) => sets[c].includes(id));
 const all = [...new Set(CATEGORIES.flatMap((c) => sets[c]))].filter((id) => /^[\w-]+$/.test(id)).sort();
-if (!all.length) { console.error('as-data: found no content ids to look for'); process.exit(2); }
+for (const c of CATEGORIES) if (!sets[c].length) fail(`the ${c} id list is empty (a broken import or a moved table?): refusing to report, a silent 0 reads as progress`);
 const dir = mkdtempSync(join(tmpdir(), 'as-data-'));
 function run(template: string) {
   const rule = join(dir, template);
