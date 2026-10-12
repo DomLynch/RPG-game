@@ -47,6 +47,7 @@ test('publish lock: a live holder is waited for, then given up on with its name;
   mkdirSync(env.DEPLOY_PUBLISH_LOCK); writeFileSync(join(env.DEPLOY_PUBLISH_LOCK, 'pid'), `${process.pid}\n`); writeFileSync(join(env.DEPLOY_PUBLISH_LOCK, 'revision'), 'aaaa');
   const r = bash('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" publish', { DEPLOY_LOCK_WAIT_S: '2' });
   assert.equal(r.status, 1);
+  assert.match(r.stdout, /publish lock: waiting on aaaa \(pid \d+\) for 0s/);
   assert.match(r.stderr, new RegExp(`publish lock: still held by pid ${process.pid} \\(aaaa\\) after 2s; giving up`));
   assert.equal(readFileSync(join(env.DEPLOY_PUBLISH_LOCK, 'pid'), 'utf8').trim(), String(process.pid), 'the live holder keeps its lock');
 });
@@ -74,20 +75,32 @@ test('publish lock: N+1 waits while N publishes and takes the lock the moment N 
   assert.match(out, /publish lock: taken after \d+s\nTAKEN/);
 });
 
-test('superseded: a candidate the live release contains publishes nothing; anything else goes ahead', () => {
-  const { dir, bash } = box();
+// One fixture history: N-1 is live; N and N+1 are trunk merge commits (N+1 stacked on N); X is a candidate cut beside N (not on it).
+const history = (dir: string) => {
   const repo = join(dir, 'repo');
   const git = (...args: string[]) => spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).stdout.trim();
   mkdirSync(repo); git('init', '-q');
   const commit = (m: string) => { git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', m); return git('rev-parse', 'HEAD'); };
-  const n = commit('N'), n1 = commit('N+1');
-  git('checkout', '-q', '-b', 'side', n); const side = commit('side');
-  const verdict = (live: string, rev: string) => bash(`cd '${repo}'; deploy_superseded '${live}' '${rev}'`).stdout.trim();
-  assert.equal(verdict(n1, n), 'superseded', 'N+1 is live: N must not roll it back');
-  assert.equal(verdict(n, n1), 'ok');
-  assert.equal(verdict(n, side), 'ok', 'a sibling is not contained');
-  assert.equal(verdict('', n), 'ok', 'live unknown: go ahead (the cmp checks verify)');
-  assert.equal(verdict(n, n), 'ok', 'a same-revision redeploy');
+  const prev = commit('N-1'), n = commit('N'), n1 = commit('N+1');
+  git('checkout', '-q', '-b', 'side', prev); const x = commit('X');
+  return { repo, prev, n, n1, x };
+};
+
+test('publish order: forward only; N+1 finishing first makes N superseded, never a rollback; a diverged tree is refused', () => {
+  const { dir, bash } = box();
+  const { repo, prev, n, n1, x } = history(dir);
+  const order = (live: string, rev: string) => bash(`cd '${repo}'; deploy_publish_order '${live}' '${rev}'`).stdout.trim();
+  // N+1's rows finish first: it publishes over N-1, then N arrives at the lock.
+  assert.equal(order(prev, n1), 'forward');
+  assert.equal(order(n1, n), 'superseded', 'N+1 is live and contains N: N publishes nothing');
+  // In order: N then N+1.
+  assert.equal(order(prev, n), 'forward');
+  assert.equal(order(n, n1), 'forward');
+  // X was cut beside N, not on it: whichever of the two publishes second is refused, so neither tree is silently lost.
+  assert.equal(order(n, x), 'diverged');
+  assert.equal(order(x, n), 'diverged');
+  assert.equal(order('', n), 'unknown', 'release.json unreadable: deploy.sh logs it and publishes');
+  assert.equal(order(n, n), 'forward', 'a same-revision redeploy');
 });
 
 test('deploy.sh: only the publish window is exclusive, and the old whole-run rm is gone', () => {
@@ -99,8 +112,10 @@ test('deploy.sh: only the publish window is exclusive, and the old whole-run rm 
   assert.ok(at('deploy_lock_wait "$DEPLOY_ROWS_LOCK"') < at('trusted_checks=$(node scripts/ci-trusted-checks.mjs'), 'the CI lookup runs after any wait');
   assert.ok(at('node scripts/release-checks.mjs') < at('deploy_lock_drop "$DEPLOY_ROWS_LOCK"'));
   assert.ok(at('deploy_lock_drop "$DEPLOY_ROWS_LOCK"') < at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"'));
-  assert.ok(at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"') < at('deploy_superseded "$live_now"'));
-  assert.ok(at('deploy_superseded "$live_now"') < at('deploy_step "transfer + switch"'));
+  assert.ok(at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"') < at('deploy_publish_order "$live_now"'));
+  assert.ok(at('deploy_publish_order "$live_now"') < at('deploy_step "transfer + switch"'));
+  assert.match(s, /superseded\) echo "superseded: [^\n]*exit 3 ;;\n  \*\) echo "diverged: [^\n]*exit 3 ;;/, 'superseded and diverged both stop before the transfer');
+  assert.match(s, /unknown\) echo "publish order: live unknown/, 'a publish without the guard is logged');
   assert.ok(at('scripts/lib/prune-releases.sh') < at('deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"'));
   assert.ok(at('deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"') < at('if [[ "$previews_ok" != 1 ]]'));
 });
@@ -135,4 +150,32 @@ test('release-worktree: N+1 gets the slot no live run is using; a dirty slot is 
   assert.equal(dirty.status, 1);
   assert.match(dirty.stderr, /has tracked changes; refusing/);
   assert.equal(readFileSync(join(a, 'package-lock.json'), 'utf8'), '{"dirty":1}\n', 'never cleaned');
+});
+
+test('release-worktree: N+1 must be cut on every candidate in flight', () => {
+  const { dir, env } = box();
+  const { repo, n, n1, x } = history(dir);
+  mkdirSync(env.DEPLOY_RUNS_DIR, { recursive: true });
+  writeFileSync(join(env.DEPLOY_RUNS_DIR, `${process.pid}.json`), `{"revision":"${n}","started":"x","pid":${process.pid},"cwd":"/elsewhere"}\n`);   // N in flight
+  writeFileSync(join(repo, 'package-lock.json'), '{}\n');
+  const pick = (sha: string) => spawnSync('bash', [join(process.cwd(), 'scripts', 'release-worktree.sh'), sha], { cwd: repo, encoding: 'utf8',
+    env: { ...env, RELEASE_SLOTS: join(dir, 'slot'), RELEASE_WORKTREE_INSTALL: 'true' } });
+  const beside = pick(x);
+  assert.equal(beside.status, 1);
+  assert.match(beside.stderr, new RegExp(`${x} does not contain in-flight ${n} \\(pid ${process.pid}\\); cut N\\+1 on N's merge commit`));
+  assert.ok(!existsSync(join(dir, 'slot')), 'refused before any checkout');
+  assert.equal(pick(n1).status, 0, 'stacked on N: accepted');
+});
+
+test('publish-locked: the command runs under the publish lock, waits for a live release, and releases on exit', async () => {
+  const { dir, env } = box();
+  const script = join(process.cwd(), 'scripts', 'publish-locked.sh'), seen = join(dir, 'seen');
+  mkdirSync(env.DEPLOY_PUBLISH_LOCK); writeFileSync(join(env.DEPLOY_PUBLISH_LOCK, 'pid'), `${process.pid}\n`);   // N is publishing
+  const child = spawn('bash', [script, 'sh', '-c', `cat "$DEPLOY_PUBLISH_LOCK/pid" > '${seen}'`], { env: { ...env, DEPLOY_LOCK_WAIT_S: '60' } });
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  assert.ok(!existsSync(seen), 'the writer reinstall waits for N to finish publishing');
+  rmSync(env.DEPLOY_PUBLISH_LOCK, { recursive: true });
+  assert.equal(await new Promise(resolve => child.on('exit', resolve)), 0);
+  assert.equal(readFileSync(seen, 'utf8').trim(), String(child.pid), 'it ran holding the lock');
+  assert.ok(!existsSync(env.DEPLOY_PUBLISH_LOCK), 'released on exit');
 });

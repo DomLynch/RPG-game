@@ -23,6 +23,15 @@ busy() {   # a live deploy run is using this path
   done
   return 1
 }
+# Stacked candidates only (deploy-lock.sh, the publish order): N+1 must contain every candidate still in flight, or whichever publishes
+# second is refused as diverged/superseded and its changes wait for a re-cut. Cut N+1 on N's trunk merge commit.
+for file in "$DEPLOY_RUNS_DIR"/*.json; do
+  [[ -e "$file" ]] || continue
+  pid=$(deploy_pid_of "$file"); [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null || continue
+  inflight=$(sed -n 's/.*"revision":"\([0-9a-f]*\)".*/\1/p' "$file")
+  [[ -z "$inflight" || "$inflight" == "$sha" ]] && continue
+  git merge-base --is-ancestor "$inflight" "$sha" 2>/dev/null || { echo "release-worktree: $sha does not contain in-flight $inflight (pid $pid); cut N+1 on N's merge commit" >&2; exit 1; }
+done
 slot=""
 for candidate in ${RELEASE_SLOTS:-$HOME/Developer/frankendom-deploy $HOME/Developer/frankendom-deploy-2}; do
   busy "$candidate" && continue
@@ -38,7 +47,7 @@ fi
 for env_file in "$here"/.env*.local; do
   [[ -e "$env_file" && ! -e "$slot/$(basename "$env_file")" ]] && cp "$env_file" "$slot/"
 done
-lock_sha=$(git -C "$slot" hash-object package-lock.json)
+lock_sha=$(git -C "$slot" hash-object package-lock.json 2>/dev/null || echo none)
 if [[ "$(cat "$slot/node_modules/.release-lock-sha" 2>/dev/null)" != "$lock_sha" ]]; then
   echo "release-worktree: installing node_modules in $slot (package-lock.json changed)" >&2
   (cd "$slot" && bash -c "${RELEASE_WORKTREE_INSTALL:-npm ci --no-audit --no-fund}" >&2)

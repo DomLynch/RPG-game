@@ -170,15 +170,18 @@ release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
-# The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. A candidate the live
-# release already contains (N+1 published first) stops here: publishing it would roll the site back.
+# The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. The site only moves
+# forward (scripts/lib/deploy-lock.sh deploy_publish_order): a candidate live already contains, or one diverged from live, stops here.
 deploy_step "publish lock"
 deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" "publish"
 live_now=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
-if [[ "$(deploy_superseded "$live_now" "$revision")" == superseded ]]; then
-  echo "superseded: live $live_now already contains $revision; nothing published"
-  exit 3
-fi
+publish_order=$(deploy_publish_order "$live_now" "$revision")
+case "$publish_order" in
+  forward) echo "publish order: live ${live_now:0:9} -> $revision (forward)" ;;
+  unknown) echo "publish order: live unknown (release.json unreadable); publishing $revision without the order guard" ;;
+  superseded) echo "superseded: live $live_now already contains $revision; nothing published"; exit 3 ;;
+  *) echo "diverged: live $live_now and $revision do not contain each other; nothing published (re-cut on top of live)" >&2; exit 3 ;;
+esac
 deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).

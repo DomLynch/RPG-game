@@ -5,7 +5,9 @@
 #     always names a live run while any run is alive (the newest takes it; a finishing run hands it to a survivor or removes it);
 #   - the publish lock ($DEPLOY_PUBLISH_LOCK): held ONLY from "transfer + switch" to the prune, so one release reaches the box at a time;
 #   - the Mac-rows lock ($DEPLOY_ROWS_LOCK): the local release rows of one run at a time (Dom 2026-10-10: two WebKit rows at once put the load at 30);
-#   - the superseded guard: under the publish lock, a candidate the live release already contains publishes nothing (N+1 may finish first).
+#   - the publish order: under the publish lock a release only moves the site FORWARD. Live must be an ancestor of this revision; a candidate
+#     the live release already contains is "superseded" (N+1, cut on N's merge commit, finished first) and a diverged one is refused, so an
+#     older or unrelated tree never overwrites a newer one. scripts/release-worktree.sh refuses N+1 unless it is cut on every in-flight N.
 # Locks are mkdir directories holding the owner's pid (macOS has no flock); a lock whose pid is dead is broken, never waited on.
 # Works on macOS bash 3.2. Env: DEPLOY_LOCK, DEPLOY_RUNS_DIR, DEPLOY_PUBLISH_LOCK, DEPLOY_ROWS_LOCK, DEPLOY_LOCK_WAIT_S (default 1800), DEPLOY_LOCK_POLL_S.
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
@@ -25,7 +27,7 @@ deploy_lock_wait() {   # $1 = lock dir, $2 = what it guards (for the log); waits
     holder=$(cat "$dir/pid" 2>/dev/null || true)
     if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null; then echo "$2 lock: holder pid $holder is dead, breaking it"; rm -rf "$dir"; continue; fi
     if (( waited >= ${DEPLOY_LOCK_WAIT_S:-1800} )); then echo "$2 lock: still held by pid ${holder:-?} ($(cat "$dir/revision" 2>/dev/null || echo '?')) after ${waited}s; giving up" >&2; return 1; fi
-    (( waited % 60 == 0 )) && echo "$2 lock: waiting for pid ${holder:-?} ($(cat "$dir/revision" 2>/dev/null || echo '?'))"
+    (( waited % 60 == 0 )) && echo "$2 lock: waiting on $(cat "$dir/revision" 2>/dev/null || echo '?') (pid ${holder:-?}) for ${waited}s"
     sleep "${DEPLOY_LOCK_POLL_S:-5}"; waited=$(( waited + ${DEPLOY_LOCK_POLL_S:-5} ))
   done
   echo "$$" > "$dir/pid"; printf '%s' "${revision:-}" > "$dir/revision"
@@ -50,10 +52,16 @@ deploy_lock_release() {   # the EXIT trap: every lock this run holds, then the m
   done
   rm -f "$DEPLOY_LOCK"
 }
-# Under the publish lock: "superseded" when the live revision already contains this one (git decides; the live sha is fetched if unknown),
-# "ok" otherwise. An unknown live revision is "ok": the switch below is atomic and the cmp checks still verify what went live.
-deploy_superseded() {   # $1 = live revision (may be empty), $2 = this revision
-  [[ -n "$1" && "$1" != "$2" ]] || { echo ok; return 0; }
+# Under the publish lock: where this revision stands against the live one (git decides; an unknown live sha is fetched first).
+#   forward     live is an ancestor of this revision (or the same sha: a redeploy): publish
+#   superseded  live already contains this revision: publish nothing (publishing would roll the site back)
+#   diverged    neither contains the other: refuse (one of the two trees would be lost); re-cut on top of live
+#   unknown     live revision unreadable (curl failed): publish, logged; the switch is atomic and the cmp checks verify what went live
+deploy_publish_order() {   # $1 = live revision (may be empty), $2 = this revision
+  [[ -n "$1" ]] || { echo unknown; return 0; }
+  [[ "$1" != "$2" ]] || { echo forward; return 0; }
   git cat-file -e "$1^{commit}" 2>/dev/null || git fetch -q origin 2>/dev/null || true
-  if git merge-base --is-ancestor "$2" "$1" 2>/dev/null; then echo superseded; else echo ok; fi
+  if git merge-base --is-ancestor "$1" "$2" 2>/dev/null; then echo forward
+  elif git merge-base --is-ancestor "$2" "$1" 2>/dev/null; then echo superseded
+  else echo diverged; fi
 }
