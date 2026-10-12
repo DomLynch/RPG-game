@@ -70,7 +70,7 @@ try {
     const { context, page } = await load(w, h);
     await page.waitForFunction(() => document.getElementById('build-dialog').open, null, { timeout: 30000 }).catch(() => {});
     check(await page.locator('#build-dialog').evaluate((d) => d.open), `${name}: the moment opens on load with a point to place`);
-    check(/^3 points to place/.test(await left(page)), `${name}: three points at level 3 (${await left(page)})`);
+    check(/^3 points to place/.test(await left(page)), `${name}: three points at level 3 (${await left(page)}; writer saw ${requests.map((r) => r.op)}; url ${page.url().slice(0, 90)})`);
     check(await page.locator('#build-dot').evaluate((e) => !e.hidden), `${name}: the dot shows`);
     const plus = (i) => page.locator('#build-dialog .build-row').nth(i).locator('.build-plus');
     await plus(0).click(); await plus(0).click(); await plus(10).click();
