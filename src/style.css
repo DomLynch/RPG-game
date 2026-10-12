@@ -2309,6 +2309,7 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#view):not(#journa
 /* the fitting panel and the stored list sit on solid ground under the stage */
 #journal .fitting { margin: 0; padding: 12px 16px; background: var(--jp); border-top: 1px solid var(--jg); }
 #journal .fitting[hidden] { display: none; }
+#journal .fitting { scroll-margin-top: 58px; }   /* the sticky tab strip is 52px + 2px borders: a try-on opens below it, not under it */
 #journal .fitting-head { display: flex; gap: 12px; align-items: center; }
 #journal .fitting-head img { width: 48px; height: 48px; object-fit: contain; flex: none; }
 #journal .fitting-head > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }

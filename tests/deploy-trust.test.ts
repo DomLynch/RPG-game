@@ -42,7 +42,7 @@ test('ruled rows append to the CI list (or stand alone) and the reason is logged
 
 test('deploy.sh checks the reason right after its EXIT trap and applies the rows at the release-checks step', () => {
   const s = readFileSync(join(process.cwd(), 'scripts', 'deploy.sh'), 'utf8');
-  const trap = s.indexOf("trap 'rm -f \"$DEPLOY_LOCK\""), check = s.indexOf('\ndeploy_trust_check');
+  const trap = s.indexOf("trap 'deploy_lock_release"), check = s.indexOf('\ndeploy_trust_check');
   assert.ok(trap > 0 && check > trap, 'the fail-fast check runs after the lock-releasing trap');
   // #1381 (change-scoped rows) puts deploy_scope_apply between them; it only fills out_of_scope, never the trusted list.
   assert.match(s, /deploy_trust_apply[^\n]*\n(?:[^\n]*\n)*?deploy_scope_apply\nRELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-1\}" RELEASE_CHECKS_SKIP="\$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="\$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="\$out_of_scope"/);

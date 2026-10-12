@@ -101,3 +101,16 @@ test('a duplicate key inside one JSON object (which JSON.parse would silently re
     assert.match(r.err, /towns\.json:\d+: duplicate key "smith"/);
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
 });
+
+test('optional fields: absent is fine, present and the wrong type is wrong-type', () => {
+  const m: Manifest = { table: 'trade', file: 't.json', key: 'id', required: {}, optional: { shop: 'boolean', order: 'integer', 'kit.walls': 'number' } };
+  const t = (rows: Record<string, unknown>[]) => [{ manifest: m, rows }];
+  assert.deepEqual(rules(t([{ id: 'smith' }, { id: 'baker', shop: true, order: 1, kit: { walls: 2 } }])), []);
+  assert.deepEqual(rules(t([{ id: 'smith', shop: 'yes' }, { id: 'baker', order: 1.5 }, { id: 'x', kit: { walls: 'tall' } }])), ['t.json:0:smith wrong-type', 't.json:1:baker wrong-type', 't.json:2:x wrong-type']);
+});
+
+test('unique fields: a second row claiming the same value is duplicate-value naming the first owner', () => {
+  const m: Manifest = { table: 'trade', file: 't.json', key: 'id', required: {}, unique: ['order'] };
+  const r = checkTables([{ manifest: m, rows: [{ id: 'smith', order: 0 }, { id: 'baker', order: 1 }, { id: 'tanner', order: 0 }, { id: 'none' }, { id: 'none2' }] }]);
+  assert.deepEqual(r.problems.map((p) => `${p.row}:${p.id} ${p.rule}: ${p.message}`), ['2:tanner duplicate-value: order 0 is already on smith']);
+});

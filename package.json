@@ -10,6 +10,7 @@
     "typecheck:origins": "node scripts/origins-tsc.mjs",
     "preflight": "node scripts/preflight.mjs",
     "check:registry": "node scripts/registry-check.mjs",
+    "check:as-data": "node scripts/as-data/check.ts",
     "lint:origins": "node scripts/origins-lint.mjs",
     "test": "node --test --test-skip-pattern=\"\\[slow\\]\" tests/*.test.ts",
     "fingerprint:update": "node scripts/rng-fingerprint.mjs --update",
@@ -21,6 +22,7 @@
     "quality": "eslint src && npm run typecheck:tests && npm run typecheck:origins && npm run lint:origins && npm run check:registry && npm run test:all && npm run test:bot && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
     "quality:deploy": "eslint src && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs && npm run test:browser",
     "quality:ci": "eslint src && npm run typecheck:tests && npm run typecheck:origins && npm run lint:origins && npm run check:registry && npm run test:all && npm run test:bot && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
+    "quality:static": "eslint src && npm run typecheck:tests && npm run typecheck:origins && npm run lint:origins && npm run check:registry && npm run test:bot && npm run build && npm audit --omit=dev && node scripts/check-budget.mjs",
     "build:warrior": "node scripts/build-warrior.mjs && node scripts/bake-blades.mjs",
     "test:browser": "node scripts/browser-check.mjs"
   },

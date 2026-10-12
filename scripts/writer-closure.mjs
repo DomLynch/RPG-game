@@ -4,7 +4,8 @@ import { posix } from 'node:path';
 
 export const WRITER_ENTRY = 'scripts/origins-writer.mjs';
 // ExecStart of frankendom-origins-writer, -presence, -duel-relay, -verify-daily, -verify-loot.
-export const SERVER_ENTRIES = [WRITER_ENTRY, 'origins/presence/main.ts', 'scripts/duel-relay.mjs', 'scripts/verify-daily.mjs', 'scripts/verify-loot.mjs'];
+export const VERIFIER_ENTRIES = ['scripts/verify-daily.mjs', 'scripts/verify-loot.mjs'];
+export const SERVER_ENTRIES = [WRITER_ENTRY, 'origins/presence/main.ts', 'scripts/duel-relay.mjs', ...VERIFIER_ENTRIES];
 const TYPE_ONLY = /^\s*(?:import|export)\s+type\b/;
 const SPEC = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\(\s*)['"]([^'"]+)['"]/gm;
 
@@ -35,20 +36,29 @@ export function stripComments(src) {
   return out;
 }
 
-/** The runtime import closure of one entry: the files it loads, and every bare package they import (type-only imports are erased by node). */
+/** The runtime import closure of one entry: the files it loads (a `.json` imported `with { type: 'json' }` included), every bare package they
+ *  import (type-only imports are erased by node), and every relative import that resolves to NO file (`missing`, "from: spec"): node would
+ *  throw ERR_MODULE_NOT_FOUND there, so an installer must refuse rather than ship without it (the CI2 verifier, pool-defs.json, 2026-10-12). */
 export function writerClosure(read, has, entry = WRITER_ENTRY) {
-  const seen = new Set(), packages = new Set(), todo = [entry];
+  const seen = new Set(), packages = new Set(), missing = new Set(), todo = [entry];
   while (todo.length) {
     const file = todo.pop(); if (seen.has(file)) continue; seen.add(file);
     const text = stripComments(read(file));
     for (const m of text.matchAll(SPEC)) {
       if (TYPE_ONLY.test(text.slice(m.index, m.index + m[0].length))) continue;
       const spec = m[1];
-      if (spec.startsWith('.')) { const next = resolve(file, spec, has); if (next) todo.push(next); }
+      if (spec.startsWith('.')) { const next = resolve(file, spec, has); if (next) todo.push(next); else missing.add(`${file}: ${spec}`); }
       else if (!spec.startsWith('node:')) packages.add(spec);
     }
   }
-  return { files: [...seen].sort(), packages: [...packages].sort() };
+  return { files: [...seen].sort(), packages: [...packages].sort(), missing: [...missing].sort() };
+}
+
+/** What an installer copies for these entries: the union of their closures. Throws, naming every unresolved import, rather than return a partial list. */
+export function installList(read, has, entries) {
+  const closures = entries.map((e) => writerClosure(read, has, e)), missing = [...new Set(closures.flatMap((c) => c.missing))];
+  if (missing.length) throw new Error(`unresolved import(s), refusing a partial install: ${missing.join('; ')}`);
+  return [...new Set(closures.flatMap((c) => c.files))].sort();
 }
 
 /** The files ALL the box's node services load: the union of every SERVER_ENTRIES closure (the writer entry alone misses match.ts, profile.ts, trial.ts, scorecard.ts). */
