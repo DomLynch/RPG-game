@@ -36,9 +36,10 @@ if [[ "$(cat "$dir/node_modules/.release-lock-sha" 2>/dev/null)" != "$lock_sha" 
   mkdir -p "$dir/node_modules" && printf '%s' "$lock_sha" > "$dir/node_modules/.release-lock-sha"
 fi
 tree=$(git -C "$dir" rev-parse "$sha^{tree}")
+# The running marker is written only once the rows lock is ours: a deploy.sh holding that lock must never wait on a run that is waiting on it.
+revision="$sha"; deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows (early, ${sha:0:9})" || exit 1
 started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 printf '{"pid":%d,"sha":"%s","tree":"%s","started":"%s"}\n' "$$" "$sha" "$tree" "$started" > "$running"
-revision="$sha"; deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows (early, ${sha:0:9})" || exit 1
 rows=$(cd "$dir" && node scripts/lib/mac-rows-early.mjs rows)
 checks="$state/$sha.macrows.checks.json"; rm -f "$checks"
 echo "mac-rows-early: ${sha:0:9} rows $rows in $dir, started $started"

@@ -1,7 +1,7 @@
 // The Mac-only rows started at the cut (Strategy + Lead 2026-10-12): release-checks.mjs runs ONLY those rows into its own receipt; scripts/mac-rows-early.sh
 // records a tree-bound receipt; deploy.sh trusts the passed rows by tree, waiting while a run for that tree is still going; the Published line shows start-end.
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -83,6 +83,39 @@ test('mac-rows-early.sh: MAC_ROWS only, under the Mac-rows lock, a tree-bound re
     assert.match(again.stdout, /already has a receipt/);
     assert.equal(spawnSync('bash', ['scripts/mac-rows-early.sh', 'abc'], { encoding: 'utf8', env }).status, 2);
   } finally {
+    spawnSync('git', ['worktree', 'remove', '--force', dir]);
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('mac-rows-early.sh never overlaps a deploy\'s Mac rows: while deploy_rows.lock is held by a live pid it starts no row and writes no running marker', () => {
+  const base = mkdtempSync(join(tmpdir(), 'mre-held-')), state = join(base, 'state'), dir = join(base, 'wt'), locks = join(base, 'locks');
+  const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  mkdirSync(state); mkdirSync(locks);
+  const rowsLock = join(locks, 'deploy_rows.lock');
+  const run = `date +%s%N > ${join(base, 'rows-started')}; node -e 'require("fs").writeFileSync(process.env.RELEASE_CHECKS_RECEIPT, JSON.stringify({passed:true,checks_detail:[]}))'`;
+  const env = { ...process.env, PRELAUNCH_DIR: state, MAC_ROWS_DIR: dir, MAC_ROWS_INSTALL: 'true', MAC_ROWS_RUN: run, DEPLOY_LOCK: join(locks, 'in_flight.json'), DEPLOY_ROWS_LOCK: rowsLock, DEPLOY_LOCK_POLL_S: '1' };
+  // a deploy.sh in its own Mac rows: the lock dir holds a live pid
+  const holder = spawn('sleep', ['60']);
+  const take = () => { mkdirSync(rowsLock); writeFileSync(join(rowsLock, 'pid'), String(holder.pid)); writeFileSync(join(rowsLock, 'revision'), 'deploy'); };
+  try {
+    take();
+    // 1) the holder never lets go: the early run gives up, no row ran, no receipt, no marker a deploy could wait on, and the deploy's lock is untouched
+    const gaveUp = spawnSync('bash', ['scripts/mac-rows-early.sh', sha], { encoding: 'utf8', env: { ...env, DEPLOY_LOCK_WAIT_S: '3' }, timeout: 120_000 });
+    assert.equal(gaveUp.status, 1, gaveUp.stderr + gaveUp.stdout);
+    assert.match(gaveUp.stderr, /Mac rows \(early, [0-9a-f]{9}\) lock: still held by pid \d+ \(deploy\)/);
+    assert.ok(!existsSync(join(base, 'rows-started')), 'no row started while the deploy held the lock');
+    assert.ok(!existsSync(join(state, `${sha}.macrows.json`)) && !existsSync(join(state, `${sha}.macrows.running`)));
+    assert.equal(readFileSync(join(rowsLock, 'pid'), 'utf8'), String(holder.pid), 'the deploy still holds its lock');
+    // 2) while it waits there is no running marker, so deploy.sh's trust() does not wait on it; the rows start only after the deploy drops the lock
+    const waiter = spawnSync('bash', ['-c', `bash scripts/mac-rows-early.sh ${sha} & w=$!; sleep 2; ls ${state} > ${join(base, 'while-waiting')}; date +%s%N > ${join(base, 'dropped')}; rm -rf ${rowsLock}; wait $w`], { encoding: 'utf8', env: { ...env, DEPLOY_LOCK_WAIT_S: '60' }, timeout: 120_000 });
+    assert.equal(waiter.status, 0, waiter.stderr + waiter.stdout);
+    assert.doesNotMatch(readFileSync(join(base, 'while-waiting'), 'utf8'), /macrows\.running/);
+    assert.equal(runningFor(state, execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim()), null);
+    assert.ok(BigInt(readFileSync(join(base, 'rows-started'), 'utf8').trim()) > BigInt(readFileSync(join(base, 'dropped'), 'utf8').trim()), 'rows began after the deploy dropped the lock');
+    assert.ok(existsSync(join(state, `${sha}.macrows.json`)));
+  } finally {
+    holder.kill();
     spawnSync('git', ['worktree', 'remove', '--force', dir]);
     rmSync(base, { recursive: true, force: true });
   }
