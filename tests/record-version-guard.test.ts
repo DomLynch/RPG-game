@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { NO_PATRON_VERSION, PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
+import { PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/fight/moves.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
@@ -24,11 +25,16 @@ import type { OpponentId } from '../src/roster.ts';
 // different camera does not change the fight.
 // The list is the runtime import closure of the sim, and the test below keeps it that way: until 2026-09-23 it named five files while
 // duel.ts imported blade.ts and the baked blade tables, so a stale bake changed fights with this guard green.
-const SIM_FILES = ['src/fight/duel.ts', 'src/fight/cc-ladder.ts', 'src/core/registry.ts', 'src/fight/pools.ts', 'src/fight/pool-defs.json', 'src/fight/pool-defs.manifest.json', 'src/fight/weapons.ts', 'src/fight/weapon-defs.json', 'src/fight/weapon-defs.manifest.json', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/fight/blade-paths.ts', 'src/roster.ts', 'src/fight/catalogue-data.ts', 'src/fight/finishers.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
+const SIM_FILES = ['src/fight/duel.ts', 'src/fight/cc-ladder.ts', 'src/fight/pools.ts', 'src/fight/pool-defs.json', 'src/fight/moves.ts', 'src/fight/ai.ts', 'src/fight/sim.ts', 'src/fight/record.ts', 'src/fight/blade.ts', 'src/fight/blade-paths.ts', 'src/roster.ts', 'src/fight/catalogue-data.ts', 'src/fight/finishers.ts', 'src/fight/detmath.ts', 'src/fight/play-radius.ts', 'src/fight/stab-rule.ts', 'src/fight/roll.ts', 'src/fight/gambit.ts', 'src/fight/stance.ts'];   // detmath.ts: the sim's own math (2026-09-29); play-radius.ts: the play circle (2026-10-06); stab-rule.ts: the Goblin's stab switch (2026-10-07)
 const SIM_DIGEST = '75bb3a601fd126efb1e5176378068b9cbd75952cf1dfb332262319e7211c64d2';   // RV44 (2026-10-12, Combat): pools and weapons load through the shared loadRegistry (src/core/registry.ts and the two manifests join the sim files; same fights, RV44 not bumped again: unmerged). Before that: weapons as data (weapon-defs.json + weapons.ts, byte-identical resolved table, sha256 pinned in tests/weapon-defs.test.ts). RV43 was (2026-10-12, Combat): resource pools as an open registry (pools.ts + pool-defs.ts, createFighter reads a row's pools); every default is what it always used, so no fight moves (REACH[43] empty). Chains from RV42 c95e1f2c... (the projection digest, #2269)
 const PINNED_FOR_VERSION = 44;
 
-const simSources = (): Record<string, string> => Object.fromEntries(SIM_FILES.map((file) => [file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')]));
+// The weapon table is hashed as what the loader RETURNS (Lead, 2026-10-12, as the catalogue and the pools are): the canonical JSON of the 11 resolved Weapon objects, their order and both player lists. The loader
+// (weapons.ts), the shared registry (src/core/registry.ts), the rows and the manifests are LOADER_ONLY: a refactor of them that resolves to the same table moves nothing, a change that alters a resolved value moves the digest.
+const LOADER_ONLY = ['src/core/registry.ts', 'src/fight/weapons.ts', 'src/fight/weapon-defs.json', 'src/fight/pool-defs.manifest.json', 'src/fight/weapon-defs.manifest.json'];
+const canon = (v: unknown): unknown => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon((v as Record<string, unknown>)[k])])) : v;
+const resolvedWeapons = (): string => JSON.stringify(canon({ weapons: WEAPONS, order: Object.keys(WEAPONS), player: PLAYER_WEAPONS, offered: PLAYER_WEAPONS_OFFERED }));
+const simSources = (): Record<string, string> => ({ ...Object.fromEntries(SIM_FILES.map((file) => [file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')])), 'resolved/weapons.json': resolvedWeapons() });
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const digest = simDigest(simSources());
@@ -85,7 +91,7 @@ test('SIM_FILES is every file a recorded fight imports at runtime', () => {
     const file = queue.shift()!; if (seen.has(file)) continue; seen.add(file);
     for (const m of readFileSync(new URL(`../${file}`, import.meta.url), 'utf8').matchAll(VALUE_IMPORT)) queue.push(join(dirname(file), m[1] ?? m[2]!));
   }
-  assert.deepEqual([...seen].filter(f => !SIM_FILES.includes(f)), [], 'a file the sim imports is missing from SIM_FILES: add it, bump RECORD_VERSION and re-pin');
+  assert.deepEqual([...seen].filter(f => !SIM_FILES.includes(f) && !LOADER_ONLY.includes(f)), [], 'a file the sim imports is missing from SIM_FILES: add it, bump RECORD_VERSION and re-pin');
 });
 test('the closure walk skips type-only imports and follows every value form', () => {
   const src = "import { a } from './duel.ts';\nimport type { B } from './moves.ts';\nexport { c } from './blade.ts';\nexport type { D } from './hud.ts';\nimport './side.ts';\nimport * as T from 'three';\n";
