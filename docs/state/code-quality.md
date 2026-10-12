@@ -1,5 +1,16 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 ~18:4x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12e` (queue + heads), then `…-12d`
+
+**Live:** CS `0ea6d5e93`. My CS parity PASS on #2351: the writer was not reinstalled for CS, but its install (e91eccf8) is byte-identical to CS's blobs (993/993, 0 closure files changed CR→CS); endpoints 401; verifier moved to CS and both replays passed at 18:07. CR parity PASS on #2347 (993 files, closure 131, installer side-port proof). `/var/lib/frankendom` + HF ledger exist (#2329 done).
+**Released today since the 10-12d handoff:** CP, CQ, CR, CS (each contents check + exact PASS + parity). Exact PASS + `release:go` on: #2332, #2316, #2337, #2329, #2334, #2314, #2344, #2348, #2343, #2328, #2301, #2299, #2283, #2279, #2333, #2284, #2265, #2352; Codex-Hooks #138.
+**Next, in order:**
+1. Re-arm the poll (both repos); monitors died with the session.
+2. CT #2356 @e255a8689 (CS + #2336 + #2299 + #2301 + #2283 + #2279 + #2333): contents OK (rebuilt tree 4dc1c1a43 identical; combined tree 676/676 on the VPS), `candidate:pass`. Post `Auditor: PASS @e255a8689` + `release:go` when ALL CI is green; then CT writer parity (#2283 is in the writer closure).
+3. After CT lands: deltas for #2265 (re-pin SIM_DIGEST) and #2352 (RV47, add 46 readable, re-pin); #2284 rebases into CU; #2254 rebases over #2283 (CU), then #2256.
+4. #2285 @74e552d65 and #2288 @b0e34c455 are pre-checked (own patch identical / HOLD fixed); exact PASS after the retarget to trunk, green CI and the label. #2354 @0450e47ad code-only OK (needs retarget, CI, Lead's stills).
+**Rules learned today:** the exact PASS starts with the literal `Auditor: PASS @<sha9>` (cut-release.mjs); code-only verdicts never use it. Candidate rebuilds use `git -c merge.autostash=false merge` (autostash fails here and looks like a conflict). Never trust `refs/pull/N/head`: fetch the branch and check it equals gh's headRefOid (it lagged on #2265 and I briefly withdrew a correct OK). Check merge-base vs trunk before trusting a PR-tree test. cancel-on-close now filters by head sha (#2348, live).
+
 ## 2026-10-12 ~18:5x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12d` (queue + heads), then `…-12c`
 
 **Live:** CN `09967447c`. My CN writer parity PASS: 988 files == blobs, closure 128/0 missing, endpoints 401, NRestarts 0, and the verifier's 55 files == blobs. CO #2331 @7ac7e0e6b is merged to trunk but **not live**. My contents check is on the thread, but the exact PASS is not posted because CI was pending.
