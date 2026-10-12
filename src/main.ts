@@ -55,6 +55,7 @@ import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, 
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
+import { PICKER_OPTIONS } from './fight/finisher-look.ts';
 import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
@@ -330,17 +331,10 @@ opponentSelect.value = opponent.id;
 // Dev/test tool (owner 2026-09-19): force which finisher plays on the next ceremonial kill, to art-direct and learn each
 // kill shot. 'Auto (spec)' is the spec's pick. The override only swaps WHICH finisher plays — draws, kicks and the
 // player's own death still get no ceremony (v1 rules), and unshipped finishers fall back to the plain Death clip as always.
-// Only the clips that exist today (owner 2026-09-19): Split Crown, Decapitation, Run Through, Opened, Hamstrung, Execution — plus Plain death as the
-// no-finisher control. Hamstrung and Execution play on every playable body of the hero rig (src/fight/hamstrung.ts HAMSTRUNG_VICTIMS, src/fight/execution.ts EXECUTION_VICTIMS); any other body keeps what he played.
-const FINISHER_OPTIONS: [string, string][] = [
-  ['splitCrown', 'Split Crown'],
-  ['decapitation', 'Decapitation'],
-  ['runThrough', 'Run Through'],
-  ['opened', 'Opened'],
-  ['hamstrung', 'Hamstrung'],
-  ['execution', 'Execution'],
-  ['plainDeath', 'Plain death'],
-];
+// The offered finishers are the rows of src/fight/finisher-defs.json with a `picker` place, in that order, each under its row's `label` (finisher-look.ts):
+// today Split Crown, Decapitation, Run Through, Opened, Hamstrung, Execution, plus Plain death as the no-finisher control. Hamstrung and Execution play on
+// every playable body of the hero rig (src/fight/hamstrung.ts HAMSTRUNG_VICTIMS, src/fight/execution.ts EXECUTION_VICTIMS); any other body keeps what he played.
+const FINISHER_OPTIONS = PICKER_OPTIONS;
 const finisherSelect = element<HTMLSelectElement>('finisher-select');
 {
   const auto = document.createElement('option') as HTMLOptionElement;
