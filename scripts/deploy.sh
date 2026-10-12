@@ -111,9 +111,16 @@ if [[ -z "$ci_green" ]]; then
   fi
 fi
 deploy_step "quality gate"
-vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
-[[ "$vps_unit" == ok ]] || vps_unit=$(vps_unit_live_ok)   # or one run on the prepaid VPS by launch.mjs (VPS first, Hugging Face only as spillover)
-[[ "$vps_unit" == ok ]] || vps_unit=$(node scripts/ci-unit-trust.mjs "$revision" || true)   # or a green unit-ci.yml run (test:all over 8 GitHub runners) for this tree: scripts/ci-unit-trust.mjs
+# unit-ci.yml (test:all over 8 GitHub runners) is THE unit receipt (Lead 2026-10-12): scripts/ci-unit-trust.mjs waits for the run on this exact sha (CI_UNIT_WAIT_S,
+# default 600 s) rather than looking once (CK looked before its green run finished). Only when it vouches for nothing: the HF/VPS receipts, with reason=unit-ci-down.
+vps_unit=$(node scripts/ci-unit-trust.mjs "$revision" || true)
+if [[ "$vps_unit" == ok ]]; then
+  echo "unit source: unit-ci.yml for $revision"
+else
+  vps_unit=$(vps_unit_receipt_ok)   # scripts/lib/deploy-vps.sh: a tree-bound unit-suite receipt
+  [[ "$vps_unit" == ok ]] || vps_unit=$(vps_unit_live_ok)   # or one run on the prepaid VPS by launch.mjs (VPS first, Hugging Face only as spillover)
+  if [[ "$vps_unit" == ok ]]; then echo "unit source: HF/VPS receipt (reason=unit-ci-down)"; else echo "unit source: none (reason=unit-ci-down, no HF/VPS receipt): the Mac runs its own suite"; fi
+fi
 if [[ -n "$ci_green" ]]; then
   # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
   # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.

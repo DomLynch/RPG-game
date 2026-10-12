@@ -3,6 +3,7 @@
 // src/fight/server.ts's own closure; this walks the WRITER's RUNTIME imports (type-only imports are erased by node, so they do not load anything).
 import { zoneRows } from '../scripts/gen-zones.mjs';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
@@ -34,10 +35,20 @@ test('the parity list is the union of every service entry, so it holds the files
 });
 
 test('the installer copies every writer-closure file that lives outside src/ and origins/ (CH: loader.ts imported scripts/lib/json-dup-keys.mjs, the installer did not copy it, the writer crash-looped)', () => {
+  // Writer PR A: no hand list any more. The installer copies the computed closure; scripts/origins-install-check.sh installs it for real in a scratch root.
   const installer = readFileSync('ops/install-origins-writer.sh', 'utf8');
   const outside = writerClosure(disk, existsSync).files.filter((f) => !f.startsWith('src/') && !f.startsWith('origins/'));
   assert.ok(outside.includes('scripts/origins-writer.mjs') && outside.includes('scripts/lib/json-dup-keys.mjs'), `the walk should reach both: ${outside.join(', ')}`);
-  for (const f of outside) assert.ok(installer.includes(f), `${f} is in the writer's runtime closure but ops/install-origins-writer.sh never copies it`);
+  assert.match(installer, /closure="\$\(cd "\$here" && node scripts\/writer-closure-list\.mjs --paths writer\)" \|\| \{/);
+  assert.doesNotMatch(installer, /install -m 0644 "\$here\/scripts\/lib\/json-dup-keys\.mjs"/, 'no hand list');
+  const at = (n: string) => { const i = installer.indexOf(n); assert.ok(i >= 0, n); return i; };
+  assert.ok(at('xargs -0 node --input-type=module') < at('ln -sfn "$dest" "$opt/current"'), 'the dry import gates the flip');
+});
+
+test('[slow] scripts/origins-install-check.sh: install, closure copy, dangling import refused, failed dry import keeps current', () => {
+  const r = spawnSync('bash', ['scripts/origins-install-check.sh'], { encoding: 'utf8', timeout: 240_000 });
+  assert.equal(r.status, 0, (r.stderr || '') + r.stdout);
+  assert.match(r.stdout, /origins-install-check: \d+ checks passed/);
 });
 
 test('the walk goes red on the AA mistake (mobs.ts taking the page door) and ignores type-only imports', () => {

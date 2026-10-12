@@ -48,8 +48,8 @@ export async function main(argv) {
     let logs = '', now = 'UNKNOWN', timedOut = false;
     for (let attempt = 1; attempt <= 2; attempt++) {
       // Work waterfall: a T4 slot under the shared cap (scripts/lib/hf-slots.mjs); a lane's graphics job waits for one instead of piling onto the card.
-      const slot = withSlot({ hf, flavor, generic: true, maxWaitS: Number(process.env.GPU_RUN_MAX_WAIT_S || 600), launch: () => run(launchArgs) });
-      if (!slot.ok) throw new Error(`no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`);
+      const slot = withSlot({ hf, flavor, generic: true, maxWaitS: Number(process.env.GPU_RUN_MAX_WAIT_S || 600), launch: () => run(launchArgs), cost: { timeout: args.timeout, reason: process.env.HF_REASON || 'gpu-run' } });
+      if (!slot.ok) throw new Error(slot.refused || `no ${flavor} slot (${slot.used} of ${slot.limit} in use) after ${Math.round(slot.queuedS)} s`);
       say(tierLine(flavor, slot.slot, slot.queuedS));
       const started = slot.value;
       jobId = /Job started with ID: (\S+)/.exec(started.stdout || '')?.[1] ?? null;
