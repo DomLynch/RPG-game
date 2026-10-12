@@ -33,9 +33,9 @@ case "$1 $2" in
   *) exit 1;;
 esac
 `); chmodSync(gh, 0o755);
-  const run = (waitS: string) => spawnSync(process.execPath, [join(process.cwd(), 'scripts/ci-unit-trust.mjs'), sha], { cwd: repo, encoding: 'utf8',
+  const run = (waitS: string, arg = sha) => spawnSync(process.execPath, [join(process.cwd(), 'scripts/ci-unit-trust.mjs'), arg], { cwd: repo, encoding: 'utf8',
     env: { ...process.env, CI_UNIT_GH: gh, CI_UNIT_WAIT_S: waitS, CI_UNIT_POLL_S: '1' } });
-  return { run, n };
+  return { run, n, sha };
 };
 
 test('a unit-ci run still in progress is waited for, and trusted once it goes green', () => {
@@ -81,4 +81,11 @@ test('deploy.sh asks unit-ci first and logs the source; the HF/VPS receipts only
   assert.match(s, /echo "unit source: HF\/VPS receipt \(reason=unit-ci-down\)"/);
   assert.match(s, /unit source: none \(reason=unit-ci-down/);
   assert.equal((s.match(/ci-unit-trust\.mjs/g) || []).length, 2, 'asked once (plus the comment)');
+});
+
+test('Auditor LOW on #2322: a short sha is resolved to the full one before the REST lookup, never read as unit-ci-down', () => {
+  const { run, sha } = fixture(0, 'success');
+  const r = run('5', sha.slice(0, 9));
+  assert.equal(r.stdout.trim(), 'ok', r.stderr);
+  assert.doesNotMatch(r.stderr, /unit-ci-down/);
 });
