@@ -14,9 +14,9 @@ const simSpeed = (run: boolean, pace = 1): number => {   // m/s the sim really m
 
 test('the table: a creature chases slower than a running player, the wolf faster; the wolf gives up sooner (shorter leash)', () => {
   assert.ok(SPEEDS.creature.chase < SPEEDS.player.run, 'running away works from every creature but the wolf');
-  assert.ok(SPEEDS.creature.wolfChase > SPEEDS.player.run, 'the wolf is the exception');
+  assert.ok(chaseSpeed('wolf') > SPEEDS.player.run, 'the wolf is the exception');
   assert.ok(SPEEDS.creature.amble < SPEEDS.player.walk && SPEEDS.player.walk < SPEEDS.player.run);
-  assert.ok(LEASH.wolf < LEASH.default);
+  assert.ok(leashOf('wolf') < LEASH.default);
   assert.equal(chaseSpeed('wolf'), 6.0); assert.equal(chaseSpeed('boar'), 4.5); assert.equal(leashOf('wolf'), 15); assert.equal(leashOf('bear'), 30);
   assert.equal(GIVE_UP_UNSEEN_S, 10); assert.equal(OUT_OF_COMBAT_S, 6);
 });
