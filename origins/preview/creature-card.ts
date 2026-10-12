@@ -1,7 +1,7 @@
 // The creature info card's view: a small glass card in the HUD's flow (no pause, no modal: nothing pauses in the open world) for the nearest
-// creature that has noticed the hero. Reads the data in origins/mobs/info.ts; draws nothing of its own invention.
-import { BANDS, creatureInfo, type CreatureInfo } from '../mobs/info.ts';
-import type { MobRow } from '../mobs/row.ts';
+// creature that has noticed the hero. Reads the data in src/core/world/info.ts; draws nothing of its own invention.
+import { BANDS, creatureInfo, type CreatureInfo } from '../../src/core/index.ts';
+import type { MobRow } from '../../src/core/index.ts';
 import type { MobSpec } from './mobs.ts';
 
 type Seen = { id: string; x: number; z: number; mode: string };

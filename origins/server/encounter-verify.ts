@@ -5,19 +5,19 @@
 //   - the foe's one-health-bar pool: withBar(practice, bar) after initialPractice, only when a one-health-bar flag is present;
 //   - the twist, read after every step that did not finish the fight (stepTwist), and once more on the foe's defeat (the catch window): 'fled' / 'escaped' end the fight with both standing.
 // tests/world-fight-determinism.test.ts pins that a sparring Match (what the client runs) and initialPractice + stepPractice are the same fight tick for tick.
-// A mob layer (src/fight/mobkit.ts via origins/mobs/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
+// A mob layer (src/fight/mobkit.ts via src/core/world/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
 // build cannot step. A refusal is a normal loss, never a reward.
 import { initialPractice, stepPractice, underRecord, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { RANK_STEPS, TITLES } from '../../src/core/server.ts';
-import { mobLayer } from '../mobs/kits.ts';
-import { kitOfBuild, kitTag } from '../mobs/kit-version.ts';
-import { MOB_STYLES, type MobStyle } from '../mobs/styles.ts';
+import { mobLayer } from '../../src/core/server.ts';
+import { kitOfBuild, kitTag } from '../../src/core/server.ts';
+import { MOB_STYLES, type MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 // pose: the start pose the server issued at encounter_start (encounter-pose.ts, read back from the token), null for a pit-mark fight; the record must name exactly it.
 export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null };
-// kitMismatch: the record was played on another mob kit than this build's (see origins/mobs/kit-version.ts): not a loss, the fight cannot be judged here.
+// kitMismatch: the record was played on another mob kit than this build's (see src/core/world/kit-version.ts): not a loss, the fight cannot be judged here.
 export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string; kitMismatch?: true };
 export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => Verified;
 

@@ -26,8 +26,8 @@ let sceneModule: SceneModule | undefined;
 export const sceneReady: Promise<void> = loadScene().then((m) => { sceneModule = m; });
 const createScene = (...args: Parameters<SceneModule['createScene']>) => sceneModule!.createScene(...args);
 import { Matrix4, Quaternion } from 'three';
-import { mobLayer } from '../mobs/kits.ts';
-import type { MobStyle } from '../mobs/styles.ts';
+import { mobLayer } from '../../src/core/index.ts';
+import type { MobStyle } from '../../src/core/index.ts';
 import { STEP, wrapAngle } from '../../src/fight/index.ts';
 import { withBar } from '../shared/with-bar.ts';
 import { recordWorldFight, worldRecord } from './world-record.ts';
@@ -39,7 +39,7 @@ import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
 
-export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (origins/mobs/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
+export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
 // foe rig, and the single "Back to the fields" button at the end in place of Rematch.
 export type Shown = { name: string; level: number; dress?: (root: Object3D) => void };

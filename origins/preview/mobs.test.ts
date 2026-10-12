@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
 import { signedIn } from './save.ts';
-import { campCount } from '../mobs/row.ts';
+import { campCount } from '../../src/core/index.ts';
 import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;
@@ -263,4 +263,14 @@ test('a camp\'s size is drawn inside the row\'s campSize range, not its upper bo
   for (let n = 0; n < 400; n++) { const k = campCount([2, 4], nextRandom(mixSeed(1234 + n, n))[0]); assert.ok(k >= 2 && k <= 4 && Number.isInteger(k), `size ${k}`); seen.add(k); }
   assert.deepEqual([...seen].sort(), [2, 3, 4], 'every size in [2,4] comes up across seeds');
   assert.equal(campCount([3, 3], 0.999), 3); assert.equal(campCount(undefined, 0), 2, 'no campSize: the default [2,3]');
+});
+
+test('arrival: a wandering creature stops inside TUNING.arrive of its spot and keeps walking outside it (pins the 0.35 m number)', () => {
+  assert.equal(TUNING.arrive, 0.35);
+  const stand = () => true, spec = { home: { x: 0, z: 0 }, roam: 6, aggro: 7 };
+  const wanderer = (gap: number) => ({ x: 0, z: 0, facing: Math.PI / 2, mode: 'wander' as const, wait: 3, tx: gap, tz: 0, rng: 1 });   // facing +x, the spot straight ahead
+  const inside = stepMob(wanderer(TUNING.arrive - 0.01), spec, null, 1 / 60, stand), outside = stepMob(wanderer(TUNING.arrive + 0.01), spec, null, 1 / 60, stand);
+  assert.equal(inside.mode, 'idle', 'closer than arrive: it has arrived');
+  assert.equal(outside.mode, 'wander', 'farther than arrive: it walks on');
+  assert.ok(outside.x > 0, 'and it has taken a step toward the spot');
 });

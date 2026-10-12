@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { SERVER_ENTRIES as ENTRIES, stripComments, writerClosure } from '../scripts/writer-closure.mjs';
+import { SERVER_ENTRIES as ENTRIES, serverClosure, stripComments, writerClosure } from '../scripts/writer-closure.mjs';
 
 const BANNED_FILES = ['src/fight/index.ts', 'src/core/index.ts'];
 const BANNED_PACKAGES = /^three(\/|$)/;
@@ -27,10 +27,16 @@ test('the writer walk reaches the files the AA crash came through', () => {
   for (const must of ['origins/server/world-spawns.ts', 'origins/preview/mobs.ts', 'src/fight/server.ts', 'src/fight/speeds.ts']) assert.ok(files.includes(must), `the walk no longer reaches ${must}: the entry or the import pattern broke`);
 });
 
+test('the parity list is the union of every service entry, so it holds the files only the other services load', () => {
+  const all = serverClosure(disk, existsSync);
+  for (const must of ['src/fight/match.ts', 'src/core/profile.ts', 'src/trial.ts', 'src/scorecard.ts', 'scripts/duel-relay.mjs', 'scripts/verify-daily.mjs']) assert.ok(all.includes(must), `${must} is missing from the parity list`);
+  assert.ok(all.length > writerClosure(disk, existsSync).files.length, 'the union must be larger than the writer entry alone');
+});
+
 test('the walk goes red on the AA mistake (mobs.ts taking the page door) and ignores type-only imports', () => {
   const real = (f: string): string => disk(f);
-  const bad = (f: string): string => f === 'origins/preview/mobs.ts' ? real(f).replace('src/fight/server.ts', 'src/fight/index.ts') : real(f);
-  assert.ok(writerClosure(bad, existsSync).files.includes('src/fight/index.ts'), 'the AA import must pull the page door into the closure');
+  const bad = (f: string): string => f === 'origins/preview/mobs.ts' ? real(f).replace('src/core/server.ts', 'src/core/index.ts') : real(f);
+  assert.ok(writerClosure(bad, existsSync).files.includes('src/core/index.ts'), 'the AA import must pull the page door into the closure');
   const typeOnly = (f: string): string => f === 'origins/preview/mobs.ts' ? `import type { X } from '../../src/fight/index.ts';\n${real(f)}` : real(f);
   assert.ok(!writerClosure(typeOnly, existsSync).files.includes('src/fight/index.ts'), 'a type-only import loads nothing and must not count');
 });

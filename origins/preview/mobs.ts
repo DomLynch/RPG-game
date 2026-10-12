@@ -5,52 +5,25 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
-import { SPEEDS } from '../../src/fight/server.ts';
+import { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode, type Mob } from '../../src/core/server.ts';
+export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode as Mode, type Mob };   // the pure behaviour lives in src/core/world-sim.ts (core slice 3)
 import type { CharacterId, EncounterId } from '../contracts/ids.ts';
-import { campCount, type MobRow } from '../mobs/row.ts';
+import { campCount, type MobRow } from '../../src/core/server.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
 
-export type Pos = { x: number; z: number };
 export type MobSpec = {
   id: string; character: string; name: string; encounter: EncounterId | null; body: string; level: number;
   zone: string; spawn: string; home: Pos; roam: number; aggro: number; named: boolean;
 };
-export type Mode = 'idle' | 'wander' | 'aggro';
-export type Mob = { x: number; z: number; facing: number; mode: Mode; wait: number; tx: number; tz: number; rng: number };
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zone-rows/zone1.row.json (spawns). Named creatures keep these:
 // A world duel is up (?worldfight): only the engaged creature is hidden (the duel draws it); every other creature stays in view and alive, packmates and far ones included
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
-export const TUNING = {
-  walk: SPEEDS.creature.amble,   // m/s: a creature's amble, well under the hero's walk (the one speed table, speeds.ts)
-  turn: 3.2,            // rad/s the body swings toward where it is going or looking
-  aggro: 7,             // m: the ring a creature notices the hero inside (named ones 9)
-  aggroNamed: 9,
-  hold: 1.5,            // m: it keeps looking until the hero is this much beyond the ring (no flicker on the rim)
-  idle: [1.5, 4.5] as const,   // s: how long it stands between amblings
-  arrive: 0.35,         // m: close enough to the spot
-  clear: 0.7,           // m: how far from a solid a creature keeps
-  edge: 2,              // m: and from its zone's edge
-  cap: 12,              // creatures drawn at once
-  range: 45,            // m: none are drawn beyond this
-  seed: 0x0f1e2d3c,
-};
-
-// ---- the seeded random: mulberry32, state in, [0..1) and the next state out ---------------------------------------------------
-
-export function nextRandom(state: number): [number, number] {
-  const s = (state + 0x6d2b79f5) >>> 0;
-  let t = Math.imul(s ^ (s >>> 15), 1 | s);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return [((t ^ (t >>> 14)) >>> 0) / 4294967296, s];
-}
-export const mixSeed = (seed: number, n: number) => (Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(n + 1, 0xc2b2ae35)) >>> 0;
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 // ---- placement ------------------------------------------------------------------------------------------------------------------
 
@@ -142,54 +115,6 @@ function zoneCentre(z: ZonePlan): Pos {
 }
 
 // ---- behaviour ------------------------------------------------------------------------------------------------------------------
-
-export function newMob(spec: MobSpec, index: number): Mob {
-  const [a, r1] = nextRandom(mixSeed(TUNING.seed, 1000 + index)), [w, rng] = nextRandom(r1);
-  return { x: spec.home.x, z: spec.home.z, facing: a * Math.PI * 2 - Math.PI, mode: 'idle', wait: TUNING.idle[0] + w * (TUNING.idle[1] - TUNING.idle[0]), tx: spec.home.x, tz: spec.home.z, rng };
-}
-
-// The aggro test, with hysteresis: it notices the hero inside `aggro`, and keeps watching until the hero is `hold` beyond it.
-export const aggroTest = (m: Mob, s: Pick<MobSpec, 'aggro'>, hero: Pos | null): boolean => {
-  if (!hero) return false;
-  const d = Math.hypot(hero.x - m.x, hero.z - m.z);
-  return m.mode === 'aggro' ? d <= s.aggro + TUNING.hold : d < s.aggro;
-};
-// Swing a heading toward a target by at most `step` radians, the short way round.
-export const turnToward = (facing: number, target: number, step: number): number => {
-  const d = wrap(target - facing);
-  return Math.abs(d) <= step ? wrap(target) : wrap(facing + Math.sign(d) * step);
-};
-export const headingTo = (from: Pos, to: Pos): number => Math.atan2(to.x - from.x, to.z - from.z);
-
-// One wander target: a seeded point within `roam` of home that the creature may stand on, or null (it stays put a while longer).
-export function wanderTarget(s: MobSpec, rng: number, stand: (x: number, z: number) => boolean): { to: Pos | null; rng: number } {
-  let u: number, v: number;
-  [u, rng] = nextRandom(rng); [v, rng] = nextRandom(rng);
-  const r = s.roam * Math.sqrt(u), a = v * Math.PI * 2, x = s.home.x + Math.sin(a) * r, z = s.home.z + Math.cos(a) * r;
-  return { to: stand(x, z) ? { x, z } : null, rng };
-}
-
-export function stepMob(m: Mob, s: MobSpec, hero: Pos | null, dt: number, stand: (x: number, z: number) => boolean): Mob {
-  if (aggroTest(m, s, hero)) return { ...m, mode: 'aggro', facing: turnToward(m.facing, headingTo(m, hero!), TUNING.turn * 2 * dt) };
-  if (m.mode === 'aggro') m = { ...m, mode: 'idle', wait: 1.2 };   // the hero left: a breath, then back to its round
-  if (m.mode === 'idle') {
-    const wait = m.wait - dt;
-    if (wait > 0) return { ...m, wait };
-    const [w, r1] = nextRandom(m.rng), t = wanderTarget(s, r1, stand), pause = TUNING.idle[0] + w * (TUNING.idle[1] - TUNING.idle[0]);
-    return t.to ? { ...m, mode: 'wander', tx: t.to.x, tz: t.to.z, wait: pause, rng: t.rng } : { ...m, wait: pause, rng: t.rng };
-  }
-  // wander: swing toward the spot, then amble; stop at the spot, or the moment the next step would leave the walkable ground
-  const want = headingTo(m, { x: m.tx, z: m.tz }), facing = turnToward(m.facing, want, TUNING.turn * dt);
-  if (Math.hypot(m.tx - m.x, m.tz - m.z) < TUNING.arrive) return { ...m, facing, mode: 'idle' };
-  if (Math.abs(wrap(want - facing)) > 0.6) return { ...m, facing };
-  const nx = m.x + Math.sin(facing) * TUNING.walk * dt, nz = m.z + Math.cos(facing) * TUNING.walk * dt;
-  return stand(nx, nz) ? { ...m, x: nx, z: nz, facing } : { ...m, facing, mode: 'idle' };
-}
-
-// Who is drawn: the nearest `cap` creatures within `range` of the hero, nearest first (indexes into `at`).
-export function pickVisible(at: readonly Pos[], hero: Pos, cap = TUNING.cap, range = TUNING.range): number[] {
-  return at.map((p, i) => ({ i, d: Math.hypot(p.x - hero.x, p.z - hero.z) })).filter((e) => e.d <= range).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, cap).map((e) => e.i);
-}
 
 // Where the preview drops the hero: in sight of the biggest group of creatures but outside their reach, on the first free spot (scanning outward
 // from 25 m, so nearest the group) that stands 25-35 m from the nearest creature (wolves aside) (clear of the 14 m tap reach and the notice rings, close enough to

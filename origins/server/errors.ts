@@ -4,7 +4,7 @@ export class BadRequest extends Error {}
 
 // A refusal that is the server's, not the request's: 503 when the writer started without the content an op runs on, 501 when the op would
 // have to pay something the schema has no write for yet. The client may retry the first later; the second waits for a server change. `code`
-// rides in the body when set (422 'kit-mismatch': a world-fight record played on another mob kit than the writer's, origins/mobs/kit-version.ts): the smith's coin cost (no metals ledger) is a 501 with code 'not-implemented'; the story ops' refusals carry none.
+// rides in the body when set (422 'kit-mismatch': a world-fight record played on another mob kit than the writer's, src/core/world/kit-version.ts): the smith's coin cost (no metals ledger) is a 501 with code 'not-implemented'; the story ops' refusals carry none.
 export class Refused extends Error {
   status: 409 | 422 | 429 | 501 | 503;   // 409/429 with a code: the world spawn ops' 'dead', 'used', 'too-many', 'cap' (world-spawns.ts)
   code?: string;

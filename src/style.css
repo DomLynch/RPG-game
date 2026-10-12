@@ -2560,3 +2560,20 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .career-name-input { min-height: 44px; max-width: 14em; padding: 0 12px; border: 1px solid var(--jg); border-radius: 8px; background: transparent; color: var(--jf); font: inherit; }
 .career-record { margin: 6px 0 0; font-size: 14px; }
 .career-links { display: flex; gap: 8px; margin: 8px 0 0; }
+
+/* Landscape part B (Web, 2026-10-12; scripts/pit-landscape-check.mjs). The stance panel (inline-styled, top 64 right 8, two rows) sat on the SKILL button and the menu button in every landscape view:
+   on a short screen it moves left of the action cluster (the cluster's left edge is 81 px in; the notch's right inset is added). The journal name no longer runs under the Stats / Career / Settings icons:
+   it ellipsizes before them (the pencil is the name's own background so a long name keeps it). */
+@media (orientation: landscape) and (max-height: 520px) { #stance-panel { right: calc(env(safe-area-inset-right, 0px) + 92px) !important; top: 8px !important; } }
+#journal #journal-name { display: block; width: fit-content; max-width: calc(100% - 180px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 44px; padding-right: 30px; background: url(/gear-ui/edit.png) right center / 24px no-repeat; }
+#journal #journal-name::after { content: none; }
+#journal:has(#sparring-tab:not([hidden])) #journal-name { max-width: calc(100% - 240px); }
+/* part B, round 2: portrait: the stance panel drops under the HUD (it covered the opponent's health bar); iPad: clear of the menu button; very short landscape: SKILL below the menu button;
+   the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
+@media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 64px !important; max-width: 72px !important; padding: 4px !important; } #stance-panel > div:last-child { flex-direction: column !important; } #stance-panel button { min-width: 0 !important; font-size: 11px !important; padding: 4px 2px !important; } #stance-reveal { font-size: 10px; } }   /* a column down the right edge: clear of the HUD bars (x < 290), the opponent and the cluster */
+@media (min-width: 900px) { #stance-panel { top: 84px !important; } }
+@media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button { top: -44px; } }
+#journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
+#journal #journal-rank { margin-top: 6px; }
+@media (max-width: 440px) { #journal #journal-name, #journal:has(#journal-tab-fighter:checked) #journal-name { font-size: 21px; max-width: calc(100vw - 254px); padding-right: 22px; background-size: 18px; white-space: normal; overflow-wrap: anywhere; line-height: 1.1; min-height: 44px; display: flex; align-items: center; } }   /* vw, not %: the header cell is shrink-wrapped (a % of it cut "Wanderer" to "Wa…"); 254 = the avatar and the three tabs; a long name wraps */
+@media (max-width: 440px) { #journal .tab-strip label { min-width: 52px; letter-spacing: .04em; padding: 0 2px; } }   /* three icon tabs = ~170 px, not 220: the name keeps its room */
