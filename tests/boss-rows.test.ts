@@ -106,10 +106,11 @@ test('the shared loader gates the table: the rows are clean, and a duplicate id,
   assert.equal(rules([{ ...file[0], rank: '8' }]), 'wrong-type');
 });
 
-test('every bosses.json preview id has a display name and a presentation mode (an open set: a new row needs no code edit beyond its verbs)', () => {
+test('every bosses.json preview id has a label on its row and a presentation mode (an open set: a new row needs no code edit beyond its verbs)', () => {
   for (const r of BOSSES) {
     assert.ok(Object.hasOwn(SPECIAL_TESTS, r.id), `${r.id}: no SPECIAL_TESTS preview`);
-    assert.ok(Object.hasOwn(SPECIAL_LABELS, r.id), `${r.id}: no name in SPECIAL_LABELS`);
+    assert.ok(typeof r.label === 'string' && r.label.trim() !== '', `${r.id}: the row has no label`);
+    assert.equal(SPECIAL_LABELS[r.id], r.label, `${r.id}: SPECIAL_LABELS carries the row's label`);
     assert.ok(Object.hasOwn(SPECIAL_MODES, r.id), `${r.id}: no mode in SPECIAL_MODES`);
   }
   assert.match(readFileSync('src/fight/special-look.ts', 'utf8'), /from '\.\/bosses\.json'/);
