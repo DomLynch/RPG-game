@@ -2,7 +2,7 @@
 // from the ledger's own lines only, thresholds in one constant (HF_COST). Every file lives in a tmp dir (HF_COST_LEDGER), never ~/.claude/state.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HF_COST, SHARED_LEDGER, ledgerPath, ledgerStore, localStore, record, spentOn, sshStore, t4Refusal, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
@@ -109,7 +109,7 @@ test('Auditor HOLD on #2329: ONE ledger for the account: VPS root, the VPS lanes
   assert.equal(readFileSync(shared, 'utf8').split('\n').filter(l => l.startsWith('ALARM\t')).length, 1, 'one alarm for the account, not one per launcher');
   // fail closed: the shared directory not set up, or the VPS unreachable
   const missing = localStore(join(dir, 'nodir', 'x.tsv'), { shared: true });
-  assert.match(t4Refusal('t4-medium', { store: missing, now: NOON })!, /cannot be read: no new T4 job until it can.*install -d -m 2775 -g lanes \/var\/lib\/frankendom/);
+  assert.match(t4Refusal('t4-medium', { store: missing, now: NOON })!, /cannot be read: no new T4 job until it can.*install -d -m 2775 -g lanes \/var\/lib\/frankendom && install -m 664 -g lanes \/dev\/null/);
   assert.equal(t4Refusal('cpu-upgrade', { store: missing, now: NOON }), null, 'CPU continues');
   const calls: { argv: string[], input?: string }[] = [];
   const down = sshStore({ host: 'root@h', key: 'k', run: ((_c: string, argv: string[], o: { input?: string }) => { calls.push({ argv, input: o?.input }); return { status: 255, stdout: '' }; }) as never });
@@ -123,4 +123,9 @@ test('Auditor HOLD on #2329: ONE ledger for the account: VPS root, the VPS lanes
   assert.match(said.join('\n'), /could not append job .* NOT counted/);
   // capture-mac.sh's direct `hf jobs run` records through the same call
   assert.match(readFileSync('scripts/capture-mac.sh', 'utf8'), /lib\/hf-ledger\.mjs" record "\$id" cpu-upgrade "\$hf_timeout"/);
+});
+
+test('the shared ledger file is created 664 (umask aside): root writing first leaves it appendable for the lanes user', () => {
+  const { dir } = box(), f = join(dir, 'shared.tsv'), old = process.umask(0o022);
+  try { localStore(f, { shared: true }).append('x\n'); assert.equal(statSync(f).mode & 0o777, 0o664); } finally { process.umask(old); }
 });

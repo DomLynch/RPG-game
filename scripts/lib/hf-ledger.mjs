@@ -10,7 +10,7 @@
 // and reports no timeout or end time. An unreadable ledger REFUSES a T4 (fail closed; CPU continues); a failed append is a stderr line (the job already started).
 // Days are UTC. Env: HF_COST_LEDGER (a local file instead: tests, a host without the VPS), HF_COST_ALARM_DIR (where the flag file goes), VPS_HOST / VPS_KEY.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { USD_PER_HOUR } from '../hf-cleanup.mjs';
@@ -30,7 +30,7 @@ export function localStore(path, { shared = false } = {}) {
   return {
     where: path,
     read: () => { try { return existsSync(path) ? readFileSync(path, 'utf8') : (shared && !existsSync(dirname(path)) ? null : ''); } catch { return null; } },
-    append: text => { try { if (!shared) mkdirSync(dirname(path), { recursive: true }); appendFileSync(path, text); return true; } catch { return false; } },
+    append: text => { try { const fresh = !existsSync(path); if (!shared) mkdirSync(dirname(path), { recursive: true }); appendFileSync(path, text); if (shared && fresh) chmodSync(path, 0o664); return true; } catch { return false; } },   // 664 whatever the umask: root's first line must leave it appendable for lanes
   };
 }
 
@@ -70,7 +70,7 @@ export function spentOn(text, now = Date.now()) {
 export function t4Refusal(flavor, { store, path, now = Date.now() } = {}) {
   if (!String(flavor).startsWith('t4')) return null;
   const ledger = storeOf({ store, path }), text = ledger.read();
-  if (text === null) return `hf-cost: the HF cost ledger (${ledger.where}) cannot be read: no new T4 job until it can (CPU jobs continue). One-time setup on the VPS as root: install -d -m 2775 -g lanes ${dirname(SHARED_LEDGER)}`;
+  if (text === null) return `hf-cost: the HF cost ledger (${ledger.where}) cannot be read: no new T4 job until it can (CPU jobs continue). One-time setup on the VPS as root: install -d -m 2775 -g lanes ${dirname(SHARED_LEDGER)} && install -m 664 -g lanes /dev/null ${SHARED_LEDGER}`;
   const spent = spentOn(text, now);
   return spent >= HF_COST.t4StopUsdPerDay ? `hf-cost: $${spent.toFixed(2)} spent on HF today (UTC ${day(now)}), at or over the $${HF_COST.t4StopUsdPerDay} T4 stop: no new T4 job (CPU jobs continue)` : null;
 }
