@@ -54,6 +54,10 @@ jobs:
     if: ((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready')
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
     outputs:
       game: ${{ steps.diff.outputs.game }}
       browser: ${{ steps.diff.outputs.browser }}
@@ -63,13 +67,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" != pull_request ] || printf ',%s,' "$PR_LABELS" | grep -q ',auditor:ready,'; then echo "browser=true" >> "$GITHUB_OUTPUT"; else echo "browser=false" >> "$GITHUB_OUTPUT"; echo "no auditor:ready yet: browser jobs wait for it"; fi
+          # A release-* candidate always runs them (Lead 2026-10-12: the Auditor removes auditor:ready after its verdict, so a re-pushed head must not skip them).
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [[ "$HEAD_REF" == release-* ]] || printf ',%s,' "$PR_LABELS" | grep -q ',auditor:ready,'; then echo "browser=true" >> "$GITHUB_OUTPUT"; else echo "browser=false" >> "$GITHUB_OUTPUT"; echo "no auditor:ready yet: browser jobs wait for it"; fi
           GAME_RE='^(src/|public/|origins/|supabase/|index\.html$|vite\.config|package(-lock)?\.json$|tsconfig|tests/fixtures/|\.github/workflows/quality\.yml$|scripts/(lib/harness|browser-check|stance-panel-check|counter-browser-check|origins-seamless-check|duel-two-page-check|duel-relay|net-|check-budget|load-time|[a-z-]+-polish-check)|.*\.(glb|webp|png|jpe?g|ogg|mp3|wav)$)'
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "not a pull request: everything runs"; exit 0; fi
           if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then echo "game=true" >> "$GITHUB_OUTPUT"; echo "could not list the files: everything runs"; exit 0; fi
           if printf '%s\n' "$files" | grep -Eq "$GAME_RE"; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "game paths touched: heavy jobs run"; printf '%s\n' "$files" | grep -E "$GAME_RE" | head -5
           else echo "game=false" >> "$GITHUB_OUTPUT"; echo "no game, asset, browser-gate or net path in the diff: heavy jobs skipped"; fi
+      # The `browser-rows` commit status on a feature PR's head (Lead + Auditor 2026-10-12: no branch protection, and skipped jobs read as green): set on
+      # EVERY push and on adding auditor:ready. PENDING while the browser jobs wait for the label or run; the `browser-rows` job below writes success or
+      # failure on the same head sha. A diff with no game path gets success (nothing to run). A release-* candidate always runs them: no status.
+      - name: browser-rows status
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          GAME: ${{ steps.diff.outputs.game }}
+          BROWSER: ${{ steps.diff.outputs.browser }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$GAME" != true ]; then st=success; d="no game, asset or browser-gate path: no browser rows needed"
+          elif [ "$BROWSER" = true ]; then st=pending; d="browser jobs running"
+          else st=pending; d="waiting for auditor:ready"; fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$st" -f context=browser-rows -f description="$d" -f target_url="$RUN_URL" > /dev/null
+          echo "browser-rows: $st ($d) on $SHA"
   static:
     # Static first (Lead + Strategy 2026-10-12: 39/40 runners busy, a red tsc on #2352 kept 15 shards running): eslint + both typechecks + the origins
     # lint, about a minute. On a pull request every quality shard and browser job `needs:` it, so a red tsc costs this one job. A trunk push skips
@@ -135,7 +158,7 @@ jobs:
   quality:
     # The one verdict deploy.sh reads (`quality` == success, scripts/deploy.sh:73): green only when every shard concluded success. A failed,
     # cancelled or skipped shard makes it red, never green. Same NOT_RETARGET skip as the shards, so a title/body edit still skips everything.
-    needs: quality-shard
+    needs: [quality-shard, plan]
     if: always() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -143,6 +166,30 @@ jobs:
       - run: '[ "$SHARDS" = success ] || { echo "quality: a shard did not succeed (result: $SHARDS)"; exit 1; }'
         env:
           SHARDS: ${{ needs.quality-shard.result }}
+      # Skipped browser jobs read as green: say so here; the `browser-rows` commit status (plan) stays PENDING on such a head (Lead 2026-10-12).
+      - if: needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'false'
+        run: echo "browser jobs NOT run on this head (no auditor:ready); a skipped browser row is not a pass" | tee -a "$GITHUB_STEP_SUMMARY"
+  browser-rows:
+    # The browser jobs' verdict as the `browser-rows` commit status, on the head sha this run tested (the plan set it PENDING). Not when the run was
+    # cancelled (a newer push owns the status then). Optional gates (continue-on-error) never colour it, as they never colour their job.
+    needs: [plan, static, load-time, browser, net-engines, asset-rows, duel-two-page]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-') && needs.plan.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true' }}
+    name: browser-rows (status)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RESULTS: static=${{ needs.static.result }} load-time=${{ needs.load-time.result }} browser=${{ needs.browser.result }} net-engines=${{ needs.net-engines.result }} asset-rows=${{ needs.asset-rows.result }} duel-two-page=${{ needs.duel-two-page.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          bad=$(printf '%s\n' $RESULTS | grep -v '=success$' | tr '\n' ' ')
+          if [ -z "$bad" ]; then st=success; d="browser jobs passed"; else st=failure; d="not passed: $bad"; fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$st" -f context=browser-rows -f description="${d:0:140}" -f target_url="$RUN_URL" > /dev/null
+          echo "browser-rows: $st ($d) on $SHA"
   base:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
     if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled'
