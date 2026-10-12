@@ -42,15 +42,15 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
       handlers = on; undo = null; openedAt = now(); offer = card.offer;
       element('loot-panel-title').textContent = card.eyebrow;
       element('loot-panel-name').textContent = card.name;
-      hero.hidden = !card.image; if (card.image) hero.src = card.image;
-      element('loot-panel-head').hidden = !!card.compare;
+      hero.hidden = !card.image || !!card.compare; if (card.image) hero.src = card.image;
+      element('loot-panel-head').hidden = false; element('loot-panel-name').hidden = !!card.compare;   // compare: the cards carry the names; the "Won at ..." line and the pick hint stay
       const compare = element('loot-panel-compare');
       compare.hidden = !card.compare;
       compare.replaceChildren(...(card.compare ? [['new', 'New', card.name, card.image], ['held', 'Equipped', card.compare.held.name, card.compare.held.image]] as const : []).map(([side, tag, name, image]) => {
         const box = make('div'), head = make('p'), img = make<HTMLImageElement>('img'), slot = make('p'), title = make('p');
         box.setAttribute('data-side', side); head.textContent = tag; head.setAttribute('class', 'loot-card-tag');
         if (image) { img.src = image; img.alt = ''; img.width = img.height = 64; img.decoding = 'async'; box.append(head, img); } else box.append(head);
-        title.textContent = name; title.setAttribute('class', 'loot-card-name'); slot.textContent = card.compare!.slot; slot.setAttribute('class', 'loot-card-slot');
+        title.textContent = name[0]!.toUpperCase() + name.slice(1);   // both cards in one form: "Kobold's helmet" beside "the Pitborn's helmet" read as two styles title.setAttribute('class', 'loot-card-name'); slot.textContent = card.compare!.slot; slot.setAttribute('class', 'loot-card-slot');
         box.append(title, slot);
         return box;
       }));

@@ -86,7 +86,7 @@ try {
 
   // ---- the kill screen: panel opens on the finisher-complete latch; the first touch stops the tour (tiles are inert under the fade)
   await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000);
-  await run(800); await page.screenshot({ path: `${dir}/take-panel.png` });
+  await run(800); await page.addStyleTag({ content: '#debug { display: none !important; }' }); await page.screenshot({ path: `${dir}/take-panel.png` });
   receipt.steps.shot = await page.evaluate(() => ({ compare: !document.getElementById('loot-panel-compare').hidden, cards: [...document.querySelectorAll('#loot-panel-compare > div')].map((d) => d.textContent) }));
   assert.deepEqual(errors, [], 'no page errors'); receipt.passed = true;
 } finally {
