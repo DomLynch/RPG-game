@@ -75,6 +75,10 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
     const t = sh(process.execPath, ['--test', 'tests/loot.test.ts', 'tests/loot-unscale-tables.test.ts']);
     if (t.status !== 0) problems.push(`the loot tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
+  if (data.some(c => c.file === 'origins/region1/loot-tables.json')) {   // a malformed table row turns CI red (exit 2) instead of getting the label
+    const t = sh(process.execPath, ['--test', 'tests/loot-rows.test.ts', 'origins/region1/region1.test.ts']);
+    if (t.status !== 0) problems.push(`the loot-table row tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
+  }
   if (data.some(c => c.file === CATALOGUE_DATA)) {   // a malformed row turns CI red (exit 2) instead of getting the label
     const t = sh(process.execPath, ['--test', 'tests/catalogue.test.ts', 'tests/catalogue-data.test.ts', 'tests/catalogue-wounds.test.ts', 'tests/catalogue-look.test.ts', 'tests/wounds.test.ts', 'tests/world-bodies.test.ts']);
     if (t.status !== 0) problems.push(`the catalogue tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);

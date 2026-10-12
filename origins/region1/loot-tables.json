@@ -1,0 +1,538 @@
+[
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:cinder-scavenger",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 50,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 2,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.ash-helm",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 3,
+      "max": 12
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:pit-goblin",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:loot.goblin.Helmet",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.goblin.Body",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.goblin.Arms",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.goblin.Greaves",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.goblin.Boots",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          },
+          {
+            "item": "item:loot.goblin.Gloves",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 2,
+      "max": 6
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:ruin-ghoul",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 60,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 30,
+            "quantity": 3,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": null,
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:ash-wolf",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 50,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.ash-helm",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 3,
+      "max": 10
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:ember-wolf",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 50,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.ash-helm",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 4,
+      "max": 11
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:cinder-bear",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 60,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 2,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 2,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 2,
+      "max": 8
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:ash-boar",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 60,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 2,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      },
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:frontier.ash-helm",
+            "chance": 3,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 3,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 5,
+      "max": 15
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:mere-brood",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 40,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 30,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": null,
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:court-thrall",
+    "presentation": "take-one",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 25,
+        "repeat": 1,
+        "mode": "weighted",
+        "dropLimit": 1,
+        "minDrop": 1,
+        "entries": [
+          {
+            "item": "item:frontier.thrall-gloves",
+            "chance": 50,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.ferryman-boots",
+            "chance": 30,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.watch-greaves",
+            "chance": 20,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 10,
+      "max": 30
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:mere-mother",
+    "presentation": "take-one",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "weighted",
+        "dropLimit": 1,
+        "minDrop": 1,
+        "entries": [
+          {
+            "item": "item:frontier.mere-shield",
+            "chance": 25,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.mere-arms",
+            "chance": 45,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.ferryman-boots",
+            "chance": 30,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 100,
+      "max": 250
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:rift-worm",
+    "presentation": "take-one",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 100,
+        "repeat": 1,
+        "mode": "weighted",
+        "dropLimit": 1,
+        "minDrop": 1,
+        "entries": [
+          {
+            "item": "item:frontier.mere-arms",
+            "chance": 40,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.thrall-gloves",
+            "chance": 30,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          },
+          {
+            "item": "item:frontier.ferryman-boots",
+            "chance": 30,
+            "quantity": 1,
+            "levelMin": 11,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 50,
+      "max": 150
+    },
+    "fallback": null
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
+    "id": "loottable:bounty-unrolled",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 1,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 1,
+            "quantity": 1,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": null,
+    "fallback": null
+  }
+]
