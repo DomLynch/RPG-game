@@ -35,7 +35,7 @@ test('figures that share a body differ in tint and in height', () => {
     const group = share(body);
     assert.ok(group.length >= 2, body);
     for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
-      const [a, b] = [group[i]![1], group[j]![1]];
+      const [a, b] = [mobLook(group[i]![0])!, mobLook(group[j]![0])!];
       assert.ok(Math.abs(a.scale - b.scale) >= .1 - 1e-9,   /* 1 vs .9 is .0999999 in floats */ `${group[i]![0]} vs ${group[j]![0]}: scale ${a.scale} / ${b.scale}`);
       assert.notEqual(a.tint, b.tint, `${group[i]![0]} vs ${group[j]![0]} share a tint`);
     }
