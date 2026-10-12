@@ -31,6 +31,7 @@ chmod +x "$bin"/*
 export REAL_NODE="$(command -v node)" STUB_LOG="$tmp/log"
 : > "$STUB_LOG"
 export PATH="$bin:$PATH"
+export ORIGINS_SIDE_PORT=$(( 20000 + $$ % 20000 )) ORIGINS_SIDE_WAIT_S=15   # the side-port health check (blue-green B): a free high port, never the box's 8789
 fresh() {   # a clean scratch root with the real site config, as a box before any installer ran: the repo conf carries the box's own include lines
   # (/etc/nginx/snippets/..., matching live), which the scratch root's prefixed snippet path would not recognise, so they are taken out here
   rm -rf "$tmp/root"; mkdir -p "$tmp/root/etc/nginx/sites-enabled"; grep -v 'include /etc/nginx/snippets/frankendom-' "$here/deploy/frankendom.com.conf" > "$tmp/root/etc/nginx/sites-enabled/frankendom.com"
@@ -147,4 +148,25 @@ fakerun f3
 expect "a module that cannot load fails the dry import" "$rc" 1
 contains "and says current was left alone" "$out" "dry import failed in"
 expect "current still points at the last good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/f1"
+# Blue-green B: with both env files complete the new install must answer one real request on the side port before current flips.
+envs() { mkdir -p "$tmp/root/etc/frankendom"; printf 'DATABASE_URL=postgresql://x\n' > "$tmp/root/etc/frankendom/verifier.env"; printf 'SUPABASE_URL=https://x\nSUPABASE_ANON_KEY=y\n' > "$tmp/root/etc/frankendom/origins-writer.env"; }
+writer() {   # a fake writer: $1 = the status it answers POST /origins/consume with, or "crash"
+  printf "import { createServer } from 'node:http';\nimport { x } from './lib/extra.mjs';\nif ('%s' === 'crash') throw new Error('boot failed');\ncreateServer((q, s) => { s.writeHead(q.method === 'POST' && q.url === '/origins/consume' ? %s : 404); s.end('{}'); }).listen(Number(process.env.PORT), '127.0.0.1');\nexport const writer = x;\n" "$1" "${1/crash/500}" > "$fake/scripts/origins-writer.mjs"
+}
+printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fresh; envs; writer 401; fakerun g1
+expect "a writer that answers 401 on the side port is installed" "$rc" 0
+contains "and says so" "$out" "side-port health ok: g1 on :$ORIGINS_SIDE_PORT answered 401"
+expect "current flipped to it" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+contains "the service was restarted after the check" "$(cat "$STUB_LOG")" "restart frankendom-origins-writer.service"
+writer 404; : > "$STUB_LOG"; fakerun g2
+expect "a writer that answers 404 is failed-at-writer" "$rc" 1
+contains "named" "$out" "failed-at-writer: g2 on :$ORIGINS_SIDE_PORT answered '404'"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+case "$(cat "$STUB_LOG")" in *"restart frankendom-origins-writer"*) fail "the service was restarted after a failed check" ;; *) ok ;; esac
+writer crash; fakerun g3
+expect "a writer that crashes at boot is failed-at-writer" "$rc" 1
+contains "with no answer" "$out" "answered '000'"
+contains "and its own error in the log tail" "$out" "boot failed"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
 echo "origins-install-check: $checks checks passed"
