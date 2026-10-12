@@ -19,6 +19,7 @@ export const DATA_PATHS = [
   /^origins\/contracts\/definitions\.(manifest\.)?json$/,   // the contract vocabularies that are data (gates, relations, quest roles, attitudes, quest scopes): rows + a manifest, loaded by the registry loader
   /^src\/fight\/(pool|weapon|skill)-defs(\.manifest)?\.json$/,   // resource pool, weapon and skill definitions: rows keyed by id, and the manifest each loader hands to the shared loadRegistry (Combat 2026-10-12)
   /^src\/fight\/catalogue-defs\.ts$/,   // the catalogue's definitions table: field kinds and rig families, literal-only (Characters 2026-10-12)
+  /^src\/fight\/bosses(\.manifest)?\.json$/,   // the boss presentation rows and their manifest (Characters 2026-10-12): plain strings validated against code verb registries by tests/boss-rows.test.ts
   /^src\/fight\/catalogue-data\.ts$/,   // the character catalogue's rows: one literal const (Characters 2026-10-10; the legends rule below applies)
 ];
 export const onDataPath = file => DATA_PATHS.some(re => re.test(file));

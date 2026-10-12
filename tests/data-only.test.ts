@@ -123,3 +123,11 @@ test('catalogue-defs.ts (field kinds and rig families) is on the path list and i
   assert.equal(onDataPath(DEFS_FILE), true);
   assert.deepEqual(classify([{ file: DEFS_FILE, status: 'modified' }], (f: string) => readFileSync(f, 'utf8')).problems, []);
 });
+
+test('bosses.json and its manifest are on the path list and classify as data', () => {
+  for (const f of ['src/fight/bosses.json', 'src/fight/bosses.manifest.json']) {
+    assert.equal(onDataPath(f), true, f);
+    assert.deepEqual(classify([{ file: f, status: 'modified' }], (p: string) => readFileSync(p, 'utf8')).problems, [], f);
+  }
+  assert.equal(onDataPath('src/fight/boss-rows.ts'), false, 'the reader is code');
+});
