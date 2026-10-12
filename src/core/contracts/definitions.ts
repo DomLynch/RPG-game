@@ -6,5 +6,17 @@ import defs from './definitions.json' with { type: 'json' };
 
 export type GateRow = { order: number; tier: string; open?: boolean; membership?: boolean };   // open: no standing is asked; membership: the realm needs a paid membership
 export type AttitudeRow = { order: number; atOrBelow?: number; atOrAbove?: number; expelledCeiling?: boolean };   // a band: standing at or below / at or above; neither = the default between the bands; expelledCeiling: the best an expelled member can be
-export const DEFINITIONS = defs as unknown as { gates: Readonly<Record<string, GateRow>>; relations: Readonly<Record<string, object>>; questRoles: Readonly<Record<string, object>>; attitudes: Readonly<Record<string, AttitudeRow>>; questScopes: Readonly<Record<string, object>>; rarities: Readonly<Record<string, { order: number }>>; materials: Readonly<Record<string, { order: number }>>; presentations: Readonly<Record<string, object>>; serviceAccepts: Readonly<Record<string, { armour: boolean; weapons: boolean }>> };
+// Item rules read these flags, never a name: powers {tiered: gets a loot tier, upgradeable: the smith works it, gearOnly: only gear carries it}; categories {path: gear (a worn piece) or stock (a counted thing),
+// slot: required | allowed | none, single: stack 1, craftInput: an upgrade material}; story tags {blocksTrade, single, bindsOnAcquire, staysWithCharacter}; provenance kinds {tradeable, blockReason (the trade-block
+// reason a refusal carries), needsPath (an item of another category path never trades), onlyCategories (a mint limited to these categories)}.
+export type PowerRow = { tiered?: boolean; upgradeable?: boolean; gearOnly?: boolean };
+export type CategoryRow = { path: string; slot: string; single?: boolean; craftInput?: boolean };
+export type StoryRow = { blocksTrade?: boolean; single?: boolean; bindsOnAcquire?: boolean; staysWithCharacter?: boolean };
+export type ProvenanceRow = { tradeable: boolean; blockReason?: string; needsPath?: string; onlyCategories?: string[] };
+export const DEFINITIONS = defs as unknown as { gates: Readonly<Record<string, GateRow>>; relations: Readonly<Record<string, object>>; questRoles: Readonly<Record<string, object>>; attitudes: Readonly<Record<string, AttitudeRow>>; questScopes: Readonly<Record<string, object>>; rarities: Readonly<Record<string, { order: number; sellable?: boolean }>>; powers: Readonly<Record<string, PowerRow>>; categories: Readonly<Record<string, CategoryRow>>; story: Readonly<Record<string, StoryRow>>; provenanceKinds: Readonly<Record<string, ProvenanceRow>>; materials: Readonly<Record<string, { order: number }>>; presentations: Readonly<Record<string, object>>; serviceAccepts: Readonly<Record<string, { armour: boolean; weapons: boolean }>> };
 export const ids = (table: Readonly<Record<string, object>>): string[] => Object.entries(table).sort((a, b) => ((a[1] as { order?: number }).order ?? 0) - ((b[1] as { order?: number }).order ?? 0)).map(([id]) => id);   // by `order` when the rows have one, else file order
+const NONE = {};
+export const powerOf = (id: string): PowerRow => DEFINITIONS.powers[id] ?? NONE;
+export const categoryOf = (id: string): Partial<CategoryRow> => DEFINITIONS.categories[id] ?? NONE;
+export const storyOf = (id: string): StoryRow => DEFINITIONS.story[id] ?? NONE;
+export const provenanceOf = (kind: string): Partial<ProvenanceRow> => DEFINITIONS.provenanceKinds[kind] ?? NONE;

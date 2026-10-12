@@ -34,6 +34,7 @@ export * from './contracts/world.ts';
 export * from './contracts/story.ts';
 export * from './contracts/registry.ts';
 export * from './contracts/fixtures.ts';
+export { powerOf, categoryOf, storyOf, provenanceOf } from './contracts/definitions.ts';   // the data-defined item vocabularies' readers (rows in contracts/definitions.json)
 export * from './luck.ts';
 // Names two core modules both define: the explicit export wins the star ambiguity, the other keeps an alias.
 export type { Provenance } from './loot.ts';
