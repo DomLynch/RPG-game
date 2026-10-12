@@ -114,8 +114,10 @@ console.log(JSON.stringify({ ok: ok.ok, extra: extra.ok, unknown: unknown.ok, re
 });
 
 test('a rarity row either has price rows or says sellable:false: a rarity silently missing prices is reported', () => {
-  assert.deepEqual(rarityPriceGaps(F.forgeCosts() as never), [], 'the fixture price list covers every rarity');
-  const rows = (F.forgeCosts() as { rows: { rarity: string }[] }).rows;
-  assert.deepEqual(rarityPriceGaps({ rows: rows.filter((r) => r.rarity !== 'fine') } as never), ['fine']);
+  const base = (F.forgeCosts() as { rows: { rarity: string }[] }).rows;
+  const full = [...base, { level: 1, rarity: 'fine', coin: 150, materials: [] }, { level: 1, rarity: 'rare', coin: 220, materials: [] }];   // the shared fixture prices common and relic only; a full list adds the other two
+  assert.deepEqual(rarityPriceGaps({ rows: full } as never), []);
+  assert.deepEqual(rarityPriceGaps({ rows: full.filter((r) => r.rarity !== 'fine') } as never), ['fine']);
+  assert.deepEqual(rarityPriceGaps(F.forgeCosts() as never), ['fine', 'rare'], 'the shared fixture leaves fine and rare unpriced, and the check says so');
   assert.deepEqual(rarityPriceGaps({ rows: [] } as never), ['common', 'fine', 'rare', 'relic']);
 });
