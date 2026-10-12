@@ -131,3 +131,8 @@ test('bosses.json and its manifest are on the path list and classify as data', (
   }
   assert.equal(onDataPath('src/fight/boss-rows.ts'), false, 'the reader is code');
 });
+
+test('the patron venue rows are data; the module that reads them (patrons.ts) is not', () => {
+  for (const f of ['origins/patrons/venue-defs.json', 'origins/patrons/venue-defs.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['origins/patrons/patrons.ts', 'origins/patrons/venue-defs.json.bak', 'origins/patrons/venue-defs.ts']) assert.equal(onDataPath(f), false, f);
+});

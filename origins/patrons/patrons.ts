@@ -19,9 +19,11 @@
 //      that reads as the Exchange's book.
 //   3. RESOLUTION: an allegiance plus a fight's context -> per-mille deltas tagged `scope: 'origins'`. Independent is all zeros.
 
-import { fail, Issues, join, ok, readEnum, readInt, readObject, readString, type Issue, type Result } from '../../src/core/server.ts';
+import { fail, Issues, join, loadRegistry, ok, readEnum, readInt, readObject, readString, tableFromFile, type Issue, type Manifest, type Result } from '../../src/core/server.ts';
 import { gateAccess, type CareerStanding } from '../../src/core/server.ts';
 import type { PatronRow } from './csv.ts';
+import VENUE_DEFS from './venue-defs.json' with { type: 'json' };
+import VENUE_MANIFEST from './venue-defs.manifest.json' with { type: 'json' };
 import { PATRON_ROWS } from './patrons.data.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -290,8 +292,17 @@ export function parseAllegianceState(raw: unknown): Result<AllegianceState> {
 // 'arena' (the live game: the Pit, arena duels) and 'pvp' (any player against player, Origins included) get no §10.2 (damage)
 // modifiers here; arena perks come only from Combat's no-damage sidegrade hook.
 
-export const VENUES = ['origins-pve', 'arena', 'pvp'] as const;
-export type Venue = (typeof VENUES)[number];
+// Venues are rows (venue-defs.json, through the shared loader): the id is a string checked against the rows, and `perks` says whether the venue
+// resolves the damage templates. A venue no row names resolves nothing.
+export type VenueRow = { readonly id: string; readonly perks: boolean };
+export function loadVenues(raw: { venues?: readonly unknown[] }): readonly VenueRow[] {
+  loadRegistry([tableFromFile(VENUE_MANIFEST.tables[0] as Manifest, raw, 'venue-defs.json')]);
+  return (raw.venues ?? []) as readonly VenueRow[];
+}
+export const VENUE_ROWS: readonly VenueRow[] = loadVenues(VENUE_DEFS);
+export const VENUES: readonly string[] = VENUE_ROWS.map((v) => v.id);
+export type Venue = string;
+export const venuePerks = (venue: Venue, rows: readonly VenueRow[] = VENUE_ROWS): boolean => rows.some((v) => v.id === venue && v.perks);
 export type FightContext = {
   venue: Venue;
   clockHalf: 'day' | 'night';   // §10.3 worldTimeAt at engage: night is the last third of the day, the rest is day
@@ -323,7 +334,7 @@ export function holds(when: When, f: FightContext): boolean {
 }
 
 export function resolvePerk(allegiance: Allegiance | null, f: FightContext): OriginsModifiers {
-  const t = f.venue === 'origins-pve' ? templateOf(allegiance) : null;
+  const t = venuePerks(f.venue) ? templateOf(allegiance) : null;
   if (!t) return NO_MODIFIERS;
   const out: OriginsModifiers = { ...NO_MODIFIERS, template: t.id };
   for (const s of [t.gain, t.cost]) if (holds(s.when, f)) out[s.stat] += s.value;
