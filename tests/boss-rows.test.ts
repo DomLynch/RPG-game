@@ -13,6 +13,7 @@ import { bossSpecialId } from '../src/fight/special-identity.ts';
 import { specialOf } from '../src/fight/moves.ts';
 import { SPECIAL_CUES, SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
+import { SPECIAL_LABELS } from '../src/fight/sparring-specials.ts';
 import { checkTables, tableFromFile, type Manifest } from '../src/core/registry.ts';
 import { BOSS_KINDS, bossLook, isExecutionerCast } from '../src/fight/special-fx-executioner.ts';
 import { isBossCast } from '../src/fight/special-boss-timing.ts';
@@ -105,9 +106,11 @@ test('the shared loader gates the table: the rows are clean, and a duplicate id,
   assert.equal(rules([{ ...file[0], rank: '8' }]), 'wrong-type');
 });
 
-test('the BossPreview type in special-look.ts names exactly the rows (the previews themselves derive from bosses.json, a SIM_DATA file)', () => {
-  const src = readFileSync('src/fight/special-look.ts', 'utf8');
-  const named = [...(/type BossPreview = ([^;]+);/.exec(src)?.[1] ?? '').matchAll(/'(\w+)'/g)].map((m) => m[1]).sort();
-  assert.deepEqual(named, BOSSES.map((r) => r.id).sort());
-  assert.match(src, /from '\.\/bosses\.json'/);
+test('every bosses.json preview id has a display name and a presentation mode (an open set: a new row needs no code edit beyond its verbs)', () => {
+  for (const r of BOSSES) {
+    assert.ok(Object.hasOwn(SPECIAL_TESTS, r.id), `${r.id}: no SPECIAL_TESTS preview`);
+    assert.ok(Object.hasOwn(SPECIAL_LABELS, r.id), `${r.id}: no name in SPECIAL_LABELS`);
+    assert.ok(Object.hasOwn(SPECIAL_MODES, r.id), `${r.id}: no mode in SPECIAL_MODES`);
+  }
+  assert.match(readFileSync('src/fight/special-look.ts', 'utf8'), /from '\.\/bosses\.json'/);
 });

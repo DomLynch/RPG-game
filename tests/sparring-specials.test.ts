@@ -78,7 +78,7 @@ const make = (opponent: keyof typeof matrix) => {
 };
 test('real Match cross-band previews retain body/AI level and player MOVE, use selected event identity/share, and write nothing', () => {
   for (const [id, difficulty] of [['nyx', 6], ['drag', 46], ['standfast', 6], ['ratrun', 46]] as const) {
-    const preview = SPECIAL_TESTS[id], { m, writes, snapshot } = make(preview.opponent);
+    const preview = SPECIAL_TESTS[id], { m, writes, snapshot } = make(preview.opponent as Parameters<typeof make>[0]);
     const before = snapshot(), count = writes.length;
     m.startSparring({ weapon: 'estoc', skill: 'miasma', difficulty }, { first: preview.first, level: preview.level });
     const check = () => {
