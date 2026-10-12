@@ -135,3 +135,21 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
   } finally { rmSync(dir, { recursive: true, force: true }); setLateNotice(false); setStab(false); setPlayScale(1); }
   void createRecorder;
 });
+
+// The catalogue rows reach the digest as their SIM PROJECTION (tests/lib/sim-digest.ts), so a cosmetic row edit needs no RECORD_VERSION bump, and a sim edit still does (Lead, 2026-10-12).
+test('catalogue digest: a cosmetic row edit (name, voice, look, ranks, a brand-new cosmetic field) leaves it alone; a sim edit (weapon, rig, archetype, finishers, hold, a new roster row) moves it', () => {
+  const real = simSources(), before = simDigest(real), path = 'src/fight/catalogue-data.ts', src = real[path]!;
+  const edit = (from: RegExp, to: string, all = false) => { const out = src.replace(all ? new RegExp(from.source, 'g') : from, to); assert.notEqual(out, src, `the probe edit applies: ${from}`); return simDigest({ ...real, [path]: out }); };
+  assert.equal(edit(/name: "the Centurion"/, 'name: "the Legate"'), before, 'a rename is not the fight');
+  assert.equal(edit(/voice: null,/, 'voice: "changed",'), before, 'a voice is not the fight');
+  assert.equal(edit(/ranks: \[/, 'ranks: [{ rank: 0, legend: "x" },'), before, 'ranks are not the fight');
+  assert.equal(edit(/ladder: \{ order: 1,/, 'ladder: { order: 9,'), before, 'the ladder order is not a replayed fight');
+  assert.equal(edit(/\{ id: "veteran", name:/, '{ id: "veteran", futureCosmetic: { anything: [1, 2] }, name:'), before, 'a field nobody listed is left out automatically');
+  assert.notEqual(edit(/weapon: "trident"/, 'weapon: "cleaver"'), before, 'a weapon is the fight');
+  assert.notEqual(edit(/rig: "hero"/, 'rig: "goblin"'), before, 'the rig picks the blade table');
+  assert.notEqual(edit(/archetype: "veteran"/, 'archetype: "pitborn"'), before, 'the archetype is the combat tuning');
+  assert.notEqual(edit(/stats: \{ archetype: "veteran",/, 'stats: { pools: { stamina: 120 }, archetype: "veteran",'), before, 'a pool is the fight');
+  assert.notEqual(edit(/ladder: \{ order: 1, hold: false \}/, 'ladder: { order: 1, hold: true }'), before, 'hold changes who the roster fields');
+  assert.notEqual(simDigest({ ...real, [path]: src.replace('const CATALOGUE_ROWS = [', 'const CATALOGUE_ROWS = [\n  { id: "newcomer", name: "N", rig: "hero", weapon: "trident", stats: { archetype: "veteran", levels: [1, 5] }, finisher: {}, blood: {}, ladder: { order: 99, hold: false } },') }), before, 'a new roster row is a new opponent');
+  assert.equal(simDigest({ ...real, [path]: src.replace('const CATALOGUE_ROWS = [', 'const CATALOGUE_ROWS = [\n  { id: "ember", body: "veteran", name: "Ember", weapon: "cleaver", rig: "goblin" },') }), before, 'a variant row is not a roster entry');
+});
