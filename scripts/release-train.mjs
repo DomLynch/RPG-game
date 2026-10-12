@@ -1,6 +1,6 @@
 // `node scripts/release-train.mjs cut [--dry-run]`: the release train's CUTTER (Dom via Strategy + Lead, 2026-10-12: no operator turn in the loop). Run by
 // .github/workflows/release-train.yml every 10 min and on a `release:go` label; safe to run by hand. The train reads labels, not messages:
-//   - a PR rides when it carries `release:go` (the Auditor adds it with its PASS), its checks are all green, and the Auditor's "PASS @<head>" names its CURRENT
+//   - a PR rides when it carries `release:go` (the Auditor adds it with its PASS), its checks are all green, and the Auditor's (or Lead's) "PASS @<head>" names its CURRENT
 //     head (a push after the PASS drops it until the Auditor passes the new head);
 //   - order: docs/release-order.txt (one PR number per line, Lead-owned), then the unlisted ones oldest-PASS-first; a stacked PR (base = another PR's branch) rides
 //     only once its base is on trunk, in the candidate it builds on, or picked earlier in this cut;
@@ -39,7 +39,7 @@ export function planTrain({ prs, order, inBase, trunk = TRUNK }) {
   const eligible = [], skipped = [];
   for (const p of prs) {
     if (!p.labels.includes(GO) || /^release-/.test(p.headRef)) continue;
-    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "Auditor: PASS @${p.head.slice(0, 9)}" at its current head` }); continue; }
+    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "Auditor: PASS @" or "Lead: PASS @${p.head.slice(0, 9)}" at its current head` }); continue; }
     if (!p.green) { skipped.push({ pr: p.number, why: 'checks not all green' }); continue; }
     if (inBase(p.head)) continue;   // already riding in the candidate we build on
     eligible.push(p);

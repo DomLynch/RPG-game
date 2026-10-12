@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { mergeAll, pushWithRetry } from '../scripts/cut-release.mjs';
+import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
 import { checksGreen, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
@@ -29,7 +29,9 @@ test('planTrain: release-order.txt first, then oldest PASS; only release:go + PA
   const { pick, skipped } = planTrain({ prs, order: [7, 99], inBase: (h: string) => h.startsWith('11') });
   assert.deepEqual(pick.map((p) => p.pr), [7, 6, 5], 'listed 7 first, then 6 (older PASS) before 5');
   assert.deepEqual(skipped.map((s) => s.pr).sort(), [8, 9]);
-  assert.match(skipped.find((s) => s.pr === 8)!.why, /no "Auditor: PASS @8aaaaaaaa" at its current head/);
+  assert.match(skipped.find((s) => s.pr === 8)!.why, /no "Auditor: PASS @" or "Lead: PASS @8aaaaaaaa" at its current head/);
+  assert.ok(passAt(['Lead: PASS @8aaaaaaaa (independent platform review)'], '8'.padEnd(40, 'a')) && passAt(['Auditor: PASS @8aaaaaaaa'], '8'.padEnd(40, 'a')), 'Lead or the Auditor');
+  assert.ok(!passAt(['Lead: PASS @9aaaaaaaa', 'Strategy: PASS @8aaaaaaaa'], '8'.padEnd(40, 'a')), 'another head, or another name, is not a PASS');
 });
 
 test('planTrain stacking: a stacked PR listed before its base rides right after it; one whose base is not in waits, named', () => {

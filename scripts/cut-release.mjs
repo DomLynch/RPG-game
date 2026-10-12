@@ -17,8 +17,8 @@ export function parseSpec(spec) {
   return { pr: Number(m[1]), head: m[2] };
 }
 
-/** Does a PR comment list hold the Auditor's PASS for exactly this head? */
-export const passAt = (bodies, head) => bodies.some(b => new RegExp(`Auditor: PASS @${head.slice(0, 9)}`).test(b));
+/** Does a PR comment list hold a reviewer's PASS for exactly this head: the Auditor's, or Lead's for an independent platform review (Lead 2026-10-12, #2326)? */
+export const passAt = (bodies, head) => bodies.some(b => new RegExp(`(?:Auditor|Lead): PASS @${head.slice(0, 9)}`).test(b));
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails
