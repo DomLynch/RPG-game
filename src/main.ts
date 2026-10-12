@@ -1730,3 +1730,5 @@ function frame(now: number) {
   frameId = requestAnimationFrame(frame);
 }
 frameId = requestAnimationFrame(frame);
+
+export const proofTscRed: number = "deliberate tsc error (proof PR for #2359, close after)";
