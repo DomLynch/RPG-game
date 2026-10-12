@@ -120,6 +120,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // Every themed floor (arena-themes.ts): a world-space mask over the whole pit multiplies the floor colour, so the clay/flag mottle
   // never repeats at the 3 m sand tile. Chained before the grade (gradeMaterial keeps an earlier onBeforeCompile). Until the worker lands: a clear mask.
   const patchKind = theme.textures.patch ?? (theme.textures.floor !== 'sand' ? theme.textures.floor : undefined), patch = patchKind ? { value: dataTexture(heavy?.patch ?? { width: 1, height: 1, data: new Uint8Array([128, 128, 128, 0]) }, false) } : null;
+  const patchWater = !!patchKind && !!patchRow(patchKind).water;   // standing water: the floor shader drops its roughness under the patch
   if (patch) {
     patch.value.wrapS = patch.value.wrapT = THREE.ClampToEdgeWrapping;
     sand.onBeforeCompile = (shader) => {
@@ -128,9 +129,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
         .replace('#include <project_vertex>', `#include <project_vertex>\nvPatchUv = (modelMatrix * vec4(transformed, 1.0)).xz / ${PATCH_SPAN.toFixed(1)} + 0.5;`);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D patchMap;\nvarying vec2 vPatchUv;')
         .replace('#include <map_fragment>', '#include <map_fragment>\nvec4 patchSample = texture2D(patchMap, vPatchUv); diffuseColor.rgb *= mix(vec3(1.0), patchSample.rgb * 2.0, patchSample.a);')
-        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${patchRow(patchKind).water ? 'roughnessFactor = mix(roughnessFactor, 0.04, patchSample.a);' : ''}`);   // standing water: a mirror
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${patchWater ? 'roughnessFactor = mix(roughnessFactor, 0.04, patchSample.a);' : ''}`);   // standing water: a mirror
     };
-    sand.customProgramCacheKey = () => `floor-patch-${patchRow(patchKind).water ? 'water' : 'dry'}`;
+    sand.customProgramCacheKey = () => `floor-patch-${patchWater ? 'water' : 'dry'}`;
   }
   gradeMaterial(sand, BACKGROUND_GRADE.sand, 'sand'); gradeMaterial(stone, BACKGROUND_GRADE.stone, 'stone');   // slight desaturation so bodies separate; the worn palette stays
   const sky = new THREE.MeshBasicMaterial({ name: 'sky', map: textures.sky, side: THREE.BackSide, fog: false });
