@@ -11,8 +11,10 @@ const gameRe = (() => { const m = /GAME_RE='([^']+)'/.exec(jobBlock('plan')); as
 test('the heavy jobs wait for the plan and run on a PR only when it says the diff touches game paths; push always runs them', () => {
   for (const job of ['load-time', 'browser', 'net-engines', 'asset-rows', 'duel-two-page']) {
     const block = jobBlock(job);
-    assert.match(block, /\n    needs: plan\n/, `${job} needs plan`);
-    assert.match(block, /github\.event_name != 'pull_request' \|\| needs\.plan\.outputs\.game == 'true'/, `${job} is gated on the plan, and a push is not`);
+    assert.match(block, /\n    needs: \[plan, static\]\n/, `${job} needs plan (and static first: tests/ci-static-first.test.ts)`);
+    assert.match(block, /needs\.plan\.result == 'success'/, `${job} runs only after its plan`);
+    assert.match(block, /needs\.plan\.outputs\.game == 'true'/, `${job} is gated on the plan`);
+    assert.ok(job === 'asset-rows' || /github\.event_name != 'pull_request' \|\|/.test(block), `${job}: a push is not gated`);
   }
   const quality = jobBlock('quality');
   assert.doesNotMatch(quality, /needs: plan/, '`quality` (lint, tsc, every test, build) runs on every PR');

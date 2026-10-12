@@ -22,7 +22,28 @@ concurrency:
 env:
   UNIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 jobs:
+  static:
+    # Static first (Lead + Strategy 2026-10-12, runner budget): eslint + both typechecks + the origins lint, about a minute. On a pull request the 8
+    # shards `needs:` it, so a red tsc costs this one job, not 9. A push or a dispatch skips it and the shards run as before.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.UNIT_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx eslint src
+      - run: npm run typecheck:tests
+      - run: npm run typecheck:origins
+      - run: npm run lint:origins
   shard:
+    needs: static
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
