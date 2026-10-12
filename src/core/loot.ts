@@ -5,7 +5,8 @@
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career-ladder.ts';
 import type { Tier } from './grades.ts';
-import { PLAYER_WEAPONS, type SkillId, type WeaponId } from '../fight/moves.ts';
+import { DAY_ONE_SKILL, PLAYER_WEAPONS, SKILL_ROWS, isSkillId, type SkillId, type WeaponId } from '../fight/moves.ts';
+export { DAY_ONE_SKILL, isSkillId };
 import { ROSTER, isOpponentId, type OpponentId } from '../roster.ts';
 import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey, rungOf } from '../legends.ts';
 
@@ -43,15 +44,12 @@ export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId
 // `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.
 // `opponent` null: the hero's own move, never offered by a kill. The day-one skill (Dom, 2026-09-25: "Hero starts with Pommel Strike; one
 // skill slot; a take swaps it"): a profile with no skill stored fights with DAY_ONE_SKILL, and a take overwrites the one slot.
-export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = { witchfire: { opponent: 'witch', name: 'Witch-fire' }, pommel: { opponent: null, name: 'Pommel Strike' },
-  lunge: { opponent: 'nightborn', name: 'Estoc Lunge' }, reaping: { opponent: 'executioner', name: 'Reaping Blow' }, shove: { opponent: 'veteran', name: 'Scutum Shove' }, jab: { opponent: 'goblin', name: 'Dirty Jab' }, cleave: { opponent: 'pitborn', name: 'Butcher\'s Cleave' }, stomp: { opponent: 'dwarf', name: 'Anvil Stomp' }, miasma: { opponent: 'plaguedoctor', name: 'Miasma' }, ironrush: { opponent: 'knight', name: 'Iron Rush' }, hewer: { opponent: 'shieldmaiden', name: 'Shield-Hewer' } };   // SkillId is the sim's (moves.ts)
+export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string }> = Object.fromEntries(Object.values(SKILL_ROWS).map((r) => [r.id, { opponent: r.opponent as OpponentId | null, name: r.name }]));   // the skill rows (skill-defs.json)
 // The Estoc Lunge, the Iron Rush and the Dirty Jab were pulled from the SCOPE 8 batch (Strategy 2026-09-26 07:24) and RE-OFFERED in RV15
 // (a0c71273): every kill above offers its skill. Lunge and Rush now carry stagger 0 and staminaDamage 0, damage 11 / 10 set by the 480-seed
 // battery; the Jab keeps reach 1.0. Binding pairing estoc v Goblin: Lunge 241, Rush 242, Jab 250 of 480, all ≤ Pommel + 40 = 266 (moves.ts).
-export const DAY_ONE_SKILL: SkillId = 'pommel';
 export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
-export const isSkillId = (value: unknown): value is SkillId => typeof value === 'string' && Object.hasOwn(SKILLS, value);
-export const skillOf = (opponent: OpponentId): SkillId | null => (Object.keys(SKILLS) as SkillId[]).find((id) => SKILLS[id].opponent === opponent) ?? null;
+export const skillOf = (opponent: OpponentId): SkillId | null => Object.values(SKILL_ROWS).find((r) => r.opponent === opponent)?.id ?? null;
 export const DECLINED_KEPT = 50;
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.

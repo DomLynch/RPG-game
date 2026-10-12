@@ -13,7 +13,7 @@
 import { initialAi } from '../fight/ai.ts';
 import { project, type Practice } from '../fight/combat.ts';
 import type { Intent, Side } from '../fight/duel.ts';
-import { PLAYER_WEAPONS, SKILL_MOVE, type OpponentId } from '../fight/moves.ts';
+import { PLAYER_WEAPONS, isSkillId, type OpponentId } from '../fight/moves.ts';
 import { fromBase64Url, MAX_RECORD_TICKS, packRecord, RECORD_VERSION, toBase64Url, unpackRecord } from '../fight/record.ts';
 import { delayFor, NET, pvpDuel, quantile, RollbackSession, type Kit, type NetMetrics, type NetPacket } from './rollback.ts';
 import { viewAs } from './view.ts';
@@ -78,7 +78,7 @@ export function cleanKit(kit: Partial<Kit> | null | undefined): Kit {
   const weapon = kit?.weapon, skill = kit?.skill, gear: unknown = kit?.gear;
   return {
     weapon: weapon && PLAYER_WEAPONS.includes(weapon) ? weapon : 'longsword',
-    skill: typeof skill === 'string' && Object.hasOwn(SKILL_MOVE, skill) ? skill : null,
+    skill: isSkillId(skill) ? skill : null,
     gear: Array.isArray(gear) ? gear.filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,64}$/.test(id)).slice(0, 16) : [],
   };
 }
