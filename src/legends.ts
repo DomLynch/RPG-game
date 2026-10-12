@@ -14,10 +14,10 @@ import type CATALOGUE_DATA from './fight/catalogue-data.ts';
 import { CATALOGUE } from './fight/catalogue-rows.ts';
 
 export type Legend = { name: string; source: string; backstory: string };
-// The legends are the catalogue's rows (src/fight/catalogue-data.ts, pure data): a new legend name is one edit there, no code. A row with ten ranks is a Pit opponent. The Sparring layout order (Dom, layout A) is a presentation choice, so it is the one list of ids kept here; tests/legends.test.ts pins it to exactly the rows that carry ranks.
+// The legends are the catalogue's rows (src/fight/catalogue-data.ts, pure data): a new legend name is one edit there, no code. A row with ranks is a Pit opponent, listed on the Sparring tab in its `sparring.order` (Dom, layout A; not the ladder order).
 type LegendRow = Extract<(typeof CATALOGUE_DATA)[number], { ranks: readonly [unknown, ...unknown[]] }>;
 export type LegendOpponent = LegendRow['id'];
-export const LEGEND_OPPONENTS = ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'dwarf', 'shieldmaiden', 'plaguedoctor', 'witch', 'knight'] as const satisfies readonly LegendOpponent[];
+export const LEGEND_OPPONENTS = CATALOGUE.filter((r) => r.ranks.length > 0).sort((a, b) => a.sparring!.order - b.sparring!.order).map((r) => r.id) as readonly LegendOpponent[];
 
 // Index 0 is tier 1 (Recruit), index 9 is tier 10 (Origin).
 export const LEGENDS = Object.fromEntries(LEGEND_OPPONENTS.map((id) => [id, CATALOGUE.find((r) => r.id === id)!.ranks.map(({ name, source, backstory }): Legend => ({ name, source, backstory }))])) as unknown as Record<LegendOpponent, readonly Legend[]>;
