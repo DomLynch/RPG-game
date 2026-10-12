@@ -1,5 +1,5 @@
 import { createInput } from './fight/index.ts';
-import { gearNumbers } from './fight/gear-numbers.ts';
+import { buildOf, gearNumbers, sheetOfLoot } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -411,7 +411,7 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, sheet: () => sheetOfLoot(profile.loot, buildOf(profile)) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
