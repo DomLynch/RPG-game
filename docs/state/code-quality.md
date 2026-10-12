@@ -1,5 +1,22 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 ~18:5x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12d` (queue + heads), then `…-12c`
+
+**Live:** CN `09967447c`. My CN writer parity PASS: 988 files == blobs, closure 128/0 missing, endpoints 401, NRestarts 0, and the verifier's 55 files == blobs. CO #2331 @7ac7e0e6b is merged to trunk but **not live**. My contents check is on the thread, but the exact PASS is not posted because CI was pending.
+**Release train (Lead, tonight):** every exact `Auditor: PASS @<head9>` also gets the label `release:go`, and a checked candidate gets `candidate:pass` (I created both labels). Deploy B's train reads labels only.
+**Next, in order:**
+1. Re-arm the poll (both repos) and send Lead the line. Every one-shot check died with the session.
+2. #2338 (new, labelled).
+3. The exact PASS + `release:go` on green CI for: #2337 @af56a703d, #2314 @d89901127, #2299 @45d40f946, #2301 @dac6a6e3f, #2283 @e53c828fd, #2279 @0c7416454, #2285/#2288 (range-diff first). Merge order (Lead): one sim-digest PR per release, #2265 → #2314 → #2299, with #2301 after #2314. Each later one rebases and re-pins, and I review the delta.
+4. Re-check the HOLDs when their fixes land (heads have moved): #2332 @8599c036f (install-vps.sh has no caller), #2284 @696bd55c0 (hand-written SPECIAL_TESTS in a sim file), #2316 @14a8edaa6 (stale side-port 401 = false pass), #2329 (HF ledger per host).
+5. #2290 and #2319 after their retarget; #2333 after #2327 + Lead's stills.
+**Verdicts since 14:4x (all on threads):**
+- Exact PASS: #2293, #2304, #2307, #2313, #2318, #2322, #2265, #2311, #2323, #2324, #2327; release CM #2321; Codex-Hooks #136 and #137 (gate deadline = defer, my ruling).
+- HOLD: #2323 (fixed), #2316, #2284, #2329, #2332, Codex-Hooks #136 (fixed).
+- Bounced: #2283 (conflict, now resolved).
+**Rulings:** gate timeout defers, never blocks (#137); a green unit-ci run on the head is the receipt; Lead reviews platform PRs when my queue is over 3; my ast-grep PR is dropped (#2323 is the one checker).
+**Session:** app worktree `laughing-bartik-0c0156`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-12 ~14:4x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12c` (queue, rules, every sha), then `…-12b`
 
 **Live:** CI2 `96a71d708` (pools RV43 + gear compare). My writer parity PASS (closure 124, 0 missing, 0 differ; install 986, 0 stale; endpoints 401). Trunk is CJ `d5747f28c` (preflight + lanejob watchdog, tooling only).
