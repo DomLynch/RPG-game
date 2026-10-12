@@ -11,6 +11,7 @@ import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level;
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { catalogueRow } from '../../src/fight/catalogue-rows.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -167,7 +168,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
   assert.ok(at, 'a spawn exists');
   const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 45)!.zone)!;
   assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
-  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), wolves = SPECS.filter((s) => s.body === 'wolf'), wd = Math.min(...wolves.map(dist)), others = Math.min(...SPECS.filter((s) => s.body !== 'wolf').map(dist));
+  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), wolves = SPECS.filter((s) => catalogueRow(s.body)?.firstSight), wd = Math.min(...wolves.map(dist)), others = Math.min(...SPECS.filter((s) => !catalogueRow(s.body)?.firstSight).map(dist));
   assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m: the wolves are live, so the wolf rule is the default (Dom's ruling: 15-25 m ahead)`);
   assert.ok(others >= 25, `the others stay ${others.toFixed(1)} m off`);
   const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = at.facing - headingTo(at, c);
@@ -185,7 +186,7 @@ test('the Ash Wolf is a live row: ?wolf changes nothing, the wolf camp (2 or 3) 
   assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf', false)), SPECS, '?wolf is accepted and does nothing');
   const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
   assert.ok(wolves.length >= 2 && wolves.length <= 3, 'campSize 2..3: the camp is drawn inside the row\'s range (it was always the upper bound until 10-10)');
-  assert.ok(wolves.every((w) => w.body === 'wolf' && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
+  assert.ok(wolves.every((w) => catalogueRow(w.body)?.firstSight && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
 });
 
 test('?lone makes every camp one creature and nothing else changes: the same spawns, one member each', () => {
