@@ -62,7 +62,7 @@ export function createGearSheet(d: GearSheetDeps) {
       off.hidden = !id; off.disabled = packFull(loot);   // Store moves the piece into the pack; a full pack says why beneath it (#pack-full)
       off.setAttribute('aria-describedby', off.disabled ? 'pack-full' : '');
     }
-    renderStats(d.element('gear-stats'), statRows({ base: d.baseStats?.() ?? {}, worn: wornIdsOf(d.profile().loot) }));
+    renderStats(d.element('gear-stats'), statRows({ base: d.baseStats?.() ?? {}, worn: wornIdsOf(d.profile().loot) }), document);
     // The pack (loot.ts PACK): the open slots hold what Store put there, each with Wear; the rest are drawn locked, a placeholder only.
     const pack = Array.from({ length: PACK.total }, (_, i) => {
       const li = document.createElement('li'), id = loot.pack?.[i];

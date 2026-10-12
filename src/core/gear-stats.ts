@@ -19,10 +19,10 @@ export const statRows = (ctx: StatContext, stats: readonly GearStat[] = GEAR_STA
   stats.flatMap((stat) => { const value = stat.read(ctx); return value === null || !Number.isFinite(value) ? [] : [{ id: stat.id, label: stat.label, value: String(Math.round(value)) }]; });
 
 /** Draw the rows into the strip (a <dl>); no rows = the strip is hidden. */
-export function renderStats(host: HTMLElement, rows: readonly StatRow[]): void {
+export function renderStats(host: HTMLElement, rows: readonly StatRow[], doc: Pick<Document, 'createElement'>): void {   // `doc` is the page's own (the sheet's), as loot-panel.ts takes its document
   host.hidden = rows.length === 0;
   host.replaceChildren(...rows.flatMap((row) => {
-    const wrap = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd');
+    const wrap = doc.createElement('div'), dt = doc.createElement('dt'), dd = doc.createElement('dd');
     wrap.setAttribute('data-stat', row.id); dt.textContent = row.label; dd.textContent = row.value; wrap.append(dt, dd);
     return [wrap];
   }));
