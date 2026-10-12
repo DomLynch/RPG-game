@@ -86,6 +86,6 @@ test('a derived table makes a link carried on a row checkable: one creature in t
   const link: Manifest = { table: 'creatureLoot', from: 'loottable', fan: 'rolledBy[]', key: 'id', required: {}, refs: { id: 'creature' } };
   const mk = (rows: object[]) => buildTables([{ manifest: creature, parsed: [{ id: 'wolf', name: 'W' }, { id: 'bear', name: 'B' }] }, { manifest: lootT, parsed: rows }, { manifest: link }]);
   assert.deepEqual(checkTables(mk([{ id: 't1', rolledBy: ['wolf'] }, { id: 't2', rolledBy: ['bear'] }])).problems, []);
-  assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['wolf'] }, { id: 't2', rolledBy: ['wolf'] }])), ['creatureLoot:1:wolf duplicate-id']);
-  assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['ghost'] }])), ['creatureLoot:0:ghost unknown-ref']);
+  assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['wolf'] }, { id: 't2', rolledBy: ['wolf'] }])), ['l.json:1:wolf duplicate-id']);
+  assert.deepEqual(rules(mk([{ id: 't1', rolledBy: ['ghost'] }])), ['l.json:0:ghost unknown-ref']);
 });
