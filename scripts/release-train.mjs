@@ -23,13 +23,23 @@ export const SKIP_MARK = 'release-train: skipped';
 /** docs/release-order.txt -> [PR numbers]; blank lines and # comments ignored. */
 export const readOrder = text => String(text || '').split('\n').map(l => l.replace(/#.*/, '').trim()).filter(l => /^\d+$/.test(l)).map(Number);
 
-/** A rollup is green when every check finished SUCCESS / SKIPPED / NEUTRAL; anything pending or red is not (and an empty rollup is not). */
-export function checksGreen(rollup) {
+/** One check finished SUCCESS / SKIPPED / NEUTRAL; anything pending or red is not. */
+export const checkGreen = c => ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(String(c.__typename === 'StatusContext' ? c.state : (c.status === 'COMPLETED' ? c.conclusion : 'PENDING')).toUpperCase());
+
+/** Skipped browser jobs read as green (#2359, Lead + Auditor 2026-10-12): on a feature head the quality.yml with the `browser-rows (status)` job ran on,
+ * the plan always sets the `browser-rows` commit status, so a head without it at SUCCESS has not passed its browser jobs. A release-* head is exempt (it
+ * always runs them and gets no status); a head only the older quality.yml ran on has no reporter check and is not held. No head ref: the rule applies. */
+export function browserRowsMissing(rollup, headRef = '') {
+  if (/^release-/.test(headRef)) return false;
+  const rows = rollup || [];
+  return rows.some(c => c.workflowName === 'quality' && c.name === 'browser-rows (status)')
+    && !rows.some(c => c.__typename === 'StatusContext' && c.context === 'browser-rows' && String(c.state).toUpperCase() === 'SUCCESS');
+}
+
+/** A rollup is green when every check is (and an empty rollup is not), and a feature head carries its browser-rows status at SUCCESS. */
+export function checksGreen(rollup, headRef = '') {
   if (!Array.isArray(rollup) || !rollup.length) return false;
-  return rollup.every(c => {
-    const v = c.__typename === 'StatusContext' ? c.state : (c.status === 'COMPLETED' ? c.conclusion : 'PENDING');
-    return ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(String(v).toUpperCase());
-  });
+  return rollup.every(checkGreen) && !browserRowsMissing(rollup, headRef);
 }
 
 /**
@@ -73,7 +83,7 @@ export const missingRows = rollup => REQUIRED_ROWS.filter(([wf, name]) => !(roll
  * gate alone is not enough: a label survives a head move. */
 export function pickPublish(prs, trunk = TRUNK) {
   const ok = prs.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === trunk && (p.labels || []).some(l => (l.name || l) === 'candidate:pass')
-    && passAt((p.comments || []).map(c => c.body ?? c), p.headRefOid) && checksGreen(p.statusCheckRollup) && !missingRows(p.statusCheckRollup).length);
+    && passAt((p.comments || []).map(c => c.body ?? c), p.headRefOid) && checksGreen(p.statusCheckRollup, p.headRefName) && !missingRows(p.statusCheckRollup).length);
   return ok.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))[0] || null;
 }
 
@@ -101,7 +111,7 @@ function cut({ dryRun }) {
   const prs = gos.map(p => {
     const view = ghJson(['pr', 'view', String(p.number), '--json', 'comments,statusCheckRollup']);
     const pass = (view.comments || []).filter(c => passAt([c.body], p.headRefOid)).pop();
-    return { number: p.number, head: p.headRefOid, headRef: p.headRefName, baseRef: p.baseRefName, labels: p.labels.map(l => l.name), green: checksGreen(view.statusCheckRollup), passedAt: pass?.createdAt || null, comments: (view.comments || []).map(c => c.body) };
+    return { number: p.number, head: p.headRefOid, headRef: p.headRefName, baseRef: p.baseRefName, labels: p.labels.map(l => l.name), green: checksGreen(view.statusCheckRollup, p.headRefName), passedAt: pass?.createdAt || null, comments: (view.comments || []).map(c => c.body) };
   });
   let order = []; try { order = readOrder(readFileSync('docs/release-order.txt', 'utf8')); } catch { /* no file: oldest PASS first */ }
   const plan = planTrain({ prs, order, inBase });
@@ -143,7 +153,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (cmd === 'verify') {   // stdin: `gh pr view <n> --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments` (ALL checks:
     // `gh pr list` stops at 100, CQ #2342 had 144, Lead on #2336) + argv sha: exit 0 only when that one candidate still passes the whole gate at that sha
     const p = JSON.parse(readFileSync(0, 'utf8') || 'null'), want = rest[0];
-    const why = !p ? 'no PR' : p.headRefOid !== want ? `head moved to ${String(p.headRefOid).slice(0, 9)}` : !pickPublish([p]) ? `gate not met on the full check list (${p.statusCheckRollup?.length ?? 0} checks; missing/red: ${[...missingRows(p.statusCheckRollup), ...(p.statusCheckRollup || []).filter(c => !checksGreen([c])).map(c => `${c.workflowName}/${c.name}`)].slice(0, 5).join(', ') || 'label or PASS'})` : '';
+    const why = !p ? 'no PR' : p.headRefOid !== want ? `head moved to ${String(p.headRefOid).slice(0, 9)}` : !pickPublish([p]) ? `gate not met on the full check list (${p.statusCheckRollup?.length ?? 0} checks; missing/red: ${[...missingRows(p.statusCheckRollup), ...(p.statusCheckRollup || []).filter(c => !checkGreen(c)).map(c => c.context || `${c.workflowName}/${c.name}`), ...(browserRowsMissing(p.statusCheckRollup, p.headRefName) ? ['browser-rows status'] : [])].slice(0, 5).join(', ') || 'label or PASS'})` : '';
     if (why) { console.log(why); process.exit(1); }
     process.exit(0);
   }

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -28,6 +28,22 @@ test('readOrder, checksGreen and the train name', () => {
   assert.equal(checksGreen([]), false, 'no checks at all is not green');
   assert.equal(trainName(new Date('2026-10-12T17:40:05Z'), '38251416111'), 'T1012174005r38251416111', 'seconds + run id: a label event and a cron tick in one minute get two names');
   assert.notEqual(trainName(new Date('2026-10-12T17:40:05Z'), '1'), trainName(new Date('2026-10-12T17:40:05Z'), '2'));
+});
+
+test('checksGreen: a feature head under the new quality.yml needs the browser-rows status SUCCESS; missing or pending is not green; release-* and old heads are exempt (#2359 (d))', () => {
+  const REPORTER = { __typename: 'CheckRun', workflowName: 'quality', name: 'browser-rows (status)', status: 'COMPLETED', conclusion: 'SKIPPED' };
+  const status = (state: string) => ({ __typename: 'StatusContext', context: 'browser-rows', state });
+  const fresh = [...OK, REPORTER];   // the new quality.yml ran on this head: its plan always sets browser-rows on a feature PR
+  assert.equal(checksGreen(fresh, 'lane/x'), false, 'a game-diff feature PR whose browser jobs were skipped and that has no browser-rows status is not green');
+  assert.equal(browserRowsMissing(fresh, 'lane/x'), true);
+  assert.equal(checksGreen([...fresh, status('PENDING')], 'lane/x'), false, 'pending (waiting for auditor:ready) is not green');
+  assert.equal(checksGreen([...fresh, status('FAILURE')], 'lane/x'), false);
+  assert.equal(checksGreen([...fresh, status('SUCCESS')], 'lane/x'), true);
+  assert.equal(checksGreen([...fresh, { ...status('SUCCESS'), context: 'other' }], 'lane/x'), false, 'another context is not browser-rows');
+  assert.equal(checksGreen(fresh, 'release-T1012191800r1'), true, 'a release-* candidate gets no status (it always runs the browser jobs)');
+  assert.equal(checksGreen(OK, 'lane/x'), true, 'a head the old quality.yml ran on (no reporter check) is not held');
+  assert.equal(checksGreen(fresh), false, 'no head ref: the rule applies (fail closed)');
+  assert.equal(pickPublish([{ headRefName: 'release-CV', baseRefName: TRUNK, headRefOid: 'c'.repeat(40), labels: ['candidate:pass'], comments: [`Lead: PASS @${'c'.repeat(9)}`], statusCheckRollup: fresh, createdAt: 'x' }])?.headRefName, 'release-CV', 'the publish gate passes a candidate');
 });
 
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
