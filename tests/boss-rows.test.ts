@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import * as THREE from 'three';
 import { BOSSES, classSkillOf, kindsOf } from '../src/fight/boss-rows.ts';
-import { FX_VERBS, SPECIAL_MODES, TRAVEL_VERBS } from '../src/fight/special-modes.ts';
+import { FX_VERBS, HELD_VERBS, SPECIAL_MODES, TRAVEL_VERBS } from '../src/fight/special-modes.ts';
 import { bossSpecialId } from '../src/fight/special-identity.ts';
 import { specialOf } from '../src/fight/moves.ts';
 import { SPECIAL_CUES, SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
@@ -27,7 +27,7 @@ test('every boss row has the manifest fields with the right types, ids are uniqu
     assert.equal(t === 'integer' ? Number.isInteger(r[f]) : typeof r[f], t === 'integer' ? true : t, `${r.id}.${f}`);
   }
   assert.equal(new Set(BOSSES.map((r) => r.id)).size, BOSSES.length);
-  assert.equal(BOSSES.length, 12);
+  assert.equal(BOSSES.length, 15);
   for (const r of BOSSES) assert.ok(r.rank >= 8 && r.rank <= 10, r.id);
 });
 
@@ -36,6 +36,7 @@ test('fx, at, travel and cue are verb ids checked against the code registries (a
     assert.ok(Object.hasOwn(FX_VERBS, r.fx), `${r.id}: fx ${r.fx}`);
     assert.ok(r.at === 'feet' || r.at === 'head', `${r.id}: at`);
     if (r.travel !== undefined) assert.ok(Object.hasOwn(TRAVEL_VERBS, r.travel), `${r.id}: travel ${r.travel}`);
+    if (r.held !== undefined) assert.ok(Object.hasOwn(HELD_VERBS, r.held), `${r.id}: held ${r.held}`);
     assert.ok((SPECIAL_CUES as readonly string[]).includes(r.cue), `${r.id}: cue ${r.cue}`);
     assert.ok(Object.hasOwn(ROSTER, r.opponent), `${r.id}: opponent ${r.opponent}`);
     assert.ok(Object.hasOwn(SPECIAL_TESTS, r.id), `${r.id}: a ?special= preview`);
@@ -50,12 +51,14 @@ test('each row agrees with Combat\'s special table: (opponent, rank) is the spec
 test('the derivations equal the lists they replaced (presentation only: the registry, cues, class skills, kinds, looks)', () => {
   assert.deepEqual([...BOSS_KINDS], ['arawn', 'thanatos', 'reaper']);
   assert.deepEqual([...kindsOf('boss')], ['mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm']);
-  const lift: Record<string, number> = { arawn: -0.06, thanatos: -0.14, reaper: -0.1 };
+  const lift: Record<string, number> = { arawn: -0.06, thanatos: -0.14, reaper: -0.1, reynard: -0.06, hermes: -0.1, loki: -0.1 };
   for (const r of BOSSES) {
     const m = SPECIAL_MODES[r.id as keyof typeof SPECIAL_MODES]!;
     assert.equal(m.at, 'feet', r.id);
-    assert.equal(m.lift, r.fx === 'executioner' ? lift[r.id] : -0.28, r.id);
-    assert.equal(m.hideTrail, r.fx === 'boss' ? true : undefined, r.id);
+    assert.equal(m.lift, r.fx === 'boss' ? -0.28 : lift[r.id], r.id);
+    assert.equal(m.lift, r.lift, r.id);
+    assert.equal(m.hideTrail, r.fx === 'executioner' ? undefined : true, r.id);
+    assert.equal(typeof m.held, r.id === 'reynard' ? 'function' : 'undefined', r.id);
     assert.equal(typeof m.travel, r.id === 'echo' ? 'function' : 'undefined', r.id);
   }
   assert.deepEqual(['arawn', 'thanatos', 'reaper', 'mist', 'echo', 'price', 'flies', 'stain', 'breath', 'sling', 'haze', 'storm'].map((id) => SPECIAL_CUE_OF[id]),
@@ -85,8 +88,10 @@ test('a new boss over an existing fx verb is ONE row: no code edit, and its regi
 test('every row has an effect maker that builds (an fx boss kind with no maker would throw at load)', async () => {
   const { createBossSpecial } = await import('../src/fight/special-fx-boss.ts');
   const { createExecutionerSpecial } = await import('../src/fight/special-fx-executioner.ts');
+  const { createGoblinSpecial } = await import('../src/fight/special-fx-goblin.ts');
   for (const r of BOSSES) {
     if (r.fx === 'boss') assert.doesNotThrow(() => createBossSpecial(new THREE.Scene(), r.opponent as never, r.id, 1), r.id);
+    else if (r.fx === 'goblin') assert.doesNotThrow(() => createGoblinSpecial(new THREE.Scene(), r.id as never, 1, r.opponent as never), r.id);
     else assert.doesNotThrow(() => createExecutionerSpecial(new THREE.Scene(), 'executioner', r.id, bossLook(r.id, 1)), r.id);
   }
 });
