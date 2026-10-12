@@ -8,6 +8,7 @@ export type Observation = { x: number; z: number; zone: string | null; atMs: num
 export type LocationFlusher = {
   mark(account: string, at: Observation): void;
   has(account: string): boolean;
+  drop(account: string): void;
   size(): number;
   flush(): Promise<{ rows: number; batches: number }>;
   start(): void;
@@ -50,6 +51,7 @@ export function createLocationFlusher(db: Db, everyMs: number, log: (m: string) 
   return {
     mark: (account, at) => put(dirty, account, at),
     has: account => dirty.has(account),
+    drop: account => { dirty.delete(account); },
     size: () => dirty.size,
     flush,
     start() { if (!timer) { timer = setInterval(() => { flush().catch(() => undefined); }, everyMs); timer.unref(); } },

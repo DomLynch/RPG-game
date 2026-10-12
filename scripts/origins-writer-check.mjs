@@ -507,6 +507,15 @@ try {
         await post(A, 1, 1, fnow - 60_000);
         await flusher.flush();
         eq(locRow(pc), `pit-yard:15200:16200`, 'a stale observation in a later batch changes nothing');
+        // the switch race (Lead, #2414): a held spot is written to the character that was active when it was posted, not to the one a switch makes active before the flush
+        const fOpen = (token, body) => globalThis.fetch(`${fbase}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.status);
+        eq(activeOf(D), daraTwo, 'D starts on Dara Two');
+        const daraWas = locRow(dara);
+        await post(D, 14800, 15800, Date.now() + 5000);
+        eq(flusher.has(D), true, 'D\'s spot is held');
+        eq(await fOpen('td', { character: dara }), 200, 'D switches to Dara');
+        eq([locRow(daraTwo), locRow(dara), flusher.has(D)], [`pit-yard:14800:15800`, daraWas, false], 'the held spot landed on Dara Two (active when posted), nothing leaked onto Dara, nothing left held');
+        eq(await fOpen('td', { character: daraTwo }), 200, 'D switches back');
       } finally { await flusher.stop(); fw.close(); }
     }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)

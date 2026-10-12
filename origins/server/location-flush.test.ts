@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { AddressInfo } from 'node:net';
 import type { Db } from './db.ts';
+import { createWriter } from './server.ts';
 import { createLocationFlusher } from './location-flush.ts';
 
 const A = '00000000-0000-4000-8000-00000000000a', B = '00000000-0000-4000-8000-00000000000b', C = '00000000-0000-4000-8000-00000000000c';
@@ -72,4 +74,28 @@ test('stop() writes what is left; an interval of 0 is refused', async () => {
   await f.stop();
   assert.equal(calls.length, 1);
   assert.throws(() => createLocationFlusher(db, 0), /positive integer/);
+});
+
+test('the writer settles an account\'s held spot BEFORE any op of that account runs (open / create_character switch the active character); a refused spot is dropped, never kept for the new character', async () => {
+  const order: string[] = [];
+  let refuse = false;
+  const db: Db = { async run(_sql, vars = {}) { if (vars.rows !== undefined || vars.a !== undefined) { order.push('write'); if (refuse) throw new Error('refused'); } return vars.a === undefined ? '' : '{"character":null,"stored":true}'; } };
+  const f = createLocationFlusher(db, 90_000, quiet);
+  const w = createWriter({ db, verify: async () => A, where: async () => ({ online: false }), handlers: { open: async () => { order.push('open'); return {}; } }, internal: { key: 'k', flusher: f } });
+  await new Promise<void>(r => w.listen(0, '127.0.0.1', r));
+  try {
+    const open = () => globalThis.fetch(`http://127.0.0.1:${(w.address() as AddressInfo).port}/origins/open`, { method: 'POST', headers: { authorization: 'Bearer t' }, body: '{}' });
+    f.mark(A, seen(1, 100));
+    assert.equal((await open()).status, 200);
+    assert.deepEqual(order, ['write', 'open'], 'the spot is written first');
+    assert.equal(f.has(A), false);
+    order.length = 0;
+    assert.equal((await open()).status, 200);
+    assert.deepEqual(order, ['open'], 'nothing held: no extra write');
+    order.length = 0; refuse = true;
+    f.mark(A, seen(2, 200)); f.mark(B, seen(3, 200));
+    assert.equal((await open()).status, 200);
+    assert.equal(f.has(A), false, 'a spot the database refused is dropped before the switch can run');
+    assert.equal(f.has(B), true, 'another account\'s held spot is untouched by A\'s op');
+  } finally { w.close(); }
 });
