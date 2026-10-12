@@ -16,11 +16,12 @@ function box(answer = 'would=spill reason=slots') {
   writeFileSync(probe, `#!/bin/bash\necho '${answer}'\n`);
   chmodSync(probe, 0o755);
   const ran = join(dir, 'ran');
+  const deployRe = `no-deploy-${dir.split('-').pop()}`;   // the real pgrep pattern would match a live deploy.sh or a sibling test's holder
   const run = (args: string[], env: Record<string, string> = {}) => spawnSync('bash', [script, ...args], {
     encoding: 'utf8', timeout: 20000,
-    env: { ...process.env, LANEJOB_MAC_STATE: dir, LANEJOB_MAC_PROBE: probe, LANEJOB_MAC_LOAD: '2.5', LANEJOB_MAC_RECHECK: '0', LANEJOB_MAC_NO_REMOTE_LOG: '1', ...env },
+    env: { ...process.env, LANEJOB_MAC_STATE: dir, LANEJOB_MAC_PROBE: probe, LANEJOB_MAC_LOAD: '2.5', LANEJOB_MAC_RECHECK: '0', LANEJOB_MAC_NO_REMOTE_LOG: '1', LANEJOB_MAC_DEPLOY_RE: deployRe, ...env },
   });
-  return { dir, ran, run, log: () => (existsSync(join(dir, 'lanejob-mac.log')) ? readFileSync(join(dir, 'lanejob-mac.log'), 'utf8') : '') };
+  return { dir, ran, run, deployRe, log: () => (existsSync(join(dir, 'lanejob-mac.log')) ? readFileSync(join(dir, 'lanejob-mac.log'), 'utf8') : '') };
 }
 
 test('would=spill with a quiet Mac runs the job, passes its exit code and logs tier=mac', () => {
@@ -74,7 +75,7 @@ test('a live slot holder sends the job on; a dead holder is reclaimed', () => {
 
 test('a running deploy.sh sends the job on', () => {
   const b = box();
-  const holder = spawn('bash', ['-c', 'sleep 30 # scripts/deploy.sh'], { stdio: 'ignore' });   // a process whose command line names deploy.sh
+  const holder = spawn('bash', ['-c', `sleep 30 # ${b.deployRe}`], { stdio: 'ignore' });   // a process whose command line names deploy.sh
   try {
     const r = b.run(['touch', b.ran]);
     assert.equal(r.status, 75);
