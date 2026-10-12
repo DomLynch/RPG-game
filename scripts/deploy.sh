@@ -235,10 +235,10 @@ rsync -az -e "$remote_shell" ops/frankendom-verify-daily.service ops/frankendom-
 ssh "${ssh_options[@]}" "$host" bash -s -- "$verifier" <<'REMOTE'
 set -euo pipefail
 # Blue-green: dry-import every installed module with the box's own node BEFORE current flips; a missing file fails here and the old verifier stays live.
-# The entries are excluded: importing them would run a verification (their main guard compares argv[1]).
-(cd "$1" && find src -type f \( -name '*.ts' -o -name '*.mjs' \) -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+# Every installed module under src/ and scripts/ except the two entries (importing them would run a verification; their main guard compares argv[1]).
+(cd "$1" && find src scripts -type f \( -name '*.ts' -o -name '*.mjs' \) ! -path scripts/verify-daily.mjs ! -path scripts/verify-loot.mjs -print0 | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
   || { echo "verifier: dry import failed in $1 with $(node --version); current left on $(readlink /opt/frankendom-verifier/current 2>/dev/null || echo none)" >&2; exit 1; }
-echo "verifier: dry import ok ($(find "$1/src" -type f | wc -l | tr -d ' ') files, node $(node --version))"
+echo "verifier: dry import ok ($(find "$1/src" "$1/scripts" -type f | wc -l | tr -d ' ') files, node $(node --version))"
 ln -sfn "$1" /opt/frankendom-verifier/current
 if test -s /etc/frankendom/verifier.env; then
   test "$(stat -c %U:%a /etc/frankendom/verifier.env)" = root:600 || { echo "/etc/frankendom/verifier.env must be root:600"; exit 1; }

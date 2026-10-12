@@ -38,6 +38,13 @@ test('the dry import passes on a full install and fails, naming the module, when
   for (const f of list().stdout.trim().split('\n')) { mkdirSync(join(install, dirname(f)), { recursive: true }); copyFileSync(f, join(install, f)); }
   const ok = dryImport(install);
   assert.equal(ok.status, 0, ok.stderr);
+  // A closure module under scripts/ (not an entry) is imported too: one with an import that resolves nowhere fails the gate.
+  mkdirSync(join(install, 'scripts', 'lib'), { recursive: true });
+  writeFileSync(join(install, 'scripts', 'lib', 'helper.mjs'), "import './gone.mjs';\n");
+  const helper = dryImport(install);
+  assert.notEqual(helper.status, 0, 'scripts/** is dry-imported, not only src/');
+  assert.match(helper.stderr, /gone\.mjs/);
+  rmSync(join(install, 'scripts', 'lib'), { recursive: true });
   rmSync(join(install, 'src/fight/pool-defs.json'));
   const bad = dryImport(install);
   assert.notEqual(bad.status, 0, 'a missing file must fail the gate');
