@@ -27,7 +27,6 @@ import VENUE_MANIFEST from './venue-defs.manifest.json' with { type: 'json' };
 import { PATRON_ROWS } from './patrons.data.ts';
 import STAT_DEFS from './stat-defs.json' with { type: 'json' };
 import STAT_MANIFEST from './stat-defs.manifest.json' with { type: 'json' };
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // 1. Perk templates.
