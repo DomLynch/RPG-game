@@ -73,6 +73,8 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           RUN_REF: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
+          # The T4's rows (row-placement.mjs GPU_ONLY) are never scheduled on CI: they miss the 600 s row ceiling without a GPU and are never trusted from here.
+          export CI_SKIP_ROWS=$(node --input-type=module -e 'import { GPU_ONLY } from "./scripts/lib/row-placement.mjs"; console.log(GPU_ONLY.join(","))')
           node -e '
             const { execFileSync } = require("child_process");
             const gate = require("./.quality-gate.json");
@@ -92,11 +94,12 @@ jobs:
               else console.log(`${process.env.PR_ACTION}, labelled: full matrix (the diff triggers rows ${triggered.map(c => c.index).join(", ")})`);
             }
             const skip = pr ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
+            const skipRows = process.env.CI_SKIP_ROWS.split(",").map(Number);
             const checks = !run ? [] : (gate.release_commands.map((command, i) => ({
               index: i + 1,
               name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
               argv: JSON.stringify(command),
-            }))).filter(check => !skip.some(name => check.name.includes(name)));
+            }))).filter(check => !skip.some(name => check.name.includes(name)) && !skipRows.includes(check.index));
             require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "checks=" + JSON.stringify(checks) + "\nref=" + process.env.RUN_REF + "\n");
           '
   rows:
