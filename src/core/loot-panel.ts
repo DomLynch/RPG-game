@@ -50,8 +50,8 @@ export function createLootPanel(element: (id: string) => HTMLElement, doc: Doc, 
         const box = make('div'), head = make('p'), img = make<HTMLImageElement>('img'), slot = make('p'), title = make('p');
         box.setAttribute('data-side', side); head.textContent = tag; head.setAttribute('class', 'loot-card-tag');
         if (image) { img.src = image; img.alt = ''; img.width = img.height = 64; img.decoding = 'async'; box.append(head, img); } else box.append(head);
-        title.textContent = name[0]!.toUpperCase() + name.slice(1);   // both cards in one form: "Kobold's helmet" beside "the Pitborn's helmet" read as two styles title.setAttribute('class', 'loot-card-name'); slot.textContent = card.compare!.slot; slot.setAttribute('class', 'loot-card-slot');
-        box.append(title, slot);
+        title.textContent = name[0]!.toUpperCase() + name.slice(1); title.setAttribute('class', 'loot-card-name'); slot.textContent = card.compare!.slot; slot.setAttribute('class', 'loot-card-slot');
+        box.append(title, slot);   // both names in one form (capitalised): "Kobold's helmet" beside "the Pitborn's helmet" read as two styles
         return box;
       }));
       element('loot-panel-note-text').textContent = '';
