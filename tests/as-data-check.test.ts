@@ -82,7 +82,7 @@ test('the real allow-list has no stale entry or stale verb, and the four ratifie
 test('with no --root the checker scans src AND origins; a verb whose declaration is gone is stale and fails', () => {
   const both = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
   assert.equal(both.status, 0, both.stderr);
-  const srcOnly = check('src');
+  const srcOnly = JSON.parse(run('src').stdout) as Report;   // the same real allow-list on both sides, so the allowed sites leave both counts alike
   assert.ok((JSON.parse(both.stdout) as Report).sites.some((s) => s.file.startsWith('origins/')), 'origins sites are counted');
   assert.ok((JSON.parse(both.stdout) as Report).compares > srcOnly.compares, 'the denominator covers both roots');
   const dir = mkdtempSync(join(tmpdir(), 'as-data-verb-'));
