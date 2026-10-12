@@ -77,7 +77,7 @@ test('a zone\'s own mob look wins over the central table, and a zone without one
   const z1 = loadZone('1'), id = 'character:ash-wolf', own = { opponent: 'wolf', tint: 0x8a4a32, scale: 1.5, dressing: { soot: .1, burnt: .6 } };
   const zone = { ...z1, id: 'test', mobLooks: { looks: { [id]: own, 'character:ember-wolf': own }, spread: { 'character:ember-wolf': { tints: [0x7a4030, 0x9a5a3a], scale: .08, soot: .1, burnt: .1 } } } } as unknown as Zone;
   assert.equal(mobLook(id, z1), mobLook(id), 'Zone 1: the central look, untouched');
-  assert.equal(mobLook(id), MOB_LOOKS[id], 'the default zone off a page is Zone 1');
+  assert.deepEqual({ ...mobLook(id), scale: undefined }, { ...MOB_LOOKS[id], scale: undefined }, 'the default zone off a page is Zone 1 (the central row, its scale resolved)');
   assert.equal(mobLook(id, zone), own, 'the zone\'s entry first');
   assert.equal(mobLook('character:ash-boar', zone), mobLook('character:ash-boar'), 'a kind the zone does not dress falls back to the central table');
   assert.equal(variantLook('character:ember-wolf', 0, zone), own, 'variant 0 IS the zone look');
