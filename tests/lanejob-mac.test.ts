@@ -19,7 +19,7 @@ function box(answer = 'would=spill reason=slots') {
   const deployRe = `no-deploy-${dir.split('-').pop()}`;   // the real pgrep pattern would match a live deploy.sh or a sibling test's holder
   const run = (args: string[], env: Record<string, string> = {}) => spawnSync('bash', [script, ...args], {
     encoding: 'utf8', timeout: 20000,
-    env: { ...process.env, LANEJOB_MAC_STATE: dir, LANEJOB_MAC_PROBE: probe, LANEJOB_MAC_LOAD: '2.5', LANEJOB_MAC_RECHECK: '0', LANEJOB_MAC_NO_REMOTE_LOG: '1', LANEJOB_MAC_DEPLOY_RE: deployRe, ...env },
+    env: { ...process.env, LANEJOB_MAC_STATE: dir, LANEJOB_MAC_PROBE: probe, LANEJOB_MAC_LOAD: '2.5', LANEJOB_MAC_RECHECK: '0', LANEJOB_MAC_NO_REMOTE_LOG: '1', LANEJOB_MAC_DEPLOY_RE: deployRe, LANEJOB_MAC_HOLD: join(dir, 'deploy_hold'), ...env },
   });
   return { dir, ran, run, deployRe, log: () => (existsSync(join(dir, 'lanejob-mac.log')) ? readFileSync(join(dir, 'lanejob-mac.log'), 'utf8') : '') };
 }
@@ -89,4 +89,15 @@ test('the 30 minute cap kills the job and sends it on (75)', () => {
   const r = b.run(['sleep', '30'], { LANEJOB_MAC_CAP: '1' });
   assert.equal(r.status, 75);
   assert.match(b.log(), /tier=mac cap=exceeded/);
+});
+
+test('Deploy\'s deploy_hold marker or a VPS release-lock answer sends the job on', () => {
+  const b = box();
+  writeFileSync(join(b.dir, 'deploy_hold'), '');
+  assert.equal(b.run(['touch', b.ran]).status, 75);
+  assert.match(b.log(), /reason=release-in-flight/);
+  const c = box('would=spill reason=release-lock');
+  assert.equal(c.run(['touch', c.ran]).status, 75);
+  assert.ok(!existsSync(c.ran));
+  assert.match(c.log(), /reason=release-in-flight/);
 });

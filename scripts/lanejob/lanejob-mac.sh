@@ -4,7 +4,7 @@
 # Gates, all must pass: LANEJOB_NO_MAC unset; the VPS probe (`lanejob --probe`) says would=spill; load1 < 6 now and again after 60 s;
 # no scripts/deploy.sh running; one Mac slot (a lock dir under the state dir); the job is CPU-only (no browser, full suite, build, Blender).
 # Then: nice 15, 30 min cap (kill, exit 75 so the caller re-routes to hf-cpu). Logs `tier=mac ...` to <state>/lanejob-mac.log, then best-effort
-# to the VPS /var/log/lanejob.log. macOS bash 3.2 compatible. Test overrides: LANEJOB_MAC_STATE/_LOAD/_PROBE/_RECHECK/_CAP/_NO_REMOTE_LOG/_DEPLOY_RE.
+# to the VPS /var/log/lanejob.log. macOS bash 3.2 compatible. Test overrides: LANEJOB_MAC_STATE/_LOAD/_PROBE/_RECHECK/_CAP/_NO_REMOTE_LOG/_DEPLOY_RE/_HOLD.
 [ $# -gt 0 ] || { echo "usage: lanejob-mac.sh CMD ARGS..." >&2; exit 2; }
 state="${LANEJOB_MAC_STATE:-$HOME/.claude/state}"; log="$state/lanejob-mac.log"; mkdir -p "$state"
 ssh_vps="${LANEJOB_MAC_SSH:-ssh -o BatchMode=yes -o ConnectTimeout=5 -i $HOME/.ssh/binance_futures_tool root@49.12.7.18}"
@@ -23,12 +23,19 @@ if printf '%s\n' "$*" | grep -Eiq "$deny"; then echo "lanejob-mac: refused, not 
 if [ -n "${LANEJOB_MAC_PROBE:-}" ]; then ans="$($LANEJOB_MAC_PROBE "$@" 2>/dev/null)"
 else ans="$($ssh_vps "sudo -u lanes -H /usr/local/bin/lanejob --probe $(printf '%q ' "$@")" 2>/dev/null)"; fi
 case "$ans" in
+  "would=spill reason=release-lock"*) skip release-in-flight ;;   # a VPS release marker (/run/frankendom-release)
   "would=spill"*) ;;
   "would=vps"*) skip vps-has-room ;;
   "would=refuse"*) echo "lanejob-mac: the VPS probe refuses this job" >&2; exit 126 ;;
   *) skip probe-failed ;;
 esac
-pgrep -f "${LANEJOB_MAC_DEPLOY_RE:-scripts/deploy\.sh}" >/dev/null 2>&1 && skip release-in-flight
+released() {   # Deploy's three signs of a release: deploy.sh running, ~/.claude/state/deploy_hold (touched before, removed after Published), live /root/deploy-runs on the VPS
+  pgrep -f "${LANEJOB_MAC_DEPLOY_RE:-scripts/deploy\.sh}" >/dev/null 2>&1 && return 0
+  [ -e "${LANEJOB_MAC_HOLD:-$HOME/.claude/state/deploy_hold}" ] && return 0
+  [ -n "${LANEJOB_MAC_PROBE:-}" ] && return 1
+  [ -n "$($ssh_vps 'find /root/deploy-runs -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | head -1' 2>/dev/null)" ]
+}
+released && skip release-in-flight
 busy && skip "load=$(load1)"
 lock="$state/lanejob-mac.slot"
 if ! mkdir "$lock" 2>/dev/null; then
@@ -39,7 +46,7 @@ fi
 echo $$ > "$lock/pid"; trap 'rm -rf "$lock"' EXIT
 sleep "${LANEJOB_MAC_RECHECK:-60}"
 busy && skip "load=$(load1) recheck"
-pgrep -f "${LANEJOB_MAC_DEPLOY_RE:-scripts/deploy\.sh}" >/dev/null 2>&1 && skip release-in-flight
+released && skip release-in-flight
 note "mac slot=1 load=$(load1)"
 nice -n 15 "$@" & job=$!
 ( sleep "${LANEJOB_MAC_CAP:-1800}"; touch "$lock/capped"; kill -TERM "$job" 2>/dev/null; sleep 5; kill -KILL "$job" 2>/dev/null ) >/dev/null 2>&1 & dog=$!
