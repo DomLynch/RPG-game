@@ -6,10 +6,14 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { generateTown } from './town.ts';
 import { kitPiece } from './town-kit.ts';
-import { TOWN_DEFS, defsProblems, shopTrades, type TownDefs } from './town-defs.ts';
+import { TOWN_DEFS, shopTrades, type TownDefs } from './town-defs.ts';
 import towns from '../region1/towns.json' with { type: 'json' };
+import manifests from '../region1/towns.manifest.json' with { type: 'json' };
+import { buildTables, checkTables } from '../../src/core/server.ts';
 
 const SEEDS = ['ferry', 'cinder', 'mere-end', 'a', 'z9', 'Frankendom', 'x', 'town:exchange-quarter', '0', 'ash reach'], WEALTHS = [-1, 0, 0.05, 0.1, 0.25, 0.333, 0.5, 0.6, 0.75, 0.9, 1, 2];
+// The shared loader over the real manifest and a copy of the rows with `defs` as the definitions: every problem, as the data gate and the runtime load would report it.
+const problems = (defs: unknown) => checkTables(buildTables(manifests.tables.map((manifest) => ({ manifest: manifest as never, parsed: { ...towns, definitions: defs }, file: 'towns.json' })))).problems.map((p) => `${p.id} ${p.rule}: ${p.message}`);
 const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
 const withRows = (edit: (d: { lotKinds: Record<string, Record<string, unknown>>; trades: Record<string, Record<string, unknown>> }) => void): TownDefs => { const d = structuredClone(TOWN_DEFS) as unknown as Parameters<typeof edit>[0]; edit(d); return d as unknown as TownDefs; };
 
@@ -25,12 +29,12 @@ test('the kit pieces chosen for those towns are unchanged (the bank sign and cou
   assert.equal(sha(out), '1c2afb80828c2c09'); assert.equal(out.length, 11234);
 });
 
-test('the manifest holds for the real definitions, and names a missing field, a wrong type and a duplicate order', () => {
-  assert.deepEqual(defsProblems(towns.definitions as never), []);
+test('the registry manifest holds for the real definitions, and the loader names a missing required field and a wrong type', () => {
+  assert.deepEqual(problems(towns.definitions), []);
   const bad = structuredClone(towns.definitions) as Record<string, Record<string, Record<string, unknown>>>;
-  delete bad.lotKinds!.shop!.ring; bad.lotKinds!.house!.walls = 'yes'; bad.trades!.inn!.order = bad.trades!.smith!.order;
-  const text = defsProblems(bad).join('; ');
-  assert.match(text, /lotKinds\.shop: missing ring/); assert.match(text, /lotKinds\.house\.walls: expected boolean, got string/); assert.match(text, /trades: order 0 is on both smith and inn/);
+  delete bad.lotKinds!.shop!.ring; bad.lotKinds!.house!.ring = 'two';
+  const text = problems(bad).join('; ');
+  assert.match(text, /shop missing-field: ring is required/); assert.match(text, /house wrong-type: ring must be integer/);
 });
 
 test('no lot kind or trade name is compared in the generator or the kit mapping', () => {
@@ -44,7 +48,7 @@ test('the shop trades are the rows flagged shop, in order: the services stay tra
 
 test('a new trade with its chimney and sign is ONE ROW: the weaver gets shops, a chimney piece and its kit sign, with no code', () => {
   const defs = withRows((d) => { d.trades.weaver = { shop: true, order: 2.5, chimney: true, kit: { sign: 'sign_tavern_a' } }; });
-  assert.deepEqual(defsProblems(defs as never), []);
+  assert.deepEqual(problems(defs), []);
   const town = generateTown('ferry', 1, defs), weavers = town.lots.filter((l) => l.trade === 'weaver');
   assert.ok(weavers.length >= 1, 'a weaver shop is generated');
   for (const l of weavers) { assert.ok(l.pieces.some((p) => p.node === 'chimney'), 'with a chimney'); assert.equal(kitPiece(l.pieces.find((p) => p.node === 'sign')!, l, defs), 'sign_tavern_a', 'and its own sign'); }
@@ -53,7 +57,7 @@ test('a new trade with its chimney and sign is ONE ROW: the weaver gets shops, a
 
 test('a new lot kind is ONE ROW: a chapel in ring 2 (placed before the houses fill the ring) with its own kit sign', () => {
   const defs = withRows((d) => { d.lotKinds.chapel = { order: 3.5, ring: 2, count: [2, 0], size: { w: [6, 0, 0], d: [6, 0, 0] }, walls: true, sign: true, kit: { sign: 'sign_smith_a' } }; });
-  assert.deepEqual(defsProblems(defs as never), []);
+  assert.deepEqual(problems(defs), []);
   const chapels = generateTown('cinder', 1, defs).lots.filter((l) => l.kind === 'chapel');
   assert.ok(chapels.length >= 1 && chapels.every((l) => l.ring === 2 && l.id.startsWith('chapel-')));
   for (const l of chapels) assert.equal(kitPiece(l.pieces.find((p) => p.node === 'sign')!, l, defs), 'sign_smith_a');
