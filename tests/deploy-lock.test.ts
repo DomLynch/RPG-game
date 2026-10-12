@@ -109,7 +109,7 @@ test('deploy.sh: only the publish window is exclusive, and the old whole-run rm 
   assert.doesNotMatch(s, /rm -f "\$DEPLOY_LOCK"/);
   assert.ok(at('deploy_lock_take') < at("trap 'deploy_lock_release"));
   assert.ok(at('deploy_step "release checks"') < at('deploy_lock_wait "$DEPLOY_ROWS_LOCK"'));
-  assert.ok(at('deploy_lock_wait "$DEPLOY_ROWS_LOCK"') < at('trusted_checks=$(node scripts/ci-trusted-checks.mjs'), 'the CI lookup runs after any wait');
+  assert.ok(at('deploy_lock_wait "$DEPLOY_ROWS_LOCK"') < at('node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits'), 'the CI lookup runs after any wait');
   assert.ok(at('node scripts/release-checks.mjs') < at('deploy_lock_drop "$DEPLOY_ROWS_LOCK"'));
   assert.ok(at('deploy_lock_drop "$DEPLOY_ROWS_LOCK"') < at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"'));
   assert.ok(at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"') < at('deploy_publish_order "$live_now"'));

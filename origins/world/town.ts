@@ -6,9 +6,10 @@
 // Wealth (0..1) is how grand the town is: more lots, wider rings, bigger buildings, more variants. Pure data (no three.js, no clock, no Math.random): same seed + wealth = the same town.
 // Output is placement data keyed on the building kit's node names (TOP10 row 3: wall, corner, arch, roof, stall, counter, sign, chimney); Characters' kit file maps them to meshes.
 // Donor: OpenTTD town growth (rings round a centre; study and rewrite, GPL) and 2004Scape's fixed civic NPC set; the circle-packing placement here is our own.
+import { TOWN_DEFS, shopTrades, type LotKindRow, type TownDefs } from './town-defs.ts';
 export const TOWN_NODES = ['wall', 'corner', 'arch', 'roof', 'stall', 'counter', 'sign', 'chimney'] as const;
 export type TownNode = (typeof TOWN_NODES)[number];
-export type LotKind = 'bank' | 'board' | 'rankings' | 'stall' | 'shop' | 'house' | 'gate';
+export type LotKind = string;   // a key of the lot kind rows (origins/region1/towns.json definitions.lotKinds, town-defs.ts): a new kind is a row
 export type Slot = 'door' | 'window' | 'plain';   // which kind of wall a `wall` piece is: the door in the front, windows, or plain
 export type TownPiece = { node: TownNode; x: number; z: number; rotY: number; scale: number; variant: number; slot?: Slot };   // world metres, town-local (the centre is 0,0)
 export type Lot = { id: string; kind: LotKind; ring: 0 | 1 | 2 | 3; x: number; z: number; rotY: number; w: number; d: number; r: number; trade?: string; pieces: TownPiece[] };
@@ -16,7 +17,6 @@ export type Town = { seed: string; wealth: number; lots: Lot[]; radius: number }
 
 export const ROAD_HALF = 6;   // metres either side of the z axis kept clear of stalls: the road runs through the gate arches
 export const MODULE = 3;   // metres: the building kit's wall module
-const TRADES = ['smith', 'general', 'apothecary', 'inn', 'tailor', 'fletcher', 'chandler', 'baker', 'cooper', 'jeweller'] as const;
 
 const rng = (seed: string) => {   // mulberry32 over a string hash
   let h = 1779033703 ^ seed.length;
@@ -26,11 +26,11 @@ const rng = (seed: string) => {   // mulberry32 over a string hash
 };
 
 // A building's pieces round its footprint (w across the front, d deep), facing +z at rotY 0: corner posts, wall runs along the four sides (the front keeps a door gap), a roof, a sign on a shop, a chimney on a house or a smithy, a counter in a bank.
-function building(kind: LotKind, trade: string | undefined, w: number, d: number, R: () => number): TownPiece[] {
+function building(row: LotKindRow, trade: string | undefined, w: number, d: number, R: () => number, defs: TownDefs): TownPiece[] {
   const out: TownPiece[] = [], v = () => Math.floor(R() * 3), piece = (node: TownNode, x: number, z: number, rotY: number, scale = 1, slot?: Slot) => out.push({ node, x, z, rotY, scale, variant: v(), ...(slot ? { slot } : {}) });
-  if (kind === 'stall') { piece('stall', 0, 0, 0); return out; }   // an open stall: one piece
-  if (kind === 'gate') return out;   // the arch is added by the generator
-  if (kind === 'board' || kind === 'rankings') { piece('sign', 0, 0, 0, 1.4); piece('stall', 0, -d / 2, 0); return out; }   // a notice board: a big sign on a stand
+  if (row.open) { piece('stall', 0, 0, 0); return out; }   // an open stall: one piece
+  if (row.stand !== undefined) { piece('sign', 0, 0, 0, row.stand); piece('stall', 0, -d / 2, 0); return out; }   // a notice board: a big sign on a stand
+  if (!row.walls) return out;   // no building (the gate: its arch is added by the generator)
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) piece('corner', (sx * w) / 2, (sz * d) / 2, 0);
   const run = (len: number, at: (t: number) => [number, number], rotY: number, front = false) => {   // the kit's module is 3 m (public/world/town/buildings.json)
     const n = Math.max(1, Math.round(len / MODULE));
@@ -39,38 +39,43 @@ function building(kind: LotKind, trade: string | undefined, w: number, d: number
   run(w, (t) => [(t - 0.5) * w, d / 2], 0, true); run(w, (t) => [(t - 0.5) * w, -d / 2], 0);
   run(d, (t) => [-w / 2, (t - 0.5) * d], Math.PI / 2); run(d, (t) => [w / 2, (t - 0.5) * d], Math.PI / 2);
   piece('roof', 0, 0, 0, Math.max(w, d) / 6);
-  if (kind === 'shop' || kind === 'bank') piece('sign', 0, d / 2 + 0.3, 0);
-  if (kind === 'house' || trade === 'smith' || trade === 'baker') piece('chimney', w / 4, -d / 4, 0);
-  if (kind === 'bank') piece('counter', 0, d / 2 - 1.2, 0, w / 5);
+  if (row.sign) piece('sign', 0, d / 2 + 0.3, 0);
+  if (row.chimney || (trade && defs.trades[trade]?.chimney)) piece('chimney', w / 4, -d / 4, 0);
+  if (row.counter) piece('counter', 0, d / 2 - 1.2, 0, w / 5);
   return out;
 }
 
-export function generateTown(seed: string, wealth: number): Town {
+export function generateTown(seed: string, wealth: number, defs: TownDefs = TOWN_DEFS): Town {
   const k = Math.min(1, Math.max(0, wealth)), R = rng(`town:${seed}:${Math.round(k * 100)}`), lots: Lot[] = [];
+  const kinds = Object.entries(defs.lotKinds).sort((x, y) => x[1].order - y[1].order), trades = shopTrades(defs);
   const put = (kind: LotKind, ring: Lot['ring'], x: number, z: number, faceX: number, faceZ: number, w: number, d: number, trade?: string) => {
     const rotY = Math.atan2(faceX - x, faceZ - z), id = `${kind}-${lots.filter((l) => l.kind === kind).length + 1}`;
-    lots.push({ id, kind, ring, x, z, rotY, w, d, r: Math.hypot(w, d) / 2 + 1, ...(trade ? { trade } : {}), pieces: building(kind, trade, w, d, R) });
+    lots.push({ id, kind, ring, x, z, rotY, w, d, r: Math.hypot(w, d) / 2 + 1, ...(trade ? { trade } : {}), pieces: building(defs.lotKinds[kind]!, trade, w, d, R, defs) });
   };
   const free = (x: number, z: number, r: number) => lots.every((l) => Math.hypot(l.x - x, l.z - z) >= l.r + r);
-  // ring 0: the civic centre, three fixed buildings 120 degrees apart round a plaza whose size follows the wealth
-  const plaza = 9 + 6 * k, civic = [['bank', 12 + 5 * k, 9 + 3 * k], ['board', 6, 4], ['rankings', 6, 4]] as const, spin = R() * Math.PI * 2, third = Math.PI / 3, turn = Math.floor(spin / third) * third + (27 + (6 * (spin % third)) / third) * (Math.PI / 180);   // the three centres are 120 degrees apart, so mod 180 they sit at t, t+60, t+120 (t = turn mod 60): t in [27, 33] degrees keeps every centre 27-33 degrees off the road axis (+-z), the best any turn can do (30 is the maximin)
-  civic.forEach(([kind, w, d], i) => { const a = turn + (i * Math.PI * 2) / 3; put(kind, 0, Math.sin(a) * plaza, Math.cos(a) * plaza, 0, 0, w, d); });
-  // rings 1 to 3: lots packed on a circle at each ring's radius, each facing the centre, skipping a spot that would overlap
-  const ring = (n: number, radius: number, kind: LotKind, ringNo: Lot['ring'], size: (i: number) => [number, number], trade?: (i: number) => string | undefined) => {
+  // ring 0: the civic centre, the kinds with a `civic` size, 120 degrees apart round a plaza whose size follows the wealth
+  const plaza = 9 + 6 * k, civic = kinds.filter(([, r]) => r.civic), spin = R() * Math.PI * 2, third = Math.PI / 3, turn = Math.floor(spin / third) * third + (27 + (6 * (spin % third)) / third) * (Math.PI / 180);   // the three centres are 120 degrees apart, so mod 180 they sit at t, t+60, t+120 (t = turn mod 60): t in [27, 33] degrees keeps every centre 27-33 degrees off the road axis (+-z), the best any turn can do (30 is the maximin)
+  civic.forEach(([kind, row], i) => { const a = turn + (i * Math.PI * 2) / 3; put(kind, 0, Math.sin(a) * plaza, Math.cos(a) * plaza, 0, 0, row.civic!.w[0] + row.civic!.w[1] * k, row.civic!.d[0] + row.civic!.d[1] * k); });
+  // rings 1 to 3: lots packed on a circle at each ring's radius (the previous ring's radius plus the ring's `gap`), each facing the centre, skipping a spot that would overlap
+  const radii = new Map<number, number>(); let prev = plaza;
+  for (const [, row] of kinds) if (row.ring > 0 && row.gap && !radii.has(row.ring)) { prev = prev + row.gap[0] + row.gap[1] * k; radii.set(row.ring, prev); }
+  const dim = ([base, span, wealthSpan]: readonly [number, number, number]) => base + (span ? span * R() : 0) + wealthSpan * k;
+  const ring = (n: number, radius: number, kind: LotKind, ringNo: Lot['ring'], size: () => [number, number], trade?: (i: number) => string | undefined) => {
     const start = R() * Math.PI * 2;
     for (let i = 0, placed = 0, tries = 0; placed < n && tries < n * 6; i++, tries++) {
-      const a = start + (i / n) * Math.PI * 2 + (R() - 0.5) * 0.25, rr = radius + (R() - 0.5) * 2, [w, d] = size(placed), x = Math.sin(a) * rr, z = Math.cos(a) * rr;
+      const a = start + (i / n) * Math.PI * 2 + (R() - 0.5) * 0.25, rr = radius + (R() - 0.5) * 2, [w, d] = size(), x = Math.sin(a) * rr, z = Math.cos(a) * rr;
       const r = Math.hypot(w, d) / 2 + 1;
       if (!free(x, z, r) || Math.abs(x) < ROAD_HALF + r) continue;   // no lot of any kind (its whole footprint, radius r) stands on the road the two gate arches sit on (the z axis)
       put(kind, ringNo, x, z, 0, 0, w, d, trade?.(placed)); placed++;
     }
   };
-  const shops = 4 + Math.round(6 * k), houses = 6 + Math.round(22 * k), r1 = plaza + 16 + 4 * k, r2 = r1 + 14 + 4 * k, r3 = r2 + 12;
-  ring(shops, r1, 'shop', 1, () => [7 + 4 * R() + 3 * k, 6 + 3 * R()], (i) => TRADES[i % TRADES.length]);
-  ring(houses, r2, 'house', 2, () => [5 + 3 * R() + 2 * k, 5 + 3 * R()]);
-  ring(Math.round(3 + 5 * k), r3, 'stall', 3, () => [3, 3]);
-  // the gates: the road comes in on -z and goes out on +z, an arch at the town's rim on each
-  for (const s of [-1, 1]) put('gate', 3, 0, s * (r3 + 6), 0, 0, 6, 2);
-  lots.at(-2)!.pieces.push({ node: 'arch', x: 0, z: 0, rotY: 0, scale: 1, variant: 0 }); lots.at(-1)!.pieces.push({ node: 'arch', x: 0, z: 0, rotY: Math.PI, scale: 1, variant: 0 });
-  return { seed, wealth: k, lots, radius: r3 + 12 };
+  let outer = plaza;
+  for (const [kind, row] of kinds) {
+    if (row.ring < 1) continue;
+    const radius = radii.get(row.ring) ?? outer; outer = Math.max(outer, radius);
+    if (row.size && row.count) ring(Math.round(row.count[0] + row.count[1] * k), radius, kind, row.ring as Lot['ring'], () => [dim(row.size!.w), dim(row.size!.d)], row.trades && trades.length ? (i) => trades[i % trades.length] : undefined);
+    // the gates: the road comes in on -z and goes out on +z, an arch at the town's rim on each
+    if (row.gate) { for (const s of [-1, 1]) put(kind, row.ring as Lot['ring'], 0, s * (radius + row.gate.offset), 0, 0, row.gate.w, row.gate.d); if (row.arch) { lots.at(-2)!.pieces.push({ node: 'arch', x: 0, z: 0, rotY: 0, scale: 1, variant: 0 }); lots.at(-1)!.pieces.push({ node: 'arch', x: 0, z: 0, rotY: Math.PI, scale: 1, variant: 0 }); } }
+  }
+  return { seed, wealth: k, lots, radius: outer + 12 };
 }
