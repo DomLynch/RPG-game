@@ -38,16 +38,25 @@ if ! { [ "${major:-0}" -gt 22 ] || { [ "${major:-0}" -eq 22 ] && [ "${minor:-0}"
 fi
 here="$(cd "$(dirname "$0")/.." && pwd)"
 dest="$opt/$revision"
+# What the writer loads outside src/ and origins/ comes from its computed import closure (scripts/writer-closure.mjs, shared with deploy.sh's verifier
+# install), never a hand list: CH's loader.ts imported scripts/lib/json-dup-keys.mjs, the old list missed it and the writer crash-looped. An import that
+# resolves to no file stops the install here, before anything is copied.
+closure="$(cd "$here" && node scripts/writer-closure-list.mjs --paths writer)" || { echo "install-origins-writer: the writer's import closure has an unresolved import; nothing installed" >&2; exit 1; }
 
 # The writer imports ../src and ../origins (type-stripped .ts, Node >= 22.18); no node_modules: it has no dependencies.
 install -d "$dest/scripts" "$dest/scripts/lib"
 rm -rf "$dest/src" "$dest/origins"
 cp -R "$here/src" "$here/origins" "$dest/"
 find "$dest/origins" \( -name '*.test.ts' -o -name 'README.md' \) -delete
-install -m 0644 "$here/scripts/origins-writer.mjs" "$dest/scripts/origins-writer.mjs"
-# every writer-closure file outside src/ and origins/ is copied here by name (tests/origins-writer-closure.test.ts fails when one is missing: CH's loader.ts imported this and the writer crash-looped)
-install -m 0644 "$here/scripts/lib/json-dup-keys.mjs" "$dest/scripts/lib/json-dup-keys.mjs"
+for f in $closure; do   # src/ and origins/ are copied whole above (a superset: rows read through fs, not imports, stay covered)
+  case "$f" in src/*|origins/*) ;; *) install -d "$dest/$(dirname "$f")"; install -m 0644 "$here/$f" "$dest/$f" ;; esac
+done
 install -m 0644 "$here/package.json" "$dest/package.json"
+# Before current flips: every closure module except the entry (importing it would start the server) is imported with this box's node. A missing
+# file fails here and the running writer stays on the previous install.
+(cd "$dest" && printf '%s\n' $closure | grep -vx 'scripts/origins-writer.mjs' | grep -E '\.(ts|mjs)$' | tr '\n' '\0' \
+  | xargs -0 node --input-type=module -e 'import { pathToFileURL } from "node:url"; for (const f of process.argv.slice(1)) await import(pathToFileURL(f).href);') \
+  || { echo "install-origins-writer: dry import failed in $dest with node $(node -v); current left on $(readlink "$opt/current" 2>/dev/null || echo none)" >&2; exit 1; }
 old=$(readlink -f "$opt/current" 2>/dev/null || true)   # the rollback target: kept as `previous` so the prune below never removes it
 ln -sfn "$dest" "$opt/current"
 [ -n "$old" ] && [ -d "$old" ] && [ "$old" != "$(readlink -f "$dest")" ] && ln -sfn "$old" "$opt/previous"

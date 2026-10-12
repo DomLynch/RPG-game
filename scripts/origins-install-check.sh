@@ -24,7 +24,7 @@ exit 0
 STUB
 cat > "$bin/node" <<'STUB'
 #!/usr/bin/env bash
-if [ -n "${FAKE_NODE:-}" ]; then [ "$1" = "-v" ] && { echo "$FAKE_NODE"; exit 0; }; exit 1; fi
+if [ -n "${FAKE_NODE:-}" ] && [ "$1" = "-v" ]; then echo "$FAKE_NODE"; exit 0; fi   # only the version is faked: the closure walk and the dry import need a real node
 exec "$REAL_NODE" "$@"
 STUB
 chmod +x "$bin"/*
@@ -49,6 +49,7 @@ expect "one include inserted" "$(includes)" 1
 [ -f "$tmp/root/etc/nginx/conf.d/frankendom-origins-limits.conf" ] && ok || fail "limits not installed"
 [ -f "$tmp/root/etc/systemd/system/frankendom-origins-writer.service" ] && ok || fail "unit not installed"
 [ -f "$tmp/root/opt/frankendom-origins/rev1/scripts/origins-writer.mjs" ] && ok || fail "writer not copied"
+[ -f "$tmp/root/opt/frankendom-origins/rev1/scripts/lib/json-dup-keys.mjs" ] && ok || fail "a closure file outside src/ and origins/ (CH: json-dup-keys.mjs) was not copied"
 [ -z "$(find "$tmp/root/opt/frankendom-origins/rev1/origins" -name '*.test.ts' | head -1)" ] && ok || fail "tests were copied"
 [ -L "$tmp/root/opt/frankendom-origins/current" ] && ok || fail "current symlink missing"
 expect "sites-enabled holds only the site (nginx loads every file there: a backup would be a duplicate frankendom.com server)" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
@@ -123,4 +124,27 @@ fresh; export ORIGINS_PRUNE="$tmp/bin/failing-prune"; for i in 1 2 3 4 5 6 7; do
 contains "the prune error is logged" "$out" "prune failed (exit 7)"
 expect "and nothing was removed" "$(hexdirs)" 7
 unset ORIGINS_PRUNE
+# The computed closure (writer PR A): a small fake repo, so the failures are real files and not the live tree. Its writer imports a module outside
+# src/ and origins/ (copied by the closure, not by name); a dangling import refuses the install before any copy; a module that fails to load
+# fails the dry import and current stays where it was.
+fake="$tmp/fake"; rm -rf "$fake"; mkdir -p "$fake/scripts/lib" "$fake/src" "$fake/origins"
+cp -R "$here/ops" "$fake/ops"; cp "$here/package.json" "$fake/"
+cp "$here/scripts/writer-closure.mjs" "$here/scripts/writer-closure-list.mjs" "$fake/scripts/"
+cp "$here/scripts/lib/prune-releases.sh" "$fake/scripts/lib/"
+printf "import { x } from './lib/extra.mjs';\nexport const writer = x;\n" > "$fake/scripts/origins-writer.mjs"
+printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fakerun() { out="$(bash "$fake/ops/install-origins-writer.sh" "$@" 2>&1)"; rc=$?; }
+fresh; fakerun f1
+expect "a writer whose closure leaves src/ and origins/ installs" "$rc" 0
+[ -f "$tmp/root/opt/frankendom-origins/f1/scripts/lib/extra.mjs" ] && ok || fail "the closure file outside src/ and origins/ was not copied"
+printf "import './gone.mjs';\nexport const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fakerun f2
+expect "a dangling import stops the install" "$rc" 1
+contains "naming it" "$out" "scripts/lib/extra.mjs: ./gone.mjs"
+[ ! -e "$tmp/root/opt/frankendom-origins/f2" ] && ok || fail "files were copied despite the dangling import"
+printf "import 'no-such-package-frankendom';\nexport const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fakerun f3
+expect "a module that cannot load fails the dry import" "$rc" 1
+contains "and says current was left alone" "$out" "dry import failed in"
+expect "current still points at the last good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/f1"
 echo "origins-install-check: $checks checks passed"
