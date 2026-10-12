@@ -82,7 +82,7 @@ const ts = (v, pad = '') => {   // TS literal: bare identifier keys, JSON string
 const head = fs.readFileSync('src/fight/catalogue-data.ts', 'utf8').split('const CATALOGUE_ROWS')[0];
 // Variant rows (`body` set: the Ember wolf on the Ash wolf's body) are authored in the data file, not derived from the roster: keep them, after the body rows.
 const variants = (await import('../src/fight/catalogue-data.ts')).default.filter((r) => r.body);
-fs.writeFileSync('src/fight/catalogue-data.ts', `${head}const CATALOGUE_ROWS: readonly CatalogueRow[] = ${ts([...rows, ...variants])};\nexport default CATALOGUE_ROWS;\n`);
+fs.writeFileSync('src/fight/catalogue-data.ts', `${head}const CATALOGUE_ROWS = ${ts([...rows, ...variants])} as const;\nexport default CATALOGUE_ROWS;\n`);
 // The bodytype and species tables the wounds rows read (src/fight/body-tables.ts). The quadruped parts are built from the beasts' own skin joints (the cut bones above, read from the GLBs); every
 // beast that uses the table must have the same bones and the trunk joint, or this refuses.
 const beasts = rows.filter((r) => r.wounds), cut0 = beasts[0].finisher.cut;

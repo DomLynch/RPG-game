@@ -37,3 +37,8 @@ Per creature kill: `attackers: [{ account, character, join: 0..6, damage }]`, jo
 - **Verification:** each attacker's record is their own v39 record with the same creature id; the verifier replays the N records in lockstep with the incoming sums derived from the events (so the damage split is recomputed, never trusted). Backend's attacker list (account, character, join, damage) is derived from the same events.
 - **Cost estimate:** sim 1 d (incoming + Killed), layer 1 d, lockstep replay and verifier decode 1.5 d, tests/battery (1/2/3/7 attackers, fingerprint absent = identical bytes) 1 d. Phone: N creature copies are N AI decisions per tick; capped at 3-4 active it is under the existing 2-body budget x2.
 - **Fingerprint plan for the Auditor:** a duel with no `incoming` steps byte for byte as v38 (fingerprint cells unchanged, REACH[39] empty); a v39 record without the flag is the lowest-version rule's v31-v38 bytes; one new v39 case with `incoming` pinned by a two-stream golden.
+
+## Magic rules (Dom via Lead, 2026-10-12; scope note, nothing built, the donor reads MG001-008 come first)
+Frankendom will have magic: necromancy, witchcraft, mind/telepathy, persuasion, dragons. One engine, no second system:
+1. Every spell is a SPECIAL row (timing, FX, signature) with a resource and a target rule, never a second combat system.
+2. Every magic status effect (fear, root, silence, charm, mind control) sits on the existing Proof 3 crowd-control ladder (`src/fight/cc-ladder.ts`), with no new ladder.
