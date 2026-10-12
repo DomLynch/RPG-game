@@ -19,7 +19,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MAC_ROWS } from './lib/row-placement.mjs';
 
+// Linux WebKit is not Mac Safari (row-placement.mjs: the rows whose reason names WebKit): CI never vouches for them, the Mac runs them (Dom 2026-10-12: the Mac keeps WebKit/Safari only).
+export const WEBKIT_ROWS = new Set(MAC_ROWS);   // every MAC_ONLY row, not only WebKit: one list with the release-checks plan's skip (row-placement.mjs MAC_ROWS)
 const sha = process.argv[2];
 const gh = process.env.CI_TRUST_GH || 'gh';
 const say = message => process.stderr.write(`ci-trusted-checks: ${message}\n`);
@@ -99,6 +102,7 @@ try {
       const m = /^check (\d+) /.exec(job.name || '');
       if (!m) continue;
       const index = Number(m[1]);
+      if (WEBKIT_ROWS.has(index)) { reasons.set(index, 'mac-only(the Mac runs it)'); continue; }
       if (trusted.has(index)) continue;
       const receipt = receipts.get(index);
       const why = [];
