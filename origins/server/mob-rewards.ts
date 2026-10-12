@@ -6,8 +6,8 @@
 // without it, bronze is reported unpaid). Not paid yet, so it can never overpay: Bounty metal and weekly boss rolls (both need "wins today / rolls this week",
 // which needs an events read). Those caps are passed as reached.
 import { createHash } from 'node:crypto';
-import type { CharacterInstanceId, EncounterId } from '../contracts/ids.ts';
-import type { ItemInstance } from '../contracts/items.ts';
+import type { CharacterInstanceId, EncounterId } from '../../src/core/server.ts';
+import type { ItemInstance } from '../../src/core/server.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';

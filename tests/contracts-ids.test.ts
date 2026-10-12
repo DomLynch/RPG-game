@@ -2,14 +2,14 @@
 // every roster opponent round-trips).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LOOT_IDS, RETIRED_LOOT } from '../../src/core/loot.ts';
-import { PORTRAIT_KEYS } from '../../src/legends.ts';
-import { ROSTER } from '../../src/roster.ts';
-import type { Result } from './core.ts';
+import { LOOT_IDS, RETIRED_LOOT } from '../src/core/loot.ts';
+import { PORTRAIT_KEYS } from '../src/legends.ts';
+import { ROSTER } from '../src/roster.ts';
+import type { Result } from '../src/core/contracts/core.ts';
 import {
   NAMESPACES, accountIdFromAuthUid, characterIdFromLegendKey, characterIdFromOpponent, isId, itemIdFromLegacyLoot, legacyLootOfItemId,
   legendKeyOfCharacterId, opponentOfCharacterId, parseId, type CharacterId, type ItemId,
-} from './ids.ts';
+} from '../src/core/contracts/ids.ts';
 
 const codeOf = (r: Result<unknown>): string => (r.ok ? 'ok' : r.issues[0]!.code);
 

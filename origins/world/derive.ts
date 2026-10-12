@@ -4,7 +4,7 @@
 // Zone frame (metres): origin at the centre of the zone's ENTRY edge; `d` runs inward (v), `x` runs to the right (u − 0.5). A facing of 0
 // looks inward and +90° looks left. A mount puts the frame in the world: `heading` is the world heading of "inward", measured as the
 // game measures a walker's heading (direction (sin h, cos h) in x, z).
-import { fail, ok, type Result } from '../contracts/core.ts';
+import { fail, ok, type Result } from '../../src/core/server.ts';
 import type { Params } from './schema.ts';
 
 export type Point = { x: number; d: number };

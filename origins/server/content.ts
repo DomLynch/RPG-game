@@ -2,9 +2,9 @@
 // Definitions go through the contracts' loadContent (every record parsed, every cross-reference resolved); npc-talk records go through
 // the talk module's loadTalk, one per NPC, and every quest step a line can take must name a quest and stage the bundle defines.
 import { readFileSync } from 'node:fs';
-import { fail, isPlainObject, ok, type Issue, type Result } from '../contracts/core.ts';
-import type { CharacterId } from '../contracts/ids.ts';
-import { loadContent } from '../contracts/registry.ts';
+import { fail, isPlainObject, ok, type Issue, type Result } from '../../src/core/server.ts';
+import type { CharacterId } from '../../src/core/server.ts';
+import { loadContent } from '../../src/core/server.ts';
 import { loadTalk, type Talk } from '../talk/talk.ts';
 import type { StoryContent } from './story.ts';
 

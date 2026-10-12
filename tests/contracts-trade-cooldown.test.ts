@@ -4,15 +4,15 @@
 // Cash-shop items, metal, shop consumables and stackables never trade. Enforced by changeOffer and re-checked by settleTrade.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Result } from './core.ts';
+import type { Result } from '../src/core/contracts/core.ts';
 import {
   COOLDOWN_STEPS_S, FIRST_TRADE_DELAY_S, changeOffer, cooldownSecondsFor, parseTrade, settleTrade, tradeCooldown, tradeHops, type Trade,
-} from './economy.ts';
-import * as F from './fixtures.ts';
-import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from './ids.ts';
+} from '../src/core/contracts/economy.ts';
+import * as F from '../src/core/contracts/fixtures.ts';
+import type { AccountId, CharacterInstanceId, ItemId, ItemInstanceId } from '../src/core/contracts/ids.ts';
 import {
   PACK_SLOTS, checkHistoryKept, moveItem, parseItemDefinition, parseItemInstance, type HistoryEntry, type ItemDefinition, type ItemInstance,
-} from './items.ts';
+} from '../src/core/contracts/items.ts';
 
 type Raw = Record<string, unknown>;
 const must = <T>(r: Result<T>): T => { assert.ok(r.ok, JSON.stringify(!r.ok && r.issues)); return r.value; };

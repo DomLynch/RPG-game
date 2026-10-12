@@ -1,8 +1,8 @@
 // One character's stored items -> the pure inventory module's Holdings. Rows come from origins_open (the token's account only), so a character
 // of another account is simply not there. A row the contracts refuse is a server fault (500), never repaired here.
-import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
-import type { ServiceDefinition, UpgradeCostTable } from '../contracts/economy.ts';
-import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
+import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
+import type { ServiceDefinition, UpgradeCostTable } from '../../src/core/server.ts';
+import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { openInventory, type Inventory, type Lookup } from '../inventory/inventory.ts';
 import { BadRequest } from './handlers.ts';
 import type { Db } from './db.ts';

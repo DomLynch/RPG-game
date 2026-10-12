@@ -19,8 +19,8 @@
 //      that reads as the Exchange's book.
 //   3. RESOLUTION: an allegiance plus a fight's context -> per-mille deltas tagged `scope: 'origins'`. Independent is all zeros.
 
-import { fail, Issues, join, ok, readEnum, readInt, readObject, readString, type Issue, type Result } from '../contracts/core.ts';
-import { gateAccess, type CareerStanding } from '../contracts/world.ts';
+import { fail, Issues, join, ok, readEnum, readInt, readObject, readString, type Issue, type Result } from '../../src/core/server.ts';
+import { gateAccess, type CareerStanding } from '../../src/core/server.ts';
 import type { PatronRow } from './csv.ts';
 import { PATRON_ROWS } from './patrons.data.ts';
 

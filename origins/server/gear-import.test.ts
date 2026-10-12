@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, type LootId } from '../../src/core/server.ts';
-import { PC } from '../contracts/fixtures.ts';
+import { PC } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import type { Db } from './db.ts';
 import { gearHandlers, gearView } from './gear.ts';

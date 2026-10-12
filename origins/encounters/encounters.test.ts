@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { WEAPON_SLOTS } from '../../src/core/loot.ts';
-import type { Result } from '../contracts/core.ts';
-import type { CharacterInstanceId, EncounterId, ItemId, LootTableId } from '../contracts/ids.ts';
+import type { Result } from '../../src/core/server.ts';
+import type { CharacterInstanceId, EncounterId, ItemId, LootTableId } from '../../src/core/server.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';
-import { LUCK_OFF, type FightKind } from '../luck/luck.ts';
+import { LUCK_OFF, type FightKind } from '../../src/core/server.ts';
 import { BOUNTIES, ENCOUNTERS } from '../region1/content.ts';
 import { FRONTIER_REGION } from '../region1/world.ts';
 import {
