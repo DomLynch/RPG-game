@@ -2606,11 +2606,14 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal .cmp-delta { margin-left: 5px; font-size: 12px; }
 @media (orientation: landscape) and (max-height: 430px) {   /* a short landscape phone: the cards already name and rank both pieces, so the summary line and the thumbnails go; spacing and rows tighten so the whole compare fits above the action bar (844x340 too) */
   #journal .fitting[data-mode='try'] .fitting-head, #journal .fit-compare img { display: none; }
-  #journal .fitting { padding: 8px 16px; }
-  #journal .fit-compare { margin-bottom: 6px; }
+  #journal .fitting { padding: 4px 16px; }
+  #journal .fit-compare { margin-bottom: 4px; }
+  #journal .fit-compare > div { padding-bottom: 4px; }
+  #journal .cmp-tag { margin-bottom: 3px; }
   #journal .fitting-actions { margin-top: 0; padding-top: 4px; }
+  #journal .fitting-actions button { min-height: 44px; }   /* the touch minimum the check also asserts */
   #journal .cmp-rows { margin-top: 2px; }
-  #journal .cmp-rows dt, #journal .cmp-rows dd { line-height: 1.25; }
+  #journal .cmp-rows dt, #journal .cmp-rows dd { line-height: 1.15; }   /* WebKit's text metrics ran 13 px taller than Chromium's at 844x340 (release CT row 54): about 26 px of room now */
 }
 #journal .cmp-delta[data-sign='up'] { color: #6fcf6f; }
 #journal .cmp-delta[data-sign='down'] { color: #e0584f; }
