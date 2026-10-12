@@ -282,7 +282,6 @@ export const KILL_ROWS: Record<string, string> = {
   'character:ash-boar': 'mob',
   'character:ruin-ghoul': 'mob',
 };
-export const PROPOSED_ROWS = ['rift-boss'] as const; // living-world §8.4: weight 150, once false, rested, party each
 export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 'never'; perWeek?: number }[] = [
   { encounter: 'encounter:mere-mother', rule: 'first-win' },
   { encounter: 'encounter:rift-worm', rule: 'weekly-cap', perWeek: 5 },

@@ -12,7 +12,7 @@ import { toMetres } from '../world/derive.ts';
 import { loadWorld, resolveRegion } from '../world/resolve.ts';
 import type { Params } from '../world/schema.ts';
 import { WEAPON_SLOTS } from '../../src/core/server.ts';
-import { BUNDLE, LOCAL, PROPOSED_ROWS } from './content.ts';
+import { BUNDLE, LOCAL } from './content.ts';
 import { EXCHANGE_REGION, FRONTIER_REGION, REGION1_WORLD } from './world.ts';
 
 export const REGION1 = [EXCHANGE_REGION, FRONTIER_REGION] as const;
@@ -202,7 +202,7 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   for (const [c, row] of Object.entries(local.killRows)) {
     const id = ref(issues, c, `killRows.${c}`, 'character');
     if (id && !registry.characters.has(id)) issues.add('unknown-id', `killRows.${c}`, `${c} is not a character in Region 1`);
-    if (!Object.hasOwn(TYPE_WEIGHTS, row) && !(PROPOSED_ROWS as readonly string[]).includes(row)) issues.add('unknown-id', `killRows.${c}`, `no progression row "${row}"`);
+    if (!Object.hasOwn(TYPE_WEIGHTS, row)) issues.add('unknown-id', `killRows.${c}`, `no progression row "${row}"`);
   }
   const rule = new Map<string, Local['bossLoot'][number]>();
   local.bossLoot.forEach((r, i) => {
