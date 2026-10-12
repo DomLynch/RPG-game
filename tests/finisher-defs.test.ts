@@ -22,6 +22,7 @@ import { cuesFor } from '../src/fight/sound/cues.ts';
 import { MANIFEST } from '../src/audio/manifest.ts';
 import { CUE_PROBES } from '../src/audio/exchange.ts';
 import { bakeSafeFinisher } from '../src/fight/rank-look.ts';
+import { canPlayFinisher } from '../src/fight/zone-finisher.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 const ROLES = [...FINISHER_CLIPS, ...ADDITIVE_ROLES];
 import { initialState } from '../src/fight/sim.ts';
@@ -271,4 +272,17 @@ test('bakeSafeFinisher driven by the rows picks exactly what the name compare pi
   assert.equal(out.length, 180);
   assert.equal(createHash('sha256').update(JSON.stringify(out)).digest('hex'), '66c2baac37e52c0f24da6061aac9fc4ff6e9fda214d5dbd5cb0b440140625df4');
   assert.throws(() => loadFinisherDefs({ finishers: raw.finishers.map((r) => (r.id === 'opened' ? { ...r, bakeFallback: 'nothing' } : r)) }, manifest), /unknown-ref: bakeFallback = "nothing" is not a finisher id/);
+});
+
+// ---- zone-finisher.ts and fx.ts:221 (Lead's ruling: finisher logic, these lines only): the zone shows the rows flagged `zone`, takes a head only on a
+// severing finisher, and the Opened sparks sit at the waist on a bisect finisher. Each answer is the old compare's for every finisher, none and an unknown id.
+test('zone-finisher and the fx waist sparks ask the row exactly what the name compares asked', () => {
+  for (const f of [...Object.keys(FINISHER_POSE), 'nothing']) assert.equal(canPlayFinisher(f), f === 'plainDeath' || f === 'decapitation', `${f}: playable on a zone creature`);
+  for (const f of [undefined, ...Object.keys(FINISHER_POSE), 'nothing']) assert.equal(isTemplate(f ?? null, 'sever'), f === 'decapitation', `${f}: the zone takes the head`);
+  for (const f of [null, ...Object.keys(FINISHER_POSE)]) assert.equal(isTemplate(f, 'bisect'), f === 'opened', `${f}: the waist sparks`);
+  for (const file of ['zone-finisher']) {
+    const src = readFileSync(new URL(`../src/fight/${file}.ts`, import.meta.url), 'utf8');
+    assert.deepEqual(src.match(new RegExp(`'(${Object.keys(FINISHER_POSE).join('|')})'`, 'g')) ?? [], [], `${file}.ts names no finisher`);
+  }
+  assert.doesNotMatch(readFileSync(new URL('../src/fight/fx.ts', import.meta.url), 'utf8'), /finisher === '/, 'fx.ts compares no finisher name');
 });
