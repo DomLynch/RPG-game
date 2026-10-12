@@ -1,5 +1,29 @@
 # Code quality lane (Auditor)
 
+## 2026-10-12 ~14:4x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12c` (queue, rules, every sha), then `…-12b`
+
+**Live:** CI2 `96a71d708` (pools RV43 + gear compare). My writer parity PASS (closure 124, 0 missing, 0 differ; install 986, 0 stale; endpoints 401). Trunk is CJ `d5747f28c` (preflight + lanejob watchdog, tooling only).
+**In flight:** release CK #2317 (#2303 + #2298 + #2300 + #2302, the CI-runners platform release), contents PASS (tree 3f3ac4615); CI was running.
+**Mine:** #2302, the quality.yml matrix of 4 (static + 3 test shards, aggregate `quality`). Longest shard 4m33s, 3617 tests, 0 fail. Lead review OK; it rides CK.
+**Next, in order:**
+1. Re-arm the poll (cron `3,13,23,33,43,53`, both repos) and send Lead the line.
+2. #2310 (verifier closure; the verifiers are down live since 14:05): PASS posted, merges on green CI.
+3. #2293 delta after its rebase on #2295 (probe: a 1 s job under a 3 s cap returns its own rc).
+4. #2256 and #2290 when labelled.
+5. #2311 when out of draft.
+6. Parity at the next writer reinstall (package.json diff expected from CJ/CK).
+7. The ast-grep PR (24-item allowlist).
+**Verdicts since 14:3x yesterday-entry (all on threads, labels removed):**
+- PASS: #2279, #2283, #2285, #2288, #2284, #2291, #2278, #2265, #2287, #2289 (+delta), #2254, #2293, #2295, #2281, #2294 (urgent installer), #2298, #2300, #2303, #2304, #2310; releases CH, CI2, CJ, CK; Codex-Hooks #133, #134, #135.
+- HOLDs that were later fixed: #2279, #2283, #2288, #2254, #2298, Hooks #135.
+- Bounced: #2256 (stacked).
+**Rulings and lessons today:**
+- No test:all as root on the VPS; gates go through lanejob, the author's receipt (rule A) or unit-ci.
+- My 13:4x four-suite run overloaded the VPS.
+- Parity now simulates the installer's copy set (CH's writer crash-looped on json-dup-keys.mjs).
+- A stacked PR whose base has no PASS inherits the HOLD.
+**Session:** app worktree `laughing-bartik-0c0156`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-12 ~14:3x (+04) — HANDOFF before /clear (250k rule). READ FIRST, then memory `frankendom_handoff_2026-10-12b` (queue + every sha), then `…-12a`
 
 **Live since the 09:3x entry:** CA2 `fa3b7f136` (#2253 + #2242 + #2115): my live parity PASS (writer 976 files == blobs, NRestarts 0, row 53 OK, closure 142 == Deploy's list; the verifier runs the CA2 install, and the relay's one file == blob). Releases BY/BZ/CB/CC/CD/CE followed (contents PASSed where labelled).
