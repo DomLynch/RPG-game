@@ -8,10 +8,15 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { checksGreen, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
-const OK = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }, { __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SKIPPED' }];
+const OK = [
+  { __typename: 'CheckRun', workflowName: 'unit-ci', name: 'receipt', status: 'COMPLETED', conclusion: 'SUCCESS' },
+  { __typename: 'CheckRun', workflowName: 'quality', name: 'quality', status: 'COMPLETED', conclusion: 'SUCCESS' },
+  { __typename: 'CheckRun', workflowName: 'release-checks', name: 'summary', status: 'COMPLETED', conclusion: 'SUCCESS' },
+  { __typename: 'CheckRun', workflowName: 'gpu-checks', name: 'gpu', status: 'COMPLETED', conclusion: 'SKIPPED' },
+];
 const pr = (number: number, over: Record<string, unknown> = {}) => ({ number, head: `${number}`.padEnd(40, 'a'), headRef: `lane/${number}`, baseRef: TRUNK, labels: ['release:go'], green: true, passedAt: `2026-10-12T10:${String(number % 60).padStart(2, '0')}:00Z`, ...over });
 
 test('readOrder, checksGreen and the train name', () => {
@@ -21,7 +26,8 @@ test('readOrder, checksGreen and the train name', () => {
   assert.equal(checksGreen([...OK, { __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'FAILURE' }]), false);
   assert.equal(checksGreen([{ __typename: 'StatusContext', state: 'SUCCESS' }]), true);
   assert.equal(checksGreen([]), false, 'no checks at all is not green');
-  assert.equal(trainName(new Date('2026-10-12T17:40:05Z')), 'T10121740');
+  assert.equal(trainName(new Date('2026-10-12T17:40:05Z'), '38251416111'), 'T1012174005r38251416111', 'seconds + run id: a label event and a cron tick in one minute get two names');
+  assert.notEqual(trainName(new Date('2026-10-12T17:40:05Z'), '1'), trainName(new Date('2026-10-12T17:40:05Z'), '2'));
 });
 
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
@@ -74,14 +80,29 @@ test('pushWithRetry: a transient reject is retried with backoff (2 s, 4 s); thre
   assert.deepEqual(r, { ok: false, tries: 3, err: 'remote rejected' });
   const src = readFileSync('scripts/cut-release.mjs', 'utf8');
   assert.match(src, /const pushed = pushWithRetry\(git, `release-\$\{name\}`\);/);
+  const train = readFileSync('scripts/release-train.mjs', 'utf8');
+  assert.match(train, /pushWithRetry\(git, `release-\$\{name\}`, \{ extra: \[`--force-with-lease=refs\/heads\/release-\$\{name\}:`\] \}\)/, 'the cutter only CREATES its branch: a lease on absent');
+  assert.match(train, /if \(d\.status !== 0\) throw new Error\(`release-\$\{name\} \(#\$\{pr\}\) opened but dispatching/, 'a failed dispatch fails the cut');
+  assert.match(train, /const inFlight = cands\.length \+ notLive\.length;/, 'merged-but-not-live counts as in flight');
   assert.match(src, /const from = `origin\/\$\{base \|\| TRUNK\}`/, 'cut-release --base builds N+1 on N');
-  assert.match(readFileSync('scripts/release-train.mjs', 'utf8'), /pushWithRetry\(git, `release-\$\{name\}`\)/);
 });
 
-test('pickPublish: the OLDEST release-* candidate with candidate:pass and all checks green', () => {
-  const c = (number: number, createdAt: string, over: Record<string, unknown> = {}) => ({ number, headRefName: `release-T${number}`, baseRefName: TRUNK, headRefOid: 'f'.repeat(40), createdAt, isDraft: true, labels: [{ name: 'candidate:pass' }], statusCheckRollup: OK, ...over });
-  const prs = [c(3, '2026-10-12T12:00:00Z'), c(2, '2026-10-12T11:00:00Z'), c(1, '2026-10-12T10:00:00Z', { statusCheckRollup: [{ __typename: 'CheckRun', status: 'QUEUED' }] }), c(4, '2026-10-12T09:00:00Z', { labels: [] }), c(5, '2026-10-12T08:00:00Z', { headRefName: 'lane/x' })];
+test('passAt is anchored at a line start: "waiting for Auditor: PASS @…" is not a PASS', () => {
+  const h = 'abcdef123'.padEnd(40, '0');
+  assert.ok(passAt(['**Auditor: PASS @abcdef123** (x)'], h) && passAt(['notes\nLead: PASS @abcdef123'], h));
+  assert.ok(!passAt(['waiting for Auditor: PASS @abcdef123'], h) && !passAt(['> Auditor: PASS @abcdef123'], h));
+});
+
+test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at the head AND unit-ci/quality/release-checks present and green; oldest first', () => {
+  const head = 'f'.repeat(40), pass = [{ body: '**Auditor: PASS @fffffffff** (candidate)' }];
+  const c = (number: number, createdAt: string, over: Record<string, unknown> = {}) => ({ number, headRefName: `release-T${number}`, baseRefName: TRUNK, headRefOid: head, createdAt, isDraft: true, labels: [{ name: 'candidate:pass' }], comments: pass, statusCheckRollup: OK, ...over });
+  const prs = [c(3, '2026-10-12T12:00:00Z'), c(2, '2026-10-12T11:00:00Z'), c(1, '2026-10-12T10:00:00Z', { statusCheckRollup: [...OK, { __typename: 'CheckRun', workflowName: 'quality', name: 'load-time', status: 'QUEUED' }] }), c(4, '2026-10-12T09:00:00Z', { labels: [] }), c(5, '2026-10-12T08:00:00Z', { headRefName: 'lane/x' })];
   assert.equal(pickPublish(prs)?.number, 2);
+  assert.equal(pickPublish([c(6, 'a', { comments: [] })]), null, 'the label alone is not a gate');
+  assert.equal(pickPublish([c(7, 'a', { comments: [{ body: 'Auditor: PASS @eeeeeeeee' }] })]), null, 'a PASS for another head (the label survived a head move) is not a gate');
+  assert.equal(pickPublish([c(8, 'a', { labels: [] })]), null, 'the PASS alone is not a gate');
+  assert.equal(pickPublish([c(9, 'a', { statusCheckRollup: OK.filter((r) => r.workflowName !== 'unit-ci') })]), null, 'a rollup without unit-ci (failed dispatch) is not green');
+  assert.deepEqual(missingRows(OK.slice(1)), ['unit-ci/receipt']);
   assert.equal(pickPublish([]), null);
 });
 
@@ -92,22 +113,23 @@ function publisher() {
   for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
   sh('gh', `echo "gh $*" >> "${log}"; case "$1 $2" in "pr list") [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]' ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
-  sh('git', `echo "git $*" >> "${log}"; case "$1" in status) ;; rev-parse) case "$2" in *'^{tree}') [ "\${2%^\\{tree\\}}" = "\${CAND:-}" ] && echo T1 || echo "\${TRUNK_TREE:-T1}" ;; *) echo "${'b'.repeat(40)}" ;; esac ;; esac; exit 0`);
-  sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished ${'b'.repeat(40)}\\nall green\\n'`);
+  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
+  sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
   const cand = 'c'.repeat(40);
-  writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], statusCheckRollup: OK }]));
+  writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)' }], statusCheckRollup: OK }]));
   const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
   return { dir, state, run, calls, cand, reset: () => writeFileSync(log, '') };
 }
 
-test('publisher: merges the candidate pinned to its head, deploys with FRANKENDOM_RELEASE=1, removes deploy_hold and comments the Published line', () => {
+test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge commit), deploys with FRANKENDOM_RELEASE=1, removes deploy_hold and comments the Published line', () => {
   const p = publisher();
   try {
     const r = p.run();
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    assert.match(p.calls(), new RegExp(`gh pr ready 2400\\ngh pr merge 2400 --merge --match-head-commit ${p.cand}`));
+    assert.match(p.calls(), new RegExp(`gh pr ready 2400\\ngit push -q origin ${p.cand}:refs/heads/${TRUNK}\\n`));
+    assert.doesNotMatch(p.calls(), /pr merge/, 'no merge commit: N+1, cut on N, still contains trunk');
     assert.match(p.calls(), /deploy FRANKENDOM_RELEASE=1/);
     assert.match(p.calls(), /gh pr comment 2400 --body release-train: published #2400/);
     assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
@@ -121,15 +143,17 @@ test('publisher: no double publish: a live lock holder or deploy_hold means the 
     mkdirSync(join(p.state, 'release-train.lock')); writeFileSync(join(p.state, 'release-train.lock', 'pid'), String(process.pid));
     let r = p.run();
     assert.equal(r.status, 0); assert.match(r.stdout, /a publish is in flight \(pid \d+\)/);
-    assert.doesNotMatch(p.calls(), /pr merge|deploy/);
+    assert.doesNotMatch(p.calls(), /git push|deploy/);
     rmSync(join(p.state, 'release-train.lock'), { recursive: true });
     writeFileSync(join(p.state, 'deploy_hold'), '');
     r = p.run();
-    assert.match(r.stdout, /deploy_hold present/); assert.doesNotMatch(p.calls(), /pr merge|deploy/);
+    assert.match(r.stdout, /deploy_hold present/); assert.doesNotMatch(p.calls(), /git push|deploy/);
+    writeFileSync(join(p.state, 'deploy_hold'), String(process.pid));   // a live publisher's hold
+    r = p.run(); assert.match(r.stdout, /deploy_hold present/);
     rmSync(join(p.state, 'deploy_hold'));
     mkdirSync(join(p.state, 'release-train.lock')); writeFileSync(join(p.state, 'release-train.lock', 'pid'), '999999');
     r = p.run();
-    assert.match(r.stdout, /breaking a dead lock \(pid 999999\)/); assert.match(p.calls(), /gh pr merge 2400/);
+    assert.match(r.stdout, /breaking a dead lock \(pid 999999\)/); assert.match(p.calls(), /git push -q origin c+:refs\/heads/);
     assert.match(readFileSync('scripts/release-train-publish.sh', 'utf8'), /^\{$/m, 'the body is one block: parsed whole before the tick moves its own checkout');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
@@ -149,13 +173,35 @@ test('publisher: a failed deploy STOPS the train: deploy_hold kept, the reason f
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
-test('publisher: a trunk tree that differs from the candidate (something else landed) stops before deploy.sh', () => {
+test('publisher: trunk not at the audited sha after the fast-forward stops before deploy.sh', () => {
   const p = publisher();
   try {
-    const r = p.run({ TRUNK_TREE: 'T2' });
+    const r = p.run({ TRUNK_SHA: 'd'.repeat(40) });
     assert.equal(r.status, 1);
-    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /tree differs from the candidate/);
+    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /trunk is d+ after the fast-forward, not the audited c+/);
     assert.doesNotMatch(p.calls(), /deploy FRANKENDOM/);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Lead #2336 finding 5): a live hand-run deploy.sh blocks the tick; a hold whose publisher pid is dead is reported STALE once; no PASS comment, no publish', () => {
+  const p = publisher();
+  try {
+    mkdirSync(join(p.state, 'deploy_runs'));
+    writeFileSync(join(p.state, 'deploy_runs', '1.json'), `{"revision":"x","pid":${process.pid},"cwd":"/d"}`);
+    let r = p.run();
+    assert.equal(r.status, 0); assert.match(r.stdout, /deploy\.sh is running \(pid \d+\)/); assert.doesNotMatch(p.calls(), /git push/);
+    rmSync(join(p.state, 'deploy_runs'), { recursive: true });
+    writeFileSync(join(p.state, 'deploy_hold'), '999999\n');
+    r = p.run();
+    assert.match(r.stdout, /STALE deploy_hold: publisher pid 999999 is dead/); assert.doesNotMatch(p.calls(), /git push/);
+    assert.ok(existsSync(join(p.state, 'deploy_hold.stale-told')), 'told once');
+    rmSync(join(p.state, 'deploy_hold')); rmSync(join(p.state, 'deploy_hold.stale-told'));
+    const prs = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8')); prs[0].comments = [{ body: 'waiting for Auditor: PASS @ccccccccc' }];
+    writeFileSync(join(p.dir, 'prs.json'), JSON.stringify(prs));
+    r = p.run();
+    assert.match(r.stdout, /no candidate with candidate:pass, a PASS at its head/); assert.doesNotMatch(p.calls(), /git push/);
+    const src = readFileSync('scripts/release-train-publish.sh', 'utf8');
+    assert.match(src, /\( set -o noclobber; echo "\$\$" > "\$hold" \)/, 'the hold is created atomically, holding the pid');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 

@@ -18,7 +18,7 @@ export function parseSpec(spec) {
 }
 
 /** Does a PR comment list hold a reviewer's PASS for exactly this head: the Auditor's, or Lead's for an independent platform review (Lead 2026-10-12, #2326)? */
-export const passAt = (bodies, head) => bodies.some(b => new RegExp(`(?:Auditor|Lead): PASS @${head.slice(0, 9)}`).test(b));
+export const passAt = (bodies, head) => bodies.some(b => new RegExp(`^\\*{0,2}(?:Auditor|Lead): PASS @${head.slice(0, 9)}`, 'm').test(b));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails
@@ -37,11 +37,11 @@ export function mergeAll(git, name, specs) {
 }
 
 /** git push with 3 tries and backoff (2 s, 4 s): a transient GitHub "remote rejected" stopped CO's cut. sleep is injectable for the test.
- * @param {(args: string[]) => { status: number | null, stderr?: unknown, stdout?: unknown }} git @param {string} branch @param {{ tries?: number, sleep?: (s: number) => unknown }} [opts] */
-export function pushWithRetry(git, branch, { tries = 3, sleep = s => spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }) } = {}) {
+ * @param {(args: string[]) => { status: number | null, stderr?: unknown, stdout?: unknown }} git @param {string} branch @param {{ tries?: number, extra?: string[], sleep?: (s: number) => unknown }} [opts] */
+export function pushWithRetry(git, branch, { tries = 3, extra = [], sleep = s => spawnSync('sleep', [String(s)], { timeout: (s + 5) * 1000 }) } = {}) {
   let err = '';
   for (let i = 1; i <= tries; i++) {
-    const r = git(['push', '-q', 'origin', branch]);
+    const r = git(['push', '-q', ...extra, 'origin', branch]);
     if (r.status === 0) return { ok: true, tries: i };
     err = String(r.stderr || r.stdout || '').trim().slice(0, 200);
     if (i < tries) sleep(2 ** i);

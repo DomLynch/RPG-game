@@ -3,9 +3,11 @@
 # (ops/launchd/com.frankendom.release-train.plist); safe to run by hand. One tick:
 #   1. stopped (~/.claude/state/release-train.stopped) or held (deploy_hold: a deploy is running or someone holds the box) -> nothing;
 #   2. its own lock (a mkdir dir with the pid; a dead holder is broken) -> no double publish, even if launchd overlaps a long run;
-#   3. the OLDEST open release-* candidate with candidate:pass and every check green (scripts/release-train.mjs pick) -> nothing if none;
-#   4. touch deploy_hold, `gh pr merge --merge --match-head-commit` (the only write to trunk), trunk's tree must equal the candidate's,
-#      then scripts/deploy.sh in a release checkout (scripts/release-worktree.sh) under deploy.sh's own locks, FRANKENDOM_RELEASE=1;
+#   3. the OLDEST open release-* candidate with the candidate:pass label AND an "Auditor|Lead: PASS @<head>" comment, every check green and unit-ci,
+#      quality and release-checks present and green (scripts/release-train.mjs pick) -> nothing if none;
+#   4. no live deploy.sh run (deploy-lock.sh run files), deploy_hold created atomically holding this pid, trunk FAST-FORWARDED to the candidate sha (the
+#      only write to trunk; trunk == the audited commit, so N+1, cut on N, still contains trunk), then scripts/deploy.sh in a release checkout
+#      (scripts/release-worktree.sh) under deploy.sh's own locks, FRANKENDOM_RELEASE=1;
 #   5. "Published <trunk sha>" in the log -> remove deploy_hold, comment the Published line on the candidate, close candidates live now contains.
 # Any failure STOPS the train: deploy_hold stays, release-train.stopped holds the reason, ONE comment on the candidate, and the notify hook
 # (RELEASE_TRAIN_NOTIFY: a command given the message as $1, e.g. Deploy's messenger; macOS notification otherwise). A person restarts it by
@@ -22,7 +24,24 @@ trunk="${TRUNK_BRANCH:-codex/01a09a76/task-1}"
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) release-train: $*"; }
 mkdir -p "$state"
 [ -e "$stopped" ] && { log "stopped ($(head -n 1 "$stopped")); remove $stopped and $hold to restart"; exit 0; }
-[ -e "$hold" ] && { log "deploy_hold present: a deploy is running or the box is held"; exit 0; }
+deploy_running() {   # a live deploy.sh run (scripts/lib/deploy-lock.sh: the in-flight marker and one file per run), hand-run or ours
+  local f p
+  for f in "${DEPLOY_LOCK:-$state/deploy_in_flight.json}" "${DEPLOY_RUNS_DIR:-$state/deploy_runs}"/*.json; do
+    [ -e "$f" ] || continue
+    p=$(sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$f" | head -n 1)
+    [ -n "$p" ] && kill -0 "$p" 2>/dev/null && { echo "$p"; return 0; }
+  done
+  return 1
+}
+if [ -e "$hold" ]; then   # held by a person (no pid), by a live publisher, or STALE: a publisher killed mid-publish (its pid is dead, no stopped file)
+  hp=$(head -n 1 "$hold" 2>/dev/null | tr -cd '0-9')
+  if [ -n "$hp" ] && ! kill -0 "$hp" 2>/dev/null; then
+    log "STALE deploy_hold: publisher pid $hp is dead and the train is not stopped; check the last publish, then remove $hold"
+    [ -e "$hold.stale-told" ] || { touch "$hold.stale-told"; [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: stale deploy_hold (publisher pid $hp dead)" || true; }
+  else log "deploy_hold present: a deploy is running or the box is held"; fi
+  exit 0
+fi
+if p=$(deploy_running); then log "deploy.sh is running (pid $p)"; exit 0; fi
 if ! mkdir "$lock" 2>/dev/null; then
   holder=$(cat "$lock/pid" 2>/dev/null || true)
   if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then log "a publish is in flight (pid $holder)"; exit 0; fi
@@ -33,9 +52,9 @@ trap 'rm -rf "$lock"' EXIT
 cd "$repo" || { log "no repo at $repo"; exit 1; }
 if [ -z "$(git status --porcelain --untracked-files=no)" ]; then git fetch -q origin && git switch -q --detach "origin/$trunk" || log "could not move $repo to origin/$trunk; using $(git rev-parse --short HEAD)"; else log "$repo is dirty: not moved"; fi
 
-pick=$(gh pr list --state open --base "$trunk" --label candidate:pass --limit 50 --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup \
+pick=$(gh pr list --state open --base "$trunk" --label candidate:pass --limit 50 --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments \
   | node scripts/release-train.mjs pick) || { log "gh pr list failed; next tick"; exit 0; }
-[ -n "$pick" ] || { log "no candidate with candidate:pass and green checks"; exit 0; }
+[ -n "$pick" ] || { log "no candidate with candidate:pass, a PASS at its head and green unit-ci/quality/release-checks"; exit 0; }
 read -r pr sha draft <<< "$pick"
 log "publishing #$pr @${sha:0:9}"
 
@@ -48,15 +67,16 @@ stop() {   # $1 = reason: the train stays stopped until a person removes both fi
   elif command -v osascript >/dev/null 2>&1; then osascript -e "display notification \"${why//\"/}\" with title \"Frankendom release train\"" || true; fi
   exit 1
 }
-touch "$hold"
+if p=$(deploy_running); then log "deploy.sh is running (pid $p)"; exit 0; fi   # again, right before the hold: the pick took network time
+( set -o noclobber; echo "$$" > "$hold" ) 2>/dev/null || { log "deploy_hold appeared meanwhile"; exit 0; }
 git fetch -q origin || stop "git fetch failed"
-cand_tree=$(git rev-parse "$sha^{tree}" 2>/dev/null) || stop "candidate $sha not fetched"
-git merge-base --is-ancestor "origin/$trunk" "$sha" || stop "trunk moved outside the train: the candidate does not contain origin/$trunk; nothing merged, re-cut on trunk"
+git cat-file -e "$sha^{commit}" 2>/dev/null || stop "candidate $sha not fetched"
+git merge-base --is-ancestor "origin/$trunk" "$sha" || stop "trunk moved outside the train: the candidate does not contain origin/$trunk; nothing pushed, re-cut on trunk"
 [ "$draft" = draft ] && { gh pr ready "$pr" >/dev/null || stop "gh pr ready failed"; }
-gh pr merge "$pr" --merge --match-head-commit "$sha" || stop "gh pr merge refused (head moved or not mergeable)"
-git fetch -q origin || stop "git fetch after the merge failed"
+git push -q origin "$sha:refs/heads/$trunk" || stop "the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
+git fetch -q origin || stop "git fetch after the fast-forward failed"
 rev=$(git rev-parse "origin/$trunk") || stop "no origin/$trunk"
-[ "$(git rev-parse "$rev^{tree}")" = "$cand_tree" ] || stop "trunk $rev tree differs from the candidate's (something else landed): not deploying an unchecked tree"
+[ "$rev" = "$sha" ] || stop "trunk is $rev after the fast-forward, not the audited $sha: not deploying an unchecked commit"
 dir=$(${RELEASE_TRAIN_WORKTREE:-bash scripts/release-worktree.sh} "$rev") || stop "no release checkout for $rev"
 logf="$state/release-train-${rev:0:8}.log"
 envf="${RELEASE_TRAIN_ENV:-$state/release-train.env}"
@@ -65,7 +85,7 @@ log "deploy.sh $rev in $dir (log $logf)"
 rc=$?
 [ "$rc" -eq 0 ] || stop "deploy.sh exit $rc ($(tail -n 1 "$logf" | cut -c1-200)); log $logf"
 grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Published $rev line; log $logf"
-rm -f "$hold"
+rm -f "$hold" "$hold.stale-told"
 summary=$(sed -n "/^Published $rev/,\$p" "$logf" | head -n 40)
 gh pr comment "$pr" --body "$(printf 'release-train: published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$rev" "$summary")" >/dev/null 2>&1 || true
 # Older candidates live now contains are superseded (forward-only publish): close them with a pointer.

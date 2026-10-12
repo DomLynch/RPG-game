@@ -4,10 +4,12 @@
 //     head (a push after the PASS drops it until the Auditor passes the new head);
 //   - order: docs/release-order.txt (one PR number per line, Lead-owned), then the unlisted ones oldest-PASS-first; a stacked PR (base = another PR's branch) rides
 //     only once its base is on trunk, in the candidate it builds on, or picked earlier in this cut;
-//   - base: the newest open release-* candidate's tip (N+1 is built on N, so N's tree is never re-listed), else trunk. At most MAX_IN_FLIGHT candidates open;
+//   - base: the newest open release-* candidate's tip (N+1 is built on N, so N's tree is never re-listed), else trunk. At most MAX_IN_FLIGHT candidates in flight: open ones plus those
+//     on trunk but not yet live (release.json); the workflow's concurrency group is the per-run lock;
 //   - a PR that conflicts is skipped with ONE comment per head and never blocks the others (cut-release.mjs mergeAll);
-//   - the push is retried 3x with backoff (a transient "remote rejected" stopped CO's cut);
-//   - the candidate PR is opened with ci:release-checks + auditor:ready; the Auditor's `candidate:pass` is what the Mac publisher (scripts/release-train-publish.sh) waits for.
+//   - a unique branch per run (release-T<MMDDHHmmss>r<run id>), pushed with a lease on "absent" and retried 3x with backoff (a transient "remote rejected" stopped CO's cut);
+//   - the candidate PR is opened with ci:release-checks + auditor:ready; the Mac publisher (scripts/release-train-publish.sh) waits for the Auditor's
+//     candidate:pass label AND its "PASS @<head>" comment, plus unit-ci/quality/release-checks present and green. A failed dispatch fails the cut.
 // Prints one JSON line: { action, name?, sha?, pr?, base, merged, skipped }. Never merges to trunk and never deploys.
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -58,12 +60,20 @@ export function planTrain({ prs, order, inBase, trunk = TRUNK }) {
 /** The newest open candidate (head release-*, base trunk) is the base N+1 builds on; null when none is in flight. */
 export const newestCandidate = cands => [...cands].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] || null;
 
-/** release-T<MMDDHHmm> in UTC: alphanumeric like the hand cuts, sortable, one per 10-min tick. */
-export const trainName = (d = new Date()) => `T${d.toISOString().slice(5, 16).replace(/[-T:]/g, '')}`;
+/** release-T<MMDDHHmmss>r<run id> in UTC: alphanumeric like the hand cuts, sortable, and unique per run (a label event and a cron tick in the same minute
+ * shared a per-minute name, Lead on #2336); the push also refuses a branch that already exists. */
+export const trainName = (d = new Date(), runId = process.env.GITHUB_RUN_ID || String(process.pid)) => `T${d.toISOString().slice(5, 19).replace(/[-T:]/g, '')}r${String(runId).replace(/\D/g, '')}`;
 
-/** The publisher's pick: open candidates (head release-*, base trunk) with candidate:pass and every check green, OLDEST first (forward-only publish). */
+/** The rows a candidate must carry, present and SUCCESS (a rollup that simply lacks them is not green: a failed dispatch left no unit-ci, Lead on #2336). */
+export const REQUIRED_ROWS = [['unit-ci', 'receipt'], ['quality', 'quality'], ['release-checks', 'summary']];
+export const missingRows = rollup => REQUIRED_ROWS.filter(([wf, name]) => !(rollup || []).some(c => c.workflowName === wf && c.name === name && c.status === 'COMPLETED' && c.conclusion === 'SUCCESS')).map(r => r.join('/'));
+
+/** The publisher's pick (Strategy's gate, 2026-10-12): an open candidate (head release-*, base trunk) with the candidate:pass label AND an Auditor's (or Lead's)
+ * "PASS @<sha9>" comment naming its CURRENT head, every check green and the REQUIRED_ROWS present and green; OLDEST first (forward-only publish). Either
+ * gate alone is not enough: a label survives a head move. */
 export function pickPublish(prs, trunk = TRUNK) {
-  const ok = prs.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === trunk && (p.labels || []).some(l => (l.name || l) === 'candidate:pass') && checksGreen(p.statusCheckRollup));
+  const ok = prs.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === trunk && (p.labels || []).some(l => (l.name || l) === 'candidate:pass')
+    && passAt((p.comments || []).map(c => c.body ?? c), p.headRefOid) && checksGreen(p.statusCheckRollup) && !missingRows(p.statusCheckRollup).length);
   return ok.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))[0] || null;
 }
 
@@ -76,7 +86,13 @@ function cut({ dryRun }) {
   git(['fetch', '-q', 'origin', '+refs/heads/*:refs/remotes/origin/*']);
   const open = ghJson(['pr', 'list', '--state', 'open', '--limit', '300', '--json', 'number,headRefName,baseRefName,headRefOid,labels,createdAt,isDraft']);
   const cands = open.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === TRUNK);
-  if (cands.length >= MAX_IN_FLIGHT) return { action: 'wait', why: `${cands.length} candidates in flight (max ${MAX_IN_FLIGHT})`, base: null, merged: [], skipped: [] };
+  // In flight = open candidates + candidates already on trunk but not yet live (the publisher fast-forwarded trunk, deploy.sh still running; Lead on #2336).
+  const live = String(JSON.parse(run('curl', ['-fsS', '-m', '20', 'https://frankendom.com/release.json']).stdout || '{}').revision || '');
+  const landed = ghJson(['pr', 'list', '--state', 'merged', '--base', TRUNK, '--limit', '10', '--json', 'number,headRefName,headRefOid'])
+    .filter(p => /^release-/.test(p.headRefName));
+  const notLive = landed.filter(p => !live || git(['merge-base', '--is-ancestor', p.headRefOid, live]).status !== 0);
+  const inFlight = cands.length + notLive.length;
+  if (inFlight >= MAX_IN_FLIGHT) return { action: 'wait', why: `${inFlight} candidates in flight (open ${cands.map(c => `#${c.number}`).join(' ') || '-'}; merged, not live yet ${notLive.map(c => `#${c.number}`).join(' ') || '-'}; max ${MAX_IN_FLIGHT})`, base: null, merged: [], skipped: [] };
   const top = newestCandidate(cands);
   const baseRef = top ? `origin/${top.headRefName}` : `origin/${TRUNK}`;
   const baseSha = git(['rev-parse', baseRef]).stdout.trim();
@@ -101,7 +117,8 @@ function cut({ dryRun }) {
   }
   if (!merged.length) return { action: 'nothing-merged', name, base, merged, skipped: [...plan.skipped, ...skipped] };
   const sha = git(['rev-parse', 'HEAD']).stdout.trim();
-  const pushed = pushWithRetry(git, `release-${name}`);
+  // Lease on "absent": the push creates release-<name> or fails, never fast-forwards an open candidate's branch (Lead on #2336).
+  const pushed = pushWithRetry(git, `release-${name}`, { extra: [`--force-with-lease=refs/heads/release-${name}:`] });
   if (!pushed.ok) throw new Error(`git push failed after ${pushed.tries} tries: ${pushed.err}`);
   const all = [...plan.skipped, ...skipped];
   const body = `Release candidate ${name} (release train) = ${base} + ${merged.map(pr => `#${pr} @${plan.pick.find(s => s.pr === pr).head.slice(0, 9)}`).join(' + ')}, each with release:go and the Auditor's PASS at that head.${top ? ` Built on #${top.number}: it carries that candidate's PRs too.` : ''}${all.length ? `\n\nNot included: ${all.map(s => `#${s.pr} (${s.why})`).join('; ')}.` : ''}\n\nThe publisher (scripts/release-train-publish.sh on the Mac) merges and deploys it once it carries candidate:pass and every check is green.\n\nDonor: n/a (release merge)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
@@ -109,7 +126,10 @@ function cut({ dryRun }) {
   const pr = Number((/\/pull\/(\d+)/.exec(created.stdout) || [])[1]) || null;
   if (created.status !== 0 || !pr) throw new Error(`gh pr create failed: ${String(created.stderr || created.stdout).trim().slice(0, 300)}`);
   // A PR opened with the Actions token starts no pull_request workflows (GitHub's loop guard), so without RELEASE_TRAIN_TOKEN the receipts are dispatched on the branch.
-  if (process.env.RELEASE_TRAIN_DISPATCH === '1') for (const wf of ['unit-ci.yml', 'quality.yml', 'release-checks.yml']) run('gh', ['workflow', 'run', wf, '--ref', `release-${name}`]);
+  if (process.env.RELEASE_TRAIN_DISPATCH === '1') for (const wf of ['unit-ci.yml', 'quality.yml', 'release-checks.yml']) {
+    const d = run('gh', ['workflow', 'run', wf, '--ref', `release-${name}`]);
+    if (d.status !== 0) throw new Error(`release-${name} (#${pr}) opened but dispatching ${wf} failed: ${String(d.stderr || d.stdout).trim().slice(0, 200)}; it will never get candidate:pass rows. Re-dispatch by hand`);
+  }
   return { action: 'cut', name, sha, pr, base, merged, skipped: all };
 }
 
