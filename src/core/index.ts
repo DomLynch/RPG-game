@@ -18,3 +18,4 @@ export * from './career-model.ts';
 export * from './career-client.ts';
 export * from './career-screen.ts';
 export * from './rename.ts';
+export * from './registry.ts';
