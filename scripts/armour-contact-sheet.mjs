@@ -6,6 +6,7 @@
 // Writes artifacts/armour/<label>/{fight,doll}/<id>.png, sheet-<Slot>.png and receipt.json. Serves this tree's dist (npm run build first),
 // or QA_URL. Never part of a gate: a person reads the sheets.
 import { chromium } from 'playwright';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { preview } from 'vite';
@@ -143,7 +144,7 @@ const ledgerFor = (cell) => { const owned = Object.values(cell.equipped); const 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
-const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
+const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage(); await quietDebug(page);
 page.setDefaultTimeout(90000);
 await page.route('**/*sentry.io/**', (route) => route.abort());
 const errors = []; page.on('pageerror', (e) => errors.push(String(e)));

@@ -4,6 +4,7 @@
 import { chromium } from 'playwright';
 import { build, preview } from 'vite';
 import { harnessClock } from './lib/harness-clock.mjs';
+import { quietDebug } from './lib/harness.mjs';
 import fs from 'node:fs/promises';
 
 const label = process.argv[2] ?? 'after', out = 'artifacts/combat/standoff-rematch', outDir = `artifacts/combat/standoff-rematch/build-${label}`;
@@ -13,7 +14,7 @@ const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', 
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-const page = await context.newPage();
+const page = await context.newPage(); await quietDebug(page);   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.route('**/*sentry.io/**', (r) => r.abort());

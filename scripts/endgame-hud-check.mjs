@@ -8,6 +8,7 @@
 // win (drop + Wear/Store) as for a death (autopsy), so one path — the reliable, deterministic one — proves both.
 import { chromium } from 'playwright';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { preview } from 'vite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -27,7 +28,7 @@ const browser = await chromium.launch({ headless: true, executablePath: chromium
 const receipt = { url: url.href, errors: [] };
 const out = 'artifacts/presentation/endgame-hud'; await fs.mkdir(out, { recursive: true });
 try {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }); await quietDebug(page);
   page.setDefaultTimeout(15000);
   await page.route('**/*sentry.io/**', r => r.abort());
   page.on('pageerror', e => receipt.errors.push(String(e)));

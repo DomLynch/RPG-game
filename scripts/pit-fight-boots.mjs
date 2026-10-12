@@ -5,6 +5,7 @@
 //   node scripts/pit-fight-boots.mjs                                  this tree   → artifacts/pit/boots/fight-boots-tree.png
 //   BOOTS_ROOT=<trunk checkout> BOOTS_LABEL=trunk node scripts/pit-fight-boots.mjs  → artifacts/pit/boots/fight-boots-trunk.png
 import { chromium } from 'playwright';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -22,7 +23,7 @@ const errors = [];
 try {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await context.addInitScript((p) => { localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); }, profile);
-  const page = await context.newPage();
+  const page = await context.newPage(); await quietDebug(page);
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('**/*sentry.io/**', (r) => r.abort());
   await page.goto(`${origin}/?opponent=veteran&debug=1`);
