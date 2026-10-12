@@ -83,7 +83,11 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
     const t = sh(process.execPath, ['--test', 'tests/loot.test.ts', 'tests/loot-unscale-tables.test.ts']);
     if (t.status !== 0) problems.push(`the loot tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
-  if (data.some(c => c.file.startsWith('origins/region1/towns.'))) {
+  if (data.some(c => c.file.startsWith('origins/region1/loot-tables.'))) {   // a malformed table row turns CI red (exit 2) instead of getting the label
+    const t = sh(process.execPath, ['--test', 'tests/loot-rows.test.ts', 'origins/region1/region1.test.ts']);
+    if (t.status !== 0) problems.push(`the loot-table row tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
+  }
+  if (data.some(c => c.file.startsWith('origins/region1/towns.') || c.file.startsWith('origins/region1/loot-tables.'))) {
     const g = sh(process.execPath, ['scripts/registry-check.mjs']);
     if (g.status !== 0) problems.push(`the registry gate fails: ${g.stderr.trim().split('\n').slice(0, 3).join(' | ').slice(0, 300)}`);
   }
