@@ -39,14 +39,14 @@ test('weaponOf and isWeaponId: an unknown id is refused, an inherited property n
 test('the loader refuses a duplicate id, an extends cycle, an unknown parent, a missing move, a bad enum and a bad number, at load', () => {
   const ok = raw.weapons, load = (rows: unknown[]) => loadWeaponDefs({ weapons: rows }, base, enums);
   assert.doesNotThrow(() => load(ok));
-  assert.throws(() => load([...ok, { id: 'knife' }]), /duplicate weapon "knife"/);
+  assert.throws(() => load([...ok, { id: 'knife' }]), /duplicate-id/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'b' }, { id: 'b', extends: 'a' }]), /extends itself/);
-  assert.throws(() => load([...ok, { id: 'a', extends: 'nothing' }]), /extends "nothing", which is no weapon/);
+  assert.throws(() => load([...ok, { id: 'a', extends: 'nothing' }]), /unknown-ref: extends = "nothing" is not a weapon id/);
   assert.throws(() => load([{ id: 'bare', guard: 'blade', material: 'iron', grip: 'two-hand', reach: 2, fight: { thrustShare: .2, close: 1 }, moves: { thrust: null }, paths: {} }]), /moves has no "thrust"|moves has no/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', material: 'glass' }]), /material "glass"/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', guard: 'cloth' }]), /guard "cloth"/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', grip: 'three-hand' }]), /grip "three-hand"/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', reach: 'long' }]), /reach is a number/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', fight: 5 }]), /fight needs/);
-  assert.throws(() => load([{ guard: 'blade' }]), /id is a non-empty string/);
+  assert.throws(() => load([{ guard: 'blade' }]), /bad-key/);
 });

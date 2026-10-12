@@ -44,13 +44,13 @@ test('adding a pool is ONE data row in pool-defs.json: a test \'intelligence\' r
 test('the loader refuses a duplicate id, a missing field, a mistyped field, a default below min, and a table without health or stamina', () => {
   const ok = { id: 'x', default: 1, min: 0, sim: false }, base = [{ id: 'health', default: 150, min: 1, sim: true }, { id: 'stamina', default: 100, min: 1, sim: true }];
   assert.doesNotThrow(() => loadPoolDefs({ pools: [...base, ok] }));
-  assert.throws(() => loadPoolDefs({ pools: [...base, ok, ok] }), /duplicate pool "x"/);
-  assert.throws(() => loadPoolDefs({ pools: [...base, { id: 'x', default: 1, min: 0 }] }), /sim is true or false/);
-  assert.throws(() => loadPoolDefs({ pools: [...base, { id: 'x', default: '1', min: 0, sim: false }] }), /default and min are numbers/);
+  assert.throws(() => loadPoolDefs({ pools: [...base, ok, ok] }), /duplicate-id/);
+  assert.throws(() => loadPoolDefs({ pools: [...base, { id: 'x', default: 1, min: 0 }] }), /missing-field: sim is required/);
+  assert.throws(() => loadPoolDefs({ pools: [...base, { id: 'x', default: '1', min: 0, sim: false }] }), /wrong-type: default must be number/);
   assert.throws(() => loadPoolDefs({ pools: [...base, { id: 'x', default: 0, min: 1, sim: false }] }), /default >= min/);
   assert.throws(() => loadPoolDefs({ pools: [...base, { id: 'x', default: 5, min: 0, max: 2, sim: false }] }), /max is a number >= default/);
   assert.throws(() => loadPoolDefs({ pools: [{ id: 'health', default: 150, min: 1, sim: true }] }), /"stamina"/);
-  assert.throws(() => loadPoolDefs({ pools: [...base, { default: 1, min: 0, sim: false }] }), /id is a non-empty string/);
+  assert.throws(() => loadPoolDefs({ pools: [...base, { default: 1, min: 0, sim: false }] }), /bad-key/);
 });
 test('pool problems: an unknown pool, a non-finite value, below min, a zero stamina bar', () => {
   assert.equal(poolProblems({ rage: 5 }).length, 1);
