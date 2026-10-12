@@ -127,15 +127,21 @@ test('the max load is READ from waterfall.mjs (LANEJOB_WATERFALL), not copied in
   } finally { b.done(); }
 });
 
-test('an unreadable waterfall.mjs fails CLOSED: the probe answers spill, writes no log', { skip }, async () => {
+test('an unreadable waterfall.mjs REFUSES (exit 75, "router unreadable, not routing"), never a spill, a guess or a log line', { skip }, async () => {
   const b = box();
   try {
     const lone = join(b.dir, 'inst/bin'); mkdirSync(lone, { recursive: true });
-    copyFileSync(script, join(lone, 'lanejob.sh'));   // no ../lib/waterfall.mjs next to it, LANEJOB_TOOLS has none either
+    copyFileSync(script, join(lone, 'lanejob.sh'));   // no ../lib/waterfall.mjs next to it
     b.env.LANEJOB_TOOLS = join(b.dir, 'no-tools'); b.env.HOME = join(b.dir, 'no-home');
-    const out = execFileSync('bash', [join(lone, 'lanejob.sh'), '--probe', 'tsc'], { env: b.env, encoding: 'utf8', timeout: 10000 }).trim();
-    assert.equal(out, 'would=spill reason=load');
-    assert.equal(existsSync(b.log), false);
+    const p = spawnSync('bash', [join(lone, 'lanejob.sh'), '--probe', 'tsc'], { env: b.env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(p.status, 75);
+    assert.equal(p.stdout.trim(), 'would=refuse reason=router-unreadable');
+    const marker = join(b.dir, 'must-not-run');
+    const r = spawnSync('bash', [join(lone, 'lanejob.sh'), 'touch', marker], { env: b.env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(r.status, 75);
+    assert.match(r.stderr, /router unreadable, not routing/);
+    assert.equal(existsSync(marker), false);
+    assert.doesNotMatch(r.stderr, /tier=hf-cpu/);
   } finally { b.done(); }
 });
 
