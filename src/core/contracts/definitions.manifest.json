@@ -8,6 +8,10 @@
     {"table": "rarity", "file": "definitions.json", "at": "rarities", "keyed": true, "key": "id", "required": {"order": "integer"}},
     {"table": "material", "file": "definitions.json", "at": "materials", "keyed": true, "key": "id", "required": {"order": "integer"}},
     {"table": "presentation", "file": "definitions.json", "at": "presentations", "keyed": true, "key": "id", "required": {}},
-    {"table": "serviceAccept", "file": "definitions.json", "at": "serviceAccepts", "keyed": true, "key": "id", "required": {"armour": "boolean", "weapons": "boolean"}}
+    {"table": "serviceAccept", "file": "definitions.json", "at": "serviceAccepts", "keyed": true, "key": "id", "required": {"armour": "boolean", "weapons": "boolean"}},
+    {"table": "power", "file": "definitions.json", "at": "powers", "keyed": true, "key": "id", "required": {}},
+    {"table": "category", "file": "definitions.json", "at": "categories", "keyed": true, "key": "id", "required": {"path": "string", "slot": "string"}},
+    {"table": "storyTag", "file": "definitions.json", "at": "story", "keyed": true, "key": "id", "required": {}},
+    {"table": "provenanceKind", "file": "definitions.json", "at": "provenanceKinds", "keyed": true, "key": "id", "required": {"tradeable": "boolean"}}
   ]
 }
