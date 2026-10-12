@@ -17,7 +17,7 @@ const draws = (() => {
 test('grades: every material the shipped kit uses is classified — a new piece cannot land ungraded', () => {
   const materials = [...new Set(draws.map(materialOf))];
   assert.ok(materials.length >= 10, `loot.glb carries a palette: ${materials.length}`);
-  for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (src/core/grades.ts CLASS_OF)`);
+  for (const material of materials) assert.notEqual(classOf(material), undefined, `${material} is in neither a grade class nor the exemption list (drawMaterials in src/core/contracts/definitions.json)`);
 });
 
 test('grades: the ladder IS the career ladder — one word for a rank and its kit', () => {
@@ -68,7 +68,7 @@ test('grades: the material is read off a draw name, per-opponent tunics included
   assert.equal(classOf('Gambeson_nightborn'), 'cloth');
 });
 
-test('grades: a TRELLIS-cut family grades by its material kind with no CLASS_OF row, and a null exemption stays exempt', () => {
+test('grades: a TRELLIS-cut family grades by its material kind with no drawMaterials row, and a null exemption stays exempt', () => {
   assert.equal(classOf('PlaguedoctorIron'), 'metal'); assert.equal(classOf('PlaguedoctorCloth'), 'cloth'); assert.equal(classOf('WitchLeather'), 'leather');
   assert.equal(classOf('Bone'), null); assert.equal(classOf('DwarfIron'), 'metal'); assert.equal(classOf('Nonsense'), undefined);
 });
