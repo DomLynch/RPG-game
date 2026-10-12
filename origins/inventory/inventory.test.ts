@@ -2,7 +2,7 @@
 // wearing needs rank, and hostile ids.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PACK_SLOTS, checkHistoryKept, sameData, type ItemInstance } from '../contracts/items.ts';
+import { PACK_SLOTS, checkHistoryKept, sameData, type ItemInstance } from '../../src/core/server.ts';
 import {
   canWear, checkConservation, checkInventory, deposit, equip, find, gridView, merge, mintRoot, mintTotals, move, openInventory, receive, remove, settle, split, unequip,
   withdraw, type Inventory,

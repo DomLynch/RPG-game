@@ -15,9 +15,9 @@
 // (lowercase a-z2-7, no padding) of sha-256 of the id's UTF-8 bytes. 12 + ':' + defeat digits + ':' + the longest pc id ("pc:" + 96)
 // stays inside MINT_KEY_PATTERN's 128 for any defeat count below 10^15, so a boss id needs only the contracts' id rules, no length cap.
 import { MAX_LEVEL, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, type Kill } from '../../src/core/server.ts';
-import { Issues, fail, ok, type Result } from '../contracts/core.ts';
-import { parseId, type CharacterInstanceId, type EncounterId, type LootTableId } from '../contracts/ids.ts';
-import { parseEncounterDefinition, type EncounterDefinition } from '../contracts/world.ts';
+import { Issues, fail, ok, type Result } from '../../src/core/server.ts';
+import { parseId, type CharacterInstanceId, type EncounterId, type LootTableId } from '../../src/core/server.ts';
+import { parseEncounterDefinition, type EncounterDefinition } from '../../src/core/server.ts';
 import { shortHash } from './hash.ts';
 
 // The contract's own type with the boss's optional level and health proven present (not a second content type).

@@ -2,9 +2,9 @@
 // authority (the pure module's receive / equip / unequip), these ops only open the character's holdings, run it and commit the moved piece as a versioned `put` (a stale read aborts the
 // batch, O0002). No new rule lives here: the rank check, the empty-slot rule ("take it off first", no silent swap) and the on-equip binding are inventory.equip's and items.ts equipItem's.
 // The wearer's rank is the SERVER's (the career row's credit), never the request's. The body names a character and a piece id; it never carries a slot, a tier, a level or a version.
-import type { ItemInstance, Location } from '../contracts/items.ts';
-import { legacyLootOfItemId } from '../contracts/ids.ts';
-import { categoryOf } from '../contracts/definitions.ts';
+import type { ItemInstance, Location } from '../../src/core/server.ts';
+import { legacyLootOfItemId } from '../../src/core/server.ts';
+import { categoryOf } from '../../src/core/server.ts';
 import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
 import { levelOfCredit } from '../../src/core/server.ts';
 import { DbError } from './db.ts';

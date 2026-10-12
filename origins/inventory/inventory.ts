@@ -28,15 +28,15 @@
 // '__proto__' or 'toString' are just strings that name nothing.
 import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
 import { paperdollOf, type Paperdoll } from '../../src/core/server.ts';
-import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
-import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../contracts/economy.ts';
-import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';
+import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../../src/core/server.ts';
+import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../../src/core/server.ts';
+import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../../src/core/server.ts';
 import {
   BANK_SLOTS, PACK_SLOTS, checkCustody, checkHistoryKept, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
   type ItemDefinition, type ItemInstance, type Location,
-} from '../contracts/items.ts';
-import { verifiedTier, type CareerStanding } from '../contracts/world.ts';
-import { storyOf } from '../contracts/definitions.ts';
+} from '../../src/core/server.ts';
+import { verifiedTier, type CareerStanding } from '../../src/core/server.ts';
+import { storyOf } from '../../src/core/server.ts';
 
 export const GRIDS = ['pack', 'bank'] as const;
 export type Grid = (typeof GRIDS)[number];

@@ -15,8 +15,8 @@
 //   - a roster opponent `veteran` (src/roster.ts OpponentId) is the character `character:opponent.veteran`.
 // Each mapping is a pure prefix, so it is reversible by stripping the prefix, and each reverse is checked against the live table it came
 // from (isLootId, PORTRAIT_KEYS, isOpponentId). Nothing persisted today changes; see README "Proposal: legacy loot ids → item instances".
-import { isLootId, type LootId } from '../../src/core/server.ts';
-import { PORTRAIT_KEYS, isOpponentId, type OpponentId } from '../../src/fight/server.ts';
+import { isLootId, type LootId } from '../loot.ts';
+import { PORTRAIT_KEYS, isOpponentId, type OpponentId } from '../../fight/server.ts';
 import { Issues, fail, join, ok, type Obj, type Result } from './core.ts';
 
 export const NAMESPACES = [

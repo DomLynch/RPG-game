@@ -2,7 +2,7 @@
 // take it, or the next stage along a transition; `choice` names the branch). The server reads the rows, runs the O2 journal's advance() on
 // facts from its own snapshot and commits the result in one batch. The client names only what it wants; whether it may, and what it pays,
 // is the server's.
-import type { QuestId } from '../contracts/ids.ts';
+import type { QuestId } from '../../src/core/server.ts';
 import { advance } from '../quests/journal.ts';
 import { Refused } from './errors.ts';
 import { career, factsOf, field, journalOf, must, ownCharacter, questBatch, type Clock, type StoryContent } from './story.ts';

@@ -1,4 +1,4 @@
-// The contract vocabularies that are DATA, as rows (origins/contracts/definitions.json, manifest beside it, loaded and checked by the shared registry loader): the gates, the character relations, the quest roles,
+// The contract vocabularies that are DATA, as rows (src/core/contracts/definitions.json, manifest beside it, loaded and checked by the shared registry loader): the gates, the character relations, the quest roles,
 // the attitudes and the quest scopes. A new one is a row. Ids are strings checked against the rows (an unknown id still rejects in readEnum), never a TypeScript union. What stays CODE is every list whose value
 // selects its own code path: ENCOUNTER_SCOPES (world.ts), STAGE_KINDS, CONDITION_KINDS and QUEST_STATUSES (story.ts), and in items.ts/economy.ts CATEGORIES, STORY, BINDINGS, POWERS, LOCATION_KINDS, PROVENANCE_KINDS, HISTORY_KINDS, ROLL_MODES, SERVICE_KINDS
 // and DISTRIBUTIONS (one value; a shared mode needs code first). The rows here also cover the item vocabularies (rarities, materials, loot presentations) and what a service accepts (flags).

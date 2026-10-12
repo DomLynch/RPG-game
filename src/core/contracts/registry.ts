@@ -14,7 +14,7 @@ import {
   type CharacterDefinition, type EncounterDefinition, type FactionDefinition, type RegionDefinition,
 } from './world.ts';
 
-export type Registry = {
+export type ContractRegistry = {
   items: ReadonlyMap<ItemId, ItemDefinition>;
   lootTables: ReadonlyMap<LootTableId, LootTable>;
   characters: ReadonlyMap<CharacterId, CharacterDefinition>;
@@ -29,7 +29,7 @@ export type Registry = {
 // Definitions only. Instances and states are per-player data, not content, and are refused here so they cannot be shipped as content.
 const CONTENT_KINDS = ['item-definition', 'loot-table', 'character-definition', 'faction-definition', 'region-definition', 'encounter-definition', 'quest-definition', 'service-definition', 'upgrade-cost-table'] as const;
 
-export function loadContent(records: unknown): Result<Registry> {
+export function loadContent(records: unknown): Result<ContractRegistry> {
   if (!Array.isArray(records)) return fail('wrong-type', '(bundle)', 'a content bundle is an array of definitions');
   const issues = new Issues();
   const reg = {
@@ -71,7 +71,7 @@ export function loadContent(records: unknown): Result<Registry> {
   return issues.finish(reg);
 }
 
-function crossCheck(issues: Issues, reg: Registry): void {
+function crossCheck(issues: Issues, reg: ContractRegistry): void {
   const need = <K>(map: ReadonlyMap<K, unknown>, id: K, path: string, what: string): boolean => {
     if (map.has(id)) return true;
     issues.add('unknown-id', path, `${what} ${String(id)} is not defined in this content`);
@@ -188,19 +188,19 @@ const lookup = <K extends string, V>(map: ReadonlyMap<K, V>, id: K, what: string
   const value = map.get(id);
   return value === undefined ? fail('unknown-id', String(id), `${what} ${id} is not defined in this content`) : ok(value);
 };
-export const itemDef = (reg: Registry, id: ItemId): Result<ItemDefinition> => lookup(reg.items, id, 'item');
-export const lootTable = (reg: Registry, id: LootTableId): Result<LootTable> => lookup(reg.lootTables, id, 'loot table');
-export const character = (reg: Registry, id: CharacterId): Result<CharacterDefinition> => lookup(reg.characters, id, 'character');
-export const faction = (reg: Registry, id: FactionId): Result<FactionDefinition> => lookup(reg.factions, id, 'faction');
-export const region = (reg: Registry, id: RegionId): Result<RegionDefinition> => lookup(reg.regions, id, 'region');
-export const encounter = (reg: Registry, id: EncounterId): Result<EncounterDefinition> => lookup(reg.encounters, id, 'encounter');
-export const quest = (reg: Registry, id: QuestId): Result<QuestDefinition> => lookup(reg.quests, id, 'quest');
-export const service = (reg: Registry, id: ServiceId): Result<ServiceDefinition> => lookup(reg.services, id, 'service');
-export const costTable = (reg: Registry, id: CostTableId): Result<UpgradeCostTable> => lookup(reg.costTables, id, 'cost table');
+export const itemDef = (reg: ContractRegistry, id: ItemId): Result<ItemDefinition> => lookup(reg.items, id, 'item');
+export const lootTable = (reg: ContractRegistry, id: LootTableId): Result<LootTable> => lookup(reg.lootTables, id, 'loot table');
+export const character = (reg: ContractRegistry, id: CharacterId): Result<CharacterDefinition> => lookup(reg.characters, id, 'character');
+export const faction = (reg: ContractRegistry, id: FactionId): Result<FactionDefinition> => lookup(reg.factions, id, 'faction');
+export const region = (reg: ContractRegistry, id: RegionId): Result<RegionDefinition> => lookup(reg.regions, id, 'region');
+export const encounter = (reg: ContractRegistry, id: EncounterId): Result<EncounterDefinition> => lookup(reg.encounters, id, 'encounter');
+export const quest = (reg: ContractRegistry, id: QuestId): Result<QuestDefinition> => lookup(reg.quests, id, 'quest');
+export const service = (reg: ContractRegistry, id: ServiceId): Result<ServiceDefinition> => lookup(reg.services, id, 'service');
+export const costTable = (reg: ContractRegistry, id: CostTableId): Result<UpgradeCostTable> => lookup(reg.costTables, id, 'cost table');
 
 // Every instance against its definition, then the custody rules across the set. An instance naming an item the content does not
 // define is refused ('unknown-id'), never shown as a blank slot.
-export function checkInstances(reg: Registry, instances: readonly ItemInstance[]): Issue[] {
+export function checkInstances(reg: ContractRegistry, instances: readonly ItemInstance[]): Issue[] {
   const issues: Issue[] = [];
   instances.forEach((inst, i) => {
     const def = reg.items.get(inst.item);

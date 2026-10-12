@@ -2,7 +2,7 @@
 // character exactly once, replay idempotence, the cooldown, and a seeded property run over random sequences.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MINT_KEY_PATTERN } from '../contracts/core.ts';
+import { MINT_KEY_PATTERN } from '../../src/core/server.ts';
 import { award, careerAtLevel } from '../../src/core/server.ts';
 import { dormant, parseBossDefinition, sharePermille, step, type Action, type BossEncounter, type BossState, type Step } from './boss.ts';
 import { matriarch } from './fixtures.ts';

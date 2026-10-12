@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PC } from '../contracts/fixtures.ts';
+import { PC } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
