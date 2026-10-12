@@ -98,7 +98,7 @@ test('type weights: the table (permille of the kill value), and the flags that d
   assert.deepEqual(table, {
     legend: [100, true, false, 'solo'], 'world-boss': [500, true, false, 'each'], named: [200, false, true, 'split'],
     elite: [80, false, true, 'split'], mob: [20, false, true, 'split'], 'story-step': [100, true, false, 'solo'],
-    'story-chapter': [500, true, false, 'solo'],
+    'story-chapter': [500, true, false, 'solo'], 'rift-boss': [150, false, true, 'each'],
   });
 });
 test('kill value: the curve\'s linear part — equal to the requirement to level 10, behind it every level from Gladiator I', () => {
@@ -493,4 +493,10 @@ test('ladder cap 50: a level-46 player under the old top keeps climbing under th
   assert.equal(award(near50, kill('b', 'world-boss', 'b', 49), 50).levelAfter, 50);
   assert.equal(award({ ...careerAtLevel(1 + 45, 0, 50), credit: cumulative(47) - 1 }, win('x', 0), 50).levelAfter, 47);
   assert.equal(award({ ...careerAtLevel(1 + 45), credit: cumulative(47) - 1 }, win('x', 0), 46).levelAfter, 46);
+});
+
+test('rift-boss is a progression row (living-world §8.4): the region loader accepts it as a kill row (it reads Object.hasOwn(TYPE_WEIGHTS, row)); it repays every kill and draws on rested credit', () => {
+  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss'), true);
+  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss-x'), false);
+  assert.ok(basePay(TYPE_WEIGHTS['rift-boss']!, 20, 20) < basePay(TYPE_WEIGHTS['world-boss']!, 20, 20));
 });
