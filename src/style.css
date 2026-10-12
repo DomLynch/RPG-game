@@ -2317,11 +2317,6 @@ body[data-gear='live']:has(#journal[open]) > :not(#world):not(#view):not(#journa
 #journal #fitting-rank, #journal #fitting-note { font: 500 12px/1.3 "Instrument Sans", Arial, sans-serif; color: var(--jm); }
 #journal .fitting-actions { display: flex; gap: 10px; margin-top: 12px; }
 #journal .fitting-actions { position: sticky; bottom: 0; z-index: 2; padding: 8px 0 max(4px, env(safe-area-inset-bottom)); background: var(--jp); }   /* Cancel / Wear this stay in view while a 375-high landscape screen scrolls the compare under them */
-@media (orientation: landscape) and (max-height: 430px) {   /* a short landscape phone: the cards already name and rank both pieces, so the summary line and the thumbnails go and the whole compare fits above the action bar */
-  #journal .fitting[data-mode='try'] .fitting-head, #journal .fit-compare img { display: none; }
-  #journal .fitting { padding: 8px 16px; }
-  #journal .fit-compare { margin-bottom: 6px; }
-  #journal .fitting-actions { margin-top: 0; padding-top: 4px; }
 }
 #journal .fitting-actions button { min-height: 48px; border-radius: 6px; font: 600 14px "Instrument Sans", Arial, sans-serif; }
 #journal #fitting-cancel { flex: 0 0 104px; background: none; border: 1px solid var(--jl); color: var(--jf); }
@@ -2610,7 +2605,14 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal .cmp-rows dt { margin: 0; color: var(--jm); font: 600 12px/1.5 "Instrument Sans", Arial, sans-serif; }
 #journal .cmp-rows dd { margin: 0; color: var(--jf); font: 600 13px/1.5 "Instrument Sans", Arial, sans-serif; font-variant-numeric: tabular-nums; }
 #journal .cmp-delta { margin-left: 5px; font-size: 12px; }
-@media (orientation: landscape) and (max-height: 430px) { #journal .cmp-rows { margin-top: 2px; } #journal .cmp-rows dt, #journal .cmp-rows dd { line-height: 1.25; } }   /* 844x340: the four rows fit above the action bar */
+@media (orientation: landscape) and (max-height: 430px) {   /* a short landscape phone: the cards already name and rank both pieces, so the summary line and the thumbnails go; spacing and rows tighten so the whole compare fits above the action bar (844x340 too) */
+  #journal .fitting[data-mode='try'] .fitting-head, #journal .fit-compare img { display: none; }
+  #journal .fitting { padding: 8px 16px; }
+  #journal .fit-compare { margin-bottom: 6px; }
+  #journal .fitting-actions { margin-top: 0; padding-top: 4px; }
+  #journal .cmp-rows { margin-top: 2px; }
+  #journal .cmp-rows dt, #journal .cmp-rows dd { line-height: 1.25; }
+}
 #journal .cmp-delta[data-sign='up'] { color: #6fcf6f; }
 #journal .cmp-delta[data-sign='down'] { color: #e0584f; }
 @media (min-width: 600px), (orientation: landscape) { #stance-panel { max-width: 244px !important; } #stance-panel button { font-size: 11px !important; padding: 4px 2px !important; } }   /* Safari: "Aggressive" was 68 px in a 63 px button */
