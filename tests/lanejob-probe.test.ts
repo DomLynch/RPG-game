@@ -59,9 +59,10 @@ test('probe: a fresh release marker -> would=spill reason=release-lock; a marker
   } finally { b.done(); }
 });
 
-test('probe: a full suite is refused exactly like a real run (would=refuse)', { skip }, async () => {
+test('probe: a full suite is refused a non-root caller exactly like a real run (would=refuse); the fake uid keeps this true when the suite itself runs as root', { skip }, async () => {
   const b = box();
   try {
+    asRoot(b, '1000');
     assert.equal(await b.probe('npm', 'run', 'test:all'), 'would=refuse');
     assert.equal(await b.probe('npm', 'run', 'quality'), 'would=refuse');
   } finally { b.done(); }
@@ -79,9 +80,9 @@ test('probe: runs nothing, takes no slot, writes no log', { skip }, async () => 
 });
 
 // A fake `id` (uid 0) and a fake `systemd-run` (drops its --flags, runs the command) let a non-root test box play root without touching the live box.
-function asRoot(b: ReturnType<typeof box>) {
+function asRoot(b: ReturnType<typeof box>, uid = '0') {
   const bin = join(b.dir, 'bin'); mkdirSync(bin);
-  writeFileSync(join(bin, 'id'), '#!/bin/sh\n[ "$1" = "-u" ] && { echo 0; exit 0; }\nexec /usr/bin/id "$@"\n');
+  writeFileSync(join(bin, 'id'), `#!/bin/sh\n[ "$1" = "-u" ] && { echo ${uid}; exit 0; }\nexec /usr/bin/id "$@"\n`);
   writeFileSync(join(bin, 'systemd-run'), '#!/bin/sh\nwhile [ "${1#--}" != "$1" ]; do shift; done\nexec "$@"\n');
   chmodSync(join(bin, 'id'), 0o755); chmodSync(join(bin, 'systemd-run'), 0o755);
   b.env.PATH = `${bin}:${process.env.PATH}`;
