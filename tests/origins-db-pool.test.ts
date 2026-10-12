@@ -129,3 +129,4 @@ test('nothing is sent that the script does not need: no empty statement, no roll
   assert.ok((await sent('begin;\nselect pid;')).includes('rollback;'), 'a script that opens a transaction is rolled back');
   assert.ok(!(await sent('begin;\nselect pid;\ncommit;')).includes('rollback;'), 'one that commits is not');
 });
+import '../origins/server/location-flush.test.ts';
