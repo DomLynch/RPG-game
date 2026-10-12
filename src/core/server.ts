@@ -29,3 +29,5 @@ export type { Rarity } from './contracts/items.ts';
 export type { Rarity as MobRarity } from './world/row.ts';
 export { tierOf } from './career-model.ts';
 export { tierOf as standingTierOf } from './contracts/world.ts';
+export * from './items/inventory.ts';
+export * from './items/loot-catalogue.ts';

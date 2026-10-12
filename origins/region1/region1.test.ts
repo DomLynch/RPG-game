@@ -1,5 +1,5 @@
 // Region 1 content: the shipped data loads clean, and each validation refuses the break it exists for.
-import { LOOT_ITEM_IDS } from '../inventory/loot-catalogue.ts';
+import { LOOT_ITEM_IDS } from '../../src/core/server.ts';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';

@@ -12,7 +12,7 @@ import { storyOps, withContent } from '../origins/server/handlers.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyBundle } from '../origins/server/fixtures.ts';
 import { parseItemDefinition } from '../src/core/server.ts';
-import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
+import { LOOT_ITEMS } from '../src/core/server.ts';
 import * as F from '../src/core/server.ts';
 import { cumulative } from '../src/core/server.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';

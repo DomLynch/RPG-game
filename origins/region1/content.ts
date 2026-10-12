@@ -16,7 +16,7 @@
 // Numbers marked PROVISIONAL are the specs' own provisional values; PROPOSED marks anything this file had to choose (names of
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
-import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
+import { LOOT_ITEMS } from '../../src/core/server.ts';
 import { placedSpawns, placedWaypoints } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 
@@ -25,7 +25,7 @@ const gear = (id: string, name: string, slot: string, rarity: string, material: 
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
 const gearEntry = (item: string, chance: number) => ({ item, chance, quantity: 1, levelMin: 11, levelMax: null });
-// The goblin's six armour pieces are generated (origins/inventory/loot-catalogue.ts: item:loot.goblin.<Slot>); only the loot entry lives here.
+// The goblin's six armour pieces are generated (src/core/items/loot-catalogue.ts: item:loot.goblin.<Slot>); only the loot entry lives here.
 const goblinEntry = (slot: string) => ({ item: `item:loot.goblin.${slot}`, chance: 25, quantity: 1, levelMin: null, levelMax: null });
 const table = (id: string, presentation: 'take-one' | 'collect', rolls: unknown[], currency: { min: number; max: number } | null) => ({
   kind: 'loot-table', schemaVersion: 1, id, presentation, distribution: 'personal', rolls, currency, fallback: null, // crafting is out

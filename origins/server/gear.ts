@@ -4,7 +4,7 @@
 // The wearer's rank is the SERVER's (the career row's credit), never the request's. The body names a character and a piece id; it never carries a slot, a tier, a level or a version.
 import type { ItemInstance, Location } from '../../src/core/server.ts';
 import { legacyLootOfItemId } from '../../src/core/server.ts';
-import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { levelOfCredit } from '../../src/core/server.ts';
 import { DbError } from './db.ts';
 import { exchangePlace } from './upgrade.ts';

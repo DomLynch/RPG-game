@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
-import { openInventory, type Inventory } from '../inventory/inventory.ts';
+import { openInventory, type Inventory } from '../../src/core/server.ts';
 import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, respawnRows, type Kill } from './mob-rewards.ts';
 import type { Db } from './db.ts';
 import type { CareerRow } from './store.ts';

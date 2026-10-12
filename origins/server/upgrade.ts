@@ -14,7 +14,7 @@ import {
   parseServiceDefinition, parseUpgradeCostTable, parseUpgradeReceipt, parseUpgradeRequest, performUpgrade, type UpgradeOutcome, type UpgradeReceipt,
 } from '../../src/core/server.ts';
 import type { Location } from '../../src/core/server.ts';
-import { applyUpgrade, BANK_PLACE, find } from '../inventory/inventory.ts';
+import { applyUpgrade, BANK_PLACE, find } from '../../src/core/server.ts';
 import { levelOfCredit } from '../../src/core/server.ts';
 import { inZone, type WhereFn } from '../presence/where.ts';
 import { DbError } from './db.ts';

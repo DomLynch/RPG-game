@@ -1,13 +1,13 @@
 // Test-only builders for the inventory tests: definitions, instances and an empty inventory, all parsed through the O1 contracts so a
 // fixture can never be a shape the contracts would refuse. Example content only; none of it ships.
 import assert from 'node:assert/strict';
-import type { Result } from '../../src/core/server.ts';
-import { parseTrade, type Trade } from '../../src/core/server.ts';
-import * as F from '../../src/core/server.ts';
-import type { AccountId, CharacterInstanceId, ItemId } from '../../src/core/server.ts';
-import { parseItemDefinition, parseItemInstance, type ItemDefinition, type ItemInstance } from '../../src/core/server.ts';
-import type { CareerStanding } from '../../src/core/server.ts';
-import { BANK_PLACE, openInventory, type Inventory, type Lookup } from './inventory.ts';
+import type { Result } from '../src/core/server.ts';
+import { parseTrade, type Trade } from '../src/core/server.ts';
+import * as F from '../src/core/server.ts';
+import type { AccountId, CharacterInstanceId, ItemId } from '../src/core/server.ts';
+import { parseItemDefinition, parseItemInstance, type ItemDefinition, type ItemInstance } from '../src/core/server.ts';
+import type { CareerStanding } from '../src/core/server.ts';
+import { BANK_PLACE, openInventory, type Inventory, type Lookup } from '../src/core/items/inventory.ts';
 
 export const PC = F.PC as CharacterInstanceId;
 export const ACCOUNT = F.ACCOUNT as AccountId;

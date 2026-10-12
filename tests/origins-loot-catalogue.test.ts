@@ -1,1 +1,1 @@
-import '../origins/inventory/loot-catalogue.test.ts';
+import './items-loot-catalogue.test.ts';

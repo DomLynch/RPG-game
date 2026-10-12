@@ -10,7 +10,7 @@ import { TITLES } from '../../src/core/server.ts';
 import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
 import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
-import { firstFree, openInventory, type Inventory } from '../inventory/inventory.ts';
+import { firstFree, openInventory, type Inventory } from '../../src/core/server.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';

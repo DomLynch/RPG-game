@@ -10,7 +10,7 @@ import { Issues, fail, ok, type Issue, type Result } from '../../src/core/server
 import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanceId, LootTableId } from '../../src/core/server.ts';
 import { parseItemInstance, type LootTable } from '../../src/core/server.ts';
 import { sha256, shortHash } from '../boss/hash.ts';
-import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';

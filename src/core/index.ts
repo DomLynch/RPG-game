@@ -42,3 +42,5 @@ export type { UpgradeReceipt } from './gear-net.ts';
 export type { UpgradeReceipt as EconomyUpgradeReceipt } from './contracts/economy.ts';
 export { tierOf } from './career-model.ts';
 export { tierOf as standingTierOf } from './contracts/world.ts';
+export * from './items/inventory.ts';
+export * from './items/loot-catalogue.ts';
