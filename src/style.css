@@ -2577,3 +2577,14 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal #journal-rank { margin-top: 6px; }
 @media (max-width: 440px) { #journal #journal-name, #journal:has(#journal-tab-fighter:checked) #journal-name { font-size: 21px; max-width: calc(100vw - 254px); padding-right: 22px; background-size: 18px; white-space: normal; overflow-wrap: anywhere; line-height: 1.1; min-height: 44px; display: flex; align-items: center; } }   /* vw, not %: the header cell is shrink-wrapped (a % of it cut "Wanderer" to "Wa…"); 254 = the avatar and the three tabs; a long name wraps */
 @media (max-width: 440px) { #journal .tab-strip label { min-width: 52px; letter-spacing: .04em; padding: 0 2px; } }   /* three icon tabs = ~170 px, not 220: the name keeps its room */
+/* The NEW-vs-EQUIPPED compare (Dom's pickup-compare reference, 2026-10-11): two cards in the take panel's head when the offer would replace a worn piece. */
+.loot-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; padding: 10px 0; border-bottom: 1px solid #1b191630; }
+.loot-compare[hidden] { display: none; }
+.loot-compare > div { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 6px 8px; border-radius: 8px; background: #fdf6e340; text-align: center; overflow: hidden; }
+.loot-compare p { margin: 0; }
+.loot-card-tag { align-self: stretch; padding: 3px 0; margin: 0 -6px 4px; color: #fff; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .18em; text-transform: uppercase; }
+.loot-compare [data-side='new'] .loot-card-tag { background: #2f7a3a; }
+.loot-compare [data-side='held'] .loot-card-tag { background: #a63a28; }
+.loot-compare img { display: block; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 6px #0004); }
+.loot-card-name { max-width: 100%; color: #1b1916; font: 600 15px/1.1 "Iowan Old Style", Palatino, Georgia, serif; overflow-wrap: anywhere; }
+.loot-card-slot { color: #7a5c18; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
