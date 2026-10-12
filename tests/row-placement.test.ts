@@ -30,7 +30,7 @@ test('the first line counts trusted / HF / VPS / Mac, and an over-limit Mac list
   const many = placementLine({ total: 52, ci: [], hf: [], mac: Array.from({ length: 20 }, (_, i) => i + 1) });
   assert.equal(many.refuse, true);
   assert.equal(many.enforce, MAC_ENFORCE);
-  assert.match(many.warning, /Mac rows 20 > MAC_MAX 8: rows not on the Mac-only list: 1,3,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20/);
+  assert.match(many.warning, /Mac rows 20 > MAC_MAX 9: rows not on the Mac-only list: 1,3,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20/);
 });
 
 test('rows the VPS run carries are counted as VPS in the plan line, not as Mac rows (BF printed "0 VPS / 12 Mac" before the receipt merge)', () => {
