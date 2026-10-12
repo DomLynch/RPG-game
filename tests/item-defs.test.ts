@@ -128,8 +128,9 @@ test('a tier is refused on any power row without `tiered`, by the flag and not b
   const powers = DEFINITIONS.powers as Record<string, object>;
   powers.glamour = {};
   try {
-    const d = parseItemDefinition({ ...F.graveIronDef(), power: 'glamour' }), i = parseItemInstance({ ...F.ironInstance(), tier: 'Recruit' });
-    assert.ok(d.ok && i.ok, JSON.stringify([d, i]));
+    const d0 = parseItemDefinition(F.graveIronDef()), i = parseItemInstance({ ...F.ironInstance(), tier: 'Recruit' });
+    assert.ok(d0.ok && i.ok, JSON.stringify([d0, i]));
+    const d = { ok: true as const, value: { ...d0.value, power: 'glamour' } };   // the parse list is built at load (a new power row needs the next load); the rule reads the row at check time
     assert.ok(checkInstance(i.value, d.value).some((x) => x.code === 'rule-violation' && x.path === 'tier'), 'a tier on an untiered power is a rule-violation at tier');
     const clean = parseItemInstance({ ...F.ironInstance(), tier: null });
     assert.ok(clean.ok && checkInstance(clean.value, d.value).length === 0, 'no tier on it is clean');
