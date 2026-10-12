@@ -11,13 +11,13 @@ Dom's line: everything in the central game engine, content as data. Live at writ
 ## 2. What the foundation allows now
 - A new zone that reuses kit, creatures and a biome: one row, zero code (Zone 3). A new biome: one entry on the data path (biomes-data.ts is DATA per scripts/lib/data-only.mjs; Lead checked). So Zone 4 with its own biome = row + entry.
 - A new creature, loot table, legend, gear tier, ladder, town, sound cue: STILL CODE (Lead's inventory, file:line). The character catalogue (catalogue-data.ts) exists but is NOT the Pit's runtime source: roster.ts, moves.ts OPPONENTS, legends.ts, ladder.ts run the Pit. Engine checklist row 20 NOT done (PR 1981 closed unmerged), row 21 all fields still code. Rows 18 (loot/XP server-side) and 19 (replay v41, old records refused) are done enough for beta.
-- Bug to fix first: data-only.mjs lists src/assets/source/loot/loot.json which does not exist, and its line-9 comment still calls biomes code. The data gate protects a file that is not there.
+- Correction 09:3x: src/assets/source/loot/loot.json EXISTS on trunk (my git check); Lead's helper was wrong and I relayed it. Only two stale biome comments in data-only.mjs remain (PR labelled, receipt 11/0).
 
 ## 3. Everything-as-data: the ruled order (one PR each, VPS receipt, label, Auditor PASS)
 | # | Item | Size | Owner | When | Proof that it is data |
 |---|---|---|---|---|---|
 | 0 | Slice 3: world sim into Core (server-authoritative world) | M | Backend + Combat | today, draft 12:00 | C7 WORLD_SIM_KNOWN shrinks from 14 on live |
-| 1 | data-only.mjs: fix the phantom loot.json path + stale comment; the gate test fails if a DATA_PATH is missing | S | Auditor | today | test red on a missing path |
+| 1 | data-only.mjs: two stale biome comments (loot.json exists; no gate change) | S | Auditor | today, labelled | data-only.test.ts 11/0 |
 | 2 | Zone 4 as a row with its own biome entry | S | World | today | /zone/4/ shows its own name and biome in the browser |
 | 3 | Catalogue as runtime source, 20a: the Pit reads roster, opponents, ladder order from catalogue-data; fights byte-identical (replay fingerprints) | L | Characters + Combat | this week, PR by Wed | a new opponent = one catalogue row, appears in the ladder with no code |
 | 4 | Loot tables → rows (content.ts:61) and legends → catalogue (src/legends.ts copy removed) | S | Backend (loot), Characters (legends) | Tue | a new loot table / legend name needs no code |
