@@ -1,0 +1,51 @@
+# The release train's CUTTER (Dom via Strategy + Lead, 2026-10-12): every 10 min, and when a PR gets `release:go`, scripts/release-train.mjs cut
+# collects the release:go PRs with green checks and the Auditor's PASS at their head (docs/release-order.txt order), merges them onto the newest open
+# candidate's tip (or trunk), and opens release-T<stamp> with ci:release-checks + auditor:ready. It never merges to trunk and never deploys: the Mac
+# publisher (scripts/release-train-publish.sh) does that once the Auditor adds candidate:pass.
+# Token: a PR opened with the Actions GITHUB_TOKEN starts NO pull_request workflows (GitHub's loop guard), so the candidate would get no unit-ci,
+# quality or release rows. With the RELEASE_TRAIN_TOKEN secret (a fine-grained PAT: contents + pull requests + actions write on this repo) the PR
+# triggers them as a person's would. Without it the cutter dispatches unit-ci, quality and release-checks on the branch (workflow_dispatch is allowed).
+# pull_request_target runs THIS file from trunk and checks out trunk only: no PR code is executed here, PR heads are only merged by git.
+name: release-train
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  pull_request_target:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the plan only'
+        type: boolean
+        default: false
+concurrency:
+  group: release-train
+  cancel-in-progress: false
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+jobs:
+  cut:
+    if: github.event_name != 'pull_request_target' || github.event.label.name == 'release:go'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/01a09a76/task-1
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN || github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.3
+      - name: cut
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || github.token }}
+          RELEASE_TRAIN_DISPATCH: ${{ secrets.RELEASE_TRAIN_TOKEN == '' && '1' || '0' }}
+          DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          git config user.name "frankendom-release-train"
+          git config user.email "release-train@users.noreply.github.com"
+          node scripts/release-train.mjs cut $DRY | tee -a "$GITHUB_STEP_SUMMARY"

@@ -1,9 +1,56 @@
 {
   "definitions": {
     "trades": {
-      "smith": {},
+      "smith": {
+        "shop": true,
+        "order": 0,
+        "chimney": true,
+        "kit": {
+          "sign": "sign_smith_a"
+        }
+      },
       "healer": {},
-      "fence": {}
+      "fence": {},
+      "general": {
+        "shop": true,
+        "order": 1
+      },
+      "apothecary": {
+        "shop": true,
+        "order": 2
+      },
+      "inn": {
+        "shop": true,
+        "order": 3,
+        "kit": {
+          "sign": "sign_tavern_a"
+        }
+      },
+      "tailor": {
+        "shop": true,
+        "order": 4
+      },
+      "fletcher": {
+        "shop": true,
+        "order": 5
+      },
+      "chandler": {
+        "shop": true,
+        "order": 6
+      },
+      "baker": {
+        "shop": true,
+        "order": 7,
+        "chimney": true
+      },
+      "cooper": {
+        "shop": true,
+        "order": 8
+      },
+      "jeweller": {
+        "shop": true,
+        "order": 9
+      }
     },
     "temperaments": {
       "ambitious": {},
@@ -15,6 +62,150 @@
       "reeve": {},
       "mayor": {},
       "lord": {}
+    },
+    "lotKinds": {
+      "bank": {
+        "order": 0,
+        "ring": 0,
+        "civic": {
+          "w": [
+            12,
+            5
+          ],
+          "d": [
+            9,
+            3
+          ]
+        },
+        "walls": true,
+        "sign": true,
+        "counter": true,
+        "kit": {
+          "sign": "sign_bank_a",
+          "counter": "counter_bank_a"
+        }
+      },
+      "board": {
+        "order": 1,
+        "ring": 0,
+        "civic": {
+          "w": [
+            6,
+            0
+          ],
+          "d": [
+            4,
+            0
+          ]
+        },
+        "stand": 1.4
+      },
+      "rankings": {
+        "order": 2,
+        "ring": 0,
+        "civic": {
+          "w": [
+            6,
+            0
+          ],
+          "d": [
+            4,
+            0
+          ]
+        },
+        "stand": 1.4
+      },
+      "shop": {
+        "order": 3,
+        "ring": 1,
+        "count": [
+          4,
+          6
+        ],
+        "gap": [
+          16,
+          4
+        ],
+        "size": {
+          "w": [
+            7,
+            4,
+            3
+          ],
+          "d": [
+            6,
+            3,
+            0
+          ]
+        },
+        "walls": true,
+        "sign": true,
+        "trades": true
+      },
+      "house": {
+        "order": 4,
+        "ring": 2,
+        "count": [
+          6,
+          22
+        ],
+        "gap": [
+          14,
+          4
+        ],
+        "size": {
+          "w": [
+            5,
+            3,
+            2
+          ],
+          "d": [
+            5,
+            3,
+            0
+          ]
+        },
+        "walls": true,
+        "chimney": true
+      },
+      "stall": {
+        "order": 5,
+        "ring": 3,
+        "count": [
+          3,
+          5
+        ],
+        "gap": [
+          12,
+          0
+        ],
+        "size": {
+          "w": [
+            3,
+            0,
+            0
+          ],
+          "d": [
+            3,
+            0,
+            0
+          ]
+        },
+        "open": true
+      },
+      "gate": {
+        "order": 6,
+        "ring": 3,
+        "gate": {
+          "offset": 6,
+          "w": 6,
+          "d": 2
+        },
+        "arch": true,
+        "kit": {
+          "arch": "arch_gate_a"
+        }
+      }
     }
   },
   "towns": [

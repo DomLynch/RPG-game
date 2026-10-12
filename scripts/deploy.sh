@@ -121,10 +121,11 @@ else
   [[ "$vps_unit" == ok ]] || vps_unit=$(vps_unit_live_ok)   # or one run on the prepaid VPS by launch.mjs (VPS first, Hugging Face only as spillover)
   if [[ "$vps_unit" == ok ]]; then echo "unit source: HF/VPS receipt (reason=unit-ci-down)"; else echo "unit source: none (reason=unit-ci-down, no HF/VPS receipt): the Mac runs its own suite"; fi
 fi
-if [[ -n "$ci_green" ]]; then
+if [[ -n "$ci_green" && "$vps_unit" == ok ]]; then
   # R ran eslint + build + audit + budget + test:browser here at load 30-35 although CI had proved all of it for this tree (Strategy/Dom 2026-10-10).
-  # CI's quality job is quality:ci (eslint, both typechecks, test:all, test:bot, build, audit, budget) and "browser (combat)" is test:browser: the Mac only builds dist to ship.
-  echo "CI quality + browser (combat) green for $ci_green_for ($ci_green): the Mac skips quality:deploy and test:bot and only builds dist"
+  # CI's quality job is quality:static (eslint, both typechecks, test:bot, build, audit, budget), "browser (combat)" is test:browser, and test:all is the
+  # unit receipt above (unit-ci.yml owns it since 2026-10-12): all three, or the Mac runs its own suite below. The Mac only builds dist to ship.
+  echo "CI quality + browser (combat) green for $ci_green_for ($ci_green) and the unit receipt holds: the Mac skips quality:deploy and test:bot and only builds dist"
   npm run build
 elif [[ "$(notes_only_release "$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)" "$revision")" == ok ]]; then
   echo "notes-only release (every changed path is under docs/state/): no unit suite; build only"
@@ -154,7 +155,7 @@ fi
 deploy_step "release checks"
 # One run's local rows at a time (the other keeps building or publishing). Taken BEFORE the CI lookup: a run that waited trusts what CI finished meanwhile.
 deploy_lock_wait "$DEPLOY_ROWS_LOCK" "Mac rows"
-trusted_checks=$(node scripts/ci-trusted-checks.mjs "$revision" || true)
+trusted_checks=$(CI_ROWS_WAIT_S="${CI_ROWS_WAIT_S:-900}" node scripts/ci-trusted-checks.mjs "$revision" || true)   # waits (bounded) for CI rows still running on this tree (CP, Lead 2026-10-12)
 ci_rows="$trusted_checks"   # for the Published summary: which host proved which rows
 trust_source="CI release-checks for $revision"
 vps_receipts_apply  # scripts/lib/deploy-vps.sh: rows the VPS proved for this exact tree

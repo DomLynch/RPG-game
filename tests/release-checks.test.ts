@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -479,4 +479,45 @@ test('deploy scope: the last full run is read from the stamp, else from a receip
   assert.ok(age() > 86_400, 'the stamp wins: over 24 h means the next release runs all 50');
   writeFileSync(join(root, 'artifacts/last-full-release.json'), JSON.stringify({ at: 'not a date' }));
   assert.equal(age(), -1, 'a bad stamp date is unknown, so the release runs all 50 (Auditor S2)');
+});
+
+test('Lead 2026-10-12 (CP): with CI_ROWS_WAIT_S, ci-trusted-checks waits for CI rows still running on this tree, then trusts them; bounded; default looks once', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'ci-trust-wait-'));
+  const g = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  g('init', '-q', '-b', 'trunk'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't');
+  writeFileSync(join(repo, 'a.txt'), '1\n'); g('add', '.'); g('commit', '-qm', 'c');
+  const sha = g('rev-parse', 'HEAD'), tree = g('rev-parse', 'HEAD^{tree}');
+  const dir = mkdtempSync(join(tmpdir(), 'ci-trust-wait-gh-')), fake = join(dir, 'gh'), views = join(dir, 'views');
+  const receipt = (index: number) => JSON.stringify({ index, status: 0, tree, sha });
+  // Run 5: row 1 green from the start; row 3 running for the first READY_AFTER views, then green with its receipt (CP's rows 18/20/23/25).
+  writeFileSync(fake, `#!/bin/bash
+n=$(cat '${views}' 2>/dev/null || echo 0)
+case "$1 $2" in
+  "run list") echo '[{"databaseId":5,"headSha":"${sha}","url":"https://x/runs/5","status":"in_progress"}]';;
+  "run view") echo $((n + 1)) > '${views}'
+    if [ "$n" -ge "\${READY_AFTER:-2}" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 3 (c)","conclusion":"success"}]'
+    else echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 3 (c)","conclusion":null}]'; fi;;
+  "run download") for i in "$@"; do case "$prev" in --dir) d="$i";; esac; prev="$i"; done
+    mkdir -p "$d/release-check-1-receipt"; printf '%s' '${receipt(1)}' > "$d/release-check-1-receipt/release-check-1.json"
+    if [ "$n" -gt "\${READY_AFTER:-2}" ]; then mkdir -p "$d/release-check-3-receipt"; printf '%s' '${receipt(3)}' > "$d/release-check-3-receipt/release-check-3.json"; fi;;
+  *) exit 1;;
+esac
+`);
+  execFileSync('chmod', ['+x', fake]);
+  const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
+  const call = (env: Record<string, string>) => { rmSync(views, { force: true }); return spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake, CI_ROWS_POLL_S: '1', ...env } }); };
+  let r = call({});
+  assert.equal(r.stdout, '1', 'no wait (the planning call): only what is finished: ' + r.stderr);
+  assert.match(r.stderr, /running locally: \[3:unfinished/);
+  r = call({ CI_ROWS_WAIT_S: '20' });
+  assert.equal(r.stdout, '1,3', 'waited for row 3 and trusted it once green: ' + r.stderr);
+  assert.match(r.stderr, /waiting for CI row\(s\) \[3\]/);
+  const t = Date.now();
+  r = call({ CI_ROWS_WAIT_S: '2', READY_AFTER: '999' });
+  assert.equal(r.stdout, '1', 'a row that never finishes inside the bound runs locally');
+  assert.match(r.stderr, /stopped waiting after 2s with CI row\(s\) \[3\] unfinished: they run locally/);
+  assert.ok(Date.now() - t < 15_000, 'bounded');
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(deploy, /trusted_checks=\$\(CI_ROWS_WAIT_S="\$\{CI_ROWS_WAIT_S:-900\}" node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the release-checks step waits');
+  assert.match(deploy, /early_trusted=\$\(node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the planning call stays instant');
 });

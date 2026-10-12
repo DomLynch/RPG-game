@@ -92,7 +92,7 @@ export function verdict(changed, readText = f => readFileSync(f, 'utf8'), base =
     if (g.status !== 0) problems.push(`the registry gate fails: ${g.stderr.trim().split('\n').slice(0, 3).join(' | ').slice(0, 300)}`);
   }
   if (data.some(c => c.file === 'origins/region1/towns.json')) {
-    const t = sh(process.execPath, ['--test', 'tests/town-rows.test.ts', 'origins/region1/region1.test.ts']);
+    const t = sh(process.execPath, ['--test', 'tests/town-rows.test.ts', 'origins/region1/region1.test.ts', 'origins/world/town-defs.test.ts']);
     if (t.status !== 0) problems.push(`the town tests fail: ${(t.stdout.match(/^not ok .*$/gm) || []).join('; ').slice(0, 300) || 'exit ' + t.status}`);
   }
   if (data.some(c => c.file === CATALOGUE_DATA)) {   // a malformed row turns CI red (exit 2) instead of getting the label
