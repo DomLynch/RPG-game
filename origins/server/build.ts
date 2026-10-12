@@ -11,7 +11,7 @@ export const FREE_RESPREAD_LEVEL = 10, RANK_LEVELS = 10;
 const CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
 
 // The ONE seam to the shared validator: the problems with this level + placement, [] when legal.
-export const problemsOf = (level: number, placed: Readonly<Record<string, number>>): string[] => validateBuild({ level, placed } as never);
+export const problemsOf = (level: number, placed: Readonly<Record<string, number>>): string[] => validateBuild({ level, placed });
 
 const character = (v: unknown): string => {
   if (typeof v !== 'string' || !CHARACTER.test(v)) throw new BadRequest('character: a character id');
