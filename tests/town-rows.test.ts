@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import { BUNDLE, LOCAL } from '../origins/region1/content.ts';
 import { loadRegion1, type Local } from '../origins/region1/load.ts';
 import { REGION1_WORLD } from '../origins/region1/world.ts';
+import { onDataPath } from '../scripts/lib/data-only.mjs';
 
 const TOWNS_SHA = 'edfe8162dc5b9092bb61570ff8cd1f4591000eb460f4995695bf39a09bbe47b1';
 const load = (edit: (l: Local) => void) => { const l = structuredClone(LOCAL) as Local; edit(l); return loadRegion1(REGION1_WORLD, BUNDLE, l); };
@@ -49,4 +50,9 @@ test('an unknown town field passes through in ext instead of being refused', () 
   assert.ok(r.ok, JSON.stringify(codes(r)));
   assert.deepEqual(r.value.towns[2]!.ext, { 'mod:market': { day: 'friday' } });
   assert.deepEqual(r.value.towns[0]!.ext, {});
+});
+
+test('towns.json is on the data path, and the code that reads it is not', () => {
+  assert.ok(onDataPath('origins/region1/towns.json'));
+  assert.ok(!onDataPath('origins/region1/load.ts') && !onDataPath('origins/region1/content.ts'));
 });
