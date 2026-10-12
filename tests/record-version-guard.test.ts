@@ -12,6 +12,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
+import { FINISHER_POSE, ROTATION, finisherSeconds, finisherRow } from '../src/fight/finishers.ts';
 import { NO_PATRON_VERSION, PATRON_VERSION, READABLE_VERSIONS, REACH, RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, SKILL_BY_CODE, SKILL_ROWS, WEAPONS } from '../src/fight/moves.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
@@ -31,12 +32,17 @@ const PINNED_FOR_VERSION = 45;
 
 // The weapon table is hashed as what the loader RETURNS (Lead, 2026-10-12, as the catalogue and the pools are): the canonical JSON of the 11 resolved Weapon objects, their order and both player lists. The loader
 // (weapons.ts), the shared registry (src/core/registry.ts), the rows and the manifests are LOADER_ONLY: a refactor of them that resolves to the same table moves nothing, a change that alters a resolved value moves the digest.
-const LOADER_ONLY = ['src/fight/skills.ts', 'src/fight/skill-defs.json', 'src/fight/skill-defs.manifest.json', 'src/core/registry.ts', 'src/fight/weapons.ts', 'src/fight/weapon-defs.json', 'src/fight/pool-defs.manifest.json', 'src/fight/weapon-defs.manifest.json'];
+const LOADER_ONLY = ['src/fight/skills.ts', 'src/fight/skill-defs.json', 'src/fight/skill-defs.manifest.json', 'src/core/registry.ts', 'src/fight/weapons.ts', 'src/fight/weapon-defs.json', 'src/fight/pool-defs.manifest.json', 'src/fight/weapon-defs.manifest.json', 'src/fight/finisher-rows.ts', 'src/fight/finisher-defs.json', 'src/fight/finisher-defs.manifest.json'];
 const canon = (v: unknown): unknown => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon((v as Record<string, unknown>)[k])])) : v;
 const resolvedWeapons = (): string => JSON.stringify(canon({ weapons: WEAPONS, order: Object.keys(WEAPONS), player: PLAYER_WEAPONS, offered: PLAYER_WEAPONS_OFFERED }));
 // The skills reach the digest as their SIM projection (id, code, move, opponent, dayOne, tell, in record-byte order); name, clip, impactTint and fx are presentation and move no fight.
 const resolvedSkills = (): string => JSON.stringify(SKILL_BY_CODE.map((id) => (id === null ? null : (({ code, move, opponent, dayOne, tell }) => ({ id, code, move, opponent, dayOne: !!dayOne, tell: !!tell }))(SKILL_ROWS[id]!))));
-const simSources = (): Record<string, string> => ({ ...Object.fromEntries(SIM_FILES.map((file) => [file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')])), 'resolved/weapons.json': resolvedWeapons(), 'resolved/skills.json': resolvedSkills() });
+// The finisher table is hashed as what the loader RETURNS (Lead, 2026-10-12, as the catalogue is): the canonical JSON of the rotation order and, per row in
+// order, its id, template and resolved duration. The loader (finisher-rows.ts), the shared registry (src/core/registry.ts), the rows and the manifest are
+// LOADER_ONLY: a refactor of them, or a cosmetic field (a pose, a label, a camera number), that resolves to the same projection moves nothing; a change to a
+// resolved sim value moves the digest.
+const resolvedFinishers = (): string => JSON.stringify(canon({ rotation: ROTATION, rows: Object.keys(FINISHER_POSE).map((id) => ({ id, template: finisherRow(id)!.template, ...finisherSeconds(id) })) }));
+const simSources = (): Record<string, string> => ({ ...Object.fromEntries(SIM_FILES.map((file) => [file, readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')])), 'resolved/weapons.json': resolvedWeapons(), 'resolved/skills.json': resolvedSkills(), 'resolved/finishers.json': resolvedFinishers() });
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const digest = simDigest(simSources());
