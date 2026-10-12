@@ -5,9 +5,9 @@
 import { SHOP_HOURS, type NpcRow } from '../npcs/row.ts';
 
 export const REGION1_NPCS: readonly NpcRow[] = [
-  { npc: 'character:banker-exchange', roles: ['banker'], zone: 'exchange', at: 'bank', hours: 'always' },
-  { npc: 'character:provisioner-exchange', roles: ['vendor'], zone: 'exchange', at: 'forge', hours: SHOP_HOURS, shop: 'service:exchange-provisioner' },   // at the forge (grave iron is forge stock) until World builds a stall
-  { npc: 'character:innkeeper-exchange', roles: ['innkeeper'], zone: 'exchange', at: 'inn', hours: 'always' },
+  { npc: 'character:banker-exchange', roles: ['banker'], zone: 'exchange', at: 'bank', hours: 'always', outfit: { pieces: ['robe', 'sleeves', 'belt', 'cap'], tint: 0x6b7f5e } },
+  { npc: 'character:provisioner-exchange', roles: ['vendor'], zone: 'exchange', at: 'forge', hours: SHOP_HOURS, shop: 'service:exchange-provisioner', outfit: { pieces: ['tunic', 'apron', 'belt', 'hat'], tint: 0x8a6f4a } },   // at the forge (grave iron is forge stock) until World builds a stall
+  { npc: 'character:innkeeper-exchange', roles: ['innkeeper'], zone: 'exchange', at: 'inn', hours: 'always', outfit: { pieces: ['tunic', 'sleeves', 'apron', 'belt'], tint: 0x7a5c6a } },
   { npc: 'character:recorder-marrow', roles: ['recorder'], zone: 'exchange', at: 'contract-board', hours: SHOP_HOURS },
   { npc: 'character:smith-quarter', roles: ['smith'], zone: 'exchange-quarter', at: 'quarter-forge', hours: SHOP_HOURS },
   { npc: 'character:healer-quarter', roles: ['healer'], zone: 'exchange-quarter', at: 'quarter-healer', hours: SHOP_HOURS },

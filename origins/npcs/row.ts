@@ -7,6 +7,8 @@
 // reads that flag, never a role name. Ids are strings checked against the rows, not a TypeScript union.
 import roles from './roles.json' with { type: 'json' };
 
+import { outfitProblems } from './cloth.ts';
+
 export type NpcRoleRow = { order: number; shop?: boolean };
 export const NPC_ROLE_ROWS = roles.roles as Readonly<Record<string, NpcRoleRow>>;
 export const NPC_ROLES: readonly string[] = Object.entries(NPC_ROLE_ROWS).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
@@ -20,6 +22,7 @@ export type NpcRow = {
   at: string;                        // the landmark they stand at (their counter)
   hours: 'always' | readonly [number, number];   // game-clock hours they work, [open, close) (close may wrap past midnight); 'always' = never closes
   shop?: string;                     // a vendor's shop: a service id with a shop list
+  outfit?: { readonly pieces: readonly string[]; readonly tint: number };   // a named NPC's worn pieces (cloth.json rows) and tint; absent = the generated outfit (town-dress outfitFor)
 };
 export type NpcIssue = { path: string; message: string };
 export type NpcContext = {
@@ -39,6 +42,7 @@ export function validateNpcRows(rows: readonly NpcRow[], ctx: NpcContext): { iss
     if (!r.roles.length || r.roles.some((role) => !Object.hasOwn(NPC_ROLE_ROWS, role))) add('roles', `roles are one or more of ${NPC_ROLES.join(', ')}`);
     if (new Set(r.roles).size !== r.roles.length) add('roles', 'a role is listed twice');
     if (r.hours !== 'always' && !(r.hours.length === 2 && r.hours.every((h) => Number.isInteger(h) && h >= 0 && h <= 23) && r.hours[0] !== r.hours[1])) add('hours', "hours are 'always' or [open, close], whole hours 0..23, not equal");
+    if (r.outfit) for (const m of outfitProblems(r.outfit.pieces)) add('outfit', m);
     const sells = r.roles.some((role) => NPC_ROLE_ROWS[role]?.shop);   // a role row with `shop: true` (the vendor) sells from a shop list
     if (sells && (r.shop === undefined || !ctx.shop(r.shop))) add('shop', 'a vendor names a shop that has a list');
     if (!sells && r.shop !== undefined) add('shop', 'only a vendor has a shop');
