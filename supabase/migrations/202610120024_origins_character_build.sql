@@ -1,16 +1,16 @@
 begin;
 -- ROLLBACK: supabase/down/202610120024_origins_character_build_down.sql (drops exactly what this file creates).
--- CLASS 1, ADDITIVE and Origins-only: one table, three functions. Dom's LOCKED sheet (programme 2a): level 1..50, one point a level, spendable on ANY dial or skill; everyone starts at 50 on everything.
+-- CLASS 1, ADDITIVE and Origins-only: one table, three functions. Dom's LOCKED sheet (programme 2a): level 0..100 (born at 0), one point a level placed on reaching it (so placed <= level), spendable on ANY dial or skill; dials and skills run 0..100.
 -- A character's BUILD is its level plus the points PLACED on each dial or skill id (the rows decide ids, bases, caps; the writer validates every save with the shared validateBuild).
 -- RE-SPREAD is free until level 10, then once per rank-up (every 10 levels): respread_rank is the rank (level / 10) at which the last paid re-spread was used; it starts at 1, so levels 11-19 have none.
--- No row = level 1, nothing placed, version 0.
+-- No row = level 0, nothing placed, version 0.
 -- APPEND-ONLY (Lead's ruling): every change is a NEW immutable version row (character, version, level, placed, respread_rank, created_at); the current build is the max version, so a fight record that names
 -- (character, version) can be checked against exactly that build and a re-spread cannot rewrite history. Level has no client path: origins_set_level is the writer's, and only ever raises it.
 -- RLS on, no policy, no client grant: only the definer functions below touch it.
 create table public.origins_character_build (
   character text not null references public.origins_characters (id) on delete cascade,
   version int not null check (version >= 1),
-  level int not null check (level between 1 and 50),
+  level int not null check (level between 0 and 100),
   placed jsonb not null check (jsonb_typeof(placed) = 'object'),
   respread_rank int not null check (respread_rank >= 0),
   created_at timestamptz not null default now(),
@@ -26,7 +26,7 @@ begin
   if not public.origins_allowed(p_account) or not public.origins_owns(p_character, p_account) then return null; end if;
   select * into b from public.origins_character_build where character = p_character and (p_version is null or version = p_version) order by version desc limit 1;
   if not found then
-    if p_version is null or p_version = 0 then return jsonb_build_object('level', 1, 'placed', '{}'::jsonb, 'respreadRank', 1, 'version', 0); end if;
+    if p_version is null or p_version = 0 then return jsonb_build_object('level', 0, 'placed', '{}'::jsonb, 'respreadRank', 1, 'version', 0); end if;
     return null;
   end if;
   return jsonb_build_object('level', b.level, 'placed', b.placed, 'respreadRank', b.respread_rank, 'version', b.version);
@@ -34,7 +34,7 @@ end $$;
 
 -- Append version p_expected + 1 if the current version is still p_expected (0 = none yet). {conflict:true,...current} when it moved; null when not the account's.
 create function public.origins_set_build(p_account uuid, p_character text, p_placed jsonb, p_respread_rank int, p_expected int) returns jsonb language plpgsql security definer set search_path = '' as $$
-declare cur public.origins_character_build; lv int := 1; cv int := 0;
+declare cur public.origins_character_build; lv int := 0; cv int := 0;
 begin
   if not public.origins_allowed(p_account) or not public.origins_owns(p_character, p_account) then return null; end if;
   select * into cur from public.origins_character_build where character = p_character order by version desc limit 1;
