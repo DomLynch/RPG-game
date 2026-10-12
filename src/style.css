@@ -2580,3 +2580,14 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 @media (min-width: 600px), (orientation: landscape) { #stance-panel { max-width: 244px !important; } #stance-panel button { font-size: 11px !important; padding: 4px 2px !important; } }   /* Safari: "Aggressive" was 68 px in a 63 px button */
 #journal .stats-gear strong { white-space: normal; overflow-wrap: break-word; }   /* a worn piece's long name wraps instead of ending in an ellipsis (Safari run: 270 px of name in 168) */
 @media (max-width: 440px) { #journal:has(#journal-tab-fighter:checked) .fighter { grid-template-columns: 46px 1fr; column-gap: 10px; } #journal:has(#journal-tab-fighter:checked) .fighter-sigil { width: 44px; height: 44px; } #journal:has(#journal-tab-fighter:checked) #journal-name { max-width: calc(100vw - 250px); padding-right: 16px; background-size: 16px; } }   /* Stats tab: a smaller avatar gives the name its room beside the tabs */
+/* The NEW-vs-EQUIPPED compare (Dom's pickup-compare reference, 2026-10-11): two cards in the take panel's head when the offer would replace a worn piece. */
+.loot-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; padding: 10px 0; border-bottom: 1px solid #1b191630; }
+.loot-compare[hidden] { display: none; }
+.loot-compare > div { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 6px 8px; border-radius: 8px; background: #fdf6e340; text-align: center; overflow: hidden; }
+.loot-compare p { margin: 0; }
+.loot-card-tag { align-self: stretch; padding: 3px 0; margin: 0 -6px 4px; color: #fff; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .18em; text-transform: uppercase; }
+.loot-compare [data-side='new'] .loot-card-tag { background: #2f7a3a; }
+.loot-compare [data-side='held'] .loot-card-tag { background: #a63a28; }
+.loot-compare img { display: block; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 6px #0004); }
+.loot-card-name { max-width: 100%; color: #1b1916; font: 600 15px/1.1 "Iowan Old Style", Palatino, Georgia, serif; overflow-wrap: anywhere; }
+.loot-card-slot { color: #7a5c18; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }

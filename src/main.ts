@@ -203,7 +203,8 @@ function offerLoot(healthLeft: number) {
     });
     lootLineTimer = setTimeout(() => { lootPanel.hide(); releaseCloud(); void settleClaim(null); }, LOOT_LINE_MS);   // a move is not a loot_claims piece: the win is claimed alone
   };
-  lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image }, pieces, {
+  const worn = isLootId(offer) && profile.loot ? displacedBy(profile.loot, offer) : null;   // the piece the offer would replace: NEW beside EQUIPPED
+  lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image, ...(worn && isLootId(offer) ? { compare: { slot: slotOf(offer), held: { name: pieceName(worn), image: lootThumb(worn) } } } : {}) }, pieces, {
     onTake: (id: string) => take(id),
     // A refused kill records the tier a take records (loot.ts killAt: the fight's rung), so it still backfills its skull (loot.ts defeats).
     onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
