@@ -508,7 +508,7 @@ try {
         await flusher.flush();
         eq(locRow(pc), `pit-yard:15200:16200`, 'a stale observation in a later batch changes nothing');
         // the switch race (Lead, #2414): a held spot is written to the character that was active when it was posted, not to the one a switch makes active before the flush
-        const fOpen = (token, body) => globalThis.fetch(`${fbase}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.status);
+        const fOpen = (token, body, op = "open") => globalThis.fetch(`${fbase}/origins/${op}`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.status);
         eq(activeOf(D), daraTwo, 'D starts on Dara Two');
         const daraWas = locRow(dara);
         await post(D, 14800, 15800, Date.now() + 5000);
