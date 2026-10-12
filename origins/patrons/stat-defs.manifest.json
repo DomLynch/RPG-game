@@ -1,0 +1,14 @@
+{
+  "tables": [
+    {
+      "table": "stat",
+      "file": "stat-defs.json",
+      "at": "stats",
+      "key": "id",
+      "required": {
+        "benefit": "integer",
+        "text": "string"
+      }
+    }
+  ]
+}
