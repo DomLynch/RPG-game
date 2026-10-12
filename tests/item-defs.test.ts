@@ -82,7 +82,8 @@ test('the trade rules read the rows: story-critical and cash-shop never trade, a
   const inst = (prov: object) => { const r = parseItemInstance({ ...F.helmetInstance(), provenance: prov }); assert.ok(r.ok, JSON.stringify(r)); return r.value; };
   const NOW = Date.parse('2030-01-01T00:00:00Z');
   const reason = (d: ReturnType<typeof def>, i: ReturnType<typeof inst>) => tradeCooldown(i, d, NOW).reason;
-  assert.equal(reason(def({}), inst({ kind: 'cash-shop', mintKey: 'cash:1', at: '2026-01-01T00:00:00Z', account: F.ACCOUNT ?? 'account:11111111-1111-4111-8111-111111111111', sku: 'skin' })), 'cash-shop');
+  assert.equal(reason(def({}), inst({ kind: 'cash-shop', mintKey: 'cash:0001', at: '2026-01-01T00:00:00Z', account: 'account:11111111-1111-4111-8111-111111111111', sku: 'skin' })), 'cash-shop', 'the cash-shop row says tradeable:false with its blockReason');
+  assert.notEqual(reason(def({}), inst({ kind: 'loot', mintKey: 'loot:0001', at: '2026-01-01T00:00:00Z', wonBy: F.PC, table: 'loottable:ghoul', encounter: null })), 'cash-shop', 'a tradeable row is not blocked by provenance');
 });
 
 test('a new provenance row with no shape case parses through the base shape (kind, mintKey, at): ONE ROW in a copy of the tree, no code; an unknown kind and an extra field still reject', () => {
@@ -98,9 +99,9 @@ test('a new provenance row with no shape case parses through the base shape (kin
 import { parseItemDefinition, parseItemInstance } from './origins/contracts/items.ts';
 import { tradeCooldown } from './origins/contracts/economy.ts';
 const inst = (prov: object) => parseItemInstance({ ...F.helmetInstance(), provenance: prov });
-const ok = inst({ kind: 'event-reward', mintKey: 'event:1', at: '2026-01-01T00:00:00Z' });
-const extra = inst({ kind: 'event-reward', mintKey: 'event:1', at: '2026-01-01T00:00:00Z', winner: 'x' });
-const unknown = inst({ kind: 'mystery', mintKey: 'event:1', at: '2026-01-01T00:00:00Z' });
+const ok = inst({ kind: 'event-reward', mintKey: 'event:0001', at: '2026-01-01T00:00:00Z' });
+const extra = inst({ kind: 'event-reward', mintKey: 'event:0001', at: '2026-01-01T00:00:00Z', winner: 'x' });
+const unknown = inst({ kind: 'mystery', mintKey: 'event:0001', at: '2026-01-01T00:00:00Z' });
 const def = parseItemDefinition({ ...F.helmetDef() });
 const reason = ok.ok && def.ok ? tradeCooldown(ok.value, def.value, Date.parse('2030-01-01T00:00:00Z')).reason : null;
 const newDef = parseItemDefinition({ ...F.helmetDef(), power: 'aura' }).ok, newCat = parseItemDefinition({ ...F.graveIronDef(), category: 'relicware' }).ok, newStory = parseItemDefinition({ ...F.graveIronDef(), story: 'heirloom' }).ok;
