@@ -21,12 +21,15 @@ function box() {
   for (let i = 1; i <= 4; i++) writeFileSync(join(slots, `slot${i}`), '');
   const holders: ChildProcess[] = [];
   const hold = (...ns: number[]) => { for (const n of ns) holders.push(spawn('flock', [join(slots, `slot${n}`), 'sleep', '30'], { stdio: 'ignore' })); };
-  const env = { ...process.env, LANEJOB_SLOTS: slots, RELEASE_LOCK_DIR: locks, LANEJOB_LOG: log };
+  const loadavg = join(dir, 'loadavg');
+  const setLoad = (l1: number) => writeFileSync(loadavg, `${l1} ${l1} ${l1} 1/100 1\n`);
+  setLoad(1);
+  const env = { ...process.env, LANEJOB_SLOTS: slots, RELEASE_LOCK_DIR: locks, LANEJOB_LOG: log, LANEJOB_LOADAVG: loadavg };
   const probe = async (...cmd: string[]) => {
     await new Promise(r => setTimeout(r, 300));   // let the flock holders take their locks
     return execFileSync('bash', [script, '--probe', ...cmd], { env, encoding: 'utf8', timeout: 10000 }).trim();
   };
-  return { dir, slots, locks, log, env, hold, probe, done: () => holders.forEach(h => h.kill()) };
+  return { dir, slots, locks, log, env, hold, probe, setLoad, done: () => holders.forEach(h => h.kill()) };
 }
 
 test('probe: free slots -> would=vps, and one free slot among busy ones is still would=vps', { skip }, async () => {
@@ -74,5 +77,17 @@ test('probe: runs nothing, takes no slot, writes no log', { skip }, async () => 
     assert.equal(existsSync(join(b.dir, 'must-not-exist')), false);
     assert.equal(existsSync(b.log), false);
     for (let i = 1; i <= 4; i++) execFileSync('flock', ['-n', join(b.slots, `slot${i}`), 'true'], { timeout: 5000 });   // every slot is still free
+  } finally { b.done(); }
+});
+
+test('probe: a saturated VPS (1-minute load at the limit) -> would=spill reason=load even with every slot free; just below the limit is would=vps', { skip }, async () => {
+  const b = box();
+  try {
+    b.setLoad(16);
+    assert.equal(await b.probe('tsc', '--noEmit'), 'would=spill reason=load');
+    b.setLoad(15.9);
+    assert.equal(await b.probe('tsc', '--noEmit'), 'would=vps');
+    b.setLoad(31.5);
+    assert.equal(await b.probe('tsc', '--noEmit'), 'would=spill reason=load');
   } finally { b.done(); }
 });

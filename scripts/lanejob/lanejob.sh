@@ -9,14 +9,18 @@
 # (the HF job runs detached; follow it with `hf jobs logs <id>`). Exit 75 from launch.mjs (no HF slot) = keep waiting for a VPS slot.
 # The root path is unchanged.
 refuse_re='(^|[[:space:];&|(])(npm[[:space:]]+run[[:space:]]+(test:all|test:slow|test:browser|quality(:[[:alnum:]_-]+)?)|npm[[:space:]]+(run[[:space:]]+)?test|(node|tsx|npx[[:space:]]+tsx)[[:space:]]+([^[:space:]]+[[:space:]]+)*--test(([[:space:]]+[^[:space:]-][^[:space:]]*){2,}|[[:space:]]+[^[:space:]]*[*][^[:space:]]*))([[:space:]]|$)'
+# The VPS gate (Dom 2026-10-12): a 1-minute load at or above LANEJOB_MAX_LOAD1 means no VPS job, whatever the slots say (the probe said would=vps at load 16/16).
+# 16 = ROUTER.vpsMaxLoad1 in scripts/lib/router-config.mjs (tests/waterfall.test.ts pins the two together). LANEJOB_LOADAVG is the file the tests point elsewhere.
+vps_saturated() { awk -v max="${LANEJOB_MAX_LOAD1:-16}" '{ exit !($1 >= max) }' "${LANEJOB_LOADAVG:-/proc/loadavg}" 2>/dev/null; }
 # --probe CMD (Strategy + Dom 2026-10-12, the Mac middle tier): print where CMD WOULD go and run nothing, take no slot, write no log.
-#   would=vps | would=spill reason=slots | would=spill reason=release-lock | would=refuse.  A Mac caller runs this over ssh and only
+#   would=vps | would=spill reason=slots | would=spill reason=release-lock | would=spill reason=load | would=refuse.  A Mac caller runs this over ssh and only
 #   considers its own slot when the answer is would=spill. LANEJOB_SLOTS / RELEASE_LOCK_DIR override the live paths (tests use a tmp dir).
 if [ "$1" = "--probe" ]; then
   shift
   [ "$(id -u)" -eq 0 ] && { echo "would=vps"; exit 0; }
   printf '%s\n' "$*" | grep -Eq "$refuse_re" && { echo "would=refuse"; exit 0; }
   if find "${RELEASE_LOCK_DIR:-/run/frankendom-release}" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | grep -q .; then echo "would=spill reason=release-lock"; exit 0; fi
+  if vps_saturated; then echo "would=spill reason=load"; exit 0; fi
   for i in 1 2 3 4; do
     exec {fd}>>"${LANEJOB_SLOTS:-/run/lanejobs}/slot$i" || { echo "would=vps"; exit 0; }
     if flock -n "$fd"; then echo "would=vps"; exit 0; fi
@@ -54,16 +58,18 @@ spill() {  # 0 = the job was submitted to HF (printed), 1 = stay on the VPS queu
 tierlog() { echo "$1" >&2; echo "$(date -u +%FT%TZ) user=$(id -un) $1" >> "${LANEJOB_LOG:-/var/log/lanejob.log}" 2>/dev/null || true; }
 slots="${LANEJOB_SLOTS:-/run/lanejobs}"; got=; said=; lastspill=
 while [ -z "$got" ]; do
-  for i in 1 2 3 4; do
-    exec {fd}>>"$slots/slot$i" || exit 1
-    if flock -n "$fd"; then got=$i; break; fi
-    exec {fd}>&-
-  done
+  if ! vps_saturated; then
+    for i in 1 2 3 4; do
+      exec {fd}>>"$slots/slot$i" || exit 1
+      if flock -n "$fd"; then got=$i; break; fi
+      exec {fd}>&-
+    done
+  fi
   [ -n "$got" ] && break
   if [ -z "$lastspill" ] || [ $((SECONDS-lastspill)) -ge "${LANEJOB_SPILL_WAIT:-120}" ]; then
     lastspill=$SECONDS; spill "$@" && exit 0
   fi
-  [ -z "$said" ] && { echo "lanejob: queued behind pid $(cat "$slots/slot1" 2>/dev/null) (4 jobs running)" >&2; said=1; }
+  [ -z "$said" ] && { echo "lanejob: queued ($(vps_saturated && echo "VPS load at or above ${LANEJOB_MAX_LOAD1:-16}" || echo "4 jobs running, pid $(cat "$slots/slot1" 2>/dev/null)"))" >&2; said=1; }
   sleep 1
 done
 echo $$ > "$slots/slot$got"

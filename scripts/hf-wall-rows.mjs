@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
+import { routeJob } from './lib/waterfall.mjs';
 import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 import { ledger } from './vps-shadow/launch.mjs';
 import { MAC_ONLY, ON_T4, T4_JOBS } from './lib/row-placement.mjs';
@@ -71,7 +72,7 @@ function launch(sha, rowsArg, skipArg) {
   mkdirSync(dirname(state), { recursive: true });
   rmSync(`${state}.json`, { force: true });   // a previous run's receipt must not read as this run's (deploy-hf.sh's cancel checks for it)
   writeFileSync(state, JSON.stringify({ jobId: ids, jobs, sha, rows: placed, flavor, width, launchedAt: Date.now() }) + '\n');
-  say(`${jobs.length} job(s) ${ids} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)}: ${jobs.map(j => `[${j.rows.join(',')}]`).join(' ')}; the other ${commands.length - placed.length} rows are not on the T4`);
+  say(`${jobs.length} job(s) ${ids} launched on ${flavor} at ${width}-wide for ${sha.slice(0, 8)} reason=${routeJob({ gfx: true }).reason}: ${jobs.map(j => `[${j.rows.join(',')}]`).join(' ')}; the other ${commands.length - placed.length} rows are not on the T4`);
   process.stdout.write(`${ids}\n`);
 }
 

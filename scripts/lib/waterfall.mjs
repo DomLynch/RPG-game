@@ -3,21 +3,29 @@
 // without gfx never gets a T4. Pure decision (pickTarget) + one reader for the VPS (vpsStatus); the launchers call both, so the rule lives in one place.
 // tests/waterfall.test.ts pins every branch and fails when a script starts a heavy job without going through here (shrink-only KNOWN list).
 import { spawnSync } from 'node:child_process';
+import { ROUTER } from './router-config.mjs';
 import { FLAVORS, JOB_IMAGE, SLOW_CEILING_S, SLOW_ROWS, genericJobCommand, jobCommand } from './vps-receipts.mjs';
 
-export const VPS_MAX_LOAD1 = 12;
+export const VPS_MAX_LOAD1 = ROUTER.vpsMaxLoad1;
 // The remote command vpsStatus runs: loadavg, MemAvailable (kB), and the live release run dirs. A run dir is the release lock; one older than 90 minutes is a crashed run and stops counting.
 export const VPS_STATUS_CMD = "cat /proc/loadavg; awk '/MemAvailable/{print $2}' /proc/meminfo; find /root/deploy-runs -mindepth 1 -maxdepth 1 -type d -mmin -90 2>/dev/null | wc -l";
 
-// vps: { load1, freeRamMb } or null when the box cannot be read. mem: the job's RAM need in MB (default 0 = just a readable, quiet box).
-/** @param {{ gfx?: boolean, mem?: number, lane?: boolean, vps?: { load1: number, freeRamMb: number, releaseRuns?: number } | null }} [job] @returns {'vps' | 'hf-cpu' | 'hf-t4'} */
-export function pickTarget({ gfx = false, mem = 0, vps = null, lane = false } = {}) {
-  if (gfx) return 'hf-t4';
+// mac: { load5, busy } or null (the Mac tier is off / not asked). vps: { load1, freeRamMb } or null when the box cannot be read. mem: the job's RAM need in MB (default 0 = just a readable, quiet box).
+// gfx: the job draws (browser rows, stills). softwareGl: a gfx job whose result does not depend on a real GPU, so the VPS (SwiftShader) may take it before the T4.
+// Order (Dom 2026-10-12): Mac -> VPS -> Hugging Face; the T4 only for gfx. reason is the one word the deploy log prints for a T4 or HF-CPU row:
+//   mac-busy (a real-GPU job and the Mac is busy), vps-saturated (the VPS gate failed), gpu-only (graphics with no Mac tier in play).
+/** @param {{ gfx?: boolean, softwareGl?: boolean, mem?: number, lane?: boolean, mac?: { load5: number, busy?: boolean } | null, vps?: { load1: number, freeRamMb: number, releaseRuns?: number } | null }} [job] @returns {{ target: 'mac' | 'vps' | 'hf-cpu' | 'hf-t4', reason: string }} */
+export function routeJob({ gfx = false, softwareGl = false, mem = 0, vps = null, lane = false, mac = null } = {}) {
+  if (mac && Number.isFinite(mac.load5) && !mac.busy && mac.load5 < ROUTER.macMaxLoad5) return { target: 'mac', reason: 'mac-free' };
   const { load1, freeRamMb, releaseRuns = 0 } = vps || {};
-  if (!Number.isFinite(load1) || !Number.isFinite(freeRamMb)) return 'hf-cpu';
-  if (lane && releaseRuns > 0) return 'hf-cpu';   // a RELEASE run owns the VPS while it runs (Strategy 2026-10-11): a lane job never shares the box with one; a release never waits behind a lane job
-  return load1 < VPS_MAX_LOAD1 && freeRamMb >= mem ? 'vps' : 'hf-cpu';
+  const vpsReadable = Number.isFinite(load1) && Number.isFinite(freeRamMb);
+  const vpsFree = vpsReadable && !(lane && releaseRuns > 0) && load1 < ROUTER.vpsMaxLoad1 && freeRamMb >= mem;   // a RELEASE run owns the VPS while it runs (Strategy 2026-10-11): a lane job never shares the box with one
+  if (gfx && !softwareGl) return { target: 'hf-t4', reason: mac ? 'mac-busy' : 'gpu-only' };
+  if (vpsFree) return { target: 'vps', reason: 'vps-free' };
+  return { target: gfx ? 'hf-t4' : 'hf-cpu', reason: 'vps-saturated' };
 }
+/** @param {Parameters<typeof routeJob>[0]} [job] @returns {'mac' | 'vps' | 'hf-cpu' | 'hf-t4'} */
+export const pickTarget = job => routeJob(job).target;
 
 // Output of vpsStatus's remote command: /proc/loadavg, MemAvailable in kB, and the number of live release run dirs under /root/deploy-runs (a release run's dir exists only while it runs: it IS the lock).
 export function parseVpsStatus(text) {

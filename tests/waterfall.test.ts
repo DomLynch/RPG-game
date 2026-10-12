@@ -6,16 +6,17 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const { pickTarget, VPS_MAX_LOAD1, VPS_STATUS_CMD, parseVpsStatus } = await import('../scripts/lib/waterfall.mjs');
+const { pickTarget, routeJob, VPS_MAX_LOAD1, VPS_STATUS_CMD, parseVpsStatus } = await import('../scripts/lib/waterfall.mjs');
+const { ROUTER } = await import('../scripts/lib/router-config.mjs');
 const ok = { load1: 0.8, freeRamMb: 20000 };
 
 test('pickTarget: a quiet VPS with room takes the job', () => {
   assert.equal(pickTarget({ vps: ok, mem: 4096 }), 'vps');
 });
-test('pickTarget: the VPS load limit is 12 (below takes it, at or above spills to Hugging Face CPU)', () => {
-  assert.equal(VPS_MAX_LOAD1, 12);
-  assert.equal(pickTarget({ vps: { ...ok, load1: 11.9 }, mem: 1024 }), 'vps');
-  assert.equal(pickTarget({ vps: { ...ok, load1: 12 }, mem: 1024 }), 'hf-cpu');
+test('pickTarget: the VPS load limit is 16 (below takes it, at or above spills to Hugging Face CPU)', () => {
+  assert.equal(VPS_MAX_LOAD1, 16);
+  assert.equal(pickTarget({ vps: { ...ok, load1: 15.9 }, mem: 1024 }), 'vps');
+  assert.equal(pickTarget({ vps: { ...ok, load1: 16 }, mem: 1024 }), 'hf-cpu');
   assert.equal(pickTarget({ vps: { ...ok, load1: 40 }, mem: 1024 }), 'hf-cpu');
 });
 test('pickTarget: not enough free RAM for the job spills to Hugging Face CPU', () => {
@@ -87,4 +88,33 @@ test('the release lock is a run dir under /root/deploy-runs and goes stale after
   assert.equal(parseVpsStatus('1 1 1 1/1 1\n20000000\n0')!.releaseRuns, 0, 'only stale dirs counted as zero by the find: lane jobs may use the VPS again');
   assert.equal(pickTarget({ lane: true, vps: parseVpsStatus('1 1 1 1/1 1\n20000000\n0') }), 'vps');
   assert.equal(pickTarget({ lane: true, vps: parseVpsStatus('1 1 1 1/1 1\n20000000\n1') }), 'hf-cpu');
+});
+
+// ---- Mac -> VPS -> Hugging Face (Dom 2026-10-12): the four branches, each with its one-word reason ----
+const macFree = { load5: 2.1, busy: false }, macLoaded = { load5: ROUTER.macMaxLoad5, busy: false }, macBusy = { load5: 1, busy: true };
+test('router branch 1: the Mac is free (5-minute load below the limit, no release Mac row) -> the Mac, even for a graphics job', () => {
+  assert.deepEqual(routeJob({ mac: macFree, vps: ok, mem: 1024 }), { target: 'mac', reason: 'mac-free' });
+  assert.equal(routeJob({ gfx: true, mac: macFree, vps: ok }).target, 'mac');
+  assert.equal(routeJob({ mac: { load5: ROUTER.macMaxLoad5 - 0.1 }, vps: null }).target, 'mac');
+});
+test('router branch 2: the Mac is busy or at the limit and the VPS is free -> the VPS (a graphics job only when its result does not time a real GPU)', () => {
+  for (const mac of [macLoaded, macBusy, { load5: NaN }]) assert.equal(routeJob({ mac, vps: ok, mem: 1024 }).target, 'vps');
+  assert.equal(routeJob({ gfx: true, softwareGl: true, mac: macBusy, vps: ok }).target, 'vps');
+});
+test('router branch 3: both busy -> Hugging Face; the CPU tier for plain work, the T4 only for graphics, each with its reason word', () => {
+  const busyVps = { load1: ROUTER.vpsMaxLoad1, freeRamMb: 20000 };
+  assert.deepEqual(routeJob({ mac: macBusy, vps: busyVps }), { target: 'hf-cpu', reason: 'vps-saturated' });
+  assert.deepEqual(routeJob({ gfx: true, softwareGl: true, mac: macBusy, vps: busyVps }), { target: 'hf-t4', reason: 'vps-saturated' });
+  assert.deepEqual(routeJob({ gfx: true, mac: macBusy, vps: ok }), { target: 'hf-t4', reason: 'mac-busy' });   // a real-GPU row: the VPS cannot take it, so the Mac being busy is the reason
+  assert.deepEqual(routeJob({ gfx: true, vps: ok }), { target: 'hf-t4', reason: 'gpu-only' });   // no Mac tier in play
+});
+test('router branch 4: a saturated or unreadable VPS never takes a job, at the limit and above, and a release run keeps lane jobs off it', () => {
+  for (const vps of [{ load1: 16, freeRamMb: 9999 }, { load1: 16.5, freeRamMb: 9999 }, { load1: 40, freeRamMb: 9999 }, null]) assert.equal(routeJob({ mac: macBusy, vps }).target, 'hf-cpu');
+  assert.equal(routeJob({ mac: macBusy, vps: { ...ok, releaseRuns: 1 }, lane: true }).target, 'hf-cpu');
+  assert.equal(routeJob({ mac: macBusy, vps: { ...ok, releaseRuns: 1 } }).target, 'vps');   // a release's own jobs are not lane jobs
+});
+test('the VPS gate in scripts/lanejob/lanejob.sh is the same number as ROUTER.vpsMaxLoad1 (and the probe applies it)', () => {
+  const sh = readFileSync('scripts/lanejob/lanejob.sh', 'utf8');
+  assert.equal(Number(/LANEJOB_MAX_LOAD1:-(\d+)/.exec(sh)?.[1]), ROUTER.vpsMaxLoad1);
+  assert.match(sh, /vps_saturated; then echo "would=spill reason=load"/);
 });
