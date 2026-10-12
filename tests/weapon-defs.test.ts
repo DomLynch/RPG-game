@@ -47,6 +47,6 @@ test('the loader refuses a duplicate id, an extends cycle, an unknown parent, a 
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', guard: 'cloth' }]), /guard "cloth"/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', grip: 'three-hand' }]), /grip "three-hand"/);
   assert.throws(() => load([...ok, { id: 'a', extends: 'knife', reach: 'long' }]), /reach is a number/);
-  assert.throws(() => load([...ok, { id: 'a', extends: 'knife', fight: { thrustShare: 1 } }]), /fight needs/);
+  assert.throws(() => load([...ok, { id: 'a', extends: 'knife', fight: 5 }]), /fight needs/);
   assert.throws(() => load([{ guard: 'blade' }]), /id is a non-empty string/);
 });
