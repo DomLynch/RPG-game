@@ -1,6 +1,7 @@
 // Town generator -> Characters' building kit (public/world/town/buildings.json, PR #1825 char/town-buildings): maps a generated piece (town.ts: a plain node name + a variant number + a slot)
 // to one of the kit's real piece names, deterministically and by the kit's own weights. Pure data. The weights below are the manifest's; town-kit.test.ts checks them against the file when it is on disk.
 import type { Lot, TownPiece } from './town.ts';
+import { TOWN_DEFS, type TownDefs } from './town-defs.ts';
 
 export type KitPiece = { name: string; weight: number };
 const k = (...p: [string, number][]): KitPiece[] => p.map(([name, weight]) => ({ name, weight }));
@@ -25,15 +26,16 @@ const weighted = (list: readonly KitPiece[], variant: number): string => {
 const pick = (name: string) => [{ name, weight: 1 }];
 
 // The kit piece for a generated piece of `lot`: signs and counters are chosen by what the building is (a smithy's sign, the bank's counter, the inn's bar), the gate's arch is the gate arch, a wall by its slot.
-export function kitPiece(p: TownPiece, lot: Pick<Lot, 'kind' | 'trade'>): string {
+export function kitPiece(p: TownPiece, lot: Pick<Lot, 'kind' | 'trade'>, defs: TownDefs = TOWN_DEFS): string {
+  const kind = defs.lotKinds[lot.kind]?.kit, trade = lot.trade ? defs.trades[lot.trade]?.kit : undefined;   // the lot kind's and the trade's own kit pieces are ROWS (towns.json): a bank's sign and counter, the gate's arch, the inn's and smithy's signs
   switch (p.node) {
     case 'wall': return weighted(KIT.wall[p.slot ?? 'plain'], p.variant);
     case 'corner': return weighted(KIT.corner, p.variant);
     case 'roof': return weighted(KIT.roof, p.variant);
     case 'stall': return weighted(KIT.stall, p.variant);
     case 'chimney': return weighted(KIT.chimney, p.variant);
-    case 'arch': return lot.kind === 'gate' ? 'arch_gate_a' : weighted(KIT.arch, p.variant);
-    case 'counter': return lot.kind === 'bank' ? 'counter_bank_a' : weighted(pick('counter_bar_a'), p.variant);
-    case 'sign': return lot.kind === 'bank' ? 'sign_bank_a' : lot.trade === 'inn' ? 'sign_tavern_a' : lot.trade === 'smith' ? 'sign_smith_a' : weighted(KIT.sign.slice(0, 2), p.variant);
+    case 'arch': return kind?.arch ?? weighted(KIT.arch, p.variant);
+    case 'counter': return kind?.counter ?? weighted(pick('counter_bar_a'), p.variant);
+    case 'sign': return kind?.sign ?? trade?.sign ?? weighted(KIT.sign.slice(0, 2), p.variant);
   }
 }
