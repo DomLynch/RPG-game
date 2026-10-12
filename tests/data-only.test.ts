@@ -117,3 +117,9 @@ test('a legend cited twice in the head with different values is the Auditor\'s (
   const v = verdict([{ file: CAT, status: 'modified' }], () => text.replace(/(=\s*\[)/, `$1\n  ${twin}`), 'HEAD' as never);
   assert.equal(v.code, 1); assert.match(v.problems.join(), /cited twice/);
 });
+
+test('catalogue-defs.ts (field kinds and rig families) is on the path list and is pure data', () => {
+  const DEFS_FILE = 'src/fight/catalogue-defs.ts';
+  assert.equal(onDataPath(DEFS_FILE), true);
+  assert.deepEqual(classify([{ file: DEFS_FILE, status: 'modified' }], (f: string) => readFileSync(f, 'utf8')).problems, []);
+});
