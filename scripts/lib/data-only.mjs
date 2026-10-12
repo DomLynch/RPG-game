@@ -15,7 +15,8 @@ export const DATA_PATHS = [
   /^origins\/zones\/biomes-data\.ts$/,   // the biome presets: one literal const, a new biome is one entry (biomes.ts, the reader, stays code)
   /^src\/assets\/source\/loot\/loot\.json$/,
   /^origins\/region1\/towns\.(manifest\.)?json$/,   // the towns as rows: a definitions table (trades, temperaments, ruler titles) and the town rows; loadRegion1 + tests/town-rows.test.ts check it
-  /^src\/fight\/pool-defs\.json$/,   // resource pool definitions: rows keyed by id (Combat 2026-10-12); loadPoolDefs checks them
+  /^src\/fight\/(pool|weapon)-defs\.json$/,   // resource pool definitions: rows keyed by id (Combat 2026-10-12); loadPoolDefs checks them
+  /^src\/fight\/(pool|weapon)-defs\.json$/,   // resource pool definitions: rows keyed by id (Combat 2026-10-12); loadPoolDefs checks them
   /^src\/fight\/catalogue-data\.ts$/,   // the character catalogue's rows: one literal const (Characters 2026-10-10; the legends rule below applies)
 ];
 export const onDataPath = file => DATA_PATHS.some(re => re.test(file));
