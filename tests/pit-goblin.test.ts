@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MOB_LOOKS } from '../origins/preview/mob-looks.ts';
+import { mobLook } from '../origins/preview/mob-looks.ts';
 import { loadZone } from '../origins/zones/loader.ts';
 import { ROSTER } from '../src/roster.ts';
 import { LOOT } from '../src/core/loot.ts';
@@ -17,7 +17,7 @@ function nodeNames(path: string): string[] {
 const ID = 'character:pit-goblin';
 
 test('the camp goblin\'s look is the engine goblin undyed at native height, on the generated world body', () => {
-  const look = MOB_LOOKS[ID]!;
+  const look = mobLook(ID)!;
   assert.equal(look.opponent, 'goblin'); assert.ok(ROSTER.goblin.body === 'goblin', 'the roster body the engine fights');
   assert.deepEqual([look.tint, look.scale, look.dressing], [0xffffff, 1, { soot: 0, burnt: 0 }]);
 });
