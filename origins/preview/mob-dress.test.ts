@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Color, Group, Mesh, MeshStandardMaterial } from 'three';
-import { MOB_LOOKS, mobLook } from './mob-looks.ts';
+import { mobLook } from './mob-looks.ts';
+import { loadZone } from '../zones/loader.ts';
 import { dressMob, dressedColor, undressMob } from './mob-dress.ts';
 
 const body = () => {
@@ -45,7 +46,7 @@ test('the Witch and Knight baked surfaces are dressed (they carry no cloth draw 
 });
 
 test('a body reused for the next fight dresses from its original cloth: three fights give one colour and no new materials, and undress restores it', () => {
-  const a = body(), look = mobLook(Object.keys(MOB_LOOKS)[0]!)!, mesh = a.root.children[0] as Mesh, original = mesh.material;
+  const a = body(), look = mobLook(Object.keys(loadZone('1').mobLooks!.looks)[0]!)!, mesh = a.root.children[0] as Mesh, original = mesh.material;
   dressMob(a.root, look, false); const first = (mesh.material as MeshStandardMaterial), hex = first.color.getHex(), rough = first.roughness;
   for (let n = 0; n < 2; n++) { dressMob(a.root, look, false); const m = mesh.material as MeshStandardMaterial; assert.equal(m, first, 'the same shared clone, not a clone of a clone'); assert.equal(m.color.getHex(), hex); assert.equal(m.roughness, rough); }
   assert.notEqual(first, original);
