@@ -30,6 +30,7 @@ test('origins/preview never reaches origins/server, src/fight/server.ts or src/c
   const found = leaks(seeds());
   assert.deepEqual(found.filter((c) => !KNOWN.includes(c)), [], 'a NEW path from the page into server code: go through the page doors (src/fight/index.ts, src/core/index.ts) or split a page-safe module');
   assert.deepEqual(KNOWN.filter((c) => !found.includes(c)), [], 'a pinned leak is gone: delete its line so it cannot come back');
+  assert.deepEqual(leaks(['src/fight/safe.ts']), [], 'the safe door reaches only pure modules');
 });
 
 test('the detector follows a chain and an index of re-exports (mutation)', () => {
