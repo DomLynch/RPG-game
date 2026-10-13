@@ -41,6 +41,15 @@ export const GPU_ONLY = [5, 7, 16, 21, 28, 34, 36];
 // plan). The WebKit rows because the runner has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit");
 // rows 2 and 44 because they fail off the Mac (CK: row 2 failed after 15 min on CI, 63 s on the Mac).
 export const MAC_ROWS = MAC_ONLY.map(entry => entry.row);
+// POST-PUBLISH rows (Lead + Strategy 2026-10-13, Dom's "under 20 minutes"): slow rows that are not critical to the page opening run AFTER Published instead of
+// before it. CI never schedules them on a candidate (release-checks.yml plan) and deploy.sh defers them (RELEASE_CHECKS_DEFERRED) and runs them on the Mac right after
+// the Published line (scripts/lib/post-publish.sh); a failure is a RED line, exit 1 (the release train then STOPS and keeps deploy_hold), never a silent pass.
+// ci_s = the row's seconds as a CI job in release-checks run 38348338622 (DM): the candidate's wall time is its longest row, and these two were the tail.
+export const POST_PUBLISH = [
+  { row: 9, why: 'polearm-browser-check: the longest CI row (854 s), a combat-feel check, not boot-critical', ci_s: 854, date: '2026-10-13' },
+  { row: 46, why: 'desktop-intro-check: the second-longest CI row (458 s), the desktop intro, not boot-critical', ci_s: 458, date: '2026-10-13' },
+];
+export const POST_PUBLISH_ROWS = POST_PUBLISH.map(entry => entry.row);
 // The first log line of a release: how every row is being handled. ci = trusted from CI, hf = trusted from an HF receipt, vps = trusted from the
 // VPS, mac = rows running on the Mac. Over the limit the refusal text names the rows that are not on the Mac list.
 export function placementLine({ total, ci, hf, vps = [], mac }) {
@@ -53,12 +62,12 @@ export function placementLine({ total, ci, hf, vps = [], mac }) {
 }
 // deploy.sh, once the remote jobs are launched: node scripts/lib/row-placement.mjs line <ci-trusted> <out of scope> <T4 wall rows> <HF CPU rows> <VPS CPU rows> (comma lists; the VPS rows come from launch.mjs cpu's running marker, so the line already counts them before the receipt is merged).
 // The Mac is every row left. Out-of-scope rows run nowhere (this release's changed files cannot reach them) and are named after the line.
-export function planLine(total, [ci, outOfScope, wall, cpu, vpsRows]) {
+export function planLine(total, [ci, outOfScope, wall, cpu, vpsRows, deferred = '']) {
   const list = text => [...new Set(String(text || '').split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= total))];
-  const [c, o, w, h, v] = [ci, outOfScope, wall, cpu, vpsRows].map(list), hf = [...new Set([...w, ...h])].filter(n => !c.includes(n)).sort((a, b) => a - b);
-  const mac = Array.from({ length: total }, (_, i) => i + 1).filter(n => !c.includes(n) && !o.includes(n) && !hf.includes(n) && !v.includes(n));
+  const [c, o, w, h, v, d] = [ci, outOfScope, wall, cpu, vpsRows, deferred].map(list), hf = [...new Set([...w, ...h])].filter(n => !c.includes(n)).sort((a, b) => a - b);
+  const mac = Array.from({ length: total }, (_, i) => i + 1).filter(n => !c.includes(n) && !o.includes(n) && !hf.includes(n) && !v.includes(n) && !d.includes(n));
   const line = placementLine({ total, ci: c, hf, vps: v.filter(n => !c.includes(n)), mac });
-  return `${line.text}; out of scope ${o.length}${o.length ? ` (${o.join(',')})` : ''}; T4 ${w.length}, HF CPU ${h.length}, VPS CPU ${v.length}${line.warning ? `\n${line.warning}` : ''}`;
+  return `${line.text}; out of scope ${o.length}${o.length ? ` (${o.join(',')})` : ''}; post-publish ${d.length}${d.length ? ` (${d.join(',')})` : ''}; T4 ${w.length}, HF CPU ${h.length}, VPS CPU ${v.length}${line.warning ? `\n${line.warning}` : ''}`;
 }
 if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'line') {
   const { readFileSync } = await import('node:fs');

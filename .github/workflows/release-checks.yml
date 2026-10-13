@@ -78,6 +78,9 @@ jobs:
           # Rows CI never schedules because it never trusts them (row-placement.mjs): GPU_ONLY (the T4's: they miss the 600 s row ceiling without a GPU)
           # and MAC_ROWS (every MAC_ONLY row, the list deploy.sh places on the Mac: WebKit has no install here, rows 2 and 44 fail off the Mac).
           export CI_SKIP_ROWS=$(node --input-type=module -e 'import { GPU_ONLY, MAC_ROWS } from "./scripts/lib/row-placement.mjs"; console.log([...GPU_ONLY, ...MAC_ROWS].join(","))')
+          # POST_PUBLISH rows (row-placement.mjs): a candidate's matrix leaves them out so its wall time is not their 854 s / 458 s; deploy.sh runs them right after Published.
+          # A dispatch (the measurement) still runs them.
+          export CI_POST_PUBLISH_ROWS=$(node --input-type=module -e 'import { POST_PUBLISH_ROWS } from "./scripts/lib/row-placement.mjs"; console.log(POST_PUBLISH_ROWS.join(","))')
           node -e '
             const { execFileSync } = require("child_process");
             const gate = require("./.quality-gate.json");
@@ -98,7 +101,7 @@ jobs:
               else console.log(`${process.env.PR_ACTION}, labelled: full matrix (the diff triggers rows ${triggered.map(c => c.index).join(", ")})`);
             }
             const skip = pr ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
-            const skipRows = process.env.CI_SKIP_ROWS.split(",").map(Number);
+            const skipRows = [...process.env.CI_SKIP_ROWS.split(","), ...(pr ? process.env.CI_POST_PUBLISH_ROWS.split(",") : [])].map(Number);
             const checks = !run ? [] : (gate.release_commands.map((command, i) => ({
               index: i + 1,
               name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
