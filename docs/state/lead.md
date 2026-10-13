@@ -2,6 +2,22 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-13 10:2x — handoff before /clear (Dom). LIVE DN 2c5ccfe3a (my curl 10:14). READ FIRST
+
+**Now (next session, in order):**
+1. WRITER PARITY (urgent): at 10:17 /opt/frankendom-origins/current was still ff15ed478 (DM) while site + verifier are DN 2c5ccfe3a; DN changed 8 writer-closure files. Deploy told to install the writer at 2c5ccfe3a without --if-changed, then fix the skip in the script with a test. Then Deploy runs the Auditor's read-only query on origins_events (kind 'mob', event_id 'enc:%', payload verified=false, DN publish → writer install) → count of refused settles / distinct accounts → re-settle if > 0. Auditor re-runs parity.
+2. DP cut (Dom PRIORITY #1 = #2482 max-parallel 20→40, Lead PR @7b2f53d63, mechanics OK, PASS on green). DP = #2482 + whatever has PASS at head: #2468 (PASS @b7beae63f), #2484 spell-bundle leak (code OK), #2460 gear flip @e6d94c0dd (shard-5 fix, delta read pending), #2479 legend families @d4eef1b01, #2481 bricks. Strategy wants two lines: #2482 on trunk; first candidate's rows at 40.
+3. DO #2486 @1f429b040 (#2471 + #2325 + #2472) in flight: publish on PASS.
+4. Re-arm the :13/:43 watch cron. 12:00: edit the #2408 table comment 6136508107 (many rows now live: 2,5,6,7,8,11,28,2a,2b) + three counts + cut-to-live of the first release after sharding to Strategy.
+
+**Done today:** live DI bac7e84f4, DJ 51ec3081b (700 spells + kill_report ruling b), DM ff15ed478 (worn gear 0025, skills-by-use 0026, grimoire 0027, CI concurrency), DN 2c5ccfe3a (stance rows #2457, node pin #2437). Grants 0028 applied 05:24Z (writer role frankendom_verifier lacked EXECUTE on live_ops/set_build/set_level/mint_keys_held; 0 denials since; no backfill — 197 denials were all live_ops). Node v22.23.3 installed on the Mac (~/.frankendom/node-v22.23.3, hash-checked). Mac disk 100% → cleared 27 stale /private/tmp candidate trees + caches (31 GB free). Lead PRs: #2482. Lead PASS: spells #2449-2455, #2472 stills, #2479 data, #2481 data.
+
+**Open (owner):** #2468/#2469 world-record verification BASE (Backend/Combat; flag OFF, soak counters; #2474/#2477 World rebase after #2469); #2467 Combat grimoire provenance (merge after #2484); #2483 World legend bosses + next PR page wiring + first-pass Ash Frontier placement; Combat spells-in-fights v1 (rulings a-d given, PROVISIONAL; RV53) + Backend #2487 expectedSpell; #2485 Web governor HOLD (drop DPR lever; budget max(p99,1.25×p90)); #2478/#2480 World rows; Deploy hardening #2475/#2476 (Auditor fixes in), item 4 row-time PR (build once per sha, cache playwright/ffmpeg, split row 9).
+
+**Rulings today:** Dom's direct word to a lane beats a relayed plan; re-check paused lanes at every release live; no release throttles (10–20 min target; refuse hourly caps); writer installs only at publish after PASS; one spell table + one legend key (spell id minus `spell:`); stacked PRs base on trunk; all lanes working, base plan first.
+
+**Gotchas:** zsh treats `$T:s…` as a modifier — use `${T}:path`. iCloud-style "… 2" duplicate refs in Desktop/Business/frankendom/.git (removed only the remote one). Retargeting a PR fires `edited` only — toggle a label for unit-ci. Cancelled cut-time runs are no verdict. Mac test runs are hook-blocked: use CI or the VPS.
+
 ## 2026-10-13 07:2x — handoff before /clear (Dom). LIVE DG 11e966c34 (my curl 07:17). READ FIRST
 **READ FIRST:** memory project_handoff_2026-10-13_0720 + project_day_ruling_2026-10-13 (Dom's day plan, lane rulings, audit rulings) + feedback_old_rules_not_fixed.
 **Live today (my curls; writer + verifier current by ssh):** DE2 4337cfe9b 23:22 · DL 444c78ec4 06:09 (lists 13/13) · DF3 d17d1c318 06:21 (items 25 persistence, 28 live-ops) · DG 11e966c34 06:59 (#2416 sheet, #2427, #2433 receipt fix, #2429, #2436 Surtr detmath).
