@@ -173,7 +173,7 @@ try {
 // The page is served by this script (no harness file in the repo root): vite transforms its inline module like any index.html.
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'silent', plugins: [{ name: 'arena-preview', configureServer(s) { s.middlewares.use(async (req, res, next) => { if (req.url.split('?')[0] !== '/arena-preview.html') return next(); res.setHeader('Content-Type', 'text/html'); res.end(await s.transformIndexHtml('/arena-preview.html', PAGE)); }); } }] });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}arena-preview.html${args.includes('--phone') ? '?gfx=phone' : ''}`;   // --phone: the phone tier (quality.ts ?gfx=phone override)
+const url = `${server.resolvedUrls.local[0]}arena-preview.html?${[args.includes('--phone') ? 'gfx=phone' : '', option('look') ? 'look=' + option('look') : ''].filter(Boolean).join('&')}`;   // --phone: the phone tier (quality.ts ?gfx=phone override)
 if (args.includes('--serve')) { console.log(`Arena preview: ${url}\nCtrl-C to stop.`); await new Promise(() => {}); }
 
 const dir = `artifacts/world/${args.includes('--moodboard') ? 'moodboard' : label}`; await fs.mkdir(dir, { recursive: true });

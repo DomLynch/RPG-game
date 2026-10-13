@@ -1,0 +1,4 @@
+Castle Wall Slates (albedo + normal, 1K, re-encoded WebP) by Rob Tuytel, Poly Haven, CC0 1.0.
+Source: https://polyhaven.com/a/castle_wall_slates
+Licence: https://polyhaven.com/license (CC0, no attribution required; credited here anyway).
+Used by: public/arena/stone-tex/ (?look=stone-tex).

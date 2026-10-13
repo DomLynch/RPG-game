@@ -8,6 +8,7 @@ import { phoneTier } from './fight/quality.ts';
 import { loadArenaProps } from './arena-props.ts';
 import { riseMetres, riseStep } from './gate-rise.ts';
 import { bannerAlpha, cliffPixels, fbm, flamePixels, gateLightAtlas, hash, motePixels, PATCH_SPAN, streakPixels, type Pixels } from './assets/arena/textures.ts';
+import { applyStoneTex, stoneTexFlag } from './stone-tex.ts';
 import { generateHeavyTextures, type HeavyTextures } from './assets/arena/texture-worker.ts';
 import { ARENA_THEMES, weatherRow, type ArenaTheme } from './arena-themes.ts';
 import { patchRow } from './arena-rows.ts';
@@ -156,6 +157,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     worker.onerror = () => { worker.terminate(); resolve(); };   // the flat stand-ins stay: a duel on plain sand beats no duel
     worker.postMessage({ phone, skyU, look: theme.textures });
   });
+  if (stoneTexFlag(typeof window === 'undefined' ? '' : window.location?.search ?? '')) void texturesReady.then(() => applyStoneTex(stone, import.meta.env?.BASE_URL ?? '/', () => disposed));   // ?look=stone-tex (stone-tex.ts); absent = today's game
   const mottle = fbm(4, 3, 9);
   function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, name: string, shadows = true) {
     const object = new THREE.Mesh(geometry, material); object.name = name; object.castShadow = shadows; object.receiveShadow = true; group.add(object); return object;

@@ -1,5 +1,8 @@
 # Pit room graphics pass — brief for GPT (Strategy, 2026-09-30)
 
+> **STALE (2026-10-13):** the walkable Pit room was removed 2026-10-08 (60bc6bd95, Dom approved). Nothing below has a surface to land on; the only stone left is the arena `stone` material (`src/arena.ts`), looked at via `?look=stone-tex` (docs/stills/stone-tex).
+
+
 Dom, 13:4x, on the #1151 stills: YES to direction a (layout, props, one axis to the lit gate), but "the walls are still basic Minecraft style and need much better graphics". Cause (read in `src/pit/room.ts` on `pit/d3-a`): the room is fully procedural; `stoneTexture()` builds per-block DataTextures, no image or model files. Lead slotted the material pass: owner Web design (materials, look-test flag `?look=pit-stone`), The Pit on the room code; CC0 textures as the first pass, GPT's set replaces them when it lands. #1151 is not blocked by this.
 
 ## Room facts
