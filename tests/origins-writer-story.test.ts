@@ -302,7 +302,7 @@ test('the registry: with no content loaded both ops answer 503; with the bundle 
 test('importing the registry reads no env and no file: ORIGINS_CONTENT naming a missing bundle neither throws nor loads', () => {
   const probe = `const h = await import(${JSON.stringify(new URL('../origins/server/handlers.ts', import.meta.url).href)}); console.log(JSON.stringify([Object.keys(h).includes('content'), Object.keys(h.handlers).sort()]));`;
   const out = execFileSync(process.execPath, ['--input-type=module', '-e', probe], { env: { ...process.env, ORIGINS_CONTENT: join(tmpdir(), 'origins-no-such-bundle', 'missing.json') }, encoding: 'utf8' });
-  assert.deepEqual(JSON.parse(out), [false, ['build_get', 'build_set', 'create_character', 'open', 'quest_advance', 'talk_pick']]);
+  assert.deepEqual(JSON.parse(out), [false, ['build_get', 'build_set', 'create_character', 'open', 'quest_advance', 'talk_pick', 'title_get']]);
 });
 
 test('content: a bundle that does not load stops the writer', () => {
