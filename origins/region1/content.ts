@@ -23,20 +23,14 @@ import lootTableRows from './loot-tables.json' with { type: 'json' };
 import townRows from './towns.json' with { type: 'json' };
 import townManifest from './towns.manifest.json' with { type: 'json' };
 import lootManifest from './loot-tables.manifest.json' with { type: 'json' };
+import rows from './progression.json' with { type: 'json' };
+import progressionManifest from './progression.manifest.json' with { type: 'json' };
 import { buildTables, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 const gear = (id: string, name: string, slot: string, rarity: string, material: string) => ({
   kind: 'item-definition', schemaVersion: 1, id, name, category: 'gear', rarity, slot, power: 'slot-weight', material,
   appearance: { asset: `items/frontier/${id.slice('item:frontier.'.length)}.glb` }, story: 'none', binding: 'none', stack: 1,
 });
-const figure = (
-  id: string, name: string, source: string, summary: string, faction: string | null,
-  forms: { id: string; opponent: string; level: number; encounter: string | null }[], asset: string,
-) => ({
-  kind: 'character-definition', schemaVersion: 1, id, name, lore: { source, summary }, faction, essential: false,
-  relationships: [], questRoles: [], presentations: [{ id: 'default', asset: `characters/${asset}.glb` }], encounterForms: forms, routine: [],
-});
-const ORIGINAL = 'original';
 
 // ---- 1. the contracts bundle ----------------------------------------------------------------------------------------------------
 
@@ -64,105 +58,19 @@ export const FACTIONS = [
   { kind: 'faction-definition', schemaVersion: 1, id: 'faction:blood-court', name: 'The Blood Court', joinable: false, hidden: true, ranks: [], reactions: [{ faction: 'faction:concord', attitude: 'hostile' }] },
 ];
 
-// Bosses, Bounty targets and creatures (region1 §4, §8; living-world §8, §16). Legends for bosses and named targets, original mooks.
-export const FOES = [
-  figure('character:mere-mother', "Grendel's Mother", 'Beowulf (Old English poem, Cotton Vitellius A.xv)',
-    'In the old poem she came up out of a haunted mere to avenge her son and was cut down in her own hall beneath the water. The Fracture set her mere on the Ash Frontier, and she drowns every boat put on it.',
-    null, [{ id: 'public', opponent: 'witch', level: 4, encounter: 'encounter:mere-mother' }], 'mere-mother'),
-  figure('character:hrungnir', 'Hrungnir', 'Snorri Sturluson, Prose Edda, Skaldskaparmal, c. 1220',
-    'A giant of stone with a heart of stone. Here he stands on the displaced shrine in the Cinder Fields and takes any challenge put to him.',
-    null, [{ id: 'bounty', opponent: 'knight', level: 3, encounter: 'encounter:bounty-hrungnir' }], 'hrungnir'),
-  figure('character:peg-powler', 'Peg Powler', 'Tees folklore; W. Henderson, Notes on the Folk-Lore of the Northern Counties, 1866',
-    'The green-haired hag of the river, who drags the careless under. In the Black Mere she keeps to the reeds and runs when the fight turns.',
-    null, [{ id: 'bounty', opponent: 'witch', level: 3, encounter: 'encounter:bounty-peg-powler' }], 'peg-powler'),
-  figure('character:court-thrall', 'Court thrall', ORIGINAL, 'A bonded fighter of the Blood Court, sent out along the Charnel Road to take tolls in its name.',
-    'faction:blood-court', [
-      { id: 'l12', opponent: 'pitborn', level: 3, encounter: 'encounter:bounty-toll' },
-      { id: 'l13', opponent: 'pitborn', level: 13, encounter: null },
-    ], 'court-thrall'),
-  figure('character:cinder-scavenger', 'Cinder scavenger', ORIGINAL, 'Picks the ash pits for iron and anything else the Fracture left lying.',
-    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'cinder-scavenger'),
-  figure('character:pit-goblin', 'Pit goblin', ORIGINAL, 'A goblin of the Pit in the armour the Pit gave him, camped at the edge of the Frontier where a fighter can find him.',
-    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'pit-goblin'),
-  figure('character:ash-wolf', 'Ash wolf', ORIGINAL, 'Lean and ash-coated, it hunts the road verge where the Fracture left the herds nothing.',
-    null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ash-wolf'),
-  figure('character:ember-wolf', 'Ember wolf', ORIGINAL, 'Its coat has burned down to the colour of a banked fire, and it hunts the Reach in a pack of two or three.',
-    null, [{ id: 'mob', opponent: 'wolf', level: 1, encounter: null }], 'ember-wolf'),
-  figure('character:cinder-bear', 'Cinder bear', ORIGINAL, 'Heavy and soot-matted, it came down off the burnt moor when the herds went and takes what it finds.',
-    null, [{ id: 'mob', opponent: 'bear', level: 1, encounter: null }], 'cinder-bear'),
-  figure('character:ash-boar', 'Ash boar', ORIGINAL, 'Tusked and ash-streaked, it roots the verge of the hold road for what the Fracture left in the ground.',
-    null, [{ id: 'mob', opponent: 'boar', level: 1, encounter: null }], 'ash-boar'),
-  figure('character:mere-brood', 'Mere brood', ORIGINAL, "One of the mere's spawn, out of the reeds and hungry.",
-    null, [{ id: 'mob', opponent: 'goblin', level: 1, encounter: 'encounter:mere-mother' }], 'mere-brood'),
-  figure('character:ruin-ghoul', 'Ruin ghoul', ORIGINAL, 'A starved servant of the Blood Court ruin.',
-    'faction:blood-court', [{ id: 'mob', opponent: 'goblin', level: 1, encounter: null }], 'ruin-ghoul'),
-  // PLACEHOLDER body: the worm fights on the held `minotaur` duel form until it has its own model (Strategy, 2026-10-07).
-  figure('character:lambton-worm', 'The Lambton Worm', 'County Durham folklore; R. Surtees, History of Durham, vol. 2, 1820',
-    'The worm a young heir threw down a well grew until it wrapped a hill. Where the sky splits over the Frontier, it comes up through the rift.',
-    null, [{ id: 'rift', opponent: 'minotaur', level: 17, encounter: 'encounter:rift-worm' }], 'lambton-worm'),
-  figure('character:rift-spawn', 'Rift spawn', ORIGINAL, 'Something that came through the split sky ahead of the worm.',
-    null, [{ id: 'guardian', opponent: 'goblin', level: 15, encounter: 'encounter:rift-worm' }], 'rift-spawn'),
-];
+// Bosses, Bounty targets and creatures (region1 §4, §8; living-world §8, §16): ROWS in origins/region1/progression.json, the contracts' character-definition shape
+// (legends for bosses and named targets, original mooks; the worm's PLACEHOLDER body is the held `minotaur` duel form, Strategy 2026-10-07).
+export const FOES: Record<string, unknown>[] = rows.foes;
 
-// Town people (living-world §4.1, §12): rulers, their stand-in stewards, and the service NPCs. Rulers are original NPCs (Brannoc and
-// Osk named by the spec; the quarter's mayor PROPOSED). Stewards and service NPCs are PROPOSED. A service NPC can be a grudge rival
-// (feuds §3.1), so each has a duel form; a ruler never is (living-world ruling 7), so rulers and stewards have none.
-export const TOWNSFOLK = [
-  figure('character:recorder-marrow', 'Marrow the Recorder', ORIGINAL, 'Keeps the Roll and the contract board in the Exchange square, and takes the fines that clear a name.',
-    'faction:concord', [], 'recorder-marrow'),
-  figure('character:mayor-hollin', 'Mayor Hollin', ORIGINAL, 'Runs the quarter outside the Exchange square for whoever pays the most rent this season.', 'faction:concord', [], 'mayor-hollin'),
-  figure('character:warden-brannoc', 'Warden Brannoc', ORIGINAL, 'Holds the stockade at Cinder Hold and means to hold more of the Frontier than that.', null, [], 'warden-brannoc'),
-  figure('character:reeve-osk', 'Reeve Osk', ORIGINAL, 'Keeps the hamlet at the foot of the causeway alive by never giving the mere a reason.', null, [], 'reeve-osk'),
-  figure('character:steward-quarter', 'The Quarter Steward', ORIGINAL, 'Rules the quarter when the mayor cannot.', 'faction:concord', [], 'steward'),
-  figure('character:steward-cinder', 'The Hold Steward', ORIGINAL, 'Rules Cinder Hold when the warden cannot.', null, [], 'steward'),
-  figure('character:steward-mere', 'The Mere End Steward', ORIGINAL, 'Rules Mere End when the reeve cannot.', null, [], 'steward'),
-  figure('character:smith-quarter', 'The Quarter Smith', ORIGINAL, 'Undercuts the forge in the square and does not care who knows it.', null,
-    [{ id: 'duel', opponent: 'dwarf', level: 13, encounter: null }], 'smith'),
-  figure('character:healer-quarter', 'The Quarter Healer', ORIGINAL, 'Binds wounds in the quarter for metal, and asks nothing about how they were got.', null,
-    [{ id: 'duel', opponent: 'plaguedoctor', level: 12, encounter: null }], 'healer'),
-  figure('character:fence-quarter', 'The Quarter Fence', ORIGINAL, 'Buys what the square will not.', null,
-    [{ id: 'duel', opponent: 'executioner', level: 13, encounter: null }], 'fence'),
-  figure('character:smith-cinder', 'The Hold Smith', ORIGINAL, 'Works grave iron from the ash pits into anything that holds an edge.', null,
-    [{ id: 'duel', opponent: 'dwarf', level: 13, encounter: null }], 'smith'),
-  figure('character:fence-cinder', 'The Hold Fence', ORIGINAL, 'Trades from the shrine road, where the warden does not look.', null,
-    [{ id: 'duel', opponent: 'executioner', level: 12, encounter: null }], 'fence'),
-  figure('character:healer-mere', 'The Mere End Healer', ORIGINAL, 'Draws mere-water out of drowned lungs, most days.', null,
-    [{ id: 'duel', opponent: 'plaguedoctor', level: 13, encounter: null }], 'healer'),  // The Exchange's working NPCs (Town plan A1, NPC rows in origins/region1/npcs.ts). PROPOSED (Backend) names; no duel form: they are not grudge rivals.
-  figure('character:banker-exchange', 'Cassa the Banker', ORIGINAL, 'Holds the Exchange vault, day and night; a night teller takes the counter while she sleeps.', 'faction:concord', [], 'banker'),
-  figure('character:provisioner-exchange', 'Dunmore the Provisioner', ORIGINAL, 'Sells grave iron by the piece to anyone the smith will serve.', 'faction:concord', [], 'provisioner'),
-  figure('character:innkeeper-exchange', 'Brisa of the Last Lamp', ORIGINAL, 'Keeps the only lamp in the square that never goes out.', 'faction:concord', [], 'innkeeper'),
-];
+// Town people (living-world §4.1, §12): rulers, their stand-in stewards, the service NPCs and the Exchange's working NPCs (Town plan A1, NPC rows in origins/region1/npcs.ts):
+// ROWS in progression.json. Rulers are original NPCs (Brannoc and Osk named by the spec; the quarter's mayor PROPOSED); stewards and service NPCs are PROPOSED.
+// A service NPC can be a grudge rival (feuds §3.1), so each has a duel form; a ruler never is (living-world ruling 7), so rulers and stewards have none.
+export const TOWNSFOLK: Record<string, unknown>[] = rows.townsfolk;
 
-// The encounters (region1 §4; living-world §8). Bounties are solo, no decay, restart 0. The contract needs at least one stage before the
-// boss: a two-foe Bounty uses it as the first foe; a single-foe Bounty takes the dummy stage region1 §4 names (`challenge`: the foe
-// itself steps up, one kill opens the fight), until `stages` may be empty (region1 §7 open 1b).
-const solo = (id: string, name: string, stage: { id: string; character: string }, boss: string, level: number) => ({
-  kind: 'encounter-definition', schemaVersion: 1, id, name, region: 'region:ash-frontier', scope: 'solo',
-  stages: [{ id: stage.id, killsToAdvance: 1, population: 1, roster: [{ character: stage.character, weight: 1 }], loot: null }],
-  boss: { character: boss, loot: 'loottable:bounty-unrolled', level },
-  decay: null, restartSeconds: 0, rewards: { minContributionPercent: 10 },
-});
+// The encounters (region1 §4; living-world §8) are ROWS in progression.json: Bounties solo, no decay, restart 0, the single-foe ones with the dummy stage
+// region1 §4 names (`challenge`); the public events decay. Health, levels and loot tables are tunable starting values (Strategy, 2026-10-07).
 export const DUMMY_STAGE = 'challenge';
-export const ENCOUNTERS = [
-  // The public event: one brood guardian (never a kill count), then Grendel's Mother. Health PROPOSED (the boss fixture's 1,000 a level).
-  {
-    kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:mere-mother', name: 'The Mere-Mother Rises', region: 'region:ash-frontier', scope: 'public',
-    stages: [{ id: 'guard', killsToAdvance: 1, population: 1, roster: [{ character: 'character:mere-brood', weight: 1 }], loot: null }],
-    boss: { character: 'character:mere-mother', loot: 'loottable:mere-mother', level: 4, health: 4_000 },   // Zone 1's boss is the zone level + 3 (Dom 2026-10-08: Zone N = level N, boss N+3); health = the boss fixture's 1,000 a level (Lead ruling on Combat's bound for a Lv 4 player: ~3.3 min of perfect hits, 7-11 min realistic; 15,000 was 25-40 min); a boss battery may re-set it   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
-    decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 3600, rewards: { minContributionPercent: 10 },
-  },
-  solo('encounter:bounty-hrungnir', 'The Stone at the Shrine', { id: DUMMY_STAGE, character: 'character:hrungnir' }, 'character:hrungnir', 3),
-  solo('encounter:bounty-toll', 'The Toll at the Milestone', { id: 'first-thrall', character: 'character:court-thrall' }, 'character:court-thrall', 3),
-  solo('encounter:bounty-peg-powler', 'Peg Powler of the Reeds', { id: DUMMY_STAGE, character: 'character:peg-powler' }, 'character:peg-powler', 3),
-  // The rift (living-world §8.3): one or two guardian duels per player, then the shared bar. Level = band top 15 + levelOver 2.
-  // Health PROPOSED. It decays like any public event; the rift itself closes at the scheduler's openSeconds.
-  {
-    kind: 'encounter-definition', schemaVersion: 1, id: 'encounter:rift-worm', name: 'The Lambton Worm', region: 'region:ash-frontier', scope: 'public',
-    stages: [{ id: 'gathering', killsToAdvance: 2, population: 2, roster: [{ character: 'character:rift-spawn', weight: 1 }], loot: null }],
-    boss: { character: 'character:lambton-worm', loot: 'loottable:rift-worm', level: 17, health: 40_000 },   // tunable starting value; re-set by a boss battery before any player meets it (Strategy, 2026-10-07),
-    decay: { windowSeconds: 900, keepProgressPercent: 50 }, restartSeconds: 0, rewards: { minContributionPercent: 10 },
-  },
-];
+export const ENCOUNTERS: Record<string, unknown>[] = rows.encounters;
 
 // The two contracts regions. Waypoints are the world landmark names (unique across each region, region1 §1), checked by the loader.
 const spawn = (id: string, at: string, encounter: string | null, characters: string[] = []) => ({ id, at, encounter, characters });
@@ -212,6 +120,8 @@ export const REGIONS = [
   },
 ];
 
+loadRegistry(progressionManifest.tables.map((m) => tableFromFile(m as unknown as Manifest, rows, 'origins/region1/progression.json')));
+
 export const BUNDLE: Record<string, unknown>[] = [...ITEMS, ...LOOT_ITEMS, ...LOOT_TABLES, ...FACTIONS, ...FOES, ...TOWNSFOLK, ...ENCOUNTERS, ...REGIONS];
 
 // ---- 2. kinds the contracts do not have yet --------------------------------------------------------------------------------------
@@ -226,69 +136,26 @@ export const TOWNS = townRows.towns;
 
 // Twists: Origins encounter flags only (region1 §7 ruling 10). The fight reads the encounter's flag; a Bounty's copy is display only
 // and must match it. Kinds are the section 4 list; nothing here touches the live ladder, its RNG or src/.
-export const ENCOUNTER_FLAGS: Record<string, Record<string, unknown>[]> = {
-  'encounter:bounty-hrungnir': [{ kind: 'hazard', hazard: 'embers', stillSeconds: 2 }],
-  'encounter:bounty-toll': [{ kind: 'one-health-bar' }],
-  'encounter:bounty-peg-powler': [{ kind: 'flee-at', percent: 30, catchSeconds: 15 }],
-};
+export const ENCOUNTER_FLAGS: Record<string, Record<string, unknown>[]> = Object.fromEntries(rows.encounterFlags.map((r) => [r.id, r.twists]));
 
-// Bounties (region1 §3, Bounties; feuds keeps them unchanged). Metal is bronze on the one bound balance; dailyCap is wins paid per
-// character per UTC server day. PROVISIONAL with the section: Dom may rename "Bounty".
-const bounty = (id: string, name: string, encounter: string, metal: number, dailyCap: number) => ({
-  kind: 'bounty-definition', schemaVersion: 1, id, name, region: 'region:ash-frontier', gate: 'outer', encounter,
-  twist: ENCOUNTER_FLAGS[encounter]![0], metal, dailyCap,
-});
-export const BOUNTIES = [
-  bounty('bounty:hrungnir', 'The Stone at the Shrine', 'encounter:bounty-hrungnir', 40, 3),
-  bounty('bounty:toll', 'The Toll at the Milestone', 'encounter:bounty-toll', 30, 3),
-  bounty('bounty:peg-powler', 'Peg Powler of the Reeds', 'encounter:bounty-peg-powler', 50, 2),
-];
+// Bounties (region1 §3, Bounties; feuds keeps them unchanged): rows in progression.json. Metal is bronze on the one bound balance; dailyCap is wins paid per
+// character per UTC server day. PROVISIONAL with the section: Dom may rename "Bounty". The row's twist is its encounter's first flag (display only).
+export const BOUNTIES = rows.bounties.map((b) => ({
+  kind: b.kind, schemaVersion: b.schemaVersion, id: b.id, name: b.name, region: b.region, gate: b.gate, encounter: b.encounter,
+  twist: ENCOUNTER_FLAGS[b.encounter]![0], metal: b.metal, dailyCap: b.dailyCap,
+}));
 
 // Rifts (living-world §8.1, §8.4): the five Region 1 sites, the Lambton Worm, the scheduler. PROVISIONAL numbers, the spec's.
-const site = (id: string, zone: string, at: string, weight: number) => ({ kind: 'rift-site', schemaVersion: 1, id, region: 'region:ash-frontier', zone, at, weight });
-export const RIFTS = [
-  site('rift:cinder-ash-pits', 'cinder-fields', 'ash-pits', 30),
-  site('rift:ruin-causeway-end', 'blood-ruin', 'causeway-end', 20),
-  site('rift:road-milestone', 'east-road', 'milestone', 15),
-  site('rift:mere-reed-bank', 'black-mere', 'reed-bank', 20),
-  site('rift:ruin-gate', 'blood-ruin', 'ruin-gate', 15),
-  {
-    kind: 'rift-boss', schemaVersion: 1, id: 'riftboss:lambton-worm', character: 'character:lambton-worm', levelOver: 2,
-    guardian: 'character:rift-spawn', lootTable: 'loottable:rift-worm', weight: 20, encounter: 'encounter:rift-worm',
-  },
-  {
-    kind: 'rift-scheduler', schemaVersion: 1, id: 'riftsched:ash-frontier', region: 'region:ash-frontier', perDayMin: 2, perDayMax: 4,
-    minGapSeconds: 10_800, warnSeconds: 600, openSeconds: 1800, siteCooldownSeconds: 172_800, townClearanceMetres: 60, lootRollsPerWeek: 5,
-  },
-];
+export const RIFTS: Record<string, unknown>[] = rows.rifts;
 
 // Who pays which progression row (region1 §4: the `Kill` event's `type`), and how each boss table is rolled (region1 §5 ruling 9).
 //   first-win: the table rolls only on the kill that pays the once-row; a repeat kill rolls nothing (world-boss).
 //   weekly-cap: every eligible kill rolls, at most `perWeek` rolls an account a week (living-world §8.4, the PROPOSED rift-boss row).
 //   never: the table is not rolled; the win pays metal (a Bounty).
-export const KILL_ROWS: Record<string, string> = {
-  'character:mere-mother': 'world-boss',
-  'character:lambton-worm': 'rift-boss',
-  'character:hrungnir': 'named',
-  'character:peg-powler': 'named',
-  'character:court-thrall': 'elite',
-  'character:rift-spawn': 'elite',
-  'character:cinder-scavenger': 'mob',
-  'character:pit-goblin': 'mob',
-  'character:mere-brood': 'mob',
-  'character:ash-wolf': 'mob',
-  'character:ember-wolf': 'mob',
-  'character:cinder-bear': 'mob',
-  'character:ash-boar': 'mob',
-  'character:ruin-ghoul': 'mob',
-};
-export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 'never'; perWeek?: number }[] = [
-  { encounter: 'encounter:mere-mother', rule: 'first-win' },
-  { encounter: 'encounter:rift-worm', rule: 'weekly-cap', perWeek: 5 },
-  { encounter: 'encounter:bounty-hrungnir', rule: 'never' },
-  { encounter: 'encounter:bounty-toll', rule: 'never' },
-  { encounter: 'encounter:bounty-peg-powler', rule: 'never' },
-];
+export const KILL_ROWS: Record<string, string> = Object.fromEntries(rows.killRows.map((r) => [r.id, r.row]));
+export const BOSS_LOOT: { encounter: string; rule: 'first-win' | 'weekly-cap' | 'never'; perWeek?: number }[] = rows.bossLoot.map((r) => ({
+  encounter: r.encounter, rule: r.rule as 'first-win' | 'weekly-cap' | 'never', ...('perWeek' in r ? { perWeek: r.perWeek } : {}),
+}));
 
 // Which table each creature rolls in the open world is the loot row's own `rolledBy` (no encounter: a plain kill); row order = creature order.
 // Loaded through the shared registry (src/core/registry.ts): loot-tables.manifest.json derives the creature->table link from the rows' `rolledBy`, so a creature in two
