@@ -66,10 +66,13 @@ test('unit-ci: a stalled shard is cut at 10 minutes and can only fail the receip
   const shardJob = job('shard'), receiptJob = job('receipt');
   assert.ok(shardJob && receiptJob, 'both jobs found');
   assert.equal(Number(/^    timeout-minutes: (\d+)$/m.exec(shardJob)?.[1]), 10, 'every shard job is cut at 10 minutes (the slowest test time is about 3.5; a stalled checkout has taken 5)');
-  assert.match(receiptJob, /^    needs: shard$/m, 'the receipt waits for all shards');
-  // Re-pinned (Deploy B 2026-10-13): the receipt's `if` must be exactly "not cancelled AND every shard succeeded". With no `if` at all, GitHub's
-  // implicit success() also counted the PR-only `static` job, so a trunk push skipped the receipt after 8 green shards (run 38293767009).
-  // A failed or timed-out shard makes needs.shard.result 'failure' and a cancelled run fails !cancelled(): either way, no receipt.
-  assert.match(receiptJob, /^    if: \$\{\{ !cancelled\(\) && needs\.shard\.result == 'success' \}\}$/m, 'the receipt runs only when every shard succeeded and the run is not cancelled');
-  assert.doesNotMatch(receiptJob, /always\(\)|failure\(\)|\|\|/, 'nothing lets a failed or cancelled shard through to a receipt');
+  assert.match(receiptJob, /^    needs: \[static, shard\]$/m, 'the receipt waits for static and all shards (a red static skips the shards: that must stay a red receipt)');
+  // Re-pinned (Deploy B 2026-10-13, then Deploy 2026-10-13 for hardening item 3): the receipt's `if` must be "not cancelled AND a shard was meant to run". With no `if`
+  // at all, GitHub's implicit success() also counted the PR-only `static` job, so a trunk push skipped the receipt after 8 green shards (run 38293767009).
+  // It no longer requires success in the `if`: a failed shard used to SKIP the receipt, and a skipped required check reads as passing to a ruleset or the merge
+  // queue. Now the job runs and its FIRST step goes red unless every shard succeeded; the receipt artifact is only made after that step.
+  assert.match(receiptJob, /^    if: \$\{\{ !cancelled\(\) && !\(needs\.static\.result == 'skipped' && needs\.shard\.result == 'skipped'\) \}\}$/m, 'the receipt job is skipped only when nothing was meant to run (static and shard both skipped), and never on a cancelled run');
+  assert.match(receiptJob, /^      - run: '\[ "\$STATIC" != failure \] && \[ "\$STATIC" != cancelled \] \|\| \{[^\n]*exit 1; \}; \[ "\$SHARDS" = success \] \|\| \{[^\n]*exit 1; \}'$/m, 'the first step fails the job when static failed or any shard did not succeed: a red static or a failed shard is a RED receipt, never a skipped one');
+  assert.ok(receiptJob.indexOf('SHARDS') < receiptJob.indexOf('actions/checkout') && receiptJob.indexOf('actions/checkout') < receiptJob.indexOf('upload-artifact'), 'the guard comes before the checkout and the receipt upload');
+  assert.doesNotMatch(receiptJob, /always\(\)|failure\(\)/, 'nothing lets a cancelled run through to a receipt');
 });

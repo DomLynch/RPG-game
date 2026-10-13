@@ -88,13 +88,21 @@ jobs:
           path: out/shard-${{ matrix.shard }}.json
           if-no-files-found: ignore
   receipt:
-    needs: shard
+    needs: [static, shard]
     # Explicit: with no `if`, GitHub's implicit success() also counts `static`, which a push or a dispatch skips, so the receipt was skipped after 8 green
     # shards (run 38293767009, trunk 4337cfe9b: deploy.sh read "unit-ci-down: no unit-receipt artifact"). It still needs every shard green.
-    if: ${{ !cancelled() && needs.shard.result == 'success' }}
+    # Fail closed (hardening item 3, 2026-10-13; the Auditor's two findings on #2476): a skipped required check reads as passing to a ruleset or the merge queue.
+    # A failed shard used to SKIP this job, and so did a red `static` (it skips the shards, which skipped this). Now the ONLY skip is "nothing was meant to run"
+    # (static and shard both skipped: a feature PR without auditor:ready). Otherwise the job runs and its FIRST step goes red unless static did not fail and every
+    # shard succeeded; the receipt artifact is only made after that step.
+    if: ${{ !cancelled() && !(needs.static.result == 'skipped' && needs.shard.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - run: '[ "$STATIC" != failure ] && [ "$STATIC" != cancelled ] || { echo "unit-ci: static did not pass (result: $STATIC)"; exit 1; }; [ "$SHARDS" = success ] || { echo "unit-ci: a shard did not succeed (result: $SHARDS)"; exit 1; }'
+        env:
+          STATIC: ${{ needs.static.result }}
+          SHARDS: ${{ needs.shard.result }}
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.UNIT_SHA }}
