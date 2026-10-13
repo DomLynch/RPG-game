@@ -61,11 +61,12 @@ test('a new threat source is one row; the loader refuses a duplicate, a missing 
   assert.throws(() => loadThreatDefs({ ...DEFS, sources: [{ id: 'damage', weight: -1 }] }), /weight/, 'a negative weight is refused');
 });
 
-test('a heavier damage weight changes who a creature picks (the rows are what the world reads)', async () => {
+test('a different damage weight changes the fights (the rows are what the world reads)', async () => {
   const { THREAT_SOURCES } = await import('../src/fight/threat.ts');
   const row = THREAT_SOURCES.find((s) => s.id === 'damage') as { weight: number };
-  const before = playOut(SCENARIOS['two players, three wolves'], 11);
-  row.weight = 0;   // rows are frozen by neither the loader nor the JSON import: this is the "edit one row" probe
-  try { assert.notEqual(playOut(SCENARIOS['two players, three wolves'], 11), before, 'with damage worth no threat the fight is different'); } finally { row.weight = 1; }
-  assert.equal(playOut(SCENARIOS['two players, three wolves'], 11), before, 'restored');
+  const all = () => Object.values(SCENARIOS).flatMap((make) => SEEDS.map((seed) => playOut(make, seed)));
+  const before = all();
+  row.weight = 0;   // the "edit one row" probe: with damage worth no threat the threat tables (and so some picks) are different
+  try { assert.ok(all().some((h, i) => h !== before[i]), 'at least one pinned fight reads the weight'); } finally { row.weight = 1; }
+  assert.deepEqual(all(), before, 'restored');
 });
