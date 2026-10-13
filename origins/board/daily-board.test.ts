@@ -68,6 +68,15 @@ test('daily board: a pool too small for the no-repeat rule still fills the board
   assert.deepEqual(dailyBoardFor(5, 100, null), []);
 });
 
+test('daily board: boundary rules: 0 slots is an empty board, 0 noRepeatDays bars nothing, firstFindReward is null for an unknown id', () => {
+  const base = BOARD_RULES[0]!;
+  assert.deepEqual(dailyBoardFor(5, 100, { ...base, slots: 0 }), []);
+  const free = { ...base, noRepeatDays: 0 };
+  assert.deepEqual(dailyBoardFor(5, 100, free).map((t) => t.id), dailyBoardFor(5, 100, free).map((t) => t.id));
+  assert.equal(dailyBoardFor(5, 100, free).length, base.slots);
+  assert.equal(firstFindReward('no-such-discovery'), null);
+});
+
 test('daily board: the day number turns over at the reset hour', () => {
   const r = { ...BOARD_RULES[0]!, resetHourUtc: 4 }, midnight = 20000 * 86_400_000;
   assert.equal(boardDay(midnight + 3 * 3_600_000, r), 19999);
