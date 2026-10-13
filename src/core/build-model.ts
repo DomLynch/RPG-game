@@ -5,9 +5,7 @@ import { DIALS, SHEET_SKILLS, pointsAt, validateBuild } from '../fight/sheet-row
 import type { BuildView } from './build-net.ts';
 
 export type Row = { id: string; name: string; kind: 'dial' | 'skill'; room: number };   // room: the most points the row can hold (cap - base)
-const NAMES: Readonly<Record<string, string>> = { attack: 'Attack', spellPower: 'Spell Power', armour: 'Armour', magicResist: 'Magic Resist', health: 'Health', stamina: 'Stamina', poise: 'Poise', luck: 'Luck', focus: 'Focus', recovery: 'Recovery' };
-export const rowName = (id: string): string => NAMES[id] ?? id.replace(/[-_]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase());
-export const ROWS: readonly Row[] = [...DIALS.map((d) => ({ id: d.id, name: rowName(d.id), kind: 'dial' as const, room: d.cap - d.base })), ...SHEET_SKILLS.map((s) => ({ id: s.id, name: rowName(s.id), kind: 'skill' as const, room: s.cap - s.base }))];
+export const ROWS: readonly Row[] = [...DIALS.map((d) => ({ id: d.id, name: d.name, kind: 'dial' as const, room: d.cap - d.base })), ...SHEET_SKILLS.map((s) => ({ id: s.id, name: s.name, kind: 'skill' as const, room: s.cap - s.base }))];
 
 export const FREE_RESPREAD_LEVEL = 10, RANK_LEVELS = 10;   // the server's numbers (origins/server/build.ts)
 export const spent = (v: BuildView): number => Object.values(v.placed).reduce((n, x) => n + x, 0);
