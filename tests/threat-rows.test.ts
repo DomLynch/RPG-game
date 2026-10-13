@@ -12,6 +12,7 @@ const SCENARIOS: Record<string, () => ReturnType<typeof newWorld>> = {
 };
 const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32; };
 const ATTACKS = [null, 'light', 'heavy', 'thrust', 'kick'] as const;
+export const SEEN = { pairs: 0, threatEntries: 0 };   // proof the scenarios exercise the rule at all
 export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, ticks = 1800): string {
   let world = make();
   const rand = lcg(seed), h = createHash('sha256');
@@ -20,11 +21,12 @@ export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, t
     for (const f of world.fighters) if (f.side === 'player') inputs[f.id] = { x: Math.round(rand() * 2 - 1), z: Math.round(rand() * 2 - 1), run: rand() < 0.3, attack: rand() < 0.4 ? ATTACKS[1 + Math.floor(rand() * 4)] : null, guard: rand() < 0.15 };
     world = stepCombat(world, inputs, 1 / 60).world;
     h.update(JSON.stringify(pairs(world).map((p) => [p.player, p.foe, p.primary])));
+    SEEN.pairs += pairs(world).length; SEEN.threatEntries += world.fighters.reduce((n, f) => n + Object.keys(f.threat ?? {}).length, 0);
   }
   for (const f of world.fighters) h.update(JSON.stringify([f.id, Object.entries(f.threat ?? {}).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));
   return h.digest('hex').slice(0, 16);
 }
-const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['?', '?', '?'], 'one player, goblin and wolf': ['?', '?', '?'] };
+const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['35f4e1c4ce40b0f0', 'c00270ee95a37ff2', '6deacd91b6f8d9c9'], 'one player, goblin and wolf': ['afd5e6d16be2cc1c', '690a533b64b6bc38', 'e47474d3b5e3fef5'] };   // taken on trunk ff15ed478, before the rows
 const SEEDS = [11, 222, 3333];
 for (const [name, make] of Object.entries(SCENARIOS)) {
   test(`existing fights pick the same foe tick for tick: ${name}`, () => {
@@ -33,3 +35,37 @@ for (const [name, make] of Object.entries(SCENARIOS)) {
     assert.deepEqual(got, EXPECTED[name]);
   });
 }
+
+test('the pinned scenarios really pick foes and build threat tables (a pin over an empty fight would prove nothing)', () => {
+  assert.ok(SEEN.pairs > 1000 && SEEN.threatEntries > 1000, JSON.stringify(SEEN));
+});
+
+test('the rows equal the literals they replaced, and the old exports still carry them', async () => {
+  const { AGGRO_M, SIGHT_M, GIVE_UP_UNSEEN_S, threatOf, THREAT_SOURCES, AWARENESS } = await import('../src/fight/threat.ts');
+  assert.deepEqual([AGGRO_M, SIGHT_M, GIVE_UP_UNSEEN_S], [9, 14, 10]);
+  assert.equal(threatOf('damage', 37.5), 37.5, 'threat is damage dealt, weight 1');
+  assert.deepEqual(THREAT_SOURCES.map((s) => s.id), ['damage']);
+  assert.deepEqual(AWARENESS.map((a) => [a.id, a.unit]), [['notice', 'm'], ['sight', 'm'], ['giveUp', 's']]);
+  const world = await import('../src/fight/world.ts'), speeds = await import('../src/fight/speeds.ts');
+  assert.deepEqual([world.AGGRO_M, world.SIGHT_M, speeds.GIVE_UP_UNSEEN_S], [9, 14, 10], 'world.ts and speeds.ts re-export the rows, not their own literals');
+});
+
+test('a new threat source is one row; the loader refuses a duplicate, a missing damage row and sight inside notice', async () => {
+  const { loadThreatDefs } = await import('../src/fight/threat.ts');
+  const DEFS = (await import('../src/fight/threat-defs.json', { with: { type: 'json' } })).default as { sources: object[]; awareness: object[] };
+  const ok = loadThreatDefs({ ...DEFS, sources: [...DEFS.sources, { id: 'taunt', weight: 5 }] });
+  assert.deepEqual(ok.sources.map((s) => s.id), ['damage', 'taunt'], 'a taunt source is one row');
+  assert.throws(() => loadThreatDefs({ ...DEFS, sources: [...DEFS.sources, { id: 'damage', weight: 2 }] }), /damage/, 'a duplicate id is refused');
+  assert.throws(() => loadThreatDefs({ ...DEFS, sources: [{ id: 'taunt', weight: 5 }] }), /"damage"/, 'the world reads damage by name');
+  assert.throws(() => loadThreatDefs({ ...DEFS, awareness: [{ id: 'notice', value: 20, unit: 'm' }, { id: 'sight', value: 14, unit: 'm' }, { id: 'giveUp', value: 10, unit: 's' }] }), /sight/, 'sight is at least notice');
+  assert.throws(() => loadThreatDefs({ ...DEFS, sources: [{ id: 'damage', weight: -1 }] }), /weight/, 'a negative weight is refused');
+});
+
+test('a heavier damage weight changes who a creature picks (the rows are what the world reads)', async () => {
+  const { THREAT_SOURCES } = await import('../src/fight/threat.ts');
+  const row = THREAT_SOURCES.find((s) => s.id === 'damage') as { weight: number };
+  const before = playOut(SCENARIOS['two players, three wolves'], 11);
+  row.weight = 0;   // rows are frozen by neither the loader nor the JSON import: this is the "edit one row" probe
+  try { assert.notEqual(playOut(SCENARIOS['two players, three wolves'], 11), before, 'with damage worth no threat the fight is different'); } finally { row.weight = 1; }
+  assert.equal(playOut(SCENARIOS['two players, three wolves'], 11), before, 'restored');
+});
