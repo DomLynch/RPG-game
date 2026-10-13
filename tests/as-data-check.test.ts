@@ -152,7 +152,8 @@ test('content rows built in code are counted: a record-kind literal in origins c
   try {
     mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'x'), { recursive: true });
     writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
-    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\n");
+    writeFileSync(join(repo, 'src', 'fight', 'special-set-defs.json'), '{"sets":[{"id":"ash","specials":["ashfall"]}],"ranks":[{"id":"first","level":36}]}');
     writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
     writeFileSync(join(repo, 'origins', 'x', 'a.ts'), "export const a = { kind: 'bounty-definition', id: 'bounty:x' };\nexport const b = { kind: 'item-definition' };\n");
     writeFileSync(join(repo, 'origins', 'x', 'a.test.ts'), "export const t = { kind: 'bounty-definition' };\n");
@@ -173,7 +174,8 @@ test('a tuning number kept as a named constant in a moved file is counted; the m
     writeFileSync(join(repo, 'origins', 'preview', 'play.ts'), "export const START_LEVEL = 16;\nexport const WORLD_TUNING = { reach: 3, far: 40 };\nexport const FROM_ROW = START.startLevel;\n");
     writeFileSync(join(repo, 'origins', 'patrons', 'patrons.ts'), "export const RULES = { switchBronze: 2000, wait: 28 * 86400 } as const;\nexport const CLEAN = { points: 0, at: 0 };\n");
     writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
-    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\n");
+    writeFileSync(join(repo, 'src', 'fight', 'special-set-defs.json'), '{"sets":[{"id":"ash","specials":["ashfall"]}],"ranks":[{"id":"first","level":36}]}');
     writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
     writeFileSync(join(repo, 'origins', 'feuds', 'feuds.ts'), "export const JAIL_S = 600;\nexport const NEG = -5;\nexport const FROM_ROW = R.jailS;\nconst local = 3;\nexport const fn = () => { const INNER = 4; return INNER; };\n");
     const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; text: string }[] };
