@@ -18,12 +18,12 @@ test('cc ladder: the window resets it, measured from the LAST landing; an immune
   let l = emptyLadder; for (let i = 0; i < 3; i++) l = ccApply(l, 'postureBreak', i, 80).ladder;
   assert.equal(ccLevel(l, 'stun', 3), 3);   // immune now
   const spam = ccApply(l, 'postureBreak', 800, 80); assert.equal(spam.ticks, 0); assert.equal(spam.ladder, l);   // refused, window not extended
-  assert.equal(ccApply(l, 'postureBreak', 2 + CC_LADDER.window + 1, 80).ticks, 80);   // the window since landing 3 has passed
-  assert.equal(ccApply(l, 'postureBreak', 2 + CC_LADDER.window, 80).ticks, 0);   // exactly on the window: still diminished
+  assert.equal(ccApply(l, 'postureBreak', 2 + CC_LADDER.kinds.stun!.window + 1, 80).ticks, 80);   // the window since landing 3 has passed
+  assert.equal(ccApply(l, 'postureBreak', 2 + CC_LADDER.kinds.stun!.window, 80).ticks, 0);   // exactly on the window: still diminished
 });
 
 test('cc ladder: every source is in exactly one family, and ordinary stagger is in none', () => {
-  const all = Object.values(CC_LADDER.families).flat();
+  const all = Object.values(CC_LADDER.kinds).flatMap((k) => k.sources);
   assert.equal(new Set(all).size, all.length);
   for (const s of all) assert.ok(familyOf(s));
   assert.throws(() => familyOf('stagger' as CcSource));
@@ -38,6 +38,6 @@ test('cc ladder: 3 attackers on one hero share one ladder; the hero on a boss ha
 });
 
 test('cc ladder: rows are data (a custom row changes the steps and the window)', () => {
-  const rows = { ...CC_LADDER, window: 10, steps: [100, 0] };
+  const rows = { ...CC_LADDER, kinds: { ...CC_LADDER.kinds, knockdown: { ...CC_LADDER.kinds.knockdown!, window: 10, steps: [100, 0] } } };   // the knockdown row's own steps and window
   const a = ccApply(emptyLadder, 'wallSlam', 0, 50, rows); assert.equal(ccApply(a.ladder, 'wallSlam', 5, 50, rows).ticks, 0); assert.equal(ccApply(a.ladder, 'wallSlam', 11, 50, rows).ticks, 50);
 });
