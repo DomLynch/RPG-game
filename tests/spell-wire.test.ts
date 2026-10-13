@@ -36,3 +36,12 @@ test('main.ts reaches the pick only through the core door and spell-pick: no spe
   assert.match(src, /spell: \(\) => pickSpell\(equippedSpell\(\), ownedSpells\(\), \{\}\)/);
   assert.match(src, /import \{[^}]*\bequippedSpell\b[^}]*\bownedSpells\b[^}]*\} from '\.\/core\/index\.ts'/);
 });
+
+// Dom's bar (Lead 2026-10-13): the client spell path is data only. No spell id literal may appear in the page, the match, the HUD, the pick or the equip store; ids live in the spells-*.json rows and tests.
+test('no spell id literal in the client spell path', () => {
+  const ids = new Set(SPELL_IDS);
+  for (const file of ['src/main.ts', 'src/fight/match.ts', 'src/fight/hud.ts', 'src/fight/spell-pick.ts', 'src/core/spell-equip.ts']) {
+    const hits = [...readFileSync(file, 'utf8').matchAll(/(['"`])([a-z][a-z0-9-]{2,})\1/g)].map((m) => m[2]!).filter((w) => ids.has(w) && !Object.hasOwn(OPPONENTS, w));   // a creature the game already names (minotaur) is its opponent row, not a spell
+    assert.deepEqual([...new Set(hits)], [], `${file} names a spell id: read it from the rows`);
+  }
+});
