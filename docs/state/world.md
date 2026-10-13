@@ -3,6 +3,12 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-13 (+04, late evening) — HANDOFF #38 (second /clear): READ FIRST memory `world_2026-10-13_session37.md` "UPDATE 2" (it supersedes HANDOFF #37 item 1)
+
+1. **#2572 token-starvation fix is pushed but UNVERIFIED:** world/sheet-seed @c3aaeffce (engage-ahead: a fighting creature takes back the farthest bystander's slot; two new tests; merged #2562 fc8ee4bff and combat/world-hero b7946b2bc). Combat now wants c89fa0538 merged instead of b7946b2bc. Do: merge it, rerun the VPS set (/tmp/wl11.sh), re-add auditor:ready, send Lead + Auditor the sha. VPS result of the c3aaeffce run was not read.
+2. #2553 @3450e997f and #2562 @fc8ee4bff are the current heads (cc-ladder test fix, accepted by Lead). Group C: C1 branch world/c1-world-rules @4cc63cc3c, three open failures listed in HANDOFF #37 item 3.
+3. Receipts not run: GitHub CI on every open PR after the latest pushes.
+
 ## 2026-10-13 (+04, evening) — HANDOFF #37 before /clear (Dom: "save your work now i will /clear"). READ FIRST, then memory `world_2026-10-13_session37.md` (full heads, commands, lessons); HANDOFF #36 below is older
 
 1. **FIRST ACT:** #2572 (series PR 3, bout seed, WORLD_SIM_VERSION 12, head 730e14e46) is on HOLD (Auditor + Lead): origins/preview/engage-ahead.ts starves the 4-open engage budget (5+ creatures in aggro: bystanders hold every token, the fought creature is refused, its kill unpaid). Fix: a fighting creature without a token evades the farthest non-fighting ask and takes its slot; test 5 in aggro, fight the 5th, it holds a token. Push world/sheet-seed, re-run the VPS set, re-add auditor:ready, send Lead + Auditor the new sha.
