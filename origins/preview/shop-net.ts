@@ -1,5 +1,6 @@
 // The client half of POST /origins/shop_buy (origins/server/shop-buy.ts). The body carries ids and a quantity only: never a price, cost or stock. Same contract as save.ts: any failure is an answer ({ offline }), never a throw.
 import { call, type Offline, type Opts } from '../../src/core/index.ts';
+import type { Stock } from '../shops/shop-view.ts';
 
 export type Bought = { shop: string; item: string; quantity: number; cost: number; revision: number; received: string[]; replayed: boolean };
 export function boughtOf(r: unknown): Bought | null {
@@ -14,3 +15,16 @@ export const newOp = (item: string, nowMs: number, rand: () => number = Math.ran
 // What the screen says for a refusal, by the HTTP status the writer answered (409 stale list or a changed balance, 422 away / level / stock / funds / closed).
 export const refusalKey = (offline: string): 'offline' | 'stale' | 'refused' | 'failed' =>
   offline === 'no-session' || offline === 'http-401' ? 'offline' : offline === 'http-409' ? 'stale' : offline === 'http-422' ? 'refused' : 'failed';
+
+// POST /origins/shop_stock {shop}: the account's shelf (count now, the next unit's price with the zone tax, when the next unit returns), read only, no counter needed.
+export function stockOf(r: unknown): Stock | null {
+  const v = r as { shop?: unknown; revision?: unknown; now?: unknown; rows?: unknown } | null;
+  if (!v || typeof v.shop !== 'string' || !Number.isSafeInteger(v.revision) || typeof v.now !== 'number' || !Array.isArray(v.rows)) return null;
+  const rows: Stock['rows'] = [];
+  for (const x of v.rows as Record<string, unknown>[]) {
+    if (!x || typeof x.item !== 'string' || !Number.isSafeInteger(x.count) || !Number.isSafeInteger(x.max) || !Number.isSafeInteger(x.price) || !(x.nextRestockAt === null || typeof x.nextRestockAt === 'number')) return null;
+    rows.push({ item: x.item, count: x.count as number, max: x.max as number, price: x.price as number, nextRestockAt: x.nextRestockAt as number | null });
+  }
+  return { shop: v.shop, revision: v.revision as number, now: v.now, rows };
+}
+export const readStock = (token: string | null, shop: string, opts: Opts = {}): Promise<Stock | Offline> => call('shop_stock', { shop }, token, stockOf, opts);
