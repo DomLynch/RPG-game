@@ -877,7 +877,6 @@ function began() {
   showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
-  if (LOOK_SPELL && match.spell) match.practice.duel.fighters[0].skillCooldown = 0;   // ?spell look test: the first cast is ready at once (an unrecorded-for-reward look; the server refuses what it cannot replay)
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
