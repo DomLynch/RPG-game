@@ -27,7 +27,7 @@ export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, t
   for (const f of world.fighters) h.update(JSON.stringify([f.id, Object.entries(f.threat ?? {}).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));
   return h.digest('hex').slice(0, 16);
 }
-const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['ca3e63128e20dcab', '540c72c12b345fbf', '846df36509238442'], 'one player, goblin and wolf': ['4ef7434e832820ed', 'f93d6c4e4488b82a', 'c16314fd82ee80c1'] };   // taken on unchanged trunk ff15ed478, before the rows
+const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['b28747fbd82099c1', '8a4f5bf80ad9b99e', '556b1f7d7c5bf3ef'], 'one player, goblin and wolf': ['6a4b7f5ffbd6ca92', 'ddee928773af6d76', 'c16314fd82ee80c1'] };   // first taken on unchanged trunk ff15ed478, before the rows; RE-PINNED with world-hero (Dom 2026-10-13: directionalGuard is on in the world, so a held guard with no side no longer covers every blow): the same hashes come from trunk b3b5613ab with only directionalGuard switched on
 const SEEDS = [11, 222, 3333];
 for (const [name, make] of Object.entries(SCENARIOS)) {
   test(`existing fights pick the same foe tick for tick: ${name}`, () => {
