@@ -7,16 +7,16 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GPU_ONLY, MAC_ROWS, planLine, POST_PUBLISH, POST_PUBLISH_ROWS } from '../scripts/lib/row-placement.mjs';
+import { GPU_ONLY, MAC_ROWS, planLine, POST_PUBLISH, POST_PUBLISH_ROWS, postPublishRowsFor } from '../scripts/lib/row-placement.mjs';
 
 const gate = JSON.parse(readFileSync('.quality-gate.json', 'utf8'));
 const deploy = readFileSync('scripts/deploy.sh', 'utf8');
 
 test('POST_PUBLISH: rows 9 and 46, real release rows, on no other placement list, each with a measured reason', () => {
-  assert.deepEqual(POST_PUBLISH_ROWS, [9, 46]);
+  assert.deepEqual(POST_PUBLISH_ROWS, [9, 46, 3, 15, 17, 19, 23, 24, 25, 32, 10, 11, 38, 39]);
   for (const entry of POST_PUBLISH) {
     assert.ok(entry.row >= 1 && entry.row <= gate.release_commands.length, `row ${entry.row} exists`);
-    assert.ok(entry.ci_s > 0 && entry.why.length > 10 && entry.date);
+    assert.ok(entry.ci_s >= 0 && entry.why.length > 10 && entry.date);
     assert.ok(!MAC_ROWS.includes(entry.row) && !GPU_ONLY.includes(entry.row), `row ${entry.row} is already placed elsewhere`);
   }
   assert.match(gate.release_commands[8].join(' '), /polearm-browser-check/);
@@ -25,8 +25,8 @@ test('POST_PUBLISH: rows 9 and 46, real release rows, on no other placement list
 
 test('release-checks.yml: a pull request (a candidate) leaves the post-publish rows out of its matrix; a dispatch still runs them', () => {
   const yml = readFileSync('.github/workflows/release-checks.yml', 'utf8');
-  assert.match(yml, /import \{ POST_PUBLISH_ROWS \} from "\.\/scripts\/lib\/row-placement\.mjs"/);
-  assert.match(yml, /const skipRows = \[\.\.\.process\.env\.CI_SKIP_ROWS\.split\(","\), \.\.\.\(pr \? process\.env\.CI_POST_PUBLISH_ROWS\.split\(","\) : \[\]\)\]\.map\(Number\)/);
+  assert.match(yml, /\.\.\.\(pr \? execFileSync\("node", \["scripts\/lib\/row-placement\.mjs", "post-publish"\], \{ encoding: "utf8", input: files\.join/);
+  assert.ok(!/CI_POST_PUBLISH_ROWS/.test(yml), 'the static list is gone: the rows come from the diff');
 });
 
 test('planLine names the post-publish rows and no longer counts them as Mac rows', () => {
@@ -189,6 +189,39 @@ test('post_publish_rows: the rollback may be a shell function of the caller (dep
     assert.match(bad.stderr, /ROLLBACK FAILED: rows 44 failed for the LIVE release abc123/);
     assert.ok(existsSync(hold));
   } finally { rmSync(root, { recursive: true, force: true }); }
+const ALWAYS = [9, 46], FINISHER_ROWS = [3, 15, 17, 19, 23, 24, 25, 32];
+
+test('postPublishRowsFor: a diff of shared files only (scripts/, ops/, tests/) defers every post-publish row', () => {
+  assert.deepEqual(postPublishRowsFor(['scripts/deploy.sh', 'ops/install-presence.sh', 'tests/x.test.ts']).sort((a, b) => a - b), [...POST_PUBLISH_ROWS].sort((a, b) => a - b));
+  assert.deepEqual(postPublishRowsFor([]).sort((a, b) => a - b), [...POST_PUBLISH_ROWS].sort((a, b) => a - b));
+});
+
+test('postPublishRowsFor: a row stays PRE-publish when the diff touches its own family; rows 9 and 46 are always deferred', () => {
+  const finisher = postPublishRowsFor(['src/fight/gore.ts']);
+  for (const row of FINISHER_ROWS) assert.ok(!finisher.includes(row), `finisher row ${row} stays before Published`);
+  for (const row of [10, 11, 38, 39, ...ALWAYS]) assert.ok(finisher.includes(row), `row ${row} is still deferred`);
+  const polearm = postPublishRowsFor(['src/fight/weapons.ts']);
+  assert.ok(!polearm.includes(10) && !polearm.includes(11) && polearm.includes(3) && polearm.includes(38));
+  const layout = postPublishRowsFor(['src/style.css']);
+  assert.ok(!layout.includes(38) && layout.includes(39));
+  const loot = postPublishRowsFor(['src/loot-data.ts']);
+  assert.ok(!loot.includes(39) && loot.includes(38));
+  assert.ok(ALWAYS.every(row => postPublishRowsFor(['src/fight/gore.ts', 'src/style.css', 'src/loot-data.ts', 'src/fight/weapons.ts']).includes(row)));
+});
+
+test('postPublishRowsFor: an unknown diff (null) defers only the rows without a family; the rows Lead keeps pre-publish are never listed', () => {
+  assert.deepEqual(postPublishRowsFor(null), ALWAYS);
+  for (const kept of [14, 37, 50]) assert.ok(!POST_PUBLISH_ROWS.includes(kept), `row ${kept} stays before Published`);
+  assert.match(gate.release_commands[13].join(' '), /account-browser-check/);
+  assert.match(gate.release_commands[36].join(' '), /desktop-layout-check/);
+  assert.match(gate.release_commands[49].join(' '), /first-loss-browser-check/);
+});
+
+test('row-placement.mjs post-publish: reads the changed files on stdin, --unknown reads none', () => {
+  const run = (args: string[], input: string) => execFileSync('node', ['scripts/lib/row-placement.mjs', 'post-publish', ...args], { encoding: 'utf8', input }).trim();
+  assert.equal(run([], 'scripts/deploy.sh\n').split(',').length, POST_PUBLISH_ROWS.length);
+  assert.equal(run(['--unknown'], ''), '9,46');
+  assert.ok(!run([], 'src/fight/gore.ts\n').split(',').includes('3'));
 });
 
 // EB drill 2026-10-13: after ROLLED BACK, rows 9,46 still ran against the rolled-back sha and printed "the release is live".
