@@ -7,7 +7,8 @@ import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { player } from '../../src/fight/world.ts';
 import { TIERS, legacyLootOfItemId, PC } from '../../src/core/server.ts';
 import { verifyWorldRecord } from './world-verify.ts';
-import { loadoutOf, loadoutOfItems } from './worn-gear.ts';
+import { heroLimitOf, loadoutOf, loadoutOfItems, wornGearOfItems } from './worn-gear.ts';
+import { sheetOf } from '../../src/fight/server.ts';
 import { defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
 import type { Db } from './db.ts';
@@ -64,4 +65,20 @@ test('verify: the worn claim is verified against the held set; a claim above it 
   const forged = await killWith({ attack: worn.attack + 0.05, res: worn.res });
   const f = await verifyWorldRecord(forged.text, wolf, 'wolf', limitOf(worn));
   assert.ok(!f.ok && f.reason === 'hero beyond ledger', 'a forged attack above the held set is refused');
+});
+
+test('heroLimitOf: the sheet the stored build and worn gear give (the record must equal it); a bare character owes none; an illegal build refuses', async () => {
+  const rows = held.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: h.location.slot }));
+  const dbOf = (build: string, items: unknown[]): Db => ({ async run(sql) {
+    if (sql.includes('origins_get_build')) return build;
+    return JSON.stringify({ marks: 0, career: {}, characters: [], items, quests: [], journal: [], talk: [] });
+  } });
+  const A = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b';
+  const placed = await heroLimitOf(dbOf(JSON.stringify({ level: 10, placed: { attack: 10 }, respreadRank: 1, version: 1 }), rows), A, PC);
+  assert.deepEqual(placed.sheet, sheetOf({ level: 10, placed: { attack: 10 } }, wornGearOfItems(held)));
+  assert.ok(placed.sheet && 'sheet' in placed, 'a sheet is owed');
+  const bare = await heroLimitOf(dbOf('null', []), A, PC);
+  assert.ok('sheet' in bare && bare.sheet === undefined && !bare.refuse, 'no build, no gear: the record must carry no sheet');
+  const illegal = await heroLimitOf(dbOf(JSON.stringify({ level: 1, placed: { attack: 99 }, respreadRank: 1, version: 1 }), []), A, PC);
+  assert.match(illegal.refuse ?? '', /not a legal one/);
 });

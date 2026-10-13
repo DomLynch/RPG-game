@@ -175,7 +175,7 @@ test('the soak counters are wired in the production entry and answer GET /intern
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
   assert.match(entry, /const tally = createVerdictTally\(\)/);
   assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
-  assert.match(entry, /heroOf: \(account, character\) => loadoutOf\(db, account, character\)/, 'and bound the hero claim by the held worn set');
+  assert.match(entry, /heroOf: \(account, character\) => heroLimitOf\(db, account, character\)/, 'and bound the hero claim by the held worn set');
   assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });

@@ -4,7 +4,8 @@
 import type { Db } from './db.ts';
 import * as store from './store.ts';
 import { isTier, legacyLootOfItemId, type Tier } from '../../src/core/server.ts';
-import { kitFrom, loadoutFor, wornGear, type Loadout } from '../../src/fight/server.ts';
+import { kitFrom, loadoutFor, sheetOf, wornGear, type Loadout } from '../../src/fight/server.ts';
+import type { HeroLimit } from './world-verify.ts';
 
 type LootId = NonNullable<ReturnType<typeof legacyLootOfItemId>>;
 
@@ -56,4 +57,18 @@ export function wornGearOfFrozen(frozen: unknown, character: string): Readonly<R
 export async function loadoutOf(db: Db, account: string, character: string): Promise<Loadout> {
   const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
   return loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
+}
+
+/** A world record's hero limit from the books: the sheet the stored build plus worn gear give (the record's sheet must EQUAL it), or a refusal when the stored build is not a legal one. */
+export async function heroLimitOf(db: Db, account: string, character: string): Promise<HeroLimit> {
+  try {
+    const stored = await store.buildGet(db, account, character);
+    const build = stored === null || stored === 'absent' ? { level: 0, placed: {} } : { level: stored.level, placed: stored.placed };
+    const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
+    const items = rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } }));
+    const sheet = sheetOf(build, wornGearOfItems(items));
+    return sheet ? { sheet } : { sheet: undefined, ...loadoutOfItems(items) };
+  } catch (error) {
+    return { refuse: `the stored build is not a legal one: ${error instanceof Error ? error.message : String(error)}` };
+  }
 }

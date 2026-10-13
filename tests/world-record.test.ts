@@ -70,7 +70,7 @@ test('the speed bound covers a real roll', () => {
 
 test('a decoder takes only what is a world record', async () => {
   assert.throws(() => unpackWorldRecord(new Uint8Array([1, 2, 3])), /not a world record/);
-  assert.throws(() => unpackWorldRecord(new Uint8Array([0x57, 0x52, 1, 5])), /bad header|truncated/);
+  assert.throws(() => unpackWorldRecord(new Uint8Array([0x57, 0x52, 2, 5])), /bad header|truncated/);
   await assert.rejects(decodeWorldRecord('!!!'), /cannot decode/);
   assert.ok(MAX_RECORD_TICKS > 0);
 });
