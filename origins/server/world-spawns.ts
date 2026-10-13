@@ -10,6 +10,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
+import { worldMetres } from '../presence/zones.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix } from '../zones/loader.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
@@ -152,12 +153,12 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && zoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
-    // Reach: a fresh placed pose in the zone is checked (too far = refused). Presence places players only in the Concord square today (zoneAt: pit-yard, exchange), so a Frontier kill has no pose: it is
-    // recorded as 'unchecked' and pays scorecard counts only (Strategy 2026-10-13). `refuseUnchecked` (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422 once presence places Frontier players.
+    // Reach: a fresh placed pose in the zone is checked (too far = refused). A v2 presence client is placed in the Frontier too (frontier-presence.md); a v1 client, or none, has no Frontier pose: that kill is
+    // recorded as 'unchecked' and pays scorecard counts only (Strategy 2026-10-13). `refuseUnchecked` (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422; the flip waits for Web's v2 client.
     const w = where ? await where(account).catch(() => null) : null;
     let reach: 'checked' | 'unchecked' = 'unchecked';
     if (w && w.online && w.placed && w.ageMs <= POSE_AGE_MS && w.zone === spawn.spec.zone) {
-      if (!withinReach(spawn.spec, { x: w.x / 100, z: w.z / 100 })) return refuse('away');
+      if (!withinReach(spawn.spec, worldMetres(w.x, w.z))) return refuse('away');
       reach = 'checked';
     }
     if (reach === 'unchecked' && deps.refuseUnchecked) return refuse('unchecked');

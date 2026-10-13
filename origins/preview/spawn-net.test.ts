@@ -11,6 +11,7 @@ import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, defaultZoneSpawns } from '../server/world-spawns.ts';
 import { onCombatEvent, spawnTracker, SPENT_MS, TOUCH_EVERY_MS, engagedOf, killedOf } from './spawn-net.ts';
+import { CENTRE_CM } from '../presence/zones.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -54,7 +55,7 @@ function fakeSpawnDb(clock: { ms: number }) {
 
 async function writer(clock: { ms: number }, refuseUnchecked = false) {
   const stand = { to: ids[0]! }, fake = fakeSpawnDb(clock);
-  const w = createWriter({ db: fake.db, verify: async (t) => (t === 'tok' ? ACCOUNT : null), where: async () => { const sp = spawns.get(stand.to); if (!sp) return { online: false as const }; return { online: true as const, layer: 0, placed: true as const, x: sp.spec.home.x * 100, z: sp.spec.home.z * 100, zone: sp.spec.zone, ageMs: 100 }; }, handlers: worldSpawnOps({ content, spawns, refuseUnchecked, now: () => new Date(clock.ms), log: () => {} }) });
+  const w = createWriter({ db: fake.db, verify: async (t) => (t === 'tok' ? ACCOUNT : null), where: async () => { const sp = spawns.get(stand.to); if (!sp) return { online: false as const }; return { online: true as const, layer: 0, placed: true as const, x: sp.spec.home.x * 100 + CENTRE_CM, z: sp.spec.home.z * 100 + CENTRE_CM, zone: sp.spec.zone, ageMs: 100 }; }, handlers: worldSpawnOps({ content, spawns, refuseUnchecked, now: () => new Date(clock.ms), log: () => {} }) });
   await new Promise<void>((ok) => w.listen(0, '127.0.0.1', ok));
   return { ...fake, stand, base: `http://127.0.0.1:${(w.address() as AddressInfo).port}/origins`, close: () => new Promise<void>((ok) => w.close(() => ok())) };
 }
