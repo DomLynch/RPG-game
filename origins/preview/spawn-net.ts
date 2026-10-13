@@ -43,6 +43,7 @@ type Deps = { token: () => string | null; character: () => string | null | Promi
 type Open = { engage: Promise<Engaged | Offline>; hits: number; touchedAt: number };
 export type SpawnTracker = {
   engaged(instance: string): Promise<Engaged | Offline>;
+  tokenOf(instance: string): string | null;   // the engage token once the server answered, else null (world-combat's bout seed, bout-seed.ts: no token = no roll)
   hit(instance: string): void;
   tick(): void;
   killed(instance: string, record?: WorldRecord | null): Promise<Killed | Offline>;
@@ -52,7 +53,7 @@ export type SpawnTracker = {
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; record: string | null; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), tokens = new Map<string, string>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; record: string | null; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
   const isSpent = (instance: string): boolean => { const at = spent.get(instance); if (at === undefined) return false; if (d.now() - at < SPENT_MS) return true; spent.delete(instance); return false; };
   const touch = (o: Open): void => {
     o.touchedAt = d.now();
@@ -67,6 +68,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
       return character ? call('engage', { character, instance, zoneId: d.zone?.() ?? DEFAULT_ZONE }, d.token(), engagedOf, opts) : { offline: 'no-character' };
     })();
     live.set(instance, { engage, hits: 0, touchedAt: d.now() });
+    void engage.then((e) => { if (!isOffline(e) && live.get(instance)?.engage === engage) tokens.set(instance, e.token); });
     void engage.then((e) => { if (isOffline(e) && live.get(instance)?.engage === engage) live.delete(instance); });   // refused (dead, too many) or off: nothing is held, a later FightStarted may ask again
     return engage;
   };
@@ -82,7 +84,8 @@ export function spawnTracker(d: Deps): SpawnTracker {
     return r;
   };
   return {
-    engaged(instance) { retried.delete(instance); return open(instance); },   // a FightStarted (re)start asks afresh
+    engaged(instance) { retried.delete(instance); return open(instance); },
+    tokenOf: (instance) => tokens.get(instance) ?? null,   // a FightStarted (re)start asks afresh
     hit(instance) {
       if (isSpent(instance)) return;
       // FightStarted is once per engage, so a refused / offline engage (a blip, a 429) is never asked again by the event; the player's own blow lands on it (a real fight), so ask ONCE more, then give up for this fight.
@@ -96,14 +99,14 @@ export function spawnTracker(d: Deps): SpawnTracker {
     async killed(instance, record) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
-      live.delete(instance); retried.delete(instance); spent.set(instance, d.now());
+      live.delete(instance); tokens.delete(instance); retried.delete(instance); spent.set(instance, d.now());
       const e = await o.engage;   // a kill can land before the engage answered: report on its token once it has
       if (isOffline(e)) return e;
       const packed = record && d.encode ? await d.encode(record).catch(() => null) : null;   // gzip failing or a record past the limit: the kill is still reported, without it
       pending.set(instance, { token: e.token, hits: o.hits, record: packed && packed.length <= MAX_RECORD_CHARS ? packed : null, tries: 0, busy: false });
       return send(instance);
     },
-    evaded(instance) { live.delete(instance); retried.delete(instance); },
+    evaded(instance) { live.delete(instance); tokens.delete(instance); retried.delete(instance); },
     open: () => [...live.keys()],
     outbox: () => [...pending.keys()],
   };

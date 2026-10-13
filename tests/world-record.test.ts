@@ -45,9 +45,7 @@ test('a record that does not kill, or whose presses were taken out, is not a kil
 test('forged headers and poses are refused', () => {
   const { rec } = killWolf(); assert.ok(rec);
   const no = (r: WorldRecord, why: string) => { const v = replayWorldRecord(r); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
-  no({ ...rec!, hero: { ...rec!.hero, weapon: 'trident' as never } }, 'weapon');
-  no({ ...rec!, hero: { ...rec!.hero, attack: 3 } }, 'hero gear');
-  no({ ...rec!, hero: { ...rec!.hero, res: 0.1 } }, 'hero gear');
+  no({ ...rec!, hero: { ...rec!.hero, weapon: 'butter-knife' as never } }, 'weapon');
   no({ ...rec!, hero: { ...rec!.hero, health: 1e9 } }, 'hero body');
   no({ ...rec!, hero: { ...rec!.hero, level: 0 } }, 'hero level');
   no({ ...rec!, joins: [{ ...rec!.joins[0]!, kind: 'nonesuch' }] }, 'join');
@@ -70,7 +68,7 @@ test('the speed bound covers a real roll', () => {
 
 test('a decoder takes only what is a world record', async () => {
   assert.throws(() => unpackWorldRecord(new Uint8Array([1, 2, 3])), /not a world record/);
-  assert.throws(() => unpackWorldRecord(new Uint8Array([0x57, 0x52, 1, 5])), /bad header|truncated/);
+  assert.throws(() => unpackWorldRecord(new Uint8Array([0x57, 0x52, 2, 5])), /bad header|truncated/);
   await assert.rejects(decodeWorldRecord('!!!'), /cannot decode/);
   assert.ok(MAX_RECORD_TICKS > 0);
 });
@@ -86,7 +84,7 @@ test('a record of another sim version is not replayed; the header carries the ve
 });
 
 test('a hero who is not at rest and clean opens no window (the header cannot carry his Pit fighter)', () => {
-  const w = newWorld([player(ME, 0, 0, 0, { attack: 1, res: 1 }, 1)]);
+  const w = newWorld([player(ME, 0, 0, 0, 1)]);
   assert.ok(heroClean(w), 'a fresh hero is clean');
   const dirty = (patch: Record<string, unknown>) => ({ ...w, fighters: [{ ...w.fighters[0]!, ...patch }] }) as typeof w;
   assert.ok(!heroClean(dirty({ phase: 'recover' })) && !heroClean(dirty({ maxStamina: 40 })) && !heroClean(dirty({ cc: [{ family: 'stun', count: 1, last: 5 }] })) && !heroClean(dirty({ stance: 'aggressive' })));
@@ -101,7 +99,7 @@ test('the world loop never feeds a special or a skill: the live input is {attack
 });
 
 test('a hero whose CC marks have all expired is clean (the ladder is never pruned); one with a mark still counting is not', () => {
-  const w = newWorld([player(ME, 0, 0, 0, { attack: 1, res: 1 }, 1)]);
+  const w = newWorld([player(ME, 0, 0, 0, 1)]);
   const at = (time: number, cc: CcLadder) => ({ ...w, time, fighters: [{ ...w.fighters[0]!, cc }] }) as typeof w;
   const stunned: CcLadder = [{ family: 'stun', count: 2, last: 10, end: 50 }];
   assert.ok(!heroClean(at(1, stunned)), 'tick 60: the stun mark is inside its 900-tick window from its end');
