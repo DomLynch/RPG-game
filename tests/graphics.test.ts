@@ -71,6 +71,7 @@ import * as spellPick from '../src/fight/spell-pick.ts';
 import * as powerWordSynth from '../src/fight/sound/power-word.ts';
 import * as touchRouter from '../src/fight/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
+import * as uiRowsModule from '../src/ui-rows.ts';
 import * as zoomGuard from '../src/zoom-guard.ts';   // the page-zoom lock main.ts calls at boot (#1749): the real module, it only adds document listeners
 import * as tutorialUi from '../src/fight/tutorial-ui.ts';
 import * as match from '../src/fight/match.ts';
@@ -148,7 +149,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fight/spell-pick.ts'] = spellPick;   // main.ts imports pickSpell (the grimoire pick on the Match's spell port)
   modules['./fight/power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./fight/tutorial-ui.ts'] = tutorialUi;
-  modules['./fight/touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
+  modules['./fight/touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./ui-rows.ts'] = uiRowsModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports
   modules['./fight/sparring-specials.ts'] = sparringSpecials;
   modules['./fight/sparring-special-runtime.ts'] = sparringSpecialRuntime;   // real selection/validation contract, as main uses in the browser
   Object.assign(view, { setFinisherOverride: (id: string | null) => { finisherOverride = id; } });

@@ -1,4 +1,5 @@
 import { createInput } from './fight/index.ts';
+import { ui, uiGroup } from './ui-rows.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
@@ -141,7 +142,7 @@ function renderFightRank() {
 const skillThumb = (id: SkillId) => `/game/img/loot/${id}.thumb.svg`;   // a move has no mesh to render: its tile shows a drawn glyph, same 48 px slot (Strategy 09-25: text-only read as a placeholder)
 const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
 let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
-const LOOT_LINE_MS = 4000;
+const LOOT_LINE_MS = ui('loot-line-ms');
 // A take is provisional while its Undo line is up: the device saves at once, but the account is told only when the window closes
 // (the line's timer, the next fight, a dismissed panel). The cloud merge unions ownership from both sides and never deletes, so a
 // take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
@@ -611,17 +612,9 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
-const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
-  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
-  Blocked: 30,
-  Hit: 50,
-  Parried: 70,
-  GuardBroken: 90,
-  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
-  Killed: 220,
-};
-const HEAVY_HIT = 90,
-  HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
+const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = uiGroup('hit-stop');   // ms per contact type, rows in ui-rows.json (SpecialLanded 50, Blocked 30, Hit 50, Parried 70, GuardBroken 90, PostureBroken 150, Killed 220)
+const HEAVY_HIT = ui('heavy-hit-stop-ms'),
+  HEAVY_BLOCK = ui('heavy-block-stop-ms'); // a heavy-class contact stops longer whether it lands or is blocked
 const TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
@@ -678,7 +671,7 @@ function winFace(src: string | null) {
   img.src = src;
 }
 // The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
-const LESSON_MS = 4000;
+const LESSON_MS = ui('lesson-ms');
 const PACE_STILL = /[?&]pacestill=1(&|$)/.test(window.location?.search ?? '');   // stills only (PR #1484): shows the pace line at tick 120 without fatiguing a real fight; inert without the query
 let lessonNow: LessonLine | undefined, lessonTimer = 0;
 export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
@@ -1049,7 +1042,7 @@ let watching = Boolean(replayText || sharedId);
 // the deterministic sim is stepped silently to REPLAY_TAIL seconds before the record's end, then rendered from there. Blows before
 // the window leave no wound marks (they were never drawn). "Watch the whole fight" is gone (owner 2026-09-22: "boring, huge memory
 // and bandwidth") — the ending is the whole viewer page, and PLAY NOW under it is the only thing to press.
-const REPLAY_TAIL = 7;
+const REPLAY_TAIL = ui('replay-tail-s');
 // A response that arrives after a later start (the player pressed Rematch while the link loaded) is refused by the match and the
 // fight in play stays; only its loading line goes.
 function startReplay(record: FightRecord, fromTick: number, epoch: number) {
@@ -1249,7 +1242,7 @@ const showVersus = () => { if (stillIn && faceSettled && !assetsReady && !artFai
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
 // A face that neither loads nor fails (a stalled request) never holds the card: 2 s after the still (Lead, on the Auditer's N1), it shows without one, and a
 // face arriving after that is left out (no layout jump under the player).
-const FACE_WAIT_MS = 2000;
+const FACE_WAIT_MS = ui('face-wait-ms');
 versusStill.addEventListener('load', () => { stillIn = true; if (!faceSettled) setTimeout(() => { faceSettled = true; showVersus(); }, FACE_WAIT_MS); showVersus(); });
 versusPortrait.addEventListener('load', () => { if (faceSettled) return; versusPortrait.hidden = false; versus.dataset.portrait = 'true'; faceSettled = true; showVersus(); });
 versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(); });
