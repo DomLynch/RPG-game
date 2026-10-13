@@ -165,9 +165,9 @@ test('the hero is rebuilt from hero() at the next clean window open: a sheet tha
     const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 8 }]);
     return createWorldCombat({ mobs: () => f.mobs, hero, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   };
-  let answered: Sheet | undefined;
-  const late = make(() => ({ gear: NAKED, level: 1, ...(answered ? { sheet: answered } : {}) })), born = make(() => ({ gear: NAKED, level: 1, sheet })), bare = make(() => ({ gear: NAKED, level: 1 }));
-  answered = sheet;   // the server's view and the build fetch answer after load
+  const server: { sheet?: Sheet } = {};   // what the server's view has sent so far
+  const late = make(() => ({ gear: NAKED, level: 1, ...(server.sheet ? { sheet: server.sheet } : {}) })), born = make(() => ({ gear: NAKED, level: 1, sheet })), bare = make(() => ({ gear: NAKED, level: 1 }));
+  server.sheet = sheet;   // the server's view and the build fetch arrive after load
   for (const wc of [late, born, bare]) wc.update(1 / 30, { x: 0, z: 0, facing: 0 });
   assert.equal(late.hero().max, born.hero().max, 'the late hero is the one a sheeted-at-load hero is');
   assert.notEqual(late.hero().max, bare.hero().max, 'and not the bare one');

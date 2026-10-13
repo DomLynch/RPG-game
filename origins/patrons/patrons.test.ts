@@ -305,3 +305,9 @@ console.log(JSON.stringify({ venues: VENUES, dungeon: f('dungeon'), brawl: f('ta
     assert.deepEqual(JSON.parse(out.stdout.trim().split('\n').pop()!), { venues: ['origins-pve', 'arena', 'pvp', 'dungeon', 'tavern-brawl'], dungeon: 30, brawl: 0, arena: 0, unknown: 0, zeus: true });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('the perk budget and allegiance rules moved to allegiance-rules.json read back identical to the constants patrons.ts held in code (trunk 400202c51)', async () => {
+  const { createHash } = await import('node:crypto');
+  const { PERK_BUDGET_PERMILLE, RULES } = await import('./patrons.ts');
+  assert.equal(createHash('sha256').update(JSON.stringify({ PERK_BUDGET_PERMILLE, RULES })).digest('hex'), '75ea38302d6391a26647f395aa9d535abd16dd8c74e0e2b48b77c5732bb3ecc0');
+});
