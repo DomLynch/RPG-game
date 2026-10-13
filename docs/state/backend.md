@@ -5,6 +5,12 @@ Backend/Accounts lane; every migration from any lane gets this lane's "apply-rea
 that carries the client change, and this file is re-verified against the hosted project after each apply. Append new entries at the
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
+
+## 2026-10-13 (20:30 +04) — Lane runs on the Mac (~/Developer/frankendom-backend); 0030 applied
+**Lane home:** Dom's ruling via Lead: the VPS dev lane is retired; this lane runs in ~/Developer/frankendom-backend on the Mac. Heavy jobs and full suites still go to the VPS by ssh. **Live:** EF `b416d5c6d`.
+**Applied today:** migration 0030 `character_renown` = prod version **20261013162732** (Lead GO, Auditor PASS @9ca9b7e74, after 0031 = 20261013115716). Read-back: RLS on, no policy, 0 rows, no client grants, two security-definer fns executable by frankendom_origins and frankendom_verifier only. Local files renamed in #2523 (455e10cd3). Auditor POST requested.
+**Open:** #2557 `ed524f9ce` (world sheet, WSV 15; Combat #2587 is WSV 16 stacked on it; then World #2585, Combat #2584); #2586 `0cc644587` (shop economy; shard 5 was the missing tests/origins-server-shop-stock stub); #2542 (0031) merges first, then #2575; #2509 PASS; #2531 receipt refreshed at trunk b416d5c6d.
+
 ## 2026-10-11 (11:15 +04) — Core slice 1b + slice 2 (one career service, server side) + encounter cleanup, all LIVE
 **Live now:** trunk/release **BC f822c41aa** (#2179). Writer on **43a9d43c** (BA2) since 10:09:29 +04, NRestarts=0, closure parity 263/263; #2179 changes no writer file, so there was no reinstall. Last applied migration: **20261011060804 `career_service_rows`**. Writer rollback: `bash /root/backend-tools/apply-1880.sh --rollback e85f1683`.
 **Done today (receipts on the PRs):**
