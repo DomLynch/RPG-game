@@ -15,6 +15,7 @@ source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
 source scripts/lib/deploy-notes-only.sh
+source scripts/lib/node-pin.sh   # use_pinned_node: a unit suite on the Mac runs under NODE_PIN or not at all
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
 hf_cleanup() { node scripts/hf-cleanup.mjs || echo 'RED LINE: an HF job launched by this release may still be running (hf jobs ps)' >&2; }
@@ -132,6 +133,7 @@ elif [[ "$(notes_only_release "$(curl --fail --silent https://frankendom.com/rel
   npm run build
 elif [[ "$vps_unit" == ok ]]; then
   echo "unit suite trusted from a tree-bound receipt (VPS, Hugging Face or the CI unit-ci run); running typecheck:tests + quality:deploy (no local test:all)"
+  use_pinned_node || exit 1   # test:bot is a sim run: the receipt's node, not the Mac's default
   npm run typecheck:tests
   npm run test:bot   # not in quality:deploy; the receipt covers test:all only
   npm run quality:deploy
@@ -140,6 +142,7 @@ elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows
   # tests run with the daily full release, the same 24 h rule as the browser rows.
   echo "No green CI quality run for $revision; scoped release (last full run ${age}s ago): fast unit suite, test:all with the daily full run"
   # Separate lines: set -e does not stop on a failed non-final command of an && list (Auditor B1 on #1385).
+  use_pinned_node || exit 1
   npm run typecheck:tests
   npm test
   npm run quality:deploy
@@ -148,6 +151,7 @@ elif [[ "${DEPLOY_SCOPE:-changed}" != full ]] && age=$(node scripts/release-rows
   export DEPLOY_FAST_GATE=1
 else
   echo "No green CI quality run found for $revision; running the full quality gate"
+  use_pinned_node || exit 1
   npm run quality
 fi
 # Checks CI already proved for this exact revision (green release-checks job + receipt artifact) are skipped here;
