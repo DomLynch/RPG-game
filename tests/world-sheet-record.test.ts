@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { RECORD_VERSION } from '../src/fight/record.ts';
-import { RULES, DEFAULT_WEAPON } from '../src/fight/moves.ts';
+import { RULES, DEFAULT_WEAPON, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { verifyWorldRecord } from '../origins/server/world-verify.ts';
 
 const hero = { level: 1, attack: 1, res: 1, weapon: DEFAULT_WEAPON, health: RULES.health, stamina: 100, posture: 0, exhausted: false };
@@ -27,6 +27,15 @@ test('a record whose sheet is not the sheet the server expects is refused, an eq
   assert.deepEqual(none, { ok: false, reason: 'sheet' }, 'a record that claims less than the build holds is also not the expected sheet');
   const equal = await verifyWorldRecord(await text({ attack: 10 }), SPAWN, 'wolf', { sheet: { attack: 10 } } as never);
   assert.notEqual((equal as { reason?: string }).reason, 'sheet');
+});
+
+test('a record whose weapon is not the character\'s held weapon is refused, the held one is not', async () => {
+  const other = PLAYER_WEAPONS.find((w) => w !== DEFAULT_WEAPON);
+  assert.ok(other, 'a second player weapon exists');
+  const text = (weapon: string) => encodeWorldRecord(rec({ weapon }));
+  assert.deepEqual(await verifyWorldRecord(await text(other), SPAWN, 'wolf', { weapon: DEFAULT_WEAPON }), { ok: false, reason: 'weapon' });
+  const held = await verifyWorldRecord(await text(DEFAULT_WEAPON), SPAWN, 'wolf', { weapon: DEFAULT_WEAPON });
+  assert.notEqual((held as { reason?: string }).reason, 'weapon');
 });
 
 test('the health bound widens to the sheet-sized maximum and no further', () => {
