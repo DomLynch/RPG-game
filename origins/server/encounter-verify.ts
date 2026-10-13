@@ -7,14 +7,12 @@
 // tests/world-fight-determinism.test.ts pins that a sparring Match (what the client runs) and initialPractice + stepPractice are the same fight tick for tick.
 // A mob layer (src/fight/mobkit.ts via src/core/world/kits.ts mobLayer, stepPractice's 4th argument, as Match.layer) is a style id the server holds; an unknown one is refused. Fail closed on anything this
 // build cannot step. A refusal is a normal loss, never a reward.
-import { initialPractice, stepPractice, underRecord, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
+import { initialPractice, stepPractice, underRecord, LEVELS, OPPONENTS, opponentAt, profileAt, type FightRecord, recordSpecials, STEP, type DuelPose, type Sheet, sheetRefusal, noTwist, stepTwist, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
 import { RANK_STEPS, TITLES } from '../../src/core/server.ts';
 import { mobLayer } from '../../src/core/server.ts';
 import { kitOfBuild, kitTag } from '../../src/core/server.ts';
 import { MOB_STYLES, type MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
-import { sheetRefusal } from '../../src/fight/replay.ts';
-import type { Sheet } from '../../src/fight/sheet-rows.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 // pose: the start pose the server issued at encounter_start (encounter-pose.ts, read back from the token), null for a pit-mark fight; the record must name exactly it.
