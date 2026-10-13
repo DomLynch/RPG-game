@@ -15,6 +15,7 @@ source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
 source scripts/lib/deploy-notes-only.sh
+source scripts/lib/writer-parity.sh   # writer_parity_gaps: the writer on the box must match the closure before the site moves
 source scripts/lib/node-pin.sh   # use_pinned_node: a unit suite on the Mac runs under NODE_PIN or not at all
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
@@ -187,6 +188,11 @@ release="/var/www/frankendom/releases/$revision"
 # Reuse one connection for mkdir, transfer and switch; bound failed connection attempts.
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=8 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/frankendom-ssh-%C -i "$key")
 printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
+# The writer replays the fight records the site produces: refuse to publish while the installed writer differs from this revision's closure (install it first:
+# ops/install-origins-writer.sh <revision> on the box; a revision with no writer change is byte-identical and passes with no install).
+deploy_step "writer parity"
+writer_gaps=$(node scripts/writer-closure-list.mjs | ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-origins/current")
+[[ -z "$writer_gaps" ]] || { echo "writer parity: the installed writer differs from $revision in: $(printf '%s' "$writer_gaps" | head -n 8 | tr '\n' ' ')- run ops/install-origins-writer.sh $revision on the box, then deploy again" >&2; exit 1; }
 # The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. The site only moves
 # forward (scripts/lib/deploy-lock.sh deploy_publish_order): a candidate live already contains, or one diverged from live, stops here.
 deploy_step "publish lock"
