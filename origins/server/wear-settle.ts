@@ -24,5 +24,5 @@ export async function killWearLines(db: Db, kill: { account: string; character: 
   const after = wearAfter(hit.kind.tier, piece, 'kill', biteRoll);
   if (after.worn === piece.worn) return [];
   const seq = (stored?.seq ?? 0) + 1;
-  return [{ op: 'event', event_id: `wear:${hit.id}:${seq}`, kind: 'metal', account: kill.account, character: kill.character, payload: { wear: { instance: hit.id, seq, ...after } } }];
+  return [{ op: 'event', event_id: `wear:${hit.id}:${seq}`, kind: 'metal', account: kill.account, character: kill.character, payload: { wear: { instance: hit.id, seq, worn: after.worn, max: after.max, baseMax: after.baseMax } } }]   // field by field: the stored row's own seq must not survive a spread;
 }
