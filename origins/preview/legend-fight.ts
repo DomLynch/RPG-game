@@ -9,7 +9,7 @@ import type { Fight, Settled } from './encounter-net.ts';
 import type { MobSpec } from './mobs.ts';
 
 export type LegendNet = {
-  token(): string | null; character(): string | null;
+  token(): string | null; character(): string | null | Promise<string | null>;   // the character id may need a read first (main.ts characterFor)
   start(token: string | null, character: string, encounter: string): Promise<Fight | Offline>;
   settle(token: string | null, fight: string, record: FightRecord): Promise<Settled | Offline>;
 };
@@ -21,7 +21,7 @@ const offline = (r: unknown): r is Offline => typeof r === 'object' && r !== nul
 
 export async function beginLegendFight(spec: Pick<MobSpec, 'legend' | 'name'>, net: LegendNet): Promise<Begun> {
   if (!spec.legend) return { ok: false, say: 'That is no legend.' };
-  const token = net.token(), character = net.character();
+  const token = net.token(), character = await net.character();
   if (!token || !character) return { ok: false, say: `Sign in to fight ${spec.name}: a legend's spell is earned on a verified win.` };
   const got = await net.start(token, character, bossFightId(spec.legend));
   if (offline(got)) return { ok: false, say: `${spec.name} cannot be fought right now. Try again in a moment.` };

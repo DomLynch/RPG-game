@@ -47,7 +47,7 @@ test('a guest, an offline page, a refusal and a non-legend start nothing: each i
 });
 
 test('finishLegendFight posts the record; only a verified win says the spell is taken; a loss, an unverified win, an offline post and a missing record each say the truth', async () => {
-  const begun = { ok: true as const, token: 'tok-1', duel: (await beginLegendFight(kobold, net()) as { duel: never }).duel };
+  const begun = { ok: true as const, token: 'tok-1', duel: (await beginLegendFight(kobold, net()) as unknown as { duel: never }).duel };
   const record = { v: 1 } as never, n = net();
   assert.match((await finishLegendFight(kobold, begun, record, n))!, /spell is yours/); assert.deepEqual(n.calls, ['settle tok-1']);
   assert.match((await finishLegendFight(kobold, begun, record, net({ settle: async () => ({ result: 'won', verified: false, twist: null, ticks: 1, event: 'e' }) })))!, /no spell/);
