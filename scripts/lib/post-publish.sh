@@ -10,8 +10,11 @@ post_publish_rows() {
   if RELEASE_CHECKS_ONLY="$rows" RELEASE_CHECKS_DEFERRED="" RELEASE_CHECKS_SKIP="" RELEASE_CHECKS_OUT_OF_SCOPE="" \
       RELEASE_CHECKS_RECEIPT=artifacts/post-publish-rows.json RELEASE_CHECKS_LOG_DIR=artifacts/post-publish-rows bash -c "${POST_PUBLISH_RUN:-node scripts/release-checks.mjs}"; then
     echo "post-publish rows $rows passed for $rev"
+    # The pre-publish run was full but for these rows (release-checks.mjs left artifacts/pending-full-release.json): they passed, so it counts as a full run now.
+    node -e 'const fs=require("fs");const [pending,full,rev]=process.argv.slice(1);try{if(JSON.parse(fs.readFileSync(pending,"utf8")).revision===rev){fs.renameSync(pending,full);console.log("full-run stamp promoted for "+rev)}}catch{}' artifacts/pending-full-release.json artifacts/last-full-release.json "$rev"
     return 0
   fi
+  rm -f artifacts/pending-full-release.json   # a failed post-publish row never makes the run full
   echo "RED: post-publish rows $rows FAILED for the LIVE release $rev: the release stays live, the next publish is held until a person looks (logs: artifacts/post-publish-rows)" >&2
   [[ -e "$hold" ]] || printf 'post-publish rows failed for a live release; remove this file after looking\nrows %s revision %s at %s\n' "$rows" "$rev" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$hold"
   return 1

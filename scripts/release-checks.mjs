@@ -166,5 +166,9 @@ writeFileSync(receipt, JSON.stringify({ revision, passed: true, checks: commands
 // deploy.sh scopes later releases to a few rows for 24 h after it (Auditor S3 on #1381). The stamp is about the rows: a run of
 // every row behind the fast unit gate (DEPLOY_FAST_GATE, slow tests skipped) is still full, and says so in the stamp (Lead
 // 2026-10-06: a 51/51 run was never stamped, so the daily full stayed due; this replaces Auditor S1 on #1385).
-if (!outOfScope.size && !deferred.size && !only.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), JSON.stringify({ revision, at: new Date().toISOString(), fast_gate: Boolean(process.env.DEPLOY_FAST_GATE) }) + '\n');
+const stamp = JSON.stringify({ revision, at: new Date().toISOString(), fast_gate: Boolean(process.env.DEPLOY_FAST_GATE) }) + '\n';
+if (!outOfScope.size && !deferred.size && !only.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), stamp);
+// A run that was full but for the deferred (post-publish) rows leaves a PENDING stamp: post_publish_rows promotes it to the full stamp only when those rows pass on the live release,
+// so deploy_scope_apply's 24 h full-run clock keeps being reset and every release does not fall back to all 48 Mac rows (Auditor, #2500).
+else if (deferred.size && !outOfScope.size && !only.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'pending-full-release.json'), stamp);
 console.log(`Release checks passed for ${revision}`);

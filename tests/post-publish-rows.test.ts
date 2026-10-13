@@ -3,7 +3,7 @@
 // exit 1 (the release train stops and keeps its hold) and a deploy_hold for the next publish, never a silent pass.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -55,6 +55,8 @@ test('release-checks.mjs: a deferred row does not run, is recorded as deferred, 
     const receipt = JSON.parse(readFileSync(join(root, 'artifacts', 'release-checks.json'), 'utf8'));
     assert.equal(receipt.checks_detail.find((c: { index: number }) => c.index === 2).deferred, true);
     assert.ok(!existsSync(join(root, 'artifacts', 'last-full-release.json')), 'a run with a deferred row is not a full run');
+    const pending = JSON.parse(readFileSync(join(root, 'artifacts', 'pending-full-release.json'), 'utf8'));
+    assert.equal(pending.revision, execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), 'a PENDING stamp waits for the post-publish rows');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -97,6 +99,35 @@ test('post_publish_rows: a failing row is a RED line, returns 1 and writes deplo
     writeFileSync(hold, '4242\n');
     lib(root, '9,46', 'exit 3', hold);
     assert.equal(readFileSync(hold, 'utf8'), '4242\n');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_rows: the pending full-run stamp is PROMOTED when the rows pass, and only for its own revision', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-lib-')), hold = join(root, 'deploy_hold');
+  try {
+    mkdirSync(join(root, 'artifacts'));
+    writeFileSync(join(root, 'artifacts', 'pending-full-release.json'), JSON.stringify({ revision: 'abc123', at: 'now', fast_gate: false }) + '\n');
+    const other = lib(root, '9,46', 'true', hold).stdout;
+    assert.ok(existsSync(join(root, 'artifacts', 'last-full-release.json')), other);
+    assert.equal(JSON.parse(readFileSync(join(root, 'artifacts', 'last-full-release.json'), 'utf8')).revision, 'abc123');
+    assert.ok(!existsSync(join(root, 'artifacts', 'pending-full-release.json')));
+    assert.match(other, /full-run stamp promoted for abc123/);
+    // another revision's pending stamp is left alone and never promoted
+    rmSync(join(root, 'artifacts', 'last-full-release.json'));
+    writeFileSync(join(root, 'artifacts', 'pending-full-release.json'), JSON.stringify({ revision: 'zzz999' }) + '\n');
+    lib(root, '9,46', 'true', hold);
+    assert.ok(!existsSync(join(root, 'artifacts', 'last-full-release.json')) && existsSync(join(root, 'artifacts', 'pending-full-release.json')));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_rows: a failing row does NOT promote the pending stamp (and drops it)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-lib-')), hold = join(root, 'deploy_hold');
+  try {
+    mkdirSync(join(root, 'artifacts'));
+    writeFileSync(join(root, 'artifacts', 'pending-full-release.json'), JSON.stringify({ revision: 'abc123' }) + '\n');
+    assert.equal(lib(root, '9,46', 'exit 3', hold).status, 1);
+    assert.ok(!existsSync(join(root, 'artifacts', 'last-full-release.json')), 'no full stamp');
+    assert.ok(!existsSync(join(root, 'artifacts', 'pending-full-release.json')), 'the pending stamp is dropped');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
