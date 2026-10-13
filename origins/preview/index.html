@@ -26,6 +26,7 @@
     #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #walk-board { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    body.kit #walk-board { display: none; }   /* the daily board is a ☰ Settings entry in the kit, like the Journal (main.ts menu-board) */
     #allegiance:not([hidden]) ~ #walk-board { top: calc(env(safe-area-inset-top) + var(--gap-s) + 2 * (var(--tap) + var(--gap-xs))); }   /* the Allegiance button holds the second slot while it is up */
     .board-dialog { touch-action: pan-y; box-sizing: border-box; width: min(var(--panel-w), 100vw - 2 * var(--gap-s)); max-height: calc(100dvh - 2 * var(--gap-s)); margin: auto; padding: 18px var(--gap-m) var(--gap-m); overflow-y: auto; border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); -webkit-user-select: none; user-select: none; }
     .board-dialog::backdrop { background: var(--c-shade); }
@@ -74,7 +75,7 @@
     body.infight #hud { visibility: hidden; }   /* the foe card (name + bars) draws at the top-left of a world fight, over the zone header: hide the header's text; visibility keeps its height, so --hud-bottom and the player's bars stay where they were (Deploy's live Metal stills, 2026-10-08) */
     body.infight #hint, body.infight #creature-card { display: none; }   /* ?worldfight: at fight-camera distance they covered the foe from head to waist; the duel's own name line stays */
     body.kit #move-stick, body.kit #look-stick { display: none; }
-    body.kit #walk-journal, body.kit #allegiance, body.kit #walk-board { display: none; }   /* the main screen is the combat HUD and the ☰ only: Journal is a button in the ☰'s Settings */
+    body.kit #walk-journal, body.kit #allegiance { display: none; }   /* the main screen is the combat HUD and the ☰ only: Journal is a button in the ☰'s Settings */
     /* A phone on its side (Dom, 2026-10-10: ☰ on SKILL, the card across the fight, the bars under the stick): the header text is one short strip, the help line is gone, the card is one clipped line, and the ☰ steps in
        from the right edge to sit clear of the SKILL column (which rises to the top on a short screen). Measured by scripts/landscape-check.mjs in portrait, landscape (812x375, 844x340) and iPad. */
     @media (orientation: landscape) and (max-height: 520px) {
