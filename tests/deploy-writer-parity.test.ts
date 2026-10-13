@@ -23,10 +23,14 @@ test('writer_parity_gaps: identical -> nothing; a differing file and a missing f
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('deploy.sh: the parity check sits before the publish lock and refuses to publish on any gap', () => {
+test('deploy.sh: the writer installs inside the publish window just before the site switch, and parity is checked after the switch and before Published', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
-  const at = deploy.indexOf('deploy_step "writer parity"');
-  assert.ok(at > 0 && at < deploy.indexOf('deploy_step "publish lock"'));
+  const lock = deploy.indexOf('deploy_step "publish lock"'), install = deploy.indexOf('deploy_step "writer install"');
+  const sw = deploy.indexOf('mv -Tf next current'), gate = deploy.indexOf('writer_parity_gaps /opt/frankendom-origins/current'), published = deploy.indexOf("printf '\\nPublished");
+  assert.ok(lock > 0 && lock < install && install < sw, 'install after the publish lock, before the switch');
+  assert.ok(sw < gate && gate < published, 'parity after the switch, before Published');
   assert.match(deploy, /source scripts\/lib\/writer-parity\.sh/);
-  assert.match(deploy.slice(at, at + 1500), /\[\[ -z "\$writer_gaps" \]\] \|\| \{[^}]*exit 1/);
+  assert.match(deploy.slice(install, sw), /install-origins-writer\.sh --if-changed '\$revision'/);
+  assert.match(deploy.slice(install, sw), /\|\| \{[^}]*the site has not moved[^}]*exit 1/);
+  assert.match(deploy.slice(gate, published), /\[\[ -z "\$writer_gaps" \]\] \|\| \{[^}]*exit 1/);
 });
