@@ -1,7 +1,8 @@
 // A record's spell block ({ id, skill }, one per record) is the client's claim; the server holds the two things that can vouch for it. The spell must be in the account's grimoire (migration 0027,
 // the spell-taken ledger), and the skill the record fought with must not pass the character's stored skill in the spell's school: SKILL.base + min(placed points, banked xp / XP_PER_POINT).
 // Both are read at settle, before this settle's own practice and spell lines apply (frozen the way worn gear is). A failed check is a lost record that pays nothing.
-import { SHEET_SKILLS, SPELL_SCHOOL } from '../../src/fight/server.ts';
+import { SHEET_SKILLS } from '../../src/fight/server.ts';
+import { SPELL_SCHOOL } from '../../src/fight/boss-spells.ts';   // server code only: server.ts no longer re-exports the 700-spell catalogue (it kept it out of the entry bundle)
 import type { Db } from './db.ts';
 import { XP_PER_POINT } from './practice.ts';
 import * as store from './store.ts';

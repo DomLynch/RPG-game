@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SPELL_SCHOOL, SPELL_BRICKS } from '../../src/fight/server.ts';
+import { SPELL_SCHOOL, SPELL_BRICKS } from '../../src/fight/boss-spells.ts';
 import { ACCOUNT, CHAR, fakeDb } from './encounter-fixtures.ts';
 import { checkSpell, expectedSpell } from './spell-check.ts';
 
