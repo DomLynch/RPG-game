@@ -19,6 +19,7 @@ import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
+import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
@@ -168,7 +169,7 @@ const measureHud = () => {
   labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.fm-meters')?.getBoundingClientRect().bottom ?? 0));   // the shared meters sit under the HUD stack (meters.css)
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
-const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, loadZone().spawns.rows, () => careerLine(session.career).level);
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level);
 let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
