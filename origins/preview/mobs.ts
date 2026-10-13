@@ -18,6 +18,7 @@ import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './fr
 export type MobSpec = {
   id: string; character: string; name: string; encounter: EncounterId | null; body: string; level: number;
   zone: string; spawn: string; home: Pos; roam: number; aggro: number; named: boolean;
+  legend?: string;   // a legend boss (origins/preview/legend-mobs.ts): drawn like any creature but fought through the verified encounter path (boss:<legend>), never the open world loop
 };
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zone-rows/zone1.row.json (spawns). Named creatures keep these:

@@ -5,8 +5,10 @@ import type { MobRow } from '../../src/core/index.ts';
 import type { MobSpec } from './mobs.ts';
 
 type Seen = { id: string; x: number; z: number; mode: string };
-// Pure pick: the nearest creature in `aggro` mode, or null. `seen` is what mobs-view.debug() reports.
-export function nearestNoticing(seen: readonly Seen[], hero: { x: number; z: number }): Seen | null {
+// Pure pick: the nearest creature in `aggro` mode, or null. `seen` is what mobs-view.debug() reports. `focus` (a tapped legend, which stands still and never
+// notices) wins while it is in the list.
+export function nearestNoticing(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null): Seen | null {
+  const f = focus ? seen.find((m) => m.id === focus) : undefined; if (f) return f;
   let best: Seen | null = null, bd = Infinity;
   for (const m of seen) if (m.mode === 'aggro') { const d = Math.hypot(m.x - hero.x, m.z - hero.z); if (d < bd) { bd = d; best = m; } }
   return best;
@@ -20,8 +22,8 @@ export function createCreatureCard(el: HTMLElement, specs: readonly MobSpec[], r
   let shown = '';
   return {
     // Called a few times a second, not every frame (debug() builds a list).
-    update(seen: readonly Seen[], hero: { x: number; z: number }): string | null {
-      const m = nearestNoticing(seen, hero), spec = m && byId.get(m.id);
+    update(seen: readonly Seen[], hero: { x: number; z: number }, focus?: string | null): string | null {
+      const m = nearestNoticing(seen, hero, focus), spec = m && byId.get(m.id);
       if (!spec) { if (shown) { el.hidden = true; shown = ''; } return null; }
       if (shown !== spec.id) {
         const info = creatureInfo(spec, rows.find((r) => r.id === spec.character), heroLevel(), rows), [a, b, c] = cardLines(info);

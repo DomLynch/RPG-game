@@ -1,3 +1,7 @@
 {
-  "spawns": {}
+  "spawns": {
+    "kobold-ash-pits":      {"order": 1, "legend": "kobold",         "zone": "cinder-fields", "at": "ash-pits"},
+    "bedivere-hold-road":   {"order": 2, "legend": "bedivere",       "zone": "cinder-fields", "at": "hold-road"},
+    "shipton-reach-cairn":  {"order": 3, "legend": "mother-shipton", "zone": "ash-reach",     "at": "reach-cairn", "dx": 4, "dz": -3}
+  }
 }

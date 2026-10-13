@@ -11,6 +11,7 @@ import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
+import { legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
@@ -71,7 +72,7 @@ const WARM_BOUND_MS = 4000;   // a body kind is revealed after this long even if
 const HIT = { common: 1.5, named: 1.9 };   // m: the tap sphere's radius round a creature's chest
 
 export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build, opts: { phone: boolean; onCut?: (id: string, at: THREE.Vector3, from: { x: number; z: number }) => void; groundAt?: (x: number, z: number) => number; renderer?: THREE.WebGLRenderer; after?: Promise<unknown>; camera?: THREE.Camera }): Mobs {
-  const specs = mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
+  const specs = [...mobSpecs(frontier, build, previewRows(location.search, pageSignedIn())), ...legendSpecs(frontier)], zones = new Map(frontier.zones.map((z) => [z.zone, z])), stands = specs.map((s) => mobStand(build, zones.get(s.zone)!));
   const mobs: Mob[] = specs.map((s, i) => newMob(s, i)), views = new Map<number, View>(), bodies = new Map<string, Body>(), alerted = new Set<number>();
   const cap = opts.phone ? 4 : TUNING.cap, fetchRange = opts.phone ? FETCH_RANGE_PHONE : FETCH_RANGE;   // a phone draws fewer skinned bodies at once
   const root = new THREE.Group(); root.name = 'frontier-mobs'; scene.add(root);
@@ -165,7 +166,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   return {
     update(dt, hero, hideLabel) {
       lastHero = hero; zoneFinisher.update(dt);
-      mobs.forEach((m, i) => { const d = driven.get(i); mobs[i] = d ? { ...m, x: d.x, z: d.z, facing: d.facing, mode: d.moving ? 'wander' : 'aggro' } : stepMob(m, specs[i]!, hero, dt, stands[i]!); });
+      mobs.forEach((m, i) => { const d = driven.get(i); mobs[i] = d ? { ...m, x: d.x, z: d.z, facing: d.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? m : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss stands where it is placed (it never wanders or chases: the player walks up and taps it)
       for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); } else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
@@ -227,7 +228,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= within && (!best || d < best.dist)) best = { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }; }
       return best;
     },
-    within(x, z, r) { const out: MobPick[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }); } return out; },
+    within(x, z, r) { const out: MobPick[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r && !specs[i]!.legend) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }); } return out; },
     drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else driven.delete(i); },
     anchorOf(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 ? null : views.get(i)?.model ?? null; },
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },

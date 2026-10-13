@@ -19,6 +19,7 @@ import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
+import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
@@ -40,6 +41,8 @@ import { ME, createFollowCamera, pickFraming, type Passage, type Presets, create
 import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
+import { startFight as startEncounter, settleFight as settleEncounter } from './encounter-net.ts';
+import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -166,8 +169,8 @@ const measureHud = () => {
   labelFloor = Math.max(bottom, Math.ceil(document.querySelector('.fm-meters')?.getBoundingClientRect().bottom ?? 0));   // the shared meters sit under the HUD stack (meters.css)
 };
 const hudWatch = new ResizeObserver(measureHud); hudWatch.observe(document.getElementById('hud')!);
-const creatureCard = createCreatureCard(document.getElementById('creature-card')!, mobSpecList, loadZone().spawns.rows, () => careerLine(session.career).level);
-let cardClock = 0, cardId: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
+const creatureCard = createCreatureCard(document.getElementById('creature-card')!, [...mobSpecList, ...(frontier ? legendSpecs(frontier) : [])], loadZone().spawns.rows, () => careerLine(session.career).level);
+let cardClock = 0, cardId: string | null = null, legendFocus: string | null = null, hintMoved = false;   // the first-load hint is spent once a thumb has moved; the Journal hides it while open and gives it back after, unless spent
 if (frontier) hint.textContent = 'Left stick walks. Push to the edge to run. Creatures stop and watch when you come near.';
 // Two sticks: the left half of the screen walks, the right half looks (sticks.ts). Each is a floating pad anchored where its thumb lands, tracked
 // by its own pointer id so both thumbs work at once; the rings rest at the bottom corners and move to the thumb while it is down.
@@ -303,7 +306,7 @@ function step(dt: number) {
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
-  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; cardId = creatureCard.update((mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, state); } }
+  if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = (mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, f = seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus); } } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
@@ -500,6 +503,21 @@ function settleFight(finish: Finished) {
   const after = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins);
   return { next: after?.legend && duel ? duel.legendName(after.opponent, after.level) : undefined };
 }
+// A legend boss (origins/preview/legend-mobs.ts): a tap within LEGEND_REACH asks the server for `boss:<legend>` (encounter_start), plays the duel on the server's seed with a record, and posts the record
+// to encounter_settle; a verified win takes the legend's spell (origins/server/grimoire.ts). A guest or an offline page is told to sign in / try again and nothing starts.
+const LEGEND_REACH = 6;
+const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
+async function legendFight(spec: MobSpec) {
+  if (fighting || duelFailed) return;
+  const begun = await beginLegendFight(spec, legendNet);
+  if (!begun.ok) { say(begun.say); return; }
+  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name} — a legend`;
+  openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
+  renderer.setAnimationLoop(null);
+  try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
+  if (!fighting) return;
+  duel.openDuel(duelLayer, begun.duel as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
+}
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
   if (!fighting) return;
@@ -548,6 +566,7 @@ canvas.addEventListener('pointerup', (e) => {
 });
 addEventListener('pointercancel', (e) => taps.delete(e.pointerId));
 function engage(spec: MobSpec, x: number, z: number) {
+  if (spec.legend) { legendFocus = spec.id; if (Math.hypot(x - state.x, z - state.z) > LEGEND_REACH) say(`${spec.name} is a legend: walk closer, then tap.`); else void legendFight(spec); return; }   // a legend boss is fought on the verified encounter path, never the open loop
   if (Math.hypot(x - state.x, z - state.z) > 3.5) say(`${spec.name} is too far off: walk closer, then press an attack.`); else wc.press();   // Zone 1's own combat: a tap on a creature in reach is a cut
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
