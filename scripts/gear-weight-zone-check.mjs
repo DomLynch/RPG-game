@@ -53,5 +53,5 @@ try {
   assert.deepEqual((await read()).clipped, [], 'nothing clips');
   await page.screenshot({ path: `${dir}/weight-fitting.png` });
   passed = true;
-} finally { console.log(JSON.stringify({ passed, engine: ENGINE })); await browser.close(); server.httpServer.close(); }
+} finally { console.log(JSON.stringify({ passed, engine: ENGINE })); await browser.close(); server.close(); }
 process.exitCode = passed ? 0 : 1;
