@@ -9,7 +9,6 @@ import { PLAYER_WEAPONS, DEFAULT_WEAPON, DAY_ONE_SKILL, SKILL_ROWS, isSkillId, t
 export { DAY_ONE_SKILL, isSkillId };
 import { ROSTER, isOpponentId, type OpponentId } from '../roster.ts';
 import { PORTRAIT_KEYS, isLegendOpponent, legendAt, portraitKey, rungOf } from '../legends.ts';
-import { SPELL_OF_LEGEND, legendIdFor } from '../fight/spell-legends.ts';
 
 export const ARMOUR_SLOTS = ['Helmet', 'Crest', 'Body', 'Arms', 'Gloves', 'Greaves', 'Boots', 'Shield'] as const;   // loot.glb's slots (userData.slot)
 // A fallen opponent's weapon is takeable (owner, 2026-09-22: "any item can be taken, armour or weapon"): the slot is the weapon's name, the id `<opponent>.<Weapon>`.
@@ -33,7 +32,8 @@ export type LootId = `${OpponentId}.${LootSlot}`;
 // opponent's finish at every rung). Gear stats come from the server award, never from this field. Absent (every piece taken before it existed) = Recruit.
 export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: number; recordId: string | null; day: string; tier?: number; legendId?: string };
 // `legendId` (Lead 2026-10-13, the grimoire): the legend actually fought = its spell row's id without `spell:` ("alvis"), the key Backend's grimoire grants by, resolved through the catalogue (spell-legends.ts legendIdFor),
-// never built from a string. Written by killAt only when the catalogue has a spell for the opponent at that rung; a value that names no spell row is dropped on load, the kill kept.
+// never built from a string. The page resolves it (main.ts: the catalogue is a lazy chunk, not in the entry bundle) and passes it to killAt, which only writes it; a value that is not an id shape is dropped on
+// load, the kill kept (Backend grants by the catalogue's own rows, so a made-up id grants nothing).
 // `declined`: a kill that was offered gear and refused (the lead's shape, 2026-09-22 — the kill recorded with the take omitted, so the
 // journal and a replay agree on "offered and refused" without a second source of truth). Newest last, the last 50 kept.
 // `defeats` (Strategy 2026-09-30, the Pit's skull wall): every legend this fighter has beaten, as portrait keys `<opponent>-<rank>`
@@ -180,7 +180,7 @@ export function cleanProvenance(value: unknown): Provenance | null {
   const p = value as Partial<Provenance> | null;
   if (!p || typeof p !== 'object' || !isOpponentId(p.opponent) || !Number.isSafeInteger(p.attempt) || p.attempt! < 1 || !Number.isSafeInteger(p.healthLeft) || p.healthLeft! < 0 || p.healthLeft! > 1000
     || !(p.recordId === null || (typeof p.recordId === 'string' && SHORT_ID.test(p.recordId))) || typeof p.day !== 'string' || !DAY.test(p.day)) return null;
-  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day, ...(Number.isSafeInteger(p.tier) && p.tier! >= 1 && p.tier! <= TITLES.length ? { tier: p.tier } : {}), ...(typeof p.legendId === 'string' && Object.hasOwn(SPELL_OF_LEGEND, p.legendId) ? { legendId: p.legendId } : {}) };
+  return { opponent: p.opponent, attempt: p.attempt!, healthLeft: p.healthLeft!, recordId: p.recordId ?? null, day: p.day, ...(Number.isSafeInteger(p.tier) && p.tier! >= 1 && p.tier! <= TITLES.length ? { tier: p.tier } : {}), ...(typeof p.legendId === 'string' && LEGEND_ID.test(p.legendId) ? { legendId: p.legendId } : {}) };
 }
 export const emptyLoot = (): Loot => ({ owned: [], equipped: {} });
 // A loot record worth keeping on a profile: anything owned, refused, a move, or a beaten legend (a win with no take is still a skull).
@@ -193,8 +193,8 @@ export const defeat = (loot: Loot | undefined, id: OpponentId, level: number): L
 };
 // A career kill's provenance, for a take or a refusal: tier = the rung of the level fought (the dial), the same rung defeat() keys the
 // skull by, so the backfill in cleanLoot can never add a second skull for one win (Lead 2026-09-30).
-const legendKey = (opponent: OpponentId, rung: number): { legendId?: string } => { const legendId = legendIdFor(opponent, rung); return legendId ? { legendId } : {}; };
-export const killAt = (opponent: OpponentId, level: number, attempt: number, healthLeft: number, day: string): Provenance => ({ opponent, attempt, healthLeft, recordId: null, day, tier: rungOf(level), ...legendKey(opponent, rungOf(level)) });
+const LEGEND_ID = /^[a-z][a-z0-9_.:-]{0,63}$/;   // a spell id without `spell:` (Backend's legendOfFight shape)
+export const killAt = (opponent: OpponentId, level: number, attempt: number, healthLeft: number, day: string, legendId?: string): Provenance => ({ opponent, attempt, healthLeft, recordId: null, day, tier: rungOf(level), ...(legendId && LEGEND_ID.test(legendId) ? { legendId } : {}) });
 // The kill where the player left the gear: the same fight fields a take would carry, with no piece.
 export const decline = (loot: Loot | undefined, kill: Provenance): Loot => { const l = loot ?? emptyLoot(); return { ...l, declined: [...(l.declined ?? []), kill].slice(-DECLINED_KEPT) }; };
 // A new piece joins the rack with its provenance; a piece already owned is left exactly as it was (written once).

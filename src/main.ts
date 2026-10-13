@@ -25,7 +25,7 @@ import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile
 import { fightLevel, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, mountCareer, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
-import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungTopLevel } from './legends.ts';
+import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungOf, rungTopLevel } from './legends.ts';
 import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './core/index.ts';
 import { createLootPanel } from './core/index.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
@@ -180,7 +180,7 @@ function offerLoot(healthLeft: number) {
     // (the lead's caution, 2026-09-22). The decline list is untouched by a take, so an undone take leaves no trace at all.
     const before = profile.loot;
     holdCloud(before);
-    profile.loot = store(profile.loot, id, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10)));
+    profile.loot = store(profile.loot, id, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10), legendIdNow()));
     match.lastDrop = id; setLoot(wearTaken(profile.loot, id));   // the piece it replaces goes into the pack when there is room
     clearTimeout(lootLineTimer);
     lootPanel.confirm(`${takeName(id)[0]!.toUpperCase()}${takeName(id).slice(1)} is on you.`, () => {
@@ -209,7 +209,7 @@ function offerLoot(healthLeft: number) {
   lootPanel.show({ eyebrow: `Won at ${won.title} ${won.numeral}`.trim(), offer, name: shown.name, image: shown.image, ...(worn && isLootId(offer) ? { compare: { slot: slotOf(offer), held: { name: pieceName(worn), image: lootThumb(worn) } } } : {}) }, pieces, {
     onTake: (id: string) => take(id),
     // A refused kill records the tier a take records (loot.ts killAt: the fight's rung), so it still backfills its skull (loot.ts defeats).
-    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10))); persist(); lootPanel.hide(); void settleClaim(null); },
+    onDecline: () => { clearTimeout(lootLineTimer); profile.loot = decline(profile.loot, killAt(opponent.id, match.level, attempt, healthLeft, new Date().toISOString().slice(0, 10), legendIdNow())); persist(); lootPanel.hide(); void settleClaim(null); },
   });
 }
 // Loot on the rig and in the journal (brief 5): the equipped set is the profile's word (src/core/loot.ts); the scene wears it (view.wear), the
@@ -408,6 +408,12 @@ const rankLevel = () => fightLevel(profile.dial, careerMarks());
 // The stored build this player's career records name (character id + build version); asked once from the writer, only when gear counts in fights (gear-numbers.ts GEAR_IN_FIGHTS).
 let ownBuildRef: BuildRef | undefined;
 if (GEAR_IN_FIGHTS) void fetchBuildRef({ storage, search: typeof location !== 'undefined' ? location.search : '' }).then((ref) => { ownBuildRef = ref ?? undefined; });
+// The legend a kill names (Provenance.legendId = the spell id without `spell:`): the 700-row spell catalogue is NOT in the entry chunk (tests/spell-rows.test.ts walks the static imports). It loads
+// on idle after boot, long before a kill; a kill before it lands (offline, chunk error) simply names no legend. killAt only writes the id it is given.
+let legendIndex: typeof import('./fight/spell-legends.ts') | undefined;
+const loadLegendIndex = () => import('./fight/spell-legends.ts').then((m) => { legendIndex = m; }).catch(() => undefined);
+if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void loadLegendIndex(), { timeout: 10000 }); else setTimeout(() => void loadLegendIndex(), 3000);
+const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => sheetOfLoot(profile.loot, buildOf(profile)), buildRef: () => ownBuildRef } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
