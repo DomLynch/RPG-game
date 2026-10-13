@@ -190,3 +190,36 @@ test('post_publish_rows: the rollback may be a shell function of the caller (dep
     assert.ok(existsSync(hold));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// EB drill 2026-10-13: after ROLLED BACK, rows 9,46 still ran against the rolled-back sha and printed "the release is live".
+const afterRollback = (root: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_rows abc123 44 "true" || true; post_publish_rows abc123 9,46; echo "second=$?"`], {
+  encoding: 'utf8', cwd: root, env: { ...process.env, POST_PUBLISH_RUN: `echo ran >> ${join(root, 'ran')}; [ -e ${join(root, 'first-done')} ] || { touch ${join(root, 'first-done')}; exit 3; }`, DEPLOY_HOLD_FILE: join(root, 'deploy_hold') },
+});
+
+test('post_publish_rows: once a rollback ran, no later row starts and none says "live" for the rolled-back sha (the EB drill replay)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-after-rb-'));
+  try {
+    const r = afterRollback(root);
+    assert.match(r.stderr, /ROLLED BACK: rows 44 failed for abc123/);
+    assert.equal(readFileSync(join(root, 'ran'), 'utf8').trim().split('\n').length, 1, 'only the first group ran');
+    assert.ok(!/post-publish rows 9,46 for abc123: running now, the release is live/.test(r.stdout), 'no "live" line for the rolled-back sha');
+    assert.match(r.stderr, /post-publish rows 9,46 SKIPPED for abc123: it was rolled back/);
+    assert.match(r.stdout, /second=1/, 'the skipped group still fails the run');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_rows: POST_PUBLISH_LIVE_CMD must name the row\'s target revision, else the rows do not start', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-live-'));
+  const run = (live: string, rowRun: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_rows abc123 9`], { encoding: 'utf8', cwd: root, env: { ...process.env, POST_PUBLISH_RUN: rowRun, POST_PUBLISH_LIVE_CMD: `echo ${live}`, DEPLOY_HOLD_FILE: join(root, 'h') } });
+  try {
+    assert.equal(run('abc123', 'true').status, 0);
+    const bad = run('other999', `touch ${join(root, 'ran')}`);
+    assert.equal(bad.status, 1);
+    assert.ok(!existsSync(join(root, 'ran')), 'the row did not start');
+    assert.match(bad.stderr, /live is other999, not abc123/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('deploy.sh: gives the post-publish rows the live-revision lookup', () => {
+  assert.match(readFileSync(join(process.cwd(), 'scripts/deploy.sh'), 'utf8'), /POST_PUBLISH_LIVE_CMD=.*release\.json/);
+});

@@ -73,10 +73,16 @@ function orphanCancel(c, rollup) {
     && String(v.conclusion).toUpperCase() === 'SUCCESS' && String(v.startedAt || '') > String(c.startedAt || ''));
 }
 
-/** A rollup is green when the deciding attempt of every check is (and an empty rollup is not), and a feature head carries its browser-rows status at SUCCESS. */
+/** A feature head needs its unit-ci/receipt and quality verdicts PRESENT and green at this head (Lead + Auditor on #2546): a push to a feature PR that is not
+ * labelled, or a run that only did the static job, leaves them missing or skipped, and a skipped job reads as green to checkGreen. No head ref (a caller that
+ * does not know it) and a release-* head are exempt here: a candidate is held to all three verdicts by missingRows. */
+export const featureReceiptsMissing = (rollup, headRef = '') => !!headRef && !/^release-/.test(headRef)
+  && receiptState(rollup, [['unit-ci', 'receipt'], ['quality', 'quality']]).state !== 'green';
+
+/** A rollup is green when the deciding attempt of every check is (and an empty rollup is not), a feature head carries its browser-rows status at SUCCESS, and its unit and quality verdicts are in. */
 export function checksGreen(rollup, headRef = '') {
   if (!Array.isArray(rollup) || !rollup.length) return false;
-  return decisiveChecks(rollup).every(checkGreen) && !browserRowsMissing(rollup, headRef);
+  return decisiveChecks(rollup).every(checkGreen) && !browserRowsMissing(rollup, headRef) && !featureReceiptsMissing(rollup, headRef);
 }
 
 /**
@@ -88,7 +94,7 @@ export function planTrain({ prs, order, inBase, trunk = TRUNK }) {
   const eligible = [], skipped = [];
   for (const p of prs) {
     if (!p.labels.includes(GO) || /^release-/.test(p.headRef)) continue;
-    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B or Deploy B) at its current head` }); continue; }
+    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B, Deploy B or Hooks) at its current head` }); continue; }
     if (!p.green) { skipped.push({ pr: p.number, why: 'checks not all green' }); continue; }
     if (inBase(p.head)) continue;   // already riding in the candidate we build on
     eligible.push(p);
