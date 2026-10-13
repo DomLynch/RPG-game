@@ -659,7 +659,7 @@ try {
     eq((await gd({ owned: ids.slice(0, 6), equipped: {} })).json.result?.imported.length, 0, 'gear_import: and a replay after that imports nothing');
     // gear_repair (migration 0032): the wear is the newest wear event, the price is the wear-repair rows', and bronze + grave iron + the new wear commit in ONE batch.
     {
-      const piece = psql(`select id from public.origins_items where loc_owner = '${cd}' and item like 'item:loot.goblin.%' and loc_kind in ('pack', 'bank') and retired_at is null order by id limit 1`);
+      const piece = psql(`select id from public.origins_items where loc_owner = '${cd}' and item ~ '^item:loot[.]goblin[.](Helmet|Body|Greaves|Arms|Gloves|Boots)$' and loc_kind in ('pack', 'bank') and retired_at is null order by id limit 1`);
       const item = psql(`select item from public.origins_items where id = '${piece}'`), kind = wearKindOf(item);
       const worn = { worn: 12, max: 40, baseMax: 40 }, cost = repairCost(kind.tier, worn, worn.worn, undefined, kind.slot), after = repairedPiece(worn);
       const wear = () => psql(`select coalesce(public.origins_item_wear('${D}', '${piece}')::text, 'none')`);
