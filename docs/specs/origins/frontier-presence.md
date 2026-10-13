@@ -57,4 +57,6 @@ Binary, little-endian, as v1. The subprotocol string is bumped; the server offer
 3. Web: v2 client, zone table fetch, `snap` handling.
 4. Flip `kill_report` and boss presence `refuseUnchecked` to strict once frontier poses are `checked` in production.
 
-**Not decided here (Lead):** per-zone speed numbers, which landmarks are portals, whether `quiet` zones exist at launch.
+**Ruled (Lead, 2026-10-13):** 1.0x speed in every zone at launch; portals are only the boat/gate landmarks `frontier-plan.ts` names; `quiet` = the Pit only.
+
+**Limits.** The v2 frame ends at +255 m (x or z). Anything east of that, or any layer wider than 655 m, needs a v3 frame.
