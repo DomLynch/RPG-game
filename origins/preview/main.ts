@@ -27,6 +27,8 @@ import { itemNamer } from './item-names.ts';
 import { mountRepair } from './repair-screen.ts';
 import { readWear, repairPiece, repairOp } from './repair-net.ts';
 import { chromeText as repairText } from './repair-view.ts';
+import { mountStats } from './stats-screen.ts';
+import { chromeText as statsText } from './stats-view.ts';
 import { REGION1_SHOPS, EXCHANGE_PROVISIONER } from '../region1/shops.ts';
 import { chromeText as shopText } from '../shops/shop-view.ts';
 import { mountShop } from './shop-screen.ts';
@@ -439,6 +441,9 @@ if (frontier) {
       const repairEntry = document.createElement('button'); repairEntry.id = 'menu-repair'; repairEntry.textContent = repairText('button');   // the smith: worn pieces and the writer's quote, one repair per click
       repairEntry.addEventListener('click', () => { menu.close(); void repairScreen.open(); });
       chips.append(repairEntry);
+      const statsEntry = document.createElement('button'); statsEntry.id = 'menu-stats'; statsEntry.textContent = statsText('button');   // the stats sheet, beside the Journal
+      statsEntry.addEventListener('click', () => { menu.close(); void statsScreen.open(); });
+      chips.append(statsEntry);
       const shopEntry = document.createElement('button'); shopEntry.id = 'menu-shop'; shopEntry.textContent = shopText('button');   // the Exchange provisioner: buy only, at the price the writer reports (shop_stock) through shop_buy
       shopEntry.addEventListener('click', () => { menu.close(); shopScreen.open(); });
       chips.append(shopEntry);
@@ -615,6 +620,11 @@ const repairScreen = mountRepair(document.getElementById('repair-dialog') as HTM
   nameOf: repairName,
   read: async () => { const character = await characterNow(); return character ? readWear(storedToken(storage, Date.now()), character, repairBase) : { offline: 'no-session' }; },
   repair: async (instance) => { const character = await characterNow(); return character ? repairPiece(storedToken(storage, Date.now()), character, instance, repairOp(instance, Date.now()), repairBase) : { offline: 'no-session' }; } });
+// The stats screen (origins/preview/stats-*.ts): the player's stored build (level, points placed) from the writer; the effective sheet (build plus worn gear) is shown only when the writer's sheet is supplied (the world sheet series), never guessed here.
+const statsScreen = mountStats(document.getElementById('stats-dialog') as HTMLDialogElement, async () => {
+  const own = await fetchOwnBuild({ storage, search: location.search });
+  return own ? { level: own.level, placed: own.placed } : { offline: storedToken(storage, Date.now()) ? 'unreadable' : 'no-session' };
+});
 // The shop screen (origins/shops): the rows as the writer reports them (shop_stock: the next unit's price with the zone tax, the account's stock, the restock time); a buy is one shop_buy op under a fresh op id, and the writer prices, stocks and gates it.
 const shopName = itemNamer(), shopBase = { base: writerBase(location.search) };
 const shopScreen = mountShop(document.getElementById('shop-dialog') as HTMLDialogElement, {
