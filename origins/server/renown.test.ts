@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import { titleGet } from './renown.ts';
-import { titleFor } from '../../src/fight/titles.ts';
+import { titleFor } from '../../src/fight/server.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const fakeDb = (row: string | null, installed = true): Db => ({

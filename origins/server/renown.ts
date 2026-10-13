@@ -1,5 +1,5 @@
 // POST /origins/title_get {character}: a character's fame (0..15000), karma (-15000..15000) and the title those two earn (Characters' title rows, src/fight/title-rows.json). Storage and read only; who awards either comes later.
-import { titleFor } from '../../src/fight/titles.ts';
+import { titleFor } from '../../src/fight/server.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
