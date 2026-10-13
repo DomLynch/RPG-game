@@ -1,5 +1,25 @@
 # Code quality lane (Auditor)
 
+## 2026-10-13 ~06:2xZ (10:2x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13d` (queue + heads), then `…-13c`
+
+**Live:** DN `2c5ccfe3a`. Parity: verifier 126/0/0. **The writer was stale on DM `ff15ed478`** (DN changed duel/record/detmath/stance/server + 3 stance files; the install was skipped); I caught it by content parity. Reinstalled 06:18:33Z, now **181/0/0 PASS** (#2473). Owed by Deploy: the refused-settle count for that window (query sent to Lead) and a fix for the install skip, with a test.
+**Released and parity PASS today:** DI `bac7e84f4`, DJ `51ec3081b`, DM `ff15ed478` (migrations 0025/0026/0027), DN. **0028** (writer role grants: live-ops kill switches, set_build/set_level and the mint-key check were all failing in prod) applied 05:24:18Z, confirmed by the writer log.
+**Passed:** #2456, #2458, #2462, #2463, #2465, #2468, #2471, #2472, #2325, and the DI/DJ/DM/DN candidates (PASS + `candidate:pass`).
+**Now:**
+1. **#2482 (max-parallel 40) is Dom's priority #1**: PASS the moment CI is green; its own cut, DP.
+2. DO #2486 contents OK (tree `15d145250`): PASS + `candidate:pass` on green.
+3. #2460 has a new head `e6d94c0dd`: read the delta, then PASS on green.
+4. PASS on green: #2484 (spell-bundle leak fix; build verified, entry −221 KB), #2479, #2474, #2469, #2478, #2480, #2481; #2467 only after #2484.
+
+**HOLD:** #2476 (receipt still fails open), #2475 (merge queue skips typecheck), #2477 (rebase onto #2469), #2485 (governor lever/budget).
+**Rules learned today:**
+- The writer flips only at publish.
+- A retargeted PR runs no unit-ci: toggle `auditor:ready`.
+- Parity is checked by content, never by directory name.
+- A shared-core barrel export pulls server data into the page bundle.
+
+**Session:** app worktree `laughing-bartik-0c0156`; reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-13 ~04:3xZ (08:3x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13b` (queue + heads), then `…-13a`
 
 **Live:** DG `11e966c34`. Parity PASS (by content) posted for each release tonight: DE2 `4337cfe9b` (#2411), DL `444c78ec4` (#2431), DF3 `d17d1c318` (#2438), DG `11e966c34` (#2443).
