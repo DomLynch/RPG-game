@@ -382,6 +382,14 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
     calls = 0; raycaster.intersectObjects([skin], false); assert.equal(calls, plainCalls, 'outside a pass nothing is cached: a later plain ray skins as before');
     // A second ray in the SAME pose (the kill frame fires several) skins nothing: the vertices are the first ray's, bit for bit.
     calls = 0; const again = surfaceHit(root, bones[0], out); assert.equal(calls, 0, 'the same pose in a new pass reads the memo'); assert.deepEqual(again?.point.toArray(), met.point.toArray(), 'and meets the same point');
+    // The invalidation side: ONE bit of one bone's world matrix, or of the bind matrix, and the memo misses (a stale vertex would glue a wound to where the body WAS).
+    const oneBit = (v: number) => { const f = new Float64Array([v]), u = new BigUint64Array(f.buffer); u[0] += 1n; return f[0]; };
+    const bone = bones[1].matrixWorld.elements, was = bone[12]; bone[12] = oneBit(was);
+    calls = 0; surfaceHit(root, bones[0], out); assert.ok(calls > 0, `a bone matrixWorld one bit off re-skins (${calls} calls)`); bone[12] = was;
+    calls = 0; surfaceHit(root, bones[0], out); assert.ok(calls > 0, 'and putting it back is a change again: the memo holds the last pose only');
+    calls = 0; surfaceHit(root, bones[0], out); assert.equal(calls, 0, 'then the same pose reads the memo again');
+    const bind = skin.bindMatrix.elements, bindWas = bind[12]; bind[12] = oneBit(bindWas);
+    calls = 0; surfaceHit(root, bones[0], out); assert.ok(calls > 0, `the bind matrix one bit off re-skins (${calls} calls)`); bind[12] = bindWas;
     // A new pass is a new pose: nothing memoised may survive from the last ray (a stale vertex would glue a wound to where the body WAS).
     bones[0].rotation.set(-.4, .3, -.5); bones[1].position.set(.04, -.02, .03); root.updateMatrixWorld(true);
     const moved = surfaceHit(root, bones[0], out), fresh = raycaster.intersectObjects([skin], false)[0];
