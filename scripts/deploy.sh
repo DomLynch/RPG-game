@@ -191,7 +191,9 @@ printf -v remote_shell '%q ' ssh "${ssh_options[@]}"
 # The writer replays the fight records the site produces: refuse to publish while the installed writer differs from this revision's closure (install it first:
 # ops/install-origins-writer.sh <revision> on the box; a revision with no writer change is byte-identical and passes with no install).
 deploy_step "writer parity"
-writer_gaps=$(node scripts/writer-closure-list.mjs | ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-origins/current")
+writer_files=$(node scripts/writer-closure-list.mjs --paths writer) && [[ -n "$writer_files" ]] || { echo 'writer parity: no writer closure list' >&2; exit 1; }
+writer_sums=$(while read -r f; do printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"; done <<<"$writer_files")
+writer_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-origins/current" <<<"$writer_sums")
 [[ -z "$writer_gaps" ]] || { echo "writer parity: the installed writer differs from $revision in: $(printf '%s' "$writer_gaps" | head -n 8 | tr '\n' ' ')- run ops/install-origins-writer.sh $revision on the box, then deploy again" >&2; exit 1; }
 # The publish window, the only exclusive part of a release: transfer, switch, previews, verifier, summary, prune. The site only moves
 # forward (scripts/lib/deploy-lock.sh deploy_publish_order): a candidate live already contains, or one diverged from live, stops here.

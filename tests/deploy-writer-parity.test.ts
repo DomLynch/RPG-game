@@ -28,5 +28,5 @@ test('deploy.sh: the parity check sits before the publish lock and refuses to pu
   const at = deploy.indexOf('deploy_step "writer parity"');
   assert.ok(at > 0 && at < deploy.indexOf('deploy_step "publish lock"'));
   assert.match(deploy, /source scripts\/lib\/writer-parity\.sh/);
-  assert.match(deploy.slice(at, at + 900), /\[\[ -z "\$writer_gaps" \]\] \|\| \{[^}]*exit 1/);
+  assert.match(deploy.slice(at, at + 1500), /\[\[ -z "\$writer_gaps" \]\] \|\| \{[^}]*exit 1/);
 });
