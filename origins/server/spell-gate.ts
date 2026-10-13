@@ -1,7 +1,8 @@
 // ONE spell gate for every settle path that replays a record (the Auditor's HOLD on #2487, Lead 2026-10-13): a v53 record's spell block is the client's claim, so the encounter settle, the career/practice
 // sweep (scripts/verify-loot.mjs) and the daily sweep (scripts/verify-daily.mjs) all ask here before they pay. Same refuse semantics as expectedSpell: an unowned id, or a skill past the stored ceiling.
 // A spell record that names no stored build (characterId + buildVersion) has nothing to vouch for its skill and is refused. tests/spell-gate.test.ts pins that every replay entry calls this.
-import { checkSpell } from './spell-check.ts';
+import { checkSpell, heldSql } from './spell-check.ts';
+export { heldSql };   // the one ledger query: the sweeps, the encounter settle and the Postgres check all run this text
 
 export type SpellLoader = {
   held: (account: string, character: string) => Promise<{ grimoire: Record<string, unknown>; xp: Record<string, number> }>;   // the account's grimoire and this character's banked practice
@@ -17,10 +18,3 @@ export async function spellRefusal(record: { spell?: { id: string; skill: number
   const verdict = checkSpell(record.spell, { grimoire: held.grimoire, xp: held.xp, placed: build.placed });
   return verdict.ok ? null : verdict.reason;
 }
-
-const UUID = /^[0-9a-f-]{36}$/i, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
-/** The read-only query a psql sweep runs for `SpellLoader.held` (read through the definer origins_skill_pool, migration 0029: the pool table is RLS-closed to the writer roles, a plain select sees 0 rows). Kept HERE so the sweeps never name the ledger tables themselves (the practice and grimoire guards). */
-export const heldSql = (account: string, character: string): string => {
-  if (!UUID.test(account) || !CHARACTER.test(character)) throw Error('refusing to query the spell ledger with a malformed account or character');
-  return `select json_build_object('grimoire', coalesce(public.origins_grimoire_get('${account}'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select jsonb_object_agg(k, (v ->> 'xp')::int) from jsonb_each(public.origins_skill_pool('${account}'::uuid, '${character}')) as e(k, v)), '{}'::jsonb))::text`;
-};

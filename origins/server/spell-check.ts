@@ -22,8 +22,15 @@ export function checkSpell(spell: SpellClaim, held: SpellHeld): SpellVerdict {
   return spell.skill <= stored ? { ok: true } : { ok: false, reason: `the record casts at ${spell.skill}, past the ${stored} this character has in ${school}` };
 }
 
+const UUID = /^[0-9a-f-]{36}$/i, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
+/** THE spell-ledger read, one text for every caller (the encounter settle, the verify-loot/verify-daily sweeps, scripts/origins-encounter-check.mjs): the account's grimoire and this character's banked xp. The xp comes through the definer origins_skill_pool (migration 0029): the pool table is RLS-closed to both writer roles, a plain select sees 0 rows. Read-only. */
+export const heldSql = (account: string, character: string): string => {
+  if (!UUID.test(account) || !CHARACTER.test(character)) throw Error('refusing to query the spell ledger with a malformed account or character');
+  return `select json_build_object('grimoire', coalesce(public.origins_grimoire_get('${account}'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select jsonb_object_agg(k, (v ->> 'xp')::int) from jsonb_each(public.origins_skill_pool('${account}'::uuid, '${character}')) as e(k, v)), '{}'::jsonb))::text`;
+};
+
 export async function expectedSpell(db: Db, account: string, character: string, spell: SpellClaim): Promise<SpellVerdict> {
-  const out = await db.run(`select json_build_object('grimoire', coalesce(public.origins_grimoire_get(:'a'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select jsonb_object_agg(k, (v ->> 'xp')::int) from jsonb_each(public.origins_skill_pool(:'a'::uuid, :'c')) as e(k, v)), '{}'::jsonb))::text;   -- the pool is RLS-closed to the writer roles: read it through the definer reader (migration 0029), never the table`, { a: account, c: character });
+  const out = await db.run(heldSql(account, character), { a: account, c: character });
   const held = JSON.parse(out) as { grimoire: Record<string, unknown>; xp: Record<string, number> };
   const build = await store.buildGet(db, account, character);
   return checkSpell(spell, { grimoire: held.grimoire, xp: held.xp, placed: build !== null && build !== 'absent' ? build.placed : {} });
