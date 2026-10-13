@@ -7,7 +7,8 @@ import { resolveFromRegion1 } from '../server/encounter-setup.ts';
 import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, fight } from '../server/encounter-fixtures.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';
-import { OPPONENTS, LEGEND_FAMILIES, SPELL_BRICKS, isSpellless, rungTopLevel } from '../../src/fight/server.ts';
+import { OPPONENTS, LEGEND_FAMILIES, isSpellless, rungTopLevel } from '../../src/fight/server.ts';
+import { legendOfFight } from '../server/grimoire.ts';
 import { MAX_LEVEL } from '../../src/fight/world.ts';
 import { fightSetup, loadEncounterContent } from '../encounters/encounters.ts';
 
@@ -16,7 +17,7 @@ const who = { account: ACCOUNT, character: CHAR };
 
 test('every spell-bearing legend of the Ash Frontier families is a legend boss: its family\'s body at its rank\'s top level', () => {
   const ash = legendBossesOf(ASH);
-  const expected = LEGEND_FAMILIES.filter((f) => f.region === ASH).flatMap((f) => f.legends.filter((e) => !isSpellless(e.legendId) && Object.hasOwn(SPELL_BRICKS, e.legendId)));
+  const expected = LEGEND_FAMILIES.filter((f) => f.region === ASH).flatMap((f) => f.legends.filter((e) => !isSpellless(e.legendId) && legendOfFight(bossFightId(e.legendId)) !== null));
   assert.ok(ash.length >= 40, `${ash.length} Ash Frontier legend bosses`);
   assert.deepEqual(ash.map((b) => b.legend), expected.map((e) => e.legendId), 'in family then rank order');
   for (const b of LEGEND_BOSSES) {
