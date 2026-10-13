@@ -18,6 +18,7 @@ Round 1, 2026-10-06. Goldens are hand-derived from the source and not yet captur
 | Trading (design, not a donor spec) | [trading.md](trading.md) | O3 Exchange: barter trade, trade limits, 0003 |
 | Launch gates (ours, not donor; Strategy, 2026-10-07) | [launch-gates.md](launch-gates.md) | the one home for every "before X opens" gate: player trade, writer route, flag GO, one-shard / chat, patrons in the arena |
 | One shard (architecture, not a donor spec) | [one-shard.md](one-shard.md) | one world, interest management, town capacity, overflow layers, Supabase limits |
+| Frontier-zone presence (design, ours; Backend, 2026-10-13) | [frontier-presence.md](frontier-presence.md) | world frame for town + frontier, per-zone clamp/speed, interest, wire v2 |
 | Public events | [modernuo-champion-spawns.md](modernuo-champion-spawns.md) | O2 staged boss event |
 | Living world (ours, not donor) | [living-world.md](living-world.md) | towns as data, NPC war goals, rifts, the town history book, fixtures, allegiance, player lords (after the PvP verifier) |
 | Patrons and legends (ours, not donor) | [legends-500.md](legends-500.md), [legends-500.csv](legends-500.csv) | clans, patrons, town patrons, Bounty and boss names (living-world §10) |
