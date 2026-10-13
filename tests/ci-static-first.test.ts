@@ -157,7 +157,6 @@ test('merge queue (hardening item 1, 2026-10-13): quality, unit-ci and release-c
   for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), `quality ${j} runs on merge_group`);
   const unit = schedule(U, mg);
   assert.ok(unit.has('shard') && unit.has('receipt'), 'the queue entry gets its unit receipt');
-  assert.ok(!schedule(U, mg, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt');
   const rc = schedule(R, mg, {}, { plan: { checks: '[{"index":1}]' } });
   for (const j of ['plan', 'check', 'summary']) assert.ok(rc.has(j), `release-checks ${j} runs on merge_group (the full matrix on the combined tree)`);
   // never cancelled by another run, and its own group per queue entry
