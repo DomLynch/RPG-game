@@ -9,9 +9,9 @@ import { RECORD_VERSION } from '../src/fight/record.ts';
 import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
-const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts'];
-const WORLD_DIGEST = 'cb51c68a0085c5668d4438748c1ce57d5dbdceba5b0bdf2fee00e306fc4d01e1';
-const PINNED_FOR_VERSION = 4;
+const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
+const WORLD_DIGEST = 'bd33d4369b614aa4d7c03734d63a6a3233d51e07cc5076d28c4ff72ba21e0af9';
+const PINNED_FOR_VERSION = 7;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 
