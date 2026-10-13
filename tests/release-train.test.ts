@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { browserRowsMissing, checksGreen, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checksGreen, featureReceiptsMissing, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -399,4 +399,19 @@ test('the cutter workflow: schedule 10 min + release:go label, trunk checkout on
   assert.match(wf, /node scripts\/release-train\.mjs cut/);
   assert.match(readFileSync('.github/workflows/quality.yml', 'utf8'), /\n {2}workflow_dispatch:\n/, 'quality can be dispatched on a candidate');
   assert.deepEqual(readOrder(readFileSync('docs/release-order.txt', 'utf8')).slice(0, 3), [2322, 2313, 2326]);
+});
+
+test('checksGreen: a feature head needs unit-ci/receipt and quality present and green at the head; a static-only or unlabelled head is not green; release-* and no head ref are exempt (#2546)', () => {
+  const only = (wf: string, name: string) => OK.filter(c => !(c.workflowName === wf && c.name === name));
+  const staticOnly = [{ __typename: 'CheckRun', workflowName: 'quality', name: 'static', status: 'COMPLETED', conclusion: 'SUCCESS' }, { __typename: 'CheckRun', workflowName: 'pr-wording', name: 'wording', status: 'COMPLETED', conclusion: 'SUCCESS' }];
+  assert.equal(checksGreen(OK, 'lane/x'), true, 'both verdicts present and green');
+  assert.equal(checksGreen(staticOnly, 'lane/x'), false, 'a static-only head (an unlabelled push) has no verdict jobs: not green');
+  assert.equal(featureReceiptsMissing(staticOnly, 'lane/x'), true);
+  assert.equal(checksGreen(only('unit-ci', 'receipt'), 'lane/x'), false, 'no unit receipt');
+  assert.equal(checksGreen(only('quality', 'quality'), 'lane/x'), false, 'no quality verdict');
+  const skipped = OK.map(c => (c.name === 'receipt' ? { ...c, conclusion: 'SKIPPED' } : c));
+  assert.equal(checksGreen(skipped, 'lane/x'), false, 'a SKIPPED unit receipt reads as green to checkGreen but is not a receipt');
+  assert.equal(checksGreen(OK.map(c => (c.name === 'quality' ? { ...c, conclusion: 'FAILURE' } : c)), 'lane/x'), false, 'a red quality verdict');
+  assert.equal(checksGreen(staticOnly, 'release-CV'), true, 'a release-* head is held by missingRows, not here');
+  assert.equal(checksGreen(staticOnly), true, 'no head ref: this rule is not applied');
 });
