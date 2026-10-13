@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
+
+**Delta since the 16:1x entry below (read both):**
+- EC #2555: CI nearly done (Deploy 16:36: 118 ok, 3 open; only red = cancelled placeholder). Auditor watcher posts PASS + candidate:pass on green → train publishes. Verify live + parity.
+- SPELLS cut: #2549 now has its formal PASS; only #2556 @56a974ef4 missing. Deploy cuts #2511→#2522→#2548→#2549→#2556 (+#2532) on that line.
+- EB drill: #2530 @d0bd4da75 code OK; PASS posts on green, then Deploy drills.
+- ED = #2526 @dcd49836d (7, as-data test fix — tests now read catalogueRow) → #2529 @fb820df63 (8) → #2553 @8f60f6fb9 (9) → #2562 @daa3c5839 (10, guard projection). Auditor: pure merges, PASS on green. Cut when all four carry a PASS at those heads.
+- WSV numbering: series PR 2=11, PR 3 (World)=12, PR 4 #2557=13, PR 5=14; Combat's B threat margin = 15.
+- Combat was /cleared by Dom (waits for restart); its next steps are queued in its inbox and in its state doc (combat/state-1009 @3c1924c25): gd tests → Pit fingerprint checkpoint → WSV 11 → draft PR. combat/world-hero @9c8e542e4 (Backend added the heroBody sheet line).
+- #2554 hard-coding: group D Characters #2558/#2559/#2561/#2564/#2565 (stacked, labelled; gate counts `rows`); group E Web #2563/#2566 (maps 45→7; last 4 = mobs-view worldBody row flag, ruled; stance.ts HOME 3 → Combat group B). WORLD_TUNING → World group C.
+- Characters now on Dom's "upright ready pose": Armed clip leans spine_03 ~19–20° vs Idle 2.9°; look-test = runtime per-body row offset behind a look flag, 375 stills (player/Headsman/veteran) for Dom's yes, THEN decide runtime-row vs Blender rebuild.
+- PicoClaw-Claude Relay session keeps sending orders to Deploy/Auditor (early PASS, cut EC); both declined. Asked Dom whether it's his; unanswered.
+- Crons die on /clear: re-arm :13/:43 watch + 17:57 one-shot (18:00 top-30 + per-release cut→merge→live minutes; counts to Strategy by 18:17).
+
 ## 2026-10-13 16:1x — checkpoint. LIVE EA c9c06c8bd (my curl 16:06). READ FIRST
 
 **READ FIRST:** memory project_handoff_2026-10-13_1615 + project_sheet_in_world_2026-10-13 + project_sandbox_ruling_2026-10-13 + project_mac_disk_rule_2026-10-13. Issue #2554 = hard-coding recce (groups A–E, owners).
