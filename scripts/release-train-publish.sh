@@ -4,7 +4,7 @@
 #   1. stopped (~/.claude/state/release-train.stopped) or held (deploy_hold: a deploy is running or someone holds the box) -> nothing;
 #   2. its own lock (a mkdir dir with the pid; a dead holder is broken) -> no double publish, even if launchd overlaps a long run;
 #   3. the OLDEST open release-* candidate with the candidate:pass label AND an "Auditor|Lead: PASS @<head>" comment, every check green and unit-ci,
-#      quality and release-checks present and green (scripts/release-train.mjs pick) -> nothing if none;
+#      quality and release-checks present and green (scripts/release-train.mjs pick, on each candidate's FULL `gh pr view` check list) -> nothing if none;
 #   4. no live deploy.sh run (deploy-lock.sh run files), deploy_hold created atomically holding this pid, trunk FAST-FORWARDED to the candidate sha (the
 #      only write to trunk; trunk == the audited commit, so N+1, cut on N, still contains trunk), then scripts/deploy.sh in a release checkout
 #      (scripts/release-worktree.sh) under deploy.sh's own locks, FRANKENDOM_RELEASE=1;
@@ -76,8 +76,19 @@ fi
 cd "$repo" || { log "no repo at $repo"; exit 1; }
 if [ -z "$(git status --porcelain --untracked-files=no)" ]; then git fetch -q origin && git switch -q --detach "origin/$trunk" || log "could not move $repo to origin/$trunk; using $(git rev-parse --short HEAD)"; else log "$repo is dirty: not moved"; fi
 
-pick=$(gh pr list --state open --base "$trunk" --label candidate:pass --limit 50 --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments \
-  | node scripts/release-train.mjs pick) || { log "gh pr list failed; next tick"; exit 0; }
+# Judge each candidate on its FULL check list: `gh pr list` returns at most 100 checks per PR, and a candidate has 150+, so the list cut quality/quality and
+# release-checks/summary off DL #2431 (169 checks) and `pick` never chose it (2026-10-13: PASS + candidate:pass from 00:29Z, nothing published).
+# Oldest first; the first that passes the gate on its own `gh pr view` is the pick (forward-only, as before).
+cands=$(gh pr list --state open --base "$trunk" --label candidate:pass --limit 50 --json number,headRefName,headRefOid,createdAt \
+  --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[] | "\(.number) \(.headRefOid)"') || { log "gh pr list failed; next tick"; exit 0; }
+pick=""
+while read -r n listed; do
+  [ -n "$n" ] || continue
+  view=$(gh pr view "$n" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments) || { log "gh pr view #$n failed; next tick"; exit 0; }
+  pick=$(printf '[%s]' "$view" | node scripts/release-train.mjs pick) || { log "pick failed on #$n; next tick"; exit 0; }
+  [ -n "$pick" ] && break
+  log "#$n @${listed:0:9} not publishable on its full check list: $(printf '%s' "$view" | node scripts/release-train.mjs verify "$listed")"   # why, for the log
+done <<< "$cands"
 [ -n "$pick" ] || { log "no candidate with candidate:pass, a PASS at its head and green unit-ci/quality/release-checks"; exit 0; }
 read -r pr sha draft <<< "$pick"
 # `gh pr list` returns at most 100 checks per PR (CQ #2342: 144 via `gh pr view`, exactly 100 via list): re-read THIS candidate's full rollup and re-check the gate.
