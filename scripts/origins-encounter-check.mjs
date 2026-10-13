@@ -121,6 +121,7 @@ try {
   eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: a verified win takes the spell');
   eq(spellsOf(C), 'eloko', 'grimoire: one spell');
   eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), 'O0009', 'grimoire: a retried settle is refused');
+  { const r = await as(V, `select json_build_object('grimoire', coalesce(public.origins_grimoire_get('${C}'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select json_object_agg(skill, xp) from public.origins_skill_xp where character = '${pcC}'), '{}'::json))::text;`); eq(r.code, 0, 'spell check: the writer role can read the grimoire and the pool in one query'); eq(Object.keys(JSON.parse(r.out.trim().split('\n').pop()).grimoire).join(','), 'eloko', 'spell check: the query returns the taken spell'); }
   eq(await code(V, START(C, pcC, tok(51), 8002, 'knight', 6)), null, 'grimoire: a second fight starts');
   eq(await code(V, SETTLE7(C, tok(51), 'won', EV(tok(51), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: the same legend again settles');
   eq(psql(`select count(*) from public.origins_grimoire where account = '${C}'`), '1', 'grimoire: the same legend twice grants once');
