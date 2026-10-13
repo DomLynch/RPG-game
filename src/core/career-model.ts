@@ -1,5 +1,5 @@
 // Frankendom: Origins — the ONE career (Dom's ruling 7), reference model. Pure, integer-only, not under src/.
-// Its one import is the ladder itself (src/core/career-ladder.ts: MAX_LEVEL, RANK_STEPS), so the cap is never declared twice.
+// Its one import is the ladder's title width (src/core/career-ladder.ts: RANK_STEPS); the career's own cap and curve are the LEVEL_CURVE row below.
 //
 // Spec: docs/specs/src/core/career-model.ts-proposal.md (this file is its executable half; the numbers below are the proposal's numbers
 // and every one is pinned in model.test.ts). Clean room (ruling 8): written from the specs in docs/specs/origins/ only.
@@ -23,16 +23,28 @@
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Constants (the proposal's table; change them only with the doc).
 
-import { MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
+import { MAX_LEVEL as LADDER_MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
 
 
-// The requirement curve. requirement(L) = REQ_BASE + REQ_STEP·(L − 1) + REQ_CURVE·max(0, L − REQ_KNEE)², integer for every L.
-// Level 1 → 2 costs 1,000; level 10 → 11 costs 1,900 (gentle); from Gladiator I (level 11) a square term is added, so level 49 → 50
-// costs 43,825. The curve never reads the cap: the cap only says where the ladder stops, so 46 and 50 share every row.
-export const REQ_BASE = 1000;
-export const REQ_STEP = 100;
-export const REQ_KNEE = 10;
-export const REQ_CURVE = 25;
+// THE LEVEL CURVE ROW (Dom's re-lock, #2408 2a; Strategy ruling 2026-10-12): the zone career runs level 0 (born) to maxLevel 100, and the whole curve is this
+// one row, not constants spread through the code. A level's cost is priced in KILLS of the reference boss row at the level being left:
+//   kills(L) = early.kills for the first early.levels levels (L < early.levels), then early.kills + ramp·(L − early.levels + 1) + rank·⌊L / rankLevels⌋,
+//   cost(L)  = ⌊ bossPay(max(1, L)) · kills(L) / 1000 ⌋,   bossPay(l) = ⌊ killValue(l) · weight(boss) / 1000 ⌋.
+// Levels 0–9 are the opening, priced in Pit wins (`opening` below); from level 10 the boss-kill pricing above applies, ramps with the level and steepens
+// again at every rank-up (10, 20 … 90) because re-spread is once per rank-up. The Pit ladder (career-ladder.ts MAX_LEVEL 50, marks) is a different track and is untouched.
+export const LEVEL_CURVE = {
+  maxLevel: 100,
+  boss: 'world-boss',
+  killBase: 1000, killStep: 100,             // killValue(l) = killBase + killStep·(l − 1): the CP of one even-level kill at weight 1000
+  early: { levels: 5, kills: 2500 },          // permille of a boss kill: the base from level 10 (levels 5.. add the ramp)
+  ramp: 200,                                  // permille added per level from level 5
+  rank: 2000,                                 // permille added per whole rank passed
+  rankLevels: 10,
+  // The opening: levels 0–9 are priced in Pit legend WINS at the lowest rank (Strategy ruling 2026-10-13: level 1 = 1 win, level 5 ≈ 5 minutes, level 10 = a first session of ~35 wins),
+  // not in boss kills. wins[L] wins at the pay of a legend at level L buy level L → L + 1. From level 10 the boss-kill pricing above applies unchanged.
+  opening: [1, 1, 1, 1, 1, 6, 6, 6, 6, 6],
+} as const;
+export const CAREER_MAX_LEVEL: number = LEVEL_CURVE.maxLevel;
 
 // Every keyed lookup that takes a string from an event (type row, creature kind) goes through `own`, so a key such as 'toString',
 // 'constructor' or '__proto__' reads as absent instead of finding something on Object.prototype.
@@ -114,34 +126,38 @@ export const RESTED_CAP_CP = 3000;
 const RESTED_CAP_UNITS = RESTED_CAP_CP * DAY_S;
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Levels. Every level function takes the ladder cap, defaulting to src/core/career-ladder.ts MAX_LEVEL, so the model follows the arena's cap
-// change (46 → 50) without an edit here and tests can run both ladders.
+// Levels. Every level function takes the cap, defaulting to LEVEL_CURVE.maxLevel; the curve never reads the cap, so a lower cap shares every row.
 
 const wholeLevel = (level: number): number => (Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1);
-// CP to go from level L to L + 1.
+const careerLevel = (level: number): number => (Number.isFinite(level) ? Math.max(0, Math.floor(level)) : 0);
+// The value of one even-level kill at weight 1000: the linear price the pay rule reads.
+export const killValue = (level: number): number => LEVEL_CURVE.killBase + LEVEL_CURVE.killStep * (wholeLevel(level) - 1);
+const bossPay = (level: number): number => Math.floor((killValue(level) * TYPE_WEIGHTS[LEVEL_CURVE.boss]!.weight) / 1000);
+const killsPermille = (l: number): number => {
+  const c = LEVEL_CURVE;
+  return c.early.kills + (l < c.early.levels ? 0 : c.ramp * (l - c.early.levels + 1) + c.rank * Math.floor(l / c.rankLevels));
+};
+// CP to go from level L to L + 1 (L = 0 is the birth level).
 export const requirement = (level: number): number => {
-  const l = wholeLevel(level);
-  const over = Math.max(0, l - REQ_KNEE);
-  return REQ_BASE + REQ_STEP * (l - 1) + REQ_CURVE * over * over;
+  const l = Math.min(careerLevel(level), LEVEL_CURVE.maxLevel - 1);
+  if (l < LEVEL_CURVE.opening.length) return LEVEL_CURVE.opening[l]! * Math.floor((killValue(l) * TYPE_WEIGHTS.legend!.early!.weight) / 1000);
+  return Math.floor((bossPay(l) * killsPermille(l)) / 1000);
 };
-// The value of one even-level kill at weight 1000: the curve's linear part. Equal to requirement(L) to level 10, behind it from 11.
-export const killValue = (level: number): number => REQ_BASE + REQ_STEP * (wholeLevel(level) - 1);
-// CP to reach level L from nothing: the sum of requirement(1..L−1). Closed form, integer (each product below is divisible as noted).
-export const cumulative = (level: number): number => {
-  const k = wholeLevel(level) - 1; // levels climbed
-  const linear = REQ_BASE * k + (REQ_STEP * k * (k - 1)) / 2; // k(k−1) is even
-  const m = Math.max(0, k - REQ_KNEE); // squared terms paid: (1² + … + m²)
-  return linear + (REQ_CURVE * m * (m + 1) * (2 * m + 1)) / 6; // m(m+1)(2m+1) is divisible by 6
-};
+const CUMULATIVE: readonly number[] = (() => { const t = [0]; for (let l = 0; l < LEVEL_CURVE.maxLevel; l++) t.push(t[l]! + requirement(l)); return t; })();
+// CP to reach level L from nothing. cumulative(100) is the whole career, the curve's named asymptote (CAREER_CP).
+export const cumulative = (level: number): number => CUMULATIVE[Math.min(careerLevel(level), LEVEL_CURVE.maxLevel)]!;
+export const CAREER_CP = cumulative(LEVEL_CURVE.maxLevel);
 // WHAT DRIVES RANK: this, and only this. Title, sub-rank, gates and the rank bar all read levelOfCredit(credit, cap).
-export function levelOfCredit(credit: number, cap: number = MAX_LEVEL): number {
-  if (!Number.isFinite(credit) || credit <= 0) return 1;
-  let level = 1;
+export function levelOfCredit(credit: number, cap: number = CAREER_MAX_LEVEL): number {
+  if (!Number.isFinite(credit) || credit <= 0) return 0;
+  let level = 0;
   while (level < cap && cumulative(level + 1) <= credit) level++;
   return level;
 }
+// The level the TITLE ladder, shop, gear and gates read (contracts/world.ts: a career level is 1..LADDER_MAX_LEVEL): the career level clamped onto it. Levels 51-100 are build points, not new titles.
+export const standingLevel = (credit: number): number => Math.min(LADDER_MAX_LEVEL, Math.max(1, levelOfCredit(credit)));
 // The rank bar's partial fill (src/core/career-ladder.ts Rank.fill, kept at 0 today "so the bar code reads unchanged"), permille of the level.
-export function fillPermille(credit: number, cap: number = MAX_LEVEL): number {
+export function fillPermille(credit: number, cap: number = CAREER_MAX_LEVEL): number {
   const level = levelOfCredit(credit, cap);
   if (level === cap) return 0;
   return Math.floor(((Math.floor(credit) - cumulative(level)) * 1000) / requirement(level));
@@ -149,7 +165,7 @@ export function fillPermille(credit: number, cap: number = MAX_LEVEL): number {
 // The title tier (1..10) of a level: five sub-ranks a title, Origin (tier 10) from level 46 on.
 export const tierOf = (level: number): number => Math.min(10, Math.floor((wholeLevel(level) - 1) / RANK_STEPS) + 1);
 // The top level reopens every boss (Dom, 2026-10-06): reaching the cap clears the beaten flags, and while at the cap none is kept.
-export const allBossesOpen = (level: number, cap: number = MAX_LEVEL): boolean => wholeLevel(level) >= cap;
+export const allBossesOpen = (level: number, cap: number = CAREER_MAX_LEVEL): boolean => wholeLevel(level) >= cap;
 
 // The one pay rule. target = the target's level (ignored for atOwn rows); you = your level before the event.
 export const weightAt = (row: TypeRow, level: number): number => row.early && wholeLevel(level) < row.early.below ? row.early.weight : row.weight;
@@ -165,11 +181,11 @@ export function basePay(row: TypeRow, target: number, you: number): number {
 // the server says who was beaten, and the key is opponent@level. `pit.rung` is the level the Pit last fought at (display, and the
 // migration's resume point); it is never above the career level.
 export type PitState = { rung: number };
-export const legendKey = (opponent: string, level: number): string => `legend:${opponent}@${wholeLevel(level)}`;
+export const legendKey = (opponent: string, level: number): string => `legend:${opponent}@${careerLevel(level)}`;
 // The next opponent: one not yet beaten at your level, picked by `key` the way src/ladder.ts nextOpponent picks from the pass today
 // (key = a hash of the profile and its Pit wins, so the HUD and the Next button agree). null when every opponent at this level is
 // beaten: the Pit then waits for the world to raise your level (or, at the top, every legend is open again).
-export function nextLegend(state: CareerState, opponents: readonly string[], key: number, cap: number = MAX_LEVEL): string | null {
+export function nextLegend(state: CareerState, opponents: readonly string[], key: number, cap: number = CAREER_MAX_LEVEL): string | null {
   const level = levelOfCredit(state.credit, cap);
   const left = opponents.filter(o => !state.beaten.includes(legendKey(o, level)));
   return left.length ? left[(key >>> 0) % left.length] : null;
@@ -192,12 +208,12 @@ export type CareerState = {
 // Event ids already settled are NOT career state: they are the server's unique index (loot_claims.fight_hash today; an encounter id
 // for world kills). `settleAll` models that index with a Set so a retried event pays nothing.
 
-// A new zone character: level 1, no credit, nothing beaten, a full allowance. Pit marks never seed it (C6): the Pit's wins pay Pit ranks only (levelOf in career-ladder.ts), the zone's level is read from credit alone (levelOfCredit).
-export const newCareer = (at = 0): CareerState => careerAtLevel(1, at);
+// A new zone character: level 0, no credit, nothing beaten, a full allowance. Pit marks never seed it (C6): the Pit's wins pay Pit ranks only (levelOf in career-ladder.ts), the zone's level is read from credit alone (levelOfCredit).
+export const newCareer = (at = 0): CareerState => careerAtLevel(0, at);
 // A career standing at an exact level: the Pit session's own track, simulations and tests. Never a path from a Pit win count to a zone level.
-export const careerAtLevel = (level: number, at = 0, cap: number = MAX_LEVEL): CareerState => {
-  const l = Math.min(cap, wholeLevel(level));
-  return { credit: cumulative(l), pit: { rung: l }, pitWins: l - 1, rested: RESTED_CAP_UNITS, restedAt: at, heat: {}, beaten: [], story: [] };
+export const careerAtLevel = (level: number, at = 0, cap: number = CAREER_MAX_LEVEL): CareerState => {
+  const l = Math.min(cap, careerLevel(level));
+  return { credit: cumulative(l), pit: { rung: l }, pitWins: Math.max(0, l - 1), rested: RESTED_CAP_UNITS, restedAt: at, heat: {}, beaten: [], story: [] };
 };
 // Pure: the writer's career row -> the career state. The one mapping the server (career, mob-rewards, story) and the zone page (origins/preview/save.ts) share.
 export type CareerRowShape = { total_credit: number; rested: number; rested_at: number; heat: Record<string, unknown>; beaten: string[]; story: string[] };
@@ -243,7 +259,7 @@ export function heatAt(state: CareerState, kind: string, at: number): number {
   return h ? Math.max(0, h.units - clampElapsed(h.at, at)) : 0;
 }
 
-export function award(state: CareerState, event: CareerEvent, cap: number = MAX_LEVEL, types: TypeTable = TYPE_WEIGHTS): Award {
+export function award(state: CareerState, event: CareerEvent, cap: number = CAREER_MAX_LEVEL, types: TypeTable = TYPE_WEIGHTS): Award {
   const levelBefore = levelOfCredit(state.credit, cap);
   const done = (next: CareerState, cp: number, reason: Reason): Award => {
     const credit = next.credit + cp;
@@ -325,7 +341,7 @@ export function award(state: CareerState, event: CareerEvent, cap: number = MAX_
 // Settle a list in order, with the server's one-settlement-per-event-id index modelled by `settled` (pass the same Set across calls
 // to model retries arriving later). A repeated id pays nothing and changes nothing.
 export function settleAll(
-  state: CareerState, events: readonly CareerEvent[], settled: Set<string> = new Set(), cap: number = MAX_LEVEL,
+  state: CareerState, events: readonly CareerEvent[], settled: Set<string> = new Set(), cap: number = CAREER_MAX_LEVEL,
   types: TypeTable = TYPE_WEIGHTS,
 ): { state: CareerState; awards: Award[] } {
   const awards: Award[] = [];

@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { DAILY_LEVEL } from '../src/fight/match.ts';
 import { decodeRecord } from '../src/fight/record.ts';
+import { expectedSheet } from '../src/fight/build-check.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
 const DAY = /^\d{4}-\d{2}-\d{2}$/, UUID = /^[0-9a-f-]{36}$/i;
@@ -45,7 +46,9 @@ async function refusal(row, seeds, db) {
   for (const field of ['opponent', 'weapon', 'outcome', 'ticks']) {
     if (record[field] !== row[field]) return `${field}: record ${String(record[field])}, row ${String(row[field])}`;
   }
-  const result = verifyRecord(record);
+  const want = await expectedSheet(record, (character, version) => db.build ? db.build(row.user_id, character, version) : Promise.resolve(null));   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
+  if (!want.ok) return want.reason;
+  const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
   return result.ok ? null : result.reason;
 }
 
@@ -83,6 +86,15 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
     seed: async day => { const out = sql(`select seed from public.daily_fight(date '${check(day, DAY, 'day')}')`); return out === '' ? null : Number(out); },
     verify: async (day, userId) => { sql(`update public.daily_results set verified = true, checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
     refuse: async (day, userId) => { sql(`update public.daily_results set checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
+    // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
+    build: async (userId, characterId, version) => {
+      if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) || !Number.isInteger(version) || version < 1) return null;
+      let out;
+      try { out = sql(`select coalesce(public.origins_get_build('${(v => check(v, UUID, 'user id'))(userId)}'::uuid, '${characterId}', ${version})::text, 'null')`); }
+      catch (error) { if (/origins_get_build.*does not exist|does not exist.*origins_get_build/.test(String(error.message))) return null; throw error; }
+      const row = JSON.parse(out);
+      return row === null ? null : { level: row.level, placed: row.placed };
+    },
   };
 }
 

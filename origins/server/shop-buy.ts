@@ -12,7 +12,7 @@ import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { powerOf } from '../../src/core/server.ts';
 import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
 import { receive } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../../src/core/server.ts';
+import { standingLevel } from '../../src/core/server.ts';
 import { checkBuy } from '../shops/shop.ts';
 import { standsWithin, type WhereFn } from '../presence/where.ts';
 import { landmarkCm } from '../presence/zones.ts';
@@ -56,7 +56,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
       openHoldingsWith(db, account, character, content), store.metalOf(db, account), store.shopStock(db, account, shop, item),
     ]);
     if (metal === 'absent' || shelf === 'absent') throw new Refused(503, 'the shop ledger is not installed (migrations 202610080004 and 202610080012)');
-    const level = snap.career ? levelOfCredit(Number(snap.career.total_credit)) : 1;
+    const level = snap.career ? standingLevel(Number(snap.career.total_credit)) : 1;
     const checked = checkBuy(list, { item, quantity: quantity as number, revision: revision as number },
       { level, bronze: metal ? metal.bronze : 0, open: open(shop, shelf.now), stock: shelf.stock, now: shelf.now });
     if (!checked.ok) {

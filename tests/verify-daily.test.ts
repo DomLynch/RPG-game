@@ -105,3 +105,42 @@ test('the psql adapter issues the three statements as the verifier role and refu
   assert.match(statements[3]!, /^update public\.daily_results set checked_at = now\(\) where day = date '2026-09-22'/);
   await assert.rejects(psqlAdapter('postgres://verifier@db/postgres', run).verify("2026-09-22'; drop table x; --", 'u'), /malformed day/);
 });
+
+test('a record that carries a sheet verifies only against the stored build version it names: honest passes; forged, unknown version and other accounts\' builds stay unverified', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 10 } }, honest = sheetOf(stored)!;
+  const make = async (sheet: Record<string, number>, characterId = 'one', buildVersion = 1) => {
+    const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, sheet, characterId, buildVersion });
+    for (let i = 0; i < 30; i++) rec.push(idleIntent());
+    const record = rec.finish('abandoned');
+    return { day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row;
+  };
+  const asked: string[] = [];
+  const store = (user: string, character: string, version: number) => { asked.push(`${user}/${character}@${version}`); return Promise.resolve(user === 'u1' && character === 'pc:one' && version === 1 ? stored : null); };
+  const run = async (rows: Row[]) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => rows, seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: store });
+    return { receipt, verified };
+  };
+  assert.deepEqual((await run([await make(honest)])).verified, ['u1'], 'the sheet the stored build gives passes');
+  const forged = await run([await make({ ...honest, attack: 100 })]);
+  assert.match(forged.receipt.refused[0]!.reason, /not the one the player's stored build/);
+  assert.deepEqual((await run([await make(honest, 'one', 2)])).receipt.refused.map(r => r.reason), ['the record names a build version this server does not hold']);
+  const other = { ...(await make(honest)), user_id: 'u2' };
+  assert.equal((await run([other])).receipt.refused.length, 1, 'another account cannot name this account\'s build');
+  assert.ok(asked.includes('u1/pc:one@1') && asked.includes('u2/pc:one@1'), 'the lookup is by the ROW\'s account, never the record');
+});
+
+test('the psql build lookup asks for one exact version, validates what it quotes, and reads an unapplied migration as no build', async () => {
+  const calls: string[] = [];
+  const answer = (out: string, status = 0, stderr = '') => ((_c: string, args: string[]) => { calls.push(args[args.length - 1]!); return { status, stdout: out, stderr } as never; }) as never;
+  const U = '11111111-2222-3333-4444-555555555555';
+  assert.deepEqual(await psqlAdapter('postgres://x', answer('{"level":10,"placed":{"attack":10},"respreadRank":1,"version":1}')).build(U, 'pc:one', 1), { level: 10, placed: { attack: 10 } });
+  assert.match(calls[0]!, /origins_get_build\('11111111-2222-3333-4444-555555555555'::uuid, 'pc:one', 1\)/);
+  assert.equal(await psqlAdapter('postgres://x', answer('null')).build(U, 'pc:one', 9), null);
+  assert.equal(await psqlAdapter('postgres://x', answer('', 1, 'ERROR:  function public.origins_get_build(uuid, unknown, integer) does not exist')).build(U, 'pc:one', 1), null);
+  await assert.rejects(psqlAdapter('postgres://x', answer('', 1, 'connection refused')).build(U, 'pc:one', 1), /connection refused/, 'an outage is not a verdict');
+  const n = calls.length;
+  assert.equal(await psqlAdapter('postgres://x', answer('null')).build(U, "x'; drop table y;--", 1), null);
+  assert.equal(calls.length, n, 'a malformed character id never reaches the database');
+});
