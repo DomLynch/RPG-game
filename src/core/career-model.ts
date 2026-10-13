@@ -24,6 +24,10 @@
 // Constants (the proposal's table; change them only with the doc).
 
 import { MAX_LEVEL as LADDER_MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
+import CAREER_RULES from './career-rules.json' with { type: 'json' };
+
+// The pacing numbers are the one row of career-rules.json (careerRule); the names below keep their exports.
+const RULE = CAREER_RULES.careerRule[0]!;
 
 
 // THE LEVEL CURVE ROW (Dom's re-lock, #2408 2a; Strategy ruling 2026-10-12): the zone career runs level 0 (born) to maxLevel 100, and the whole curve is this
@@ -90,7 +94,7 @@ export function falloffPermille(d: number): number {
 export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
 
 // Party share for 'split' rows (EverQuest's group shape): pool = X·(1 + g/2), g = 1 + 0.2·(n−1); each member gets pool/n.
-export const MAX_PARTY = 4;
+export const MAX_PARTY = RULE.maxParty;
 export function partySharePermille(n: number): number {
   if (!Number.isInteger(n) || n < 1 || n > MAX_PARTY) return 0;
   if (n === 1) return 1000;
@@ -101,15 +105,15 @@ export function partySharePermille(n: number): number {
 export const partyEligible = (memberLevel: number, highestLevel: number): boolean =>
   highestLevel - memberLevel <= Math.max(5, Math.floor(memberLevel / 2));
 // An 'each' row (a boss) pays a member only for a real share of the fight.
-export const MIN_CONTRIBUTION_PERMILLE = 100; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
+export const MIN_CONTRIBUTION_PERMILLE = RULE.minContributionPermille; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
 
 // Repeat-kill heat, per character per target KIND (definition id, not spawn instance), for rested rows. Each kill adds one unit
 // (HEAT_UNIT_S seconds of heat); heat drains one second per second, so a kind cools fully six minutes after one kill. Before a kill
 // the heat is read as h = CEIL(units / HEAT_UNIT_S): any heat left over from a kill still counts as that whole kill, so the first
 // FREE_REPEATS kills of a kind pay in full and the next one is reduced whenever kills come closer than six minutes apart. After that
 // the kill pays FREE_REPEATS / (h + 1).
-export const HEAT_UNIT_S = 360;
-export const FREE_REPEATS = 3;
+export const HEAT_UNIT_S = RULE.heatUnitSeconds;
+export const FREE_REPEATS = RULE.freeRepeats;
 export const heatKills = (units: number): number => Math.max(0, Math.ceil(units / HEAT_UNIT_S));
 export function repeatPermille(heatUnits: number): number {
   const h = Math.max(0, Math.floor(heatUnits));
@@ -121,8 +125,8 @@ export function repeatPermille(heatUnits: number): number {
 // Other rows never touch the pool. Stored scaled by DAY_S so the refill is exact in integers. Fixed in CP at every level (decided,
 // Dom 2026-10-06): as the requirement rises, a day's allowance is a shrinking part of a level.
 export const DAY_S = 86_400;
-export const RESTED_PER_DAY_CP = 1500;
-export const RESTED_CAP_CP = 3000;
+export const RESTED_PER_DAY_CP = RULE.restedPerDayCp;
+export const RESTED_CAP_CP = RULE.restedCapCp;
 const RESTED_CAP_UNITS = RESTED_CAP_CP * DAY_S;
 
 // ---------------------------------------------------------------------------------------------------------------------------------

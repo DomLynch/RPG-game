@@ -1,0 +1,5 @@
+{
+  "careerRule": [
+    { "id": "career", "maxParty": 4, "minContributionPermille": 100, "heatUnitSeconds": 360, "freeRepeats": 3, "restedPerDayCp": 1500, "restedCapCp": 3000 }
+  ]
+}

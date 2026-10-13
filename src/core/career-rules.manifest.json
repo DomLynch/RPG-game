@@ -1,0 +1,18 @@
+{
+  "tables": [
+    {
+      "table": "careerRule",
+      "file": "career-rules.json",
+      "at": "careerRule",
+      "key": "id",
+      "required": {
+        "maxParty": "integer",
+        "minContributionPermille": "integer",
+        "heatUnitSeconds": "integer",
+        "freeRepeats": "integer",
+        "restedPerDayCp": "integer",
+        "restedCapCp": "integer"
+      }
+    }
+  ]
+}
