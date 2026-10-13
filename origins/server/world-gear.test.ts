@@ -2,7 +2,7 @@
 // held rows, and a world record's hero claim is held to it: the worn claim is verified, a claim above the held set is 'hero beyond ledger'.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { encodeWorldRecord, loadoutOfLoot, NAKED, type WorldRecord } from '../../src/fight/index.ts';
+import { encodeWorldRecord, loadoutOfLoot, NAKED, sheetFor, type WorldRecord } from '../../src/fight/index.ts';
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { player } from '../../src/fight/world.ts';
 import { TIERS, legacyLootOfItemId, PC } from '../../src/core/server.ts';
@@ -19,11 +19,11 @@ const wolf: Spawn = { ...base, spec: { ...base.spec, level: 1 } };
 const RUNG = 'Champion';
 const held = [{ item: 'item:loot.veteran.Helmet', tier: RUNG, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier: RUNG, location: { kind: 'equipped', slot: 'chest' } }];
 
-async function killWith(gear: { attack: number; res: number }): Promise<{ rec: WorldRecord; text: string }> {
+async function killWith(gear: { attack: number; res: number }, sheet?: Record<string, number>): Promise<{ rec: WorldRecord; text: string }> {
   const fell: string[] = []; let rec: WorldRecord | null = null;
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z }, spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
-  const wc = live({ mobs: () => mobs, hero: () => ({ gear, level: 1 }), onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
+  const wc = live({ mobs: () => mobs, hero: () => ({ gear, level: 1, ...(sheet ? { sheet } : {}) }), onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
@@ -83,4 +83,22 @@ test('heroLimitOf: the sheet the stored build and worn gear give (the record mus
   assert.ok('sheet' in bare && bare.sheet === undefined && !bare.refuse, 'no build, no gear: the record must carry no sheet');
   const illegal = await heroLimitOf(dbOf(JSON.stringify({ level: 1, placed: { attack: 99 }, respreadRank: 1, version: 1 }), []), A, PC);
   assert.match(illegal.refuse ?? '', /not a legal one/);
+});
+
+test('end to end: a geared, built character fights with the page\'s sheet and verifies under heroLimitOf; a sheetless or inflated record does not', async () => {
+  const equipped: Record<string, NonNullable<ReturnType<typeof legacyLootOfItemId>>> = {}, taken: Record<string, { tier: number }> = {};
+  for (const h of held) { const id = legacyLootOfItemId(h.item as Parameters<typeof legacyLootOfItemId>[0])!; equipped[h.location.slot] = id; taken[id] = { tier: TIERS.indexOf(h.tier as (typeof TIERS)[number]) + 1 }; }
+  const own = { level: 10, placed: { attack: 10 } };
+  const pageSheet = sheetFor({ equipped, taken } as never, own);
+  assert.ok(pageSheet, 'gear and a placed point move the dials');
+  const rows = held.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: h.location.slot }));
+  const db: Db = { async run(sql) { return sql.includes('origins_get_build') ? JSON.stringify({ ...own, respreadRank: 1, version: 1 }) : JSON.stringify({ marks: 0, career: {}, characters: [], items: rows, quests: [], journal: [], talk: [] }); } };
+  const A = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', limit = await heroLimitOf(db, A, PC);
+  const geared = await killWith(loadoutOfLoot({ equipped, taken } as never), pageSheet);
+  const ok = await verifyWorldRecord(geared.text, wolf, 'wolf', limit);
+  assert.ok(ok.ok, `the page's sheet is the server's: ${JSON.stringify(ok)}`);
+  const naked = await killWith(NAKED);
+  assert.deepEqual(await verifyWorldRecord(naked.text, wolf, 'wolf', limit), { ok: false, reason: 'sheet' }, 'a sheetless record from a geared character is refused');
+  const inflated = await killWith(NAKED, { ...pageSheet, attack: 100 });
+  assert.deepEqual(await verifyWorldRecord(inflated.text, wolf, 'wolf', limit), { ok: false, reason: 'sheet' });
 });
