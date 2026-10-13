@@ -8,7 +8,7 @@ import { player } from '../../src/fight/world.ts';
 import { TIERS, legacyLootOfItemId, PC } from '../../src/core/server.ts';
 import { verifyWorldRecord } from './world-verify.ts';
 import { heldWeaponOf, heroLimitOf, loadoutOf, loadoutOfItems, wornGearOfItems } from './worn-gear.ts';
-import { DEFAULT_WEAPON, sheetOf } from '../../src/fight/server.ts';
+import { DEFAULT_WEAPON, sheetOf, type Sheet } from '../../src/fight/server.ts';
 import { defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
 import type { Db } from './db.ts';
@@ -19,11 +19,11 @@ const wolf: Spawn = { ...base, spec: { ...base.spec, level: 1 } };
 const RUNG = 'Champion';
 const held = [{ item: 'item:loot.veteran.Helmet', tier: RUNG, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier: RUNG, location: { kind: 'equipped', slot: 'chest' } }];
 
-async function killWith(gear: { attack: number; res: number }, sheet?: Record<string, number>): Promise<{ rec: WorldRecord; text: string }> {
+async function killWith(sheet?: Sheet): Promise<{ rec: WorldRecord; text: string }> {
   const fell: string[] = []; let rec: WorldRecord | null = null;
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z }, spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
-  const wc = live({ mobs: () => mobs, hero: () => ({ gear, level: 1, ...(sheet ? { sheet } : {}) }), onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
+  const wc = live({ mobs: () => mobs, hero: () => ({ level: 1, ...(sheet ? { sheet } : {}) }), onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
@@ -48,23 +48,23 @@ test('loadoutOf reads the held rows of the character, and only theirs', async ()
   assert.deepEqual(await loadoutOf(db, '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', PC), loadoutOfItems(held));
 });
 
-test('the hero fights in what he wears: the world fighter carries the Loadout it was given', () => {
-  const g = loadoutOfItems(held), p = player('hero', 0, 0, 0, g, 1);
-  assert.equal(p.attack, g.attack); assert.equal(p.res, g.res);
-  assert.equal(player('hero', 0, 0, 0, undefined, 1).attack, NAKED.attack, 'no gear given: naked, as before');
+test('the hero fights on his sheet: the world fighter carries it, and a bare hero is the Pit\'s own', () => {
+  const sheet = sheetOf({ level: 0, placed: {} }, wornGearOfItems(held))!, p = player('hero', 0, 0, 0, 1, null, { sheet });
+  assert.deepEqual(p.sheet, sheet); assert.ok(p.maxHealth > 0);
+  assert.equal(player('hero', 0, 0, 0, 1).sheet, undefined, 'no sheet given: bare, as the Pit builds him');
 });
 
-test('verify: the worn claim is verified against the held set; a claim above it is refused; a bare hero is unchanged', async () => {
-  const worn = loadoutOfItems(held), claim = await killWith(worn), bare = await killWith(NAKED);
-  const limitOf = (l: { attack: number; res: number }) => ({ attack: l.attack, res: l.res });
-  assert.ok((await verifyWorldRecord(claim.text, wolf, 'wolf', limitOf(worn))).ok, 'the worn claim matches the held set: verified (and so paid)');
-  const above = await verifyWorldRecord(claim.text, wolf, 'wolf', limitOf(NAKED));
-  assert.ok(!above.ok && above.reason === 'hero beyond ledger', 'a Champion claim over a bare held set is refused');
-  assert.ok((await verifyWorldRecord(bare.text, wolf, 'wolf', limitOf(worn))).ok, 'a bare claim under a worn set is fine');
-  assert.ok((await verifyWorldRecord(bare.text, wolf, 'wolf', limitOf(NAKED))).ok, 'naked unchanged');
-  const forged = await killWith({ attack: worn.attack + 0.05, res: worn.res });
-  const f = await verifyWorldRecord(forged.text, wolf, 'wolf', limitOf(worn));
-  assert.ok(!f.ok && f.reason === 'hero beyond ledger', 'a forged attack above the held set is refused');
+test('verify: the sheet claim must EQUAL the held set\'s; the worn claim is verified, a bare or inflated claim is refused as a sheet mismatch', async () => {
+  const worn = sheetOf({ level: 0, placed: {} }, wornGearOfItems(held))!, claim = await killWith(worn), bare = await killWith();
+  assert.ok((await verifyWorldRecord(claim.text, wolf, 'wolf', { sheet: worn })).ok, 'the worn claim matches the held set: verified (and so paid)');
+  for (const [why, text, limit] of [['a worn claim over a bare held set', claim.text, undefined], ['a bare claim under a worn set', bare.text, worn]] as const) {
+    const v = await verifyWorldRecord(text, wolf, 'wolf', { sheet: limit });
+    assert.ok(!v.ok && v.reason === 'sheet', `${why}: refused as a sheet mismatch`);
+  }
+  assert.ok((await verifyWorldRecord(bare.text, wolf, 'wolf', { sheet: undefined })).ok, 'naked unchanged');
+  const forged = await killWith({ ...worn, attack: (worn.attack ?? 0) + 5 });
+  const f = await verifyWorldRecord(forged.text, wolf, 'wolf', { sheet: worn });
+  assert.ok(!f.ok && f.reason === 'sheet', 'a forged attack above the held sheet is refused');
 });
 
 test('heroLimitOf: the sheet the stored build and worn gear give (the record must equal it); a bare character owes none; an illegal build refuses', async () => {

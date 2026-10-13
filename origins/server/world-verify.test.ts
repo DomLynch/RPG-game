@@ -52,15 +52,15 @@ const paidOps = (b: Json[]) => b.filter((o) => o.op !== 'event').map((o) => o.op
 test('verifyWorldRecord: an honest record verifies; wrong creature, no kill, forged hero and junk do not', async () => {
   const { rec, text } = await honest();
   assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length });
-  const no = async (t: string, s: Spawn, kind: string, why: string, limit?: { level: number; attack: number; res: number }) => { const v = await verifyWorldRecord(t, s, kind, limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
+  const no = async (t: string, s: Spawn, kind: string, why: string, limit?: { level: number }) => { const v = await verifyWorldRecord(t, s, kind, limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   await no(text, wolf, 'boar', 'wrong creature');
   await no(text, { ...wolf, spec: { ...wolf.spec, level: 5 } }, 'wolf', 'wrong creature');
   await no(text, { ...wolf, spec: { ...wolf.spec, id: 'other-1' } }, 'wolf', 'no kill');
   await no(text, { ...wolf, spec: { ...wolf.spec, home: { x: wolf.spec.home.x + 500, z: wolf.spec.home.z } } }, 'wolf', 'creature out of its roam');
   await no('!!!', wolf, 'wolf', 'undecodable');
   await no(await encodeWorldRecord({ ...rec, steps: rec.steps.map((s) => ({ ...s, attack: null })) }), wolf, 'wolf', 'no kill');
-  await no(text, wolf, 'wolf', 'hero beyond ledger', { level: 1, attack: 0.5, res: 1 });
-  assert.ok((await verifyWorldRecord(text, wolf, 'wolf', { level: 1, attack: 1, res: 1 })).ok, 'a ledger that allows the claim');
+  await no(text, wolf, 'wolf', 'hero beyond ledger', { level: 0 });
+  assert.ok((await verifyWorldRecord(text, wolf, 'wolf', { level: 1 })).ok, 'a ledger that allows the claim');
 });
 
 test('kill_report: soak default pays exactly as today with or without a record; a bad record is logged and still pays', async () => {
@@ -98,7 +98,7 @@ test('kill_report with scorecardOnlyUnverified: no record or a bad one books the
 });
 
 test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified', async () => {
-  const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 1, attack: 0.9, res: 1 }) });
+  const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 0 }) });
   const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']); assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/);
 });

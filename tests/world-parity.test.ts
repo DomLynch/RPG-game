@@ -13,8 +13,7 @@ const script = (t: number): Input => ({ x: 0, z: 0, ...(t % 70 === 10 ? { attack
 
 for (const [name, sheet] of Object.entries(SHEETS)) for (const [kind, level] of [['wolf', 18], ['goblin', 6]] as const) {
   test(`world parity: a ${name} hero against a level-${level} ${kind} fights on the Pit's own numbers (health and damage identical, no world multiplier)`, () => {
-    const hero = player('h', 0, 0, 0, undefined, 10, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), foe = creature('c', kind, 0, 1.4, Math.PI, level);
-    assert.equal(hero.attack, 1); assert.equal(hero.res, 1); assert.equal(foe.attack, 1); assert.equal(foe.res, 1);
+    const hero = player('h', 0, 0, 0, 10, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), foe = creature('c', kind, 0, 1.4, Math.PI, level);
     const pit = heroSheeted(hero), bare = createFighter(pit.body, 'ready', 'longsword');
     assert.equal(hero.maxHealth, pit.maxHealth, 'the bar is the Pit builder\'s');
     if (!sheet) { assert.equal(hero.maxHealth, RULES.health); assert.equal(pit.poise, createFighter(pit.body, 'ready', 'longsword').poise, 'no sheet = the Pit\'s own hero'); }

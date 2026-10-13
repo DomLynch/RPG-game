@@ -72,8 +72,7 @@ export async function heroLimitOf(db: Db, account: string, character: string): P
     const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
     const items = rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } }));
     const sheet = sheetOf(build, wornGearOfItems(items));
-    const weapon = heldWeaponOf(items);
-    return sheet ? { sheet, weapon } : { sheet: undefined, weapon, ...loadoutOfItems(items) };
+    return { sheet, weapon: heldWeaponOf(items) };   // no sheet = a naked, unbuilt hero: the record must carry none (the sheet is the only carrier of Attack and armour); the weapon is the ledger's main hand
   } catch (error) {
     return { refuse: `the stored build is not a legal one: ${error instanceof Error ? error.message : String(error)}` };
   }
