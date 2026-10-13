@@ -6,7 +6,7 @@
 
 | PR | Branch @ head | What | State / owed |
 |---|---|---|---|
-| #2441 | deploy-b/train-cancelled-at-cut @33d074ce9 | Release-train fix: why DL #2431 never published (see "the check read" below) | On trunk tip (DF3 d17d1c318). CI 30 pass / 0 fail. `auditor:ready`; Auditor PASS at head pending (their condition, rebase onto DF3 keeping both rules, is met). Not in DG #2443. |
+| #2441 | deploy-b/train-cancelled-at-cut @33d074ce9 | Release-train fix: why DL #2431 never published (see "the check read" below) | On trunk tip (DF3 d17d1c318). CI 30 pass / 0 fail. `auditor:ready`; **Auditor: PASS @33d074ce9** posted 02:24Z (OWNER). Not in DG #2443. |
 | #2437 | deploy-b/mac-node-pin @c5c4e8246 | deploy.sh suite branches run under NODE_PIN v22.23.3 or stop | Lead PASS + release:go. **Before its first run on the Mac:** install node v22.23.3 once at ~/.frankendom/node-v22.23.3 (use_pinned_node prints the exact curl+shasum+tar command). |
 | #2434 | deploy-b/mac-only-tests @8241e9c52 | Mac-only reds: sweep-tmp x3 + release-train-setup standalone clone (firmlink, /private, BSD touch); env fixes, no skips | On DF3, 27/0 VPS, fails-first. **Owes a Mac run** of tests/sweep-tmp.test.ts + tests/release-train-layout.test.ts in a quiet window (Lead: no override today). It supersedes DF3's test-only workaround 0044dd49a. |
 | #2417 | deploy-b/relay-shard @31d41b19c | relay shards | `auditor:ready` (Auditor delta look); ships alone, quiet window. |
