@@ -27,7 +27,7 @@ export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, t
   for (const f of world.fighters) h.update(JSON.stringify([f.id, Object.entries(f.threat ?? {}).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));
   return h.digest('hex').slice(0, 16);
 }
-const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['?', '?', '?'], 'one player, goblin and wolf': ['?', '?', '?'] };
+const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['ca3e63128e20dcab', '540c72c12b345fbf', '846df36509238442'], 'one player, goblin and wolf': ['4ef7434e832820ed', 'f93d6c4e4488b82a', 'c16314fd82ee80c1'] };   // taken on unchanged trunk ff15ed478, before the rows
 const SEEDS = [11, 222, 3333];
 for (const [name, make] of Object.entries(SCENARIOS)) {
   test(`existing fights pick the same foe tick for tick: ${name}`, () => {
