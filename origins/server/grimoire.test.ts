@@ -35,7 +35,7 @@ test('the spell catalogue is the one source: every spell row is a legend, and a 
   }
 });
 
-const boss = (id: string) => deps({ resolve: (_w, e) => (e === `boss:${id}` ? RESOLVED : null), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300 }) });
+const boss = (id: string) => deps({ resolve: (_w, e) => (e === `boss:${id}` ? RESOLVED : null), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300, heroHits: 0 }) });
 const settle = async (h: ReturnType<typeof fakeDb>, legend: string, d = boss(legend)) => {
   const ops = encounterOps(d), start = await ops.encounter_start!(ctx(h.db), { character: CHAR, encounter: `boss:${legend}` }) as { token: string; seed: number };
   return { ops, start, record: fight(start.seed, 1) };
@@ -52,11 +52,11 @@ test('a verified win against a legend takes its spell; a second legend of the sa
 });
 
 test('a loss, an unverified record and a fight that is no legend\'s take no spell', async () => {
-  const lost = fakeDb({ t: 1e6 }), l = await settle(lost, 'eloko', deps({ resolve: (_w, e) => (e === 'boss:eloko' ? RESOLVED : null), verify: () => ({ ok: true, result: 'lost', twist: null, ticks: 300 }) }));
+  const lost = fakeDb({ t: 1e6 }), l = await settle(lost, 'eloko', deps({ resolve: (_w, e) => (e === 'boss:eloko' ? RESOLVED : null), verify: () => ({ ok: true, result: 'lost', twist: null, ticks: 300, heroHits: 0 }) }));
   await l.ops.encounter_settle!(ctx(lost.db), { token: l.start.token, record: l.record }); assert.equal(lost.grimoire.size, 0);
   const bad = fakeDb({ t: 1e6 }), b = await settle(bad, 'eloko', deps({ resolve: (_w, e) => (e === 'boss:eloko' ? RESOLVED : null) }));
   await b.ops.encounter_settle!(ctx(bad.db), { token: b.start.token, record: 'not-a-record-at-all' }); assert.equal(bad.grimoire.size, 0, 'unreadable = a loss');
-  const plain = fakeDb({ t: 1e6 }), ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300 }) }));
+  const plain = fakeDb({ t: 1e6 }), ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300, heroHits: 0 }) }));
   const s = await ops.encounter_start!(ctx(plain.db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
   await ops.encounter_settle!(ctx(plain.db), { token: s.token, record: fight(s.seed, 1) }); assert.equal(plain.grimoire.size, 0);
 });

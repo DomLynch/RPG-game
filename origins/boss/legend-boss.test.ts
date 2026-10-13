@@ -53,14 +53,14 @@ test('an UNPLACED legend is refused: a direct encounter_start for a spell-row le
   assert.equal(resolveFromRegion1()(who, 'boss:alvis'), null, 'the shipped table does not place alvis');
   for (const l of LEGEND_SPAWNS) assert.ok(resolveFromRegion1()(who, bossFightId(l.legend)), `${l.legend} is placed in the shipped table, so it resolves`);
   const h = fakeDb({ t: 1e6 }), ctx = { db: h.db, account: ACCOUNT };
-  const ops = encounterOps(deps({ resolve: resolveFromRegion1(PLACED), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300 }) }));
+  const ops = encounterOps(deps({ resolve: resolveFromRegion1(PLACED), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300, heroHits: 0 }) }));
   await assert.rejects(async () => ops.encounter_start!(ctx, { character: CHAR, encounter: bossFightId('kobold') }), /unknown, or not open/, 'the writer refuses it: no fight token for an unplaced legend');
   assert.deepEqual([...h.grimoire.keys()], [], 'no spell');
 });
 
 test('a verified win on a legend boss, started through the real resolver, settles and takes the spell; a second win takes nothing more', async () => {
   const h = fakeDb({ t: 1e6 }), ctx = { db: h.db, account: ACCOUNT };
-  const ops = encounterOps(deps({ resolve: resolveFromRegion1(PLACED), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300 }) }));
+  const ops = encounterOps(deps({ resolve: resolveFromRegion1(PLACED), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300, heroHits: 0 }) }));
   for (const round of [1, 2]) {
     const start = await ops.encounter_start!(ctx, { character: CHAR, encounter: bossFightId('alvis') }) as { token: string; seed: number; enemy: string; level: number };
     assert.deepEqual([start.enemy, start.level], ['dwarf', legendBoss('alvis')!.level], 'the client is told the server\'s foe');
