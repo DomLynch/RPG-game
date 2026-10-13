@@ -40,11 +40,11 @@ test('consistent with the sim: the player\'s run is the sim\'s run, and no world
 });
 
 test('the chase trio (row 21): chase speed, leash and give-up are row fields with today\'s defaults; every catalogue creature resolves all three', async () => {
-  const { CATALOGUE } = await import('../../src/fight/catalogue-rows.ts');
+  const { CATALOGUE, catalogueRow } = await import('../../src/fight/catalogue-rows.ts');
   assert.deepEqual(chaseTrio('wolf'), { speed: 6, leash: 15, giveUp: GIVE_UP_UNSEEN_S }); assert.deepEqual(chaseTrio('bear'), { speed: SPEEDS.creature.chase, leash: LEASH.default, giveUp: GIVE_UP_UNSEEN_S });
   assert.equal(giveUpOf('no-such-creature'), GIVE_UP_UNSEEN_S, 'an unknown kind gets the default');
   for (const r of CATALOGUE) { const t = chaseTrio(r.id); assert.ok(t.speed > 0 && t.leash > 0 && t.giveUp > 0, `${r.id}: a full trio`); if (!('giveUp' in r.fields)) assert.equal(t.giveUp, GIVE_UP_UNSEEN_S, `${r.id}: no giveUp field, so today's number`); }
-  const boar = CATALOGUE.find((r) => r.id === 'boar')!, fields = boar.fields as Record<string, string | number | boolean>;
+  const fields = catalogueRow('boar')!.fields as Record<string, string | number | boolean>;
   fields.giveUp = 4;
   try { assert.equal(giveUpOf('boar'), 4, 'a giveUp field is the give-up time: one row, no new branch'); } finally { delete fields.giveUp; }
   assert.equal(giveUpOf('boar'), GIVE_UP_UNSEEN_S);
