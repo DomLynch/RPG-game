@@ -79,7 +79,9 @@ test('call-site pin: the loop (src/fight/world-combat.ts) reaches combat only th
   assert.deepEqual(src.filter((f) => /src\/fight\/world\.ts'/.test(readFileSync(new URL(f, dir), 'utf8'))), [], 'the page goes through src/fight/index.ts');
   const text = readFileSync(new URL('../../src/fight/world-combat.ts', import.meta.url), 'utf8');
   assert.deepEqual([...text.matchAll(/from '(\.\/world\.ts)'/g)].map((m) => m[1]), ['./world.ts'], 'one door into the world loop');
-  assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
+  assert.equal(text.match(/\bstepCombat\(/g)?.length ?? 0, 0, 'which does not step it itself');
+  assert.equal(text.match(/\bstepHero\(/g)?.length, 1, 'but through the one frame step (world-record.ts stepHero, which the server replays), called once');
+  assert.equal(readFileSync(new URL('../../src/fight/world-record.ts', import.meta.url), 'utf8').match(/\bstepCombat\(/g)?.length, 1, 'whose body holds the one stepCombat call');
 });
 
 test('a creature that is struck down falls, is released and killed once (the engine\'s actor plays its Death from the duel)', () => {
@@ -116,7 +118,7 @@ test('fairness: no creature can land two blows inside one catch-up frame (its fa
 
 // Proof 3 on the page: joins need no page code of their own, they happen inside stepCombat (#1943) for every creature the loop holds. A pack of four around an idle hero: three attack him (each telegraphs its own blow), the fourth holds off.
 test('a pack of four around the hero: three join and telegraph their own blows, the fourth waits', () => {
-  const f = fakeMobs(['w1', 'w2', 'w3', 'w4'].map((id, i) => ({ spec: { ...spec(id, 'wolf'), level: 1 }, x: Math.sin(i * 1.6) * 4, z: Math.cos(i * 1.6) * 4 })));
+  const f = fakeMobs(['w1', 'w2', 'w3', 'w4'].map((id, i) => ({ spec: { ...spec(id, 'wolf'), level: 1 }, x: Math.sin(i * 1.6) * (i === 2 ? 4.5 : 4), z: Math.cos(i * 1.6) * (i === 2 ? 4.5 : 4) })));   // w3 half a metre farther: the pose's cm rounding no longer decides the tie
   const tells = new Set<string>(), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: (id) => void tells.add(id) });
   run(wc, { x: 0, z: 0, facing: 0 }, 3);
   assert.equal(wc.debug().filter((x) => x.hunting).length, 4, 'all four hunt him');

@@ -576,6 +576,16 @@ try {
         eq([lo.snapshot().rejected, lo.snapshot().events.map(e => e.id)], [1, ['every-minute', 'never']], 'a typo\'d event is ignored and every other row still applies');
       } finally { lo.stop(); lw.close(); psql(`delete from public.origins_live_events; delete from public.origins_switches;`); }
     }
+    // the writer's real login role (frankendom_verifier, 202610080001) must run every public.origins_* function the writer's source calls: a grant to frankendom_origins alone fails there with "permission denied"
+    {
+      const called = [...new Set(['origins/server', 'scripts/origins-writer.mjs'].flatMap(p => (p.endsWith('.mjs') ? [p] : readdirSync(p).filter(n => n.endsWith('.ts') && !n.includes('.test.')).map(n => join(p, n)))).flatMap(f => [...readFileSync(f, 'utf8').matchAll(/public\.(origins_[a-z_]+)\(/g)].map(m => m[1])))].sort();
+      const denied = psql(`select string_agg(distinct p.proname, ',' order by p.proname) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any('{${called.join(',')}}') and not has_function_privilege('frankendom_verifier', p.oid, 'execute');`);
+      eq([called.length > 20, denied], [true, ''], 'the writer role (frankendom_verifier) can execute every origins_* function the writer calls');
+      psql(readFileSync('supabase/down/202610130028_writer_role_grants_down.sql', 'utf8'));
+      eq(psql(`select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any('{${called.join(',')}}') and not has_function_privilege('frankendom_verifier', p.oid, 'execute');`), '4', '0028 down: exactly the four newly granted functions lose the verifier grant, frankendom_origins keeps its own');
+      eq(psql(`select count(*) from pg_proc p where p.proname in ('origins_live_ops','origins_mint_keys_held','origins_set_build','origins_set_level') and not has_function_privilege('frankendom_origins', p.oid, 'execute');`), '0', '0028 down leaves frankendom_origins untouched');
+      psql(readFileSync(join(dir, '202610130028_writer_role_grants.sql'), 'utf8'));
+    }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)
     psql(`select public.origins_purge_account('${D}');`);
     eq([activeOf(D), locRow(dara), locRow(daraTwo), psql(`select count(*) from public.origins_character_build`)], ['none', 'none', 'none', '0'], 'purge: active character, saved locations and builds gone');

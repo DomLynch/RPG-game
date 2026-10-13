@@ -12,9 +12,9 @@
 #   - a feature PR: no job at all (every job is skipped); quality.yml and unit-ci.yml are its gate;
 #   - trunk pushes run nothing here: at 8 wide a trunk matrix took 51–111 min and trunk moves every 1–2 h, so a 2-wide one
 #     would be cancelled before it finished — pure spend. Measure trunk by dispatch (`gh workflow run release-checks.yml`);
-#   - max-parallel 20 (2026-10-12, Pro plan: 40 concurrent jobs): one run never holds more than 20 of the 40, so a labelled run and quality.yml
-#     run side by side; a release candidate (head branch release-*) counts as labelled, drafts included.
-# Worst case: 1 release candidate x 20 + 1 dispatch x 20 = 40; with no dispatch, 20 are left for quality.yml.
+#   - max-parallel 40 (Lead 2026-10-13, was 20): the 20 cap made the second wave of ~18 rows wait 105-571 s behind the first
+#     (run 38348338622); the account ran 59 jobs at once at 06:02Z (Strategy), so all rows start together and a candidate's
+#     wall time is its longest row. A release candidate (head branch release-*) counts as labelled, drafts included.
 name: release-checks
 on:
   # Pull requests run on the branch head, so that by the time the branch is merged the deploy can trust these checks by
@@ -121,8 +121,8 @@ jobs:
     if: needs.plan.outputs.checks != '[]'
     strategy:
       fail-fast: false
-      # One run holds at most 20 of the repo's 40 concurrent jobs (GitHub Pro; the budget in the header).
-      max-parallel: 20
+      # Every row starts at once (Lead 2026-10-13; the reason is in the header).
+      max-parallel: 40
       matrix:
         check: ${{ fromJson(needs.plan.outputs.checks) }}
     name: check ${{ matrix.check.index }} (${{ matrix.check.name }})

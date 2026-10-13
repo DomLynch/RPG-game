@@ -4,7 +4,7 @@
 //                      joiners included, so three creatures on one player hold three tokens. The token's time-to-kill floor runs from this call: engaging late (at the kill) answers too-fast.
 //   hit(instance)      the player's blow landed on THIS creature (hits are per creature, never the fight total); touches the token at most every TOUCH_EVERY_MS (the writer's grace is 120 s).
 //   tick()             touches every open token not touched for TOUCH_EVERY_MS (a long fight with few hits).
-//   killed(instance)   the creature fell: POST /kill_report {token, hits}; the creature is spent whatever the answer. A report that did not get a settled answer (the socket dropped, a timeout,
+//   killed(instance, record?)   the creature fell: POST /kill_report {token, hits, record?} (record = the world fight's packed inputs, src/fight/world-record.ts; the server replays it, and a kill without one pays scorecard counts only); the creature is spent whatever the answer. A report that did not get a settled answer (the socket dropped, a timeout,
 //                      a 5xx, a refusal that leaves the token open such as 422 'position not checked') waits in the OUTBOX and tick() re-sends it with the SAME token: the server pays a token once (its
 //                      second report is 409 used), so a kill whose reply was lost is paid exactly once. 409 means settled (paid by the lost attempt, or dead/expired): the report is dropped.
 //   evaded(instance)   the creature gave up and walked home: drop its token, no report (it expires on the server).
@@ -13,10 +13,12 @@
 import { call } from './encounter-net.ts';
 import { DEFAULT_ZONE } from '../zones/loader.ts';
 import type { Offline } from './save.ts';
+import type { WorldRecord } from '../../src/fight/index.ts';
 
 export type Engaged = { token: string; instance: string; generation: number; kind: string; level: number; hp: number; expiresAt: string };
 export type Killed = { result: 'killed'; instance: string; respawnAt: string | null; loot: { item: string; quantity: number }[]; cp: number; bronze: number; beta: boolean };
 export const TOUCH_EVERY_MS = 30_000;
+export const MAX_RECORD_CHARS = 45_000;   // the writer's body limit is 64 KB; a longer record is not sent (the kill pays scorecard counts only)
 // A killed creature is SPENT this long: a Hit or engage for it arriving after killed() (any event order) opens nothing. The server's shortest respawn is 10 s (migration 0014), so a respawned one is engaged again.
 export const SPENT_MS = 10_000;
 const isOffline = (r: object): r is Offline => 'offline' in r;
@@ -36,20 +38,20 @@ export function killedOf(r: unknown): Killed | null {
 }
 const touchedOf = (r: unknown): { expiresAt: string } | null => (r && typeof r === 'object' && typeof (r as { expiresAt?: unknown }).expiresAt === 'string' ? { expiresAt: (r as { expiresAt: string }).expiresAt } : null);
 
-type Deps = { token: () => string | null; character: () => string | null | Promise<string | null>; zone?: () => string; now: () => number; fetch?: typeof fetch; base?: string; timeoutMs?: number; onSettled?: (k: Killed) => void };
+type Deps = { token: () => string | null; character: () => string | null | Promise<string | null>; zone?: () => string; now: () => number; encode?: (r: WorldRecord) => Promise<string>; fetch?: typeof fetch; base?: string; timeoutMs?: number; onSettled?: (k: Killed) => void };
 type Open = { engage: Promise<Engaged | Offline>; hits: number; touchedAt: number };
 export type SpawnTracker = {
   engaged(instance: string): Promise<Engaged | Offline>;
   hit(instance: string): void;
   tick(): void;
-  killed(instance: string): Promise<Killed | Offline>;
+  killed(instance: string, record?: WorldRecord | null): Promise<Killed | Offline>;
   evaded(instance: string): void;
   open(): string[];
   outbox(): string[];
 };
 
 export function spawnTracker(d: Deps): SpawnTracker {
-  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
+  const opts = { fetch: d.fetch, base: d.base, timeoutMs: d.timeoutMs }, live = new Map<string, Open>(), spent = new Map<string, number>(), retried = new Set<string>(), pending = new Map<string, { token: string; hits: number; record: string | null; tries: number; busy: boolean }>();   // retried: creatures whose refused/offline engage the player's own blow has already asked about once
   const isSpent = (instance: string): boolean => { const at = spent.get(instance); if (at === undefined) return false; if (d.now() - at < SPENT_MS) return true; spent.delete(instance); return false; };
   const touch = (o: Open): void => {
     o.touchedAt = d.now();
@@ -72,7 +74,7 @@ export function spawnTracker(d: Deps): SpawnTracker {
     if (!p) return { offline: 'settled' };
     if (p.busy) return { offline: 'busy' };
     p.busy = true; p.tries++;
-    const r = await call('kill_report', { token: p.token, hits: p.hits }, d.token(), killedOf, opts);
+    const r = await call('kill_report', { token: p.token, hits: p.hits, ...(p.record ? { record: p.record } : {}) }, d.token(), killedOf, opts);
     p.busy = false;
     if (!isOffline(r)) { pending.delete(instance); d.onSettled?.(r); }
     else if (settledOffline(r) || p.tries >= OUTBOX_TRIES) pending.delete(instance);
@@ -90,13 +92,14 @@ export function spawnTracker(d: Deps): SpawnTracker {
       if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o);
     },
     tick() { for (const o of live.values()) if (d.now() - o.touchedAt >= TOUCH_EVERY_MS) touch(o); for (const instance of pending.keys()) void send(instance); },
-    async killed(instance) {
+    async killed(instance, record) {
       const o = live.get(instance);
       if (!o) return { offline: 'not-engaged' };
       live.delete(instance); retried.delete(instance); spent.set(instance, d.now());
       const e = await o.engage;   // a kill can land before the engage answered: report on its token once it has
       if (isOffline(e)) return e;
-      pending.set(instance, { token: e.token, hits: o.hits, tries: 0, busy: false });
+      const packed = record && d.encode ? await d.encode(record).catch(() => null) : null;   // gzip failing or a record past the limit: the kill is still reported, without it
+      pending.set(instance, { token: e.token, hits: o.hits, record: packed && packed.length <= MAX_RECORD_CHARS ? packed : null, tries: 0, busy: false });
       return send(instance);
     },
     evaded(instance) { live.delete(instance); retried.delete(instance); },
