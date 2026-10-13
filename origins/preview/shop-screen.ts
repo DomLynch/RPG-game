@@ -19,7 +19,7 @@ export function mountShop(dialog: HTMLDialogElement, view: () => ShopView | null
     if (!v) { status.textContent = chromeText('empty'); list.replaceChildren(); return; }
     list.replaceChildren(...v.lines.map((l) => {
       const li = el('li', 'shop-row'), name = el('b', 'shop-name', l.name), price = el('span', 'shop-price', l.priceText);
-      const note = el('span', 'shop-note', [l.shelfText, l.levelText].filter(Boolean).join(' · ')), go = el('button', 'shop-buy', chromeText('buy'), { type: 'button' });
+      const note = el('span', 'shop-note', [l.shelfText, l.levelText].filter(Boolean).join(' · ')), go = el('button', 'shop-buy', chromeText('buy'), { type: 'button' }) as HTMLButtonElement;
       li.dataset.item = l.item;
       go.addEventListener('click', async () => {
         if (busy) return; busy = true; go.disabled = true;
