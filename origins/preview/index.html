@@ -25,6 +25,16 @@
     body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
     #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    #walk-board { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    body.kit #walk-board { display: none; }   /* the daily board is a ☰ Settings entry in the kit, like the Journal (main.ts menu-board) */
+    #allegiance:not([hidden]) ~ #walk-board { top: calc(env(safe-area-inset-top) + var(--gap-s) + 2 * (var(--tap) + var(--gap-xs))); }   /* the Allegiance button holds the second slot while it is up */
+    .board-dialog { touch-action: pan-y; box-sizing: border-box; width: min(var(--panel-w), 100vw - 2 * var(--gap-s)); max-height: calc(100dvh - 2 * var(--gap-s)); margin: auto; padding: 18px var(--gap-m) var(--gap-m); overflow-y: auto; border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); -webkit-user-select: none; user-select: none; }
+    .board-dialog::backdrop { background: var(--c-shade); }
+    .board-dialog .board-close { position: absolute; top: var(--gap-xs); right: var(--gap-xs); width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--c-ink); font-size: var(--fs-x); }
+    .board-dialog .board-head { padding-right: var(--tap); } .board-dialog h3 { margin: 0; font-size: var(--fs-xl); } .board-dialog .board-status, .board-dialog .board-reset { margin: var(--gap-xs) 0 0; color: var(--c-ink-2); font-size: var(--fs-s); }
+    .board-dialog .board-list { list-style: none; margin: var(--gap-s) 0 0; padding: 0; }
+    .board-dialog .board-task { display: grid; gap: 2px; padding: var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); }
+    .board-dialog .board-task-text { font-size: var(--fs-l); overflow-wrap: anywhere; } .board-dialog .board-task-reward { color: var(--c-brass); font-size: var(--fs-s); }
     .stick { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 28px + var(--stick) / 2); margin-bottom: 0; width: var(--stick); height: var(--stick); margin: calc(var(--stick) / -2) 0 0 calc(var(--stick) / -2); border-radius: 50%; border: 2px solid var(--c-ring); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
         #move-stick { left: calc(24px + var(--stick) / 2); } #look-stick { left: calc(100% - 24px - var(--stick) / 2); }
     .stick.on { opacity: 1; bottom: auto; }
@@ -91,6 +101,8 @@
   <button id="prompt" class="glass" hidden></button>
   <button id="walk-journal" class="glass">Journal</button>
   <button id="allegiance" class="glass" hidden>Allegiance</button>
+  <button id="walk-board" class="glass"></button>
+  <dialog id="board-dialog"></dialog>
   <div id="shade" hidden><div id="panel" role="dialog"><button id="shut" aria-label="Close">×</button><div id="card"></div></div></div>
   <!-- The Pit duel (pit-duel.ts, its own chunk): the live game's own fight kit — its controls, HUD bars and ☰ menu — is cut from the game's
        index.html at build time (live-kit.mjs) and lands at the marker; src/style.css comes with the duel's chunk and is on only while it is

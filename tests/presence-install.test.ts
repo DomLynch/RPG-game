@@ -14,7 +14,7 @@ test('presence-files: the closure holds the service and its world data, every fi
   const files: string[] = presenceFiles(repo);
   for (const f of ['origins/presence/main.ts', 'origins/presence/server.ts', 'origins/presence/zones.ts', 'origins/world/concord.ts', 'origins/server/auth.ts']) assert.ok(files.includes(f), `${f} is installed`);
   assert.ok(files.every(f => existsSync(join(repo, f))), 'every listed file exists');
-  assert.ok(files.every(f => /^(origins|src)\//.test(f) && !f.includes('node_modules') && !f.includes('.test.')), 'only origins/ and src/ sources, never a test');
+  assert.ok(files.every(f => (/^(origins|src)\//.test(f) || f.startsWith('scripts/lib/')) && !f.includes('node_modules') && !f.includes('.test.')), 'only origins/ and src/ sources, and scripts/lib helpers they import, never a test');
   assert.deepEqual(files, [...files].sort(), 'sorted, so the list is stable');
 });
 
@@ -30,7 +30,7 @@ test('presence-files: a multi-line import/export clause is followed, and no list
   const files: string[] = presenceFiles(repo);
   assert.ok(files.includes('src/core/contracts/items.ts'), 'the multi-line import of items.ts is in the closure');
   for (const f of files) {
-    for (const m of readFileSync(join(repo, f), 'utf8').matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
+    for (const m of readFileSync(join(repo, f), 'utf8').replace(/^\s*import\s+type\b[^;]*;/gm, '').matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
       const target = relative(repo, resolve(repo, dirname(f), m[1]!));
       assert.ok(files.includes(target), `${f} imports ${target}, which the install would not copy`);
     }

@@ -57,9 +57,9 @@ test('passAt reads the Auditor\'s mid-line bold "Auditor: **PASS @sha**" (DI #24
   assert.ok(!passAt([own('Auditor: **contents OK @bac7e84f4** (not a PASS yet)')], head), 'contents OK is not a PASS');
 });
 
-test('passAt takes the five full reviewers (Auditor, Lead, Combat A, Combat B, Deploy B; Strategy 2026-10-12) at the exact head, 9-char prefix, trailing text allowed', () => {
+test('passAt takes the six full reviewers (Auditor, Lead, Combat A, Combat B, Deploy B; Strategy 2026-10-12; Hooks, the CI/workflow/scripts reviewer, Lead 2026-10-13) at the exact head, 9-char prefix, trailing text allowed', () => {
   const head = '23b4f51e0'.padEnd(40, 'a');
-  for (const who of ['Auditor', 'Lead', 'Combat A', 'Combat B', 'Deploy B']) {
+  for (const who of ['Auditor', 'Lead', 'Combat A', 'Combat B', 'Deploy B', 'Hooks']) {
     assert.ok(passAt([own(`${who}: PASS @23b4f51e0`)], head), `${who} at the head`);
     assert.ok(passAt([own(`**${who}: PASS @23b4f51e0** (notes)`)], head), `${who} bold, trailing text`);
     assert.ok(!passAt([own(`${who}: PASS @11111111a`)], head), `${who} at another head is not a PASS`);
