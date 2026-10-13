@@ -592,7 +592,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move, heading: A.body.heading };
     events.push({ tick, type: 'Killed', actor: i, target: j, move, location: 'torso', heading: A.body.heading });
   }
-  for (const i of [0, 1] as const) {   // sandbox-mech boss phases: under a row's health threshold the special hits harder and is ready sooner, once per fight
+  for (const i of [1] as const) {   // sandbox-mech boss phases (the foe only: a bosses' rows never enrage the player): under a row's health threshold the special hits harder and is ready sooner, once per fight
     const B = fighters[i];
     if (PHASES.length && B.health && B.specialShare !== undefined) for (const row of PHASES) {
       if ((row.special === '*' || row.special === B.specialName) && !B.phases?.includes(row.id) && (B.health * 100) / B.maxHealth < row.below) {
