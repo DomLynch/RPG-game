@@ -4,6 +4,7 @@ import { mergeConfig } from 'vite';
 import base from '../vite.config.mjs';
 
 export default mergeConfig(base, {
+  define: { __SANDBOX_INFO__: JSON.stringify(process.env.SANDBOX_INFO ?? 'local build') },   // publish.sh: trunk base, fingerprint, active mechs
   plugins: [{
     name: 'sandbox-entry',
     transformIndexHtml: {
