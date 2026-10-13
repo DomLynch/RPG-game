@@ -10,8 +10,8 @@ import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/world-rules.ts', 'src/fight/world-rules-defs.json', 'src/fight/world-rules-defs.manifest.json', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
-const WORLD_DIGEST = 'e72e53fead2a7bfb6efdd2d4dc4540f77f04fb677ec5dcc2f088e3f49309375b';
-const PINNED_FOR_VERSION = 16;
+const WORLD_DIGEST = '6fdbc2ac7ab5983eafef2dc025dd97a9cad494317a86ea33636aa068c88fe0c2';
+const PINNED_FOR_VERSION = 22;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 
@@ -19,7 +19,7 @@ test('a world-sim change without a WORLD_SIM_VERSION bump would refuse every hon
   const digest = simDigest(sources(), { world: true });
   assert.ok(WORLD_SIM_VERSION >= PINNED_FOR_VERSION, 'WORLD_SIM_VERSION went backwards');
   assert.ok(digest === WORLD_DIGEST ? WORLD_SIM_VERSION === PINNED_FOR_VERSION : WORLD_SIM_VERSION > PINNED_FOR_VERSION,
-    `The world sim files (or the Pit's RECORD_VERSION ${RECORD_VERSION}) changed (digest ${digest}) but WORLD_SIM_VERSION is still ${WORLD_SIM_VERSION}. Bump WORLD_SIM_VERSION in src/fight/world-record.ts, then set WORLD_DIGEST = '${digest}' and PINNED_FOR_VERSION = 21${WORLD_SIM_VERSION + 1} here.`);
+    `The world sim files (or the Pit's RECORD_VERSION ${RECORD_VERSION}) changed (digest ${digest}) but WORLD_SIM_VERSION is still ${WORLD_SIM_VERSION}. Bump WORLD_SIM_VERSION in src/fight/world-record.ts, then set WORLD_DIGEST = '${digest}' and PINNED_FOR_VERSION = 22${WORLD_SIM_VERSION + 1} here.`);
 });
 
 test('the digest sees a number inside a world function, and a Pit RECORD_VERSION bump', () => {
