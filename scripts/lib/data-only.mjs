@@ -19,6 +19,7 @@ export const DATA_PATHS = [
   /^origins\/region1\/hazards(\.manifest)?\.json$/,   // the Bounty hazards as rows (a hazard is one row: id, order, the line the player reads)
   /^origins\/world\/clock(\.manifest)?\.json$/,   // time of day as rows: day parts, the lawful/chaotic clock bonus, night spawns, seeded weather picks (World 2026-10-13); origins/world/clock.test.ts checks it
   /^origins\/npcs\/cloth(\.manifest)?\.json$/,   // the townspeople's worn pieces and slots as rows (a piece is one row plus a glb node)
+  /^origins\/world\/instances(\.manifest)?\.json$/,   // private instance kinds as rows (World 2026-10-13): slots, stride, grace/max seconds, headcount spawn; origins/world/instances.test.ts checks it
   /^origins\/world\/variants(\.manifest)?\.json$/,   // creature variants as rows (World 2026-10-13): weight, health/damage/scale multipliers, tint, glyph, drop prefix, eligible creatures; origins/world/variants.test.ts checks it
   /^origins\/region1\/towns\.(manifest\.)?json$/,   // the towns as rows: a definitions table (trades, temperaments, ruler titles) and the town rows; loadRegion1 + tests/town-rows.test.ts check it
   /^origins\/patrons\/stat-defs(\.manifest)?\.json$/,   // the patron perk stats as rows (Backend 2026-10-12): id, benefit, text; loadStatDefs + origins/patrons/patrons.test.ts check them
