@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, withRoll, type Action, type Duel, type Intent } from '../src/fight/duel.ts';
 import { MOVES, RULES } from '../src/fight/moves.ts';
-import { CC_LADDER, ccApply, emptyLadder, type CcGuard, type CcLadder } from '../src/fight/cc-ladder.ts';
+import { CC_LADDER, ccApply, ccRows, emptyLadder, type CcGuard, type CcKind, type CcLadder } from '../src/fight/cc-ladder.ts';
 import { ROLL_BAND, SWARM_ROWS, percentOf, rollUnit, swarmBand } from '../src/fight/roll.ts';
 import { TARGET } from '../src/fight/sim.ts';
 import { DEFS } from '../src/fight/catalogue-rows.ts';
@@ -26,7 +26,7 @@ function breakOnce(cc: CcLadder, guard?: CcGuard): number | null {
 }
 
 test('opt-in: the shipped rows name no post-CC immunity, count the window from the landing, keep no `end` on a mark, and no catalogue row names a tier or resist', () => {
-  assert.deepEqual(CC_LADDER.immunity, { stun: 0, knockdown: 0, root: 0 }); assert.equal(CC_LADDER.windowFrom, 'land');
+  for (const k of Object.values(CC_LADDER.kinds)) { assert.equal(k.immunity, 0, k.id); assert.equal(k.windowFrom, 'land', k.id); assert.deepEqual(k.steps, [100, 50, 25, 0], k.id); assert.equal(k.window, 900, k.id); }
   const r = ccApply(emptyLadder, 'postureBreak', 10, 120);
   assert.deepEqual(r, { ticks: 120, level: 0, ladder: [{ family: 'stun', count: 1, last: 10 }] }, 'the v49 result, key for key');
   assert.equal(creature('c1', 'wolf', 0, 0).ccGuard, undefined, 'a shipped creature carries no guard');
@@ -34,13 +34,14 @@ test('opt-in: the shipped rows name no post-CC immunity, count the window from t
 });
 
 test('CC timing row: post-CC immunity starts at the CC\'s END and lasts its ticks; a window counted from the end outlives one counted from the landing', () => {
-  const rows = { ...CC_LADDER, immunity: { ...CC_LADDER.immunity, stun: 60 } };
+  const withStun = (row: Partial<CcKind>) => ({ ...CC_LADDER, kinds: { ...CC_LADDER.kinds, stun: { ...CC_LADDER.kinds.stun!, ...row } } });
+  const rows = withStun({ immunity: 60 });
   const first = ccApply(emptyLadder, 'postureBreak', 0, 120, rows);   // lands at 0, lasts to 120, immune to stuns until 180
   assert.deepEqual(first.ladder, [{ family: 'stun', count: 1, last: 0, end: 120 }]);
   assert.deepEqual(ccApply(first.ladder, 'parryStun', 150, 100, rows), { ticks: 0, level: 1, ladder: first.ladder }, 'inside the immunity: nothing, and the ladder is not refreshed');
   assert.equal(ccApply(first.ladder, 'parryStun', 180, 100, rows).ticks, 50, 'immunity over: the second step, half');
   assert.equal(ccApply(first.ladder, 'wallSlam', 150, 100, rows).ticks, 100, 'another family is untouched');
-  const fromEnd = { ...CC_LADDER, windowFrom: 'end' as const }, landed = ccApply(emptyLadder, 'postureBreak', 0, 120, fromEnd).ladder;
+  const fromEnd = withStun({ windowFrom: 'end' }), landed = ccApply(emptyLadder, 'postureBreak', 0, 120, fromEnd).ladder;
   assert.equal(ccApply(landed, 'parryStun', 1010, 100, fromEnd).ticks, 50, 'end 120 + window 900 = 1020: still on the ladder at 1010');
   assert.equal(ccApply(landed, 'parryStun', 1010, 100).ticks, 100, 'the shipped rows count from the landing: reset by 1010');
 });
@@ -75,4 +76,16 @@ test('opt-in in the engine: a world duel carrying a swarm and rank on the shippe
   const run = (roll: Duel['roll']) => { let d: Duel = { ...duel(), ...(roll ? { roll } : {}) }; const out: number[] = []; for (let i = 0; i < 400; i++) { d = stepDuel(d, [act('light'), act('light')]); out.push(d.fighters[0].health, d.fighters[1].health); } return out; };
   const seeded = withRoll(duel(), 99).roll!;
   assert.deepEqual(run({ ...seeded, swarm: 3, rank: 7 }), run(seeded));
+});
+
+test('a new CC kind is ONE row (no code edit), and the loader refuses a broken row', () => {
+  const kinds = Object.values(CC_LADDER.kinds), tiers = Object.values(CC_LADDER.tiers).map((t, i) => ({ id: Object.keys(CC_LADDER.tiers)[i]!, ...t })), resists = Object.entries(CC_LADDER.resists).map(([id, r]) => ({ id, ...r }));
+  const stunKind = CC_LADDER.kinds.stun!, daze: CcKind = { id: 'daze', sources: ['gambitFail'], steps: [100, 0], window: 300, windowFrom: 'end', immunity: 30 };
+  const rows = ccRows([...kinds.map((k) => (k.id === 'stun' ? { ...stunKind, sources: stunKind.sources.filter((s) => s !== 'gambitFail') } : k)), daze], tiers, resists);
+  const first = ccApply(emptyLadder, 'gambitFail', 0, 90, rows);
+  assert.deepEqual(first.ladder, [{ family: 'daze', count: 1, last: 0, end: 90 }], 'a gambit failure now steps the daze row');
+  assert.equal(ccApply(first.ladder, 'gambitFail', 100, 90, rows).ticks, 0, 'its own steps: immune on the second');
+  assert.throws(() => ccRows([...kinds, daze], tiers, resists), /source gambitFail is in kinds stun and daze/);
+  assert.throws(() => ccRows([{ ...stunKind, steps: [50, 100] }], tiers, resists), /never rising/);
+  assert.throws(() => ccRows(kinds, tiers, [{ id: 'x', keep: 140 }]), /keep is a percent/);
 });

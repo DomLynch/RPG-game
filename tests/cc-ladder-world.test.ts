@@ -41,5 +41,5 @@ test('the hero on a boss: the boss\'s breaks step the boss\'s own ladder', () =>
   assert.ok(r.ms.length >= 2, `the boss was posture-broken ${r.ms.length} times`);
   assert.equal(r.ms[0], ms(RULES.posture.stun)); assert.equal(r.ms[1], ms(Math.round(RULES.posture.stun / 2)));
   assert.ok(get(r.world, 'boss').cc!.some((m) => m.family === 'stun'));
-  assert.equal(CC_LADDER.steps[0], 100, 'rows are data');
+  assert.equal(CC_LADDER.kinds.stun!.steps[0], 100, 'rows are data');
 });
