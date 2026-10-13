@@ -141,3 +141,35 @@ test('deploy.sh: the rows are deferred before Published, run after the publish l
   assert.match(deploy, /DEPLOY_POST_PUBLISH:-on\}" == off \]\] \|\| post_publish=/, 'DEPLOY_POST_PUBLISH=off restores the old behaviour');
   assert.match(deploy, /source scripts\/lib\/post-publish\.sh/);
 });
+
+const withRollback = (root: string, run: string, rollback: string, hold: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_rows abc123 44 "$RB"`], {
+  encoding: 'utf8', cwd: root, env: { ...process.env, RB: rollback, POST_PUBLISH_RUN: run, DEPLOY_HOLD_FILE: hold },
+});
+
+test('post_publish_rows: a failing row runs the rollback command, says ROLLED BACK, and still holds and returns 1; a pass never rolls back', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-rb-')), hold = join(root, 'deploy_hold'), marker = join(root, 'rolled');
+  try {
+    const ok = withRollback(root, 'true', `touch ${marker}`, hold);
+    assert.equal(ok.status, 0);
+    assert.ok(!existsSync(marker), 'a pass does not roll back');
+    const bad = withRollback(root, 'exit 3', `touch ${marker}`, hold);
+    assert.equal(bad.status, 1);
+    assert.ok(existsSync(marker) && existsSync(hold), 'rolled back and held');
+    assert.match(bad.stderr, /ROLLED BACK: rows 44 failed for abc123/);
+    rmSync(marker);
+    const broken = withRollback(root, 'exit 3', 'exit 7', hold);
+    assert.equal(broken.status, 1);
+    assert.match(broken.stderr, /ROLLBACK FAILED: rows 44 failed for the LIVE release abc123/);
+    const none = withRollback(root, 'exit 3', '', hold);
+    assert.equal(none.status, 1);
+    assert.ok(!/ROLLED BACK|ROLLBACK FAILED/.test(none.stderr), 'no rollback command: the old behaviour');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('deploy.sh: Mac rows after Published is off by default, runs first with a rollback to the outgoing release, and only when the writer was left as it was', () => {
+  assert.match(deploy, /DEPLOY_MAC_AFTER_PUBLISH:-off/);
+  assert.match(deploy, /RELEASE_CHECKS_DEFERRED="\$post_publish\$\{mac_deferred:\+/);
+  assert.match(deploy, /\$writer_install" == \*"nothing installed"\*/);
+  assert.match(deploy, /DEPLOY_LOCK=\/dev\/null bash scripts\/rollback\.sh \$live_now/);
+  assert.ok(deploy.indexOf('"$mac_deferred" "$mac_rollback"') < deploy.indexOf('post_publish_rows "$revision" "$post_publish"'), 'the Mac rows run before the other post-publish rows');
+});
