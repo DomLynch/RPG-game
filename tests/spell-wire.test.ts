@@ -33,7 +33,7 @@ test('nothing equipped, or a pick that is not in the grimoire, casts nothing', (
 
 test('main.ts reaches the pick only through the core door and spell-pick: no spell id, no number', () => {
   const src = readFileSync('src/main.ts', 'utf8');
-  assert.match(src, /spell: \(\) => pickSpell\(equippedSpell\(\), ownedSpells\(\), \{\}\)/);
+  assert.match(src, /spell: \(\) => pickSpell\(equippedSpell\(\), ownedSpells\(\), (\{\}|skills\.values\(\))\)/);
   assert.match(src, /import \{[^}]*\bequippedSpell\b[^}]*\bownedSpells\b[^}]*\} from '\.\/core\/index\.ts'/);
 });
 
