@@ -3,13 +3,13 @@
 // with a stub systemctl.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 function scene(siteAt: 'old' | 'new') {
-  const root = mkdtempSync(join(tmpdir(), 'writer-back-'));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'writer-back-')));   // /var -> /private/var on a Mac
   const opt = join(root, 'opt'), site = join(root, 'site'), bin = join(root, 'bin'), calls = join(root, 'systemctl.log');
   for (const d of [join(opt, 'prev'), join(opt, 'next'), join(site, 'releases', 'old'), join(site, 'releases', 'new'), bin]) mkdirSync(d, { recursive: true });
   symlinkSync(join(opt, 'next'), join(opt, 'current'));   // the writer is on the NEW install
