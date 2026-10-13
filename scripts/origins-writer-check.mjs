@@ -514,9 +514,9 @@ try {
       for (const sql of [`select * from public.origins_character_build;`, `select public.origins_get_build('${D}', '${daraTwo}');`, `update public.origins_character_build set level = 50;`])
         eq(asClient3(sql), 'permission denied', `a client may not: ${sql}`);
     }
-    // fame and karma (migration 202610130030): no row reads 0/0, adds clamp to 0..15000 and -15000..15000, ownership, writer-only add, closed to clients
+    // fame and karma (migration 202610130030): no row reads 0/0, adds clamp to 0..15000 and -15000..15000, ownership, both writer roles add, closed to clients
     {
-      const asW = sql => psql(`set role frankendom_origins; ${sql}`).split('\n').pop();
+      const asW = sql => psql(`set role frankendom_verifier; ${sql}`).split('\n').pop();
       const rget = c => JSON.parse(asW(`select coalesce(public.origins_get_renown('${D}', '${c}')::text, 'null');`));
       const radd = (c, f, k) => JSON.parse(asW(`select coalesce(public.origins_add_renown('${D}', '${c}', ${f}, ${k})::text, 'null');`));
       const denied = fn => { try { fn(); return 'ok'; } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : 'other'; } };
@@ -528,7 +528,7 @@ try {
       eq(radd('pc:nobody', 1, 1), null, 'renown: not this account\'s character cannot be written');
       eq(rget('pc:nobody'), null, 'renown: and reads null');
       eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the verifier role reads');
-      eq(denied(() => psql(`set role frankendom_verifier; select public.origins_add_renown('${D}', '${daraTwo}', 1, 1);`)), 'permission denied', 'renown: the verifier may not write');
+      eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the other writer role reads the same row');
       eq(denied(() => psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; select public.origins_get_renown('${D}', '${daraTwo}');`)), 'permission denied', 'renown: a client may not read');
       eq(denied(() => psql(`set role authenticated; select * from public.origins_character_renown;`)), 'permission denied', 'renown: a client may not touch the table');
     }

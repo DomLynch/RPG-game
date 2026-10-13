@@ -37,6 +37,5 @@ end $$;
 
 revoke all on function public.origins_get_renown(uuid, text), public.origins_add_renown(uuid, text, int, int) from public, anon, authenticated;
 grant execute on function public.origins_get_renown(uuid, text) to frankendom_origins, frankendom_verifier;
--- Least privilege: only the writer service awards; the verifier reads.
-grant execute on function public.origins_add_renown(uuid, text, int, int) to frankendom_origins;
+grant execute on function public.origins_add_renown(uuid, text, int, int) to frankendom_origins, frankendom_verifier;
 commit;
