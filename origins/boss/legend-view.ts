@@ -1,7 +1,7 @@
 // The PAGE-SAFE half of the legend bosses (World, 2026-10-13): what the page needs to draw and start a placed legend: the fight id, the placement rows, and a legend's name / body / level read from the legend
 // families. Nothing here imports origins/server or src/fight/server.ts (the spell catalogue and the writer's door stay out of the built page; tests/preview-no-server.test.ts guards the whole
 // origins/preview tree). Whether a legend has a spell row is the SERVER's question (origins/boss/legend-boss.ts, which filters this list by the grimoire and loads the placement rows against the real zones).
-import { LEGEND_FAMILIES, legendText, rungTopLevel } from '../../src/fight/index.ts';
+import { LEGEND_FAMILIES, legendText, rungTopLevel } from '../../src/fight/safe.ts';
 import SPAWNS from './legend-spawns.json' with { type: 'json' };
 
 export type LegendBoss = { readonly legend: string; readonly name: string; readonly fight: string; readonly enemy: string; readonly family: string; readonly region: string; readonly rank: number; readonly level: number };
