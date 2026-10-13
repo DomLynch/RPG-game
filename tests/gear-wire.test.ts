@@ -3,7 +3,9 @@
 // career/practice Match takes that from its `sheet` port at EVERY begin(), so a piece swapped since boot counts, the record carries it (v48), and a naked player fights exactly as before.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GEAR_IN_FIGHTS, sheetFor, buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
+import { GEAR_IN_FIGHTS, fightSheet, sheetFor, buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
+import { createServerGear } from '../src/core/gear-server.ts';
+import type { GearPiece, GearView } from '../src/core/gear-ledger.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
 import { sheetOf } from '../src/fight/sheet-rows.ts';
 import { GEAR, gearDeltas } from '../src/fight/gear-rows.ts';
@@ -109,4 +111,44 @@ test('the build reference: a sheet fight names the stored build it claims (chara
   assert.deepEqual(ownBuildOf({ level: 0, placed: {}, version: 0 }, 'c1'), { level: 0, placed: {}, ref: null }, 'version 0 is the default build: a real answer, and the record names no reference');
   for (const bad of [null, {}, { level: 1, placed: [], version: 1 }, { level: 1, placed: { a: 1.5 }, version: 1 }, { level: 1, placed: {}, version: -1 }, { level: 'x', placed: {}, version: 1 }]) assert.equal(ownBuildOf(bad, 'c1'), null, JSON.stringify(bad));
   assert.equal(await fetchOwnBuild({ storage: null, search: '' }), null, 'a guest has no character: no build, so no sheet');
+});
+
+// Auditor 2026-10-13: a signed-in player's equips go to the SERVER (gear-server.ts), never to the device ledger, and the sweeps check the worn gear the server holds. The Pit's sheet must follow the server's view,
+// and only once it has answered; otherwise every claim after a Gear equip would carry a sheet the server does not expect.
+test('device != server: the sheet follows the server\'s worn gear, waits for its view, and a claim after a Gear equip carries the new worn set', async () => {
+  const NOW = 1_800_000_000_000, session = JSON.stringify({ access_token: 'tok', expires_at: NOW / 1000 + 3600 });
+  const storage = { getItem: (k: string) => (k === 'frankendom.auth.v1' ? session : null) };
+  const top = TIERS[origin - 1]!;
+  const piece = (id: string, lootId: string, where: GearPiece['where'], paperdoll: string | null = null): GearPiece => ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll, tier: top, version: 1, level: 0 });
+  const view = (pieces: GearPiece[], worn: Record<string, string>): GearView => ({ pieces, stock: [], worn, packSize: 8, bankSize: 100 });
+  const platePack = view([piece('i1', 'veteran.Helmet', 'pack'), piece('i2', 'veteran.Body', 'pack'), piece('i3', 'witch.Body', 'pack')], {});
+  const plateWorn = view([piece('i1', 'veteran.Helmet', 'equipped', 'head'), piece('i2', 'veteran.Body', 'equipped', 'chest'), piece('i3', 'witch.Body', 'pack')], { head: 'i1', chest: 'i2' });
+  const robesWorn = view([piece('i1', 'veteran.Helmet', 'pack'), piece('i2', 'veteran.Body', 'pack'), piece('i3', 'witch.Body', 'equipped', 'chest')], { chest: 'i3' });
+  const answers: Record<string, unknown[]> = { open: [{ career: { totalCredit: 0 }, characters: [{ id: 'c1', name: 'Dom' }], marks: 0 }], gear_open: [plateWorn], gear_equip: [robesWorn], gear_unequip: [view([piece('i1', 'veteran.Helmet', 'pack'), piece('i2', 'veteran.Body', 'pack'), piece('i3', 'witch.Body', 'pack')], {})] };
+  const fetcher = (async (url: string) => { const a = answers[String(url).split('/').at(-1)!]?.shift(); return a === undefined ? { status: 503, json: async () => ({}) } : { status: 200, json: async () => ({ ok: true, result: a }) }; }) as never;
+  const device: Loot = { owned: [], equipped: {} };   // the device ledger knows nothing of what the server holds
+  const profile = { loot: device }, own: { level: number; placed: Record<string, number> } = { level: 20, placed: { attack: 12 } };
+  const gear = createServerGear({ storage, search: '', now: () => NOW, fetch: fetcher, getLoot: () => profile.loot, show: () => {} });
+  const rung = (l: Loot) => (id: LootId) => { const t = l.taken?.[id]?.tier; return t ? TIERS[t - 1] : undefined; };
+  assert.equal(fightSheet(profile, own, gear), undefined, 'the server has not answered: no sheet (a naked fight, as before the flip)');
+  assert.equal(gear.ready(), false);
+  assert.equal(await gear.refresh(), true); assert.ok(gear.ready());
+  const serverLoot = gear.profileFor(profile).loot!;
+  const first = fightSheet(profile, own, gear)!;
+  assert.deepEqual(first, sheetOf(own, wornGear(serverLoot.equipped, rung(serverLoot))), 'the sheet is the SERVER\'s worn set on the stored build');
+  assert.notDeepEqual(first, sheetFor(device, own), 'the device ledger (nothing worn) would have built another sheet: the claim would be refused');
+  assert.ok(first.armour! > (sheetFor(device, own)!.armour ?? 0), 'plate raises armour');
+  // The player opens Gear and wears robes: the server answers, the shadow follows, the next fight's sheet is the robes.
+  assert.equal(gear.act({ kind: 'wear', id: 'witch.Body' as never }), true); await new Promise((r) => setTimeout(r, 30));
+  const second = fightSheet(profile, own, gear)!, nowLoot = gear.profileFor(profile).loot!;
+  assert.deepEqual(nowLoot.equipped, { chest: 'witch.Body' });
+  assert.deepEqual(second, sheetOf(own, wornGear(nowLoot.equipped, rung(nowLoot))), 'after the equip the sheet is the new worn set');
+  assert.ok(second.magicResist! > 0 && second.armour === undefined, 'robes tilt to magic resist and leave armour at its base');
+  // The claim: a Match fight begun now records exactly the sheet the server will compute from its worn_gear.
+  setPlayScale(playScaleFor('veteran', RECORD_VERSION)); setLateNotice(true); setStab(true);
+  const m = mk(() => fightSheet(profile, own, gear), () => ({ characterId: 'c1', buildVersion: 3 })); m.rematch();
+  const rec = m.recorder!.finish('abandoned');
+  assert.deepEqual(rec.sheet, second, 'the record carries the server\'s worn set, not the device\'s');
+  assert.equal(profile.loot, device, 'the device ledger was never written');
+  void platePack;
 });

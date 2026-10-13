@@ -1,5 +1,5 @@
 import { createInput } from './fight/index.ts';
-import { GEAR_IN_FIGHTS, gearNumbers, sheetFor } from './fight/gear-numbers.ts';
+import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -409,7 +409,7 @@ const rankLevel = () => fightLevel(profile.dial, careerMarks());
 // career fight records no sheet: the sweeps check the record's sheet against exactly this build and the worn set.
 let ownBuild: OwnBuild | undefined;
 if (GEAR_IN_FIGHTS) void fetchOwnBuild({ storage, search: typeof location !== 'undefined' ? location.search : '' }).then((b) => { ownBuild = b ?? undefined; });
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => sheetFor(profile.loot, ownBuild), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
@@ -774,7 +774,7 @@ function openJournal() {
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
 void openCharacter({ storage, search: location.search });
-void serverGear.importLocal();   // a signed-in device's local gear goes to the server once (gear_import: adds what it lacks, removes nothing)   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
+void serverGear.importLocal().finally(() => void serverGear?.refresh());   // after the import (it may add pieces), read the server's ledger once at load: the Pit's sheet waits for it (gear-numbers.ts fightSheet)   // a signed-in device's local gear goes to the server once (gear_import: adds what it lacks, removes nothing)   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
