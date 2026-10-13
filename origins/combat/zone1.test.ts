@@ -226,9 +226,10 @@ test('pvp: hitting back is not "first" (inside the window)', () => {
   assert.deepEqual(of(back.events, 'Aggressed')[0], { type: 'Aggressed', attacker: 'b', victim: 'a', first: false });
 });
 
+// directionalGuard is on in the world: the guard must be held on the side the blow comes from (a bare guard covers only a thrust)
 test('parry: a guard raised just before a creature\'s blow turns it aside - a Parried event, no damage, the creature thrown off', () => {
   let w = newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.4)]); const events: Event[] = [];
-  for (let t = 0; t < 300; t++) { const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= 0.15; const r = stepCombat(w, { p: { x: 0, z: 0, guard } }, DT); w = r.world; events.push(...r.events); }
+  for (let t = 0; t < 300; t++) { const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= 0.15; const r = stepCombat(w, { p: { x: 0, z: 0, guard, guardDirection: 'left' } }, DT); w = r.world; events.push(...r.events); }
   assert.ok(of(events, 'Parried').length > 0, 'parried');
   assert.ok(of(events, 'Staggered', 'c').length > 0, 'the creature is thrown off');
 });
