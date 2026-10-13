@@ -69,3 +69,6 @@ export const executed = (damage: number, critical: boolean, targetHealth: number
 export const ONE_BUTTON = num('oneButton', 'value');
 export const HEAVY_HOLD_MS = num('heavyHold', 'value') || 180;
 export const STAB_SLIDE_PX = num('stabSlide', 'value') || 18;
+
+// stabHalfAngle (degrees): a slide within this of straight up is the stab (the wedge drawn on STRIKE); anything else is the cut to its side. The test itself is input.ts stabSector (trigonometry stays out of this sim-listed file).
+export const STAB_HALF_ANGLE = num('stabHalfAngle', 'value') || 50;

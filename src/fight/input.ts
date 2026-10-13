@@ -4,7 +4,7 @@
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
 import type { Direction } from './moves.ts';
-import { ONE_BUTTON, HEAVY_HOLD_MS, STAB_SLIDE_PX } from './sandbox-rules.ts';
+import { ONE_BUTTON, HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE } from './sandbox-rules.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -44,6 +44,8 @@ export const cutAction = (lateral: number): Action => (lateral <= -CUT_PUSH ? 'l
 export const SLASH_SLIDE_PX = 14, SLASH_DECIDE_MS = 50;
 export const slashSlide = (dx: number): 'left' | 'right' | null => (dx <= -SLASH_SLIDE_PX ? 'left' : dx >= SLASH_SLIDE_PX ? 'right' : null);
 export const cutSideOf = (action: Action): 'left' | 'right' | null => (action === 'light_left' ? 'left' : action === 'light_right' ? 'right' : null);   // the side a cut press goes to; neutral LIGHT is null (no flash)
+// A slide within STAB_HALF_ANGLE degrees of straight up is the stab. Screen y grows down, so up is dy < 0.
+const stabSector = (dx: number, dy: number): boolean => dy < 0 && Math.abs(dx) <= -dy * Math.tan((STAB_HALF_ANGLE * Math.PI) / 180);
 const ARROW_SIDE: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'overhead', ArrowDown: 'low' };
 
 // Dodge control: the press is an instant backstep; holding it past HOLD_MS grows the step into a roll. Swipe-down rolls directly.
@@ -258,7 +260,7 @@ export function createInput(env: InputEnv) {
     });
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId !== id || dragged) return;
-      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (side) { fireSlash(side); return; } if (ONE_BUTTON && event.clientY - slashWait.y <= -STAB_SLIDE_PX) { fireStab(); return; } }
+      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (ONE_BUTTON) { const dx = event.clientX - slashWait.x, dy = event.clientY - slashWait.y; if (Math.hypot(dx, dy) >= STAB_SLIDE_PX) { if (stabSector(dx, dy)) fireStab(); else fireSlash(dx < 0 ? 'left' : 'right'); return; } } else if (side) { fireSlash(side); return; } }
       const c = radius();
       if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
       dragged = true;

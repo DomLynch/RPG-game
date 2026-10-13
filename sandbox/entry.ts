@@ -130,8 +130,11 @@ const restyleStances = (tries = 0): void => {
 // handlers and ids; only their place and size change. Spell 2 is a placeholder (the game has one spell slot). Only while the oneButton row is on.
 const layoutA = (): void => {
   if (!(RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'oneButton' && r.value)) return;
-  const CX = 104, CY = 108;   // STRIKE's centre, px from the right and bottom edge
-  const spots: [string, number, number, number][] = [['attack-button', 0, 0, 96], ['skill-button', -83, -48, 47], ['sbx-spell2', 64, -63, 47], ['guard-button', -73, 55, 47], ['dodge-button', 62, 57, 33], ['kick-button', -140, 55, 35]];   // id, dx, dy (down is +), diameter
+  const CX = 104, CY = 128;   // STRIKE's centre, px from the right and bottom edge
+  // Three variants of the one design (`?lay=1|2|3`, Dom 2026-10-13): STRIKE smaller each time (more room for the zones around it), the spells higher and wider, the kick up beside the guard.
+  const lay = new URLSearchParams(location.search).get('lay');
+  const V = ({ '2': { S: 72, R: 146, d: 50, sp: [-92, 74, -72], gd: [-78, 58], rl: [66, 60], kk: [-142, 4] }, '3': { S: 64, R: 154, d: 52, sp: [-98, 80, -80], gd: [-82, 62], rl: [70, 64], kk: [-148, -2] } } as Record<string, { S: number; R: number; d: number; sp: number[]; gd: number[]; rl: number[]; kk: number[] }>)[lay ?? ''] ?? { S: 80, R: 138, d: 47, sp: [-84, 66, -64], gd: [-73, 55], rl: [62, 57], kk: [-134, 8] };
+  const spots: [string, number, number, number][] = [['attack-button', 0, 0, V.S], ['skill-button', V.sp[0]!, V.sp[2]!, V.d], ['sbx-spell2', V.sp[1]!, V.sp[2]!, V.d], ['guard-button', V.gd[0]!, V.gd[1]!, V.d], ['dodge-button', V.rl[0]!, V.rl[1]!, 33], ['kick-button', V.kk[0]!, V.kk[1]!, 35]];   // id, dx, dy (down is +), diameter
   const ids = spots.map(([id]) => `.actions #${id}`);
   const place = spots.map(([id, dx, dy, d]) => `.actions #${id}{right:${CX - dx - d / 2}px!important;bottom:${CY - dy - d / 2}px!important;width:${d}px!important;height:${d}px!important}`);
   const label: Record<string, string> = { 'attack-button': 'STRIKE', 'skill-button': 'SPELL 1', 'sbx-spell2': 'SPELL 2', 'guard-button': 'GUARD', 'dodge-button': 'ROLL', 'kick-button': 'KICK' };
@@ -142,10 +145,11 @@ const layoutA = (): void => {
     ...place,
     `${ids.map((i) => i + '::after').join(',')}{display:block!important;position:static!important;font-size:10px!important;font-weight:600;letter-spacing:.03em;color:inherit;text-align:center;white-space:nowrap}`,
     ...Object.entries(label).map(([id, t]) => `.actions #${id}::after{content:"${t}"!important}`),
-    '.actions #attack-button::after{font-size:14px!important;letter-spacing:.05em}',
+    '.actions #attack-button::after{font-size:13px!important;letter-spacing:.05em}',
     '.actions #kick-button::after,.actions #dodge-button::after{font-size:9px!important}',
     '.actions #sbx-spell2{opacity:.45}',
-    `#sbx-zones{position:fixed;z-index:4;pointer-events:none;right:${CX - 66}px;bottom:${CY - 66}px;width:132px;height:132px;border-radius:50%;border:1px dashed rgba(190,120,80,.7);background:conic-gradient(from -50deg,rgba(150,70,40,.34) 0 100deg,rgba(150,70,40,.16) 100deg 360deg)}`,
+    '#joystick{bottom:max(56px,env(safe-area-inset-bottom))!important}',
+    `#sbx-zones{position:fixed;z-index:4;pointer-events:none;right:${CX - V.R / 2}px;bottom:${CY - V.R / 2}px;width:${V.R}px;height:${V.R}px;border-radius:50%;border:1px dashed rgba(190,120,80,.7);background:conic-gradient(from -50deg,rgba(150,70,40,.34) 0 100deg,rgba(150,70,40,.16) 100deg 360deg)}`,
     '#sbx-zones i{position:absolute;font:600 10px sans-serif;color:rgba(255,235,215,.85);font-style:normal;letter-spacing:.04em}',
   ].join('\n');
   document.head.append(css);
