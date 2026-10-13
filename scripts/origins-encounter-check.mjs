@@ -94,6 +94,16 @@ try {
   eq(await code(V, START(C, pcC, tok(42), 7003, 'knight', 6)), null, 'practice: a third fight starts');
   eq(await code(V, SETTLE6(C, tok(42), 'won', EV(tok(42), C, pcC, 'won'), PR(tok(42), 'sword', 10, 35))), null, 'practice: a win at the ceiling settles');
   eq(xpOf('sword'), '35', 'practice: the placed points are the ceiling');
+  // two fights of one character settling AT THE SAME MOMENT (opened by hand: start refuses a second open fight per account): the first holds its transaction open, the second must queue on the xp row and read the first's xp.
+  for (const n of [43, 44]) psql(`insert into public.origins_encounters (token, account, character, seed, enemy, enemy_level, expires_at) values ('${tok(n)}', '${C}', '${pcC}', ${n}, 'knight', 6, now() + interval '10 minutes'); insert into public.origins_encounter_runs (token) values ('${tok(n)}')`);
+  psql(`update public.origins_skill_xp set xp = 0, focus = false where character = '${pcC}' and skill = 'sword'`);
+  const first = as(V, `begin; ${SETTLE6(C, tok(43), 'won', EV(tok(43), C, pcC, 'won'), PR(tok(43), 'sword', 10, 15))} select pg_sleep(2); commit;`);
+  await new Promise(r => setTimeout(r, 700));
+  const second = as(V, SETTLE6(C, tok(44), 'won', EV(tok(44), C, pcC, 'won'), PR(tok(44), 'sword', 10, 15)));
+  const [r1, r2] = await Promise.all([first, second]);
+  eq([r1.code, r2.code], [0, 0], 'practice race: both settles succeed');
+  eq(xpOf('sword'), '15', 'practice race: two concurrent settles end AT the ceiling, not over it (the second queued on the xp row)');
+  eq(psql(`select string_agg(paid::text, ',' order by paid desc) from public.origins_skill_practice where key in ('practice:enc:${tok(43)}:sword', 'practice:enc:${tok(44)}:sword')`), '10,5', 'practice race: paid 10 then 5');
   eq(await code('anon', `select * from public.origins_skill_xp`), '42501', 'practice: no client reads the pool');
   eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
 

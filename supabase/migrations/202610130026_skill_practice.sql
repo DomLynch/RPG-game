@@ -40,13 +40,15 @@ begin
        or (line->>'amount') !~ '^[0-9]{1,6}$' or (line->>'capXp') !~ '^[0-9]{1,6}$' then
       raise exception 'bad practice line' using errcode = 'O0002';
     end if;
-    select xp, focus into have, foc from public.origins_skill_xp where character = ch and skill = line->>'skill';
-    pay := greatest(least((line->>'amount')::int * case when coalesce(foc, false) then 2 else 1 end, (line->>'capXp')::int - coalesce(have, 0)), 0);
-    insert into public.origins_skill_practice (key, character, skill, amount, paid) values (line->>'key', ch, line->>'skill', (line->>'amount')::int, pay) on conflict (key) do nothing;
+    insert into public.origins_skill_practice (key, character, skill, amount, paid) values (line->>'key', ch, line->>'skill', (line->>'amount')::int, 0) on conflict (key) do nothing;
     get diagnostics got = row_count;
-    if got = 1 and pay > 0 then
-      insert into public.origins_skill_xp (character, skill, xp) values (ch, line->>'skill', pay)
-        on conflict (character, skill) do update set xp = public.origins_skill_xp.xp + excluded.xp, updated_at = now();
+    if got = 1 then
+      -- Lock the character's xp row (created empty if new) BEFORE reading the banked amount: two fights settling at once queue here, so the second reads the first's xp and the ceiling holds.
+      insert into public.origins_skill_xp (character, skill, xp) values (ch, line->>'skill', 0) on conflict (character, skill) do nothing;
+      select xp, focus into have, foc from public.origins_skill_xp where character = ch and skill = line->>'skill' for update;
+      pay := greatest(least((line->>'amount')::int * case when foc then 2 else 1 end, (line->>'capXp')::int - have), 0);
+      update public.origins_skill_xp set xp = xp + pay, updated_at = now() where character = ch and skill = line->>'skill';
+      update public.origins_skill_practice set paid = pay where key = line->>'key';
     end if;
   end loop;
   return out;

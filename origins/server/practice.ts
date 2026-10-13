@@ -1,23 +1,17 @@
 // Pure: the skills-by-use pool (programme row 11, "points raise the ceiling, practice fills it"). A VERIFIED win practises the skill the fight was fought with.
 // Grey targets pay 0 (the career model's falloff); the ceiling is XP_PER_POINT per placed point; focus doubling and the cap clamp are applied by origins_encounter_settle (migration 0026).
 import { falloffPermille, isGrey } from '../../src/core/server.ts';
+import { WEAPON_PRACTICE_SKILL } from '../../src/fight/server.ts';
 import type { Json } from './store.ts';
 
 export const PRACTICE_UNIT = 10;     // xp a win at the player's own level pays
 export const XP_PER_POINT = 100;     // each placed point raises the ceiling by this much
 
-// The sheet skill a weapon practises (sheet-defs.json skills). Every player weapon is listed: practice.test.ts pins that none is missing.
-export const WEAPON_SKILL: Readonly<Record<string, string>> = {
-  longsword: 'sword', estoc: 'sword', gladius: 'sword', knife: 'sword',
-  cleaver: 'axe', scythe: 'axe', reaper: 'axe', maul: 'axe', warhammer: 'axe',
-  trident: 'spear',
-};
-
 export type PracticeFight = { token: string; weapon: string; enemyLevel: number; youLevel: number; placed: Readonly<Record<string, number>> };
 
 // The lines for origins_encounter_settle's p_practice; [] when nothing is earned (unknown weapon, grey target, no point placed in the skill).
 export function practiceLines(f: PracticeFight): Json[] {
-  const skill = WEAPON_SKILL[f.weapon];
+  const skill = WEAPON_PRACTICE_SKILL[f.weapon];
   if (skill === undefined) return [];
   const d = f.enemyLevel - f.youLevel;
   if (isGrey(d)) return [];
