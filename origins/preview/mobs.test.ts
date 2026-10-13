@@ -280,7 +280,7 @@ test('the hero faces the camp of whichever creature row says firstSight: not a b
   const row = (id: string) => catalogueRow(id)!, flags = (id: string) => row(id).fields as Record<string, string | number | boolean>;   // the row's open `fields` map, mutated and restored below
   const nearest = (at: { x: number; z: number }, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
   assert.equal(fieldOf('wolf', 'firstSight'), true, 'the Ash Wolf row carries the flag');
-  const wolf = row('wolf'), goblin = row('goblin');
+  const goblin = row('goblin');
   try {
     flags('wolf').firstSight = false;
     const plain = spawnAmong(F, B, SPECS)!;
