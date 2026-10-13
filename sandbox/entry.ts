@@ -136,8 +136,8 @@ const layoutA = (): void => {
   const lay = new URLSearchParams(location.search).get('lay');
   const V = ({ '1': { S: 80, R: 138, d: 47 }, '3': { S: 64, R: 154, d: 52 } } as Record<string, { S: number; R: number; d: number }>)[lay ?? ''] ?? { S: 72, R: 146, d: 50 };
   const GAP = 3, near = (deg: number, d: number): [number, number] => { const r = V.R / 2 + d / 2 + GAP, a = (deg * Math.PI) / 180; return [Math.round(r * Math.cos(a)), Math.round(-r * Math.sin(a))]; };   // centre offset (down is +) of a button of diameter d touching the ring at this angle
-  const sp1 = near(135, V.d), sp2 = near(45, V.d), gd = near(225, V.d), rl = near(315, V.d), kk = near(180, V.d);
-  const spots: [string, number, number, number][] = [['attack-button', 0, 0, V.S], ['skill-button', sp1[0], sp1[1], V.d], ['sbx-spell2', sp2[0], sp2[1], V.d], ['guard-button', gd[0], gd[1], V.d], ['dodge-button', rl[0], rl[1], V.d], ['kick-button', kk[0], kk[1], V.d]];   // id, dx, dy (down is +), diameter
+  const sp1 = near(135, V.d), sp2 = near(45, V.d), gd = near(225, V.d), rl = near(315, V.d), KD = 42, kk = near(180, KD);   // the kick is a touch smaller than the rest (Dom)
+  const spots: [string, number, number, number][] = [['attack-button', 0, 0, V.S], ['skill-button', sp1[0], sp1[1], V.d], ['sbx-spell2', sp2[0], sp2[1], V.d], ['guard-button', gd[0], gd[1], V.d], ['dodge-button', rl[0], rl[1], V.d], ['kick-button', kk[0], kk[1], KD]];   // id, dx, dy (down is +), diameter
   const ids = spots.map(([id]) => `.actions #${id}`);
   const place = spots.map(([id, dx, dy, d]) => `.actions #${id}{right:${CX - dx - d / 2}px!important;bottom:${CY - dy - d / 2}px!important;width:${d}px!important;height:${d}px!important}`);
   const label: Record<string, string> = { 'attack-button': 'STRIKE', 'skill-button': 'SPELL 1', 'sbx-spell2': 'SPELL 2', 'guard-button': 'GUARD', 'dodge-button': 'ROLL', 'kick-button': 'KICK' };
