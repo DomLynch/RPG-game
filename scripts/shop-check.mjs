@@ -28,26 +28,44 @@ try {
   for (const [name, w, h] of [['phone', 375, 812], ['small', 320, 568]]) {
     const page = await (await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true })).newPage(); page.setDefaultTimeout(240000);
     page.on('pageerror', (e) => fails.push(`${name}: ${String(e).slice(0, 160)}`));
+    // A signed-in player against a stand-in writer: the page's own token, character and the two shop ops answered here (the writer's real prices are Backend's; the screen must show what shop_stock says, not the list).
+    const shelf = { iron: 20 }; let asked = []; const T0 = Date.now();
+    const reply = (result) => ({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
+    await page.addInitScript(() => { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: 'check-token', expires_at: Math.floor(Date.now() / 1000) + 7200 })); });
+    await page.route('**/origins/**', async (route) => {
+      const op = new URL(route.request().url()).pathname.split('/').pop(), body = route.request().postDataJSON?.() ?? {};
+      if (op === 'shop_stock') return route.fulfill(reply({ shop: 'service:exchange-provisioner', revision: 1, now: T0, rows: [
+        { item: 'item:grave-iron', count: shelf.iron, max: 20, price: shelf.iron === 20 ? 5 : 6, nextRestockAt: shelf.iron < 20 ? T0 + 90_000 : null },
+        { item: 'item:frontier.ash-helm', count: 0, max: 1, price: 72, nextRestockAt: T0 + 1_800_000 },
+        { item: 'item:frontier.watch-greaves', count: 1, max: 1, price: 60, nextRestockAt: null }] }));
+      if (op === 'shop_buy') { asked.push(body); shelf.iron -= 1; return route.fulfill(reply({ shop: body.shop, item: body.item, quantity: 1, cost: 5, revision: 1, received: ['inst:x'], replayed: false })); }
+      if (op === 'open') return route.fulfill(reply({ characters: [{ id: 'char:check', name: 'Check' }], career: null, marks: 0 }));
+      return route.fulfill({ status: 404, body: '' });
+    });
     await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('menu-shop'), null, { timeout: Number(process.env.WAIT_MS) || 240000 });
     await page.waitForTimeout(1500);
     await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600);   // the ☰
     await page.locator('#journal .tab-settings').click({ force: true }); await page.waitForTimeout(400);   // the Settings tab holds the walk's entries
-    await page.locator('#menu-shop').click({ force: true }); await page.waitForTimeout(600);
+    await page.locator('#menu-shop').click({ force: true }); await page.waitForFunction(() => document.querySelectorAll('#shop-dialog .shop-row').length, null, { timeout: 20000 });
     const read = () => page.evaluate(() => {
       const d = document.getElementById('shop-dialog'), vw = innerWidth, vh = innerHeight, r = d.getBoundingClientRect();
-      const rows = [...d.querySelectorAll('.shop-row')].map((c) => ({ item: c.dataset.item, name: c.querySelector('.shop-name').textContent, price: c.querySelector('.shop-price').textContent, note: c.querySelector('.shop-note').textContent }));
+      const rows = [...d.querySelectorAll('.shop-row')].map((c) => ({ item: c.dataset.item, name: c.querySelector('.shop-name').textContent, price: c.querySelector('.shop-price').textContent, note: c.querySelector('.shop-note').textContent, restock: c.querySelector('.shop-restock').textContent, buyOff: c.querySelector('.shop-buy').disabled }));
       const small = [...d.querySelectorAll('button')].filter((b) => { const q = b.getBoundingClientRect(); return q.width && (q.height < 44 || q.width < 44); }).length;
       const clipped = [...d.querySelectorAll('b, span, p, h3')].filter((e) => e.scrollWidth > e.clientWidth + 2 && e.clientWidth > 0).map((e) => e.textContent.slice(0, 24));
       return { open: d.open, title: d.querySelector('h3').textContent, status: d.querySelector('.shop-status').textContent, rows, small, clipped, inView: r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1, hscroll: d.scrollWidth > d.clientWidth + 1 };
     });
     const g = await read(); console.log(name, JSON.stringify(g));
     check(g.open, `${name}: the dialog opens from the ☰ entry`);
-    check(g.rows.length === 3 && g.rows[0].price === '6 bronze' && /Grave iron/i.test(g.rows[0].name), `${name}: one row per list row at the list price (${JSON.stringify(g.rows.map((x) => [x.name, x.price]))})`);
-    check(g.rows.every((x) => x.name.length > 2 && !/item:|\{/.test(x.name + x.price + x.note)), `${name}: every line is words, no id or placeholder`);
+    check(g.rows.length === 3 && g.rows[0].price === '5 bronze' && /Grave iron/i.test(g.rows[0].name), `${name}: the price is shop_stock's (5 at a full shelf), not the list's 6 (${JSON.stringify(g.rows.map((x) => [x.name, x.price]))})`);
+    check(g.rows[0].note === '20 of 20 on the shelf' && g.rows[1].note.startsWith('Sold out') && g.rows[1].buyOff && /Next one back in 30 min/.test(g.rows[1].restock), `${name}: live stock, sold out disables Buy, the restock time (${JSON.stringify(g.rows.map((x) => [x.note, x.restock, x.buyOff]))})`);
+    check(g.rows.every((x) => x.name.length > 2 && !/item:|\{/.test(x.name + x.price + x.note + x.restock)), `${name}: every line is words, no id or placeholder`);
     check(g.small === 0 && !g.clipped.length && g.inView && !g.hscroll, `${name}: layout (small ${g.small}, clipped ${g.clipped}, inView ${g.inView}, hscroll ${g.hscroll})`);
-    await page.locator('#shop-dialog .shop-buy').first().click({ force: true }); await page.waitForTimeout(500);
-    const after = await read(); check(after.status === 'Sign in to buy.', `${name}: a guest's Buy answers "Sign in to buy." (${after.status})`);
+    await page.screenshot({ path: `${out}/shop-${name}-open.png` });
+    await page.locator('#shop-dialog .shop-buy').first().click({ force: true }); await page.waitForFunction(() => /Bought/.test(document.querySelector('#shop-dialog .shop-status').textContent), null, { timeout: 20000 });
+    const after = await read();
+    check(asked.length === 1 && JSON.stringify(Object.keys(asked[0]).sort()) === JSON.stringify(['character', 'item', 'op', 'quantity', 'revision', 'shop']) && asked[0].character === 'char:check' && asked[0].quantity === 1, `${name}: one shop_buy of one unit, ids only (${JSON.stringify(asked)})`);
+    check(after.status === 'Bought Grave iron for 5 bronze.' && after.rows[0].note === '19 of 20 on the shelf' && after.rows[0].price === '6 bronze', `${name}: the receipt is shown and the shelf is read again (${after.status}; ${after.rows[0].note}; ${after.rows[0].price})`);
     await page.screenshot({ path: `${out}/shop-${name}.png` });
     await page.locator('#shop-dialog .shop-close').click({ force: true });
     check(!(await page.evaluate(() => document.getElementById('shop-dialog').open)), `${name}: Close closes it`);
