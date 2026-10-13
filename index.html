@@ -32,6 +32,7 @@
   <output id="performance" aria-label="Rendering performance">Loading the arena…</output>
   <pre id="perf" class="perf" aria-hidden="true" hidden></pre><pre id="debug" class="debug" aria-label="Combat debug overlay" hidden></pre>
   <dialog id="build-dialog" aria-label="Your build"></dialog>
+  <dialog id="grimoire-dialog" aria-label="Spell book"></dialog>
   <dialog id="journal" aria-label="Field journal">
     <button id="close-journal" class="journal-close" aria-label="Close journal">✕</button>
     <div class="fighter"><span class="fighter-sigil" id="journal-sigil">✦</span><div><strong id="journal-name">Wanderer</strong><span id="journal-rank" class="fighter-rank" role="img" aria-label="Recruit I · ○ ○ ○">Recruit I</span><span id="journal-save" class="fighter-save">Guest · saved on this device</span></div><button id="mobile-name">Rename</button></div>
@@ -45,6 +46,7 @@
       <div class="tab-strip" role="tablist" aria-label="Journal sections"><label for="journal-tab-profile" class="tab-profile">Gear</label><label for="journal-tab-fighter" class="tab-fighter">Stats</label><label for="journal-tab-career" class="tab-career">Career</label><label for="journal-tab-arena" class="tab-arena" id="sparring-tab" hidden>Sparring</label><label for="journal-tab-settings" class="tab-settings">Settings</label></div>
       <section class="tab-pane pane-fighter" aria-label="Your record">
         <button id="build-open" type="button" class="build-open">Your build <span id="build-open-note"></span></button>
+        <button id="grimoire-open" type="button" class="build-open">Spell book</button>
         <h4>Your record</h4>
         <div class="record-tiles" aria-label="Career totals"><div><b id="stat-fights">0</b><span>Fights</span></div><div><b id="stat-wins">0</b><span>Wins</span></div><div><b id="stat-losses">0</b><span>Losses</span></div></div>
         <h5 class="stats-heading">Opponents</h5>
