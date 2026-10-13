@@ -5,9 +5,9 @@ import { chromium, webkit } from 'playwright';
 import http from 'node:http';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 
-const dir = process.env.GEAR_RECEIPT_DIR || 'artifacts/gear-weight-zone'; await fs.mkdir(dir, { recursive: true });
+const dir = process.env.GEAR_RECEIPT_DIR || 'artifacts/gear-weight-zone'; fs.mkdirSync(dir, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml' };
 const dist = process.argv[2] ?? 'artifacts/origins-preview', root = process.cwd();
 const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
