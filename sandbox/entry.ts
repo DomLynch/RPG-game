@@ -134,16 +134,17 @@ const layoutA = (): void => {
     '.actions #heavy-button,.actions #thrust-button,.actions #run-button{display:none!important}',
     '.actions #attack-button,.actions #skill-button,.actions #guard-button,.actions #dodge-button,.actions #kick-button{position:fixed!important;left:auto!important;top:auto!important;margin:0!important;border-radius:50%!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:12px!important;line-height:1!important;min-width:0!important}',
     '.actions #attack-button{right:22px!important;bottom:18px!important;width:92px!important;height:92px!important;font-size:14px!important}',
-    '.actions #skill-button{right:128px!important;bottom:92px!important;width:58px!important;height:58px!important}',
+    '.actions #skill-button{right:118px!important;bottom:92px!important;width:58px!important;height:58px!important}',
+    '.actions #sbx-spell2{position:fixed!important;right:40px!important;bottom:120px!important;width:58px!important;height:58px!important;border-radius:50%!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:0!important;opacity:.45}.actions #sbx-spell2::after{content:"SPELL 2";font-size:11px;font-weight:600;letter-spacing:.04em}',
     '.actions #guard-button{right:124px!important;bottom:16px!important;width:62px!important;height:62px!important}',
     '.actions #dodge-button{right:196px!important;bottom:122px!important;width:56px!important;height:56px!important}',
     '.actions #kick-button{right:200px!important;bottom:50px!important;width:52px!important;height:52px!important}',
     '.actions #attack-button,.actions #skill-button,.actions #guard-button,.actions #dodge-button,.actions #kick-button{font-size:0!important}',
     '.actions #attack-button::after,.actions #skill-button::after,.actions #guard-button::after,.actions #dodge-button::after,.actions #kick-button::after{display:block!important;position:static!important;font-size:12px!important;font-weight:600;letter-spacing:.04em;color:inherit}',
     '.actions #attack-button::after{content:"STRIKE"!important;font-size:14px!important}.actions #skill-button::after{content:"SPELL"!important}.actions #guard-button::after{content:"GUARD"!important}.actions #dodge-button::after{content:"ROLL"!important}.actions #kick-button::after{content:"KICK"!important}',
-    '.actions #attack-button svg{display:none!important}',
   ].join('\n');
   document.head.append(css);
+  const two = document.createElement('button'); two.id = 'sbx-spell2'; two.type = 'button'; two.title = 'Second spell slot: not wired yet'; two.setAttribute('aria-disabled', 'true'); document.getElementById('actions')?.append(two);   // a placeholder: the game has one spell slot
 };
 layoutA();
 restyleStances();
