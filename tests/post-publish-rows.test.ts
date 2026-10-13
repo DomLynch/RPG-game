@@ -132,7 +132,7 @@ test('post_publish_rows: a failing row does NOT promote the pending stamp (and d
 });
 
 test('deploy.sh: the rows are deferred before Published, run after the publish lock drops, and a failure exits 1 at the very end', () => {
-  const defer = deploy.indexOf('RELEASE_CHECKS_DEFERRED="$post_publish" node scripts/release-checks.mjs');
+  const defer = deploy.indexOf('RELEASE_CHECKS_DEFERRED="$post_publish');
   const published = deploy.indexOf("printf '\\nPublished %s");
   const drop = deploy.indexOf('deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"');
   const run = deploy.indexOf('post_publish_rows "$revision" "$post_publish"');
@@ -140,4 +140,86 @@ test('deploy.sh: the rows are deferred before Published, run after the publish l
   assert.ok(defer > 0 && defer < published && published < drop && drop < run && run < end, 'order: defer < Published < lock drop < post-publish < exit');
   assert.match(deploy, /DEPLOY_POST_PUBLISH:-on\}" == off \]\] \|\| post_publish=/, 'DEPLOY_POST_PUBLISH=off restores the old behaviour');
   assert.match(deploy, /source scripts\/lib\/post-publish\.sh/);
+});
+
+const withRollback = (root: string, run: string, rollback: string, hold: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_rows abc123 44 "$RB"`], {
+  encoding: 'utf8', cwd: root, env: { ...process.env, RB: rollback, POST_PUBLISH_RUN: run, DEPLOY_HOLD_FILE: hold },
+});
+
+test('post_publish_rows: a failing row runs the rollback command, says ROLLED BACK, and still holds and returns 1; a pass never rolls back', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-rb-')), hold = join(root, 'deploy_hold'), marker = join(root, 'rolled');
+  try {
+    const ok = withRollback(root, 'true', `touch ${marker}`, hold);
+    assert.equal(ok.status, 0);
+    assert.ok(!existsSync(marker), 'a pass does not roll back');
+    const bad = withRollback(root, 'exit 3', `touch ${marker}`, hold);
+    assert.equal(bad.status, 1);
+    assert.ok(existsSync(marker) && existsSync(hold), 'rolled back and held');
+    assert.match(bad.stderr, /ROLLED BACK: rows 44 failed for abc123/);
+    rmSync(marker);
+    const broken = withRollback(root, 'exit 3', 'exit 7', hold);
+    assert.equal(broken.status, 1);
+    assert.match(broken.stderr, /ROLLBACK FAILED: rows 44 failed for the LIVE release abc123/);
+    const none = withRollback(root, 'exit 3', '', hold);
+    assert.equal(none.status, 1);
+    assert.ok(!/ROLLED BACK|ROLLBACK FAILED/.test(none.stderr), 'no rollback command: the old behaviour');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('deploy.sh: Mac rows after Published is off by default, runs first with a rollback to the outgoing release, and only when the writer was left as it was', () => {
+  assert.match(deploy, /DEPLOY_MAC_AFTER_PUBLISH:-off/);
+  assert.match(deploy, /RELEASE_CHECKS_DEFERRED="\$post_publish\$\{mac_deferred:\+/);
+  assert.match(deploy, /\$writer_install" == \*"nothing installed"\*/);
+  assert.match(deploy, /mac_rollback_release\(\) \{\n    DEPLOY_LOCK=\/dev\/null bash scripts\/rollback\.sh \"\$live_now\" \|\| return 1/);
+  assert.match(deploy, /presence_now=\$\(ssh [^\n]*readlink \/opt\/frankendom-presence\/current[^\n]*\n    if \[\[ -n \"\$presence_prev\" && \"\$presence_now\" != \"\$presence_prev\" \]\]; then presence_back \|\| return 1; fi/, 'a publish that moved presence puts it back after the site swap (#2513)');
+  assert.ok(deploy.indexOf('rollback.sh "$live_now"') < deploy.indexOf('then presence_back'), 'the site is swapped first, then presence');
+  assert.ok(deploy.indexOf('"$mac_deferred" "$mac_rollback"') < deploy.indexOf('post_publish_rows "$revision" "$post_publish"'), 'the Mac rows run before the other post-publish rows');
+});
+
+test('post_publish_rows: the rollback may be a shell function of the caller (deploy.sh passes mac_rollback_release); its failure is ROLLBACK FAILED, still held, still 1', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-fn-')), hold = join(root, 'deploy_hold'), marker = join(root, 'fn-ran');
+  try {
+    const run = (fn: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; rb() { ${fn}; }; post_publish_rows abc123 44 rb`], { encoding: 'utf8', cwd: root, env: { ...process.env, POST_PUBLISH_RUN: 'exit 3', DEPLOY_HOLD_FILE: hold, M: marker } });
+    const ok = run('touch "$M"');
+    assert.equal(ok.status, 1);
+    assert.ok(existsSync(marker), 'the caller\'s function ran');
+    assert.match(ok.stderr, /ROLLED BACK/);
+    const bad = run('return 1');
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /ROLLBACK FAILED: rows 44 failed for the LIVE release abc123/);
+    assert.ok(existsSync(hold));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// EB drill 2026-10-13: after ROLLED BACK, rows 9,46 still ran against the rolled-back sha and printed "the release is live".
+const afterRollback = (root: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_rows abc123 44 "true" || true; post_publish_rows abc123 9,46; echo "second=$?"`], {
+  encoding: 'utf8', cwd: root, env: { ...process.env, POST_PUBLISH_RUN: `echo ran >> ${join(root, 'ran')}; [ -e ${join(root, 'first-done')} ] || { touch ${join(root, 'first-done')}; exit 3; }`, DEPLOY_HOLD_FILE: join(root, 'deploy_hold') },
+});
+
+test('post_publish_rows: once a rollback ran, no later row starts and none says "live" for the rolled-back sha (the EB drill replay)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-after-rb-'));
+  try {
+    const r = afterRollback(root);
+    assert.match(r.stderr, /ROLLED BACK: rows 44 failed for abc123/);
+    assert.equal(readFileSync(join(root, 'ran'), 'utf8').trim().split('\n').length, 1, 'only the first group ran');
+    assert.ok(!/post-publish rows 9,46 for abc123: running now, the release is live/.test(r.stdout), 'no "live" line for the rolled-back sha');
+    assert.match(r.stderr, /post-publish rows 9,46 SKIPPED for abc123: it was rolled back/);
+    assert.match(r.stdout, /second=1/, 'the skipped group still fails the run');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_rows: POST_PUBLISH_LIVE_CMD must name the row\'s target revision, else the rows do not start', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-live-'));
+  const run = (live: string, rowRun: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_rows abc123 9`], { encoding: 'utf8', cwd: root, env: { ...process.env, POST_PUBLISH_RUN: rowRun, POST_PUBLISH_LIVE_CMD: `echo ${live}`, DEPLOY_HOLD_FILE: join(root, 'h') } });
+  try {
+    assert.equal(run('abc123', 'true').status, 0);
+    const bad = run('other999', `touch ${join(root, 'ran')}`);
+    assert.equal(bad.status, 1);
+    assert.ok(!existsSync(join(root, 'ran')), 'the row did not start');
+    assert.match(bad.stderr, /live is other999, not abc123/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('deploy.sh: gives the post-publish rows the live-revision lookup', () => {
+  assert.match(readFileSync(join(process.cwd(), 'scripts/deploy.sh'), 'utf8'), /POST_PUBLISH_LIVE_CMD=.*release\.json/);
 });

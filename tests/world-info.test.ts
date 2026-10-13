@@ -33,6 +33,7 @@ test('the group is the row camp size, never a constant', () => {
 test('the card: the nearest noticing creature, three lines, marks carry the band without colour', () => {
   const seen = [{ id: 'a', x: 0, z: 9, mode: 'aggro' }, { id: 'b', x: 0, z: 3, mode: 'wander' }, { id: 'c', x: 0, z: 5, mode: 'aggro' }];
   assert.equal(nearestNoticing(seen, { x: 0, z: 0 })?.id, 'c'); assert.equal(nearestNoticing(seen.filter((m) => m.mode !== 'aggro'), { x: 0, z: 0 }), null);
+  assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, 'b')?.id, 'b', 'a tapped legend (it never notices) takes the card'); assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, 'gone')?.id, 'c', 'a focus that is not in the list changes nothing');
   const info = creatureInfo({ name: 'Cinder scavenger', level: 12 }, FRONTIER_ROWS[0], 16, FRONTIER_ROWS);
   assert.deepEqual(cardLines(info), ['Cinder scavenger · Lv 12', '▰▰▱▱▱▱ Comfortable', 'Uncommon · Packs of 4']);
   assert.equal(cardLines(creatureInfo({ name: 'x', level: 1 }, undefined, 30, []))[1], '▱▱▱▱▱▱ Trivial'); assert.equal(cardLines(creatureInfo({ name: 'x', level: 30 }, undefined, 1, []))[1], '▰▰▰▰▰▰ Dangerous');

@@ -108,6 +108,9 @@ stop() {   # $1 = reason: the train stays stopped until a person removes both fi
   exit 1
 }
 if p=$(deploy_running); then log "deploy.sh is running (pid $p)"; exit 0; fi   # again, right before the hold: the pick took network time
+# A full disk fails every shell (2026-10-13): under FREE_GIB_MIN (default 20) the tick waits, before anything is held or pushed, and the next tick tries again.
+# A checkout without the helper (the train runs the trunk it has) skips the check rather than stopping the train.
+if [ -r scripts/lib/free-space.sh ] && ! space=$(bash scripts/lib/free-space.sh "${FREE_GIB_MIN:-20}" 2>&1); then log "not publishing: $space"; exit 0; fi
 ( set -o noclobber; echo "$$" > "$hold" ) 2>/dev/null || { log "deploy_hold appeared meanwhile"; exit 0; }
 git fetch -q origin || stop "git fetch failed"
 git cat-file -e "$sha^{commit}" 2>/dev/null || stop "candidate $sha not fetched"

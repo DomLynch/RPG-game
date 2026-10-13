@@ -1,0 +1,16 @@
+{
+  "tables": [
+    {
+      "table": "allegianceRule",
+      "file": "allegiance-rules.json",
+      "at": "rules",
+      "key": "id",
+      "required": {
+        "perkBudgetPermille": "integer",
+        "switchBronze": "integer",
+        "switchCooldownSeconds": "integer",
+        "leaveCooldownSeconds": "integer"
+      }
+    }
+  ]
+}

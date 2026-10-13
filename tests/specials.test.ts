@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/fight/duel.ts';
+import { breathTicks, coneOf } from '../src/fight/cone-rules.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/fight/moves.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { NO_PATRON_VERSION, decodeRecord, encodeRecord } from '../src/fight/record.ts';
@@ -127,11 +128,12 @@ for (const [id, set] of Object.entries(SETS)) {
       const d = withSpecials(arena(OPPONENTS[id as keyof typeof OPPONENTS]), level, spec.aiSkill, undefined, spec.name);
       assert.equal(d.fighters[1].specialName, name);
       d.fighters[1].skillCooldown = 0;
-      const out = run(d, S.windup + 5, () => [idle(), act('skill')]);
+      const cone = coneOf(name);   // a cone special breathes: one pulse per ramp weight after the release, which together deal the same share
+      const out = run(d, S.windup + 5 + (cone ? breathTicks(cone) : 0), () => [idle(), act('skill')]);
       const named = out.events.filter(e => e.type === 'SpecialStarted' || e.type === 'SpecialLanded');
-      assert.equal(named.length, 2, 'cast and release');
+      assert.equal(named.length, 1 + (cone ? cone.ramp.length : 1), 'cast and release');
       for (const e of named) assert.equal(e.name, name);
-      assert.equal(named[1].damage, Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
+      assert.equal(named.slice(1).reduce((a, e) => a + (e.damage ?? 0), 0), Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
     });
   }
 }

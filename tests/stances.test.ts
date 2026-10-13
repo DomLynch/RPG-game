@@ -92,7 +92,7 @@ test('a stances fight is recorded as v52 (the stance rows\' era; v34 is the stan
     assert.equal(W(p.duel).stance, asStance(moodOf(seed, 'executioner')));
     assert.equal(p.duel.fighters[0].stance, asStance(pick));
     const record = unpackRecord(packRecord(rec.finish('abandoned')));
-    assert.equal(record.v, 52); assert.equal(record.stances, pick);
+    assert.equal(record.v, 54, 'the executioner has poise at level 6, so a fight against him is stamped 54 (the poise ladder, record.ts ladderStamp); a stances fight against a poise-0 warden is still 52'); assert.equal(record.stances, pick);
     const replay = verifyRecord(record);
     assert.ok(replay.ok); assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
   }

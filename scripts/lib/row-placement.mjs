@@ -37,6 +37,10 @@ export const ON_T4 = [
 // (release-checks.yml on every candidate) and the CPU waterfall. Row 13 is not here: its CPU gap is initdb refusing root, not the renderer (a runner is not root).
 export const ROW_CEILING_S = 600;
 export const GPU_ONLY = [5, 7, 16, 21, 28, 34, 36];
+// The T4 leg's job cap, which the HF cost ledger also BOOKS as the job's cost at launch (hf-ledger.mjs: timeout x $0.60/h), whatever the job really uses. Measured 2026-10-13: a gpu-only job runs 166-167 s
+// (about $0.03); with the old 45 m cap it booked $0.45, four jobs per candidate = $1.80, so the $5/day T4 stop was crossed by 06:41Z after ~3 candidates and every later candidate ran the GPU rows on the
+// Mac (DV: rows 5,7,16,21,28,34,36, ~8 min). 15 m = 5x the measured run, books $0.15 a job ($0.60 a candidate, 8 candidates under the stop).
+export const T4_JOB_TIMEOUT = '15m';
 // Every MAC_ONLY row, the list deploy.sh's placement uses: CI never vouches for one (ci-trusted-checks.mjs) and never schedules one (release-checks.yml
 // plan). The WebKit rows because the runner has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit");
 // rows 2 and 44 because they fail off the Mac (CK: row 2 failed after 15 min on CI, 63 s on the Mac).
