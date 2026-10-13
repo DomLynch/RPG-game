@@ -52,5 +52,12 @@
       "dispatch": "sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)",
       "sunset": "provisional, like LOCATION_KINDS: when a third storage grid lands (guild bank, house chest), GRIDS and LOCATION_KINDS become one storage row (place, size cap, trade flag) together"
     }
+  ],
+  "tunables": [
+    {
+      "file": "src/fight/world.ts",
+      "name": "STAMINA_MAX",
+      "reason": "mirrors the Pit's createFighter bar (duel.ts); pinned equal by tests/world-record.test.ts, owned by group B"
+    }
   ]
 }
