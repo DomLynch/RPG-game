@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Installs, updates or rolls back the Origins presence service on the VPS (docs/specs/origins/one-shard.md). Run by Deploy on the box, as root, from a trunk checkout, ONLY on a joint
-# Lead + Strategy GO (nothing here runs from CI or from deploy.sh):
+# Installs, updates or rolls back the Origins presence service on the VPS (docs/specs/origins/one-shard.md). Run by deploy.sh INSIDE the publish window (just before the site switch, `--if-changed`, only when presence is installed on the box; Lead + Strategy joint GO
+# 2026-10-13), or by hand on the box as root from a trunk checkout. An install never changes the presence flag (install is not flip):
 #   SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-presence.sh [--if-changed] <revision>   install / update (idempotent); --if-changed skips (no restart) a byte-identical install (deploy.sh)
 #     The two are the project's PUBLIC url and anon key (the ones the page ships), used to check a player's token. Needed on the first install; kept in the env file after.
 #     Presence stays OFF: the env file is written with ORIGINS_PRESENCE=0 and the unit is enabled but not started. Turn it on with the flag GO: set ORIGINS_PRESENCE=1 in the env file

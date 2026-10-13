@@ -13,8 +13,8 @@ writer_parity_gaps() {
 
 # The box-side command writer_back (deploy.sh) runs when the site switch failed after the writer install: point the writer back at the outgoing install and restart it, but only
 # while the site has NOT moved to the new release. An ssh drop after the switch ran leaves the site on $2; rolling the writer back then would put it behind the site.
-# writer_back_cmd <outgoing install> <new release dir> [opt root] [site root] [systemd unit] [label]: the writer by default; the presence service passes its own root, unit and label
+# writer_back_cmd <outgoing install> <new release dir> [opt root] [site root] [systemd unit] [label] [nginx: any value adds nginx -t and a RELOAD, never a restart]: the writer by default; the presence service passes its own root, unit and label
 writer_back_cmd() {
-  local prev="$1" rel="$2" opt="${3:-/opt/frankendom-origins}" site="${4:-/var/www/frankendom}" svc="${5:-frankendom-origins-writer}" what="${6:-writer}"
-  printf '%s' "if [ \"\$(readlink -f '$site/current')\" = \"\$(readlink -f '$rel')\" ]; then echo '$what NOT rolled back: the site already moved to $rel'; exit 0; fi; [ \"\$(readlink '$opt/current')\" = '$prev' ] || { ln -sfn '$prev' '$opt/current' && systemctl restart $svc && echo '$what put back on $prev'; }"
+  local prev="$1" rel="$2" opt="${3:-/opt/frankendom-origins}" site="${4:-/var/www/frankendom}" svc="${5:-frankendom-origins-writer}" what="${6:-writer}" ngx="${7:-}"
+  printf '%s' "if [ \"\$(readlink -f '$site/current')\" = \"\$(readlink -f '$rel')\" ]; then echo '$what NOT rolled back: the site already moved to $rel'; exit 0; fi; [ \"\$(readlink '$opt/current')\" = '$prev' ] || { ln -sfn '$prev' '$opt/current' && systemctl restart $svc && echo '$what put back on $prev'; }${ngx:+ && nginx -t && systemctl reload nginx}"
 }

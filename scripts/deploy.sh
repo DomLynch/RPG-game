@@ -221,9 +221,10 @@ writer_back() {
 }
 # The presence service (ops/install-presence.sh) flips with the site the same way, when it is installed on the box: --if-changed byte-compares its file list and restarts nothing when it is identical.
 presence_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-presence/current || true")
+presence_nr0=$(ssh "${ssh_options[@]}" "$host" "systemctl show -p NRestarts --value frankendom-presence 2>/dev/null || true")
 presence_back() {
   [[ -n "$presence_prev" ]] || return 0
-  ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$presence_prev" "$release" /opt/frankendom-presence /var/www/frankendom frankendom-presence presence)" >&2 || echo "PRESENCE ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $presence_prev" >&2
+  ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$presence_prev" "$release" /opt/frankendom-presence /var/www/frankendom frankendom-presence presence nginx)" >&2 || echo "PRESENCE ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $presence_prev" >&2
 }
 writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
 printf '%s\n' "$writer_install"
@@ -332,6 +333,11 @@ if [[ -n "$presence_prev" ]]; then
   [[ -z "$presence_gaps" ]] || { echo "presence parity: the installed presence service differs from $revision in: $(printf '%s' "$presence_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, presence differs" >&2; exit 1; }
 fi
 printf '\nPublished %s\n' "$revision"
+# The Published block carries presence's state (Strategy + Lead joint GO): active, restarts before -> after, the local health curl and what release.json says.
+if [[ -n "$presence_prev" ]]; then
+  presence_state=$(ssh "${ssh_options[@]}" "$host" 'P=$(grep -E "^PRESENCE_PORT=" /etc/frankendom/presence.env 2>/dev/null | cut -d= -f2); echo "active=$(systemctl is-active frankendom-presence) NRestarts=$(systemctl show -p NRestarts --value frankendom-presence) health=$(curl -s -m 8 -o /dev/null -w "%{http_code}" http://127.0.0.1:${P:-8793}/origins/presence/health)"' || echo 'state unreadable')
+  echo "Published presence: $presence_state (NRestarts was ${presence_nr0:-?} before this publish) release.json=$(curl -s -m 8 https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1)"
+fi
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
 if [[ "$merge_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$(( (now_epoch - merge_epoch) / 60 )) min since $(git rev-parse --short=9 "$revision") ($(git rev-parse -q --verify "$revision^2" >/dev/null && echo 'merge commit' || echo 'not a merge commit: its commit time')) was made"; else merge_to_live="unknown (merge commit time unreadable)"; fi

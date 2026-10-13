@@ -54,4 +54,8 @@ test('deploy.sh: presence flips with the site like the writer: read before the i
   assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; exit 1; \}/, 'a failed switch puts both back');
   assert.match(deploy.slice(install - 400, install), /if \[\[ -n "\$presence_prev" \]\]/, 'only when presence is installed on the box');
   assert.match(deploy.slice(gate, published), /RED: site moved, presence differs/);
+  assert.match(deploy, /frankendom-presence presence nginx\)/, 'the presence rollback adds nginx -t and a reload');
+  const line = deploy.indexOf('Published presence:');
+  assert.ok(published < line, 'the Published block carries presence state');
+  assert.match(deploy.slice(line - 700, line + 300), /is-active frankendom-presence[\s\S]*NRestarts[\s\S]*origins\/presence\/health[\s\S]*release\.json=/, 'active, restarts, the health curl and release.json');
 });
