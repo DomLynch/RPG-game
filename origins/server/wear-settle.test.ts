@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PC, paperdollOf, slotOf } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
-import { WEAR_SLOTS, wearKindOf, wearMaxOf, wornSlot, type Piece } from '../gear/wear-repair.ts';
+import { WEAR_SLOTS, wearKindOf, wornSlot, type Piece } from '../gear/wear-repair.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
-import { killWearLines, rollsOf } from './wear-settle.ts';
+import { killWearLines, rollsOf, wearMaxOf } from './wear-settle.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');

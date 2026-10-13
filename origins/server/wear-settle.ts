@@ -4,9 +4,17 @@
 // settle's own batch (seq = the wear it was read at + 1, the same write guard gear_repair uses), so it commits or aborts with the kill. No ledger (migration 0032 absent) = no wear.
 import { createHash } from 'node:crypto';
 import type { Inventory } from '../inventory/inventory.ts';
-import { freshPiece, wearAfter, wearKindOf, wearMaxOf, wornSlot } from '../gear/wear-repair.ts';
+import { GEAR } from '../../src/fight/server.ts';
+import { freshPiece, wearAfter, wearKindOf, wornSlot, type WearTier } from '../gear/wear-repair.ts';
 import type { Db } from './db.ts';
 import * as store from './store.ts';
+
+// How much wear a fresh piece of this tier takes before it is worn out: the preset gear row of the same weight class (src/fight/gear-defs.json `wearMax`, Dom retunes it there).
+export const wearMaxOf = (tier: WearTier): number => {
+  const row = Object.values(GEAR.rows).find((r) => r.preset && r.weightClass === tier.id);
+  if (!row) throw new Error(`gear-defs has no preset gear row for weight class ${tier.id}`);
+  return row.wearMax;
+};
 
 // Two rolls in [0, 1) from the token: which slot is bitten, and whether the event bites at all (a kill's chance row is 100).
 export const rollsOf = (account: string, token: string): [number, number] => {
