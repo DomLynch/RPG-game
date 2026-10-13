@@ -30,16 +30,19 @@ import { MAX_LEVEL as LADDER_MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
 // one row, not constants spread through the code. A level's cost is priced in KILLS of the reference boss row at the level being left:
 //   kills(L) = early.kills for the first early.levels levels (L < early.levels), then early.kills + ramp·(L − early.levels + 1) + rank·⌊L / rankLevels⌋,
 //   cost(L)  = ⌊ bossPay(max(1, L)) · kills(L) / 1000 ⌋,   bossPay(l) = ⌊ killValue(l) · weight(boss) / 1000 ⌋.
-// So levels 1–5 cost 2.5 boss kills each (two goblins and a few wolves is the first point inside five minutes), the cost ramps from level 6, and it steepens
+// Levels 0–9 are the opening, priced in Pit wins (`opening` below); from level 10 the boss-kill pricing above applies, ramps with the level and steepens
 // again at every rank-up (10, 20 … 90) because re-spread is once per rank-up. The Pit ladder (career-ladder.ts MAX_LEVEL 50, marks) is a different track and is untouched.
 export const LEVEL_CURVE = {
   maxLevel: 100,
   boss: 'world-boss',
   killBase: 1000, killStep: 100,             // killValue(l) = killBase + killStep·(l − 1): the CP of one even-level kill at weight 1000
-  early: { levels: 5, kills: 2500 },          // permille of a boss kill per level, levels 1–5
-  ramp: 200,                                  // permille added per level from level 6
+  early: { levels: 5, kills: 2500 },          // permille of a boss kill: the base from level 10 (levels 5.. add the ramp)
+  ramp: 200,                                  // permille added per level from level 5
   rank: 2000,                                 // permille added per whole rank passed
   rankLevels: 10,
+  // The opening: levels 0–9 are priced in Pit legend WINS at the lowest rank (Strategy ruling 2026-10-13: level 1 = 1 win, level 5 ≈ 5 minutes, level 10 = a first session of ~35 wins),
+  // not in boss kills. wins[L] wins at the pay of a legend at level L buy level L → L + 1. From level 10 the boss-kill pricing above applies unchanged.
+  opening: [1, 1, 1, 1, 1, 6, 6, 6, 6, 6],
 } as const;
 export const CAREER_MAX_LEVEL: number = LEVEL_CURVE.maxLevel;
 
@@ -136,6 +139,7 @@ const killsPermille = (l: number): number => {
 // CP to go from level L to L + 1 (L = 0 is the birth level).
 export const requirement = (level: number): number => {
   const l = Math.min(careerLevel(level), LEVEL_CURVE.maxLevel - 1);
+  if (l < LEVEL_CURVE.opening.length) return LEVEL_CURVE.opening[l]! * Math.floor((killValue(l) * TYPE_WEIGHTS.legend!.early!.weight) / 1000);
   return Math.floor((bossPay(l) * killsPermille(l)) / 1000);
 };
 const CUMULATIVE: readonly number[] = (() => { const t = [0]; for (let l = 0; l < LEVEL_CURVE.maxLevel; l++) t.push(t[l]! + requirement(l)); return t; })();

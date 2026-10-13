@@ -8,6 +8,7 @@ import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import { openInventory, type Inventory } from '../inventory/inventory.ts';
 import { killIdOf, mobBatch, mobRewards, RESPAWN_MS, respawnMsOf, respawnRows, type Kill } from './mob-rewards.ts';
+import { cumulative } from '../../src/core/career-model.ts';
 import type { Db } from './db.ts';
 import type { CareerRow } from './store.ts';
 
@@ -15,7 +16,8 @@ const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
 const content: EncounterContent = loaded.value, lookup = lookupOf(content);
 const AT = '2026-10-08T10:00:00.000Z', UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b';
-const row = (over: Partial<CareerRow> = {}): CareerRow => ({ seed_credit: 5000, world_credit: 0, total_credit: 5000, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3, ...over });
+const LEVEL_4 = cumulative(4);   // a level-4 career: the Zone 1 creatures are not grey to it
+const row = (over: Partial<CareerRow> = {}): CareerRow => ({ seed_credit: LEVEL_4, world_credit: 0, total_credit: LEVEL_4, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3, ...over });
 const pack = (size = 20): Inventory => { const inv = openInventory({ owner: PC as CharacterInstanceId, account: ACCOUNT as never, items: [], packSize: size, bankSize: 10 }, lookup); if (!inv.ok) throw new Error(JSON.stringify(inv.issues)); return inv.value; };
 const kill = (fight: string, seed: number, over: Partial<Kill> = {}): Kill => {
   const s = fightSetup(fight, content); if (!s.ok) throw new Error(fight);
