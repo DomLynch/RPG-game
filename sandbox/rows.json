@@ -48,7 +48,9 @@
 ]},
 "sandbox-rules-defs":{"rules":[
 {"id":"dodgeCounter","window":20},
-{"id":"interruptEarly","value":1000}
+{"id":"interruptEarly","value":1000},
+{"id":"castPushback","value":30},
+{"id":"castPushbackMax","value":2}
 ]},
 "gear-defs":{"sets":[
 {"id":"plate","shape":{"armour":25,"magicResist":-15,"stamina":-10},"quality":{"armour":2,"health":2,"poise":1}},

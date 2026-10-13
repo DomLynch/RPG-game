@@ -16,6 +16,10 @@ export const DODGE_COUNTER = num('dodgeCounter', 'window');
 export const INTERRUPT_EARLY = num('interruptEarly', 'value');
 export const interruptLockout = (base: number, left: number, windup: number): number => (INTERRUPT_EARLY > 0 ? Math.round((base * (1000 + (INTERRUPT_EARLY * Math.min(left, windup)) / windup)) / 1000) : base);
 
+//   castPushback: ticks a hit that does not interrupt pushes the caster's windup back (WoW: 0.5 s, twice a cast); castPushbackMax: how many times per cast. 0 = off.
+export const CAST_PUSHBACK = num('castPushback', 'value');
+export const CAST_PUSHBACK_MAX = num('castPushbackMax', 'value');
+
 // manyOnOne (Dom 2026-10-13: 1st attacker 100%, 2nd 50%, 3rd 30%, 4th+ 30%): swarm-defs.json `attackers` rows, { index, 'world-mob': per-mille damage }. A world-mob fight stream that
 // names its attacker index (duel.roll.attacker, set by the world layer) scales that foe's damage to the player by the row at or below its index. No rows (trunk) = 1000 = untouched.
 type AttackerRow = { index: number; 'world-mob'?: number };
