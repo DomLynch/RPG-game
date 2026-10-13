@@ -44,6 +44,8 @@ export function createServerGear(d: Deps) {
     },
     // What the sheet reads and writes: the server's shadow once it has answered, else the device profile itself.
     profileFor<T extends { loot?: Loot }>(real: T): { loot?: Loot } { return shadow ?? real; },
+    // The server's view has answered (a guest, or a writer that never has, is not ready): the Pit's sheet waits for it, because the sweeps check the SERVER's worn gear.
+    ready: (): boolean => shadow !== null,
     // The sheet's one decision point: handled (true) once the server's view is known, so the local ledger never decides for a signed-in character.
     act(op: GearOp): boolean {
       const token = storedToken(d.storage, d.now()); if (!token) return false;   // a guest: the device's ledger
