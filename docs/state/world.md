@@ -3,6 +3,14 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-13 (+04, evening) — HANDOFF #37 before /clear (Dom: "save your work now i will /clear"). READ FIRST, then memory `world_2026-10-13_session37.md` (full heads, commands, lessons); HANDOFF #36 below is older
+
+1. **FIRST ACT:** #2572 (series PR 3, bout seed, WORLD_SIM_VERSION 12, head 730e14e46) is on HOLD (Auditor + Lead): origins/preview/engage-ahead.ts starves the 4-open engage budget (5+ creatures in aggro: bystanders hold every token, the fought creature is refused, its kill unpaid). Fix: a fighting creature without a token evades the farthest non-fighting ask and takes its slot; test 5 in aggro, fight the 5th, it holds a token. Push world/sheet-seed, re-run the VPS set, re-add auditor:ready, send Lead + Auditor the new sha.
+2. **Done this afternoon (all pushed):** #2483 @5f2880b67 and #2488 @d492ebf08 re-merged (VPS legend suites 24/24 and 28/28, page stills on evidence/world-legend-page); #2526 as-data fix @dcd49836d; #2529 @fb820df63 (restacked, merge only); #2553 goblin camps `atOnce: 2` @f1d7c8457 (WSV 9); #2562 world-guard projection (`world: true` def flag, WSV 10) @51ac5a1ce; #2572 @730e14e46 (HOLD). Stack ships as ONE candidate: #2526(7) -> #2529(8) -> #2553(9) -> #2562(10) -> #2569 Combat PR 2(11) -> #2572(12) -> Backend #2557(13); Combat's B = 15. Lead: leave combat/world-hero alone (Combat merges trunk itself).
+3. **Group C of #2554 started:** branch world/c1-world-rules @4cc63cc3c (no PR yet, WSV 14 provisional): world-combat rules as rows (world-rules-defs.json) + an as-data tunable rule. VPS: 120 pass, 6 fail. Open: delete the stale `TICK` entry in scripts/as-data/allow.json; diagnose tests/threat-rows.test.ts "same foe tick for tick" (2 cases); pin digest 941f818a5c49... at WSV 14. Remaining C items listed in the memory file.
+4. **Owed after that:** bout-seed spell half (PR 5/5b after EE), legend duel stills (VPS /tmp/legend-duel, FIGHT-pressed shot unviewed), zone-presence check, rows 19 and 17, the leak follow-up (origin world/page-safe-doors @1892b230b).
+5. **Receipts not run:** GitHub CI on the legend PRs was still running when last read; no CI read on #2553/#2562/#2572 after the trunk merges.
+
 ## 2026-10-13 (+04, afternoon) — HANDOFF #36 before /clear (Dom: "save your work now i will /clear"). READ FIRST, then memory `world_2026-10-13_handoff36.md`; HANDOFF #35 below is older
 
 1. **LIVE** = release 03d85f9d0 (DV) by my curl at save time. #2469 is live (shipped in DT). MERGED: #2480 variants, #2501 (Characters' eligible lists), #2508 row 24 (instance slot pool).
