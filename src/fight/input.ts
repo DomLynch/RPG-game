@@ -261,6 +261,7 @@ export function createInput(env: InputEnv) {
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId !== id || dragged) return;
       if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (ONE_BUTTON) { const dx = event.clientX - slashWait.x, dy = event.clientY - slashWait.y; if (Math.hypot(dx, dy) >= STAB_SLIDE_PX) { if (stabSector(dx, dy)) fireStab(); else fireSlash(dx < 0 ? 'left' : 'right'); return; } } else if (side) { fireSlash(side); return; } }
+      if (ONE_BUTTON && deferred && !slashWait) return;   // sandbox-mech oneButton: the swipe has decided (stab, cut or heavy); sliding on out of the circle is not a guard press that overrides it
       const c = radius();
       if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
       dragged = true;
