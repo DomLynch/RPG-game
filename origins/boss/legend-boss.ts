@@ -22,7 +22,7 @@ export const legendBossesOf = (region: string): readonly LegendBoss[] => ALL.fil
 
 // ---- where a legend boss stands: the spawn row kind ---------------------------------------------------------------------------------------------------
 // legend-spawns.json: one row per standing legend boss, keyed by its own id: {order, legend (a legend boss key), zone (a zone id), at (a landmark of that zone)}. A legend can stand at several
-// places (several rows). `zone` is a plan zone id (cinder-fields) and `at` one of that zone's plan landmarks (shrine). The first-pass rows are for the owner to move, one row each; the loader refuses a legend
+// places (several rows). `zone` is a plan zone id (cinder-fields) and `at` one of that zone's plan landmarks (ash-pits). The first-pass rows are for the owner to move, one row each; the loader refuses a legend
 // that is not a boss, an unknown zone and a landmark the zone does not have. The page starts the fight with `bossFightId(legend)` through encounter_start, so a win settles as boss:<legend> and takes the spell.
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import SPAWNS from './legend-spawns.json' with { type: 'json' };

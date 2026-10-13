@@ -1,7 +1,7 @@
 {
   "spawns": {
-    "kobold-shrine":        {"order": 1, "legend": "kobold",         "zone": "cinder-fields", "at": "shrine"},
+    "kobold-ash-pits":      {"order": 1, "legend": "kobold",         "zone": "cinder-fields", "at": "ash-pits"},
     "bedivere-hold-road":   {"order": 2, "legend": "bedivere",       "zone": "cinder-fields", "at": "hold-road"},
-    "shipton-reach-ruin":   {"order": 3, "legend": "mother-shipton", "zone": "ash-reach",     "at": "reach-ruin"}
+    "shipton-reach-cairn":  {"order": 3, "legend": "mother-shipton", "zone": "ash-reach",     "at": "reach-cairn"}
   }
 }

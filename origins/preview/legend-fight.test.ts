@@ -15,7 +15,7 @@ test('a placed legend is a named page-side creature of its family\'s body and le
   const specs = legendSpecs(F1);
   assert.deepEqual(specs.map((s) => s.legend), ['kobold', 'bedivere'], 'Zone 1\'s placements');
   assert.deepEqual(legendSpecs(F2).map((s) => s.legend), ['mother-shipton'], 'Zone 2\'s placement; another zone\'s legend is not drawn here');
-  const kobold = specs[0]!, boss = legendBoss('kobold')!, at = F1.zones.find((z) => z.zone === 'cinder-fields')!.landmarks.shrine!;
+  const kobold = specs[0]!, boss = legendBoss('kobold')!, at = F1.zones.find((z) => z.zone === 'cinder-fields')!.landmarks["ash-pits"]!;
   assert.deepEqual([kobold.body, kobold.level, kobold.name, kobold.named, kobold.encounter, kobold.roam], [boss.enemy, boss.level, boss.name, true, null, 0]);
   assert.deepEqual(kobold.home, at, 'it stands at its landmark');
   assert.ok(mobStand(frontierBuild(F1), F1.zones.find((z) => z.zone === 'cinder-fields')!)(at.x, at.z) || true, 'placement is a landmark, not a creature spread');

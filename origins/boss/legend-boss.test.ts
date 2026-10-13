@@ -62,7 +62,7 @@ test('the legend spawn rows: the first-pass placements load against the real pla
   const known = { zones: new Set(landmarks.keys()), landmarks: (z: string) => landmarks.get(z) ?? new Set<string>() };
   assert.deepEqual(LEGEND_SPAWNS.map((s) => s.legend), ['kobold', 'bedivere', 'mother-shipton'], 'the first-pass placements (for the owner to move)');
   loadLegendSpawns({ spawns: Object.fromEntries(LEGEND_SPAWNS.map((s) => [s.id, { order: s.order, legend: s.legend, zone: s.zone, at: s.at }])) }, known);
-  assert.deepEqual(legendSpawnsIn('cinder-fields').map((s) => s.at), ['shrine', 'hold-road']);
+  assert.deepEqual(legendSpawnsIn('cinder-fields').map((s) => s.at), ['ash-pits', 'hold-road']);
   const row = (patch: object) => ({ spawns: { 'alvis-here': { order: 1, legend: 'alvis', zone: 'cinder-fields', at: 'shrine', ...patch } } });
   assert.deepEqual(legendSpawnsIn('cinder-fields', loadLegendSpawns(row({}), known)).map((s) => s.legend), ['alvis'], 'a standing legend is one row');
   assert.throws(() => loadLegendSpawns(row({ legend: 'crixus' }), known), /legend boss/); assert.throws(() => loadLegendSpawns(row({ zone: 'nowhere' }), known), /zone/);
