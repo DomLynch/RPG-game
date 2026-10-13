@@ -1,11 +1,12 @@
 // Legend families: the tables load through the shared loader, the default rows equal the catalogue's ranks, and the picker is a pure function of (family, rank, seed).
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { CATALOGUE } from '../src/fight/catalogue-rows.ts';
-import { LEGEND_FAMILIES, candidatesAt, familyOf, legendText, pickLegend, type LegendFamily } from '../src/fight/legend-families.ts';
+import { LEGEND_FAMILIES, candidatesAt, familyOf, isSpellless, legendText, pickLegend, type LegendFamily } from '../src/fight/legend-families.ts';
 import { loadRegistry, tableFromFile } from '../src/core/registry.ts';
 import LEGENDS_MANIFEST from '../src/fight/legend-families.manifest.json' with { type: 'json' };
-import { LEGEND_OPPONENTS, legendForFight, legendForLevel } from '../src/legends.ts';
+import { LEGEND_OPPONENTS, legendForFight, legendForLevel, legendKeyForFight, rungOf } from '../src/legends.ts';
 
 test('legend families: one family per ranked opponent, ten ranks each, every legendId resolves', () => {
   assert.deepEqual(LEGEND_FAMILIES.map((f) => f.opponent).sort(), [...LEGEND_OPPONENTS].sort());
@@ -39,4 +40,17 @@ test('legend families: a legendId outside the legend table is refused at load', 
 
 test('legend families: legendForFight is the level\'s rung legend while each rank has one candidate', () => {
   for (const id of LEGEND_OPPONENTS) for (const level of [1, 12, 30, 50]) assert.deepEqual(legendForFight(id, level, 99), legendForLevel(id, level));
+});
+
+test('legend families: the legend key is the spell row id without spell: — same key legendIdFor resolves (boss + boss_legend = the rank name), spell-less legends are listed', () => {
+  const spells = (['ash-frontier', 'black-sand', 'jade-reach', 'marble-shore', 'red-hollow', 'sun-court', 'thorn-steppe'] as const).flatMap((r) => (JSON.parse(readFileSync(new URL(`../src/fight/spells-${r}.json`, import.meta.url), 'utf8')) as { spells: { id: string; boss: string; boss_legend?: string }[] }).spells);
+  let withSpell = 0;
+  for (const row of CATALOGUE.filter((r) => r.ranks.length)) for (let rank = 1; rank <= 10; rank++) {
+    const hit = spells.find((s) => s.boss === row.id && s.boss_legend === row.ranks[rank - 1]!.name);   // Combat's legendIdFor (src/fight/spell-legends.ts, #2467), same resolution
+    const key = candidatesAt(familyOf(row.id)!, rank)[0]!;
+    assert.equal(isSpellless(key), !hit, `${row.id} ${rank}`);
+    if (hit) { withSpell++; assert.equal(key, hit.id.slice('spell:'.length)); }
+  }
+  assert.equal(withSpell, 48);
+  for (const level of [1, 7, 20, 33, 50]) for (const id of LEGEND_OPPONENTS) assert.equal(legendKeyForFight(id, level, 5), candidatesAt(familyOf(id)!, rungOf(level))[0]);
 });

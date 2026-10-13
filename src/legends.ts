@@ -31,7 +31,8 @@ export const rungOf = (level: number): number => levelOf(tierAt(level - 1));
 // The legend a fight at `level` shows.
 export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, rungOf(level));
 // The legend the fight wears: its family's pick at the level's rung, chosen by the fight seed (src/fight/legend-families.ts). With one legend per rank this is legendForLevel.
-export const legendForFight = (id: LegendOpponent, level: number, seed: number): Legend => { const f = familyOf(id), picked = f ? pickLegend(f, rungOf(level), seed) : null; return (picked && legendText(picked)) || legendForLevel(id, level); };
+export const legendKeyForFight = (id: LegendOpponent, level: number, seed: number): string | null => { const f = familyOf(id); return f ? pickLegend(f, rungOf(level), seed) : null; };
+export const legendForFight = (id: LegendOpponent, level: number, seed: number): Legend => { const picked = legendKeyForFight(id, level, seed); return (picked && legendText(picked)) || legendForLevel(id, level); };
 // The highest level (1..50) that reads as a rung, through the same mapping: the Sparring tab's Legend pick fights there (Origin = 50).
 export const rungTopLevel = (rung: number): number => Array.from({ length: MAX_LEVEL }, (_, i) => MAX_LEVEL - i).find((level) => rungOf(level) === rung) ?? 1;
 // The legend's painted face (Dom via Strategy, 2026-09-28, versus card B4): public/legends/<opponent>-<rung>.webp, the rung legendForLevel reads.
