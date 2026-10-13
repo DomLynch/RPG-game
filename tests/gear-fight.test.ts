@@ -133,13 +133,15 @@ test('gear rows: a set is shape (dials up and down, held to 25) plus quality (25
   assert.deepEqual(Object.values(GEAR.sets).map((t) => [t.id, t.shape]), [['plate', { armour: 25, magicResist: -25 }], ['robes', { magicResist: 25, armour: -25 }], ['leathers', { stamina: 25, armour: -25 }]]);
   assert.deepEqual(['light', 'medium', 'heavy'].map((id) => [GEAR.rows[id]!.preset, GEAR.rows[id]!.set]), [[true, 'leathers'], [true, null], [true, 'plate']]);
   assert.equal(GEAR.owners.veteran, 'plate'); assert.equal(GEAR.owners.witch, 'robes');
-  const quality = (d: Record<string, number>, set: string, c = 1) => Object.entries(d).reduce((n, [dial, v]) => n + v - Math.sign(GEAR.sets[set]!.shape[dial] ?? 0) * Math.round(Math.abs(GEAR.sets[set]!.shape[dial] ?? 0) * c), 0);   // what is left of the deltas after the (scaled) shape
-  assert.deepEqual(gearDeltas('plate', 1, 0), { armour: 25, magicResist: -25 }, 'a full COMMON set is all shape and no quality');
+  const quality = (d: Record<string, number>, set: string, c = 1) => Object.entries(d).reduce((n, [dial, v]) => n + v - Math.sign(GEAR.sets[set]!.shape[dial] ?? 0) * Math.round(Math.abs(GEAR.sets[set]!.shape[dial] ?? 0) * c), 0) + Math.round(GEAR.weights[GEAR.sets[set]!.weightClass]!.castPenalty * c);   // what is left of the deltas after the (scaled) shape, with the weight class's cast penalty added back
+  assert.deepEqual(gearDeltas('plate', 1, 0), { armour: 25, magicResist: -25, spellPower: -20 }, 'a full COMMON set is all shape and no quality; heavy takes 20 off spellPower');
   assert.equal(quality(gearDeltas('plate', 1, 1), 'plate'), 25, 'a full LEGENDARY set adds the whole 25 of quality');
-  assert.deepEqual(gearDeltas('plate', 1, 1), { armour: 35, magicResist: -25, health: 10, poise: 5 }, 'spread over armour 2 : health 2 : poise 1');
+  assert.deepEqual(gearDeltas('plate', 1, 1), { armour: 35, magicResist: -25, health: 10, poise: 5, spellPower: -20 }, 'spread over armour 2 : health 2 : poise 1');
   assert.equal(quality(gearDeltas('plate', 0.5, 0.5), 'plate', 0.5), 13); assert.equal(gearDeltas('plate', 0.5, 0.5).magicResist, -13);
   assert.equal(quality(gearDeltas('robes', 0.3, 0.3), 'robes', 0.3), Math.round(25 * 0.3), 'the points are always all spent (largest remainder)');
   assert.deepEqual(gearDeltas('plate', 0), {});
+  assert.deepEqual(gearDeltas('robes', 1, 0), { magicResist: 25, armour: -25 }, 'a light set takes nothing off casting');
+  assert.equal(gearDeltas('leathers', 1, 0).spellPower, -10, 'medium takes 10'); assert.equal(gearDeltas('plate', 0.5, 0.5).spellPower, -10, 'half a heavy set takes half the penalty');
   assert.deepEqual(sheetOf({ level: 100, placed: { armour: 100 } }, gearDeltas('plate', 1, 1)), { armour: 100, health: 10, poise: 5 }, 'a 100-armour build\'s plate cannot lift the armour past the cap: the cap holds, the rest still pays');
   assert.throws(() => gearDeltas('chain'), /not a set row/);
   const piece = { id: 'plate.body', weightClass: 'light', slot: 'Body', extends: 'heavy', weight: 18, wearMax: 160, resist: { fire: 1, earth: -1 } };
@@ -169,7 +171,7 @@ test('armour weight classes are rows: every set and preset names one, a missing 
   assert.throws(() => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, mail] }), /missing-field.*weightClass is required/s);
   assert.throws(() => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, { ...mail, weightClass: 'feather' }] }), /unknown-ref.*armourWeight/s);
   assert.throws(() => loadGearDefs({ ...gearDefs, gear: [...gearDefs.gear, { id: 'x', slot: 'Body', weight: 1, wearMax: 1, resist: {} }] }), /missing-field.*weightClass is required/s);
-  const weights = { armourWeight: [...(armourWeights as { armourWeight: unknown[] }).armourWeight, { id: 'ethereal', castPenalty: 0, note: 'test' }] };
+  const weights = { armourWeight: [...(armourWeights as { armourWeight: unknown[] }).armourWeight, { id: 'ethereal', dial: 'spellPower', castPenalty: 0, note: 'test' }] };
   const four = loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, { ...mail, weightClass: 'ethereal' }] }, undefined, undefined, undefined, weights);
   assert.equal(four.sets.mail!.weightClass, 'ethereal'); assert.equal(four.weights.ethereal!.castPenalty, 0);
 });
@@ -235,4 +237,15 @@ test('the verifiers do not take a sheet on trust: a record that carries one is R
   assert.equal(e.ok, false); assert.match((e as { reason: string }).reason, /carries a sheet/);
   const row = { opponent: 'veteran', record: await encodeRecord({ ...within, outcome: 'killed' }) };
   assert.match(String(await refusal(row, { marks: 0, owned: [] })), /carries a sheet/, 'the loot sweep: a killed claim with a sheet never reaches a payout');
+});
+
+test('the cast penalty lands on the sheet, not in the duel: a heavy set lowers a caster\'s spellPower, floored at the dial\'s base, and a light one does not', () => {
+  const caster = { level: 40, placed: { spellPower: 40 } };
+  assert.equal(sheetOf(caster, gearDeltas('plate', 1, 0))?.spellPower, 20, 'plate: 40 placed - 20');
+  assert.equal(sheetOf(caster, gearDeltas('leathers', 1, 0))?.spellPower, 30, 'leathers (medium): 40 - 10');
+  assert.equal(sheetOf(caster, gearDeltas('robes', 1, 0))?.spellPower, 40, 'robes (light): untouched');
+  assert.equal(sheetOf({ level: 0, placed: {} }, gearDeltas('plate', 1, 0))?.spellPower, undefined, 'a non-caster in plate stays at the dial\'s base (floor 0)');
+  const heavier = { armourWeight: (armourWeights as { armourWeight: { id: string; castPenalty: number }[] }).armourWeight.map((w) => (w.id === 'heavy' ? { ...w, castPenalty: 30 } : w)) };
+  assert.equal(loadGearDefs(gearDefs, undefined, undefined, undefined, heavier).weights.heavy!.castPenalty, 30, 'a tuning is one row edit');
+  assert.throws(() => loadGearDefs(gearDefs, undefined, undefined, undefined, { armourWeight: [{ id: 'heavy', dial: 'agility', castPenalty: 5, note: 't' }, { id: 'medium', dial: 'spellPower', castPenalty: 1, note: 't' }, { id: 'light', dial: 'spellPower', castPenalty: 0, note: 't' }] }), /dial is a dial row/);
 });
