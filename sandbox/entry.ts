@@ -136,8 +136,12 @@ const layoutA = (): void => {
     '.actions #attack-button{right:22px!important;bottom:18px!important;width:92px!important;height:92px!important;font-size:14px!important}',
     '.actions #skill-button{right:128px!important;bottom:92px!important;width:58px!important;height:58px!important}',
     '.actions #guard-button{right:124px!important;bottom:16px!important;width:62px!important;height:62px!important}',
-    '.actions #dodge-button{right:30px!important;bottom:122px!important;width:56px!important;height:56px!important}',
-    '.actions #kick-button{right:200px!important;bottom:54px!important;width:52px!important;height:52px!important}',
+    '.actions #dodge-button{right:196px!important;bottom:122px!important;width:56px!important;height:56px!important}',
+    '.actions #kick-button{right:200px!important;bottom:50px!important;width:52px!important;height:52px!important}',
+    '.actions #attack-button,.actions #skill-button,.actions #guard-button,.actions #dodge-button,.actions #kick-button{font-size:0!important}',
+    '.actions #attack-button::after,.actions #skill-button::after,.actions #guard-button::after,.actions #dodge-button::after,.actions #kick-button::after{display:block!important;position:static!important;font-size:12px!important;font-weight:600;letter-spacing:.04em;color:inherit}',
+    '.actions #attack-button::after{content:"STRIKE"!important;font-size:14px!important}.actions #skill-button::after{content:"SPELL"!important}.actions #guard-button::after{content:"GUARD"!important}.actions #dodge-button::after{content:"ROLL"!important}.actions #kick-button::after{content:"KICK"!important}',
+    '.actions #attack-button svg{display:none!important}',
   ].join('\n');
   document.head.append(css);
 };
