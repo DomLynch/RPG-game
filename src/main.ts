@@ -12,10 +12,11 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { bookIsOffline, createServerBuild, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
+import { bookIsOffline, createServerBuild, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
+import { pickSpell } from './fight/spell-pick.ts';
 import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
@@ -416,7 +417,7 @@ let legendIndex: typeof import('./fight/spell-legends.ts') | undefined;
 const loadLegendIndex = () => import('./fight/spell-legends.ts').then((m) => { if (typeof m.legendIdFor === 'function') legendIndex = m; }).catch(() => undefined);   // a chunk that loads wrong names no legend
 if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void loadLegendIndex(), { timeout: 10000 }); else void loadLegendIndex();   // no idle callback (old Safari): the chunk is async either way, and no timer is held
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
