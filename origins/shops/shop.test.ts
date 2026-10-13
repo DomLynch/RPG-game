@@ -49,3 +49,15 @@ test('a buy from a partly stocked shelf keeps the restock clock running', () => 
   const s = st({ stock: { count: 1, at: T - 90_000 } });   // 1 + one step = 2 now, 30 s into the next step
   assert.deepEqual(checkBuy(list, { item: 'item:bandage', quantity: 2, revision: 3 }, s), { ok: true, cost: 8, stockAfter: { count: 0, at: T - 30_000 } });
 });
+
+test('a classed row charges the stock-elastic price with the zone tax, summed per unit as the shelf empties', () => {
+  const l: ShopList = { id: 'shoplist:t', revision: 1, currency: 'bronze', zone: 'zone3', rows: [{ item: 'item:ore', price: 100, max: 40, restockSeconds: 300, class: 'material' }, { item: 'item:plain', price: 100, max: 40, restockSeconds: 300 }] };
+  const buy = (item: string, quantity: number, count: number) => checkBuy(l, { item, quantity, revision: 1 }, { level: 1, bronze: 1_000_000, open: true, stock: { count, at: T }, now: T });
+  // material: full shelf = 80 % of list, +10 % zone tax = 88; empty = 160 % (cap 40, slope 80, ceil 200) x 1.1 = 176.
+  assert.deepEqual(buy('item:ore', 1, 40), { ok: true, cost: 88, stockAfter: { count: 39, at: T } });
+  assert.equal((buy('item:ore', 1, 1) as { cost: number }).cost > 88, true, 'a near-empty shelf costs more than a full one');
+  assert.equal((buy('item:ore', 3, 20) as { cost: number }).cost, [20, 19, 18].reduce((n, c) => n + Math.ceil(100 * (80 + 80 * (1 - c / 40)) * 110 / 10_000), 0));
+  assert.equal((buy('item:plain', 2, 40) as { cost: number }).cost, 200, 'an unclassed row stays on list price');
+  assert.deepEqual(validateShopList({ ...l, zone: 'zone9' }, () => true).map((i) => i.path), ['zone']);
+  assert.deepEqual(validateShopList({ ...l, rows: [{ ...l.rows[0]!, class: 'weapon' }] }, () => true).map((i) => i.path), ['rows[0].class']);
+});
