@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "plain":    {"order": 1, "weight": 80, "health": 1,    "damage": 1,    "scale": 1,    "tint": null,      "glyph": null,   "dropPrefix": null,       "eligible": []},
+    "scarred":  {"order": 2, "weight": 14, "health": 1.25, "damage": 1.1,  "scale": 1.08, "tint": "#8a5a3c", "glyph": "scar",  "dropPrefix": "Scarred",  "eligible": ["wolf", "boar", "bear", "goblin"]},
+    "alpha":    {"order": 3, "weight": 5,  "health": 1.6,  "damage": 1.25, "scale": 1.18, "tint": "#b5412c", "glyph": "crown", "dropPrefix": "Alpha",    "eligible": ["wolf", "boar", "bear"]},
+    "ancient":  {"order": 4, "weight": 1,  "health": 2.2,  "damage": 1.4,  "scale": 1.3,  "tint": "#3d3a52", "glyph": "eye",   "dropPrefix": "Ancient",  "eligible": ["wolf", "bear"]}
+  }
+}

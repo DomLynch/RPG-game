@@ -1,0 +1,7 @@
+{
+  "tables": [
+    {"table": "variant", "file": "variants.json", "at": "variants", "keyed": true, "key": "id",
+     "required": {"order": "integer", "weight": "number", "health": "number", "damage": "number", "scale": "number", "eligible": "array"},
+     "optional": {"tint": "any", "glyph": "any", "dropPrefix": "any"}}
+  ]
+}
