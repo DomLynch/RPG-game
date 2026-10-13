@@ -6,7 +6,8 @@
 "2026-10-13 Dom: flash removed, ring now thin grey and only on parry and guard break; crowd roars about 4x louder.",
 "2026-10-13 Dom: arm wound shows as a temporary on-screen message (option B), about 2.6 seconds.",
 "2026-10-13 Strategy/Dom: ring stays ON as a row (parry, guard break); the existing clash sparks are wired to guard break as the switchable alternative (guardBreak sparks 0.8; parry already sparks on steel). Flip either in the panel.",
-"2026-10-13 Dom: ring off (looked basic); the clash sparks on guard break stay. Sandbox working mode: Dom's word beats the process rules; nothing leaves sandbox/page or the preview."
+"2026-10-13 Dom: ring off (looked basic); the clash sparks on guard break stay. Sandbox working mode: Dom's word beats the process rules; nothing leaves sandbox/page or the preview.",
+"2026-10-13 Dom: many-on-one damage cut: 1st attacker 100%, 2nd 50%, 3rd 30%, 4th and later 30%, per fight kind (same in every kind today). Values only: the engine applies them in Combat's many-on-one resolution (harness scripts/many-on-one-check.mjs); the sandbox is 1v1 so it cannot show the effect."
 ],"files":{
 "stance-defs":{"stances":[
 {"id":"aggressive","damage":100,"posture":200,"block":200},
@@ -33,4 +34,10 @@
 {"id":"parry-roar","on":"parry","cue":"reaction","gain":2.5},
 {"id":"break-roar","on":"guardBreak","cue":"reaction","gain":2.5},
 {"id":"heavy-roar","on":"heavy","cue":"reaction","gain":1.6}
+]},
+"swarm-defs":{"attackers":[
+{"id":"attacker1","index":1,"world-mob":1000,"pit":1000,"pvp":1000,"ladder":1000},
+{"id":"attacker2","index":2,"world-mob":500,"pit":500,"pvp":500,"ladder":500},
+{"id":"attacker3","index":3,"world-mob":300,"pit":300,"pvp":300,"ladder":300},
+{"id":"attacker4plus","index":4,"world-mob":300,"pit":300,"pvp":300,"ladder":300}
 ]}}}
