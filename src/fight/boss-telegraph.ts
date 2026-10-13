@@ -8,7 +8,7 @@ export const telegraphFlag = (search: string): boolean => /[?&]telegraph=(1|on|r
 const ROLL_TICKS = 24;   // the last stretch of the windup, when the ring flashes: the roll window
 export const telegraphLook = (caster: Pick<Fighter, 'specialShare' | 'special' | 'health'>): { fill: number; flash: boolean } | null => {
   if (caster.specialShare !== RULES.special.bossDamage || !caster.special || !caster.health) return null;
-  return { fill: 1 - caster.special / RULES.special.windup, flash: caster.special <= ROLL_TICKS };
+  return { fill: Math.max(0, 1 - caster.special / RULES.special.windup), flash: caster.special <= ROLL_TICKS };
 };
 
 export function createBossTelegraph(scene: THREE.Scene) {
