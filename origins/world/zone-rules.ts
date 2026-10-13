@@ -5,8 +5,9 @@
 //   late-fight     the first fight within 10 s of entering a zone that is not safe (so a creature within 52 m of the entry)
 // The fourth rule (turn-ins next to the action) belongs to the quest templates, and "no auto-run, ever" is a rule of the input, not of a zone.
 import type { Params } from './schema.ts';
+import { SPEEDS } from '../../src/fight/server.ts';
 
-export const RUN_SPEED = 5.2;   // m/s: the gait table's Run knot (src/fight/characters.ts gaitWeights)
+export const RUN_SPEED = SPEEDS.player.run;   // m/s: the gait table's Run knot (5.2; the playerRun row in src/fight/world-rules-defs.json)
 export const ACROSS_SECONDS = 45, HOP_SECONDS = 15, FIRST_FIGHT_SECONDS = 10;
 export const MAX_ACROSS_M = RUN_SPEED * ACROSS_SECONDS;           // 234
 export const MAX_HOP_M = RUN_SPEED * HOP_SECONDS;                 // 78
