@@ -13,7 +13,7 @@ import { powerOf } from '../../src/core/server.ts';
 import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
 import { receive } from '../inventory/inventory.ts';
 import { standingLevel } from '../../src/core/server.ts';
-import { checkBuy } from '../shops/shop.ts';
+import { checkBuy, costOf, stockNow } from '../shops/shop.ts';
 import { standsWithin, type WhereFn } from '../presence/where.ts';
 import { landmarkCm } from '../presence/zones.ts';
 import { PRESENCE_FRESH_MS } from './upgrade.ts';
@@ -110,4 +110,24 @@ async function atCounter(where: WhereFn | undefined, account: string, counter: {
     const spot = landmarkCm(counter.zone as 'exchange', counter.at);
     return standsWithin(await where(account), { x: spot.x, z: spot.z, radiusCm: SHOP_RANGE_CM }, PRESENCE_FRESH_MS);
   } catch (e) { console.error('origins-writer: shop counter check failed, the buyer counts as away:', e instanceof Error ? e.message : e); return false; }
+}
+
+// POST /origins/shop_stock {shop}: the account's shelf for each row of one shop, read only. Per row: the count now (lazy restock), the price of the NEXT unit
+// (stock-elastic with the zone tax, the same costOf the buy charges) and when the next unit comes back (database clock, ms; null on a full shelf).
+// It writes nothing and needs no counter: the page may show the shelf from afar; shop_buy still re-checks everything.
+export function shopStockHandler(shops: Shops): Handler {
+  return async ({ db, account }, body) => {
+    const list = typeof body.shop === 'string' ? shops.get(body.shop) : undefined;
+    if (!list) throw new BadRequest(`shop: ${String(body.shop)} is not a shop`);
+    const shelves = await Promise.all(list.rows.map((r) => store.shopStock(db, account, body.shop as string, r.item)));
+    if (shelves.some((s) => s === 'absent')) throw new Refused(503, 'the shop ledger is not installed (migration 202610080012)');
+    let now = 0;
+    const rows = list.rows.map((row, i) => {
+      const shelf = shelves[i] as store.ShopShelf;
+      now = shelf.now;
+      const s = stockNow(row, shelf.stock, shelf.now);
+      return { item: row.item, count: s.count, max: row.max, price: costOf(list, row, s.count, 1), nextRestockAt: s.count >= row.max ? null : s.at + row.restockSeconds * 1000 };
+    });
+    return { shop: body.shop, revision: list.revision, now, rows };
+  };
 }
