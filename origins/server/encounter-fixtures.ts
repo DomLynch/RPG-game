@@ -14,7 +14,7 @@ let clock = { t: 0 };   // the fake database's clock, also what the handler's ex
 export function fakeDb(now: { t: number }) {
   clock = now;
   const rows = new Map<string, Row>(), events: Record<string, unknown>[] = [];
-  const world: { career: unknown; build: unknown } = { career: null, build: null }, xp = new Map<string, number>(), paid = new Set<string>(), focus = new Set<string>();   // xp / focus keyed `<skill>`; the pool mirrors origins_encounter_settle's practice loop
+  const world: { career: unknown; build: unknown } = { career: null, build: null }, xp = new Map<string, number>(), paid = new Set<string>(), focus = new Set<string>(), grimoire = new Map<string, unknown>();   // xp / focus keyed `<skill>`; the pool mirrors origins_encounter_settle's practice loop
   const live = (r: Row) => !r.used && !r.settled && r.expires > now.t;
   const json = (r: Row) => JSON.stringify({ token: r.token, character: r.character, seed: r.seed, enemy: r.enemy, level: r.level, expires_at: new Date(r.expires).toISOString(), used: r.used, start_tick: r.start_tick, last_tick: r.last_tick, bar: r.bar, flags: r.flags, layer: r.layer, instance: r.instance, grace_s: 120, settled: r.settled, result: r.result });
   const db: Db = {
@@ -44,12 +44,16 @@ export function fakeDb(now: { t: number }) {
           if (paid.has(l.key)) continue;
           paid.add(l.key); xp.set(l.skill, (xp.get(l.skill) ?? 0) + Math.max(Math.min(l.amount * (focus.has(l.skill) ? 2 : 1), l.capXp - (xp.get(l.skill) ?? 0)), 0));
         }
+        for (const l of JSON.parse(v.s ?? '[]') as { legend: string; bricks: { root: string; modifiers: string[]; suffix: string | null }; key: string }[]) {
+          if (r.result !== 'won' || l.key !== `spell:${l.legend}` || typeof l.bricks.root !== 'string' || !Array.isArray(l.bricks.modifiers)) throw new DbError('O0002', 'bad spell line');
+          if (!grimoire.has(`${v.a}:${l.legend}`)) grimoire.set(`${v.a}:${l.legend}`, l.bricks);
+        }
         return '[]';
       }
       throw new Error(`unexpected sql: ${sql}`);
     },
   };
-  return { db, rows, events, world, xp, focus };
+  return { db, rows, events, world, xp, focus, grimoire };
 }
 
 export const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer: null, instance: null };

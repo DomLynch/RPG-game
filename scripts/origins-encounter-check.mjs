@@ -107,6 +107,34 @@ try {
   eq(await code('anon', `select * from public.origins_skill_xp`), '42501', 'practice: no client reads the pool');
   eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
 
+  // ---- grimoire (migration 202610130027): a spell is taken only by the 7-arg settle, on a win, once per account and legend ----------------------------------------
+  const SP = (legend, bricks = '{"root":"crack","modifiers":[],"suffix":null}', key = `spell:${legend}`) => `[{"legend":"${legend}","bricks":${bricks},"key":"${key}"}]`;
+  const SETTLE7 = (acct, t, result, batch, spells) => `select public.origins_encounter_settle('${acct}', '${t}', '${result}', 400, '${batch}'::jsonb, '[]'::jsonb, '${spells}'::jsonb)::text;`;
+  const spellsOf = acct => psql(`select coalesce(string_agg(legend, ',' order by legend), '') from public.origins_grimoire where account = '${acct}'`);
+  eq(await code(V, START(C, pcC, tok(50), 8001, 'knight', 6)), null, 'grimoire: a fight starts');
+  eq(await code(V, SETTLE7(C, tok(50), 'lost', EV(tok(50), C, pcC, 'lost'), SP('eloko'))), 'O0002', 'grimoire: a loss cannot take a spell');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko', undefined, 'spell:other'))), 'O0002', 'grimoire: a key not made from the legend is refused');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko', '[]'))), 'O0002', 'grimoire: bricks that are no {root, modifiers, suffix} object are refused');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko', '{"modifiers":[],"suffix":null}'))), 'O0002', 'grimoire: bricks without a root are refused');
+  eq(spellsOf(C), '', 'grimoire: the refusals took nothing');
+  eq(state(tok(50)).used, false, 'grimoire: the refusals consumed nothing');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: a verified win takes the spell');
+  eq(spellsOf(C), 'eloko', 'grimoire: one spell');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), 'O0009', 'grimoire: a retried settle is refused');
+  eq(await code(V, START(C, pcC, tok(51), 8002, 'knight', 6)), null, 'grimoire: a second fight starts');
+  eq(await code(V, SETTLE7(C, tok(51), 'won', EV(tok(51), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: the same legend again settles');
+  eq(psql(`select count(*) from public.origins_grimoire where account = '${C}'`), '1', 'grimoire: the same legend twice grants once');
+  eq(await code(V, START(C, pcC, tok(52), 8003, 'knight', 6)), null, 'grimoire: a third fight starts');
+  eq(await code(V, SETTLE7(C, tok(52), 'won', EV(tok(52), C, pcC, 'won'), SP('kehua', '{"root":"longShadow","modifiers":[],"suffix":null}'))), null, 'grimoire: another legend settles');
+  eq(spellsOf(C), 'eloko,kehua', 'grimoire: two legends, two rows');
+  eq(psql(`select (public.origins_grimoire_get('${C}'))::jsonb -> 'kehua'`), '{"root": "longShadow", "suffix": null, "modifiers": []}', 'grimoire: get returns the bricks per legend');
+  eq(await code('anon', `select * from public.origins_grimoire`), '42501', 'grimoire: no client reads the book');
+  eq(await code('authenticated', SETTLE7(C, tok(52), 'won', '[]', '[]')), '42501', 'grimoire: no client calls the settle');
+
+  psql(readFileSync(join(dir, '..', 'down', '202610130027_grimoire_core_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb,jsonb)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_grimoire'`), 'true/0', 'grimoire down: the 7-arg settle and the table are gone');
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb)') is not null)::text`), 'true', 'grimoire down: the 6-arg settle stays');
+
   eq(await code(V, START(A, pcA, tok(3), 1, 'knight', 6)), 'O0014', 'one open fight per account: a second start is refused');
   eq(await code(V, START(C, pcC, tok(4), 1, 'knight', 6, { instance: 'camp:wolf-3' })), 'O0014', 'one live claimant per creature instance');
   eq(await code(V, START(C, pcC, tok(5), 1, 'knight', 6, { instance: 'camp:wolf-4' })), null, 'a different creature is free');
@@ -163,7 +191,7 @@ try {
 
   // ---- the rewards hook's real lines (mob-rewards.ts mobBatch): CP + loot commit with the settle, once; a stale career aborts all of it --------------
   const content = loadEncounterContent().value, lookup = lookupOf(content);
-  const creature = Object.keys(content.local.creatureLoot).find(id => fightSetup(id, content).ok), foe = fightSetup(creature, content).value.opponent;
+  const creature = Object.keys(content.local.creatureLoot).filter(id => fightSetup(id, content).ok).sort((x, y) => fightSetup(y, content).value.opponent.level - fightSetup(x, content).value.opponent.level)[0], foe = fightSetup(creature, content).value.opponent;
   let seed = 1; while (!(rollLoot(content.local.creatureLoot[creature], seed, content, { foeLevel: foe.level }).value.items.length > 0)) seed++;
   psql(`set role frankendom_origins; select public.origins_snapshot('${C}', 0, 5000);`);
   const open = () => JSON.parse(psql(`set role ${V}; select public.origins_open('${C}')::text;`).split('\n').pop());
@@ -248,6 +276,8 @@ try {
   psql(readFileSync(join(dir, UP), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins_encounter\\_%' and proname not in ('origins_issue_encounter', 'origins_consume_encounter')`), '5', 'up again after down: the five functions are back');
   psql(readFileSync(join(dir, '202610130026_skill_practice.sql'), 'utf8'));
+  psql(readFileSync(join(dir, '202610130027_grimoire_core.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb,jsonb)') is not null)::text`), 'true', 'grimoire up again: the 7-arg settle is back');
   console.log(`origins-encounter-check: ${checks} checks passed`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }
