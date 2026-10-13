@@ -2,6 +2,8 @@
 
 READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-13). Questions go to Project Strategy, not Dom.
 
+## WORKING MODE (Dom, 2026-10-13): "forget the rules, this is a sandbox, I want to innovate and iterate." Dom's word beats the process rules below (template-plus-rows, max 5 mechs, reuse-first gates). Still true: everything stays on sandbox/page and the /preview/sandbox/ page; nothing goes to trunk or the live game.
+
 ## RULING (Strategy 2026-10-13, replaces brief rule 1)
 - The sandbox MAY edit src/fight on sandbox/* branches (same files, no copy).
 - A mechanic = one new template in src/fight + rows in sandbox/rows.json; rows absent = inert. No sandbox-only flags/build switches.
