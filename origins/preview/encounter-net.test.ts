@@ -96,7 +96,7 @@ test('round trip against the real writer: start -> touch -> play on the server s
     const settled = await settleFight('tok', run.token, record, { base: w.base });
     assert.deepEqual([(settled as { verified: boolean }).verified, (settled as { event: string }).event], [true, `enc:${run.token}`]);
     assert.equal(w.events.length, 1);
-    assert.deepEqual(await settleFight('tok', run.token, record, { base: w.base }), { offline: 'http-409' }, 'a replayed settle is refused, nothing written twice');
+    assert.deepEqual(await settleFight('tok', run.token, record, { base: w.base }), { offline: 'http-409', code: 'op-conflict' }, 'a replayed settle is refused, nothing written twice');
     assert.equal(w.events.length, 1);
   } finally { await w.close(); }
 });
@@ -105,7 +105,7 @@ test('round trip: a record played on a seed the server did not issue settles as 
   const clock = { t: 1e6 }, w = await serve(clock);
   try {
     const run = await startFight('tok', CHAR, 'encounter:knight', { base: w.base }) as { seed: number; token: string };
-    assert.deepEqual(await startFight('tok', CHAR, 'encounter:knight', { base: w.base }), { offline: 'http-409' }, 'one open fight per account: resume the first');
+    assert.deepEqual(await startFight('tok', CHAR, 'encounter:knight', { base: w.base }), { offline: 'http-409', code: 'op-conflict' }, 'one open fight per account: resume the first');
     assert.deepEqual(await startFight('stranger', CHAR, 'encounter:knight', { base: w.base }), { offline: 'http-401' });
     const forged = await settleFight('tok', run.token, finishedFight(run.seed + 1), { base: w.base }) as { verified: boolean; result: string };
     assert.deepEqual([forged.verified, forged.result], [false, 'lost']);
