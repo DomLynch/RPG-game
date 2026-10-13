@@ -11,6 +11,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { wornGearOf } from './worn-gear.ts';
 import { practiceLines } from './practice.ts';
+import { spellLines } from './grimoire.ts';
 import { careerState, levelOfCredit } from '../../src/core/server.ts';
 import { decodeRecord, type TwistFlag, type DuelPose, expectedSheet } from '../../src/fight/server.ts';
 import { DbError, type Db } from './db.ts';
@@ -129,7 +130,9 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
       const build = await store.buildGet(db, account, run.character), snap = await store.open(db, account);
       if (build !== null && build !== 'absent') practice = practiceLines({ token, weapon, enemyLevel: run.level, youLevel: snap.career ? levelOfCredit(careerState(snap.career).credit) : 0, placed: build.placed });
     }
-    const out = await store.encounterSettle(db, account, token, result, ticks, batch, practice).catch(GONE);
+    // Grimoire (migration 0027): a VERIFIED win against a boss legend takes its spell, once per account and legend, in this same transaction.
+    const spells = verdict.ok && result === 'won' ? spellLines(fight) : [];
+    const out = await store.encounterSettle(db, account, token, result, ticks, batch, practice, spells).catch(GONE);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
     return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
   };
