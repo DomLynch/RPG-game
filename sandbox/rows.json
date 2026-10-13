@@ -3,7 +3,8 @@
 "2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
-"2026-10-13 Dom: flash removed, ring now thin grey and only on parry and guard break; crowd roars about 4x louder."
+"2026-10-13 Dom: flash removed, ring now thin grey and only on parry and guard break; crowd roars about 4x louder.",
+"2026-10-13 Dom: arm wound shows as a temporary on-screen message (option B), about 2.6 seconds."
 ],"files":{
 "stance-defs":{"stances":[
 {"id":"aggressive","damage":100,"posture":200,"block":200},
@@ -11,7 +12,7 @@
 {"id":"trickster","heavyDamage":-100,"feint":-750,"kickPosture":1000}
 ],
 "wounds":[
-{"id":"sword-arm","site":"torso","block":300,"damage":-200}
+{"id":"sword-arm","site":"torso","block":300,"damage":-200,"label":"ARM WOUNDED","note":"blocks cost +30% stamina · attacks do -20% damage"}
 ]},
 "hit-stop-defs":{"contacts":[
 {"id":"hitLight","order":1,"ms":0,"frames":0,"knock":0.02,"push":0},

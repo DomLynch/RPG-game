@@ -37,10 +37,13 @@ const rowOf = (f: { stance?: StanceId }): Readonly<Partial<Record<StanceKey | 'w
 // at `site` scars the defender with that id for the rest of the duel (duel.ts `wound`), and every stanced() read below carries the scar's delta on top of the stance.
 // No rows = no scar is ever set (the fighter has no `scars` field, so the duel hash is byte-identical) and stanced() is unchanged.
 const SITES = ['head', 'torso', 'legs'];
-const WOUNDS: Readonly<Record<string, Deltas & { site: string }>> = Object.fromEntries((WOUND_TABLE.rows as unknown as Record<string, unknown>[]).map(({ id, site, ...deltas }) => {
+const WOUND_TEXT: Record<string, { label: string; note: string }> = {};   // optional label + note columns: what the on-screen notice says (wound-notice.ts)
+const WOUNDS: Readonly<Record<string, Deltas & { site: string }>> = Object.fromEntries((WOUND_TABLE.rows as unknown as Record<string, unknown>[]).map(({ id, site, label, note, ...deltas }) => {
   if (typeof site !== 'string' || !SITES.includes(site)) throw Error(`stance-defs wound "${String(id)}": site is one of ${SITES.join(', ')}`);
+  if (typeof label === 'string') WOUND_TEXT[id as string] = { label, note: typeof note === 'string' ? note : '' };
   return [id as string, { ...stanceRows([{ id, ...deltas }])[id as StanceId], site }];
 }));
+export const woundText = (id: string): { label: string; note: string } | undefined => WOUND_TEXT[id];
 export const woundsAt = (site: string): string[] => Object.keys(WOUNDS).filter((id) => WOUNDS[id]!.site === site);
 type Scarred = { stance?: StanceId; scars?: readonly string[] };
 export const stanced = (f: Scarred, key: StanceKey | 'window' | 'counter', x: number): number => {
