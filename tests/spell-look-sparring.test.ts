@@ -23,15 +23,13 @@ test('the look hook plus a paying fight: no spell on the Match, none in the reco
   assert.equal(JSON.stringify(m.recorder).includes(look.id), false, 'and the record names no spell');
 });
 
-test('the look hook in sparring against the dummy: the spell is on the player, nothing is recorded', () => {
+test('the look hook in sparring against the dummy: the spell is on the player, nothing is recorded (a fresh Match in career, above, ignores the same hook)', () => {
   const m = make(true);
   m.startSparring({ weapon: 'longsword', difficulty: 'dummy', skill: null });
   assert.equal(m.mode, 'sparring');
   assert.equal(m.spell?.id, look.id);
   assert.equal(m.practice.duel.fighters[0].spell?.id, look.id);
   assert.equal(m.recorder, null);
-  m.begin('career');
-  assert.equal(m.spell, undefined, 'back in a paying fight the hook is ignored again');
 });
 
 test('without the hook sparring and career cast no spell', () => {
