@@ -4,7 +4,7 @@
 // The workflows' own `needs:` / `if:` / concurrency expressions are evaluated here per event, so this tests what Actions would schedule.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -271,3 +271,15 @@ test('release-checks does not start on ready_for_review: the train flips a candi
   assert.ok(!types.includes('ready_for_review'), types);
   for (const t of ['opened', 'synchronize', 'labeled']) assert.ok(types.includes(t), `${t} still starts the matrix`);
 });
+
+// #2623 @dd45bd777 (Auditor HOLD): `if: !(...)` is a YAML TAG, not an expression. Ruby's YAML loader tolerated it, yaml.safe_load and GitHub do not: the file did not parse, quality would
+// have stopped running on every PR. A strict parser over every workflow is the guard for any future edit of an `if:` (an expression that starts with `!` must be wrapped in ${{ }}).
+test('every .github/workflows file parses with a strict YAML parser (PyYAML safe_load, as GitHub reads it): an if starting with ! must be wrapped in ${{ }}', () => {
+  const files = readdirSync('.github/workflows').filter(f => f.endsWith('.yml') && !f.startsWith('.'));   // not a macOS AppleDouble ._x.yml from a tar
+  assert.ok(files.length >= 8, `found ${files.length} workflows`);
+  for (const f of files) {
+    const r = spawnSync('python3', ['-c', 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))', `.github/workflows/${f}`], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `${f} does not parse: ${r.stderr.split('\n').filter(Boolean).slice(-2).join(' | ')}`);
+  }
+});
+

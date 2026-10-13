@@ -55,7 +55,7 @@ jobs:
     # Browser jobs on a feature PR (Lead + Strategy 2026-10-12): only once it carries auditor:ready (`browser`); the unit and quality shards run on every push.
     # NOT_RETARGET: a title/body `edited` event is not a code change. BROWSER_LABEL: adding auditor:ready is a run of the browser jobs only.
     # Not on the push of an already-tested candidate (the train's fast-forward of trunk to its "... (release-X candidate)" merge commit): its pull_request run covered this tree.
-    if: !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready'))
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
