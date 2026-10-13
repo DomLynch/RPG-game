@@ -142,3 +142,18 @@ test('the guard sits before the log, the lock and the disk, and the scheduled fo
   assert.match(src, /\[ -z "\$PATHS" \] && \{ \[ "\$APPLY" != 1 \] \|\| \[ "\$\{SWEEP_SCHEDULED:-\}" != 1 \]; \}/, 'bare = no --path; allowed only with --apply AND SWEEP_SCHEDULED=1');
 });
 
+// The Auditor's HOLD on #2626: the live unit ran `--apply` WITHOUT SWEEP_SCHEDULED=1, so installing the guard alone would have made every 6-hourly run exit 2. The unit ships in the repo now.
+// It also sets HOME=/root: a systemd service has no HOME, root's gh login is not found, and the scheduled sweep ABORTed "cannot read open PR list" (journal 17:56:15 2026-10-13).
+test('ops/vps-scratch-sweep.service: runs exactly the scheduled form the script accepts, with SWEEP_SCHEDULED=1 and a HOME for gh', async () => {
+  const { readFileSync } = await import('node:fs');
+  const unit = readFileSync('ops/vps-scratch-sweep.service', 'utf8'), script = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const lines = unit.split('\n').filter(l => /^[A-Za-z]+=/.test(l));
+  const get = (k: string) => lines.filter(l => l.startsWith(`${k}=`)).map(l => l.slice(k.length + 1));
+  assert.deepEqual(get('ExecStart'), ['/usr/local/sbin/vps-scratch-sweep --apply'], 'exactly the bare --apply the guard allows when scheduled');
+  assert.ok(get('Environment').includes('SWEEP_SCHEDULED=1'), 'the guard variable');
+  assert.ok(get('Environment').includes('HOME=/root'), 'so root\'s gh login is found');
+  assert.deepEqual(get('Type'), ['oneshot']);
+  assert.match(script, /"\$\{SWEEP_SCHEDULED:-\}" != 1/, 'the script reads the very variable the unit sets');
+  assert.ok(!/--path/.test(get('ExecStart').join(' ')) && !/--force/.test(get('ExecStart').join(' ')), 'no --path/--force in the scheduled form');
+});
+
