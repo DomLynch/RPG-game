@@ -33,6 +33,7 @@ try {
     const reply = (result) => ({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
     await page.addInitScript(() => { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: 'check-token', expires_at: Math.floor(Date.now() / 1000) + 7200 })); });
     await page.route('**/origins/**', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();   // the page's own files live under /preview/origins/; only the writer's POST ops are answered here
       const op = new URL(route.request().url()).pathname.split('/').pop(), body = route.request().postDataJSON?.() ?? {};
       if (op === 'shop_stock') return route.fulfill(reply({ shop: 'service:exchange-provisioner', revision: 1, now: T0, rows: [
         { item: 'item:grave-iron', count: shelf.iron, max: 20, price: shelf.iron === 20 ? 5 : 6, nextRestockAt: shelf.iron < 20 ? T0 + 90_000 : null },
