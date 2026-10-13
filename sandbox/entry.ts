@@ -131,10 +131,13 @@ const restyleStances = (tries = 0): void => {
 const layoutA = (): void => {
   if (!(RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'oneButton' && r.value)) return;
   const CX = 104, CY = 128;   // STRIKE's centre, px from the right and bottom edge
-  // Three variants of the one design (`?lay=1|2|3`, Dom 2026-10-13): STRIKE smaller each time (more room for the zones around it), the spells higher and wider, the kick up beside the guard.
+  // Three variants of the one design (`?lay=1|2|3`; Dom picked 2 as the default, 2026-10-13): STRIKE's size and its zone ring grow apart from 1 to 3. Every outer button touches the zone ring with a 3 px gap (tangent, on the diagonals), the
+  // kick sits against the guard's outer side.
   const lay = new URLSearchParams(location.search).get('lay');
-  const V = ({ '2': { S: 72, R: 146, d: 50, sp: [-92, 74, -72], gd: [-78, 58], rl: [66, 60], kk: [-142, 4] }, '3': { S: 64, R: 154, d: 52, sp: [-96, 70, -80], gd: [-82, 62], rl: [70, 64], kk: [-148, -2] } } as Record<string, { S: number; R: number; d: number; sp: number[]; gd: number[]; rl: number[]; kk: number[] }>)[lay ?? ''] ?? { S: 80, R: 138, d: 47, sp: [-84, 66, -64], gd: [-73, 55], rl: [62, 57], kk: [-134, 8] };
-  const spots: [string, number, number, number][] = [['attack-button', 0, 0, V.S], ['skill-button', V.sp[0]!, V.sp[2]!, V.d], ['sbx-spell2', V.sp[1]!, V.sp[2]!, V.d], ['guard-button', V.gd[0]!, V.gd[1]!, V.d], ['dodge-button', V.rl[0]!, V.rl[1]!, 33], ['kick-button', V.kk[0]!, V.kk[1]!, 35]];   // id, dx, dy (down is +), diameter
+  const V = ({ '1': { S: 80, R: 138, d: 47 }, '3': { S: 64, R: 154, d: 52 } } as Record<string, { S: number; R: number; d: number }>)[lay ?? ''] ?? { S: 72, R: 146, d: 50 };
+  const GAP = 3, near = (deg: number, d: number): [number, number] => { const r = V.R / 2 + d / 2 + GAP, a = (deg * Math.PI) / 180; return [Math.round(r * Math.cos(a)), Math.round(-r * Math.sin(a))]; };   // centre offset (down is +) of a button of diameter d touching the ring at this angle
+  const sp1 = near(135, V.d), sp2 = near(45, V.d), gd = near(225, V.d), rl = near(315, 33), kk: [number, number] = [gd[0] - V.d / 2 - GAP - 17.5, gd[1] - 8];
+  const spots: [string, number, number, number][] = [['attack-button', 0, 0, V.S], ['skill-button', sp1[0], sp1[1], V.d], ['sbx-spell2', sp2[0], sp2[1], V.d], ['guard-button', gd[0], gd[1], V.d], ['dodge-button', rl[0], rl[1], 33], ['kick-button', kk[0], kk[1], 35]];   // id, dx, dy (down is +), diameter
   const ids = spots.map(([id]) => `.actions #${id}`);
   const place = spots.map(([id, dx, dy, d]) => `.actions #${id}{right:${CX - dx - d / 2}px!important;bottom:${CY - dy - d / 2}px!important;width:${d}px!important;height:${d}px!important}`);
   const label: Record<string, string> = { 'attack-button': 'STRIKE', 'skill-button': 'SPELL 1', 'sbx-spell2': 'SPELL 2', 'guard-button': 'GUARD', 'dodge-button': 'ROLL', 'kick-button': 'KICK' };
