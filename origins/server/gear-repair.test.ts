@@ -93,9 +93,9 @@ test('gear_repair: a body that is not an op id, a character or a held piece is a
 });
 
 test('gear_wear: lists the worn pieces with the quote the smith would charge (the same rows as gear_repair); nothing worn is an empty list, not an error', async () => {
-  const read = (s: { db: Db }) => gearWearHandler({ lookup })({ db: s.db, account: UID } as never, { character: PC }) as Promise<{ pieces: { instance: string; slot: string; worn: number; max: number; baseMax: number; quote: unknown }[] }>;
+  const read = (s: { db: Db }) => gearWearHandler({ lookup })({ db: s.db, account: UID } as never, { character: PC }) as Promise<{ pieces: { instance: string; item: string; lootId: string; where: string; paperdoll: string | null; slot: string; worn: number; max: number; baseMax: number; quote: unknown }[] }>;
   const out = await read(stub({ wear: worn }));
-  assert.deepEqual(out.pieces, [{ instance: 'inst:t-1', slot: kind.slot, ...worn, quote: { points: cost.points, bronze: cost.gold, metal: { item: cost.metalItem, qty: cost.metal } } }]);
+  assert.deepEqual(out.pieces, [{ instance: 'inst:t-1', item: 'item:loot.goblin.Helmet', lootId: 'goblin.Helmet', where: 'pack', paperdoll: null, slot: kind.slot, ...worn, quote: { points: cost.points, bronze: cost.gold, metal: { item: cost.metalItem, qty: cost.metal } } }]);
   assert.deepEqual((await read(stub())).pieces, []);
   assert.deepEqual((await read(stub({ wear: { ...worn, worn: 0 } }))).pieces, []);
   await assert.rejects(gearWearHandler({ lookup })({ db: stub().db, account: UID } as never, { character: 12 }), /character/);
@@ -105,4 +105,14 @@ test('gear_repair: a settle or another repair that wrote the same wear first mak
   const s = stub({ wear: worn, raced: true });
   await assert.rejects(run(s), (e: unknown) => e instanceof Conflict && /wear changed/.test(e.message));
   assert.equal(s.commits.length, 0);
+});
+
+test('gear_wear: an equipped worn piece carries its paperdoll slot, so the page can draw durability on the gear sheet', async () => {
+  const equipped = { ...helmet, loc_kind: 'equipped', loc_index: null, loc_slot: 'head' };
+  const db: Db = { async run(sql) {
+    if (/origins_item_wear/.test(sql)) return JSON.stringify({ 'inst:t-1': { instance: 'inst:t-1', seq: 1, ...worn } });
+    return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: 64, bank_slots: 1000 }], items: [equipped], quests: [], journal: [], talk: [] });
+  } };
+  const out = await gearWearHandler({ lookup })({ db, account: UID } as never, { character: PC }) as { pieces: { where: string; paperdoll: string | null; lootId: string }[] };
+  assert.deepEqual(out.pieces.map((p) => [p.where, p.paperdoll, p.lootId]), [['equipped', 'head', 'goblin.Helmet']]);
 });
