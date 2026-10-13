@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
-import { verifyWorldRecord } from './world-verify.ts';
+import { verifyWorldRecord, ticksFor } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
@@ -97,4 +97,15 @@ test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified'
   const { text } = await honest(), ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 1, attack: 0.9, res: 1 }) });
   const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']); assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/);
+});
+
+test('an overlong record is refused in a few ms without a replay, and kill_report still pays as today', async () => {
+  const { rec, text } = await honest(), t0 = performance.now();
+  const long = await encodeWorldRecord({ ...rec, steps: Array.from({ length: 17_000 }, () => rec.steps[0]!) });
+  const v = await verifyWorldRecord(long, wolf, 'wolf', null, ticksFor(30));
+  assert.ok(!v.ok && v.reason === 'overlong', JSON.stringify(v));
+  assert.ok(performance.now() - t0 < 500, 'refused without a replay');
+  assert.ok(!(await verifyWorldRecord(text, wolf, 'wolf', null, rec.steps.length - 1)).ok, 'one step past the engagement age');
+  assert.ok((await verifyWorldRecord(text, wolf, 'wolf', null, ticksFor(rec.steps.length / 60))).ok, 'inside it');
+  assert.equal(ticksFor(Number.NaN), 120);
 });

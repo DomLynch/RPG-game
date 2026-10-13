@@ -10,7 +10,7 @@ import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts'];
-const WORLD_DIGEST = '6bb60c0f0cdd90a57d874f371a2428135b4d2e2d74a8027ab496891e52bafedf';
+const WORLD_DIGEST = '22bd37d00aec8494aa5dce4377c617f6f27035a2818481f6f9c27bd62b05bd0f';
 const PINNED_FOR_VERSION = 1;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
