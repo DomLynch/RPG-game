@@ -65,12 +65,13 @@ test('the publisher uses the same rule: missingRows lists every verdict that is 
 const text = (f: string) => readFileSync(f, 'utf8');
 const job = (t: string, id: string) => { const at = t.indexOf(`\n  ${id}:\n`); const rest = t.slice(at + 1); const end = rest.search(/\n {2}[a-z][a-z0-9-]*:\n/); return end < 0 ? rest : rest.slice(0, end + 1); };
 
-test('unit-ci `receipt` runs when its shards failed (and fails), and is skipped only when no shard was meant to run', () => {
+test('unit-ci `receipt` runs when static or a shard failed (and goes red), and is skipped only when nothing was meant to run', () => {
   const j = job(text('.github/workflows/unit-ci.yml'), 'receipt');
-  assert.match(j, /\n {4}if: \$\{\{ !cancelled\(\) && needs\.shard\.result != 'skipped' \}\}\n/, 'a failed shard no longer skips the receipt');
-  assert.match(j, /needs\.shard\.result/, 'and the result is read');
+  assert.match(j, /\n {4}needs: \[static, shard\]\n/);
+  assert.match(j, /\n {4}if: \$\{\{ !cancelled\(\) && !\(needs\.static\.result == 'skipped' && needs\.shard\.result == 'skipped'\) \}\}\n/, 'a red static skips the shards: the receipt must still run');
+  assert.match(j, /STATIC: \$\{\{ needs\.static\.result \}\}/);
   assert.match(j, /\[ "\$SHARDS" = success \] \|\| \{[^\n]*exit 1/, 'the first step fails the job unless every shard succeeded');
-  assert.ok(j.indexOf('SHARDS') < j.indexOf('actions/checkout'), 'before any other step');
+  assert.ok(j.indexOf('STATIC') < j.indexOf('actions/checkout'), 'before any other step');
 });
 
 test('release-checks `summary` runs when the plan or a check failed (and fails), and is skipped only when the matrix is empty or the plan never ran', () => {
