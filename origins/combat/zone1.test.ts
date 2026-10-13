@@ -292,7 +292,7 @@ test('#1936 c: threat is forgotten when the player is out of sight for the give-
 
 test('row 21: a creature row\'s giveUp is its give-up time in the world loop (a hunter with giveUp 3 lets go of a prey it cannot see long before the default 10 s)', async () => {
   const { CATALOGUE } = await import('../../src/fight/catalogue-rows.ts'), boar = CATALOGUE.find((r) => r.id === 'boar')!, fields = boar.fields as Record<string, string | number | boolean>;
-  const hunted = () => { const c = creature('c', 'boar', 0, 0); c.hunting = true; return newWorld([player('p', SIGHT_M + 3, 0), c]); };
+  const hunted = () => { const c = creature('c', 'boar', 0, 0); c.hunting = true; return newWorld([player('p', 60, 0), c]); };   // 60 m off: the boar closes under 23 m in 5 s, so the prey stays out of sight and inside the leash
   const after = (s: number) => get(run(hunted(), s, () => ({ p: STILL })).world, 'c');
   assert.equal(after(5).hunting && !after(5).returning, true, 'default give-up: still hunting after 5 s unseen');
   fields.giveUp = 3;
