@@ -1,0 +1,54 @@
+{
+  "rewardKinds": [
+    { "id": "gold", "note": "bronze coins into the purse" },
+    { "id": "fame", "note": "fame points (the title and ladder scale)" },
+    { "id": "item", "note": "one item, named in the row's item field" }
+  ],
+  "boardKinds": [
+    { "id": "kill", "note": "defeat `count` of the target creature" },
+    { "id": "gather", "note": "bring in `count` of the target material" },
+    { "id": "discover", "note": "first-find the target landmark (count is always 1)" },
+    { "id": "duel", "note": "win `count` ranked duels against the target ladder class" }
+  ],
+  "rewards": [
+    { "id": "find-small", "kind": "fame", "amount": 25 },
+    { "id": "find-large", "kind": "fame", "amount": 60 },
+    { "id": "find-coin", "kind": "gold", "amount": 150 },
+    { "id": "day-small", "kind": "gold", "amount": 80 },
+    { "id": "day-medium", "kind": "gold", "amount": 200 },
+    { "id": "day-fame", "kind": "fame", "amount": 40 },
+    { "id": "day-herb", "kind": "item", "amount": 3, "item": "healing_herb" }
+  ],
+  "discoveries": [
+    { "id": "cinder-camp", "zone": "zone1", "landmark": "landmark_camp", "firstFind": "find-small" },
+    { "id": "cinder-arch", "zone": "zone1", "landmark": "landmark_ruin_arch", "firstFind": "find-small" },
+    { "id": "cinder-circle", "zone": "zone1", "landmark": "landmark_stone_circle", "firstFind": "find-large" },
+    { "id": "cinder-grove", "zone": "zone1", "landmark": "landmark_grove", "firstFind": "find-coin" },
+    { "id": "ash-camp", "zone": "zone2", "landmark": "landmark_camp", "firstFind": "find-small" },
+    { "id": "ash-arch", "zone": "zone2", "landmark": "landmark_ruin_arch", "firstFind": "find-large" },
+    { "id": "ash-circle", "zone": "zone2", "landmark": "landmark_stone_circle", "firstFind": "find-large" },
+    { "id": "ash-grove", "zone": "zone2", "landmark": "landmark_grove", "firstFind": "find-coin" },
+    { "id": "salt-camp", "zone": "zone3", "landmark": "landmark_camp", "firstFind": "find-small" },
+    { "id": "salt-arch", "zone": "zone3", "landmark": "landmark_ruin_arch", "firstFind": "find-large" },
+    { "id": "salt-circle", "zone": "zone3", "landmark": "landmark_stone_circle", "firstFind": "find-large" },
+    { "id": "salt-grove", "zone": "zone3", "landmark": "landmark_grove", "firstFind": "find-coin" },
+    { "id": "marsh-camp", "zone": "zone4", "landmark": "landmark_camp", "firstFind": "find-large" },
+    { "id": "marsh-arch", "zone": "zone4", "landmark": "landmark_ruin_arch", "firstFind": "find-large" },
+    { "id": "marsh-circle", "zone": "zone4", "landmark": "landmark_stone_circle", "firstFind": "find-large" },
+    { "id": "marsh-grove", "zone": "zone4", "landmark": "landmark_grove", "firstFind": "find-coin" }
+  ],
+  "tasks": [
+    { "id": "kill-wolves", "kind": "kill", "target": "wolf", "count": 5, "reward": "day-small", "weight": 3 },
+    { "id": "kill-bandits", "kind": "kill", "target": "bandit", "count": 4, "reward": "day-medium", "weight": 2 },
+    { "id": "gather-herbs", "kind": "gather", "target": "healing_herb", "count": 6, "reward": "day-small", "weight": 3 },
+    { "id": "gather-ore", "kind": "gather", "target": "iron_ore", "count": 5, "reward": "day-medium", "weight": 2 },
+    { "id": "find-ash-arch", "kind": "discover", "target": "ash-arch", "count": 1, "reward": "day-fame", "weight": 1 },
+    { "id": "find-salt-circle", "kind": "discover", "target": "salt-circle", "count": 1, "reward": "day-fame", "weight": 1 },
+    { "id": "find-marsh-grove", "kind": "discover", "target": "marsh-grove", "count": 1, "reward": "day-fame", "weight": 1 },
+    { "id": "win-duels", "kind": "duel", "target": "ranked", "count": 2, "reward": "day-fame", "weight": 2 },
+    { "id": "kill-marsh-lurkers", "kind": "kill", "target": "marsh_lurker", "count": 3, "reward": "day-herb", "weight": 1 }
+  ],
+  "boards": [
+    { "id": "daily", "slots": 3, "distinctKinds": true, "noRepeatDays": 1, "anchorEvery": 16, "seedSalt": 7919, "completionCap": 25, "resetHourUtc": 0 }
+  ]
+}
