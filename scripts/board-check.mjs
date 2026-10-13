@@ -39,9 +39,11 @@ try {
       const cards = [...d.querySelectorAll('.board-task')].map((c) => ({ text: c.querySelector('.board-task-text').textContent, reward: c.querySelector('.board-task-reward').textContent }));
       const small = [...d.querySelectorAll('button')].filter((b) => { const q = b.getBoundingClientRect(); return q.width && (q.height < 44 || q.width < 44); }).length;
       const clipped = [...d.querySelectorAll('b, span, p, h3')].filter((e) => e.scrollWidth > e.clientWidth + 2 && e.clientWidth > 0).map((e) => e.textContent.slice(0, 24));
-      return { open: d.open, title: d.querySelector('h3').textContent, status: d.querySelector('.board-status').textContent, reset: d.querySelector('.board-reset').textContent, cards, small, clipped, inView: r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1, hscroll: document.documentElement.scrollWidth > vw + 1 || d.scrollWidth > d.clientWidth + 1 };
+      const ink = getComputedStyle(d.querySelector('.board-close')).color.match(/\d+/g).slice(0, 3).map(Number).reduce((a, b) => a + b, 0);
+      return { ink, open: d.open, title: d.querySelector('h3').textContent, status: d.querySelector('.board-status').textContent, reset: d.querySelector('.board-reset').textContent, cards, small, clipped, inView: r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1, hscroll: document.documentElement.scrollWidth > vw + 1 || d.scrollWidth > d.clientWidth + 1 };
     });
     console.log(name, JSON.stringify(g));
+    check(g.ink > 450, `${name}: the Close mark is readable (ink sum ${g.ink})`);
     check(g.open, `${name}: the dialog opens from the ☰ entry`);
     check(g.cards.length === 3 && /3/.test(g.status), `${name}: three task cards for the rule's three slots (${g.cards.length}, "${g.status}")`);
     check(g.cards.every((c) => c.text.length > 5 && !/(character|item|family):|landmark_|zone\d|\{/.test(c.text + c.reward)), `${name}: every line is words, no id or placeholder (${JSON.stringify(g.cards)})`);

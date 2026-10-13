@@ -29,7 +29,7 @@
     #allegiance:not([hidden]) ~ #walk-board { top: calc(env(safe-area-inset-top) + var(--gap-s) + 2 * (var(--tap) + var(--gap-xs))); }   /* the Allegiance button holds the second slot while it is up */
     .board-dialog { touch-action: pan-y; box-sizing: border-box; width: min(var(--panel-w), 100vw - 2 * var(--gap-s)); max-height: calc(100dvh - 2 * var(--gap-s)); margin: auto; padding: 18px var(--gap-m) var(--gap-m); overflow-y: auto; border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); -webkit-user-select: none; user-select: none; }
     .board-dialog::backdrop { background: var(--c-shade); }
-    .board-dialog .board-close { position: absolute; top: var(--gap-xs); right: var(--gap-xs); width: var(--tap); height: var(--tap); border: 0; background: none; font-size: var(--fs-x); }
+    .board-dialog .board-close { position: absolute; top: var(--gap-xs); right: var(--gap-xs); width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--c-ink); font-size: var(--fs-x); }
     .board-dialog .board-head { padding-right: var(--tap); } .board-dialog h3 { margin: 0; font-size: var(--fs-xl); } .board-dialog .board-status, .board-dialog .board-reset { margin: var(--gap-xs) 0 0; color: var(--c-ink-2); font-size: var(--fs-s); }
     .board-dialog .board-list { list-style: none; margin: var(--gap-s) 0 0; padding: 0; }
     .board-dialog .board-task { display: grid; gap: 2px; padding: var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); }
