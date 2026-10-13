@@ -5,7 +5,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
 
 **Delta since the 16:1x entry below (read both):**
-- Web: #2568 worldBody row flag (maps 7→3); Web now takes stance.ts HOME (byte-identical, no RV bump, else back to Combat B) + adds `maps` to --gate after #2536 lands.
+- Web: #2568 worldBody row flag (maps 7→3). stance.ts HOME needs an RV bump (digest hashes stance.ts source) → Combat group B, values { executioner: aggressive, shieldmaiden: defensive, goblin: trickster } default neutral. `maps` joins --gate at 0. Web now on top-30 #30 CC0 audio manifest.
 - Auditor's last poll: EA parity PASS (writer 211/0/0, verifier 152/0/0, on #2545). EC merged (auto-PASS 12:36Z), parity owed when live. EB #2567 @4891c6c38 contents OK (= EC + #2530, scripts only). If EB's CI goes green before a new Auditor re-arms, Lead may post "Lead: PASS @4891c6c38" + add candidate:pass (Auditor's contents read is done) so the drill runs.
 - 16:4x: EC #2555 HAS candidate:pass (train publishing it). EB drill cut = #2567 @4891c6c38 on EC's tip (#2530 PASSed @d0bd4da75); drill overrides in ~/.claude/state/release-train.env keyed to EB's sha only; EB needs its own candidate:pass from the (restarted) Auditor. Expect RED → rollback to EC → re-publish EB; Deploy sends the receipt.
 - AUDITOR ALSO CLEARED ~16:4x (its handoff: memory frankendom_handoff_2026-10-13g, state doc edb879715). Its watchers died: NOTHING auto-PASSes (EC, ED stack, #2556, #2530, #2551, #2504, #2509) until it is restarted and re-arms them. First job for the new Auditor: EA parity. Ask Dom to restart the Auditor and Combat first thing.
