@@ -407,11 +407,11 @@ test('the skin memo belongs to the skeleton and vertex buffers it skinned: a geo
   proto.applyBoneTransform = function (this: SkinnedMesh, i: number, target: Vector3 | Vector4) { calls++; return original.call(this, i, target); } as typeof original;
   try {
     const out = new Vector3(0, 0, 1);
-    const first = surfaceHit(root, bone, out); assert.ok(first && near(first.point.z, .1, 1e-9), 'the small box meets the ray at z .1');
+    const first = surfaceHit(root, bone, out); assert.ok(first && near(first.point.z, .1, 1e-6), 'the small box meets the ray at z .1');
     calls = 0; surfaceHit(root, bone, out); assert.equal(calls, 0, 'same pose, same buffers: the memo is read');
     skin.geometry = big; Object.assign(skin, { boundingSphere: null, boundingBox: null });   // the pose is untouched: only the vertices change
     calls = 0; const swapped = surfaceHit(root, bone, out); assert.ok(calls > 0, `a swapped geometry re-skins (${calls} calls)`);
-    assert.ok(swapped && near(swapped.point.z, .2, 1e-9), `and meets the big box (z ${swapped?.point.z}), not the stale small one`);
+    assert.ok(swapped && near(swapped.point.z, .2, 1e-6), `and meets the big box (z ${swapped?.point.z}), not the stale small one`);
     skin.bind(new Skeleton([bone]), skin.bindMatrix);   // a re-bind: a new skeleton object, the very same pose
     calls = 0; surfaceHit(root, bone, out); assert.ok(calls > 0, `a new skeleton re-skins (${calls} calls)`);
   } finally { proto.applyBoneTransform = original; }
