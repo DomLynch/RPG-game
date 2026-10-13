@@ -13,6 +13,7 @@ import { verifyRecord } from '../src/fight/replay.ts';
 import { DAILY_LEVEL } from '../src/fight/match.ts';
 import { decodeRecord } from '../src/fight/record.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
+import { wornGearOfSnapshot } from '../origins/server/worn-gear.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
 const DAY = /^\d{4}-\d{2}-\d{2}$/, UUID = /^[0-9a-f-]{36}$/i;
@@ -46,7 +47,9 @@ async function refusal(row, seeds, db) {
   for (const field of ['opponent', 'weapon', 'outcome', 'ticks']) {
     if (record[field] !== row[field]) return `${field}: record ${String(record[field])}, row ${String(row[field])}`;
   }
-  const want = await expectedSheet(record, (character, version) => db.build ? db.build(row.user_id, character, version) : Promise.resolve(null));   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
+  let gear = {};
+  if (db.gear && record.sheet && record.characterId !== undefined) { try { gear = await db.gear(row.user_id, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+  const want = await expectedSheet(record, (character, version) => db.build ? db.build(row.user_id, character, version) : Promise.resolve(null), gear);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
   if (!want.ok) return want.reason;
   const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
   return result.ok ? null : result.reason;
@@ -87,6 +90,14 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
     verify: async (day, userId) => { sql(`update public.daily_results set verified = true, checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
     refuse: async (day, userId) => { sql(`update public.daily_results set checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
     // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
+    // The gear the character wears as the ledger holds it (origins_open, the same read the writer's settle uses): { slot: delta } for expectedSheet. Unapplied origins_open reads as no gear.
+    gear: async (userId, characterId) => {
+      if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId)) return {};
+      let out;
+      try { out = sql(`select public.origins_open('${check(userId, UUID, 'user id')}'::uuid)::text`); }
+      catch (error) { if (/origins_open.*does not exist|does not exist.*origins_open/.test(String(error.message))) return {}; throw error; }
+      return wornGearOfSnapshot(JSON.parse(out), characterId);
+    },
     build: async (userId, characterId, version) => {
       if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) || !Number.isInteger(version) || version < 1) return null;
       let out;

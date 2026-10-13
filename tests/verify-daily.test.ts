@@ -131,6 +131,28 @@ test('a record that carries a sheet verifies only against the stored build versi
   assert.ok(asked.includes('u1/pc:one@1') && asked.includes('u2/pc:one@1'), 'the lookup is by the ROW\'s account, never the record');
 });
 
+test('a daily record that carries worn gear in its sheet verifies against the gear the ledger holds; gear the ledger lacks is refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const { wornGearOfItems, wornGearOfSnapshot } = await import('../origins/server/worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 } };
+  const piece = [{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier: 'Origin', location: { kind: 'equipped', slot: 'chest' } }];
+  const geared = sheetOf(stored, wornGearOfItems(piece))!;
+  assert.notDeepEqual(geared, sheetOf(stored)!, 'the worn set moves a dial');
+  const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, sheet: geared, characterId: 'one', buildVersion: 1 });
+  for (let i = 0; i < 30; i++) rec.push(idleIntent());
+  const record = rec.finish('abandoned');
+  const rows = [{ day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row];
+  const snap = { items: piece.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: 'pc:one', loc_slot: h.location.slot })) };
+  const run = async (gear?: (user: string, character: string) => Promise<Readonly<Record<string, number>>>) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => rows, seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: async () => stored, ...(gear ? { gear } : {}) });
+    return { receipt, verified };
+  };
+  assert.deepEqual((await run(async (_u, c) => wornGearOfSnapshot(snap, c))).verified, ['u1'], 'the gear the ledger holds gives this sheet');
+  assert.match((await run(async (_u, c) => wornGearOfSnapshot({ items: [] }, c))).receipt.refused[0]!.reason, /not the one the player's stored build/, 'gear the ledger lacks is refused');
+  assert.equal((await run()).receipt.refused.length, 1, 'a caller with no gear read holds none');
+});
+
 test('the psql build lookup asks for one exact version, validates what it quotes, and reads an unapplied migration as no build', async () => {
   const calls: string[] = [];
   const answer = (out: string, status = 0, stderr = '') => ((_c: string, args: string[]) => { calls.push(args[args.length - 1]!); return { status, stdout: out, stderr } as never; }) as never;

@@ -22,8 +22,13 @@ export function wornGearOfItems(items: readonly { item: string; tier?: string | 
   return wornGear(equipped as Parameters<typeof wornGear>[0], (id) => tiers.get(id));
 }
 
-export async function wornGearOf(db: Db, account: string, character: string): Promise<Readonly<Record<string, number>>> {
-  const snap = await store.open(db, account);
-  const rows = (snap.items as { item: string; tier: string | null; loc_kind: string | null; loc_owner: string | null; loc_slot: string | null }[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
+type Row = { item: string; tier: string | null; loc_kind: string | null; loc_owner: string | null; loc_slot: string | null };
+
+export function wornGearOfSnapshot(snap: { items: readonly unknown[] }, character: string): Readonly<Record<string, number>> {
+  const rows = (snap.items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
   return wornGearOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
+}
+
+export async function wornGearOf(db: Db, account: string, character: string): Promise<Readonly<Record<string, number>>> {
+  return wornGearOfSnapshot(await store.open(db, account), character);
 }

@@ -39,6 +39,7 @@ import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
+import { wornGearOfSnapshot } from '../origins/server/worn-gear.ts';
 import { gunzipSync } from 'node:zlib';
 import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
@@ -119,7 +120,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
     if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
     const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
-    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax, build: db.build ? (character, version) => db.build(row.user_id, character, version) : undefined }));   // a duplicate is never replayed, so never HELD
+    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax, build: db.build ? (character, version) => db.build(row.user_id, character, version) : undefined, gear: db.gear ? (character) => db.gear(row.user_id, character) : undefined }));   // a duplicate is never replayed, so never HELD
     if (reason) {
       receipt.refused.push({ id: row.id, reason });
       const held = /^HELD v(\d+):/.exec(reason);
@@ -142,9 +143,9 @@ async function settleOne(db, row, receipt, dry, heldMax) {
 /**
  * @param {any} row
  * @param {any} standing
- * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null> }} [options] build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
+ * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null>, gear?: (character: string) => Promise<Readonly<Record<string, number>>> }} [options] build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
  */
-export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build } = {}) {
+export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, gear } = {}) {
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
@@ -152,7 +153,9 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
     if (!replay) return null;
-    const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null));   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
+    let worn = {};
+    if (gear && record.sheet && record.characterId !== undefined) { try { worn = await gear(`pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+    const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null), worn);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
     if (!want.ok) return want.reason;
     const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
     // Only a replay that stepped and then diverged can pass a browser hand-check; an unknown opponent or a record this build cannot
@@ -241,6 +244,14 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
     stale: async () => JSON.parse(sql(`select coalesce(json_agg(id order by id), '[]') from public.loot_claims where checked_at is null and created_at < now() - interval '${STALE_MINUTES} minutes'`)),
     waiting: async claim => sql(`select exists (select 1 from public.loot_claims c, public.loot_claims x where x.id = ${id(claim)} and c.user_id = x.user_id and c.checked_at is null and (c.created_at, c.id) < (x.created_at, x.id))`) === 't',
     // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
+    // The gear the character wears as the ledger holds it (origins_open): { slot: delta } for expectedSheet. Unapplied origins_open reads as no gear.
+    gear: async (userId, characterId) => {
+      if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId)) return {};
+      let out;
+      try { out = sql(`select public.origins_open('${uuid(userId)}'::uuid)::text`); }
+      catch (error) { if (/origins_open.*does not exist|does not exist.*origins_open/.test(String(error.message))) return {}; throw error; }
+      return wornGearOfSnapshot(JSON.parse(out), characterId);
+    },
     build: async (userId, characterId, version) => {
       if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) || !Number.isInteger(version) || version < 1) return null;
       let out;

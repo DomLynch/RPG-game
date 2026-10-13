@@ -361,3 +361,27 @@ test('a won claim whose record carries a sheet is replayed with the stored build
   assert.match(String(await refusal(row(await fightWith(honest)), FRESH)), /build version this server does not hold/, 'a caller with no store refuses a sheet');
   assert.deepEqual(asked, ['pc:one@1', 'pc:one@1', 'pc:one@5']);
 });
+
+test('a won claim whose record carries gear in its sheet verifies against the gear the ledger holds; gear the ledger lacks, or a wrong rung, is refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const { wornGearOfItems, wornGearOfSnapshot } = await import('../origins/server/worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 } };
+  const piece = (tier: string) => [{ item: 'item:loot.veteran.Helmet', tier, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier, location: { kind: 'equipped', slot: 'chest' } }];
+  const geared = sheetOf(stored, wornGearOfItems(piece('Origin')))!;
+  assert.notDeepEqual(geared, sheetOf(stored)!, 'the worn set moves a dial');
+  const rec = liveRecorder({ build: 'test', opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1, sheet: geared, characterId: 'one', buildVersion: 1 });
+  let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, geared);
+  for (let t = 0; t < 20000 && !practice.finish; t++) {
+    const acts = ['light', 'heavy', 'thrust'] as const;
+    practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+  }
+  assert.equal(practice.finish?.victim, 1, 'a player win');
+  const row = { opponent: 'goblin', record: await encodeRecord(rec.finish('killed')) };
+  const build = async (character: string, version: number) => character === 'pc:one' && version === 1 ? stored : null;
+  const snap = (tier: string) => ({ items: piece(tier).map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: 'pc:one', loc_slot: h.location.slot })) });
+  const gearOf = (items: { items: unknown[] }) => async (character: string) => wornGearOfSnapshot(items, character);
+  assert.equal(await refusal(row, FRESH, { build, gear: gearOf(snap('Origin')) }), null, 'the gear the ledger holds gives this sheet: the win stands');
+  assert.match(String(await refusal(row, FRESH, { build, gear: gearOf({ items: [] }) })), /not the one the player's stored build/, 'gear the ledger does not hold is refused');
+  assert.match(String(await refusal(row, FRESH, { build })), /not the one the player's stored build/, 'a caller with no gear read holds none');
+  assert.match(String(await refusal(row, FRESH, { build, gear: gearOf(snap('Recruit')) })), /not the one the player's stored build/, 'a wrong rung is refused');
+});
