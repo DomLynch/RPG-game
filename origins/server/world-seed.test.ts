@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { encodeWorldRecord, hash32, replayWorldRecord, type WorldRecord } from '../../src/fight/server.ts';
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
-import { creature, player } from '../../src/fight/world.ts';
+import { creature, newWorld, player, stepCombat } from '../../src/fight/world.ts';
 import { openBout } from '../../src/fight/open-fight.ts';
 import { verifyWorldRecord } from './world-verify.ts';
 import { defaultZoneSpawns, type Spawn } from './world-spawns.ts';
@@ -40,9 +40,6 @@ test('a live fight with an engage token writes hash32(token, join step) on the j
   const killAt = (r: WorldRecord): number | undefined => { const x = replayWorldRecord(r); return x.ok ? x.killStep[wolf.spec.id] : undefined; };
   const at = killAt(rec); assert.ok(at !== undefined && at < rec.steps.length, 'the replay kills the wolf inside the record');
   assert.equal(killAt(rec), at, 'the replay is deterministic: same token and join step, same fight');
-  const withSeed = (seed: number | undefined): WorldRecord => ({ ...rec, joins: rec.joins.map(({ seed: _s, ...e }) => (seed === undefined ? e : { ...e, seed })) });
-  const bandOff = killAt(withSeed(undefined));
-  assert.ok([1, 2, 3, 4, 5, 6, 7, 8].some((k) => killAt(withSeed(k)) !== bandOff), 'a seed turns the roll band on in the replay: some seed kills on another step than the band-off fight');
 });
 
 test('a forged seed, a wrong token and a seed with no token are refused; a record with no seed is today\'s fight and still verifies', async () => {
@@ -53,4 +50,18 @@ test('a forged seed, a wrong token and a seed with no token are refused; a recor
   const none = await fight(null);
   assert.equal(none.joins[0]!.seed, undefined);
   assert.deepEqual(await verify(none, TOKEN), { ok: true, ticks: none.steps.length }, 'band off: the same record shape as today');
+});
+
+test('the seed turns the roll band on in the world loop: the same hero script leaves a seeded wolf at other health than an unseeded one, and the same seed always leaves the same', () => {
+  const left = (seed: number | undefined): number => {
+    const hero = player('hero', 0, 0, 0); hero.health = hero.maxHealth = 1e6;
+    const wolf = { ...creature('w', 'wolf', 0, 1.5, Math.PI, 60), ...(seed === undefined ? {} : { seed }) };
+    let w = newWorld([hero, wolf]);
+    for (let k = 0; k < 60 * 6; k++) w = stepCombat(w, { hero: { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null } }, 1 / 60).world;
+    return w.fighters.find((f) => f.id === 'w')!.health;
+  };
+  const off = left(undefined);
+  assert.ok(off < creature('w', 'wolf', 0, 0, 0, 60).maxHealth, 'the script lands blows on the wolf');
+  assert.equal(left(hash32(TOKEN, 0)), left(hash32(TOKEN, 0)), 'same token, same join step: same fight');
+  assert.ok([1, 2, 3, 4, 5, 6].some((k) => left(k) !== off), 'a seed rolls the blows: some seed leaves other health than the band-off fight');
 });
