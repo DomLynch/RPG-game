@@ -59,7 +59,8 @@ try {
     await page.waitForTimeout(1500);
     const { profile } = await cdp.send('Profiler.stop'), data = await page.evaluate(() => ({ gaps: window.__gaps, long: window.__long, marks: window.__marks, links: window.__links, renderer: (() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'n/a'; })() }));
     // profile clock -> page clock: the first sample sits at profile.startTime (us); the page clock read at Profiler.start is `anchor` (ms)
-    const byId = new Map(profile.nodes.map((n) => [n.id, n])), parent = new Map(profile.nodes.flatMap((n) => (n.children ?? []).map((c) => [c, n.id])));   // parent: who called whom, for `inclusive` let at = profile.startTime; const samples = profile.samples.map((id, i) => { at += profile.timeDeltas[i]; return { t: anchor + (at - profile.startTime) / 1000, node: byId.get(id) }; });
+    // parent: who called whom, for `inclusive`
+    const byId = new Map(profile.nodes.map((n) => [n.id, n])), parent = new Map(profile.nodes.flatMap((n) => (n.children ?? []).map((c) => [c, n.id]))); let at = profile.startTime; const samples = profile.samples.map((id, i) => { at += profile.timeDeltas[i]; return { t: anchor + (at - profile.startTime) / 1000, node: byId.get(id) }; });
     const phaseAt = (t) => { let name = 'before ready'; for (const [n, mt] of data.marks) if (t >= mt) name = n; return name; };
     const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0, base0 = median(data.gaps.filter(([t]) => t < anchor).map((g) => g[1]));
     const frames = data.gaps.filter(([t, g]) => t >= anchor && g >= GAP).map(([t, g]) => {
