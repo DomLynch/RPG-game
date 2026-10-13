@@ -141,3 +141,22 @@ test('fail closed: an empty id list exits 2 naming the category', () => {
     assert.equal(r.stdout, '');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
+
+test('content rows built in code are counted: a record-kind literal in origins counts, in tests and fixtures it does not, and the real tree is at 0', () => {
+  const real = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  assert.equal(real.status, 0, real.stderr);
+  assert.equal((JSON.parse(real.stdout) as { rows: number }).rows, 0, 'a foe, encounter, Bounty or rift record built in TypeScript: add it to origins/region1/progression.json');
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-rows-'));
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'x'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'a.ts'), "export const a = { kind: 'bounty-definition', id: 'bounty:x' };\nexport const b = { kind: 'item-definition' };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'a.test.ts'), "export const t = { kind: 'bounty-definition' };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'fixtures.ts'), "export const f = { kind: 'rift-site' };\n");
+    const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; file: string }[] };
+    assert.equal(out.rows, 1);
+    assert.deepEqual(out.sites.filter((x) => x.kind === 'row').map((x) => x.file), ['origins/x/a.ts']);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
