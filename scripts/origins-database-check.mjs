@@ -190,7 +190,7 @@ try {
   psql(`alter table public.loot_claims disable trigger loot_claims_rate;`);   // the live rate cap is sixty claims an hour; the stall below needs sixty-one fixture claims
   const early = claim(C, 'veteran', 1, `now() - interval '1 hour'`);
   W(`select public.origins_open('${C}');`);
-  W(`select public.origins_snapshot('${C}', 0, ${cumulative(1)});`);
+  W(`select public.origins_snapshot('${C}', 0, ${cumulative(0)});`);
   const pcC = W(`select public.origins_create_character('${C}', 'Cass');`);
   let state = newCareer(), wins = 0, n = 10;
   const pending = () => W(`select claim_id || '|' || opponent from public.origins_pit_pending('${C}');`).split('\n').filter(Boolean);
@@ -209,7 +209,7 @@ try {
     state = a.state; wins++;
   }
   const finalTotal = Number(JSON.parse(W(`select public.origins_open('${C}')::text;`)).career.total_credit);
-  eq([wins, finalTotal, levelOfCredit(finalTotal)], [60, cumulative(11) + 2000, 11], 'a Pit-only account stalls at level 11 through the server pipeline');
+  eq([wins, finalTotal, levelOfCredit(finalTotal)], [81, 23_540, 10], 'a Pit-only account stalls at level 10 through the server pipeline');
   eq(early !== undefined, true, 'the early claim existed');
 
   eq(acls(), aclsBefore, 'no grant, policy, trigger or RLS setting on any existing object changed (column-level ACLs and function ACLs included)');

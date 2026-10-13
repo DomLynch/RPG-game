@@ -15,7 +15,7 @@ import {
 } from '../../src/core/server.ts';
 import type { Location } from '../../src/core/server.ts';
 import { applyUpgrade, BANK_PLACE, find } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../../src/core/server.ts';
+import { standingLevel } from '../../src/core/server.ts';
 import { inZone, type WhereFn } from '../presence/where.ts';
 import { DbError } from './db.ts';
 import { Refused } from './errors.ts';
@@ -88,7 +88,7 @@ export function upgradeHandler(content: Content, now: () => string = () => new D
       // that has since left still gets its original receipt back; `piece` is only absent on that path.
       const out = performUpgrade({
         request: request.value, service: smith.service, costs: smith.costs, instance: piece!, def: piece ? content.lookup(piece.item)! : undefined!,
-        standing: { source: 'server', careerLevel: levelOfCredit(Number(snap.career.total_credit)) }, balance: 0,
+        standing: { source: 'server', careerLevel: standingLevel(Number(snap.career.total_credit)) }, balance: 0,
         materials: offered, materialDefs: content.lookup, receipts: new Map(prior ? [[op, prior]] : []), now: now(), place: at,
       });
       if (!out.ok) throw refusal(out.issues);
