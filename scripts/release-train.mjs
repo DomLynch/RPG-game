@@ -39,9 +39,18 @@ export function browserRowsMissing(rollup, headRef = '') {
 /** The attempt that decides each check on the head (Lead, #2359): a rollup lists every run of a check, so a run the concurrency group or
  * cancel-member-runs CANCELLED stays beside its newer SUCCESS. Per CheckRun (workflow + name) the LATEST attempt that is not SKIPPED decides (a later
  * inert run, a title edit or a label, skips every job and must never hide a red); all skipped is skipped. A status context is already one per context. */
+// A run the concurrency group cancelled before it started (DL #2431, 2026-10-12 19:13:23Z: the cut's first run of each workflow, CANCELLED in its first
+// second, many under unexpanded matrix names such as `shard` or `check ${{ matrix.check.index }} (…)` that no later run reuses) carries no verdict. Such
+// an attempt is dropped when the same check has ANY later attempt, a skip included, so it can no longer pin the candidate red forever. A cancel that ran
+// (a timeout, a mid-run cancel) is not dropped, and neither is one with nothing after it.
+const NEVER_RAN_S = 10;
+const at = (x) => Date.parse(x.startedAt || x.completedAt || '') || 0;
+const neverRan = (x) => String(x.conclusion).toUpperCase() === 'CANCELLED' && ((Date.parse(x.completedAt || '') || 0) - at(x)) / 1000 < NEVER_RAN_S;
 export function decisiveChecks(rollup) {
-  const latest = new Map(), out = [];
+  const latest = new Map(), out = [], last = new Map();
+  for (const c of rollup || []) if (c.__typename !== 'StatusContext') { const key = `${c.workflowName}/${c.name}`; last.set(key, Math.max(last.get(key) ?? 0, at(c))); }
   for (const c of rollup || []) {
+    if (c.__typename !== 'StatusContext' && neverRan(c) && (last.get(`${c.workflowName}/${c.name}`) ?? 0) > at(c)) continue;
     if (c.__typename === 'StatusContext') { out.push(c); continue; }
     const key = `${c.workflowName}/${c.name}`, prev = latest.get(key);
     const rank = x => [String(x.conclusion).toUpperCase() !== 'SKIPPED' ? 1 : 0, String(x.startedAt || x.completedAt || '')];
