@@ -27,7 +27,7 @@ export function createImpactFx(scene: THREE.Scene) {
   const tinted = (s: Slot) => s.o.material as THREE.SpriteMaterial | THREE.MeshBasicMaterial;
   const make = (build: () => Slot['o']): Slot[] => Array.from({ length: 6 }, () => { const o = build(); o.visible = false; o.frustumCulled = false; scene.add(o); return { o, age: 0, life: 0, size: 0 }; });
   const flashes = make(() => new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, ...additive })));
-  const ringGeometry = new THREE.RingGeometry(0.86, 1, 48); ringGeometry.rotateX(-Math.PI / 2);
+  const ringGeometry = new THREE.RingGeometry(0.965, 1, 64); ringGeometry.rotateX(-Math.PI / 2);   // a thin line, not a band
   const rings = make(() => new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({ ...additive, side: THREE.DoubleSide })));
   let cursor = 0;
   const at = new THREE.Vector3();
