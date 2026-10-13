@@ -8,7 +8,8 @@ import { encounterOps } from '../server/encounter.ts';
 import { ACCOUNT, CHAR, deps, fakeDb, fight } from '../server/encounter-fixtures.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import { OPPONENTS, LEGEND_FAMILIES, SPELL_BRICKS, isSpellless, rungTopLevel } from '../../src/fight/server.ts';
-import { MAX_LEVEL } from '../../src/fight/moves.ts';
+import { MAX_LEVEL } from '../../src/fight/world.ts';
+import { fightSetup, loadEncounterContent } from '../encounters/encounters.ts';
 
 const ASH = 'region:ash-frontier';
 const who = { account: ACCOUNT, character: CHAR };
@@ -36,7 +37,10 @@ test('the server\'s real resolver prices boss:<legend>; a spellless, unknown or 
   const resolve = resolveFromRegion1(), alvis = legendBoss('alvis')!;
   assert.deepEqual(resolve(who, 'boss:alvis'), { enemy: 'dwarf', level: alvis.level, bar: null, flags: [], layer: null, instance: null });
   for (const id of ['boss:crixus', 'boss:eloko', 'boss:no-such-legend', 'boss:', 'legend:alvis']) assert.equal(resolve(who, id), null, id);
-  assert.notEqual(resolve(who, 'encounter:knight') ?? resolve(who, 'character:cinder-scavenger'), undefined, 'the existing encounter path is untouched (it answers or returns null as before)');
+  const content = loadEncounterContent(); assert.ok(content.ok);
+  const old = [...content.value.region.registry.encounters.keys()].filter((id) => fightSetup(id, content.value).ok);
+  assert.ok(old.length > 0, 'the region has priceable encounters');
+  for (const id of old) { const r = resolve(who, id), setup = fightSetup(id, content.value); assert.ok(r && setup.ok && r.enemy === setup.value.opponent.body && r.level === setup.value.opponent.level, `${id}: the existing path is unchanged`); }
 });
 
 test('a verified win on a legend boss, started through the real resolver, settles and takes the spell; a second win takes nothing more', async () => {
