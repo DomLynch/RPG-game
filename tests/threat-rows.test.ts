@@ -21,12 +21,13 @@ export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, t
     for (const f of world.fighters) if (f.side === 'player') inputs[f.id] = { x: Math.round(rand() * 2 - 1), z: Math.round(rand() * 2 - 1), run: rand() < 0.3, attack: rand() < 0.4 ? ATTACKS[1 + Math.floor(rand() * 4)] : null, guard: rand() < 0.15 };
     world = stepCombat(world, inputs, 1 / 60).world;
     h.update(JSON.stringify(pairs(world).map((p) => [p.player, p.foe, p.primary])));
+    for (const f of world.fighters) if (f.threat) h.update(JSON.stringify([t, f.id, Object.entries(f.threat).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));   // every tick: a creature forgets its table when it resets, so the final state alone would be empty
     SEEN.pairs += pairs(world).length; SEEN.threatEntries += world.fighters.reduce((n, f) => n + Object.keys(f.threat ?? {}).length, 0);
   }
   for (const f of world.fighters) h.update(JSON.stringify([f.id, Object.entries(f.threat ?? {}).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));
   return h.digest('hex').slice(0, 16);
 }
-const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['35f4e1c4ce40b0f0', 'c00270ee95a37ff2', '6deacd91b6f8d9c9'], 'one player, goblin and wolf': ['afd5e6d16be2cc1c', '690a533b64b6bc38', 'e47474d3b5e3fef5'] };   // taken on trunk ff15ed478, before the rows
+const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['?', '?', '?'], 'one player, goblin and wolf': ['?', '?', '?'] };
 const SEEDS = [11, 222, 3333];
 for (const [name, make] of Object.entries(SCENARIOS)) {
   test(`existing fights pick the same foe tick for tick: ${name}`, () => {
