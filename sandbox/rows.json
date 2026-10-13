@@ -55,7 +55,10 @@
 {"id":"castPushback","value":30},
 {"id":"castPushbackMax","value":2},
 {"id":"executeMult","value":1500},
-{"id":"executeBelow","value":25}
+{"id":"executeBelow","value":25},
+{"id":"oneButton","value":1},
+{"id":"heavyHold","value":180},
+{"id":"stabSlide","value":18}
 ],"castPenalty":[
 {"id":"heavy","dial":"armour","atLeast":20,"percent":20},
 {"id":"medium","dial":"stamina","atLeast":20,"percent":10}

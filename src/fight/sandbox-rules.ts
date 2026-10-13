@@ -63,3 +63,9 @@ export const executed = (damage: number, critical: boolean, targetHealth: number
   const hit = EXECUTE_MULT ? Math.round((damage * EXECUTE_MULT) / 1000) : damage;
   return EXECUTE_BELOW && (targetHealth * 100) / targetMax <= EXECUTE_BELOW ? Math.max(hit, targetHealth) : hit;
 };
+
+// oneButton (Dom 2026-10-13, touch layout A): the STRIKE button decides its swing by the thumb. A release before `heavyHold` ms is the plain light, a slide up of `stabSlide` px is the thrust, a slide to a side is that cut (the
+// existing slashSlide), a hold past `heavyHold` ms is the heavy (and keeps charging while held). Input intent only: the fight already takes every one of those actions. 0 = off (trunk): the button is today's Light.
+export const ONE_BUTTON = num('oneButton', 'value');
+export const HEAVY_HOLD_MS = num('heavyHold', 'value') || 180;
+export const STAB_SLIDE_PX = num('stabSlide', 'value') || 18;
