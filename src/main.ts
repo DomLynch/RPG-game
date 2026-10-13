@@ -412,8 +412,8 @@ if (GEAR_IN_FIGHTS) void fetchOwnBuild({ storage, search: typeof location !== 'u
 // The legend a kill names (Provenance.legendId = the spell id without `spell:`): the 700-row spell catalogue is NOT in the entry chunk (tests/spell-rows.test.ts walks the static imports). It loads
 // on idle after boot, long before a kill; a kill before it lands (offline, chunk error) simply names no legend. killAt only writes the id it is given.
 let legendIndex: typeof import('./fight/spell-legends.ts') | undefined;
-const loadLegendIndex = () => import('./fight/spell-legends.ts').then((m) => { legendIndex = m; }).catch(() => undefined);
-if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void loadLegendIndex(), { timeout: 10000 }); else setTimeout(() => void loadLegendIndex(), 3000);
+const loadLegendIndex = () => import('./fight/spell-legends.ts').then((m) => { if (typeof m.legendIdFor === 'function') legendIndex = m; }).catch(() => undefined);   // a chunk that loads wrong names no legend
+if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void loadLegendIndex(), { timeout: 10000 }); else void loadLegendIndex();   // no idle callback (old Safari): the chunk is async either way, and no timer is held
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
