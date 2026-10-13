@@ -39,10 +39,10 @@ on:
 # One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
 # cancel-on-close.yml cancels a closed PR's runs.
 concurrency:
-  # A run that does no new work never shares the head's group (Lead 2026-10-13, after DI/DH): a title/body `edited` and EVERY `labeled` event, auditor:ready
-  # included (the code did not change), get a group of their own (the run id), so none cancels the head's gate still in flight. A push still shares the
-  # PR's group and cancels the superseded run.
-  group: quality-${{ github.event.pull_request.number || github.ref }}${{ ((github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) || github.event.action == 'labeled') && format('-inert-{0}', github.run_id) || '' }}
+  # A run that does no new work never shares the head's group (Lead 2026-10-13, after DI/DH): a title/body `edited` and every `labeled` event but auditor:ready
+  # get a group of their own (the run id), so none cancels the head's gate still in flight; on a release-* candidate auditor:ready is inert too. A push and adding auditor:ready (the full run on a FEATURE PR,
+  # Lead 2026-10-13) share the PR's group: a newer push cancels a superseded full run, and the full run replaces the push's static-only run of the same head.
+  group: quality-${{ github.event.pull_request.number || github.ref }}${{ ((github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) || (github.event.action == 'labeled' && (github.event.label.name != 'auditor:ready' || startsWith(github.head_ref, 'release-')))) && format('-inert-{0}', github.run_id) || '' }}
   # A trunk push never cancels the run in progress (Lead 2026-10-10: each merge of a batch cancelled and restarted trunk's quality run, so the
   # batch head's run never finished; deploy.sh needs that run green on the exact sha). Pull-request groups still cancel a superseded run.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -69,11 +69,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           HEAD_REF: ${{ github.head_ref }}
         run: |
           # A release-* candidate always runs them (Lead 2026-10-12: the Auditor removes auditor:ready after its verdict, so a re-pushed head must not skip them).
-          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [[ "$HEAD_REF" == release-* ]] || printf ',%s,' "$PR_LABELS" | grep -q ',auditor:ready,'; then echo "browser=true" >> "$GITHUB_OUTPUT"; else echo "browser=false" >> "$GITHUB_OUTPUT"; echo "no auditor:ready yet: browser jobs wait for it"; fi
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [[ "$HEAD_REF" == release-* ]]; then echo "browser=true" >> "$GITHUB_OUTPUT"; else echo "browser=false" >> "$GITHUB_OUTPUT"; echo "feature PR: browser jobs run in the release candidate, not here"; fi
           GAME_RE='^(src/|public/|origins/|supabase/|index\.html$|vite\.config|package(-lock)?\.json$|tsconfig|tests/fixtures/|\.github/workflows/quality\.yml$|scripts/(lib/harness|browser-check|stance-panel-check|counter-browser-check|origins-seamless-check|duel-two-page-check|duel-relay|net-|check-budget|load-time|[a-z-]+-polish-check)|.*\.(glb|webp|png|jpe?g|ogg|mp3|wav)$)'
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "not a pull request: everything runs"; exit 0; fi
           if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then echo "game=true" >> "$GITHUB_OUTPUT"; echo "could not list the files: everything runs"; exit 0; fi
@@ -93,7 +92,7 @@ jobs:
         run: |
           if [ "$GAME" != true ]; then st=success; d="no game, asset or browser-gate path: no browser rows needed"
           elif [ "$BROWSER" = true ]; then st=pending; d="browser jobs running"
-          else st=pending; d="waiting for auditor:ready"; fi
+          else st=success; d="browser rows run in the release candidate this rides, not on a feature PR"; fi
           gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$st" -f context=browser-rows -f description="$d" -f target_url="$RUN_URL" > /dev/null
           echo "browser-rows: $st ($d) on $SHA"
   static:
@@ -123,7 +122,7 @@ jobs:
     # RUNNER QUEUE (Strategy 2026-10-12 21:5x): on a feature PR the shard and the `quality` verdict wait for auditor:ready (adding it runs them), like
     # the browser jobs; a push to an unlabelled PR runs static + plan + base only. A trunk push and a release-* candidate are unchanged (deploy.sh reads them).
     needs: static
-    if: ${{ !cancelled() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || contains(github.event.pull_request.labels.*.name, 'auditor:ready')) && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    if: ${{ !cancelled() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled') && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
@@ -164,7 +163,7 @@ jobs:
     # The one verdict deploy.sh reads (`quality` == success, scripts/deploy.sh:73): green only when every shard concluded success. A failed,
     # cancelled or skipped shard makes it red, never green. Same NOT_RETARGET skip as the shards, so a title/body edit still skips everything.
     needs: [quality-shard, plan]
-    if: always() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
+    if: always() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

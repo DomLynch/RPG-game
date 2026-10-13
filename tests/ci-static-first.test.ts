@@ -68,23 +68,26 @@ const game = { plan: { game: 'true', browser: 'true' } };
 const withLabelNames = (c: Ctx) => { const p = c.event.pull_request as { labels?: { name: string }[] } | undefined; if (p?.labels) Object.assign(p.labels, { '*': { name: p.labels.map(l => l.name) } }); return c; };
 
 test('a red tsc on a pull request queues no quality shard, no browser job and no unit-ci shard: only the static job and the verdicts', () => {
-  const ran = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), { static: 'failure' }, game);
+  const ran = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), { static: 'failure' }, { plan: { game: 'true', browser: 'false' } });
   assert.ok(ran.has('static'));
-  for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);
+  for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);   // a feature PR runs no browser job at all (Lead 2026-10-13)
   assert.ok(ran.has('quality'), 'the `quality` verdict still reports (red)');
-  const unit = schedule(U, withLabelNames(pr('synchronize', ['auditor:ready'])), { static: 'failure' });
+  const unit = schedule(U, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), { static: 'failure' });
   assert.deepEqual([...unit].sort(), ['receipt', 'static'], 'unit-ci: no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
 });
 
-test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature PR runs static + plan + base only; shards, the verdict, unit-ci and browser jobs wait for auditor:ready', () => {
+test('runner queue (Strategy 2026-10-12 21:5x): a push to a feature PR (labelled or not) runs static + plan + base only; the shards, the verdict and unit-ci run when auditor:ready is ADDED; no browser job ever runs on a feature PR (Lead 2026-10-13)', () => {
   const plain = schedule(Q, withLabelNames(pr('synchronize')), {}, { plan: { game: 'true', browser: 'false' } });
   assert.deepEqual([...plain].sort(), ['base', 'plan', 'static'], 'an unlabelled feature push: static (tsc + lint) and the cheap jobs only');
   assert.deepEqual([...schedule(U, withLabelNames(pr('synchronize')))], [], 'unit-ci: no job on an unlabelled feature push');
-  const ready = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, game);
-  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(ready.has(j), `${j} runs once auditor:ready is on`);
-  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, withLabelNames(pr('synchronize', ['auditor:ready']))).has(j), `unit-ci ${j} with auditor:ready`);
+  const noBrowser = { plan: { game: 'true', browser: 'false' } };
+  assert.deepEqual([...schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, noBrowser)].sort(), ['base', 'plan', 'static'], 'a push to a LABELLED feature PR is static-only too: re-label to ask for the full read');
+  assert.deepEqual([...schedule(U, withLabelNames(pr('synchronize', ['auditor:ready'])))], [], 'unit-ci: nothing on a push to a labelled feature PR');
+  const ready = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, noBrowser);
+  for (const j of ['static', 'quality-shard', 'quality']) assert.ok(ready.has(j), `${j} runs when auditor:ready is added`);
+  for (const j of ['base', ...BROWSER]) assert.ok(!ready.has(j), `${j} does not run on a feature PR`);
   const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-DB' };
-  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j}`);
+  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j} on every push`);
   for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, cand).has(j), `release-* unit-ci ${j}`);
   // adding auditor:ready starts unit-ci; any other label runs nothing and never shares (so never cancels) the real run's group
   const added = (l: string) => withLabelNames(pr('labeled', [l], { label: { name: l } }));
@@ -93,32 +96,35 @@ test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature 
   const ug = /\nconcurrency:\n {2}group: ([^\n]+)\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/.exec(readFileSync(U, 'utf8'))![1];
   const ugroup = (c: Ctx) => ug.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(ugroup(pr('synchronize')), 'unit-ci-7');
-  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7-inert-99', 'a label never shares the head\'s group: the code did not change');
+  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7', 'adding auditor:ready on a feature PR is the full run: it shares the PR group, so a newer push cancels it');
+  assert.equal(ugroup({ ...pr('labeled', [], { label: { name: 'auditor:ready' } }), head_ref: 'release-DB' }), 'unit-ci-7-inert-99', 'on a release-* candidate auditor:ready stays inert (DI/DH)');
   assert.equal(ugroup(pr('labeled', [], { label: { name: 'release:go' } })), 'unit-ci-7-inert-99');
   assert.match(readFileSync(U, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, labeled\]\n/);
-  // the plan sets `browser` from the labels the event carries (the step reads them; a push always runs them)
+  // the plan sets `browser=true` only off a pull request or for a release-* candidate: a feature PR never runs a browser job
   const plan = readFileSync(Q, 'utf8');
-  assert.match(plan, /PR_LABELS: \$\{\{ join\(github\.event\.pull_request\.labels\.\*\.name, ','\) \}\}/);
-  assert.match(plan, /browser=true[^\n]*\n[^\n]*auditor:ready|auditor:ready[^\n]*browser=true/);
+  assert.match(plan, /== release-\* \]\]; then echo "browser=true"/);
+  assert.ok(!/grep -q ',auditor:ready,'/.test(plan), 'the label no longer turns the browser jobs on');
 });
 
-test('adding auditor:ready runs the shard, the verdict and the browser jobs (after static), not base; any other label or a title edit runs nothing', () => {
-  const added = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, game);
-  for (const j of ['quality-shard', 'quality', ...BROWSER]) assert.ok(added.has(j), j);
+test('adding auditor:ready runs the shard and the verdict (after static), not base and no browser job; any other label or a title edit runs nothing', () => {
+  const added = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, { plan: { game: 'true', browser: 'false' } });
+  for (const j of ['quality-shard', 'quality']) assert.ok(added.has(j), j);
+  for (const j of BROWSER) assert.ok(!added.has(j), `${j}: a feature PR runs no browser job`);
   assert.ok(!added.has('base'), 'base already ran on this head');
   for (const ev of [pr('labeled', ['release:go'], { label: { name: 'release:go' } }), pr('labeled', ['ci:release-checks'], { label: { name: 'ci:release-checks' } }), pr('edited', [], { changes: { title: {} } })]) {
     assert.deepEqual([...schedule(Q, withLabelNames(ev), {}, game)], [], `${ev.event.action} ${JSON.stringify(ev.event.label ?? ev.event.changes)} runs nothing`);
   }
   const retarget = schedule(Q, withLabelNames(pr('edited', [], { changes: { base: {} } })), {}, { plan: { game: 'true', browser: 'false' } });
   assert.ok(retarget.has('base') && retarget.has('static'), 'a retarget still re-runs static and base');
-  assert.ok(schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'and the shard once auditor:ready is on');
+  assert.ok(!schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'but not the shard: only adding auditor:ready runs it');
 });
 
-test('the concurrency group: every label event (auditor:ready too) and a title edit get a group of their own, so none cancels the head\'s gate in flight', () => {
+test('the concurrency group: every label event but auditor:ready on a feature PR, and a title edit, get a group of their own, so none cancels the head\'s gate in flight', () => {
   const g = /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
   const group = (c: Ctx) => g.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(group(pr('synchronize')), 'quality-7');
-  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7-inert-99');
+  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7', 'the full run on a feature PR shares the PR group (a newer push cancels it)');
+  assert.equal(group({ ...pr('labeled', [], { label: { name: 'auditor:ready' } }), head_ref: 'release-DB' }), 'quality-7-inert-99', 'on a release-* candidate it stays inert (DI/DH)');
   assert.equal(group(pr('labeled', [], { label: { name: 'release:go' } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { title: {} } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { base: {} } })), 'quality-7');
