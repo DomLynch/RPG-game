@@ -94,14 +94,14 @@ try {
     check(state.placed && Object.values(state.placed).reduce((a, b) => a + b, 0) === 2, `${name}: the server holds two placed after the take-back (${JSON.stringify(state.placed)})`);
     // a build that moved under the player
     state.version += 1; state.placed = {};
-    await page.locator('#build-dialog .build-row').nth(1).locator('.build-plus').click({ force: true }); await page.locator('#build-dialog .build-confirm').click({ force: true }); await page.waitForTimeout(600);
+    await page.locator('#build-dialog .build-row').nth(1).locator('.build-plus').click({ force: true }); await page.locator('#build-dialog .build-confirm').click({ force: true }); await page.waitForFunction(() => /changed somewhere else/.test(document.querySelector('#build-dialog .build-note')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => {});
     check(/changed somewhere else/.test(await page.locator('#build-dialog .build-note').textContent()), `${name}: a moved build says so`);
     check(/^3 points to place/.test(await left(page)), `${name}: and is read again (${await left(page)})`);
     await context.close();
     // level 12, this rank's re-spread spent: no way to take back
     reset({ level: 12, placed: { attack: 5 }, respreadRank: 1, version: 7 });
     const second = await load(w, h);
-    if (await second.page.locator('#welcome').isVisible()) await second.page.getByRole('button', { name: 'Enter the arena' }).click({ force: true }); await second.page.locator('#journal-button').click({ force: true }); await second.page.waitForTimeout(500); await second.page.locator('#journal .tab-fighter').click({ force: true }); await second.page.locator('#build-open').click({ force: true });
+    // level 12 with unspent points: the moment opens the dialog by itself on load (no journal walk needed)
     await second.page.waitForFunction(() => document.getElementById('build-dialog').open);
     check(await second.page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').isDisabled(), `${name}: with the rank's re-spread spent, - is off`);
     await second.page.screenshot({ path: `${out}/point-${name}-spent.png` });
