@@ -37,7 +37,8 @@ const LEDGER_UI: readonly string[] = [];   // EMPTY since CORE 1a (the account/l
 // Not engine rows: the Pit's FLOW (pinned by origins-flow-boundary.test.ts), identity/economy data, and page chrome.
 const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial', 'career', 'backoff', 'zoom-guard', 'style', 'roll', 'index']);
 // WRITER-SAFE DOOR, by EXACT path (Lead 2026-10-12, release DF): catalogue-rows.ts is the renderer-free creature-row door the origins writer may load, which is why origins/preview/mobs.ts (page data the writer also loads) takes catalogueRow from it and not from the page door. One file -> one module.
-const WRITER_SAFE: readonly string[] = ['origins/preview/mobs.ts -> catalogue-rows'];
+// SERVER-ONLY by EXACT path (Auditor 2026-10-13): the grimoire's 700-spell catalogue (7 spells-*.json) stays out of src/fight/server.ts, which the page's bundle reaches via src/core/luck.ts; the one server file that needs it takes it directly. Never add boss-spells to ALLOWED (module-wide: a page could take it).
+const WRITER_SAFE: readonly string[] = ['origins/preview/mobs.ts -> catalogue-rows', 'origins/server/grimoire.ts -> boss-spells'];
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
 const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts)
 
@@ -143,11 +144,12 @@ test('the node-safe door src/fight/server.ts is for server-run code only, and it
     walk(start); return { files: [...seen], bare: [...bare] };
   };
   const RENDERER = /\/(hud|world-combat|world|open|scene|quality|audio|sound)[/.]/;
-  const bad = (c: { files: string[]; bare: string[] }) => [...c.bare.filter((s) => !s.startsWith('node:')), ...c.files.filter((f) => RENDERER.test(f))];
+  const bad = (c: { files: string[]; bare: string[] }) => [...c.bare.filter((s) => !s.startsWith('node:')), ...c.files.filter((f) => f !== 'src/fight/world.ts' && RENDERER.test(f))];   // exactly the pure engine loop src/fight/world.ts rides the door (the world-record verifier replays it); origins/world/* stays flagged
   assert.deepEqual(bad(closure('src/fight/server.ts', (f) => readFileSync(f, 'utf8'))), [], 'the node door pulls no package (three.js), HUD, world loop or audio');
   const mutant = (add: string) => bad(closure('src/fight/server.ts', (f) => readFileSync(f, 'utf8') + (f === 'src/fight/server.ts' ? `\n${add}\n` : '')));
   assert.notDeepEqual(mutant("export * from './hud.ts';"), [], 'the check fails when the door re-exports the HUD');
-  assert.notDeepEqual(mutant("export * from './world.ts';"), [], 'the check fails when the door re-exports the world loop');
+  assert.notDeepEqual(mutant("export * from './world-combat.ts';"), [], 'the check fails when the door re-exports the page world loop');
+  assert.notDeepEqual(bad({ files: ['origins/world/x.ts'], bare: [] }), [], 'and a file under origins/world/ is still flagged');   // the pure engine world.ts rides the door since the world-record verifier (BASE) replays it on the server
   assert.notDeepEqual(mutant("import * as T from 'three';"), [], 'the check fails when the door pulls three');
 });
 
@@ -207,4 +209,11 @@ test('no second attacker cap exists outside src/fight/attackers.ts: no numeric c
   assert.notDeepEqual(mutate('src/fight/pack.ts', 'export const again = (duels: number[], tokens = 4) => duels;'), [], 'the check fails on a literal parameter default (the Auditor\'s LOW on #2129)');
   assert.notDeepEqual(mutate('src/fight/pack.ts', 'export const row = { tokens: 4 };'), [], 'the check fails on an object field');
   assert.deepEqual(mutate('src/fight/pack.ts', 'let fightToken = 0;'), [], 'a singular counter (fightToken) is not a cap');
+});
+
+test('boss-spells (the spell catalogue) is reachable from origins/server/grimoire.ts only, by exact path', () => {
+  const take = (f: string) => violations((p) => (p === f ? "import { SPELL_BRICKS } from '../../src/fight/boss-spells.ts';\n" : ''), [f]).unclassified;
+  assert.deepEqual(take('origins/server/grimoire.ts'), []);
+  assert.deepEqual(take('origins/preview/x.ts'), ['origins/preview/x.ts -> boss-spells'], 'a page may not take it');
+  assert.deepEqual(take('origins/server/other.ts'), ['origins/server/other.ts -> boss-spells'], 'nor may another server file');
 });
