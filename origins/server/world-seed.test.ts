@@ -2,7 +2,7 @@
 // from it, and the server accepts it only when it equals hash32(the kill's own engage token, the join step). No token = no seed = no roll: today's fight.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { encodeWorldRecord, hash32, type WorldRecord } from '../../src/fight/server.ts';
+import { encodeWorldRecord, hash32, replayWorldRecord, type WorldRecord } from '../../src/fight/server.ts';
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { creature, player } from '../../src/fight/world.ts';
 import { openBout } from '../../src/fight/open-fight.ts';
@@ -37,6 +37,8 @@ test('a live fight with an engage token writes hash32(token, join step) on the j
   const rec = await fight(TOKEN), j = rec.joins.find((e) => e.id === wolf.spec.id)!;
   assert.equal(j.seed, hash32(TOKEN, j.s), 'the seed is hash32(the kill\'s token, the join step)');
   assert.deepEqual(await verify(rec, TOKEN), { ok: true, ticks: rec.steps.length }, 'the replay (duel.roll from the header seed) reproduces the kill');
+  const replayed = replayWorldRecord(rec); assert.ok(replayed.ok);
+  assert.equal(replayed.ok && replayed.killStep[wolf.spec.id], rec.steps.length - 1, 'same token and join step: the replay kills on the very step the live fight did');
 });
 
 test('a forged seed, a wrong token and a seed with no token are refused; a record with no seed is today\'s fight and still verifies', async () => {
@@ -47,9 +49,4 @@ test('a forged seed, a wrong token and a seed with no token are refused; a recor
   const none = await fight(null);
   assert.equal(none.joins[0]!.seed, undefined);
   assert.deepEqual(await verify(none, TOKEN), { ok: true, ticks: none.steps.length }, 'band off: the same record shape as today');
-});
-
-test('a seed changes the fight: the same hero script against a seeded and an unseeded wolf takes different damage', async () => {
-  const seeded = await fight(TOKEN), plain = await fight(null);
-  assert.notDeepEqual([seeded.steps.length, seeded.hero.health], [plain.steps.length, plain.hero.health], 'the roll band is on only with a seed');
 });

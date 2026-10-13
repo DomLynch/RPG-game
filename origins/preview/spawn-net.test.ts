@@ -122,7 +122,7 @@ test('touch: a hit touches the token at most every TOUCH_EVERY_MS; tick touches 
 
 test('onCombatEvent: FightStarted alone engages (a tell, a swing or a first blow does not); his hits count per creature; a wander-past or another player\'s event engages nothing; Evaded drops', () => {
   const log: string[] = [];
-  const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [], outbox: () => [] };
+  const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tokenOf: () => null, tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [], outbox: () => [] };
   const on = onCombatEvent(t, 'me');
   on({ type: 'FightStarted', creature: 'wolves-1', player: 'me' });
   on({ type: 'FightStarted', creature: 'wolves-9', player: 'someone-else' });
