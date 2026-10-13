@@ -13,7 +13,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, type StanceId } from './stance.ts';
-import { DODGE_COUNTER } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, attackerPerMille } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -102,7 +102,7 @@ export type CombatEvent = { tick: number; type: EventType; actor: Side; target?:
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
 // `roll`: the world-mob damage roll (Origins luck ruling, Dom 2026-10-07: +/-10% on every blow in both directions, in a world-mob fight only). Absent = the Pit, PvP and the
 // ladder: today's fight byte for byte. `hits` numbers the fight's blows in the order they resolve, so the draw is a pure function of (seed, hit) and a replay reproduces it.
-export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number; swarm?: number; rank?: number }; gambit?: { seed: number; draws: number }; cast?: { seed: number; n: number }; radius?: number; ccBase?: number };   // ccBase: ticks added to this duel's tick to give the world's clock, the ladder's window (open world only)   // radius: the wall this fight is fought inside (RV40); absent = the Pit's live circle (play-radius.ts RADIUS), so a Pit duel is byte for byte what it was
+export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number; swarm?: number; rank?: number; attacker?: number }; gambit?: { seed: number; draws: number }; cast?: { seed: number; n: number }; radius?: number; ccBase?: number };   // ccBase: ticks added to this duel's tick to give the world's clock, the ladder's window (open world only)   // radius: the wall this fight is fought inside (RV40); absent = the Pit's live circle (play-radius.ts RADIUS), so a Pit duel is byte for byte what it was
 export { ROLL_BAND, rollPercent, rolledDamage } from './roll.ts';   // the one definition (src/fight/roll.ts), shared with origins/luck/luck.ts
 export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
 // A spell on one fighter (RV53): the one door, so a replay builds exactly what the live fight built. The fighter must already carry the special (withSpecials). `cast.seed` is the fight's seed, salted so the cast draws never repeat the gambit's or the roll's.
@@ -274,7 +274,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const x = Math.round(z);
     return base > 0 ? Math.max(1, x) : x;
   };
-  const rolled = (base: number, from: Side, to: Side, pen = 0): number => { const b = geared(base, from, to, pen); if (!duel.roll) return b; lastRoll = percentOf(rollUnit(duel.roll.seed, hits++), swarmBand(duel.roll.swarm, duel.roll.rank)); return rolledDamage(b, lastRoll); };   // the band widens with the swarm: the foes on the target (roll.ts SWARM_ROWS)
+  const rolled = (base: number, from: Side, to: Side, pen = 0): number => { const b = geared(base, from, to, pen); if (!duel.roll) return b; lastRoll = percentOf(rollUnit(duel.roll.seed, hits++), swarmBand(duel.roll.swarm, duel.roll.rank)); const dealt = rolledDamage(b, lastRoll); return from === 1 && duel.roll.attacker ? Math.round((dealt * attackerPerMille(duel.roll.attacker)) / 1000) : dealt; };   // sandbox-mech manyOnOne: the nth foe on the player hits for its row's share; the band widens with the swarm: the foes on the target (roll.ts SWARM_ROWS)
   const rollTag = () => (duel.roll && lastRoll !== undefined ? { roll: lastRoll } : {});
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
