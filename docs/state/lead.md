@@ -2,6 +2,24 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-13 13:5x — handoff before /clear (Dom). LIVE DV 03d85f9d0 (my curl 13:58). READ FIRST
+
+**READ FIRST:** memory project_handoff_2026-10-13_1355 + feedback_dom_quiet_reports + feedback_dom_delegation_2026-10-13 + project_backend_is_duels_vps.
+**Now (in order):**
+1. DW #2519 @411671c23 is publishing via the train (7 members: #2476 #2503 #2434 #2435 #2440 #2512 titles #2508 instances). Verify live + parity.
+2. DX #2527 @7fa8632ef = #2513 presence in-window ONLY (PASS). Next cut: #2509 frontier presence step 1 (never before #2513) + whatever has PASS: #2504 @f17b06438 (union with #2487), #2467 @de9dc4c13, #2483 @6d9e9358c + #2488 @791a6ac2f TOGETHER, #2511 @d0af296db + #2522 @6ffd09383 (stacked), #2516, #2517, #2518, #2524 journald, Deploy's T4-booking PR (deploy/hf-booked-timeout @368c25322).
+3. WORLD_SIM_VERSION stack, a prefix per cut, in order: #2525 poise @70613c85d (4) → #2474 @5ffa153c6 (5) → #2477 @ce237de6e (6) → #2526 row 21 @429277240 (7). Combat's breath cone (item 23) comes after (8+).
+4. #2417 relay shards ships ALONE in a quiet window with rollback.
+5. 18:00: re-run the top-30 live check, edit #2408 comment 6136508107, counts to Strategy.
+
+**Done today (live, each verified by my curl/ssh):** DN 10:07, DQ ~11:15 (#2482 max-parallel 40, Dom P1), DR ~11:21, DS 11:52 (first train publish; #2489 writer in-window), DT ~12:34, DU 12:50, DV 13:49 (spells in fights #2493 + #2487 + 0029 skill_pool; #2500 rows 9/46 post-publish). Presence hand-installed at DU 501f5f0c3 (was 14f973db, 6 commits behind since 10-07; 0 players affected). Release train LIVE (auto-publish on candidate:pass). Delegation in CLAUDE.md (#2499, Dom approved). Top-30: 14/32 live at 12:00.
+
+**Open (owner):** Backend (VPS lane, Remote Control — find it via ListAgents): fame/karma storage + read op (migration needs Auditor PASS + Lead GO); boss presence check after #2483 is on trunk; #2506 spec ruled. World: legend duel own body (goblin/knight/witch per #2521) + the page-leak pins follow-up. Web: title display. Characters: standby for Dom's Combat Sandbox rows.json (one row per PR). Deploy speed order: T4 booking fix (A; B = raise the $5 cap is Dom's money call) → hardening item 2 (Mac rows after publish + auto rollback, drilled) → limit concurrent candidate CI → build-once.
+
+**Rulings today:** poise staggerFrom 1.1, creatures only (heavies/counters stagger everyone); #2483 resolves only LEGEND_SPAWNS legends; spells only with server check + fixed legends; legend zone check = kill_report model, flag default off; frontier presence 1.0x speed, portals = boats/gates, quiet = Pit only, rows not code; titles Scourge=Attila, Terrible=Typhon; sound = gaps only; stone texture parked (Dom).
+
+**Gotchas:** cross-session messages often queue — re-send rulings if a lane asks again. Deploy must run the FULL suite before reporting. cut-release refuses members without a standalone PASS at head. RLS on origins tables hides rows from writer roles — use definer readers. `gh pr list --search "release-D in:title"` misses drafts sometimes; view by number.
+
 ## 2026-10-13 10:2x — handoff before /clear (Dom). LIVE DN 2c5ccfe3a (my curl 10:14). READ FIRST
 
 **Now (next session, in order):**
