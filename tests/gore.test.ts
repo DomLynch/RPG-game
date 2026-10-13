@@ -399,6 +399,24 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
   } finally { proto.applyBoneTransform = original; }
 });
 
+test('the skin memo belongs to the skeleton and vertex buffers it skinned: a geometry swap or a re-bind at the same pose re-skins (a gear change must not read the old vertices)', () => {
+  const make = (size: number) => { const g = new BoxGeometry(size, size, size, 2, 2, 2), n = g.attributes.position.count, index = new Uint16Array(n * 4), weight = new Float32Array(n * 4); for (let i = 0; i < n; i++) weight[i * 4] = 1; g.setAttribute('skinIndex', new Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new Float32BufferAttribute(weight, 4)); return g; };
+  const bone = new Bone(), small = make(.2), big = make(.4), skin = new SkinnedMesh(small, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
+  const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
+  const proto = SkinnedMesh.prototype, original = proto.applyBoneTransform; let calls = 0;
+  proto.applyBoneTransform = function (this: SkinnedMesh, i: number, target: Vector3 | Vector4) { calls++; return original.call(this, i, target); } as typeof original;
+  try {
+    const out = new Vector3(0, 0, 1);
+    const first = surfaceHit(root, bone, out); assert.ok(first && near(first.point.z, .1, 1e-6), 'the small box meets the ray at z .1');
+    calls = 0; surfaceHit(root, bone, out); assert.equal(calls, 0, 'same pose, same buffers: the memo is read');
+    skin.geometry = big; Object.assign(skin, { boundingSphere: null, boundingBox: null });   // the pose is untouched: only the vertices change
+    calls = 0; const swapped = surfaceHit(root, bone, out); assert.ok(calls > 0, `a swapped geometry re-skins (${calls} calls)`);
+    assert.ok(swapped && near(swapped.point.z, .2, 1e-6), `and meets the big box (z ${swapped?.point.z}), not the stale small one`);
+    skin.bind(new Skeleton([bone]), skin.bindMatrix);   // a re-bind: a new skeleton object, the very same pose
+    calls = 0; surfaceHit(root, bone, out); assert.ok(calls > 0, `a new skeleton re-skins (${calls} calls)`);
+  } finally { proto.applyBoneTransform = original; }
+});
+
 // The override mirrors three 0.186.0's method body. This fails the day three changes: a new version, a different signature, or the
 // spread gone upstream (the fix to watch: SkinnedMesh.applyBoneTransform without `set( ...target, 1 )`) — then the override is
 // re-checked against the new body or dropped, never left shadowing a method that moved.
