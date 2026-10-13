@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { bossSpecialFor, bossSpecialId } from '../src/fight/special-identity.ts';
 import { specialOf, type SpecialName } from '../src/fight/moves.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
+import IDENTITY from '../src/fight/special-identity.json' with { type: 'json' };
 import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 
 const EXPECTED = {
@@ -54,4 +55,13 @@ test('actor order and later selections cannot change the accepted cast identity'
   assert.deepEqual([bossSpecialFor('veteran', 46), bossSpecialFor('knight', 41)], ['tithe', 'haze']);
   bossSpecialFor('knight', 46);
   assert.equal(bossSpecialId(name), 'haze');
+});
+
+test('special-identity.json names exactly the specials the roster can cast: one row each, none extra, none without a key', () => {
+  const cast = new Set<string>();
+  for (const opponent of Object.keys(ROSTER) as OpponentId[]) for (let level = 1; level <= 50; level++) { const name = specialOf(opponent, level); if (name) cast.add(name); }
+  const rows = IDENTITY.rows.map((r) => r.id);
+  assert.equal(new Set(rows).size, rows.length, 'a duplicate row');
+  assert.deepEqual([...rows].sort(), [...cast].sort());
+  assert.ok(IDENTITY.rows.every((r) => /^[a-z0-9]+$/.test(r.key)), 'every row has a preview key');
 });
