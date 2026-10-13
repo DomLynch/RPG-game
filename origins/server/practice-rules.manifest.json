@@ -1,0 +1,14 @@
+{
+  "tables": [
+    {
+      "table": "practiceRule",
+      "file": "practice-rules.json",
+      "at": "practiceRule",
+      "key": "id",
+      "required": {
+        "practiceUnit": "integer",
+        "xpPerPoint": "integer"
+      }
+    }
+  ]
+}

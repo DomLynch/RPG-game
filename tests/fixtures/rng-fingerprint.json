@@ -1911,7 +1911,7 @@
    "ticks": 600,
    "draws": 444,
    "rng": "7359e6c650947c6b",
-   "state": "926e0527f6de04cb"
+   "state": "f16e2c90b7a93eda"
   },
   "boar:12:4242424242:idle": {
    "ticks": 600,
@@ -1923,7 +1923,7 @@
    "ticks": 600,
    "draws": 446,
    "rng": "bd8c1ee984ee912b",
-   "state": "78065a99ba519105"
+   "state": "12c89cc6c3a49334"
   },
   "boar:18:731:idle": {
    "ticks": 600,
@@ -2091,7 +2091,7 @@
    "ticks": 600,
    "draws": 485,
    "rng": "c74e8a43ae67efb7",
-   "state": "11f4dee6976dd236"
+   "state": "c4e192337140ac1b"
   },
   "bear:6:4242424242:idle": {
    "ticks": 600,
@@ -2103,7 +2103,7 @@
    "ticks": 600,
    "draws": 366,
    "rng": "875e89e63833c0aa",
-   "state": "776876e5b60dcaf3"
+   "state": "97eb95f2764abf02"
   },
   "bear:11:731:idle": {
    "ticks": 600,
@@ -2127,7 +2127,7 @@
    "ticks": 600,
    "draws": 423,
    "rng": "35978306d2edbafc",
-   "state": "195043259e3baf5f"
+   "state": "bfa19e32982a2e16"
   },
   "bear:11:4242424242:idle": {
    "ticks": 600,
@@ -2151,7 +2151,7 @@
    "ticks": 600,
    "draws": 436,
    "rng": "c4f21f9006cd4e99",
-   "state": "7565baef47be1937"
+   "state": "9e7aea48c6ded7ae"
   },
   "bear:12:20260922:idle": {
    "ticks": 600,
@@ -2175,7 +2175,7 @@
    "ticks": 600,
    "draws": 471,
    "rng": "67aec1c9a5543106",
-   "state": "80223b90014a5a8a"
+   "state": "361e7da167f49137"
   },
   "bear:18:731:idle": {
    "ticks": 600,
@@ -2211,7 +2211,7 @@
    "ticks": 600,
    "draws": 408,
    "rng": "4b6ac73c771e43d7",
-   "state": "208429610fcefa53"
+   "state": "44d0abc898eba858"
   },
   "bear:30:731:idle": {
    "ticks": 600,
@@ -3135,7 +3135,7 @@
    "ticks": 600,
    "draws": 436,
    "rng": "158a6fcfb49e8828",
-   "state": "37aa25af34923f6b"
+   "state": "18a1f3085414a5fa"
   },
   "dwarf:11:4242424242:idle": {
    "ticks": 600,
@@ -3183,7 +3183,7 @@
    "ticks": 600,
    "draws": 408,
    "rng": "4b6ac73c771e43d7",
-   "state": "4dfc99f3a6e092bf"
+   "state": "f556c63ce941c876"
   },
   "dwarf:18:731:idle": {
    "ticks": 600,
@@ -3591,7 +3591,7 @@
    "ticks": 600,
    "draws": 396,
    "rng": "42949eb1779e9ed4",
-   "state": "e65ef8e5a6711069"
+   "state": "8a4dcbf2011a4b90"
   },
   "knight:6:20260922:idle": {
    "ticks": 600,

@@ -27,11 +27,17 @@ import VENUE_MANIFEST from './venue-defs.manifest.json' with { type: 'json' };
 import { PATRON_ROWS } from './patrons.data.ts';
 import STAT_DEFS from './stat-defs.json' with { type: 'json' };
 import STAT_MANIFEST from './stat-defs.manifest.json' with { type: 'json' };
+import ALLEGIANCE_ROWS from './allegiance-rules.json' with { type: 'json' };
+import ALLEGIANCE_MANIFEST from './allegiance-rules.manifest.json' with { type: 'json' };
+
+// The perk budget and the allegiance rules are a ROW (allegiance-rules.json, through the shared loader), exported below under their old names.
+loadRegistry(ALLEGIANCE_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, ALLEGIANCE_ROWS, 'origins/patrons/allegiance-rules.json')));
+const ALLEGIANCE = ALLEGIANCE_ROWS.rules[0]!;
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // 1. Perk templates.
 
-export const PERK_BUDGET_PERMILLE = 30;   // ±3% (Dom's override 1, living-world §10)
+export const PERK_BUDGET_PERMILLE = ALLEGIANCE.perkBudgetPermille;   // ±3% (Dom's override 1, living-world §10)
 // The stats are ROWS (stat-defs.json through the shared loader): ids are strings checked against the rows, never a union. benefit = which way is good for the holder
 // (more damage dealt, less damage taken, cheaper stamina); text = the word the book prints. A new row is accepted by the reader; a fight changes only when a combat reader takes that field.
 export type StatRow = { readonly id: string; readonly benefit: 1 | -1; readonly text: string };
@@ -161,7 +167,7 @@ export type Allegiance =
   | { kind: 'company'; name: string; template: string };   // a player clan picks one of the same fixed templates: equal by construction
 
 export const COMPANY_NAME = /^[A-Za-z][A-Za-z' -]{1,30}[A-Za-z]$/;
-export const RULES = { switchBronze: 2000, switchCooldownSeconds: 28 * 86400, leaveCooldownSeconds: 7 * 86400 } as const;   // §10.6 / §10.7 allegiance-rules
+export const RULES = { switchBronze: ALLEGIANCE.switchBronze, switchCooldownSeconds: ALLEGIANCE.switchCooldownSeconds, leaveCooldownSeconds: ALLEGIANCE.leaveCooldownSeconds } as const;   // §10.6 / §10.7 allegiance-rules
 
 export type LogEntry = { at: number; event: 'chose' | 'left' | 'switched' | 'joined'; from: string | null; to: string; bronze: number };
 export type AllegianceState = {

@@ -55,6 +55,13 @@ load5() { awk '{ print $2 }' "$loadavg"; }
 runs_dir="${CAPTURE_RUNS_DIR:-/run/frankendom-release}"   # one marker file per release run (scripts/lib/vps-unit.mjs runnerHead); /root/deploy-runs is root-only
 release_running() { [[ -n "$(find "$runs_dir" -mindepth 1 -maxdepth 1 -mmin -90 2>/dev/null | head -n 1)" ]]; }
 load_ok() { ! release_running && awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; }
+# Why a job within the first SLOTS still waits (empty when nothing blocks it): the wait line and --status say so. Without it a release run's marker looked like a stall
+# (World 2026-10-13: both slots FREE, load fine, the head 16 min silent; the line only said "load5 8 (starts under 12)").
+wait_reason() {
+  local m; m=$(find "$runs_dir" -mindepth 1 -maxdepth 1 -mmin -90 -printf '%f\n' 2>/dev/null | head -n 1)
+  if [[ -n "$m" ]]; then echo "a release run owns the box (marker $m; lane jobs wait until it ends, at most 90 min after it started)"
+  elif ! awk -v l="$(load5)" -v m="$max_load" 'BEGIN { exit !(l + 0 < m + 0) }'; then echo "load5 $(load5) is at or over $max_load"; fi
+}
 slot_lock() { [[ $1 -eq 1 ]] && echo "$lock" || echo "$lock.$1"; }
 slot_holder() { [[ $1 -eq 1 ]] && echo "$holder" || echo "$holder.$1"; }
 
@@ -82,7 +89,7 @@ if [[ "${1:-}" == "--status" ]]; then
     if exec 9<>"$(slot_lock "$k")" && flock -n 9; then echo "capture slot $k: FREE"; else echo "capture slot $k: HELD — $(cat "$(slot_holder "$k")" 2>/dev/null || echo unknown)"; fi
     exec 9>&-
   done
-  echo "load $(cut -d' ' -f1-3 "$loadavg") (a job starts only while the 5-min figure is under $max_load)"; echo "queue (lowest prio first, then first come, first served; the head holds or takes the lock next):"; show_queue; exit 0
+  echo "load $(cut -d' ' -f1-3 "$loadavg") (a job starts only while the 5-min figure is under $max_load)$(r=$(wait_reason); [[ -z "$r" ]] || echo "; NOW BLOCKED: $r")"; echo "queue (lowest prio first, then first come, first served; the head holds or takes the lock next):"; show_queue; exit 0
 fi
 while [[ "${1:-}" == "--prio" || "${1:-}" == "--hf-ok" || "${1:-}" == "--spill-to-caller" ]]; do
   if [[ "$1" == "--hf-ok" ]]; then hf_ok=1; shift; elif [[ "$1" == "--spill-to-caller" ]]; then to_caller=1; shift; else prio="${2:-}"; shift 2 || { echo "capture: --prio needs a number 1..4"; exit 2; }; fi
@@ -164,7 +171,7 @@ while :; do
   if [[ $pos -ne $last_pos ]] || (( now - last_said >= 60 )); then
     (( last_pos > 0 && pos > last_pos )) && echo "capture: $lane moved back from $last_pos to $pos: a higher-priority job joined the queue (prio $prio waits behind lower numbers)"
     h=$(cat "$holder" 2>/dev/null || echo unknown); [[ "$h" == released* ]] && h="free ($h); the head takes it next"
-    echo "capture: lock $( [[ "$h" == free* ]] && echo "$h" || echo "held by $h"); $lane is $pos of $n in the queue, load5 $(load5) (starts under $max_load) (prio $prio; lowest first, then first come; waiting up to ${wait_s}s, $((now - started))s so far)"
+    echo "capture: lock $( [[ "$h" == free* ]] && echo "$h" || echo "held by $h"); $lane is $pos of $n in the queue, load5 $(load5) $(r=$(wait_reason); if [[ -n "$r" ]]; then echo "WAITING: $r"; else echo "(starts under $max_load)"; fi) (prio $prio; lowest first, then first come; waiting up to ${wait_s}s, $((now - started))s so far)"
     last_pos=$pos; last_said=$now
   fi
   sleep 2   # fd 9 is closed unless a slot was taken

@@ -9,7 +9,7 @@ import { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, 
 export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode as Mode, type Mob };   // the pure behaviour lives in src/core/world-sim.ts (core slice 3)
 import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
-import { catalogueRow } from '../../src/fight/catalogue-rows.ts';
+import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
@@ -18,6 +18,7 @@ import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './fr
 export type MobSpec = {
   id: string; character: string; name: string; encounter: EncounterId | null; body: string; level: number;
   zone: string; spawn: string; home: Pos; roam: number; aggro: number; named: boolean;
+  legend?: string;   // a legend boss (origins/preview/legend-mobs.ts): drawn like any creature but fought through the verified encounter path (boss:<legend>), never the open world loop
 };
 
 // The common kinds' numbers (count, spread, pull, roam, level band) are mob rows now: origins/zone-rows/zone1.row.json (spawns). Named creatures keep these:
@@ -129,7 +130,7 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   const zone = crowd && f.zones.find((z) => z.zone === crowd[0]!.zone);
   if (!crowd || !zone) return null;
   const centre = (g: readonly MobSpec[]) => ({ x: g.reduce((n, s) => n + s.home.x, 0) / g.length, z: g.reduce((n, s) => n + s.home.z, 0) / g.length });
-  const first = (s: MobSpec) => !!catalogueRow(s.body)?.firstSight, wolves = specs.filter((s) => first(s) && s.zone === zone.zone), c = centre(crowd), look = wolves.length ? centre(wolves) : c;
+  const first = (s: MobSpec) => !!fieldOf(s.body, 'firstSight'), wolves = specs.filter((s) => first(s) && s.zone === zone.zone), c = centre(crowd), look = wolves.length ? centre(wolves) : c;
   const others = wolves.length ? specs.filter((s) => !first(s)) : specs, stand = mobStand(b, zone), clear = TUNING.aggro + 1, near = (x: number, z: number, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - x, s.home.z - z)));
   for (const strict of [true, false]) for (let r = 0; r <= 44; r += 2) for (let k = 0; k < 24; k++) {
     const a = (k / 24) * Math.PI * 2, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;

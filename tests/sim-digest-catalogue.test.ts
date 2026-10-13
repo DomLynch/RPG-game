@@ -51,3 +51,11 @@ test('pool definitions reach the digest as their sim rows: a sim: false pool, ad
   assert.notEqual(d(`${H}, ${S}, ${M.replace('"sim": false', '"sim": true')}`), base, 'flipping a pool to sim is a change the guard sees');
   assert.notEqual(d(`${H}, ${S}, ${M.replace(', "sim": false', '')}`), base, 'a missing sim flag counts as sim (fail closed)');
 });
+
+test('the world digest also sees the fields a def flags world: true; the Pit digest never does', () => {
+  const leash = (flag: string) => `{ id: "leash", kind: "number", min: 1, max: 200, sim: false${flag} }`;
+  const withLeash = (n: number, flag: string, world: boolean) => simDigest(files(A.replace('voice: null', `voice: null, fields: { leash: ${n} }`), `${W.def}, ${leash(flag)}`), { world });
+  assert.notEqual(withLeash(15, ', world: true', true), withLeash(16, ', world: true', true), 'a world value changing moves the world digest (a retune needs a WORLD_SIM_VERSION bump)');
+  assert.equal(withLeash(15, ', world: true', false), withLeash(16, ', world: true', false), 'the Pit digest never sees it');
+  assert.equal(withLeash(15, '', true), withLeash(16, '', true), 'a sim: false field with no world flag stays out of both');
+});

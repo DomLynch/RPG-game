@@ -17,6 +17,7 @@ import { refusal } from '../scripts/verify-loot.mjs';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 import gearDefs from '../src/fight/gear-defs.json' with { type: 'json' };
+import armourWeights from '../src/fight/armour-weights.json' with { type: 'json' };
 
 const idle = (): Intent => ({ ...idleIntent(), lock: false });
 const act = (action: Action): Intent => ({ ...idle(), action });
@@ -141,28 +142,42 @@ test('gear rows: a set is shape (dials up and down, held to 25) plus quality (25
   assert.deepEqual(gearDeltas('plate', 0), {});
   assert.deepEqual(sheetOf({ level: 100, placed: { armour: 100 } }, gearDeltas('plate', 1, 1)), { armour: 100, health: 10, poise: 5 }, 'a 100-armour build\'s plate cannot lift the armour past the cap: the cap holds, the rest still pays');
   assert.throws(() => gearDeltas('chain'), /not a set row/);
-  const piece = { id: 'plate.body', slot: 'Body', extends: 'heavy', weight: 18, wearMax: 160, resist: { fire: 1, earth: -1 } };
+  const piece = { id: 'plate.body', weightClass: 'light', slot: 'Body', extends: 'heavy', weight: 18, wearMax: 160, resist: { fire: 1, earth: -1 } };
   const t = loadGearDefs({ ...gearDefs, gear: [...gearDefs.gear, piece] });
   assert.deepEqual(t.rows['plate.body']!.resist, { fire: 1, earth: -1 }); assert.equal(t.rows['plate.body']!.set, 'plate', 'inherited from the preset');
   const withRow = (row: Record<string, unknown>) => () => loadGearDefs({ ...gearDefs, gear: [...gearDefs.gear, row] });
   const withSet = (row: Record<string, unknown>) => () => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, row] });
-  assert.throws(withRow({ id: 'x', slot: 'Body', weight: 1, wearMax: 1, resist: { void: 1 } }), /resist void is a school row/);
-  assert.throws(withRow({ id: 'x', weight: 1, wearMax: 1, resist: {} }), /names its slot/);
-  assert.throws(withRow({ id: 'x', slot: 'Body', extends: 'plate', weight: 1, wearMax: 1, resist: {} }), /no preset row/);
-  assert.throws(withRow({ id: 'light', weight: 1, wearMax: 1, resist: {} }), /duplicate-id/);
-  assert.throws(withRow({ id: 'x', slot: 'Body', weight: 1, wearMax: 0, resist: {} }), /wearMax is at least 1/);
-  assert.throws(withRow({ id: 'x', slot: 'Body', set: 'chain', weight: 1, wearMax: 1, resist: {} }), /unknown-ref/);
-  assert.throws(withSet({ id: 'mail', shape: { armour: 10, agility: -10 }, quality: { armour: 1 } }), /shape agility is a dial row/);
-  assert.throws(withSet({ id: 'mail', shape: { armour: 26, poise: -26 }, quality: { armour: 1 } }), /shape armour is a dial row.*within \+-25/);
-  assert.throws(withSet({ id: 'mail', shape: { armour: 20, health: 20 }, quality: { armour: 1 } }), /moves some dials up \(at most 25 in all\) against some down/);
-  assert.throws(withSet({ id: 'mail', shape: { armour: 10, poise: -10 }, quality: {} }), /quality names the dials/);
-  assert.doesNotThrow(withSet({ id: 'mail', shape: { armour: 10, poise: -10 }, quality: { armour: 1 } }), 'a fourth kind is a row');
+  assert.throws(withRow({ id: 'x', weightClass: 'light', slot: 'Body', weight: 1, wearMax: 1, resist: { void: 1 } }), /resist void is a school row/);
+  assert.throws(withRow({ id: 'x', weightClass: 'light', weight: 1, wearMax: 1, resist: {} }), /names its slot/);
+  assert.throws(withRow({ id: 'x', weightClass: 'light', slot: 'Body', extends: 'plate', weight: 1, wearMax: 1, resist: {} }), /no preset row/);
+  assert.throws(withRow({ id: 'light', weightClass: 'light', weight: 1, wearMax: 1, resist: {} }), /duplicate-id/);
+  assert.throws(withRow({ id: 'x', weightClass: 'light', slot: 'Body', weight: 1, wearMax: 0, resist: {} }), /wearMax is at least 1/);
+  assert.throws(withRow({ id: 'x', weightClass: 'light', slot: 'Body', set: 'chain', weight: 1, wearMax: 1, resist: {} }), /unknown-ref/);
+  assert.throws(withSet({ id: 'mail', weightClass: 'light', shape: { armour: 10, agility: -10 }, quality: { armour: 1 } }), /shape agility is a dial row/);
+  assert.throws(withSet({ id: 'mail', weightClass: 'light', shape: { armour: 26, poise: -26 }, quality: { armour: 1 } }), /shape armour is a dial row.*within \+-25/);
+  assert.throws(withSet({ id: 'mail', weightClass: 'light', shape: { armour: 20, health: 20 }, quality: { armour: 1 } }), /moves some dials up \(at most 25 in all\) against some down/);
+  assert.throws(withSet({ id: 'mail', weightClass: 'light', shape: { armour: 10, poise: -10 }, quality: {} }), /quality names the dials/);
+  assert.doesNotThrow(withSet({ id: 'mail', weightClass: 'light', shape: { armour: 10, poise: -10 }, quality: { armour: 1 } }), 'a fourth kind is a row');
+});
+
+test('armour weight classes are rows: every set and preset names one, a missing or unknown class fails, a fourth class needs no code', () => {
+  const t = loadGearDefs(gearDefs);
+  assert.deepEqual(Object.fromEntries(Object.values(t.weights).map((w) => [w.id, w.castPenalty])), { heavy: 20, medium: 10, light: 0 });
+  assert.deepEqual({ plate: t.sets.plate!.weightClass, robes: t.sets.robes!.weightClass, leathers: t.sets.leathers!.weightClass }, { plate: 'heavy', robes: 'light', leathers: 'medium' });
+  assert.deepEqual({ light: t.rows.light!.weightClass, medium: t.rows.medium!.weightClass, heavy: t.rows.heavy!.weightClass }, { light: 'light', medium: 'medium', heavy: 'heavy' });
+  const mail = { id: 'mail', shape: { armour: 10, poise: -10 }, quality: { armour: 1 } };
+  assert.throws(() => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, mail] }), /missing-field.*weightClass is required/s);
+  assert.throws(() => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, { ...mail, weightClass: 'feather' }] }), /unknown-ref.*armourWeight/s);
+  assert.throws(() => loadGearDefs({ ...gearDefs, gear: [...gearDefs.gear, { id: 'x', slot: 'Body', weight: 1, wearMax: 1, resist: {} }] }), /missing-field.*weightClass is required/s);
+  const weights = { armourWeight: [...(armourWeights as { armourWeight: unknown[] }).armourWeight, { id: 'ethereal', castPenalty: 0, note: 'test' }] };
+  const four = loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, { ...mail, weightClass: 'ethereal' }] }, undefined, undefined, undefined, weights);
+  assert.equal(four.sets.mail!.weightClass, 'ethereal'); assert.equal(four.weights.ethereal!.castPenalty, 0);
 });
 
 test('schools are rows: the five and earth and wind, each with a colour, and a new school is one row away from a resist key', () => {
   assert.deepEqual([...SCHOOL_IDS].sort(), ['earth', 'fire', 'frost', 'holy', 'poison', 'shadow', 'wind']);
   for (const id of SCHOOL_IDS) assert.match(SCHOOLS[id]!, /^#[0-9a-f]{6}$/, id);
-  const raw = { ...gearDefs, gear: [...gearDefs.gear, { id: 'x', slot: 'Body', weight: 1, wearMax: 1, resist: { lightning: 2 } }] };
+  const raw = { ...gearDefs, gear: [...gearDefs.gear, { id: 'x', weightClass: 'light', slot: 'Body', weight: 1, wearMax: 1, resist: { lightning: 2 } }] };
   assert.doesNotThrow(() => loadGearDefs(raw, [...SCHOOL_IDS, 'lightning']));
 });
 
