@@ -9,7 +9,8 @@ import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const DIST = arg('dist', 'dist'), SPELL = arg('spell', ''), OUT = arg('out', 'artifacts/combat/caster-tell'), DPR = Number(arg('dpr', 2)), EVERY = Number(arg('every', 6)), WINDUP = 120;
+const DIST = arg('dist', 'dist'), SPELL = arg('spell', ''), OUT = arg('out', 'artifacts/combat/caster-tell'), DPR = Number(arg('dpr', 2)), EVERY = Number(arg('every', 6)), SKILL = arg('skill', 'witchfire'),   // the HUD's Skill button needs an equipped skill; the spell is cast through that slot
+   WINDUP = 120;
 if (!SPELL) throw new Error('--spell <spell id> is required (a row of the spells-*.json files)');
 
 async function serveDist(dir) {
@@ -29,7 +30,7 @@ try {
   await fs.rm(OUT, { recursive: true, force: true }); await fs.mkdir(OUT, { recursive: true });
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR }), page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
-  await page.goto(`${server.origin}/?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=none${SPELL === 'none' ? '' : `&spell=${encodeURIComponent(SPELL)}`}&debug`);
+  await page.goto(`${server.origin}/?opponent=veteran&spar=1&weapon=longsword&difficulty=dummy&skill=${SKILL}${SPELL === 'none' ? '' : `&spell=${encodeURIComponent(SPELL)}`}&debug`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   const clock = await harnessClock(page);
