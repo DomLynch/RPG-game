@@ -4,11 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import STANCE_DEFS from '../src/fight/stance-defs.json' with { type: 'json' };
 
-(STANCE_DEFS as unknown as { wounds: unknown[] }).wounds = [{ id: 'sword-arm', site: 'torso', block: 300, damage: -200, ceil: 10 }];
+(STANCE_DEFS as unknown as { wounds: unknown[] }).wounds = [{ id: 'sword-arm', site: 'torso', block: 300, damage: -200, ceil: 10, below: 10 }];
 const { stanced, woundsAt } = await import('../src/fight/stance.ts');
 
 test('a wound row names its site and nothing else', () => {
-  assert.deepEqual(woundsAt('torso'), ['sword-arm']);
+  assert.deepEqual(woundsAt('torso', 10), ['sword-arm']);
+  assert.deepEqual(woundsAt('torso', 11), [], 'a `below` row waits for the health step');
+  assert.deepEqual(woundsAt('torso'), [], 'no health given = full health');
   assert.deepEqual(woundsAt('legs'), []);
 });
 
