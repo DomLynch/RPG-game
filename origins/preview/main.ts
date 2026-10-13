@@ -39,7 +39,6 @@ import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } f
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
 import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createMeters, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
-import { NAKED } from '../../src/fight/index.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
 import { startFight as startEncounter, settleFight as settleEncounter } from './encounter-net.ts';
 import { createEngageAhead } from './engage-ahead.ts';
@@ -388,6 +387,7 @@ function zoneReadyCheck() {
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
 }
+let ownBuild: OwnBuild | undefined;   // the stored build (build_get), read once at load: the world hero's sheet is this build plus the worn set (gear-mount.ts sheet)
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
@@ -425,6 +425,7 @@ if (frontier) {
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
+      void fetchOwnBuild({ storage: localStorage, search: location.search }).then((b) => { ownBuild = b ?? undefined; }).catch(() => undefined);
       try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
@@ -606,7 +607,7 @@ const wc = createWorldCombat({
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
-  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild); return { gear: gearMount?.loadout() ?? NAKED, level: careerLine(session.career).level, ...(sheet ? { sheet } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild); return { level: careerLine(session.career).level, ...(sheet ? { sheet } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);

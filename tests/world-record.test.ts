@@ -4,7 +4,6 @@ import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
 import { newWorld, player } from '../src/fight/world.ts';
 import { ME, MAX_HERO_MPS, MAX_WORLD_TICKS, STEP, heroClean, ccQuiet, WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
-import { DEFAULT_WEAPON, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { CC_LADDER, ccApply, type CcLadder, type CcSource } from '../src/fight/cc-ladder.ts';
 
 const mob = (id: string, body: string, level: number): FightMob => ({ id, body, level, name: id });
@@ -47,10 +46,6 @@ test('forged headers and poses are refused', () => {
   const { rec } = killWolf(); assert.ok(rec);
   const no = (r: WorldRecord, why: string) => { const v = replayWorldRecord(r); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   no({ ...rec!, hero: { ...rec!.hero, weapon: 'butter-knife' as never } }, 'weapon');
-  const other = PLAYER_WEAPONS.find((w) => w !== DEFAULT_WEAPON); assert.ok(other);
-  no({ ...rec!, hero: { ...rec!.hero, weapon: other } }, 'weapon');   // a real weapon the server does not yet bind to the character's held one (Auditor, #2569): the replay takes DEFAULT_WEAPON only until HeroLimit.weapon lands
-  no({ ...rec!, hero: { ...rec!.hero, attack: 3 } }, 'hero gear');
-  no({ ...rec!, hero: { ...rec!.hero, res: 0.1 } }, 'hero gear');
   no({ ...rec!, hero: { ...rec!.hero, health: 1e9 } }, 'hero body');
   no({ ...rec!, hero: { ...rec!.hero, level: 0 } }, 'hero level');
   no({ ...rec!, joins: [{ ...rec!.joins[0]!, kind: 'nonesuch' }] }, 'join');
@@ -89,7 +84,7 @@ test('a record of another sim version is not replayed; the header carries the ve
 });
 
 test('a hero who is not at rest and clean opens no window (the header cannot carry his Pit fighter)', () => {
-  const w = newWorld([player(ME, 0, 0, 0, { attack: 1, res: 1 }, 1)]);
+  const w = newWorld([player(ME, 0, 0, 0, 1)]);
   assert.ok(heroClean(w), 'a fresh hero is clean');
   const dirty = (patch: Record<string, unknown>) => ({ ...w, fighters: [{ ...w.fighters[0]!, ...patch }] }) as typeof w;
   assert.ok(!heroClean(dirty({ phase: 'recover' })) && !heroClean(dirty({ maxStamina: 40 })) && !heroClean(dirty({ cc: [{ family: 'stun', count: 1, last: 5 }] })) && !heroClean(dirty({ stance: 'aggressive' })));
@@ -104,7 +99,7 @@ test('the world loop never feeds a special or a skill: the live input is {attack
 });
 
 test('a hero whose CC marks have all expired is clean (the ladder is never pruned); one with a mark still counting is not', () => {
-  const w = newWorld([player(ME, 0, 0, 0, { attack: 1, res: 1 }, 1)]);
+  const w = newWorld([player(ME, 0, 0, 0, 1)]);
   const at = (time: number, cc: CcLadder) => ({ ...w, time, fighters: [{ ...w.fighters[0]!, cc }] }) as typeof w;
   const stunned: CcLadder = [{ family: 'stun', count: 2, last: 10, end: 50 }];
   assert.ok(!heroClean(at(1, stunned)), 'tick 60: the stun mark is inside its 900-tick window from its end');

@@ -7,7 +7,7 @@ import { RULES, DEFAULT_WEAPON, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { verifyWorldRecord } from '../origins/server/world-verify.ts';
 
 const hero = { level: 1, attack: 1, res: 1, weapon: DEFAULT_WEAPON, health: RULES.health, stamina: 100, posture: 0, exhausted: false };
-const step = { pose: { x: 0, z: 0, f: 0 }, guard: false, attack: null, roll: null };
+const step = { pose: { x: 0, z: 0, f: 0 }, guard: false, gd: null, attack: null, roll: null };
 const rec = (h: Partial<WorldRecord['hero']> & { sheet?: Record<string, number> } = {}): WorldRecord => ({ rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { ...hero, ...h } as WorldRecord['hero'], joins: [], releases: [], steps: [step, step] });
 const SPAWN = { spec: { id: 'wolf-1', character: 'character:ash-wolf', level: 1 } } as never;
 
