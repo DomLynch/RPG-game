@@ -208,21 +208,22 @@ const planOut = (env: Record<string, string>) => runStep(stepScript('      - id:
 const planStatus = (env: Record<string, string>) => runStep(stepScript('      - name: browser-rows status', '\n  static:\n'), { SHA: 'h'.repeat(40), RUN_URL: 'u', ...env }).status;
 const reportStatus = (results: string) => runStep(stepScript('\n  browser-rows:\n', '\n  base:\n'), { SHA: 'h'.repeat(40), RUN_URL: 'u', RESULTS: results }).status;
 
-test('the Auditor removes auditor:ready after its verdict: a release-* head always runs the browser jobs; a feature PR without it says so in the quality summary', () => {
+test('a release-* head always runs the browser jobs; a feature PR never does (the label no longer turns them on) and says so in the quality summary', () => {
   assert.deepEqual(planOut({ HEAD_REF: 'release-2026-10-12-b' }), { browser: 'true', game: 'true' }, 'release-* synchronize without the label');
   assert.deepEqual(planOut({}), { browser: 'false', game: 'true' }, 'feature synchronize without the label');
-  assert.deepEqual(planOut({ PR_LABELS: 'release:go,auditor:ready' }), { browser: 'true', game: 'true' });
+  assert.deepEqual(planOut({ PR_LABELS: 'release:go,auditor:ready' }), { browser: 'false', game: 'true' }, 'auditor:ready no longer turns the browser jobs on (Lead 2026-10-13: they run in the release candidate)');
   assert.match(readFileSync(Q, 'utf8'), /needs\.plan\.outputs\.browser == 'false'\n {8}run: echo "browser jobs NOT run on this head[^\n]*GITHUB_STEP_SUMMARY/, 'the quality summary says it');
 });
 
-test('browser-rows commit status: PENDING on every feature push until the browser jobs pass on that head; success/failure on the SAME sha; release-* gets none', () => {
+test('browser-rows commit status: SUCCESS on a feature push (the browser rows run in the release candidate), pending while a game PR's browser jobs run; success/failure on the SAME sha; release-* gets none', () => {
   const H = 'h'.repeat(40);
   // (a) every push: the status step is in plan, which runs on opened/synchronize/reopened/retarget and on adding auditor:ready; it is not gated on the action
   const statusIf = /- name: browser-rows status\n {8}if: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
   assert.equal(statusIf, "github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-')");
   for (const a of ['opened', 'synchronize', 'reopened']) assert.ok(schedule(Q, withLabelNames(pr(a)), {}, game).has('plan'), `plan (and its status) on ${a}`);
   // (a)/(c) a push without the label: pending, waiting; with it: pending, running; no game path: success
-  assert.match(planStatus({ GAME: 'true', BROWSER: 'false' })!, new RegExp(`statuses/${H} -f state=pending -f context=browser-rows -f description=waiting for auditor:ready`));
+  assert.match(planStatus({ GAME: 'true', BROWSER: 'false' })!, new RegExp(`statuses/${H} -f state=success -f context=browser-rows -f description=browser rows run in the release candidate`));
+  assert.match(planStatus({ GAME: 'true', BROWSER: 'false' })!, /state=success/);
   assert.match(planStatus({ GAME: 'true', BROWSER: 'true' })!, /state=pending .*description=browser jobs running/);
   assert.match(planStatus({ GAME: 'false', BROWSER: 'false' })!, /state=success .*no browser rows needed/);
   // (b) the browser-rows job writes the verdict on the head sha it ran for (github.event.pull_request.head.sha, the same the plan used)
@@ -231,8 +232,8 @@ test('browser-rows commit status: PENDING on every feature push until the browse
   assert.match(reportStatus('static=failure load-time=skipped browser=skipped net-engines=skipped asset-rows=skipped duel-two-page=skipped')!, /state=failure/, 'a red static is not a pass');
   const yml = readFileSync(Q, 'utf8');
   assert.equal((yml.match(/SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/g) || []).length, 2, 'plan and the verdict write on the same head sha');
-  const ran = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, game);
-  assert.ok(ran.has('browser-rows'), 'adding auditor:ready writes the verdict');
+  const ran = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, { plan: { game: 'true', browser: 'false' } });
+  assert.ok(!ran.has('browser-rows'), 'a feature PR runs no browser jobs, so there is no browser verdict job either');
   assert.ok(!schedule(Q, withLabelNames(pr('synchronize')), {}, { plan: { game: 'true', browser: 'false' } }).has('browser-rows'), 'no verdict while waiting: it stays pending');
   // release-*: no pending status (it always runs the browser jobs, and they report as jobs)
   const rel = { ...withLabelNames(pr('synchronize')), head_ref: 'release-2026-10-12-b' };
