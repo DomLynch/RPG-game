@@ -215,7 +215,7 @@ test('a release-* head always runs the browser jobs; a feature PR never does (th
   assert.match(readFileSync(Q, 'utf8'), /needs\.plan\.outputs\.browser == 'false'\n {8}run: echo "browser jobs NOT run on this head[^\n]*GITHUB_STEP_SUMMARY/, 'the quality summary says it');
 });
 
-test('browser-rows commit status: SUCCESS on a feature push (the browser rows run in the release candidate), pending while a game PR's browser jobs run; success/failure on the SAME sha; release-* gets none', () => {
+test('browser-rows commit status: SUCCESS on a feature push (the browser rows run in the release candidate), pending while the browser jobs of a game push run; success/failure on the SAME sha; release-* gets none', () => {
   const H = 'h'.repeat(40);
   // (a) every push: the status step is in plan, which runs on opened/synchronize/reopened/retarget and on adding auditor:ready; it is not gated on the action
   const statusIf = /- name: browser-rows status\n {8}if: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
