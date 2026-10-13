@@ -92,6 +92,8 @@ function panel(opponents: string[]) {
   apply.onclick = () => { const o = collect(); if (typeof o === 'string') { status.className = 'err'; status.textContent = o; return; } write(o); location.reload(); };
   const reset = el('button', { textContent: 'Reset to live' });
   reset.onclick = () => { if (confirm('Drop every sandbox change and go back to the live rows?')) { write({ notes: [], files: {} }); location.reload(); } };
+  const back = el('button', { textContent: 'Back to sandbox rows' });   // drops this browser's edits (and a Reset): the committed sandbox/rows.json again
+  back.onclick = () => { write(null); location.reload(); };
   const save = el('button', { textContent: 'Save rows.json' });
   save.onclick = () => {
     const o = collect(); if (typeof o === 'string') { status.className = 'err'; status.textContent = o; return; }
@@ -103,7 +105,7 @@ function panel(opponents: string[]) {
   const changedCount = Object.values(current.files ?? {}).reduce((n, f) => n + Object.keys(f).length, 0);
   box.append(el('div', { textContent: `Opponent (boss row from the catalogue):` }), opp,
     el('div', { textContent: `${changedCount} row famil${changedCount === 1 ? 'y' : 'ies'} changed from live. One row per line; edit, then Apply.`, style: 'margin-top:8px' }),
-    note, apply, reset, save, status, ...sections,
+    note, apply, reset, back, save, status, ...sections,
     el('div', { textContent: __SANDBOX_INFO__, style: 'margin-top:16px;color:#888;font-size:11px' }));
   document.body.append(tab, box);
 }
