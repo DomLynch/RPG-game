@@ -99,7 +99,7 @@ test('publish order: forward only; N+1 finishing first makes N superseded, never
   // X was cut beside N, not on it: whichever of the two publishes second is refused, so neither tree is silently lost.
   assert.equal(order(n, x), 'diverged');
   assert.equal(order(x, n), 'diverged');
-  assert.equal(order('', n), 'unknown', 'release.json unreadable: deploy.sh logs it and publishes');
+  assert.equal(order('', n), 'unknown', 'release.json unreadable: the order is unknown, and deploy_order_verdict refuses it (below)');
   assert.equal(order(n, n), 'forward', 'a same-revision redeploy');
 });
 
@@ -114,8 +114,8 @@ test('deploy.sh: only the publish window is exclusive, and the old whole-run rm 
   assert.ok(at('deploy_lock_drop "$DEPLOY_ROWS_LOCK"') < at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"'));
   assert.ok(at('deploy_lock_wait "$DEPLOY_PUBLISH_LOCK"') < at('deploy_publish_order "$live_now"'));
   assert.ok(at('deploy_publish_order "$live_now"') < at('deploy_step "transfer + switch"'));
-  assert.match(s, /superseded\) echo "superseded: [^\n]*exit 3 ;;\n  \*\) echo "diverged: [^\n]*exit 3 ;;/, 'superseded and diverged both stop before the transfer');
-  assert.match(s, /unknown\) echo "publish order: live unknown/, 'a publish without the guard is logged');
+  assert.match(s, /deploy_order_verdict "\$publish_order" "\$live_now" "\$revision" \|\| exit 3/, 'the verdict refuses (exit 3) before the transfer');
+  assert.ok(at('deploy_order_verdict "$publish_order"') < at('deploy_step "transfer + switch"'));
   assert.ok(at('scripts/lib/prune-releases.sh') < at('deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"'));
   assert.ok(at('deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"') < at('if [[ "$previews_ok" != 1 ]]'));
 });
@@ -178,4 +178,21 @@ test('publish-locked: the command runs under the publish lock, waits for a live 
   assert.equal(await new Promise(resolve => child.on('exit', resolve)), 0);
   assert.equal(readFileSync(seen, 'utf8').trim(), String(child.pid), 'it ran holding the lock');
   assert.ok(!existsSync(env.DEPLOY_PUBLISH_LOCK), 'released on exit');
+});
+
+test('deploy_order_verdict: only a forward publish from a PROVEN live ancestor goes on; superseded, diverged and an UNKNOWN live are refused (exit 3); the override is explicit', () => {
+  const { dir, bash } = box();
+  const v = (order: string, env = '') => bash(`${env}deploy_order_verdict '${order}' ${'a'.repeat(40)} ${'b'.repeat(40)}`);
+  const forward = v('forward');
+  assert.equal(forward.status, 0);
+  assert.match(forward.stdout, /publish order: live aaaaaaaaa -> b+ \(forward\)/);
+  for (const order of ['superseded', 'diverged']) assert.equal(v(order).status, 3, `${order} is refused`);
+  const unknown = v('unknown');
+  assert.equal(unknown.status, 3, 'an unreadable release.json cannot prove a forward publish: refused');
+  assert.match(unknown.stderr, /refused: live revision unknown .*cannot be proven; nothing published/);
+  const allowed = v('unknown', 'DEPLOY_ALLOW_UNKNOWN_LIVE=1 ');
+  assert.equal(allowed.status, 0, 'a person can override');
+  assert.match(allowed.stdout, /DEPLOY_ALLOW_UNKNOWN_LIVE=1/);
+  assert.equal(v('unknown', 'DEPLOY_ALLOW_UNKNOWN_LIVE=0 ').status, 3);
+  rmSync(dir, { recursive: true, force: true });
 });
