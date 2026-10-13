@@ -2,6 +2,23 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-13 16:1x — checkpoint. LIVE EA c9c06c8bd (my curl 16:06). READ FIRST
+
+**READ FIRST:** memory project_handoff_2026-10-13_1615 + project_sheet_in_world_2026-10-13 + project_sandbox_ruling_2026-10-13 + project_mac_disk_rule_2026-10-13. Issue #2554 = hard-coding recce (groups A–E, owners).
+**Now (in order):**
+1. EC #2555 (#2474 WSV5 + #2477 WSV6) publishes next via the train; writer reinstalls. Verify live + parity.
+2. SPELLS candidate: Deploy cuts #2511→#2522→#2548→#2549→#2556 (+#2532 caster tells, +#2551 world gear if PASS) the moment #2549 @cd353ab0c and #2556 @56a974ef4 have a formal "Auditor: PASS @sha" line (#2511/#2522/#2548/#2532 have it). = players can cast spells.
+3. EB drill = #2530 @d0bd4da75 alone (Mac rows after publish + auto rollback, presence_back, hard live-ancestor gate) after its re-PASS; then the one-line default-flip PR.
+4. ED = #2526 (7) → #2529 breath cone (8) → #2553 goblin atOnce cap (9, HOLD: not a catalogue field, World fixing + guard projection) once PASSed. B threat margin = WSV 10.
+5. Sheet-in-world series (Dom: LIVE TODAY, parallel): PR 2 Combat on combat/world-hero @9c8e542e4 (WIP; Combat was /cleared — needs restart: gd tests → Pit fingerprint checkpoint → WSV 11 → draft PR + parity inventory); PR 3 World (bout seed, WSV 12); PR 4 Backend #2557 @4ba333367 (WSV 13); PR 5 Combat (parity test + delete world-only path, WSV 14). One candidate. Contract: docs/specs/combat/world-series-contract.md.
+6. Auditor queue also: #2543 post-publish rows, #2546 feature-PR CI (labelled pushes re-run shards; checksGreen needs receipts), #2536 my as-data gate, #2523 0030 fame/karma (apply AFTER 0031, at its publish, my GO), #2504 grimoire_get, #2509 frontier presence, Characters #2539/#2540/#2541/#2550/#2558, Web #2538/#2544/#2560.
+7. 18:00 top-30 receipt (one-shot cron armed 17:57): edit #2408 comment 6136508107 + one line per release with cut→merge→live minutes; counts to Strategy by 18:17.
+
+**Done today (live, my curl):** DW 14:17, DX 14:51, DY ~15:0x 895cda422, DZ 15:36 400202c51, EA 16:06 c9c06c8bd. 0031 skill_focus grant applied on prod 11:57Z (Auditor verified f→t). Waterfall #2319 closed (contradicted VPS-first). Disk: Mac hit 100% 14:2x (freed); VPS bn-trunk deleted by Deploy's by-age sweep 14:4x, rebuilt, sweep tool now keeps symlink targets + named-path mode; rule in vps-heavy-jobs skill.
+**Open (owner):** Combat restart (Dom). Characters #2554 group D (feuds → patrons → play.ts → LOOT_TIER). World #2554 group C after PR 3. Web #2554 group E (45 label maps). Backend PG-checks CI job. T4 $5 cap hit today (Dom's money call only if it still trips after #2528, live in DZ).
+**Rulings today (since 13:5x):** directionalGuard ON in world (Dom direct); jewellery takes no wear; pity retune ranked 4/wild 7/boss 1; stills from VPS SwiftShader OK when T4 capped; ?spell hook sparring-only; flee stays CUT (Dom 10-11); no candidate caps (Dom); deletes on VPS only via vps-scratch-sweep with named paths.
+**Gotchas:** cut-release needs a plain "Auditor: PASS @sha" line, not "PASS on green"; cancelled placeholders make the summary red (real run green = pass); the Auditor's 10-min poll only runs when idle (it now has a gh watcher); `gh pr list --search "release-D"` misses — use `--state merged -L 120` and filter titles; Mac load spikes are the desktop app + lane windows (memory), call a quiet window for Mac rows.
+
 ## 2026-10-13 13:5x — handoff before /clear (Dom). LIVE DV 03d85f9d0 (my curl 13:58). READ FIRST
 
 **READ FIRST:** memory project_handoff_2026-10-13_1355 + feedback_dom_quiet_reports + feedback_dom_delegation_2026-10-13 + project_backend_is_duels_vps.
