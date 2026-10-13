@@ -35,7 +35,7 @@ test('the hero on a boss: the boss\'s breaks step full, half, quarter, then it i
   assert.deepEqual(got, [P.stun, Math.round(P.stun / 2), Math.round(P.stun / 4), null]);
   const immune = breakOnce(cc, 4 * 120);
   assert.equal(immune.ticks, null, 'immune: no PostureBroken'); assert.ok(immune.stun < P.stun, 'immune: only the cut\'s own stagger, not the posture stun');
-  assert.equal(breakOnce(cc, 3 * 120 + CC_LADDER.window + 60).ticks, P.stun, 'a quiet window later the ladder is back to full');
+  assert.equal(breakOnce(cc, 3 * 120 + CC_LADDER.kinds.stun!.window + 60).ticks, P.stun, 'a quiet window later the ladder is back to full');
 });
 
 test('three attackers on the hero: one ladder threaded through three separate duels steps the same ladder', () => {
