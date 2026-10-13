@@ -491,12 +491,6 @@ test('ladder cap 50: a level-46 player under the old top keeps climbing under th
   assert.equal(award({ ...careerAtLevel(1 + 45), credit: cumulative(47) - 1 }, win('x', 0), 46).levelAfter, 46);
 });
 
-test('rift-boss is a progression row (living-world §8.4): the region loader accepts it as a kill row (it reads Object.hasOwn(TYPE_WEIGHTS, row)); it repays every kill and draws on rested credit', () => {
-  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss'), true);
-  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss-x'), false);
-  assert.ok(basePay(TYPE_WEIGHTS['rift-boss']!, 20, 20) < basePay(TYPE_WEIGHTS['world-boss']!, 20, 20));
-});
-
 test('the 100 cap is one number: the curve row and the build table agree', async () => {
   const sql = (await import('node:fs')).readFileSync(new URL('../supabase/migrations/202610120024_origins_character_build.sql', import.meta.url), 'utf8');
   assert.match(sql, new RegExp(`level int not null check \\(level between 0 and ${LEVEL_CURVE.maxLevel}\\)`));
@@ -511,4 +505,10 @@ test('the opening is priced in Pit wins: level 1 in one win, level 5 in five, le
     for (const k of [1, 5, 10]) if (levelOfCredit(credit) >= k && at[k] === undefined) at[k] = wins;
   }
   assert.deepEqual(at, { 1: 1, 5: 5, 10: 35 });
+});
+
+test('rift-boss is a progression row (living-world §8.4): the region loader accepts it as a kill row (it reads Object.hasOwn(TYPE_WEIGHTS, row)); it repays every kill and draws on rested credit', () => {
+  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss'), true);
+  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss-x'), false);
+  assert.ok(basePay(TYPE_WEIGHTS['rift-boss']!, 20, 20) < basePay(TYPE_WEIGHTS['world-boss']!, 20, 20));
 });
