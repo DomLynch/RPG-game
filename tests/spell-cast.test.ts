@@ -3,9 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stepDuel, withSpecials, withSpell, type CombatEvent, type Duel } from '../src/fight/duel.ts';
-import { OPPONENTS, RULES } from '../src/fight/moves.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { BRICKS, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
 import { indexOf } from '../scripts/spell-index.mjs';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { packRecord, unpackRecord } from '../src/fight/record.ts';
+import { recordSpecials, verifyRecord } from '../src/fight/replay.ts';
+import { hashDuel } from '../src/net/rollback.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { act, arena, idle } from './strategies.ts';
 
 const ID = SPELL_IDS.find((id) => resolveSpell(id, 0)!.cost > 0)!, SEED = 12345;
@@ -72,4 +77,21 @@ test('the same seed and skill replay the same outcome; a different skill is anot
   const a = run(cast(70)).d, b = run(cast(70)).d, c = run(cast(5)).d;
   assert.equal(JSON.stringify(a.fighters), JSON.stringify(b.fighters));
   assert.notEqual(JSON.stringify(a.fighters[0].spell), JSON.stringify(c.fighters[0].spell));
+});
+
+// RV53: the record carries the spell id and skill; a replay builds the fight through the same door, so the seeded outcomes and every state match the live fight bit for bit.
+test('a spell fight is recorded at v53, packed, and replays to the very same state; a forged skill is another fight', () => {
+  const seed = 31, level = 1, opponent = OPPONENTS.veteran, profile = profileAt(opponent, level), spell = { id: ID, skill: 80 };
+  const rec = liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level, seed, specials: true, spell });
+  let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials: true, level, opponent: 'veteran' }), undefined, undefined, undefined, undefined, resolveSpell(ID, spell.skill, 0));
+  const ticks = RULES.special.first + RULES.special.windup + 150, seen = new Set<string>();
+  for (let i = 0; i < ticks; i++) { p = stepPractice(p, rec.push(i === 0 ? act('light') : i < RULES.special.first + 50 ? idle() : act('skill')), profile); for (const e of p.duel.events) if (e.spell) seen.add(e.type); }
+  assert.ok(seen.has('SpecialStarted'), 'the spell was cast');
+  const record = unpackRecord(packRecord(rec.finish('abandoned')));
+  assert.equal(record.v, 53); assert.deepEqual(record.spell, spell);
+  const replay = verifyRecord(record);
+  assert.ok(replay.ok); assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
+  const forged = verifyRecord({ ...record, spell: { id: ID, skill: 0 } });
+  assert.ok(!forged.ok || hashDuel(forged.practice.duel) !== hashDuel(p.duel) || castOutcome(resolveSpell(ID, 0)!, 0.5) === castOutcome(resolveSpell(ID, 80)!, 0.5));
+  assert.ok(!verifyRecord({ ...record, specials: undefined }).ok, 'a spell without Special Moves is refused');
 });
