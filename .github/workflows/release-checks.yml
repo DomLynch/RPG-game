@@ -23,6 +23,9 @@ on:
   # when any row failed: a red row is a defect until it is reproduced on the Mac and shown to be the runner's (AGENTS.md).
   pull_request:
     types: [opened, labeled, synchronize, reopened, ready_for_review]
+  # The merge queue (hardening item 1): the combined tree runs this once, like a trunk push (no PR-only gates); a queue entry is never cancelled by a pull_request run.
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
     inputs:
       ref:

@@ -34,6 +34,9 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+  # The merge queue (hardening item 1): the combined tree runs this once, like a trunk push (no PR-only gates); a queue entry is never cancelled by a pull_request run.
+  merge_group:
+    types: [checks_requested]
   # The release train's candidate when the cutter opened it with the Actions token (no pull_request run then): scripts/release-train.mjs dispatches it.
   workflow_dispatch:
 # One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
@@ -243,7 +246,7 @@ jobs:
         run: npm run build && mv dist "$RUNNER_TEMP/head-dist"
       - name: Base build
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         # A branch create or a force-push sends `before` as all zeros (or a sha no longer in the repo): fall back to HEAD^, the first parent
         # (on a trunk push, the previous trunk tip; the merge-base with trunk would be HEAD itself there). Base == head fails loudly.
         run: |

@@ -149,6 +149,39 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   assert.ok(!schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt, so nothing vouches for the tree');
 });
 
+test('merge queue (hardening item 1, 2026-10-13): quality, unit-ci and release-checks all run on merge_group, like a trunk push: full job set, never cancelled, one stable verdict check each', () => {
+  const mg: Ctx = { event_name: 'merge_group', ref: 'refs/heads/gh-readonly-queue/codex/01a09a76/task-1/pr-9-abc', event: { action: 'checks_requested' } };
+  for (const f of [Q, U, R]) assert.match(readFileSync(f, 'utf8'), /\n {2}merge_group:\n {4}types: \[checks_requested\]\n/, `${f} listens for merge_group`);
+  const ran = schedule(Q, mg, {}, game);
+  assert.ok(!ran.has('static'), 'no PR-only static gate on a queue entry (a trunk push has none either)');
+  for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), `quality ${j} runs on merge_group`);
+  const unit = schedule(U, mg);
+  assert.ok(unit.has('shard') && unit.has('receipt'), 'the queue entry gets its unit receipt');
+  assert.ok(!schedule(U, mg, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt');
+  const rc = schedule(R, mg, {}, { plan: { checks: '[{"index":1}]' } });
+  for (const j of ['plan', 'check', 'summary']) assert.ok(rc.has(j), `release-checks ${j} runs on merge_group (the full matrix on the combined tree)`);
+  // never cancelled by another run, and its own group per queue entry
+  for (const f of [Q, U]) {
+    const t = readFileSync(f, 'utf8');
+    assert.match(t, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/, `${f} cancels only pull_request runs`);
+    const g = /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(t)![1].replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...mg, event: { ...mg.event, pull_request: {} }, run_id: '99' }, {})));   // Actions reads a missing pull_request as null; this JS evaluator needs the empty object
+    assert.ok(g.includes('gh-readonly-queue'), `${f}: the group is the queue entry's own ref (${g})`);
+  }
+  assert.match(readFileSync(R, 'utf8'), /\n {2}cancel-in-progress: true\n/);
+  // the load-time base is the queue entry's base sha, not an empty string
+  assert.match(readFileSync(Q, 'utf8'), /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.merge_group\.base_sha \|\| github\.event\.before \}\}/);
+});
+
+test('the required verdict checks keep stable names (the train and a branch ruleset match them by name): quality, receipt, summary; no matrix placeholder', () => {
+  for (const [f, id] of [[Q, 'quality'], [U, 'receipt'], [R, 'summary']] as const) {
+    const t = readFileSync(f, 'utf8'), at = t.indexOf(`\n  ${id}:\n`);
+    assert.ok(at >= 0, `${f} has the verdict job ${id}`);
+    const rest = t.slice(at + 1), end = rest.search(/\n {2}[a-z][a-z0-9-]*:\n/), block = end < 0 ? rest : rest.slice(0, end + 1);
+    const named = /\n {4}name: ([^\n]+)\n/.exec(block);
+    assert.ok(!named || !named[1].includes('${{'), `${f}: the verdict ${id} has no matrix placeholder in its name (${named?.[1]})`);
+  }
+});
+
 test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {
   for (const f of [Q, U]) {
     const t = readFileSync(f, 'utf8'), at = t.indexOf('\n  static:\n');
