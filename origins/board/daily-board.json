@@ -17,7 +17,7 @@
     { "id": "day-small", "kind": "gold", "amount": 80 },
     { "id": "day-medium", "kind": "gold", "amount": 200 },
     { "id": "day-fame", "kind": "fame", "amount": 40 },
-    { "id": "day-herb", "kind": "item", "amount": 3, "item": "healing_herb" }
+    { "id": "day-iron", "kind": "item", "amount": 3, "item": "item:grave-iron" }
   ],
   "discoveries": [
     { "id": "cinder-camp", "zone": "zone1", "landmark": "landmark_camp", "firstFind": "find-small" },
@@ -38,15 +38,16 @@
     { "id": "marsh-grove", "zone": "zone4", "landmark": "landmark_grove", "firstFind": "find-coin" }
   ],
   "tasks": [
-    { "id": "kill-wolves", "kind": "kill", "target": "wolf", "count": 5, "reward": "day-small", "weight": 3 },
-    { "id": "kill-bandits", "kind": "kill", "target": "bandit", "count": 4, "reward": "day-medium", "weight": 2 },
-    { "id": "gather-herbs", "kind": "gather", "target": "healing_herb", "count": 6, "reward": "day-small", "weight": 3 },
-    { "id": "gather-ore", "kind": "gather", "target": "iron_ore", "count": 5, "reward": "day-medium", "weight": 2 },
+    { "id": "kill-ash-wolves", "kind": "kill", "target": "character:ash-wolf", "count": 5, "reward": "day-small", "weight": 3 },
+    { "id": "kill-scavengers", "kind": "kill", "target": "character:cinder-scavenger", "count": 4, "reward": "day-medium", "weight": 2 },
+    { "id": "gather-grave-iron", "kind": "gather", "target": "item:grave-iron", "count": 6, "reward": "day-small", "weight": 3 },
+    { "id": "gather-grave-iron-load", "kind": "gather", "target": "item:grave-iron", "count": 12, "reward": "day-medium", "weight": 1 },
     { "id": "find-ash-arch", "kind": "discover", "target": "ash-arch", "count": 1, "reward": "day-fame", "weight": 1 },
     { "id": "find-salt-circle", "kind": "discover", "target": "salt-circle", "count": 1, "reward": "day-fame", "weight": 1 },
     { "id": "find-marsh-grove", "kind": "discover", "target": "marsh-grove", "count": 1, "reward": "day-fame", "weight": 1 },
-    { "id": "win-duels", "kind": "duel", "target": "ranked", "count": 2, "reward": "day-fame", "weight": 2 },
-    { "id": "kill-marsh-lurkers", "kind": "kill", "target": "marsh_lurker", "count": 3, "reward": "day-herb", "weight": 1 }
+    { "id": "win-duels", "kind": "duel", "target": "family:veteran", "count": 2, "reward": "day-fame", "weight": 2 },
+    { "id": "win-duels-pitborn", "kind": "duel", "target": "family:pitborn", "count": 3, "reward": "day-medium", "weight": 1 },
+    { "id": "kill-ember-wolves", "kind": "kill", "target": "character:ember-wolf", "count": 3, "reward": "day-iron", "weight": 1 }
   ],
   "boards": [
     { "id": "daily", "slots": 3, "distinctKinds": true, "noRepeatDays": 1, "anchorEvery": 16, "seedSalt": 7919, "completionCap": 25, "resetHourUtc": 0 }

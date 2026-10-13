@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { BOARD_RULES, BOARD_TASKS, DISCOVERIES, boardDay, boardRule, dailyBoardFor, discoveryById, firstFindReward, loadDailyBoard } from './daily-board.ts';
+import { BOARD_REWARDS, BOARD_RULES, BOARD_TASKS, DISCOVERIES, boardDay, boardRule, dailyBoardFor, discoveryById, firstFindReward, loadDailyBoard } from './daily-board.ts';
 import DATA from './daily-board.json' with { type: 'json' };
 
 const zoneRow = (n: number) => JSON.parse(readFileSync(new URL(`../zone-rows/zone${n}.row.json`, import.meta.url), 'utf8')) as { kit: { landmarks: string[] } };
@@ -27,7 +27,19 @@ test('daily board: tasks are sane, and a discover task targets a real discovery'
   }
   const r = boardRule()!;
   assert.ok(r.slots >= 1 && r.slots <= BOARD_TASKS.length && r.completionCap >= r.slots && r.resetHourUtc >= 0 && r.resetHourUtc < 24);
-  assert.ok(new Set(BOARD_TASKS.map((t) => t.kind)).size >= r.slots, 'enough kinds to fill a distinct board');
+  const perKind = new Map<string, number>(); for (const t of BOARD_TASKS) perKind.set(t.kind, (perKind.get(t.kind) ?? 0) + 1);
+  assert.ok(perKind.size >= r.slots * 2 - 2 && [...perKind.values()].every((n) => n >= 2), 'two tasks per kind, so a day of barred tasks still leaves a distinct board');
+});
+
+test('daily board: every target and reward item is a live id (creature, item, legend family), so a typo fails here', () => {
+  const creatures = new Set<string>(), items = new Set<string>();
+  for (let n = 1; n <= 4; n++) for (const r of (JSON.parse(readFileSync(new URL(`../zone-rows/zone${n}.row.json`, import.meta.url), 'utf8')) as { spawns: { rows: { id: string }[] } }).spawns.rows) creatures.add(r.id);
+  for (const t of JSON.parse(readFileSync(new URL('../region1/loot-tables.json', import.meta.url), 'utf8')) as { rolls: { entries: { item: string }[] }[] }[]) for (const roll of t.rolls) for (const e of roll.entries) items.add(e.item);
+  const families = new Set((JSON.parse(readFileSync(new URL('../../src/fight/legend-families.json', import.meta.url), 'utf8')) as { families: { id: string }[] }).families.map((f) => f.id));
+  const live: Record<string, Set<string>> = { kill: creatures, gather: items, duel: families };
+  for (const t of BOARD_TASKS) if (live[t.kind]) assert.ok(live[t.kind]!.has(t.target), `${t.id}: ${t.target} is not a live ${t.kind} target`);
+  for (const r of BOARD_REWARDS) if (r.kind === 'item') assert.ok(items.has(r.item!), `${r.id}: ${r.item} is not a live item`);
+  assert.ok(BOARD_TASKS.some((t) => t.kind === 'kill') && BOARD_TASKS.some((t) => t.kind === 'gather') && BOARD_TASKS.some((t) => t.kind === 'duel'), 'each live-checked kind is exercised');
 });
 
 test('daily board: a bad reference or missing field is refused at load', () => {
@@ -58,7 +70,7 @@ test('daily board: kinds differ, no task repeats the day before (bar anchor days
     for (const t of today) { if (!anchor) assert.ok(!yesterday.some((y) => y.id === t.id), `day ${d}: ${t.id} repeats`); seen.set(t.id, (seen.get(t.id) ?? 0) + 1); }
   }
   for (const t of BOARD_TASKS) assert.ok(seen.has(t.id), `${t.id} is never on the board`);
-  assert.ok(seen.get('kill-wolves')! > seen.get('kill-marsh-lurkers')!, 'a heavier weight shows more often');
+  assert.ok(seen.get('kill-ash-wolves')! > seen.get('kill-ember-wolves')!, 'a heavier weight shows more often');
 });
 
 test('daily board: a pool too small for the no-repeat rule still fills the board; no rule gives none', () => {

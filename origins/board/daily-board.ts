@@ -42,7 +42,7 @@ function drawnOn(pool: readonly BoardTask[], rule: BoardRule, seed: number, day:
 }
 
 // The board for `day` (whole days since the epoch, reset at the rule's UTC hour; the caller makes the day number): the same (seed, day) always gives the same tasks in the same order.
-// slots 0 gives an empty board; noRepeatDays 0 bars nothing. A task shown on any of the previous `noRepeatDays` days stays off, unless that would leave fewer tasks than slots (then the rule is waived so the board is never short). With no stored history the chain
+// slots 0 gives an empty board; noRepeatDays 0 bars nothing. A task shown on any of the previous `noRepeatDays` days stays off, unless that would leave fewer tasks (or, with distinctKinds, fewer kinds) than slots (then the rule is waived so the board is never short). With no stored history the chain
 // is rebuilt from the last anchor day (day % anchorEvery == 0), which has no yesterday: so the rule holds on every day but an anchor, and an anchor may repeat a task from the day before.
 export function dailyBoardFor(seed: number, day: number, rule: BoardRule | null = boardRule(), tasks: readonly BoardTask[] = BOARD_TASKS): BoardTask[] {
   if (!rule) return [];
@@ -51,7 +51,7 @@ export function dailyBoardFor(seed: number, day: number, rule: BoardRule | null 
     const hit = memo.get(d); if (hit) return hit;
     const barred = new Set<string>();
     if (((d % rule.anchorEvery) + rule.anchorEvery) % rule.anchorEvery !== 0) for (let back = 1; back <= rule.noRepeatDays; back++) for (const t of shown(d - back)) barred.add(t.id);
-    const open = tasks.filter((t) => !barred.has(t.id)), out = drawnOn(open.length >= rule.slots ? open : tasks, rule, seed, d);
+    const open = tasks.filter((t) => !barred.has(t.id)), out = drawnOn(open.length >= rule.slots && (!rule.distinctKinds || new Set(open.map((t) => t.kind)).size >= rule.slots) ? open : tasks, rule, seed, d);
     memo.set(d, out); return out;
   };
   return shown(day);
