@@ -86,7 +86,7 @@ try {
     check(await page.locator('#build-dot').evaluate((e) => e.hidden), `${name}: the dot goes once every point is placed`);
     // taking back is free at level 3
     if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true }); 
-    await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600); await page.locator('#journal .tab-fighter').click({ force: true }); await page.waitForTimeout(300);
+    await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600); await page.locator('#journal .tab-fighter').click({ force: true }); await page.waitForTimeout(300); await page.screenshot({ path: `${out}/point-${name}-stats.png` });
     await page.locator('#build-open').click({ force: true }); await page.waitForFunction(() => document.getElementById('build-dialog').open);
     await page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').click({ force: true });
     check(/^1 point to place/.test(await left(page)), `${name}: a point taken back is free to place again (${await left(page)})`);
