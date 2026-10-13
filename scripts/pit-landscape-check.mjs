@@ -67,6 +67,9 @@ try {
       if (tab === 'profile' && await page.$('#gear-stats')) {   // the paper-doll: six worn slots tinted by rung, the strip's rows drawn
         const doll = await page.evaluate(() => ({ tints: [...document.querySelectorAll('#journal .doll .slot.on:not([data-loot=""])')].map((e) => e.style.getPropertyValue('--tier')), rows: [...document.querySelectorAll('#gear-stats > div')].map((d) => d.getAttribute('data-stat')) }));
         v.paperDoll = doll;
+        // the mannequin is drawn on the full-page canvas behind the dialog, so the canvas is clipped to the dialog's box while the gear screen is live (issue #2439: scrolled, the rig's head drew over the page above the dialog)
+        const clip = await page.evaluate(() => { const c = getComputedStyle(document.getElementById('world')).clipPath, d = document.getElementById('journal').getBoundingClientRect(), n = (c.match(/^inset\((.*)\)$/)?.[1] ?? '').split(/[ ,]+/).map((x) => parseFloat(x)), [t, r, b, l] = n.length === 1 ? [n[0], n[0], n[0], n[0]] : n.length === 2 ? [n[0], n[1], n[0], n[1]] : n.length === 3 ? [n[0], n[1], n[2], n[1]] : n; return { c, ok: n.length >= 1 && n.every((x) => Number.isFinite(x)) && Math.abs(t - d.top) <= 2 && Math.abs(l - d.left) <= 2 && Math.abs(r - (innerWidth - d.right)) <= 2 && Math.abs(b - (innerHeight - d.bottom)) <= 2 }; });
+        if (!clip.ok) v.states[`journal-${tab}`].bad.push(`the mannequin canvas is not clipped to the dialog: ${clip.c}`);
         if (doll.tints.length !== 6 || new Set(doll.tints).size !== 6) v.states[`journal-${tab}`].bad.push(`paper-doll: ${doll.tints.length} tinted slots (${doll.tints}), want six distinct rungs`);
         if (!['health', 'stamina', 'attack', 'res'].every((id) => doll.rows.includes(id))) v.states[`journal-${tab}`].bad.push(`stat strip rows: ${doll.rows}`);
         // the try-on compare: the stored helmet beside the worn one, the strip's rows under each card, Resistance up

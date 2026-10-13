@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { CATALOGUE } from '../src/fight/catalogue-rows.ts';
 import { LEGEND_FAMILIES, candidatesAt, familyOf, isSpellless, legendText, pickLegend, type LegendFamily } from '../src/fight/legend-families.ts';
 import { loadRegistry, tableFromFile } from '../src/core/registry.ts';
@@ -53,4 +54,19 @@ test('legend families: the legend key is the spell row id without spell: — sam
   }
   assert.equal(withSpell, 48);
   for (const level of [1, 7, 20, 33, 50]) for (const id of LEGEND_OPPONENTS) assert.equal(legendKeyForFight(id, level, 5), candidatesAt(familyOf(id)!, rungOf(level))[0]);
+});
+
+test('the entry chunk does not contain the spell catalogue: no static import path from src/legends.ts (and so the legend families) reaches spells-*.json', () => {
+  const seen = new Set<string>(), bad: string[] = [], stack = [resolve('src/legends.ts')];
+  const edge = /^\s*(?:import|export)\s+(?!type\b)(?:[^'";]*?\sfrom\s+)?['"]([^'"]+)['"]/gm;
+  while (stack.length) {
+    const file = stack.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    if (/spell-legends\.ts$|spells-[a-z-]+\.json$/.test(file)) { bad.push(file); continue; }
+    if (!/\.ts$/.test(file)) continue;
+    for (const m of readFileSync(file, 'utf8').matchAll(edge)) if (m[1]!.startsWith('.')) stack.push(resolve(dirname(file), m[1]!));
+  }
+  assert.ok(seen.size > 10, `the walk reached the page's modules (${seen.size})`);
+  assert.deepEqual(bad, [], 'a static import path reaches the spell catalogue');
 });
