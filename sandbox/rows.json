@@ -5,7 +5,8 @@
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
 "2026-10-13 Dom: flash removed, ring now thin grey and only on parry and guard break; crowd roars about 4x louder.",
 "2026-10-13 Dom: arm wound shows as a temporary on-screen message (option B), about 2.6 seconds.",
-"2026-10-13 Strategy/Dom: ring stays ON as a row (parry, guard break); the existing clash sparks are wired to guard break as the switchable alternative (guardBreak sparks 0.8; parry already sparks on steel). Flip either in the panel."
+"2026-10-13 Strategy/Dom: ring stays ON as a row (parry, guard break); the existing clash sparks are wired to guard break as the switchable alternative (guardBreak sparks 0.8; parry already sparks on steel). Flip either in the panel.",
+"2026-10-13 Dom: ring off (looked basic); the clash sparks on guard break stay. Sandbox working mode: Dom's word beats the process rules; nothing leaves sandbox/page or the preview."
 ],"files":{
 "stance-defs":{"stances":[
 {"id":"aggressive","damage":100,"posture":200,"block":200},
@@ -20,8 +21,8 @@
 {"id":"hitHeavy","order":2,"ms":0,"frames":0,"knock":0.04,"push":0},
 {"id":"blockLight","order":3,"ms":0,"frames":0,"knock":0.02,"push":0},
 {"id":"blockHeavy","order":4,"ms":0,"frames":0,"knock":0.02,"push":0},
-{"id":"parry","order":5,"ms":0,"frames":0,"knock":0,"push":0.07,"ring":1.8,"tint":"#b4b4b4"},
-{"id":"guardBreak","order":6,"ms":0,"frames":0,"knock":0.04,"push":0,"ring":1.4,"tint":"#b4b4b4","sparks":0.8},
+{"id":"parry","order":5,"ms":0,"frames":0,"knock":0,"push":0.07},
+{"id":"guardBreak","order":6,"ms":0,"frames":0,"knock":0.04,"push":0,"sparks":0.8},
 {"id":"special","order":7,"ms":0,"frames":0,"knock":0,"push":0},
 {"id":"postureBreak","order":8,"ms":0,"frames":0,"knock":0,"push":0},
 {"id":"kill","order":9,"ms":0,"frames":0,"knock":0,"push":0},
