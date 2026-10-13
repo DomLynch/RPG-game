@@ -70,3 +70,12 @@ test('vendor economy: every class is a live item category and every zone-tax row
   for (const z of ZONE_TAXES) assert.ok(existsSync(new URL(`../zone-rows/${z.id}.row.json`, import.meta.url)), `${z.id} has no zone row`);
   for (let n = 1; n <= 4; n++) assert.ok(zoneTax(`zone${n}`), `zone${n} has no tax row`);
 });
+
+test('vendor economy: relation typos are refused at load', () => {
+  const edit = (f: (c: Record<string, number>) => void) => { const b = structuredClone(DATA) as { classes: Record<string, number>[] }; f(b.classes[0]!); return b; };
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.sellPct = c.priceFloor!; })), /arbitrage/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.priceCeil = c.priceFloor! - 1; })), /priceCeil/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.restockSeconds = 0; })), /above 0/);
+  assert.throws(() => loadVendorEconomy(edit((c) => { c.salesRecoverySeconds = 0; })), /above 0/);
+  assert.doesNotThrow(() => loadVendorEconomy());
+});

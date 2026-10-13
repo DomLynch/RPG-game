@@ -10,7 +10,24 @@ import MANIFEST from './vendor-economy.manifest.json' with { type: 'json' };
 export type VendorClass = { id: string; stockSlope: number; priceFloor: number; priceCeil: number; sellPct: number; salesSlope: number; salesFloor: number; salesRecoverySeconds: number; restockSeconds: number; stockCap: number };
 export type ZoneTax = { id: string; buyTaxPct: number; sellTaxPct: number };
 
-export const loadVendorEconomy = (data: unknown = DATA) => loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, data, 'vendor-economy.json')));
+// The registry checks types and refs; these are the relations between a row's own numbers (a typo row must not load).
+export function checkVendorRelations(data: { classes: VendorClass[]; zoneTax: ZoneTax[] }): void {
+  const bad: string[] = [];
+  for (const c of data.classes) {
+    if (!(c.sellPct < c.priceFloor)) bad.push(`${c.id}: sellPct ${c.sellPct} must be below priceFloor ${c.priceFloor} (no arbitrage)`);
+    if (!(c.priceFloor <= c.priceCeil)) bad.push(`${c.id}: priceFloor ${c.priceFloor} must not pass priceCeil ${c.priceCeil}`);
+    if (!(c.restockSeconds > 0) || !(c.salesRecoverySeconds > 0)) bad.push(`${c.id}: restockSeconds and salesRecoverySeconds must be above 0`);
+    if (!(c.stockCap >= 1) || !(c.stockSlope >= 0) || !(c.salesSlope >= 0)) bad.push(`${c.id}: stockCap >= 1 and the slopes >= 0`);
+    if (!(c.salesFloor >= 1 && c.salesFloor <= 100)) bad.push(`${c.id}: salesFloor must be 1..100`);
+  }
+  for (const z of data.zoneTax) if (!(z.buyTaxPct >= 0 && z.buyTaxPct < 100 && z.sellTaxPct >= 0 && z.sellTaxPct < 100)) bad.push(`${z.id}: tax percents must be 0..99`);
+  if (bad.length) throw new Error(`vendor-economy relations: ${bad.join('; ')}`);
+}
+export const loadVendorEconomy = (data: unknown = DATA) => {
+  const reg = loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, data, 'vendor-economy.json')));
+  checkVendorRelations(data as { classes: VendorClass[]; zoneTax: ZoneTax[] });
+  return reg;
+};
 loadVendorEconomy();
 export const VENDOR_CLASSES: readonly VendorClass[] = DATA.classes;
 export const ZONE_TAXES: readonly ZoneTax[] = DATA.zoneTax;
