@@ -1,7 +1,9 @@
 // Free-space guard (Lead 2026-10-13, the Mac disk hit 100%): the cut and the release train refuse to start a candidate under 20 GiB free.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 const guard = (min: string, kib: string) => spawnSync('bash', ['scripts/lib/free-space.sh', min], { encoding: 'utf8', env: { ...process.env, FREE_SPACE_KIB: kib } });
@@ -27,4 +29,19 @@ test('the cut and the release train both run the guard, the train before it take
   assert.match(train, /\[ -r scripts\/lib\/free-space\.sh \] && ! space=/);
   assert.ok(train.indexOf('free-space.sh') < train.indexOf('echo "$$" > "$hold"'), 'the train checks before it takes the hold');
   assert.match(train, /not publishing: \$space"; exit 0/, 'a low disk makes the tick wait, it does not stop the train');
+});
+
+test('free-space.sh: the refusal names the biggest candidate trees and tmp dirs, biggest first, and never the claude-501 root', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'free-space-'));
+  try {
+    const tree = join(tmp, 'claude-501', '-proj', 'uuid', 'scratchpad', 'dv'), other = join(tmp, 'bcarch');
+    mkdirSync(tree, { recursive: true }); mkdirSync(other); mkdirSync(join(tmp, 'small'));
+    writeFileSync(join(tree, 'f'), Buffer.alloc(4 * 1024 * 1024)); writeFileSync(join(other, 'f'), Buffer.alloc(2 * 1024 * 1024));
+    const r = spawnSync('bash', ['scripts/lib/free-space.sh', '20'], { encoding: 'utf8', env: { ...process.env, FREE_SPACE_KIB: '1000', FREE_SPACE_TMP: tmp } });
+    assert.equal(r.status, 1);
+    const lines = r.stderr.split('\n').filter(l => l.startsWith('  '));
+    assert.match(lines[0], /scratchpad\/dv$/);
+    assert.match(lines[1], /bcarch$/);
+    assert.ok(!lines.some(l => /claude-501$/.test(l)), 'the root is a parent, not a thing to delete');
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
