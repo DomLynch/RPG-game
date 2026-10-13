@@ -25,6 +25,6 @@ test('a world-sim change without a WORLD_SIM_VERSION bump would refuse every hon
 test('the digest sees a number inside a world function, and a Pit RECORD_VERSION bump', () => {
   const real = sources(), before = simDigest(real);
   assert.equal(simDigest(real), before, 'the digest is stable');
-  assert.notEqual(simDigest({ ...real, 'src/fight/world.ts': real['src/fight/world.ts']!.replace('GIVE_UP_UNSEEN_S', 'GIVE_UP_UNSEEN_S + 1') }), before, 'a change in world.ts moves the digest');
+  assert.notEqual(simDigest({ ...real, 'src/fight/world.ts': real['src/fight/world.ts']!.replace('giveUpOf', 'giveUpOf + 1') }), before, 'a change in world.ts moves the digest');
   assert.notEqual(simDigest({ ...real, 'resolved/pit-record-version.txt': String(RECORD_VERSION + 1) }), before, 'a Pit bump moves the digest');
 });
