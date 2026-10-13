@@ -5,6 +5,7 @@
 // Pure data, no three.js: the texture worker imports the texture half of it.
 import type { OpponentId } from './fight/moves.ts';
 import { LADDER } from './ladder.ts';
+export { WEATHER_ROWS, weatherRow, FLOOR_ROWS, DUST_TONES, type WeatherRow, type FloorRow, type DustToneRow } from './arena-rows.ts';
 
 type RGB = [number, number, number];
 export type SkyLook = { base: RGB; sun: RGB; ground: RGB; sunV?: number };   // sunV: the sun's height on the dome (0.77 = Arena 1's)
@@ -17,7 +18,7 @@ export type Patch = Floor | 'puddle' | 'blood';
 export type TextureLook = { floor: Floor; patch?: Patch; sand: RGB; sandSeed: number; stone: RGB; stoneSeed: number; wall?: WallStyle; sky: SkyLook };
 // Weather: what the one Points cloud does (arena.ts). ash drifts (Arena 1), embers rise and glow, rain falls as streaks, dust hangs
 // low, drips fall from the dark. Count, sprite size (m) and opacity are the cost and the read.
-export type Weather = { kind: 'ash' | 'embers' | 'rain' | 'dust' | 'drips'; color: string; count: number; size: number; opacity: number };
+export type Weather = { kind: string; color: string; count: number; size: number; opacity: number };
 export type ArenaTheme = {
   id: ArenaKey; name: string; textures: TextureLook;
   fog: string; fogDensity: number; hemisphere: [string, string, number]; sun: [string, number]; exposure: number;

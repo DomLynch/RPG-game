@@ -214,7 +214,7 @@ test('the registry obeys the key rule the database column reads (zoneKeyProblems
 
 // The allow-list of what a reported hit may write: the scorecard event and the career's world credit row, loot lines and nothing else. Anything else (an XP pool, a level, a spell, boss gear, a new currency) fails.
 const BATCH_OPS = new Set(['event', 'career_set', 'put', 'mint']);
-const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'cp', 'cpReason', 'paid', 'beta']);
+const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'record', 'cp', 'cpReason', 'paid', 'beta']);
 const CAREER_KEYS = new Set(['op', 'account', 'expected_version', 'world_credit', 'rested', 'rested_at', 'heat', 'story', 'beaten']);
 function guardBatch(batch: Json[]): void {
   for (const o of batch as Record<string, unknown>[]) {

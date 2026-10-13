@@ -145,7 +145,7 @@ export function createGearSheet(d: GearSheetDeps) {
   function enterGear() {
     const v = d.view();
     if (gear || typeof v.gearStage !== 'function') return;
-    try { gear = enterGearRoom(v.gearStage(), d.element('gear-window'), { width: () => d.canvas.clientWidth, height: () => d.canvas.clientHeight }); d.journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
+    try { gear = enterGearRoom(v.gearStage(), d.element('gear-window'), { width: () => d.canvas.clientWidth, height: () => d.canvas.clientHeight, clip: (inset) => { d.canvas.style.clipPath = inset ?? ''; } }); d.journal.dataset.gear = 'live'; document.body.dataset.gear = 'live'; requestAnimationFrame(() => gear?.fit()); }
     catch (error) { gear = undefined; captureException(error, { tags: { gear: 'enter' } }); }
   }
   function leaveGear() {
