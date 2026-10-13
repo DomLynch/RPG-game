@@ -3,8 +3,9 @@
 // career/practice Match takes that from its `sheet` port at EVERY begin(), so a piece swapped since boot counts, the record carries it (v48), and a naked player fights exactly as before.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GEAR_IN_FIGHTS, buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
+import { GEAR_IN_FIGHTS, sheetFor, buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
+import { sheetOf } from '../src/fight/sheet-rows.ts';
 import { GEAR, gearDeltas } from '../src/fight/gear-rows.ts';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
@@ -81,9 +82,16 @@ test('a lesson and sparring never take the sheet: only career and practice fight
   assert.equal(m.sheet, undefined);
 });
 
-test('the build reference: a sheet fight names the stored build it claims (character id + build version) on the record; no sheet, no reference; flagged OFF the page writes today\'s record', async () => {
+test('the build reference: a sheet fight names the stored build it claims (character id + build version) on the record; no sheet, no reference; with no ports the page writes the plain record', async () => {
   setPlayScale(playScaleFor('veteran', RECORD_VERSION)); setLateNotice(true); setStab(true);
-  assert.equal(GEAR_IN_FIGHTS, false, 'shipped OFF until the server expects worn gear (Backend\'s wornGear-into-expectedSheet PR)');
+  assert.equal(GEAR_IN_FIGHTS, true, 'the flip: gear counts in fights now that the sweeps expect the worn set');
+  const rung = (loot: Loot) => (id: LootId) => { const l = loot.taken?.[id]?.tier; return l ? TIERS[l - 1] : undefined; };
+  const saved = { level: 20, placed: { attack: 12, armour: 8 } };
+  assert.equal(sheetFor(plate, undefined), undefined, 'no sheet is recorded until the stored build is known');
+  assert.deepEqual(sheetFor(plate, saved), sheetOf(saved, wornGear(plate.equipped, rung(plate))), 'with the build, the worn set counts on top of the placed points');
+  assert.equal(sheetFor(undefined, { level: 0, placed: {} }), undefined, 'a naked default build has no sheet');
+  assert.equal(sheetFor(plate, { level: 3, placed: { attack: 9 } }), undefined, 'an illegal stored build (9 points at level 3) gives none: the server would refuse it too');
+  assert.deepEqual(Object.keys(sheetFor(plate, { level: 0, placed: {} })!), Object.keys(sheetOfLoot(plate)!), 'version 0 (never saved) is the default build: the page fights on it');
   const ref = { characterId: 'char-42_a', buildVersion: 7 };
   const on = mk(() => sheetOfLoot(plate), () => ref); on.rematch();
   const rec = on.recorder!.finish('abandoned');
@@ -92,11 +100,13 @@ test('the build reference: a sheet fight names the stored build it claims (chara
   const naked = mk(() => sheetOfLoot(undefined), () => ref); naked.rematch();
   const bare = naked.recorder!.finish('abandoned');
   assert.equal(bare.sheet, undefined); assert.equal(bare.characterId, undefined, 'no sheet: no reference (a reference without a sheet is refused)');
-  const off = mk(); off.rematch();   // the flag-off page passes neither port: exactly what ships today
+  const off = mk(); off.rematch();   // a page with neither port (a guest, or a fight begun before the reference resolved): the plain record
   const today = off.recorder!.finish('abandoned');
   assert.equal(today.sheet, undefined); assert.equal(today.characterId, undefined); assert.equal(today.buildVersion, undefined);
   assert.deepEqual(unpackRecord(packRecord(today)), today);
-  const { fetchBuildRef, buildVersionOf } = await import('../src/core/build-ref.ts');
-  assert.equal(buildVersionOf({ version: 3, level: 1 }), 3); assert.equal(buildVersionOf({ version: 0 }), null, 'versions start at 1'); assert.equal(buildVersionOf(null), null);
-  assert.equal(await fetchBuildRef({ storage: null, search: '' }), null, 'a guest has no character: no reference');
+  const { fetchOwnBuild, ownBuildOf } = await import('../src/core/build-ref.ts');
+  assert.deepEqual(ownBuildOf({ level: 20, placed: { attack: 12 }, version: 3, respreadRank: 1 }, 'c1'), { level: 20, placed: { attack: 12 }, ref: { characterId: 'c1', buildVersion: 3 } });
+  assert.deepEqual(ownBuildOf({ level: 0, placed: {}, version: 0 }, 'c1'), { level: 0, placed: {}, ref: null }, 'version 0 is the default build: a real answer, and the record names no reference');
+  for (const bad of [null, {}, { level: 1, placed: [], version: 1 }, { level: 1, placed: { a: 1.5 }, version: 1 }, { level: 1, placed: {}, version: -1 }, { level: 'x', placed: {}, version: 1 }]) assert.equal(ownBuildOf(bad, 'c1'), null, JSON.stringify(bad));
+  assert.equal(await fetchOwnBuild({ storage: null, search: '' }), null, 'a guest has no character: no build, so no sheet');
 });
