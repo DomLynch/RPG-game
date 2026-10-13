@@ -57,7 +57,7 @@ const ROOT = new URL('../../', import.meta.url).pathname;
 const walk = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = join(d, n); return n === 'node_modules' || n === '.git' || n === '.claude' ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
 const files = [...walk(join(ROOT, 'origins')), ...walk(join(ROOT, 'scripts')), ...walk(join(ROOT, 'supabase')), ...walk(join(ROOT, 'src'))].filter((p) => /\.(ts|mjs|sql)$/.test(p)).map((p) => relative(ROOT, p));
 const WRITES = /(origins_skill_xp|origins_skill_practice|practiceLines)/;
-const ALLOWED = new Set(['origins/server/practice.ts', 'origins/server/spell-check.ts', 'origins/server/spell-check.test.ts', 'origins/server/practice.test.ts', 'origins/server/encounter.ts', 'origins/server/encounter-fixtures.ts', 'supabase/migrations/202610130026_skill_practice.sql', 'supabase/down/202610130026_skill_practice_down.sql', 'scripts/awards-database-check.mjs', 'scripts/origins-encounter-check.mjs']);
+const ALLOWED = new Set(['origins/server/practice.ts', 'origins/server/spell-check.ts', 'origins/server/spell-gate.ts', 'origins/server/spell-check.test.ts', 'origins/server/practice.test.ts', 'origins/server/encounter.ts', 'origins/server/encounter-fixtures.ts', 'supabase/migrations/202610130026_skill_practice.sql', 'supabase/down/202610130026_skill_practice_down.sql', 'scripts/awards-database-check.mjs', 'scripts/origins-encounter-check.mjs']);
 
 test('guard: nothing but the verified encounter settle writes the practice pool (kill_report and every sweep stay out)', () => {
   const touching = files.filter((p) => WRITES.test(readFileSync(join(ROOT, p), 'utf8')));
