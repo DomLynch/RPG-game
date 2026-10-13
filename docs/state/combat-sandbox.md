@@ -15,6 +15,11 @@ READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-
 - impact: trunk's hit-impact.ts tiers (tests/hit-impact.test.ts) are the hit-stop frames + camera knock; Combat: "MISSING: a screen flash, a ground shockwave ring ... add the flash/ring/clang as columns of hit-stop-defs.json after #2515, do not fork a second tier table". sandbox-mech impact reads hit-impact.ts impactTier and adds optional columns to #2515's hit-stop-defs.json rows (cherry-picked under it).
 - crowd: Combat: "No roar-on-big-hit or on-kill trigger found"; sandbox-mech crowd extends src/audio/arena.ts's own play() and cues.
 
+## KNOWN RED (expected on this branch, not a defect)
+- tests/record-version-guard.test.ts "a sim change without a RECORD_VERSION bump": the wounds mech edits src/fight/duel.ts and stance.ts (sim files), so the source digest moves while RECORD_VERSION stays 54. Strategy's ruling: the sandbox fingerprint may differ from trunk; Combat bumps RECORD_VERSION at promotion and re-pins (digest on 2026-10-13 at 8e884ba95: c3e54daa45d4b35f297a9c2b2d284635730e2e1ed36ea8ef7b93bf0d32a82133, PINNED_FOR_VERSION 55).
+- Evidence the behaviour is unchanged with rows off: tests/rng-fingerprint.test.ts passed on the VPS with the wounds code in place (5/5 with the crowd test, 2026-10-13); the other 285 of 286 targeted tests pass.
+- Do NOT bump RECORD_VERSION on sandbox/page: it would force a fingerprint-fixture regeneration here and conflict with Combat's promotion PR.
+
 ## LIVE
 - https://frankendom.com/preview/sandbox/ — published 2026-10-13 from branch `sandbox/page` on trunk 501f5f0c3 (release-DU).
 - Worktree: ~/Developer/frankendom-sandbox (node_modules is a symlink to the Desktop checkout's; never commit it).
