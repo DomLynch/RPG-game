@@ -15,6 +15,27 @@ MIN_AGE_H=${MIN_AGE_H:-48}
 EXCLUDE=${EXCLUDE:-"bn-trunk combat-t4 gambit expansion"}
 APPLY=0; FORCE=0
 PATHS=""
+# What --path may remove (Lead 2026-10-13). Prints the kind of an allowed path, nothing for a refused one:
+#   lane   scratch under the lane roots: archive first, then delete (the original rule)
+#   aged   a direct child of /var/tmp (be-*: the per-head backend/PG checkout, ~1.1 GB each, leaked ~16 an hour) or /tmp (hooks-*): regenerable, deleted only
+#          once nothing inside changed for AGED_MIN minutes
+#   home   the six retired VPS lane homes (0 unpushed commits, only an untracked node_modules): archive first, then delete
+#   tmp    two exact one-off /tmp dirs (a regenerable compile cache, an old Lead env): deleted
+# Anything else is refused: this list is the only place a root is added, and it needs a ruling by Lead.
+AGED_MIN=${AGED_MIN:-120}
+sweep_kind() {
+  local p=$1
+  case "$p" in *..*|*" "*) return 0;; esac
+  case "$p" in
+    /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) echo lane;;
+    /var/tmp/be-*) [ "$(dirname "$p")" = /var/tmp ] && echo aged;;
+    /tmp/hooks-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;
+    /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
+    /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
+  esac
+  return 0
+}
+[ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) PATHS="$PATHS ${a#--path=}"; FORCE=1;; esac; done
 LOGDIR=/var/log/vps-scratch-sweep; mkdir -p "$LOGDIR"
 RUN=$(date +%Y%m%d-%H%M); MAN=$LOGDIR/$RUN.removed.txt; LOG=$LOGDIR/$RUN.log
@@ -57,13 +78,17 @@ delete_only(){
 # Named-path mode (Lead 2026-10-13): --path=/abs/dir removes exactly that dir, through the same archive-first, manifest-writing route; nothing else is touched. Dry run unless --apply.
 if [ -n "$PATHS" ]; then
   for p in $PATHS; do
-    case "$p" in /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) ;; *) say "REFUSE(outside the allowed roots) $p"; continue;; esac
     case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
+    kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots) $p"; continue; }
     [ -d "$p" ] && [ ! -L "$p" ] || { say "REFUSE(not a real dir) $p"; continue; }
     case " $EXCLUDE " in *" $(basename "$p") "*) say "REFUSE(never-touch list) $p"; continue;; esac
     if echo "$LINKED" | grep -qx "$p" || echo "$LINKED" | grep -q "^$p/"; then say "REFUSE(a symlink points into it) $p"; continue; fi
     if echo "$INUSE" | grep -qx "$p" || echo "$INUSE" | grep -q "^$p/"; then say "REFUSE(in use) $p"; continue; fi
-    archive_then_delete "$p" named
+    if [ "$kind" != lane ]; then   # outside the lane roots the INUSE scan above does not look: a process with its cwd inside, or an open file, is in use
+      if for q in /proc/[0-9]*; do readlink "$q/cwd" 2>/dev/null; done | grep -qE "^$p(/|$)" || timeout 120 lsof +D "$p" >/dev/null 2>&1; then say "REFUSE(in use: a process has its cwd or a file open inside) $p"; continue; fi
+    fi
+    if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
+    case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$p" named;; esac
   done
   say "named-path mode done"; exit 0
 fi
