@@ -13,6 +13,23 @@
         "restedPerDayCp": "integer",
         "restedCapCp": "integer"
       }
+    },
+    {
+      "table": "typeWeight",
+      "file": "career-rules.json",
+      "at": "typeWeight",
+      "key": "id",
+      "required": {
+        "weight": "integer",
+        "once": "boolean",
+        "rested": "boolean",
+        "party": "string"
+      },
+      "optional": {
+        "atOwn": "boolean",
+        "earlyBelow": "integer",
+        "earlyWeight": "integer"
+      }
     }
   ]
 }

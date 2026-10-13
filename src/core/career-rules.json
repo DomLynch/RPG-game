@@ -1,5 +1,75 @@
 {
   "careerRule": [
-    { "id": "career", "maxParty": 4, "minContributionPermille": 100, "heatUnitSeconds": 360, "freeRepeats": 3, "restedPerDayCp": 1500, "restedCapCp": 3000 }
+    {
+      "id": "career",
+      "maxParty": 4,
+      "minContributionPermille": 100,
+      "heatUnitSeconds": 360,
+      "freeRepeats": 3,
+      "restedPerDayCp": 1500,
+      "restedCapCp": 3000
+    }
+  ],
+  "typeWeight": [
+    {
+      "id": "legend",
+      "weight": 100,
+      "once": true,
+      "rested": false,
+      "party": "solo",
+      "earlyBelow": 11,
+      "earlyWeight": 200
+    },
+    {
+      "id": "world-boss",
+      "weight": 500,
+      "once": true,
+      "rested": false,
+      "party": "each"
+    },
+    {
+      "id": "rift-boss",
+      "weight": 150,
+      "once": false,
+      "rested": true,
+      "party": "each"
+    },
+    {
+      "id": "named",
+      "weight": 200,
+      "once": false,
+      "rested": true,
+      "party": "split"
+    },
+    {
+      "id": "elite",
+      "weight": 80,
+      "once": false,
+      "rested": true,
+      "party": "split"
+    },
+    {
+      "id": "mob",
+      "weight": 20,
+      "once": false,
+      "rested": true,
+      "party": "split"
+    },
+    {
+      "id": "story-step",
+      "weight": 100,
+      "once": true,
+      "rested": false,
+      "party": "solo",
+      "atOwn": true
+    },
+    {
+      "id": "story-chapter",
+      "weight": 500,
+      "once": true,
+      "rested": false,
+      "party": "solo",
+      "atOwn": true
+    }
   ]
 }
