@@ -10,6 +10,7 @@ import SWARM from '../src/fight/swarm-defs.json' with { type: 'json' };
 import BOSSES from '../src/fight/bosses.json' with { type: 'json' };
 import SAVED from './rows.json' with { type: 'json' };
 
+declare const __SANDBOX_INFO__: string;
 type Rows = Record<string, unknown[]>;
 type Overrides = { notes?: string[]; files?: Record<string, Rows> };
 // Panel order = the brief's order. bosses.json is a bare array; it is edited as one family named "bosses".
@@ -93,7 +94,8 @@ function panel(opponents: string[]) {
   const changedCount = Object.values(current.files ?? {}).reduce((n, f) => n + Object.keys(f).length, 0);
   box.append(el('div', { textContent: `Opponent (boss row from the catalogue):` }), opp,
     el('div', { textContent: `${changedCount} row famil${changedCount === 1 ? 'y' : 'ies'} changed from live. One row per line; edit, then Apply.`, style: 'margin-top:8px' }),
-    note, apply, reset, save, status, ...sections);
+    note, apply, reset, save, status, ...sections,
+    el('div', { textContent: __SANDBOX_INFO__, style: 'margin-top:16px;color:#888;font-size:11px' }));
   document.body.append(tab, box);
 }
 
