@@ -2,6 +2,12 @@
 
 READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-13). Questions go to Project Strategy, not Dom.
 
+## HANDOFF (2026-10-13, end of session; read this first)
+**Now:** branch sandbox/page on trunk 4891c6c38 (release EB) plus later work, preview https://frankendom.com/preview/sandbox/. Publish with `sandbox/publish.sh`; run tests on the VPS with `sandbox/vps-run.sh` then `capture --prio 3 sandbox node --test <files>` (never on the Mac). Dom's word beats the process rules; guardrails: only sandbox/page and /preview/sandbox/, nothing to trunk or live, Combat promotes.
+**Done today (all tests pass on the VPS):** stances 2x; flash off / ring row (off) / clash sparks on guard break; crowd roars; arm wound with on-screen notice and a stamina-ceiling cost; dodge counter (sandbox-rules-defs.json dodgeCounter 20); many-on-one rows 1.0/0.5/0.3/0.3 plus engine hook (duel.roll.attacker); interrupt lockout (interruptEarly 1000); armour classes as rows (leathers/mail/plate with a stamina cost, one blended value, no hit locations); boss phase rows (boss-phase-defs.json: enrage at 50%, share x1.5, cooldown 30%, message); donor research summary in docs/state/combat-research-2026-10-13.md.
+**Open:** (1) last commit batch (boss phases, sim list entries in eslint.config.js SIM_DATA, tests/detmath, tests/record-version-guard SIM_FILES) must be pushed and republished; the full unit-ci was red only on sim-boundary lists (fixed) and record-version-guard. (2) record-version-guard stays red by Strategy's ruling; Combat bumps at promotion. (3) Not built: battle-fatigue meter, hit pushback on casts, breath cone, rampage, boss phase colour (Dom: no colour changes), hit locations (Dom: no). (4) Characters lane owns the Headsman idle stoop. (5) Dom still to rule: ring on/off (currently off).
+**Gotchas:** Fight button sometimes does not register in the pane (use find + click ref). Strategy sessions: Project Strategy - Fable 5.1; Lead Dev [dc5642]. New sim files must be added to eslint.config.js SIM / SIM_DATA, tests/detmath.test.ts and tests/record-version-guard.test.ts SIM_FILES. Pane screenshots, not canvas grabs, show the live view.
+
 ## WORKING MODE (Dom, 2026-10-13): "forget the rules, this is a sandbox, I want to innovate and iterate." Dom's word beats the process rules below (template-plus-rows, max 5 mechs, reuse-first gates). Still true: everything stays on sandbox/page and the /preview/sandbox/ page; nothing goes to trunk or the live game.
 
 ## RULING (Strategy 2026-10-13, replaces brief rule 1)

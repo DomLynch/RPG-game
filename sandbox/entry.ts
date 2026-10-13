@@ -11,6 +11,7 @@ import BOSSES from '../src/fight/bosses.json' with { type: 'json' };
 import HIT_STOP from '../src/fight/hit-stop-defs.json' with { type: 'json' };
 import CROWD from '../src/audio/crowd-defs.json' with { type: 'json' };
 import RULES from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+import PHASES from '../src/fight/boss-phase-defs.json' with { type: 'json' };
 import SAVED from './rows.json' with { type: 'json' };
 
 declare const __SANDBOX_INFO__: string;
@@ -18,7 +19,7 @@ type Rows = Record<string, unknown[]>;
 type Overrides = { notes?: string[]; files?: Record<string, Rows> };
 // Panel order = the brief's order. bosses.json is a bare array; it is edited as one family named "bosses".
 const FILES: Record<string, Record<string, unknown>> = {
-  'sheet-defs': SHEET, 'stance-defs': STANCE, 'hit-stop-defs': HIT_STOP, 'crowd-defs': CROWD, 'sandbox-rules-defs': RULES, 'gear-defs': GEAR, 'damage-kind-defs': KINDS, 'cc-defs': CC, 'swarm-defs': SWARM,
+  'sheet-defs': SHEET, 'stance-defs': STANCE, 'hit-stop-defs': HIT_STOP, 'crowd-defs': CROWD, 'sandbox-rules-defs': RULES, 'boss-phase-defs': PHASES, 'gear-defs': GEAR, 'damage-kind-defs': KINDS, 'cc-defs': CC, 'swarm-defs': SWARM,
   bosses: { bosses: BOSSES } as Record<string, unknown>,
 };
 const KEY = 'frankendom.sandbox.rows';
