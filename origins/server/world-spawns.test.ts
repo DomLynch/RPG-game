@@ -242,6 +242,6 @@ test('guard (Strategy 2026-10-13): kill_report grants no XP-pool credit, level o
   const server = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
   for (const f of server) {
     const src = readFileSync(new URL(f, import.meta.url), 'utf8');
-    if (TAKES_SPELL.test(src)) assert.match(f, /^encounter(-verify)?\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path)`);
+    if (TAKES_SPELL.test(src)) assert.match(f, /^(encounter(-verify|-fixtures)?|spell-check|spell-gate)\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path; spell-check only READS the ledger)`);
   }
 });

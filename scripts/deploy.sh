@@ -15,6 +15,7 @@ source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
 source scripts/lib/deploy-notes-only.sh
+source scripts/lib/post-publish.sh   # post_publish_rows: the POST_PUBLISH rows (row-placement.mjs) run right after Published
 source scripts/lib/writer-parity.sh   # writer_parity_gaps: the writer on the box must match the closure before the site moves
 source scripts/lib/node-pin.sh   # use_pinned_node: a unit suite on the Mac runs under NODE_PIN or not at all
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
@@ -59,7 +60,10 @@ cpu_out=$(prelaunched_cpu "$revision" || node scripts/vps-shadow/launch.mjs cpu 
 if [[ "$cpu_out" == *";"* ]]; then hf_cpu_rows="${cpu_out#*;}"; DEPLOY_HF_ROWS_JOBS="${DEPLOY_HF_ROWS_JOBS:+$DEPLOY_HF_ROWS_JOBS,}${cpu_out%%;*}"; fi
 vps_cpu_rows=$(sed -n 2p "${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.rowsvps.running" 2>/dev/null || true)   # rows the VPS run is carrying (launch.mjs cpu writes them on line 2)
 [[ -n "$vps_cpu_rows" ]] || vps_cpu_rows=$(node -e 'try{const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));if(r.kind==="vps-rows-live")console.log(r.rows.map(x=>x.n).join(","))}catch{}' "${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.rowsvps" 2>/dev/null || true)   # or the finished receipt's rows
-node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows" "$vps_cpu_rows"
+# Rows that run AFTER Published (row-placement.mjs POST_PUBLISH; DEPLOY_POST_PUBLISH=off runs them before it, as it used to).
+post_publish=""
+[[ "${DEPLOY_POST_PUBLISH:-on}" == off ]] || post_publish=$(node --input-type=module -e 'import { POST_PUBLISH_ROWS } from "./scripts/lib/row-placement.mjs"; console.log(POST_PUBLISH_ROWS.join(","))')
+node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows" "$vps_cpu_rows" "$post_publish"
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
 deploy_step "merged-on-trunk"
 node scripts/merged-on-trunk.mjs
@@ -172,7 +176,7 @@ if [[ -n "$mac_early" ]]; then trusted_checks="${trusted_checks:+$trusted_checks
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 out_of_scope=""
 deploy_scope_apply
-RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
 deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
@@ -217,7 +221,7 @@ writer_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-origins/
 # the install script's own --rollback would stop the writer altogether).
 writer_back() {
   [[ -n "$writer_prev" ]] || return 0
-  ssh "${ssh_options[@]}" "$host" "[ \"\$(readlink /opt/frankendom-origins/current)\" = '$writer_prev' ] || { ln -sfn '$writer_prev' /opt/frankendom-origins/current && systemctl restart frankendom-origins-writer && echo 'writer put back on $writer_prev'; }" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
+  ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$writer_prev" "$release")" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
 }
 writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
 printf '%s\n' "$writer_install"
@@ -328,7 +332,11 @@ else
   echo "prune off (DEPLOY_PRUNE_KEEP=$prune_keep)"
 fi
 deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
+# The deferred rows run now, against the release that is live; a failure is raised after the previews check below (exit 1: the train stops and keeps its hold).
+post_rc=0
+post_publish_rows "$revision" "$post_publish" || post_rc=1
 if [[ "$previews_ok" != 1 ]]; then
   echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1
 fi
+[[ "$post_rc" == 0 ]] || exit 1   # a post-publish row failed: RED line above, deploy_hold set

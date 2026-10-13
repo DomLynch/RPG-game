@@ -4,7 +4,7 @@
 // refusal (scripts/lib/train-layout.sh), the setup (scripts/release-train-setup.sh) and the publisher's dry run.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -31,8 +31,11 @@ test('train_checkout_ok refuses a worktree whose gitdir is under ~/Desktop (or ~
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 
-test('release-train-setup.sh: no checkout -> a standalone clone of origin, detached on trunk, with the .env*.local files; a Desktop worktree is refused and left untouched', () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'tcc-setup-')));   // macOS: /var -> /private/var, and git writes the resolved gitdir
+// Twice: HOME as a real path, and HOME through a symlink, as on the Mac, where tmpdir() is /var/folders/... -> /private/var/folders/... and git writes a
+// worktree's gitdir resolved, so a plain "$HOME/Desktop/" prefix never matched it and the Desktop worktree passed (the Mac-only red, Lead 2026-10-13).
+for (const linked of [false, true]) test(`release-train-setup.sh${linked ? ' (HOME through a symlink, as on the Mac)' : ''}: no checkout -> a standalone clone of origin, detached on trunk, with the .env*.local files; a Desktop worktree is refused and left untouched`, () => {
+  const real = mkdtempSync(join(tmpdir(), 'tcc-setup-')), home = linked ? join(real, 'alias') : real;
+  if (linked) { mkdirSync(join(real, 'home')); symlinkSync(join(real, 'home'), home); }
   try {
     const g = (...a: string[]) => execFileSync('git', a, { encoding: 'utf8' }).trim();
     const origin = join(home, 'origin.git'), src = join(home, 'Desktop', 'Business', 'frankendom');
@@ -60,5 +63,5 @@ test('release-train-setup.sh: no checkout -> a standalone clone of origin, detac
     const slot = join(home, 'Developer', 'frankendom-train-deploy'); g('-C', src, 'worktree', 'add', '-q', '--detach', slot);
     const badSlot = setup();
     assert.equal(badSlot.status, 1); assert.match(badSlot.stdout + badSlot.stderr, /frankendom-train-deploy: a worktree of a repo under ~\/Desktop/);
-  } finally { rmSync(home, { recursive: true, force: true }); }
+  } finally { rmSync(real, { recursive: true, force: true }); }
 });

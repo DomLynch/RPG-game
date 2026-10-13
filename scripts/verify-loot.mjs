@@ -40,6 +40,7 @@ import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
+import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 import { gunzipSync } from 'node:zlib';
 import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
@@ -101,6 +102,9 @@ export async function duplicate(db, row) {
   return null;
 }
 
+// No spell loader (a caller that gave none): nothing can vouch for a spell block, so spellRefusal refuses any record that casts.
+const NO_SPELLS = { held: async () => ({ grimoire: {}, xp: {} }), build: async () => null };
+
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
 export async function verifyClaims(db, { dry = false, recheck = false, heldMax = HELD_MAX_VERSION } = {}) {
   const rows = await db.pending(LIMIT, recheck);
@@ -120,7 +124,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
     if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
     const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
-    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax, build: db.build ? (character, version) => db.build(row.user_id, character, version) : undefined }));   // a duplicate is never replayed, so never HELD
+    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax, build: db.build ? (character, version) => db.build(row.user_id, character, version) : undefined, spellLoad: db.spellHeld ? { held: (account, character) => db.spellHeld(account, character), build: (account, character, version) => db.build(account, character, version) } : undefined }));   // a duplicate is never replayed, so never HELD
     if (reason) {
       receipt.refused.push({ id: row.id, reason });
       const held = /^HELD v(\d+):/.exec(reason);
@@ -145,7 +149,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
  * @param {any} standing
  * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null> }} [options] build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
  */
-export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build } = {}) {
+export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS } = {}) {
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
@@ -157,6 +161,8 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
     const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null), worn);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
     if (!want.ok) return want.reason;
+    const spell = await spellRefusal(record, row.user_id, spellLoad);   // v53: the spell block is the client's claim too (origins/server/spell-gate.ts); no loader = nothing vouches, a spell record is refused
+    if (spell) return spell;
     const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
     // Only a replay that stepped and then diverged can pass a browser hand-check; an unknown opponent or a record this build cannot
     // step (practice null) is a plain refusal whatever its version.
@@ -252,6 +258,8 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
       const row = JSON.parse(out);
       return row === null ? null : { level: row.level, placed: row.placed };
     },
+    // What a v53 record's spell block is checked against (origins/server/spell-gate.ts holds the read-only query).
+    spellHeld: async (userId, characterId) => (/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) ? JSON.parse(sql(heldSql(userId, characterId))) : { grimoire: {}, xp: {} }),
     standing: async (userId, claim) => { const [marks, owned] = sql(`select marks || '|' || owned::text from public.standing_of('${uuid(userId)}', ${id(claim)})`).split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; },
     unhashed: async limit => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select * from (select 'share' as kind, id, record from public.fight_records where fight_hash is null order by created_at, id limit ${Number(limit)}) s union all select * from (select 'claim', id::text, record from public.loot_claims where fight_hash is null order by id limit ${Number(limit)}) c limit ${Number(limit)}) r`)),
     hash: async (kind, key, fight) => {

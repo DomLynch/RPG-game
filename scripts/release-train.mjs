@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { TRUNK, mergeAll, passAt, pushWithRetry } from './cut-release.mjs';
+import { RECEIPT_WORKFLOWS, receiptState } from './lib/receipt-rule.mjs';
 
 export const GO = 'release:go';
 export const CANDIDATE_LABELS = ['ci:release-checks', 'auditor:ready'];
@@ -111,8 +112,9 @@ export const newestCandidate = cands => [...cands].sort((a, b) => String(b.creat
 export const trainName = (d = new Date(), runId = process.env.GITHUB_RUN_ID || String(process.pid)) => `T${d.toISOString().slice(5, 19).replace(/[-T:]/g, '')}r${String(runId).replace(/\D/g, '')}`;
 
 /** The rows a candidate must carry, present and SUCCESS (a rollup that simply lacks them is not green: a failed dispatch left no unit-ci, Lead on #2336). */
-export const REQUIRED_ROWS = [['unit-ci', 'receipt'], ['quality', 'quality'], ['release-checks', 'summary']];
-export const missingRows = rollup => REQUIRED_ROWS.filter(([wf, name]) => !(rollup || []).some(c => c.workflowName === wf && c.name === name && c.status === 'COMPLETED' && c.conclusion === 'SUCCESS')).map(r => r.join('/'));
+export const REQUIRED_ROWS = RECEIPT_WORKFLOWS;
+/** Every verdict job that is not green, wait and red alike (scripts/lib/receipt-rule.mjs: the one rule; the latest attempt that carries a verdict decides). */
+export const missingRows = rollup => { const green = new Set(receiptState(rollup).green); return REQUIRED_ROWS.map(r => r.join('/')).filter(k => !green.has(k)); };
 
 /** The publisher's pick (Strategy's gate, 2026-10-12): an open candidate (head release-*, base trunk) with the candidate:pass label AND an Auditor's (or Lead's)
  * "PASS @<sha9>" comment naming its CURRENT head, every check green and the REQUIRED_ROWS present and green; OLDEST first (forward-only publish). Either
