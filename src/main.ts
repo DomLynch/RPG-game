@@ -791,7 +791,7 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
   const prompted = (level: number): boolean => { try { return sessionStorage.getItem('frankendom.build.prompted') === String(level); } catch { return false; } };
   const markPrompted = (level: number) => { try { sessionStorage.setItem('frankendom.build.prompted', String(level)); } catch { /* the prompt may show again: harmless */ } };
   element('build-open').addEventListener('click', () => { journal.close(); void build.open(); });
-  element('build-dot').parentElement!.addEventListener('click', () => { void build.poll(); });
+  element('journal-button').addEventListener('click', () => { void build.poll(); });   // the dot sits on the journal button: opening the journal re-reads the build
   void build.poll().then((open) => { const v = buildServer.view(); if (open > 0 && v && !prompted(v.level)) { markPrompted(v.level); void build.open(); } });   // the moment: once per level, when the page loads with a point to place
 }
 element('journal-button').addEventListener('click', openJournal);
