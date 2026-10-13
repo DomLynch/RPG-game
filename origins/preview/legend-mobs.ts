@@ -12,7 +12,7 @@ export const legendSpecs = (f: Frontier, spawns: readonly LegendSpawn[] = LEGEND
   for (const s of spawns) {
     const boss = legendBoss(s.legend), zone = f.zones.find((z) => z.zone === s.zone && Object.hasOwn(z.landmarks, s.at));
     if (!boss || !zone) continue;   // another zone's legend, or a landmark this build lacks
-    out.push({ id: `${prefix}legend-${s.id}`, character: `legend:${boss.legend}`, name: boss.name, encounter: null, body: boss.enemy, level: boss.level, zone: zone.zone, spawn: 'legend', home: { ...zone.landmarks[s.at]! }, roam: 0, aggro: 1, named: true, legend: boss.legend });
+    out.push({ id: `${prefix}legend-${s.id}`, character: `legend:${boss.legend}`, name: boss.name, encounter: null, body: boss.enemy, level: boss.level, zone: zone.zone, spawn: 'legend', home: { ...zone.landmarks[s.at]!, x: zone.landmarks[s.at]!.x + (s.dx ?? 0), z: zone.landmarks[s.at]!.z + (s.dz ?? 0) }, roam: 0, aggro: 1, named: true, legend: boss.legend });
   }
   return out;
 };

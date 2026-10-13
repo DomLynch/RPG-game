@@ -28,7 +28,7 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import SPAWNS from './legend-spawns.json' with { type: 'json' };
 import MANIFEST from './legend-spawns.manifest.json' with { type: 'json' };
 
-export type LegendSpawn = { readonly id: string; readonly order: number; readonly legend: string; readonly zone: string; readonly at: string };
+export type LegendSpawn = { readonly id: string; readonly order: number; readonly legend: string; readonly zone: string; readonly at: string; readonly dx?: number; readonly dz?: number };   // dx/dz: metres off the landmark (a landmark may sit on a prop; the legend stands beside it)
 export type LegendSpawnKnown = { zones: ReadonlySet<string>; landmarks(zone: string): ReadonlySet<string> };
 /** The one loader: the registry's duplicate/missing/mistyped checks, then the cross-rules (a real legend boss, a real zone, a landmark that zone has). */
 export function loadLegendSpawns(raw: { spawns?: unknown }, known: LegendSpawnKnown): readonly LegendSpawn[] {

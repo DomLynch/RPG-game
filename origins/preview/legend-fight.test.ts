@@ -22,6 +22,8 @@ test('a placed legend is a named page-side creature of its family\'s body and le
   const ids = new Set(mobSpecs(F1, frontierBuild(F1)).map((s) => s.id));
   for (const s of specs) { assert.equal(ids.has(s.id), false, `${s.id}: mobSpecs (and so the server's spawn list and every creature test) never carries a legend`); assert.match(s.id, /^legend-/); }
   assert.deepEqual(legendSpecs(F1, []), [], 'no placement rows, no legend');
+  const lm = F2.zones.find((z) => z.zone === 'ash-reach')!.landmarks['reach-cairn']!, shipton = legendSpecs(F2)[0]!;
+  assert.deepEqual([shipton.home.x - lm.x, shipton.home.z - lm.z], [LEGEND_SPAWNS[2]!.dx, LEGEND_SPAWNS[2]!.dz], 'a placement may stand beside its landmark (dx/dz), off the prop the landmark sits on');
   assert.equal(LEGEND_SPAWNS.length, 3);
 });
 
