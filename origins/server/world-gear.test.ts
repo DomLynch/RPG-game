@@ -94,11 +94,11 @@ test('end to end: a geared, built character fights with the page\'s sheet and ve
   const rows = held.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: h.location.slot }));
   const db: Db = { async run(sql) { return sql.includes('origins_get_build') ? JSON.stringify({ ...own, respreadRank: 1, version: 1 }) : JSON.stringify({ marks: 0, career: {}, characters: [], items: rows, quests: [], journal: [], talk: [] }); } };
   const A = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', limit = await heroLimitOf(db, A, PC);
-  const geared = await killWith(loadoutOfLoot({ equipped, taken } as never), pageSheet);
+  const geared = await killWith(pageSheet);
   const ok = await verifyWorldRecord(geared.text, wolf, 'wolf', limit);
   assert.ok(ok.ok, `the page's sheet is the server's: ${JSON.stringify(ok)}`);
-  const naked = await killWith(NAKED);
+  const naked = await killWith();
   assert.deepEqual(await verifyWorldRecord(naked.text, wolf, 'wolf', limit), { ok: false, reason: 'sheet' }, 'a sheetless record from a geared character is refused');
-  const inflated = await killWith(NAKED, { ...pageSheet, attack: 100 });
+  const inflated = await killWith({ ...pageSheet, attack: 100 });
   assert.deepEqual(await verifyWorldRecord(inflated.text, wolf, 'wolf', limit), { ok: false, reason: 'sheet' });
 });
