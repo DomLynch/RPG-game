@@ -16,7 +16,8 @@ export const STANCE_KEYS = ['damage', 'heavyDamage', 'posture', 'kickPosture', '
 export type StanceKey = (typeof STANCE_KEYS)[number];
 type Deltas = Readonly<Partial<Record<StanceKey, number>>>;
 const TABLE = tableFromFile(STANCE_MANIFEST.tables[0] as Manifest, STANCE_DEFS, 'stance-defs.json');
-loadRegistry([TABLE]);
+const WOUND_TABLE = tableFromFile(STANCE_MANIFEST.tables[1] as Manifest, STANCE_DEFS, 'stance-defs.json');
+loadRegistry([TABLE, WOUND_TABLE]);
 export function stanceRows(rows: readonly Record<string, unknown>[]): Readonly<Record<StanceId, Deltas>> {
   const out: Record<string, Record<string, number>> = {};
   for (const { id, ...deltas } of rows) {
@@ -32,7 +33,21 @@ export const STANCES: Readonly<Record<StanceId, Deltas>> = stanceRows(TABLE.rows
 // The Defensive stance BEFORE v52 (stance-era.ts): the same deltas plus a parry window and a guard-counter window a quarter longer. Read only while a record below 52 replays.
 const LEGACY_DEFENSIVE: Readonly<Partial<Record<StanceId, Readonly<Partial<Record<StanceKey | 'window' | 'counter', number>>>>>> = { defensive: { damage: -50, block: -150, recover: 250, window: 250, counter: 250 } };
 const rowOf = (f: { stance?: StanceId }): Readonly<Partial<Record<StanceKey | 'window' | 'counter', number>>> | undefined => (f.stance ? (STANCE_ROWS_ON ? undefined : LEGACY_DEFENSIVE[f.stance]) ?? STANCES[f.stance] : undefined);
-export const stanced = (f: { stance?: StanceId }, key: StanceKey | 'window' | 'counter', x: number): number => { const d = rowOf(f)?.[key]; return d ? (x * (1000 + d)) / 1000 : x; };
+// Wounds that matter (sandbox-mech: wounds): a wound row (stance-defs.json `wounds`) is { id, site, ...the same per-mille quantities as a stance }. The first blade wound
+// at `site` scars the defender with that id for the rest of the duel (duel.ts `wound`), and every stanced() read below carries the scar's delta on top of the stance.
+// No rows = no scar is ever set (the fighter has no `scars` field, so the duel hash is byte-identical) and stanced() is unchanged.
+const SITES = ['head', 'torso', 'legs'];
+const WOUNDS: Readonly<Record<string, Deltas & { site: string }>> = Object.fromEntries((WOUND_TABLE.rows as unknown as Record<string, unknown>[]).map(({ id, site, ...deltas }) => {
+  if (typeof site !== 'string' || !SITES.includes(site)) throw Error(`stance-defs wound "${String(id)}": site is one of ${SITES.join(', ')}`);
+  return [id as string, { ...stanceRows([{ id, ...deltas }])[id as StanceId], site }];
+}));
+export const woundsAt = (site: string): string[] => Object.keys(WOUNDS).filter((id) => WOUNDS[id]!.site === site);
+type Scarred = { stance?: StanceId; scars?: readonly string[] };
+export const stanced = (f: Scarred, key: StanceKey | 'window' | 'counter', x: number): number => {
+  const d = rowOf(f)?.[key]; let y = d ? (x * (1000 + d)) / 1000 : x;
+  if (f.scars) for (const id of f.scars) { const w = WOUNDS[id]?.[key as StanceKey]; if (w) y = (y * (1000 + w)) / 1000; }
+  return y;
+};
 // The AI's mood: drawn from the fight seed (a replay re-sims it exactly), 50% its home stance and 50% one of the other three picks. Home stances are the ruling's; every other opponent's home is Neutral.
 const HOME: Readonly<Record<string, StanceId>> = { executioner: 'aggressive', shieldmaiden: 'defensive', goblin: 'trickster' };
 export const homePick = (opponent: string): PickedStance => HOME[opponent] ?? 'neutral';
