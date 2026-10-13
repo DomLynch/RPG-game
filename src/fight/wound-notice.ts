@@ -1,5 +1,6 @@
 import type { Fighter } from './duel.ts';
 import { woundText } from './stance.ts';
+import { phaseText } from './sandbox-rules.ts';
 
 // sandbox-mech: wounds, the notice. Dom 2026-10-13 (option B of the wound mockups): the moment a wound row scars a fighter, a message sits on screen for a
 // few seconds ("ARM WOUNDED" and what it costs), then fades; nothing stays after. Text comes from the wound row's optional `label` / `note` columns; a row
@@ -12,7 +13,7 @@ export const gained = (seen: number, scars: readonly string[] | undefined): { id
 };
 
 export function createWoundNotice(parent: HTMLElement = document.body) {
-  const seen = [0, 0];
+  const seen = [0, 0], seenPhase = [0, 0];
   let box: HTMLDivElement | undefined, left = 0;
   const show = (own: boolean, label: string, note: string) => {
     if (!box) {
@@ -24,10 +25,12 @@ export function createWoundNotice(parent: HTMLElement = document.body) {
     box.style.opacity = '1'; left = NOTICE_SECONDS;
   };
   return {
-    update(fighters: readonly Pick<Fighter, 'scars'>[], dt: number): void {
+    update(fighters: readonly Pick<Fighter, 'scars' | 'phases'>[], dt: number): void {
       for (const side of [0, 1]) {
         const g = gained(seen[side]!, fighters[side]?.scars); seen[side] = g.seen;
         for (const id of g.ids) { const t = woundText(id); if (t) show(side === 0, t.label, t.note); }
+        const gp = gained(seenPhase[side]!, fighters[side]?.phases); seenPhase[side] = gp.seen;
+        for (const id of gp.ids) { const t = phaseText(id); if (t) show(true, t.label, t.note); }   // a boss phase is the foe's, but reads as an event on the fight, not a wound on you
       }
       if (box && left > 0 && (left -= dt) <= 0) box.style.opacity = '0';
     },
