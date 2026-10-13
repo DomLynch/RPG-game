@@ -8,6 +8,7 @@ import { LEGEND_FAMILIES, candidatesAt, familyOf, isSpellless, legendText, pickL
 import { loadRegistry, tableFromFile } from '../src/core/registry.ts';
 import LEGENDS_MANIFEST from '../src/fight/legend-families.manifest.json' with { type: 'json' };
 import { LEGEND_OPPONENTS, legendForFight, legendForLevel, legendKeyForFight, rungOf } from '../src/legends.ts';
+import { legendIdFor } from '../src/fight/spell-legends.ts';
 
 test('legend families: one family per ranked opponent, ten ranks each, every legendId resolves', () => {
   assert.deepEqual(LEGEND_FAMILIES.map((f) => f.opponent).sort(), [...LEGEND_OPPONENTS].sort());
@@ -56,8 +57,17 @@ test('legend families: the legend key is the spell row id without spell: — sam
   for (const level of [1, 7, 20, 33, 50]) for (const id of LEGEND_OPPONENTS) assert.equal(legendKeyForFight(id, level, 5), candidatesAt(familyOf(id)!, rungOf(level))[0]);
 });
 
-test('the entry chunk does not contain the spell catalogue: no static import path from src/legends.ts (and so the legend families) reaches spells-*.json', () => {
-  const seen = new Set<string>(), bad: string[] = [], stack = [resolve('src/legends.ts')];
+test('legend families: legendKeyForFight is legendIdFor at every opponent and rung (a spell-less rank is no key on both sides)', () => {
+  for (const id of LEGEND_OPPONENTS) for (let rung = 1; rung <= 10; rung++) {
+    const level = Math.min(50, rung * 5), want = legendIdFor(id, rungOf(level));
+    assert.equal(legendKeyForFight(id, level, 3), want ?? candidatesAt(familyOf(id)!, rungOf(level))[0], `${id} rung ${rungOf(level)}`);
+    assert.equal(isSpellless(candidatesAt(familyOf(id)!, rungOf(level))[0]!), want === undefined, `${id} rung ${rungOf(level)} spell-less flag`);
+  }
+});
+
+// The entry chunk's static import graph, from each root the page loads first.
+const staticReach = (root: string): { seen: Set<string>; bad: string[] } => {
+  const seen = new Set<string>(), bad: string[] = [], stack = [resolve(root)];
   const edge = /^\s*(?:import|export)\s+(?!type\b)(?:[^'";]*?\sfrom\s+)?['"]([^'"]+)['"]/gm;
   while (stack.length) {
     const file = stack.pop()!;
@@ -67,6 +77,11 @@ test('the entry chunk does not contain the spell catalogue: no static import pat
     if (!/\.ts$/.test(file)) continue;
     for (const m of readFileSync(file, 'utf8').matchAll(edge)) if (m[1]!.startsWith('.')) stack.push(resolve(dirname(file), m[1]!));
   }
+  return { seen, bad };
+};
+
+for (const root of ['src/legends.ts', 'src/main.ts']) test(`the entry chunk does not contain the spell catalogue: no static import path from ${root} reaches spells-*.json`, () => {
+  const { seen, bad } = staticReach(root);
   assert.ok(seen.size > 10, `the walk reached the page's modules (${seen.size})`);
   assert.deepEqual(bad, [], 'a static import path reaches the spell catalogue');
 });
