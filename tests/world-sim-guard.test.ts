@@ -10,8 +10,8 @@ import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
-const WORLD_DIGEST = 'bd33d4369b614aa4d7c03734d63a6a3233d51e07cc5076d28c4ff72ba21e0af9';
-const PINNED_FOR_VERSION = 6;
+const WORLD_DIGEST = 'e3bd9ac5c4a273410a64e917726188fc51fd6c7a8f02e2408bf140d595234d3e';
+const PINNED_FOR_VERSION = 7;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 
@@ -25,6 +25,6 @@ test('a world-sim change without a WORLD_SIM_VERSION bump would refuse every hon
 test('the digest sees a number inside a world function, and a Pit RECORD_VERSION bump', () => {
   const real = sources(), before = simDigest(real);
   assert.equal(simDigest(real), before, 'the digest is stable');
-  assert.notEqual(simDigest({ ...real, 'src/fight/world.ts': real['src/fight/world.ts']!.replace('GIVE_UP_UNSEEN_S', 'GIVE_UP_UNSEEN_S + 1') }), before, 'a change in world.ts moves the digest');
+  assert.notEqual(simDigest({ ...real, 'src/fight/world.ts': real['src/fight/world.ts']!.replace('giveUpOf', 'giveUpOf + 1') }), before, 'a change in world.ts moves the digest');
   assert.notEqual(simDigest({ ...real, 'resolved/pit-record-version.txt': String(RECORD_VERSION + 1) }), before, 'a Pit bump moves the digest');
 });
