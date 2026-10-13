@@ -189,6 +189,8 @@ test('post_publish_rows: the rollback may be a shell function of the caller (dep
     assert.match(bad.stderr, /ROLLBACK FAILED: rows 44 failed for the LIVE release abc123/);
     assert.ok(existsSync(hold));
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 const ALWAYS = [9, 46], FINISHER_ROWS = [3, 15, 17, 19, 23, 24, 25, 32];
 
 test('postPublishRowsFor: a diff of shared files only (scripts/, ops/, tests/) defers every post-publish row', () => {
