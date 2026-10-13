@@ -268,7 +268,7 @@ function step(dt: number) {
       const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
       wc.roll(len > 0.2 ? { x: wx, z: wz } : a === 'backstep' ? { x: -Math.sin(wc.hero().facing), z: -Math.cos(wc.hero().facing) } : { x: 0, z: 0 });
     }
-    wc.guard(i.guard); const hp = wc.hero().phase; worldPhase = hp === 'roll' ? 'roll' : hp === 'guard' ? 'guard' : 'ready'; facing = wc.hero().facing;
+    wc.guard(i.guard, i.guardDirection); const hp = wc.hero().phase; worldPhase = hp === 'roll' ? 'roll' : hp === 'guard' ? 'guard' : 'ready'; facing = wc.hero().facing;
 
   }
   else if (pads.move || pads.look) ({ forward, strafe, turn, pitch, running } = intent(pads.move, pads.look));   // the sticks win while a thumb is down
