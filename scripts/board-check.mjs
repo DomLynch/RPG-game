@@ -28,8 +28,14 @@ try {
   for (const [name, w, h] of [['phone', 375, 812], ['small', 320, 568]]) {
     const page = await (await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true })).newPage(); page.setDefaultTimeout(240000);
     page.on('pageerror', (e) => fails.push(`${name}: ${String(e).slice(0, 160)}`));
+    const logs = []; page.on('response', (r) => { if (r.status() >= 400) logs.push(`${r.status()} ${r.url().slice(-90)}`); }); page.on('requestfailed', (r) => logs.push(`failed ${r.url().slice(-90)}`));
+     page.on('console', (m) => { if (/error|warn/.test(m.type())) logs.push(`${m.type()}: ${m.text().slice(0, 200)}`); });
     await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
-    await page.waitForFunction(() => document.getElementById('menu-board'), null, { timeout: 240000 });
+    // WAIT_MS shortens the wait while diagnosing; on a timeout say how far the page got (the kit state is what adds the entry).
+    await page.waitForFunction(() => document.getElementById('menu-board'), null, { timeout: Number(process.env.WAIT_MS) || 240000 }).catch(async (e) => {
+      const state = await page.evaluate(() => ({ kit: document.body.classList.contains('kit'), journalEntry: !!document.getElementById('menu-journal'), chips: !!document.getElementById('mobile-sound'), menu: !!document.getElementById('journal') })).catch(() => null);
+      throw new Error(`${name}: no #menu-board; state ${JSON.stringify(state)}; console ${JSON.stringify(logs.slice(0, 14))}; ${String(e.message).slice(0, 80)}`);
+    });
     await page.waitForTimeout(1500);
     await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600);   // the ☰
     await page.locator('#journal .tab-settings').click({ force: true }); await page.waitForTimeout(400);   // the Settings tab holds the walk's entries
