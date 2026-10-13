@@ -79,4 +79,5 @@ try {
     console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}`);
   }
   if (stale.length || staleVerbs.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows)) process.exitCode = 1;   // --gate (CI): any new compare, closed union or content row in code is red
 } finally { rmSync(dir, { recursive: true, force: true }); }

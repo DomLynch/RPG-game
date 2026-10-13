@@ -158,5 +158,8 @@ test('content rows built in code are counted: a record-kind literal in origins c
     const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; file: string }[] };
     assert.equal(out.rows, 1);
     assert.deepEqual(out.sites.filter((x) => x.kind === 'row').map((x) => x.file), ['origins/x/a.ts']);
+    const gated = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 }).status;
+    assert.equal(gated(), 0, 'without --gate a planted row only reports');
+    assert.equal(gated('--gate'), 1, 'under --gate a planted row exits 1');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
