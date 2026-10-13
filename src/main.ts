@@ -991,7 +991,7 @@ async function shareFight() {
   if (!record || match.replay) return;
   shareLink.disabled = true; say('Checking the fight…');
   try {
-    const check = verifyRecord(record);
+    const check = verifyRecord(record, undefined, { sheet: 'trust' });   // his own fight, checked before he shares it: nothing is granted on the strength of its sheet
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // Everyone's link carries a short id (owner 2026-09-22): the store mints one for guests too. No record-in-the-link fallback —
     // a store that refuses means no link, said plainly, never a URL that runs to several screens.

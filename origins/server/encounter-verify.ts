@@ -40,6 +40,7 @@ export function verifyEncounter(record: FightRecord, p: EncounterParams): Verifi
     if (theirs !== mine) return { ok: false, kitMismatch: true, reason: `kit mismatch: the record was played on mob kit ${theirs ?? '(untagged)'}, this build's is ${mine}` };
   }
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
+  if (record.sheet) return refuse('the record carries a sheet (v48) and this encounter holds no build to check it against');   // this verifier steps the fight without the record's sheet, and a claimed sheet is not the server's to take on trust (a build the server holds will pass it as the expected sheet)
   if (record.group) return refuse('one stream of a shared-health group is not verified alone (its siblings supply its incoming damage)');
   if (!samePose(record.pose, p.pose ?? null)) return refuse(p.pose ? 'the record does not start from the pose this encounter was issued' : 'the record starts from a pose this encounter was not issued');
   if (!!record.specials !== liveSpecials(p.level)) return refuse('the record\'s special-move phase is not the one this warden fights in');
