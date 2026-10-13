@@ -60,6 +60,7 @@ test('after bystanders were handed back, three creatures fighting at once (MAX_A
   const w: AheadNet = { engaged: (i) => { if (server.size >= ASK_BUDGET) { refused++; return Promise.resolve({ offline: 'refused' }); } server.add(i); return Promise.resolve({}); }, evaded: () => {}, open: () => [...server], tokenOf: (i) => (server.has(i) ? `tok-${i}` : null) };
   const a = createEngageAhead(w, clock); t = 0;
   for (let k = 1; k <= 4; k++) { t += 5000; a.frame([near(`m${k}`, 3)], () => false); a.frame([near(`m${k}`, 30)], () => false); }
+  assert.equal(server.size, BYSTANDER_BUDGET);
   const trio = [near('f1', 3), near('f2', 3), near('f3', 3)];
   t += 5000; a.frame(trio, () => true);
   assert.ok(['f1', 'f2', 'f3'].every((id) => server.has(id))); assert.equal(refused, 0);

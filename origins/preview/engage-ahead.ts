@@ -3,13 +3,13 @@
 // asked for while the hero is still inside the creature's aggro radius, before it reaches the engage ring. This asks spawn-net (spawnTracker.engaged) once per creature that is close enough, never past the open-token budget
 // (a full budget, a refusal or an offline writer just means that bout has no token and plays band-off, exactly as today: never a refusal), and hands a token back that the hero walked away from (evaded) so it stops counting.
 // No DOM, clock or storage: the page passes the time. A creature already in the loop (fighting) is never handed back.
-import { MAX_ATTACKERS } from '../../src/fight/attackers.ts';
+import { MAX_ATTACKERS } from '../../src/fight/index.ts';
 export type AheadNet = { engaged(instance: string): Promise<unknown>; evaded(instance: string): void; open(): string[]; tokenOf(instance: string): string | null };
 export type Near = { id: string; dist: number; aggro: number };
 export const ASK_BUDGET = 4, BYSTANDER_BUDGET = ASK_BUDGET - MAX_ATTACKERS, ENGAGE_TTL_MS = 120_000, RELEASE_FACTOR = 1.5, RETRY_MS = 5000;   // the writer's open-engage budget per account; a creature is let go past 1.5x its aggro radius; a refused ask is repeated no sooner than this
 
 export function createEngageAhead(net: AheadNet, now: () => number) {
-  let spent: number[] = [];   // when each non-fighting ask was made, evaded or not
+  let spent = new Map<string, number>();   // instance -> when its non-fighting ask was made, evaded or not
   const asked = new Map<string, number>();   // instance -> when it was last asked for
   return {
     frame(near: readonly Near[], fighting: (id: string) => boolean): void {
@@ -23,9 +23,9 @@ export function createEngageAhead(net: AheadNet, now: () => number) {
         if (net.open().length >= ASK_BUDGET && !net.open().includes(n.id)) continue;   // full: that bout is band-off, never a refusal
         if (!fights) {
           // The writer keeps an unhit engage open for ENGAGE_TTL_MS whether or not the hero walked away (evaded() only drops it here), so bystander asks are counted for that long, handed back or not.
-          spent = spent.filter((s) => now() - s < ENGAGE_TTL_MS);
-          if (spent.length >= BYSTANDER_BUDGET) continue;
-          spent.push(now());
+          for (const [id, at] of spent) if (now() - at >= ENGAGE_TTL_MS) spent.delete(id);
+          if (!spent.has(n.id) && spent.size >= BYSTANDER_BUDGET) continue;   // a repeat ask of the same creature (the first was refused) costs no new slot
+          if (!spent.has(n.id)) spent.set(n.id, now());
         }
         asked.set(n.id, now()); void net.engaged(n.id);
       }
