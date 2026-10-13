@@ -290,6 +290,15 @@ test('#1936 c: threat is forgotten when the player is out of sight for the give-
   assert.equal(get(gone, 'c').threat?.p, undefined, 'out of sight past the give-up time: forgotten');
 });
 
+test('row 21: a creature row\'s giveUp is its give-up time in the world loop (a hunter with giveUp 3 lets go of a prey it cannot see long before the default 10 s)', async () => {
+  const { CATALOGUE } = await import('../../src/fight/catalogue-rows.ts'), boar = CATALOGUE.find((r) => r.id === 'boar')!, fields = boar.fields as Record<string, string | number | boolean>;
+  const hunted = () => { const c = creature('c', 'boar', 0, 0); c.hunting = true; return newWorld([player('p', 60, 0), c]); };   // 60 m off: the boar closes under 23 m in 5 s, so the prey stays out of sight and inside the leash
+  const after = (s: number) => get(run(hunted(), s, () => ({ p: STILL })).world, 'c');
+  assert.equal(after(5).hunting && !after(5).returning, true, 'default give-up: still hunting after 5 s unseen');
+  fields.giveUp = 3;
+  try { const c = after(5); assert.ok(c.returning || !c.hunting, 'giveUp 3: it has let go after 5 s unseen'); } finally { delete fields.giveUp; }
+});
+
 test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase dead, no further fight, one Died', () => {
   const p = player('p', 0, 0); p.health = p.maxHealth = 40;   // a few wolf bites
   const w0 = newWorld([p, creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
