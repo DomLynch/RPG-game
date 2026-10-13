@@ -2681,4 +2681,5 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 
 /* The armour weight badge (gear-sheet.ts weightOf): the piece's class from the gear rows, read only, on the fitting card, the pack and the rack. */
 #journal [data-weight]::after { content: attr(data-weight); display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 8px; font: 600 10px/16px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .75; vertical-align: middle; }
+#journal #fitting-name[data-weight], #journal .pack li strong[data-weight] { white-space: normal; overflow: visible; text-overflow: clip; }   /* a badged name wraps instead of truncating: Safari's ellipsis swallowed the pill (the WebKit row, 2026-10-13) */
 #journal #fitting-name[data-weight]::after, #journal .pack li strong[data-weight]::after { white-space: nowrap; }
