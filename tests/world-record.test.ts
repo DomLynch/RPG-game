@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
 import { newWorld, player } from '../src/fight/world.ts';
-import { ME, MAX_HERO_MPS, STEP, heroClean, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
+import { ME, MAX_HERO_MPS, STEP, heroClean, ccQuiet, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
+import { CC_LADDER, ccApply, type CcLadder, type CcSource } from '../src/fight/cc-ladder.ts';
 
 const mob = (id: string, body: string, level: number): FightMob => ({ id, body, level, name: id });
 function fakeMobs(list: Array<{ spec: FightMob; x: number; z: number }>) {
@@ -94,4 +95,30 @@ test('the world loop never feeds a special or a skill: the live input is {attack
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../src/fight/world-record.ts', import.meta.url), 'utf8');
   assert.ok(!/special\s*:|skill\s*:/.test(src.split('export function stepHero')[1]!.split('export const joinFighter')[0]!), 'stepHero passes no special or skill');
+});
+
+test('a hero whose CC marks have all expired is clean (the ladder is never pruned); one with a mark still counting is not', () => {
+  const w = newWorld([player(ME, 0, 0, 0, { attack: 1, res: 1 }, 1)]);
+  const at = (time: number, cc: CcLadder) => ({ ...w, time, fighters: [{ ...w.fighters[0]!, cc }] }) as typeof w;
+  const stunned: CcLadder = [{ family: 'stun', count: 2, last: 10, end: 50 }];
+  assert.ok(!heroClean(at(1, stunned)), 'tick 60: the stun mark is inside its 900-tick window from its end');
+  assert.ok(!heroClean(at((50 + 900) / 60, stunned)), 'the window is inclusive at its last tick');
+  assert.ok(heroClean(at((50 + 901) / 60 + 1 / 60, stunned)), 'older than the window: the mark no longer counts, so the hero is clean');
+  assert.ok(heroClean(at(0, [])) && ccQuiet(undefined, 0));
+});
+
+test('an expired mark behaves exactly as no mark: every shipped CC source lands the same on a quiet ladder as on an empty one, at every later tick', () => {
+  const sources: CcSource[] = Object.values(CC_LADDER.kinds).flatMap((k) => [...k.sources]);
+  for (const k of Object.values(CC_LADDER.kinds)) {
+    const dead: CcLadder = [{ family: k.id, count: 3, last: 100, end: 400 }];
+    const now = 400 + k.window + 1;
+    assert.ok(ccQuiet(dead, now), `${k.id} is quiet at ${now}`);
+    for (const source of sources) for (const later of [now, now + 1, now + 5000]) {
+      const a = ccApply(dead, source, later, 60), b = ccApply([], source, later, 60);
+      assert.equal(a.ticks, b.ticks, `${k.id} mark, ${source} at ${later}: same duration`);
+      assert.equal(a.level, b.level);
+      const fam = (l: CcLadder) => l.filter((m) => m.family === CC_LADDER.kinds[Object.keys(CC_LADDER.kinds).find((id) => CC_LADDER.kinds[id]!.sources.includes(source))!]!.id);
+      assert.deepEqual(fam(a.ladder), fam(b.ladder), 'the kind that landed has the same new mark');
+    }
+  }
 });
