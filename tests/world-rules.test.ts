@@ -9,6 +9,7 @@ import { SPEEDS, LEASH } from '../src/fight/speeds.ts';
 import { RUN_SPEED } from '../origins/world/zone-rules.ts';
 import { RARE_DEFAULT, CAMP_MAX, BOSS_CAMP_MAX } from '../src/core/world/row.ts';
 import { TUNING } from '../src/core/world-sim.ts';
+import { readFileSync } from 'node:fs';
 import DEFS from '../src/fight/world-rules-defs.json' with { type: 'json' };
 
 test('every world rule equals the literal it replaced', () => {
@@ -28,4 +29,9 @@ test('the loader refuses a missing named rule, a non-positive value, a duplicate
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'holdFactor' ? { ...r, value: 1.2 } : r)) }), /holdFactor/);
   assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 25);
   assert.equal(worldRule('engage'), 4);
+});
+test('the Pit sim keeps its own run literal (a Pit sim file: editing it would force a RECORD_VERSION bump); it must equal the playerRun row', () => {
+  const m = /input\.run \? ([0-9.]+) :/.exec(readFileSync(new URL('../src/fight/sim.ts', import.meta.url), 'utf8'));
+  assert.ok(m, 'src/fight/sim.ts advance() no longer has the `input.run ? <n> :` literal: point this test at the new shape');
+  assert.equal(Number(m![1]), worldRule('playerRun'), 'sim.ts run speed and the playerRun row drifted: change both together under a RECORD_VERSION bump');
 });
