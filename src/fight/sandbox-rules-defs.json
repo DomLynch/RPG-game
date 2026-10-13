@@ -1,6 +1,8 @@
 {
   "rules": [
     { "id": "dodgeCounter", "window": 0 },
-    { "id": "interruptEarly", "value": 0 }
+    { "id": "interruptEarly", "value": 0 },
+    { "id": "castPushback", "value": 0 },
+    { "id": "castPushbackMax", "value": 0 }
   ]
 }

@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -62,6 +62,7 @@ export type Fighter = {
   specialShare?: number;   // the share of the target's max health this fighter's special takes
   specialName?: SpecialName;   // which named special this fighter casts (moves.ts specialOf); absent = named by `skill`
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
+  castPush?: number;   // sandbox-mech castPushback: times a hit has pushed this cast back; absent when 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
   spell?: Spell;   // the spell this fighter's special casts (spell-cast.ts, RV53): a stamina cost at the commit and an outcome by skill at the release; the windup, interrupt, cooldown and reach are the special's own. Absent = the plain special, byte for byte
   specialRecover?: number;   // ticks left after a release in which the caster starts no attack (RULES.special.recovery); guard, roll and steps stay legal
@@ -309,7 +310,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if (action === 'skill' && me.specialShare !== undefined) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       if (distance(me.body, foe.body) <= R.special.reach) {
-        next.special = R.special.windup; delete next.castHurt; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
+        next.special = R.special.windup; delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
         if (me.spell) spend(i, me.spell.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(me.spell ? { spell: me.spell.id } : {}) });
       }
@@ -557,7 +558,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const i of [0, 1] as const) {
     const j = (1 - i) as Side, A = fighters[i], D = fighters[j];
     if (!releasing[i]) continue;
-    A.special = 0; delete A.castHurt; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
+    A.special = 0; delete A.castHurt; delete A.castPush; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
     // v55 (cone-rules.ts): a special with a cone row breathes instead of striking once: the heading is fixed on the target now, the pulses follow, and the caster is held back until the last of them is done.
     const cone = CONE_ON && !A.spell ? coneOf(A.specialName) : undefined;
@@ -604,18 +605,19 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const i of [0, 1] as const) {
     const A = fighters[i];
     if (!A.special) continue;
-    if (!A.health) { A.special = 0; delete A.castHurt; events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }
+    if (!A.health) { A.special = 0; delete A.castHurt; delete A.castPush; events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }
     // Interruptible casts: damage taken while the windup counts down (any source, this tick's blows included) accumulates; at interruptAt of his
     // max health the cast is cut on this tick: no strike, no recovery, a partial cooldown. A cast that released this tick was cleared above.
     const hurt = Math.max(0, before[i].health - A.health);
     if (hurt && isInterruptible(A.specialName)) {
       const taken = (A.castHurt ?? 0) + hurt;
       if (taken >= R.special.interruptAt * A.maxHealth) {
-        A.skillCooldown = interruptLockout(R.special.interruptCooldown, A.special, R.special.windup); A.special = 0; delete A.castHurt;   // sandbox-mech: an earlier cut can lock the caster out longer
+        A.skillCooldown = interruptLockout(R.special.interruptCooldown, A.special, R.special.windup); A.special = 0; delete A.castHurt; delete A.castPush;   // sandbox-mech: an earlier cut can lock the caster out longer
         events.push({ tick, type: 'SpecialInterrupted', actor: i, damage: taken });
         continue;
       }
       A.castHurt = taken;
+      if (CAST_PUSHBACK && (A.castPush ?? 0) < CAST_PUSHBACK_MAX) { A.special += CAST_PUSHBACK; A.castPush = (A.castPush ?? 0) + 1; }   // sandbox-mech: a hit that does not cut the cast delays its release (WoW pushback)
     }
     A.special--;
   }

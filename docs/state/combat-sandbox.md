@@ -10,6 +10,10 @@ READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-
 - Mech count: 10 sandbox-mech commits against Strategy's max of 5. Lead (2026-10-13) confirms this is fine under Dom's direct "forget the rules" for the sandbox.
 - Breath cones are now on trunk (v55), so drop them from "not built".
 
+## 2026-10-13 night: Dom's scope word (direct, beats the relayed plans)
+Dom: the Sandbox is where he customises and iterates new combat techniques with freedom from the main game; what he likes gets rolled into the main game later under the data layer. The armour casting penalty and the rest can move independently from the main game (build it here, do not wait for #2577/EH or Combat). PicoClaw is Dom's personal chief of staff; its relay is not this lane's job.
+- sandbox-mech castPushback (Dom: YES to spell interrupt rules): a hit that does not cut a cast delays its release 30 ticks (0.5 s), twice a cast (WoW). Rows castPushback / castPushbackMax in sandbox-rules-defs.json; tests/sandbox-cast-pushback.test.ts green on the VPS.
+
 ## HANDOFF (2026-10-13, end of session; read this first)
 **Now:** branch sandbox/page on trunk 4891c6c38 (release EB) plus later work, preview https://frankendom.com/preview/sandbox/. Publish with `sandbox/publish.sh`; run tests on the VPS with `sandbox/vps-run.sh` then `capture --prio 3 sandbox node --test <files>` (never on the Mac). Dom's word beats the process rules; guardrails: only sandbox/page and /preview/sandbox/, nothing to trunk or live, Combat promotes.
 **Done today (all tests pass on the VPS):** stances 2x; flash off / ring row (off) / clash sparks on guard break; crowd roars; arm wound with on-screen notice and a stamina-ceiling cost; dodge counter (sandbox-rules-defs.json dodgeCounter 20); many-on-one rows 1.0/0.5/0.3/0.3 plus engine hook (duel.roll.attacker); interrupt lockout (interruptEarly 1000); armour classes as rows (leathers/mail/plate with a stamina cost, one blended value, no hit locations); boss phase rows (boss-phase-defs.json: enrage at 50%, share x1.5, cooldown 30%, message); donor research summary in docs/state/combat-research-2026-10-13.md.
