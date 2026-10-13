@@ -17,7 +17,7 @@ export function gearWearHandler(content: Content): Handler {
     const held = inventory.items.flatMap((i) => { const kind = wearKindOf(i.item); return kind ? [{ id: i.id, kind }] : []; });
     if (!held.length) return { pieces: [] as WearLine[] };
     const wears = await store.itemWears(db, account, held.map((h) => h.id));
-    if (wears === 'absent') throw new Refused(503, 'the wear ledger is not installed (migration 202610130032)');
+    if (wears === 'absent') throw new Refused(503, 'the wear ledger is not installed (migration 20261013174936)');
     const pieces: WearLine[] = held.flatMap(({ id, kind }) => {
       const w = wears[id];
       if (!w || w.worn <= 0) return [];

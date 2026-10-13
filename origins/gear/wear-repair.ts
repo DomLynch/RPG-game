@@ -7,7 +7,7 @@ import MANIFEST from './wear-repair.manifest.json' with { type: 'json' };
 
 export type WearEvent = { id: string; chancePct: number };
 export type WearSlot = { id: string; share: number };
-export type WearTier = { id: string; hitWear: number; killWear: number; goldPerPoint: number; metalPerTenPoints: number; metalItem: string };
+export type WearTier = { id: string; hitWear: number; killWear: number; bronzePerPoint: number; metalPerTenPoints: number; metalItem: string };
 export type WearFamily = { id: string; tier: string };
 export type RepairRule = { id: string; wornSlopePct: number; wearMaxLossPer100: number; wearMaxFloorPct: number; qualityFloorPct: number };
 export type Piece = { worn: number; max: number; baseMax: number };   // baseMax is the piece's original wearMax, the floor for max
@@ -19,7 +19,7 @@ export function checkWearRelations(data: { wearEvents: WearEvent[]; wearSlots: W
   if (data.wearSlots.reduce((n, s) => n + s.share, 0) !== 100 || data.wearSlots.some((s) => !(s.share >= 0))) bad.push('wearSlots: shares must each be >= 0 and sum to 100');
   for (const t of data.wearTiers) {
     if (!(t.hitWear >= 1 && t.killWear >= t.hitWear)) bad.push(`${t.id}: hitWear >= 1 and killWear >= hitWear`);
-    if (!(t.goldPerPoint >= 1 && t.metalPerTenPoints >= 0)) bad.push(`${t.id}: goldPerPoint >= 1, metalPerTenPoints >= 0`);
+    if (!(t.bronzePerPoint >= 1 && t.metalPerTenPoints >= 0)) bad.push(`${t.id}: bronzePerPoint >= 1, metalPerTenPoints >= 0`);
   }
   for (const r of data.repairRules) {
     if (!(r.qualityFloorPct >= 1 && r.qualityFloorPct <= 100)) bad.push(`${r.id}: qualityFloorPct must be 1..100 (gear never breaks to nothing)`);
@@ -73,7 +73,7 @@ export function repairCost(tier: WearTier, piece: Piece, points: number = piece.
   const p = Math.max(0, Math.min(points, piece.worn));
   if (p === 0 || (slot !== undefined && !slotWears(slot))) return { points: 0, gold: 0, metal: 0, metalItem: tier.metalItem };
   const wornPct = (piece.worn / piece.max) * 100;
-  const perPoint = tier.goldPerPoint * (100 + (rule.wornSlopePct * wornPct) / 100) / 100;
+  const perPoint = tier.bronzePerPoint * (100 + (rule.wornSlopePct * wornPct) / 100) / 100;
   return { points: p, gold: Math.ceil(perPoint * p), metal: Math.ceil((tier.metalPerTenPoints * p) / 10), metalItem: tier.metalItem };
 }
 

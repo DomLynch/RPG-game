@@ -58,7 +58,7 @@ export const shopStock = async (db: Db, account: string, shop: string, item: str
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 
-// Pieces' wear (migration 202610130032): the newest {worn, max, baseMax} an event left for each of these item instances, keyed by instance (an unworn piece is absent),
+// Pieces' wear (migration 20261013174936): the newest {worn, max, baseMax} an event left for each of these item instances, keyed by instance (an unworn piece is absent),
 // in one round trip; 'absent' on a database without the migration.
 export type WearRow = { seq: number; worn: number; max: number; baseMax: number };   // seq counts the piece's wear events (the write guard: wear:<instance>:<seq>)
 const HAS_ITEM_WEAR = `select to_regprocedure('public.origins_item_wear(uuid,text[])') is not null as itemwear \\gset\n`;
