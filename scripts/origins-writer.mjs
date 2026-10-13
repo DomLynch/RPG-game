@@ -15,6 +15,7 @@ import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { createLocationFlusher } from '../origins/server/location-flush.ts';
 import { createLiveOps } from '../origins/server/live-ops.ts';
+import { loadoutOf } from '../origins/server/worn-gear.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
 import { presenceWhere } from '../origins/presence/where.ts';
@@ -32,7 +33,7 @@ import { mobRewards } from '../origins/server/mob-rewards.ts';
 const verifyPool = createVerifyPool();
 const tally = createVerdictTally();
 setInterval(() => { const t = tally.snapshot(); if (t.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}`); }, 3_600_000).unref();
-const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally }; };
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, heroOf: (account, character) => loadoutOf(db, account, character) }; };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 
 const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788', ORIGINS_DB_POOL = '4' } = process.env;   // ORIGINS_DB_POOL: persistent psql sessions (0 = one psql per op)

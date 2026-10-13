@@ -175,7 +175,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       const run = async (): Promise<Verdict> => {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
         const limit = deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null;
-        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
+        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
         deps.tally?.add(v.ok ? 'verified' : v.reason);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
         return v;

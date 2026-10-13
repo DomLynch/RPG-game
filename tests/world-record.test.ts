@@ -45,7 +45,7 @@ test('a record that does not kill, or whose presses were taken out, is not a kil
 test('forged headers and poses are refused', () => {
   const { rec } = killWolf(); assert.ok(rec);
   const no = (r: WorldRecord, why: string) => { const v = replayWorldRecord(r); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
-  no({ ...rec!, hero: { ...rec!.hero, weapon: 'trident' as never } }, 'weapon');
+  no({ ...rec!, hero: { ...rec!.hero, weapon: 'butter-knife' as never } }, 'weapon');
   no({ ...rec!, hero: { ...rec!.hero, attack: 3 } }, 'hero gear');
   no({ ...rec!, hero: { ...rec!.hero, res: 0.1 } }, 'hero gear');
   no({ ...rec!, hero: { ...rec!.hero, health: 1e9 } }, 'hero body');
