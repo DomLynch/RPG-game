@@ -209,6 +209,19 @@ test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
+test('publisher: after a publish it closes EVERY open PR whose head the new trunk contains, stacked or feature, not only release-* candidates (DI left #2430/#2442/#2444/#2447/#2426 open, 2026-10-13)', () => {
+  const p = publisher();
+  try {
+    const prs = JSON.parse(readFileSync(p.env.PRS, 'utf8'));
+    prs.push({ number: 2401, headRefName: 'combat/stacked-tip', baseRefName: 'combat/other-branch', headRefOid: 'd'.repeat(40), createdAt: '2026-10-12T17:41:00Z', isDraft: false, labels: [], comments: [], statusCheckRollup: [] });
+    writeFileSync(p.env.PRS, JSON.stringify(prs));
+    const r = p.run();
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(p.calls(), /gh pr close 2401 --comment release-train: .*contains this head/, 'a stacked feature PR whose head is in the new trunk is closed with a pointer');
+    assert.match(p.calls(), /gh pr close 2400 /, 'and the candidate itself still is');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
 test('publisher: a candidate is judged on its FULL check list (`gh pr view`), not the 100 checks `gh pr list` returns (DL #2431: 169 checks, never picked)', () => {
   const p = publisher();
   try {

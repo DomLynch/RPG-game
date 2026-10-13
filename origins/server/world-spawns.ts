@@ -19,7 +19,7 @@ import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mobBatch, respawnMsOf } from './mob-rewards.ts';
-import { verifyWorldRecord, ticksFor, MAX_RECORD_CHARS, type HeroLimit } from './world-verify.ts';
+import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ const refuse = (why: string): never => { const [status, message] = REFUSAL[why] 
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { scorecardOnlyUnverified?: boolean; heroOf?: (account: string, character: string) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; heroOf?: (account: string, character: string) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -170,9 +170,16 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
     let record = recText === undefined ? 'none' : 'unverified';
     if (recText !== undefined) {
-      const v = await verifyWorldRecord(recText, spawn, setup.value.opponent.body, deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null, ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000));
-      record = v.ok ? 'verified' : `refused: ${v.reason}`;
-      if (!v.ok) log(`kill_report ${token.slice(-6)} ${open.instance}: world record not verified (${v.reason})`);
+      const tag = `kill_report ${token.slice(-6)} ${open.instance}`;
+      const run = async (): Promise<Verdict> => {
+        if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
+        const limit = deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null;
+        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
+        log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
+        return v;
+      };
+      if (deps.scorecardOnlyUnverified) { const v = await run(); record = v.ok ? 'verified' : `refused: ${v.reason}`; }
+      else { record = 'queued'; void run().catch(() => {}); }   // flag off: the kill pays now, the worker's verdict is only logged
     }
     const pays = record === 'verified' || deps.scorecardOnlyUnverified !== true;
     const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level })

@@ -21,7 +21,7 @@ const REVIEWERS = 'Auditor|Lead|Combat A|Combat B|Deploy B';   // full reviewers
 const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];   // the repo is public: anyone can type "Auditor: PASS @sha", so only these authors count (every lane posts as DomLynch, OWNER)
 
 /** Does a PR comment list ({body, authorAssociation}, as gh returns it) hold a trusted full reviewer's PASS for exactly this head (9-char prefix)? */
-export const passAt = (comments, head) => comments.some(c => TRUSTED.includes(c?.authorAssociation) && new RegExp(`^\\*{0,2}(?:${REVIEWERS}): PASS @${head.slice(0, 9)}`, 'm').test(c.body));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
+export const passAt = (comments, head) => comments.some(c => TRUSTED.includes(c?.authorAssociation) && new RegExp(`^\\*{0,2}(?:${REVIEWERS}): \\*{0,2}PASS(?: @|\\*{0,2} @)${head.slice(0, 9)}`, 'm').test(c.body));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails

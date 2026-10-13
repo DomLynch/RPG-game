@@ -128,9 +128,9 @@ grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Publishe
 rm -f "$hold" "$hold.stale-told"
 summary=$(sed -n "/^Published $rev/,\$p" "$logf" | head -n 40)
 gh pr comment "$pr" --body "$(printf 'release-train: published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$rev" "$summary")" >/dev/null 2>&1 || true
-# Older candidates live now contains are superseded (forward-only publish): close them with a pointer.
-gh pr list --state open --base "$trunk" --limit 50 --json number,headRefName,headRefOid --jq '.[] | select(.headRefName | startswith("release-")) | "\(.number) \(.headRefOid)"' 2>/dev/null \
-  | while read -r n h; do git merge-base --is-ancestor "$h" "$rev" 2>/dev/null && gh pr close "$n" --comment "release-train: superseded, live $rev (#$pr) contains it." >/dev/null 2>&1; done
+# Every open PR whose head live now contains is done (forward-only publish; DI 2026-10-13 left its stacked members #2430/#2442/#2444/#2447/#2426 open): close it with a pointer.
+gh pr list --state open --limit 200 --json number,headRefOid --jq '.[] | "\(.number) \(.headRefOid)"' 2>/dev/null \
+  | while read -r n h; do git merge-base --is-ancestor "$h" "$rev" 2>/dev/null && gh pr close "$n" --comment "release-train: live $rev (#$pr) contains this head, so it is shipped; closing." >/dev/null 2>&1; done
 log "published #$pr as $rev"
 exit 0
 }

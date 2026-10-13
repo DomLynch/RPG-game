@@ -9,6 +9,10 @@
 // Fail closed: with no deps (the flag off, or no verifier installed) every op answers 503 "encounter verify not installed"; an unknown mob layer or a non-empty `swaps` (Combat's swap hook is not
 // shipped) is refused rather than guessed; a database without the migration answers 503.
 import { randomBytes, randomInt } from 'node:crypto';
+import { wornGearOf } from './worn-gear.ts';
+import { practiceLines } from './practice.ts';
+import { spellLines } from './grimoire.ts';
+import { careerState, levelOfCredit } from '../../src/core/server.ts';
 import { decodeRecord, type TwistFlag, type DuelPose, expectedSheet } from '../../src/fight/server.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
@@ -102,12 +106,13 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     if (run === null) throw new Refused(503, 'encounters are not installed yet');
     if (run === 'none') throw new BadRequest('token: unknown encounter');
     if (run.used || run.settled || Date.parse(run.expires_at) <= (deps.now ?? Date.now)()) throw new Conflict('encounter token unknown, used or expired');
-    let verdict: ReturnType<VerifyEncounter>;
+    let verdict: ReturnType<VerifyEncounter>, weapon = '';
     try {
       const record = await decodeRecord(body.record);
+      weapon = record.weapon;
       // A record's sheet is the client's claim: the build version it names (this character's, from the writer's own store) is the only thing that can vouch for it.
       const want = record.sheet && record.characterId !== undefined && `pc:${record.characterId}` !== run.character ? { ok: false as const, reason: 'the record names another character\'s build' }
-        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; });
+        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character) : {});
       verdict = want.ok ? verify(record, { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), ...(want.sheet ? { sheet: want.sheet } : {}) }) : { ok: false, reason: want.reason };
     }
     catch (e) { verdict = { ok: false, reason: `unreadable record: ${e instanceof Error ? e.message : String(e)}` }; }   // never a throw: a refusal
@@ -119,7 +124,15 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     // `fight` and `paid` are what origins_last_paid_kill (202610080006) reads back: the respawn window is the time since this account's last PAID kill of this fight,
     // and it commits in this same transaction, so a settle that aborts leaves no window behind.
     const batch: store.Json[] = [{ op: 'event', event_id: eventId, kind: 'mob', account, character: run.character, payload: { result, ticks, enemy: run.enemy, level: run.level, twist, verified: verdict.ok, fight, paid: rewards.length > 0, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) } }, ...rewards];
-    const out = await store.encounterSettle(db, account, token, result, ticks, batch).catch(GONE);
+    // Practice (migration 0026): only a VERIFIED win practises the weapon's skill; the lines ride this one settle, so a retry pays once (key practice:enc:<token>:<skill>).
+    let practice: store.Json[] = [];
+    if (verdict.ok && result === 'won') {
+      const build = await store.buildGet(db, account, run.character), snap = await store.open(db, account);
+      if (build !== null && build !== 'absent') practice = practiceLines({ token, weapon, enemyLevel: run.level, youLevel: snap.career ? levelOfCredit(careerState(snap.career).credit) : 0, placed: build.placed });
+    }
+    // Grimoire (migration 0027): a VERIFIED win against a boss legend takes its spell, once per account and legend, in this same transaction.
+    const spells = verdict.ok && result === 'won' ? spellLines(fight) : [];
+    const out = await store.encounterSettle(db, account, token, result, ticks, batch, practice, spells).catch(GONE);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
     return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
   };

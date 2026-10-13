@@ -93,7 +93,7 @@ test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature 
   const ug = /\nconcurrency:\n {2}group: ([^\n]+)\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/.exec(readFileSync(U, 'utf8'))![1];
   const ugroup = (c: Ctx) => ug.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(ugroup(pr('synchronize')), 'unit-ci-7');
-  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7');
+  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7-inert-99', 'a label never shares the head\'s group: the code did not change');
   assert.equal(ugroup(pr('labeled', [], { label: { name: 'release:go' } })), 'unit-ci-7-inert-99');
   assert.match(readFileSync(U, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, labeled\]\n/);
   // the plan sets `browser` from the labels the event carries (the step reads them; a push always runs them)
@@ -114,15 +114,28 @@ test('adding auditor:ready runs the shard, the verdict and the browser jobs (aft
   assert.ok(schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'and the shard once auditor:ready is on');
 });
 
-test('the concurrency group: auditor:ready gets its own group (never cancels the head\'s gate in flight); an inert label or edit never cancels anything', () => {
+test('the concurrency group: every label event (auditor:ready too) and a title edit get a group of their own, so none cancels the head\'s gate in flight', () => {
   const g = /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
   const group = (c: Ctx) => g.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(group(pr('synchronize')), 'quality-7');
-  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7-browser');
+  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7-inert-99');
   assert.equal(group(pr('labeled', [], { label: { name: 'release:go' } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { title: {} } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { base: {} } })), 'quality-7');
   assert.match(readFileSync(Q, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, edited, labeled\]\n/);
+});
+
+test('DI/DH sequence (Lead 2026-10-13): a push, then a label, then the push\'s run is NOT cancelled; a second push still cancels the first; ci:release-checks stays in the head group', () => {
+  const grp = (file: string, c: Ctx) => /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(readFileSync(file, 'utf8'))![1].replace('${{ inputs.ref }}', '').replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: String(c.run_id ?? '99') }, {})));   // inputs.ref is only set by a dispatch
+  const cancels = (file: string) => /\n {2}cancel-in-progress: ([^\n]+)\n/.exec(readFileSync(file, 'utf8'))![1];
+  const cand = (action: string, label?: string, run = '1') => ({ ...pr(action, [], label ? { label: { name: label } } : {}), head_ref: 'release-DI', run_id: run });
+  for (const [file, labels] of [[U, ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']], [Q, ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']], [R, ['auditor:ready', 'candidate:pass', 'release:go']]] as const) {
+    const head = grp(file, cand('synchronize'));
+    for (const l of labels) assert.notEqual(grp(file, cand('labeled', l, '2')), head, `${file}: ${l} must not share the head's group (it would cancel the push's run)`);
+    assert.equal(grp(file, cand('synchronize', undefined, '3')), head, `${file}: a second push shares the group, so it cancels the first`);
+    assert.match(cancels(file), /true|pull_request/, `${file}: the group cancels the superseded run`);
+  }
+  assert.equal(grp(R, cand('labeled', 'ci:release-checks', '4')), grp(R, cand('synchronize')), 'the ci:release-checks label is the real row run: it stays in the head group');
 });
 
 test('a trunk push is unchanged: no static job, every shard and browser job runs', () => {

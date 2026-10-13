@@ -21,13 +21,15 @@ import { presenceWhere } from '../origins/presence/where.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
+import { createVerifyPool } from '../origins/server/world-verify-pool.ts';
 import { worldSpawnOps, zoneKeyProblems } from '../origins/server/world-spawns.ts';
 import { resolveFromRegion1 } from '../origins/server/encounter-setup.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
 import { mobRewards } from '../origins/server/mob-rewards.ts';
 // The kill's pay (CP + loot) from Region 1's content; the flag already requires that content to load (resolveFromRegion1 throws otherwise).
 // Zone 1 world spawns (202610080014): ON unless ORIGINS_SPAWNS=0 (the kill switch); without the migration every op answers 503.
-const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value }; };
+const verifyPool = createVerifyPool();
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job) }; };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 
 const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788', ORIGINS_DB_POOL = '4' } = process.env;   // ORIGINS_DB_POOL: persistent psql sessions (0 = one psql per op)

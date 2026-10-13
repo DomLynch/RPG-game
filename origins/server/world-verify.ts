@@ -10,7 +10,9 @@ export const ticksFor = (ageS: number): number => Math.floor(60 * (Number.isFini
 export type HeroLimit = { level: number; attack: number; res: number };   // what the server's own books allow him: a claim above it is refused
 export type Verdict = { ok: true; ticks: number } | { ok: false; reason: string };
 
-export async function verifyWorldRecord(text: string, spawn: Spawn, kind: string, limit?: HeroLimit | null, maxTicks: number = MAX_WORLD_TICKS): Promise<Verdict> {
+/** What a replay needs, all plain data (it crosses to the worker thread). */
+export type VerifyJob = { text: string; spawn: Pick<Spawn, 'spec'>; kind: string; limit?: HeroLimit | null; maxTicks?: number };
+export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>, kind: string, limit?: HeroLimit | null, maxTicks: number = MAX_WORLD_TICKS): Promise<Verdict> {
   let rec;
   try { rec = await decodeWorldRecord(text); } catch { return { ok: false, reason: 'undecodable' }; }
   if (rec.steps.length > maxTicks) return { ok: false, reason: 'overlong' };   // refused before any replay: a record cannot be longer than the engagement it claims
