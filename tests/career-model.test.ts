@@ -30,24 +30,24 @@ function lcg(seed: number): () => number {
 // The curve.
 
 test('curve: the level-curve row: maxLevel 100, born at 0, the key rows (requirement to the next level, cumulative to reach it)', () => {
-  assert.deepEqual([LEVEL_CURVE.maxLevel, CAREER_MAX_LEVEL, CAREER_CP, cumulative(100)], [100, 100, 7_684_875, 7_684_875]);
+  assert.deepEqual([LEVEL_CURVE.maxLevel, CAREER_MAX_LEVEL, CAREER_CP, cumulative(100)], [100, 100, 7_676_095, 7_676_095]);
   const rows = [0, 1, 5, 6, 10, 11, 20, 50, 90, 99].map(l => [l, requirement(l), cumulative(l)]);
   assert.deepEqual(rows, [
-    [0, 1250, 0], [1, 1250, 1250], [5, 1890, 7000], [6, 2175, 8890], [10, 5415, 19_500], [11, 5900, 24_915],
-    [20, 14_065, 97_875], [50, 64_015, 1_093_000], [90, 186_615, 5_686_500], [99, 213_300, 7_471_575],
+    [0, 200, 0], [1, 200, 200], [5, 1680, 1120], [6, 1800, 2800], [10, 5415, 10_720], [11, 5900, 16_135],
+    [20, 14_065, 89_095], [50, 64_015, 1_084_220], [90, 186_615, 5_677_720], [99, 213_300, 7_462_795],
   ]);
 });
-test('curve: levels 1-5 cost two and a half same-level boss kills each (the first point inside five minutes), then it ramps and steepens at every rank-up', () => {
+test('curve: from level 10 a level costs boss kills that ramp and steepen at every rank-up (the opening below it is priced in Pit wins)', () => {
   const bossPay = (l: number) => basePay(TYPE_WEIGHTS['world-boss']!, Math.max(1, l), Math.max(1, l));
-  for (let l = 0; l < 5; l++) assert.equal(requirement(l), Math.floor((bossPay(l) * 5) / 2), `level ${l}`);
-  assert.ok(requirement(0) <= 3 * bossPay(0) && requirement(0) >= 2 * bossPay(0));
+  for (let l = 10; l < 15; l++) assert.ok(requirement(l) > 2 * bossPay(l), `level ${l}`);
+  assert.equal(requirement(10), Math.floor((bossPay(10) * (2500 + 200 * 6 + 2000)) / 1000));
   for (let l = 1; l < 99; l++) {
     assert.ok(Number.isSafeInteger(requirement(l)) && Number.isSafeInteger(cumulative(l)));
     assert.ok(requirement(l + 1) > requirement(l), `rising at ${l}`);
   }
   const kills = (l: number) => requirement(l) / bossPay(l);
-  for (let l = 6; l < 99; l++) assert.ok(kills(l + 1) > kills(l), `the cost in boss kills ramps at ${l}`);
-  for (let rank = 10; rank <= 90; rank += 10) assert.ok(kills(rank) - kills(rank - 1) > kills(rank - 1) - kills(rank - 2), `steeper at the rank-up ${rank}`);
+  for (let l = 10; l < 99; l++) assert.ok(kills(l + 1) > kills(l), `the cost in boss kills ramps at ${l}`);
+  for (let rank = 20; rank <= 90; rank += 10) assert.ok(kills(rank) - kills(rank - 1) > kills(rank - 1) - kills(rank - 2), `steeper at the rank-up ${rank}`);
 });
 test('curve: cumulative is the sum of the requirements; past the cap it stays at the career total', () => {
   let sum = 0;
@@ -109,7 +109,7 @@ test('type weights: the table (permille of the kill value), and the flags that d
 });
 test('kill value: the curve row\'s linear price, 1,000 + 100 a level', () => {
   assert.deepEqual([1, 11, 30, 49, 99].map(killValue), [1000, 2000, 3900, 5800, 10_800]);
-  for (let l = 1; l <= 99; l++) assert.ok(killValue(l) < requirement(l), `a kill is a part of a level at ${l}`);
+  for (let l = 10; l <= 99; l++) assert.ok(killValue(l) < requirement(l), `a kill is a part of a level at ${l}`);
 });
 test('one pay rule: every row pays killValue(min(target, you)) × falloff × weight, at every level 1..50 and d −12..+12', () => {
   for (let you = 1; you <= 50; you++) {
@@ -124,9 +124,9 @@ test('one pay rule: every row pays killValue(min(target, you)) × falloff × wei
     }
   }
 });
-test('shares shrink as the level climbs: each row\'s even-level pay is a smaller part of a level at every level from 6', () => {
+test('shares shrink as the level climbs: each row\'s even-level pay is a smaller part of a level at every level from 10', () => {
   for (const [type, row] of Object.entries(TYPE_WEIGHTS)) {
-    for (let l = 6; l < 99; l++) {
+    for (let l = 10; l < 99; l++) {
       assert.ok(basePay(row, l + 1, l + 1) * requirement(l) < basePay(row, l, l) * requirement(l + 1), `${type}: share at ${l + 1} not below ${l}`);
     }
   }
@@ -152,7 +152,7 @@ test('Pit: a legend pays a fifth of a level to L10 and a tenth from Gladiator I 
   assert.deepEqual(r.state.beaten, [legendKey('goblin', 5), legendKey('knight', 5)]);
   assert.equal(r.state.pitWins, 6); // 4 migrated + 2 paid wins
 });
-const TOTAL_PIT_WINS_TO_10 = 65, PIT_STALL_WINS = 75, PIT_STALL_CREDIT = 23_650;
+const TOTAL_PIT_WINS_TO_10 = 34, PIT_STALL_WINS = 44, PIT_STALL_CREDIT = 14_520;
 test('Pit alone: levels 1 to 9 are reachable on the Pit alone, a few wins a level (the legend pays a fifth of a kill to level 10)', () => {
   let s = careerAtLevel(1);
   let total = 0;
@@ -269,7 +269,7 @@ const region = settleAll(careerAtLevel(1 + 10), regionEvents);
 const by = (pick: (e: CareerEvent) => boolean): number => region.awards.reduce((sum, a, i) => sum + (pick(regionEvents[i]) ? a.cp : 0), 0);
 const isType = (t: string) => (e: CareerEvent): boolean => e.kind === 'kill' && e.type === t;
 test('worked example A: a Gladiator I clears region 1 and chapter one: pins the evening', () => {
-  assert.equal(careerAtLevel(11).credit, 24_915);
+  assert.equal(careerAtLevel(11).credit, 16_135);
   assert.deepEqual(region.awards.filter((_, i) => isType('world-boss')(regionEvents[i])).map(a => a.cp), [1100, 1250, 1312]);
   assert.equal(by(isType('world-boss')), 3662);
   assert.equal(by(e => e.kind === 'story'), 1850);
@@ -277,7 +277,7 @@ test('worked example A: a Gladiator I clears region 1 and chapter one: pins the 
   assert.equal(by(e => e.kind === 'kill' && e.target === 'ash-hound'), 288);
   assert.equal(by(isType('elite')), 1736);
   assert.equal(by(isType('named')), 16); // the allowance ran dry before the named kills
-  assert.equal(region.state.credit, 33_561);
+  assert.equal(region.state.credit, 24_781);
   assert.equal(levelOfCredit(region.state.credit), 12); // level 11 → 12
   assert.equal(restedAvailable(region.state, 155 * MIN), 26);
   assert.equal(region.state.pit.rung, 11); // the Pit waits at Gladiator I
@@ -333,7 +333,7 @@ test('worked example C: their elite kills split EverQuest-style and take the hig
 
 test('worked example D: days to every tenth level, casual (30 min) and heavy (3 h), to level 100 (the whole career)', () => {
   const marks = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-  const runs = [[CASUAL, [21, 54, 121, 230, 402, 652, 978, 1381, 1866, 2438]], [HEAVY, [5, 13, 31, 65, 123, 203, 301, 417, 552, 705]]] as const;
+  const runs = [[CASUAL, [12, 44, 112, 221, 392, 644, 968, 1372, 1858, 2429]], [HEAVY, [3, 11, 29, 63, 121, 201, 299, 415, 550, 703]]] as const;
   for (const [p, days] of runs) {
     const run = playerDays(p, OPP, 6000);
     assert.deepEqual(marks.map(l => run.dayReached[l]), days, p.name);
@@ -495,4 +495,20 @@ test('rift-boss is a progression row (living-world §8.4): the region loader acc
   assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss'), true);
   assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss-x'), false);
   assert.ok(basePay(TYPE_WEIGHTS['rift-boss']!, 20, 20) < basePay(TYPE_WEIGHTS['world-boss']!, 20, 20));
+});
+
+test('the 100 cap is one number: the curve row and the build table agree', async () => {
+  const sql = (await import('node:fs')).readFileSync(new URL('../supabase/migrations/202610120024_origins_character_build.sql', import.meta.url), 'utf8');
+  assert.match(sql, new RegExp(`level int not null check \\(level between 0 and ${LEVEL_CURVE.maxLevel}\\)`));
+});
+
+test('the opening is priced in Pit wins: level 1 in one win, level 5 in five, level 10 in thirty-five', () => {
+  let credit = 0;
+  const at: Record<number, number> = {};
+  for (let wins = 1; wins <= 60; wins++) {
+    const l = levelOfCredit(credit);
+    credit += basePay(TYPE_WEIGHTS.legend!, l, l);
+    for (const k of [1, 5, 10]) if (levelOfCredit(credit) >= k && at[k] === undefined) at[k] = wins;
+  }
+  assert.deepEqual(at, { 1: 1, 5: 5, 10: 35 });
 });

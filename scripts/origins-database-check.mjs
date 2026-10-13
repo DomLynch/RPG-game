@@ -209,7 +209,7 @@ try {
     state = a.state; wins++;
   }
   const finalTotal = Number(JSON.parse(W(`select public.origins_open('${C}')::text;`)).career.total_credit);
-  eq([wins, finalTotal, levelOfCredit(finalTotal)], [81, 23_540, 10], 'a Pit-only account stalls at level 10 through the server pipeline');
+  eq([wins, finalTotal, levelOfCredit(finalTotal)], [45, 14_520, 10], 'a Pit-only account stalls at level 10 through the server pipeline');
   eq(early !== undefined, true, 'the early claim existed');
 
   eq(acls(), aclsBefore, 'no grant, policy, trigger or RLS setting on any existing object changed (column-level ACLs and function ACLs included)');
