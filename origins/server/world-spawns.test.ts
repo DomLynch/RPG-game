@@ -212,13 +212,28 @@ test('the registry obeys the key rule the database column reads (zoneKeyProblems
   assert.deepEqual(zoneKeyProblems(), []);
 });
 
+// The allow-list of what a reported hit may write: the scorecard event and the career's world credit row, loot lines and nothing else. Anything else (an XP pool, a level, a spell, boss gear, a new currency) fails.
+const BATCH_OPS = new Set(['event', 'career_set', 'put', 'mint']);
+const EVENT_PAYLOAD = new Set(['result', 'world', 'instance', 'generation', 'fight', 'hits', 'reach', 'cp', 'cpReason', 'paid', 'beta']);
+const CAREER_KEYS = new Set(['op', 'account', 'expected_version', 'world_credit', 'rested', 'rested_at', 'heat', 'story', 'beaten']);
+function guardBatch(batch: Json[]): void {
+  for (const o of batch as Record<string, unknown>[]) {
+    assert.ok(BATCH_OPS.has(String(o.op)), `op ${String(o.op)} is not allowed in a reported-hit batch`);
+    if (o.op === 'event') for (const k of Object.keys(o.payload as object)) assert.ok(EVENT_PAYLOAD.has(k), `event payload key ${k} is not allowed`);
+    if (o.op === 'career_set') for (const k of Object.keys(o)) assert.ok(CAREER_KEYS.has(k), `career_set key ${k} is not allowed`);
+  }
+}
+
 test('guard (Strategy 2026-10-13): kill_report grants no XP-pool credit, level or spell, whatever the position; and nothing in the writer can take a spell without a verified record', async () => {
   const { readdirSync, readFileSync } = await import('node:fs');
   for (const w of [null, poseAt(wolf)]) {
     const rec = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
     await worldSpawnOps({ content, spawns, log: () => {} }).kill_report!(ctx(rec.db, w), { token: TOKEN, hits: 50 });
-    const text = JSON.stringify(rec.kills[0]!.b.map((o) => [o.op, Object.keys(o as object), (o as { payload?: object }).payload ? Object.keys((o as { payload: object }).payload) : []]));
-    assert.doesNotMatch(text, /\\b(xp|exp|level|spell|grimoire|boss-gear)\\w*/i, 'no op, field or payload key of the kill batch names an XP pool, level, spell or boss gear');
+    guardBatch(rec.kills[0]!.b);
+    for (const bad of [{ op: 'grant_xp', account: UID, amount: 5 }, { op: 'player_level', level: 2 }, { op: 'career_credit', amount: 5 }, { op: 'spell_taken', spell: 'x' }])
+      assert.throws(() => guardBatch([...rec.kills[0]!.b, bad as Json]), /not allowed/, `mutant ${bad.op} is caught`);
+    assert.throws(() => guardBatch([{ op: 'career_set', account: UID, expected_version: 1, xp_pool: 5 } as Json]), /not allowed/, 'a mutant career_set key is caught');
+    assert.throws(() => guardBatch([{ op: 'event', payload: { result: 'won', granted_xp: 5 } } as Json]), /not allowed/, 'a mutant event payload key is caught');
   }
   const server = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
   for (const f of server) {
