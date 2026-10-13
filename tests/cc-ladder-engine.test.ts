@@ -1,6 +1,6 @@
 // Proof 3: the shared crowd-control ladder in the engine (src/fight/duel.ts stunned(), src/fight/cc-ladder.ts). A fighter that carries a ladder (Fighter.cc) steps full -> half -> quarter -> immune on its
 // posture breaks, whoever lands them; a fighter without one is the Pit's fight, unchanged. Both ways: three attackers on the hero (one ladder threaded through three separate duels, as the open world threads
-// the hero's), and the hero on a boss.
+// the hero's), and the hero on a boss. The landings are spaced past the stun kind's post-CC immunity (cc-defs.json: 120 ticks after a stun ends), which the shipped rows now apply.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, idleIntent, stepDuel, type Action, type Duel, type Intent } from '../src/fight/duel.ts';
@@ -31,16 +31,16 @@ test('no ladder: a posture break is the full stun every time (the Pit is unchang
 
 test('the hero on a boss: the boss\'s breaks step full, half, quarter, then it is immune; the window resets it', () => {
   let cc: CcLadder = emptyLadder; const got: (number | null)[] = [];
-  for (let n = 0; n < 4; n++) { const r = breakOnce(cc, n * 120); got.push(r.ticks); cc = r.cc!; }
+  for (let n = 0; n < 4; n++) { const r = breakOnce(cc, n * 400); got.push(r.ticks); cc = r.cc!; }
   assert.deepEqual(got, [P.stun, Math.round(P.stun / 2), Math.round(P.stun / 4), null]);
-  const immune = breakOnce(cc, 4 * 120);
+  const immune = breakOnce(cc, 4 * 400);
   assert.equal(immune.ticks, null, 'immune: no PostureBroken'); assert.ok(immune.stun < P.stun, 'immune: only the cut\'s own stagger, not the posture stun');
-  assert.equal(breakOnce(cc, 3 * 120 + CC_LADDER.kinds.stun!.window + 60).ticks, P.stun, 'a quiet window later the ladder is back to full');
+  assert.equal(breakOnce(cc, 3 * 400 + P.stun + CC_LADDER.kinds.stun!.window + 60).ticks, P.stun, 'a quiet window later the ladder is back to full');
 });
 
 test('three attackers on the hero: one ladder threaded through three separate duels steps the same ladder', () => {
   let hero: CcLadder = emptyLadder; const got: (number | null)[] = [];
-  for (let attacker = 0; attacker < 3; attacker++) { const r = breakOnce(hero, 1000 + attacker * 10); got.push(r.ticks); hero = r.cc!; }
+  for (let attacker = 0; attacker < 3; attacker++) { const r = breakOnce(hero, 1000 + attacker * 400); got.push(r.ticks); hero = r.cc!; }
   assert.deepEqual(got, [P.stun, Math.round(P.stun / 2), Math.round(P.stun / 4)], 'the 2nd attacker\'s break is already half: the hero\'s ladder is shared');
   const boss = breakOnce(emptyLadder, 1000); assert.equal(boss.ticks, P.stun, 'a different target keeps its own ladder');
 });
