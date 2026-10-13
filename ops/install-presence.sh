@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Installs, updates or rolls back the Origins presence service on the VPS (docs/specs/origins/one-shard.md). Run by Deploy on the box, as root, from a trunk checkout, ONLY on a joint
-# Lead + Strategy GO (nothing here runs from CI or from deploy.sh):
-#   SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-presence.sh <revision>   install / update (idempotent)
+# Installs, updates or rolls back the Origins presence service on the VPS (docs/specs/origins/one-shard.md). Run by deploy.sh INSIDE the publish window (just before the site switch, `--if-changed`, only when presence is installed on the box; Lead + Strategy joint GO
+# 2026-10-13), or by hand on the box as root from a trunk checkout. An install never changes the presence flag (install is not flip):
+#   SUPABASE_URL=… SUPABASE_ANON_KEY=… bash ops/install-presence.sh [--if-changed] <revision>   install / update (idempotent); --if-changed skips (no restart) a byte-identical install (deploy.sh)
 #     The two are the project's PUBLIC url and anon key (the ones the page ships), used to check a player's token. Needed on the first install; kept in the env file after.
 #     Presence stays OFF: the env file is written with ORIGINS_PRESENCE=0 and the unit is enabled but not started. Turn it on with the flag GO: set ORIGINS_PRESENCE=1 in the env file
 #     and run this again (it restarts the unit and runs the health checks).
@@ -66,9 +66,21 @@ if [ "${1:-}" = "--link-writer" ]; then
   exit 0
 fi
 
-revision="${1:?usage: install-presence.sh <revision> | --link-writer | --unlink-writer | --rollback}"
+if_changed=""; [ "${1:-}" = "--if-changed" ] && { if_changed=1; shift; }
+revision="${1:?usage: install-presence.sh [--if-changed] <revision> | --link-writer | --unlink-writer | --rollback}"
 files="$(cd "$here" && node ops/presence-files.mjs)"   # fails (and so does the install) if presence imports an npm package
 [ -n "$files" ] || { echo "install-presence: ops/presence-files.mjs listed nothing" >&2; exit 1; }
+# --if-changed (deploy.sh, inside the publish window): skip, with no restart, when the installed service is byte-identical to this revision's file list, file by file and both ways
+# (the same rule as the writer's install: a skip judged by anything weaker let a stale writer run after DN). Anything else is the normal idempotent install below.
+if [ -n "$if_changed" ] && [ -d "$opt/current" ]; then
+  same=1
+  while IFS= read -r f; do cmp -s "$here/$f" "$opt/current/$f" || { same=""; break; }; done <<< "$files"
+  n="$(printf '%s\n' "$files" | wc -l | tr -d ' ')"
+  if [ -n "$same" ] && [ "$(find -L "$opt/current" -type f | wc -l | tr -d ' ')" = "$n" ]; then
+    echo "install-presence: $revision: closure identical to the installed $(basename "$(readlink -f "$opt/current")") ($n files, byte for byte); nothing installed"
+    exit 0
+  fi
+fi
 while IFS= read -r f; do install -D -m 0644 "$here/$f" "$opt/$revision/$f"; done <<< "$files"
 ln -sfn "$opt/$revision" "$opt/current"
 
