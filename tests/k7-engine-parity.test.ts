@@ -40,7 +40,7 @@ const ALLOWED = new Set(['arena', 'arena-themes', 'match', 'scorecard', 'trial',
 // SERVER-ONLY by EXACT path (Auditor 2026-10-13): the grimoire's 700-spell catalogue (7 spells-*.json) stays out of src/fight/server.ts, which the page's bundle reaches via src/core/luck.ts; the one server file that needs it takes it directly. Never add boss-spells to ALLOWED (module-wide: a page could take it).
 const WRITER_SAFE: readonly string[] = ['origins/preview/mobs.ts -> catalogue-rows', 'origins/server/grimoire.ts -> boss-spells'];
 // Server-run code (node, no three.js): it verifies and rewards fights from the same sim, so it cannot take the renderer-bearing index. Its door is src/fight/server.ts (re-exports only, no renderer).
-const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts)
+const SERVER_DIRS = ['origins/server/', 'origins/contracts/', 'origins/luck/', 'origins/encounters/', 'origins/inventory/', 'origins/progression/', 'origins/feuds/', 'origins/world/', 'origins/region1/', 'origins/mobs/', 'origins/shared/', 'origins/boss/', 'origins/zones/loader.ts', 'origins/preview/mobs.ts'];   // mobs.ts is page data the writer also loads (world-spawns.ts); origins/boss/: legend-boss.ts is read by the writer's resolve (encounter-setup.ts) and by the page, through the node-safe door
 
 // Today's failures, "row | owner | file -> module". Remove a line when its import goes.
 const KNOWN: readonly string[] = [
