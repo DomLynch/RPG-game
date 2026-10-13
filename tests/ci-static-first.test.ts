@@ -146,7 +146,7 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   const unit = schedule(U, push);
   assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
   assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
-  assert.ok(!schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt, so nothing vouches for the tree');
+  assert.ok(schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: the receipt JOB runs and its guard step goes red (fail closed, hardening item 3); no receipt artifact is made, so nothing vouches for the tree');
 });
 
 test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {

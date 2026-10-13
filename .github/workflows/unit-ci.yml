@@ -91,10 +91,15 @@ jobs:
     needs: shard
     # Explicit: with no `if`, GitHub's implicit success() also counts `static`, which a push or a dispatch skips, so the receipt was skipped after 8 green
     # shards (run 38293767009, trunk 4337cfe9b: deploy.sh read "unit-ci-down: no unit-receipt artifact"). It still needs every shard green.
-    if: ${{ !cancelled() && needs.shard.result == 'success' }}
+    # Fail closed (hardening item 3, 2026-10-13): a failed shard used to SKIP this job, and a skipped required check reads as passing to a ruleset or the merge
+    # queue. It now runs unless no shard was meant to run (shard skipped), and its first step goes red unless every shard succeeded; only then is a receipt made.
+    if: ${{ !cancelled() && needs.shard.result != 'skipped' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - run: '[ "$SHARDS" = success ] || { echo "unit-ci: a shard did not succeed (result: $SHARDS)"; exit 1; }'
+        env:
+          SHARDS: ${{ needs.shard.result }}
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.UNIT_SHA }}
