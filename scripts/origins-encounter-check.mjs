@@ -13,6 +13,7 @@ import console from 'node:console';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot } from '../origins/encounters/encounters.ts';
 import { openInventory } from '../origins/inventory/inventory.ts';
 import { mobBatch } from '../origins/server/mob-rewards.ts';
+import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 
 const UP = '202610080002_origins_encounter_runs.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
@@ -279,6 +280,21 @@ try {
   psql(readFileSync(join(dir, '202610130026_skill_practice.sql'), 'utf8'));
   psql(readFileSync(join(dir, '202610130027_grimoire_core.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb,jsonb)') is not null)::text`), 'true', 'grimoire up again: the 7-arg settle is back');
+  // ---- the spell gate's reads (#2487), as BOTH writer roles: the practice pool is RLS-closed to them (a plain select sees no rows), so the xp a spell record is checked against must come through the definer reader origins_skill_pool (0029) ----
+  if (files.includes('202610130029_skill_pool_access.sql')) {
+    psql(`insert into public.origins_skill_xp(character, skill, xp) values ('${pcA}', 'wind', 500); insert into public.origins_grimoire(account, legend, bricks, source_event) values ('${A}', 'alvis', '{"root":"gale","modifiers":[],"suffix":null}'::jsonb, 'enc:spell-gate-check');`);
+    const stored = { placed: { wind: 10 } }, spell = { id: 'alvis', skill: 5 }, rec = (skill = 5) => ({ spell: { ...spell, skill }, characterId: pcA.replace(/^pc:/, ''), buildVersion: 1 });
+    for (const role of [V, O]) {
+      eq((await as(role, 'select count(*) from public.origins_skill_xp;')).out.trim().split('\n').pop(), '0', `${role}: a plain select of the practice pool sees no rows (RLS), which is why the gate must not read it`);
+      const held = JSON.parse((await as(role, `${heldSql(A, pcA)};`)).out.trim().split('\n').pop());
+      eq([held.xp.wind, Object.keys(held.grimoire)], [500, ['alvis']], `${role}: the held read returns the practised xp and the owned spell through origins_skill_pool`);
+      const load = { held: async () => held, build: async () => stored };
+      eq(await spellRefusal(rec(5), A, load), null, `${role}: a practised skill within the ceiling is accepted`);
+      eq(/casts at 6, past the 5/.test(String(await spellRefusal(rec(6), A, load))), true, `${role}: a skill past the ceiling is refused`);
+      const other = JSON.parse((await as(role, `${heldSql(B, pcA)};`)).out.trim().split('\n').pop());
+      eq(other.xp, {}, `${role}: another account reads no xp for this character`);
+    }
+  }
   console.log(`origins-encounter-check: ${checks} checks passed`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }

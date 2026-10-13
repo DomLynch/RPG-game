@@ -19,8 +19,8 @@ export async function spellRefusal(record: { spell?: { id: string; skill: number
 }
 
 const UUID = /^[0-9a-f-]{36}$/i, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
-/** The read-only query a psql sweep runs for `SpellLoader.held` (the verifier role has select + execute on both: migrations 202610130026/27). Kept HERE so the sweeps never name the ledger tables themselves (the practice and grimoire guards). */
+/** The read-only query a psql sweep runs for `SpellLoader.held` (read through the definer origins_skill_pool, migration 0029: the pool table is RLS-closed to the writer roles, a plain select sees 0 rows). Kept HERE so the sweeps never name the ledger tables themselves (the practice and grimoire guards). */
 export const heldSql = (account: string, character: string): string => {
   if (!UUID.test(account) || !CHARACTER.test(character)) throw Error('refusing to query the spell ledger with a malformed account or character');
-  return `select json_build_object('grimoire', coalesce(public.origins_grimoire_get('${account}'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select json_object_agg(skill, xp) from public.origins_skill_xp where character = '${character}'), '{}'::json))::text`;
+  return `select json_build_object('grimoire', coalesce(public.origins_grimoire_get('${account}'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select jsonb_object_agg(k, (v ->> 'xp')::int) from jsonb_each(public.origins_skill_pool('${account}'::uuid, '${character}')) as e(k, v)), '{}'::jsonb))::text`;
 };

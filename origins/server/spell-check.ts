@@ -23,7 +23,7 @@ export function checkSpell(spell: SpellClaim, held: SpellHeld): SpellVerdict {
 }
 
 export async function expectedSpell(db: Db, account: string, character: string, spell: SpellClaim): Promise<SpellVerdict> {
-  const out = await db.run(`select json_build_object('grimoire', coalesce(public.origins_grimoire_get(:'a'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select json_object_agg(skill, xp) from public.origins_skill_xp where character = :'c'), '{}'::json))::text;`, { a: account, c: character });
+  const out = await db.run(`select json_build_object('grimoire', coalesce(public.origins_grimoire_get(:'a'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select jsonb_object_agg(k, (v ->> 'xp')::int) from jsonb_each(public.origins_skill_pool(:'a'::uuid, :'c')) as e(k, v)), '{}'::jsonb))::text;   -- the pool is RLS-closed to the writer roles: read it through the definer reader (migration 0029), never the table`, { a: account, c: character });
   const held = JSON.parse(out) as { grimoire: Record<string, unknown>; xp: Record<string, number> };
   const build = await store.buildGet(db, account, character);
   return checkSpell(spell, { grimoire: held.grimoire, xp: held.xp, placed: build !== null && build !== 'absent' ? build.placed : {} });
