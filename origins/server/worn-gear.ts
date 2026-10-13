@@ -32,3 +32,10 @@ export function wornGearOfSnapshot(snap: { items: readonly unknown[] }, characte
 export async function wornGearOf(db: Db, account: string, character: string): Promise<Readonly<Record<string, number>>> {
   return wornGearOfSnapshot(await store.open(db, account), character);
 }
+
+// The copy frozen on a claim or daily row when it was posted (migration 202610130025): { "<character>": [{ item, tier, slot }] }. Null or a character without pieces: no gear held.
+export function wornGearOfFrozen(frozen: unknown, character: string): Readonly<Record<string, number>> {
+  const pieces = frozen && typeof frozen === 'object' ? (frozen as Record<string, unknown>)[character] : undefined;
+  if (!Array.isArray(pieces)) return {};
+  return wornGearOfItems(pieces.map((p: { item: string; tier?: string | null; slot?: string }) => ({ item: p.item, tier: p.tier ?? null, location: { kind: 'equipped', ...(p.slot ? { slot: p.slot } : {}) } })));
+}
