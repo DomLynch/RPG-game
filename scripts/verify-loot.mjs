@@ -39,6 +39,7 @@ import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
+import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
 import { gunzipSync } from 'node:zlib';
 import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
@@ -152,7 +153,9 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
     if (!replay) return null;
-    const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null));   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
+    let worn = {};   // the gear frozen on the claim when it was posted, never the ledger as it is when the sweep runs
+    if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+    const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null), worn);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
     if (!want.ok) return want.reason;
     const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
     // Only a replay that stepped and then diverged can pass a browser hand-check; an unknown opponent or a record this build cannot
@@ -236,8 +239,8 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
   const uuid = value => { if (!UUID.test(value)) throw Error(`refusing to query with a malformed user id: ${JSON.stringify(value)}`); return value; };
   const text = value => (value === null ? 'null' : `'${String(value).replace(/'/g, "''")}'`);
   return {
-    pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record from public.loot_claims where not verified${recheck ? '' : ' and checked_at is null'} order by created_at, id limit ${Number(limit)}) r`)),
-    claim: async claim => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, verified, note from public.loot_claims where id = ${id(claim)}) r`))[0] ?? null,
+    pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, worn_gear from public.loot_claims where not verified${recheck ? '' : ' and checked_at is null'} order by created_at, id limit ${Number(limit)}) r`)),
+    claim: async claim => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, verified, note, worn_gear from public.loot_claims where id = ${id(claim)}) r`))[0] ?? null,
     stale: async () => JSON.parse(sql(`select coalesce(json_agg(id order by id), '[]') from public.loot_claims where checked_at is null and created_at < now() - interval '${STALE_MINUTES} minutes'`)),
     waiting: async claim => sql(`select exists (select 1 from public.loot_claims c, public.loot_claims x where x.id = ${id(claim)} and c.user_id = x.user_id and c.checked_at is null and (c.created_at, c.id) < (x.created_at, x.id))`) === 't',
     // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
