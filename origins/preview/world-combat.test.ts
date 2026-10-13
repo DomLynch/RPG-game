@@ -6,6 +6,7 @@ import { OPPONENTS, RULES, WEAPONS } from '../../src/fight/moves.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
 import { NAKED } from '../../src/fight/gear-stats.ts';
+import { sheetOf, type Sheet } from '../../src/fight/sheet-rows.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
@@ -156,4 +157,18 @@ test('a frame that runs no step (dt 0: the clock\'s first frame, or a very short
   const hero = { x: -70, z: -110, facing: 0 };
   assert.deepEqual(wc.update(0, hero), { dx: 0, dz: 0 }, 'live Zone 2 teleported the hero to (0, 0) on this frame (3 loads in 8)');
   assert.deepEqual(wc.update(1 / 60, hero), { dx: 0, dz: 0 }, 'and a normal frame after it still moves him nowhere');
+});
+
+test('the hero is rebuilt from hero() at the next clean window open: a sheet that arrives after load is the live fighter (the record\'s heroBody() reads the same hero())', () => {
+  const sheet = sheetOf({ level: 10, placed: { health: 10 } })!; assert.ok(sheet, 'a placed point moves the dials');
+  const make = (hero: () => { gear: typeof NAKED; level: number; sheet?: Sheet }) => {
+    const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 8 }]);
+    return createWorldCombat({ mobs: () => f.mobs, hero, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  };
+  let answered: Sheet | undefined;
+  const late = make(() => ({ gear: NAKED, level: 1, ...(answered ? { sheet: answered } : {}) })), born = make(() => ({ gear: NAKED, level: 1, sheet })), bare = make(() => ({ gear: NAKED, level: 1 }));
+  answered = sheet;   // the server's view and the build fetch answer after load
+  for (const wc of [late, born, bare]) wc.update(1 / 30, { x: 0, z: 0, facing: 0 });
+  assert.equal(late.hero().max, born.hero().max, 'the late hero is the one a sheeted-at-load hero is');
+  assert.notEqual(late.hero().max, bare.hero().max, 'and not the bare one');
 });
