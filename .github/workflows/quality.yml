@@ -172,8 +172,7 @@ jobs:
           SHARDS: ${{ needs.quality-shard.result }}
       # Skipped browser jobs read as green: say so here; the `browser-rows` commit status (plan) stays PENDING on such a head (Lead 2026-10-12).
       - if: needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'false'
-        run: |
-          echo "browser jobs NOT run on this head (a feature PR: they run in the release candidate it rides); a skipped browser row is not a pass" | tee -a "$GITHUB_STEP_SUMMARY"
+        run: echo "browser jobs NOT run on this head (a feature PR, they run in the release candidate it rides); a skipped browser row is not a pass" | tee -a "$GITHUB_STEP_SUMMARY"
   browser-rows:
     # The browser jobs' verdict as the `browser-rows` commit status, on the head sha this run tested (the plan set it PENDING). Not when the run was
     # cancelled (a newer push owns the status then). Optional gates (continue-on-error) never colour it, as they never colour their job.
