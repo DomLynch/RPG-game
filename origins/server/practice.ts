@@ -19,3 +19,6 @@ export function practiceLines(f: PracticeFight): Json[] {
   if (amount <= 0 || capXp <= 0) return [];
   return [{ skill, amount, capXp, key: `practice:enc:${f.token}:${skill}` }];
 }
+
+// A skill's current value: its base plus the points practice has filled, never past the points placed (the ceiling). xp is what the pool banks; XP_PER_POINT of it fills one point.
+export const skillValue = (base: number, placed: number, xp: number): number => base + Math.min(Math.max(0, Math.floor(placed)), Math.floor(Math.max(0, xp) / XP_PER_POINT));

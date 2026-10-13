@@ -15,6 +15,7 @@ source scripts/lib/deploy-trust.sh
 source scripts/lib/deploy-hf.sh
 source scripts/lib/deploy-vps.sh
 source scripts/lib/deploy-notes-only.sh
+source scripts/lib/writer-parity.sh   # writer_parity_gaps: the writer on the box must match the closure before the site moves
 source scripts/lib/node-pin.sh   # use_pinned_node: a unit suite on the Mac runs under NODE_PIN or not at all
 # Nothing is left running (Dom 2026-10-09): on ANY exit, cancel every Hugging Face job this release launched (the ledger, scripts/hf-cleanup.mjs) and print
 # "HF: N jobs, 0 running, <=$X"; a job it cannot prove stopped is a RED LINE in the log.
@@ -207,7 +208,20 @@ link_dest=$(ssh "${ssh_options[@]}" "$host" "readlink -f /var/www/frankendom/cur
 link_args=()  # expanded guarded below: macOS bash 3.2 treats an empty array as unbound under set -u (a same-revision redeploy)
 [[ -n "$link_dest" && "$link_dest" != "$release" ]] && link_args=(--link-dest="$link_dest")
 rsync -az --checksum ${link_args[@]+"${link_args[@]}"} --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "$remote_shell" dist/ "$host:$release/"
-ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE'
+# The writer flips with the site, not before or after (2026-10-13 DN: the writer stayed on DM for 4 minutes after the site moved): install it from a box checkout AT this
+# revision just before the switch below. --if-changed byte-compares every closure file and skips only a writer that is already identical; a failed install stops here,
+# before the site moves.
+deploy_step "writer install"
+writer_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-origins/current || true")
+# A switch that fails after the install must not leave the writer ahead of the site: point `current` back at the outgoing writer and restart it (as apply-1880.sh --rollback;
+# the install script's own --rollback would stop the writer altogether).
+writer_back() {
+  [[ -n "$writer_prev" ]] || return 0
+  ssh "${ssh_options[@]}" "$host" "[ \"\$(readlink /opt/frankendom-origins/current)\" = '$writer_prev' ] || { ln -sfn '$writer_prev' /opt/frankendom-origins/current && systemctl restart frankendom-origins-writer && echo 'writer put back on $writer_prev'; }" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
+}
+writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
+printf '%s\n' "$writer_install"
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; exit 1; }
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
@@ -295,6 +309,11 @@ else
   echo "verifiers shipped to $1; /etc/frankendom/verifier.env missing, timers not armed"
 fi
 REMOTE
+# Writer parity, after the switch and before Published: the installed writer must be byte-identical to this revision's writer closure.
+writer_files=$(node scripts/writer-closure-list.mjs --paths writer) && [[ -n "$writer_files" ]] || { echo 'writer parity: no writer closure list' >&2; exit 1; }
+writer_sums=$(while read -r f; do printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"; done <<<"$writer_files")
+writer_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-origins/current" <<<"$writer_sums")
+[[ -z "$writer_gaps" ]] || { echo "writer parity: the installed writer differs from $revision in: $(printf '%s' "$writer_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, writer differs" >&2; exit 1; }
 printf '\nPublished %s\n' "$revision"
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
