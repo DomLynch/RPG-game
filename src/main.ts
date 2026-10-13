@@ -53,6 +53,7 @@ import { openCharacter } from './core/index.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './fight/sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
+import { createGovernor, GOVERNOR_ROW } from './fight/governor.ts';
 import { LADDER, opponentFor, won as wonFight } from './ladder.ts';
 import type { FinisherId } from './fight/finishers.ts';
 import { PICKER_OPTIONS, PLAIN_DEATH, isTemplate } from './fight/finisher-look.ts';
@@ -522,6 +523,7 @@ let fightFrames: number[] = [], firstFightAt = NaN, fightStartAt = NaN, firstExc
 // The ratio the page ran at before its first automatic drop (the frame-time drop below, or a context restore), for the readout: "render 1x
 // (auto-lowered from 1.25)" says the device fell back, so a screenshot is never read as the tier's own ratio (Dom's iPhone, 2026-09-28).
 let loweredFrom: number | undefined;
+const governor = createGovernor(GOVERNOR_ROW, phoneTier() ? 'phone' : 'full');
 const lowered = (drop: () => void) => { const was = view.renderer.getPixelRatio(); drop(); if (loweredFrom === undefined && view.renderer.getPixelRatio() < was) loweredFrom = was; };
 const deviceLine = (renderRatio: number, loweredFrom: number | undefined) => {
   const nav = typeof navigator === 'undefined' ? null : navigator, ua = nav?.userAgent ?? '';
@@ -1692,6 +1694,7 @@ function frame(now: number) {
     if (Number.isNaN(fightStartAt)) fightStartAt = performance.now();   // the beacon's look_swap_s counts from here, on the look's own clock
     if (Number.isNaN(firstExchangeAt) && !idleBeat(match.practice)) firstExchangeAt = performance.now();
     fightFrames.push(elapsed * 1000);
+    const lever = governor.sample(view.renderer.info.render.calls, view.renderer.info.render.triangles); if (lever) view.degrade(lever);   // governor.ts: budgets per tier, one way, never flaps
   }   // performance.now() counts from navigation start: the first playable frame IS the time to first fight
   if (now - reportAt >= 2000 && frames.length) {
     const sorted = frames.sort((a, b) => a - b),
@@ -1715,6 +1718,7 @@ function frame(now: number) {
         `p50 ${at(0.5).toFixed(1)}  p95 ${at(0.95).toFixed(1)}  max ${(ms.at(-1) ?? 0).toFixed(1)} ms`,
         `dropped ${dropped}/${ms.length} over 16.7 ms`,
         `worst since load ${perfWorst.toFixed(0)} ms`,
+        `governor level ${governor.level}/${GOVERNOR_ROW.ladder.length} (budget ${governor.budget.draws} draws, ${governor.budget.tris.toLocaleString()} tris)`,
         `guards ${guards.built}/${guards.of}  draws ${info.calls}  tris ${info.triangles.toLocaleString()}  programs ${view.renderer.info.programs?.length ?? 0}`,
         `fight: ${fps(fightAt(0.5))} fps p50 · ${fps(fightAt(0.95))} fps p5 · ${fight.length} frames / ${fightSeconds.toFixed(0)} s`,
         ...(rafCadence(fightFrames).capped30 ? ['rAF capped 30 (low power?)'] : []),   // iOS Low Power Mode caps rAF at 30 Hz (quality.ts rafCadence)
