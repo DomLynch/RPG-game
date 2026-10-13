@@ -529,6 +529,7 @@ try {
       eq(rget('pc:nobody'), null, 'renown: and reads null');
       eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the verifier role reads');
       eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the other writer role reads the same row');
+      eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_add_renown('${D}', '${daraTwo}', 5, 5)::text;`).split('\n').pop()), { fame: 5, karma: -14995 }, 'renown: the other writer role (frankendom_origins) adds too');
       eq(denied(() => psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; select public.origins_get_renown('${D}', '${daraTwo}');`)), 'permission denied', 'renown: a client may not read');
       eq(denied(() => psql(`set role authenticated; select * from public.origins_character_renown;`)), 'permission denied', 'renown: a client may not touch the table');
     }
