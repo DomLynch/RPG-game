@@ -2,6 +2,14 @@
 
 READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-13). Questions go to Project Strategy, not Dom.
 
+## RULING (Strategy 2026-10-13, replaces brief rule 1)
+- The sandbox MAY edit src/fight on sandbox/* branches (same files, no copy).
+- A mechanic = one new template in src/fight + rows in sandbox/rows.json; rows absent = inert. No sandbox-only flags/build switches.
+- One commit per mechanic, "sandbox-mech: <name>", with its own red-to-green test. Rows off = fingerprint identical to trunk.
+- Rebase after every release. Max 5 mech commits; a mech 2 releases old without Dom's verdict is dropped or promoted.
+- REUSE FIRST: hit stop rows (#2515), poise/flinch ladder (#2525), hit-impact.ts, stagger rows. Ask Combat what exists before each mech.
+- Page footer (panel bottom) shows trunk base, engine fingerprint, active mechs. One line to Lead per preview publish.
+
 ## LIVE
 - https://frankendom.com/preview/sandbox/ — published 2026-10-13 from branch `sandbox/page` on trunk 501f5f0c3 (release-DU).
 - Worktree: ~/Developer/frankendom-sandbox (node_modules is a symlink to the Desktop checkout's; never commit it).
