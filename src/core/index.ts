@@ -3,6 +3,7 @@
 export * from './writer-call.ts';
 export * from './open.ts';
 export * from './build-ref.ts';
+export * from './title-server.ts';   // the player's title line (Backend title_get), for the Pit page
 export * from './session.ts';
 export * from './profile.ts';
 export * from './grades.ts';
