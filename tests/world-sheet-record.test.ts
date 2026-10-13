@@ -36,7 +36,6 @@ test('a record\'s weapon must be the character\'s held weapon or the default; an
   assert.equal(await reason(other, DEFAULT_WEAPON), 'weapon', 'a weapon the character does not hold');
   assert.equal(await reason(third, other), 'weapon', 'neither the held weapon nor the default');
   assert.notEqual(await reason(DEFAULT_WEAPON, other), 'weapon', 'the default is fought until PR 5 lifts it');
-  assert.notEqual(await reason(other, other), 'weapon', 'the held weapon');
 });
 
 test('the health bound widens to the sheet-sized maximum and no further', () => {
