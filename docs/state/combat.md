@@ -1,3 +1,10 @@
+## 2026-10-13 ~15:00 (+04) — Wolf line corrected, breath cone, caster tells, client spell wire (correction entry; the 2026-10-12 handoff below is history where it differs)
+1. **Wolf is DONE, not queued:** combat/wolf @fe5dc0b8b (the rig10 wolf.glb switch, sha256 ef8809be...) is an ancestor of trunk (`git merge-base --is-ancestor fe5dc0b8b origin/codex/01a09a76/task-1`, 0 commits ahead, no open PR). Stills: docs/stills/wolf/ and artifacts/wolf-2x/. Ignore every "Wolf (combat/wolf @76326f12, no PR yet)" line below.
+2. **Closed:** 1v1 vs multi-attacker note (option (a) shipped at RV39: pack.ts startStreams/stepStreams/groupKill, MAX_ATTACKERS 3; the group verifier + payout are Backend's, encounter-verify.ts refuses `record.group` until then; Lead ruled the note closed). Deterministic flee: CUT by Dom 2026-10-11 and Lead withdrew #7(b) on 2026-10-13: no flee work.
+3. **Open PRs (gh):** #2529 breath cone (RV55, WORLD_SIM_VERSION 8, base trunk, one commit on #2526 @429277240, ships after #2526); #2532 caster tells (presentation only; `?spell=<id>` look test reaches a Match in sparring only; software-render stills accepted by Lead because the T4 cap was hit; labelled auditor:ready); #2549 client spell wire (pickSpell + main.ts spell port + hud skillOk counts a spell; stacked on #2467 and Web's #2548; base-skill claim only, the skill-pool read is Web's follow-up). Earlier: #2467 grimoire cast, #2515 hit stop rows, #2525 poise ladder.
+4. **Finding:** the HUD's Skill button was lit only with an equipped skill (hud.ts:88); fixed in #2549. `?spell` is not a way to cast in a paying fight.
+5. **Queue:** #4 packs (src/pack.ts follow-ups, no RV), then #6 Gothic tactic table (own RV); Sandbox promotions are my cherry-pick as a normal PR (Strategy ruling), queued behind the wire.
+
 ## 2026-10-12 ~12:00 (+04) — HANDOFF #11 before /clear: core slice 3, digest projection, pools registry, weapons as data, creature flee CUT. READ FIRST, then memory `project_combat_handoff_2026-10-12.md`
 
 1. **Landed:** #2253 core slice 3 sim side (src/core/world-sim.ts), #2229 boundary shrink, #2241 creature flee CUT (Dom 2026-10-11), #2233 note.
