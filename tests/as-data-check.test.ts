@@ -163,3 +163,16 @@ test('content rows built in code are counted: a record-kind literal in origins c
     assert.equal(gated('--gate'), 1, 'under --gate a planted row exits 1');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
+
+test('a tuning number kept as a named constant in a moved file is counted; the moved feuds.ts has none', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-consts-'));
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'feuds'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+    writeFileSync(join(repo, 'origins', 'feuds', 'feuds.ts'), "export const JAIL_S = 600;\nexport const NEG = -5;\nexport const FROM_ROW = R.jailS;\nconst local = 3;\nexport const fn = () => { const INNER = 4; return INNER; };\n");
+    const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; text: string }[] };
+    assert.equal(out.rows, 2, 'JAIL_S and NEG count; a constant read from a row, a lower-case local and a constant inside a function do not');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});

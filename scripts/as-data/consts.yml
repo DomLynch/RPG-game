@@ -1,0 +1,12 @@
+# as-data check (d): a tuning number kept as a named constant in code. In the files listed under `files` (each already moved to rows; add a file here when its
+# numbers move) a top-level `const NAME = <number>` is content in TypeScript: the number belongs in a row of the file's rules table, read by name.
+id: as-data-consts
+language: typescript
+files:
+  - origins/feuds/feuds.ts
+rule:
+  kind: variable_declarator
+  all:
+    - has: { field: name, kind: identifier, regex: "^[A-Z][A-Z0-9_]*$" }
+    - has: { field: value, any: [{ kind: number }, { kind: unary_expression, regex: "^-?[0-9]" }] }
+    - inside: { kind: lexical_declaration, stopBy: neighbor, any: [{ inside: { kind: program, stopBy: neighbor } }, { inside: { kind: export_statement, stopBy: neighbor, inside: { kind: program, stopBy: neighbor } } }] }
