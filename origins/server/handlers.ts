@@ -11,6 +11,7 @@ import type { StoryContent } from './story.ts';
 import * as store from './store.ts';
 import { talkPick } from './talk-pick.ts';
 import { buildGet, buildSet } from './build.ts';
+import { grimoireGetHandler } from './grimoire-get.ts';
 import { skillsGet, skillFocus } from './skills.ts';
 import { shopBuyHandler } from './shop-buy.ts';
 import { gearHandlers } from './gear.ts';
@@ -90,7 +91,7 @@ const createCharacter: Handler = async (ctx, body) => {
 // ORIGINS_CONTENT names and passes storyOps(content) in; nothing here reads the env or a file. With none loaded both answer 503: the writer
 // is up but not ready for them, which is what the defaults below serve.
 export const storyOps = (content: StoryContent | null): Record<string, Handler> => ({ quest_advance: questAdvance(content), talk_pick: talkPick(content) });
-export const handlers: Record<string, Handler> = { open, create_character: createCharacter, build_get: buildGet, build_set: buildSet, skills_get: skillsGet, skill_focus: skillFocus, ...storyOps(null) };
+export const handlers: Record<string, Handler> = { open, create_character: createCharacter, build_get: buildGet, build_set: buildSet, skills_get: skillsGet, skill_focus: skillFocus, grimoire_get: grimoireGetHandler, ...storyOps(null) };
 
 // The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
 export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items), shop_buy: shopBuyHandler(items, items.shops ?? new Map()), ...gearHandlers(items) });
