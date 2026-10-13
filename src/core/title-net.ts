@@ -7,7 +7,7 @@ export const titleIsOffline = (r: Renown | Offline): r is Offline => 'offline' i
 // Shape only: a malformed answer is null (no title line), never half a title.
 export function renownOf(result: unknown): Renown | null {
   const r = result as { fame?: unknown; karma?: unknown; title?: unknown } | null;
-  if (!r || !Number.isInteger(r.fame) || !Number.isInteger(r.karma) || typeof r.title !== 'string' || r.title.length > 80 || /[\u0000-\u001f<>]/.test(r.title)) return null;
+  if (!r || !Number.isInteger(r.fame) || !Number.isInteger(r.karma) || typeof r.title !== 'string' || r.title.length > 80 || /[<>]/.test(r.title) || [...r.title].some((c) => c.charCodeAt(0) < 32)) return null;
   return { fame: r.fame as number, karma: r.karma as number, title: r.title.trim() };
 }
 export const getTitle = (token: string | null, character: string, opts: Opts = {}) => call('title_get', { character }, token, renownOf, opts);
