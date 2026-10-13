@@ -5,6 +5,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
 
 **Delta since the 16:1x entry below (read both):**
+- AUDITOR ALSO CLEARED ~16:4x (its handoff: memory frankendom_handoff_2026-10-13g, state doc edb879715). Its watchers died: NOTHING auto-PASSes (EC, ED stack, #2556, #2530, #2551, #2504, #2509) until it is restarted and re-arms them. First job for the new Auditor: EA parity. Ask Dom to restart the Auditor and Combat first thing.
 - EC #2555: CI nearly done (Deploy 16:36: 118 ok, 3 open; only red = cancelled placeholder). Auditor watcher posts PASS + candidate:pass on green → train publishes. Verify live + parity.
 - SPELLS cut: #2549 now has its formal PASS; only #2556 @56a974ef4 missing. Deploy cuts #2511→#2522→#2548→#2549→#2556 (+#2532) on that line.
 - EB drill: #2530 @d0bd4da75 code OK; PASS posts on green, then Deploy drills.
