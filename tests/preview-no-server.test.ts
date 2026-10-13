@@ -2,6 +2,13 @@
 // the grimoire's whole spell catalogue) or in the node-safe doors src/fight/server.ts and src/core/server.ts. The page reads the engine through src/fight/index.ts and the core through src/core/index.ts.
 // Type-only imports are erased by the build and are not followed. There are NO pinned leaks: the two that predated this guard (zones/loader.ts reading ROSTER, mobs.ts reading the core's mob maths) now read
 // the page-and-node-safe doors src/fight/safe.ts and src/core/safe.ts, whose own closure is checked below.
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, normalize } from 'node:path';
+
+const IMPORT = /(?:^\s*(?:import|export)\b(?!\s+type\b)[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
+const FORBIDDEN = /^(origins\/server\/|src\/fight\/server\.ts$|src\/core\/server\.ts$)/;
 const code = (f: string) => /\.(ts|mjs)$/.test(f) && !/\.test\.(ts|mjs)$/.test(f);
 const seeds = (dir = 'origins/preview'): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? seeds(join(dir, e.name)) : code(e.name) ? [join(dir, e.name)] : []);
 
