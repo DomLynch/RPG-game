@@ -8,6 +8,8 @@ import KINDS from '../src/fight/damage-kind-defs.json' with { type: 'json' };
 import CC from '../src/fight/cc-defs.json' with { type: 'json' };
 import SWARM from '../src/fight/swarm-defs.json' with { type: 'json' };
 import BOSSES from '../src/fight/bosses.json' with { type: 'json' };
+import HIT_STOP from '../src/fight/hit-stop-defs.json' with { type: 'json' };
+import CROWD from '../src/audio/crowd-defs.json' with { type: 'json' };
 import SAVED from './rows.json' with { type: 'json' };
 
 declare const __SANDBOX_INFO__: string;
@@ -15,7 +17,7 @@ type Rows = Record<string, unknown[]>;
 type Overrides = { notes?: string[]; files?: Record<string, Rows> };
 // Panel order = the brief's order. bosses.json is a bare array; it is edited as one family named "bosses".
 const FILES: Record<string, Record<string, unknown>> = {
-  'sheet-defs': SHEET, 'stance-defs': STANCE, 'gear-defs': GEAR, 'damage-kind-defs': KINDS, 'cc-defs': CC, 'swarm-defs': SWARM,
+  'sheet-defs': SHEET, 'stance-defs': STANCE, 'hit-stop-defs': HIT_STOP, 'crowd-defs': CROWD, 'gear-defs': GEAR, 'damage-kind-defs': KINDS, 'cc-defs': CC, 'swarm-defs': SWARM,
   bosses: { bosses: BOSSES } as Record<string, unknown>,
 };
 const KEY = 'frankendom.sandbox.rows';
@@ -24,9 +26,16 @@ const read = (): Overrides => { try { return JSON.parse(localStorage.getItem(KEY
 const write = (o: Overrides | null) => { try { if (o) localStorage.setItem(KEY, JSON.stringify(o)); else localStorage.removeItem(KEY); } catch { /* private window: edits last this page only */ } };
 
 const current = read();
+// A family is an array of rows, or a keyed object {id: row} (hit-stop-defs `contacts`), edited as rows carrying their id.
+const asRows = (v: unknown): unknown[] | undefined => Array.isArray(v) ? v : v && typeof v === 'object' ? Object.entries(v).map(([id, r]) => ({ id, ...(r as object) })) : undefined;
 for (const [file, fams] of Object.entries(current.files ?? {})) for (const [fam, rows] of Object.entries(fams)) {
   const target = FILES[file]?.[fam];
   if (Array.isArray(target)) target.splice(0, target.length, ...rows);
+  else if (target && typeof target === 'object') {
+    const keyed = target as Record<string, unknown>;
+    for (const k of Object.keys(keyed)) delete keyed[k];
+    for (const r of rows as { id: string }[]) { const { id, ...row } = r; keyed[id] = row; }
+  }
 }
 
 const lines = (rows: unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n');
@@ -58,10 +67,10 @@ function panel(opponents: string[]) {
   for (const [file, fams] of Object.entries(FILES)) {
     const d = el('details', { open: file === 'sheet-defs' }, el('summary', { textContent: `${file}.json` }));
     for (const fam of Object.keys(fams)) {
-      const rows = fams[fam]; if (!Array.isArray(rows)) continue;
+      const rows = asRows(fams[fam]); if (!rows) continue;
       const ta = el('textarea', { value: lines(rows), spellcheck: false });
       ta.rows = Math.min(14, rows.length + 1);
-      const changed = JSON.stringify(rows) !== JSON.stringify(LIVE[file]![fam]);
+      const changed = JSON.stringify(rows) !== JSON.stringify(asRows(LIVE[file]![fam]));
       ta.oninput = () => ta.classList.add('dirty');
       d.append(el('h3', { textContent: `${fam}${changed ? '  (changed from live)' : ''}` }), ta);
       areas.push({ file, fam, ta });
@@ -74,7 +83,7 @@ function panel(opponents: string[]) {
     for (const { file, fam, ta } of areas) {
       let rows: unknown[];
       try { rows = ta.value.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)); } catch (e) { return `${file} / ${fam}: ${(e as Error).message}`; }
-      if (JSON.stringify(rows) !== JSON.stringify(LIVE[file]![fam])) (files[file] ??= {})[fam] = rows;
+      if (JSON.stringify(rows) !== JSON.stringify(asRows(LIVE[file]![fam]))) (files[file] ??= {})[fam] = rows;
     }
     const notes = [...(current.notes ?? [])]; if (note.value.trim()) notes.push(`${new Date().toISOString().slice(0, 16)} ${note.value.trim()}`);
     return { notes, files };
