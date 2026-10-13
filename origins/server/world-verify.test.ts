@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
-import { verifyWorldRecord, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
+import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
@@ -64,11 +64,11 @@ test('verifyWorldRecord: an honest record verifies; wrong creature, no kill, for
 });
 
 test('kill_report: soak default pays exactly as today with or without a record; a bad record is logged and still pays', async () => {
-  const logs: string[] = [], { text } = await honest();
+  const logs: string[] = [], { text } = await honest(), tally = createVerdictTally();
   const none = stub(), withRec = stub(), bad = stub();
-  await mk({ log: (l: string) => logs.push(l) }).kill_report!(ctx(none.db), { token: TOKEN, hits: 50 });
-  await mk({ log: (l: string) => logs.push(l) }).kill_report!(ctx(withRec.db), { token: TOKEN, hits: 50, record: text });
-  await mk({ log: (l: string) => logs.push(l) }).kill_report!(ctx(bad.db), { token: TOKEN, hits: 50, record: 'AAAA' });
+  await mk({ tally, log: (l: string) => logs.push(l) }).kill_report!(ctx(none.db), { token: TOKEN, hits: 50 });
+  await mk({ tally, log: (l: string) => logs.push(l) }).kill_report!(ctx(withRec.db), { token: TOKEN, hits: 50, record: text });
+  await mk({ tally, log: (l: string) => logs.push(l) }).kill_report!(ctx(bad.db), { token: TOKEN, hits: 50, record: 'AAAA' });
   assert.ok(paidOps(none.kills[0]!.b).length > 0, 'it pays');
   assert.deepEqual(paidOps(withRec.kills[0]!.b), paidOps(none.kills[0]!.b));
   assert.deepEqual(paidOps(bad.kills[0]!.b), paidOps(none.kills[0]!.b));
@@ -80,6 +80,7 @@ test('kill_report: soak default pays exactly as today with or without a record; 
   await new Promise((r) => setTimeout(r, 200));
   assert.ok(logs.some((l) => /world record verified/.test(l)), 'the verdict is logged');
   assert.ok(logs.some((l) => /world record not verified \(undecodable\)/.test(l)), 'the reason is logged');
+  assert.deepEqual(tally.snapshot(), { since: tally.snapshot().since, total: 3, verified: 1, rate: 1 / 3, outcomes: { 'no record': 1, verified: 1, undecodable: 1 } }, 'the soak counters: one per outcome, verified rate = verified / kills');
 });
 
 test('kill_report with scorecardOnlyUnverified: no record or a bad one books the event only; a verified one pays; a record is a string within the limit', async () => {
@@ -160,4 +161,29 @@ test('the pool: a real worker thread verifies an honest record and refuses junk'
     assert.ok(good.ok, JSON.stringify(good));
     assert.deepEqual(await pool.verify({ text: '!!!', spawn: { spec: wolf.spec }, kind: 'wolf' }), { ok: false, reason: 'undecodable' });
   } finally { pool.close(); }
+});
+
+test('the tally: empty has no rate; outcomes accumulate', () => {
+  const t = createVerdictTally(() => new Date('2026-10-13T00:00:00Z'));
+  assert.deepEqual(t.snapshot(), { since: '2026-10-13T00:00:00.000Z', total: 0, verified: 0, rate: null, outcomes: {} });
+  t.add('timeout'); t.add('timeout'); t.add('verified');
+  assert.deepEqual(t.snapshot().outcomes, { timeout: 2, verified: 1 });
+});
+
+test('the soak counters are wired in the production entry and answer GET /internal/world-records behind the key', async () => {
+  const { readFileSync } = await import('node:fs'), { createServer } = await import('node:http'), { internalRoute } = await import('./location.ts');
+  const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
+  assert.match(entry, /const tally = createVerdictTally\(\)/);
+  assert.match(entry, /verifyRecord: [^}]*, tally \}/, 'the spawn deps count every verdict');
+  assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
+  const t = createVerdictTally(); t.add('verified'); t.add('timeout');
+  const route = internalRoute({} as never, { key: 'k', worldRecords: t });
+  const srv = createServer((req, res) => void route(req, res));
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+  try {
+    const base = `http://127.0.0.1:${(srv.address() as { port: number }).port}/internal/world-records`;
+    assert.equal((await fetch(base)).status, 401);
+    const body = await (await fetch(base, { headers: { authorization: 'Bearer k' } })).json() as { total: number; rate: number; outcomes: object };
+    assert.deepEqual([body.total, body.rate, body.outcomes], [2, 0.5, { verified: 1, timeout: 1 }]);
+  } finally { srv.close(); }
 });

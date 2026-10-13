@@ -11,6 +11,12 @@ export type HeroLimit = { level: number; attack: number; res: number };   // wha
 export type Verdict = { ok: true; ticks: number } | { ok: false; reason: string };
 
 /** What a replay needs, all plain data (it crosses to the worker thread). */
+// Soak counters: kills by outcome ('verified', 'no record', or the refusal reason), so the verified rate is one read once the records are live.
+export type VerdictTally = { add(outcome: string): void; snapshot(): { since: string; total: number; verified: number; rate: number | null; outcomes: Record<string, number> } };
+export function createVerdictTally(now: () => Date = () => new Date()): VerdictTally {
+  const since = now().toISOString(), outcomes: Record<string, number> = {};
+  return { add: (o) => { outcomes[o] = (outcomes[o] ?? 0) + 1; }, snapshot: () => { const total = Object.values(outcomes).reduce((a, b) => a + b, 0), verified = outcomes.verified ?? 0; return { since, total, verified, rate: total ? verified / total : null, outcomes: { ...outcomes } }; } };
+}
 export type VerifyJob = { text: string; spawn: Pick<Spawn, 'spec'>; kind: string; limit?: HeroLimit | null; maxTicks?: number };
 export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>, kind: string, limit?: HeroLimit | null, maxTicks: number = MAX_WORLD_TICKS): Promise<Verdict> {
   let rec;
