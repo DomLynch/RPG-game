@@ -128,6 +128,8 @@ try {
   eq(await code(V, SETTLE7(C, tok(52), 'won', EV(tok(52), C, pcC, 'won'), SP('kehua', '{"root":"longShadow","modifiers":[],"suffix":null}'))), null, 'grimoire: another legend settles');
   eq(spellsOf(C), 'eloko,kehua', 'grimoire: two legends, two rows');
   eq(psql(`select (public.origins_grimoire_get('${C}'))::jsonb -> 'kehua'`), '{"root": "longShadow", "suffix": null, "modifiers": []}', 'grimoire: get returns the bricks per legend');
+  for (const role of [V, O]) eq(psql(`set role ${role}; select (public.origins_grimoire_get('${C}'))::jsonb -> 'kehua';`).split('\n').pop(), '{"root": "longShadow", "suffix": null, "modifiers": []}', `grimoire: the ${role} role reads the book through the definer reader`);
+  eq(psql(`set role ${V}; select count(*) from public.origins_grimoire;`).split('\n').pop(), '0', 'grimoire: a plain select by the writer sees no rows (RLS), so the reader is the only way');
   eq(await code('anon', `select * from public.origins_grimoire`), '42501', 'grimoire: no client reads the book');
   eq(await code('authenticated', SETTLE7(C, tok(52), 'won', '[]', '[]')), '42501', 'grimoire: no client calls the settle');
 

@@ -179,6 +179,12 @@ export const spawnKill = async (db: Db, account: string, token: string, minMs: n
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };
+// The account's grimoire (migration 0027; the table is RLS-closed to the writer, origins_grimoire_get is the reader): { legend -> bricks }. 'absent' = 0027 not applied; null = the account is not allowed.
+const HAS_GRIMOIRE = `select to_regprocedure('public.origins_grimoire_get(uuid)') is not null as grimoire \\gset\n`;
+export const grimoireGet = async (db: Db, account: string): Promise<Record<string, Json> | null | 'absent'> => {
+  const out = await gated(db, 'grimoire', HAS_GRIMOIRE, 'grimoire', `select coalesce(public.origins_grimoire_get(:'a'::uuid)::text, 'null');`, { a: acct(account) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
 // The build of one character (migration 202610120024): level, points placed per dial or skill id, the rank of the last paid re-spread, version. null = not this account's; 'absent' = the migration is not applied.
 export type BuildRow = { level: number; placed: Record<string, number>; respreadRank: number; version: number; conflict?: true };
 const HAS_BUILD = `select to_regprocedure('public.origins_set_build(uuid,text,jsonb,integer,integer)') is not null as build \\gset\n`;
