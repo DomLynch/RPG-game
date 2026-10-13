@@ -2,15 +2,12 @@
 // A legend's fight is its opponent family's body at its rank: the legend key (a spell row's id without `spell:`, the ONE key of src/fight/legend-families.ts) names a family and a rank, the family
 // names the body (OPPONENTS id), and the rank names the level (the TOP level of that Pit rung, the hardest the legend wears). Only a legend with a spell row is a boss (a spellless legend teaches
 // nothing, so there is nothing to earn). Donors: EQEmu's named spawns (a rare is a spawn entry with its own npc_type) and the Pit's own rank ladder for the stats. Pure: no DOM, no clock, no storage.
-import { LEGEND_FAMILIES, isSpellless, legendText, rungTopLevel } from '../../src/fight/server.ts';
+import { isSpellless } from '../../src/fight/server.ts';
 import { legendOfFight } from '../server/grimoire.ts';   // the one place that knows which legend has a spell row (the guard in grimoire.test.ts keeps the spell catalogue behind it)
+import { LEGEND_VIEWS, bossFightId, type LegendBoss } from './legend-view.ts';   // the page-safe half: the fight id, the placement rows, the name/body/level view
+export { LEGEND_SPAWNS, bossFightId, legendSpawnsIn, type LegendBoss, type LegendSpawn } from './legend-view.ts';
 
-export type LegendBoss = { readonly legend: string; readonly name: string; readonly fight: string; readonly enemy: string; readonly family: string; readonly region: string; readonly rank: number; readonly level: number };
-export const bossFightId = (legend: string): string => `boss:${legend}`;
-
-const ALL: readonly LegendBoss[] = LEGEND_FAMILIES.flatMap((f) => f.legends
-  .filter((e) => !isSpellless(e.legendId) && legendOfFight(bossFightId(e.legendId)) !== null)
-  .map((e): LegendBoss => ({ legend: e.legendId, name: legendText(e.legendId)?.name ?? e.legendId, fight: bossFightId(e.legendId), enemy: f.opponent, family: f.id, region: f.region, rank: e.rank, level: rungTopLevel(e.rank) })));
+const ALL: readonly LegendBoss[] = LEGEND_VIEWS.filter((b) => !isSpellless(b.legend) && legendOfFight(bossFightId(b.legend)) !== null);
 const BY_LEGEND = new Map(ALL.map((b) => [b.legend, b] as const));
 
 /** Every legend boss, in family then rank order. */
@@ -25,10 +22,9 @@ export const legendBossesOf = (region: string): readonly LegendBoss[] => ALL.fil
 // places (several rows). `zone` is a plan zone id (cinder-fields) and `at` one of that zone's plan landmarks (ash-pits). The first-pass rows are for the owner to move, one row each; the loader refuses a legend
 // that is not a boss, an unknown zone and a landmark the zone does not have. The page starts the fight with `bossFightId(legend)` through encounter_start, so a win settles as boss:<legend> and takes the spell.
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
-import SPAWNS from './legend-spawns.json' with { type: 'json' };
+import type { LegendSpawn } from './legend-view.ts';
 import MANIFEST from './legend-spawns.manifest.json' with { type: 'json' };
 
-export type LegendSpawn = { readonly id: string; readonly order: number; readonly legend: string; readonly zone: string; readonly at: string; readonly dx?: number; readonly dz?: number };   // dx/dz: metres off the landmark (a landmark may sit on a prop; the legend stands beside it)
 export type LegendSpawnKnown = { zones: ReadonlySet<string>; landmarks(zone: string): ReadonlySet<string> };
 /** The one loader: the registry's duplicate/missing/mistyped checks, then the cross-rules (a real legend boss, a real zone, a landmark that zone has). */
 export function loadLegendSpawns(raw: { spawns?: unknown }, known: LegendSpawnKnown): readonly LegendSpawn[] {
@@ -42,5 +38,3 @@ export function loadLegendSpawns(raw: { spawns?: unknown }, known: LegendSpawnKn
   }
   return rows;
 }
-export const LEGEND_SPAWNS: readonly LegendSpawn[] = Object.entries((SPAWNS as { spawns: Record<string, Omit<LegendSpawn, 'id'>> }).spawns).map(([id, r]) => ({ id, ...r })).sort((a, b) => a.order - b.order);   // validated against the real zones by origins/boss/legend-boss.test.ts
-export const legendSpawnsIn = (zone: string, spawns: readonly LegendSpawn[] = LEGEND_SPAWNS): LegendSpawn[] => spawns.filter((s) => s.zone === zone);

@@ -2,7 +2,7 @@
 // to a placed legend (origins/preview/legend-mobs.ts) and taps it; this is the two halves around the duel: `beginLegendFight` asks the server for the fight (encounter_start names the legend, the
 // body names no foe, level or seed) and answers the duel to open, `finishLegendFight` posts the duel's record to encounter_settle and answers the words to show. Network calls are injected, so
 // a test plays both halves with a stand-in server; no DOM, storage or clock is read here. A guest, an offline page or a refusal is an answer (a line to say), never a throw.
-import { bossFightId } from '../boss/legend-boss.ts';
+import { bossFightId } from '../boss/legend-view.ts';
 import type { FightRecord } from '../../src/fight/index.ts';
 import type { Offline } from '../../src/core/index.ts';
 import type { Fight, Settled } from './encounter-net.ts';
