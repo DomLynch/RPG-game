@@ -22,5 +22,7 @@ begin
 end $$;
 
 revoke all on function public.origins_skill_pool(uuid, text), public.origins_skill_focus(uuid, text, text, boolean) from public, anon, authenticated;
-grant execute on function public.origins_skill_pool(uuid, text), public.origins_skill_focus(uuid, text, text, boolean) to frankendom_origins, frankendom_verifier;
+grant execute on function public.origins_skill_pool(uuid, text) to frankendom_origins, frankendom_verifier;
+-- Least privilege: the focus flip is a write and is called only by the writer service (frankendom_origins); the verifier reads the pool and settles, it never flips focus.
+grant execute on function public.origins_skill_focus(uuid, text, text, boolean) to frankendom_origins;
 commit;

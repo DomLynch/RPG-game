@@ -112,11 +112,12 @@ try {
   }
   eq(psql(`set role ${V}; select count(*) from public.origins_skill_xp;`).split('\n').pop(), '0', 'skill pool: a plain select by the writer still sees no rows (so the reader is the only way)');
   eq(psql(`set role ${V}; select coalesce(public.origins_skill_pool('${A}', '${pcC}')::text, 'null');`).split('\n').pop(), 'null', 'skill pool: not the account\'s character -> null');
-  eq(JSON.parse(psql(`set role ${V}; select public.origins_skill_focus('${C}', '${pcC}', 'sword', true)::text;`).split('\n').pop()).focus, true, 'skill focus: flipped on');
+  eq(JSON.parse(psql(`set role ${O}; select public.origins_skill_focus('${C}', '${pcC}', 'sword', true)::text;`).split('\n').pop()).focus, true, 'skill focus: flipped on');
   eq(psql(`select focus::text from public.origins_skill_xp where character = '${pcC}' and skill = 'sword'`), 'true', 'skill focus: stored');
   eq(JSON.parse(psql(`set role ${O}; select public.origins_skill_focus('${C}', '${pcC}', 'axe', true)::text;`).split('\n').pop()).xp, 0, 'skill focus: a skill with no xp yet gets a row at 0 xp');
-  eq(await code(V, `select public.origins_skill_focus('${C}', '${pcC}', 'Not A Skill', true);`), 'O0002', 'skill focus: a malformed skill is refused');
-  eq(psql(`set role ${V}; select coalesce(public.origins_skill_focus('${A}', '${pcC}', 'sword', false)::text, 'null');`).split('\n').pop(), 'null', 'skill focus: not the account\'s character -> null, nothing flipped');
+  eq(await code(O, `select public.origins_skill_focus('${C}', '${pcC}', 'Not A Skill', true);`), 'O0002', 'skill focus: a malformed skill is refused');
+  eq(psql(`set role ${O}; select coalesce(public.origins_skill_focus('${A}', '${pcC}', 'sword', false)::text, 'null');`).split('\n').pop(), 'null', 'skill focus: not the account\'s character -> null, nothing flipped');
+  eq(await code(V, `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: the verifier role cannot flip it (least privilege)');
   eq(await code('anon', `select public.origins_skill_pool('${C}', '${pcC}');`), '42501', 'skill pool: no client reads it');
   eq(await code('authenticated', `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: no client flips it');
   psql(`update public.origins_skill_xp set focus = false where character = '${pcC}'`);
