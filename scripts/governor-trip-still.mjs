@@ -1,5 +1,5 @@
 // The visual cost of a client-governor trip (src/fight/governor.ts), on record: the fight camera at 375x812, ready idle and mid-fight, BEFORE (the page as it plays) and AFTER the ladder is forced
-// to its last lever (view.degrade('resolution') then 'shadows' through the ?debug __view), a sparring dummy so the fight is the same one.
+// to its last lever (view.degrade('shadows') then 'crowd' through the ?debug __view), a sparring dummy so the fight is the same one.
 // Usage: SERVE=<dist dir> OUT=<dir> node scripts/governor-trip-still.mjs   (REAL_GL=1 on a GPU machine: scripts/gpu-run.mjs). Writes <OUT>/{before,after}-{idle,mid}.png.
 import fs from 'node:fs/promises'; import http from 'node:http'; import path from 'node:path'; import zlib from 'node:zlib';
 import { chromium } from 'playwright';
@@ -25,7 +25,7 @@ try {
     await page.goto(`${base}/${QUERY}`, { waitUntil: 'commit' });
     await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '' && document.querySelector('#attack-button')?.getAttribute('aria-disabled') === 'false', null, { timeout: 300000, polling: 250 });
     await page.addStyleTag({ content: '#debug{display:none!important}' });
-    if (state === 'after') await page.evaluate(() => { globalThis.__view.degrade('resolution'); globalThis.__view.degrade('shadows'); });
+    if (state === 'after') await page.evaluate(() => { globalThis.__view.degrade('shadows'); globalThis.__view.degrade('crowd'); });
     await page.waitForTimeout(2500); await page.screenshot({ path: path.join(OUT, `${state}-idle.png`) });
     await page.click('#attack-button'); await page.waitForTimeout(700); await page.screenshot({ path: path.join(OUT, `${state}-mid.png`) });
     await context.close();

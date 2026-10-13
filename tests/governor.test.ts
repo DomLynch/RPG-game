@@ -13,8 +13,8 @@ test('a scene at the tier budget never pulls a lever', () => {
 
 test('over budget for overWindows windows in a row pulls the ladder one lever at a time, then stops', () => {
   const g = createGovernor(row, 'phone');
-  assert.deepEqual(feed(g, g.budget.draws + 1, 1, 4 * 2), ['resolution'], 'draws over, two windows');
-  assert.deepEqual(feed(g, 1, g.budget.tris + 1, 4 * 2), ['shadows'], 'triangles over, two windows');
+  assert.deepEqual(feed(g, g.budget.draws + 1, 1, 4 * 2), ['shadows'], 'draws over, two windows');
+  assert.deepEqual(feed(g, 1, g.budget.tris + 1, 4 * 2), ['crowd'], 'triangles over, two windows');
   assert.deepEqual(feed(g, 1e6, 1e9, 400), [], 'the ladder is spent: nothing more to pull');
   assert.equal(g.level, row.ladder.length);
 });
@@ -31,5 +31,5 @@ test('the median ignores a few spike frames inside a window', () => {
 
 test('the shipped rows: both tiers carry a budget and the ladder names real levers', () => {
   for (const t of ['phone', 'full']) assert.ok(GOVERNOR_ROW.tiers[t].draws > 0 && GOVERNOR_ROW.tiers[t].tris > 0);
-  assert.deepEqual([...GOVERNOR_ROW.ladder], ['resolution', 'shadows']);
+  assert.deepEqual([...GOVERNOR_ROW.ladder], ['shadows', 'crowd']);
 });
