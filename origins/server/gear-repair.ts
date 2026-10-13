@@ -1,5 +1,5 @@
 // POST /origins/gear_repair {character, op, instance, points?}: the smith repairs a worn piece the character holds, for bronze and grave iron. Nothing in the body is a price,
-// a tier, a slot or a wear value: the server reads the piece, its wear (migration 202610130032, event-sourced like a shop's shelf), the bronze balance and the character's
+// a tier, a slot or a wear value: the server reads the piece, its wear (migration 20261013174936, event-sourced like a shop's shelf), the bronze balance and the character's
 // pack itself, and prices the repair from the wear-repair rows (origins/gear/wear-repair.json: tier, slope, floors). `points` omitted repairs all the wear.
 // Valuables are ONE transaction (Dom 2026-10-08): the `repair:<character>:<op>` event (carrying the receipt and the piece's wear after), the bronze spend (versioned: a stale
 // balance aborts the batch) and the burned iron commit in ONE origins_apply batch. The op id is the one-time token: an identical retry is answered from the stored receipt
@@ -40,7 +40,7 @@ export function gearRepairHandler(content: Content): Handler {
     const kind = wearKindOf(piece.item);
     if (!kind) throw new Refused(422, 'this piece takes no wear', 'no-wear');
     const [wears, metal] = await Promise.all([store.itemWears(db, account, [instance]), store.metalOf(db, account)]);
-    if (wears === 'absent' || metal === 'absent') throw new Refused(503, 'the wear ledger is not installed (migration 202610130032)');
+    if (wears === 'absent' || metal === 'absent') throw new Refused(503, 'the wear ledger is not installed (migration 20261013174936)');
     const stored = wears[instance];
     if (!stored || stored.worn <= 0) throw new Refused(422, 'this piece is not worn', 'not-worn');
     const quote = repairCost(kind.tier, stored, (points as number | undefined) ?? stored.worn, undefined, kind.slot);
