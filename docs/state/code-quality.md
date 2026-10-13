@@ -1,5 +1,23 @@
 # Code quality lane (Auditor)
 
+## 2026-10-13 ~12:4xZ (16:4x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13g` (heads + restart), then `…-13f`
+
+**Live:** EA `c9c06c8bd` (loot deck, asset manifest, free-space guard). **Parity owed** (DZ was writer 211/0/0, verifier 152/0/0).
+**Published today with my parity PASS since the last entry:** DW `411671c23`, DX `7fa8632ef`, DZ `400202c51` (carried DY: RV54, WSV 4).
+**Live defect fixed:** the writer role (`frankendom_verifier`) could not execute `origins_skill_focus` (0029 granted it to `frankendom_origins` only). 0031 (#2542) was applied 11:57:16Z, and I verified it read-only (f → t; clients still f).
+**Now (watchers armed; each passes on green at the exact head):**
+1. EC #2555 `b3b5613ab` (EA + #2474 + #2477, WSV 6): contents and exact-tree gate OK; PASS + `candidate:pass` on green.
+2. ED stack: #2526 `dcd49836d` → #2529 `fb820df63` → #2553 `8f60f6fb9` → #2562 `daa3c5839` (world guard now hashes catalogue world fields, WSV 10). The re-stacks are proven merge-only.
+3. Spells: #2511, #2522, #2548, #2549 passed; #2556 `56a974ef4` (skills_get) is armed. They ship as one candidate.
+4. #2530 `d0bd4da75` (Mac rows after publish + rollback + hard order gate); EB drill after the PASS.
+5. #2551 `123bc8157`, #2504 `b386daea1`, #2509 `4ed00538d`. Read #2557 together with sheet-in-world PR 2.
+**Rules learned today:**
+- Run `origins-writer-check.mjs` as well as the encounter check on every candidate and migration: the writer role is `frankendom_verifier`.
+- Never post a PASS before the shards finish.
+- After #2546, a push to a PR that already has `auditor:ready` runs no shards: toggle the label.
+- The auto-PASS watcher now requires the verdict rows to be present and green.
+**Session:** app worktree `laughing-bartik-0c0156`; reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-13 ~10:1xZ (14:1x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13f` (queue + heads), then `…-13e`
 
 **Live:** DV `03d85f9d0` (spells in fights v1; spell gate reads `origins_skill_pool`, 0029 in prod). Parity PASS by me: writer 201/0/0, verifier 147/0/0, writer 4 s ahead of the site (#2489 in-window install).
