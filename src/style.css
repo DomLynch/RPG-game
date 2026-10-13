@@ -2641,7 +2641,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #build-dot[hidden] { display: none; }
 #journal .build-open { width: 100%; min-height: 44px; margin: 0 0 10px; border: 1px solid #c8a45e99; border-radius: 4px; background: transparent; color: var(--jf); font: 600 13px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 #journal .build-open span:not(:empty) { margin-left: 8px; color: var(--jg2); }
-.build-dialog { box-sizing: border-box; width: min(440px, 100vw - 16px); max-height: calc(100dvh - 16px); margin: auto; padding: 14px 14px 12px; overflow-y: auto; border: 1px solid #c8a45e99; border-radius: 6px; background: #12100d; color: #e9e3d6; font: 500 13px "Instrument Sans", Arial, sans-serif; }
+.build-dialog { touch-action: pan-y; box-sizing: border-box; width: min(440px, 100vw - 16px); max-height: calc(100dvh - 16px); margin: auto; padding: 14px 14px 12px; overflow-y: auto; border: 1px solid #c8a45e99; border-radius: 6px; background: #12100d; color: #e9e3d6; font: 500 13px "Instrument Sans", Arial, sans-serif; }
 .build-dialog::backdrop { background: #000000b0; }
 .build-dialog .build-close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; background: transparent; color: #9a9382; font-size: 18px; }
 .build-dialog .build-head { display: flex; align-items: baseline; gap: 10px; padding-right: 44px; }

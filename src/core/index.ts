@@ -3,6 +3,8 @@
 export * from './writer-call.ts';
 export * from './open.ts';
 export * from './build-ref.ts';
+export * from './build-screen.ts';   // "Place your point" (the dialog) and its server copy, for the Pit page
+export * from './build-server.ts';
 export * from './session.ts';
 export * from './profile.ts';
 export * from './grades.ts';
