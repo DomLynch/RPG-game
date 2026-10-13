@@ -15,6 +15,7 @@ export function wornGearOfItems(items: readonly { item: string; tier?: string | 
     const id = legacyLootOfItemId(i.item as Parameters<typeof legacyLootOfItemId>[0]);
     if (!id) continue;   // a piece that is not a loot id adds nothing to the sheet
     if (i.location.slot in equipped) throw new Error(`two pieces worn in ${i.location.slot}`);
+    if (tiers.has(id)) throw new Error(`${id} is worn twice`);   // wornGear's rung lookup is by LootId, so one id on two instances could not carry two rungs
     equipped[i.location.slot] = id;
     tiers.set(id, isTier(i.tier) ? i.tier : null);
   }

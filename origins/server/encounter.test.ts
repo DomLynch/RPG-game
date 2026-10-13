@@ -229,6 +229,7 @@ test('settle: a GEARED record (worn gear on the sheet) verifies and pays against
   assert.deepEqual(wornGearOfItems([]), {}, 'nothing worn: no gear');
   assert.deepEqual(wornGearOfItems([{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'pack' } }]), {}, 'a piece in the pack is not worn');
   assert.throws(() => wornGearOfItems([...worn('Origin'), { item: 'item:loot.veteran.Crest', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }]), /two pieces worn/);
+  assert.throws(() => wornGearOfItems([{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Helmet', tier: 'Recruit', location: { kind: 'equipped', slot: 'crest' } }]), /worn twice/, 'one loot id on two worn instances (two rungs) is refused, never merged');
   const honest = sheetOf(stored, gear)!, bare = sheetOf(stored)!;
   const fightWith = (seed: number, sheet: Record<string, number>): string => {
     const was = { notice: LATE_NOTICE, stab: STAB_ON };
