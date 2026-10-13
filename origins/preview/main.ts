@@ -600,7 +600,7 @@ const wc = createWorldCombat({
   onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
-  mobs: () => mobs, hero: () => ({ gear: NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => ({ gear: gearMount?.loadout() ?? NAKED, level: careerLine(session.career).level }), onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);

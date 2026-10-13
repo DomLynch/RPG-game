@@ -4,11 +4,12 @@
 import type { Db } from './db.ts';
 import * as store from './store.ts';
 import { isTier, legacyLootOfItemId, type Tier } from '../../src/core/server.ts';
-import { wornGear } from '../../src/fight/server.ts';
+import { kitFrom, loadoutFor, wornGear, type Loadout } from '../../src/fight/server.ts';
 
 type LootId = NonNullable<ReturnType<typeof legacyLootOfItemId>>;
 
-export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Readonly<Record<string, number>> {
+// The worn pieces and the rung each was won at, as the ledger holds them: the one reading both wornGear (sheet deltas) and loadoutFor (the world's Attack and RES) take.
+function wornOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): { equipped: Record<string, LootId>; tiers: Map<LootId, Tier | null> } {
   const equipped: Record<string, LootId> = {}, tiers = new Map<LootId, Tier | null>();
   for (const i of items) {
     if (i.location.kind !== 'equipped' || i.location.slot === undefined) continue;
@@ -19,7 +20,18 @@ export function wornGearOfItems(items: readonly { item: string; tier?: string | 
     equipped[i.location.slot] = id;
     tiers.set(id, isTier(i.tier) ? i.tier : null);
   }
+  return { equipped, tiers };
+}
+
+export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Readonly<Record<string, number>> {
+  const { equipped, tiers } = wornOf(items);
   return wornGear(equipped as Parameters<typeof wornGear>[0], (id) => tiers.get(id));
+}
+
+/** The world loop's hero Loadout (Attack out, RES in) from the same held rows: what the page derives from its worn set (gear-numbers.ts), so a world record's hero claim can be held to it. */
+export function loadoutOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Loadout {
+  const { equipped, tiers } = wornOf(items);
+  return loadoutFor(kitFrom(equipped as Parameters<typeof kitFrom>[0], (id) => tiers.get(id) ?? undefined));
 }
 
 type Row = { item: string; tier: string | null; loc_kind: string | null; loc_owner: string | null; loc_slot: string | null };
@@ -38,4 +50,10 @@ export function wornGearOfFrozen(frozen: unknown, character: string): Readonly<R
   const pieces = frozen && typeof frozen === 'object' ? (frozen as Record<string, unknown>)[character] : undefined;
   if (!Array.isArray(pieces)) return {};
   return wornGearOfItems(pieces.map((p: { item: string; tier?: string | null; slot?: string }) => ({ item: p.item, tier: p.tier ?? null, location: { kind: 'equipped', ...(p.slot ? { slot: p.slot } : {}) } })));
+}
+
+/** The worn Loadout of a character as the ledger holds it: the ceiling of a world record's hero claim (world-verify.ts HeroLimit). */
+export async function loadoutOf(db: Db, account: string, character: string): Promise<Loadout> {
+  const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
+  return loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
 }
