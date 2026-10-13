@@ -54,7 +54,8 @@ jobs:
     # A trunk push always runs everything (deploy.sh reads `quality` + `browser (combat)` from the trunk run). A listing failure runs everything.
     # Browser jobs on a feature PR (Lead + Strategy 2026-10-12): only once it carries auditor:ready (`browser`); the unit and quality shards run on every push.
     # NOT_RETARGET: a title/body `edited` event is not a code change. BROWSER_LABEL: adding auditor:ready is a run of the browser jobs only.
-    if: ((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready')
+    # Not on the push of an already-tested candidate (the train's fast-forward of trunk to its "... (release-X candidate)" merge commit): its pull_request run covered this tree.
+    if: !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -122,7 +123,7 @@ jobs:
     # RUNNER QUEUE (Strategy 2026-10-12 21:5x): on a feature PR the shard and the `quality` verdict wait for auditor:ready (adding it runs them), like
     # the browser jobs; a push to an unlabelled PR runs static + plan + base only. A trunk push and a release-* candidate are unchanged (deploy.sh reads them).
     needs: static
-    if: ${{ !cancelled() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready')) && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    if: ${{ !cancelled() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready')) && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
@@ -163,7 +164,7 @@ jobs:
     # The one verdict deploy.sh reads (`quality` == success, scripts/deploy.sh:73): green only when every shard concluded success. A failed,
     # cancelled or skipped shard makes it red, never green. Same NOT_RETARGET skip as the shards, so a title/body edit still skips everything.
     needs: [quality-shard, plan]
-    if: always() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
+    if: always() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

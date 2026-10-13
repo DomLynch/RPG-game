@@ -28,6 +28,7 @@ const jobs = (file: string): Job[] => {
 // `chain`: the results of EVERY job upstream (needs of needs too): GitHub's success() is false when any of them was skipped or failed, so a job with no
 // `if` under a skipped `static` is skipped even when its direct need ran through !cancelled() (unit-ci run 38293767009 on trunk 4337cfe9b: 8 green shards, receipt skipped).
 const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>, chain: readonly string[] = Object.values(needs).map(n => n.result)) => {
+  if (github.event_name === 'push') (github.event as { head_commit?: unknown }).head_commit ??= { message: '' };   // a real push event always carries head_commit; Actions reads a missing one as null
   const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`).replace(/\.\*\./g, "['*'].");
   const fns = {
     contains: (h: unknown, n: string) => (Array.isArray(h) ? h.includes(n) : String(h).includes(n)),
@@ -251,4 +252,22 @@ test('release-checks on a candidate: adding any label but ci:release-checks sche
   for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has(j), `ci:release-checks added: ${j} runs`);
   for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('synchronize'), {}, rows).has(j), `a push to the candidate: ${j} runs`);
   assert.ok(schedule(R, { event_name: 'workflow_dispatch', event: {} }, {}, rows).has('check'), 'a dispatch is unchanged');
+});
+
+// Release speed (Deploy, 2026-10-13): the publish moment of an already-tested candidate must start no CI. EK: `gh pr ready` 13 s before the merge started a second ~50-job
+// release-checks matrix (38440789792), and the train's fast-forward of trunk started a second unit-ci (38440811361) and quality (38440811418) beside the next candidate's.
+test('the train fast-forward of a tested candidate (a push whose merge commit says "(release-X candidate)") schedules no unit-ci and no quality job; any other trunk push still does', () => {
+  const push = (message: string): Ctx => ({ event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: { head_commit: { message } } });
+  const candidate = push('Merge pull request #2600 (release-EK candidate)'), other = push('Merge pull request #2599 from DomLynch/deploy/x');
+  assert.deepEqual([...schedule(U, candidate)], [], 'unit-ci: nothing');
+  assert.deepEqual([...schedule(Q, candidate, {}, game)], [], 'quality: nothing');
+  const unit = schedule(U, other), qual = schedule(Q, other, {}, game);
+  for (const j of ['shard', 'origins-db', 'receipt']) assert.ok(unit.has(j), `unit-ci ${j} still runs on an ordinary trunk push`);
+  for (const j of ['plan', 'quality-shard', 'quality']) assert.ok(qual.has(j), `quality ${j} still runs on an ordinary trunk push`);
+});
+
+test('release-checks does not start on ready_for_review: the train flips a candidate out of draft just before it merges it, after every row already ran', () => {
+  const types = /pull_request:\n(?:[^\n]*\n)*?\s+types: \[([^\]]*)\]/.exec(readFileSync(R, 'utf8'))![1];
+  assert.ok(!types.includes('ready_for_review'), types);
+  for (const t of ['opened', 'synchronize', 'labeled']) assert.ok(types.includes(t), `${t} still starts the matrix`);
 });
