@@ -24,6 +24,10 @@
 // Constants (the proposal's table; change them only with the doc).
 
 import { MAX_LEVEL as LADDER_MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
+import CAREER_RULES from './career-rules.json' with { type: 'json' };
+
+// The pacing numbers are the one row of career-rules.json (careerRule); the names below keep their exports.
+const RULE = CAREER_RULES.careerRule[0]!;
 
 
 // THE LEVEL CURVE ROW (Dom's re-lock, #2408 2a; Strategy ruling 2026-10-12): the zone career runs level 0 (born) to maxLevel 100, and the whole curve is this
@@ -63,16 +67,10 @@ export type TypeRow = {
   weight: number; once: boolean; rested: boolean; party: 'split' | 'each' | 'solo'; atOwn?: boolean; early?: { below: number; weight: number };
 };
 export type TypeTable = Readonly<Record<string, TypeRow>>;
-export const TYPE_WEIGHTS: TypeTable = {
-  legend: { weight: 100, early: { below: 11, weight: 200 }, once: true, rested: false, party: 'solo' }, // a Pit legend: a fifth of a level to L10, a tenth from Gladiator I
-  'world-boss': { weight: 500, once: true, rested: false, party: 'each' }, // half a level to 10; a fifth at 24; an eighth at 41
-  'rift-boss': { weight: 150, once: false, rested: true, party: 'each' }, // living-world §8.4: a rift boss, repeatable, paid out of the rested allowance, every eligible member awarded
-  named: { weight: 200, once: false, rested: true, party: 'split' },
-  elite: { weight: 80, once: false, rested: true, party: 'split' },
-  mob: { weight: 20, once: false, rested: true, party: 'split' },
-  'story-step': { weight: 100, once: true, rested: false, party: 'solo', atOwn: true },
-  'story-chapter': { weight: 500, once: true, rested: false, party: 'solo', atOwn: true },
-};
+type TypeRule = { id: string; weight: number; once: boolean; rested: boolean; party: TypeRow['party']; atOwn?: boolean; earlyBelow?: number; earlyWeight?: number };
+export const TYPE_WEIGHTS: TypeTable = Object.fromEntries((CAREER_RULES.typeWeight as readonly TypeRule[]).map((r): [string, TypeRow] => [r.id, {
+  weight: r.weight, ...(r.earlyBelow === undefined ? {} : { early: { below: r.earlyBelow, weight: r.earlyWeight! } }), once: r.once, rested: r.rested, party: r.party, ...(r.atOwn ? { atOwn: true } : {}),
+}]));
 export const isType = (types: TypeTable, t: unknown): t is string => typeof t === 'string' && own(types, t) !== undefined;
 
 // Level-difference falloff, permille, by d = target level − your level. CAP-INDEPENDENT by construction: it reads only the
@@ -90,7 +88,7 @@ export function falloffPermille(d: number): number {
 export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
 
 // Party share for 'split' rows (EverQuest's group shape): pool = X·(1 + g/2), g = 1 + 0.2·(n−1); each member gets pool/n.
-export const MAX_PARTY = 4;
+export const MAX_PARTY = RULE.maxParty;
 export function partySharePermille(n: number): number {
   if (!Number.isInteger(n) || n < 1 || n > MAX_PARTY) return 0;
   if (n === 1) return 1000;
@@ -101,15 +99,15 @@ export function partySharePermille(n: number): number {
 export const partyEligible = (memberLevel: number, highestLevel: number): boolean =>
   highestLevel - memberLevel <= Math.max(5, Math.floor(memberLevel / 2));
 // An 'each' row (a boss) pays a member only for a real share of the fight.
-export const MIN_CONTRIBUTION_PERMILLE = 100; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
+export const MIN_CONTRIBUTION_PERMILLE = RULE.minContributionPermille; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
 
 // Repeat-kill heat, per character per target KIND (definition id, not spawn instance), for rested rows. Each kill adds one unit
 // (HEAT_UNIT_S seconds of heat); heat drains one second per second, so a kind cools fully six minutes after one kill. Before a kill
 // the heat is read as h = CEIL(units / HEAT_UNIT_S): any heat left over from a kill still counts as that whole kill, so the first
 // FREE_REPEATS kills of a kind pay in full and the next one is reduced whenever kills come closer than six minutes apart. After that
 // the kill pays FREE_REPEATS / (h + 1).
-export const HEAT_UNIT_S = 360;
-export const FREE_REPEATS = 3;
+export const HEAT_UNIT_S = RULE.heatUnitSeconds;
+export const FREE_REPEATS = RULE.freeRepeats;
 export const heatKills = (units: number): number => Math.max(0, Math.ceil(units / HEAT_UNIT_S));
 export function repeatPermille(heatUnits: number): number {
   const h = Math.max(0, Math.floor(heatUnits));
@@ -121,8 +119,8 @@ export function repeatPermille(heatUnits: number): number {
 // Other rows never touch the pool. Stored scaled by DAY_S so the refill is exact in integers. Fixed in CP at every level (decided,
 // Dom 2026-10-06): as the requirement rises, a day's allowance is a shrinking part of a level.
 export const DAY_S = 86_400;
-export const RESTED_PER_DAY_CP = 1500;
-export const RESTED_CAP_CP = 3000;
+export const RESTED_PER_DAY_CP = RULE.restedPerDayCp;
+export const RESTED_CAP_CP = RULE.restedCapCp;
 const RESTED_CAP_UNITS = RESTED_CAP_CP * DAY_S;
 
 // ---------------------------------------------------------------------------------------------------------------------------------

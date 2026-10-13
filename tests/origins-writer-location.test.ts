@@ -6,8 +6,7 @@ import type { AddressInfo } from 'node:net';
 import type { Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { fakeWhere } from '../origins/presence/fixtures.ts';
-import { REJOIN_EDGE, inTradeArea, noServerHeldState, parseServed, serve, writerSaveLocation, writerSavedLocation, type HeldFn } from '../origins/server/location.ts';
-import { zoneAt } from '../origins/presence/zones.ts';
+import { REJOIN_EDGE, inTradeArea, zoneAt, noServerHeldState, parseServed, serve, writerSaveLocation, writerSavedLocation, type HeldFn } from '../origins/server/location.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const KEY = 'test-writer-internal-key-0123456789';
