@@ -10,6 +10,8 @@ test('every shipped zone names a roster body as its defaultKind, and an unknown 
   assert.deepEqual(zoneProblems(z).filter((p) => p.includes('defaultKind')), []);
   assert.ok(zoneProblems({ ...z, defaultKind: 'nobody' }).some((p) => p.includes('defaultKind nobody')));
 });
-test('a zone row without defaultKind is refused', () => {
-  assert.throws(() => zoneFromRow(9, { name: 'x', kit: {}, looks: {} }), /"defaultKind" is required/);
+test('a zone row without defaultKind resolves the schema default, and the resolved field is what mobs.ts reads', () => {
+  const z = zoneFromRow(9, { name: 'x', kit: { url: '', nodes: [], landmarks: [], kinds: [] }, looks: {} });
+  assert.equal(z.defaultKind, undefined);
+  assert.equal(loadZone('1').fields?.defaultKind, 'goblin');
 });
