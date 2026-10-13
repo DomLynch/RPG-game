@@ -1,4 +1,4 @@
-// Creature variants as rows (origins/mobs/variants.json): the shipped rows load against the real catalogue, a creature with no other eligible row rolls exactly as it does today, the roll is seeded
+// Creature variants as rows (origins/world/variants.json): the shipped rows load against the real catalogue, a creature with no other eligible row rolls exactly as it does today, the roll is seeded
 // and follows the weights, a new variant is one row, and the loader refuses a bad weight, multiplier, tint, creature or a changed `plain` row.
 import assert from 'node:assert/strict';
 import test from 'node:test';

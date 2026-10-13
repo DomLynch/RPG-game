@@ -18,7 +18,7 @@ export const DATA_PATHS = [
   /^origins\/npcs\/roles(\.manifest)?\.json$/,   // the NPC roles as rows (a role is one row; `shop: true` marks the one that sells); registry-check + origins/npcs/row.test.ts check it
   /^origins\/region1\/hazards(\.manifest)?\.json$/,   // the Bounty hazards as rows (a hazard is one row: id, order, the line the player reads)
   /^origins\/npcs\/cloth(\.manifest)?\.json$/,   // the townspeople's worn pieces and slots as rows (a piece is one row plus a glb node)
-  /^origins\/mobs\/variants(\.manifest)?\.json$/,   // creature variants as rows (World 2026-10-13): weight, health/damage/scale multipliers, tint, glyph, drop prefix, eligible creatures; origins/mobs/variants.test.ts checks it
+  /^origins\/world\/variants(\.manifest)?\.json$/,   // creature variants as rows (World 2026-10-13): weight, health/damage/scale multipliers, tint, glyph, drop prefix, eligible creatures; origins/world/variants.test.ts checks it
   /^origins\/region1\/towns\.(manifest\.)?json$/,   // the towns as rows: a definitions table (trades, temperaments, ruler titles) and the town rows; loadRegion1 + tests/town-rows.test.ts check it
   /^origins\/patrons\/stat-defs(\.manifest)?\.json$/,   // the patron perk stats as rows (Backend 2026-10-12): id, benefit, text; loadStatDefs + origins/patrons/patrons.test.ts check them
   /^origins\/patrons\/venue-defs(\.manifest)?\.json$/,   // the fight venues as rows: id + the perks flag (does the venue resolve the damage patron templates); loadVenues + origins/patrons/patrons.test.ts check it
