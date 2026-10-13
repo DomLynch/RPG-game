@@ -6,6 +6,7 @@ import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { gearRepairHandler } from './gear-repair.ts';
+import { Conflict } from './handlers.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -27,7 +28,7 @@ function stub(o: Opts = {}) {
     if (/origins_event\(/.test(sql)) return o.stored ? JSON.stringify({ payload: o.stored }) : 'null';
     if (/origins_item_wear/.test(sql)) return o.wear === undefined || o.wear === null ? 'null' : JSON.stringify({ instance: 'inst:t-1', ...o.wear });
     if (/origins_metal_of/.test(sql)) return JSON.stringify({ bronze: o.bronze ?? 1000, version: 3 });
-    const items = [helmet, ...((o.ironQty ?? 99) > 0 ? [iron(o.ironQty ?? 99)] : [])];
+    const items = [helmet, ...((o.ironQty ?? 9) > 0 ? [iron(o.ironQty ?? 9)] : [])];
     return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: 64, bank_slots: 1000 }], items, quests: [], journal: [], talk: [] });
   } };
   return { db, commits };
@@ -79,7 +80,7 @@ test('gear_repair: the same op id answers the stored receipt (replayed, no commi
   const out = await run(s) as { replayed: boolean; cost: unknown };
   assert.deepEqual([out.replayed, out.cost], [true, receipt.cost]);
   assert.equal(s.commits.length, 0);
-  await assert.rejects(run(s, { instance: 'inst:t-2' }), (e: unknown) => e instanceof Error && /409|different/i.test((e as { status?: number }).status?.toString() ?? e.message));
+  await assert.rejects(run(s, { instance: 'inst:t-2' }), (e: unknown) => e instanceof Conflict);
 });
 
 test('gear_repair: a body that is not an op id, a character or a held piece is a 400, jewellery and non-wearing items are refused', async () => {
