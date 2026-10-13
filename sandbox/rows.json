@@ -1,8 +1,32 @@
 {"notes":[
-"2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints)."
+"2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints).",
+"2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
+"2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
+"2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd)."
 ],"files":{
 "stance-defs":{"stances":[
 {"id":"aggressive","damage":100,"posture":200,"block":200},
 {"id":"defensive","damage":-100,"block":-300,"recover":500,"damageTaken":-200,"poise":-200},
 {"id":"trickster","heavyDamage":-100,"feint":-750,"kickPosture":1000}
+],
+"wounds":[
+{"id":"sword-arm","site":"torso","block":300,"damage":-200}
+]},
+"hit-stop-defs":{"contacts":[
+{"id":"hitLight","order":1,"ms":0,"frames":0,"knock":0.02,"push":0,"flash":0.5,"ring":0.6,"tint":"#ffd9a0"},
+{"id":"hitHeavy","order":2,"ms":0,"frames":0,"knock":0.04,"push":0,"flash":1.1,"ring":1.4,"tint":"#ffb070"},
+{"id":"blockLight","order":3,"ms":0,"frames":0,"knock":0.02,"push":0,"flash":0.4,"tint":"#d8e4ff"},
+{"id":"blockHeavy","order":4,"ms":0,"frames":0,"knock":0.02,"push":0,"flash":0.6,"ring":0.8,"tint":"#d8e4ff"},
+{"id":"parry","order":5,"ms":0,"frames":0,"knock":0,"push":0.07,"flash":1.6,"ring":2.2,"tint":"#bfe0ff"},
+{"id":"guardBreak","order":6,"ms":0,"frames":0,"knock":0.04,"push":0,"flash":1.3,"ring":1.8,"tint":"#ff9a5a"},
+{"id":"special","order":7,"ms":0,"frames":0,"knock":0,"push":0},
+{"id":"postureBreak","order":8,"ms":0,"frames":0,"knock":0,"push":0},
+{"id":"kill","order":9,"ms":0,"frames":0,"knock":0,"push":0},
+{"id":"kick","order":10,"ms":0,"frames":0,"knock":0,"push":0,"drop":0.1}
+]},
+"crowd-defs":{"roars":[
+{"id":"kill-roar","on":"kill","cue":"reaction","gain":0.9},
+{"id":"parry-roar","on":"parry","cue":"reaction","gain":0.6},
+{"id":"break-roar","on":"guardBreak","cue":"reaction","gain":0.6},
+{"id":"heavy-roar","on":"heavy","cue":"reaction","gain":0.4}
 ]}}}
