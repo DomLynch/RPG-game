@@ -13,6 +13,7 @@ import console from 'node:console';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot } from '../origins/encounters/encounters.ts';
 import { openInventory } from '../origins/inventory/inventory.ts';
 import { mobBatch } from '../origins/server/mob-rewards.ts';
+import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 
 const UP = '202610080002_origins_encounter_runs.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
@@ -105,6 +106,22 @@ try {
   eq(xpOf('sword'), '15', 'practice race: two concurrent settles end AT the ceiling, not over it (the second queued on the xp row)');
   eq(psql(`select string_agg(paid::text, ',' order by paid desc) from public.origins_skill_practice where key in ('practice:enc:${tok(43)}:sword', 'practice:enc:${tok(44)}:sword')`), '10,5', 'practice race: paid 10 then 5');
   eq(await code('anon', `select * from public.origins_skill_xp`), '42501', 'practice: no client reads the pool');
+  // ---- 0029: the pool is readable and flaggable only through the definer functions (RLS closes the table to the writer roles) ----------------------------------------------
+  for (const role of [V, O]) {
+    const r = await as(role, `select public.origins_skill_pool('${C}', '${pcC}')::text;`); eq(r.code, 0, `skill pool: the ${role} role can call the reader`);
+    eq(JSON.stringify(JSON.parse(r.out.trim().split('\n').pop()).sword), '{"xp":15,"focus":false}', `skill pool (${role}): the banked xp and focus per skill`);
+  }
+  eq(psql(`set role ${V}; select count(*) from public.origins_skill_xp;`).split('\n').pop(), '0', 'skill pool: a plain select by the writer still sees no rows (so the reader is the only way)');
+  eq(psql(`set role ${V}; select coalesce(public.origins_skill_pool('${A}', '${pcC}')::text, 'null');`).split('\n').pop(), 'null', 'skill pool: not the account\'s character -> null');
+  eq(JSON.parse(psql(`set role ${O}; select public.origins_skill_focus('${C}', '${pcC}', 'sword', true)::text;`).split('\n').pop()).focus, true, 'skill focus: flipped on');
+  eq(psql(`select focus::text from public.origins_skill_xp where character = '${pcC}' and skill = 'sword'`), 'true', 'skill focus: stored');
+  eq(JSON.parse(psql(`set role ${O}; select public.origins_skill_focus('${C}', '${pcC}', 'axe', true)::text;`).split('\n').pop()).xp, 0, 'skill focus: a skill with no xp yet gets a row at 0 xp');
+  eq(await code(O, `select public.origins_skill_focus('${C}', '${pcC}', 'Not A Skill', true);`), 'O0002', 'skill focus: a malformed skill is refused');
+  eq(psql(`set role ${O}; select coalesce(public.origins_skill_focus('${A}', '${pcC}', 'sword', false)::text, 'null');`).split('\n').pop(), 'null', 'skill focus: not the account\'s character -> null, nothing flipped');
+  eq(await code(V, `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: the verifier role cannot flip it (least privilege)');
+  eq(await code('anon', `select public.origins_skill_pool('${C}', '${pcC}');`), '42501', 'skill pool: no client reads it');
+  eq(await code('authenticated', `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: no client flips it');
+  psql(`update public.origins_skill_xp set focus = false where character = '${pcC}'`);
   eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
 
   // ---- grimoire (migration 202610130027): a spell is taken only by the 7-arg settle, on a win, once per account and legend ----------------------------------------
@@ -121,6 +138,7 @@ try {
   eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: a verified win takes the spell');
   eq(spellsOf(C), 'eloko', 'grimoire: one spell');
   eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), 'O0009', 'grimoire: a retried settle is refused');
+  { const r = await as(V, `select json_build_object('grimoire', coalesce(public.origins_grimoire_get('${C}'::uuid)::jsonb, '{}'::jsonb), 'xp', coalesce((select json_object_agg(skill, xp) from public.origins_skill_xp where character = '${pcC}'), '{}'::json))::text;`); eq(r.code, 0, 'spell check: the writer role can read the grimoire and the pool in one query'); eq(Object.keys(JSON.parse(r.out.trim().split('\n').pop()).grimoire).join(','), 'eloko', 'spell check: the query returns the taken spell'); }
   eq(await code(V, START(C, pcC, tok(51), 8002, 'knight', 6)), null, 'grimoire: a second fight starts');
   eq(await code(V, SETTLE7(C, tok(51), 'won', EV(tok(51), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: the same legend again settles');
   eq(psql(`select count(*) from public.origins_grimoire where account = '${C}'`), '1', 'grimoire: the same legend twice grants once');
@@ -130,6 +148,22 @@ try {
   eq(psql(`select (public.origins_grimoire_get('${C}'))::jsonb -> 'kehua'`), '{"root": "longShadow", "suffix": null, "modifiers": []}', 'grimoire: get returns the bricks per legend');
   eq(await code('anon', `select * from public.origins_grimoire`), '42501', 'grimoire: no client reads the book');
   eq(await code('authenticated', SETTLE7(C, tok(52), 'won', '[]', '[]')), '42501', 'grimoire: no client calls the settle');
+
+  // ---- the spell gate's reads (#2487), as BOTH writer roles: the practice pool is RLS-closed to them (a plain select sees no rows), so the xp a spell record is checked against must come through the definer reader origins_skill_pool (0029) ----
+  if (files.includes('202610130029_skill_pool_access.sql')) {
+    psql(`insert into public.origins_skill_xp(character, skill, xp) values ('${pcA}', 'wind', 500); insert into public.origins_grimoire(account, legend, bricks, source_event) values ('${A}', 'alvis', '{"root":"gale","modifiers":[],"suffix":null}'::jsonb, 'enc:spell-gate-check');`);
+    const stored = { placed: { wind: 10 } }, spell = { id: 'alvis', skill: 5 }, rec = (skill = 5) => ({ spell: { ...spell, skill }, characterId: pcA.replace(/^pc:/, ''), buildVersion: 1 });
+    for (const role of [V, O]) {
+      eq((await as(role, 'select count(*) from public.origins_skill_xp;')).out.trim().split('\n').pop(), '0', `${role}: a plain select of the practice pool sees no rows (RLS), which is why the gate must not read it`);
+      const held = JSON.parse((await as(role, `${heldSql(A, pcA)};`)).out.trim().split('\n').pop());
+      eq([held.xp.wind, Object.keys(held.grimoire)], [500, ['alvis']], `${role}: the held read returns the practised xp and the owned spell through origins_skill_pool`);
+      const load = { held: async () => held, build: async () => stored };
+      eq(await spellRefusal(rec(5), A, load), null, `${role}: a practised skill within the ceiling is accepted`);
+      eq(/casts at 6, past the 5/.test(String(await spellRefusal(rec(6), A, load))), true, `${role}: a skill past the ceiling is refused`);
+      const other = JSON.parse((await as(role, `${heldSql(B, pcA)};`)).out.trim().split('\n').pop());
+      eq(other.xp, {}, `${role}: another account reads no xp for this character`);
+    }
+  }
 
   psql(readFileSync(join(dir, '..', 'down', '202610130027_grimoire_core_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb,jsonb)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_grimoire'`), 'true/0', 'grimoire down: the 7-arg settle and the table are gone');
@@ -263,6 +297,8 @@ try {
   eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
   psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
 
+  psql(readFileSync(join(dir, '..', 'down', '202610130029_skill_pool_access_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_skill_pool(uuid,text)') is null)::text || '/' || (to_regprocedure('public.origins_skill_focus(uuid,text,text,boolean)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_skill_xp'`), 'true/true/1', 'skill pool down: both functions gone, the pool table untouched');
   psql(readFileSync(join(dir, '..', 'down', '202610130026_skill_practice_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb)') is null)::text || '/' || count(*) from pg_class where relname in ('origins_skill_xp', 'origins_skill_practice')`), 'true/0', 'practice down: the 6-arg settle and both tables are gone');
   eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb)') is not null)::text`), 'true', 'practice down: the 5-arg settle stays');

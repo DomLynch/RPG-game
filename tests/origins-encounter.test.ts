@@ -4,3 +4,5 @@ import '../origins/server/encounter-verify.test.ts';
 import '../origins/server/encounter.test.ts';
 import '../origins/server/practice.test.ts';
 import '../origins/server/grimoire.test.ts';
+import '../origins/server/spell-check.test.ts';
+import '../origins/server/skills.test.ts';

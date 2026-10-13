@@ -21,6 +21,7 @@ export function fakeDb(now: { t: number }) {
     async run(sql, v = {}) {
       if (/origins_open\(/.test(sql)) return JSON.stringify({ marks: 0, career: world.career, characters: [], items: [], quests: [], journal: [], talk: [] });
       if (/origins_get_build\(/.test(sql)) return world.build === null ? 'null' : JSON.stringify(world.build);
+      if (/origins_grimoire_get\(/.test(sql)) return JSON.stringify({ grimoire: Object.fromEntries([...grimoire].filter(([k]) => k.startsWith(`${v.a}:`)).map(([k, b]) => [k.slice(v.a!.length + 1), b])), xp: Object.fromEntries(xp) });
       const call = /public\.(origins_encounter_\w+)\(/.exec(sql.split('\\if :enc')[1] ?? sql)?.[1];   // after the psql "is it installed" guard
       if (call === 'origins_encounter_start') {
         if ([...rows.values()].some((r) => live(r))) throw new DbError('O0014', 'a fight is already open for this account: resume it');
