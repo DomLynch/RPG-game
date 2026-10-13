@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
-import { verifyWorldRecord, ticksFor } from './world-verify.ts';
+import { createVerifyPool } from './world-verify-pool.ts';
+import { verifyWorldRecord, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { openInventory } from '../inventory/inventory.ts';
@@ -45,7 +46,7 @@ async function honest(): Promise<{ rec: WorldRecord; text: string }> {
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
 const ctx = (db: Db) => ({ db, account: UID });
-const mk = (extra: object = {}) => worldSpawnOps({ content, spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {}, ...extra });
+const mk = (extra: object = {}) => worldSpawnOps({ content, verifyRecord: (job) => verifyWorldRecord(job.text, job.spawn, job.kind, job.limit, job.maxTicks), spawns, seed: () => 7, now: () => new Date('2026-10-08T10:01:00Z'), log: () => {}, ...extra });
 const paidOps = (b: Json[]) => b.filter((o) => o.op !== 'event').map((o) => o.op).concat((b[0]!.payload as { cp: number }).cp > 0 ? ['cp'] : []);
 
 test('verifyWorldRecord: an honest record verifies; wrong creature, no kill, forged hero and junk do not', async () => {
@@ -74,8 +75,10 @@ test('kill_report: soak default pays exactly as today with or without a record; 
   const strip = (b: Json[]) => JSON.stringify(b.map((o) => (o.op === 'event' ? { ...o, payload: { ...(o.payload as object), record: undefined } } : o)));
   assert.equal(strip(withRec.kills[0]!.b), strip(none.kills[0]!.b), 'a verified record changes nothing but the record note');
   assert.equal((none.kills[0]!.b[0]!.payload as Json & { record?: string }).record, undefined, 'no record sent: the event is byte-identical to today');
-  assert.equal((withRec.kills[0]!.b[0]!.payload as { record: string }).record, 'verified');
-  assert.match((bad.kills[0]!.b[0]!.payload as { record: string }).record, /^refused: undecodable/);
+  assert.equal((withRec.kills[0]!.b[0]!.payload as { record: string }).record, 'queued', 'flag off: the kill does not wait for the replay');
+  assert.equal((bad.kills[0]!.b[0]!.payload as { record: string }).record, 'queued');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.ok(logs.some((l) => /world record verified/.test(l)), 'the verdict is logged');
   assert.ok(logs.some((l) => /world record not verified \(undecodable\)/.test(l)), 'the reason is logged');
 });
 
@@ -108,4 +111,53 @@ test('an overlong record is refused in a few ms without a replay, and kill_repor
   assert.ok(!(await verifyWorldRecord(text, wolf, 'wolf', null, rec.steps.length - 1)).ok, 'one step past the engagement age');
   assert.ok((await verifyWorldRecord(text, wolf, 'wolf', null, ticksFor(rec.steps.length / 60))).ok, 'inside it');
   assert.equal(ticksFor(Number.NaN), 120);
+});
+
+test('flag off under load: the kill pays without awaiting a stuck verifier, and a full or stuck pool never blocks a write', async () => {
+  const { text } = await honest(), none = stub(), withRec = stub();
+  let calls = 0; const stuck = mk({ verifyRecord: () => { calls++; return new Promise(() => {}); } });
+  await stuck.kill_report!(ctx(none.db), { token: TOKEN, hits: 50 });
+  await stuck.kill_report!(ctx(withRec.db), { token: TOKEN, hits: 50, record: text });
+  assert.equal(calls, 1);
+  assert.deepEqual(paidOps(withRec.kills[0]!.b), paidOps(none.kills[0]!.b), 'payout unchanged by a verifier that never answers');
+  const on = mk({ scorecardOnlyUnverified: true, verifyRecord: async () => ({ ok: false as const, reason: 'busy' }) }), s = stub();
+  await on.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'flag on: a busy pool is unverified, fail closed');
+});
+
+function fakeWorker() {
+  const w = { posted: [] as { id: number }[], terminated: 0, handlers: {} as Record<string, (a: never) => void>,
+    postMessage(m: unknown) { w.posted.push(m as { id: number }); }, terminate() { w.terminated++; },
+    on(ev: string, fn: (a: never) => void) { w.handlers[ev] = fn; },
+    answer(id: number, v: Verdict) { (w.handlers.message as unknown as (m: unknown) => void)({ id, v }); } };
+  return w;
+}
+const job = (): VerifyJob => ({ text: 't', spawn: { spec: wolf.spec }, kind: 'wolf' });
+
+test('the pool: one job at a time, a full queue answers busy at once, a timeout terminates and respawns, a dead worker fails closed', async () => {
+  const made: ReturnType<typeof fakeWorker>[] = [];
+  const pool = createVerifyPool({ make: () => { const w = fakeWorker(); made.push(w); return w; }, queue: 2, timeoutMs: 40 });
+  const a = pool.verify(job()), b = pool.verify(job()), c = pool.verify(job());
+  const d = await pool.verify(job());
+  assert.deepEqual(d, { ok: false, reason: 'busy' });   // 1 running + 2 queued; the fourth does not wait
+  assert.equal(made[0]!.posted.length, 1, 'one at a time');
+  made[0]!.answer(made[0]!.posted[0]!.id, { ok: true, ticks: 5 });
+  assert.deepEqual(await a, { ok: true, ticks: 5 });
+  assert.equal(made[0]!.posted.length, 2, 'the next job runs');
+  assert.deepEqual(await b, { ok: false, reason: 'timeout' });   // never answered
+  assert.equal(made[0]!.terminated, 1, 'the stuck worker is terminated');
+  assert.equal(made.length, 2, 'a fresh worker runs the next job');
+  assert.equal(made[1]!.posted.length, 1);
+  made[1]!.handlers.exit!(1 as never);
+  assert.deepEqual(await c, { ok: false, reason: 'worker died' });
+  pool.close();
+});
+
+test('the pool: a real worker thread verifies an honest record and refuses junk', async () => {
+  const { text } = await honest(), pool = createVerifyPool({ timeoutMs: 20_000 });
+  try {
+    const good = await pool.verify({ text, spawn: { spec: wolf.spec }, kind: 'wolf' });
+    assert.ok(good.ok, JSON.stringify(good));
+    assert.deepEqual(await pool.verify({ text: '!!!', spawn: { spec: wolf.spec }, kind: 'wolf' }), { ok: false, reason: 'undecodable' });
+  } finally { pool.close(); }
 });
