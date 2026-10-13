@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
 import { newWorld, player } from '../src/fight/world.ts';
-import { ME, MAX_HERO_MPS, STEP, heroClean, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
+import { ME, MAX_HERO_MPS, MAX_WORLD_TICKS, STEP, heroClean, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
 
 const mob = (id: string, body: string, level: number): FightMob => ({ id, body, level, name: id });
@@ -94,4 +94,11 @@ test('the world loop never feeds a special or a skill: the live input is {attack
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../src/fight/world-record.ts', import.meta.url), 'utf8');
   assert.ok(!/special\s*:|skill\s*:/.test(src.split('export function stepHero')[1]!.split('export const joinFighter')[0]!), 'stepHero passes no special or skill');
+});
+
+test('the unpacker refuses a window past five minutes of world fight, and an overlong record is refused before any replay', async () => {
+  const { rec } = killWolf(); assert.ok(rec);
+  const long: WorldRecord = { ...rec!, steps: Array.from({ length: MAX_WORLD_TICKS + 1 }, () => rec!.steps[0]!) };
+  assert.throws(() => unpackWorldRecord(packWorldRecord(long)), /bad header/);
+  assert.ok(packWorldRecord({ ...rec!, steps: long.steps.slice(0, MAX_WORLD_TICKS) }).length > 0);
 });

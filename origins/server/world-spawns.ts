@@ -19,7 +19,7 @@ import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mobBatch, respawnMsOf } from './mob-rewards.ts';
-import { verifyWorldRecord, MAX_RECORD_CHARS, type HeroLimit } from './world-verify.ts';
+import { verifyWorldRecord, ticksFor, MAX_RECORD_CHARS, type HeroLimit } from './world-verify.ts';
 import * as store from './store.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
@@ -170,7 +170,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
     let record = recText === undefined ? 'none' : 'unverified';
     if (recText !== undefined) {
-      const v = await verifyWorldRecord(recText, spawn, setup.value.opponent.body, deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null);
+      const v = await verifyWorldRecord(recText, spawn, setup.value.opponent.body, deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null, ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000));
       record = v.ok ? 'verified' : `refused: ${v.reason}`;
       if (!v.ok) log(`kill_report ${token.slice(-6)} ${open.instance}: world record not verified (${v.reason})`);
     }
