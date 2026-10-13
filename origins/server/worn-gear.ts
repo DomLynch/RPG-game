@@ -3,7 +3,7 @@
 // on a piece or a rung. Wear is not read (wornGear does not read it on the page either). Nothing the client sent is used.
 import type { Db } from './db.ts';
 import * as store from './store.ts';
-import { isTier, legacyLootOfItemId, type Tier } from '../../src/core/server.ts';
+import { isTier, legacyLootOfItemId, standingLevel, type Tier } from '../../src/core/server.ts';
 import { kitFrom, loadoutFor, wornGear, type Loadout } from '../../src/fight/server.ts';
 
 type LootId = NonNullable<ReturnType<typeof legacyLootOfItemId>>;
@@ -52,8 +52,15 @@ export function wornGearOfFrozen(frozen: unknown, character: string): Readonly<R
   return wornGearOfItems(pieces.map((p: { item: string; tier?: string | null; slot?: string }) => ({ item: p.item, tier: p.tier ?? null, location: { kind: 'equipped', ...(p.slot ? { slot: p.slot } : {}) } })));
 }
 
-/** The worn Loadout of a character as the ledger holds it: the ceiling of a world record's hero claim (world-verify.ts HeroLimit). */
+/** What the server's own books allow a world hero (world-verify.ts HeroLimit): his career level (standingLevel of the credit the server holds) and the worn Loadout of the held rows. One read of the account. */
+export async function heroLimitOf(db: Db, account: string, character: string): Promise<{ level: number; attack: number; res: number }> {
+  const snap = await store.open(db, account);
+  const rows = (snap.items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
+  const gear = loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
+  return { level: snap.career ? standingLevel(Number(snap.career.total_credit)) : 1, attack: gear.attack, res: gear.res };
+}
+/** The worn Loadout of a character as the ledger holds it. */
 export async function loadoutOf(db: Db, account: string, character: string): Promise<Loadout> {
-  const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
-  return loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
+  const { attack, res } = await heroLimitOf(db, account, character);
+  return { attack, res };
 }

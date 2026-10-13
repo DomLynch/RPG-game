@@ -103,6 +103,26 @@ test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified'
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']); assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/);
 });
 
+test('heroOf fails closed: a ledger that cannot be read refuses the record, it never means no limit', async () => {
+  const { text } = await honest(), tally = createVerdictTally(), logs: string[] = [];
+  const ops = mk({ scorecardOnlyUnverified: true, tally, log: (l: string) => logs.push(l), heroOf: async () => { throw new Error('db down'); } });
+  const s = stub(); await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event'], 'unverified: scorecard only');
+  assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /ledger unavailable/);
+  assert.equal(tally.snapshot().outcomes['ledger unavailable'], 1);
+  assert.ok(logs.some((l) => /ledger unavailable/.test(l)));
+});
+
+test('the limit holds the claimed LEVEL: a forged level-50 claim is refused, the server\'s own level is fine', async () => {
+  const { rec, text } = await honest(), forged = await encodeWorldRecord({ ...rec, hero: { ...rec.hero, level: 50 } });
+  const v = await verifyWorldRecord(forged, wolf, 'wolf', { level: 1, attack: 1, res: 1 });
+  assert.ok(!v.ok && v.reason === 'hero beyond ledger', JSON.stringify(v));
+  assert.ok((await verifyWorldRecord(text, wolf, 'wolf', { level: 1, attack: 1, res: 1 })).ok, 'the honest level-1 claim under a level-1 ledger');
+  const ops = mk({ scorecardOnlyUnverified: true, heroOf: async () => ({ level: 1, attack: 1, res: 1 }) }), s = stub();
+  await ops.kill_report!(ctx(s.db), { token: TOKEN, hits: 50, record: forged });
+  assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/, 'through kill_report too');
+});
+
 test('an overlong record is refused in a few ms without a replay, and kill_report still pays as today', async () => {
   const { rec, text } = await honest(), t0 = performance.now();
   const long = await encodeWorldRecord({ ...rec, steps: Array.from({ length: 17_000 }, () => rec.steps[0]!) });
@@ -175,7 +195,7 @@ test('the soak counters are wired in the production entry and answer GET /intern
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
   assert.match(entry, /const tally = createVerdictTally\(\)/);
   assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
-  assert.match(entry, /heroOf: \(account, character\) => loadoutOf\(db, account, character\)/, 'and bound the hero claim by the held worn set');
+  assert.match(entry, /heroOf: \(account, character\) => heroLimitOf\(db, account, character\)/, 'and bound the hero claim by the server\'s level and the held worn set');
   assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });

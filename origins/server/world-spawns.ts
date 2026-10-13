@@ -174,7 +174,9 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       const tag = `kill_report ${token.slice(-6)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
-        const limit = deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null;
+        // The ledger bound FAILS CLOSED: a heroOf that throws (a DB error) is a refusal, never "no limit" (the Auditor on #2551: a forged claim must not pass because the books were unreadable).
+        let limit: HeroLimit | null = null;
+        if (deps.heroOf) { try { limit = await deps.heroOf(account, open.character); } catch { deps.tally?.add('ledger unavailable'); log(`${tag}: world record not verified (ledger unavailable)`); return { ok: false, reason: 'ledger unavailable' }; } }
         const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
         deps.tally?.add(v.ok ? 'verified' : v.reason);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
