@@ -5,6 +5,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
 
 **Delta since the 16:1x entry below (read both):**
+- Owed by Lead: "Lead: PASS @6c8b39b69" on #2573 (Web CC0 audio manifest, data only) when CI green. World PR 3 = #2572 @6e1a6ef40 (WSV 12; token fetched at aggro entry, cap-full → band-off; duel.cast follow-up). Web next: daily board screen on #2518/#2541.
 - SPELLS candidate = EE #2571 @63d909374 (the five spells PRs, each formal PASS), stacked EB → EC; train order EC (publishing since 12:37Z) → EB drill → EE. Needs a restarted Auditor for candidate:pass. #2532 caster tells skipped (conflicts) → Combat rebasing on EE. ED name kept for the world stack. Upright idle look-test #2570 stills sent to Dom; second, stronger set (spine_03 ~−16°) requested; #2570 held unlabelled until Dom picks.
 - Combat restarted: sheet-in-world PR 2 = DRAFT #2569 @f86709990 (WSV 11, Pit fingerprint + record-replay byte-identical, guard side in Input/WorldStep.gd, world-spawns bounds over PLAYER_WEAPONS). World PR 3 (12) and Backend #2557 (13) told to stack on it; Combat does PR 5 after #2557. Needs Auditor read once restarted.
 - Web: #2568 worldBody row flag (maps 7→3). stance.ts HOME needs an RV bump (digest hashes stance.ts source) → Combat group B, values { executioner: aggressive, shieldmaiden: defensive, goblin: trickster } default neutral. `maps` joins --gate at 0. Web now on top-30 #30 CC0 audio manifest.
