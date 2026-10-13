@@ -14,7 +14,7 @@ export type Piece = { worn: number; max: number; baseMax: number };   // baseMax
 export function checkWearRelations(data: { wearEvents: WearEvent[]; wearSlots: WearSlot[]; wearTiers: WearTier[]; repairRules: RepairRule[] }): void {
   const bad: string[] = [];
   for (const e of data.wearEvents) if (!(e.chancePct >= 1 && e.chancePct <= 100)) bad.push(`${e.id}: chancePct must be 1..100`);
-  if (data.wearSlots.reduce((n, s) => n + s.share, 0) !== 100 || data.wearSlots.some((s) => !(s.share >= 1))) bad.push('wearSlots: shares must each be >= 1 and sum to 100');
+  if (data.wearSlots.reduce((n, s) => n + s.share, 0) !== 100 || data.wearSlots.some((s) => !(s.share >= 0))) bad.push('wearSlots: shares must each be >= 0 and sum to 100');
   for (const t of data.wearTiers) {
     if (!(t.hitWear >= 1 && t.killWear >= t.hitWear)) bad.push(`${t.id}: hitWear >= 1 and killWear >= hitWear`);
     if (!(t.goldPerPoint >= 1 && t.metalPerTenPoints >= 0)) bad.push(`${t.id}: goldPerPoint >= 1, metalPerTenPoints >= 0`);
@@ -45,8 +45,11 @@ export const freshPiece = (wearMax: number): Piece => ({ worn: 0, max: wearMax, 
 export function wornSlot(roll: number, slots: readonly WearSlot[] = WEAR_SLOTS): string {
   let acc = 0;
   for (const s of slots) { acc += s.share / 100; if (roll < acc) return s.id; }
-  return slots[slots.length - 1]!.id;
+  return [...slots].reverse().find((s) => s.share > 0)!.id;
 }
+
+// A share of 0 means the slot takes no wear and needs no repair (jewellery).
+export const slotWears = (slot: string, slots: readonly WearSlot[] = WEAR_SLOTS): boolean => (slots.find((s) => s.id === slot)?.share ?? 0) > 0;
 
 // A piece after an event: it wears only when `roll` is under the event's chance; wear never passes the piece's max. Whether this piece is the one bitten is decided by the caller with wornSlot.
 export function wearAfter(tier: WearTier, piece: Piece, event: string, roll: number, events: readonly WearEvent[] = WEAR_EVENTS): Piece {
@@ -63,9 +66,9 @@ export function qualityPct(piece: Piece, rule: RepairRule = repairRule()!): numb
 }
 
 // Repairing `points` (default: all the wear): gold rises with how worn the piece is, metal with the points. Rounded up, so a repair never costs nothing.
-export function repairCost(tier: WearTier, piece: Piece, points: number = piece.worn, rule: RepairRule = repairRule()!): { points: number; gold: number; metal: number; metalItem: string } {
+export function repairCost(tier: WearTier, piece: Piece, points: number = piece.worn, rule: RepairRule = repairRule()!, slot?: string): { points: number; gold: number; metal: number; metalItem: string } {
   const p = Math.max(0, Math.min(points, piece.worn));
-  if (p === 0) return { points: 0, gold: 0, metal: 0, metalItem: tier.metalItem };
+  if (p === 0 || (slot !== undefined && !slotWears(slot))) return { points: 0, gold: 0, metal: 0, metalItem: tier.metalItem };
   const wornPct = (piece.worn / piece.max) * 100;
   const perPoint = tier.goldPerPoint * (100 + (rule.wornSlopePct * wornPct) / 100) / 100;
   return { points: p, gold: Math.ceil(perPoint * p), metal: Math.ceil((tier.metalPerTenPoints * p) / 10), metalItem: tier.metalItem };

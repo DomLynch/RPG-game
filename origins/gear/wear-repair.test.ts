@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   REPAIR_RULES, WEAR_SLOTS, WEAR_TIERS, checkWearRelations, freshPiece, loadWearRepair, qualityPct, repairCost, repairRule,
-  repairedPiece, wearAfter, wearTier, wornSlot,
+  repairedPiece, slotWears, wearAfter, wearTier, wornSlot,
 } from './wear-repair.ts';
 import DATA from './wear-repair.json' with { type: 'json' };
 
@@ -19,7 +19,7 @@ test('tiers match gear-defs and the slots are live armour slots', () => {
   const text = JSON.stringify(defs);
   for (const t of WEAR_TIERS) assert.ok(text.includes(`"${t.id}"`), `gear-defs has no ${t.id} preset`);
   const loot = readFileSync(new URL('../../src/core/loot.ts', import.meta.url), 'utf8');
-  for (const s of WEAR_SLOTS) assert.ok(loot.includes(`'${s.id}'`), `${s.id} is not an armour slot`);
+  for (const s of WEAR_SLOTS.filter((x) => x.share > 0)) assert.ok(loot.includes(`'${s.id}'`), `${s.id} is not an armour slot`);
 });
 
 test('the metal is a live item', () => {
@@ -91,4 +91,17 @@ test('relation typos are refused at load', () => {
     assert.throws(() => checkWearRelations(d), new RegExp(name), name);
   }
   assert.ok(REPAIR_RULES.length >= 1);
+});
+
+test('jewellery: the neck row is 0, never bitten, never repaired, and boots keep their own slot', () => {
+  const neck = WEAR_SLOTS.find((s) => s.id === 'Neck')!;
+  assert.equal(neck.share, 0);
+  assert.equal(WEAR_SLOTS.find((s) => s.id === 'Boots')!.share, 7);
+  assert.equal(slotWears('Neck'), false);
+  assert.equal(slotWears('Boots'), true);
+  for (let r = 0; r < 1; r += 0.001) assert.notEqual(wornSlot(r), 'Neck');
+  const worn = { worn: 10, max: 90, baseMax: 90 };
+  assert.equal(repairCost(tier('heavy'), worn, undefined, undefined, 'Neck').gold, 0);
+  assert.equal(repairCost(tier('heavy'), worn, undefined, undefined, 'Neck').metal, 0);
+  assert.ok(repairCost(tier('heavy'), worn, undefined, undefined, 'Boots').gold > 0);
 });

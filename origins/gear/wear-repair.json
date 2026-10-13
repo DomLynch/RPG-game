@@ -9,7 +9,8 @@
     { "id": "Helmet", "share": 15, "note": "the sheet's head" },
     { "id": "Arms", "share": 14, "note": "the sheet's arms" },
     { "id": "Gloves", "share": 7, "note": "the sheet's hands" },
-    { "id": "Boots", "share": 7, "note": "stands in for the sheet's neck: a necklace is not an armour slot" }
+    { "id": "Boots", "share": 7, "note": "its own slot, 7 of its own" },
+    { "id": "Neck", "share": 0, "note": "jewellery takes no wear and needs no repair (Lead ruling 2026-10-13); any ring slot gets the same 0 row" }
   ],
   "wearTiers": [
     { "id": "light", "hitWear": 3, "killWear": 6, "goldPerPoint": 4, "metalPerTenPoints": 1, "metalItem": "item:grave-iron" },
