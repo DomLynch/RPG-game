@@ -167,7 +167,7 @@ test('schools are rows: the five and earth and wind, each with a colour, and a n
 });
 
 test('a sheet fight records as v48 with its dials, round-trips, replays, and a sheet-less fight keeps its version', () => {
-  assert.equal(RECORD_VERSION, FIRST_SHEET_VERSION);
+  assert.ok(RECORD_VERSION >= FIRST_SHEET_VERSION, 'the sheet flag exists from v48 on');
   const sheet = { attack: 40, armour: 30, recovery: 20 };
   const meta = { build: 't', opponent: 'veteran' as const, weapon: 'longsword' as const, level: 1, seed: 7 };
   setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);   // a live fight: the era a v48 record can only be made in

@@ -1,5 +1,6 @@
 // The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
 // named, and the engine reads a row by id with no per-character code (a new character is one row).
+import { CC_LADDER } from '../src/fight/cc-ladder.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,7 +26,7 @@ import { LOOT_TABLES } from '../origins/region1/content.ts';
 const known = {
   roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
-  refs: { weapons: new Set(Object.keys(WEAPONS)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
+  refs: { weapons: new Set(Object.keys(WEAPONS)), ccTiers: new Set(Object.keys(CC_LADDER.tiers)), ccResists: new Set(Object.keys(CC_LADDER.resists)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
 };
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
@@ -154,6 +155,18 @@ test('a variant row shares its body: everything but its own name, lore, level ba
     const strip = (r: CatalogueRow) => { const { id, body: b, name, summary, stats, loot, legend, ...rest } = r; void id; void b; void name; void summary; void loot; void legend; return { ...rest, archetype: stats.archetype }; };
     assert.deepEqual(strip(row), strip(body), `${row.id}: shares ${row.body}'s rig, assets, clips, finishers, blood, wounds, weapon, voice`);
   }
+});
+
+test('a typo\'d creature CC tier or resist is refused at row load, and a real one (and a tier that names no kind) is judged against the cc-defs rows', async () => {
+  const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => `${p.code}:${p.path}`).join(','); };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 'unstoppable' }; }), '', 'a real tier name loads');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, resist: 'iron' }; }), '', 'a real resist name loads');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 'unstopable' }; }), 'field:fields.immuneTier', 'a typo\'d tier is refused, not silently ignored');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, resist: 'irn' }; }), 'field:fields.resist', 'a typo\'d resist is refused');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 7 }; }), 'field:fields.immuneTier', 'a tier must be a string');
+  const { ccRows, CC_LADDER } = await import('../src/fight/cc-ladder.ts');
+  const kinds = Object.values(CC_LADDER.kinds), resists = Object.entries(CC_LADDER.resists).map(([id, r]) => ({ id, ...r }));
+  assert.throws(() => ccRows(kinds, [{ id: 'x', immune: ['stun'], from: 1, to: 1 }, { id: 'y', immune: ['stun'], from: 1, to: 2 }], resists), /cover the same rank/, 'two tiers on one rank');
 });
 
 test('the catalogue is open (Dom 2026-10-12): a field is a defs row and a rig is a defs row, never a type edit', () => {

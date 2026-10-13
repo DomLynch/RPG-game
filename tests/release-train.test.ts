@@ -80,6 +80,22 @@ test('checksGreen: a CANCELLED row no later run reuses (a matrix placeholder, a 
   assert.equal(checksGreen([...OK, run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'FAILURE', '2026-10-12T19:00:00Z')]), false, 'a placeholder that FAILED still blocks');
 });
 
+test('checksGreen: a run cancelled at the cut before it started is no verdict once a later attempt of that check exists, a skip included (DL #2431 never published)', () => {
+  const run = (wf: string, name: string, conclusion: string, startedAt: string, completedAt = startedAt) => ({ __typename: 'CheckRun', workflowName: wf, name, status: 'COMPLETED', conclusion, startedAt, completedAt });
+  // DL #2431's live shape: the cut's first run of each workflow CANCELLED in its first second under the unexpanded matrix names, later runs SKIPPED;
+  // the real run passed under the expanded names (shard (1..8), check N (row)). It read red forever, so no tick could publish it.
+  const dl = [...OK,
+    run('unit-ci', 'shard', 'CANCELLED', '2026-10-12T19:13:23Z'), run('unit-ci', 'shard', 'SKIPPED', '2026-10-12T19:13:23Z'), run('unit-ci', 'shard', 'SKIPPED', '2026-10-13T00:29:11Z'),
+    run('unit-ci', 'shard (1)', 'SUCCESS', '2026-10-12T19:18:25Z', '2026-10-12T19:21:00Z'),
+    run('release-checks', 'release rows (none for this diff)', 'CANCELLED', '2026-10-12T19:13:23Z'), run('release-checks', 'release rows (none for this diff)', 'SKIPPED', '2026-10-13T00:29:10Z'),
+    run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'CANCELLED', '2026-10-12T19:13:23Z'), run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'SKIPPED', '2026-10-12T19:13:24Z'),
+    run('release-checks', 'check 10 (polearm-browser-check)', 'SUCCESS', '2026-10-12T19:20:00Z', '2026-10-12T19:25:00Z')];
+  assert.equal(checksGreen(dl), true, 'a cancel-at-cut followed by later skips no longer pins the candidate red');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'CANCELLED', '2026-10-12T14:00:00Z')]), false, 'a cancel with nothing after it still is not green');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'CANCELLED', '2026-10-12T14:00:00Z', '2026-10-12T14:10:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), false, 'a cancel that RAN (10 min: a timeout) is a verdict: a later skip never hides it');
+  assert.equal(checksGreen([...OK, run('x', 'job', 'FAILURE', '2026-10-12T14:00:00Z'), run('x', 'job', 'CANCELLED', '2026-10-12T14:05:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), false, 'dropping a never-ran cancel uncovers the red before it, never a green');
+});
+
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
   const prs = [pr(5, { passedAt: '2026-10-12T09:00:00Z' }), pr(6, { passedAt: '2026-10-12T08:00:00Z' }), pr(7), pr(8, { passedAt: null }), pr(9, { green: false }), pr(10, { labels: [] }), pr(11), pr(12, { headRef: 'release-CO' })];
   const { pick, skipped } = planTrain({ prs, order: [7, 99], inBase: (h: string) => h.startsWith('11') });
@@ -190,6 +206,22 @@ test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge
     assert.match(p.calls(), /gh pr comment 2400 --body release-train: published #2400/);
     assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
     assert.equal(existsSync(join(p.state, 'release-train.lock')), false, 'lock released');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher: a candidate is judged on its FULL check list (`gh pr view`), not the 100 checks `gh pr list` returns (DL #2431: 169 checks, never picked)', () => {
+  const p = publisher();
+  try {
+    const full = JSON.parse(readFileSync(p.env.PRS, 'utf8'))[0];
+    writeFileSync(join(p.dir, 'view.json'), JSON.stringify(full));
+    // the list's cut: the rows past the 100th, here quality/quality and release-checks/summary, are missing from what `gh pr list` returns
+    const cut = { ...full, statusCheckRollup: full.statusCheckRollup.filter((c: { workflowName?: string; name?: string }) => !(c.workflowName === 'quality' && c.name === 'quality') && !(c.workflowName === 'release-checks' && c.name === 'summary')) };
+    writeFileSync(p.env.PRS, JSON.stringify([cut]));
+    assert.ok(missingRows(cut.statusCheckRollup).length, 'the cut list alone fails the gate');
+    const r = p.run({ VIEW: join(p.dir, 'view.json') });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(p.calls(), new RegExp(`gh pr view 2400 --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments`), 'the candidate is read in full');
+    assert.match(p.calls(), new RegExp(`git push -q origin ${p.cand}:refs/heads/${TRUNK}`), 'and published');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });
 
