@@ -3,7 +3,7 @@
 // salesRecoverySeconds), and the class's restock (restockSeconds, stockCap). A `zoneTax` row (keyed by zone id) is the percentage the zone adds to a buy and takes off a sell. Percentages are whole numbers.
 // Donor: ModernUO BaseVendor (a one-hour RestockDelay checked lazily when a player opens the vendor) and AzerothCore's npc_vendor (maxcount + incrtime per item) are the restock; both keep prices fixed, so the stock curve,
 // the sales sag and the zone tax are ours. shop.ts already carries the same lazy restock (2004Scape), so `restockedStock` here is the class default for a row that gives none.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DATA from './vendor-economy.json' with { type: 'json' };
 import MANIFEST from './vendor-economy.manifest.json' with { type: 'json' };
 
