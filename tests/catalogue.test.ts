@@ -1,5 +1,6 @@
 // The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
 // named, and the engine reads a row by id with no per-character code (a new character is one row).
+import { CC_LADDER } from '../src/fight/cc-ladder.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,7 +26,7 @@ import { LOOT_TABLES } from '../origins/region1/content.ts';
 const known = {
   roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
   finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
-  refs: { weapons: new Set(Object.keys(WEAPONS)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
+  refs: { weapons: new Set(Object.keys(WEAPONS)), ccTiers: new Set(Object.keys(CC_LADDER.tiers)), ccResists: new Set(Object.keys(CC_LADDER.resists)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
 };
 const root = (p: string) => new URL(`../${p}`, import.meta.url);
 const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
