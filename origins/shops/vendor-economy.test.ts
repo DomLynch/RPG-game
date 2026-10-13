@@ -1,11 +1,12 @@
 // Vendor economy rows: they load with the shared loader, make sense together, and the pure resolver obeys them.
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { VENDOR_CLASSES, ZONE_TAXES, buyPrice, loadVendorEconomy, recoveredTaken, restockedStock, sellPrice, stockPricePct, vendorClass, zoneTax } from './vendor-economy.ts';
 import DATA from './vendor-economy.json' with { type: 'json' };
 
 test('vendor economy: rows are sane', () => {
-  assert.deepEqual(VENDOR_CLASSES.map((c) => c.id).sort(), ['consumable', 'gear', 'material']);
+  assert.deepEqual(VENDOR_CLASSES.map((c) => c.id).sort(), ['cosmetic', 'gear', 'material']);
   for (const c of VENDOR_CLASSES) {
     assert.ok(c.priceFloor >= 50 && c.priceFloor <= c.priceCeil, `${c.id} floor <= ceil`);
     assert.ok(c.priceFloor + c.stockSlope >= c.priceFloor && c.stockSlope >= 0);
@@ -53,12 +54,19 @@ test('vendor economy: the vendor pays less than it sells, the price sags with sa
 });
 
 test('vendor economy: restock is lazy, one unit per interval, capped; sales recover the same way', () => {
-  const c = vendorClass('consumable')!;
+  const c = vendorClass('cosmetic')!;
   assert.equal(restockedStock(c, 0, c.restockSeconds - 1), 0);
   assert.equal(restockedStock(c, 0, c.restockSeconds * 3 + 5), 3);
-  assert.equal(restockedStock(c, 18, c.restockSeconds * 99), c.stockCap);
+  assert.equal(restockedStock(c, 2, c.restockSeconds * 99), c.stockCap);
   assert.equal(restockedStock(c, 25, 9999, 20), 25, 'a stock above the cap is left as is');
   assert.equal(restockedStock(c, 4, -50), 4);
   assert.equal(recoveredTaken(c, 5, c.salesRecoverySeconds * 2), 3);
   assert.equal(recoveredTaken(c, 1, 99999), 0);
+});
+
+test('vendor economy: every class is a live item category and every zone-tax row a real zone', () => {
+  const categories = Object.keys((JSON.parse(readFileSync(new URL('../../src/core/contracts/definitions.json', import.meta.url), 'utf8')) as { categories: Record<string, unknown> }).categories);
+  for (const c of VENDOR_CLASSES) assert.ok(categories.includes(c.id), `${c.id} is not an item category (${categories.join(', ')})`);
+  for (const z of ZONE_TAXES) assert.ok(existsSync(new URL(`../zone-rows/${z.id}.row.json`, import.meta.url)), `${z.id} has no zone row`);
+  for (let n = 1; n <= 4; n++) assert.ok(zoneTax(`zone${n}`), `zone${n} has no tax row`);
 });

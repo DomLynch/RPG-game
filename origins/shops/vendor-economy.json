@@ -2,7 +2,7 @@
   "classes": [
     { "id": "gear", "stockSlope": 40, "priceFloor": 100, "priceCeil": 140, "sellPct": 40, "salesSlope": 50, "salesFloor": 10, "salesRecoverySeconds": 600, "restockSeconds": 900, "stockCap": 5 },
     { "id": "material", "stockSlope": 80, "priceFloor": 80, "priceCeil": 200, "sellPct": 50, "salesSlope": 80, "salesFloor": 20, "salesRecoverySeconds": 300, "restockSeconds": 300, "stockCap": 40 },
-    { "id": "consumable", "stockSlope": 60, "priceFloor": 90, "priceCeil": 180, "sellPct": 35, "salesSlope": 60, "salesFloor": 15, "salesRecoverySeconds": 300, "restockSeconds": 120, "stockCap": 20 }
+    { "id": "cosmetic", "stockSlope": 60, "priceFloor": 100, "priceCeil": 160, "sellPct": 30, "salesSlope": 60, "salesFloor": 15, "salesRecoverySeconds": 600, "restockSeconds": 1800, "stockCap": 3 }
   ],
   "zoneTax": [
     { "id": "zone1", "buyTaxPct": 0, "sellTaxPct": 0 },
