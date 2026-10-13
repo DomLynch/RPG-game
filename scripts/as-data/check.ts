@@ -70,8 +70,9 @@ try {
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   const isTunable = (s: { kind: string; category: string }) => s.kind === 'tunable' || s.category === 'content-const';   // the numeric-const rule and the named-constant rule share one allow-list
   const tunableEntry = (s: { file: string; text: string }) => tunableAllow.find((a) => a.file === s.file && new RegExp(`^${a.name}\\b`).test(s.text));
-  const allowedTunables = sites.filter((s) => isTunable(s) && tunableEntry(s)).map((s) => ({ ...s, reason: tunableEntry(s)!.reason }));
-  const staleTunables = tunableAllow.filter((a) => !allowedTunables.some((s) => s.file === a.file && new RegExp(`^${a.name}\\b`).test(s.text)));
+  const allowedTunables = sites.filter((s) => isTunable(s) && tunableEntry(s)).filter((s, i, all) => all.findIndex((o) => o.file === s.file && o.line === s.line) === i).map((s) => ({ ...s, reason: tunableEntry(s)!.reason }));   // one const that both rules see is listed once
+  const inRoots = (f: string) => roots.some((r) => f === r || f.startsWith(`${r}/`));   // a --root run only judges the entries under its roots
+  const staleTunables = tunableAllow.filter((a) => inRoots(a.file) && !allowedTunables.some((s) => s.file === a.file && new RegExp(`^${a.name}\\b`).test(s.text)));
   for (let i = sites.length - 1; i >= 0; i--) if (isTunable(sites[i]!) && tunableEntry(sites[i]!)) sites.splice(i, 1);
   const entryFor = (s: { file: string; text: string }) => allow.find((a) => a.file === s.file && `'${a.literal}'` === s.text);
   const allowed = sites.filter((s) => s.kind === 'compare' && entryFor(s)).map((s) => ({ ...s, reason: entryFor(s)!.reason }));

@@ -213,7 +213,8 @@ test('the tunable rule covers ALL of src/ and origins/ (tests and fixtures exclu
     writeFileSync(allowFile, '{"allow":[]}');
     const go = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', allowFile, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
     const planted = JSON.parse(go().stdout) as Report & { tunables: number };
-    assert.deepEqual(planted.sites.filter((x) => x.kind === 'tunable').map((x) => x.file).sort(), ['origins/x/thing.ts', 'src/deep/er/brand-new.ts', 'src/deep/er/brand-new.ts'], 'new numeric consts in any src/ or origins/ file; not the test or the fixtures');
+    assert.deepEqual([...new Set(planted.sites.filter((x) => x.kind === 'tunable').map((x) => x.file))].sort(), ['origins/x/thing.ts', 'src/deep/er/brand-new.ts'], 'new numeric consts in any src/ or origins/ file; not the test or the fixtures');
+    assert.ok(planted.sites.some((x) => x.kind === 'row' && x.text.startsWith('SHAPE')), 'and the named-constant rule sees the object with a number in it');
     assert.equal(go('--gate').status, 1, 'a new literal goes red under --gate');
     const keep = (extra: object) => ({ file: 'src/deep/er/brand-new.ts', name: 'NEW_RANGE', reason: 'a test', ...extra });
     for (const bad of [{ owner: '', sunset: '2099-01-01' }, { owner: 'Test' }, { owner: 'Test', sunset: 'soon' }]) {
