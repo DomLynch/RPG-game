@@ -170,6 +170,23 @@ test('deploy.sh: Mac rows after Published is off by default, runs first with a r
   assert.match(deploy, /DEPLOY_MAC_AFTER_PUBLISH:-off/);
   assert.match(deploy, /RELEASE_CHECKS_DEFERRED="\$post_publish\$\{mac_deferred:\+/);
   assert.match(deploy, /\$writer_install" == \*"nothing installed"\*/);
-  assert.match(deploy, /DEPLOY_LOCK=\/dev\/null bash scripts\/rollback\.sh \$live_now/);
+  assert.match(deploy, /mac_rollback_release\(\) \{\n    DEPLOY_LOCK=\/dev\/null bash scripts\/rollback\.sh \"\$live_now\" \|\| return 1/);
+  assert.match(deploy, /presence_now=\$\(ssh [^\n]*readlink \/opt\/frankendom-presence\/current[^\n]*\n    if \[\[ -n \"\$presence_prev\" && \"\$presence_now\" != \"\$presence_prev\" \]\]; then presence_back \|\| return 1; fi/, 'a publish that moved presence puts it back after the site swap (#2513)');
+  assert.ok(deploy.indexOf('rollback.sh "$live_now"') < deploy.indexOf('then presence_back'), 'the site is swapped first, then presence');
   assert.ok(deploy.indexOf('"$mac_deferred" "$mac_rollback"') < deploy.indexOf('post_publish_rows "$revision" "$post_publish"'), 'the Mac rows run before the other post-publish rows');
+});
+
+test('post_publish_rows: the rollback may be a shell function of the caller (deploy.sh passes mac_rollback_release); its failure is ROLLBACK FAILED, still held, still 1', () => {
+  const root = mkdtempSync(join(tmpdir(), 'post-publish-fn-')), hold = join(root, 'deploy_hold'), marker = join(root, 'fn-ran');
+  try {
+    const run = (fn: string) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; rb() { ${fn}; }; post_publish_rows abc123 44 rb`], { encoding: 'utf8', cwd: root, env: { ...process.env, POST_PUBLISH_RUN: 'exit 3', DEPLOY_HOLD_FILE: hold, M: marker } });
+    const ok = run('touch "$M"');
+    assert.equal(ok.status, 1);
+    assert.ok(existsSync(marker), 'the caller\'s function ran');
+    assert.match(ok.stderr, /ROLLED BACK/);
+    const bad = run('return 1');
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /ROLLBACK FAILED: rows 44 failed for the LIVE release abc123/);
+    assert.ok(existsSync(hold));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

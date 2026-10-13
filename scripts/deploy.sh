@@ -205,12 +205,7 @@ deploy_step "publish lock"
 deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" "publish"
 live_now=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
 publish_order=$(deploy_publish_order "$live_now" "$revision")
-case "$publish_order" in
-  forward) echo "publish order: live ${live_now:0:9} -> $revision (forward)" ;;
-  unknown) echo "publish order: live unknown (release.json unreadable); publishing $revision without the order guard" ;;
-  superseded) echo "superseded: live $live_now already contains $revision; nothing published"; exit 3 ;;
-  *) echo "diverged: live $live_now and $revision do not contain each other; nothing published (re-cut on top of live)" >&2; exit 3 ;;
-esac
+deploy_order_verdict "$publish_order" "$live_now" "$revision" || exit 3   # scripts/lib/deploy-lock.sh: only a forward publish from a PROVEN live ancestor goes on
 deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
@@ -368,7 +363,15 @@ post_rc=0
 mac_rc=0
 if [[ -n "$mac_deferred" ]]; then
   mac_rollback=""
-  if [[ "$writer_install" == *"nothing installed"* && "$live_now" =~ ^[0-9a-f]{40}$ ]]; then mac_rollback="DEPLOY_LOCK=/dev/null bash scripts/rollback.sh $live_now"
+  # rollback.sh puts the static site and the verifier back, not the writer: only a publish that left the writer as it was is undone automatically. The presence service
+  # flips with the site (#2513), so when this publish moved it, presence_back puts it back after the site swap (a rollback must not leave a new presence running).
+  mac_rollback_release() {
+    DEPLOY_LOCK=/dev/null bash scripts/rollback.sh "$live_now" || return 1
+    local presence_now
+    presence_now=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-presence/current || true")
+    if [[ -n "$presence_prev" && "$presence_now" != "$presence_prev" ]]; then presence_back || return 1; fi
+  }
+  if [[ "$writer_install" == *"nothing installed"* && "$live_now" =~ ^[0-9a-f]{40}$ ]]; then mac_rollback=mac_rollback_release
   else echo "Mac rows failing will not roll back: this publish changed the writer (or live was unknown), a person decides" >&2; fi
   POST_PUBLISH_PROMOTE=$([[ -n "$post_publish" ]] && echo 0 || echo 1) post_publish_rows "$revision" "$mac_deferred" "$mac_rollback" || { post_rc=1; mac_rc=1; }
 fi

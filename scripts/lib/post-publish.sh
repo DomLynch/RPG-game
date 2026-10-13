@@ -2,7 +2,7 @@
 # post_publish_rows <revision> <rows csv>: runs only those rows (release-checks.mjs, RELEASE_CHECKS_ONLY, its own receipt and log folder). A pass prints one line. A failure prints a
 # RED line, writes deploy_hold if nobody holds the box (the next publish waits for a person) and returns 1, so deploy.sh exits 1 and the release train STOPS and keeps its hold
 # (release-train-publish.sh): never a silent pass. The hold's first line carries no digit (the train reads digits there as a publisher pid).
-# Third argument (optional, deploy.sh passes it for the Mac rows when the release is safe to undo): a command that puts the previous release back. A failed row then
+# Third argument (optional, deploy.sh passes it for the Mac rows when the release is safe to undo): a command (or a deploy.sh function name) that puts the previous release back. A failed row then
 # also runs it, prints ROLLED BACK (or ROLLBACK FAILED) and still holds the box and returns 1: the candidate is looked at by a person either way.
 # POST_PUBLISH_PROMOTE=0 keeps a pass from promoting the pending full-run stamp. Env (tests): POST_PUBLISH_RUN (the command, default node scripts/release-checks.mjs), DEPLOY_HOLD_FILE.
 post_publish_rows() {
@@ -21,7 +21,8 @@ post_publish_rows() {
   echo "RED: post-publish rows $rows FAILED for the LIVE release $rev: the release stays live, the next publish is held until a person looks (logs: artifacts/post-publish-rows)" >&2
   [[ -e "$hold" ]] || printf 'post-publish rows failed for a live release; remove this file after looking\nrows %s revision %s at %s\n' "$rows" "$rev" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$hold"
   if [[ -n "$rollback" ]]; then
-    if bash -c "$rollback"; then echo "ROLLED BACK: rows $rows failed for $rev, the previous release is live again (hold kept)" >&2
+    # a subshell: deploy.sh passes a function name (it needs the ssh options and presence_back); a command string, and `exit` in it, work too
+    if ( eval "$rollback" ); then echo "ROLLED BACK: rows $rows failed for $rev, the previous release is live again (hold kept)" >&2
     else echo "ROLLBACK FAILED: rows $rows failed for the LIVE release $rev and the rollback command did not complete: $rollback" >&2; fi
   fi
   return 1
