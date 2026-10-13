@@ -4,5 +4,6 @@
     { "id": "interruptEarly", "value": 0 },
     { "id": "castPushback", "value": 0 },
     { "id": "castPushbackMax", "value": 0 }
-  ]
+  ],
+  "castPenalty": []
 }

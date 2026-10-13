@@ -1,5 +1,6 @@
 import DEFS from './sandbox-rules-defs.json' with { type: 'json' };
 import SWARM_DEFS from './swarm-defs.json' with { type: 'json' };
+import type { Sheet } from './sheet-rows.ts';
 import PHASE_DEFS from './boss-phase-defs.json' with { type: 'json' };
 
 // sandbox-mech: the sandbox's own rule rows (sandbox-rules-defs.json), one number each, read once at load. Every rule is 0 / absent as shipped on trunk,
@@ -39,3 +40,16 @@ export const PHASES: readonly PhaseRow[] = ((PHASE_DEFS as unknown as { phases: 
   return r;
 });
 export const phaseText = (id: string): { label: string; note: string } | undefined => { const r = PHASES.find((p) => p.id === id); return r?.label ? { label: r.label, note: r.note ?? '' } : undefined; };
+
+// castPenalty (Dom 2026-10-13: armour weight slows casting; numbers as Lead's #2577 armour-weights.json, heavy 20 / medium 10 / light 0): sandbox-rules-defs.json `castPenalty` rows, { id, dial, atLeast, percent }. The sim
+// sees gear only as the sheet's ten dials, so the weight class is read off them: the heaviest row whose dial the wearer's sheet reaches adds `percent` of the windup to a special's cast time (plate = armour dial, leathers = stamina
+// dial, robes match none). When promoted, a weightClass lookup replaces the dial test; the percentages stay. No rows (trunk) = the plain windup.
+export type CastPenaltyRow = { id: string; dial: string; atLeast: number; percent: number };
+export const CAST_PENALTY: readonly CastPenaltyRow[] = ((DEFS as unknown as { castPenalty?: CastPenaltyRow[] }).castPenalty ?? []).map((r) => {
+  if (!r.id || !r.dial || !Number.isFinite(r.atLeast) || !(r.percent >= 0)) throw Error(`sandbox-rules-defs castPenalty "${String(r.id)}": id, dial, atLeast and percent (0 or more) are required`);
+  return r;
+});
+export const castWindup = (sheet: Sheet | undefined, base: number): number => {
+  let pct = 0; for (const r of CAST_PENALTY) if ((sheet?.[r.dial] ?? 0) >= r.atLeast && r.percent > pct) pct = r.percent;
+  return base + Math.round((base * pct) / 100);
+};
