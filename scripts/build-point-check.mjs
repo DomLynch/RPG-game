@@ -14,7 +14,7 @@ const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.ind
 const TOKEN = 'stub-access', requests = [];
 const state = { level: 3, placed: {}, respreadRank: 0, version: 1 };
 const writer = http.createServer((req, res) => {
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': '*' };
   if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
   let raw = ''; req.on('data', (c) => (raw += c)); req.on('end', () => {
     const op = req.url.split('?')[0].split('/').pop(), body = raw ? JSON.parse(raw) : {};
