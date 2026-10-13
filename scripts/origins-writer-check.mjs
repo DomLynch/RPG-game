@@ -663,7 +663,7 @@ try {
       const item = psql(`select item from public.origins_items where id = '${piece}'`), kind = wearKindOf(item);
       if (!kind) throw Error(`gear_repair: no wearable goblin piece for the section (piece ${JSON.stringify(piece)}, item ${JSON.stringify(item)}, held ${psql(`select string_agg(item || ':' || coalesce(loc_kind, '-'), ',') from public.origins_items where loc_owner = '${cd}'`)})`);
       const worn = { worn: 12, max: 40, baseMax: 40 }, cost = repairCost(kind.tier, worn, worn.worn, undefined, kind.slot), after = repairedPiece(worn);
-      const wear = () => psql(`select coalesce(public.origins_item_wear('${D}', '${piece}')::text, 'none')`), sorted = o => Object.fromEntries(Object.entries(o).sort());   // jsonb reorders keys
+      const wear = () => psql(`select coalesce((public.origins_item_wear('${D}', array['${piece}']) -> '${piece}')::text, 'none')`), sorted = o => Object.fromEntries(Object.entries(o).sort());   // jsonb reorders keys
       const rep = over => call('gear_repair', 'td', { character: cd, op: 'repair:op-0001', instance: piece, ...over });
       presence[D] = atBank();
       psql(`select public.origins_commit('${D}', $j$[{"op":"metal","account":"${D}","delta_bronze":${cost.gold + 5},"reason":"award","event_id":"test:repair-seed"}]$j$::jsonb);`);
@@ -672,6 +672,8 @@ try {
       eq([none.status, none.json.code], [422, 'not-worn'], 'gear_repair: an unworn piece is refused');
       psql(`select public.origins_commit('${D}', $j$[{"op":"event","event_id":"wear:${piece}:1","kind":"metal","account":"${D}","character":"${cd}","payload":{"wear":${JSON.stringify({ instance: piece, ...worn })}}}]$j$::jsonb);`);
       eq(sorted(JSON.parse(wear())), sorted({ instance: piece, ...worn }), 'gear_repair: the newest wear event is the piece\'s wear');
+      const seen = await call('gear_wear', 'td', { character: cd });
+      eq([seen.status, seen.json.result?.pieces.map(x => [x.instance, x.worn, x.max, x.baseMax, x.quote.bronze, x.quote.metal.qty])], [200, [[piece, worn.worn, worn.max, worn.baseMax, cost.gold, cost.metal]]], 'gear_wear: the worn piece with the smith\'s quote, read only');
       const noIron = await rep({ op: 'repair:op-0002' });
       eq([noIron.status, noIron.json.code], [422, 'metal'], 'gear_repair: no grave iron in the pack is refused');
       if (!(cost.metal > 0)) throw Error('gear_repair: the rows must price some grave iron for this piece, or the burn check proves nothing');
@@ -686,6 +688,7 @@ try {
       eq([again.status, again.json.result?.replayed, Number(bal())], [200, true, was - cost.gold], 'gear_repair: an identical retry answers the stored receipt and charges nothing');
       eq((await rep({ instance: 'inst:other-0001' })).status, 409, 'gear_repair: the same op id for another piece is a 409');
       eq([(await rep({ op: 'repair:op-0003' })).json.code], ['not-worn'], 'gear_repair: a fully repaired piece is not worn');
+      eq((await call('gear_wear', 'td', { character: cd })).json.result?.pieces, [], 'gear_wear: nothing worn after the repair is an empty list');
       presence[D] = inPitYard();
       const away = await rep({ op: 'repair:op-0004' });
       eq([away.status, away.json.code], [422, 'away'], 'gear_repair: away from the smith is refused');

@@ -39,8 +39,9 @@ export function gearRepairHandler(content: Content): Handler {
     if (!piece) throw new BadRequest('instance: not one of this character\'s pieces');
     const kind = wearKindOf(piece.item);
     if (!kind) throw new Refused(422, 'this piece takes no wear', 'no-wear');
-    const [stored, metal] = await Promise.all([store.itemWear(db, account, instance), store.metalOf(db, account)]);
-    if (stored === 'absent' || metal === 'absent') throw new Refused(503, 'the wear ledger is not installed (migration 202610130032)');
+    const [wears, metal] = await Promise.all([store.itemWears(db, account, [instance]), store.metalOf(db, account)]);
+    if (wears === 'absent' || metal === 'absent') throw new Refused(503, 'the wear ledger is not installed (migration 202610130032)');
+    const stored = wears[instance];
     if (!stored || stored.worn <= 0) throw new Refused(422, 'this piece is not worn', 'not-worn');
     const quote = repairCost(kind.tier, stored, (points as number | undefined) ?? stored.worn, undefined, kind.slot);
     if (quote.points === 0) throw new Refused(422, 'this piece is not worn', 'not-worn');

@@ -6,6 +6,7 @@ import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { DbError, type Db } from './db.ts';
 import { Refused } from './errors.ts';
 import { gearRepairHandler } from './gear-repair.ts';
+import { gearWearHandler } from './gear-wear.ts';
 import { Conflict } from './handlers.ts';
 
 const loaded = loadEncounterContent();
@@ -26,7 +27,7 @@ function stub(o: Opts = {}) {
   const db: Db = { async run(sql, v = {}) {
     if (/origins_commit/.test(sql)) { if (o.stale) throw new DbError('O0002', 'stale'); commits.push(JSON.parse(v.b!)); return '[]'; }
     if (/origins_event\(/.test(sql)) return o.stored ? JSON.stringify({ payload: o.stored }) : 'null';
-    if (/origins_item_wear/.test(sql)) return o.wear === undefined || o.wear === null ? 'null' : JSON.stringify({ instance: 'inst:t-1', ...o.wear });
+    if (/origins_item_wear/.test(sql)) return o.wear === undefined || o.wear === null ? '{}' : JSON.stringify({ 'inst:t-1': { instance: 'inst:t-1', ...o.wear } });
     if (/origins_metal_of/.test(sql)) return JSON.stringify({ bronze: o.bronze ?? 1000, version: 3 });
     const items = [helmet, ...((o.ironQty ?? 9) > 0 ? [iron(o.ironQty ?? 9)] : [])];
     return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: 64, bank_slots: 1000 }], items, quests: [], journal: [], talk: [] });
@@ -88,4 +89,13 @@ test('gear_repair: a body that is not an op id, a character or a held piece is a
   await assert.rejects(run(s, { op: 'x' }), /op/);
   await assert.rejects(run(s, { instance: 'inst:nope' }), /instance|not one of/);
   await assert.rejects(run(s, { points: -1 }), /points/);
+});
+
+test('gear_wear: lists the worn pieces with the quote the smith would charge (the same rows as gear_repair); nothing worn is an empty list, not an error', async () => {
+  const read = (s: { db: Db }) => gearWearHandler({ lookup })({ db: s.db, account: UID } as never, { character: PC }) as Promise<{ pieces: { instance: string; slot: string; worn: number; max: number; baseMax: number; quote: unknown }[] }>;
+  const out = await read(stub({ wear: worn }));
+  assert.deepEqual(out.pieces, [{ instance: 'inst:t-1', slot: kind.slot, ...worn, quote: { points: cost.points, bronze: cost.gold, metal: { item: cost.metalItem, qty: cost.metal } } }]);
+  assert.deepEqual((await read(stub())).pieces, []);
+  assert.deepEqual((await read(stub({ wear: { ...worn, worn: 0 } }))).pieces, []);
+  await assert.rejects(gearWearHandler({ lookup })({ db: stub().db, account: UID } as never, { character: 12 }), /character/);
 });

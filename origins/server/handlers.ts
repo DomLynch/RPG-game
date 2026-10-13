@@ -13,6 +13,7 @@ import { talkPick } from './talk-pick.ts';
 import { buildGet, buildSet } from './build.ts';
 import { skillsGet, skillFocus } from './skills.ts';
 import { gearRepairHandler } from './gear-repair.ts';
+import { gearWearHandler } from './gear-wear.ts';
 import { shopBuyHandler } from './shop-buy.ts';
 import { gearHandlers } from './gear.ts';
 import { upgradeHandler } from './upgrade.ts';
@@ -94,4 +95,4 @@ export const storyOps = (content: StoryContent | null): Record<string, Handler> 
 export const handlers: Record<string, Handler> = { open, create_character: createCharacter, build_get: buildGet, build_set: buildSet, skills_get: skillsGet, skill_focus: skillFocus, ...storyOps(null) };
 
 // The item ops need the content (item definitions) the pure rules read; the writer is built with it. Nothing in a body names a definition.
-export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items), shop_buy: shopBuyHandler(items, items.shops ?? new Map()), gear_repair: gearRepairHandler(items), ...gearHandlers(items) });
+export const withContent = (items: Content): Record<string, Handler> => ({ ...handlers, consume: consumeHandler(items), apply_upgrade: upgradeHandler(items), shop_buy: shopBuyHandler(items, items.shops ?? new Map()), gear_repair: gearRepairHandler(items), gear_wear: gearWearHandler(items), ...gearHandlers(items) });
