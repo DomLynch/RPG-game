@@ -12,6 +12,13 @@
     { "id": "spentWindow", "value": 10000, "unit": "ms" },
     { "id": "outboxTries", "value": 12, "unit": "tries" },
     { "id": "renewTimeout", "value": 3000, "unit": "ms" },
-    { "id": "cameraEase", "value": 0.7, "unit": "s" }
+    { "id": "cameraEase", "value": 0.7, "unit": "s" },
+    { "id": "campFlameSize", "value": 1.15, "unit": "ratio" },
+    { "id": "campLightReach", "value": 36, "unit": "m" },
+    { "id": "presenceGiveUp", "value": 6, "unit": "tries" },
+    { "id": "gameDayMinutes", "value": 100, "unit": "min" },
+    { "id": "duskHour", "value": 19, "unit": "h" },
+    { "id": "dawnHour", "value": 5, "unit": "h" },
+    { "id": "duskSpan", "value": 1.5, "unit": "h" }
   ]
 }
