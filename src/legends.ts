@@ -12,6 +12,7 @@ import { MAX_LEVEL } from './core/career-ladder.ts';
 import { levelOf, tierAt } from './core/grades.ts';
 import type CATALOGUE_DATA from './fight/catalogue-data.ts';
 import { CATALOGUE } from './fight/catalogue-rows.ts';
+import { familyOf, legendText, pickLegend } from './fight/legend-families.ts';
 
 export type Legend = { name: string; source: string; backstory: string };
 // The legends are the catalogue's rows (src/fight/catalogue-data.ts, pure data): a new legend name is one edit there, no code. A row with ranks is a Pit opponent, listed on the Sparring tab in its `sparring.order` (Dom, layout A; not the ladder order).
@@ -29,6 +30,8 @@ export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id
 export const rungOf = (level: number): number => levelOf(tierAt(level - 1));
 // The legend a fight at `level` shows.
 export const legendForLevel = (id: LegendOpponent, level: number): Legend => legendAt(id, rungOf(level));
+// The legend the fight wears: its family's pick at the level's rung, chosen by the fight seed (src/fight/legend-families.ts). With one legend per rank this is legendForLevel.
+export const legendForFight = (id: LegendOpponent, level: number, seed: number): Legend => { const f = familyOf(id), picked = f ? pickLegend(f, rungOf(level), seed) : null; return (picked && legendText(picked)) || legendForLevel(id, level); };
 // The highest level (1..50) that reads as a rung, through the same mapping: the Sparring tab's Legend pick fights there (Origin = 50).
 export const rungTopLevel = (rung: number): number => Array.from({ length: MAX_LEVEL }, (_, i) => MAX_LEVEL - i).find((level) => rungOf(level) === rung) ?? 1;
 // The legend's painted face (Dom via Strategy, 2026-09-28, versus card B4): public/legends/<opponent>-<rung>.webp, the rung legendForLevel reads.
