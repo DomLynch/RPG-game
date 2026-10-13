@@ -54,8 +54,9 @@ const ownCreatureTiming = (text: string): boolean => /\b\w*(lunge|pulse|hurt|fal
 const IMPORT = /(?:^\s*(?:import|export)\b[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(join(dir, e.name)) : /\.(ts|mjs)$/.test(e.name) && !/\.test\.(ts|mjs)$/.test(e.name) ? [join(dir, e.name)] : []);
 const moduleOf = (spec: string): string | null => /(^|\/)src\//.test(spec) && !/(^|\/)src\/core\//.test(spec) ? spec.replace(/\?.*$/, '').replace(/\.[a-z]+$/, '').split('/').pop()! : null;
+// src/fight/safe.ts: the page-and-node-safe slice (ROSTER); its closure is walked by tests/preview-no-server.test.ts
 const SERVER_DOOR = /(^|\/)src\/fight\/server\.ts$/;   // the node-safe door: server-run code only (renderer-free re-exports)
-const fromFightIndex = (spec: string, file = ''): boolean => /(^|\/)src\/fight\/index\.ts$/.test(spec) || (SERVER_DOOR.test(spec) && SERVER_DIRS.some((d) => file.startsWith(d)));
+const fromFightIndex = (spec: string, file = ''): boolean => /(^|\/)src\/fight\/(index|safe)\.ts$/.test(spec) || (SERVER_DOOR.test(spec) && SERVER_DIRS.some((d) => file.startsWith(d)));
 
 export function violations(read: (f: string) => string = (f) => readFileSync(f, 'utf8'), list: readonly string[] = files('origins')): { bad: string[]; unclassified: string[] } {
   const bad: string[] = [], unclassified: string[] = [];

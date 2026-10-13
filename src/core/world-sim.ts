@@ -1,7 +1,7 @@
 // The world sim's pure creature behaviour: the seeded random, a creature's notice (aggro with hysteresis), wander and facing, and who is drawn. Moved out of
 // origins/preview/mobs.ts (core slice 3, Combat + Backend) with no change to a number or a branch; mobs.ts imports and re-exports it, so every caller and test is
 // unchanged. Pure: no three.js, no DOM, no clock, no origins/ import. Server-run code reaches it through src/core/server.ts.
-import { SPEEDS } from '../fight/server.ts';
+import { SPEEDS } from '../fight/speeds.ts';
 
 export type Pos = { x: number; z: number };
 export type MobMode = 'idle' | 'wander' | 'aggro';

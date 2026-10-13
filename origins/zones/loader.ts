@@ -4,7 +4,7 @@
 import type { MobRow } from '../../src/core/server.ts';
 import type { Look } from '../preview/look.ts';
 import type { MobLookRow, MobSpread } from '../preview/mob-looks.ts';
-import { ROSTER } from '../../src/fight/server.ts';
+import { ROSTER } from '../../src/fight/safe.ts';
 import { duplicateKeys, describeDuplicates } from '../../scripts/lib/json-dup-keys.mjs';
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, type Place } from './place.ts';

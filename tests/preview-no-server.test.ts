@@ -1,16 +1,7 @@
 // The built Origins page must not reach the server's code (the #2484 leak class): nothing under origins/preview, followed through every relative import (static, re-export or dynamic), may land in origins/server/ (the writer and
 // the grimoire's whole spell catalogue) or in the node-safe doors src/fight/server.ts and src/core/server.ts. The page reads the engine through src/fight/index.ts and the core through src/core/index.ts.
-// Type-only imports are erased by the build and are not followed. One real leak existed before this guard and is PINNED (it only shrinks): see KNOWN.
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, normalize } from 'node:path';
-
-const IMPORT = /(?:^\s*(?:import|export)\b(?!\s+type\b)[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
-const FORBIDDEN = /^(origins\/server\/|src\/fight\/server\.ts$|src\/core\/server\.ts$)/;
-// origins/zones/loader.ts reads ROSTER from the node-safe door (the writer loads the same file), and the page's frontier-kit-view.ts imports the loader: today's leak, to be fixed by giving the loader a page-safe ROSTER source (World follow-up).
-// origins/preview/mobs.ts is page data the writer also loads (world-spawns.ts) and reads a value from the core's node-safe door: the second pinned leak.
-const KNOWN = ['origins/preview/frontier-kit-view.ts -> origins/zones/loader.ts -> src/fight/server.ts', 'origins/preview/mobs.ts -> src/core/server.ts'];
+// Type-only imports are erased by the build and are not followed. There are NO pinned leaks: the two that predated this guard (zones/loader.ts reading ROSTER, mobs.ts reading the core's mob maths) now read
+// the page-and-node-safe doors src/fight/safe.ts and src/core/safe.ts, whose own closure is checked below.
 const code = (f: string) => /\.(ts|mjs)$/.test(f) && !/\.test\.(ts|mjs)$/.test(f);
 const seeds = (dir = 'origins/preview'): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? seeds(join(dir, e.name)) : code(e.name) ? [join(dir, e.name)] : []);
 
@@ -27,9 +18,10 @@ export function leaks(list: readonly string[], read: (f: string) => string | nul
 }
 
 test('origins/preview never reaches origins/server, src/fight/server.ts or src/core/server.ts, transitively', () => {
-  const found = leaks(seeds());
-  assert.deepEqual(found.filter((c) => !KNOWN.includes(c)), [], 'a NEW path from the page into server code: go through the page doors (src/fight/index.ts, src/core/index.ts) or split a page-safe module');
-  assert.deepEqual(KNOWN.filter((c) => !found.includes(c)), [], 'a pinned leak is gone: delete its line so it cannot come back');
+  assert.deepEqual(leaks(seeds()), [], 'a path from the page into server code: go through the page doors (src/fight/index.ts, src/core/index.ts), the safe doors (src/fight/safe.ts, src/core/safe.ts) or split a page-safe module');
+  assert.deepEqual(leaks(['src/core/safe.ts', 'src/fight/safe.ts']), [], 'a safe door reaches only pure modules');
+  const closure = (f: string, seen = new Set<string>()): Set<string> => { if (seen.has(f) || !existsSync(f)) return seen; seen.add(f); for (const m of readFileSync(f, 'utf8').matchAll(IMPORT)) if (m[1]!.startsWith('.')) closure(normalize(join(dirname(f), m[1]!)), seen); return seen; };
+  for (const door of ['src/core/safe.ts', 'src/fight/safe.ts']) assert.deepEqual([...closure(door)].filter((f) => /(^origins\/|\/index\.ts$|three|gear-room)/.test(f)), [], `${door} reaches no origins/, no *index.ts door and no renderer`);
 });
 
 test('the detector follows a chain and an index of re-exports (mutation)', () => {

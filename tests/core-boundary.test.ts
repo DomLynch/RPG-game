@@ -26,6 +26,7 @@ import { SERVER_ENTRIES, writerClosure } from '../scripts/writer-closure.mjs';
 const NODE_RUN_PAGES: ReadonlySet<string> = new Set(SERVER_ENTRIES.flatMap((e) => writerClosure((f: string) => readFileSync(f, 'utf8'), existsSync, e).files).filter((f: string) => f.startsWith('origins/preview/')));
 const PAGE = (f: string): boolean => f === 'src/main.ts' || f.startsWith('origins/preview/');
 const SERVER = (f: string): boolean => (f.startsWith('origins/') && !PAGE(f)) || (f.startsWith('scripts/') && /\.(ts|mjs)$/.test(f));   // every other origins/ dir (server, contracts, encounters, inventory, region1, mobs, zones, ...) and the node scripts
+const SAFE_DOOR = 'src/core/safe.ts';   // the page-and-node-safe slice (world-sim, mob rows); its closure is walked by tests/preview-no-server.test.ts
 const inCore = (t: string): boolean => /^src\/core\//.test(t);
 
 export function c1(read: (f: string) => string, list: readonly string[]): string[] {
@@ -33,7 +34,7 @@ export function c1(read: (f: string) => string, list: readonly string[]): string
   for (const f of list) {
     const door = NODE_RUN_PAGES.has(f) ? 'src/core/server.ts' : PAGE(f) ? 'src/core/index.ts' : SERVER(f) ? 'src/core/server.ts' : null;
     if (!door) continue;
-    for (const s of specsOf(f, read(f))) if (inCore(s.target) && s.target !== door) bad.push(`${f} -> ${s.target} (take ${door})`);
+    for (const s of specsOf(f, read(f))) if (inCore(s.target) && s.target !== door && s.target !== SAFE_DOOR) bad.push(`${f} -> ${s.target} (take ${door}, or ${SAFE_DOOR} for the pure slice both sides read)`);
   }
   return bad.sort();
 }
