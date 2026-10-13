@@ -12,7 +12,8 @@ import { percentOf, rolledDamage, rollUnit, swarmBand } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
-import { stanced, woundsAt, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { stanced, woundsAt, type StanceId } from './stance.ts';
+import { DODGE_COUNTER } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -492,7 +493,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     };
     // A low blade (the sweep) trips a roll in its first half: the roller is going down into it. The kick has no blade and is rolled as before.
     const trip = d.phase === 'roll' && def.direction === 'low' && def.path !== null && d.age < R.roll / 2;
-    if (d.phase === 'roll' && d.age >= R.safeStart && d.age <= R.safeEnd && !trip) events.push({ tick, type: 'Dodged', actor: j, target: i, move: a.move });
+    if (d.phase === 'roll' && d.age >= R.safeStart && d.age <= R.safeEnd && !trip) { events.push({ tick, type: 'Dodged', actor: j, target: i, move: a.move }); if (DODGE_COUNTER > 0) D.counterWindow = DODGE_COUNTER; }   // sandbox-mech: a clean dodge opens the guard-counter window too
     else if (guarding && d.age < g.window && def.parryable) {
       const parried = Math.max(1, stunned(A, 'parryStun', R.parryStun));   // never under 1 tick: the parried cut still ends
       A.phase = 'hurt'; A.age = 0; A.stun = parried; A.buffer = null; D.punish = parried;
