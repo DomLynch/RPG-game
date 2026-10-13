@@ -661,6 +661,7 @@ try {
     {
       const piece = psql(`select id from public.origins_items where loc_owner = '${cd}' and item ~ '^item:loot[.]goblin[.](Helmet|Body|Greaves|Arms|Gloves|Boots)$' and loc_kind in ('pack', 'bank') and retired_at is null order by id limit 1`);
       const item = psql(`select item from public.origins_items where id = '${piece}'`), kind = wearKindOf(item);
+      if (!kind) throw Error(`gear_repair: no wearable goblin piece for the section (piece ${JSON.stringify(piece)}, item ${JSON.stringify(item)}, held ${psql(`select string_agg(item || ':' || coalesce(loc_kind, '-'), ',') from public.origins_items where loc_owner = '${cd}'`)})`);
       const worn = { worn: 12, max: 40, baseMax: 40 }, cost = repairCost(kind.tier, worn, worn.worn, undefined, kind.slot), after = repairedPiece(worn);
       const wear = () => psql(`select coalesce(public.origins_item_wear('${D}', '${piece}')::text, 'none')`);
       const rep = over => call('gear_repair', 'td', { character: cd, op: 'repair:op-0001', instance: piece, ...over });
