@@ -21,7 +21,7 @@ const land = (kind: string | undefined, target?: Record<string, number>, stamina
 };
 
 test('the kind rows: slash drains, crush adds posture, pierce penetrates, each neutral on the other two channels; a new kind is a row', () => {
-  assert.deepEqual(DAMAGE_KIND_IDS, ['slash', 'crush', 'pierce']);
+  assert.deepEqual(DAMAGE_KIND_IDS, ['slash', 'crush', 'pierce', 'fire']);
   assert.deepEqual([DAMAGE_KINDS.slash!.drain > 0, DAMAGE_KINDS.slash!.posture, DAMAGE_KINDS.slash!.penetration], [true, 1, 0]);
   assert.deepEqual([DAMAGE_KINDS.crush!.drain, DAMAGE_KINDS.crush!.posture > 1, DAMAGE_KINDS.crush!.penetration], [0, true, 0]);
   assert.deepEqual([DAMAGE_KINDS.pierce!.drain, DAMAGE_KINDS.pierce!.posture, DAMAGE_KINDS.pierce!.penetration > 0], [0, 1, true]);

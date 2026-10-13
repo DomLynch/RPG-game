@@ -65,3 +65,16 @@ deploy_publish_order() {   # $1 = live revision (may be empty), $2 = this revisi
   elif git merge-base --is-ancestor "$2" "$1" 2>/dev/null; then echo superseded
   else echo diverged; fi
 }
+
+# deploy_order_verdict <order from deploy_publish_order> <live> <this revision>: 0 = go on, 3 = refuse (the caller exits 3). A forward publish from a live ancestor only: a candidate live
+# already contains, a diverged one, and an UNKNOWN live (release.json unreadable: a forward publish cannot be proven, so it is refused; DEPLOY_ALLOW_UNKNOWN_LIVE=1 is for a person).
+deploy_order_verdict() {
+  case "$1" in
+    forward) echo "publish order: live ${2:0:9} -> $3 (forward)" ;;
+    unknown)
+      if [[ "${DEPLOY_ALLOW_UNKNOWN_LIVE:-0}" == 1 ]]; then echo "publish order: live unknown (release.json unreadable); publishing $3 without the order guard (DEPLOY_ALLOW_UNKNOWN_LIVE=1)"
+      else echo "refused: live revision unknown (release.json unreadable), so a forward publish from a live ancestor cannot be proven; nothing published (DEPLOY_ALLOW_UNKNOWN_LIVE=1 overrides, for a person)" >&2; return 3; fi ;;
+    superseded) echo "superseded: live $2 already contains $3; nothing published"; return 3 ;;
+    *) echo "diverged: live $2 and $3 do not contain each other; nothing published (re-cut on top of live)" >&2; return 3 ;;
+  esac
+}

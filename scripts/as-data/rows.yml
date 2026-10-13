@@ -1,0 +1,10 @@
+# as-data check (c): a content ROW built in code. An object literal whose `kind` is one of the record kinds that now live as rows in origins/region1/progression.json
+# (foes, town people, encounters, Bounties, rifts) is content kept in TypeScript; add the row to the JSON table and load it. Tests are excluded by the runner (they build
+# throwaway records on purpose), as are fixtures.ts and src/ (the contracts parser names its own kinds). Add a kind here when its table moves to rows.
+id: as-data-rows
+language: typescript
+rule:
+  kind: pair
+  all:
+    - has: { field: key, regex: "^kind$" }
+    - has: { field: value, kind: string, regex: "^['\"](character-definition|encounter-definition|bounty-definition|rift-site|rift-boss|rift-scheduler)['\"]$" }

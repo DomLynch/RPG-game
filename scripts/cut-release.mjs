@@ -17,7 +17,7 @@ export function parseSpec(spec) {
   return { pr: Number(m[1]), head: m[2] };
 }
 
-const REVIEWERS = 'Auditor|Lead|Combat A|Combat B|Deploy B';   // full reviewers: Auditor, Lead (#2326), Combat A, Combat B (boss/finisher PRs) and Deploy B (Strategy 2026-10-12)
+const REVIEWERS = 'Auditor|Lead|Combat A|Combat B|Deploy B|Hooks';   // full reviewers: Auditor, Lead (#2326), Combat A, Combat B (boss/finisher PRs), Deploy B (Strategy 2026-10-12) and Hooks (CI/workflow/scripts PRs, Lead 2026-10-13)
 const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];   // the repo is public: anyone can type "Auditor: PASS @sha", so only these authors count (every lane posts as DomLynch, OWNER)
 
 /** Does a PR comment list ({body, authorAssociation}, as gh returns it) hold a trusted full reviewer's PASS for exactly this head (9-char prefix)? */
@@ -63,10 +63,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const specs = rest.map(parseSpec);
   const git = args => run('git', args);
   if (git(['status', '--porcelain']).stdout.trim()) { console.error('cut-release: the worktree is dirty'); process.exit(2); }
+  const space = run('bash', ['scripts/lib/free-space.sh', process.env.FREE_GIB_MIN || '20'], { timeout: 60_000 });   // a candidate cut on a full disk fails mid-install
+  if (space.status !== 0) { console.error(`cut-release: refusing to cut, ${space.stdout || ''}${space.stderr || ''}${space.error ? ` (${space.error.message})` : ''}${space.signal ? ` (killed by ${space.signal})` : ''}`.trim()); process.exit(2); }   // a timeout or kill is a refusal too (status null)
+  console.log(space.stdout.trim());
   git(['fetch', '-q', 'origin']);
   if (!noVerify) for (const { pr, head } of specs) {
     const comments = JSON.parse(run('gh', ['pr', 'view', String(pr), '--json', 'comments', '--jq', '[.comments[] | {body, authorAssociation}]']).stdout || '[]');
-    if (!passAt(comments, head)) { console.error(`cut-release: no "<reviewer>: PASS @${head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B or Deploy B; owner, member or collaborator) on #${pr} (--no-verify to skip)`); process.exit(2); }
+    if (!passAt(comments, head)) { console.error(`cut-release: no "<reviewer>: PASS @${head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B, Deploy B or Hooks; owner, member or collaborator) on #${pr} (--no-verify to skip)`); process.exit(2); }
   }
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }

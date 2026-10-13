@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/fight/hud.ts';
 import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/fight/combat.ts';
 import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/fight/duel.ts';
+import { recordSpecials } from '../src/fight/replay.ts';
+import { SPELL_IDS, resolveSpell } from '../src/fight/spell-cast.ts';
 
 // A minimal DOM: what the HUD writes to (properties, attributes, dataset, style props) is what the assertions read.
 class FakeElement {
@@ -132,6 +134,20 @@ test('update: SKILL stays dim for its whole cooldown, through the cast\'s own bu
   hud.update(project(ready, start.ai), view()); assert.equal(skill(), 'true', 'one tick left: dim');
   hud.update(project({ ...ready, fighters: [{ ...ready.fighters[0], skillCooldown: 0 }, ready.fighters[1]] as typeof ready.fighters }, start.ai), view());
   assert.equal(skill(), 'false', 'cooled: SKILL lights');
+});
+
+// A player with an equipped SPELL and no skill casts through the same slot (spell-pick.ts): SKILL must light for the spell and stay dim with neither.
+test('update: SKILL lights for an equipped spell with no skill, and stays dim with neither', () => {
+  const lit = (spell: boolean) => {
+    const { element, get } = dom(), hud = createHud(element as never);
+    const start = initialPractice(731, OPPONENTS.veteran, 'longsword', null, recordSpecials({ specials: true, level: 20, opponent: 'veteran' }), undefined, undefined, undefined, undefined, spell ? resolveSpell(SPELL_IDS[0]!, 0) : undefined);
+    let duel = stepDuel(start.duel, [{ ...idleIntent(), action: 'light' }, idleIntent()]);
+    while (duel.fighters[0].phase !== 'ready') duel = stepDuel(duel, [idleIntent(), idleIntent()]);
+    const ready = { ...duel, fighters: [{ ...duel.fighters[0], skillCooldown: 0, stamina: 100 }, duel.fighters[1]] as typeof duel.fighters };
+    hud.update(project(ready, start.ai), view()); return get('skill-button').attributes.get('aria-disabled');
+  };
+  assert.equal(lit(true), 'false', 'a spell lights SKILL');
+  assert.equal(lit(false), 'true', 'no skill and no spell: dim');
 });
 
 // Combat 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed (live tick log). SKILL now says when the equipped cone

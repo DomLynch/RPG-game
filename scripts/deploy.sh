@@ -176,7 +176,14 @@ if [[ -n "$mac_early" ]]; then trusted_checks="${trusted_checks:+$trusted_checks
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 out_of_scope=""
 deploy_scope_apply
-RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+# Mac rows AFTER Published, with an automatic rollback (hardening item 2, Lead + Strategy 2026-10-13): off until the rollback is drilled on a real candidate.
+# The Mac rows not already trusted for this tree move behind the Published line; a failure there runs scripts/rollback.sh to the outgoing release (post-publish.sh).
+mac_deferred=""
+if [[ "${DEPLOY_MAC_AFTER_PUBLISH:-off}" == on ]]; then
+  mac_deferred=$(SKIP="$trusted_checks,$out_of_scope" node --input-type=module -e 'import { MAC_ROWS } from "./scripts/lib/row-placement.mjs"; const skip = new Set(process.env.SKIP.split(",").map(Number)); console.log(MAC_ROWS.filter(row => !skip.has(row)).join(","))')
+  [[ -z "$mac_deferred" ]] || echo "Mac rows deferred to after Published (rollback on failure): $mac_deferred"
+fi
+RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish${mac_deferred:+${post_publish:+,}$mac_deferred}" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
 deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
@@ -198,12 +205,7 @@ deploy_step "publish lock"
 deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" "publish"
 live_now=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
 publish_order=$(deploy_publish_order "$live_now" "$revision")
-case "$publish_order" in
-  forward) echo "publish order: live ${live_now:0:9} -> $revision (forward)" ;;
-  unknown) echo "publish order: live unknown (release.json unreadable); publishing $revision without the order guard" ;;
-  superseded) echo "superseded: live $live_now already contains $revision; nothing published"; exit 3 ;;
-  *) echo "diverged: live $live_now and $revision do not contain each other; nothing published (re-cut on top of live)" >&2; exit 3 ;;
-esac
+deploy_order_verdict "$publish_order" "$live_now" "$revision" || exit 3   # scripts/lib/deploy-lock.sh: only a forward publish from a PROVEN live ancestor goes on
 deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
@@ -223,9 +225,20 @@ writer_back() {
   [[ -n "$writer_prev" ]] || return 0
   ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$writer_prev" "$release")" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
 }
+# The presence service (ops/install-presence.sh) flips with the site the same way, when it is installed on the box: --if-changed byte-compares its file list and restarts nothing when it is identical.
+presence_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-presence/current || true")
+presence_nr0=$(ssh "${ssh_options[@]}" "$host" "systemctl show -p NRestarts --value frankendom-presence 2>/dev/null || true")
+presence_back() {
+  [[ -n "$presence_prev" ]] || return 0
+  ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$presence_prev" "$release" /opt/frankendom-presence /var/www/frankendom frankendom-presence presence nginx)" >&2 || echo "PRESENCE ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $presence_prev" >&2
+}
 writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
 printf '%s\n' "$writer_install"
-ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; exit 1; }
+if [[ -n "$presence_prev" ]]; then
+  presence_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
+  printf '%s\n' "$presence_install"
+fi
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; exit 1; }
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
@@ -318,11 +331,23 @@ writer_files=$(node scripts/writer-closure-list.mjs --paths writer) && [[ -n "$w
 writer_sums=$(while read -r f; do printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"; done <<<"$writer_files")
 writer_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-origins/current" <<<"$writer_sums")
 [[ -z "$writer_gaps" ]] || { echo "writer parity: the installed writer differs from $revision in: $(printf '%s' "$writer_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, writer differs" >&2; exit 1; }
+# Presence parity, same rule: the installed presence service must be byte-identical to this revision's presence file list.
+if [[ -n "$presence_prev" ]]; then
+  presence_files=$(node ops/presence-files.mjs) && [[ -n "$presence_files" ]] || { echo 'presence parity: no presence file list' >&2; exit 1; }
+  presence_sums=$(while read -r f; do printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"; done <<<"$presence_files")
+  presence_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-presence/current" <<<"$presence_sums")
+  [[ -z "$presence_gaps" ]] || { echo "presence parity: the installed presence service differs from $revision in: $(printf '%s' "$presence_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, presence differs" >&2; exit 1; }
+fi
 printf '\nPublished %s\n' "$revision"
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)
 if [[ "$merge_epoch" =~ ^[0-9]+$ ]]; then merge_to_live="$(( (now_epoch - merge_epoch) / 60 )) min since $(git rev-parse --short=9 "$revision") ($(git rev-parse -q --verify "$revision^2" >/dev/null && echo 'merge commit' || echo 'not a merge commit: its commit time')) was made"; else merge_to_live="unknown (merge commit time unreadable)"; fi
 node scripts/lib/published-summary.mjs artifacts/release-checks.json "$ci_rows" "${vps_trusted:-}" "${hf_trusted:-}" "$merge_to_live" "$(( (now_epoch - ${HF_WALL_ROWS_DEPLOY_T0:-$now_epoch}) / 60 ))" "$(node scripts/lib/prelaunch-jobs.mjs orphans "$revision" 2>/dev/null || echo '?')" "${mac_early:-}" || true
+# The Published block carries presence's state (Strategy + Lead joint GO): active, restarts before -> after, the local health curl and what release.json says.
+if [[ -n "$presence_prev" ]]; then
+  presence_state=$(ssh "${ssh_options[@]}" "$host" 'P=$(grep -E "^PRESENCE_PORT=" /etc/frankendom/presence.env 2>/dev/null | cut -d= -f2); echo "active=$(systemctl is-active frankendom-presence) NRestarts=$(systemctl show -p NRestarts --value frankendom-presence) health=$(curl -s -m 8 -o /dev/null -w "%{http_code}" http://127.0.0.1:${P:-8793}/origins/presence/health)"' || echo 'state unreadable')
+  echo "Published presence: $presence_state (NRestarts was ${presence_nr0:-?} before this publish) release.json=$(curl -s -m 8 https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1)"
+fi
 # Keep DEPLOY_PRUNE_KEEP releases on the VPS (default 3, Dom 2026-10-08, was 5 since 2026-09-28; "off" skips), current and previous always among them; a failure leaves the release live.
 prune_keep="${DEPLOY_PRUNE_KEEP:-3}"
 if [[ "$prune_keep" =~ ^[0-9]+$ ]]; then
@@ -334,7 +359,24 @@ fi
 deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 # The deferred rows run now, against the release that is live; a failure is raised after the previews check below (exit 1: the train stops and keeps its hold).
 post_rc=0
-post_publish_rows "$revision" "$post_publish" || post_rc=1
+POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1"; export POST_PUBLISH_LIVE_CMD   # rows start only while the release they test is the live one
+# The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
+mac_rc=0
+if [[ -n "$mac_deferred" ]]; then
+  mac_rollback=""
+  # rollback.sh puts the static site and the verifier back, not the writer: only a publish that left the writer as it was is undone automatically. The presence service
+  # flips with the site (#2513), so when this publish moved it, presence_back puts it back after the site swap (a rollback must not leave a new presence running).
+  mac_rollback_release() {
+    DEPLOY_LOCK=/dev/null bash scripts/rollback.sh "$live_now" || return 1
+    local presence_now
+    presence_now=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-presence/current || true")
+    if [[ -n "$presence_prev" && "$presence_now" != "$presence_prev" ]]; then presence_back || return 1; fi
+  }
+  if [[ "$writer_install" == *"nothing installed"* && "$live_now" =~ ^[0-9a-f]{40}$ ]]; then mac_rollback=mac_rollback_release
+  else echo "Mac rows failing will not roll back: this publish changed the writer (or live was unknown), a person decides" >&2; fi
+  POST_PUBLISH_PROMOTE=$([[ -n "$post_publish" ]] && echo 0 || echo 1) post_publish_rows "$revision" "$mac_deferred" "$mac_rollback" || { post_rc=1; mac_rc=1; }
+fi
+POST_PUBLISH_PROMOTE=$(( 1 - mac_rc )) post_publish_rows "$revision" "$post_publish" || post_rc=1
 if [[ "$previews_ok" != 1 ]]; then
   echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1

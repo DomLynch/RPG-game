@@ -1,0 +1,5 @@
+{
+  "startRule": [
+    { "id": "page-start", "startLevel": 16, "oreQuantity": 5 }
+  ]
+}

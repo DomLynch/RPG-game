@@ -9,7 +9,9 @@
 import { Issues, fail, ok, type Issue, type Result } from '../../src/core/server.ts';
 import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanceId, LootTableId } from '../../src/core/server.ts';
 import { parseItemInstance, type LootTable } from '../../src/core/server.ts';
-import { powerOf } from '../../src/core/server.ts';
+import { powerOf, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import LOOT_TIER_ROWS from './loot-tier.json' with { type: 'json' };
+import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' };
 import { sha256, shortHash } from '../boss/hash.ts';
 import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
@@ -36,7 +38,8 @@ export const lookupOf = (content: EncounterContent): Lookup => (id: ItemId) => c
 
 // Gear won in Region 1 records this tier. PROPOSED (region1 §5 "Tier", open question 5): the zone's difficulty.lootTier 3 read as
 // the third rank title, Gladiator. The test pins it to the Frontier zones' lootTier.
-export const REGION1_LOOT_TIER: Tier = 'Gladiator';
+loadRegistry(LOOT_TIER_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, LOOT_TIER_ROWS, 'origins/encounters/loot-tier.json')));
+export const REGION1_LOOT_TIER = LOOT_TIER_ROWS.lootTierRule[0]!.tier as Tier;   // a row (loot-tier.json), read by name
 export const tierOfLootTier = (lootTier: number): Tier | undefined => TIERS[lootTier - 1];
 
 // ---- 1. fight setup -------------------------------------------------------------------------------------------------------------
