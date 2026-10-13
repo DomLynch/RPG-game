@@ -60,6 +60,10 @@
 {"id":"heavyHold","value":220},
 {"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18}
+],"hurtStyles":[
+{"id":1,"weight":350,"s1":-160,"s2":-140,"twist":0},
+{"id":2,"weight":450,"s1":-50,"s2":-60,"twist":350},
+{"id":3,"weight":250,"s1":-220,"s2":-200,"twist":-120}
 ],"castPenalty":[
 {"id":"heavy","dial":"armour","atLeast":20,"percent":20},
 {"id":"medium","dial":"stamina","atLeast":20,"percent":10}

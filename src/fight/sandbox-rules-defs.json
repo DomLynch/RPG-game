@@ -11,5 +11,6 @@
     { "id": "stabHalfAngle", "value": 50 },
     { "id": "stabSlide", "value": 18 }
   ],
-  "castPenalty": []
+  "castPenalty": [],
+  "hurtStyles": []
 }
