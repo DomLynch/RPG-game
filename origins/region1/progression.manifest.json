@@ -1,0 +1,12 @@
+{
+  "tables": [
+    {"table": "foe", "file": "progression.json", "at": "foes", "key": "id", "required": {"name": "string", "lore.source": "string", "encounterForms": "array", "encounterForms[].opponent": "string", "encounterForms[].level": "integer", "presentations": "array"}},
+    {"table": "townsperson", "file": "progression.json", "at": "townsfolk", "key": "id", "required": {"name": "string", "lore.source": "string", "encounterForms": "array", "presentations": "array"}},
+    {"table": "encounter", "file": "progression.json", "at": "encounters", "key": "id", "required": {"name": "string", "scope": "string", "stages": "array", "boss.character": "string", "boss.level": "integer", "restartSeconds": "integer"}, "refs": {"boss.character": "foe"}},
+    {"table": "encounterFlag", "file": "progression.json", "at": "encounterFlags", "key": "id", "required": {"twists": "array", "twists[].kind": "string"}, "refs": {"id": "encounter"}},
+    {"table": "bounty", "file": "progression.json", "at": "bounties", "key": "id", "required": {"name": "string", "encounter": "string", "metal": "integer", "dailyCap": "integer"}, "refs": {"encounter": "encounter"}},
+    {"table": "rift", "file": "progression.json", "at": "rifts", "key": "id", "required": {"kind": "string"}},
+    {"table": "killRow", "file": "progression.json", "at": "killRows", "key": "id", "required": {"row": "string"}, "refs": {"id": "foe"}},
+    {"table": "bossLoot", "file": "progression.json", "at": "bossLoot", "key": "id", "required": {"rule": "string"}, "refs": {"id": "encounter"}}
+  ]
+}
