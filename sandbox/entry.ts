@@ -125,26 +125,34 @@ const restyleStances = (tries = 0): void => {
   for (const b of buttons) { const id = (b as HTMLElement).dataset.stance ?? ''; b.setAttribute('aria-label', b.textContent!.trim()); b.title = b.textContent!.trim(); b.textContent = GLYPH[id] ?? b.textContent; }
 };
 
-// Touch layout A (Dom's pick, 2026-10-13): STRIKE is one big button (tap light, slide up stab, slide to a side cut, hold heavy: the oneButton rows), Spell 1 above-left, Guard left, Roll above, Kick far left; the separate Heavy and Stab buttons go.
-// The game's own buttons keep their handlers and ids; only their place and size change. Only while the oneButton row is on.
+// Touch layout A (Dom's approved picture, 2026-10-13): a tight diamond around one big STRIKE button. STRIKE sits at the thumb's rest point with its swipe zones drawn on it (stab on top, a slash each side: the oneButton rows);
+// Spell 1 upper-left, Spell 2 upper-right, Guard lower-left, Roll lower-right, Kick far left. Positions are the picture's centre offsets from STRIKE, scaled to the phone (STRIKE 96 px). The game's own buttons keep their
+// handlers and ids; only their place and size change. Spell 2 is a placeholder (the game has one spell slot). Only while the oneButton row is on.
 const layoutA = (): void => {
   if (!(RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'oneButton' && r.value)) return;
+  const CX = 104, CY = 108;   // STRIKE's centre, px from the right and bottom edge
+  const spots: [string, number, number, number][] = [['attack-button', 0, 0, 96], ['skill-button', -83, -48, 47], ['sbx-spell2', 64, -63, 47], ['guard-button', -73, 55, 47], ['dodge-button', 62, 57, 33], ['kick-button', -140, 55, 35]];   // id, dx, dy (down is +), diameter
+  const ids = spots.map(([id]) => `.actions #${id}`);
+  const place = spots.map(([id, dx, dy, d]) => `.actions #${id}{right:${CX - dx - d / 2}px!important;bottom:${CY - dy - d / 2}px!important;width:${d}px!important;height:${d}px!important}`);
+  const label: Record<string, string> = { 'attack-button': 'STRIKE', 'skill-button': 'SPELL 1', 'sbx-spell2': 'SPELL 2', 'guard-button': 'GUARD', 'dodge-button': 'ROLL', 'kick-button': 'KICK' };
   const css = document.createElement('style');
   css.textContent = [
-    '.actions #heavy-button,.actions #thrust-button,.actions #run-button{display:none!important}',
-    '.actions #attack-button,.actions #skill-button,.actions #guard-button,.actions #dodge-button,.actions #kick-button{position:fixed!important;left:auto!important;top:auto!important;margin:0!important;border-radius:50%!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:12px!important;line-height:1!important;min-width:0!important}',
-    '.actions #attack-button{right:22px!important;bottom:18px!important;width:92px!important;height:92px!important;font-size:14px!important}',
-    '.actions #skill-button{right:118px!important;bottom:92px!important;width:58px!important;height:58px!important}',
-    '.actions #sbx-spell2{position:fixed!important;right:40px!important;bottom:120px!important;width:58px!important;height:58px!important;border-radius:50%!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:0!important;opacity:.45}.actions #sbx-spell2::after{content:"SPELL 2";font-size:11px;font-weight:600;letter-spacing:.04em}',
-    '.actions #guard-button{right:124px!important;bottom:16px!important;width:62px!important;height:62px!important}',
-    '.actions #dodge-button{right:196px!important;bottom:122px!important;width:56px!important;height:56px!important}',
-    '.actions #kick-button{right:200px!important;bottom:50px!important;width:52px!important;height:52px!important}',
-    '.actions #attack-button,.actions #skill-button,.actions #guard-button,.actions #dodge-button,.actions #kick-button{font-size:0!important}',
-    '.actions #attack-button::after,.actions #skill-button::after,.actions #guard-button::after,.actions #dodge-button::after,.actions #kick-button::after{display:block!important;position:static!important;font-size:12px!important;font-weight:600;letter-spacing:.04em;color:inherit}',
-    '.actions #attack-button::after{content:"STRIKE"!important;font-size:14px!important}.actions #skill-button::after{content:"SPELL"!important}.actions #guard-button::after{content:"GUARD"!important}.actions #dodge-button::after{content:"ROLL"!important}.actions #kick-button::after{content:"KICK"!important}',
+    '.actions #heavy-button,.actions #thrust-button,.actions #run-button,.actions #attack-button svg{display:none!important}',
+    `${ids.join(',')}{position:fixed!important;left:auto!important;top:auto!important;margin:0!important;border-radius:50%!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:0!important;line-height:1!important;min-width:0!important;z-index:5}`,
+    ...place,
+    `${ids.map((i) => i + '::after').join(',')}{display:block!important;position:static!important;font-size:10px!important;font-weight:600;letter-spacing:.03em;color:inherit;text-align:center;white-space:pre}`,
+    ...Object.entries(label).map(([id, t]) => `.actions #${id}::after{content:"${t.replace(' ', '\\A')}"!important}`),
+    '.actions #attack-button::after{font-size:14px!important;letter-spacing:.05em}',
+    '.actions #kick-button::after,.actions #dodge-button::after{font-size:9px!important}',
+    '.actions #sbx-spell2{opacity:.45}',
+    `#sbx-zones{position:fixed;z-index:4;pointer-events:none;right:${CX - 66}px;bottom:${CY - 66}px;width:132px;height:132px;border-radius:50%;border:1px dashed rgba(190,120,80,.7);background:conic-gradient(from -50deg,rgba(150,70,40,.34) 0 100deg,rgba(150,70,40,.16) 100deg 360deg)}`,
+    '#sbx-zones i{position:absolute;font:600 10px sans-serif;color:rgba(255,235,215,.85);font-style:normal;letter-spacing:.04em}',
   ].join('\n');
   document.head.append(css);
   const two = document.createElement('button'); two.id = 'sbx-spell2'; two.type = 'button'; two.title = 'Second spell slot: not wired yet'; two.setAttribute('aria-disabled', 'true'); document.getElementById('actions')?.append(two);   // a placeholder: the game has one spell slot
+  const zones = document.createElement('div'); zones.id = 'sbx-zones';
+  zones.innerHTML = '<i style="left:50%;top:5px;transform:translateX(-50%)">stab</i><i style="left:6px;top:50%;transform:translateY(-50%)">sl</i><i style="right:6px;top:50%;transform:translateY(-50%)">sh</i>';
+  document.body.append(zones);
 };
 layoutA();
 restyleStances();
