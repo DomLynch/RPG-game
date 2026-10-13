@@ -52,9 +52,9 @@ function fakeSpawnDb(clock: { ms: number }) {
   return { db, engages, calls, open };
 }
 
-async function writer(clock: { ms: number }) {
+async function writer(clock: { ms: number }, refuseUnchecked = false) {
   const stand = { to: ids[0]! }, fake = fakeSpawnDb(clock);
-  const w = createWriter({ db: fake.db, verify: async (t) => (t === 'tok' ? ACCOUNT : null), where: async () => { const sp = spawns.get(stand.to); if (!sp) return { online: false as const }; return { online: true as const, layer: 0, placed: true as const, x: sp.spec.home.x * 100, z: sp.spec.home.z * 100, zone: sp.spec.zone, ageMs: 100 }; }, handlers: worldSpawnOps({ content, spawns, now: () => new Date(clock.ms), log: () => {} }) });
+  const w = createWriter({ db: fake.db, verify: async (t) => (t === 'tok' ? ACCOUNT : null), where: async () => { const sp = spawns.get(stand.to); if (!sp) return { online: false as const }; return { online: true as const, layer: 0, placed: true as const, x: sp.spec.home.x * 100, z: sp.spec.home.z * 100, zone: sp.spec.zone, ageMs: 100 }; }, handlers: worldSpawnOps({ content, spawns, refuseUnchecked, now: () => new Date(clock.ms), log: () => {} }) });
   await new Promise<void>((ok) => w.listen(0, '127.0.0.1', ok));
   return { ...fake, stand, base: `http://127.0.0.1:${(w.address() as AddressInfo).port}/origins`, close: () => new Promise<void>((ok) => w.close(() => ok())) };
 }
@@ -249,8 +249,8 @@ test('outbox: a kill whose reply is lost (socket drops after the server paid) is
   } finally { await w.close(); }
 });
 
-test('outbox: a kill reported with no fresh pose is refused (422, the token stays open), waits, and is paid once presence has the pose', async () => {
-  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+test('outbox: a kill reported with no fresh pose is refused when the flag is on (422, the token stays open), waits, and is paid once presence has the pose', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock, true);
   try {
     const settled: string[] = [];
     const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, onSettled: (k) => settled.push(k.instance) });

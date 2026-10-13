@@ -130,10 +130,16 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
   await assert.rejects(async () => ops.kill_report!(ctx(stub({ origins_spawn_engage_get: null }).db), { token: TOKEN, hits: 50 }), status(409, 'used'));
   const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: (wolf.spec.home.x + 50) * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
   await assert.rejects(async () => ops.kill_report!(ctx(with_({ result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }), far), { token: TOKEN, hits: 50 }), status(422, 'away'));
+  const poses = [null, async () => null, async () => ({ online: true as const, layer: 0, placed: false as const }), async () => ({ online: true as const, layer: 0, placed: true as const, x: 0, z: 0, zone: 'elsewhere', ageMs: 100 }), async () => ({ online: true as const, layer: 0, placed: true as const, x: wolf.spec.home.x * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 1e9 })];
+  const strict = worldSpawnOps({ content, spawns, log: () => {}, refuseUnchecked: true });
   const none = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
-  for (const w of [null, async () => null, async () => ({ online: true as const, layer: 0, placed: false as const }), async () => ({ online: true as const, layer: 0, placed: true as const, x: 0, z: 0, zone: 'elsewhere', ageMs: 100 }), async () => ({ online: true as const, layer: 0, placed: true as const, x: wolf.spec.home.x * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 1e9 })])
-    await assert.rejects(async () => ops.kill_report!(ctx(none.db, w as WhereFn | null), { token: TOKEN, hits: 50 }), status(422, 'unchecked'), 'no fresh placed pose in the zone: REFUSED, not paid');
+  for (const w of poses) await assert.rejects(async () => strict.kill_report!(ctx(none.db, w as WhereFn | null), { token: TOKEN, hits: 50 }), status(422, 'unchecked'), 'refuseUnchecked on: no fresh placed pose in the zone is REFUSED');
   assert.equal(none.kills.length, 0, 'the refusal comes before the kill write: the token stays open for a retry');
+  for (const w of poses) {   // the default (flag off): accepted, recorded as unchecked
+    const rec = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
+    assert.equal((await ops.kill_report!(ctx(rec.db, w as WhereFn | null), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
+    assert.equal(rec.kills[0]!.g.reach, 'unchecked', 'recorded on the row as unchecked');
+  }
   const near = async () => ({ online: true as const, layer: 0, placed: true as const, x: wolf.spec.home.x * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
   const nearDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
   assert.equal((await ops.kill_report!(ctx(nearDb.db, near), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
@@ -204,4 +210,19 @@ test('the registry obeys the key rule the database column reads (zoneKeyProblems
   const { zoneIds } = await import('../zones/loader.ts');
   assert.ok(zoneIds().includes('1') && zoneIds().length >= 2, 'the registry has Zone 1 and at least one more');
   assert.deepEqual(zoneKeyProblems(), []);
+});
+
+test('guard (Strategy 2026-10-13): kill_report grants no XP-pool credit, level or spell, whatever the position; and nothing in the writer can take a spell without a verified record', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  for (const w of [null, poseAt(wolf)]) {
+    const rec = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
+    await worldSpawnOps({ content, spawns, log: () => {} }).kill_report!(ctx(rec.db, w), { token: TOKEN, hits: 50 });
+    const text = JSON.stringify(rec.kills[0]!.b.map((o) => [o.op, Object.keys(o as object), (o as { payload?: object }).payload ? Object.keys((o as { payload: object }).payload) : []]));
+    assert.doesNotMatch(text, /\\b(xp|exp|level|spell|grimoire|boss-gear)\\w*/i, 'no op, field or payload key of the kill batch names an XP pool, level, spell or boss gear');
+  }
+  const server = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  for (const f of server) {
+    const src = readFileSync(new URL(f, import.meta.url), 'utf8');
+    if (/spell-taken|origins_grimoire/.test(src)) assert.match(f, /^encounter(-verify)?\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path)`);
+  }
 });

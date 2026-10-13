@@ -5,7 +5,7 @@
 //   touch {token, hits?}           keeps the token alive 120 s past this touch (fights last 30 s .. 20 min); 409 once used or expired
 //   kill_report {token, hits}      consumes the token, marks the spawn dead with the server's respawn clock and pays CP + loot + bronze rolled HERE (mobBatch, the server's seed) in ONE
 //                                  transaction. Second lines before anything is written: the hit floor (hits >= ceil(HP / max hit)), the time-to-kill floor (the database checks
-//                                  now - issued_at >= minMs), reach (presence's pose, required: no fresh pose in the zone is refused, never deferred), kills per minute and per hour (the database).
+//                                  now - issued_at >= minMs), reach (presence's pose, recorded as checked or unchecked; unchecked is refused only when refuseUnchecked is on), kills per minute and per hour (the database).
 // No death op: a death costs nothing. Kill switch: ORIGINS_SPAWNS=0 (every op 503 'off'). Nothing in a body names a reward, a level, a seed or an account.
 import { randomBytes, randomInt } from 'node:crypto';
 import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
@@ -99,7 +99,7 @@ const refuse = (why: string): never => { const [status, message] = REFUSAL[why] 
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -150,11 +150,15 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && zoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
-    // Reach: an unchecked position is REFUSED, not deferred; the token stays open, so the client retries once presence has a fresh pose in the zone.
+    // Reach: a fresh placed pose in the zone is checked (too far = refused). Presence places players only in the Concord square today (zoneAt: pit-yard, exchange), so a Frontier kill has no pose: it is
+    // recorded as 'unchecked' and pays scorecard counts only (Strategy 2026-10-13). `refuseUnchecked` (ORIGINS_SPAWN_REFUSE_UNCHECKED=1) turns it into a 422 once presence places Frontier players.
     const w = where ? await where(account).catch(() => null) : null;
-    if (!(w && w.online && w.placed && w.ageMs <= POSE_AGE_MS && w.zone === spawn.spec.zone)) return refuse('unchecked');
-    if (!withinReach(spawn.spec, { x: w.x / 100, z: w.z / 100 })) return refuse('away');
-    const reach = 'checked';
+    let reach: 'checked' | 'unchecked' = 'unchecked';
+    if (w && w.online && w.placed && w.ageMs <= POSE_AGE_MS && w.zone === spawn.spec.zone) {
+      if (!withinReach(spawn.spec, { x: w.x / 100, z: w.z / 100 })) return refuse('away');
+      reach = 'checked';
+    }
+    if (reach === 'unchecked' && deps.refuseUnchecked) return refuse('unchecked');
     const setup = fightSetup(spawn.fight, content, { level: spawn.spec.level });   // the spawn's own level (mobSpecs, by distance), never the form's: a level-1 wolf pays level-1 CP and loot
     if (!setup.ok) throw new Refused(503, `the server cannot price ${spawn.fight}`);
     const at = now().toISOString(), { inventory, snap } = await openHoldingsWith(db, account, open.character, { lookup });
