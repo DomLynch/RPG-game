@@ -71,7 +71,7 @@ export async function heroLimitOf(db: Db, account: string, character: string): P
     const build = stored === null || stored === 'absent' ? { level: 0, placed: {} } : { level: stored.level, placed: stored.placed };
     const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
     const items = rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } }));
-    const sheet = sheetOf(build, wornGearOfItems(items));
+    const sheet = stored === 'absent' ? undefined : sheetOf(build, wornGearOfItems(items));   // 'absent' (no build column): the page learns no build either, so it sends no sheet
     const weapon = heldWeaponOf(items);
     return sheet ? { sheet, weapon } : { sheet: undefined, weapon, ...loadoutOfItems(items) };
   } catch (error) {

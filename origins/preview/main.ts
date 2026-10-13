@@ -598,7 +598,8 @@ for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventList
 const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
 let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get), the other half of the sheet the writer holds a world record equal to
-void fetchOwnBuild({ storage, search: location.search }).then((b) => { ownBuild = b ?? undefined; });
+const loadOwnBuild = (tries: number): void => void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); });   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
+loadOwnBuild(10);
 const wc = createWorldCombat({
   canPlay: canPlayFinisher,
   onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },

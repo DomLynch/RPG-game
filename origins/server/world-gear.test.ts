@@ -19,12 +19,13 @@ const wolf: Spawn = { ...base, spec: { ...base.spec, level: 1 } };
 const RUNG = 'Champion';
 const held = [{ item: 'item:loot.veteran.Helmet', tier: RUNG, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier: RUNG, location: { kind: 'equipped', slot: 'chest' } }];
 
-async function killWith(gear: { attack: number; res: number }, sheet?: Record<string, number>): Promise<{ rec: WorldRecord; text: string }> {
-  const fell: string[] = []; let rec: WorldRecord | null = null;
+async function killWith(gear: { attack: number; res: number }, sheet?: Record<string, number>, late = false): Promise<{ rec: WorldRecord; text: string }> {
+  const fell: string[] = []; let rec: WorldRecord | null = null, known = !late;
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z }, spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
-  const wc = live({ mobs: () => mobs, hero: () => ({ gear, level: 1, ...(sheet ? { sheet } : {}) }), onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
+  const wc = live({ mobs: () => mobs, hero: () => ({ gear, level: 1, ...(sheet && known ? { sheet } : {}) }), onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
+  known = true;   // the sheet arrives after the combat was made (the page's server answers after load)
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
@@ -94,7 +95,7 @@ test('end to end: a geared, built character fights with the page\'s sheet and ve
   const rows = held.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: h.location.slot }));
   const db: Db = { async run(sql) { return sql.includes('origins_get_build') ? JSON.stringify({ ...own, respreadRank: 1, version: 1 }) : JSON.stringify({ marks: 0, career: {}, characters: [], items: rows, quests: [], journal: [], talk: [] }); } };
   const A = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', limit = await heroLimitOf(db, A, PC);
-  const geared = await killWith(loadoutOfLoot({ equipped, taken } as never), pageSheet);
+  const geared = await killWith(loadoutOfLoot({ equipped, taken } as never), pageSheet, true);
   const ok = await verifyWorldRecord(geared.text, wolf, 'wolf', limit);
   assert.ok(ok.ok, `the page's sheet is the server's: ${JSON.stringify(ok)}`);
   const naked = await killWith(NAKED);
