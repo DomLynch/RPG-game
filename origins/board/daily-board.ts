@@ -4,10 +4,12 @@
 // Donor: AzerothCore marks a quest QUEST_FLAGS_DAILY, caps completions per day (PLAYER_MAX_DAILY_QUESTS 25) and resets them at one world time (World::InitDailyQuestResetTime); the quest the player sees is a fixed row.
 // 2004Scape has no daily board and nothing that rewards a first find (its exploration is quest steps), so the rotating pick from a weighted pool and the first-find reward are ours: the pick is a pure function of (seed, day), so
 // every client and the server agree with nothing stored.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
-import { makeRng } from '../../src/fight/blood-style.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DATA from './daily-board.json' with { type: 'json' };
 import MANIFEST from './daily-board.manifest.json' with { type: 'json' };
+
+// mulberry32, the same stream as src/fight/blood-style.ts makeRng; copied so this data module does not reach into the engine.
+const makeRng = (seed: number) => { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 
 export type BoardReward = { id: string; kind: string; amount: number; item?: string };
 export type Discovery = { id: string; zone: string; landmark: string; firstFind: string };
