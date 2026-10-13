@@ -48,6 +48,15 @@ test('parseSpec reads PR@sha and refuses anything else; passAt wants the Auditor
   assert.equal(passAt([own('Auditor: HOLD @23b4f51e0')], '23b4f51e0'), false);
 });
 
+test('passAt reads the Auditor\'s mid-line bold "Auditor: **PASS @sha**" (DI #2459, 2026-10-13) and still refuses "not PASS" and a PASS for another head', () => {
+  const head = 'bac7e84f4'.padEnd(40, 'a');
+  assert.ok(passAt([own('Auditor: **PASS @bac7e84f4** (release-DI). `candidate:pass` added.')], head), 'bold only around PASS @sha');
+  assert.ok(passAt([own('Lead: **PASS** @bac7e84f4')], head), 'bold only around PASS');
+  assert.ok(!passAt([own('Auditor: **not PASS @bac7e84f4**')], head), 'not PASS');
+  assert.ok(!passAt([own('Auditor: **PASS @11111111a**')], head), 'another head');
+  assert.ok(!passAt([own('Auditor: **contents OK @bac7e84f4** (not a PASS yet)')], head), 'contents OK is not a PASS');
+});
+
 test('passAt takes the five full reviewers (Auditor, Lead, Combat A, Combat B, Deploy B; Strategy 2026-10-12) at the exact head, 9-char prefix, trailing text allowed', () => {
   const head = '23b4f51e0'.padEnd(40, 'a');
   for (const who of ['Auditor', 'Lead', 'Combat A', 'Combat B', 'Deploy B']) {
