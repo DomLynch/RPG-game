@@ -22,7 +22,7 @@ Backend lane, 2026-10-13, for Lead / Strategy / Web. Status: **design, nothing b
 
 Same speed model as today (`maxSpeedCmS`, `speedSlack`, strike window), now with a **per-zone cap** `{ walkCmS, runCmS }` (e.g. 0.8x in swamp, 1.0x town; *est.*).
 
-1. A pose must lie in a zone rect or a **road passage** (a thin rect joining two mounts). Else it is **snapped** to the nearest inside point and counted as one strike.
+1. A pose must lie in the town square, a frontier zone, or the west-road passage. Else the player **keeps the last accepted pose** (the same "snapped" answer as a speed breach) and it counts one strike; there is no nearest-point projection.
 2. Distance since the previous accepted pose is checked against the cap of the zone being **left** (the more permissive of the two at a boundary); over it = strike, same drop rule.
 3. **Portals** (night boat, gates; `kind: portal`) are the only legal discontinuity: a pose jump is accepted if it goes between the two paired landmarks of one portal, at most once per 10 s, and only for an account whose last pose was within 5 m of the source landmark. Anything else is a teleport strike.
 4. Pose age and "checked / unchecked" semantics are unchanged: the server reports `checked` when the account has a pose under 5 s old, which is what `kill_report`, boss presence and the Exchange read.
@@ -51,6 +51,10 @@ Binary, little-endian, as v1. The subprotocol string is bumped; the server offer
 `zoneIdx` / `portalIdx` index the zone table whose hash is in `hello`; a client whose own table hash differs must fetch `GET /origins/presence/zones` (JSON) before sending. Sizes of the hot path (UP, DOWN) are unchanged, so the bandwidth numbers in `one-shard.md` §2 still hold.
 
 ## 6. Order of work
+
+**Data, not code (Strategy).** Per-zone speed multiplier, `quiet`, and portal pairs are **rows** (zone-row fields and a portal table in the zone table), so a new zone or a 1.2x zone is a data edit. Launch values: speed 1.0 everywhere, `quiet` only on the Pit, portals only the boat/gate landmarks `frontier-plan.ts` names.
+
+**Acceptance test.** A bot sends v2 frontier poses. With `ORIGINS_SPAWN_REFUSE_UNCHECKED=1`, a kill reported from inside a Frontier zone still pays, and a kill reported from outside that zone is refused. Step 1 proves it in a test; the production flip waits for Web's v2 client.
 
 1. Zone table + `zoneAt` + frame constant + clamp rewrite, with the v1 shim and tests (presence side, one PR).
 2. Migration relaxing the location check + frame column; writer read shift (own migration, own PRE).
