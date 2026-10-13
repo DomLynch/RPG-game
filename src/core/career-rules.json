@@ -71,5 +71,8 @@
       "party": "solo",
       "atOwn": true
     }
+  ],
+  "levelCurve": [
+    { "id": "level", "maxLevel": 100, "boss": "world-boss", "killBase": 1000, "killStep": 100, "earlyLevels": 5, "earlyKills": 2500, "ramp": 200, "rank": 2000, "rankLevels": 10, "opening": [1, 1, 1, 1, 1, 6, 6, 6, 6, 6] }
   ]
 }

@@ -30,6 +30,27 @@
         "earlyBelow": "integer",
         "earlyWeight": "integer"
       }
+    },
+    {
+      "table": "levelCurve",
+      "file": "career-rules.json",
+      "at": "levelCurve",
+      "key": "id",
+      "required": {
+        "maxLevel": "integer",
+        "boss": "string",
+        "killBase": "integer",
+        "killStep": "integer",
+        "earlyLevels": "integer",
+        "earlyKills": "integer",
+        "ramp": "integer",
+        "rank": "integer",
+        "rankLevels": "integer",
+        "opening": "array"
+      },
+      "refs": {
+        "boss": "typeWeight"
+      }
     }
   ]
 }
