@@ -31,9 +31,8 @@ try {
     await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('menu-board'), null, { timeout: 240000 });
     await page.waitForTimeout(1500);
-    await page.locator('#mobile-menu, #menu-button, [aria-label="Menu"]').first().click({ force: true }).catch(() => {});
-    await page.evaluate(() => (document.getElementById('journal'))?.showModal?.());
-    await page.waitForTimeout(500);
+    await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600);   // the ☰
+    await page.locator('#journal .tab-settings').click({ force: true }); await page.waitForTimeout(400);   // the Settings tab holds the walk's entries
     await page.locator('#menu-board').click({ force: true }); await page.waitForTimeout(600);
     const g = await page.evaluate(() => {
       const d = document.getElementById('board-dialog'), vw = innerWidth, vh = innerHeight, r = d.getBoundingClientRect();
