@@ -12,7 +12,7 @@ import { percentOf, rolledDamage, rollUnit, swarmBand } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
-import { stanced, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { stanced, woundsAt, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -36,6 +36,7 @@ export type Fighter = {
   guardDirection: Direction | null; parrying: boolean; exposed: number; evaded: number; counterWindow: number; charge: number; charged: boolean; buffer: { action: Action; ttl: number } | null;
   guardProfile?: Partial<GuardProfile>;   // shield/loadout overrides; absent = the longsword defaults in RULES
   postureRest: number;   // ticks left before posture drains again (a gain pauses the drain)
+  scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
   weapon: WeaponId;   // the tables this fighter fights with (moves, blade paths, guard kind, material): see moves.ts `WEAPONS`
@@ -481,6 +482,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         // Attrition: a blade wound costs part of the bar's ceiling for the rest of the duel; a leg wound slows the walk.
         D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - R.attrition.stamina); D.stamina = Math.min(D.stamina, D.maxStamina);
         if (location === 'legs') D.legWound = true;
+        for (const id of woundsAt(location!)) if (!D.scars?.includes(id)) D.scars = [...(D.scars ?? []), id];
       }
       const away = aim(d.body, a.body) + Math.PI;
       for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };
