@@ -23,6 +23,9 @@ import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
 import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { repairCost, repairedPiece, wearKindOf } from '../origins/gear/wear-repair.ts';
+import { loadEncounterContent, lookupOf } from '../origins/encounters/encounters.ts';
+import { openHoldingsWith } from '../origins/server/holdings.ts';
+import { killWearLines, wearMaxOf } from '../origins/server/wear-settle.ts';
 import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { zoneAt } from '../origins/presence/zones.ts';
 import { handlers as clientOps } from '../origins/server/handlers.ts';
@@ -636,6 +639,25 @@ try {
     eq([again.status, again.json.result?.imported.length, again.json.result?.alreadyHeld.length], [200, 0, ids.length], 'gear_import: a replay imports nothing');
     eq(psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`), before, 'gear_import: a replay writes nothing');
     eq((await gi({ owned: ['nobody.Helmet'], equipped: {} })).json.result?.skipped.map(x => x.lootId), ['nobody.Helmet'], 'gear_import: an unknown LootId is skipped and reported, not fatal');
+    // The wear writer (slice 1) against REAL Postgres: a paid kill's wear line, computed from the character's real equipped pieces and the real wear read, commits as one guarded event.
+    {
+      const enc = loadEncounterContent(); if (!enc.ok) throw Error('encounter content does not load');
+      const wdb = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'));
+      const { inventory } = await openHoldingsWith(wdb, B, gc, { lookup: lookupOf(enc.value) });
+      const kill = token => ({ account: B, character: gc, token });
+      const lineFor = async (n, only) => { for (let i = 0; i < 60; i++) { const l = await killWearLines(wdb, kill(`wear-kill-${n}-${i}-xxxxxxxxxxxx`), inventory); if (l.length && (!only || l[0].payload.wear.instance === only)) return l; } throw Error('no kill token wears an equipped piece'); };
+      const wearOf = id => psql(`select coalesce((public.origins_item_wear('${B}', array['${id}']) -> '${id}')::text, 'none')`);
+      const first = await lineFor(1), w1 = first[0].payload.wear, held = inventory.items.find(i => i.id === w1.instance), tier = wearKindOf(held.item).tier;
+      eq([w1.seq, w1.worn, w1.max, w1.baseMax, wearOf(w1.instance)], [1, tier.killWear, wearMaxOf(tier), wearMaxOf(tier), 'none'], 'wear writer: a kill bites an equipped piece by the rows (killWear, the gear row\'s wearMax); nothing is stored until the batch commits');
+      psql(`select public.origins_commit('${B}', $j$${JSON.stringify(first)}$j$::jsonb);`);
+      eq(JSON.parse(wearOf(w1.instance)).seq, 1, 'wear writer: the committed wear event is the piece\'s wear');
+      const second = await lineFor(2, w1.instance), w2 = second[0].payload.wear;
+      eq([w2.seq, w2.worn, second[0].event_id], [2, w1.worn + tier.killWear, `wear:${w1.instance}:2`], 'wear writer: the next kill on the same piece continues it (seq 2, worn adds)');
+      psql(`select public.origins_commit('${B}', $j$${JSON.stringify(second)}$j$::jsonb);`);
+      let refused = false;
+      try { psql(`select public.origins_commit('${B}', $j$${JSON.stringify(second)}$j$::jsonb);`); } catch { refused = true; }
+      eq([refused, JSON.parse(wearOf(w1.instance)).seq], [true, 2], 'wear writer: a second write of the same wear seq (a racing settle or repair) is refused by the primary key');
+    }
     const op = await call('gear_open', 'tb', { character: gc });
     eq([op.json.result.pieces.length, Object.keys(op.json.result.worn).length], [ids.length, dolls.length], 'gear_open: every piece, the worn map');
     const head = op.json.result.worn.head;
