@@ -21,11 +21,12 @@ type Category = (typeof CATEGORIES)[number];
 const roots = arg('--root') ? [arg('--root')!] : ['src', 'origins'];
 const allowFile = arg('--allow') ?? join(HERE, 'allow.json');
 type Allow = { file: string; literal: string; reason: string };
-type TunableAllow = { file: string; name: string; reason: string };   // a top-level numeric const that is not a rule (an engine mirror, a unit), with the reason
+type TunableAllow = { file: string; name: string; reason: string; owner: string; sunset: string };   // a top-level numeric const kept in code: why, who owns it, and the day it is reviewed or moved to a row (all required)
 // A VERB is a closed list kept in code on purpose (Strategy's verb rulings): named with the function that dispatches on it and the day it goes (sunset null = it stays). Listed apart, never counted; a verb whose declaration is gone is stale.
 type Verb = { file: string; name: string; dispatch: string; sunset: string | null };
 const allowData = JSON.parse(readFileSync(allowFile, 'utf8')) as { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[] };
 const tunableAllow: TunableAllow[] = allowData.tunables ?? [];
+for (const a of tunableAllow) if (!a.owner?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(a.sunset ?? '') || !a.reason?.trim()) { console.error(`as-data: allow.json tunables entry ${a.file} ${a.name} needs a reason, an owner and a sunset date (YYYY-MM-DD)`); process.exit(2); }
 const allow: Allow[] = allowData.allow, verbs: Verb[] = allowData.verbs ?? [];
 const read = (f: string) => (existsSync(join(REPO, f)) ? readFileSync(join(REPO, f), 'utf8') : '');
 const quoted = (text: string) => [...text.matchAll(/'([A-Za-z][\w-]*)'/g)].map((m) => m[1]!);
@@ -67,10 +68,11 @@ try {
     ...run('rows.yml', ['!**/*.test.ts', '!**/fixtures.ts', '!src/**']).map((m) => ({ kind: 'row', category: 'content-row', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('consts.yml').map((m) => ({ kind: 'row', category: 'content-const', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
-  const tunableEntry = (s: { file: string; text: string }) => tunableAllow.find((a) => a.file === s.file && new RegExp(`^${a.name}\\s*=`).test(s.text));
-  const allowedTunables = sites.filter((s) => s.kind === 'tunable' && tunableEntry(s)).map((s) => ({ ...s, reason: tunableEntry(s)!.reason }));
-  const staleTunables = tunableAllow.filter((a) => !allowedTunables.some((s) => s.file === a.file && new RegExp(`^${a.name}\\s*=`).test(s.text)));
-  for (let i = sites.length - 1; i >= 0; i--) if (sites[i]!.kind === 'tunable' && tunableEntry(sites[i]!)) sites.splice(i, 1);
+  const isTunable = (s: { kind: string; category: string }) => s.kind === 'tunable' || s.category === 'content-const';   // the numeric-const rule and the named-constant rule share one allow-list
+  const tunableEntry = (s: { file: string; text: string }) => tunableAllow.find((a) => a.file === s.file && new RegExp(`^${a.name}\\b`).test(s.text));
+  const allowedTunables = sites.filter((s) => isTunable(s) && tunableEntry(s)).map((s) => ({ ...s, reason: tunableEntry(s)!.reason }));
+  const staleTunables = tunableAllow.filter((a) => !allowedTunables.some((s) => s.file === a.file && new RegExp(`^${a.name}\\b`).test(s.text)));
+  for (let i = sites.length - 1; i >= 0; i--) if (isTunable(sites[i]!) && tunableEntry(sites[i]!)) sites.splice(i, 1);
   const entryFor = (s: { file: string; text: string }) => allow.find((a) => a.file === s.file && `'${a.literal}'` === s.text);
   const allowed = sites.filter((s) => s.kind === 'compare' && entryFor(s)).map((s) => ({ ...s, reason: entryFor(s)!.reason }));
   const stale = allow.filter((a) => !allowed.some((s) => s.file === a.file && s.text === `'${a.literal}'`));
