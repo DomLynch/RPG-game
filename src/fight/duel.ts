@@ -488,7 +488,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         // Attrition: a blade wound costs part of the bar's ceiling for the rest of the duel; a leg wound slows the walk.
         D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - R.attrition.stamina); D.stamina = Math.min(D.stamina, D.maxStamina);
         if (location === 'legs') D.legWound = true;
-        for (const id of woundsAt(location!)) if (!D.scars?.includes(id)) { D.scars = [...(D.scars ?? []), id]; if (woundCeil(id)) { D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - woundCeil(id)); D.stamina = Math.min(D.stamina, D.maxStamina); } }
+        for (const id of woundsAt(location!, (D.health * 100) / D.maxHealth)) if (!D.scars?.includes(id)) { D.scars = [...(D.scars ?? []), id]; if (woundCeil(id)) { D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - woundCeil(id)); D.stamina = Math.min(D.stamina, D.maxStamina); } }
       }
       const away = aim(d.body, a.body) + Math.PI;
       for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };
