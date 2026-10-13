@@ -118,7 +118,7 @@ try {
   eq(JSON.parse(psql(`set role ${O}; select public.origins_skill_focus('${C}', '${pcC}', 'axe', true)::text;`).split('\n').pop()).xp, 0, 'skill focus: a skill with no xp yet gets a row at 0 xp');
   eq(await code(O, `select public.origins_skill_focus('${C}', '${pcC}', 'Not A Skill', true);`), 'O0002', 'skill focus: a malformed skill is refused');
   eq(psql(`set role ${O}; select coalesce(public.origins_skill_focus('${A}', '${pcC}', 'sword', false)::text, 'null');`).split('\n').pop(), 'null', 'skill focus: not the account\'s character -> null, nothing flipped');
-  eq(await code(V, `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: the verifier role cannot flip it (least privilege)');
+  eq(await code(V, `select public.origins_skill_focus('${C}', '${pcC}', 'axe', true);`), null, 'skill focus: the writer role (frankendom_verifier) can flip it (0031)');
   eq(await code('anon', `select public.origins_skill_pool('${C}', '${pcC}');`), '42501', 'skill pool: no client reads it');
   eq(await code('authenticated', `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: no client flips it');
   psql(`update public.origins_skill_xp set focus = false where character = '${pcC}'`);
