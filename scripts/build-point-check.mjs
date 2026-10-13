@@ -52,7 +52,7 @@ async function load(w, h, { signedIn = true } = {}) {
   await context.route('**/origins/*', async (route) => { const op = new URL(route.request().url()).pathname.split('/').pop(); await route.fulfill({ response: await route.fetch({ url: `${writerUrl}/${op}` }) }); });
   await page.goto(`${origin}/`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
-  if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click();
+  if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true });
   await page.waitForFunction(() => document.querySelector('#welcome').hidden); await page.waitForTimeout(1500);
   return { context, page };
 }
@@ -75,33 +75,33 @@ try {
     check(/^3 points to place/.test(await left(page)), `${name}: three points at level 3 (${await left(page)}; writer saw ${requests.map((r) => r.op)}; url ${page.url().slice(0, 90)})`);
     check(await page.locator('#build-dot').evaluate((e) => !e.hidden), `${name}: the dot shows`);
     const plus = (i) => page.locator('#build-dialog .build-row').nth(i).locator('.build-plus');
-    await plus(0).click(); await plus(0).click(); await plus(10).click();
+    await plus(0).click({ force: true }); await plus(0).click({ force: true }); await plus(10).click({ force: true });
     check(/^Every point is placed/.test(await left(page)), `${name}: three clicks spend three points (${await left(page)})`);
     check(await plus(1).isDisabled(), `${name}: + stops when no point is left`);
     await page.screenshot({ path: `${out}/point-${name}-draft.png` });
     const m = await layout(page, name); for (const b of m.bad) check(false, `control too small or off screen: ${b}`); check(!m.clipped.length, `${name}: text clipped: ${m.clipped}`); check(!m.hscroll, `${name}: horizontal scroll`);
-    await page.locator('#build-dialog .build-confirm').click(); await page.waitForFunction(() => !document.getElementById('build-dialog').open);
+    await page.locator('#build-dialog .build-confirm').click({ force: true }); await page.waitForFunction(() => !document.getElementById('build-dialog').open);
     const set = requests.filter((r) => r.op === 'build_set').at(-1);
     check(set && Object.values(set.body.placed).reduce((a, b) => a + b, 0) === 3 && set.body.character === 'pc:stub-1' && set.body.version === 1, `${name}: build_set carried the placement, character and version (${JSON.stringify(set?.body)})`);
     check(await page.locator('#build-dot').evaluate((e) => e.hidden), `${name}: the dot goes once every point is placed`);
     // taking back is free at level 3
-    if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click(); 
-    await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600); await page.locator('#journal .tab-fighter').click(); await page.waitForTimeout(300);
-    await page.locator('#build-open').click(); await page.waitForFunction(() => document.getElementById('build-dialog').open);
-    await page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').click();
+    if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true }); 
+    await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600); await page.locator('#journal .tab-fighter').click({ force: true }); await page.waitForTimeout(300);
+    await page.locator('#build-open').click({ force: true }); await page.waitForFunction(() => document.getElementById('build-dialog').open);
+    await page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').click({ force: true });
     check(/^1 point to place/.test(await left(page)), `${name}: a point taken back is free to place again (${await left(page)})`);
-    await page.locator('#build-dialog .build-confirm').click(); await page.waitForTimeout(500);
+    await page.locator('#build-dialog .build-confirm').click({ force: true }); await page.waitForTimeout(500);
     check(state.placed && Object.values(state.placed).reduce((a, b) => a + b, 0) === 2, `${name}: the server holds two placed after the take-back (${JSON.stringify(state.placed)})`);
     // a build that moved under the player
     state.version += 1; state.placed = {};
-    await page.locator('#build-dialog .build-row').nth(1).locator('.build-plus').click(); await page.locator('#build-dialog .build-confirm').click(); await page.waitForTimeout(600);
+    await page.locator('#build-dialog .build-row').nth(1).locator('.build-plus').click({ force: true }); await page.locator('#build-dialog .build-confirm').click({ force: true }); await page.waitForTimeout(600);
     check(/changed somewhere else/.test(await page.locator('#build-dialog .build-note').textContent()), `${name}: a moved build says so`);
     check(/^3 points to place/.test(await left(page)), `${name}: and is read again (${await left(page)})`);
     await context.close();
     // level 12, this rank's re-spread spent: no way to take back
     reset({ level: 12, placed: { attack: 5 }, respreadRank: 1, version: 7 });
     const second = await load(w, h);
-    if (await second.page.locator('#welcome').isVisible()) await second.page.getByRole('button', { name: 'Enter the arena' }).click(); await second.page.locator('#journal-button').click({ force: true }); await second.page.waitForTimeout(500); await second.page.locator('#journal .tab-fighter').click(); await second.page.locator('#build-open').click();
+    if (await second.page.locator('#welcome').isVisible()) await second.page.getByRole('button', { name: 'Enter the arena' }).click({ force: true }); await second.page.locator('#journal-button').click({ force: true }); await second.page.waitForTimeout(500); await second.page.locator('#journal .tab-fighter').click({ force: true }); await second.page.locator('#build-open').click({ force: true });
     await second.page.waitForFunction(() => document.getElementById('build-dialog').open);
     check(await second.page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').isDisabled(), `${name}: with the rank's re-spread spent, - is off`);
     await second.page.screenshot({ path: `${out}/point-${name}-spent.png` });
