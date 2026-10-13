@@ -1,0 +1,25 @@
+[
+  {
+    "zone": "z1",
+    "want": "legend-kobold-ash-pits",
+    "found": true,
+    "ids": [
+      "legend-kobold-ash-pits",
+      "legend-bedivere-hold-road"
+    ],
+    "errors": [],
+    "height": 1.2,
+    "hint": "Sign in to fight Kobold: a legend's spell is earned on a verified win."
+  },
+  {
+    "zone": "z2",
+    "want": "z2:legend-shipton-reach-cairn",
+    "found": true,
+    "ids": [
+      "z2:legend-shipton-reach-cairn"
+    ],
+    "errors": [],
+    "height": 1.54,
+    "hint": "Sign in to fight Mother Shipton: a legend's spell is earned on a verified win."
+  }
+]
