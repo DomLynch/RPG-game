@@ -1,0 +1,3 @@
+-- Down for 202610130028: revoke only what 0028 newly granted, frankendom_verifier on the four functions.
+-- frankendom_origins keeps its grants: 202610100018 (mint_keys_held), 202610120023 (live_ops) and 202610120024 (set_build, set_level) granted it first, so 0028's grant to it was a no-op. The revoke from public/anon/authenticated in 0028 only repeated what those migrations already did, so nothing to restore.
+revoke execute on function public.origins_live_ops(), public.origins_mint_keys_held(uuid, text[]), public.origins_set_build(uuid, text, jsonb, int, int), public.origins_set_level(uuid, text, int) from frankendom_verifier;
