@@ -12,7 +12,7 @@ import { percentOf, rolledDamage, rollUnit, swarmBand } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
-import { stanced, woundsAt, type StanceId } from './stance.ts';
+import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { DODGE_COUNTER, attackerPerMille, interruptLockout } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
@@ -483,7 +483,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         // Attrition: a blade wound costs part of the bar's ceiling for the rest of the duel; a leg wound slows the walk.
         D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - R.attrition.stamina); D.stamina = Math.min(D.stamina, D.maxStamina);
         if (location === 'legs') D.legWound = true;
-        for (const id of woundsAt(location!)) if (!D.scars?.includes(id)) D.scars = [...(D.scars ?? []), id];
+        for (const id of woundsAt(location!)) if (!D.scars?.includes(id)) { D.scars = [...(D.scars ?? []), id]; if (woundCeil(id)) { D.maxStamina = Math.max(R.attrition.floor, D.maxStamina - woundCeil(id)); D.stamina = Math.min(D.stamina, D.maxStamina); } }
       }
       const away = aim(d.body, a.body) + Math.PI;
       for (let k = 0; k < knockback; k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };

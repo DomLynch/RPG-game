@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import STANCE_DEFS from '../src/fight/stance-defs.json' with { type: 'json' };
 
-(STANCE_DEFS as unknown as { wounds: unknown[] }).wounds = [{ id: 'sword-arm', site: 'torso', block: 300, damage: -200 }];
+(STANCE_DEFS as unknown as { wounds: unknown[] }).wounds = [{ id: 'sword-arm', site: 'torso', block: 300, damage: -200, ceil: 10 }];
 const { stanced, woundsAt } = await import('../src/fight/stance.ts');
 
 test('a wound row names its site and nothing else', () => {
@@ -27,4 +27,10 @@ test('the notice fires once per new scar, and a new fight (a shorter list) start
   assert.deepEqual(gained(1, ['sword-arm']), { ids: [], seen: 1 });
   assert.deepEqual(gained(1, undefined), { ids: [], seen: 0 });
   assert.deepEqual(gained(1, ['sword-arm', 'x']), { ids: ['x'], seen: 2 });
+});
+
+test('a wound row\'s ceil column is its stamina-ceiling cost', async () => {
+  const { woundCeil } = await import('../src/fight/stance.ts');
+  assert.equal(woundCeil('sword-arm'), 10);
+  assert.equal(woundCeil('nothing'), 0);
 });
