@@ -2,7 +2,7 @@
 // frame, the phone fetch range, the client respawn and warm-up bounds, the spawn-net keep-alive / record / retry limits, the save renew timeout, the duel camera ease, the camp fire's size and light reach, the presence give-up count and the day clock (length, dusk, dawn). One `rules`
 // row each (id, value, unit) through the shared loader (src/core/registry.ts); every default equals the literal it replaced (tests/preview-rules.test.ts pins them). None of these is
 // read by the sim, so this table is NOT part of the world digest and a retune needs no WORLD_SIM_VERSION bump. Pure.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './preview-rules-defs.json' with { type: 'json' };
 import MANIFEST from './preview-rules-defs.manifest.json' with { type: 'json' };
 
