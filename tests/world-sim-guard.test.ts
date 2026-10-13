@@ -25,6 +25,13 @@ test('a world-sim change without a WORLD_SIM_VERSION bump would refuse every hon
 test('the digest sees a number inside a world function, and a Pit RECORD_VERSION bump', () => {
   const real = sources(), before = simDigest(real, { world: true });
   assert.equal(simDigest(real, { world: true }), before, 'the digest is stable');
-  assert.notEqual(simDigest({ ...real, 'src/fight/world.ts': real['src/fight/world.ts']!.replace('giveUpOf', 'giveUpOf + 1') }), before, 'a change in world.ts moves the digest');
-  assert.notEqual(simDigest({ ...real, 'resolved/pit-record-version.txt': String(RECORD_VERSION + 1) }), before, 'a Pit bump moves the digest');
+  assert.notEqual(simDigest({ ...real, 'src/fight/world.ts': real['src/fight/world.ts']!.replace('giveUpOf', 'giveUpOf + 1') }, { world: true }), before, 'a change in world.ts moves the digest');
+  assert.notEqual(simDigest({ ...real, 'resolved/pit-record-version.txt': String(RECORD_VERSION + 1) }, { world: true }), before, 'a Pit bump moves the digest');
+});
+
+test('a world-read catalogue value (a goblin\'s atOnce, a creature\'s leash) moves the digest: a retune needs a WORLD_SIM_VERSION bump', () => {
+  const real = sources(), before = simDigest(real, { world: true }), data = real['src/fight/catalogue-data.ts']!;
+  assert.ok(/atOnce: 2/.test(data), 'the goblin row carries atOnce');
+  assert.notEqual(simDigest({ ...real, 'src/fight/catalogue-data.ts': data.replace('atOnce: 2', 'atOnce: 3') }, { world: true }), before, 'atOnce 2 -> 3 moves the world digest');
+  assert.notEqual(simDigest({ ...real, 'src/fight/catalogue-data.ts': data.replace(/leash: (\d+)/, (_m, n) => `leash: ${Number(n) + 1}`) }, { world: true }), before, 'a leash value moves it');
 });
