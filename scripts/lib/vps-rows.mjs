@@ -18,6 +18,18 @@ const HEX40 = /^[0-9a-f]{40}$/, HEX64 = /^[0-9a-f]{64}$/;
 const scriptOf = argv => (argv || []).find(arg => /\.(mjs|js|sh)$/.test(arg));
 const sha256 = text => createHash('sha256').update(text).digest('hex');
 
+// The browsers a rows run needs are already on the box (the shadow's cache, kept current by its bootstrap, then root's): copy each finished one into the run's own
+// browser dir before the install, so `playwright install` finds it marked INSTALLATION_COMPLETE and downloads nothing; a revision the cache lacks is downloaded as
+// before. A copy, not a link: a row can never write into the shared cache. A run re-downloaded ~500 MB at 0.4 MiB/s for 17 minutes (EH, 2026-10-13).
+export const PW_CACHES = ['/opt/frankendom-shadow/ms-playwright', '/root/.cache/ms-playwright'];
+export const pwSeed = (caches = PW_CACHES) => `mkdir -p "$RUN/pw"
+for c in ${caches.map(c => `'${c}'`).join(' ')}; do
+  for d in "$c"/chromium-* "$c"/chromium_headless_shell-* "$c"/ffmpeg-*; do
+    if [ -f "$d/INSTALLATION_COMPLETE" ] && [ ! -e "$RUN/pw/\${d##*/}" ]; then cp -a "$d" "$RUN/pw/"; fi
+  done
+done
+`;
+
 // rows: ascending unique row numbers (1-based, as in .quality-gate.json release_commands); total: how many rows the gate has.
 export function buildRowsRunner({ sha, tree, nonce, runid, rows, total, width = 4 }) {
   if (!Array.isArray(rows) || !rows.length || rows.some(n => !Number.isInteger(n) || n < 1 || n > 999) || new Set(rows).size !== rows.length) throw new Error('rows must be unique positive integers');
@@ -25,7 +37,7 @@ export function buildRowsRunner({ sha, tree, nonce, runid, rows, total, width = 
   if (!Number.isInteger(width) || width < 1 || width > 8) throw new Error('width must be 1-8');
   const skip = Array.from({ length: total }, (_, i) => i + 1).filter(n => !rows.includes(n)).join(',');
   return runnerHead({ sha, tree, nonce, runid }) + `export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"
-npx playwright install chromium < /dev/null > "$RUN/pw.log" 2>&1 || { echo '--- playwright install failed ---' >&2; tail -n 20 "$RUN/pw.log" >&2; exit 99; }
+${pwSeed()}npx playwright install chromium < /dev/null > "$RUN/pw.log" 2>&1 || { echo '--- playwright install failed ---' >&2; tail -n 20 "$RUN/pw.log" >&2; exit 99; }
 PWVER=$(node -p 'require("playwright-core/package.json").version')
 PWREV=$(node -p 'JSON.parse(require("fs").readFileSync("node_modules/playwright-core/browsers.json", "utf8")).browsers.find(b => b.name === "chromium").revision')
 CHROME=$(ls "$RUN"/pw/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1)
