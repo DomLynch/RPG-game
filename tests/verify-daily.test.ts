@@ -23,7 +23,7 @@ async function dailyRecord(): Promise<{ record: FightRecord; text: string }> {
   return { record, text: await encodeRecord(record) };
 }
 
-type Row = { day: string; user_id: string; opponent: string; weapon: string; outcome: string; ticks: number; record: string };
+type Row = { day: string; user_id: string; opponent: string; weapon: string; outcome: string; ticks: number; record: string; worn_gear?: unknown };
 
 // Supabase REST as the sweep sees it: one page of unverified rows, daily_fight() per day, PATCH per verified row.
 function fakeSupabase(rows: Row[], seed = SEED, recheckWanted = false) {
@@ -129,6 +129,29 @@ test('a record that carries a sheet verifies only against the stored build versi
   const other = { ...(await make(honest)), user_id: 'u2' };
   assert.equal((await run([other])).receipt.refused.length, 1, 'another account cannot name this account\'s build');
   assert.ok(asked.includes('u1/pc:one@1') && asked.includes('u2/pc:one@1'), 'the lookup is by the ROW\'s account, never the record');
+});
+
+test('a daily record that carries worn gear in its sheet verifies against the gear frozen on its row; gear the row lacks is refused; later ledger changes do not matter', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const { wornGearOfItems } = await import('../origins/server/worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 } };
+  const piece = [{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier: 'Origin', location: { kind: 'equipped', slot: 'chest' } }];
+  const geared = sheetOf(stored, wornGearOfItems(piece))!;
+  assert.notDeepEqual(geared, sheetOf(stored)!, 'the worn set moves a dial');
+  const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, sheet: geared, characterId: 'one', buildVersion: 1 });
+  for (let i = 0; i < 30; i++) rec.push(idleIntent());
+  const record = rec.finish('abandoned');
+  const base = { day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row;
+  const frozen = { 'pc:one': piece.map((h) => ({ item: h.item, tier: h.tier, slot: h.location.slot })) };
+  const run = async (row: Row) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => [row], seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: async () => stored });
+    return { receipt, verified };
+  };
+  assert.deepEqual((await run({ ...base, worn_gear: frozen })).verified, ['u1'], 'the gear frozen at post time gives this sheet (the ledger is never read by the sweep)');
+  assert.match((await run({ ...base, worn_gear: { 'pc:one': [] } })).receipt.refused[0]!.reason, /not the one the player's stored build/, 'gear the row lacks is refused');
+  assert.equal((await run(base)).receipt.refused.length, 1, 'a row posted before the migration holds no gear');
+  assert.equal((await run({ ...base, worn_gear: { 'pc:two': frozen['pc:one'] } })).receipt.refused.length, 1, 'another character\'s gear is not this one\'s');
 });
 
 test('the psql build lookup asks for one exact version, validates what it quotes, and reads an unapplied migration as no build', async () => {
