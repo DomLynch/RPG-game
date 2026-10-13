@@ -157,6 +157,18 @@ test('a variant row shares its body: everything but its own name, lore, level ba
   }
 });
 
+test('a typo\'d creature CC tier or resist is refused at row load, and a real one (and a tier that names no kind) is judged against the cc-defs rows', async () => {
+  const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => `${p.code}:${p.path}`).join(','); };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 'unstoppable' }; }), '', 'a real tier name loads');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, resist: 'iron' }; }), '', 'a real resist name loads');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 'unstopable' }; }), 'field:fields.immuneTier', 'a typo\'d tier is refused, not silently ignored');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, resist: 'irn' }; }), 'field:fields.resist', 'a typo\'d resist is refused');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 7 }; }), 'field:fields.immuneTier', 'a tier must be a string');
+  const { ccRows, CC_LADDER } = await import('../src/fight/cc-ladder.ts');
+  const kinds = Object.values(CC_LADDER.kinds), resists = Object.entries(CC_LADDER.resists).map(([id, r]) => ({ id, ...r }));
+  assert.throws(() => ccRows(kinds, [{ id: 'x', immune: ['stun'], from: 1, to: 1 }, { id: 'y', immune: ['stun'], from: 1, to: 2 }], resists), /cover the same rank/, 'two tiers on one rank');
+});
+
 test('the catalogue is open (Dom 2026-10-12): a field is a defs row and a rig is a defs row, never a type edit', () => {
   const edit = (f: (r: CatalogueRow) => void, defs: typeof DEFS = DEFS) => { const r = goblin(); f(r); return catalogueProblems(r, { ...known, defs }).map((p) => p.code).join(','); };
   assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }), 'field', 'a key with no definition is refused');
