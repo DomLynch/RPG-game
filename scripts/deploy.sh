@@ -176,7 +176,14 @@ if [[ -n "$mac_early" ]]; then trusted_checks="${trusted_checks:+$trusted_checks
 deploy_trust_apply  # scripts/lib/deploy-trust.sh
 out_of_scope=""
 deploy_scope_apply
-RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
+# Mac rows AFTER Published, with an automatic rollback (hardening item 2, Lead + Strategy 2026-10-13): off until the rollback is drilled on a real candidate.
+# The Mac rows not already trusted for this tree move behind the Published line; a failure there runs scripts/rollback.sh to the outgoing release (post-publish.sh).
+mac_deferred=""
+if [[ "${DEPLOY_MAC_AFTER_PUBLISH:-off}" == on ]]; then
+  mac_deferred=$(SKIP="$trusted_checks,$out_of_scope" node --input-type=module -e 'import { MAC_ROWS } from "./scripts/lib/row-placement.mjs"; const skip = new Set(process.env.SKIP.split(",").map(Number)); console.log(MAC_ROWS.filter(row => !skip.has(row)).join(","))')
+  [[ -z "$mac_deferred" ]] || echo "Mac rows deferred to after Published (rollback on failure): $mac_deferred"
+fi
+RELEASE_CHECK_CONCURRENCY="${RELEASE_CHECK_CONCURRENCY:-1}" RELEASE_CHECKS_SKIP="$trusted_checks" RELEASE_CHECKS_SKIP_SOURCE="$trust_source" RELEASE_CHECKS_OUT_OF_SCOPE="$out_of_scope" RELEASE_CHECKS_DEFERRED="$post_publish${mac_deferred:+${post_publish:+,}$mac_deferred}" node scripts/release-checks.mjs   # Mac rows one at a time unless the caller says otherwise (Dom 2026-10-10: the app holds two cores; two WebKit rows at once put the load at 30, X ran 5 wide at 97)
 deploy_lock_drop "$DEPLOY_ROWS_LOCK"
 hf_wall_rows_table
 [[ -z "$(git status --porcelain)" ]] || { echo 'Release checks changed tracked files'; exit 1; }
@@ -198,12 +205,7 @@ deploy_step "publish lock"
 deploy_lock_wait "$DEPLOY_PUBLISH_LOCK" "publish"
 live_now=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
 publish_order=$(deploy_publish_order "$live_now" "$revision")
-case "$publish_order" in
-  forward) echo "publish order: live ${live_now:0:9} -> $revision (forward)" ;;
-  unknown) echo "publish order: live unknown (release.json unreadable); publishing $revision without the order guard" ;;
-  superseded) echo "superseded: live $live_now already contains $revision; nothing published"; exit 3 ;;
-  *) echo "diverged: live $live_now and $revision do not contain each other; nothing published (re-cut on top of live)" >&2; exit 3 ;;
-esac
+deploy_order_verdict "$publish_order" "$live_now" "$revision" || exit 3   # scripts/lib/deploy-lock.sh: only a forward publish from a PROVEN live ancestor goes on
 deploy_step "transfer + switch"
 ssh "${ssh_options[@]}" "$host" "mkdir -p '$release'"
 # Hardlink files unchanged since the current release instead of re-uploading the whole dist (the GLBs dominate).
@@ -357,7 +359,23 @@ fi
 deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 # The deferred rows run now, against the release that is live; a failure is raised after the previews check below (exit 1: the train stops and keeps its hold).
 post_rc=0
-post_publish_rows "$revision" "$post_publish" || post_rc=1
+# The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
+mac_rc=0
+if [[ -n "$mac_deferred" ]]; then
+  mac_rollback=""
+  # rollback.sh puts the static site and the verifier back, not the writer: only a publish that left the writer as it was is undone automatically. The presence service
+  # flips with the site (#2513), so when this publish moved it, presence_back puts it back after the site swap (a rollback must not leave a new presence running).
+  mac_rollback_release() {
+    DEPLOY_LOCK=/dev/null bash scripts/rollback.sh "$live_now" || return 1
+    local presence_now
+    presence_now=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-presence/current || true")
+    if [[ -n "$presence_prev" && "$presence_now" != "$presence_prev" ]]; then presence_back || return 1; fi
+  }
+  if [[ "$writer_install" == *"nothing installed"* && "$live_now" =~ ^[0-9a-f]{40}$ ]]; then mac_rollback=mac_rollback_release
+  else echo "Mac rows failing will not roll back: this publish changed the writer (or live was unknown), a person decides" >&2; fi
+  POST_PUBLISH_PROMOTE=$([[ -n "$post_publish" ]] && echo 0 || echo 1) post_publish_rows "$revision" "$mac_deferred" "$mac_rollback" || { post_rc=1; mac_rc=1; }
+fi
+POST_PUBLISH_PROMOTE=$(( 1 - mac_rc )) post_publish_rows "$revision" "$post_publish" || post_rc=1
 if [[ "$previews_ok" != 1 ]]; then
   echo "release $revision is LIVE (verifier installed), previews missing: /preview/origins/ is not 200 or /zone1/ is not serving this revision's bundle" >&2
   exit 1

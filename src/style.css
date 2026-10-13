@@ -2636,3 +2636,45 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .loot-compare img { display: block; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 6px #0004); }
 .loot-card-name { max-width: 100%; color: #1b1916; font: 600 15px/1.1 "Iowan Old Style", Palatino, Georgia, serif; overflow-wrap: anywhere; }
 .loot-card-slot { color: #7a5c18; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+/* "Place your point" (build-screen.ts): a dialog, phone first; every control is 44 px or more. */
+#build-dot { display: inline-block; width: 9px; height: 9px; margin-left: 6px; border-radius: 50%; background: var(--jg2, #e7cf93); box-shadow: 0 0 0 3px #e7cf9355; vertical-align: middle; }
+#build-dot[hidden] { display: none; }
+#journal .build-open { width: 100%; min-height: 44px; margin: 0 0 10px; border: 1px solid #c8a45e99; border-radius: 4px; background: transparent; color: var(--jf); font: 600 13px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+#journal .build-open span:not(:empty) { margin-left: 8px; color: var(--jg2); }
+.build-dialog { touch-action: pan-y; box-sizing: border-box; width: min(440px, 100vw - 16px); max-height: calc(100dvh - 16px); margin: auto; padding: 14px 14px 12px; overflow-y: auto; border: 1px solid #c8a45e99; border-radius: 6px; background: #12100d; color: #e9e3d6; font: 500 13px "Instrument Sans", Arial, sans-serif; }
+.build-dialog::backdrop { background: #000000b0; }
+.build-dialog .build-close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; background: transparent; color: #9a9382; font-size: 18px; }
+.build-dialog .build-head { display: flex; align-items: baseline; gap: 10px; padding-right: 44px; }
+.build-dialog h3 { margin: 0; font: 600 20px "Cormorant", Georgia, serif; }
+.build-dialog .build-level { margin: 0; color: #9a9382; }
+.build-dialog .build-left { margin: 6px 0 2px; font: 700 15px "Instrument Sans", Arial, sans-serif; color: #e7cf93; }
+.build-dialog .build-note { min-height: 16px; margin: 0 0 6px; color: #9a9382; font-size: 11px; line-height: 1.35; }
+.build-dialog .build-group { margin: 12px 0 4px; font: 600 11px "Cinzel", Georgia, serif; letter-spacing: .22em; text-transform: uppercase; color: #9a9382; }
+.build-dialog .build-row { display: grid; grid-template-columns: 1fr 44px 84px 44px; align-items: center; column-gap: 4px; min-height: 48px; border-bottom: 1px solid #2f2a21; }
+.build-dialog .build-name { font-weight: 600; }
+.build-dialog .build-mid { position: relative; display: flex; align-items: center; justify-content: center; height: 22px; border-radius: 3px; background: #1d1913; overflow: hidden; }
+.build-dialog .build-bar { position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%); background: #c8a45e55; }
+.build-dialog .build-val { position: relative; font-weight: 700; color: #e7cf93; }
+.build-dialog .build-plus, .build-dialog .build-minus { width: 44px; height: 44px; border: 1px solid #c8a45e66; border-radius: 4px; background: transparent; color: #e9e3d6; font: 700 20px "Instrument Sans", Arial, sans-serif; }
+.build-dialog button:disabled { opacity: .3; }
+.build-dialog .build-actions { position: sticky; bottom: -12px; display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin: 10px -14px -12px; padding: 10px 14px 12px; background: #12100d; border-top: 1px solid #2f2a21; }
+.build-dialog .build-undo, .build-dialog .build-confirm { min-height: 48px; border: 1px solid #c8a45e99; border-radius: 4px; background: transparent; color: #e9e3d6; font: 700 13px "Instrument Sans", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.build-dialog .build-confirm:not(:disabled) { background: #9a7b3c; color: #12100d; }
+
+/* The spell book (grimoire-screen.ts): a dialog, phone first; reuses the build dialog's frame. */
+.grimoire-dialog { touch-action: pan-y; box-sizing: border-box; width: min(440px, 100vw - 16px); max-height: calc(100dvh - 16px); margin: auto; padding: 14px 14px 12px; overflow-y: auto; border: 1px solid #c8a45e99; border-radius: 6px; background: #12100d; color: #e9e3d6; font: 500 13px "Instrument Sans", Arial, sans-serif; }
+.grimoire-dialog::backdrop { background: #000000b0; }
+.grimoire-dialog .grimoire-close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; background: transparent; color: #9a9382; font-size: 18px; }
+.grimoire-dialog .grimoire-head { display: flex; align-items: baseline; gap: 10px; padding-right: 44px; }
+.grimoire-dialog h3 { margin: 0; font: 600 20px "Cormorant", Georgia, serif; }
+.grimoire-dialog .grimoire-count { margin: 0; color: #9a9382; }
+.grimoire-dialog .grimoire-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.grimoire-dialog .grimoire-entry { display: grid; gap: 3px; padding: 10px 0; border-bottom: 1px solid #2f2a21; }
+.grimoire-dialog .grimoire-name { font: 600 16px "Cormorant", Georgia, serif; color: #e7cf93; }
+.grimoire-dialog .grimoire-sub { color: #9a9382; font-size: 12px; overflow-wrap: anywhere; }
+.grimoire-dialog .grimoire-bricks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.grimoire-dialog .grimoire-brick { padding: 2px 8px; border: 1px solid #c8a45e66; border-radius: 10px; font-style: normal; font-size: 11px; color: #e9e3d6; }
+.grimoire-dialog .grimoire-entry { border-left: 3px solid var(--school, transparent); padding-left: 8px; }
+.grimoire-dialog .grimoire-equip { justify-self: start; min-height: 44px; min-width: 96px; margin-top: 4px; border: 1px solid #c8a45e66; border-radius: 6px; background: transparent; color: #e9e3d6; font: 600 13px "Instrument Sans", Arial, sans-serif; }
+.grimoire-dialog .grimoire-equip[aria-pressed='true'] { background: #c8a45e33; border-color: var(--school, #c8a45e); color: #fff; }
+.grimoire-dialog .grimoire-empty { padding: 28px 8px; text-align: center; color: #9a9382; font: 600 15px "Cormorant", Georgia, serif; }
