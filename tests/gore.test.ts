@@ -380,6 +380,8 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
     for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(met.point[axis], plain.point[axis], 1e-12), `${axis}: the same point (the two rays start at different distances, so the last bit of the hit may differ)`);
     assert.ok(near(met.normal.dot(plain.normal!.clone().transformDirection(skin.matrixWorld)), 1, 1e-9), 'the same face');
     calls = 0; raycaster.intersectObjects([skin], false); assert.equal(calls, plainCalls, 'outside a pass nothing is cached: a later plain ray skins as before');
+    // A second ray in the SAME pose (the kill frame fires several) skins nothing: the vertices are the first ray's, bit for bit.
+    calls = 0; const again = surfaceHit(root, bones[0], out); assert.equal(calls, 0, 'the same pose in a new pass reads the memo'); assert.deepEqual(again?.point.toArray(), met.point.toArray(), 'and meets the same point');
     // A new pass is a new pose: nothing memoised may survive from the last ray (a stale vertex would glue a wound to where the body WAS).
     bones[0].rotation.set(-.4, .3, -.5); bones[1].position.set(.04, -.02, .03); root.updateMatrixWorld(true);
     const moved = surfaceHit(root, bones[0], out), fresh = raycaster.intersectObjects([skin], false)[0];
