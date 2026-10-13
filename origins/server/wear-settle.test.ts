@@ -15,7 +15,7 @@ const SLOTS = ['Helmet', 'Body', 'Arms', 'Greaves', 'Boots', 'Gloves'];
 const prov = (n: number, lootId: string) => ({ kind: 'arena-award', at: '2026-10-06T12:00:00Z', claimId: n, lootId, wonBy: PC, fromLegend: 'goblin-1', atRank: 'Recruit' });
 const row = (n: number, slot: string) => ({
   id: `inst:w-${n}`, item: `item:loot.goblin.${slot}`, version: 2, quantity: 1, tier: 'Recruit', upgrade_level: 0, loc_kind: 'equipped', loc_owner: PC, loc_index: null,
-  loc_slot: paperdollOf(slotOf(`goblin.${slot}`)), bound_to: null, mint_key: `claim:${n}0000`, provenance: prov(n, `goblin.${slot}`), history: [],
+  loc_slot: paperdollOf(slotOf(`goblin.${slot}` as never)), bound_to: null, mint_key: `claim:${n}0000`, provenance: prov(n, `goblin.${slot}`), history: [],
 });
 const idOf = (slot: string) => `inst:w-${SLOTS.indexOf(slot) + 1}`;
 async function inv(slots: string[], wear: Record<string, unknown> | 'absent' = {}) {
