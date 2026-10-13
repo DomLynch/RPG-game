@@ -6,10 +6,10 @@ import type { ShopList } from '../shops/shop.ts';
 
 export const EXCHANGE_PROVISIONER = 'service:exchange-provisioner';
 export const REGION1_SHOPS: ReadonlyMap<string, ShopList> = new Map([
-  [EXCHANGE_PROVISIONER, { id: 'shoplist:exchange-provisioner', revision: 1, currency: 'bronze', rows: [
-    { item: 'item:grave-iron', price: 6, max: 20, restockSeconds: 120 },
+  [EXCHANGE_PROVISIONER, { id: 'shoplist:exchange-provisioner', revision: 1, currency: 'bronze', zone: 'zone1', rows: [
+    { item: 'item:grave-iron', price: 6, max: 20, restockSeconds: 120, class: 'material' },
     // Common Frontier gear (minted at the Region's loot tier, as a drop is): one on the shelf, back in 30 min, from the level the drop needs (11).
-    { item: 'item:frontier.ash-helm', price: 60, max: 1, restockSeconds: 1800, minLevel: 11 },
-    { item: 'item:frontier.watch-greaves', price: 60, max: 1, restockSeconds: 1800, minLevel: 11 },
+    { item: 'item:frontier.ash-helm', price: 60, max: 1, restockSeconds: 1800, minLevel: 11, class: 'gear' },
+    { item: 'item:frontier.watch-greaves', price: 60, max: 1, restockSeconds: 1800, minLevel: 11, class: 'gear' },
   ] }],
 ]);
