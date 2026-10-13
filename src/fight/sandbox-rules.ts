@@ -72,3 +72,8 @@ export const STAB_SLIDE_PX = num('stabSlide', 'value') || 18;
 
 // stabHalfAngle (degrees): a slide within this of straight up is the stab (the wedge drawn on STRIKE); anything else is the cut to its side. The test itself is input.ts stabSector (trigonometry stays out of this sim-listed file).
 export const STAB_HALF_ANGLE = num('stabHalfAngle', 'value') || 50;
+
+// hurtStyle (Dom 2026-10-13: the bent-over hurt stagger "looks shit and we can do better"): `?hurt=1|2|3` picks a row of sandbox-rules-defs.json `hurtStyles` { id, weight, s1, s2, twist }: `weight` is how much of the recorded Hit clip stays (per-mille of the
+// normal blend, the rest is the standing pose), `s1` / `s2` (radians, per-mille) lean the lower and upper spine (negative = back), `twist` turns the lower spine. Presentation only (characters.ts, after the mixer); no row picked = today's hurt.
+export type HurtStyle = { id: number; weight: number; s1: number; s2: number; twist: number };
+export const HURT_STYLES: readonly HurtStyle[] = ((DEFS as unknown as { hurtStyles?: HurtStyle[] }).hurtStyles ?? []);
