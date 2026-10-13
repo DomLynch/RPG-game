@@ -5,13 +5,15 @@ import test from 'node:test';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';
 import { catalogueRow } from '../src/fight/catalogue-rows.ts';
 import SCHOOLS from '../src/fight/school-defs.json' with { type: 'json' };
+import BRICKS from '../src/fight/brick-defs.json' with { type: 'json' };
+import BRICK_MANIFEST from '../src/fight/brick-defs.manifest.json' with { type: 'json' };
 import SCHOOL_MANIFEST from '../src/fight/school-defs.manifest.json' with { type: 'json' };
 import ROWS from '../src/fight/spells-thorn-steppe.json' with { type: 'json' };
 import MANIFEST from '../src/fight/spells-thorn-steppe.manifest.json' with { type: 'json' };
 
 type Spell = { id: string; boss: string; boss_legend?: string; region: string; level: number; story: string; source: string; bricks: { modifiers: unknown[] } };
 const spells = ROWS.spells as readonly Spell[];
-const tables = () => [tableFromFile(SCHOOL_MANIFEST.tables[0] as Manifest, SCHOOLS), tableFromFile(MANIFEST.tables[0] as Manifest, ROWS)];
+const tables = () => [tableFromFile(SCHOOL_MANIFEST.tables[0] as Manifest, SCHOOLS), tableFromFile(BRICK_MANIFEST.tables[0] as Manifest, BRICKS), tableFromFile(MANIFEST.tables[0] as Manifest, ROWS)];
 
 test('thorn-steppe: 100 spell rows load through the shared loader, ids unique, schools are school rows', () => {
   assert.equal(spells.length, 100);

@@ -5,7 +5,7 @@ import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
 import { characterFor } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
-import { LEGEND_OPPONENTS } from '../../src/fight/index.ts';
+import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
@@ -561,7 +561,7 @@ function heroDeathSequence() {
 }
 function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);
-  const answer = spawnNet.killed(spec.id).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
+  const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
@@ -569,7 +569,7 @@ function creatureFell(spec: MobSpec) {
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
 play.link({ token: () => storedToken(storage, Date.now()), character: characterNow, base: writerBase(location.search), changed: () => { if (open === 'bank' || open === 'blacksmith') show(open); } });
-const spawnNet = spawnTracker({ token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
+const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)

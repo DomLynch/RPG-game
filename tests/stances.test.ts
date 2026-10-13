@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFighter, feintable, guardOf, mirror, stepDuel, withStances, type Duel } from '../src/fight/duel.ts';
+import { underStanceRows } from '../src/fight/stance-era.ts';
 import { PICKS, STANCES, asStance, homePick, moodOf, stanced, type StanceId } from '../src/fight/stance.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
@@ -14,7 +15,7 @@ import { act, arena, idle, W } from './strategies.ts';
 test('the stance table is Dom\'s: every delta, per mille, and nothing else', () => {
   assert.deepEqual(STANCES, {
     aggressive: { damage: 50, posture: 100, block: 100 },
-    defensive: { damage: -50, block: -150, recover: 250, window: 250, counter: 250 },
+    defensive: { damage: -50, block: -150, recover: 250, damageTaken: -100, poise: -100 },
     trickster: { heavyDamage: -50, feint: -500, kickPosture: 500 },
   });
   assert.deepEqual([...PICKS], ['neutral', 'aggressive', 'defensive', 'trickster']);
@@ -43,10 +44,10 @@ test('stances move damage and block cost by their table and never the timing of 
   assert.ok(a.stamina! > plain.stamina! && df.stamina! < plain.stamina!, 'an aggressive blocker pays more, a defensive one less');
 });
 
-test('a Defensive stance widens the parry window by a quarter and nothing else about the guard', () => {
-  const f = createFighter({ x: 0, z: 0, heading: 0, distance: 0 } as never, 'ready'), plain = guardOf(f), wide = guardOf({ ...f, stance: 'defensive' });
-  assert.equal(wide.window, Math.round(plain.window * 1.25)); assert.ok(wide.window > plain.window);
-  assert.deepEqual({ ...wide, window: 0 }, { ...plain, window: 0 }); assert.equal(guardOf({ ...f, stance: 'trickster' }).window, plain.window);
+test('a stance never moves the parry window (v52: timing is sacred); only a record below v52 keeps the old Defensive window, a quarter longer', () => {
+  const f = createFighter({ x: 0, z: 0, heading: 0, distance: 0 } as never, 'ready'), plain = guardOf(f);
+  for (const stance of ['aggressive', 'defensive', 'trickster'] as const) assert.deepEqual(guardOf({ ...f, stance }), plain, `${stance}: the guard is the plain guard`);
+  underStanceRows(51, () => { const wide = guardOf({ ...f, stance: 'defensive' }); assert.equal(wide.window, Math.round(plain.window * 1.25)); assert.deepEqual({ ...wide, window: 0 }, { ...plain, window: 0 }); assert.equal(guardOf({ ...f, stance: 'trickster' }).window, plain.window); });
 });
 
 test('a trickster\'s kick deals 50% more posture against a HELD guard only', () => {
@@ -82,7 +83,7 @@ test('no stances: the fight grows no stance field and is the plain fight, hash f
 });
 
 // RV34: the record carries the flag and the player's pick; the AI's mood is re-drawn from the seed on replay.
-test('a stances fight is recorded as v34, packed and replayed to the very same state; the AI drew its mood from the seed', () => {
+test('a stances fight is recorded as v52 (the stance rows\' era; v34 is the stances flag), packed and replayed to the very same state; the AI drew its mood from the seed', () => {
   for (const pick of PICKS) {
     const seed = 21, opponent = OPPONENTS.executioner, profile = profileAt(opponent, 6);
     const rec = liveRecorder({ build: 'test', opponent: 'executioner', weapon: 'longsword', level: 6, seed, stances: pick });
@@ -91,7 +92,7 @@ test('a stances fight is recorded as v34, packed and replayed to the very same s
     assert.equal(W(p.duel).stance, asStance(moodOf(seed, 'executioner')));
     assert.equal(p.duel.fighters[0].stance, asStance(pick));
     const record = unpackRecord(packRecord(rec.finish('abandoned')));
-    assert.equal(record.v, 34); assert.equal(record.stances, pick);
+    assert.equal(record.v, 52); assert.equal(record.stances, pick);
     const replay = verifyRecord(record);
     assert.ok(replay.ok); assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
   }

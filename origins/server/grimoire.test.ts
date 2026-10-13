@@ -5,7 +5,7 @@ import { join, relative } from 'node:path';
 import { encounterOps } from './encounter.ts';
 import { ACCOUNT, CHAR, fakeDb, deps, fight, RESOLVED } from './encounter-fixtures.ts';
 import { legendOfFight, spellLines, takeSpell, type Grimoire } from './grimoire.ts';
-import { SPELL_BRICKS } from '../../src/fight/server.ts';
+import { SPELL_BRICKS } from '../../src/fight/boss-spells.ts';
 import { BOSSES } from '../../src/fight/boss-rows.ts';
 import { Conflict } from './errors.ts';
 
