@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, attackerPerMille } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, attackerPerMille, interruptLockout } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -600,7 +600,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (hurt && isInterruptible(A.specialName)) {
       const taken = (A.castHurt ?? 0) + hurt;
       if (taken >= R.special.interruptAt * A.maxHealth) {
-        A.special = 0; delete A.castHurt; A.skillCooldown = R.special.interruptCooldown;
+        A.skillCooldown = interruptLockout(R.special.interruptCooldown, A.special, R.special.windup); A.special = 0; delete A.castHurt;   // sandbox-mech: an earlier cut can lock the caster out longer
         events.push({ tick, type: 'SpecialInterrupted', actor: i, damage: taken });
         continue;
       }
