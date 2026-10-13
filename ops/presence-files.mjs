@@ -1,6 +1,6 @@
 // Prints, one per line and repo-relative, every file the presence service loads: origins/presence/main.ts and everything it imports, transitively. ops/install-presence.sh copies
 // exactly this list, so the service on the box is the code the repo tests, with no hand-kept file list to rot. A bare import (an npm package) is an error: the box has no node_modules
-// (like the duel relay, presence is dependency-free), so one would otherwise fail only after the install.
+// (like the duel relay, presence is dependency-free), so one would otherwise fail only after the install. Type-only imports (`import type`) are erased when node strips types, so they are not followed.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,7 @@ export function presenceFiles(repo = resolve(dirname(fileURLToPath(import.meta.u
     seen.add(file);
     const source = readFileSync(join(repo, file), 'utf8');
     // The `{ … }` clause of an import/export may span lines (origins/contracts/economy.ts does): a single-line pattern missed items.ts and presence crashed on the box.
-    const specs = [...source.matchAll(/^\s*(?:import|export)\b(?:[^'";{}]|\{[^}]*\})*?\bfrom\s*['"]([^'"]+)['"]/gm), ...source.matchAll(/^\s*import\s*['"]([^'"]+)['"]/gm), ...source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)];
+    const specs = [...source.matchAll(/^\s*(?!import\s+type\b)(?:import|export)\b(?:[^'";{}]|\{[^}]*\})*?\bfrom\s*['"]([^'"]+)['"]/gm), ...source.matchAll(/^\s*import\s*['"]([^'"]+)['"]/gm), ...source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)];
     for (const [, spec] of specs) {
       if (spec.startsWith('node:')) continue;
       if (!spec.startsWith('.')) throw new Error(`${file} imports the package "${spec}": presence must stay dependency-free (the box has no node_modules)`);
