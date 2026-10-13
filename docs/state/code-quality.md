@@ -1,5 +1,14 @@
 # Code quality lane (Auditor)
 
+## 2026-10-13 ~04:3xZ (08:3x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13b` (queue + heads), then `…-13a`
+
+**Live:** DG `11e966c34`. Parity PASS (by content) posted for each release tonight: DE2 `4337cfe9b` (#2411), DL `444c78ec4` (#2431), DF3 `d17d1c318` (#2438), DG `11e966c34` (#2443).
+**Passed since the 23:0x handoff:** #2424 revert; re-passes #2414/#2420/#2418/#2422; #2421; #2417; #2441 (publisher fix: full check list + never-ran cancels); #2435; #2436; #2416 + #2427 (sheet re-lock + trust guard); #2426 + #2430 (build field + sweeps; re-passed at b29dd9692 / 1ba09ec74); the sim stack #2442 → #2444 → #2447 (one unit, #2447 last); #2423 (flagged OFF); #2457 (stance rows, timing sacred, RV52 era-keyed). Candidates: DL, DF3, DG (PASS + `candidate:pass`). DF2 died (#2325 boundary).
+**Now:** (1) DH #2448 @881ad4921: contents OK (tree 735f0e435); PASS + `candidate:pass` on all-green, then parity (writer 151→160 + both verifiers). (2) #2456 HOLD: presence only knows town-square zones, so the new "unchecked → 422" refuses every Frontier world kill; Strategy picks a deliberate shut-off or keep-paying-capped. (3) #2423 flip later: wornGear into the sweeps + a geared-record-pays test + no sheet before the async build reference. (4) #2428 after Deploy B lifts its HOLD.
+**External audit (Dom, 444c78ec):** all 4 findings valid in the code. Unit receipt fixed by #2433 (in DG); stance parry window fixed by #2457; world rewards: #2456 (held) + server re-sim of world fights next (finding 1 means re-simulation).
+**Rules:** Dom 07:0x: the Auditor reads mechanics only; row-only PRs = CI gates + Lead PASS; the sim series is one sitting. Receipts that touch src/fight run net-determinism + detmath (two SIM-list misses tonight).
+**Session:** app worktree `laughing-bartik-0c0156`. Reopen on `~/Developer/frankendom-code-quality` with the worktree switch off.
+
 ## 2026-10-12 ~23:0x (Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-12g` (queue + heads), then `…-12f`
 
 **Live:** DC `42f8ad61a` (parity PASS on #2406: writer 139/0/0, verifier 65/0/0, replays success). **Trunk:** `4337cfe9b` = DE2 `b0058bcb9` + #2424, which reverts #2354 (Mac-only row 54 failed on DE2; it passes on the reverted tree, per Deploy's receipt on #2424).
