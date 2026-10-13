@@ -9,7 +9,8 @@ import { dirname, join, normalize } from 'node:path';
 const IMPORT = /(?:^\s*(?:import|export)\b(?!\s+type\b)[^'"]*?\bfrom\s+|^\s*import\s+|\bimport\()\s*['"]([^'"]+)['"]/gm;
 const FORBIDDEN = /^(origins\/server\/|src\/fight\/server\.ts$|src\/core\/server\.ts$)/;
 // origins/zones/loader.ts reads ROSTER from the node-safe door (the writer loads the same file), and the page's frontier-kit-view.ts imports the loader: today's leak, to be fixed by giving the loader a page-safe ROSTER source (World follow-up).
-const KNOWN = ['origins/preview/frontier-kit-view.ts -> origins/zones/loader.ts -> src/fight/server.ts'];
+// origins/preview/mobs.ts is page data the writer also loads (world-spawns.ts) and reads a value from the core's node-safe door: the second pinned leak.
+const KNOWN = ['origins/preview/frontier-kit-view.ts -> origins/zones/loader.ts -> src/fight/server.ts', 'origins/preview/mobs.ts -> src/core/server.ts'];
 const code = (f: string) => /\.(ts|mjs)$/.test(f) && !/\.test\.(ts|mjs)$/.test(f);
 const seeds = (dir = 'origins/preview'): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? seeds(join(dir, e.name)) : code(e.name) ? [join(dir, e.name)] : []);
 
