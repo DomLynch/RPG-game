@@ -39,6 +39,7 @@ import { bareName, ROSTER, isOpponentId, resolveFinisher } from './roster.ts';
 import { createFeedback } from './fight/sound/feedback.ts';
 import { SPECIAL_CUE_OF } from './fight/sound/special.ts';
 import { announcePowerWord, powerWordsLook } from './fight/power-words.ts';
+import { spellLook } from './fight/boss-telegraph.ts';
 import { POWER_WORD_LOOK_GAIN } from './fight/sound/power-word.ts';
 import { breathLook } from './fight/sound/breath.ts';
 import { bossSpecialFor, bossSpecialId } from './fight/special-identity.ts';
@@ -410,7 +411,8 @@ const rankLevel = () => fightLevel(profile.dial, careerMarks());
 // career fight records no sheet: the sweeps check the record's sheet against exactly this build and the worn set.
 let ownBuild: OwnBuild | undefined;
 if (GEAR_IN_FIGHTS) void fetchOwnBuild({ storage, search: typeof location !== 'undefined' ? location.search : '' }).then((b) => { ownBuild = b ?? undefined; });
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell (boss-telegraph.ts); absent = no spell, as today
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(LOOK_SPELL ? { spell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
@@ -853,6 +855,7 @@ function began() {
   showStances();   // a rematch or a new rung can move the legend
   void settleClaim(null); fightToken++;   // a claim nothing settled yet ends here with no piece; its Share never shows on this fight
   clearInput(); state = previous = match.practice.fighter;
+  if (LOOK_SPELL && match.spell) match.practice.duel.fighters[0].skillCooldown = 0;   // ?spell look test: the first cast is ready at once (an unrecorded-for-reward look; the server refuses what it cannot replay)
   fightFrames = []; fightStartAt = firstExchangeAt = NaN; beaconSent = false;   // the fight-wide figures (readout and beacon) start over with the fight
   replayStill.hidden = true; hideLoot(); pendingLoot = null; match.frameEvents = []; sparEnd(false); dropClip(); say(null); updateHud();
 }
