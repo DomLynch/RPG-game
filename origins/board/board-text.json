@@ -1,0 +1,31 @@
+{
+  "chrome": {
+    "button": "Board",
+    "title": "Daily board",
+    "slots": "{n} tasks today",
+    "resets": "Resets in {time} (at {hour}:00 UTC)",
+    "reward": "Reward: {reward}",
+    "empty": "No board today",
+    "close": "Close",
+    "hours": "{n} h",
+    "minutes": "{n} min"
+  },
+  "kinds": [
+    { "id": "kill", "template": "Defeat {count} × {target}" },
+    { "id": "gather", "template": "Bring in {count} × {target}" },
+    { "id": "discover", "template": "First-find {target}" },
+    { "id": "duel", "template": "Win {count} ranked duels against {target}" }
+  ],
+  "rewardKinds": [
+    { "id": "gold", "template": "{amount} gold" },
+    { "id": "fame", "template": "{amount} fame" },
+    { "id": "item", "template": "{amount} × {item}" }
+  ],
+  "discoverTarget": "{landmark} in {zone}",
+  "landmarks": [
+    { "id": "landmark_camp", "name": "the camp" },
+    { "id": "landmark_ruin_arch", "name": "the ruined arch" },
+    { "id": "landmark_stone_circle", "name": "the stone circle" },
+    { "id": "landmark_grove", "name": "the grove" }
+  ]
+}

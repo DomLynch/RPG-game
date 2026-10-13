@@ -359,6 +359,7 @@ fi
 deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 # The deferred rows run now, against the release that is live; a failure is raised after the previews check below (exit 1: the train stops and keeps its hold).
 post_rc=0
+POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1"; export POST_PUBLISH_LIVE_CMD   # rows start only while the release they test is the live one
 # The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
 mac_rc=0
 if [[ -n "$mac_deferred" ]]; then
