@@ -10,8 +10,16 @@ lsof_bin=${LSOF:-lsof}
 dry=${1:-}
 prefixes=(ci-trusted-checks ci-trust record-replay release-checks capture-gate capture-int rollback built-account merged-on-trunk shadow deploy-hf deploy-ceiling carry-previews full-age hf-wall-rows gpu-run gpu-art gpu-wrap verify-loot witch pr-base origins-pool hf-cleanup hf-slots-lock)
 [[ $hours =~ ^[0-9]+$ ]] && (( hours >= 1 )) || { echo "sweep-tmp: SWEEP_AGE_HOURS must be an integer >= 1, got '$hours'"; exit 2; }
+# The guard judges the root as given (before it is resolved, so a missing macOS path is still refused) AND as resolved, each without macOS's firmlink
+# prefixes: there /home resolves to /System/Volumes/Data/home and /var, /etc and /tmp to /private/..., so a resolved-only match let /home through on the
+# Mac (Lead 2026-10-13: a Mac-only red). Linux has neither prefix, so nothing changes there.
+refuse_protected() {
+  local seen=${1%/}; seen=${seen:-/}; seen=${seen#/System/Volumes/Data}; seen=${seen#/private}; seen=${seen:-/}
+  case $seen in /|/opt|/opt/*|/mnt|/mnt/*|/home|/home/*|/root|/root/*|/etc|/etc/*|/usr|/usr/*|/var|/var/*|/System|/System/*|/Users|/Users/*|/Volumes|/Volumes/*) echo "sweep-tmp: refusing root $1"; exit 2;; esac
+}
+refuse_protected "$root"
 root=$(cd "$root" && pwd -P)
-case $root in /|/opt|/opt/*|/mnt|/mnt/*|/home|/home/*|/root|/root/*|/etc|/etc/*|/usr|/usr/*|/var|/var/*) echo "sweep-tmp: refusing root $root"; exit 2;; esac
+refuse_protected "$root"
 df_line() { df -h "$root" | tail -n 1; }
 echo "sweep-tmp: $(date -u +%FT%TZ) root=$root age>=${hours}h ${dry:+(dry run)}"
 echo "sweep-tmp: df before: $(df_line)"
