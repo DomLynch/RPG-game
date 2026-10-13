@@ -111,3 +111,34 @@ test('sweep_in_use: a process whose cwd is inside the dir (or below it) makes it
   try { assert.equal(inUse(real, 1), 0, 'a live process has its cwd there'); } finally { child.kill(); rmSync(base, { recursive: true, force: true }); }
 });
 
+// Lead 2026-10-13: nobody should reach the scheduled (bare) sweep, with its blanket /tmp delete, by accident. A mistyped `--help` ran the whole dry run and held the lock 6+ minutes.
+// Only REFUSAL paths are executed here: they exit before the lock, the log or any disk is touched. The scheduled path is asserted from the source, never run.
+const run = (args: string[], env: Record<string, string> = {}) => spawnSync('bash', ['ops/vps-scratch-sweep', ...args], { encoding: 'utf8', env: { PATH: process.env.PATH ?? '', ...env } });
+
+test('bare mode: no arguments, --help, an unknown flag and --force alone are refused with usage (exit 2)', () => {
+  for (const args of [[], ['--help'], ['-h'], ['--forse'], ['--force'], ['--apply', '--bogus']]) {
+    const r = run(args);
+    assert.equal(r.status, 2, `${args.join(' ') || '(no args)'} -> ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /usage|vps-scratch-sweep --path=/i);
+    assert.equal(r.stdout, '', 'nothing but usage on stderr: no sweep output');
+  }
+  assert.match(run(['--help']).stderr, /unknown argument '--help'/);
+});
+
+test('bare mode: --apply without SWEEP_SCHEDULED=1 is refused (a hand-typed --apply can no longer reach the blanket /tmp delete)', () => {
+  const r = run(['--apply']);
+  assert.equal(r.status, 2, r.stdout + r.stderr);
+  assert.match(r.stderr, /bare mode is the scheduled sweep only/);
+  assert.equal(run(['--apply', '--force']).status, 2);
+  assert.equal(run(['--apply'], { SWEEP_SCHEDULED: '0' }).status, 2);
+});
+
+test('the guard sits before the log, the lock and the disk, and the scheduled form is exactly SWEEP_SCHEDULED=1 with --apply and no --path', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const guard = src.indexOf('the bare mode is the scheduled sweep only');
+  assert.ok(guard > 0 && guard < src.indexOf('LOGDIR='), 'refusal happens before LOGDIR is created');
+  assert.ok(guard < src.indexOf('flock -n 9'), 'and before the lock');
+  assert.match(src, /\[ -z "\$PATHS" \] && \{ \[ "\$APPLY" != 1 \] \|\| \[ "\$\{SWEEP_SCHEDULED:-\}" != 1 \]; \}/, 'bare = no --path; allowed only with --apply AND SWEEP_SCHEDULED=1');
+});
+
