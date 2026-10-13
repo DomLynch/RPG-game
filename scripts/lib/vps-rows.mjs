@@ -40,7 +40,7 @@ export function buildRowsRunner({ sha, tree, nonce, runid, rows, total, width = 
 ${pwSeed()}npx playwright install chromium < /dev/null > "$RUN/pw.log" 2>&1 || { echo '--- playwright install failed ---' >&2; tail -n 20 "$RUN/pw.log" >&2; exit 99; }
 PWVER=$(node -p 'require("playwright-core/package.json").version')
 PWREV=$(node -p 'JSON.parse(require("fs").readFileSync("node_modules/playwright-core/browsers.json", "utf8")).browsers.find(b => b.name === "chromium").revision')
-CHROME=$(ls "$RUN"/pw/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1)
+CHROME=$(ls "$RUN"/pw/chromium-"$PWREV"/chrome-linux*/chrome 2>/dev/null | head -1)
 [ -n "$CHROME" ] || exit 99
 CHROMESHA=$(sha256sum "$CHROME" | cut -c1-64)
 npm run build < /dev/null > "$RUN/build.log" 2>&1 || { echo '--- build failed ---' >&2; tail -n 20 "$RUN/build.log" >&2; exit 100; }

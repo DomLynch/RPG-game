@@ -170,3 +170,9 @@ test('the rows runner seeds the run browser dir from the cache after setting it 
   assert.ok(at('export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"') > -1 && at('export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"') < at(pwSeed()) && at(pwSeed()) < at('npx playwright install chromium'), 'seed sits between the path export and the install');
   assert.ok(s.includes('/opt/frankendom-shadow/ms-playwright') && s.includes('/root/.cache/ms-playwright'));
 });
+test('the receipt chrome_sha256 is the pinned revision binary, never the first chromium dir the cache seed copied in', () => {
+  const s = buildRowsRunner({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, rows: [31, 33], total: 53 });
+  assert.ok(s.includes('CHROME=$(ls "$RUN"/pw/chromium-"$PWREV"/chrome-linux*/chrome'), 'CHROME comes from the dir of the revision the receipt records');
+  assert.ok(!s.includes('pw/chromium-*/chrome-linux'), 'no glob over every chromium dir: a stale revision in the cache sorts first after a Playwright bump');
+  assert.ok(s.indexOf('PWREV=$(') < s.indexOf('CHROME=$('), 'PWREV is set before CHROME uses it');
+});
