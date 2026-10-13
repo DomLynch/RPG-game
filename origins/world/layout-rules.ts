@@ -1,7 +1,7 @@
 // The origins world's layout and terrain numbers as data (World, Dom's data-layer rule 2026-10-13): the terrain noise (octaves, gain, lacunarity, warp), how far a flattened pad blends into the
 // hills, the town's road clearance and the building kit's wall module. One `rules` row each (id, value, unit) through the shared loader (src/core/registry.ts); every default equals the
 // literal it replaced (tests/layout-rules.test.ts pins them). None of these is read by the sim, so this table is NOT part of the world digest and a retune needs no WORLD_SIM_VERSION bump. Pure.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './layout-rules-defs.json' with { type: 'json' };
 import MANIFEST from './layout-rules-defs.manifest.json' with { type: 'json' };
 
