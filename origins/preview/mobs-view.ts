@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { actorPose, buildWarriors, createZoneFinisher, type CutRig, type FinisherId, type Practice } from '../../src/fight/index.ts';
-import { catalogueBodyUrl, OPPONENTS, type WeaponId } from '../../src/fight/index.ts';
+import { catalogueBodyUrl, OPPONENTS, worldBodyUrl, type WeaponId } from '../../src/fight/index.ts';
 import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
@@ -18,9 +18,9 @@ import { pageSignedIn } from './save.ts';
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
 // Pit fights with the same files), one download per body kind, fetched only when a creature of that kind first comes within reach; every
 // creature of a kind is a SkeletonUtils clone of that one scene with its own tinted materials. Until its body lands a capsule stands in.
-const URLS: Record<string, string> = Object.fromEntries(['goblin', 'knight', 'pitborn', 'witch'].map((id) => [id, catalogueBodyUrl(id)!]));   // the engine's bodies, by catalogue row (K11); the wolf is served from WORLD_URLS (public/world), not bundled
+const URLS: Record<string, string> = Object.fromEntries(['goblin', 'knight', 'pitborn', 'witch'].map((id) => [id, catalogueBodyUrl(id)!]));   // the engine's bodies, by catalogue row (K11); the wolf is served by worldBodyUrl (public/world), not bundled
 // The open world draws Characters' 8k-tri world bodies (same rig and clip names) where they exist; the duel keeps the roster GLB.
-const WORLD_URLS: Record<string, string> = { goblin: '/world/goblin.glb', wolf: '/world/wolf.glb', bear: '/world/bear.glb', boar: '/world/boar.glb' };   // public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters
+// Which kinds draw a world body is the catalogue row's `worldBody` flag (worldBodyUrl); public/world (#1716): served by URL, never bundled, so check-budget does not count them as fighters.
 const FETCH_RANGE = TUNING.range + 15;   // m: a body kind is fetched when one of its creatures is this near
 const FETCH_RANGE_PHONE = 28;            // m: on a phone only when one is close (~4 MB a body kind; the goblin serves every common creature)
 // How each creature is dressed (scale, cloth tint, soot) is Characters' (mob-looks.ts + mob-dress.ts); this view only asks.
@@ -84,7 +84,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
   const fetchBody = (kind: string) => {
-    const url = WORLD_URLS[kind] ?? URLS[kind];
+    const url = worldBodyUrl(kind) ?? URLS[kind];
     if (bodies.has(kind) || !url) return;
     bodies.set(kind, 'loading');
     loader.loadAsync(url).then((gltf) => {
@@ -234,7 +234,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
-    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (WORLD_URLS[k] ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
+    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (worldBodyUrl(k) ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
