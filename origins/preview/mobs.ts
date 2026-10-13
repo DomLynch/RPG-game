@@ -72,7 +72,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? zone.defaultKind, level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
@@ -88,7 +88,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     let rng = mixSeed(TUNING.seed, 5000 + out.length);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
-    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
+    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? zone.defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   return levelByDistance(f, b, out, rows);
 }

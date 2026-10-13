@@ -14,6 +14,7 @@ import type { Spec } from './biomes.ts';
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
 export type Zone = {
   id: string; level: number;
+  defaultKind: string;        // the roster body a creature whose character form names none stands as (a row column, checked as a roster body by loadZone)
   name: string;               // the zone's display name: the tab title and the HUD read it (Zone 1 = the Cinder Fields it opens in)
   names: Readonly<Record<string, string>>;   // display names of its world zones, by world-zone id (zone.world)
   world: readonly string[];   // the world-data zones (origins/region1/world.ts) this zone's page walks
@@ -56,6 +57,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!(l.fogDensity > 0 && l.fogDensity < 0.1 && l.sunIntensity > 0 && l.exposure > 0.5 && l.exposure < 2.5)) bad.push(`look ${id}: a number is out of range`);
   }
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1, rgb = (n: number) => Number.isInteger(n) && n >= 0 && n <= 0xffffff;
+  if (!Object.hasOwn(ROSTER, z.defaultKind)) bad.push(`defaultKind ${z.defaultKind}: not a roster body`);
   for (const [id, l] of Object.entries(z.mobLooks?.looks ?? {})) {
     if (!Object.hasOwn(ROSTER, l.opponent)) bad.push(`mob look ${id}: ${l.opponent} is not a roster body`);
     if (!rgb(l.tint)) bad.push(`mob look ${id}: tint is not a 0xrrggbb number`);
