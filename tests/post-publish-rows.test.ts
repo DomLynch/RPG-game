@@ -200,6 +200,10 @@ test('postPublishRowsFor: a row stays PRE-publish when the diff touches its own 
   const finisher = postPublishRowsFor(['src/fight/gore.ts']);
   for (const row of FINISHER_ROWS) assert.ok(!finisher.includes(row), `finisher row ${row} stays before Published`);
   for (const row of [10, 11, 38, 39, ...ALWAYS]) assert.ok(finisher.includes(row), `row ${row} is still deferred`);
+  for (const file of ['src/fight/catalogue-data.ts', 'src/assets/rigs/humanoid.ts', 'public/world/rig.glb']) {
+    const rows = postPublishRowsFor([file]);
+    for (const row of FINISHER_ROWS) assert.ok(!rows.includes(row), `${file} keeps finisher row ${row} before Published (a finisher retime or a rig change)`);
+  }
   const polearm = postPublishRowsFor(['src/fight/weapons.ts']);
   assert.ok(!polearm.includes(10) && !polearm.includes(11) && polearm.includes(3) && polearm.includes(38));
   const layout = postPublishRowsFor(['src/style.css']);
