@@ -3,6 +3,15 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-13 (+04, Mac clock ~11:40) — HANDOFF #35 before /clear (Dom: "save your work now i will /clear"). READ FIRST, then memory `world_2026-10-13_handoff35.md`; HANDOFF #34 below is older
+
+1. **Merged (gh, 10-13):** #2376 #2386 #2388 #2389 #2392; #2397/#2402 closed by Lead as shipped. #2325 PASSed by the Auditor (db583216c), rides a cut.
+2. **Open, mine:** #2474 item 3 (19d807307, rebase after #2469), #2477 row 9 threat rows (f033dd1cf, conflicts with #2469 in world.ts + eslint.config.js: rebase after it lands), #2478 row 18 time-of-day rows (57912e5dd, stacked on #2325), #2480 row 22 variants (60682ceb9; Characters agreed the shape and write the eligible lists), #2483 legend bosses server side (d807537b0, stacked on Characters' #2479 d4eef1b01, Lead labels when #2479 PASSes), #2488 legend bosses page side DRAFT (39129f952, stacked on #2483), #2247 harness draft.
+3. **#2488 owes:** the 375 stills (the legend drew as the capsule stand: wait for the body, place closer) and READY; a signed-in legend fight is unit-tested (stand-in server) and server-tested (#2483, real resolver) but NOT browser-verified.
+4. **Next (Lead's order):** #2488 stills, then row 24 solo instance slot pool, row 21 chase trio, row 19 NPC schedules/witness/rumours, row 17 pets/mounts/summons; one PR each off live trunk, auditor:ready, stills for anything visible.
+5. **Rules/gotchas:** stacked PR labelled only after its base PASSes; no per-PR CI while Lead says hold; new files go in origins/world/, not origins/mobs/ (C7 shrink-only list); the grimoire guard test bans naming SPELL_BRICKS outside its allow-list (use legendOfFight); src/ may not import origins/; VPS: `git reset -q --hard` before each run, nohup capture + log + until-grep ALLDONE; Characters and Backend are not reachable by send_message, relay via Lead or a PR comment; chain `git add` to a merge script's success and grep for conflict markers before pushing.
+6. **Crons:** none. Session worktree /Users/domininclynch/Desktop/Business/frankendom/.claude/worktrees/nostalgic-shannon-67dee9 (state-doc pushes: branch world/state-rules -> origin/world/state-1009). "When you're home, reopen me on ~/Developer/frankendom-world with the worktree switch off."
+
 ## 2026-10-13 (+04, ~00:15 Mac clock) — HANDOFF #34 before /clear (Dom: "save your work now i will /clear"). READ FIRST, then memory `world_2026-10-12_handoff34.md`; HANDOFF #33 below is older
 
 1. **LIVE** = release da4b5197f by my curl of release.json at save time (= release-CZ, which carries #2285 and #2288, both MERGED by gh). Candidates seen: release-CX/CY/CZ. #2275, #2279, #2283 MERGED earlier; #2311 (Points warm-up) MERGED.
