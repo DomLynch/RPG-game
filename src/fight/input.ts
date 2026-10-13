@@ -4,6 +4,7 @@
 // query, viewport width — so the entry point's own globals (and the VM harness's fakes in tests/graphics.test.ts) are what it binds to.
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
 import type { Direction } from './moves.ts';
+import { ONE_BUTTON, HEAVY_HOLD_MS, STAB_SLIDE_PX } from './sandbox-rules.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -81,7 +82,7 @@ export function createInput(env: InputEnv) {
     guardDir: Direction | null = null,
     cancel = false;
   let dodgeHeld: { since: number; rolled: boolean } | null = null;
-  let slashWait: { since: number; x: number } | null = null;   // a SLASH press still deciding its side (see slashSlide)
+  let slashWait: { since: number; x: number; y: number } | null = null;   // a SLASH press still deciding its side (see slashSlide)
   const holders = new Set<Strike>();
   let dragGuard = false;
   // The held level the simulation sees: during a swing, whether the control that threw it is still down; otherwise whether any strike control is.
@@ -156,6 +157,8 @@ export function createInput(env: InputEnv) {
     if (side) { attackButton.dataset.slide = side; take(side === 'left' ? 'light_left' : 'light_right'); }
     else requestStrike();
   }
+  function fireStab() { slashWait = null; hold('thrust'); request('thrust'); }   // sandbox-mech oneButton: a slide up from STRIKE
+  function fireHeavy() { slashWait = null; hold('heavy'); requestStrike(true); }   // sandbox-mech oneButton: a hold on STRIKE
   // Every strike press goes through here: when it is TAKEN, a brief edge flash on the cut side (a thumb slide fires through fireSlash, keys and sticks through requestStrike).
   function take(next: Action) {
     request(next);
@@ -250,12 +253,12 @@ export function createInput(env: InputEnv) {
       }
       hold(name);
       button.dataset.held = ''; // the button's side mark lights while held (see .side-marks in style.css)
-      if (deferred) slashWait = { since: env.now(), x: event.clientX };
+      if (deferred) slashWait = { since: env.now(), x: event.clientX, y: event.clientY };
       else start();
     });
     button.addEventListener('pointermove', (event) => {
       if (event.pointerId !== id || dragged) return;
-      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (side) { fireSlash(side); return; } }
+      if (deferred && slashWait) { const side = slashSlide(event.clientX - slashWait.x); if (side) { fireSlash(side); return; } if (ONE_BUTTON && event.clientY - slashWait.y <= -STAB_SLIDE_PX) { fireStab(); return; } }
       const c = radius();
       if (Math.hypot(event.clientX - c.x, event.clientY - c.y) <= c.r) return;
       dragged = true;
@@ -270,6 +273,7 @@ export function createInput(env: InputEnv) {
         id = null;
         if (deferred && slashWait) { if (type === 'pointerup' && !dragged) fireSlash(null); else slashWait = null; }   // a release decides the plain light
         unhold(name);
+        if (ONE_BUTTON && deferred) { unhold('heavy'); unhold('thrust'); }
         delete button.dataset.held;
         if (deferred) delete button.dataset.slide;
         if (dragged) {
@@ -441,7 +445,7 @@ export function createInput(env: InputEnv) {
     },
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
     intent(): ControlIntent {
-      if (slashWait && env.now() - slashWait.since >= SLASH_DECIDE_MS) fireSlash(null);
+      if (slashWait && env.now() - slashWait.since >= (ONE_BUTTON ? HEAVY_HOLD_MS : SLASH_DECIDE_MS)) { if (ONE_BUTTON) fireHeavy(); else fireSlash(null); }
       const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
       // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
       // keyboard guard lights the arrow's side too and shows straight again on release.

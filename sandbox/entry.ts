@@ -124,6 +124,24 @@ const restyleStances = (tries = 0): void => {
   const row = buttons[0]!.parentElement!; row.classList.add('sbx-row');
   for (const b of buttons) { const id = (b as HTMLElement).dataset.stance ?? ''; b.setAttribute('aria-label', b.textContent!.trim()); b.title = b.textContent!.trim(); b.textContent = GLYPH[id] ?? b.textContent; }
 };
+
+// Touch layout A (Dom's pick, 2026-10-13): STRIKE is one big button (tap light, slide up stab, slide to a side cut, hold heavy: the oneButton rows), Spell 1 above-left, Guard left, Roll above, Kick far left; the separate Heavy and Stab buttons go.
+// The game's own buttons keep their handlers and ids; only their place and size change. Only while the oneButton row is on.
+const layoutA = (): void => {
+  if (!(RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'oneButton' && r.value)) return;
+  const css = document.createElement('style');
+  css.textContent = [
+    '.actions #heavy-button,.actions #thrust-button,.actions #run-button{display:none!important}',
+    '.actions #attack-button,.actions #skill-button,.actions #guard-button,.actions #dodge-button,.actions #kick-button{position:fixed!important;left:auto!important;top:auto!important;margin:0!important;border-radius:50%!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:12px!important;line-height:1!important;min-width:0!important}',
+    '.actions #attack-button{right:22px!important;bottom:18px!important;width:92px!important;height:92px!important;font-size:14px!important}',
+    '.actions #skill-button{right:128px!important;bottom:92px!important;width:58px!important;height:58px!important}',
+    '.actions #guard-button{right:124px!important;bottom:16px!important;width:62px!important;height:62px!important}',
+    '.actions #dodge-button{right:30px!important;bottom:122px!important;width:56px!important;height:56px!important}',
+    '.actions #kick-button{right:200px!important;bottom:54px!important;width:52px!important;height:52px!important}',
+  ].join('\n');
+  document.head.append(css);
+};
+layoutA();
 restyleStances();
 const { ROSTER } = await import('../src/roster.ts');
 panel(Object.keys(ROSTER));

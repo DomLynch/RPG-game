@@ -5,7 +5,10 @@
     { "id": "castPushback", "value": 0 },
     { "id": "castPushbackMax", "value": 0 },
     { "id": "executeMult", "value": 0 },
-    { "id": "executeBelow", "value": 0 }
+    { "id": "executeBelow", "value": 0 },
+    { "id": "oneButton", "value": 0 },
+    { "id": "heavyHold", "value": 180 },
+    { "id": "stabSlide", "value": 18 }
   ],
   "castPenalty": []
 }
