@@ -3,7 +3,7 @@
 // on a piece or a rung. Wear is not read (wornGear does not read it on the page either). Nothing the client sent is used.
 import type { Db } from './db.ts';
 import * as store from './store.ts';
-import { isTier, legacyLootOfItemId, type Tier } from '../../src/core/server.ts';
+import { fightWeapon, isTier, legacyLootOfItemId, type Tier } from '../../src/core/server.ts';
 import { kitFrom, loadoutFor, sheetOf, wornGear, type Loadout } from '../../src/fight/server.ts';
 import type { HeroLimit } from './world-verify.ts';
 
@@ -22,6 +22,11 @@ function wornOf(items: readonly { item: string; tier?: string | null; location: 
     tiers.set(id, isTier(i.tier) ? i.tier : null);
   }
   return { equipped, tiers };
+}
+
+/** The weapon the held rows fight with: the page's fightWeapon over the main hand (a weapon the hero rig cannot wield, or none, is the default). */
+export function heldWeaponOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): string {
+  return fightWeapon({ equipped: wornOf(items).equipped } as Parameters<typeof fightWeapon>[0]);
 }
 
 export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Readonly<Record<string, number>> {
@@ -67,7 +72,8 @@ export async function heroLimitOf(db: Db, account: string, character: string): P
     const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
     const items = rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } }));
     const sheet = sheetOf(build, wornGearOfItems(items));
-    return sheet ? { sheet } : { sheet: undefined, ...loadoutOfItems(items) };
+    const weapon = heldWeaponOf(items);
+    return sheet ? { sheet, weapon } : { sheet: undefined, weapon, ...loadoutOfItems(items) };
   } catch (error) {
     return { refuse: `the stored build is not a legal one: ${error instanceof Error ? error.message : String(error)}` };
   }

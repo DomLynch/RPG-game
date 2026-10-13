@@ -8,7 +8,7 @@ import { withinReach, type Spawn } from './world-spawns.ts';
 export const MAX_RECORD_CHARS = 60_000;   // under the writer's 64 KB body limit
 /** The most steps an engagement of this age (s) can hold, plus two seconds for the window that opened just before the token. */
 export const ticksFor = (ageS: number): number => Math.floor(60 * (Number.isFinite(ageS) ? Math.max(0, ageS) : 0)) + 120;
-export type HeroLimit = { level?: number; attack?: number; res?: number; sheet?: Sheet; refuse?: string };   // `sheet` present (even undefined) = the record's sheet must EQUAL it (heroLimitOf, the Pit's rule); `refuse` = the books could not give one; attack/res: the older Loadout bound   // what the server's own books allow him: a claim above it is refused (a limit with no level binds the gear only: the worn Loadout the ledger holds)
+export type HeroLimit = { level?: number; attack?: number; res?: number; sheet?: Sheet; weapon?: string; refuse?: string };   // `sheet` present (even undefined) = the record's sheet must EQUAL it (heroLimitOf, the Pit's rule); `refuse` = the books could not give one; attack/res: the older Loadout bound   // what the server's own books allow him: a claim above it is refused (a limit with no level binds the gear only: the worn Loadout the ledger holds)
 const sameSheet = (a: Sheet | undefined, b: Sheet | undefined): boolean => { const x = Object.entries(a ?? {}), y = b ?? {}; return x.length === Object.keys(y).length && x.every(([k, v]) => y[k] === v); };
 export type Verdict = { ok: true; ticks: number } | { ok: false; reason: string };
 
@@ -26,6 +26,7 @@ export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>
   if (rec.steps.length > maxTicks) return { ok: false, reason: 'overlong' };   // refused before any replay: a record cannot be longer than the engagement it claims
   if (limit?.refuse) return { ok: false, reason: limit.refuse };
   if (limit && 'sheet' in limit && !sameSheet(rec.hero.sheet, limit.sheet)) return { ok: false, reason: 'sheet' };
+  if (limit?.weapon !== undefined && rec.hero.weapon !== limit.weapon) return { ok: false, reason: 'weapon' };   // the weapon is the character's held one (the ledger's main hand), not the record's say-so
   if (limit && ((limit.level !== undefined && rec.hero.level > limit.level) || (limit.attack !== undefined && rec.hero.attack > limit.attack) || (limit.res !== undefined && rec.hero.res < limit.res))) return { ok: false, reason: 'hero beyond ledger' };
   let r;
   try { r = replayWorldRecord(rec); } catch { return { ok: false, reason: 'replay threw' }; }
