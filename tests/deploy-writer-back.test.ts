@@ -3,7 +3,7 @@
 // with a stub systemctl.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -39,4 +39,22 @@ test('writer_back_cmd: the site ALREADY moved to the new release (ssh dropped af
     assert.match(r.stdout, /NOT rolled back: the site already moved/);
     assert.notEqual(spawnSync('test', ['-e', s.calls]).status, 0, 'no restart');
   } finally { rmSync(s.root, { recursive: true, force: true }); }
+});
+
+test('writer_back_cmd for the presence service: its own root, unit and label; same "site already moved" guard', () => {
+  for (const siteAt of ['old', 'new'] as const) {
+    const s = scene(siteAt);
+    try {
+      const r = spawnSync('bash', ['-c', `source scripts/lib/writer-parity.sh; eval "$(writer_back_cmd ${JSON.stringify(join(s.opt, 'prev'))} ${JSON.stringify(join(s.root, 'site', 'releases', 'new'))} ${JSON.stringify(s.opt)} ${JSON.stringify(join(s.root, 'site'))} frankendom-presence presence)"`], { encoding: 'utf8', env: { ...process.env, PATH: `${join(s.root, 'bin')}:${process.env.PATH}` } });
+      assert.equal(r.status, 0, r.stderr);
+      if (siteAt === 'old') {
+        assert.equal(readlinkSync(join(s.opt, 'current')), join(s.opt, 'prev'));
+        assert.match(r.stdout, /presence put back on/);
+        assert.match(readFileSync(s.calls, 'utf8'), /restart frankendom-presence/);
+      } else {
+        assert.equal(readlinkSync(join(s.opt, 'current')), join(s.opt, 'next'));
+        assert.match(r.stdout, /presence NOT rolled back: the site already moved/);
+      }
+    } finally { rmSync(s.root, { recursive: true, force: true }); }
+  }
 });

@@ -219,9 +219,19 @@ writer_back() {
   [[ -n "$writer_prev" ]] || return 0
   ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$writer_prev" "$release")" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
 }
+# The presence service (ops/install-presence.sh) flips with the site the same way, when it is installed on the box: --if-changed byte-compares its file list and restarts nothing when it is identical.
+presence_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-presence/current || true")
+presence_back() {
+  [[ -n "$presence_prev" ]] || return 0
+  ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$presence_prev" "$release" /opt/frankendom-presence /var/www/frankendom frankendom-presence presence)" >&2 || echo "PRESENCE ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $presence_prev" >&2
+}
 writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
 printf '%s\n' "$writer_install"
-ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; exit 1; }
+if [[ -n "$presence_prev" ]]; then
+  presence_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && bash ops/install-presence.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "presence install failed for $revision; the site has not moved: $presence_install" >&2; writer_back; presence_back; exit 1; }
+  printf '%s\n' "$presence_install"
+fi
+ssh "${ssh_options[@]}" "$host" bash -s -- "$release" <<'REMOTE' || { writer_back; presence_back; exit 1; }
 set -euo pipefail
 test -s "$1/index.html"
 cd /var/www/frankendom
@@ -314,6 +324,13 @@ writer_files=$(node scripts/writer-closure-list.mjs --paths writer) && [[ -n "$w
 writer_sums=$(while read -r f; do printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"; done <<<"$writer_files")
 writer_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-origins/current" <<<"$writer_sums")
 [[ -z "$writer_gaps" ]] || { echo "writer parity: the installed writer differs from $revision in: $(printf '%s' "$writer_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, writer differs" >&2; exit 1; }
+# Presence parity, same rule: the installed presence service must be byte-identical to this revision's presence file list.
+if [[ -n "$presence_prev" ]]; then
+  presence_files=$(node ops/presence-files.mjs) && [[ -n "$presence_files" ]] || { echo 'presence parity: no presence file list' >&2; exit 1; }
+  presence_sums=$(while read -r f; do printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"; done <<<"$presence_files")
+  presence_gaps=$(ssh "${ssh_options[@]}" "$host" "$(declare -f writer_parity_gaps); writer_parity_gaps /opt/frankendom-presence/current" <<<"$presence_sums")
+  [[ -z "$presence_gaps" ]] || { echo "presence parity: the installed presence service differs from $revision in: $(printf '%s' "$presence_gaps" | head -n 8 | tr '\n' ' ')- RED: site moved, presence differs" >&2; exit 1; }
+fi
 printf '\nPublished %s\n' "$revision"
 # One line Lead reads instead of the log (Dom 2026-10-10: merge to live <= 20 min): minutes from the trunk merge commit to now, minutes deploy.sh ran, and where the rows ACTUALLY ran (the release-checks receipt, not the plan).
 merge_epoch=$(git log -1 --format=%ct "$revision" 2>/dev/null || true); now_epoch=$(date +%s)

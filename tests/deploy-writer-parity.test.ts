@@ -43,3 +43,15 @@ test('deploy.sh: a site switch that fails after the writer install puts the outg
   assert.match(body, /writer_back_cmd "\$writer_prev" "\$release"/);   // the command itself is tested in deploy-writer-back.test.ts
   assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'the switch heredoc rolls the writer back on failure');
 });
+
+test('deploy.sh: presence flips with the site like the writer: read before the install, installed inside the window before the switch, rolled back on a failed switch, parity before Published', () => {
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  const prev = deploy.indexOf('presence_prev=$(ssh'), install = deploy.indexOf('presence_install=$(ssh'), sw = deploy.indexOf('mv -Tf next current');
+  const gate = deploy.indexOf('writer_parity_gaps /opt/frankendom-presence/current'), published = deploy.indexOf("printf '\\nPublished");
+  assert.ok(prev > 0 && prev < install && install < sw && sw < gate && gate < published, 'order: read < install < switch < parity < Published');
+  assert.match(deploy.slice(install, sw), /install-presence\.sh --if-changed '\$revision'/);
+  assert.match(deploy.slice(install, sw), /the site has not moved[^}]*writer_back; presence_back; exit 1/, 'a failed presence install puts both back');
+  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; exit 1; \}/, 'a failed switch puts both back');
+  assert.match(deploy.slice(install - 400, install), /if \[\[ -n "\$presence_prev" \]\]/, 'only when presence is installed on the box');
+  assert.match(deploy.slice(gate, published), /RED: site moved, presence differs/);
+});
