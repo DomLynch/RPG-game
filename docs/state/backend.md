@@ -6,6 +6,13 @@ that carries the client change, and this file is re-verified against the hosted 
 TOP. "Verified" below means this lane's own query output (Supabase MCP `list_tables` / `list_migrations` / `execute_sql`), never a relay.
 
 
+
+## 2026-10-13 (22:30 +04) — HANDOFF before /clear (Dom: save work). READ FIRST, then memory `frankendom_backend_handoff_2026-10-13_late.md`
+**Applied on prod today:** 0030 `20261013162732 character_renown` (#2523) and 0032 `20261013174936 item_wear` (#2610), each with Lead's GO, the Auditor's PASS and a receipt on the PR. 0031 is in trunk.
+**Open (heads):** #2610 gear_repair + gear_wear `5a82126a0` (Auditor PASS @32104b61d + trunk merge, merge-only check asked); #2616 wear writer slice 1 `d12baf97c` (the two-kills-one-piece HOLD fixed in dd12dd41a: a wear-seq clash retries the settle once, then pays without wear); #2621 draft gear_wear ids `3a12d0ed1` (needs #2610's head merged in); #2523 fame/karma `474dc0546` (merge-only check asked).
+**Next:** merge 5a82126a0 into #2621; Auditor verdicts; hit wear (slice 2) after Combat's #2620 (`heroHits` = tally by event type) and #2616 merge, with a `wearHitTypes` row table; read tiers from Characters' #2622 `GearTable.wearTiers` and drop my `wearFamilies`; one rename follow-up after #2610 merges (migration files to the prod versions, goldPerPoint -> bronzePerPoint, the 0030 header ROLLBACK path).
+**Gotchas:** GitHub runs no workflows on a CONFLICTING PR; wear is event-sourced (`wear:<instance>:<seq>`, seq guard); test on the VPS in /srv/dev-jobs and remove with `vps-scratch-sweep --path=<exact> --apply`; every new origins test needs a tests/origins-*.test.ts stub.
+
 ## 2026-10-13 (20:30 +04) — Lane runs on the Mac (~/Developer/frankendom-backend); 0030 applied
 **Lane home:** Dom's ruling via Lead: the VPS dev lane is retired; this lane runs in ~/Developer/frankendom-backend on the Mac. Heavy jobs and full suites still go to the VPS by ssh. **Live:** EF `b416d5c6d`.
 **Applied today:** migration 0030 `character_renown` = prod version **20261013162732** (Lead GO, Auditor PASS @9ca9b7e74, after 0031 = 20261013115716). Read-back: RLS on, no policy, 0 rows, no client grants, two security-definer fns executable by frankendom_origins and frankendom_verifier only. Local files renamed in #2523 (455e10cd3). Auditor POST requested.
