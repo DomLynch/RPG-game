@@ -29,13 +29,14 @@ test('a record whose sheet is not the sheet the server expects is refused, an eq
   assert.notEqual((equal as { reason?: string }).reason, 'sheet');
 });
 
-test('a record whose weapon is not the character\'s held weapon is refused, the held one is not', async () => {
-  const other = PLAYER_WEAPONS.find((w) => w !== DEFAULT_WEAPON);
-  assert.ok(other, 'a second player weapon exists');
-  const text = (weapon: string) => encodeWorldRecord(rec({ weapon }));
-  assert.deepEqual(await verifyWorldRecord(await text(other), SPAWN, 'wolf', { weapon: DEFAULT_WEAPON }), { ok: false, reason: 'weapon' });
-  const held = await verifyWorldRecord(await text(DEFAULT_WEAPON), SPAWN, 'wolf', { weapon: DEFAULT_WEAPON });
-  assert.notEqual((held as { reason?: string }).reason, 'weapon');
+test('a record\'s weapon must be the character\'s held weapon or the default; any other is refused', async () => {
+  const [other, third] = PLAYER_WEAPONS.filter((w) => w !== DEFAULT_WEAPON);
+  assert.ok(other && third, 'two non-default player weapons exist');
+  const reason = async (weapon: string, held: string) => (await verifyWorldRecord(await encodeWorldRecord(rec({ weapon })), SPAWN, 'wolf', { weapon: held }) as { reason?: string }).reason;
+  assert.equal(await reason(other, DEFAULT_WEAPON), 'weapon', 'a weapon the character does not hold');
+  assert.equal(await reason(third, other), 'weapon', 'neither the held weapon nor the default');
+  assert.notEqual(await reason(DEFAULT_WEAPON, other), 'weapon', 'the default is fought until PR 5 lifts it');
+  assert.notEqual(await reason(other, other), 'weapon', 'the held weapon');
 });
 
 test('the health bound widens to the sheet-sized maximum and no further', () => {

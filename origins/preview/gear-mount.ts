@@ -6,7 +6,7 @@ import { createGearSheet } from '../../src/core/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
-import { gearNumbers, loadoutOfLoot, type Loadout } from '../../src/fight/index.ts';
+import { fightSheet, gearNumbers, loadoutOfLoot, type Loadout } from '../../src/fight/index.ts';
 
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string };
 export function mountGear(d: Deps) {
@@ -25,6 +25,8 @@ export function mountGear(d: Deps) {
     gear: sheet.gear,
     // What the hero fights in: the worn set's Loadout from the server's view of the character (the ledger the screen shows once it has answered); the server holds a world record's claim to the held set.
     loadout: (): Loadout | undefined => (server?.ready() ? loadoutOfLoot(server.profileFor(profile).loot) : undefined),   // like the Pit's sheet: nothing until the SERVER's view has answered (a guest or an unanswered writer fights bare), so a claim never exceeds the held set
+    // The hero's sheet in a world record: the stored build with the SERVER's worn set on top (what the writer holds the record equal to); none until the server's view has answered and the build is known.
+    sheet: (own: Parameters<typeof fightSheet>[1]) => fightSheet(profile, own, server),
     // The ☰'s Gear chip: the menu opens on the Profile pane with the mannequin up; the server's ledger replaces the device's the moment it answers.
     open() {
       d.layer.classList.add('gearing'); element<HTMLInputElement>('journal-tab-profile').checked = true;

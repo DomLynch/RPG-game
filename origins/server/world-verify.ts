@@ -1,7 +1,7 @@
 // BASE (Lead, 2026-10-13): a world kill's record, replayed on the server through the world loop (src/fight/world-record.ts, the same stepHero the page ran) before anything spendable or permanent pays.
 // Verified = the record decodes, its hero claims are inside the caps (and inside the server's own ledger when it has one), it replays without a bound broken, the hero kills THIS spawn, and that
 // creature joined as the spawn's own kind and level inside its roam. Anything else is "unverified": the caller pays scorecard counts only. Never throws.
-import { MAX_WORLD_TICKS, decodeWorldRecord, hash32, replayWorldRecord } from '../../src/fight/server.ts';
+import { DEFAULT_WEAPON, MAX_WORLD_TICKS, decodeWorldRecord, hash32, replayWorldRecord } from '../../src/fight/server.ts';
 import type { Sheet } from '../../src/fight/server.ts';
 import { withinReach, type Spawn } from './world-spawns.ts';
 
@@ -26,7 +26,7 @@ export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>
   if (rec.steps.length > maxTicks) return { ok: false, reason: 'overlong' };   // refused before any replay: a record cannot be longer than the engagement it claims
   if (limit?.refuse) return { ok: false, reason: limit.refuse };
   if (limit && 'sheet' in limit && !sameSheet(rec.hero.sheet, limit.sheet)) return { ok: false, reason: 'sheet' };
-  if (limit?.weapon !== undefined && rec.hero.weapon !== limit.weapon) return { ok: false, reason: 'weapon' };   // the weapon is the character's held one (the ledger's main hand), not the record's say-so
+  if (limit?.weapon !== undefined && rec.hero.weapon !== limit.weapon && rec.hero.weapon !== DEFAULT_WEAPON) return { ok: false, reason: 'weapon' };   // the weapon is the character's held one (the ledger's main hand) or the default (the world replay fights DEFAULT_WEAPON only until series PR 5 lifts that), never the record's say-so
   if (limit && ((limit.level !== undefined && rec.hero.level > limit.level) || (limit.attack !== undefined && rec.hero.attack > limit.attack) || (limit.res !== undefined && rec.hero.res < limit.res))) return { ok: false, reason: 'hero beyond ledger' };
   let r;
   try { r = replayWorldRecord(rec); } catch { return { ok: false, reason: 'replay threw' }; }
