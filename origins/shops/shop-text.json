@@ -1,0 +1,20 @@
+{
+  "chrome": {
+    "button": "Shop",
+    "title": "Provisioner",
+    "close": "Close",
+    "buy": "Buy",
+    "price": "{price} bronze",
+    "shelf": "Up to {max} on the shelf, one back every {restock}",
+    "level": "From level {level}",
+    "offline": "Sign in to buy.",
+    "bought": "Bought {item} for {cost} bronze.",
+    "stale": "The shop's list changed. Open it again.",
+    "refused": "The shop refused that buy: stand at its counter, and check level, stock and funds.",
+    "failed": "The shop could not be reached. Try again.",
+    "seconds": "{n} s",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "empty": "No shop here."
+  }
+}
