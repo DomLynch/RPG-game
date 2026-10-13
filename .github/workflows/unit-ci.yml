@@ -89,6 +89,9 @@ jobs:
           if-no-files-found: ignore
   receipt:
     needs: shard
+    # Explicit: with no `if`, GitHub's implicit success() also counts `static`, which a push or a dispatch skips, so the receipt was skipped after 8 green
+    # shards (run 38293767009, trunk 4337cfe9b: deploy.sh read "unit-ci-down: no unit-receipt artifact"). It still needs every shard green.
+    if: ${{ !cancelled() && needs.shard.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

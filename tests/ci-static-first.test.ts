@@ -25,9 +25,10 @@ const jobs = (file: string): Job[] => {
 };
 
 // GitHub expression -> JS: same operators and quoting for what these files use; hyphenated job names become bracket lookups.
-const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>) => {
+// `chain`: the results of EVERY job upstream (needs of needs too): GitHub's success() is false when any of them was skipped or failed, so a job with no
+// `if` under a skipped `static` is skipped even when its direct need ran through !cancelled() (unit-ci run 38293767009 on trunk 4337cfe9b: 8 green shards, receipt skipped).
+const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>, chain: readonly string[] = Object.values(needs).map(n => n.result)) => {
   const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`).replace(/\.\*\./g, "['*'].");
-  const all = Object.values(needs);
   const fns = {
     contains: (h: unknown, n: string) => (Array.isArray(h) ? h.includes(n) : String(h).includes(n)),
     toJSON: (v: unknown) => JSON.stringify(v ?? null),
@@ -35,7 +36,7 @@ const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: str
     format: (f: string, ...a: unknown[]) => f.replace(/\{(\d+)\}/g, (_, i) => String(a[Number(i)])),
     always: () => true,
     cancelled: () => false,
-    success: () => all.every(n => n.result === 'success'),
+    success: () => chain.every(r => r === 'success'),
   };
   return new Function('github', 'needs', ...Object.keys(fns), `return (${js});`)(github, needs, ...Object.values(fns));
 };
@@ -43,13 +44,15 @@ const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: str
 /** Which jobs run for this event (a job runs when its needs allow it and its `if` holds); `results` forces a job's conclusion (e.g. static red). */
 const schedule = (file: string, github: Ctx, results: Record<string, string> = {}, outputs: Record<string, Record<string, string>> = {}) => {
   const done: Record<string, { result: string; outputs: Record<string, string> }> = {};
-  const list = jobs(file);
+  const list = jobs(file), byName = new Map(list.map(j => [j.name, j]));
+  const upstream = (name: string, seen = new Set<string>()): Set<string> => { for (const n of byName.get(name)!.needs) if (!seen.has(n)) { seen.add(n); upstream(n, seen); } return seen; };
   while (Object.keys(done).length < list.length) {
     for (const j of list) {
       if (done[j.name] || !j.needs.every(n => done[n])) continue;
       const needs = Object.fromEntries(j.needs.map(n => [n, done[n]]));
       const statusFn = j.cond && /\b(always|cancelled|success|failure)\(\)/.test(j.cond);
-      const ok = (statusFn || j.needs.every(n => done[n].result === 'success')) && (j.cond ? !!evalExpr(j.cond, github, needs) : true);
+      const chain = [...upstream(j.name)].map(n => done[n]!.result);
+      const ok = (statusFn || chain.every(r => r === 'success')) && (j.cond ? !!evalExpr(j.cond, github, needs, chain) : true);
       done[j.name] = { result: ok ? results[j.name] || 'success' : 'skipped', outputs: ok ? outputs[j.name] || {} : {} };
     }
   }
@@ -128,7 +131,9 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   assert.ok(!ran.has('static'));
   for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
   const unit = schedule(U, push);
-  assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'));
+  assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
+  assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
+  assert.ok(!schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt, so nothing vouches for the tree');
 });
 
 test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {
