@@ -30,7 +30,8 @@ const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--
 const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 const fails = [], check = (ok, what) => { if (!ok) fails.push(what); };
 async function load(w, h, { signedIn = true } = {}) {
-  const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+  const touch = w < 1000;   // the desktop case is a mouse: the identity plate is hidden for coarse pointers
+  const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: touch, hasTouch: touch });
   if (signedIn) await context.addInitScript((t) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: '00000000-0000-4000-8000-000000000001' } })); } catch { /* none */ } }, TOKEN);
   const page = await context.newPage(); page.setDefaultTimeout(60000);
   page.on('pageerror', (e) => fails.push(`${w}: ${String(e).slice(0, 160)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
@@ -48,7 +49,7 @@ const gone = (page, id) => page.evaluate((i) => { const e = document.getElementB
 const NEIGH = { 'identity-title': ['rank', 'save-status', 'name-button'], 'journal-title': ['journal-rank', 'journal-save', 'journal-name'] };
 
 try {
-  for (const [name, w, h] of [['phone', 375, 812], ['small', 320, 568], ['short', 844, 340]]) {
+  for (const [name, w, h] of [['phone', 375, 812], ['small', 320, 568], ['short', 844, 340], ['desk', 1280, 800]]) {
     // a guest: nothing sent, no line
     { requests.length = 0; const { context, page } = await load(w, h, { signedIn: false }); await page.waitForTimeout(1500);
       check(!requests.includes('title_get'), `${name}: a guest sends no title_get`); check(await gone(page, 'identity-title') && await gone(page, 'journal-title'), `${name}: a guest sees no title line`); await context.close(); }
@@ -56,9 +57,14 @@ try {
     state.missing = false; state.reply = { fame: 4200, karma: 1800, title: 'The Honoured Gladiator of the Sunken Arena' };
     { const { context, page } = await load(w, h);
       await page.waitForFunction(() => document.getElementById('identity-title') && !document.getElementById('identity-title').hidden, null, { timeout: 30000 }).catch(() => {});
+      // the plate itself is display:none at phone widths and short heights (style.css), so only a desktop viewport must show the title there
+      const plate = await page.evaluate(() => getComputedStyle(document.querySelector('.identity')).display !== 'none');
+      check(plate === (w >= 1000 && h >= 500), `${name}: the identity plate is ${plate ? 'shown' : 'hidden'} (expected ${w >= 1000 && h >= 500 ? 'shown' : 'hidden'})`);
       let g = await geometry(page, 'identity-title', NEIGH['identity-title']);
-      check(g.shown && /Honoured Gladiator/.test(g.text), `${name}: the title shows on the identity plate (${g.text})`);
-      check(g.inView && !g.clipped && !g.hscroll && !g.overlaps.length, `${name}: identity title fits (${JSON.stringify(g)})`);
+      if (plate) {
+        check(g.shown && /Honoured Gladiator/.test(g.text), `${name}: the title shows on the identity plate (${g.text})`);
+        check(g.inView && !g.clipped && !g.hscroll && !g.overlaps.length, `${name}: identity title fits (${JSON.stringify(g)})`);
+      }
       await page.screenshot({ path: `${out}/title-${name}-identity.png` });
       if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true });
       await page.waitForFunction(() => document.querySelector('#welcome').hidden); await page.waitForTimeout(1200);
