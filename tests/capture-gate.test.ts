@@ -58,7 +58,7 @@ test('the job runs through lanejob (the live copy\'s line since the 10-08 OOM)',
 
 test('a job starts only while the 5-minute load is under the line (not the 1-minute)', { skip }, async () => {
   const [over5, over1] = await Promise.all([capture(['t', 'npm', 'test'], '1.00 20.00 20.00'), capture(['t', 'npm', 'test'], '20.00 1.00 1.00')]);
-  assert.equal(over5.code, 75, over5.out); assert.equal(over5.ran, ''); assert.match(over5.out, /load5 20\.00 \(starts under 12\)/);
+  assert.equal(over5.code, 75, over5.out); assert.equal(over5.ran, ''); assert.match(over5.out, /load5 20\.00 WAITING: load5 20\.00 is at or over 12/);
   assert.equal(over1.code, 0, over1.out); assert.equal(over1.ran.trim(), 'test');
 });
 
@@ -166,4 +166,15 @@ test('a live release run dir under CAPTURE_RUNS_DIR keeps lane jobs off the box 
   assert.equal(stale.code, 0, stale.out); assert.equal(none.code, 0, none.out);
   const spilled = await capture(['--hf-ok', '--spill-to-caller', 't', 'npm', 'test'], '1.00 1.00 1.00', { CAPTURE_RUNS_DIR: mk('new') });
   assert.equal(spilled.code, 76, spilled.out); assert.equal(spilled.ran, '');
+});
+
+test('a head that waits says WHY: a release run owns the box (load is fine) or the load is over the line, never just "load5 8 (starts under 12)" (World 2026-10-13: both slots free, 16 min of silence)', { skip }, async () => {
+  const runs = mkdtempSync(join(tmpdir(), 'runs-')); execFileSync('mkdir', [join(runs, 'abc123-run')]);
+  const rel = await capture(['t', 'npm', 'test'], '1.00 1.00 1.00', { CAPTURE_RUNS_DIR: runs });
+  assert.equal(rel.code, 75, rel.out); assert.equal(rel.ran, '');
+  assert.match(rel.out, /WAITING: a release run owns the box \(marker abc123-run/, 'the wait line names the release run');
+  const busy = await capture(['t', 'npm', 'test'], '20.00 20.00 20.00');
+  assert.equal(busy.code, 75, busy.out); assert.match(busy.out, /WAITING: load5 20\.00 is at or over 12/, 'the wait line names the load');
+  const free = await capture(['t', 'npm', 'test'], '1.00 1.00 1.00');
+  assert.equal(free.code, 0, free.out); assert.doesNotMatch(free.out, /WAITING/, 'nothing waits, nothing is blamed');
 });

@@ -1,0 +1,5 @@
+{
+  "practiceRule": [
+    { "id": "practice", "practiceUnit": 10, "xpPerPoint": 100 }
+  ]
+}
