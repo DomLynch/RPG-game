@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
-import { MAX_HERO_MPS, STEP, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
-import { MAX_RECORD_TICKS } from '../src/fight/record.ts';
+import { newWorld, player } from '../src/fight/world.ts';
+import { ME, MAX_HERO_MPS, STEP, heroClean, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
+import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
 
 const mob = (id: string, body: string, level: number): FightMob => ({ id, body, level, name: id });
 function fakeMobs(list: Array<{ spec: FightMob; x: number; z: number }>) {
@@ -71,4 +72,26 @@ test('a decoder takes only what is a world record', async () => {
   assert.throws(() => unpackWorldRecord(new Uint8Array([0x57, 0x52, 1, 5])), /bad header|truncated/);
   await assert.rejects(decodeWorldRecord('!!!'), /cannot decode/);
   assert.ok(MAX_RECORD_TICKS > 0);
+});
+
+test('a record of another sim version is not replayed; the header carries the version', async () => {
+  const { rec } = killWolf(); assert.ok(rec);
+  assert.equal(rec!.rv, RECORD_VERSION);
+  const r = replayWorldRecord({ ...rec!, rv: RECORD_VERSION - 1 }); assert.ok(!r.ok && r.reason === 'sim version');
+  assert.equal((await decodeWorldRecord(await encodeWorldRecord(rec!))).rv, RECORD_VERSION);
+});
+
+test('a hero who is not at rest and clean opens no window (the header cannot carry his Pit fighter)', () => {
+  const w = newWorld([player(ME, 0, 0, 0, { attack: 1, res: 1 }, 1)]);
+  assert.ok(heroClean(w), 'a fresh hero is clean');
+  const dirty = (patch: Record<string, unknown>) => ({ ...w, fighters: [{ ...w.fighters[0]!, ...patch }] }) as typeof w;
+  assert.ok(!heroClean(dirty({ phase: 'recover' })) && !heroClean(dirty({ maxStamina: 40 })) && !heroClean(dirty({ cc: [{ family: 'stun', count: 1, last: 5 }] })) && !heroClean(dirty({ stance: 'aggressive' })));
+  const duel = { fighters: [{ wound: 3, legWound: false, maxStamina: 100, skillCooldown: 0, move: null, phase: 'ready' }] };
+  assert.ok(!heroClean({ ...w, streams: { [ME]: { duel } } } as unknown as typeof w), 'a blade wound');
+});
+
+test('the world loop never feeds a special or a skill: the live input is {attack, guard, roll}', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/fight/world-record.ts', import.meta.url), 'utf8');
+  assert.ok(!/special\s*:|skill\s*:/.test(src.split('export function stepHero')[1]!.split('export const joinFighter')[0]!), 'stepHero passes no special or skill');
 });

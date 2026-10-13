@@ -142,12 +142,12 @@ test('the node-safe door src/fight/server.ts is for server-run code only, and it
     };
     walk(start); return { files: [...seen], bare: [...bare] };
   };
-  const RENDERER = /\/(hud|world-combat|world|open|scene|quality|audio|sound)[/.]/;
+  const RENDERER = /\/(hud|world-combat|open|scene|quality|audio|sound)[/.]/;
   const bad = (c: { files: string[]; bare: string[] }) => [...c.bare.filter((s) => !s.startsWith('node:')), ...c.files.filter((f) => RENDERER.test(f))];
   assert.deepEqual(bad(closure('src/fight/server.ts', (f) => readFileSync(f, 'utf8'))), [], 'the node door pulls no package (three.js), HUD, world loop or audio');
   const mutant = (add: string) => bad(closure('src/fight/server.ts', (f) => readFileSync(f, 'utf8') + (f === 'src/fight/server.ts' ? `\n${add}\n` : '')));
   assert.notDeepEqual(mutant("export * from './hud.ts';"), [], 'the check fails when the door re-exports the HUD');
-  assert.notDeepEqual(mutant("export * from './world.ts';"), [], 'the check fails when the door re-exports the world loop');
+  assert.notDeepEqual(mutant("export * from './world-combat.ts';"), [], 'the check fails when the door re-exports the page world loop');   // the pure engine world.ts rides the door since the world-record verifier (BASE) replays it on the server
   assert.notDeepEqual(mutant("import * as T from 'three';"), [], 'the check fails when the door pulls three');
 });
 

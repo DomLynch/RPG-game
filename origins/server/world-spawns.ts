@@ -19,6 +19,7 @@ import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mobBatch, respawnMsOf } from './mob-rewards.ts';
+import { verifyWorldRecord, MAX_RECORD_CHARS, type HeroLimit } from './world-verify.ts';
 import * as store from './store.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
@@ -79,6 +80,7 @@ export function zoneKeyProblems(): string[] {
 }
 
 const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/, INSTANCE = /^[a-z0-9._:-]{1,96}$/;
+const recordOf = (v: unknown): string | undefined => { if (v === undefined) return undefined; if (typeof v !== 'string' || v.length === 0 || v.length > MAX_RECORD_CHARS) throw new BadRequest('record: a packed world record'); return v; };
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
 const hitsOf = (v: unknown, need: boolean): number | undefined => {
   if (v === undefined && !need) return undefined;
@@ -99,7 +101,7 @@ const refuse = (why: string): never => { const [status, message] = REFUSAL[why] 
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { scorecardOnlyUnverified?: boolean; heroOf?: (account: string, character: string) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -143,7 +145,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   };
 
   const killReport: Handler = async ({ db, account, where }, body) => {
-    const token = tokenOf(body.token), hits = hitsOf(body.hits, true)!;
+    const token = tokenOf(body.token), hits = hitsOf(body.hits, true)!, recText = recordOf(body.record);
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
     if (open === 'none') throw new Refused(409, 'engage token unknown, used or expired', 'used');
@@ -164,10 +166,20 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const at = now().toISOString(), { inventory, snap } = await openHoldingsWith(db, account, open.character, { lookup });
     const metal = await store.metalOf(db, account);
     const kill = { account, character: open.character, token, fight: spawn.fight, seed: seed(), enemy: setup.value.opponent.body, level: setup.value.opponent.level, twist: null };
-    const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level });
+    // The record (BASE): replayed on the server. During the soak every kill pays as before whatever the record says (verdict logged, with its reason); with scorecardOnlyUnverified
+    // (ORIGINS_WORLD_RECORD_SCORECARD_ONLY=1) a kill without a verified record books the scorecard event only (no CP, loot or bronze).
+    let record = recText === undefined ? 'none' : 'unverified';
+    if (recText !== undefined) {
+      const v = await verifyWorldRecord(recText, spawn, setup.value.opponent.body, deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null);
+      record = v.ok ? 'verified' : `refused: ${v.reason}`;
+      if (!v.ok) log(`kill_report ${token.slice(-6)} ${open.instance}: world record not verified (${v.reason})`);
+    }
+    const pays = record === 'verified' || deps.scorecardOnlyUnverified !== true;
+    const paid = pays ? mobBatch(kill, { career: snap.career, inventory, metal }, content, at, { level: spawn.spec.level })
+      : { batch: [] as store.Json[], summary: { cp: 0, cpReason: 'unverified', drops: [] as string[], bronze: 0, lootRefused: null, unpaid: [] as string[] } };
     const event: store.Json = {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
-      payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true },
+      payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true },
     };
     const got = await store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch], { reach }).catch(GONE);
     if (got === null) return absent();
