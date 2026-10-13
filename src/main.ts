@@ -12,7 +12,7 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { fetchOwnBuild, session, type OwnBuild } from './core/index.ts';
+import { createServerBuild, fetchOwnBuild, mountBuild, session, type OwnBuild } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
@@ -783,6 +783,15 @@ function openJournal() {
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
 void openCharacter({ storage, search: location.search });
 void serverGear.importLocal().finally(() => void serverGear?.refresh());   // after the import (it may add pieces), read the server's ledger once at load: the Pit's sheet waits for it (gear-numbers.ts fightSheet)   // a signed-in device's local gear goes to the server once (gear_import: adds what it lacks, removes nothing)   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
+{ const buildServer = createServerBuild({ storage, search: location.search, now: () => Date.now() }), dialog = element<HTMLDialogElement>('build-dialog');   // "Place your point" (build-screen.ts): a signed-in character's build, the server's copy; a guest has none and sees nothing
+  const show = (open: number) => { element('build-dot').hidden = open === 0; element('build-open-note').textContent = open ? `${open} to place` : ''; };
+  const build = mountBuild(dialog, buildServer, show);
+  const prompted = (level: number): boolean => { try { return sessionStorage.getItem('frankendom.build.prompted') === String(level); } catch { return false; } };
+  const markPrompted = (level: number) => { try { sessionStorage.setItem('frankendom.build.prompted', String(level)); } catch { /* the prompt may show again: harmless */ } };
+  element('build-open').addEventListener('click', () => { journal.close(); void build.open(); });
+  element('journal-button').addEventListener('click', () => { void build.poll(); });   // the dot sits on the journal button: opening the journal re-reads the build
+  void build.poll().then((open) => { const v = buildServer.view(); if (open > 0 && v && !prompted(v.level)) { markPrompted(v.level); void build.open(); } });   // the moment: once per level, when the page loads with a point to place
+}
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
