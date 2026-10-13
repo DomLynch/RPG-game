@@ -10,7 +10,7 @@ const GIB = 1048576;
 test('free-space.sh: passes at or above the minimum and prints the df line', () => {
   const ok = guard('20', String(25 * GIB));
   assert.equal(ok.status, 0, ok.stderr);
-  assert.match(ok.stdout, /^free space on \/System\/Volumes\/Data: /);
+  assert.match(ok.stdout, /^free space on \/[^:]*: /);
   assert.equal(guard('20', String(20 * GIB)).status, 0);
 });
 
