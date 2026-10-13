@@ -88,7 +88,7 @@ import { gait, SPECIAL_MODES, type SpecialMode } from '../src/fight/special-mode
 import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 test('the special registry: every entry names a page id, the scene branches on none of them', () => {
   for (const id of Object.keys(SPECIAL_MODES)) assert.ok(Object.hasOwn(SPECIAL_TESTS, id), `${id} is a ?special= page`);
-  assert.ok(SPECIAL_MODES.set && SPECIAL_MODES.shield && !SPECIAL_MODES.hades, 'Red Wind and Shield Quake have entries; Hades draws as the default');
+  assert.ok(SPECIAL_MODES.set && SPECIAL_MODES.shield && SPECIAL_MODES.hades, 'Red Wind, Shield Quake and (a bosses.json row) Hades have entries');
   const scene = readFileSync('src/fight/scene.ts', 'utf8');
   assert.match(scene, /SPECIAL_MODES\[specialId\]/);
   for (const flag of ["=== 'set'", "=== 'shield'", "=== 'tithe'"]) assert.ok(!scene.includes(flag), `no per-special branch ${flag} in scene.ts`);

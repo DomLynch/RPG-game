@@ -66,6 +66,7 @@ export type TypeTable = Readonly<Record<string, TypeRow>>;
 export const TYPE_WEIGHTS: TypeTable = {
   legend: { weight: 100, early: { below: 11, weight: 200 }, once: true, rested: false, party: 'solo' }, // a Pit legend: a fifth of a level to L10, a tenth from Gladiator I
   'world-boss': { weight: 500, once: true, rested: false, party: 'each' }, // half a level to 10; a fifth at 24; an eighth at 41
+  'rift-boss': { weight: 150, once: false, rested: true, party: 'each' }, // living-world §8.4: a rift boss, repeatable, paid out of the rested allowance, every eligible member awarded
   named: { weight: 200, once: false, rested: true, party: 'split' },
   elite: { weight: 80, once: false, rested: true, party: 'split' },
   mob: { weight: 20, once: false, rested: true, party: 'split' },

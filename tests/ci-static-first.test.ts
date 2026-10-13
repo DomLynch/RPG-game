@@ -25,9 +25,10 @@ const jobs = (file: string): Job[] => {
 };
 
 // GitHub expression -> JS: same operators and quoting for what these files use; hyphenated job names become bracket lookups.
-const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>) => {
-  const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`);
-  const all = Object.values(needs);
+// `chain`: the results of EVERY job upstream (needs of needs too): GitHub's success() is false when any of them was skipped or failed, so a job with no
+// `if` under a skipped `static` is skipped even when its direct need ran through !cancelled() (unit-ci run 38293767009 on trunk 4337cfe9b: 8 green shards, receipt skipped).
+const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>, chain: readonly string[] = Object.values(needs).map(n => n.result)) => {
+  const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`).replace(/\.\*\./g, "['*'].");
   const fns = {
     contains: (h: unknown, n: string) => (Array.isArray(h) ? h.includes(n) : String(h).includes(n)),
     toJSON: (v: unknown) => JSON.stringify(v ?? null),
@@ -35,7 +36,7 @@ const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: str
     format: (f: string, ...a: unknown[]) => f.replace(/\{(\d+)\}/g, (_, i) => String(a[Number(i)])),
     always: () => true,
     cancelled: () => false,
-    success: () => all.every(n => n.result === 'success'),
+    success: () => chain.every(r => r === 'success'),
   };
   return new Function('github', 'needs', ...Object.keys(fns), `return (${js});`)(github, needs, ...Object.values(fns));
 };
@@ -43,13 +44,15 @@ const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: str
 /** Which jobs run for this event (a job runs when its needs allow it and its `if` holds); `results` forces a job's conclusion (e.g. static red). */
 const schedule = (file: string, github: Ctx, results: Record<string, string> = {}, outputs: Record<string, Record<string, string>> = {}) => {
   const done: Record<string, { result: string; outputs: Record<string, string> }> = {};
-  const list = jobs(file);
+  const list = jobs(file), byName = new Map(list.map(j => [j.name, j]));
+  const upstream = (name: string, seen = new Set<string>()): Set<string> => { for (const n of byName.get(name)!.needs) if (!seen.has(n)) { seen.add(n); upstream(n, seen); } return seen; };
   while (Object.keys(done).length < list.length) {
     for (const j of list) {
       if (done[j.name] || !j.needs.every(n => done[n])) continue;
       const needs = Object.fromEntries(j.needs.map(n => [n, done[n]]));
       const statusFn = j.cond && /\b(always|cancelled|success|failure)\(\)/.test(j.cond);
-      const ok = (statusFn || j.needs.every(n => done[n].result === 'success')) && (j.cond ? !!evalExpr(j.cond, github, needs) : true);
+      const chain = [...upstream(j.name)].map(n => done[n]!.result);
+      const ok = (statusFn || chain.every(r => r === 'success')) && (j.cond ? !!evalExpr(j.cond, github, needs, chain) : true);
       done[j.name] = { result: ok ? results[j.name] || 'success' : 'skipped', outputs: ok ? outputs[j.name] || {} : {} };
     }
   }
@@ -69,32 +72,46 @@ test('a red tsc on a pull request queues no quality shard, no browser job and no
   assert.ok(ran.has('static'));
   for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);
   assert.ok(ran.has('quality'), 'the `quality` verdict still reports (red)');
-  const unit = schedule(U, withLabelNames(pr('synchronize')), { static: 'failure' });
+  const unit = schedule(U, withLabelNames(pr('synchronize', ['auditor:ready'])), { static: 'failure' });
   assert.deepEqual([...unit].sort(), ['static'], 'unit-ci: no shard and no receipt after a red static');
 });
 
-test('green static: every shard runs; a feature PR\'s browser jobs only once it carries auditor:ready', () => {
+test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature PR runs static + plan + base only; shards, the verdict, unit-ci and browser jobs wait for auditor:ready', () => {
   const plain = schedule(Q, withLabelNames(pr('synchronize')), {}, { plan: { game: 'true', browser: 'false' } });
-  for (const j of ['static', 'quality-shard', 'quality', 'base', 'plan']) assert.ok(plain.has(j), j);
-  for (const j of BROWSER) assert.ok(!plain.has(j), `${j} waits for auditor:ready`);
+  assert.deepEqual([...plain].sort(), ['base', 'plan', 'static'], 'an unlabelled feature push: static (tsc + lint) and the cheap jobs only');
+  assert.deepEqual([...schedule(U, withLabelNames(pr('synchronize')))], [], 'unit-ci: no job on an unlabelled feature push');
   const ready = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, game);
-  for (const j of BROWSER) assert.ok(ready.has(j), `${j} runs once auditor:ready is on`);
-  assert.ok(schedule(U, withLabelNames(pr('synchronize'))).has('shard'), 'unit shards run on every push');
+  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(ready.has(j), `${j} runs once auditor:ready is on`);
+  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, withLabelNames(pr('synchronize', ['auditor:ready']))).has(j), `unit-ci ${j} with auditor:ready`);
+  const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-DB' };
+  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j}`);
+  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, cand).has(j), `release-* unit-ci ${j}`);
+  // adding auditor:ready starts unit-ci; any other label runs nothing and never shares (so never cancels) the real run's group
+  const added = (l: string) => withLabelNames(pr('labeled', [l], { label: { name: l } }));
+  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, added('auditor:ready')).has(j), `adding auditor:ready: unit-ci ${j}`);
+  assert.deepEqual([...schedule(U, withLabelNames(pr('labeled', ['auditor:ready', 'release:go'], { label: { name: 'release:go' } })))], [], 'release:go added to a ready PR: unit-ci runs nothing');
+  const ug = /\nconcurrency:\n {2}group: ([^\n]+)\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/.exec(readFileSync(U, 'utf8'))![1];
+  const ugroup = (c: Ctx) => ug.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
+  assert.equal(ugroup(pr('synchronize')), 'unit-ci-7');
+  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7');
+  assert.equal(ugroup(pr('labeled', [], { label: { name: 'release:go' } })), 'unit-ci-7-inert-99');
+  assert.match(readFileSync(U, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, labeled\]\n/);
   // the plan sets `browser` from the labels the event carries (the step reads them; a push always runs them)
   const plan = readFileSync(Q, 'utf8');
   assert.match(plan, /PR_LABELS: \$\{\{ join\(github\.event\.pull_request\.labels\.\*\.name, ','\) \}\}/);
   assert.match(plan, /browser=true[^\n]*\n[^\n]*auditor:ready|auditor:ready[^\n]*browser=true/);
 });
 
-test('adding auditor:ready runs the browser jobs (after static) and nothing else; any other label or a title edit runs nothing', () => {
+test('adding auditor:ready runs the shard, the verdict and the browser jobs (after static), not base; any other label or a title edit runs nothing', () => {
   const added = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, game);
-  for (const j of BROWSER) assert.ok(added.has(j), j);
-  for (const j of ['quality-shard', 'quality', 'base']) assert.ok(!added.has(j), `${j} already ran on this head`);
+  for (const j of ['quality-shard', 'quality', ...BROWSER]) assert.ok(added.has(j), j);
+  assert.ok(!added.has('base'), 'base already ran on this head');
   for (const ev of [pr('labeled', ['release:go'], { label: { name: 'release:go' } }), pr('labeled', ['ci:release-checks'], { label: { name: 'ci:release-checks' } }), pr('edited', [], { changes: { title: {} } })]) {
     assert.deepEqual([...schedule(Q, withLabelNames(ev), {}, game)], [], `${ev.event.action} ${JSON.stringify(ev.event.label ?? ev.event.changes)} runs nothing`);
   }
   const retarget = schedule(Q, withLabelNames(pr('edited', [], { changes: { base: {} } })), {}, { plan: { game: 'true', browser: 'false' } });
-  assert.ok(retarget.has('base') && retarget.has('quality-shard'), 'a retarget still re-runs the gate');
+  assert.ok(retarget.has('base') && retarget.has('static'), 'a retarget still re-runs static and base');
+  assert.ok(schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'and the shard once auditor:ready is on');
 });
 
 test('the concurrency group: auditor:ready gets its own group (never cancels the head\'s gate in flight); an inert label or edit never cancels anything', () => {
@@ -114,7 +131,9 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   assert.ok(!ran.has('static'));
   for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
   const unit = schedule(U, push);
-  assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'));
+  assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
+  assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
+  assert.ok(!schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt, so nothing vouches for the tree');
 });
 
 test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {

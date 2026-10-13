@@ -19,6 +19,7 @@ const OK = [
 ];
 const pr = (number: number, over: Record<string, unknown> = {}) => ({ number, head: `${number}`.padEnd(40, 'a'), headRef: `lane/${number}`, baseRef: TRUNK, labels: ['release:go'], green: true, passedAt: `2026-10-12T10:${String(number % 60).padStart(2, '0')}:00Z`, ...over });
 
+const own = (body: string) => ({ body, authorAssociation: 'OWNER' });
 test('readOrder, checksGreen and the train name', () => {
   assert.deepEqual(readOrder('# Lead-owned\n2322\n\n2313  # stacked\nx\n'), [2322, 2313]);
   assert.equal(checksGreen(OK), true);
@@ -43,7 +44,7 @@ test('checksGreen: a feature head under the new quality.yml needs the browser-ro
   assert.equal(checksGreen(fresh, 'release-T1012191800r1'), true, 'a release-* candidate gets no status (it always runs the browser jobs)');
   assert.equal(checksGreen(OK, 'lane/x'), true, 'a head the old quality.yml ran on (no reporter check) is not held');
   assert.equal(checksGreen(fresh), false, 'no head ref: the rule applies (fail closed)');
-  assert.equal(pickPublish([{ headRefName: 'release-CV', baseRefName: TRUNK, headRefOid: 'c'.repeat(40), labels: ['candidate:pass'], comments: [`Lead: PASS @${'c'.repeat(9)}`], statusCheckRollup: fresh, createdAt: 'x' }])?.headRefName, 'release-CV', 'the publish gate passes a candidate');
+  assert.equal(pickPublish([{ headRefName: 'release-CV', baseRefName: TRUNK, headRefOid: 'c'.repeat(40), labels: ['candidate:pass'], comments: [{ body: `Lead: PASS @${'c'.repeat(9)}`, authorAssociation: 'OWNER' }], statusCheckRollup: fresh, createdAt: 'x' }])?.headRefName, 'release-CV', 'the publish gate passes a candidate');
 });
 
 test('checksGreen: per check on the head, the latest attempt that is not SKIPPED decides: a superseded CANCELLED is ignored; a later SKIPPED never hides a red (Lead, #2359)', () => {
@@ -61,14 +62,32 @@ test('checksGreen: per check on the head, the latest attempt that is not SKIPPED
   assert.equal(checksGreen([...OK, run('x', 'job', 'SKIPPED', '2026-10-12T14:00:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), true, 'all skipped is green');
 });
 
+test('checksGreen: a CANCELLED row no later run reuses (a matrix placeholder, a renamed job) is ignored once its workflow\'s verdict job passed later; FAILURE stays strict (release-DC #2406)', () => {
+  const run = (wf: string, name: string, conclusion: string, startedAt: string) => ({ __typename: 'CheckRun', workflowName: wf, name, status: 'COMPLETED', conclusion, startedAt, completedAt: startedAt });
+  // #2406's shape: the first unit-ci / release-checks runs were cancelled before their matrices expanded; the re-runs named every row afresh
+  const cancelled = [run('unit-ci', 'shard', 'CANCELLED', '2026-10-12T17:57:48Z'), run('unit-ci', 'receipt', 'CANCELLED', '2026-10-12T17:57:48Z'),
+    run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'CANCELLED', '2026-10-12T17:57:48Z'),
+    run('release-checks', 'release rows (none for this diff)', 'CANCELLED', '2026-10-12T17:57:48Z'), run('release-checks', 'summary', 'CANCELLED', '2026-10-12T17:57:48Z')];
+  const later = [run('unit-ci', 'shard (1)', 'SUCCESS', '2026-10-12T18:05:00Z'), run('unit-ci', 'shard (8)', 'SUCCESS', '2026-10-12T18:05:00Z'), run('unit-ci', 'receipt', 'SUCCESS', '2026-10-12T18:20:00Z'),
+    run('release-checks', 'check 12 (polearm)', 'SUCCESS', '2026-10-12T18:06:00Z'), run('release-checks', 'release rows', 'SUCCESS', '2026-10-12T18:06:00Z'), run('release-checks', 'summary', 'SUCCESS', '2026-10-12T18:25:00Z')];
+  const base = OK.filter(c => c.workflowName !== 'unit-ci' && c.workflowName !== 'release-checks');
+  assert.equal(checksGreen([...base, ...cancelled, ...later]), true, 'cancelled placeholders + a later green run of each workflow are green');
+  assert.equal(checksGreen([...base, ...cancelled, ...later, run('release-checks', 'check 3 (combat)', 'FAILURE', '2026-10-12T18:06:00Z')]), false, 'a later run with one failure is not green');
+  assert.equal(checksGreen([...base, ...cancelled, ...later.filter(c => c.workflowName !== 'unit-ci')]), false, 'no later unit-ci run: its cancelled rows stay red');
+  assert.equal(checksGreen([...OK, run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T19:00:00Z')]), false, 'a plain cancelled run with no later run is not green');
+  assert.equal(checksGreen([...OK, run('unit-ci', 'shard', 'CANCELLED', '2026-10-12T19:00:00Z')]), false, 'a verdict that passed BEFORE the cancel does not clear it');
+  assert.equal(checksGreen([...OK, run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'CANCELLED', '2026-10-12T19:00:00Z')]), true, 'an unexpanded matrix placeholder is never a real row');
+  assert.equal(checksGreen([...OK, run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'FAILURE', '2026-10-12T19:00:00Z')]), false, 'a placeholder that FAILED still blocks');
+});
+
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
   const prs = [pr(5, { passedAt: '2026-10-12T09:00:00Z' }), pr(6, { passedAt: '2026-10-12T08:00:00Z' }), pr(7), pr(8, { passedAt: null }), pr(9, { green: false }), pr(10, { labels: [] }), pr(11), pr(12, { headRef: 'release-CO' })];
   const { pick, skipped } = planTrain({ prs, order: [7, 99], inBase: (h: string) => h.startsWith('11') });
   assert.deepEqual(pick.map((p) => p.pr), [7, 6, 5], 'listed 7 first, then 6 (older PASS) before 5');
   assert.deepEqual(skipped.map((s) => s.pr).sort(), [8, 9]);
-  assert.match(skipped.find((s) => s.pr === 8)!.why, /no "Auditor: PASS @" or "Lead: PASS @8aaaaaaaa" at its current head/);
-  assert.ok(passAt(['Lead: PASS @8aaaaaaaa (independent platform review)'], '8'.padEnd(40, 'a')) && passAt(['Auditor: PASS @8aaaaaaaa'], '8'.padEnd(40, 'a')), 'Lead or the Auditor');
-  assert.ok(!passAt(['Lead: PASS @9aaaaaaaa', 'Strategy: PASS @8aaaaaaaa'], '8'.padEnd(40, 'a')), 'another head, or another name, is not a PASS');
+  assert.match(skipped.find((s) => s.pr === 8)!.why, /no "<reviewer>: PASS @8aaaaaaaa" \(Auditor, Lead, Combat A, Combat B or Deploy B\) at its current head/);
+  assert.ok(passAt([own('Lead: PASS @8aaaaaaaa (independent platform review)')], '8'.padEnd(40, 'a')) && passAt([own('Auditor: PASS @8aaaaaaaa')], '8'.padEnd(40, 'a')), 'Lead or the Auditor');
+  assert.ok(!passAt([own('Lead: PASS @9aaaaaaaa'), own('Strategy: PASS @8aaaaaaaa')], '8'.padEnd(40, 'a')), 'another head, or another name, is not a PASS');
 });
 
 test('planTrain stacking: a stacked PR listed before its base rides right after it; one whose base is not in waits, named', () => {
@@ -120,18 +139,19 @@ test('pushWithRetry: a transient reject is retried with backoff (2 s, 4 s); thre
 
 test('passAt is anchored at a line start: "waiting for Auditor: PASS @…" is not a PASS', () => {
   const h = 'abcdef123'.padEnd(40, '0');
-  assert.ok(passAt(['**Auditor: PASS @abcdef123** (x)'], h) && passAt(['notes\nLead: PASS @abcdef123'], h));
-  assert.ok(!passAt(['waiting for Auditor: PASS @abcdef123'], h) && !passAt(['> Auditor: PASS @abcdef123'], h));
+  assert.ok(passAt([own('**Auditor: PASS @abcdef123** (x)')], h) && passAt([own('notes\nLead: PASS @abcdef123')], h));
+  assert.ok(!passAt([own('waiting for Auditor: PASS @abcdef123')], h) && !passAt([own('> Auditor: PASS @abcdef123')], h));
 });
 
 test('pickPublish (Strategy\'s gate): candidate:pass label AND a PASS comment at the head AND unit-ci/quality/release-checks present and green; oldest first', () => {
-  const head = 'f'.repeat(40), pass = [{ body: '**Auditor: PASS @fffffffff** (candidate)' }];
+  const head = 'f'.repeat(40), pass = [{ body: '**Auditor: PASS @fffffffff** (candidate)', authorAssociation: 'OWNER' }];
   const c = (number: number, createdAt: string, over: Record<string, unknown> = {}) => ({ number, headRefName: `release-T${number}`, baseRefName: TRUNK, headRefOid: head, createdAt, isDraft: true, labels: [{ name: 'candidate:pass' }], comments: pass, statusCheckRollup: OK, ...over });
   const prs = [c(3, '2026-10-12T12:00:00Z'), c(2, '2026-10-12T11:00:00Z'), c(1, '2026-10-12T10:00:00Z', { statusCheckRollup: [...OK, { __typename: 'CheckRun', workflowName: 'quality', name: 'load-time', status: 'QUEUED' }] }), c(4, '2026-10-12T09:00:00Z', { labels: [] }), c(5, '2026-10-12T08:00:00Z', { headRefName: 'lane/x' })];
   assert.equal(pickPublish(prs)?.number, 2);
   assert.equal(pickPublish([c(6, 'a', { comments: [] })]), null, 'the label alone is not a gate');
-  assert.equal(pickPublish([c(7, 'a', { comments: [{ body: 'Auditor: PASS @eeeeeeeee' }] })]), null, 'a PASS for another head (the label survived a head move) is not a gate');
+  assert.equal(pickPublish([c(7, 'a', { comments: [{ body: 'Auditor: PASS @eeeeeeeee', authorAssociation: 'OWNER' }] })]), null, 'a PASS for another head (the label survived a head move) is not a gate');
   assert.equal(pickPublish([c(8, 'a', { labels: [] })]), null, 'the PASS alone is not a gate');
+  for (const a of ['NONE', 'CONTRIBUTOR']) assert.equal(pickPublish([c(10, 'a', { comments: [{ body: 'Auditor: PASS @fffffffff', authorAssociation: a }] })]), null, `a PASS from an ${a} outsider (public repo) is not a gate`);
   assert.equal(pickPublish([c(9, 'a', { statusCheckRollup: OK.filter((r) => r.workflowName !== 'unit-ci') })]), null, 'a rollup without unit-ci (failed dispatch) is not green');
   assert.deepEqual(missingRows(OK.slice(1)), ['unit-ci/receipt']);
   assert.equal(pickPublish([]), null);
@@ -152,7 +172,7 @@ case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | 
   sh('fake-worktree', `echo "${dir}"`);
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
   const cand = 'c'.repeat(40);
-  writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)' }], statusCheckRollup: OK }]));
+  writeFileSync(join(dir, 'prs.json'), JSON.stringify([{ number: 2400, headRefName: 'release-T10121740', baseRefName: TRUNK, headRefOid: cand, createdAt: '2026-10-12T17:40:00Z', isDraft: true, labels: [{ name: 'candidate:pass' }], comments: [{ body: '**Auditor: PASS @ccccccccc** (candidate)', authorAssociation: 'OWNER' }], statusCheckRollup: OK }]));
   const run = (env: Record<string, string> = {}) => spawnSync('bash', ['scripts/release-train-publish.sh'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand, ...env } });
   const calls = () => (existsSync(log) ? readFileSync(log, 'utf8') : '');
   const env = { PATH: `${bin}:${process.env.PATH}`, RELEASE_TRAIN_STATE: state, RELEASE_TRAIN_REPO: repo, RELEASE_TRAIN_DEPLOY: join(bin, 'fake-deploy'), RELEASE_TRAIN_WORKTREE: join(bin, 'fake-worktree'), RELEASE_TRAIN_NOTIFY: 'true', RELEASE_TRAIN_MAC_ROWS: join(bin, 'fake-mac-rows'), PRS: join(dir, 'prs.json'), CAND: cand };
@@ -232,7 +252,7 @@ test('publisher (Lead #2336 finding 5): a live hand-run deploy.sh blocks the tic
     assert.match(r.stdout, /STALE deploy_hold: publisher pid 999999 is dead/); assert.doesNotMatch(p.calls(), /git push/);
     assert.ok(existsSync(join(p.state, 'deploy_hold.stale-told')), 'told once');
     rmSync(join(p.state, 'deploy_hold')); rmSync(join(p.state, 'deploy_hold.stale-told'));
-    const prs = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8')); prs[0].comments = [{ body: 'waiting for Auditor: PASS @ccccccccc' }];
+    const prs = JSON.parse(readFileSync(join(p.dir, 'prs.json'), 'utf8')); prs[0].comments = [{ body: 'waiting for Auditor: PASS @ccccccccc', authorAssociation: 'OWNER' }];
     writeFileSync(join(p.dir, 'prs.json'), JSON.stringify(prs));
     r = p.run();
     assert.match(r.stdout, /no candidate with candidate:pass, a PASS at its head/); assert.doesNotMatch(p.calls(), /git push/);

@@ -2,36 +2,30 @@
 // rig); the pieces are the garment nodes of public/world/town/clothes.glb (`Cloth_<piece>`, scripts/character/town_clothes.py), skinned onto the BODY's own bones by
 // bone name, so they play the body's clips with no new rig; the clothes file also carries the one clip the body lacks, `Talk`. Presentation only: the sim never sees it.
 // Donor: the EQEmu / 2004Scape equipment-appearance idea (an NPC is a body model plus worn pieces and colours, not a model per role).
+import { CLOTH_PIECE_ROWS, clothSlotsInOrder } from '../npcs/cloth.ts';
+import { REGION1_NPCS } from '../region1/npcs.ts';
 import { Bone, Color, Material, Mesh, Skeleton, SkinnedMesh, type AnimationClip, type MeshStandardMaterial, type Object3D } from 'three';
 
-export const CLOTH_PIECES = ['robe', 'tunic', 'sleeves', 'belt', 'cap', 'apron', 'hat', 'hood'] as const;
-export type ClothPiece = (typeof CLOTH_PIECES)[number];
+export { CLOTH_PIECES } from '../npcs/cloth.ts';
+export type ClothPiece = string;   // a cloth piece row id (origins/npcs/cloth.json)
 export type Outfit = { readonly pieces: readonly ClothPiece[]; readonly tint: number };
 
-/** The banker (Backend's row `character:banker-exchange`, `roles: ['banker']`): robe, sleeves, belt and cap, in a deep green wash. */
-export const BANKER_OUTFIT: Outfit = { pieces: ['robe', 'sleeves', 'belt', 'cap'], tint: 0x6b7f5e };
-/** Dunmore the Provisioner (`character:provisioner-exchange`): a working tunic, an apron, a belt and a wide-brimmed hat, in a warm brown wash. */
-export const PROVISIONER_OUTFIT: Outfit = { pieces: ['tunic', 'apron', 'belt', 'hat'], tint: 0x8a6f4a };
-/** Brisa of the Last Lamp (`character:innkeeper-exchange`): a tunic with sleeves, an apron and a belt, bareheaded, in a wine-red wash. */
-export const INNKEEPER_OUTFIT: Outfit = { pieces: ['tunic', 'sleeves', 'apron', 'belt'], tint: 0x7a5c6a };
-/** The named townspeople's outfits by NPC row id (Backend, #1828); everyone else gets `outfitFor(rowId)`. */
-export const NAMED_OUTFITS: Readonly<Record<string, Outfit>> = {
-  'character:banker-exchange': BANKER_OUTFIT, 'character:provisioner-exchange': PROVISIONER_OUTFIT, 'character:innkeeper-exchange': INNKEEPER_OUTFIT,
-};
+/** The named townspeople's outfits come from their NPC rows (`outfit` in origins/region1/npcs.ts), by NPC row id; everyone else gets `outfitFor(rowId)`. */
+export const NAMED_OUTFITS: Readonly<Record<string, Outfit>> = Object.fromEntries(REGION1_NPCS.flatMap((r) => (r.outfit ? [[r.npc, r.outfit] as const] : [])));
+export const BANKER_OUTFIT: Outfit = NAMED_OUTFITS['character:banker-exchange']!;
+export const PROVISIONER_OUTFIT: Outfit = NAMED_OUTFITS['character:provisioner-exchange']!;
+export const INNKEEPER_OUTFIT: Outfit = NAMED_OUTFITS['character:innkeeper-exchange']!;
 
 const TINTS = [0x8a6f4a, 0x6b7f5e, 0x7a5c6a, 0x5f6f86, 0x9a8a6a, 0x7d6a58, 0x6a7a74, 0x8c6a52] as const;
-const HEADGEAR = [undefined, 'cap', 'hat', 'hood'] as const;
-
-/** A townsperson's outfit from a stable seed (their NPC row id), FNV-1a so it is the same every visit: a robe OR a tunic (an apron over a tunic half the time), sleeves and a belt
- *  on a coin flip each, and one of no headgear / cap / hat / hood; a tint from the pool. Pieces that are alternatives (robe | tunic, one headgear) never come together. */
+/** A townsperson's outfit from a stable seed (their NPC row id), FNV-1a so it is the same every visit. Each slot row (cloth.json) reads its own hash bits (`shift`): a required slot always wears
+ *  one of its pieces, an optional slot may stay empty (the empty choice comes first); a piece whose `requires` piece is not worn is dropped. A tint from the pool. */
 export function outfitFor(seed: string): Outfit {
   let h = 2166136261; for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-  const bit = (n: number) => ((h >>> n) & 1) === 1, tunic = bit(3), head = HEADGEAR[(h >>> 7) & 3];
-  const pieces: ClothPiece[] = [tunic ? 'tunic' : 'robe'];
-  if (bit(4)) pieces.push('sleeves');
-  if (bit(5)) pieces.push('belt');
-  if (tunic && bit(6)) pieces.push('apron');
-  if (head) pieces.push(head);
+  const pieces: string[] = [];
+  for (const { row, pieces: choices } of clothSlotsInOrder()) {
+    const options: (string | undefined)[] = row.optional ? [undefined, ...choices] : choices, pick = options[((h >>> row.shift) & 255) % options.length];
+    if (pick && (!CLOTH_PIECE_ROWS[pick]!.requires || pieces.includes(CLOTH_PIECE_ROWS[pick]!.requires!))) pieces.push(pick);
+  }
   return { pieces, tint: TINTS[h % TINTS.length]! };
 }
 

@@ -44,10 +44,13 @@ function sceneHash(kind: string | SpecialRow, exposure: number): string {
   return h.digest('hex');
 }
 
-// Computed on trunk 411fbdf31 BEFORE the rows existed (the same sweep, on the code's own constants): per kind, day sand then the Night Pit.
+// Computed on trunk 411fbdf31 BEFORE the rows existed (the same sweep, on the code's own constants): per kind, day sand then the Night Pit (Surtr: see its note).
 const BEFORE: Record<string, [string, string]> = {
   antaeus: ['ac8f957aa4cef053872be6f08fbc612401575db5284b02283dc12d02ac96f233', 'ea85bc6720f4c3b298cd16ad568251fdaaec1de591f44095b982c54bd9a79985'],
-  surtr: ['76b08ae957b39fb65f566c0cc14a1ff04a4cd25c7eaa16940db00a9a5af15de4', '8e14ed9e6731b0d4c429b20131ba4e6d159ebf0a6594ac9d61f7df891f850228'],
+  // Surtr re-pinned (Strategy 2026-10-12, determinism): the ash flakes' hash and drift now run on detmath's sin, not the native Math.sin that V8 rounds
+  // differently on Apple arm64 (the Mac failed here from tick 148). The ONLY line that moved, day and Night Pit: flake 35 at tick 148, x 0.620345 -> 0.620346
+  // (an r6 rounding edge). Every other object, tick and texture is unchanged; the pre-rows proof was 76b08ae957b3... / 8e14ed9e6731... on x64 native sin.
+  surtr: ['748d6cb27e95d055aab113b09d12ba9aa4f1ee800abc66cd1e17961d2e9363fd', '5fb4a16bfe94b46b267232ff628b7f5d238cf9c9be215cd514f5aa4ad313d7e8'],
   typhon: ['9ec6a84230ccab60405976f3c3501e5deff047c87763df179416c503665586ca', '8add11043058aeb7fe5dcc2626ff705846410a8a573e09acf5fb7e6cac524e8f'],
 };
 

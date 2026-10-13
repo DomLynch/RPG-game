@@ -104,7 +104,7 @@ test('type weights: the table (permille of the kill value), and the flags that d
   assert.deepEqual(table, {
     legend: [100, true, false, 'solo'], 'world-boss': [500, true, false, 'each'], named: [200, false, true, 'split'],
     elite: [80, false, true, 'split'], mob: [20, false, true, 'split'], 'story-step': [100, true, false, 'solo'],
-    'story-chapter': [500, true, false, 'solo'],
+    'story-chapter': [500, true, false, 'solo'], 'rift-boss': [150, false, true, 'each'],
   });
 });
 test('kill value: the curve row\'s linear price, 1,000 + 100 a level', () => {
@@ -505,4 +505,10 @@ test('the opening is priced in Pit wins: level 1 in one win, level 5 in five, le
     for (const k of [1, 5, 10]) if (levelOfCredit(credit) >= k && at[k] === undefined) at[k] = wins;
   }
   assert.deepEqual(at, { 1: 1, 5: 5, 10: 35 });
+});
+
+test('rift-boss is a progression row (living-world §8.4): the region loader accepts it as a kill row (it reads Object.hasOwn(TYPE_WEIGHTS, row)); it repays every kill and draws on rested credit', () => {
+  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss'), true);
+  assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss-x'), false);
+  assert.ok(basePay(TYPE_WEIGHTS['rift-boss']!, 20, 20) < basePay(TYPE_WEIGHTS['world-boss']!, 20, 20));
 });

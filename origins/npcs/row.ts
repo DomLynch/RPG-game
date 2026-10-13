@@ -3,10 +3,16 @@
 // (game-clock hours; Dom: shops shut about 22:00-06:00, the bank and one night trader never close) and, for a vendor, which shop list they sell
 // from (origins/shops). The character itself (name, lore, body) stays the character-definition in the content bundle; Characters own the body
 // and the outfit-per-spawn, World the spawn, the walk home and the counter. Pure: no DOM, no clock, no storage.
-// To extend: add a role to NPC_ROLES and, if it needs a link (like vendor -> shop), one rule in validateNpcRow.
+// To extend: a role is one ROW in origins/npcs/roles.json (loaded and checked by the registry loader); a role that sells from a shop list carries `shop: true`. The validator
+// reads that flag, never a role name. Ids are strings checked against the rows, not a TypeScript union.
+import roles from './roles.json' with { type: 'json' };
 
-export const NPC_ROLES = ['banker', 'vendor', 'smith', 'healer', 'fence', 'innkeeper', 'recorder'] as const;
-export type NpcRole = (typeof NPC_ROLES)[number];
+import { outfitProblems } from './cloth.ts';
+
+export type NpcRoleRow = { order: number; shop?: boolean };
+export const NPC_ROLE_ROWS = roles.roles as Readonly<Record<string, NpcRoleRow>>;
+export const NPC_ROLES: readonly string[] = Object.entries(NPC_ROLE_ROWS).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
+export type NpcRole = string;
 export const SHOP_HOURS: readonly [number, number] = [6, 22];   // Dom 2026-10-08: shops open 06:00, shut 22:00 (game clock)
 
 export type NpcRow = {
@@ -16,6 +22,7 @@ export type NpcRow = {
   at: string;                        // the landmark they stand at (their counter)
   hours: 'always' | readonly [number, number];   // game-clock hours they work, [open, close) (close may wrap past midnight); 'always' = never closes
   shop?: string;                     // a vendor's shop: a service id with a shop list
+  outfit?: { readonly pieces: readonly string[]; readonly tint: number };   // a named NPC's worn pieces (cloth.json rows) and tint; absent = the generated outfit (town-dress outfitFor)
 };
 export type NpcIssue = { path: string; message: string };
 export type NpcContext = {
@@ -32,12 +39,13 @@ export function validateNpcRows(rows: readonly NpcRow[], ctx: NpcContext): { iss
     if (!ctx.character(r.npc)) add('npc', `${r.npc} is not a character in the content`);
     if (seen.has(r.npc)) add('npc', `${r.npc} has two rows`);
     seen.add(r.npc);
-    if (!r.roles.length || r.roles.some((role) => !(NPC_ROLES as readonly string[]).includes(role))) add('roles', `roles are one or more of ${NPC_ROLES.join(', ')}`);
+    if (!r.roles.length || r.roles.some((role) => !Object.hasOwn(NPC_ROLE_ROWS, role))) add('roles', `roles are one or more of ${NPC_ROLES.join(', ')}`);
     if (new Set(r.roles).size !== r.roles.length) add('roles', 'a role is listed twice');
     if (r.hours !== 'always' && !(r.hours.length === 2 && r.hours.every((h) => Number.isInteger(h) && h >= 0 && h <= 23) && r.hours[0] !== r.hours[1])) add('hours', "hours are 'always' or [open, close], whole hours 0..23, not equal");
-    const vendor = r.roles.includes('vendor');
-    if (vendor && (r.shop === undefined || !ctx.shop(r.shop))) add('shop', 'a vendor names a shop that has a list');
-    if (!vendor && r.shop !== undefined) add('shop', 'only a vendor has a shop');
+    if (r.outfit) for (const m of outfitProblems(r.outfit.pieces)) add('outfit', m);
+    const sells = r.roles.some((role) => NPC_ROLE_ROWS[role]?.shop);   // a role row with `shop: true` (the vendor) sells from a shop list
+    if (sells && (r.shop === undefined || !ctx.shop(r.shop))) add('shop', 'a vendor names a shop that has a list');
+    if (!sells && r.shop !== undefined) add('shop', 'only a vendor has a shop');
     if (!ctx.landmark(r.zone, r.at)) unplaced.push(`${r.zone}/${r.at}`);
   });
   return { issues, unplaced };
