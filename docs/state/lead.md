@@ -2,6 +2,20 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-13 18:5x — handoff before account switch (Dom). LIVE ED 9a01b196a (my curl). READ FIRST
+
+- LIVE today since 16:3x: EC b3b5613ab 16:58; EE 63d909374 18:32 (spells cast + EB code, Mac-rows flag OFF); ED 9a01b196a 18:40 (breath cone, goblin atOnce 2, chase trio). EB drill: RED → auto rollback → EC verified. Trunk RV 55, WSV 10.
+- NEXT train: EF #2578 @b416d5c6d (group D + #2573 + #2517/#2540 + #2518/#2541 + #2550, all Lead PASS) — Auditor watcher posts candidate:pass on green (91 ok, 3 pending at 18:5x). Then EG = Web group E #2560 dee0b9488 → #2563 861320750 → #2566 fae67eba7 → #2568 95282749e (rebased on EF tip, own delta verified identical; CI running) — Lead re-PASS on green, Deploy cuts on EF tip.
+- DOM CRITICAL FOUR (18:4x, memory project_dom_critical_four_2026-10-13): world rules (group C, World C1 on trunk → WSV 11), combat rules (group B, Combat slice 1 ad1af7b5f RULES→rows, RV 56/WSV 11, push now), full-stats series, economy rows (EF).
+- Full-stats series: #2569 @1c8172b99 (Combat; CONFLICTING with trunk after ED → Combat merges trunk, reusing #2572's resolution; zero CI until then) → #2572 (World 5444b1a83, BYSTANDER_BUDGET=1, merge 1c8172b99) → #2557 (Backend f4ad7a070, WSV 14, HeroLimit.weapon + sheet, fetchOwnBuild retry) → PR 5 (Combat f4235f74f, WSV 15, lifts DEFAULT_WEAPON). Ships as ONE candidate. B threat margin WSV 16, many-on-one 17.
+- Review system (Dom GO 18:4x + Strategy): Lead = rows/data/byte-identical; Auditor = sim/server/money/candidates; Hooks Dev = CI/workflow/scripts (#2536 #2546 #2575 #2579). 30-min green→verdict SLA, backup reassign. PASS removes auditor:ready (done for 17+6+9).
+- Upright pose: Dom picked MILD for all. #2570 @8906ed6fa (Auditor) → #2580 @e482bf0b0 (8 more bodies, Lead reviews on green).
+- Armour weights #2577 @346756ba1 (Characters; heavy 20/medium 10/light 0 provisional) — Lead review on green; Combat lookup later.
+- Hooks Dev building stop-gate repeat cap (my ruling A with 5 conditions). Deploy: #2579 rollback-rows fix (Hooks Dev reviews), then the auto re-cut PR.
+- PicoClaw = Dom's (replaces COO). VPS disk 62 GB free (cleaned 18:4x).
+- Crons die on clear: re-arm :13/:43 watch+SLA.
+- 18:00 top-30 posted (#2408 comment 6136508107): 22 of 34 live.
+
 ## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
 
 **Delta since the 16:1x entry below (read both):**
