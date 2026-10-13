@@ -19,3 +19,12 @@ test('a scar scales its quantities on top of the stance; no scar is the number u
   assert.equal(stanced({ stance: 'aggressive', scars: ['sword-arm'] }, 'block', 1000), stanced({ scars: ['sword-arm'] }, 'block', stanced({ stance: 'aggressive' }, 'block', 1000)));
   assert.equal(stanced({ scars: ['sword-arm'] }, 'poise', 100), 100);
 });
+
+test('the notice fires once per new scar, and a new fight (a shorter list) starts again', async () => {
+  const { gained } = await import('../src/fight/wound-notice.ts');
+  assert.deepEqual(gained(0, undefined), { ids: [], seen: 0 });
+  assert.deepEqual(gained(0, ['sword-arm']), { ids: ['sword-arm'], seen: 1 });
+  assert.deepEqual(gained(1, ['sword-arm']), { ids: [], seen: 1 });
+  assert.deepEqual(gained(1, undefined), { ids: [], seen: 0 });
+  assert.deepEqual(gained(1, ['sword-arm', 'x']), { ids: ['x'], seen: 2 });
+});
