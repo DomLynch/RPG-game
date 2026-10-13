@@ -129,3 +129,13 @@ test('the shared ledger file is created 664 (umask aside): root writing first le
   const { dir } = box(), f = join(dir, 'shared.tsv'), old = process.umask(0o022);
   try { localStore(f, { shared: true }).append('x\n'); assert.equal(statSync(f).mode & 0o777, 0o664); } finally { process.umask(old); }
 });
+
+test('the T4 job cap the gpu-only leg launches with (and the ledger books) is 15 m: five times a measured run, four jobs a candidate fit eight candidates under the $5 T4 stop', async () => {
+  const { T4_JOB_TIMEOUT, T4_JOBS } = await import('../scripts/lib/row-placement.mjs');
+  assert.equal(T4_JOB_TIMEOUT, '15m');
+  const seconds = timeoutSeconds(T4_JOB_TIMEOUT), measured = 167;   // job 6acdcf30... and 6acdd21c...: 166-167 s on t4-medium, DV/DR 2026-10-13
+  assert.ok(seconds >= 5 * measured, 'at least 5x the measured run, so a slow container pull does not kill a job');
+  const booked = 0.6 * seconds / 3600;
+  assert.ok(Math.abs(booked - 0.15) < 1e-9 && T4_JOBS * booked * 8 <= HF_COST.t4StopUsdPerDay, 'eight candidates a day stay under the stop');
+  assert.match(readFileSync('scripts/hf-wall-rows.mjs', 'utf8'), /HF_WALL_ROWS_TIMEOUT \|\| T4_JOB_TIMEOUT/, 'the launcher uses it by default');
+});

@@ -1,0 +1,59 @@
+{
+  "tables": [
+    {
+      "table": "audio-licence",
+      "file": "audio-packs.json",
+      "at": "licences",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "audio-need-kind",
+      "file": "audio-packs.json",
+      "at": "needKinds",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "audio-pack",
+      "file": "audio-packs.json",
+      "at": "packs",
+      "key": "id",
+      "required": {
+        "source": "string",
+        "name": "string",
+        "pageUrl": "string",
+        "licence": "string",
+        "licenceUrl": "string",
+        "licenceEvidence": "string",
+        "status": "string",
+        "formats": "array",
+        "count": "string",
+        "files": "array"
+      },
+      "refs": {
+        "licence": "audio-licence"
+      }
+    },
+    {
+      "table": "audio-need",
+      "file": "audio-packs.json",
+      "at": "needs",
+      "key": "id",
+      "required": {
+        "kind": "string",
+        "target": "string",
+        "packs": "array",
+        "note": "string"
+      },
+      "refs": {
+        "kind": "audio-need-kind",
+        "packs": "audio-pack"
+      }
+    }
+  ]
+}

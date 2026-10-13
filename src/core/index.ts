@@ -3,6 +3,13 @@
 export * from './writer-call.ts';
 export * from './open.ts';
 export * from './build-ref.ts';
+export * from './build-screen.ts';   // "Place your point" (the dialog) and its server copy, for the Pit page
+export * from './build-server.ts';
+export * from './grimoire-screen.ts';   // the spell book dialog and its op, for the Pit page
+export * from './grimoire-net.ts';
+export * from './spell-equip.ts';
+export * from './skills-net.ts';   // skills_get: the skill values a cast is claimed at (Match's spell port)
+export * from './skills-server.ts';   // the equipped spell and the owned ids, read by the Match's spell port
 export * from './session.ts';
 export * from './profile.ts';
 export * from './grades.ts';
