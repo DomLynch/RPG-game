@@ -53,3 +53,13 @@ export const castWindup = (sheet: Sheet | undefined, base: number): number => {
   let pct = 0; for (const r of CAST_PENALTY) if ((sheet?.[r.dial] ?? 0) >= r.atLeast && r.percent > pct) pct = r.percent;
   return base + Math.round((base * pct) / 100);
 };
+
+// execution (Dom 2026-10-13, Veloren poise-to-health, Sekiro deathblow): a critical blow (the `critical` move: the heavy thrown in the window a posture break opens) hits `executeMult` per-mille of its
+// normal damage, and finishes outright a foe at or under `executeBelow` percent of max health. Both 0 = off (trunk): the blow is the plain number.
+export const EXECUTE_MULT = num('executeMult', 'value');
+export const EXECUTE_BELOW = num('executeBelow', 'value');
+export const executed = (damage: number, critical: boolean, targetHealth: number, targetMax: number): number => {
+  if (!critical || (!EXECUTE_MULT && !EXECUTE_BELOW)) return damage;
+  const hit = EXECUTE_MULT ? Math.round((damage * EXECUTE_MULT) / 1000) : damage;
+  return EXECUTE_BELOW && (targetHealth * 100) / targetMax <= EXECUTE_BELOW ? Math.max(hit, targetHealth) : hit;
+};

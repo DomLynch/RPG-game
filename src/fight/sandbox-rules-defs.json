@@ -3,7 +3,9 @@
     { "id": "dodgeCounter", "window": 0 },
     { "id": "interruptEarly", "value": 0 },
     { "id": "castPushback", "value": 0 },
-    { "id": "castPushbackMax", "value": 0 }
+    { "id": "castPushbackMax", "value": 0 },
+    { "id": "executeMult", "value": 0 },
+    { "id": "executeBelow", "value": 0 }
   ],
   "castPenalty": []
 }

@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -279,7 +279,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const x = Math.round(z);
     return base > 0 ? Math.max(1, x) : x;
   };
-  const rolled = (base: number, from: Side, to: Side, pen = 0): number => { const b = geared(base, from, to, pen); if (!duel.roll) return b; lastRoll = percentOf(rollUnit(duel.roll.seed, hits++), swarmBand(duel.roll.swarm, duel.roll.rank)); const dealt = rolledDamage(b, lastRoll); return from === 1 && duel.roll.attacker ? Math.round((dealt * attackerPerMille(duel.roll.attacker)) / 1000) : dealt; };   // sandbox-mech manyOnOne: the nth foe on the player hits for its row's share; the band widens with the swarm: the foes on the target (roll.ts SWARM_ROWS)
+  const rolled = (base: number, from: Side, to: Side, pen = 0): number => { const b = executed(geared(base, from, to, pen), before[from].move === 'critical', before[to].health, before[to].maxHealth); if (!duel.roll) return b; lastRoll = percentOf(rollUnit(duel.roll.seed, hits++), swarmBand(duel.roll.swarm, duel.roll.rank)); const dealt = rolledDamage(b, lastRoll); return from === 1 && duel.roll.attacker ? Math.round((dealt * attackerPerMille(duel.roll.attacker)) / 1000) : dealt; };   // sandbox-mech manyOnOne: the nth foe on the player hits for its row's share; the band widens with the swarm: the foes on the target (roll.ts SWARM_ROWS)
   const rollTag = () => (duel.roll && lastRoll !== undefined ? { roll: lastRoll } : {});
   const spend = (i: Side, cost: number) => {
     const f = fighters[i]; f.stamina = Math.max(0, f.stamina - cost); f.rest = R.regenDelay;
