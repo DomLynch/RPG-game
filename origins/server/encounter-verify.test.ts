@@ -19,7 +19,7 @@ const lcg = (seed: number) => { let s = seed >>> 0; return () => (s = (Math.imul
 type Spec = { enemy: string; level: number; seed: number; bar?: number; flags?: TwistFlag[]; layer?: MobStyle; stances?: PickedStance };
 
 // The client side, as the preview host plays it (pit-duel.ts): initialPractice, withBar, then per tick the quantized intent, stepPractice and stepTwist; recorded by the Pit's recorder.
-function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; twist: string | null; heroHits: number } {
+function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightRecord; twist: string | null; heroHits: Record<string, number> } {
   const { enemy, level, seed } = spec;
   if (!isOpponentId(enemy)) throw new Error(`unknown opponent ${enemy}: not a row of the roster`);
   const flags = spec.flags ?? [], opponent = OPPONENTS[enemy], profile = profileAt(opponent, level), rand = lcg(intentSeed);
@@ -28,11 +28,12 @@ function play(spec: Spec, intentSeed: number, maxTicks = 1500): { record: FightR
   let p = initialPractice(seed, opponentAt(opponent, level), 'longsword', null, recordSpecials({ specials, level, opponent: enemy }), undefined, spec.stances);
   if (spec.bar && flags.some((f) => f.kind === 'one-health-bar')) p = withBar(p, spec.bar);
   const layer = spec.layer ? mobLayer(spec.layer) : undefined;
-  let twist = noTwist(), outcome: 'killed' | 'died' | 'draw' | 'abandoned' = 'abandoned', heroHits = 0;
+  let twist = noTwist(), outcome: 'killed' | 'died' | 'draw' | 'abandoned' = 'abandoned';
+  const heroHits: Record<string, number> = {};
   for (let i = 0; i < maxTicks; i++) {
     const intent = rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: rand() < 0.4 }, action: rand() < 0.5 ? ACTIONS[Math.floor(rand() * ACTIONS.length)]! : null, guard: rand() < 0.1, lock: true });
     p = stepPractice(p, intent, profile, layer);
-    heroHits += p.duel.events.filter((e) => e.target === 0 && (e.type === 'Hit' || e.type === 'GuardBroken' || e.type === 'SpecialLanded')).length;   // the client's own count, to compare with the verifier's
+    for (const e of p.duel.events) if (e.target === 0) heroHits[e.type] = (heroHits[e.type] ?? 0) + 1;   // the client's own tally, to compare with the verifier's
     if (p.finish) { if (flags.length && p.finish.victim === 1) twist = stepTwist(p.duel, flags, twist).twist; outcome = p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died'; break; }
     if (flags.length) { twist = stepTwist(p.duel, flags, twist).twist; if (twist.outcome === 'fled' || twist.outcome === 'escaped') break; }
   }
@@ -138,16 +139,17 @@ test('an enemy id that is not a roster row is refused, by the spec helper and by
   assert.equal(v.ok, false);
 });
 
-test('the verifier reports the hits the hero took, counted from the sim: the same number the client saw, and a lost fight took at least one', () => {
-  let seen = 0;
+test('the verifier reports, per event type, what was aimed at the hero, counted from the sim: the same tally the client saw, and a lost fight took a blow', () => {
+  let aimed = 0;
   for (const spec of [{ enemy: 'knight', level: 6, seed: 731 }, { enemy: 'veteran', level: 30, seed: 9 }, { enemy: 'goblin', level: 3, seed: 4 }] as Spec[]) {
     const played = finished(spec), v = verifyEncounter(played.record, params(spec));
     assert.equal(v.ok, true, v.ok ? '' : v.reason);
     if (!v.ok) continue;
-    assert.ok(Number.isInteger(v.heroHits) && v.heroHits >= 0);
-    assert.equal(v.heroHits, played.heroHits, `${spec.enemy}: the verifier counts the hits the client's sim saw`);
-    if (v.result === 'lost') assert.ok(v.heroHits >= 1, 'a hero who died took a hit');
-    seen += v.heroHits;
+    assert.deepEqual(v.heroHits, played.heroHits, `${spec.enemy}: the verifier tallies what the client's sim aimed at the hero, type by type`);
+    for (const n of Object.values(v.heroHits)) assert.ok(Number.isInteger(n) && n >= 1, 'a type that never targeted the hero is absent, not zero');
+    const blows = (v.heroHits.Hit ?? 0) + (v.heroHits.GuardBroken ?? 0) + (v.heroHits.SpecialLanded ?? 0);
+    if (v.result === 'lost') assert.ok(blows >= 1, 'a hero who died took a blow');
+    aimed += Object.values(v.heroHits).reduce((a, b) => a + b, 0);
   }
-  assert.ok(seen > 0, 'at least one of the fixtures has the hero taking a hit');
+  assert.ok(aimed > 0, 'at least one of the fixtures has something aimed at the hero');
 });

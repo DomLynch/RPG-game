@@ -12,10 +12,10 @@ import { Conflict } from './errors.ts';
 const ctx = (db: ReturnType<typeof fakeDb>['db']) => ({ db, account: ACCOUNT });
 const f = (over: Partial<Parameters<typeof practiceLines>[0]> = {}) => practiceLines({ token: 'T', weapon: 'longsword', enemyLevel: 5, youLevel: 5, placed: { sword: 3 }, ...over });
 const BUILD = (placed: Record<string, number>) => ({ level: 10, placed, respreadRank: 1, version: 1 });
-const won = () => deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300, heroHits: 0 }) });
+const won = () => deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300, heroHits: {} }) });
 const run = async (placed: Record<string, number> | null, verifyOk = true, focus = false) => {
   const h = fakeDb({ t: 1e6 }); h.world.build = placed === null ? null : BUILD(placed); if (focus) h.focus.add('sword');
-  const ops = encounterOps(verifyOk ? won() : deps({ verify: () => ({ ok: true, result: 'lost', twist: null, ticks: 300, heroHits: 0 }) }));
+  const ops = encounterOps(verifyOk ? won() : deps({ verify: () => ({ ok: true, result: 'lost', twist: null, ticks: 300, heroHits: {} }) }));
   const start = await ops.encounter_start!(ctx(h.db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
   return { h, ops, start, record: fight(start.seed, 1) };
 };
