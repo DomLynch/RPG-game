@@ -85,6 +85,7 @@ try {
     check(set && Object.values(set.body.placed).reduce((a, b) => a + b, 0) === 3 && set.body.character === 'pc:stub-1' && set.body.version === 1, `${name}: build_set carried the placement, character and version (${JSON.stringify(set?.body)})`);
     check(await page.locator('#build-dot').evaluate((e) => e.hidden), `${name}: the dot goes once every point is placed`);
     // taking back is free at level 3
+    if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click(); 
     await page.locator('#journal-button').click(); await page.waitForTimeout(600); await page.locator('#journal .tab-fighter').click(); await page.waitForTimeout(300);
     await page.locator('#build-open').click(); await page.waitForFunction(() => document.getElementById('build-dialog').open);
     await page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').click();
@@ -100,7 +101,7 @@ try {
     // level 12, this rank's re-spread spent: no way to take back
     reset({ level: 12, placed: { attack: 5 }, respreadRank: 1, version: 7 });
     const second = await load(w, h);
-    await second.page.locator('#journal-button').click(); await second.page.waitForTimeout(500); await second.page.locator('#journal .tab-fighter').click(); await second.page.locator('#build-open').click();
+    if (await second.page.locator('#welcome').isVisible()) await second.page.getByRole('button', { name: 'Enter the arena' }).click(); await second.page.locator('#journal-button').click(); await second.page.waitForTimeout(500); await second.page.locator('#journal .tab-fighter').click(); await second.page.locator('#build-open').click();
     await second.page.waitForFunction(() => document.getElementById('build-dialog').open);
     check(await second.page.locator('#build-dialog .build-row').nth(0).locator('.build-minus').isDisabled(), `${name}: with the rank's re-spread spent, - is off`);
     await second.page.screenshot({ path: `${out}/point-${name}-spent.png` });
