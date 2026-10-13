@@ -9,7 +9,7 @@ export type Near = { id: string; dist: number; aggro: number };
 export const ASK_BUDGET = 4, BYSTANDER_BUDGET = ASK_BUDGET - MAX_ATTACKERS, ENGAGE_TTL_MS = 120_000, RELEASE_FACTOR = 1.5, RETRY_MS = 5000;   // the writer's open-engage budget per account; a creature is let go past 1.5x its aggro radius; a refused ask is repeated no sooner than this
 
 export function createEngageAhead(net: AheadNet, now: () => number) {
-  let spent = new Map<string, number>();   // instance -> when its non-fighting ask was made, evaded or not
+  const spent = new Map<string, number>();   // instance -> when its non-fighting ask was made, evaded or not
   const asked = new Map<string, number>();   // instance -> when it was last asked for
   return {
     frame(near: readonly Near[], fighting: (id: string) => boolean): void {
