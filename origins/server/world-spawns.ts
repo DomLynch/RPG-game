@@ -19,6 +19,7 @@ import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import { openHoldingsWith } from './holdings.ts';
 import { mobBatch, respawnMsOf } from './mob-rewards.ts';
+import { killWearLines } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 
@@ -190,7 +191,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       op: 'event', event_id: `enc:${token}`, kind: 'mob', account, character: open.character,
       payload: { result: 'won', world: true, instance: open.instance, generation: open.generation, fight: spawn.fight, hits, reach, ...(recText !== undefined || deps.scorecardOnlyUnverified ? { record } : {}), cp: paid.summary.cp, cpReason: paid.summary.cpReason, paid: paid.batch.length > 0, beta: true },
     };
-    const got = await store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch], { reach }).catch(GONE);
+    const got = await store.spawnKill(db, account, token, minKillMs(spawn.hp), spawn.respawnS, [event, ...paid.batch, ...(pays ? await killWearLines(db, { account, character: open.character, token }, inventory) : [])], { reach }).catch(GONE);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
     log(`kill_report ${token.slice(-6)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);

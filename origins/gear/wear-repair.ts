@@ -2,6 +2,7 @@
 // and ModernUO (hit points on the item, the smith repairs it, max hit points shrink on repair; we take that shrink and the "never below a floor" rule).
 // A piece is `{ worn, max }`: points lost out of its wearMax. Wear bites the 25 quality points of a set; the quality share falls from 100% to the floor and never past it.
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import { GEAR } from '../../src/fight/server.ts';
 import DATA from './wear-repair.json' with { type: 'json' };
 import MANIFEST from './wear-repair.manifest.json' with { type: 'json' };
 
@@ -93,3 +94,10 @@ export function wearKindOf(item: string, families: readonly WearFamily[] = WEAR_
   const tier = fam && wearTier(fam.tier);
   return m && tier && slots.some((s) => s.id === m[2]) ? { tier, slot: m[2]! } : null;
 }
+
+// How much wear a fresh piece of this tier takes before it is worn out: the preset gear row of the same weight class (src/fight/gear-defs.json `wearMax`, Dom retunes it there).
+export const wearMaxOf = (tier: WearTier): number => {
+  const row = Object.values(GEAR.rows).find((r) => r.preset && r.weightClass === tier.id);
+  if (!row) throw new Error(`gear-defs has no preset gear row for weight class ${tier.id}`);
+  return row.wearMax;
+};
