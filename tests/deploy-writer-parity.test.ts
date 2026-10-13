@@ -41,7 +41,7 @@ test('deploy.sh: a site switch that fails after the writer install puts the outg
   assert.ok(prev > 0 && prev < back && back < install, 'the outgoing writer is read before the install; writer_back is defined before it is needed');
   const body = deploy.slice(back, install);
   assert.match(body, /writer_back_cmd "\$writer_prev" "\$release"/);   // the command itself is tested in deploy-writer-back.test.ts
-  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'the switch heredoc rolls the writer back on failure');
+  assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; presence_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'the switch heredoc rolls the writer back on failure');
 });
 
 test('deploy.sh: presence flips with the site like the writer: read before the install, installed inside the window before the switch, rolled back on a failed switch, parity before Published', () => {
