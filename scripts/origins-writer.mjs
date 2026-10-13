@@ -15,6 +15,7 @@ import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { createLocationFlusher } from '../origins/server/location-flush.ts';
 import { createLiveOps } from '../origins/server/live-ops.ts';
+import { heroLimitOf } from '../origins/server/worn-gear.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
 import { presenceWhere } from '../origins/presence/where.ts';
@@ -33,7 +34,7 @@ import { killWear } from '../origins/server/wear-settle.ts';
 const verifyPool = createVerifyPool();
 const tally = createVerdictTally();
 setInterval(() => { const t = tally.snapshot(); if (t.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}`); }, 3_600_000).unref();
-const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally }; };
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, heroOf: (account, character) => heroLimitOf(db, account, character) }; };
 const regionWear = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return killWear(c.value); };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 

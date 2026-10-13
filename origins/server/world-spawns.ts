@@ -13,7 +13,7 @@ import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { worldMetres } from '../presence/zones.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix } from '../zones/loader.ts';
-import { OPPONENTS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
 import { ROLL_BAND } from '../../src/fight/server.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
@@ -25,13 +25,13 @@ import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictT
 import * as store from './store.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
-// Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a longsword hero, the creature the Pit's level row (opponentAt). A kill report carries no record, so
-// these are BOUNDS that an honest fight can never break (Auditor, #1880): the biggest blow the longsword's table can deal with every multiplier stacked (a charged heavy, a stop-hit, a blow on a
+// Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a sheeted hero with his equipped weapon, the creature the Pit's level row (opponentAt). A kill report carries no record, so
+// these are BOUNDS that an honest fight can never break (Auditor, #1880): the biggest blow any player weapon's table can deal with every multiplier stacked (a charged heavy, a stop-hit, a blow on a
 // downed back, the gear Attack cap, the top of the damage roll, a landed Gambit), and the fastest a first blow can land. With the Pit kit one blow can exceed a low-level creature's health, so the
 // hit floor is usually 1 and the time floor is the fastest windup: they stop scripted instant reports, not skilled play. The rest of the anti-cheat is the server's spawn state, the single-use
 // engage token and the per-account kill caps (migration 202610080014).
 export const SLACK = 0.5;
-const SWORD = weaponOf('longsword').moves, BLOWS = Object.values(SWORD);
+const BLOWS = PLAYER_WEAPONS.flatMap((w) => Object.values(weaponOf(w).moves));   // the envelope over every weapon a hero may carry (the world hero wields his equipped one), never the longsword alone
 const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * (1 + ROLL_BAND / 100) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
 export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
 const FASTEST_WINDUP = Math.min(...BLOWS.flatMap((m) => [m.windup, ...(m.chained ? [m.chained.windup] : [])]));
@@ -39,11 +39,11 @@ const FASTEST_CYCLE = Math.min(...BLOWS.flatMap((m) => [m.windup + m.active + m.
 export const healthOf = (body: string, level: number): number | null => { const o = (OPPONENTS as Record<string, Parameters<typeof opponentAt>[0] | undefined>)[body]; return o ? opponentAt(o, level).health : null; };
 export const minHits = (hp: number): number => Math.max(1, Math.ceil(hp / maxHit()));
 export const minKillMs = (hp: number): number => Math.floor((FASTEST_WINDUP + (minHits(hp) - 1) * FASTEST_CYCLE) * 1000 / 60 * SLACK);   // the first blow after the fastest windup, every later one a full fastest cycle on
-const LIGHT = SWORD.light_right;
-// Reach: the creature roams `roam` m from home; the cut reaches LIGHT.reach; REACH_SLACK m for presence's pose lag (a pose is at most POSE_AGE_MS old).
+const LIGHT_REACH = Math.max(...PLAYER_WEAPONS.map((w) => weaponOf(w).moves.light_right?.reach ?? 0));
+// Reach: the creature roams `roam` m from home; the longest light cut of any weapon reaches LIGHT_REACH; REACH_SLACK m for presence's pose lag (a pose is at most POSE_AGE_MS old).
 export const REACH_SLACK = 4, POSE_AGE_MS = 5000;
 export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: number; z: number }): boolean =>
-  Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT.reach + REACH_SLACK;
+  Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
 // ---- the spawn list ---------------------------------------------------------------------------------------------------------------------
 export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number };
@@ -177,7 +177,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       const run = async (): Promise<Verdict> => {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
         const limit = deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null;
-        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
+        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
         deps.tally?.add(v.ok ? 'verified' : v.reason);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
         return v;
