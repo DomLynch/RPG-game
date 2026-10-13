@@ -5,7 +5,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## 2026-10-13 10:2x — handoff before /clear (Dom). LIVE DN 2c5ccfe3a (my curl 10:14). READ FIRST
 
 **Now (next session, in order):**
-1. WRITER PARITY (urgent): at 10:17 /opt/frankendom-origins/current was still ff15ed478 (DM) while site + verifier are DN 2c5ccfe3a; DN changed 8 writer-closure files. Deploy told to install the writer at 2c5ccfe3a without --if-changed, then fix the skip in the script with a test. Then Deploy runs the Auditor's read-only query on origins_events (kind 'mob', event_id 'enc:%', payload verified=false, DN publish → writer install) → count of refused settles / distinct accounts → re-settle if > 0. Auditor re-runs parity.
+1. WRITER PARITY: FIXED 10:18:33 (writer → 2c5ccfe3a, my readlink); 4-min mismatch window 10:14–10:18, 0 settles in it, 0 refused (Deploy query). Deploy owes a publish-path check: fail if writer current != published sha when the writer closure differs (+test).
 2. DP cut (Dom PRIORITY #1 = #2482 max-parallel 20→40, Lead PR @7b2f53d63, mechanics OK, PASS on green). DP = #2482 + whatever has PASS at head: #2468 (PASS @b7beae63f), #2484 spell-bundle leak (code OK), #2460 gear flip @e6d94c0dd (shard-5 fix, delta read pending), #2479 legend families @d4eef1b01, #2481 bricks. Strategy wants two lines: #2482 on trunk; first candidate's rows at 40.
 3. DO #2486 @1f429b040 (#2471 + #2325 + #2472) in flight: publish on PASS.
 4. Re-arm the :13/:43 watch cron. 12:00: edit the #2408 table comment 6136508107 (many rows now live: 2,5,6,7,8,11,28,2a,2b) + three counts + cut-to-live of the first release after sharding to Strategy.
