@@ -57,12 +57,13 @@ const ROOT = new URL('../../', import.meta.url).pathname;
 const walk = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = join(d, n); return n === 'node_modules' || n === '.git' || n === '.claude' ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
 const files = [...walk(join(ROOT, 'origins')), ...walk(join(ROOT, 'scripts')), ...walk(join(ROOT, 'supabase')), ...walk(join(ROOT, 'src'))].filter((p) => /\.(ts|mjs|sql)$/.test(p)).map((p) => relative(ROOT, p));
 const WRITES = /(origins_skill_xp|origins_skill_practice|practiceLines)/;
-const ALLOWED = new Set(['origins/server/practice.ts', 'origins/server/practice.test.ts', 'origins/server/encounter.ts', 'origins/server/encounter-fixtures.ts', 'supabase/migrations/202610130026_skill_practice.sql', 'supabase/down/202610130026_skill_practice_down.sql', 'scripts/awards-database-check.mjs', 'scripts/origins-encounter-check.mjs']);
+const ALLOWED = new Set(['origins/server/practice.ts', 'origins/server/practice.test.ts', 'origins/server/encounter.ts', 'origins/server/encounter-fixtures.ts', 'supabase/migrations/202610130026_skill_practice.sql', 'supabase/migrations/202610130029_skill_pool_access.sql', 'supabase/down/202610130026_skill_practice_down.sql', 'scripts/awards-database-check.mjs', 'scripts/origins-encounter-check.mjs']);
 
 test('guard: nothing but the verified encounter settle writes the practice pool (kill_report and every sweep stay out)', () => {
   const touching = files.filter((p) => WRITES.test(readFileSync(join(ROOT, p), 'utf8')));
   assert.deepEqual(touching.filter((p) => !ALLOWED.has(p)), [], 'a new file touches the practice pool: it must come through origins_encounter_settle');
   assert.ok(touching.includes('origins/server/encounter.ts'));
+  assert.match(readFileSync(join(ROOT, 'supabase/migrations/202610130029_skill_pool_access.sql'), 'utf8'), /do update set focus = excluded\.focus\b(?![^;]*xp)/, '0029 may flip the focus flag and nothing else on the pool row');
   for (const p of ['origins/server/world-spawns.ts', 'origins/server/mob-rewards.ts', 'scripts/verify-loot.mjs', 'scripts/verify-daily.mjs']) assert.ok(!touching.includes(p), `${p} must not touch the pool`);
 });
 
