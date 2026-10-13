@@ -1,5 +1,20 @@
 # Code quality lane (Auditor)
 
+## 2026-10-13 ~10:1xZ (14:1x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13f` (queue + heads), then `…-13e`
+
+**Live:** DV `03d85f9d0` (spells in fights v1; spell gate reads `origins_skill_pool`, 0029 in prod). Parity PASS by me: writer 201/0/0, verifier 147/0/0, writer 4 s ahead of the site (#2489 in-window install).
+**Published today with my parity PASS:** DQ `86ece8c85` (#2482, 40-wide release checks), DR `4dfad6e29`, DS `6f7328e0d`, DT `e1b70c4cc`, DU `501f5f0c3`, DV `03d85f9d0`. DN's writer gap and DQ's 28 s gap both counted 0 refused settles (Deploy).
+**Publishing next:** DW #2519 `411671c23` (auto-PASS + `candidate:pass` 09:51Z; my exact-tree gate: PG 152, 15 test files skipped 0). Parity owed when live.
+**Now:**
+1. World-sim stack, each delta read over the one below: #2525 `70613c85d` (poise ladder RV54, mechanics OK) → #2474 `5ffa153c6` → #2477 `ce237de6e` → #2526 `429277240`.
+2. #2483 `6d9e9358c` + #2488 `791a6ac2f` (legend bosses, page-safe door): delta OK; PASS on green, together.
+3. #2504 `f17b06438` and #2509 `4ed00538d`: PASS on green (#2509 after #2513, which is PASSed).
+**Rules learned today:**
+- `candidate:pass` is the publish trigger: read the contents and gate the exact tree before arming the watcher.
+- A real-Postgres receipt must assert the values: RLS with no policy returns 0 rows with no error.
+- Shared-barrel imports leak server data into the page bundle (#2484, #2488): walk the page's import closure.
+**Session:** app worktree `laughing-bartik-0c0156`; background watchers end with the session, so re-arm them after the clear.
+
 ## 2026-10-13 ~06:2xZ (10:2x Dubai) — HANDOFF before /clear. READ FIRST, then memory `frankendom_handoff_2026-10-13d` (queue + heads), then `…-13c`
 
 **Live:** DN `2c5ccfe3a`. Parity: verifier 126/0/0. **The writer was stale on DM `ff15ed478`** (DN changed duel/record/detmath/stance/server + 3 stance files; the install was skipped); I caught it by content parity. Reinstalled 06:18:33Z, now **181/0/0 PASS** (#2473). Owed by Deploy: the refused-settle count for that window (query sent to Lead) and a fix for the install skip, with a test.
