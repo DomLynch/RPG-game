@@ -674,13 +674,14 @@ try {
       eq(sorted(JSON.parse(wear())), sorted({ instance: piece, ...worn }), 'gear_repair: the newest wear event is the piece\'s wear');
       const noIron = await rep({ op: 'repair:op-0002' });
       eq([noIron.status, noIron.json.code], [422, 'metal'], 'gear_repair: no grave iron in the pack is refused');
-      if (cost.metal > 0) psql(`select public.origins_commit('${D}', $j$[{"op":"mint","item":{"id":"inst:repair-iron","item":"item:grave-iron","quantity":${cost.metal},"mint_key":"test:repair-iron","loc":{"kind":"pack","owner":"${cd}","index":63},"provenance":{"mintKey":"test:repair-iron","at":"2026-10-06T12:00:00Z","wonBy":"${cd}","kind":"loot","table":"loottable:scavenger","encounter":null}}}]$j$::jsonb);`);
+      if (!(cost.metal > 0)) throw Error('gear_repair: the rows must price some grave iron for this piece, or the burn check proves nothing');
+      psql(`select public.origins_commit('${D}', $j$[{"op":"mint","item":{"id":"inst:repair-iron","item":"item:grave-iron","quantity":${cost.metal},"mint_key":"test:repair-iron","loc":{"kind":"pack","owner":"${cd}","index":63},"provenance":{"mintKey":"test:repair-iron","at":"2026-10-06T12:00:00Z","wonBy":"${cd}","kind":"loot","table":"loottable:scavenger","encounter":null}}}]$j$::jsonb);`);
       const bal = () => psql(`select bronze from public.origins_metal where account = '${D}'`);
       const was = Number(bal());
       const ok = await rep({ price: 1, tier: 'heavy' });
       eq([ok.status, ok.json.result?.cost?.bronze, ok.json.result?.cost?.metal?.qty, sorted(ok.json.result?.piece), ok.json.result?.replayed], [200, cost.gold, cost.metal, sorted(after), false], 'gear_repair: priced from the rows (a price or tier in the body is ignored), the piece after');
       eq([Number(bal()), sorted(JSON.parse(wear()))], [was - cost.gold, sorted({ instance: piece, ...after })], 'gear_repair: bronze spent and the wear reduced, in one batch');
-      eq(psql(`select count(*) from public.origins_items where id = 'inst:repair-iron' and retired_at is null`), cost.metal > 0 ? '0' : '0', 'gear_repair: the grave iron is burned');
+      eq(psql(`select retired_at is not null from public.origins_items where id = 'inst:repair-iron'`), 't', 'gear_repair: the grave iron is burned (the row is retired)');
       const again = await rep({});
       eq([again.status, again.json.result?.replayed, Number(bal())], [200, true, was - cost.gold], 'gear_repair: an identical retry answers the stored receipt and charges nothing');
       eq((await rep({ instance: 'inst:other-0001' })).status, 409, 'gear_repair: the same op id for another piece is a 409');
