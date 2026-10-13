@@ -51,6 +51,7 @@ test('an UNPLACED legend is refused: a direct encounter_start for a spell-row le
   for (const id of ['boss:eloko', 'boss:kobold', 'boss:bedivere', 'boss:mother-shipton']) assert.equal(resolve(who, id), null, `${id} has a spell row but no PLACED row here`);
   assert.equal(resolveFromRegion1([])(who, 'boss:alvis'), null, 'no placement rows at all: no legend resolves');
   assert.equal(resolveFromRegion1()(who, 'boss:alvis'), null, 'the shipped table does not place alvis');
+  for (const l of LEGEND_SPAWNS) assert.ok(resolveFromRegion1()(who, bossFightId(l.legend)), `${l.legend} is placed in the shipped table, so it resolves`);
   const h = fakeDb({ t: 1e6 }), ctx = { db: h.db, account: ACCOUNT };
   const ops = encounterOps(deps({ resolve: resolveFromRegion1(PLACED), verify: () => ({ ok: true, result: 'won', twist: null, ticks: 300 }) }));
   await assert.rejects(async () => ops.encounter_start!(ctx, { character: CHAR, encounter: bossFightId('kobold') }), /unknown, or not open/, 'the writer refuses it: no fight token for an unplaced legend');
