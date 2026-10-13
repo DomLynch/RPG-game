@@ -1,1 +1,8 @@
-{"notes":[],"files":{}}
+{"notes":[
+"2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints)."
+],"files":{
+"stance-defs":{"stances":[
+{"id":"aggressive","damage":100,"posture":200,"block":200},
+{"id":"defensive","damage":-100,"block":-300,"recover":500,"damageTaken":-200,"poise":-200},
+{"id":"trickster","heavyDamage":-100,"feint":-750,"kickPosture":1000}
+]}}}
