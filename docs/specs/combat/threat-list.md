@@ -17,6 +17,7 @@ Status: design only, no code. For Backend (loot/verify) and World (aggro/leash).
 
 ## Anti-gank and loot (Backend)
 - Reward share per attacker = their damage / creature max health. Anti-gank multiplier by **join order**: 1st attacker 1.0, 2nd .5, 3rd .25, 4th and later .1 (Dom via Strategy). Loot goes to the **most damage dealer**; ties to the earlier joiner.
+- **Group verifier rulings (Lead, 2026-10-13; `origins/server/encounter-group.ts`):** (1) only an attacker whose own stream verified AND ended with the creature down is paid; one whose player died before the kill earns nothing, though their join slot still counts for the multiplier of those after them. (2) A withheld or unverifiable sibling costs only its owner: the present, proven streams are paid on what they dealt (the excess incoming only that sibling could prove is `unproven`), but the loot winner and the killer are decided only when all n streams are present and verified.
 - The verifier needs, per creature kill: the attacker ids in join order and each one's damage. Both are derivable from the replay events plus the record header's attacker list (the RV-class bump from the pack row; not this note). Until then N-attacker fights are never awarded.
 
 ## Determinism
