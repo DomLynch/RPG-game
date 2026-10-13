@@ -235,9 +235,13 @@ test('guard (Strategy 2026-10-13): kill_report grants no XP-pool credit, level o
     assert.throws(() => guardBatch([{ op: 'career_set', account: UID, expected_version: 1, xp_pool: 5 } as Json]), /not allowed/, 'a mutant career_set key is caught');
     assert.throws(() => guardBatch([{ op: 'event', payload: { result: 'won', granted_xp: 5 } } as Json]), /not allowed/, 'a mutant event payload key is caught');
   }
+  // The read of the account's grimoire (origins_grimoire_get, #2504) takes nothing; any other origins_grimoire_* function, or a spell-taken op, is a write and trips.
+  const TAKES_SPELL = /spell-taken|origins_grimoire(?!_get\b)/;
+  assert.ok(TAKES_SPELL.test("select public.origins_grimoire_take(:'a'::uuid)") && TAKES_SPELL.test("{ op: 'spell-taken' }"), 'a grimoire write still trips the guard');
+  assert.ok(!TAKES_SPELL.test("select public.origins_grimoire_get(:'a'::uuid)"), 'the read-only grimoire_get does not');
   const server = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
   for (const f of server) {
     const src = readFileSync(new URL(f, import.meta.url), 'utf8');
-    if (/spell-taken|origins_grimoire/.test(src)) assert.match(f, /^encounter(-verify)?\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path)`);
+    if (TAKES_SPELL.test(src)) assert.match(f, /^encounter(-verify)?\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path)`);
   }
 });
