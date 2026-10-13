@@ -3,9 +3,13 @@
 // Pure: no DOM, no network.
 import { DIALS, SHEET_SKILLS, pointsAt, validateBuild } from '../fight/sheet-rows.ts';
 import type { BuildView } from './build-net.ts';
+import ROW_NAMES from './row-names.json' with { type: 'json' };
 
 export type Row = { id: string; name: string; kind: 'dial' | 'skill'; room: number };   // room: the most points the row can hold (cap - base)
-export const ROWS: readonly Row[] = [...DIALS.map((d) => ({ id: d.id, name: d.name, kind: 'dial' as const, room: d.cap - d.base })), ...SHEET_SKILLS.map((s) => ({ id: s.id, name: s.name, kind: 'skill' as const, room: s.cap - s.base }))];
+// Display names are rows (row-names.json, presentation only: the sim's sheet-defs.json stays untouched, so no record version moves); a row with no name shows its id, which tests/build-model.test.ts forbids.
+const NAME = new Map((ROW_NAMES.rows as readonly { id: string; name: string }[]).map((r) => [r.id, r.name]));
+const nameOf = (id: string): string => NAME.get(id) ?? id;
+export const ROWS: readonly Row[] = [...DIALS.map((d) => ({ id: d.id, name: nameOf(d.id), kind: 'dial' as const, room: d.cap - d.base })), ...SHEET_SKILLS.map((s) => ({ id: s.id, name: nameOf(s.id), kind: 'skill' as const, room: s.cap - s.base }))];
 
 export const FREE_RESPREAD_LEVEL = 10, RANK_LEVELS = 10;   // the server's numbers (origins/server/build.ts)
 export const spent = (v: BuildView): number => Object.values(v.placed).reduce((n, x) => n + x, 0);
