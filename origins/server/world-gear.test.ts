@@ -5,7 +5,9 @@ import { test } from 'node:test';
 import { encodeWorldRecord, loadoutOfLoot, NAKED, type WorldRecord } from '../../src/fight/index.ts';
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { player } from '../../src/fight/world.ts';
-import { TIERS, legacyLootOfItemId, PC } from '../../src/core/server.ts';
+import { TIERS, legacyLootOfItemId, PC, standingLevel } from '../../src/core/server.ts';
+import { careerState } from '../../src/core/career-model.ts';
+import { readFileSync } from 'node:fs';
 import { verifyWorldRecord } from './world-verify.ts';
 import { heroLimitOf, loadoutOf, loadoutOfItems } from './worn-gear.ts';
 import { defaultZoneSpawns, type Spawn } from './world-spawns.ts';
@@ -73,4 +75,15 @@ test('heroLimitOf: the server\'s level is the standing of the credit it holds, a
   assert.equal(none.level, 1); assert.deepEqual({ attack: none.attack, res: none.res }, loadoutOfItems(held));
   const rich = await heroLimitOf(at({ seed_credit: 0, world_credit: 0, total_credit: 1e9, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 }), '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', PC);
   assert.ok(rich.level > 1 && rich.level <= 50, 'a veteran career holds a higher level');
+});
+
+test('the page claims the level the server holds: the same standingLevel of the same credit, for every career', async () => {
+  const acct = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', rows = held.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: h.location.slot }));
+  for (const total_credit of [0, 1, 40, 400, 5_000, 80_000, 1e9]) {
+    const row = { seed_credit: 0, world_credit: 0, total_credit, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 3 };
+    const db: Db = { async run() { return JSON.stringify({ marks: 0, career: row, characters: [], items: rows, quests: [], journal: [], talk: [] }); } };
+    const page = standingLevel(careerState(row as never).credit), server = (await heroLimitOf(db, acct, PC)).level;
+    assert.equal(page, server, `credit ${total_credit}: page level ${page} vs server level ${server}`);
+  }
+  assert.match(readFileSync(new URL('../preview/main.ts', import.meta.url), 'utf8'), /level: standingLevel\(session\.career\.credit\)/, 'the zone page claims standingLevel of its career credit (the server row), not careerLine');
 });
