@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
 import { newWorld, player } from '../src/fight/world.ts';
-import { ME, MAX_HERO_MPS, STEP, heroClean, ccQuiet, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
+import { ME, MAX_HERO_MPS, STEP, heroClean, ccQuiet, WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
 import { CC_LADDER, ccApply, type CcLadder, type CcSource } from '../src/fight/cc-ladder.ts';
 
@@ -80,6 +80,9 @@ test('a record of another sim version is not replayed; the header carries the ve
   assert.equal(rec!.rv, RECORD_VERSION);
   const r = replayWorldRecord({ ...rec!, rv: RECORD_VERSION - 1 }); assert.ok(!r.ok && r.reason === 'sim version');
   assert.equal((await decodeWorldRecord(await encodeWorldRecord(rec!))).rv, RECORD_VERSION);
+  assert.equal(rec!.wv, WORLD_SIM_VERSION);
+  const w = replayWorldRecord({ ...rec!, wv: WORLD_SIM_VERSION + 1 }); assert.ok(!w.ok && w.reason === 'sim version', 'a record of another WORLD sim version is not replayed');
+  assert.equal((await decodeWorldRecord(await encodeWorldRecord(rec!))).wv, WORLD_SIM_VERSION);
 });
 
 test('a hero who is not at rest and clean opens no window (the header cannot carry his Pit fighter)', () => {
