@@ -3,9 +3,9 @@ import test from 'node:test';
 import { PC, paperdollOf, slotOf } from '../../src/core/server.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { WEAR_SLOTS, wearKindOf, wornSlot, type Piece } from '../gear/wear-repair.ts';
-import type { Db } from './db.ts';
+import { DbError, type Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
-import { killWearLines, rollsOf, wearMaxOf } from './wear-settle.ts';
+import { killWearLines, rollsOf, settleWithWear, wearMaxOf } from './wear-settle.ts';
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -64,3 +64,55 @@ test('wear writer: the bite lands on the slots in proportion to the wear-slot ro
   for (let i = 0; i < 4000; i++) { const s = bitten(`t-${i}-bbbbbbbbbbbbbbbb`); counts[s] = (counts[s] ?? 0) + 1; }
   for (const s of WEAR_SLOTS) assert.ok(s.share === 0 ? !counts[s.id] : Math.abs((counts[s.id] ?? 0) / 4000 * 100 - s.share) < 4, `${s.id} ${counts[s.id]}`);
 });
+
+// ---- wear must never cost a payment -------------------------------------------------------------------------------------------------------------------------
+type Line = { op: string; event_id: string; payload?: { wear?: { instance: string; seq: number; worn: number; max: number; baseMax: number } } };
+const NEW_WEAR = (seq: number): Line[] => [{ op: 'event', event_id: `wear:inst:w-1:${seq}`, payload: { wear: { instance: 'inst:w-1', seq, worn: 6, max: 60, baseMax: 60 } } }];
+function clashDb(ownEventStored = false): Db { return { async run(sql) { if (/origins_event\(/.test(sql)) return ownEventStored ? JSON.stringify({ payload: {} }) : 'null'; throw new Error(`unexpected sql: ${sql.slice(0, 40)}`); } }; }
+const clash = () => new DbError('O0001', 'already settled');
+
+test('settleWithWear: a wear-seq clash (the kill\'s own event is NOT stored) re-reads the wear and retries ONCE with the fresh seq: the kill is paid', async () => {
+  const seqs = [1, 2]; const tried: string[][] = [];
+  const out = await settleWithWear({ db: clashDb(), account: UID, ownEventId: 'enc:tok', wear: async () => NEW_WEAR(seqs.shift()!) as never,
+    commit: async (w) => { tried.push((w as Line[]).map((l) => l.event_id)); if ((w as Line[])[0]?.event_id.endsWith(':1')) throw clash(); return 'paid'; } });
+  assert.deepEqual([out, tried], ['paid', [['wear:inst:w-1:1'], ['wear:inst:w-1:2']]]);
+});
+
+test('settleWithWear: if the fresh seq clashes too, the kill settles WITHOUT the wear line (a missed bit of wear is fine, a missed payment is not)', async () => {
+  const tried: number[] = [];
+  const out = await settleWithWear({ db: clashDb(), account: UID, ownEventId: 'enc:tok', wear: async () => NEW_WEAR(1) as never,
+    commit: async (w) => { tried.push(w.length); if (w.length) throw clash(); return 'paid'; } });
+  assert.deepEqual([out, tried], ['paid', [1, 1, 0]]);
+});
+
+test('settleWithWear: a genuine replay (the kill\'s own event is stored) and any other error are rethrown untouched, never retried, never read as a wear clash', async () => {
+  let calls = 0;
+  await assert.rejects(settleWithWear({ db: clashDb(true), account: UID, ownEventId: 'enc:tok', wear: async () => NEW_WEAR(1) as never, commit: async () => { calls++; throw clash(); } }), (e: unknown) => e instanceof DbError && e.code === 'O0001');
+  await assert.rejects(settleWithWear({ db: clashDb(), account: UID, ownEventId: 'enc:tok', wear: async () => NEW_WEAR(1) as never, commit: async () => { calls++; throw new DbError('O0002', 'stale'); } }), (e: unknown) => e instanceof DbError && e.code === 'O0002');
+  assert.equal(calls, 2);
+  let none = 0;
+  assert.equal(await settleWithWear({ db: clashDb(), account: UID, ownEventId: 'enc:tok', wear: async () => [], commit: async (w) => { none += w.length; return 'paid'; } }), 'paid');   // nothing to wear: one plain commit
+  assert.equal(none, 0);
+});
+
+test('two kills settling close together on the SAME piece: both are paid, the piece carries both bites (seq 1 then 2)', async () => {
+  const rows = new Map<string, Line>(), taken = new Set<string>();
+  const db: Db = { async run(sql) {
+    if (/origins_event\(/.test(sql)) return 'null';
+    if (/origins_item_wear/.test(sql)) { const w = [...rows.values()].map((l) => l.payload!.wear!); const cur = w.sort((a, b) => b.seq - a.seq)[0]; return JSON.stringify(cur ? { [cur.instance]: cur } : {}); }
+    return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: 64, bank_slots: 1000 }], items: SLOTS.map((sl, i) => row(i + 1, sl)), quests: [], journal: [], talk: [] });
+  } };
+  const { inventory } = await inv(SLOTS);
+  const tokenA = tokenFor((sl) => sl === 'Body'), tokenB = tokenFor((sl, ) => sl === 'Body') + 'B';
+  const pick = (token: string) => killWearLines(db, kill(token), inventory);
+  const staleA = await pick(tokenA);                      // both kills read the wear BEFORE either commits
+  const staleB = await pick(tokenA);                      // same piece, same seq
+  const commitTo = (name: string, first: store_Json[]) => (w: store_Json[]) => { void name; for (const l of (w.length ? w : []) as Line[]) { if (taken.has(l.event_id)) throw clash(); } for (const l of w as Line[]) { taken.add(l.event_id); rows.set(l.event_id, l); } return Promise.resolve(`paid:${first.length}`); };
+  const a = await settleWithWear({ db, account: UID, ownEventId: 'enc:a', wear: async () => staleA as never, commit: commitTo('a', staleA as never) });
+  let reads = 0;
+  const b = await settleWithWear({ db, account: UID, ownEventId: 'enc:b', wear: async () => (reads++ === 0 ? staleB : await pick(tokenA)) as never, commit: commitTo('b', staleB as never) });
+  assert.deepEqual([a, b], ['paid:1', 'paid:1']);
+  assert.deepEqual([...rows.keys()].map((k) => k.split(':').pop()), ['1', '2']);
+  assert.equal(reads, 2);
+});
+type store_Json = unknown;

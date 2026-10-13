@@ -17,7 +17,6 @@ import type { TwistOutcome } from '../../src/fight/server.ts';
 import { careerState } from '../../src/core/server.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
-import { killWearLines } from './wear-settle.ts';
 import * as store from './store.ts';
 import { metalOf, type CareerRow, type Json, type MetalRow } from './store.ts';
 
@@ -129,6 +128,6 @@ export function mobRewards(content: EncounterContent, now: () => Date = () => ne
     const metal = await metalOf(db, kill.account);
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
     log(`encounter rewards ${kill.token.slice(-6)}: ${JSON.stringify(paid.summary)}`);
-    return paid.batch.length ? [...paid.batch, ...await killWearLines(db, kill, inventory)] : paid.batch;   // a paid kill also wears one equipped piece (wear-settle.ts)
+    return paid.batch;
   };
 }
