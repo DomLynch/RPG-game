@@ -1,4 +1,4 @@
-// POST /origins/build_get {character} and /origins/build_set {character, placed, version}: a character's BUILD (programme 2a, locked): its level (1-50) and where each point went, on any dial or skill id.
+// POST /origins/build_get {character} and /origins/build_set {character, placed, version}: a character's BUILD (programme 2a, locked): its level (0..100) and where each point went, on any dial or skill id.
 // EVERY save runs the shared validateBuild (rows decide ids, bases, caps and the budget: one point a level); this file has no checks of its own on those. What it adds is the re-spread rule:
 // taking points off anything is free until level 10, then once per rank-up (rank = level / 10, the stored respreadRank is the last one used). Spending unspent points is always free.
 // The level is the server's (levelSet), never the client's.
