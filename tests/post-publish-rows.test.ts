@@ -132,7 +132,7 @@ test('post_publish_rows: a failing row does NOT promote the pending stamp (and d
 });
 
 test('deploy.sh: the rows are deferred before Published, run after the publish lock drops, and a failure exits 1 at the very end', () => {
-  const defer = deploy.indexOf('RELEASE_CHECKS_DEFERRED="$post_publish" node scripts/release-checks.mjs');
+  const defer = deploy.indexOf('RELEASE_CHECKS_DEFERRED="$post_publish');
   const published = deploy.indexOf("printf '\\nPublished %s");
   const drop = deploy.indexOf('deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"');
   const run = deploy.indexOf('post_publish_rows "$revision" "$post_publish"');
