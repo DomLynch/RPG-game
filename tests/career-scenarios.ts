@@ -1,9 +1,8 @@
 // The proposal's worked examples as event lists (docs/specs/src/core/career-model.ts-proposal.md §7). Shared by career-model.test.ts so the doc's
 // numbers and the pinned numbers come from one place. Region and creature names are placeholders for the region-1 content lane.
 import {
-  DAY_S, TYPE_WEIGHTS, award, levelOfCredit, careerAtLevel, nextLegend, tierOf, type CareerEvent, type CareerState, type TypeTable,
+  CAREER_MAX_LEVEL, DAY_S, TYPE_WEIGHTS, award, levelOfCredit, careerAtLevel, nextLegend, tierOf, type CareerEvent, type CareerState, type TypeTable,
 } from '../src/core/career-model.ts';
-import { MAX_LEVEL } from '../src/core/career-ladder.ts';
 
 export const MIN = 60;
 export const HOUR = 3600;
@@ -67,8 +66,8 @@ export function botDay(t0: number, hours = 24): CareerEvent[] {
 // level); "enough world content" — a world boss the player has not beaten is always available at their own level, fought solo;
 // creatures at their own level across 20 mob and 5 elite kinds (never hot); four story steps and a chapter per title. Pit and world-boss
 // win rate by title tier: 80% at Recruit, five points lower each title (40% at Invictus, 35% at Origin). World content opens at
-// Gladiator I (WORLD_FROM): below it the Pit is the game.
-export const WORLD_FROM = 11;
+// Level 10 (WORLD_FROM): the Pit alone pays up to it and stalls there (ten legends at 380 do not fill the 5,415 that level needs), so the world is the game from here.
+export const WORLD_FROM = 10;
 export type Player = {
   name: string; pitFights: number; bossFights: number; mobs: number; elites: number; storyEvery: number;
 };
@@ -82,7 +81,7 @@ export type PlayerRun = {
 };
 
 export function playerDays(
-  p: Player, opponents: readonly string[], maxDays: number, cap: number = MAX_LEVEL, start: CareerState = careerAtLevel(1 + 0, 0, cap),
+  p: Player, opponents: readonly string[], maxDays: number, cap: number = CAREER_MAX_LEVEL, start: CareerState = careerAtLevel(1, 0, cap),
   types: TypeTable = TYPE_WEIGHTS,
 ): PlayerRun {
   let s = start;

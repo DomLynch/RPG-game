@@ -3,10 +3,10 @@
 // asks for — existing players' level unchanged, credit monotonic, farm yield bounded, no NaN.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MAX_LEVEL, MAX_LEVEL as careerMaxLevel, levelOfMarks } from '../src/core/career-ladder.ts';
+import { MAX_LEVEL, levelOfMarks } from '../src/core/career-ladder.ts';
 import { LEGEND_OPPONENTS, rungOf } from '../src/legends.ts';
 import {
-  DAY_S, HEAT_UNIT_S, RESTED_CAP_CP, RESTED_PER_DAY_CP, TYPE_WEIGHTS,
+  CAREER_CP, CAREER_MAX_LEVEL, LEVEL_CURVE, DAY_S, HEAT_UNIT_S, RESTED_CAP_CP, RESTED_PER_DAY_CP, TYPE_WEIGHTS,
   allBossesOpen, award, basePay, weightAt, cumulative, falloffPermille, fillPermille, heatAt, heatKills, killValue, legendKey,
   levelOfCredit, careerAtLevel, newCareer, nextLegend, partyEligible, partySharePermille, repeatPermille, requirement, restedAvailable,
   settleAll, tierOf, type CareerEvent, type CareerState, type TypeTable,
@@ -29,64 +29,70 @@ function lcg(seed: number): () => number {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // The curve.
 
-test('curve: the key rows of the proposal table (requirement to the next level, cumulative to reach it)', () => {
-  const rows = [1, 10, 11, 21, 31, 41, 45, 46, 50].map(l => [l, requirement(l), cumulative(l)]);
+test('curve: the level-curve row: maxLevel 100, born at 0, the key rows (requirement to the next level, cumulative to reach it)', () => {
+  assert.deepEqual([LEVEL_CURVE.maxLevel, CAREER_MAX_LEVEL, CAREER_CP, cumulative(100)], [100, 100, 7_676_095, 7_676_095]);
+  const rows = [0, 1, 5, 6, 10, 11, 20, 50, 90, 99].map(l => [l, requirement(l), cumulative(l)]);
   assert.deepEqual(rows, [
-    [1, 1000, 0], [10, 1900, 12_600], [11, 2025, 14_500], [21, 6025, 48_625], [31, 15_025, 145_250],
-    [41, 29_025, 354_375], [45, 36_025, 480_725], [46, 37_900, 516_750], [50, 45_900, 680_100],
+    [0, 200, 0], [1, 200, 200], [5, 1680, 1120], [6, 1800, 2800], [10, 5415, 10_720], [11, 5900, 16_135],
+    [20, 14_065, 89_095], [50, 64_015, 1_084_220], [90, 186_615, 5_677_720], [99, 213_300, 7_462_795],
   ]);
 });
-test('curve: integer, rising every level, gentle to level 10 and steeper from Gladiator I (level 11)', () => {
-  for (let l = 1; l <= 60; l++) {
+test('curve: from level 10 a level costs boss kills that ramp and steepen at every rank-up (the opening below it is priced in Pit wins)', () => {
+  const bossPay = (l: number) => basePay(TYPE_WEIGHTS['world-boss']!, Math.max(1, l), Math.max(1, l));
+  for (let l = 10; l < 15; l++) assert.ok(requirement(l) > 2 * bossPay(l), `level ${l}`);
+  assert.equal(requirement(10), Math.floor((bossPay(10) * (2500 + 200 * 6 + 2000)) / 1000));
+  for (let l = 1; l < 99; l++) {
     assert.ok(Number.isSafeInteger(requirement(l)) && Number.isSafeInteger(cumulative(l)));
-    assert.ok(requirement(l + 1) > requirement(l));
-    const second = requirement(l + 2) - 2 * requirement(l + 1) + requirement(l); // the curvature
-    assert.equal(second, l < 9 ? 0 : l === 9 ? 25 : 50, `curvature at ${l}`); // flat to 10, curving from 11
+    assert.ok(requirement(l + 1) > requirement(l), `rising at ${l}`);
   }
+  const kills = (l: number) => requirement(l) / bossPay(l);
+  for (let l = 10; l < 99; l++) assert.ok(kills(l + 1) > kills(l), `the cost in boss kills ramps at ${l}`);
+  for (let rank = 20; rank <= 90; rank += 10) assert.ok(kills(rank) - kills(rank - 1) > kills(rank - 1) - kills(rank - 2), `steeper at the rank-up ${rank}`);
 });
-test('curve: cumulative is the sum of the requirements (closed form checked against a loop)', () => {
+test('curve: cumulative is the sum of the requirements; past the cap it stays at the career total', () => {
   let sum = 0;
-  for (let l = 1; l <= 80; l++) {
+  for (let l = 0; l <= 100; l++) {
     assert.equal(cumulative(l), sum, `level ${l}`);
     sum += requirement(l);
   }
+  assert.equal(cumulative(250), CAREER_CP);
 });
-test('curve: levelOfCredit reads the curve exactly at every boundary, at caps 46 and 50, and never above the cap', () => {
-  for (const cap of [46, 50]) {
-    for (let l = 2; l <= cap; l++) {
+test('curve: levelOfCredit reads the curve exactly at every boundary, at caps 50 and 100, and never above the cap', () => {
+  for (const cap of [50, 100]) {
+    for (let l = 1; l <= cap; l++) {
       assert.equal(levelOfCredit(cumulative(l) - 1, cap), l - 1);
       assert.equal(levelOfCredit(cumulative(l), cap), l);
     }
     assert.equal(levelOfCredit(1e12, cap), cap);
   }
-  for (const bad of [Number.NaN, -5, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]) assert.equal(levelOfCredit(bad), 1);
+  for (const bad of [Number.NaN, -5, 0, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]) assert.equal(levelOfCredit(bad), 0);
 });
 test('curve: the rank bar fills by the part of the current level earned; empty at the top', () => {
-  assert.equal(fillPermille(cumulative(20) + requirement(20) / 2), 500);
-  assert.equal(fillPermille(cumulative(20)), 0);
-  for (const cap of [46, 50]) assert.equal(fillPermille(cumulative(cap) + 12_345, cap), 0);
+  assert.equal(fillPermille(cumulative(11) + requirement(11) / 2), 500);
+  assert.equal(fillPermille(cumulative(11)), 0);
+  for (const cap of [50, 100]) assert.equal(fillPermille(cumulative(cap) + 12_345, cap), 0);
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // What drives rank, and the migration.
 
-test('two ladders, no bridge: the Pit reads levelOfMarks(marks), the zone reads levelOfCredit(credit); a new zone character is level 1 whatever the Pit holds', () => {
-  for (const cap of [46, 50]) for (let l = 1; l <= cap; l++) assert.equal(levelOfCredit(cumulative(l), cap), l, `cap ${cap}, level ${l}`);
-  for (let m = 0; m <= 120; m++) assert.equal(levelOfMarks(m), Math.min(careerMaxLevel, 1 + m));
-  assert.equal(levelOfCredit(Number.NaN), 1);
+test('two ladders, no bridge: the Pit reads levelOfMarks(marks), the zone reads levelOfCredit(credit); a new zone character is level 0 whatever the Pit holds', () => {
+  for (const cap of [50, 100]) for (let l = 0; l <= cap; l++) assert.equal(levelOfCredit(cumulative(l), cap), l, `cap ${cap}, level ${l}`);
+  for (let m = 0; m <= 120; m++) assert.equal(levelOfMarks(m), Math.min(MAX_LEVEL, 1 + m));
+  assert.equal(levelOfCredit(Number.NaN), 0);
   const fresh = newCareer();
-  assert.deepEqual([fresh.credit, levelOfCredit(fresh.credit), fresh.beaten.length, fresh.pitWins], [0, 1, 0, 0]);
+  assert.deepEqual([fresh.credit, levelOfCredit(fresh.credit), fresh.beaten.length, fresh.pitWins], [0, 0, 0, 0]);
 });
 test('careerAtLevel(L) stands at exactly level L (the Pit session, sims, tests): credit is the cumulative requirement, the Pit rung is L', () => {
   const s = careerAtLevel(24);
   assert.deepEqual([s.credit, s.pit.rung, s.beaten.length, s.pitWins], [cumulative(24), 24, 0, 23]);
 });
-test('ladder cap: the model reads career-ladder.ts MAX_LEVEL and declares no cap of its own', () => {
-  assert.equal(MAX_LEVEL, careerMaxLevel);
-  assert.equal(levelOfCredit(1e12), careerMaxLevel);
+test('ladder cap: the career declares its own cap in the curve row (100); the Pit ladder\'s MAX_LEVEL stays 50', () => {
+  assert.deepEqual([MAX_LEVEL, CAREER_MAX_LEVEL], [50, 100]);
+  assert.equal(levelOfCredit(1e12), CAREER_MAX_LEVEL);
 });
 test('titles: tierOf is the legend rung src/legends.ts already shows for every level', () => {
-  for (let l = 1; l <= careerMaxLevel; l++) assert.equal(tierOf(l), rungOf(l), `level ${l}`);
+  for (let l = 1; l <= MAX_LEVEL; l++) assert.equal(tierOf(l), rungOf(l), `level ${l}`);
   assert.deepEqual([45, 46, 50].map(tierOf), [9, 10, 10]);
 });
 
@@ -101,10 +107,9 @@ test('type weights: the table (permille of the kill value), and the flags that d
     'story-chapter': [500, true, false, 'solo'], 'rift-boss': [150, false, true, 'each'],
   });
 });
-test('kill value: the curve\'s linear part — equal to the requirement to level 10, behind it every level from Gladiator I', () => {
-  for (let l = 1; l <= 10; l++) assert.equal(killValue(l), requirement(l));
-  for (let l = 11; l <= 60; l++) assert.ok(killValue(l) < requirement(l));
-  assert.deepEqual([11, 30, 49].map(killValue), [2000, 3900, 5800]);
+test('kill value: the curve row\'s linear price, 1,000 + 100 a level', () => {
+  assert.deepEqual([1, 11, 30, 49, 99].map(killValue), [1000, 2000, 3900, 5800, 10_800]);
+  for (let l = 10; l <= 99; l++) assert.ok(killValue(l) < requirement(l), `a kill is a part of a level at ${l}`);
 });
 test('one pay rule: every row pays killValue(min(target, you)) × falloff × weight, at every level 1..50 and d −12..+12', () => {
   for (let you = 1; you <= 50; you++) {
@@ -119,10 +124,9 @@ test('one pay rule: every row pays killValue(min(target, you)) × falloff × wei
     }
   }
 });
-test('shares shrink from Gladiator I: each row\'s even-level pay is a fixed part of a level to 10 and a smaller part every level from 11', () => {
+test('shares shrink as the level climbs: each row\'s even-level pay is a smaller part of a level at every level from 10', () => {
   for (const [type, row] of Object.entries(TYPE_WEIGHTS)) {
-    for (let l = 1; l <= 10; l++) assert.equal((basePay(row, l, l) * 1000) / requirement(l), weightAt(row, l), `${type} at ${l}`);
-    for (let l = 10; l < 50; l++) {
+    for (let l = 10; l < 99; l++) {
       assert.ok(basePay(row, l + 1, l + 1) * requirement(l) < basePay(row, l, l) * requirement(l + 1), `${type}: share at ${l + 1} not below ${l}`);
     }
   }
@@ -130,7 +134,7 @@ test('shares shrink from Gladiator I: each row\'s even-level pay is a fixed part
 test('a new content type plugs in with ONE row and no curve change: a minotaur, first kill only', () => {
   const curveBefore = [1, 11, 30, 50].map(l => [requirement(l), cumulative(l), killValue(l)]);
   const types: TypeTable = { ...TYPE_WEIGHTS, minotaur: { weight: 300, once: true, rested: false, party: 'each' } };
-  const r = settleAll(careerAtLevel(1 + 19), [kill('m1', 'minotaur', 'labyrinth-bull', 20), kill('m2', 'minotaur', 'labyrinth-bull', 20)], new Set(), MAX_LEVEL, types);
+  const r = settleAll(careerAtLevel(1 + 19), [kill('m1', 'minotaur', 'labyrinth-bull', 20), kill('m2', 'minotaur', 'labyrinth-bull', 20)], new Set(), CAREER_MAX_LEVEL, types);
   assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[Math.floor((killValue(20) * 300) / 1000), 'ok'], [0, 'already-beaten']]);
   assert.equal(r.awards[0].cp, 870);
   assert.deepEqual(r.state.beaten, ['minotaur:labyrinth-bull']);
@@ -144,14 +148,15 @@ test('a new content type plugs in with ONE row and no curve change: a minotaur, 
 test('Pit: a legend pays a fifth of a level to L10 and a tenth from Gladiator I (Dom 2026-10-06), its first win only; a second win pays 0', () => {
   const r = settleAll(careerAtLevel(1 + 4), [win('a', 0, 'goblin'), win('b', 1, 'goblin'), win('c', 2, 'knight')]);
   assert.deepEqual(r.awards.map(a => [a.cp, a.reason]), [[280, 'ok'], [0, 'already-beaten'], [280, 'ok']]);
-  assert.equal(280 * 5, requirement(5));
-  assert.deepEqual([basePay(TYPE_WEIGHTS.legend, 10, 10) * 5, basePay(TYPE_WEIGHTS.legend, 11, 11)], [requirement(10), 200]); // the taper at Gladiator I
+  assert.deepEqual([basePay(TYPE_WEIGHTS.legend, 10, 10), basePay(TYPE_WEIGHTS.legend, 11, 11)], [380, 200]); // the taper at Gladiator I
   assert.deepEqual(r.state.beaten, [legendKey('goblin', 5), legendKey('knight', 5)]);
   assert.equal(r.state.pitWins, 6); // 4 migrated + 2 paid wins
 });
-test('Pit alone: levels 1 to 10 are reachable on the Pit alone — five first wins at each level pay exactly that level', () => {
-  let s = careerAtLevel(1 + 0);
-  for (let level = 1; level <= 10; level++) {
+const TOTAL_PIT_WINS_TO_10 = 34, PIT_STALL_WINS = 44, PIT_STALL_CREDIT = 14_520;
+test('Pit alone: levels 1 to 9 are reachable on the Pit alone, a few wins a level (the legend pays a fifth of a kill to level 10)', () => {
+  let s = careerAtLevel(1);
+  let total = 0;
+  for (let level = 1; level <= 9; level++) {
     let w = 0;
     while (levelOfCredit(s.credit) === level) {
       const opponent = nextLegend(s, OPP, w * 31 + level);
@@ -159,23 +164,23 @@ test('Pit alone: levels 1 to 10 are reachable on the Pit alone — five first wi
       s = award(s, win(`w${level}-${w}`, 0, opponent)).state;
       w++;
     }
-    assert.deepEqual([w, levelOfCredit(s.credit), s.credit], [5, level + 1, cumulative(level + 1)], `after level ${level}`);
+    total += w;
   }
+  assert.deepEqual([total, levelOfCredit(s.credit)], [TOTAL_PIT_WINS_TO_10, 10]);
 });
-test('Pit alone stalls at Gladiator I, below Origin V at caps 46 and 50: it falls out of the weights, there is no cap on the Pit', () => {
-  for (const cap of [46, 50]) {
-    let s = careerAtLevel(1 + 0, 0, cap);
+test('Pit alone stalls at level 10, below the cap: it falls out of the weights, there is no cap on the Pit', () => {
+  for (const cap of [50, 100]) {
+    let s = careerAtLevel(1, 0, cap);
     let wins = 0;
     for (let opponent = nextLegend(s, OPP, 0, cap); opponent !== null; opponent = nextLegend(s, OPP, wins * 7919, cap)) {
       s = award(s, win(`w${wins}`, wins, opponent), cap).state;
       wins++;
     }
-    // Ten legends at level 11 pay 10 × 200 = 2,000 of the 2,025 that level needs: the Pit has paid all it has at your level.
-    assert.deepEqual([wins, s.credit, levelOfCredit(s.credit, cap)], [60, cumulative(11) + 2000, 11]); // 5 a level to L10, then all ten at L11
-    assert.ok(levelOfCredit(s.credit, cap) < cap);
-    // A sliver of world credit and the Pit opens again at level 12.
-    const w = award(s, story('st', 0, 'any/1'), cap).state;
-    assert.equal(levelOfCredit(w.credit, cap), 12);
+    // Ten legends at level 10 pay 10 × 380 = 3,800 of the 5,415 that level needs: the Pit has paid all it has at your level.
+    assert.deepEqual([wins, s.credit, levelOfCredit(s.credit, cap)], [PIT_STALL_WINS, PIT_STALL_CREDIT, 10]);
+    // Two world boss kills at level 10 and the Pit opens again at level 11.
+    const w = settleAll(s, [kill('b1', 'world-boss', 'x1', 10), kill('b2', 'world-boss', 'x2', 10)], new Set(), cap).state;
+    assert.equal(levelOfCredit(w.credit, cap), 11);
     assert.ok(nextLegend(w, OPP, 1, cap) !== null);
   }
 });
@@ -264,16 +269,16 @@ const region = settleAll(careerAtLevel(1 + 10), regionEvents);
 const by = (pick: (e: CareerEvent) => boolean): number => region.awards.reduce((sum, a, i) => sum + (pick(regionEvents[i]) ? a.cp : 0), 0);
 const isType = (t: string) => (e: CareerEvent): boolean => e.kind === 'kill' && e.type === t;
 test('worked example A: a Gladiator I clears region 1 and chapter one: pins the evening', () => {
-  assert.equal(careerAtLevel(1 + 10).credit, 14_500);
-  assert.deepEqual(region.awards.filter((_, i) => isType('world-boss')(regionEvents[i])).map(a => a.cp), [1100, 1312, 1375]);
-  assert.equal(by(isType('world-boss')), 3787);
-  assert.equal(by(e => e.kind === 'story'), 1980);
-  assert.equal(by(isType('mob')), 1361);
+  assert.equal(careerAtLevel(11).credit, 16_135);
+  assert.deepEqual(region.awards.filter((_, i) => isType('world-boss')(regionEvents[i])).map(a => a.cp), [1100, 1250, 1312]);
+  assert.equal(by(isType('world-boss')), 3662);
+  assert.equal(by(e => e.kind === 'story'), 1850);
+  assert.equal(by(isType('mob')), 1382);
   assert.equal(by(e => e.kind === 'kill' && e.target === 'ash-hound'), 288);
-  assert.equal(by(isType('elite')), 1757);
+  assert.equal(by(isType('elite')), 1736);
   assert.equal(by(isType('named')), 16); // the allowance ran dry before the named kills
-  assert.equal(region.state.credit, 23_401);
-  assert.equal(levelOfCredit(region.state.credit), 14); // Gladiator I → Gladiator IV
+  assert.equal(region.state.credit, 24_781);
+  assert.equal(levelOfCredit(region.state.credit), 12); // level 11 → 12
   assert.equal(restedAvailable(region.state, 155 * MIN), 26);
   assert.equal(region.state.pit.rung, 11); // the Pit waits at Gladiator I
 });
@@ -289,7 +294,7 @@ test('worked example B: B2: an hour on one level-25 kind pays 121 CP, under 1% o
   const r = settleAll(lvl30, farmLow(0));
   assert.equal(r.state.credit - lvl30.credit, 121);
   assert.deepEqual(r.awards.slice(0, 8).map(a => a.cp), [13, 13, 13, 9, 7, 6, 5, 4]);
-  assert.equal(requirement(30), 13_900);
+  assert.equal(requirement(30), 26_715);
 });
 test('worked example B: B3: a 24-hour bot on even-level mobs across 20 kinds: 4,499 CP (a third of a level at 30), never above pool + refill in any hour', () => {
   const r = settleAll(lvl30, botDay(0));
@@ -326,24 +331,15 @@ test('worked example C: their elite kills split EverQuest-style and take the hig
   assert.equal(elite(15, []), 192);
 });
 
-test('worked example D: days to Gladiator I and to Origin, casual (30 min) and heavy (3 h), at cap 46 and 50', () => {
-  const titles = [6, 11, 16, 21, 26, 31, 36, 41, 46];
-  const runs = [[CASUAL, [8, 17, 22, 31, 44, 62, 88, 125, 177], 231], [HEAVY, [2, 4, 5, 7, 10, 15, 23, 35, 52], 70]] as const;
-  for (const [p, days, origin5] of runs) {
-    const run = playerDays(p, OPP, 3000);
-    assert.deepEqual(titles.map(l => run.dayReached[l]), days, p.name);
-    const at50 = playerDays(p, OPP, 3000, 50);
-    assert.equal(at50.dayReached[50], origin5, `${p.name}: Origin V at cap 50`);
-    // The Pit's share falls out of the weights: all of a level to Gladiator I, a fifth or so of the climb from there to Origin V.
-    let pit = 0;
-    let all = 0;
-    for (let l = 11; l < 50; l++) {
-      const x = at50.byLevel[l];
-      pit += x.pit;
-      all += x.pit + x.boss + x.mob + x.story;
-    }
-    assert.ok(pit * 4 < all && pit * 6 > all, `${p.name}: Pit ${pit} of ${all} from 11`);
-    for (let l = 1; l < 11; l++) assert.equal(at50.byLevel[l].boss + at50.byLevel[l].mob + at50.byLevel[l].story, 0);
+test('worked example D: days to every tenth level, casual (30 min) and heavy (3 h), to level 100 (the whole career)', () => {
+  const marks = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  const runs = [[CASUAL, [12, 44, 112, 221, 392, 644, 968, 1372, 1858, 2429]], [HEAVY, [3, 11, 29, 63, 121, 201, 299, 415, 550, 703]]] as const;
+  for (const [p, days] of runs) {
+    const run = playerDays(p, OPP, 6000);
+    assert.deepEqual(marks.map(l => run.dayReached[l]), days, p.name);
+    assert.equal(run.finalLevel, CAREER_MAX_LEVEL);
+    // Below level 10 the Pit is the whole game; the world pays nothing there.
+    for (let l = 1; l < 10; l++) assert.equal(run.byLevel[l].boss + run.byLevel[l].mob + run.byLevel[l].story, 0);
   }
 });
 
@@ -499,4 +495,20 @@ test('rift-boss is a progression row (living-world §8.4): the region loader acc
   assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss'), true);
   assert.equal(Object.hasOwn(TYPE_WEIGHTS, 'rift-boss-x'), false);
   assert.ok(basePay(TYPE_WEIGHTS['rift-boss']!, 20, 20) < basePay(TYPE_WEIGHTS['world-boss']!, 20, 20));
+});
+
+test('the 100 cap is one number: the curve row and the build table agree', async () => {
+  const sql = (await import('node:fs')).readFileSync(new URL('../supabase/migrations/202610120024_origins_character_build.sql', import.meta.url), 'utf8');
+  assert.match(sql, new RegExp(`level int not null check \\(level between 0 and ${LEVEL_CURVE.maxLevel}\\)`));
+});
+
+test('the opening is priced in Pit wins: level 1 in one win, level 5 in five, level 10 in thirty-five', () => {
+  let credit = 0;
+  const at: Record<number, number> = {};
+  for (let wins = 1; wins <= 60; wins++) {
+    const l = levelOfCredit(credit);
+    credit += basePay(TYPE_WEIGHTS.legend!, l, l);
+    for (const k of [1, 5, 10]) if (levelOfCredit(credit) >= k && at[k] === undefined) at[k] = wins;
+  }
+  assert.deepEqual(at, { 1: 1, 5: 5, 10: 35 });
 });

@@ -490,6 +490,30 @@ try {
     eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false }, { character: null, stored: false }], 'flag off: nothing served, nothing stored');
     psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'flag off wrote nothing');
+    // the build field (migration 202610120024): get / set with a version check, a level that only rises, ownership, closed to clients
+    {
+      const asW = sql => psql(`set role frankendom_origins; ${sql}`).split('\n').pop();
+      const get = c => JSON.parse(asW(`select coalesce(public.origins_get_build('${D}', '${c}')::text, 'null');`));
+      const set = (c, placed, rank, ver) => JSON.parse(asW(`select coalesce(public.origins_set_build('${D}', '${c}', '${JSON.stringify(placed)}'::jsonb, ${rank}, ${ver})::text, 'null');`));
+      const lvl = n => JSON.parse(asW(`select coalesce(public.origins_set_level('${D}', '${daraTwo}', ${n})::text, 'null');`));
+      eq(get(daraTwo), { level: 0, placed: {}, version: 0, respreadRank: 1 }, 'build: no row reads as level 0, nothing placed, version 0');
+      eq(set(daraTwo, { attack: 1 }, 1, 0), { level: 0, placed: { attack: 1 }, version: 1, respreadRank: 1 }, 'build: the first save from version 0');
+      eq(set(daraTwo, { sword: 1 }, 1, 0).conflict, true, 'build: a stale version is a conflict');
+      eq(get(daraTwo).placed, { attack: 1 }, 'build: a conflict changed nothing');
+      eq(set(daraTwo, { sword: 1 }, 2, 1), { level: 0, placed: { sword: 1 }, version: 2, respreadRank: 2 }, 'build: the next save from version 1, and the re-spread rank moves with it');
+      eq([lvl(7), lvl(3)], [7, 7], 'build: the writer raises the level and never lowers it');
+      eq([get(daraTwo).level, get(daraTwo).placed, get(daraTwo).version], [7, { sword: 1 }, 3], 'build: a level-up is a new version with the placement untouched');
+      eq(psql(`select string_agg(version || ':' || level || ':' || placed::text, ' ' order by version) from public.origins_character_build where character = '${daraTwo}'`), '1:0:{"attack": 1} 2:0:{"sword": 1} 3:7:{"sword": 1}', 'build: every version is kept, append-only');
+      eq(JSON.parse(asW(`select public.origins_get_build('${D}', '${daraTwo}', 1)::text;`)).placed, { attack: 1 }, 'build: an old version reads back exactly');
+      eq(asW(`select coalesce(public.origins_get_build('${D}', '${daraTwo}', 9)::text, 'null');`), 'null', 'build: an unknown version reads null');
+      eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_build('${D}', '${daraTwo}', 1)::text;`).split('\n').pop()).placed, { attack: 1 }, 'build: the verifier role reads one exact version');
+      eq(get('pc:nobody'), null, 'build: not this account\'s character reads null');
+      eq(set('pc:nobody', {}, 1, 0), null, 'build: and cannot be written');
+      eq(String((() => { try { lvl(101); return 'ok'; } catch (e) { return /check constraint/.test(String(e.stderr ?? e.message)) ? 'refused' : 'other'; } })()), 'refused', 'build: level 101 is refused by the table');
+      const asClient3 = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message).slice(0, 80); } };
+      for (const sql of [`select * from public.origins_character_build;`, `select public.origins_get_build('${D}', '${daraTwo}');`, `update public.origins_character_build set level = 50;`])
+        eq(asClient3(sql), 'permission denied', `a client may not: ${sql}`);
+    }
     // item 25: the dirty map. Posts are held and written as ONE statement (the same origins_save_location), a read flushes first (read your own write), the stale guard still stands
     {
       const flusher = createLocationFlusher(psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), 60_000, () => undefined);
@@ -554,7 +578,7 @@ try {
     }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)
     psql(`select public.origins_purge_account('${D}');`);
-    eq([activeOf(D), locRow(dara), locRow(daraTwo)], ['none', 'none', 'none'], 'purge: active character and saved locations gone');
+    eq([activeOf(D), locRow(dara), locRow(daraTwo), psql(`select count(*) from public.origins_character_build`)], ['none', 'none', 'none', '0'], 'purge: active character, saved locations and builds gone');
   } finally { locWriter.close(); }
   // The first open makes the account's first character (Lead's ruling 2026-10-09; runs while 0009 is applied, before its down-script below): no page code creates one, so a signed-in player had none and nothing could persist.
   {

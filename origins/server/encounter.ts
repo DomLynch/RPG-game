@@ -9,7 +9,7 @@
 // Fail closed: with no deps (the flag off, or no verifier installed) every op answers 503 "encounter verify not installed"; an unknown mob layer or a non-empty `swaps` (Combat's swap hook is not
 // shipped) is refused rather than guessed; a database without the migration answers 503.
 import { randomBytes, randomInt } from 'node:crypto';
-import { decodeRecord, type TwistFlag, type DuelPose } from '../../src/fight/server.ts';
+import { decodeRecord, type TwistFlag, type DuelPose, expectedSheet } from '../../src/fight/server.ts';
 import { DbError, type Db } from './db.ts';
 import { BadRequest, Conflict, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
@@ -103,7 +103,13 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     if (run === 'none') throw new BadRequest('token: unknown encounter');
     if (run.used || run.settled || Date.parse(run.expires_at) <= (deps.now ?? Date.now)()) throw new Conflict('encounter token unknown, used or expired');
     let verdict: ReturnType<VerifyEncounter>;
-    try { verdict = verify(await decodeRecord(body.record), { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token) }); }
+    try {
+      const record = await decodeRecord(body.record);
+      // A record's sheet is the client's claim: the build version it names (this character's, from the writer's own store) is the only thing that can vouch for it.
+      const want = record.sheet && record.characterId !== undefined && `pc:${record.characterId}` !== run.character ? { ok: false as const, reason: 'the record names another character\'s build' }
+        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; });
+      verdict = want.ok ? verify(record, { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), ...(want.sheet ? { sheet: want.sheet } : {}) }) : { ok: false, reason: want.reason };
+    }
     catch (e) { verdict = { ok: false, reason: `unreadable record: ${e instanceof Error ? e.message : String(e)}` }; }   // never a throw: a refusal
     if (!verdict.ok && verdict.kitMismatch) throw new Refused(422, verdict.reason, 'kit-mismatch');   // not a loss and not consumed: the token is left to the sweep ('abandoned', nothing paid)
     const result = verdict.ok ? verdict.result : 'lost', ticks = verdict.ok ? verdict.ticks : 0, twist = verdict.ok ? verdict.twist : null;

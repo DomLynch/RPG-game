@@ -6,7 +6,7 @@ import type { ItemInstance, Location } from '../../src/core/server.ts';
 import { legacyLootOfItemId } from '../../src/core/server.ts';
 import { categoryOf } from '../../src/core/server.ts';
 import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
-import { levelOfCredit } from '../../src/core/server.ts';
+import { standingLevel } from '../../src/core/server.ts';
 import { DbError } from './db.ts';
 import { exchangePlace } from './upgrade.ts';
 import { Refused } from './errors.ts';
@@ -56,7 +56,7 @@ export function gearHandlers(content: Content): Record<string, Handler> {
   const move = (run: (inv: Inventory, id: string, standing: { source: 'server'; careerLevel: number }, index: number | undefined) => ReturnType<typeof equip>): Handler => async ({ db, account }, body) => {
     const character = characterOf(body.character), id = idOf(body.id), index = indexOf(body.index);
     const { inventory, snap } = await openHoldingsWith(db, account, character, content);
-    const standing = { source: 'server' as const, careerLevel: snap.career ? levelOfCredit(Number(snap.career.total_credit)) : 1 };
+    const standing = { source: 'server' as const, careerLevel: snap.career ? standingLevel(Number(snap.career.total_credit)) : 1 };
     const next = run(inventory, id, standing, index);
     if (!next.ok) throw refusal(next.issues);
     const batch = putsBetween(inventory, next.value);
