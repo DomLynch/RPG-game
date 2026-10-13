@@ -31,6 +31,7 @@ const rowIds = (file: string, key: string) => { try { return ((JSON.parse(read(f
 // A measuring stick must never read a broken tree as progress: a failed import or an empty id list stops the run (exit 2) and names what is missing.
 function fail(message: string): never { console.error(`as-data: ${message}`); process.exit(2); }
 async function ids(): Promise<Record<Category, string[]>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a dynamic import of arbitrary repo modules (roster, finishers)
   const imp = async (f: string) => { try { return (await import(pathToFileURL(join(REPO, f)).href)) as Record<string, any>; } catch (e) { fail(`cannot import ${f}: ${(e as Error).message.split('\n')[0]}`); } };
   const roster = await imp('src/roster.ts'), fin = await imp('src/fight/finishers.ts');
   const specials = /const SPECIAL_SETS = \{([\s\S]*?)\n\} as const/.exec(read('src/fight/moves.ts'));
@@ -78,4 +79,5 @@ try {
     console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}`);
   }
   if (stale.length || staleVerbs.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions)) process.exitCode = 1;   // --gate (CI, quality.yml): the programme reached 0/0 on 2026-10-13; any new compare or closed union is red
 } finally { rmSync(dir, { recursive: true, force: true }); }

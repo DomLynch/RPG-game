@@ -141,3 +141,17 @@ test('fail closed: an empty id list exits 2 naming the category', () => {
     assert.equal(r.stdout, '');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
+
+test('--gate (quality.yml): a tree with a compare or a closed union exits 1; the same scan without the flag exits 0', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'as-data-gate-'));
+  try {
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'sample.ts'), FIXTURE);
+    const gated = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--gate', '--root', join(dir, 'src'), '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 });
+    assert.equal(gated.status, 1, gated.stderr);
+    assert.equal(run(join(dir, 'src'), EMPTY).status, 0);
+    writeFileSync(join(dir, 'src', 'sample.ts'), "export const ok = (n: number) => n + 1;\n");
+    const clean = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--gate', '--root', join(dir, 'src'), '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 });
+    assert.equal(clean.status, 0, clean.stderr);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
