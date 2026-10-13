@@ -23,8 +23,7 @@ import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
 import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { repairCost, repairedPiece, wearKindOf } from '../origins/gear/wear-repair.ts';
-import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
-import { zoneAt } from '../origins/presence/zones.ts';
+import { REJOIN_EDGE, zoneAt, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { handlers as clientOps } from '../origins/server/handlers.ts';
 
 
