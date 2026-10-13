@@ -167,13 +167,14 @@ test('content rows built in code are counted: a record-kind literal in origins c
 test('a tuning number kept as a named constant in a moved file is counted; the moved feuds.ts has none', () => {
   const repo = mkdtempSync(join(tmpdir(), 'as-data-consts-'));
   try {
-    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'feuds'), { recursive: true }); mkdirSync(join(repo, 'origins', 'patrons'), { recursive: true });
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'feuds'), { recursive: true }); mkdirSync(join(repo, 'origins', 'patrons'), { recursive: true }); mkdirSync(join(repo, 'origins', 'preview'), { recursive: true });
+    writeFileSync(join(repo, 'origins', 'preview', 'play.ts'), "export const START_LEVEL = 16;\nexport const WORLD_TUNING = { reach: 3, far: 40 };\nexport const FROM_ROW = START.startLevel;\n");
     writeFileSync(join(repo, 'origins', 'patrons', 'patrons.ts'), "export const RULES = { switchBronze: 2000, wait: 28 * 86400 } as const;\nexport const CLEAN = { points: 0, at: 0 };\n");
     writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
     writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
     writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
     writeFileSync(join(repo, 'origins', 'feuds', 'feuds.ts'), "export const JAIL_S = 600;\nexport const NEG = -5;\nexport const FROM_ROW = R.jailS;\nconst local = 3;\nexport const fn = () => { const INNER = 4; return INNER; };\n");
     const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; text: string }[] };
-    assert.equal(out.rows, 3, 'JAIL_S, NEG and the RULES object count; a constant read from a row, a lower-case local, a constant inside a function and a zero-valued CLEAN state do not');
+    assert.equal(out.rows, 4, 'JAIL_S, NEG, the RULES object and a play.ts START_LEVEL count (WORLD_TUNING is its own slice); a constant read from a row, a lower-case local, a constant inside a function and a zero-valued CLEAN state do not');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
