@@ -34,3 +34,23 @@ test('a creature the hero walked away from is handed back, unless it is already 
   a.frame([near('w1', 20), near('w2', 20)], (id) => id === 'w2');
   assert.deepEqual(n.log, ['engage w1', 'engage w2', 'evade w1']);
 });
+
+test('a fighting creature is never starved by bystanders: 5 in aggro, the 5th is fought, it ends up holding a token and the farthest bystander is handed back', () => {
+  const n = net(), a = createEngageAhead(n, clock); t = 0;
+  const five = [near('w1', 2), near('w2', 3), near('w3', 4), near('w4', 6), near('w5', 5)];
+  a.frame(five, () => false);
+  assert.equal(n.open().length, ASK_BUDGET); assert.equal(n.tokenOf('w5'), null, 'the 5th found the budget full');
+  a.frame(five, (id) => id === 'w5');
+  assert.notEqual(n.tokenOf('w5'), null, 'the fought creature holds a token (its kill is paid)');
+  assert.equal(n.tokenOf('w4'), null, 'the farthest non-fighting ask (w4, 6 m) gave its slot up');
+  assert.ok(['w1', 'w2', 'w3'].every((id) => n.tokenOf(id) !== null), 'the nearer bystanders keep theirs');
+  assert.ok(n.open().length <= ASK_BUDGET, 'never past the budget');
+});
+
+test('with every open ask already fighting there is nothing to take: that bout stays band-off, never a refusal', () => {
+  const n = net(), a = createEngageAhead(n, clock); t = 0;
+  const five = [near('w1', 2), near('w2', 3), near('w3', 4), near('w4', 6), near('w5', 5)];
+  a.frame(five, () => false);
+  a.frame(five, (id) => id !== 'w5');   // the first four fight, the 5th too but nobody is left to hand back
+  assert.equal(n.tokenOf('w5'), null); assert.equal(n.open().length, ASK_BUDGET);
+});
