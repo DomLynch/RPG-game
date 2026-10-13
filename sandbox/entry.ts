@@ -113,5 +113,17 @@ function panel(opponents: string[]) {
 }
 
 await import('../src/main.ts');
+// The stance picker, restyled (Dom's pick of the icon stack: Neutral first, down the right edge, muted): the game's own #stance-panel buttons keep their handlers and aria-pressed; only the look changes.
+const GLYPH: Record<string, string> = { neutral: '\u25CB', aggressive: '\u2694', defensive: '\u26E8', trickster: '\u263D' };
+const restyleStances = (tries = 0): void => {
+  const panel = document.getElementById('stance-panel'), buttons = panel ? [...panel.querySelectorAll('button')] : [];
+  if (!panel || buttons.length < 4) { if (tries < 40) setTimeout(() => restyleStances(tries + 1), 250); return; }
+  const css = document.createElement('style');
+  css.textContent = '#stance-panel{top:64px!important;right:8px!important;padding:4px!important;gap:0!important;max-width:none!important;background:rgba(14,11,9,.62)!important;border:1px solid rgba(200,190,170,.18)!important}#stance-panel>*:not(.sbx-row){display:none!important}.sbx-row{display:flex!important;flex-direction:column!important;gap:4px!important}.sbx-row button{width:38px!important;height:38px!important;padding:0!important;font:20px/1 system-ui!important;color:#bdb4a2!important;background:rgba(26,22,18,.85)!important;border:1px solid rgba(200,190,170,.22)!important;border-radius:6px!important}.sbx-row button[aria-pressed=true]{color:#e0c068!important;border-color:#b79a4a!important;background:rgba(60,48,22,.85)!important}';
+  document.head.append(css);
+  const row = buttons[0]!.parentElement!; row.classList.add('sbx-row');
+  for (const b of buttons) { const id = (b as HTMLElement).dataset.stance ?? ''; b.setAttribute('aria-label', b.textContent!.trim()); b.title = b.textContent!.trim(); b.textContent = GLYPH[id] ?? b.textContent; }
+};
+restyleStances();
 const { ROSTER } = await import('../src/roster.ts');
 panel(Object.keys(ROSTER));
