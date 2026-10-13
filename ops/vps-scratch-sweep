@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Prunes stale lane scratch on the VPS. Dry run unless called with --apply.
+# Runs only when free space is under TRIGGER_GIB (or with --force).
+# Rules (Auditor + COO, 2026-10-08): never touch bn-trunk, in-use dirs, dirs with files newer than
+# MIN_AGE_H, dirty/unpushed/stashed checkouts (archive instead), open-PR heads. Copies are
+# rsync -c verified before any delete. Every removed path is written to the manifest.
+# NOTE: real node_modules dirs are NOT archived (regenerable from the lockfile); copy and verify both exclude them.
+set -u
+WORK=/opt/frankendom-shadow/work
+JOBS=/srv/dev-jobs
+ARCH=/mnt/frankendom-donors/vps-archive
+REPO=DomLynch/RPG-game
+TRIGGER_GIB=${TRIGGER_GIB:-60}
+MIN_AGE_H=${MIN_AGE_H:-48}
+EXCLUDE=${EXCLUDE:-"bn-trunk combat-t4 gambit expansion"}
+APPLY=0; FORCE=0
+PATHS=""
+for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) PATHS="$PATHS ${a#--path=}"; FORCE=1;; esac; done
+LOGDIR=/var/log/vps-scratch-sweep; mkdir -p "$LOGDIR"
+RUN=$(date +%Y%m%d-%H%M); MAN=$LOGDIR/$RUN.removed.txt; LOG=$LOGDIR/$RUN.log
+say(){ echo "$(date +%T) $*" | tee -a "$LOG"; }
+free_gib(){ df -BG --output=avail / | tail -1 | tr -dc 0-9; }
+
+exec 9>/var/lock/vps-scratch-sweep.lock; flock -n 9 || { say "another sweep running"; exit 0; }
+say "start free=$(free_gib)G apply=$APPLY force=$FORCE trigger=${TRIGGER_GIB}G min_age=${MIN_AGE_H}h"
+if [ "$FORCE" = 0 ] && [ "$(free_gib)" -ge "$TRIGGER_GIB" ]; then say "enough free space, nothing to do"; exit 0; fi
+
+# fail closed: need the box mounted and writable, and the open-PR list
+t="$ARCH/.sweep-probe.$$"; mkdir -p "$ARCH" && : > "$t" && rm -f "$t" || { say "ABORT: storage box not writable"; exit 3; }
+PRS=$(gh pr list -R "$REPO" --state open --limit 200 --json headRefName,headRefOid -q '.[]|.headRefName,.headRefOid' 2>/dev/null) \
+  && [ -n "$PRS" ] || { say "ABORT: cannot read open PR list"; exit 3; }
+INUSE=$( { lsof +D "$WORK" 2>/dev/null | awk 'NR>1{print $9}'; lsof +D "$JOBS" 2>/dev/null | awk 'NR>1{print $9}'
+          for p in /proc/[0-9]*; do readlink "$p/cwd" 2>/dev/null; done; } | sed -n -E "s#^($WORK|$JOBS)/([^/]+).*#\1/\2#p" | sort -u )
+# a dir another dir symlinks into (the shared node_modules in bn-trunk, world-z2fix, char-nk...) is never swept, one hop at a time: 2026-10-13 a hand-run prune deleted bn-trunk and every VPS lane job failed
+LINKED=$(find /opt/frankendom-shadow -maxdepth 4 -type l -printf '%h %l\n' 2>/dev/null | while read -r dir tgt; do case "$tgt" in /*) realpath -m -s "$tgt";; *) realpath -m -s "$dir/$tgt";; esac; done | sed -n -E "s#^($WORK)/([^/]+).*#\1/\2#p" | sort -u)
+HELD=$(cat /opt/frankendom-shadow/capture.holder* /opt/frankendom-shadow/capture.queue 2>/dev/null)
+
+# recent = any file changed (mtime OR ctime) inside the window; ctime catches `git archive | tar x` trees whose mtimes are the commit date
+recent(){ [ -n "$(find "$1" -path '*/node_modules' -prune -o \( -newermt "$MIN_AGE_H hours ago" -o -newerct "$MIN_AGE_H hours ago" \) -print -quit 2>/dev/null)" ]; }
+inuse(){ echo "$INUSE" | grep -qx "$1" || echo "$HELD" | grep -q "$(basename "$1")"; }
+
+archive_then_delete(){ # src sub
+  local s=$1 d=$ARCH/$2/$RUN/   # per-run folder so same-named dirs never merge into an old archive
+  if [ -n "$(find "$s" ! -type f ! -type d ! -type l -print -quit)" ]; then say "skip(nonregular) $s"; return; fi
+  if [ $APPLY = 0 ]; then say "would archive+delete $s"; return; fi
+  mkdir -p "$d"
+  rsync -rtlJ --exclude=node_modules --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
+  local ch; ch=$(rsync -rcnlJ --exclude=node_modules --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
+  [ -n "$ch" ] && { say "VERIFYFAIL $s: $ch"; return; }
+  echo "ARCHIVED $s" >> "$MAN"; rm -rf -- "$s"; say "archived+deleted $s"
+}
+delete_only(){
+  if [ $APPLY = 0 ]; then say "would delete $1"; return; fi
+  echo "DELETED $1" >> "$MAN"; rm -rf -- "$1"; say "deleted $1"
+}
+
+# Named-path mode (Lead 2026-10-13): --path=/abs/dir removes exactly that dir, through the same archive-first, manifest-writing route; nothing else is touched. Dry run unless --apply.
+if [ -n "$PATHS" ]; then
+  for p in $PATHS; do
+    case "$p" in /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) ;; *) say "REFUSE(outside the allowed roots) $p"; continue;; esac
+    case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
+    [ -d "$p" ] && [ ! -L "$p" ] || { say "REFUSE(not a real dir) $p"; continue; }
+    case " $EXCLUDE " in *" $(basename "$p") "*) say "REFUSE(never-touch list) $p"; continue;; esac
+    if echo "$LINKED" | grep -qx "$p" || echo "$LINKED" | grep -q "^$p/"; then say "REFUSE(a symlink points into it) $p"; continue; fi
+    if echo "$INUSE" | grep -qx "$p" || echo "$INUSE" | grep -q "^$p/"; then say "REFUSE(in use) $p"; continue; fi
+    archive_then_delete "$p" named
+  done
+  say "named-path mode done"; exit 0
+fi
+
+# work/: lane scratch
+for d in "$WORK"/*/; do d=${d%/}; n=$(basename "$d")
+  [ -d "$d" ] && [ ! -L "$d" ] || continue
+  case " $EXCLUDE " in *" $n "*) continue;; esac
+  inuse "$d" && { say "keep(in-use) $n"; continue; }
+  echo "$LINKED" | grep -qx "$d" && { say "keep(symlink target) $n"; continue; }
+  recent "$d" && continue
+  if [ -e "$d/.git" ]; then
+    br=$(git -C "$d" symbolic-ref -q --short HEAD 2>/dev/null); hd=$(git -C "$d" rev-parse HEAD 2>/dev/null)
+    if echo "$PRS" | grep -qxF -e "$br" -e "$hd"; then say "keep(open-PR) $n"; continue; fi
+  fi
+  # never plain-delete: git can fail open and status hides ignored output, so everything is archived first
+  archive_then_delete "$d" work
+done
+
+# dev-jobs: finished jobs
+for e in "$JOBS"/*; do [ -e "$e" ] || continue
+  inuse "$e" && { say "keep(in-use) $e"; continue; }
+  recent "$e" && continue
+  archive_then_delete "$e" dev-jobs
+done
+
+# /tmp: old, not open, not sockets/systemd/X
+find /tmp -mindepth 1 -maxdepth 1 -mtime +2 ! -type s ! -type p ! -name '.*' ! -name 'systemd-private-*' ! -name 'snap-private-tmp' ! -name 'clr-debug-pipe*' ! -name 'vps-*' -print0 2>/dev/null |
+while IFS= read -r -d '' p; do
+  if [ -d "$p" ]; then lsof +D "$p" >/dev/null 2>&1 && continue; else lsof "$p" >/dev/null 2>&1 && continue; fi
+  recent "$p" && continue
+  delete_only "$p"
+done
+say "done free=$(free_gib)G manifest=$MAN"
