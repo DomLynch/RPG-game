@@ -161,7 +161,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   runInNewContext(gearSheetCode, { require: gearRequire, exports: gearSheetExports, document: context.document, requestAnimationFrame: context.requestAnimationFrame, location: (context as { location?: unknown }).location });
   modules['./core/gear-sheet.ts'] = gearSheetExports;
   const merged: Record<string, unknown> = {};   // main.ts takes the whole core through its one door, src/core/index.ts: the harness's per-module stubs, merged
-  for (const id of ['career-ladder', 'loot', 'grades', 'profile', 'session', 'loot-panel', 'loot-claims', 'gear-room', 'open', 'build-ref', 'gear-server', 'gear-ledger', 'gear-sheet', 'career-screen']) Object.assign(merged, modules[`./core/${id}.ts`]);
+  for (const id of ['career-ladder', 'loot', 'grades', 'profile', 'session', 'loot-panel', 'loot-claims', 'gear-room', 'open', 'build-ref', 'gear-server', 'gear-ledger', 'gear-sheet', 'career-screen', 'build-screen', 'build-server']) Object.assign(merged, modules[`./core/${id}.ts`]);
   modules['./core/index.ts'] = merged;
   runInNewContext(code, context);   // main.ts's globalThis is this object:
   element('welcome').hidden = true;
