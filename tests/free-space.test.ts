@@ -45,3 +45,9 @@ test('free-space.sh: the refusal names the biggest candidate trees and tmp dirs,
     assert.ok(!lines.some(l => /claude-501$/.test(l)), 'the root is a parent, not a thing to delete');
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('cut-release.mjs: the guard call is bounded (run() carries a timeout and a kill signal) and a killed or failed guard refuses the cut', () => {
+  const cut = readFileSync('scripts/cut-release.mjs', 'utf8');
+  assert.match(cut, /run\('bash', \['scripts\/lib\/free-space\.sh'[^\n]*timeout: 60_000/);
+  assert.match(cut, /if \(space\.status !== 0\) \{ console\.error\(`cut-release: refusing to cut/);
+});

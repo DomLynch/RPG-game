@@ -63,8 +63,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const specs = rest.map(parseSpec);
   const git = args => run('git', args);
   if (git(['status', '--porcelain']).stdout.trim()) { console.error('cut-release: the worktree is dirty'); process.exit(2); }
-  const space = spawnSync('bash', ['scripts/lib/free-space.sh', process.env.FREE_GIB_MIN || '20'], { encoding: 'utf8' });   // a candidate cut on a full disk fails mid-install
-  if (space.status !== 0) { console.error(`cut-release: refusing to cut, ${space.stdout}${space.stderr}`.trim()); process.exit(2); }
+  const space = run('bash', ['scripts/lib/free-space.sh', process.env.FREE_GIB_MIN || '20'], { timeout: 60_000 });   // a candidate cut on a full disk fails mid-install
+  if (space.status !== 0) { console.error(`cut-release: refusing to cut, ${space.stdout || ''}${space.stderr || ''}${space.error ? ` (${space.error.message})` : ''}${space.signal ? ` (killed by ${space.signal})` : ''}`.trim()); process.exit(2); }   // a timeout or kill is a refusal too (status null)
   console.log(space.stdout.trim());
   git(['fetch', '-q', 'origin']);
   if (!noVerify) for (const { pr, head } of specs) {
