@@ -18,7 +18,7 @@ export function mountShop(dialog: HTMLDialogElement, d: ShopDeps) {
   dialog.replaceChildren(close, title, status, list); dialog.classList.add('shop-dialog'); dialog.setAttribute('aria-label', chromeText('title'));
   let busy = false, fetchedAt = 0, view: ShopView | null = null, timer: ReturnType<typeof setInterval> | undefined;
   const stop = () => { if (timer !== undefined) { clearInterval(timer); timer = undefined; } };
-  const timers = () => list.querySelectorAll<HTMLElement>('.shop-restock');
+  const timers = () => list.querySelectorAll<HTMLElement>('.shop-restock[data-ms]');   // only a shelf with a restock time has one: a full shelf has no line at all
   const tick = () => {   // the restock times count down on the writer's clock offset; at zero the shelf is read again
     const gone = now() - fetchedAt;
     timers().forEach((t) => { const left = Number(t.dataset.ms) - gone; t.textContent = restockText(Math.max(0, left)); });
@@ -30,7 +30,7 @@ export function mountShop(dialog: HTMLDialogElement, d: ShopDeps) {
       const li = el('li', 'shop-row'), name = el('b', 'shop-name', l.name), price = el('span', 'shop-price', l.priceText);
       const note = el('span', 'shop-note', [l.stockText, l.levelText].filter(Boolean).join(' · ')), restock = el('span', 'shop-restock', restockText(l.restockInMs));
       const go = el('button', 'shop-buy', chromeText('buy'), { type: 'button' }) as HTMLButtonElement;
-      li.dataset.item = l.item; restock.dataset.ms = String(l.restockInMs ?? 0); go.disabled = l.soldOut;
+      li.dataset.item = l.item; if (l.restockInMs !== null) restock.dataset.ms = String(l.restockInMs); go.disabled = l.soldOut;
       go.addEventListener('click', async () => {
         if (busy) return; busy = true; go.disabled = true;
         const r = await d.buy(l.item, v.revision);
