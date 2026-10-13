@@ -3,7 +3,7 @@
 // career/practice Match takes that from its `sheet` port at EVERY begin(), so a piece swapped since boot counts, the record carries it (v48), and a naked player fights exactly as before.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
+import { GEAR_IN_FIGHTS, buildOf, gearNumbers, sheetOfLoot } from '../src/fight/gear-numbers.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
 import { GEAR, gearDeltas } from '../src/fight/gear-rows.ts';
 import { Match } from '../src/fight/match.ts';
@@ -12,7 +12,7 @@ import { ROSTER } from '../src/roster.ts';
 import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
-import { RECORD_VERSION } from '../src/fight/record.ts';
+import { RECORD_VERSION, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 import { validateBuild } from '../src/fight/sheet-rows.ts';
@@ -51,9 +51,9 @@ test('sheetOfLoot: the default build with nothing worn is no sheet; plate raises
   assert.ok(gearNumbers(plate).res > 0, 'the Gear tab reads the same worn pieces');
 });
 
-const mk = (sheet?: () => ReturnType<typeof sheetOfLoot>) => {
+const mk = (sheet?: () => ReturnType<typeof sheetOfLoot>, buildRef?: () => { characterId: string; buildVersion: number } | undefined) => {
   const storage = { getItem: () => null, setItem: () => undefined };
-  return new Match(OPPONENTS.veteran, 'test', { storage, profile: loadProfile(storage, () => 'test').profile, trial: loadTrial(storage), scorecard: loadScorecard(storage), ...(sheet ? { sheet } : {}) }, 731, 'longsword', null, 6);
+  return new Match(OPPONENTS.veteran, 'test', { storage, profile: loadProfile(storage, () => 'test').profile, trial: loadTrial(storage), scorecard: loadScorecard(storage), ...(sheet ? { sheet } : {}), ...(buildRef ? { buildRef } : {}) }, 731, 'longsword', null, 6);
 };
 
 test('a live Match takes the sheet from its port at every begin(): the fight and its record carry it (v48), a rematch re-reads it, and no port is the fight it was', () => {
@@ -79,4 +79,24 @@ test('a lesson and sparring never take the sheet: only career and practice fight
   assert.equal(m.sheet, undefined);
   m.startSparring({ weapon: 'longsword', skill: null, difficulty: 6 });
   assert.equal(m.sheet, undefined);
+});
+
+test('the build reference: a sheet fight names the stored build it claims (character id + build version) on the record; no sheet, no reference; flagged OFF the page writes today\'s record', async () => {
+  setPlayScale(playScaleFor('veteran', RECORD_VERSION)); setLateNotice(true); setStab(true);
+  assert.equal(GEAR_IN_FIGHTS, false, 'shipped OFF until the server expects worn gear (Backend\'s wornGear-into-expectedSheet PR)');
+  const ref = { characterId: 'char-42_a', buildVersion: 7 };
+  const on = mk(() => sheetOfLoot(plate), () => ref); on.rematch();
+  const rec = on.recorder!.finish('abandoned');
+  assert.equal(rec.characterId, 'char-42_a'); assert.equal(rec.buildVersion, 7); assert.ok(rec.sheet);
+  assert.deepEqual(unpackRecord(packRecord(rec)), rec, 'the reference survives the wire');
+  const naked = mk(() => sheetOfLoot(undefined), () => ref); naked.rematch();
+  const bare = naked.recorder!.finish('abandoned');
+  assert.equal(bare.sheet, undefined); assert.equal(bare.characterId, undefined, 'no sheet: no reference (a reference without a sheet is refused)');
+  const off = mk(); off.rematch();   // the flag-off page passes neither port: exactly what ships today
+  const today = off.recorder!.finish('abandoned');
+  assert.equal(today.sheet, undefined); assert.equal(today.characterId, undefined); assert.equal(today.buildVersion, undefined);
+  assert.deepEqual(unpackRecord(packRecord(today)), today);
+  const { fetchBuildRef, buildVersionOf } = await import('../src/core/build-ref.ts');
+  assert.equal(buildVersionOf({ version: 3, level: 1 }), 3); assert.equal(buildVersionOf({ version: 0 }), null, 'versions start at 1'); assert.equal(buildVersionOf(null), null);
+  assert.equal(await fetchBuildRef({ storage: null, search: '' }), null, 'a guest has no character: no reference');
 });

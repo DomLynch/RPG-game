@@ -2,6 +2,7 @@
 // Renderer-bearing (gear-room draws with three.js), so server-run code takes ./server.ts instead. tests/core-boundary.test.ts pins both doors.
 export * from './writer-call.ts';
 export * from './open.ts';
+export * from './build-ref.ts';
 export * from './session.ts';
 export * from './profile.ts';
 export * from './grades.ts';
