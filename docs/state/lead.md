@@ -5,6 +5,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
 
 **Delta since the 16:1x entry below (read both):**
+- Auditor's last poll: EA parity PASS (writer 211/0/0, verifier 152/0/0, on #2545). EC merged (auto-PASS 12:36Z), parity owed when live. EB #2567 @4891c6c38 contents OK (= EC + #2530, scripts only). If EB's CI goes green before a new Auditor re-arms, Lead may post "Lead: PASS @4891c6c38" + add candidate:pass (Auditor's contents read is done) so the drill runs.
 - 16:4x: EC #2555 HAS candidate:pass (train publishing it). EB drill cut = #2567 @4891c6c38 on EC's tip (#2530 PASSed @d0bd4da75); drill overrides in ~/.claude/state/release-train.env keyed to EB's sha only; EB needs its own candidate:pass from the (restarted) Auditor. Expect RED → rollback to EC → re-publish EB; Deploy sends the receipt.
 - AUDITOR ALSO CLEARED ~16:4x (its handoff: memory frankendom_handoff_2026-10-13g, state doc edb879715). Its watchers died: NOTHING auto-PASSes (EC, ED stack, #2556, #2530, #2551, #2504, #2509) until it is restarted and re-arms them. First job for the new Auditor: EA parity. Ask Dom to restart the Auditor and Combat first thing.
 - EC #2555: CI nearly done (Deploy 16:36: 118 ok, 3 open; only red = cancelled placeholder). Auditor watcher posts PASS + candidate:pass on green → train publishes. Verify live + parity.
