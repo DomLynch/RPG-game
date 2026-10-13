@@ -30,9 +30,9 @@ test('a full budget asks nothing (that bout plays band-off); a refused ask is re
 
 test('a creature the hero walked away from is handed back, unless it is already fighting him', () => {
   const n = net(), a = createEngageAhead(n, clock); t = 0;
-  a.frame([near('w1', 3), near('w2', 3)], () => false);
+  a.frame([near('w1', 3), near('w2', 3)], (id) => id === 'w2');
   a.frame([near('w1', 20), near('w2', 20)], (id) => id === 'w2');
-  assert.deepEqual(n.log, ['engage w1', 'engage w2', 'evade w1']);
+  assert.deepEqual(n.log, ['engage w2', 'engage w1', 'evade w1']);
 });
 
 test('a fighting creature is never starved by bystanders: 5 in aggro, only 2 bystander asks are made, the 5th is fought and holds a token', () => {
@@ -50,7 +50,17 @@ test('against the writer\'s real budget (4 open for 120 s, handing back does not
   const w: AheadNet = { engaged: (i) => { if (server.size >= ASK_BUDGET) { refused++; return Promise.resolve({ offline: 'refused' }); } server.add(i); return Promise.resolve({}); }, evaded: () => {}, open: () => [...server], tokenOf: (i) => (server.has(i) ? `tok-${i}` : null) };
   const a = createEngageAhead(w, clock); t = 0;
   for (let k = 1; k <= 6; k++) { t += 5000; a.frame([near(`m${k}`, 3)], () => false); a.frame([near(`m${k}`, 30)], () => false); }
-  assert.equal(server.size, BYSTANDER_BUDGET, 'six passers-by cost the server two slots');
+  assert.equal(server.size, BYSTANDER_BUDGET, 'six passers-by cost the server the bystander cap');
   t += 5000; a.frame([near('boss', 3)], (id) => id === 'boss');
   assert.ok(server.has('boss')); assert.equal(refused, 0);
+});
+
+test('after bystanders were handed back, three creatures fighting at once (MAX_ATTACKERS) all get a token against the real budget', () => {
+  const server = new Set<string>(); let refused = 0;
+  const w: AheadNet = { engaged: (i) => { if (server.size >= ASK_BUDGET) { refused++; return Promise.resolve({ offline: 'refused' }); } server.add(i); return Promise.resolve({}); }, evaded: () => {}, open: () => [...server], tokenOf: (i) => (server.has(i) ? `tok-${i}` : null) };
+  const a = createEngageAhead(w, clock); t = 0;
+  for (let k = 1; k <= 4; k++) { t += 5000; a.frame([near(`m${k}`, 3)], () => false); a.frame([near(`m${k}`, 30)], () => false); }
+  const trio = [near('f1', 3), near('f2', 3), near('f3', 3)];
+  t += 5000; a.frame(trio, () => true);
+  assert.ok(['f1', 'f2', 'f3'].every((id) => server.has(id))); assert.equal(refused, 0);
 });
