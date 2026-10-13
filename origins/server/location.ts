@@ -41,20 +41,22 @@ const loopback = (a: string | undefined): boolean => a === '127.0.0.1' || a === 
 const cm = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= ZONE_CM;
 
 // `flusher`: when set, presence's posts go into the dirty map (answer {queued:true}) and are written in one statement per interval; unset, each post is written through as before.
-export type InternalOptions = { key: string; held?: HeldFn; now?: () => number; flusher?: LocationFlusher };
+export type InternalOptions = { key: string; held?: HeldFn; now?: () => number; flusher?: LocationFlusher; liveOps?: { snapshot(): unknown } };
 
 // The writer's internal routes (server.ts sends every /internal/ path here when a key is configured; without one those paths are a plain 404).
 export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
-  const { key, held = noServerHeldState, now = Date.now, flusher } = opts;
+  const { key, held = noServerHeldState, now = Date.now, flusher, liveOps } = opts;
   if (!key) throw new Error('writer: the internal key is empty');
   return async (req, res) => {
     const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     const url = new URL(req.url ?? '/', 'http://writer');
-    if (url.pathname !== '/internal/location' || (req.method !== 'GET' && req.method !== 'POST')) return reply(404, { error: 'not found' });
+    const isLive = url.pathname === '/internal/live-ops' && req.method === 'GET' && liveOps !== undefined;   // the live-ops rows as the writer holds them (events, which are active, switches)
+    if (!isLive && (url.pathname !== '/internal/location' || (req.method !== 'GET' && req.method !== 'POST'))) return reply(404, { error: 'not found' });
     const sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
     const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
     if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) { req.resume(); return reply(401, { error: 'unauthorised' }); }
     try {
+      if (isLive) return reply(200, liveOps!.snapshot());
       if (req.method === 'GET') {
         const account = url.searchParams.get('account')?.toLowerCase();
         if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });

@@ -7,7 +7,6 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { PC } from '../../src/core/index.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
-import { fakeWhere } from '../presence/fixtures.ts';
 import type { Db } from '../server/db.ts';
 import { createWriter } from '../server/server.ts';
 import { minHits, minKillMs, worldSpawnOps, defaultZoneSpawns } from '../server/world-spawns.ts';
@@ -53,11 +52,11 @@ function fakeSpawnDb(clock: { ms: number }) {
   return { db, engages, calls, open };
 }
 
-async function writer(clock: { ms: number }) {
-  const fake = fakeSpawnDb(clock);
-  const w = createWriter({ db: fake.db, verify: async (t) => (t === 'tok' ? ACCOUNT : null), where: fakeWhere({}), handlers: worldSpawnOps({ content, spawns, now: () => new Date(clock.ms), log: () => {} }) });
+async function writer(clock: { ms: number }, refuseUnchecked = false) {
+  const stand = { to: ids[0]! }, fake = fakeSpawnDb(clock);
+  const w = createWriter({ db: fake.db, verify: async (t) => (t === 'tok' ? ACCOUNT : null), where: async () => { const sp = spawns.get(stand.to); if (!sp) return { online: false as const }; return { online: true as const, layer: 0, placed: true as const, x: sp.spec.home.x * 100, z: sp.spec.home.z * 100, zone: sp.spec.zone, ageMs: 100 }; }, handlers: worldSpawnOps({ content, spawns, refuseUnchecked, now: () => new Date(clock.ms), log: () => {} }) });
   await new Promise<void>((ok) => w.listen(0, '127.0.0.1', ok));
-  return { ...fake, base: `http://127.0.0.1:${(w.address() as AddressInfo).port}/origins`, close: () => new Promise<void>((ok) => w.close(() => ok())) };
+  return { ...fake, stand, base: `http://127.0.0.1:${(w.address() as AddressInfo).port}/origins`, close: () => new Promise<void>((ok) => w.close(() => ok())) };
 }
 
 test('three creatures on one player: three engages (three tokens), three kill reports each on its own token, the 5th engage refused while four are open', async () => {
@@ -77,7 +76,7 @@ test('three creatures on one player: three engages (three tokens), three kill re
     clock.ms += 60_000;   // past every creature's time-to-kill floor
     for (const id of pack) for (let i = 0; i < minHits(spawns.get(id)!.hp) + 2; i++) t.hit(id);
     const killed = [];
-    for (const id of pack) killed.push(await t.killed(id));
+    for (const id of pack) killed.push(await (w.stand.to = id, t.killed(id)));
     assert.deepEqual(killed.map((k) => killedOf(k)?.instance), pack, 'three kill reports, each accepted and paid once');
     assert.deepEqual(tokens.map((tk) => w.engages.get(tk)!.result), ['killed', 'killed', 'killed']);
     assert.deepEqual(await t.killed(pack[0]!), { offline: 'not-engaged' }, 'a second fall of the same creature sends nothing');
@@ -94,9 +93,9 @@ test('each token keeps its own floor: a creature engaged late (at the kill) is r
     clock.ms += 60_000;
     await t.engaged(late);
     for (const id of [early, late]) for (let i = 0; i < minHits(spawns.get(id)!.hp); i++) t.hit(id);
-    assert.equal(killedOf(await t.killed(early))?.result, 'killed');
+    assert.equal(killedOf(await (w.stand.to = early, t.killed(early)))?.result, 'killed');
     assert.ok(minKillMs(spawns.get(late)!.hp) > 0, 'every Zone 1 creature has a time floor');
-    assert.deepEqual(await t.killed(late), { offline: 'http-422' }, 'engaged at the kill: too fast on its own floor, nothing paid');
+    assert.deepEqual(await (w.stand.to = late, t.killed(late)), { offline: 'http-422' }, 'engaged at the kill: too fast on its own floor, nothing paid');
   } finally { await w.close(); }
 });
 
@@ -123,7 +122,7 @@ test('touch: a hit touches the token at most every TOUCH_EVERY_MS; tick touches 
 
 test('onCombatEvent: FightStarted alone engages (a tell, a swing or a first blow does not); his hits count per creature; a wander-past or another player\'s event engages nothing; Evaded drops', () => {
   const log: string[] = [];
-  const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [] };
+  const t = { engaged: (i: string) => { log.push(`engage ${i}`); return Promise.resolve({ offline: 'x' }); }, hit: (i: string) => log.push(`hit ${i}`), evaded: (i: string) => log.push(`evade ${i}`), tick() {}, killed: () => Promise.resolve({ offline: 'x' }), open: () => [], outbox: () => [] };
   const on = onCombatEvent(t, 'me');
   on({ type: 'FightStarted', creature: 'wolves-1', player: 'me' });
   on({ type: 'FightStarted', creature: 'wolves-9', player: 'someone-else' });
@@ -221,4 +220,51 @@ test('the engage names the page\'s zone (zoneId, "1" when the page names none) a
   await spawnTracker({ token: () => 'tok', character: () => PC, now: () => 1, fetch: stub, base: 'http://x' }).engaged('wolves-1');
   assert.deepEqual(bodies.map((b) => [b.instance, b.zoneId]), [['z2:wolves-1', '2'], ['wolves-1', '1']]);
   assert.match(readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), /spawnTracker\(\{[^}]*zone: pageZoneId/);
+});
+
+test('outbox: a kill whose reply is lost (socket drops after the server paid) is re-sent on the same token and is paid exactly once; 409 settles it', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock);
+  try {
+    let drop = true, sent = 0;
+    const lossy: typeof fetch = async (url, init) => {
+      const res = await fetch(url, init);
+      if (String(url).endsWith('/kill_report')) { sent++; if (drop) { drop = false; await res.arrayBuffer(); throw new TypeError('socket hang up'); } }
+      return res;
+    };
+    const settled: string[] = [];
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, fetch: lossy, onSettled: (k) => settled.push(k.instance) });
+    await t.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t.hit(ids[0]!);
+    clock.ms += 60_000;
+    assert.deepEqual(await t.killed(ids[0]!), { offline: 'network' }, 'the reply was lost');
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'the server already paid it once');
+    assert.deepEqual(t.outbox(), [ids[0]!], 'the report waits in the outbox');
+    t.tick(); await new Promise((r) => setTimeout(r, 200));
+    assert.equal(sent, 2, 'tick() re-sent the same report');
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'the server never paid a second time (409 used)');
+    assert.deepEqual(t.outbox(), [], '409 settles the report');
+    t.tick(); await new Promise((r) => setTimeout(r, 50));
+    assert.equal(sent, 2, 'nothing is re-sent once settled');
+    assert.deepEqual(settled, [], 'no reply was ever seen, so no onSettled');
+  } finally { await w.close(); }
+});
+
+test('outbox: a kill reported with no fresh pose is refused when the flag is on (422, the token stays open), waits, and is paid once presence has the pose', async () => {
+  const clock = { ms: Date.parse('2026-10-09T10:00:00Z') }, w = await writer(clock, true);
+  try {
+    const settled: string[] = [];
+    const t = spawnTracker({ token: () => 'tok', character: () => PC, now: () => clock.ms, base: w.base, onSettled: (k) => settled.push(k.instance) });
+    await t.engaged(ids[0]!);
+    for (let i = 0; i < minHits(spawns.get(ids[0]!)!.hp); i++) t.hit(ids[0]!);
+    clock.ms += 60_000;
+    w.stand.to = '';   // presence has no pose for this creature's zone
+    assert.deepEqual(await t.killed(ids[0]!), { offline: 'http-422' });
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 0, 'nothing paid on an unchecked position');
+    assert.deepEqual(t.outbox(), [ids[0]!]);
+    w.stand.to = ids[0]!;
+    t.tick(); await new Promise((r) => setTimeout(r, 200));
+    assert.equal(w.calls.filter((c) => c === 'origins_spawn_kill').length, 1, 'paid once on the retry');
+    assert.deepEqual(settled, [ids[0]!]);
+    assert.deepEqual(t.outbox(), []);
+  } finally { await w.close(); }
 });

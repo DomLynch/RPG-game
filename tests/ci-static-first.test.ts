@@ -25,9 +25,10 @@ const jobs = (file: string): Job[] => {
 };
 
 // GitHub expression -> JS: same operators and quoting for what these files use; hyphenated job names become bracket lookups.
-const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>) => {
+// `chain`: the results of EVERY job upstream (needs of needs too): GitHub's success() is false when any of them was skipped or failed, so a job with no
+// `if` under a skipped `static` is skipped even when its direct need ran through !cancelled() (unit-ci run 38293767009 on trunk 4337cfe9b: 8 green shards, receipt skipped).
+const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>, chain: readonly string[] = Object.values(needs).map(n => n.result)) => {
   const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`).replace(/\.\*\./g, "['*'].");
-  const all = Object.values(needs);
   const fns = {
     contains: (h: unknown, n: string) => (Array.isArray(h) ? h.includes(n) : String(h).includes(n)),
     toJSON: (v: unknown) => JSON.stringify(v ?? null),
@@ -35,7 +36,7 @@ const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: str
     format: (f: string, ...a: unknown[]) => f.replace(/\{(\d+)\}/g, (_, i) => String(a[Number(i)])),
     always: () => true,
     cancelled: () => false,
-    success: () => all.every(n => n.result === 'success'),
+    success: () => chain.every(r => r === 'success'),
   };
   return new Function('github', 'needs', ...Object.keys(fns), `return (${js});`)(github, needs, ...Object.values(fns));
 };
@@ -43,13 +44,15 @@ const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: str
 /** Which jobs run for this event (a job runs when its needs allow it and its `if` holds); `results` forces a job's conclusion (e.g. static red). */
 const schedule = (file: string, github: Ctx, results: Record<string, string> = {}, outputs: Record<string, Record<string, string>> = {}) => {
   const done: Record<string, { result: string; outputs: Record<string, string> }> = {};
-  const list = jobs(file);
+  const list = jobs(file), byName = new Map(list.map(j => [j.name, j]));
+  const upstream = (name: string, seen = new Set<string>()): Set<string> => { for (const n of byName.get(name)!.needs) if (!seen.has(n)) { seen.add(n); upstream(n, seen); } return seen; };
   while (Object.keys(done).length < list.length) {
     for (const j of list) {
       if (done[j.name] || !j.needs.every(n => done[n])) continue;
       const needs = Object.fromEntries(j.needs.map(n => [n, done[n]]));
       const statusFn = j.cond && /\b(always|cancelled|success|failure)\(\)/.test(j.cond);
-      const ok = (statusFn || j.needs.every(n => done[n].result === 'success')) && (j.cond ? !!evalExpr(j.cond, github, needs) : true);
+      const chain = [...upstream(j.name)].map(n => done[n]!.result);
+      const ok = (statusFn || chain.every(r => r === 'success')) && (j.cond ? !!evalExpr(j.cond, github, needs, chain) : true);
       done[j.name] = { result: ok ? results[j.name] || 'success' : 'skipped', outputs: ok ? outputs[j.name] || {} : {} };
     }
   }
@@ -90,7 +93,7 @@ test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature 
   const ug = /\nconcurrency:\n {2}group: ([^\n]+)\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/.exec(readFileSync(U, 'utf8'))![1];
   const ugroup = (c: Ctx) => ug.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(ugroup(pr('synchronize')), 'unit-ci-7');
-  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7');
+  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7-inert-99', 'a label never shares the head\'s group: the code did not change');
   assert.equal(ugroup(pr('labeled', [], { label: { name: 'release:go' } })), 'unit-ci-7-inert-99');
   assert.match(readFileSync(U, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, labeled\]\n/);
   // the plan sets `browser` from the labels the event carries (the step reads them; a push always runs them)
@@ -111,15 +114,28 @@ test('adding auditor:ready runs the shard, the verdict and the browser jobs (aft
   assert.ok(schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'and the shard once auditor:ready is on');
 });
 
-test('the concurrency group: auditor:ready gets its own group (never cancels the head\'s gate in flight); an inert label or edit never cancels anything', () => {
+test('the concurrency group: every label event (auditor:ready too) and a title edit get a group of their own, so none cancels the head\'s gate in flight', () => {
   const g = /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
   const group = (c: Ctx) => g.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(group(pr('synchronize')), 'quality-7');
-  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7-browser');
+  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7-inert-99');
   assert.equal(group(pr('labeled', [], { label: { name: 'release:go' } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { title: {} } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { base: {} } })), 'quality-7');
   assert.match(readFileSync(Q, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, edited, labeled\]\n/);
+});
+
+test('DI/DH sequence (Lead 2026-10-13): a push, then a label, then the push\'s run is NOT cancelled; a second push still cancels the first; ci:release-checks stays in the head group', () => {
+  const grp = (file: string, c: Ctx) => /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(readFileSync(file, 'utf8'))![1].replace('${{ inputs.ref }}', '').replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: String(c.run_id ?? '99') }, {})));   // inputs.ref is only set by a dispatch
+  const cancels = (file: string) => /\n {2}cancel-in-progress: ([^\n]+)\n/.exec(readFileSync(file, 'utf8'))![1];
+  const cand = (action: string, label?: string, run = '1') => ({ ...pr(action, [], label ? { label: { name: label } } : {}), head_ref: 'release-DI', run_id: run });
+  for (const [file, labels] of [[U, ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']], [Q, ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']], [R, ['auditor:ready', 'candidate:pass', 'release:go']]] as const) {
+    const head = grp(file, cand('synchronize'));
+    for (const l of labels) assert.notEqual(grp(file, cand('labeled', l, '2')), head, `${file}: ${l} must not share the head's group (it would cancel the push's run)`);
+    assert.equal(grp(file, cand('synchronize', undefined, '3')), head, `${file}: a second push shares the group, so it cancels the first`);
+    assert.match(cancels(file), /true|pull_request/, `${file}: the group cancels the superseded run`);
+  }
+  assert.equal(grp(R, cand('labeled', 'ci:release-checks', '4')), grp(R, cand('synchronize')), 'the ci:release-checks label is the real row run: it stays in the head group');
 });
 
 test('a trunk push is unchanged: no static job, every shard and browser job runs', () => {
@@ -128,7 +144,9 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   assert.ok(!ran.has('static'));
   for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), j);
   const unit = schedule(U, push);
-  assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'));
+  assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
+  assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
+  assert.ok(!schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt, so nothing vouches for the tree');
 });
 
 test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {

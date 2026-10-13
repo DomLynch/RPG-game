@@ -17,8 +17,11 @@ export function parseSpec(spec) {
   return { pr: Number(m[1]), head: m[2] };
 }
 
-/** Does a PR comment list hold a reviewer's PASS for exactly this head: the Auditor's, or Lead's for an independent platform review (Lead 2026-10-12, #2326)? */
-export const passAt = (bodies, head) => bodies.some(b => new RegExp(`^\\*{0,2}(?:Auditor|Lead): PASS @${head.slice(0, 9)}`, 'm').test(b));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
+const REVIEWERS = 'Auditor|Lead|Combat A|Combat B|Deploy B';   // full reviewers: Auditor, Lead (#2326), Combat A, Combat B (boss/finisher PRs) and Deploy B (Strategy 2026-10-12)
+const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];   // the repo is public: anyone can type "Auditor: PASS @sha", so only these authors count (every lane posts as DomLynch, OWNER)
+
+/** Does a PR comment list ({body, authorAssociation}, as gh returns it) hold a trusted full reviewer's PASS for exactly this head (9-char prefix)? */
+export const passAt = (comments, head) => comments.some(c => TRUSTED.includes(c?.authorAssociation) && new RegExp(`^\\*{0,2}(?:${REVIEWERS}): \\*{0,2}PASS(?: @|\\*{0,2} @)${head.slice(0, 9)}`, 'm').test(c.body));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails
@@ -62,8 +65,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (git(['status', '--porcelain']).stdout.trim()) { console.error('cut-release: the worktree is dirty'); process.exit(2); }
   git(['fetch', '-q', 'origin']);
   if (!noVerify) for (const { pr, head } of specs) {
-    const bodies = JSON.parse(run('gh', ['pr', 'view', String(pr), '--json', 'comments', '--jq', '[.comments[].body]']).stdout || '[]');
-    if (!passAt(bodies, head)) { console.error(`cut-release: no "Auditor: PASS @${head.slice(0, 9)}" on #${pr} (--no-verify to skip)`); process.exit(2); }
+    const comments = JSON.parse(run('gh', ['pr', 'view', String(pr), '--json', 'comments', '--jq', '[.comments[] | {body, authorAssociation}]']).stdout || '[]');
+    if (!passAt(comments, head)) { console.error(`cut-release: no "<reviewer>: PASS @${head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B or Deploy B; owner, member or collaborator) on #${pr} (--no-verify to skip)`); process.exit(2); }
   }
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }

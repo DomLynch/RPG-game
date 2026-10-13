@@ -15,6 +15,7 @@ import { parseItemDefinition } from '../src/core/server.ts';
 import { LOOT_ITEMS } from '../origins/inventory/loot-catalogue.ts';
 import * as F from '../src/core/server.ts';
 import { cumulative } from '../src/core/server.ts';
+import { createLiveOps } from '../origins/server/live-ops.ts';
 import { createLocationFlusher } from '../origins/server/location-flush.ts';
 import { PRESENCE_FRESH_MS, smithContent } from '../origins/server/upgrade.ts';
 import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.ts';
@@ -489,6 +490,30 @@ try {
     eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false }, { character: null, stored: false }], 'flag off: nothing served, nothing stored');
     psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'flag off wrote nothing');
+    // the build field (migration 202610120024): get / set with a version check, a level that only rises, ownership, closed to clients
+    {
+      const asW = sql => psql(`set role frankendom_origins; ${sql}`).split('\n').pop();
+      const get = c => JSON.parse(asW(`select coalesce(public.origins_get_build('${D}', '${c}')::text, 'null');`));
+      const set = (c, placed, rank, ver) => JSON.parse(asW(`select coalesce(public.origins_set_build('${D}', '${c}', '${JSON.stringify(placed)}'::jsonb, ${rank}, ${ver})::text, 'null');`));
+      const lvl = n => JSON.parse(asW(`select coalesce(public.origins_set_level('${D}', '${daraTwo}', ${n})::text, 'null');`));
+      eq(get(daraTwo), { level: 0, placed: {}, version: 0, respreadRank: 1 }, 'build: no row reads as level 0, nothing placed, version 0');
+      eq(set(daraTwo, { attack: 1 }, 1, 0), { level: 0, placed: { attack: 1 }, version: 1, respreadRank: 1 }, 'build: the first save from version 0');
+      eq(set(daraTwo, { sword: 1 }, 1, 0).conflict, true, 'build: a stale version is a conflict');
+      eq(get(daraTwo).placed, { attack: 1 }, 'build: a conflict changed nothing');
+      eq(set(daraTwo, { sword: 1 }, 2, 1), { level: 0, placed: { sword: 1 }, version: 2, respreadRank: 2 }, 'build: the next save from version 1, and the re-spread rank moves with it');
+      eq([lvl(7), lvl(3)], [7, 7], 'build: the writer raises the level and never lowers it');
+      eq([get(daraTwo).level, get(daraTwo).placed, get(daraTwo).version], [7, { sword: 1 }, 3], 'build: a level-up is a new version with the placement untouched');
+      eq(psql(`select string_agg(version || ':' || level || ':' || placed::text, ' ' order by version) from public.origins_character_build where character = '${daraTwo}'`), '1:0:{"attack": 1} 2:0:{"sword": 1} 3:7:{"sword": 1}', 'build: every version is kept, append-only');
+      eq(JSON.parse(asW(`select public.origins_get_build('${D}', '${daraTwo}', 1)::text;`)).placed, { attack: 1 }, 'build: an old version reads back exactly');
+      eq(asW(`select coalesce(public.origins_get_build('${D}', '${daraTwo}', 9)::text, 'null');`), 'null', 'build: an unknown version reads null');
+      eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_build('${D}', '${daraTwo}', 1)::text;`).split('\n').pop()).placed, { attack: 1 }, 'build: the verifier role reads one exact version');
+      eq(get('pc:nobody'), null, 'build: not this account\'s character reads null');
+      eq(set('pc:nobody', {}, 1, 0), null, 'build: and cannot be written');
+      eq(String((() => { try { lvl(101); return 'ok'; } catch (e) { return /check constraint/.test(String(e.stderr ?? e.message)) ? 'refused' : 'other'; } })()), 'refused', 'build: level 101 is refused by the table');
+      const asClient3 = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message).slice(0, 80); } };
+      for (const sql of [`select * from public.origins_character_build;`, `select public.origins_get_build('${D}', '${daraTwo}');`, `update public.origins_character_build set level = 50;`])
+        eq(asClient3(sql), 'permission denied', `a client may not: ${sql}`);
+    }
     // item 25: the dirty map. Posts are held and written as ONE statement (the same origins_save_location), a read flushes first (read your own write), the stale guard still stands
     {
       const flusher = createLocationFlusher(psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), 60_000, () => undefined);
@@ -508,7 +533,7 @@ try {
         await flusher.flush();
         eq(locRow(pc), `pit-yard:15200:16200`, 'a stale observation in a later batch changes nothing');
         // the switch race (Lead, #2414): a held spot is written to the character that was active when it was posted, not to the one a switch makes active before the flush
-        const fOpen = (token, body) => globalThis.fetch(`${fbase}/origins/open`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.status);
+        const fOpen = (token, body, op = "open") => globalThis.fetch(`${fbase}/origins/${op}`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }).then(r => r.status);
         eq(activeOf(D), daraTwo, 'D starts on Dara Two');
         const daraWas = locRow(dara);
         await post(D, 14800, 15800, Date.now() + 5000);
@@ -518,9 +543,42 @@ try {
         eq(await fOpen('td', { character: daraTwo }), 200, 'D switches back');
       } finally { await flusher.stop(); fw.close(); }
     }
+    // item 28: live-ops rows. The writer reads them (one function, one round trip), a switch row turns an op off with no restart, a bad row is ignored, the tables are closed to clients and to the writer's own writes
+    {
+      const lodb = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'));
+      const lo = createLiveOps(lodb, 60_000, Date.now, () => undefined);
+      const lw = createWriter({ db: lodb, verify: async t => TOKENS[t] ?? null, where, handlers: clientOps, internal: { key: KEY, liveOps: lo }, liveOps: lo });
+      await new Promise(r => lw.listen(0, '127.0.0.1', r));
+      try {
+        const lbase2 = `http://127.0.0.1:${lw.address().port}`;
+        const openStatus = (op = "open") => globalThis.fetch(`${lbase2}/origins/${op}`, { method: 'POST', headers: { authorization: 'Bearer ta' }, body: '{}' }).then(r => r.status);
+        await lo.refresh();
+        eq([lo.snapshot().events.length, lo.snapshot().switches, await openStatus()], [0, {}, 200], 'no rows: no events, every switch on');
+        psql(`insert into public.origins_live_events (id, cron, length_min, kind, params) values ('every-minute', '* * * * *', 5, 'double-xp', '{"mult":2}'), ('never', '0 0 31 2 *', 5, 'ghost', '{}');
+              insert into public.origins_switches (key, enabled, note) values ('op:open', false, 'check'), ('rewards', true, null);`);
+        eq(await openStatus(), 200, 'rows written but not yet read: the writer still holds the old state');
+        await lo.refresh();
+        const snap = lo.snapshot();
+        eq([snap.events.map(e => e.id), snap.active, snap.switches], [['every-minute', 'never'], ['every-minute'], { 'op:open': false, rewards: true }], 'both events held, only the matching one active; switches read');
+        eq(snap.events[0].params, { mult: 2 }, 'params carried');
+        eq(await openStatus(), 503, 'op:open off -> 503 with no restart');
+        eq((await globalThis.fetch(`${lbase2}/internal/live-ops`, { headers: { authorization: `Bearer ${KEY}` } }).then(r => r.json())).active, ['every-minute'], 'the internal read shows what the writer holds');
+        eq((await globalThis.fetch(`${lbase2}/internal/live-ops`)).status, 401, 'and needs the key');
+        psql(`update public.origins_switches set enabled = true where key = 'op:open';`);
+        await lo.refresh();
+        eq(await openStatus(), 200, 'switch row back on -> the op runs again');
+        const asClient2 = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message).slice(0, 80); } };
+        for (const sql of [`select * from public.origins_switches;`, `select * from public.origins_live_events;`, `select public.origins_live_ops();`, `update public.origins_switches set enabled = false;`])
+          eq(asClient2(sql), 'permission denied', `a client may not: ${sql}`);
+        eq(String((() => { try { return psql(`set role frankendom_origins; insert into public.origins_switches values ('op:x', false);`); } catch (e) { return /permission denied/.test(String(e.stderr)) ? 'permission denied' : 'other'; } })()), 'permission denied', 'the writer role reads the rows, it does not write them');
+        psql(`insert into public.origins_live_events (id, cron, length_min, kind) values ('typo', 'not a cron', 5, 'x');`);
+        await lo.refresh();
+        eq([lo.snapshot().rejected, lo.snapshot().events.map(e => e.id)], [1, ['every-minute', 'never']], 'a typo\'d event is ignored and every other row still applies');
+      } finally { lo.stop(); lw.close(); psql(`delete from public.origins_live_events; delete from public.origins_switches;`); }
+    }
     // erasure: purging an account takes its active character and saved locations with it (foreign keys, on delete cascade)
     psql(`select public.origins_purge_account('${D}');`);
-    eq([activeOf(D), locRow(dara), locRow(daraTwo)], ['none', 'none', 'none'], 'purge: active character and saved locations gone');
+    eq([activeOf(D), locRow(dara), locRow(daraTwo), psql(`select count(*) from public.origins_character_build`)], ['none', 'none', 'none', '0'], 'purge: active character, saved locations and builds gone');
   } finally { locWriter.close(); }
   // The first open makes the account's first character (Lead's ruling 2026-10-09; runs while 0009 is applied, before its down-script below): no page code creates one, so a signed-in player had none and nothing could persist.
   {

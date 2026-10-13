@@ -168,3 +168,101 @@ test('a fight with no pose is today\'s: the token has no pose block, the answer 
   assert.match(posed, /^[A-Za-z0-9_-]{16,128}$/); assert.equal(fightOfToken(posed), 'encounter:knight');
   assert.match(tokenFor('a'.repeat(POSED_FIGHT_MAX), issuePose('knight', { hero: { x: 0, z: 0 }, foe: { x: 0, z: 3 } })), /^[A-Za-z0-9_-]{16,128}$/, 'the longest posed fight id still fits the token cap');
 });
+
+test('settle: a record that carries a sheet is verified against the build version it names, held by the writer for THIS character; forged, unknown, or another character\'s is a loss that pays nothing', async () => {
+  const { createRecorder, RECORD_VERSION, packRecord, toBase64Url } = await import('../../src/fight/record.ts');
+  const { initialPractice, stepPractice } = await import('../../src/fight/combat.ts');
+  const { OPPONENTS, opponentAt, profileAt } = await import('../../src/fight/moves.ts');
+  const { sheetOf } = await import('../../src/fight/sheet-rows.ts');
+  const { kitBuild } = await import('../../src/core/server.ts');
+  const { gzipSync } = await import('node:zlib');
+  const { LATE_NOTICE, setLateNotice, setStab, STAB_ON } = await import('../../src/fight/server.ts');
+  const stored = { level: 10, placed: { attack: 10 }, respreadRank: 1, version: 1 }, honest = sheetOf(stored)!;
+  const sheetFight = (seed: number, sheet: Record<string, number>, characterId: string, buildVersion: number): string => {
+    const was = { notice: LATE_NOTICE, stab: STAB_ON };
+    setLateNotice(true); setStab(true);   // a v48 record is only made in the live era
+    try { return sheetFightLive(seed, sheet, characterId, buildVersion); } finally { setLateNotice(was.notice); setStab(was.stab); }
+  };
+  const sheetFightLive = (seed: number, sheet: Record<string, number>, characterId: string, buildVersion: number): string => {
+    for (let k = 1; k < 200; k++) {
+      let s = k >>> 0; const rand = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+      const rec = createRecorder({ build: kitBuild('test'), opponent: 'knight', weapon: 'longsword', level: 6, seed, sheet, characterId, buildVersion });
+      let p = initialPractice(seed, opponentAt(OPPONENTS.knight, 6), 'longsword', null, undefined, undefined, undefined, undefined, sheet);
+      for (let i = 0; i < 1500 && !p.finish; i++) p = stepPractice(p, rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: false }, action: rand() < 0.5 ? 'light' : null, guard: rand() < 0.1, lock: true }), profileAt(OPPONENTS.knight, 6));
+      if (p.finish) return toBase64Url(gzipSync(packRecord({ ...rec.finish(p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died'), v: RECORD_VERSION })));
+    }
+    throw Error('no finished scripted fight');
+  };
+  const asked: string[] = [];
+  const settleWith = async (make: (seed: number) => string, character = 'pc:one') => {
+    const { db, events } = fakeDb({ t: 1e6 });
+    const withBuild: Db = { run: async (sql, v) => { if (sql.includes('origins_get_build')) { asked.push(`${v?.c}@${v?.v}`); return v?.c === 'pc:one' && v?.v === '1' ? JSON.stringify(stored) : 'null'; } if (sql.includes('origins_open(')) return JSON.stringify({ marks: 0, career: null, characters: [], items: [], quests: [], journal: [], talk: [] }); return db.run(sql, v); } };
+    const ops = encounterOps(deps());
+    const start = await ops.encounter_start!(ctx(withBuild), { character, encounter: 'encounter:knight' }) as { token: string; seed: number };
+    const out = await ops.encounter_settle!(ctx(withBuild), { token: start.token, record: make(start.seed) }) as Record<string, unknown>;
+    return { out, events };
+  };
+  const honestOut = await settleWith((seed) => sheetFight(seed, honest, 'one', 1));
+  assert.equal(honestOut.out.verified, true, String(honestOut.out.reason));
+  const forged = await settleWith((seed) => sheetFight(seed, { ...honest, attack: 100 }, 'one', 1));
+  assert.equal(forged.out.verified, false); assert.match(String(forged.out.reason), /stored build/); assert.equal(forged.out.result, 'lost');
+  const unknown = await settleWith((seed) => sheetFight(seed, honest, 'one', 7));
+  assert.match(String(unknown.out.reason), /build version this server does not hold/);
+  const another = await settleWith((seed) => sheetFight(seed, honest, 'two', 1));
+  assert.match(String(another.out.reason), /another character/);
+  assert.deepEqual(asked, ['pc:one@1', 'pc:one@1', 'pc:one@7'], 'the lookup is by this account and the record\'s named version, never for a build that is not this character\'s');
+});
+
+test('settle: a GEARED record (worn gear on the sheet) verifies and pays against the server-held worn gear; a record that claims gear the ledger does not hold, or a wrong rung, is a loss that pays nothing', async () => {
+  const { createRecorder, RECORD_VERSION, packRecord, toBase64Url } = await import('../../src/fight/record.ts');
+  const { initialPractice, stepPractice } = await import('../../src/fight/combat.ts');
+  const { OPPONENTS, opponentAt, profileAt } = await import('../../src/fight/moves.ts');
+  const { sheetOf } = await import('../../src/fight/sheet-rows.ts');
+  const { kitBuild } = await import('../../src/core/server.ts');
+  const { gzipSync } = await import('node:zlib');
+  const { LATE_NOTICE, setLateNotice, setStab, STAB_ON } = await import('../../src/fight/server.ts');
+  const { wornGearOfItems } = await import('./worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 }, respreadRank: 1, version: 1 };
+  const worn = (tier: string | null) => [{ item: 'item:loot.veteran.Helmet', tier, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier, location: { kind: 'equipped', slot: 'chest' } }];
+  const gear = wornGearOfItems(worn('Origin'));
+  assert.ok(Object.keys(gear).length > 0, 'a worn rung-Origin veteran set moves a dial');
+  assert.deepEqual(wornGearOfItems([]), {}, 'nothing worn: no gear');
+  assert.deepEqual(wornGearOfItems([{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'pack' } }]), {}, 'a piece in the pack is not worn');
+  assert.throws(() => wornGearOfItems([...worn('Origin'), { item: 'item:loot.veteran.Crest', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }]), /two pieces worn/);
+  assert.throws(() => wornGearOfItems([{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Helmet', tier: 'Recruit', location: { kind: 'equipped', slot: 'crest' } }]), /worn twice/, 'one loot id on two worn instances (two rungs) is refused, never merged');
+  const honest = sheetOf(stored, gear)!, bare = sheetOf(stored)!;
+  const fightWith = (seed: number, sheet: Record<string, number>): string => {
+    const was = { notice: LATE_NOTICE, stab: STAB_ON };
+    setLateNotice(true); setStab(true);
+    try {
+      for (let k = 1; k < 200; k++) {
+        let r = k >>> 0; const rand = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+        const rec = createRecorder({ build: kitBuild('test'), opponent: 'knight', weapon: 'longsword', level: 6, seed, sheet, characterId: 'one', buildVersion: 1 });
+        let p = initialPractice(seed, opponentAt(OPPONENTS.knight, 6), 'longsword', null, undefined, undefined, undefined, undefined, sheet);
+        for (let i = 0; i < 1500 && !p.finish; i++) p = stepPractice(p, rec.push({ move: { x: Math.round(rand() * 2 - 1), z: 1, yaw: 0, run: false }, action: rand() < 0.5 ? 'light' : null, guard: rand() < 0.1, lock: true }), profileAt(OPPONENTS.knight, 6));
+        if (p.finish) return toBase64Url(gzipSync(packRecord({ ...rec.finish(p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died'), v: RECORD_VERSION })));
+      }
+      throw Error('no finished scripted fight');
+    } finally { setLateNotice(was.notice); setStab(was.stab); }
+  };
+  const settleWith = async (make: (seed: number) => string, held: ReturnType<typeof worn>) => {
+    const { db, events } = fakeDb({ t: 1e6 });
+    const withHeld: Db = { run: async (sql, v) => {
+      if (sql.includes('origins_get_build')) return v?.c === 'pc:one' && v?.v === '1' ? JSON.stringify(stored) : 'null';
+      if (sql.includes('origins_open(')) return JSON.stringify({ marks: 0, career: null, characters: [], quests: [], journal: [], talk: [], items: held.map((h) => ({ item: h.item, tier: h.tier, loc_kind: 'equipped', loc_owner: 'pc:one', loc_slot: h.location.slot })) });
+      return db.run(sql, v);
+    } };
+    const ops = encounterOps(deps());
+    const start = await ops.encounter_start!(ctx(withHeld), { character: 'pc:one', encounter: 'encounter:knight' }) as { token: string; seed: number };
+    const out = await ops.encounter_settle!(ctx(withHeld), { token: start.token, record: make(start.seed) }) as Record<string, unknown>;
+    return { out, events };
+  };
+  const geared = await settleWith((seed) => fightWith(seed, honest), worn('Origin'));
+  assert.equal(geared.out.verified, true, String(geared.out.reason));
+  const claimsGear = await settleWith((seed) => fightWith(seed, honest), []);
+  assert.equal(claimsGear.out.verified, false, 'the sheet carries gear the ledger does not hold'); assert.equal(claimsGear.out.result, 'lost');
+  const wrongRung = await settleWith((seed) => fightWith(seed, honest), worn('Recruit'));
+  assert.equal(wrongRung.out.verified, false, 'the piece was won at another rung');
+  const ungeared = await settleWith((seed) => fightWith(seed, bare), []);
+  assert.equal(ungeared.out.verified, true, String(ungeared.out.reason));
+});

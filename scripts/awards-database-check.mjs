@@ -285,6 +285,25 @@ try {
   if (Number(psql(`select count(*) from public.loot_claims where user_id = '${Z}';`)) !== zClaims) fail('a refused bulk insert left rows behind');
   as('authenticated', Z, `do $$begin for i in 1..${60 - zClaims} loop insert into public.loot_claims(opponent, record) values ('veteran', 'rate' || i); end loop; end$$;`);   // 60 this hour
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'rate61')`, 'insufficient_privilege')) fail('a 61st claim within the hour was accepted');
+  // The worn gear is FROZEN on a claim and a daily row when it is posted (202610130025): the client's own value is overwritten, and a later equip changes nothing on the row.
+  psql(`set session_replication_role = replica;
+    insert into public.origins_characters(id, account, name) values ('pc:gear', '${Z}', 'Gear');
+    insert into public.origins_items(id, item, quantity, tier, loc_kind, loc_owner, loc_slot, loc_index, mint_key, provenance) values
+      ('it:gear:h', 'item:loot.veteran.Helmet', 1, 'Origin', 'equipped', 'pc:gear', 'head', null, 'mk:gear:h', '{}'),
+      ('it:gear:p', 'item:loot.veteran.Body', 1, 'Origin', 'pack', 'pc:gear', null, 0, 'mk:gear:p', '{}');`);
+  psql(`alter table public.loot_claims disable trigger loot_claims_rate;`);
+  if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record, worn_gear) values ('veteran', 'gearforged', '{"pc:forged":[]}')`, 'insufficient_privilege')) fail('a client sent its own worn gear on a claim');
+  as('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'geargear1');`);
+  const frozenOf = psql(`select worn_gear::text from public.loot_claims where record = 'geargear1';`);
+  if (frozenOf !== '{"pc:gear": [{"item": "item:loot.veteran.Helmet", "slot": "head", "tier": "Origin"}]}') fail(`the claim froze ${frozenOf}, not the equipped piece only (a pack piece is not worn gear)`);
+  psql(`set session_replication_role = replica; update public.origins_items set loc_kind = 'equipped', loc_slot = 'chest', loc_index = null where id = 'it:gear:p';`);
+  as('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'geargear2');`);
+  if (psql(`select worn_gear->'pc:gear' is not null and jsonb_array_length(worn_gear->'pc:gear') = 2 from public.loot_claims where record = 'geargear2';`) !== 't') fail('a claim posted after the second piece went on does not hold it');
+  if (psql(`select worn_gear::text from public.loot_claims where record = 'geargear1';`) !== frozenOf) fail('a later equip changed the gear frozen on an earlier claim');
+  const dayNo = psql(`select (now() at time zone 'utc')::date - date '2026-09-22';`);
+  as('authenticated', Z, `insert into public.daily_results(day, user_id, number, opponent, weapon, outcome, ticks, record) values ((now() at time zone 'utc')::date, '${Z}', ${dayNo}, 'veteran', 'longsword', 'abandoned', 30, 'dailygear');`);
+  if (psql(`select jsonb_array_length(worn_gear->'pc:gear') from public.daily_results where record = 'dailygear';`) !== '2') fail('a daily row did not freeze the ledger gear');
+  if (psql(`select has_column_privilege('frankendom_verifier', 'public.loot_claims', 'worn_gear', 'select') and has_column_privilege('frankendom_verifier', 'public.daily_results', 'worn_gear', 'select');`) !== 't') fail('the verifier cannot read the frozen gear');
   console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; the real sweep settles replayed records: pending = own unchecked claims only; verified win = seed + 1 with the claimed piece at the server tier; wrong opponent, lost fight and unreadable record refused with a note, never blocking; off-kit take keeps the mark; a win below the dial floor under the server rank refused; reverse-order sweeps give the same tiers; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; one fight one claim (a re-gzip refused as "same fight as claim N", a fight first shared by another account or a guest refused, the owner\'s own share claimable, the unique index on verified claims, fight_hash unwritable by clients); size cap and the hourly cap, bulk insert included. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);

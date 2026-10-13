@@ -39,16 +39,37 @@ export function browserRowsMissing(rollup, headRef = '') {
 /** The attempt that decides each check on the head (Lead, #2359): a rollup lists every run of a check, so a run the concurrency group or
  * cancel-member-runs CANCELLED stays beside its newer SUCCESS. Per CheckRun (workflow + name) the LATEST attempt that is not SKIPPED decides (a later
  * inert run, a title edit or a label, skips every job and must never hide a red); all skipped is skipped. A status context is already one per context. */
+// A run the concurrency group cancelled before it started (DL #2431, 2026-10-12 19:13:23Z: the cut's first run of each workflow, CANCELLED in its first
+// second, many under unexpanded matrix names such as `shard` or `check ${{ matrix.check.index }} (…)` that no later run reuses) carries no verdict. Such
+// an attempt is dropped when the same check has ANY later attempt, a skip included, so it can no longer pin the candidate red forever. A cancel that ran
+// (a timeout, a mid-run cancel) is not dropped, and neither is one with nothing after it.
+const NEVER_RAN_S = 10;
+const at = (x) => Date.parse(x.startedAt || x.completedAt || '') || 0;
+const neverRan = (x) => String(x.conclusion).toUpperCase() === 'CANCELLED' && ((Date.parse(x.completedAt || '') || 0) - at(x)) / 1000 < NEVER_RAN_S;
 export function decisiveChecks(rollup) {
-  const latest = new Map(), out = [];
+  const latest = new Map(), out = [], last = new Map();
+  for (const c of rollup || []) if (c.__typename !== 'StatusContext') { const key = `${c.workflowName}/${c.name}`; last.set(key, Math.max(last.get(key) ?? 0, at(c))); }
   for (const c of rollup || []) {
+    if (c.__typename !== 'StatusContext' && neverRan(c) && (last.get(`${c.workflowName}/${c.name}`) ?? 0) > at(c)) continue;
     if (c.__typename === 'StatusContext') { out.push(c); continue; }
     const key = `${c.workflowName}/${c.name}`, prev = latest.get(key);
     const rank = x => [String(x.conclusion).toUpperCase() !== 'SKIPPED' ? 1 : 0, String(x.startedAt || x.completedAt || '')];
     const [a, b] = [rank(c), prev && rank(prev)];
     if (!prev || a[0] > b[0] || (a[0] === b[0] && a[1] >= b[1])) latest.set(key, c);
   }
-  return [...out, ...latest.values()];
+  return [...out, ...[...latest.values()].filter(c => !orphanCancel(c, rollup))];
+}
+
+/** A CANCELLED row no later run reuses (release-DC #2406): a job cancelled before its matrix expanded keeps a placeholder name (`shard`,
+ * `check ${{ matrix.check.index }} (...)`) that the re-run never repeats (`shard (1)`, `check 12 (name)`), so nothing supersedes it. It is ignored when
+ * its name is still an unexpanded `${{` placeholder, or when its workflow's verdict job (REQUIRED_ROWS) SUCCEEDED in a run started after it.
+ * Only CANCELLED: a FAILURE anywhere still blocks, and a plain cancel with no later green verdict stays red. */
+function orphanCancel(c, rollup) {
+  if (String(c.conclusion).toUpperCase() !== 'CANCELLED') return false;
+  if (String(c.name).includes('${{')) return true;
+  const verdict = REQUIRED_ROWS.find(([wf]) => wf === c.workflowName)?.[1];
+  return !!verdict && rollup.some(v => v.workflowName === c.workflowName && v.name === verdict && v.status === 'COMPLETED'
+    && String(v.conclusion).toUpperCase() === 'SUCCESS' && String(v.startedAt || '') > String(c.startedAt || ''));
 }
 
 /** A rollup is green when the deciding attempt of every check is (and an empty rollup is not), and a feature head carries its browser-rows status at SUCCESS. */
@@ -66,7 +87,7 @@ export function planTrain({ prs, order, inBase, trunk = TRUNK }) {
   const eligible = [], skipped = [];
   for (const p of prs) {
     if (!p.labels.includes(GO) || /^release-/.test(p.headRef)) continue;
-    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "Auditor: PASS @" or "Lead: PASS @${p.head.slice(0, 9)}" at its current head` }); continue; }
+    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B or Deploy B) at its current head` }); continue; }
     if (!p.green) { skipped.push({ pr: p.number, why: 'checks not all green' }); continue; }
     if (inBase(p.head)) continue;   // already riding in the candidate we build on
     eligible.push(p);
@@ -98,7 +119,7 @@ export const missingRows = rollup => REQUIRED_ROWS.filter(([wf, name]) => !(roll
  * gate alone is not enough: a label survives a head move. */
 export function pickPublish(prs, trunk = TRUNK) {
   const ok = prs.filter(p => /^release-/.test(p.headRefName) && p.baseRefName === trunk && (p.labels || []).some(l => (l.name || l) === 'candidate:pass')
-    && passAt((p.comments || []).map(c => c.body ?? c), p.headRefOid) && checksGreen(p.statusCheckRollup, p.headRefName) && !missingRows(p.statusCheckRollup).length);
+    && passAt(p.comments || [], p.headRefOid) && checksGreen(p.statusCheckRollup, p.headRefName) && !missingRows(p.statusCheckRollup).length);
   return ok.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))[0] || null;
 }
 
@@ -125,7 +146,7 @@ function cut({ dryRun }) {
   const gos = open.filter(p => p.labels.some(l => l.name === GO) && !/^release-/.test(p.headRefName));
   const prs = gos.map(p => {
     const view = ghJson(['pr', 'view', String(p.number), '--json', 'comments,statusCheckRollup']);
-    const pass = (view.comments || []).filter(c => passAt([c.body], p.headRefOid)).pop();
+    const pass = (view.comments || []).filter(c => passAt([c], p.headRefOid)).pop();
     return { number: p.number, head: p.headRefOid, headRef: p.headRefName, baseRef: p.baseRefName, labels: p.labels.map(l => l.name), green: checksGreen(view.statusCheckRollup, p.headRefName), passedAt: pass?.createdAt || null, comments: (view.comments || []).map(c => c.body) };
   });
   let order = []; try { order = readOrder(readFileSync('docs/release-order.txt', 'utf8')); } catch { /* no file: oldest PASS first */ }

@@ -73,6 +73,68 @@ try {
   eq([s1.token, s1.seed, s1.enemy, s1.level, s1.start_tick, s1.bar, s1.flags.length, s1.layer, s1.instance, s1.grace_s, s1.settled, s1.used], [tok(1), 4242, 'knight', 6, 77, 900, 2, null, 'camp:wolf-3', 120, false, false], 'start (as the verifier): the server holds every parameter');
   const s2 = JSON.parse((await as(O, START(B, pcB, tok(2), 99, 'veteran', 30, { instance: 'camp:boar-1' }))).out.split('\n').pop());
   eq([s2.token, s2.enemy, s2.level], [tok(2), 'veteran', 30], 'start (as the origins role) works too');
+
+  // ---- practice (migration 202610130026): the skills-by-use pool is written only by the 6-arg settle, once per key, on a win, capped, focus doubles --------------------------
+  const PR = (t, skill, amount, capXp, key = `practice:enc:${t}:${skill}`) => `[{"skill":"${skill}","amount":${amount},"capXp":${capXp},"key":"${key}"}]`;
+  const SETTLE6 = (acct, t, result, batch, practice) => `select public.origins_encounter_settle('${acct}', '${t}', '${result}', 400, '${batch}'::jsonb, '${practice}'::jsonb)::text;`;
+  const xpOf = skill => psql(`select coalesce((select xp from public.origins_skill_xp where character = '${pcC}' and skill = '${skill}'), -1)`);
+  eq(await code(V, START(C, pcC, tok(40), 7001, 'knight', 6)), null, 'practice: a fight starts');
+  eq(await code(V, SETTLE6(C, tok(40), 'lost', EV(tok(40), C, pcC, 'lost'), PR(tok(40), 'sword', 10, 100))), 'O0002', 'practice: a loss cannot carry practice');
+  eq(await code(V, SETTLE6(C, tok(40), 'won', EV(tok(40), C, pcC, 'won'), PR(tok(40), 'sword', 10, 100, 'practice:enc:other:sword'))), 'O0002', 'practice: a key not made from this token is refused');
+  eq(state(tok(40)).used, false, 'practice: the refusals consumed nothing (the token is still open)');
+  eq(await code(V, SETTLE6(C, tok(40), 'won', EV(tok(40), C, pcC, 'won'), PR(tok(40), 'sword', 10, 100))), null, 'practice: a verified win pays');
+  eq(xpOf('sword'), '10', 'practice: ten xp banked');
+  eq(await code(V, SETTLE6(C, tok(40), 'won', EV(tok(40), C, pcC, 'won'), PR(tok(40), 'sword', 10, 100))), 'O0009', 'practice: a retried settle is refused and pays nothing more');
+  eq(xpOf('sword'), '10', 'practice: still ten');
+  eq(psql(`select count(*) from public.origins_skill_practice where key = 'practice:enc:${tok(40)}:sword'`), '1', 'practice: one ledger row');
+  psql(`update public.origins_skill_xp set focus = true where character = '${pcC}' and skill = 'sword'`);
+  eq(await code(V, START(C, pcC, tok(41), 7002, 'knight', 6)), null, 'practice: a second fight starts');
+  eq(await code(V, SETTLE6(C, tok(41), 'won', EV(tok(41), C, pcC, 'won'), PR(tok(41), 'sword', 10, 100))), null, 'practice: a focused win settles');
+  eq(xpOf('sword'), '30', 'practice: focus doubled the second win');
+  eq(await code(V, START(C, pcC, tok(42), 7003, 'knight', 6)), null, 'practice: a third fight starts');
+  eq(await code(V, SETTLE6(C, tok(42), 'won', EV(tok(42), C, pcC, 'won'), PR(tok(42), 'sword', 10, 35))), null, 'practice: a win at the ceiling settles');
+  eq(xpOf('sword'), '35', 'practice: the placed points are the ceiling');
+  // two fights of one character settling AT THE SAME MOMENT (opened by hand: start refuses a second open fight per account): the first holds its transaction open, the second must queue on the xp row and read the first's xp.
+  for (const n of [43, 44]) psql(`insert into public.origins_encounters (token, account, character, seed, enemy, enemy_level, expires_at) values ('${tok(n)}', '${C}', '${pcC}', ${n}, 'knight', 6, now() + interval '10 minutes'); insert into public.origins_encounter_runs (token) values ('${tok(n)}')`);
+  psql(`update public.origins_skill_xp set xp = 0, focus = false where character = '${pcC}' and skill = 'sword'`);
+  const first = as(V, `begin; ${SETTLE6(C, tok(43), 'won', EV(tok(43), C, pcC, 'won'), PR(tok(43), 'sword', 10, 15))} select pg_sleep(2); commit;`);
+  await new Promise(r => setTimeout(r, 700));
+  const second = as(V, SETTLE6(C, tok(44), 'won', EV(tok(44), C, pcC, 'won'), PR(tok(44), 'sword', 10, 15)));
+  const [r1, r2] = await Promise.all([first, second]);
+  eq([r1.code, r2.code], [0, 0], 'practice race: both settles succeed');
+  eq(xpOf('sword'), '15', 'practice race: two concurrent settles end AT the ceiling, not over it (the second queued on the xp row)');
+  eq(psql(`select string_agg(paid::text, ',' order by paid desc) from public.origins_skill_practice where key in ('practice:enc:${tok(43)}:sword', 'practice:enc:${tok(44)}:sword')`), '10,5', 'practice race: paid 10 then 5');
+  eq(await code('anon', `select * from public.origins_skill_xp`), '42501', 'practice: no client reads the pool');
+  eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
+
+  // ---- grimoire (migration 202610130027): a spell is taken only by the 7-arg settle, on a win, once per account and legend ----------------------------------------
+  const SP = (legend, bricks = '{"root":"crack","modifiers":[],"suffix":null}', key = `spell:${legend}`) => `[{"legend":"${legend}","bricks":${bricks},"key":"${key}"}]`;
+  const SETTLE7 = (acct, t, result, batch, spells) => `select public.origins_encounter_settle('${acct}', '${t}', '${result}', 400, '${batch}'::jsonb, '[]'::jsonb, '${spells}'::jsonb)::text;`;
+  const spellsOf = acct => psql(`select coalesce(string_agg(legend, ',' order by legend), '') from public.origins_grimoire where account = '${acct}'`);
+  eq(await code(V, START(C, pcC, tok(50), 8001, 'knight', 6)), null, 'grimoire: a fight starts');
+  eq(await code(V, SETTLE7(C, tok(50), 'lost', EV(tok(50), C, pcC, 'lost'), SP('eloko'))), 'O0002', 'grimoire: a loss cannot take a spell');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko', undefined, 'spell:other'))), 'O0002', 'grimoire: a key not made from the legend is refused');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko', '[]'))), 'O0002', 'grimoire: bricks that are no {root, modifiers, suffix} object are refused');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko', '{"modifiers":[],"suffix":null}'))), 'O0002', 'grimoire: bricks without a root are refused');
+  eq(spellsOf(C), '', 'grimoire: the refusals took nothing');
+  eq(state(tok(50)).used, false, 'grimoire: the refusals consumed nothing');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: a verified win takes the spell');
+  eq(spellsOf(C), 'eloko', 'grimoire: one spell');
+  eq(await code(V, SETTLE7(C, tok(50), 'won', EV(tok(50), C, pcC, 'won'), SP('eloko'))), 'O0009', 'grimoire: a retried settle is refused');
+  eq(await code(V, START(C, pcC, tok(51), 8002, 'knight', 6)), null, 'grimoire: a second fight starts');
+  eq(await code(V, SETTLE7(C, tok(51), 'won', EV(tok(51), C, pcC, 'won'), SP('eloko'))), null, 'grimoire: the same legend again settles');
+  eq(psql(`select count(*) from public.origins_grimoire where account = '${C}'`), '1', 'grimoire: the same legend twice grants once');
+  eq(await code(V, START(C, pcC, tok(52), 8003, 'knight', 6)), null, 'grimoire: a third fight starts');
+  eq(await code(V, SETTLE7(C, tok(52), 'won', EV(tok(52), C, pcC, 'won'), SP('kehua', '{"root":"longShadow","modifiers":[],"suffix":null}'))), null, 'grimoire: another legend settles');
+  eq(spellsOf(C), 'eloko,kehua', 'grimoire: two legends, two rows');
+  eq(psql(`select (public.origins_grimoire_get('${C}'))::jsonb -> 'kehua'`), '{"root": "longShadow", "suffix": null, "modifiers": []}', 'grimoire: get returns the bricks per legend');
+  eq(await code('anon', `select * from public.origins_grimoire`), '42501', 'grimoire: no client reads the book');
+  eq(await code('authenticated', SETTLE7(C, tok(52), 'won', '[]', '[]')), '42501', 'grimoire: no client calls the settle');
+
+  psql(readFileSync(join(dir, '..', 'down', '202610130027_grimoire_core_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb,jsonb)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_grimoire'`), 'true/0', 'grimoire down: the 7-arg settle and the table are gone');
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb)') is not null)::text`), 'true', 'grimoire down: the 6-arg settle stays');
+
   eq(await code(V, START(A, pcA, tok(3), 1, 'knight', 6)), 'O0014', 'one open fight per account: a second start is refused');
   eq(await code(V, START(C, pcC, tok(4), 1, 'knight', 6, { instance: 'camp:wolf-3' })), 'O0014', 'one live claimant per creature instance');
   eq(await code(V, START(C, pcC, tok(5), 1, 'knight', 6, { instance: 'camp:wolf-4' })), null, 'a different creature is free');
@@ -129,7 +191,7 @@ try {
 
   // ---- the rewards hook's real lines (mob-rewards.ts mobBatch): CP + loot commit with the settle, once; a stale career aborts all of it --------------
   const content = loadEncounterContent().value, lookup = lookupOf(content);
-  const creature = Object.keys(content.local.creatureLoot).find(id => fightSetup(id, content).ok), foe = fightSetup(creature, content).value.opponent;
+  const creature = Object.keys(content.local.creatureLoot).filter(id => fightSetup(id, content).ok).sort((x, y) => fightSetup(y, content).value.opponent.level - fightSetup(x, content).value.opponent.level)[0], foe = fightSetup(creature, content).value.opponent;
   let seed = 1; while (!(rollLoot(content.local.creatureLoot[creature], seed, content, { foeLevel: foe.level }).value.items.length > 0)) seed++;
   psql(`set role frankendom_origins; select public.origins_snapshot('${C}', 0, 5000);`);
   const open = () => JSON.parse(psql(`set role ${V}; select public.origins_open('${C}')::text;`).split('\n').pop());
@@ -201,6 +263,10 @@ try {
   eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
   psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
 
+  psql(readFileSync(join(dir, '..', 'down', '202610130026_skill_practice_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb)') is null)::text || '/' || count(*) from pg_class where relname in ('origins_skill_xp', 'origins_skill_practice')`), 'true/0', 'practice down: the 6-arg settle and both tables are gone');
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb)') is not null)::text`), 'true', 'practice down: the 5-arg settle stays');
+
   // ---- the down-script removes the new objects only -----------------------------------------------------------------------------------------
   psql(readFileSync(join(dir, '..', 'down', UP.replace('.sql', '_down.sql')), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins_encounter\\_%' and proname not in ('origins_issue_encounter', 'origins_consume_encounter')`), '0', 'down: the five functions are gone');
@@ -209,6 +275,9 @@ try {
   eq(psql(`select count(*) from pg_proc where proname in ('origins_issue_encounter', 'origins_consume_encounter')`), '2', 'down: issue and consume stay');
   psql(readFileSync(join(dir, UP), 'utf8'));
   eq(psql(`select count(*) from pg_proc where proname like 'origins_encounter\\_%' and proname not in ('origins_issue_encounter', 'origins_consume_encounter')`), '5', 'up again after down: the five functions are back');
+  psql(readFileSync(join(dir, '202610130026_skill_practice.sql'), 'utf8'));
+  psql(readFileSync(join(dir, '202610130027_grimoire_core.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb,jsonb)') is not null)::text`), 'true', 'grimoire up again: the 7-arg settle is back');
   console.log(`origins-encounter-check: ${checks} checks passed`);
 } finally {
   if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* already down */ }

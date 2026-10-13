@@ -133,8 +133,13 @@ export const encounterTouch = async (db: Db, account: string, token: string, tic
   return out === null ? null : JSON.parse(out);
 };
 // Consume the token, close the run, release the creature and apply the batch (event enc:<token> and any reward lines) in ONE transaction.
-export const encounterSettle = async (db: Db, account: string, token: string, result: 'won' | 'lost', ticks: number, batch: readonly Json[]): Promise<Json | null> => {
-  const out = await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb)`, { a: acct(account), t: token, r: result, k: String(ticks), b: JSON.stringify(batch) });
+export const encounterSettle = async (db: Db, account: string, token: string, result: 'won' | 'lost', ticks: number, batch: readonly Json[], practice: readonly Json[] = [], spells: readonly Json[] = []): Promise<Json | null> => {
+  const base = { a: acct(account), t: token, r: result, k: String(ticks), b: JSON.stringify(batch) };
+  const out = spells.length > 0
+    ? await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb, :'p'::jsonb, :'s'::jsonb)`, { ...base, p: JSON.stringify(practice), s: JSON.stringify(spells) })
+    : practice.length > 0
+      ? await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb, :'p'::jsonb)`, { ...base, p: JSON.stringify(practice) })
+      : await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb)`, base);
   return out === null ? null : JSON.parse(out);
 };
 // The sweep (a loss by abandonment for every fight past its grace); how many it settled, null when the migration is not applied.
@@ -173,4 +178,26 @@ export type BetaLedger = { reach: 'checked' | 'unchecked' };   // cp is derived 
 export const spawnKill = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger): Promise<({ result?: string; instance?: string; respawnAt?: string } & SpawnRefusal) | null> => {
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
+};
+// The build of one character (migration 202610120024): level, points placed per dial or skill id, the rank of the last paid re-spread, version. null = not this account's; 'absent' = the migration is not applied.
+export type BuildRow = { level: number; placed: Record<string, number>; respreadRank: number; version: number; conflict?: true };
+const HAS_BUILD = `select to_regprocedure('public.origins_set_build(uuid,text,jsonb,integer,integer)') is not null as build \\gset\n`;
+export const buildGet = async (db: Db, account: string, character: string, version?: number): Promise<BuildRow | null | 'absent'> => {   // version = one exact stored version (a record names it); omitted = the current one
+  const out = await gated(db, 'build', HAS_BUILD, 'build', version === undefined ? `select coalesce(public.origins_get_build(:'a'::uuid, :'c')::text, 'null');` : `select coalesce(public.origins_get_build(:'a'::uuid, :'c', :'v'::int)::text, 'null');`, version === undefined ? { a: acct(account), c: character } : { a: acct(account), c: character, v: String(version) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+export const buildSet = async (db: Db, account: string, character: string, placed: Record<string, number>, respreadRank: number, expected: number): Promise<BuildRow | null | 'absent'> => {
+  const out = await gated(db, 'build', HAS_BUILD, 'build', `select coalesce(public.origins_set_build(:'a'::uuid, :'c', :'p'::jsonb, :'r'::int, :'e'::int)::text, 'null');`, { a: acct(account), c: character, p: JSON.stringify(placed), r: String(respreadRank), e: String(expected) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+export const levelSet = async (db: Db, account: string, character: string, level: number): Promise<number | null | 'absent'> => {
+  const out = await gated(db, 'build', HAS_BUILD, 'build', `select coalesce(public.origins_set_level(:'a'::uuid, :'c', :'v'::int)::text, 'null');`, { a: acct(account), c: character, v: String(level) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
+// The live-ops rows (migration 202610120023): events + switches as one jsonb. 'absent' when the migration is not applied: the writer then runs on its defaults (no events, every switch on).
+const HAS_LIVE_OPS = `select to_regprocedure('public.origins_live_ops()') is not null as liveops \\gset\n`;
+export const liveOps = async (db: Db): Promise<Json | 'absent'> => {
+  const out = await gated(db, 'live_ops', HAS_LIVE_OPS, 'liveops', `select public.origins_live_ops()::text;`, {});
+  return out === 'absent' ? 'absent' : JSON.parse(out);
 };

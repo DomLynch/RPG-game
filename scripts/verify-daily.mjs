@@ -12,6 +12,8 @@ import { spawnSync } from 'node:child_process';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { DAILY_LEVEL } from '../src/fight/match.ts';
 import { decodeRecord } from '../src/fight/record.ts';
+import { expectedSheet } from '../src/fight/build-check.ts';
+import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
 const DAY = /^\d{4}-\d{2}-\d{2}$/, UUID = /^[0-9a-f-]{36}$/i;
@@ -45,7 +47,11 @@ async function refusal(row, seeds, db) {
   for (const field of ['opponent', 'weapon', 'outcome', 'ticks']) {
     if (record[field] !== row[field]) return `${field}: record ${String(record[field])}, row ${String(row[field])}`;
   }
-  const result = verifyRecord(record);
+  let gear = {};   // the gear frozen on the row when it was posted, never the ledger as it is when the sweep runs
+  if (record.sheet && record.characterId !== undefined) { try { gear = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+  const want = await expectedSheet(record, (character, version) => db.build ? db.build(row.user_id, character, version) : Promise.resolve(null), gear);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
+  if (!want.ok) return want.reason;
+  const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
   return result.ok ? null : result.reason;
 }
 
@@ -58,7 +64,7 @@ export function restAdapter(api, fetchFn = globalThis.fetch) {
     return res.json();
   };
   return {
-    pending: (limit, recheck) => json(`${base}/rest/v1/daily_results?verified=eq.false${recheck ? '' : '&checked_at=is.null'}&order=created_at.asc&limit=${limit}&select=day,user_id,opponent,weapon,outcome,ticks,record`, { headers }),
+    pending: (limit, recheck) => json(`${base}/rest/v1/daily_results?verified=eq.false${recheck ? '' : '&checked_at=is.null'}&order=created_at.asc&limit=${limit}&select=day,user_id,opponent,weapon,outcome,ticks,record,worn_gear`, { headers }),
     seed: async day => { const fight = await json(`${base}/rest/v1/rpc/daily_fight`, { method: 'POST', headers, body: JSON.stringify({ on_day: day }) }); return (Array.isArray(fight) ? fight[0] : fight)?.seed; },
     verify: (day, userId) => patch(day, userId, { verified: true, checked_at: new Date().toISOString() }),
     refuse: (day, userId) => patch(day, userId, { checked_at: new Date().toISOString() }),
@@ -79,10 +85,19 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
   };
   const check = (value, pattern, what) => { if (!pattern.test(value)) throw Error(`refusing to query with a malformed ${what}: ${JSON.stringify(value)}`); return value; };
   return {
-    pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select day::text, user_id::text, opponent, weapon, outcome, ticks, record from public.daily_results where not verified${recheck ? '' : ' and checked_at is null'} order by created_at asc limit ${Number(limit)}) r`)),
+    pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select day::text, user_id::text, opponent, weapon, outcome, ticks, record, worn_gear from public.daily_results where not verified${recheck ? '' : ' and checked_at is null'} order by created_at asc limit ${Number(limit)}) r`)),
     seed: async day => { const out = sql(`select seed from public.daily_fight(date '${check(day, DAY, 'day')}')`); return out === '' ? null : Number(out); },
     verify: async (day, userId) => { sql(`update public.daily_results set verified = true, checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
     refuse: async (day, userId) => { sql(`update public.daily_results set checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
+    // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
+    build: async (userId, characterId, version) => {
+      if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) || !Number.isInteger(version) || version < 1) return null;
+      let out;
+      try { out = sql(`select coalesce(public.origins_get_build('${(v => check(v, UUID, 'user id'))(userId)}'::uuid, '${characterId}', ${version})::text, 'null')`); }
+      catch (error) { if (/origins_get_build.*does not exist|does not exist.*origins_get_build/.test(String(error.message))) return null; throw error; }
+      const row = JSON.parse(out);
+      return row === null ? null : { level: row.level, placed: row.placed };
+    },
   };
 }
 

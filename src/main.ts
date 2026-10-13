@@ -1,5 +1,5 @@
 import { createInput } from './fight/index.ts';
-import { gearNumbers } from './fight/gear-numbers.ts';
+import { GEAR_IN_FIGHTS, buildOf, gearNumbers, sheetOfLoot } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -12,7 +12,7 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { session } from './core/index.ts';
+import { fetchBuildRef, session, type BuildRef } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
@@ -405,7 +405,10 @@ const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
 // first fight's recorder is born on it; Next and Rematch reload, so a new rank's level lands on the next fight. The old stored pick
 // (frankendom.difficulty.v1) is no longer read. A replay fights at its record's level (match.ts).
 const rankLevel = () => fightLevel(profile.dial, careerMarks());
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+// The stored build this player's career records name (character id + build version); asked once from the writer, only when gear counts in fights (gear-numbers.ts GEAR_IN_FIGHTS).
+let ownBuildRef: BuildRef | undefined;
+if (GEAR_IN_FIGHTS) void fetchBuildRef({ storage, search: typeof location !== 'undefined' ? location.search : '' }).then((ref) => { ownBuildRef = ref ?? undefined; });
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, ...(GEAR_IN_FIGHTS ? { sheet: () => sheetOfLoot(profile.loot, buildOf(profile)), buildRef: () => ownBuildRef } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
@@ -991,7 +994,7 @@ async function shareFight() {
   if (!record || match.replay) return;
   shareLink.disabled = true; say('Checking the fight…');
   try {
-    const check = verifyRecord(record);
+    const check = verifyRecord(record, undefined, { sheet: 'trust' });   // his own fight, checked before he shares it: nothing is granted on the strength of its sheet
     if (!check.ok) { say(`This fight cannot be shared: ${check.reason}.`); return; }
     // Everyone's link carries a short id (owner 2026-09-22): the store mints one for guests too. No record-in-the-link fallback —
     // a store that refuses means no link, said plainly, never a URL that runs to several screens.

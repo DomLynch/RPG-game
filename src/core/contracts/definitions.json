@@ -74,13 +74,13 @@
   },
   "materials": {
     "iron": {
-      "order": 0
+      "order": 0, "sparks": true
     },
     "steel": {
-      "order": 1
+      "order": 1, "sparks": true
     },
     "bronze": {
-      "order": 2
+      "order": 2, "sparks": true
     },
     "gold": {
       "order": 3
@@ -95,7 +95,7 @@
       "order": 6
     },
     "wood": {
-      "order": 7
+      "order": 7, "dull": true
     },
     "stone": {
       "order": 8
