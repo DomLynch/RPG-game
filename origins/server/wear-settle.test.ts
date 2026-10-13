@@ -103,7 +103,7 @@ test('two kills settling close together on the SAME piece: both are paid, the pi
     return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: 64, bank_slots: 1000 }], items: SLOTS.map((sl, i) => row(i + 1, sl)), quests: [], journal: [], talk: [] });
   } };
   const { inventory } = await inv(SLOTS);
-  const tokenA = tokenFor((sl) => sl === 'Body'), tokenB = tokenFor((sl, ) => sl === 'Body') + 'B';
+  const tokenA = tokenFor((sl) => sl === 'Body');
   const pick = (token: string) => killWearLines(db, kill(token), inventory);
   const staleA = await pick(tokenA);                      // both kills read the wear BEFORE either commits
   const staleB = await pick(tokenA);                      // same piece, same seq
