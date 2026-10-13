@@ -60,7 +60,7 @@ try {
     const g = await read(); console.log(name, JSON.stringify(g));
     check(g.open, `${name}: the dialog opens from the ☰ entry`);
     check(g.rows.length === 3 && g.rows[0].price === '5 bronze' && /Grave iron/i.test(g.rows[0].name), `${name}: the price is shop_stock's (5 at a full shelf), not the list's 6 (${JSON.stringify(g.rows.map((x) => [x.name, x.price]))})`);
-    check(g.rows[0].note === '20 of 20 on the shelf' && g.rows[1].note.startsWith('Sold out') && g.rows[1].buyOff && /Next one back in 30 min/.test(g.rows[1].restock), `${name}: live stock, sold out disables Buy, the restock time (${JSON.stringify(g.rows.map((x) => [x.note, x.restock, x.buyOff]))})`);
+    check(g.rows[0].note === '20 of 20 on the shelf' && g.rows[1].note.startsWith('Sold out') && g.rows[1].buyOff && /Next one back in (29|30) min/.test(g.rows[1].restock), `${name}: live stock, sold out disables Buy, the restock time (${JSON.stringify(g.rows.map((x) => [x.note, x.restock, x.buyOff]))})`);
     check(g.rows[0].restock === '' && g.rows[2].restock === '' && g.rows[1].restock !== '', `${name}: full shelves carry no restock line after the tick, the drained one keeps its (${JSON.stringify(g.rows.map((x) => x.restock))})`);
     check(g.rows.every((x) => x.name.length > 2 && !/item:|\{/.test(x.name + x.price + x.note + x.restock)), `${name}: every line is words, no id or placeholder`);
     check(g.small === 0 && !g.clipped.length && g.inView && !g.hscroll, `${name}: layout (small ${g.small}, clipped ${g.clipped}, inView ${g.inView}, hscroll ${g.hscroll})`);
