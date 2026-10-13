@@ -5,7 +5,7 @@ import { join, relative } from 'node:path';
 import { encounterOps } from './encounter.ts';
 import { ACCOUNT, CHAR, fakeDb, deps, fight } from './encounter-fixtures.ts';
 import { practiceLines, PRACTICE_UNIT, XP_PER_POINT } from './practice.ts';
-import { WEAPONS, WEAPON_PRACTICE_SKILL } from '../../src/fight/server.ts';
+import { PLAYER_WEAPONS, WEAPONS, WEAPON_PRACTICE_SKILL } from '../../src/fight/server.ts';
 import { SHEET_SKILLS } from '../../src/fight/sheet-rows.ts';
 import { Conflict } from './errors.ts';
 
@@ -30,7 +30,7 @@ test('practiceLines: an even fight pays the unit, a hard one more, a grey one no
 
 test('every player weapon practises a real sheet skill', () => {
   const skills = new Set(SHEET_SKILLS.map((s) => s.id));
-  for (const [id, w] of Object.entries(WEAPONS)) if (!(w as { placeholder?: true }).placeholder && id !== 'bite') assert.ok(skills.has(WEAPON_PRACTICE_SKILL[id] ?? ''), `weapon ${id} has no practice skill row`);
+  for (const id of PLAYER_WEAPONS) if (!(WEAPONS[id] as { placeholder?: true }).placeholder) assert.ok(skills.has(WEAPON_PRACTICE_SKILL[id] ?? ''), `weapon ${id} has no practice skill row`);
   for (const skill of Object.values(WEAPON_PRACTICE_SKILL)) assert.ok(skills.has(skill), skill);
 });
 
