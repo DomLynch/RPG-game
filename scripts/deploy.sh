@@ -217,7 +217,7 @@ writer_prev=$(ssh "${ssh_options[@]}" "$host" "readlink /opt/frankendom-origins/
 # the install script's own --rollback would stop the writer altogether).
 writer_back() {
   [[ -n "$writer_prev" ]] || return 0
-  ssh "${ssh_options[@]}" "$host" "[ \"\$(readlink /opt/frankendom-origins/current)\" = '$writer_prev' ] || { ln -sfn '$writer_prev' /opt/frankendom-origins/current && systemctl restart frankendom-origins-writer && echo 'writer put back on $writer_prev'; }" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
+  ssh "${ssh_options[@]}" "$host" "$(writer_back_cmd "$writer_prev" "$release")" >&2 || echo "WRITER ROLLBACK FAILED: current may still be ahead of the site; put it back by hand to $writer_prev" >&2
 }
 writer_install=$(ssh "${ssh_options[@]}" "$host" "set -euo pipefail; cd /root/work-1880 && git fetch -q origin '$revision' && git checkout -q -f --detach '$revision' && bash ops/install-origins-writer.sh --if-changed '$revision' 2>&1 | tail -n 3") || { echo "writer install failed for $revision; the site has not moved: $writer_install" >&2; exit 1; }
 printf '%s\n' "$writer_install"

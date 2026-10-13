@@ -10,3 +10,11 @@ writer_parity_gaps() {
     [ "$got" = "$h" ] || echo "$p"
   done
 }
+
+# The box-side command writer_back (deploy.sh) runs when the site switch failed after the writer install: point the writer back at the outgoing install and restart it, but only
+# while the site has NOT moved to the new release. An ssh drop after the switch ran leaves the site on $2; rolling the writer back then would put it behind the site.
+# writer_back_cmd <outgoing writer install> <new release dir> [opt root] [site root]
+writer_back_cmd() {
+  local prev="$1" rel="$2" opt="${3:-/opt/frankendom-origins}" site="${4:-/var/www/frankendom}"
+  printf '%s' "if [ \"\$(readlink -f '$site/current')\" = '$rel' ]; then echo 'writer NOT rolled back: the site already moved to $rel'; exit 0; fi; [ \"\$(readlink '$opt/current')\" = '$prev' ] || { ln -sfn '$prev' '$opt/current' && systemctl restart frankendom-origins-writer && echo 'writer put back on $prev'; }"
+}
