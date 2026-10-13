@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MOVES, OPPONENTS, RULES, opponentAt, specialOf } from '../../src/fight/moves.ts';
-import { CAPS } from '../../src/fight/gear-stats.ts';
+import type { Sheet } from '../../src/fight/sheet-rows.ts';
 import { GIVE_UP_UNSEEN_S, LEASH, SPEEDS, leashOf } from '../../src/fight/speeds.ts';
 import { AGGRO_M, ENGAGE_M, duelFor, SIGHT_M, HOLD_M, MAX_LEVEL, PROTECT_LEVEL, creature, levelHealth, minKillSeconds, newWorld, pairs, player, stepCombat, withMood, withSpecial, withStance, type Event, type Fighter, type Input, type World } from '../../src/fight/world.ts';
 
@@ -75,27 +75,27 @@ test('running away works from a boar (chase 4.5 < run 5.2): the leash ends the c
 });
 
 test('#1936 c(a): a pack joins - the nearest fights on his lock-on, the others join on their own duel and hit him too; a fourth holds off at the ring; each engage is one FightStarted; when the foe falls the next takes his lock-on', () => {
-  const w0 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]); boost(get(w0, 'p'));
+  const w0 = newWorld([player('p', 0, 0, 0, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]); boost(get(w0, 'p'));
   const r = run(w0, 8, (t) => ({ p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }));
   const hitters = new Set(r.events.filter((e) => e.type === 'Hit' && e.victim === 'p').map((e) => (e as { attacker: string }).attacker));
   assert.ok(hitters.has('a') && hitters.has('b') && hitters.has('c'), `three creatures hit him: ${[...hitters]}`);
   const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature);
   assert.equal(new Set(started).size, started.length, 'one FightStarted per creature per engage'); assert.ok(started.includes('a') && started.includes('b') && started.includes('c'));
-  const w1 = run(newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]), 1 / 60).world;
+  const w1 = run(newWorld([player('p', 0, 0, 0, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6), creature('d', 'wolf', 0, 3.5)]), 1 / 60).world;
   assert.equal(get(w1, 'd').phase, 'ready', 'the fourth is held off at the ring: no windup'); assert.ok(!w1.streams.p!.joined!.some((j) => j.foe === 'd') && w1.streams.p!.joined!.length === 2);
   // the primary falls: a joiner takes his lock-on at once
-  const w2 = newWorld([player('p', 0, 0, 0, undefined, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w2, 'p'));
+  const w2 = newWorld([player('p', 0, 0, 0, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w2, 'p'));
   let w = w2, aDown = -1, bFoe = false;
   for (let t = 0; t < 60 * 60; t++) { const q = stepCombat(w, { p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = q.world; if (q.events.some((e) => e.type === 'Died' && e.id === 'a')) aDown = t; if (aDown >= 0 && w.streams.p?.foe === 'b') bFoe = true; if (get(w, 'b').phase === 'dead') break; }
   assert.ok(aDown >= 0 && bFoe, 'when the first falls the second is his foe'); assert.ok(HOLD_M < ENGAGE_M);
 });
 
-test('gear: Attack scales what the hero deals, RES what he takes (the numbers the Pit reports); naked is the Pit number', () => {
-  const dealt = (attack: number) => { const r = run(newWorld([player('p', 0, 0, 0, { attack, res: 1 }), creature('c', 'boar', 0, 1.3)]), 3, (t) => ({ p: t === 0 ? { x: 0, z: 0, attack: 'light' } : STILL })); return of(r.events, 'Hit', 'p').map((e) => (e as Extract<Event, { type: 'Hit' }>).damage)[0] ?? 0; };
-  const taken = (res: number) => { const r = run(newWorld([player('p', 0, 0, 0, { attack: 1, res }), creature('c', 'bear', 0, 1.4)]), 4); return of(r.events, 'Hit', 'c').map((e) => (e as Extract<Event, { type: 'Hit' }>).damage)[0] ?? 0; };
-  assert.ok(dealt(1) > 0, 'a naked cut lands');
-  assert.equal(dealt(CAPS.attack), Math.round(dealt(1) * CAPS.attack), 'Attack scales it');
-  assert.ok(taken(1) > 0 && taken(CAPS.res) === Math.round(taken(1) * CAPS.res), `RES scales what he takes: ${taken(1)} -> ${taken(CAPS.res)}`);
+test('sheet: the Attack dial raises what the hero deals and the armour dial lowers what he takes (the numbers the Pit reports); a bare hero is the Pit number', () => {
+  const dealt = (sheet?: Sheet) => { const r = run(newWorld([player('p', 0, 0, 0, 1, null, sheet ? { sheet } : undefined), creature('c', 'boar', 0, 1.3)]), 3, (t) => ({ p: t === 0 ? { x: 0, z: 0, attack: 'light' } : STILL })); return of(r.events, 'Hit', 'p').map((e) => (e as Extract<Event, { type: 'Hit' }>).damage)[0] ?? 0; };
+  const taken = (sheet?: Sheet) => { const r = run(newWorld([player('p', 0, 0, 0, 1, null, sheet ? { sheet } : undefined), creature('c', 'bear', 0, 1.4)]), 4); return of(r.events, 'Hit', 'c').map((e) => (e as Extract<Event, { type: 'Hit' }>).damage)[0] ?? 0; };
+  assert.ok(dealt() > 0, 'a bare cut lands');
+  assert.ok(dealt({ attack: 50 }) > dealt(), 'Attack raises it');
+  assert.ok(taken() > 0 && taken({ armour: 50 }) < taken(), `armour lowers what he takes: ${taken()} -> ${taken({ armour: 50 })}`);
 });
 
 test('level: a creature of level L has the Pit\'s own level body (moves.ts opponentAt), no Zone 1 scaling; minKillSeconds follows the level and the best gear', () => {
@@ -110,7 +110,7 @@ test('minKillSeconds is a bound from the whole Pit kit: no attack spam at the be
   const kinds = Object.keys(OPPONENTS).filter((k) => k !== 'player' && ['wolf', 'boar', 'bear', 'goblin'].includes(k));
   let kills = 0;
   for (const kind of kinds) for (const level of [1, 2, 3]) for (const attack of ['light', 'heavy'] as const) {
-    const p = boost(player('p', 0, 0, 0, { attack: CAPS.attack, res: 1 }, 10)), c = creature('c', kind, 0, 1.3, Math.PI, level);
+    const p = boost(player('p', 0, 0, 0, 10, null, { sheet: { attack: 100 } })), c = creature('c', kind, 0, 1.3, Math.PI, level);
     const r = run(newWorld([p, c]), 120, () => ({ p: { x: 0, z: 0, attack } }), (w) => get(w, 'c').health <= 0);
     if (get(r.world, 'c').health > 0) continue;   // never killed in 120 s of spam: nothing to bound
     kills++;
@@ -122,7 +122,7 @@ test('minKillSeconds is a bound from the whole Pit kit: no attack spam at the be
 
 test('stances: the Pit table applies in the open - aggressive deals more than Balanced, defensive less; Balanced is the stance-less fight', () => {
   const hit = (pick: 'neutral' | 'aggressive' | 'defensive') => {   // against an idle player, so nothing interrupts the cut
-    const a = withStance(player('a', 0, 0, 0, undefined, 10), pick), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+    const a = withStance(player('a', 0, 0, 0, 10), pick), b = player('b', 0, 1.2, Math.PI, 10); a.pvp = b.pvp = true;
     const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack: 'heavy' } : STILL, b: STILL }));
     return (of(r.events, 'Hit', 'a')[0] as Extract<Event, { type: 'Hit' }> | undefined)?.damage ?? 0;
   };
@@ -133,7 +133,7 @@ test('stances: the Pit table applies in the open - aggressive deals more than Ba
 
 test('stab: a thrust press plays the Pit\'s thrust row, not the slash (the page used to fold STAB into SLASH)', () => {
   const hit = (attack: 'light' | 'thrust') => {   // against an idle player, so nothing interrupts the cut
-    const a = player('a', 0, 0, 0, undefined, 10), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+    const a = player('a', 0, 0, 0, 10), b = player('b', 0, 1.2, Math.PI, 10); a.pvp = b.pvp = true;
     const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack } : STILL, b: STILL }));
     return of(r.events, 'Hit', 'a')[0] as Extract<Event, { type: 'Hit' }> | undefined;
   };
@@ -144,7 +144,7 @@ test('stab: a thrust press plays the Pit\'s thrust row, not the slash (the page 
 });
 
 test('raw Pit events: every Zone 1 event carries the Pit\'s CombatEvent (a Hit keeps its location and weapon), and a Pit event with no summary (a roll) comes through as type Pit', () => {
-  const a = player('a', 0, 0, 0, undefined, 10), b = player('b', 0, 1.2, Math.PI, undefined, 10); a.pvp = b.pvp = true;
+  const a = player('a', 0, 0, 0, 10), b = player('b', 0, 1.2, Math.PI, 10); a.pvp = b.pvp = true;
   const r = run(newWorld([a, b]), 2, (t) => ({ a: t === 0 ? { x: 0, z: 0, attack: 'thrust' } : STILL, b: t === 90 ? { x: 0, z: 0, roll: { x: 1, z: 0 } } : STILL }));
   const hit = of(r.events, 'Hit', 'a')[0]!;
   assert.equal(hit.pit?.type, 'Hit');
@@ -175,7 +175,7 @@ test('creature mood: the Pit\'s moodOf draw - about half the home stance, the re
 });
 
 test('special: not ready until RULES.special.first in; then a 2 s telegraph carrying its name and an unblockable release on the foe for a share of ITS max health', () => {
-  const name = specialOf('knight', 36)!, c = withSpecial(player('p', 0, 0, 0, undefined, 10), name), bear = creature('b', 'bear', 0, 2.0);
+  const name = specialOf('knight', 36)!, c = withSpecial(player('p', 0, 0, 0, 10), name), bear = creature('b', 'bear', 0, 2.0);
   const early = run(newWorld([c, bear]), 1, (t) => ({ p: t === 0 ? { x: 0, z: 0, special: true } : STILL }));
   assert.equal(of(early.events, 'Telegraph', 'p').length, 0, 'not ready in the first seconds');
   const ready = { ...c, specialIn: 0 }, r = run(newWorld([ready, creature('b', 'bear', 0, 2.0)]), 4, (t) => ({ p: t === 0 ? { x: 0, z: 0, special: true } : STILL }));
@@ -186,7 +186,7 @@ test('special: not ready until RULES.special.first in; then a 2 s telegraph carr
 });
 
 test('skill: the SKILL button fires the equipped skill\'s move (the Pit\'s single button) when the hero has no named special', () => {
-  const r = run(newWorld([player('p', 0, 0, 0, undefined, 10, 'pommel'), creature('c', 'goblin', 0, 8)]), 2, (t) => ({ p: t === 0 ? { x: 0, z: 0, skill: true } : STILL }));
+  const r = run(newWorld([player('p', 0, 0, 0, 10, 'pommel'), creature('c', 'goblin', 0, 8)]), 2, (t) => ({ p: t === 0 ? { x: 0, z: 0, skill: true } : STILL }));
   const tel = of(r.events, 'Telegraph', 'p')[0] as Extract<Event, { type: 'Telegraph' }> | undefined;
   assert.ok(tel && tel.move === 'skill_pommel', `fired ${tel?.move}`);
   const none = run(newWorld([player('p', 0, 0)]), 1, (t) => ({ p: t === 0 ? { x: 0, z: 0, skill: true } : STILL }));
@@ -195,7 +195,7 @@ test('skill: the SKILL button fires the equipped skill\'s move (the Pit\'s singl
 
 // ---- player against player (the Pit duel with two humans; the server sets pvp per area) ----
 const duo = (opts: { aPvp?: boolean; bPvp?: boolean; aLevel?: number; bLevel?: number } = {}) => {
-  const a = player('a', 0, 0, 0, undefined, opts.aLevel ?? 10), b = player('b', 0, 1.2, Math.PI, undefined, opts.bLevel ?? 10);
+  const a = player('a', 0, 0, 0, opts.aLevel ?? 10), b = player('b', 0, 1.2, Math.PI, opts.bLevel ?? 10);
   a.pvp = opts.aPvp ?? true; b.pvp = opts.bPvp ?? true;
   return newWorld([a, b]);
 };
@@ -226,9 +226,10 @@ test('pvp: hitting back is not "first" (inside the window)', () => {
   assert.deepEqual(of(back.events, 'Aggressed')[0], { type: 'Aggressed', attacker: 'b', victim: 'a', first: false });
 });
 
+// directionalGuard is on in the world: the guard must be held on the side the blow comes from (a bare guard covers only a thrust)
 test('parry: a guard raised just before a creature\'s blow turns it aside - a Parried event, no damage, the creature thrown off', () => {
   let w = newWorld([player('p', 0, 0), creature('c', 'wolf', 0, 1.4)]); const events: Event[] = [];
-  for (let t = 0; t < 300; t++) { const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= 0.15; const r = stepCombat(w, { p: { x: 0, z: 0, guard } }, DT); w = r.world; events.push(...r.events); }
+  for (let t = 0; t < 300; t++) { const c = get(w, 'c'), guard = c.phase === 'windup' && c.t >= 0.15; const r = stepCombat(w, { p: { x: 0, z: 0, guard, guardDirection: 'left' } }, DT); w = r.world; events.push(...r.events); }
   assert.ok(of(events, 'Parried').length > 0, 'parried');
   assert.ok(of(events, 'Staggered', 'c').length > 0, 'the creature is thrown off');
 });
@@ -311,7 +312,7 @@ test('#1936 c(a) (Auditor HOLD): a player killed by a JOINER stays dead - phase 
 });
 
 test('#1936 c(b): disengage - the player runs from three creatures; the fight just stops (no end event), each loses him, gives up or hits its leash, walks home, heals and says Evaded once; no bout is left', () => {
-  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
+  const w0 = newWorld([boost(player('p', 0, 0, 0, 10)), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6), creature('c', 'wolf', -1.2, 1.6)]);
   const fight = run(w0, 1);
   assert.equal(fight.world.streams.p!.joined!.length, 2, 'three on him'); for (const id of ['a', 'b', 'c']) get(fight.world, id).health -= 20;
   // he runs away at the run speed and keeps going: past the sight ring the unseen clock runs, past the leash they turn back
@@ -322,7 +323,7 @@ test('#1936 c(b): disengage - the player runs from three creatures; the fight ju
 });
 
 test('#1936 c(a): FightStarted is once per creature per engage - a joiner that becomes his foe, or hovers at the edge of the ring, does not fire again', () => {
-  const w0 = newWorld([boost(player('p', 0, 0, 0, undefined, 10)), creature('a', 'boar', 0, 1.6), creature('b', 'boar', 1.4, 1.8), creature('c', 'boar', -1.4, 1.8)]);
+  const w0 = newWorld([boost(player('p', 0, 0, 0, 10)), creature('a', 'boar', 0, 1.6), creature('b', 'boar', 1.4, 1.8), creature('c', 'boar', -1.4, 1.8)]);
   let aDown = -1;
   const r = run(w0, 120, (t) => ({ p: aDown < 0 ? { x: 0, z: 0, attack: t % 25 === 0 ? 'light' : null } : { x: -1, z: 0, run: true } }), (w) => { if (aDown < 0 && get(w, 'a').phase === 'dead') aDown = 1; return false; });
   const started = r.events.filter((e) => e.type === 'FightStarted').map((e) => (e as { creature: string }).creature), died = r.events.filter((e) => e.type === 'Died' && e.id === 'a').length;
