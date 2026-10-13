@@ -1,0 +1,23 @@
+{
+  "tables": [
+    {
+      "table": "shop",
+      "file": "shops.json",
+      "at": "shops",
+      "key": "id",
+      "required": {
+        "list": "string",
+        "revision": "integer",
+        "currency": "string",
+        "rows": "array",
+        "rows[].item": "string",
+        "rows[].price": "integer",
+        "rows[].max": "integer",
+        "rows[].restockSeconds": "integer"
+      },
+      "optional": {
+        "rows[].minLevel": "integer"
+      }
+    }
+  ]
+}

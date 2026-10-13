@@ -7,6 +7,7 @@ files:
   - origins/patrons/patrons.ts
   - origins/preview/play.ts
   - origins/encounters/encounters.ts
+  - origins/region1/shops.ts
 rule:
   kind: variable_declarator
   all:

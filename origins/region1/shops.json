@@ -1,0 +1,15 @@
+{
+  "shops": [
+    {
+      "id": "service:exchange-provisioner",
+      "list": "shoplist:exchange-provisioner",
+      "revision": 1,
+      "currency": "bronze",
+      "rows": [
+        { "item": "item:grave-iron", "price": 6, "max": 20, "restockSeconds": 120 },
+        { "item": "item:frontier.ash-helm", "price": 60, "max": 1, "restockSeconds": 1800, "minLevel": 11 },
+        { "item": "item:frontier.watch-greaves", "price": 60, "max": 1, "restockSeconds": 1800, "minLevel": 11 }
+      ]
+    }
+  ]
+}
