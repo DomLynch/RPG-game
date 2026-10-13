@@ -57,7 +57,8 @@
 {"id":"executeMult","value":1500},
 {"id":"executeBelow","value":25},
 {"id":"oneButton","value":1},
-{"id":"heavyHold","value":180},
+{"id":"heavyHold","value":220},
+{"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18}
 ],"castPenalty":[
 {"id":"heavy","dial":"armour","atLeast":20,"percent":20},
