@@ -38,11 +38,14 @@ const rowOf = (f: { stance?: StanceId }): Readonly<Partial<Record<StanceKey | 'w
 // No rows = no scar is ever set (the fighter has no `scars` field, so the duel hash is byte-identical) and stanced() is unchanged.
 const SITES = ['head', 'torso', 'legs'];
 const WOUND_TEXT: Record<string, { label: string; note: string }> = {};   // optional label + note columns: what the on-screen notice says (wound-notice.ts)
-const WOUNDS: Readonly<Record<string, Deltas & { site: string }>> = Object.fromEntries((WOUND_TABLE.rows as unknown as Record<string, unknown>[]).map(({ id, site, label, note, ...deltas }) => {
+const WOUND_CEIL: Record<string, number> = {};   // optional `ceil` column: stamina points the scar takes off the ceiling for the rest of the duel (UO Mortal Strike / SWG wounds)
+const WOUNDS: Readonly<Record<string, Deltas & { site: string }>> = Object.fromEntries((WOUND_TABLE.rows as unknown as Record<string, unknown>[]).map(({ id, site, label, note, ceil, ...deltas }) => {
+  if (ceil !== undefined) { if (typeof ceil !== 'number' || !Number.isInteger(ceil) || ceil < 0 || ceil > 100) throw Error(`stance-defs wound "${String(id)}": ceil is whole stamina points, 0 to 100`); WOUND_CEIL[id as string] = ceil; }
   if (typeof site !== 'string' || !SITES.includes(site)) throw Error(`stance-defs wound "${String(id)}": site is one of ${SITES.join(', ')}`);
   if (typeof label === 'string') WOUND_TEXT[id as string] = { label, note: typeof note === 'string' ? note : '' };
   return [id as string, { ...stanceRows([{ id, ...deltas }])[id as StanceId], site }];
 }));
+export const woundCeil = (id: string): number => WOUND_CEIL[id] ?? 0;
 export const woundText = (id: string): { label: string; note: string } | undefined => WOUND_TEXT[id];
 export const woundsAt = (site: string): string[] => Object.keys(WOUNDS).filter((id) => WOUNDS[id]!.site === site);
 type Scarred = { stance?: StanceId; scars?: readonly string[] };
