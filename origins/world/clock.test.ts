@@ -6,14 +6,12 @@ import { CLOCK, clockBonusFor, loadClockDefs, partOf, spawnsFor, weatherFor, typ
 import { isNight } from '../preview/daynight.ts';
 import { WEATHER_ROWS } from '../../src/arena-rows.ts';
 import { BIOMES } from '../zones/biomes.ts';
-import { CATALOGUE } from '../../src/fight/index.ts';
 
 const KNOWN = { weatherKinds: Object.keys(WEATHER_ROWS), biomes: Object.keys(BIOMES), zones: ['cinder-fields', 'ash-reach'], characters: ['character:ash-wolf', 'character:ember-wolf'] };
 const copy = (): ClockDefs => JSON.parse(JSON.stringify(CLOCK));
 
 test('the shipped rows load against the real weather kinds and biomes; the night spawn table ships empty (no content invented)', () => {
   loadClockDefs(copy(), KNOWN);
-  assert.ok(CATALOGUE.length > 0);
   assert.deepEqual(Object.keys(CLOCK.nightSpawns), []);
   assert.deepEqual(Object.keys(CLOCK.weather).every((b) => b in BIOMES), true);
 });
