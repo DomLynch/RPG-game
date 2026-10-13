@@ -105,6 +105,21 @@ try {
   eq(xpOf('sword'), '15', 'practice race: two concurrent settles end AT the ceiling, not over it (the second queued on the xp row)');
   eq(psql(`select string_agg(paid::text, ',' order by paid desc) from public.origins_skill_practice where key in ('practice:enc:${tok(43)}:sword', 'practice:enc:${tok(44)}:sword')`), '10,5', 'practice race: paid 10 then 5');
   eq(await code('anon', `select * from public.origins_skill_xp`), '42501', 'practice: no client reads the pool');
+  // ---- 0029: the pool is readable and flaggable only through the definer functions (RLS closes the table to the writer roles) ----------------------------------------------
+  for (const role of [V, O]) {
+    const r = await as(role, `select public.origins_skill_pool('${C}', '${pcC}')::text;`); eq(r.code, 0, `skill pool: the ${role} role can call the reader`);
+    eq(JSON.stringify(JSON.parse(r.out.trim().split('\n').pop()).sword), '{"xp":15,"focus":false}', `skill pool (${role}): the banked xp and focus per skill`);
+  }
+  eq(psql(`set role ${V}; select count(*) from public.origins_skill_xp;`).split('\n').pop(), '0', 'skill pool: a plain select by the writer still sees no rows (so the reader is the only way)');
+  eq(psql(`set role ${V}; select coalesce(public.origins_skill_pool('${A}', '${pcC}')::text, 'null');`).split('\n').pop(), 'null', 'skill pool: not the account\'s character -> null');
+  eq(JSON.parse(psql(`set role ${V}; select public.origins_skill_focus('${C}', '${pcC}', 'sword', true)::text;`).split('\n').pop()).focus, true, 'skill focus: flipped on');
+  eq(psql(`select focus::text from public.origins_skill_xp where character = '${pcC}' and skill = 'sword'`), 'true', 'skill focus: stored');
+  eq(JSON.parse(psql(`set role ${O}; select public.origins_skill_focus('${C}', '${pcC}', 'axe', true)::text;`).split('\n').pop()).xp, 0, 'skill focus: a skill with no xp yet gets a row at 0 xp');
+  eq(await code(V, `select public.origins_skill_focus('${C}', '${pcC}', 'Not A Skill', true);`), 'O0002', 'skill focus: a malformed skill is refused');
+  eq(psql(`set role ${V}; select coalesce(public.origins_skill_focus('${A}', '${pcC}', 'sword', false)::text, 'null');`).split('\n').pop(), 'null', 'skill focus: not the account\'s character -> null, nothing flipped');
+  eq(await code('anon', `select public.origins_skill_pool('${C}', '${pcC}');`), '42501', 'skill pool: no client reads it');
+  eq(await code('authenticated', `select public.origins_skill_focus('${C}', '${pcC}', 'sword', false);`), '42501', 'skill focus: no client flips it');
+  psql(`update public.origins_skill_xp set focus = false where character = '${pcC}'`);
   eq(await code('authenticated', SETTLE6(C, tok(42), 'won', '[]', '[]')), '42501', 'practice: no client calls the settle');
 
   // ---- grimoire (migration 202610130027): a spell is taken only by the 7-arg settle, on a win, once per account and legend ----------------------------------------
@@ -263,6 +278,8 @@ try {
   eq(psql(`select count(*) from public.origins_events where event_id = 'enc:${tok(25)}'`), '1', 'last_paid_kill down: no event touched');
   psql(readFileSync(join(dir, '202610080006_origins_last_paid_kill.sql'), 'utf8'));
 
+  psql(readFileSync(join(dir, '..', 'down', '202610130029_skill_pool_access_down.sql'), 'utf8'));
+  eq(psql(`select (to_regprocedure('public.origins_skill_pool(uuid,text)') is null)::text || '/' || (to_regprocedure('public.origins_skill_focus(uuid,text,text,boolean)') is null)::text || '/' || count(*) from pg_class where relname = 'origins_skill_xp'`), 'true/true/1', 'skill pool down: both functions gone, the pool table untouched');
   psql(readFileSync(join(dir, '..', 'down', '202610130026_skill_practice_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb,jsonb)') is null)::text || '/' || count(*) from pg_class where relname in ('origins_skill_xp', 'origins_skill_practice')`), 'true/0', 'practice down: the 6-arg settle and both tables are gone');
   eq(psql(`select (to_regprocedure('public.origins_encounter_settle(uuid,text,text,int,jsonb)') is not null)::text`), 'true', 'practice down: the 5-arg settle stays');
