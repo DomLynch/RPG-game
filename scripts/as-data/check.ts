@@ -2,6 +2,7 @@
 //   node scripts/as-data/check.mjs [--root <dir>] [--json]        (npm run check:as-data; no --root = src AND origins, the whole denominator)
 // (a) COMPARES: === / !== / case against a string literal that is an opponent, weapon, skill, special or finisher id.
 // (b) UNIONS: a closed TypeScript union of content ids.
+// (c) MAPS: an object-literal pair keyed by a content id whose value is a string (a label, colour or blurb kept in code); one site per pair.
 // Runs ast-grep through npx at a pinned version (no global install); the rule files beside this script are templates the runner fills with today's id lists.
 // Excluded: src/fight/catalogue-data.ts (the data itself) and src/assets. A site is listed as file:line [kind/category] text.
 import { spawnSync } from 'node:child_process';
@@ -61,6 +62,7 @@ try {
   const sites = [
     ...run('compare.yml').map((m) => ({ kind: 'compare', category: categoryOf(m.text.slice(1, -1)) ?? 'unknown', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text })),
     ...run('tunable.yml').map((m) => ({ kind: 'tunable', category: 'tunable', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text })),
+    ...run('map.yml').map((m) => ({ kind: 'map', category: categoryOf(/^['"]?([\w-]+)/.exec(m.text)![1]!) ?? 'unknown', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('union.yml').map((m) => ({ kind: 'union', category: 'union', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('rows.yml', ['!**/*.test.ts', '!**/fixtures.ts', '!src/**']).map((m) => ({ kind: 'row', category: 'content-row', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('consts.yml').map((m) => ({ kind: 'row', category: 'content-const', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
@@ -76,7 +78,7 @@ try {
   const verbLine = (v: Verb) => { const at = read(v.file).split('\n').findIndex((l) => new RegExp(`\\bconst ${v.name}\\b`).test(l)); return at < 0 ? 0 : at + 1; };
   const verbSites = verbs.map((v) => ({ ...v, line: verbLine(v) })), staleVerbs = verbSites.filter((v) => !v.line);
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
-  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable') };
+  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map') };
   if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}`);
@@ -86,7 +88,7 @@ try {
     for (const v of verbSites.filter((x) => x.line)) console.log(`verb ${v.file}:${v.line} ${v.name}  (dispatch ${v.dispatch}; sunset ${v.sunset ?? 'none'})`);
     for (const v of staleVerbs) console.log(`STALE verb ${v.file} ${v.name}: no such declaration any more, delete it (${v.dispatch})`);
     for (const a of stale) console.log(`STALE allow entry ${a.file} ${a.literal}: no such site any more, delete it (${a.reason})`);
-    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}`);
+    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps}`);
   }
   if (stale.length || staleVerbs.length || staleTunables.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
   else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row or tunable in code is red
