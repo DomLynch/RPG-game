@@ -89,7 +89,8 @@ test('with no --root the checker scans src AND origins (shown on a fixture tree 
   try {
     mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins'), { recursive: true });
     writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
-    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\n");
+    writeFileSync(join(repo, 'src', 'fight', 'special-set-defs.json'), '{"sets":[{"id":"ash","specials":["ashfall"]}],"ranks":[{"id":"first","level":36}]}');
     writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
     writeFileSync(join(repo, 'src', 'a.ts'), "export const a = (o: string) => o === 'veteran';\n");
     writeFileSync(join(repo, 'origins', 'b.ts'), "export const b = (o: string) => o === 'goblin';\n");
@@ -113,7 +114,8 @@ const fixtureRepo = (roster: string) => {
   const repo = mkdtempSync(join(tmpdir(), 'as-data-repo-'));
   mkdirSync(join(repo, 'src', 'fight'), { recursive: true });
   writeFileSync(join(repo, 'src', 'roster.ts'), roster);
-  writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+  writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\n");
+    writeFileSync(join(repo, 'src', 'fight', 'special-set-defs.json'), '{"sets":[{"id":"ash","specials":["ashfall"]}],"ranks":[{"id":"first","level":36}]}');
   writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
   return repo;
 };

@@ -10,8 +10,8 @@ import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
-const WORLD_DIGEST = 'c2674ac2b6656069955bfca51bddfd525b6a0a8598df486062a3a2dbcdedcce6';   // WSV 11 (Combat B slice 1: the Pit's RV is 56, RULES as rows); was 8e64a473...c69911ca at WSV 10
-const PINNED_FOR_VERSION = 13;
+const WORLD_DIGEST = 'ed2281d5b2e8c56cf1b768360534845446a59fc99f4f5d5fd3bd1ec45f028bce';
+const PINNED_FOR_VERSION = 14;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 
