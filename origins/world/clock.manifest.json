@@ -1,0 +1,8 @@
+{
+  "tables": [
+    {"table": "dayPart", "file": "clock.json", "at": "dayParts", "keyed": true, "key": "id", "required": {"order": "integer", "night": "boolean"}},
+    {"table": "clockBonus", "file": "clock.json", "at": "clockBonus", "keyed": true, "key": "id", "required": {"order": "integer", "day": "number", "night": "number"}},
+    {"table": "nightSpawn", "file": "clock.json", "at": "nightSpawns", "keyed": true, "key": "id", "required": {"order": "integer", "part": "string", "zone": "string", "character": "string", "count": "integer"}},
+    {"table": "weatherPick", "file": "clock.json", "at": "weather", "keyed": true, "key": "id", "required": {"order": "integer", "picks": "object"}}
+  ]
+}

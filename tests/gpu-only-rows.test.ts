@@ -37,7 +37,10 @@ test('the release-checks plan matrix and GPU_ONLY ∪ every MAC_ONLY row are dis
   const rows = plan({});
   assert.ok(rows.length > 20, `a candidate still runs the matrix: ${rows.length} rows`);
   assert.deepEqual(rows.filter(r => never.includes(r)), []);
-  assert.ok(rows.includes(9) && rows.includes(13), 'the T4 rows that are not gpu-only are CI rows');
+  assert.ok(rows.includes(13), 'the T4 rows that are not gpu-only are CI rows');
+  // Rows 9 and 46 are POST_PUBLISH (row-placement.mjs): a candidate's matrix leaves them out (deploy.sh runs them right after Published); a dispatch measurement still runs them.
+  assert.ok(!rows.includes(9) && !rows.includes(46), 'a candidate leaves the post-publish rows out');
+  assert.ok(plan({ GITHUB_EVENT_NAME: 'workflow_dispatch' }).includes(9) && plan({ GITHUB_EVENT_NAME: 'workflow_dispatch' }).includes(46), 'a dispatch still runs them');
   assert.ok(!rows.includes(2) && !rows.includes(44), 'rows 2 and 44 (Mac-only for failing off the Mac) are not scheduled either');
   assert.deepEqual(plan({ GITHUB_EVENT_NAME: 'workflow_dispatch' }).filter(r => never.includes(r)), [], 'a dispatch run skips them too');
 });
