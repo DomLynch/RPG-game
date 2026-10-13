@@ -13,6 +13,8 @@ import { mobLayer } from '../../src/core/server.ts';
 import { kitOfBuild, kitTag } from '../../src/core/server.ts';
 import { MOB_STYLES, type MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
+import { groupLayer, withIncoming } from '../../src/fight/pack.ts';
+import type { Practice } from '../../src/fight/combat.ts';
 
 // What the server holds for the fight (origins_encounter_get): the record is checked against it and re-simulated with it.
 // pose: the start pose the server issued at encounter_start (encounter-pose.ts, read back from the token), null for a pit-mark fight; the record must name exactly it.
@@ -34,6 +36,14 @@ const samePose = (a: DuelPose | undefined, b: DuelPose | null): boolean => !a ||
   : Object.is(a.hero.x, b.hero.x) && Object.is(a.hero.z, b.hero.z) && Object.is(a.foe.x, b.foe.x) && Object.is(a.foe.z, b.foe.z) && Object.is(a.heroFacing, b.heroFacing);
 
 export function verifyEncounter(record: FightRecord, p: EncounterParams): Verified {
+  if (record.group) return refuse('one stream of a shared-health group is not verified alone (its siblings supply its incoming damage)');
+  return verifyStream(record, p);
+}
+
+// One stream of a shared-health group (RV39) under the server's parameters: it replays from the incoming damage and held spans its own header carries, and origins/server/encounter-group.ts then cross-checks them against the siblings.
+// onTick sees every stepped practice (the damage the stream dealt is read from it). A group fight has no bar and no twist: the creature's pool IS the shared health.
+export function verifyStream(record: FightRecord, p: EncounterParams, onTick?: (practice: Practice) => void): Verified {
+  if (record.group && (p.bar !== null || p.flags.length)) return refuse('a shared-health group fight has no one-health-bar or twist');
   if (p.layer !== null && !knownLayer(p.layer)) return refuse(`the mob layer ${p.layer} is not one this verifier knows`);
   if (p.layer !== null) {   // a mob layer is in play: the record must have been played on the kit this build replays with
     const theirs = kitOfBuild(record.build), mine = kitTag();
@@ -42,15 +52,14 @@ export function verifyEncounter(record: FightRecord, p: EncounterParams): Verifi
   if (record.opponent !== p.enemy || record.level !== p.level || record.seed !== p.seed) return refuse('the record is not this encounter\'s fight (enemy, level or seed differ)');
   const sheetBad = sheetRefusal(record, p.sheet);   // a claimed sheet is the client's: only the build the server holds for this character can vouch for it
   if (sheetBad) return refuse(sheetBad);
-  if (record.group) return refuse('one stream of a shared-health group is not verified alone (its siblings supply its incoming damage)');
   if (!samePose(record.pose, p.pose ?? null)) return refuse(p.pose ? 'the record does not start from the pose this encounter was issued' : 'the record starts from a pose this encounter was not issued');
   if (!!record.specials !== liveSpecials(p.level)) return refuse('the record\'s special-move phase is not the one this warden fights in');
   if (!Number.isInteger(record.ticks) || record.ticks < 1 || record.intents.length !== record.ticks || record.ticks > MAX_FIGHT_TICKS) return refuse('the record\'s length is not a fight');
-  try { return underRecord(record, () => run(record, p)); }   // the record's version picks the sim's math, as in every replay
+  try { return underRecord(record, () => run(record, p, onTick)); }   // the record's version picks the sim's math, as in every replay
   catch (error) { return refuse(`this build cannot step the record: ${error instanceof Error ? error.message : String(error)}`); }
 }
 
-function run(record: FightRecord, p: EncounterParams): Verified {
+function run(record: FightRecord, p: EncounterParams, onTick?: (practice: Practice) => void): Verified {
   const opponent = OPPONENTS[record.opponent];
   if (!opponent || !Number.isInteger(p.level) || p.level < 1 || p.level > LEVELS) return refuse('unknown opponent or warden level');
   const profile = profileAt(opponent, p.level), flags = p.flags;
@@ -60,7 +69,9 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   let twist = noTwist(), endedAt = 0;
   for (let i = 0; i < record.intents.length; i++) {
     if (endedAt) return refuse(`the fight ended at tick ${endedAt}, before the record's last tick ${record.ticks}`);
-    practice = stepPractice(practice, record.intents[i]!, profile, layer);
+    const group = record.group;   // a held copy is forced idle (the recorded span), otherwise the server's mob layer decides, as in the live run
+    practice = stepPractice(group ? withIncoming(practice, group, i + 1) : practice, record.intents[i]!, profile, (group && groupLayer(group, i + 1)) || layer);
+    onTick?.(practice);
     if (practice.finish) {
       if (flags.length && practice.finish.victim === 1) twist = stepTwist(practice.duel, flags, twist).twist;   // 'caught' inside the catch window
       endedAt = i + 1;
