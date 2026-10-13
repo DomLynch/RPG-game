@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, attackerPerMille, interruptLockout } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -39,6 +39,7 @@ export type Fighter = {
   guardDirection: Direction | null; parrying: boolean; exposed: number; evaded: number; counterWindow: number; charge: number; charged: boolean; buffer: { action: Action; ttl: number } | null;
   guardProfile?: Partial<GuardProfile>;   // shield/loadout overrides; absent = the longsword defaults in RULES
   postureRest: number;   // ticks left before posture drains again (a gain pauses the drain)
+  phases?: readonly string[];   // sandbox-mech boss phases reached this fight (boss-phase-defs.json ids)
   scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
@@ -96,7 +97,7 @@ export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
 
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
+type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'PhaseChanged' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
 export type CombatEvent = { pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
@@ -589,6 +590,16 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
     finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move, heading: A.body.heading };
     events.push({ tick, type: 'Killed', actor: i, target: j, move, location: 'torso', heading: A.body.heading });
+  }
+  for (const i of [0, 1] as const) {   // sandbox-mech boss phases: under a row's health threshold the special hits harder and is ready sooner, once per fight
+    const B = fighters[i];
+    if (PHASES.length && B.health && B.specialShare !== undefined) for (const row of PHASES) {
+      if ((row.special === '*' || row.special === B.specialName) && !B.phases?.includes(row.id) && (B.health * 100) / B.maxHealth < row.below) {
+        B.phases = [...(B.phases ?? []), row.id]; B.specialShare = (B.specialShare * row.share) / 1000;
+        B.skillCooldown = Math.min(B.skillCooldown, Math.round((R.special.cooldown * row.cooldown) / 100));
+        events.push({ tick, type: 'PhaseChanged', actor: i, name: row.id } as CombatEvent);
+      }
+    }
   }
   for (const i of [0, 1] as const) {
     const A = fighters[i];
