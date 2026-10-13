@@ -2678,3 +2678,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .grimoire-dialog .grimoire-equip { justify-self: start; min-height: 44px; min-width: 96px; margin-top: 4px; border: 1px solid #c8a45e66; border-radius: 6px; background: transparent; color: #e9e3d6; font: 600 13px "Instrument Sans", Arial, sans-serif; }
 .grimoire-dialog .grimoire-equip[aria-pressed='true'] { background: #c8a45e33; border-color: var(--school, #c8a45e); color: #fff; }
 .grimoire-dialog .grimoire-empty { padding: 28px 8px; text-align: center; color: #9a9382; font: 600 15px "Cormorant", Georgia, serif; }
+
+/* The armour weight badge (gear-sheet.ts weightOf): the piece's class from the gear rows, read only, on the fitting card, the pack and the rack. */
+#journal [data-weight]::after { content: attr(data-weight); display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 8px; font: 600 10px/16px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .75; vertical-align: middle; }
+#journal #fitting-name[data-weight]::after, #journal .pack li strong[data-weight]::after { white-space: nowrap; }
