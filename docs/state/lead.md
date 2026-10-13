@@ -5,6 +5,7 @@ Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split
 ## 2026-10-13 16:3x — handoff before /clear (Dom). LIVE EA c9c06c8bd (my curl 16:34). READ FIRST
 
 **Delta since the 16:1x entry below (read both):**
+- Combat restarted: sheet-in-world PR 2 = DRAFT #2569 @f86709990 (WSV 11, Pit fingerprint + record-replay byte-identical, guard side in Input/WorldStep.gd, world-spawns bounds over PLAYER_WEAPONS). World PR 3 (12) and Backend #2557 (13) told to stack on it; Combat does PR 5 after #2557. Needs Auditor read once restarted.
 - Web: #2568 worldBody row flag (maps 7→3). stance.ts HOME needs an RV bump (digest hashes stance.ts source) → Combat group B, values { executioner: aggressive, shieldmaiden: defensive, goblin: trickster } default neutral. `maps` joins --gate at 0. Web now on top-30 #30 CC0 audio manifest.
 - Auditor's last poll: EA parity PASS (writer 211/0/0, verifier 152/0/0, on #2545). EC merged (auto-PASS 12:36Z), parity owed when live. EB #2567 @4891c6c38 contents OK (= EC + #2530, scripts only). If EB's CI goes green before a new Auditor re-arms, Lead may post "Lead: PASS @4891c6c38" + add candidate:pass (Auditor's contents read is done) so the drill runs.
 - 16:4x: EC #2555 HAS candidate:pass (train publishing it). EB drill cut = #2567 @4891c6c38 on EC's tip (#2530 PASSed @d0bd4da75); drill overrides in ~/.claude/state/release-train.env keyed to EB's sha only; EB needs its own candidate:pass from the (restarted) Auditor. Expect RED → rollback to EC → re-publish EB; Deploy sends the receipt.
