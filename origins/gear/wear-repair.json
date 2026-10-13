@@ -19,5 +19,9 @@
   ],
   "repairRules": [
     { "id": "smith", "wornSlopePct": 100, "wearMaxLossPer100": 2, "wearMaxFloorPct": 60, "qualityFloorPct": 40, "note": "town smith: a point costs more the more worn the piece is (slope), each repaired 100 points shave 2 off wearMax down to 60% of the original, and a worn-out piece still gives 40% of its quality, so gear never breaks to nothing" }
+  ],
+  "wearFamilies": [
+    { "id": "goblin", "tier": "light", "note": "goblin leathers wear as light armour (PROPOSED by Backend; Lead/Characters retune this row)" },
+    { "id": "veteran", "tier": "medium", "note": "the veteran's kit wears as medium armour (PROPOSED by Backend; Lead/Characters retune this row)" }
   ]
 }

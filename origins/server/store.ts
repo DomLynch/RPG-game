@@ -58,6 +58,14 @@ export const shopStock = async (db: Db, account: string, shop: string, item: str
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 
+// A piece's wear (migration 202610130032): the newest {worn, max, baseMax} an event left for one item instance, null when it was never worn, 'absent' on a database without it.
+export type WearRow = { worn: number; max: number; baseMax: number };
+const HAS_ITEM_WEAR = `select to_regprocedure('public.origins_item_wear(uuid,text)') is not null as itemwear \\gset\n`;
+export const itemWear = async (db: Db, account: string, instance: string): Promise<WearRow | null | 'absent'> => {
+  const out = await gated(db, 'item_wear', HAS_ITEM_WEAR, 'itemwear', `select coalesce(public.origins_item_wear(:'a'::uuid, :'i')::text, 'null');`, { a: acct(account), i: instance });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
 // Which of these legacy mint keys of this account exist in origins_items in ANY state (migration 202610100018): 'absent' on a database without it, so gear_import falls back to the live view.
 const HAS_MINT_KEYS = `select to_regprocedure('public.origins_mint_keys_held(uuid,text[])') is not null as mintkeys \\gset\n`;
 export const mintKeysHeld = async (db: Db, account: string, keys: readonly string[]): Promise<string[] | 'absent'> => {
