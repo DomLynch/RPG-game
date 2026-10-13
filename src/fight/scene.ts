@@ -35,6 +35,7 @@ import { createFootDust, dustToneFor } from './foot-dust.ts';
 import { createWitchfire } from './witchfire.ts';
 import { createMiasmaMark, marksFlag } from './miasma-mark.ts';
 import { createSkillImpact } from './skill-impact.ts';
+import { createImpactFx } from './impact-fx.ts';
 import { createFinisherBlood, finisherBloodSources } from './finisher-blood.ts';
 import { phoneTier, pixelCap } from './quality.ts';
 import { lookFrom } from '../look-flag.ts';
@@ -204,6 +205,7 @@ export function createScene(
     footDust = createFootDust(scene, dustToneFor(theme)),
     witchfire = createWitchfire(scene),
     skillImpact = createSkillImpact(scene),
+    impactFx = createImpactFx(scene),   // sandbox-mech impact: flash + ground ring per contact row (hit-stop-defs.json columns), nothing without them
     miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
   if (world) scene.add(world.holder);
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
@@ -1086,6 +1088,7 @@ export function createScene(
       }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
+      impactFx.fire(events, practice.duel.fighters); impactFx.update(dt);
       if (miasmaMark) { miasmaMark.fire(events); miasmaMark.update(dt, practice.duel.fighters, [1, OPPONENTS[opponentId].scale], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null]); }
 
       // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.
