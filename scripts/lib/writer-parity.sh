@@ -16,5 +16,5 @@ writer_parity_gaps() {
 # writer_back_cmd <outgoing writer install> <new release dir> [opt root] [site root]
 writer_back_cmd() {
   local prev="$1" rel="$2" opt="${3:-/opt/frankendom-origins}" site="${4:-/var/www/frankendom}"
-  printf '%s' "if [ \"\$(readlink -f '$site/current')\" = '$rel' ]; then echo 'writer NOT rolled back: the site already moved to $rel'; exit 0; fi; [ \"\$(readlink '$opt/current')\" = '$prev' ] || { ln -sfn '$prev' '$opt/current' && systemctl restart frankendom-origins-writer && echo 'writer put back on $prev'; }"
+  printf '%s' "if [ \"\$(readlink -f '$site/current')\" = \"\$(readlink -f '$rel')\" ]; then echo 'writer NOT rolled back: the site already moved to $rel'; exit 0; fi; [ \"\$(readlink '$opt/current')\" = '$prev' ] || { ln -sfn '$prev' '$opt/current' && systemctl restart frankendom-origins-writer && echo 'writer put back on $prev'; }"
 }
