@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { idleIntent } from '../src/fight/duel.ts';
-import { encodeRecord, type FightRecord } from '../src/fight/record.ts';
+import { encodeRecord, RECORD_VERSION, type FightRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { psqlAdapter, restAdapter, verifyPending } from '../scripts/verify-daily.mjs';
 
@@ -166,4 +166,27 @@ test('the psql build lookup asks for one exact version, validates what it quotes
   const n = calls.length;
   assert.equal(await psqlAdapter('postgres://x', answer('null')).build(U, "x'; drop table y;--", 1), null);
   assert.equal(calls.length, n, 'a malformed character id never reaches the database');
+});
+
+// RV53: the career/practice and daily sweeps replay a Pit record, and its spell block is the client's claim, so they ask the same gate the encounter settle asks (origins/server/spell-gate.ts).
+test('a daily record that casts a spell verifies only if the account owns it and the skill is within the stored ceiling; no loader, no build or no sheet is refused', { skip: RECORD_VERSION < 53 && 'needs the RV53 spell block (#2493); runs once both are on trunk' }, async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 5, wind: 5 } }, honest = sheetOf(stored)!;
+  const make = async (spell: { id: string; skill: number } | undefined, withBuild = true) => {
+    const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, specials: true, ...(spell ? { spell } : {}), ...(withBuild ? { sheet: honest, characterId: 'one', buildVersion: 1 } : {}) } as Parameters<typeof liveRecorder>[0]);
+    for (let i = 0; i < 30; i++) rec.push(idleIntent());
+    const record = rec.finish('abandoned');
+    return { day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row;
+  };
+  const run = async (rows: Row[], held?: { grimoire: Record<string, unknown>; xp: Record<string, number> }) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => rows, seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: async (u: string, c: string, v: number) => (u === 'u1' && c === 'pc:one' && v === 1 ? stored : null), ...(held ? { spellHeld: async () => held } : {}) });
+    return { receipt, verified };
+  };
+  const owns = { grimoire: { alvis: {} }, xp: { wind: 500 } };   // wind placed 10, xp 500: the ceiling is 5
+  assert.deepEqual((await run([await make({ id: 'alvis', skill: 5 })], owns)).verified, ['u1'], 'owned and within the ceiling: the replay runs and stands');
+  assert.deepEqual((await run([await make(undefined)], owns)).verified, ['u1'], 'a record with no spell is not touched by the gate');
+  assert.match((await run([await make({ id: 'alvis', skill: 6 })], owns)).receipt.refused[0]!.reason, /casts at 6, past the 5/);
+  assert.match((await run([await make({ id: 'alvis', skill: 5 })], { grimoire: {}, xp: owns.xp })).receipt.refused[0]!.reason, /not in this account's grimoire/);
+  assert.match((await run([await make({ id: 'alvis', skill: 5 })])).receipt.refused[0]!.reason, /grimoire/, 'a caller with no spell loader refuses a spell record');
 });
