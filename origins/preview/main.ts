@@ -40,6 +40,8 @@ import { ME, createFollowCamera, pickFraming, type Passage, type Presets, create
 import '../../src/fight/meters.css';
 import { NAKED } from '../../src/fight/index.ts';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
+import { startFight as startEncounter, settleFight as settleEncounter } from './encounter-net.ts';
+import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -500,6 +502,21 @@ function settleFight(finish: Finished) {
   const after = nextFight(session, LEGEND_OPPONENTS, session.career.pitWins);
   return { next: after?.legend && duel ? duel.legendName(after.opponent, after.level) : undefined };
 }
+// A legend boss (origins/preview/legend-mobs.ts): a tap within LEGEND_REACH asks the server for `boss:<legend>` (encounter_start), plays the duel on the server's seed with a record, and posts the record
+// to encounter_settle; a verified win takes the legend's spell (origins/server/grimoire.ts). A guest or an offline page is told to sign in / try again and nothing starts.
+const LEGEND_REACH = 6;
+const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
+async function legendFight(spec: MobSpec) {
+  if (fighting || duelFailed) return;
+  const begun = await beginLegendFight(spec, legendNet);
+  if (!begun.ok) { say(begun.say); return; }
+  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = `${spec.name} — a legend`;
+  openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
+  renderer.setAnimationLoop(null);
+  try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch { duelFailed = true; leaveFight(); say('Could not load the duel. Reload to try again.'); return; }
+  if (!fighting) return;
+  duel.openDuel(duelLayer, begun.duel as never, { ended: (_finish, record) => { void finishLegendFight(spec, begun, record, legendNet).then((line) => { if (line) worldToast(line); }); }, again: () => leaveFight() }, leaveFight);
+}
 const zoneExit = () => exitFace(loadZone().name);   // the host's words for the gear screen's exit (Lead 2026-10-09)
 function leaveFight() {
   if (!fighting) return;
@@ -548,6 +565,7 @@ canvas.addEventListener('pointerup', (e) => {
 });
 addEventListener('pointercancel', (e) => taps.delete(e.pointerId));
 function engage(spec: MobSpec, x: number, z: number) {
+  if (spec.legend) { if (Math.hypot(x - state.x, z - state.z) > LEGEND_REACH) say(`${spec.name} is a legend: walk closer, then tap.`); else void legendFight(spec); return; }   // a legend boss is fought on the verified encounter path, never the open loop
   if (Math.hypot(x - state.x, z - state.z) > 3.5) say(`${spec.name} is too far off: walk closer, then press an attack.`); else wc.press();   // Zone 1's own combat: a tap on a creature in reach is a cut
 }
 function pressEngage() { wc.press(); }   // STAB / SLASH / HEAVY / KICK / SKILL near a creature
