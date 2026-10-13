@@ -26,6 +26,7 @@ AGED_MIN=${AGED_MIN:-120}
 sweep_kind() {
   local p=$1
   case "$p" in *..*|*" "*) return 0;; esac
+  case "$p" in */|*//*|*/./*|*/.) return 0;; esac   # a trailing slash makes `[ -L x/ ]` follow the link and `rm -rf x/` empty its TARGET (Auditor, #2624, reproduced on the VPS)
   case "$p" in
     /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) echo lane;;
     /var/tmp/be-*) [ "$(dirname "$p")" = /var/tmp ] && echo aged;;
@@ -33,6 +34,30 @@ sweep_kind() {
     /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
     /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
   esac
+  return 0
+}
+# A --path must name exactly a real directory spelled canonically. Prints the reason and returns 1 otherwise. Every level is checked, not only the last: realpath -e must give
+# back the very same string, so a symlink anywhere in the path (a planted /tmp/cq-x -> /opt, a dir whose parent is a link, a dangling link) is refused, and the resolved path
+# must still be inside an allowed root. The caller then hands rm exactly this string (no trailing slash), so a link swapped in afterwards is unlinked, never followed.
+sweep_safe_path() {
+  local p=$1 real
+  case "$p" in /*) ;; *) echo "not an absolute path"; return 1;; esac
+  case "$p" in */|*//*|*/./*|*/.|*/..|*/../*) echo "not canonical: trailing slash, // or . or .."; return 1;; esac
+  [ ! -L "$p" ] || { echo "is a symlink"; return 1; }
+  [ -d "$p" ] || { echo "not a real directory"; return 1; }
+  real=$(realpath -e -- "$p" 2>/dev/null) || { echo "cannot be resolved"; return 1; }
+  [ "$real" = "$p" ] || { echo "a path component is a symlink ($p resolves to $real)"; return 1; }
+  [ -n "$(sweep_kind "$real")" ] || { echo "resolves outside the allowed roots"; return 1; }
+  mountpoint -q -- "$p" 2>/dev/null && { echo "is a mount point"; return 1; }
+  return 0
+}
+# In use = a process has its cwd inside, or lsof +D finds an open file. FAILS CLOSED: 0 (in use) for anything but a clean "nothing open" (lsof exit 1); a timeout (124) or any
+# other exit is "could not tell", which counts as in use. 1 = safe to remove.
+sweep_in_use() {
+  local p=$1 q rc
+  for q in /proc/[0-9]*; do case "$(readlink "$q/cwd" 2>/dev/null)" in "$p"|"$p"/*) return 0;; esac; done
+  timeout "${LSOF_TIMEOUT:-120}" lsof +D "$p" >/dev/null 2>&1; rc=$?
+  [ "$rc" = 1 ] && return 1
   return 0
 }
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
@@ -79,14 +104,13 @@ delete_only(){
 if [ -n "$PATHS" ]; then
   for p in $PATHS; do
     case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
-    kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots) $p"; continue; }
-    [ -d "$p" ] && [ ! -L "$p" ] || { say "REFUSE(not a real dir) $p"; continue; }
+    kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots, or not spelled canonically) $p"; continue; }
+    why=$(sweep_safe_path "$p") || { say "REFUSE($why) $p"; continue; }
     case " $EXCLUDE " in *" $(basename "$p") "*) say "REFUSE(never-touch list) $p"; continue;; esac
     if echo "$LINKED" | grep -qx "$p" || echo "$LINKED" | grep -q "^$p/"; then say "REFUSE(a symlink points into it) $p"; continue; fi
     if echo "$INUSE" | grep -qx "$p" || echo "$INUSE" | grep -q "^$p/"; then say "REFUSE(in use) $p"; continue; fi
-    if [ "$kind" != lane ]; then   # outside the lane roots the INUSE scan above does not look: a process with its cwd inside, or an open file, is in use
-      if for q in /proc/[0-9]*; do readlink "$q/cwd" 2>/dev/null; done | grep -qE "^$p(/|$)" || timeout 120 lsof +D "$p" >/dev/null 2>&1; then say "REFUSE(in use: a process has its cwd or a file open inside) $p"; continue; fi
-    fi
+    # every kind, the lane roots too: the INUSE scan above is lsof +D over the whole of work/ and dev-jobs/ and silently comes back empty on a timeout
+    if sweep_in_use "$p"; then say "REFUSE(in use, or the in-use probe could not tell: a process has its cwd or a file open inside, or lsof timed out) $p"; continue; fi
     if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
     case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$p" named;; esac
   done
