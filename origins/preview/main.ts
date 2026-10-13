@@ -24,6 +24,9 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
+import { mountRepair } from './repair-screen.ts';
+import { readWear, repairPiece, repairOp } from './repair-net.ts';
+import { chromeText as repairText } from './repair-view.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -423,6 +426,9 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
+      const repairEntry = document.createElement('button'); repairEntry.id = 'menu-repair'; repairEntry.textContent = repairText('button');   // the smith: worn pieces and the writer's quote, one repair per click
+      repairEntry.addEventListener('click', () => { menu.close(); void repairScreen.open(); });
+      chips.append(repairEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
       try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
@@ -587,6 +593,12 @@ function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
+// The smith screen (origins/preview/repair-*.ts): gear_wear lists the worn pieces with the writer's own quote; a repair is one gear_repair under a fresh op id. The page prices and wears nothing.
+const repairName = itemNamer(), repairBase = { base: writerBase(location.search) };
+const repairScreen = mountRepair(document.getElementById('repair-dialog') as HTMLDialogElement, {
+  nameOf: repairName,
+  read: async () => { const character = await characterNow(); return character ? readWear(storedToken(storage, Date.now()), character, repairBase) : { offline: 'no-session' }; },
+  repair: async (instance) => { const character = await characterNow(); return character ? repairPiece(storedToken(storage, Date.now()), character, instance, repairOp(instance, Date.now()), repairBase) : { offline: 'no-session' }; } });
 play.link({ token: () => storedToken(storage, Date.now()), character: characterNow, base: writerBase(location.search), changed: () => { if (open === 'bank' || open === 'blacksmith') show(open); } });
 const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound
