@@ -33,7 +33,14 @@ export function lootOfView(v: GearView): Loot {
   for (const [key, id] of Object.entries(v.worn)) { const lootId = idOf.get(id); if (lootId) equipped[key as Paperdoll] = lootId; }
   const pack = held.filter((p) => p.where === 'pack').sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((p) => p.lootId as LootId);
   const taken: Loot['taken'] = {};
-  for (const p of held) { const level = p.tier ? TIERS.indexOf(p.tier as (typeof TIERS)[number]) + 1 : 0; if (level > 0) taken[p.lootId as LootId] = { tier: level } as Provenance; }   // only the rung is real; the sheet's provenance line reads what exists
+  // The WORN instance decides a lootId's rung (the server's frozen worn gear reads the worn piece's tier, wornGearOfFrozen): the same id held twice (worn Origin Helmet + packed Recruit Helmet) must not depend on row order.
+  // So the other instances write first and the worn ones last, and a worn piece with no rung clears it (the server counts it as identity).
+  const wornIds = new Set(Object.values(v.worn));
+  for (const p of [...held.filter((x) => !wornIds.has(x.id)), ...held.filter((x) => wornIds.has(x.id))]) {
+    const level = p.tier ? TIERS.indexOf(p.tier as (typeof TIERS)[number]) + 1 : 0;
+    if (level > 0) taken[p.lootId as LootId] = { tier: level } as Provenance;   // only the rung is real; the sheet's provenance line reads what exists
+    else if (wornIds.has(p.id)) delete taken[p.lootId as LootId];
+  }
   return { owned: held.map((p) => p.lootId as LootId), equipped, pack, taken };
 }
 // The copy that can be put on: the server equips only from the pack (inventory.equip: "is not in the backpack"), so a duplicate lootId resolves to its PACK instance, never a worn or banked one.

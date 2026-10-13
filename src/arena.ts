@@ -23,7 +23,7 @@ export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
 export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
-export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; raiseGate(open: boolean): void; dispose(): void; readonly guards: { built: number; of: number } };
+export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; raiseGate(open: boolean): void; thinCrowd(): void; dispose(): void; readonly guards: { built: number; of: number } };
 // What the arena may watch of the fight, read-only: the sim tick (the lorarii pace on it, so live and replay place the same guard) and where the fighters stand.
 // The ring's own surface set, read-only.
 export type ArenaMaterials = { sand: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; iron: THREE.MeshStandardMaterial; cloth: THREE.MeshStandardMaterial; coal: THREE.MeshStandardMaterial };
@@ -532,6 +532,9 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
     if (mood === 'recoil') { const k = smooth(0, 0.2, t) * (1 - smooth(1.4, 2, t)); return [-0.035 * k, -0.14 * k]; }
     return [0, 0];
   }
+  // The client governor's crowd lever (governor.ts): every second spectator is dropped and each crowd draws half its instances (the triangles and the vertex work go with them).
+  let thin = false;
+  const thinCrowd = () => { thin = true; for (const { mesh, people } of crowds) mesh.count = Math.ceil(people.length / 2); };
   function place(instanced: THREE.InstancedMesh, i: number, x: number, y: number, z: number, tilt: number, yaw: number, s: number, width = 1) {
     position.set(x, y, z); quaternion.setFromEuler(euler.set(tilt, yaw, 0, 'YXZ')); scale.set(s * width, s, s * width); instanced.setMatrixAt(i, matrix.compose(position, quaternion, scale));
   }
@@ -585,7 +588,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
       }
       p.needsUpdate = true; }
     for (const { mesh, people } of crowds) {
-      people.forEach((p, i) => { if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt + (crowdWave.lean ? crowdWave.lean(Math.atan2(p.z, p.x)) : 0), p.yaw, p.scale, p.width); });
+      people.forEach((p, n) => { if (thin && (n & 1)) return; const i = thin ? n >> 1 : n; if (cull && !frustum.intersectsSphere(seat.set(seat.center.set(p.x, p.y + 0.9, p.z), 1.2))) { place(mesh, i, p.x, p.y, p.z, 0, p.yaw, 0, 1); return; } const [rise, tilt] = reaction(since, p.phase); place(mesh, i, p.x, p.y + rise + 0.012 * Math.sin(time * 1.9 + p.phase * TAU), p.z, tilt + (crowdWave.lean ? crowdWave.lean(Math.atan2(p.z, p.x)) : 0), p.yaw, p.scale, p.width); });
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
@@ -600,7 +603,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   update(0, []);
   const props = loadArenaProps(group, phone, theme.gate === false ? 0 : gk, (what) => { if (what === 'gateBars') gateBars.visible = false; });
   return {
-    group, floor, update, raiseGate(open: boolean) { riseOpen = open; }, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
+    group, floor, update, raiseGate(open: boolean) { riseOpen = open; }, thinCrowd, get guards() { return { built: 0, of: 0 }; }   /* no bodies on the wall (#467); the ?perf=1 line stays for the replacement */, ready: Promise.all([props.ready, texturesReady]).then(() => undefined),
     get sky() { return textures.sky; },   // the equirect ash sky: scene.ts builds the environment map from it once it has landed
     get materials() { return { sand, stone, iron, cloth, coal }; },   // read-only
     dispose() {

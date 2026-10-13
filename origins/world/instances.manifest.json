@@ -1,0 +1,6 @@
+{
+  "tables": [
+    {"table": "instanceKind", "file": "instances.json", "at": "kinds", "keyed": true, "key": "id",
+     "required": {"order": "integer", "slots": "integer", "stride": "number", "graceS": "number", "maxS": "number", "spawnBase": "integer", "spawnPerPlayer": "number"}}
+  ]
+}

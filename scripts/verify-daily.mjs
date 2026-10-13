@@ -14,6 +14,7 @@ import { DAILY_LEVEL } from '../src/fight/match.ts';
 import { decodeRecord } from '../src/fight/record.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
+import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 
 const LIMIT = 200;   // rows per sweep; the timer comes round again for the rest
 const DAY = /^\d{4}-\d{2}-\d{2}$/, UUID = /^[0-9a-f-]{36}$/i;
@@ -51,6 +52,8 @@ async function refusal(row, seeds, db) {
   if (record.sheet && record.characterId !== undefined) { try { gear = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
   const want = await expectedSheet(record, (character, version) => db.build ? db.build(row.user_id, character, version) : Promise.resolve(null), gear);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
   if (!want.ok) return want.reason;
+  const spell = await spellRefusal(record, row.user_id, { held: (account, character) => db.spellHeld ? db.spellHeld(account, character) : Promise.resolve({ grimoire: {}, xp: {} }), build: (account, character, version) => db.build ? db.build(account, character, version) : Promise.resolve(null) });   // v53: the spell block is the client's claim too (origins/server/spell-gate.ts); no loader = nothing vouches
+  if (spell) return spell;
   const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
   return result.ok ? null : result.reason;
 }
@@ -90,6 +93,8 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
     verify: async (day, userId) => { sql(`update public.daily_results set verified = true, checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
     refuse: async (day, userId) => { sql(`update public.daily_results set checked_at = now() where day = date '${check(day, DAY, 'day')}' and user_id = '${check(userId, UUID, 'user id')}'`); },
     // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
+    // What a v53 record's spell block is checked against (origins/server/spell-gate.ts holds the read-only query).
+    spellHeld: async (userId, characterId) => (/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) ? JSON.parse(sql(heldSql(userId, characterId))) : { grimoire: {}, xp: {} }),
     build: async (userId, characterId, version) => {
       if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) || !Number.isInteger(version) || version < 1) return null;
       let out;

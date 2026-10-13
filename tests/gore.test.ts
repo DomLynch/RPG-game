@@ -380,12 +380,40 @@ test('surfaceHit skins each vertex once per ray (the frame-gap trace: a re-glue 
     for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(met.point[axis], plain.point[axis], 1e-12), `${axis}: the same point (the two rays start at different distances, so the last bit of the hit may differ)`);
     assert.ok(near(met.normal.dot(plain.normal!.clone().transformDirection(skin.matrixWorld)), 1, 1e-9), 'the same face');
     calls = 0; raycaster.intersectObjects([skin], false); assert.equal(calls, plainCalls, 'outside a pass nothing is cached: a later plain ray skins as before');
+    // A second ray in the SAME pose (the kill frame fires several) skins nothing: the vertices are the first ray's, bit for bit.
+    calls = 0; const again = surfaceHit(root, bones[0], out); assert.equal(calls, 0, 'the same pose in a new pass reads the memo'); assert.deepEqual(again?.point.toArray(), met.point.toArray(), 'and meets the same point');
+    // The invalidation side: ONE bit of one bone's world matrix, or of the bind matrix, and the memo misses (a stale vertex would glue a wound to where the body WAS).
+    const oneBit = (v: number) => { const f = new Float64Array([v]), u = new BigUint64Array(f.buffer); u[0] += 1n; return f[0]; };
+    const bone = bones[1].matrixWorld.elements, was = bone[12]; bone[12] = oneBit(was);
+    calls = 0; surfaceHit(root, bones[0], out); assert.ok(calls > 0, `a bone matrixWorld one bit off re-skins (${calls} calls)`); bone[12] = was;
+    calls = 0; surfaceHit(root, bones[0], out); assert.ok(calls > 0, 'and putting it back is a change again: the memo holds the last pose only');
+    calls = 0; surfaceHit(root, bones[0], out); assert.equal(calls, 0, 'then the same pose reads the memo again');
+    const bind = skin.bindMatrix.elements, bindWas = bind[12]; bind[12] = oneBit(bindWas);
+    calls = 0; surfaceHit(root, bones[0], out); assert.ok(calls > 0, `the bind matrix one bit off re-skins (${calls} calls)`); bind[12] = bindWas;
     // A new pass is a new pose: nothing memoised may survive from the last ray (a stale vertex would glue a wound to where the body WAS).
     bones[0].rotation.set(-.4, .3, -.5); bones[1].position.set(.04, -.02, .03); root.updateMatrixWorld(true);
     const moved = surfaceHit(root, bones[0], out), fresh = raycaster.intersectObjects([skin], false)[0];
     assert.ok(moved && fresh, 'both rays met the re-posed skin');
     assert.ok(Math.abs(moved.point.z - met.point.z) > 1e-3, `the re-pose moved the hit (z ${met.point.z} -> ${moved.point.z})`);
     for (const axis of ['x', 'y', 'z'] as const) assert.ok(near(moved.point[axis], fresh.point[axis], 1e-12), `${axis}: the second pass sees the new pose, not the first pass's vertices`);
+  } finally { proto.applyBoneTransform = original; }
+});
+
+test('the skin memo belongs to the skeleton and vertex buffers it skinned: a geometry swap or a re-bind at the same pose re-skins (a gear change must not read the old vertices)', () => {
+  const make = (size: number) => { const g = new BoxGeometry(size, size, size, 2, 2, 2), n = g.attributes.position.count, index = new Uint16Array(n * 4), weight = new Float32Array(n * 4); for (let i = 0; i < n; i++) weight[i * 4] = 1; g.setAttribute('skinIndex', new Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new Float32BufferAttribute(weight, 4)); return g; };
+  const bone = new Bone(), small = make(.2), big = make(.4), skin = new SkinnedMesh(small, new MeshStandardMaterial()); skin.add(bone); skin.bind(new Skeleton([bone]));
+  const root = new Group(); root.add(skin); root.updateMatrixWorld(true);
+  const proto = SkinnedMesh.prototype, original = proto.applyBoneTransform; let calls = 0;
+  proto.applyBoneTransform = function (this: SkinnedMesh, i: number, target: Vector3 | Vector4) { calls++; return original.call(this, i, target); } as typeof original;
+  try {
+    const out = new Vector3(0, 0, 1);
+    const first = surfaceHit(root, bone, out); assert.ok(first && near(first.point.z, .1, 1e-6), 'the small box meets the ray at z .1');
+    calls = 0; surfaceHit(root, bone, out); assert.equal(calls, 0, 'same pose, same buffers: the memo is read');
+    skin.geometry = big; Object.assign(skin, { boundingSphere: null, boundingBox: null });   // the pose is untouched: only the vertices change
+    calls = 0; const swapped = surfaceHit(root, bone, out); assert.ok(calls > 0, `a swapped geometry re-skins (${calls} calls)`);
+    assert.ok(swapped && near(swapped.point.z, .2, 1e-6), `and meets the big box (z ${swapped?.point.z}), not the stale small one`);
+    skin.bind(new Skeleton([bone]), skin.bindMatrix);   // a re-bind: a new skeleton object, the very same pose
+    calls = 0; surfaceHit(root, bone, out); assert.ok(calls > 0, `a new skeleton re-skins (${calls} calls)`);
   } finally { proto.applyBoneTransform = original; }
 });
 
