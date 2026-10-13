@@ -28,5 +28,13 @@ test('a fresh op id per click matches the writer\'s rule, and refusals read by s
   const a = repairOp('inst:A1', 1_700_000_000_000, () => 0.25), b = repairOp('inst:A1', 1_700_000_000_000, () => 0.75);
   assert.match(a, /^[a-z0-9][a-z0-9:._-]{7,119}$/); assert.notEqual(a, b);
   assert.deepEqual([repairKey('no-session'), repairKey('http-409'), repairKey('http-422'), repairKey('timeout')], ['offline', 'stale', 'refused', 'failed']);
+  assert.deepEqual(['away', 'funds', 'metal', 'not-worn', 'no-wear', 'something-new'].map((c) => repairKey('http-422', c)), ['away', 'funds', 'metal', 'notWorn', 'noWear', 'refused']);   // the writer's code wins; a code the page does not know falls back to the status
   assert.equal(chromeText('repaired', { slot: 'Body', bronze: 220, qty: 3, item: 'Grave iron' }), 'Repaired your Body for 220 bronze and 3 Grave iron.');
+});
+test('the writer\'s 422 code reaches the page, and only a short kebab code does', async () => {
+  const answer = (status: number, body: unknown) => (async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status })) as typeof globalThis.fetch;
+  assert.deepEqual(await repairPiece('t', 'pc:1', 'inst:a', 'repair:x-12345678', { fetch: answer(422, { ok: false, error: 'the smith wants 40 bronze', code: 'funds' }) }), { offline: 'http-422', code: 'funds' });
+  assert.deepEqual(await repairPiece('t', 'pc:1', 'inst:a', 'repair:x-12345678', { fetch: answer(409, { ok: false, error: 'stale' }) }), { offline: 'http-409' });
+  for (const code of ['Not Kebab', 'x'.repeat(41), 7, null]) assert.deepEqual(await repairPiece('t', 'pc:1', 'inst:a', 'repair:x-12345678', { fetch: answer(422, { ok: false, code }) }), { offline: 'http-422' });
+  assert.deepEqual(await repairPiece('t', 'pc:1', 'inst:a', 'repair:x-12345678', { fetch: answer(502, '<html>bad gateway</html>') }), { offline: 'http-502' });
 });

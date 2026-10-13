@@ -12,8 +12,13 @@
     "shrunk": "Its limit has worn down from {base}.",
     "quote": "Repair: {bronze} bronze and {qty} {item}",
     "repaired": "Repaired your {slot} for {bronze} bronze and {qty} {item}.",
-    "refused": "The smith refused: stand at the smith, and check your bronze and {item}.",
+    "refused": "The smith refused that repair.",
     "stale": "Your gear or purse changed. Open the smith again.",
-    "failed": "The smith could not be reached. Try again."
+    "failed": "The smith could not be reached. Try again.",
+    "away": "Stand at the smith to repair.",
+    "funds": "Not enough bronze.",
+    "metal": "No {item} in your pack.",
+    "notWorn": "That piece is not worn.",
+    "noWear": "That piece takes no wear."
   }
 }

@@ -29,5 +29,7 @@ export const readWear = (token: string | null, character: string, opts: Opts = {
 export const repairPiece = (token: string | null, character: string, instance: string, op: string, opts: Opts = {}): Promise<Repaired | Offline> => call('gear_repair', { character, op, instance }, token, repairedOf, opts);
 // A fresh op id per click (8..120 of a-z 0-9 : . _ -, the writer's rule).
 export const repairOp = (instance: string, nowMs: number, rand: () => number = Math.random): string => `repair:${instance.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)}-${nowMs.toString(36)}-${Math.floor(rand() * 1e9).toString(36)}`;
-// By the status the writer answered (409 stale piece or balance, 422 away / not-worn / funds / metal): the status carries no code the page can read.
-export const repairKey = (offline: string): 'offline' | 'stale' | 'refused' | 'failed' => offline === 'no-session' || offline === 'http-401' ? 'offline' : offline === 'http-409' ? 'stale' : offline === 'http-422' ? 'refused' : 'failed';
+// What the screen says for a refusal: the writer's own code when it gave one (away / funds / metal / not-worn / no-wear, origins/server/gear-repair.ts), else by the status it answered (409 stale piece or balance, 422 any other refusal).
+export type RepairKey = 'offline' | 'stale' | 'refused' | 'failed' | 'away' | 'funds' | 'metal' | 'notWorn' | 'noWear';
+const CODES: Readonly<Record<string, RepairKey>> = { away: 'away', funds: 'funds', metal: 'metal', 'not-worn': 'notWorn', 'no-wear': 'noWear' };
+export const repairKey = (offline: string, code?: string): RepairKey => offline === 'no-session' || offline === 'http-401' ? 'offline' : (code && CODES[code]) || (offline === 'http-409' ? 'stale' : offline === 'http-422' ? 'refused' : 'failed');

@@ -22,7 +22,7 @@ export function mountRepair(dialog: HTMLDialogElement, d: RepairDeps) {
     go.addEventListener('click', async () => {
       if (busy) return; busy = true; go.disabled = true;
       const r = await d.repair(l.instance);
-      status.textContent = 'offline' in r ? chromeText(repairKey(r.offline) === 'offline' ? 'offline' : repairKey(r.offline), { item: d.nameOf(l.metalItem) }) : chromeText('repaired', { slot: l.slot, bronze: r.cost.bronze, qty: r.cost.metal.qty, item: d.nameOf(r.cost.metal.item) });
+      status.textContent = 'offline' in r ? chromeText(repairKey(r.offline, r.code), { item: d.nameOf(l.metalItem) }) : chromeText('repaired', { slot: l.slot, bronze: r.cost.bronze, qty: r.cost.metal.qty, item: d.nameOf(r.cost.metal.item) });
       busy = false; await refresh(true);   // the piece's wear and the next quote have moved either way
     });
     li.append(slot, dur, bar, note, go); return li;

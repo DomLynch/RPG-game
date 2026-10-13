@@ -42,6 +42,7 @@ try {
         const op = new URL(route.request().url()).pathname.split('/').pop(), body = route.request().postDataJSON?.() ?? {};
         if (op === 'open') return route.fulfill(reply({ characters: [{ id: 'pc:check', name: 'Check' }], career: null, marks: 0 }));
         if (op === 'gear_wear') return route.fulfill(reply({ pieces }));
+        if (op === 'gear_repair' && body.instance === 'inst:boots-1') return route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'the smith wants 40 bronze', code: 'funds' }) });
         if (op === 'gear_repair') { asked.push(body); const i = pieces.findIndex((p) => p.instance === body.instance); const [p] = pieces.splice(i, 1); return route.fulfill(reply({ instance: p.instance, points: p.worn, cost: { bronze: p.quote.bronze, metal: p.quote.metal }, piece: { worn: 0, max: p.max - 2, baseMax: p.baseMax }, replayed: false })); }
         return route.fulfill({ status: 404, body: '' });
       });
@@ -70,6 +71,8 @@ try {
         check(asked.length === 1 && JSON.stringify(Object.keys(asked[0]).sort()) === JSON.stringify(['character', 'instance', 'op']) && asked[0].instance === 'inst:body-1' && asked[0].character === 'pc:check' && /^[a-z0-9][a-z0-9:._-]{7,119}$/.test(asked[0].op), `${tag}: one gear_repair, ids only, a valid fresh op id (${JSON.stringify(asked)})`);
         check(/^Repaired your Body for 220 bronze and 3 /.test(after.status) && after.rows.length === 1 && after.rows[0].slot === 'Boots', `${tag}: the receipt is shown and the list is read again (${after.status}; ${after.rows.length} left)`);
         await page.screenshot({ path: `${out}/repair-${name}.png` });
+        await page.locator('#repair-dialog .repair-go').first().click({ force: true }); await page.waitForFunction(() => /bronze/.test(document.querySelector('#repair-dialog .repair-status').textContent) && !/Repaired/.test(document.querySelector('#repair-dialog .repair-status').textContent), null, { timeout: 20000 });
+        const refused = await read(); check(refused.status === 'Not enough bronze.' && refused.rows.length === 1, `${tag}: the writer's funds code reads "Not enough bronze." and the piece stays (${refused.status}; ${refused.rows.length})`);
         pieces.length = 0; await page.locator('#repair-dialog .repair-close').click({ force: true }); await page.locator('#journal-button').click({ force: true }); await page.locator('#journal .tab-settings').click({ force: true }); await page.locator('#menu-repair').click({ force: true }); await page.waitForTimeout(2000);
         const empty = await read(); check(empty.rows.length === 0 && /Nothing is worn/.test(empty.status), `${tag}: an empty list says nothing is worn (${empty.status})`);
       } else check(g.rows.length === 0 && g.status === "Sign in to see your gear's wear.", `${tag}: a guest sees the sign-in line and no lines (${g.status}; ${g.rows.length})`);
