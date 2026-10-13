@@ -14,10 +14,13 @@ let clock = { t: 0 };   // the fake database's clock, also what the handler's ex
 export function fakeDb(now: { t: number }) {
   clock = now;
   const rows = new Map<string, Row>(), events: Record<string, unknown>[] = [];
+  const world: { career: unknown; build: unknown } = { career: null, build: null }, xp = new Map<string, number>(), paid = new Set<string>(), focus = new Set<string>();   // xp / focus keyed `<skill>`; the pool mirrors origins_encounter_settle's practice loop
   const live = (r: Row) => !r.used && !r.settled && r.expires > now.t;
   const json = (r: Row) => JSON.stringify({ token: r.token, character: r.character, seed: r.seed, enemy: r.enemy, level: r.level, expires_at: new Date(r.expires).toISOString(), used: r.used, start_tick: r.start_tick, last_tick: r.last_tick, bar: r.bar, flags: r.flags, layer: r.layer, instance: r.instance, grace_s: 120, settled: r.settled, result: r.result });
   const db: Db = {
     async run(sql, v = {}) {
+      if (/origins_open\(/.test(sql)) return JSON.stringify({ marks: 0, career: world.career, characters: [], items: [], quests: [], journal: [], talk: [] });
+      if (/origins_get_build\(/.test(sql)) return world.build === null ? 'null' : JSON.stringify(world.build);
       const call = /public\.(origins_encounter_\w+)\(/.exec(sql.split('\\if :enc')[1] ?? sql)?.[1];   // after the psql "is it installed" guard
       if (call === 'origins_encounter_start') {
         if ([...rows.values()].some((r) => live(r))) throw new DbError('O0014', 'a fight is already open for this account: resume it');
@@ -35,12 +38,18 @@ export function fakeDb(now: { t: number }) {
         if (!r || !live(r)) throw new DbError('O0009', 'encounter token unknown, used or expired');
         const batch = JSON.parse(v.b!) as Record<string, unknown>[];
         for (const op of batch) if (op.op === 'event') { if (events.some((e) => e.event_id === op.event_id)) throw new DbError('O0001', 'already settled'); }
-        r.used = true; r.settled = true; r.result = v.r!; events.push(...batch.filter((o) => o.op === 'event')); return '[]';
+        r.used = true; r.settled = true; r.result = v.r!; events.push(...batch.filter((o) => o.op === 'event'));
+        for (const l of JSON.parse(v.p ?? '[]') as { skill: string; amount: number; capXp: number; key: string }[]) {
+          if (r.result !== 'won' || l.key !== `practice:enc:${r.token}:${l.skill}`) throw new DbError('O0002', 'bad practice line');
+          if (paid.has(l.key)) continue;
+          paid.add(l.key); xp.set(l.skill, (xp.get(l.skill) ?? 0) + Math.max(Math.min(l.amount * (focus.has(l.skill) ? 2 : 1), l.capXp - (xp.get(l.skill) ?? 0)), 0));
+        }
+        return '[]';
       }
       throw new Error(`unexpected sql: ${sql}`);
     },
   };
-  return { db, rows, events };
+  return { db, rows, events, world, xp, focus };
 }
 
 export const RESOLVED = { enemy: 'knight', level: 6, bar: null, flags: [], layer: null, instance: null };

@@ -133,8 +133,10 @@ export const encounterTouch = async (db: Db, account: string, token: string, tic
   return out === null ? null : JSON.parse(out);
 };
 // Consume the token, close the run, release the creature and apply the batch (event enc:<token> and any reward lines) in ONE transaction.
-export const encounterSettle = async (db: Db, account: string, token: string, result: 'won' | 'lost', ticks: number, batch: readonly Json[]): Promise<Json | null> => {
-  const out = await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb)`, { a: acct(account), t: token, r: result, k: String(ticks), b: JSON.stringify(batch) });
+export const encounterSettle = async (db: Db, account: string, token: string, result: 'won' | 'lost', ticks: number, batch: readonly Json[], practice: readonly Json[] = []): Promise<Json | null> => {
+  const out = practice.length === 0
+    ? await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb)`, { a: acct(account), t: token, r: result, k: String(ticks), b: JSON.stringify(batch) })
+    : await encounterCall(db, `public.origins_encounter_settle(:'a'::uuid, :'t', :'r', :'k'::int, :'b'::jsonb, :'p'::jsonb)`, { a: acct(account), t: token, r: result, k: String(ticks), b: JSON.stringify(batch), p: JSON.stringify(practice) });
   return out === null ? null : JSON.parse(out);
 };
 // The sweep (a loss by abandonment for every fight past its grace); how many it settled, null when the migration is not applied.
