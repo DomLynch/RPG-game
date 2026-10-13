@@ -26,8 +26,9 @@ function warmBackdrop(): THREE.CanvasTexture | null {
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
 }
 
-// `stage`: the element the mannequin shows through; `view`: the page size the canvas covers (the window, here).
-export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { width(): number; height(): number }): GearRoom {
+// `stage`: the element the mannequin shows through; `view`: the page size the canvas covers (the window, here), and `clip` (optional) cuts the canvas to a CSS inset: the canvas covers the whole page, so
+// a stage window scrolled out of the dialog would otherwise draw the rig over the page above it (issue #2439); the room clips the canvas to the dialog's box every frame and clears it on leave.
+export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { width(): number; height(): number; clip?(inset: string | null): void }): GearRoom {
   const { scene, camera } = stage;
   const was = { fov: camera.fov, position: camera.position.clone(), quaternion: camera.quaternion.clone(), background: scene.background, fog: scene.fog };
   stage.setArenaVisible(false);
@@ -55,11 +56,17 @@ export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { wid
   fit();
   // The stage window moves when the layout above it changes (the account block answering, a longer name): refit when its box does.
   const box = () => { const r = window.getBoundingClientRect(); return `${r.left}|${r.top}|${r.width}|${r.height}`; };
-  let placed = box();
+  let placed = box(), clipped: string | null = null;
+  const clip = () => {
+    const dialog = window.closest('dialog')?.getBoundingClientRect(), W = view.width(), H = view.height();
+    const want = dialog && dialog.width > 0 && W > 0 && H > 0 ? `inset(${Math.max(0, Math.round(dialog.top))}px ${Math.max(0, Math.round(W - dialog.right))}px ${Math.max(0, Math.round(H - dialog.bottom))}px ${Math.max(0, Math.round(dialog.left))}px)` : null;
+    if (want !== clipped) { clipped = want; view.clip?.(want); }
+  };
   return {
     fit,
-    frame(dt) { const now = box(); if (now !== placed) { placed = now; fit(); } stage.hero.place(0, 0, heading, 0, dt); stage.draw(); },
+    frame(dt) { const now = box(); if (now !== placed) { placed = now; fit(); } clip(); stage.hero.place(0, 0, heading, 0, dt); stage.draw(); },
     leave() {
+      view.clip?.(null);
       window.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
       camera.clearViewOffset(); camera.fov = was.fov; camera.position.copy(was.position); camera.quaternion.copy(was.quaternion); camera.updateProjectionMatrix();
       scene.remove(key, rim); key.dispose?.(); rim.dispose?.();

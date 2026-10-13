@@ -1,6 +1,6 @@
 // Pure: the account's grimoire (programme 2b). A VERIFIED win against a boss legend takes that legend's spell: one row per (account, legend), the legend id carried on the spell ledger row.
 // The server enforces the same once-per-legend rule in migration 0027 (primary key, on conflict do nothing); `takeSpell` is its reference model and what the tests pin.
-import { SPELL_BRICKS, type SpellBricks } from '../../src/fight/server.ts';
+import { SPELL_BRICKS, type SpellBricks } from '../../src/fight/boss-spells.ts';
 import type { Json } from './store.ts';
 
 export type Grimoire = Readonly<Record<string, SpellBricks>>;   // legend id -> the bricks that legend taught
