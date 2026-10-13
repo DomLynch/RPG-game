@@ -40,6 +40,6 @@ test('deploy.sh: a site switch that fails after the writer install puts the outg
   const prev = deploy.indexOf('writer_prev=$(ssh'), install = deploy.indexOf('writer_install=$(ssh'), back = deploy.indexOf('writer_back() {');
   assert.ok(prev > 0 && prev < back && back < install, 'the outgoing writer is read before the install; writer_back is defined before it is needed');
   const body = deploy.slice(back, install);
-  assert.match(body, /ln -sfn '\$writer_prev' \/opt\/frankendom-origins\/current && systemctl restart frankendom-origins-writer/);
+  assert.match(body, /writer_back_cmd "\$writer_prev" "\$release"/);   // the command itself is tested in deploy-writer-back.test.ts
   assert.match(deploy, /<<'REMOTE' \|\| \{ writer_back; exit 1; \}\nset -euo pipefail\ntest -s "\$1\/index\.html"/, 'the switch heredoc rolls the writer back on failure');
 });
