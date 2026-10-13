@@ -1,0 +1,59 @@
+{
+  "tables": [
+    {
+      "table": "asset-licence",
+      "file": "asset-packs.json",
+      "at": "licences",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "asset-need-kind",
+      "file": "asset-packs.json",
+      "at": "needKinds",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "asset-pack",
+      "file": "asset-packs.json",
+      "at": "packs",
+      "key": "id",
+      "required": {
+        "source": "string",
+        "name": "string",
+        "pageUrl": "string",
+        "licence": "string",
+        "licenceUrl": "string",
+        "licenceEvidence": "string",
+        "status": "string",
+        "formats": "array",
+        "count": "string",
+        "files": "array"
+      },
+      "refs": {
+        "licence": "asset-licence"
+      }
+    },
+    {
+      "table": "asset-need",
+      "file": "asset-packs.json",
+      "at": "needs",
+      "key": "id",
+      "required": {
+        "kind": "string",
+        "target": "string",
+        "packs": "array",
+        "note": "string"
+      },
+      "refs": {
+        "kind": "asset-need-kind",
+        "packs": "asset-pack"
+      }
+    }
+  ]
+}
