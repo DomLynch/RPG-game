@@ -84,8 +84,8 @@ test('a loss or a draw settles nothing and leaves the session untouched', () => 
 test('the legend is keyed opponent × level: the same legend pays again after the career levels up', () => {
   let s = newSession(1);
   const wins: number[] = [];
-  // At level 1 a legend pays a fifth of the level (early weight): five distinct legends lift the career to level 2.
-  for (const o of POOL.slice(0, 5)) { const r = settle(started(s), nextFight(s, POOL, 0, o)!, 'win', AT); wins.push(r.award!.cp); s = r.session; }
+  // At level 1 a legend pays a fifth of a kill (early weight, 200) and the level costs 1,250: seven distinct legends lift the career to level 2.
+  for (const o of POOL.slice(0, 7)) { const r = settle(started(s), nextFight(s, POOL, 0, o)!, 'win', AT); wins.push(r.award!.cp); s = r.session; }
   assert.equal(levelOfCredit(s.career.credit), 2);
   const back = settle(started(s), nextFight(s, POOL, 0, POOL[0])!, 'win', AT);
   assert.equal(back.award!.reason, 'ok', 'veteran@2 is a new legend');

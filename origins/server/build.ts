@@ -2,7 +2,7 @@
 // EVERY save runs the shared validateBuild (rows decide ids, bases, caps and the budget: one point a level); this file has no checks of its own on those. What it adds is the re-spread rule:
 // taking points off anything is free until level 10, then once per rank-up (rank = level / 10, the stored respreadRank is the last one used). Spending unspent points is always free.
 // The level is the server's (levelSet), never the client's.
-import { validateBuild } from '../../src/fight/sheet-rows.ts';
+import { validateBuild } from '../../src/fight/server.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';

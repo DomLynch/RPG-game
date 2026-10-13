@@ -4,7 +4,7 @@
 import type { Issue, Result } from '../../src/core/server.ts';
 import type { CharacterId, CharacterInstanceId, ItemId, QuestId } from '../../src/core/server.ts';
 import type { ConditionFacts, QuestDefinition, QuestState } from '../../src/core/server.ts';
-import { award, levelOfCredit } from '../../src/core/server.ts';
+import { award, standingLevel } from '../../src/core/server.ts';
 import { loadJournal, type Advanced, type Journal } from '../quests/journal.ts';
 import type { Talk, TalkState } from '../talk/talk.ts';
 import { careerState } from '../../src/core/server.ts';
@@ -68,7 +68,7 @@ export function talkOf(snap: Snapshot, character: CharacterInstanceId): { state:
 export function factsOf(snap: Snapshot, character: CharacterInstanceId, journal: Journal): Omit<ConditionFacts, 'choice' | 'flag'> {
   const held = new Set(snap.items.filter(i => i.loc_owner === character && HELD.has(String(i.loc_kind))).map(i => String(i.item)));
   return {
-    standing: { source: 'server', careerLevel: levelOfCredit(Number(career(snap).total_credit)) },
+    standing: { source: 'server', careerLevel: standingLevel(Number(career(snap).total_credit)) },
     quest: (id: QuestId) => journal.quests.get(id),
     hasItem: (item: ItemId) => held.has(item),
   };
