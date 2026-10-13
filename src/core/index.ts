@@ -7,6 +7,7 @@ export * from './build-screen.ts';   // "Place your point" (the dialog) and its 
 export * from './build-server.ts';
 export * from './grimoire-screen.ts';   // the spell book dialog and its op, for the Pit page
 export * from './grimoire-net.ts';
+export * from './spell-equip.ts';   // the equipped spell and the owned ids, read by the Match's spell port
 export * from './session.ts';
 export * from './profile.ts';
 export * from './grades.ts';

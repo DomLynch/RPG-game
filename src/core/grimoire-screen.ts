@@ -2,6 +2,7 @@
 // spell, and the spell's bricks as chips. Empty book: "Beat a legend to take their spell". A guest or an unanswered writer says so and shows nothing else.
 import { EMPTY, entriesOf, type Entry } from './grimoire-model.ts';
 import type { Spell } from './grimoire-net.ts';
+import { equipSpell, equippedSpell, setOwnedSpells } from './spell-equip.ts';
 
 type Load = () => Promise<Spell[] | null>;
 export function mountGrimoire(dialog: HTMLDialogElement, load: Load) {
@@ -13,20 +14,30 @@ export function mountGrimoire(dialog: HTMLDialogElement, load: Load) {
   dialog.classList.add('grimoire-dialog');
   close.addEventListener('click', () => dialog.close());
   const say = (text: string, cls = 'grimoire-empty') => { list.replaceChildren(el('li', cls, text)); };
+  const marks: (() => void)[] = [];
   const draw = (entries: Entry[]) => {
+    marks.length = 0;
     count.textContent = `${entries.length} ${entries.length === 1 ? 'spell' : 'spells'}`;
     if (!entries.length) { say(EMPTY); return; }
     list.replaceChildren(...entries.map((e) => {
-      const li = el('li', 'grimoire-entry'), name = el('b', 'grimoire-name', e.name), sub = el('span', 'grimoire-sub', [e.family && `${e.family} family`, e.spell].filter(Boolean).join(' · '));
+      const li = el('li', 'grimoire-entry'), name = el('b', 'grimoire-name', e.name), sub = el('span', 'grimoire-sub', [e.family && `${e.family} family`, e.spell, e.school, e.level ? `level ${e.level}` : ''].filter(Boolean).join(' · '));
+      if (e.color) li.style.setProperty('--school', e.color);   // the school's row colour (spell-catalogue.ts), never a literal here
       const chips = el('span', 'grimoire-bricks'); chips.append(...e.bricks.map((b) => el('i', 'grimoire-brick', b)));
-      li.dataset.legend = e.legend; li.append(name, sub, chips); return li;
+      const pick = el('button', 'grimoire-equip', '', { type: 'button' });
+      const mark = () => { const on = equippedSpell() === e.legend; pick.textContent = on ? 'Equipped' : 'Equip'; pick.setAttribute('aria-pressed', String(on)); li.classList.toggle('equipped', on); };
+      pick.addEventListener('click', () => { equipSpell(equippedSpell() === e.legend ? undefined : e.legend); for (const fn of marks) fn(); });
+      marks.push(mark); mark();
+      li.dataset.legend = e.legend; li.append(name, sub, chips, pick); return li;
     }));
   };
   return {
+    /** Read the book and remember its ids for the fight's spell port, without opening the dialog (page load). */
+    async refresh(): Promise<void> { setOwnedSpells((await load())?.map((x) => x.legend) ?? []); },
     async open(): Promise<void> {
       count.textContent = ''; say('Reading your spell book…', 'grimoire-empty');
       if (!dialog.open) dialog.showModal();
       const book = await load();
+      setOwnedSpells(book?.map((x) => x.legend) ?? []);
       if (!book) { say('Sign in to see your spell book.'); return; }
       const { SPELL_INFO } = await import('../fight/spell-catalogue.ts');   // the 700-row catalogue loads only here
       draw(entriesOf(book, SPELL_INFO));

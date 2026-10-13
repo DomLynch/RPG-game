@@ -12,7 +12,7 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { bookIsOffline, createServerBuild, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, session, storedToken, writerBase, type OwnBuild } from './core/index.ts';
+import { bookIsOffline, createServerBuild, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
@@ -793,7 +793,9 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
   void build.poll().then((open) => { const v = buildServer.view(); if (open > 0 && v && !prompted(v.level)) { markPrompted(v.level); void build.open(); } });   // the moment: once per level, when the page loads with a point to place
 }
 { const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got; });   // the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
-  element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); }); }
+  element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
+  try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
+  void book.refresh(); }
 element('journal-button').addEventListener('click', openJournal);
 element('mobile-name').addEventListener('click', () => {
   journal.close();
