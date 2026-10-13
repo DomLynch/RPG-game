@@ -28,3 +28,10 @@ test('a healthy boss does not phase', () => {
   const d = stepDuel({ tick: 0, fighters: [createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready'), boss], finish: null, events: [] } as Duel, [idleIntent(), idleIntent()]);
   assert.ok(!d.events.some((e) => e.type === 'PhaseChanged'));
 });
+test('only the foe phases: a hurt player with a special does not enrage', () => {
+  const me = { ...createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready'), specialShare: 0.2, skillCooldown: 1200 };
+  const hurt = { ...me, health: Math.floor(me.maxHealth * 0.4) };
+  const d = stepDuel({ tick: 0, fighters: [hurt, createFighter({ x: 0, z: 3, heading: Math.PI, distance: 0 }, 'ready')], finish: null, events: [] } as Duel, [idleIntent(), idleIntent()]);
+  assert.ok(!d.events.some((e) => e.type === 'PhaseChanged'));
+  assert.equal(d.fighters[0].specialShare, 0.2);
+});
