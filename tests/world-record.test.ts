@@ -4,6 +4,7 @@ import { createWorldCombat, type FightMob } from '../src/fight/world-combat.ts';
 import { newWorld, player } from '../src/fight/world.ts';
 import { ME, MAX_HERO_MPS, MAX_WORLD_TICKS, STEP, heroClean, ccQuiet, WORLD_SIM_VERSION, decodeWorldRecord, encodeWorldRecord, packWorldRecord, replayWorldRecord, unpackWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import { MAX_RECORD_TICKS, RECORD_VERSION } from '../src/fight/record.ts';
+import { DEFAULT_WEAPON, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { CC_LADDER, ccApply, type CcLadder, type CcSource } from '../src/fight/cc-ladder.ts';
 
 const mob = (id: string, body: string, level: number): FightMob => ({ id, body, level, name: id });
@@ -46,6 +47,8 @@ test('forged headers and poses are refused', () => {
   const { rec } = killWolf(); assert.ok(rec);
   const no = (r: WorldRecord, why: string) => { const v = replayWorldRecord(r); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
   no({ ...rec!, hero: { ...rec!.hero, weapon: 'butter-knife' as never } }, 'weapon');
+  const other = PLAYER_WEAPONS.find((w) => w !== DEFAULT_WEAPON); assert.ok(other);
+  no({ ...rec!, hero: { ...rec!.hero, weapon: other } }, 'weapon');   // a real weapon the server does not yet bind to the character's held one (Auditor, #2569): the replay takes DEFAULT_WEAPON only until HeroLimit.weapon lands
   no({ ...rec!, hero: { ...rec!.hero, attack: 3 } }, 'hero gear');
   no({ ...rec!, hero: { ...rec!.hero, res: 0.1 } }, 'hero gear');
   no({ ...rec!, hero: { ...rec!.hero, health: 1e9 } }, 'hero body');
