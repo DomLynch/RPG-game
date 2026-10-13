@@ -1,0 +1,10 @@
+{
+  "tables": [
+    { "table": "board-reward-kind", "file": "daily-board.json", "at": "rewardKinds", "key": "id", "required": { "note": "string" } },
+    { "table": "board-kind", "file": "daily-board.json", "at": "boardKinds", "key": "id", "required": { "note": "string" } },
+    { "table": "board-reward", "file": "daily-board.json", "at": "rewards", "key": "id", "required": { "kind": "string", "amount": "integer" }, "optional": { "item": "string" }, "refs": { "kind": "board-reward-kind" } },
+    { "table": "discovery", "file": "daily-board.json", "at": "discoveries", "key": "id", "required": { "zone": "string", "landmark": "string", "firstFind": "string" }, "refs": { "firstFind": "board-reward" } },
+    { "table": "board-task", "file": "daily-board.json", "at": "tasks", "key": "id", "required": { "kind": "string", "target": "string", "count": "integer", "reward": "string", "weight": "integer" }, "refs": { "kind": "board-kind", "reward": "board-reward" } },
+    { "table": "board-rule", "file": "daily-board.json", "at": "boards", "key": "id", "required": { "slots": "integer", "distinctKinds": "boolean", "noRepeatDays": "integer", "anchorEvery": "integer", "seedSalt": "integer", "completionCap": "integer", "resetHourUtc": "integer" } }
+  ]
+}
