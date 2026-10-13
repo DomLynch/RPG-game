@@ -38,7 +38,7 @@ test('titles: the resolver picks the highest fame band then the highest karma ba
   assert.deepEqual([row(1249, 0).fameFloor, row(1250, 0).fameFloor], [0, 1250]);
   assert.deepEqual([row(15000, 15000).fameFloor, row(15000, 15000).karmaFloor], [10000, 10000]);
   assert.equal(row(15000, 15000).text, 'the Great');
-  assert.equal(row(15000, -15000).text, 'the Impaler');
+  assert.equal(row(15000, -15000).text, 'the Scourge');
   assert.equal(row(5000, 624).karmaFloor, -625);
   assert.equal(row(5000, 625).karmaFloor, 625);
 });

@@ -73,7 +73,7 @@ test('a red tsc on a pull request queues no quality shard, no browser job and no
   for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);
   assert.ok(ran.has('quality'), 'the `quality` verdict still reports (red)');
   const unit = schedule(U, withLabelNames(pr('synchronize', ['auditor:ready'])), { static: 'failure' });
-  assert.deepEqual([...unit].sort(), ['static'], 'unit-ci: no shard and no receipt after a red static');
+  assert.deepEqual([...unit].sort(), ['receipt', 'static'], 'unit-ci: no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
 });
 
 test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature PR runs static + plan + base only; shards, the verdict, unit-ci and browser jobs wait for auditor:ready', () => {
@@ -146,7 +146,19 @@ test('a trunk push is unchanged: no static job, every shard and browser job runs
   const unit = schedule(U, push);
   assert.ok(unit.has('shard') && unit.has('receipt') && !unit.has('static'), 'a trunk push gets its unit receipt (deploy.sh trusts it for the same tree)');
   assert.ok(schedule(U, { event_name: 'workflow_dispatch', ref: 'refs/heads/x', event: {} }).has('receipt'), 'a dispatch (a retargeted PR) gets its receipt too');
-  assert.ok(!schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: no receipt, so nothing vouches for the tree');
+  assert.ok(schedule(U, push, { shard: 'failure' }).has('receipt'), 'a red shard: the receipt JOB runs and its guard step goes red (fail closed, hardening item 3); no receipt artifact is made, so nothing vouches for the tree');
+});
+
+test('fail closed (the Auditor on #2476): a red static or a red plan still runs the verdict job, so a skip never stands in for a red', () => {
+  const cand = { ...pr('synchronize', ['auditor:ready']), head_ref: 'release-DX' };
+  const unit = schedule(U, withLabelNames(cand), { static: 'failure' });
+  assert.ok(!unit.has('shard'), 'a red static skips the shards');
+  assert.ok(unit.has('receipt'), 'but the receipt job RUNS (its first step fails it): a skipped receipt reads as passing to a ruleset');
+  assert.ok(!schedule(U, withLabelNames(pr('synchronize')), {}).has('receipt'), 'nothing meant to run (a feature PR without auditor:ready): the receipt stays skipped');
+  assert.ok(schedule(U, { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} }).has('receipt'), 'a trunk push still gets its receipt');
+  const rc = schedule(R, withLabelNames({ ...pr('synchronize', ['ci:release-checks']), head_ref: 'release-DX' }), { plan: 'failure' }, {});
+  assert.ok(rc.has('summary'), 'a failed plan runs the summary (it goes red); before, it was skipped');
+  assert.ok(!schedule(R, withLabelNames({ ...pr('synchronize', ['ci:release-checks']), head_ref: 'release-DX' }), {}, { plan: { checks: '[]' } }).has('summary'), 'an empty matrix still skips it (docs-only diff)');
 });
 
 test('the static job is tsc + lint only (fast), and the shards it guards keep their own full checks', () => {

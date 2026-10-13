@@ -74,7 +74,8 @@ test('CLI: a lane job prints the tier line and the job id and goes in the lane l
   assert.equal(ok.code, 0, ok.err); assert.match(ok.out, /^tier=hf-cpu slot=2 queued=0s\nJob started with ID: b{24}/); assert.ok(ok.ledger, 'lane ledger, not the release ledger');
   const full = cli(['job', sha, '--max-wait-s', '0', '--', 'echo', 'hi'], live('cpu-upgrade', 3));
   assert.equal(full.code, 75, full.err); assert.match(full.err, /no cpu-upgrade slot \(3 of 3 in use\)/); assert.equal(full.ran, false);
-  const unit = cli(['unit', sha], live('cpu-upgrade', 3), { LAUNCH_UNIT_ANY: '1' });
+  // LAUNCH_TARGET=hf: on a Mac that can reach the VPS the unit command would otherwise run the real suite there (waterfall target vps).
+  const unit = cli(['unit', sha], live('cpu-upgrade', 3), { LAUNCH_UNIT_ANY: '1', LAUNCH_TARGET: 'hf' });
   assert.equal(unit.code, 0, unit.err); assert.match(unit.out, /^tier=hf-cpu slot=4 queued=0s/);
   const gfx = cli(['job', sha, '--gfx', '--', 'node', 'still.mjs'], [...live('cpu-upgrade', 4), ...live('t4-medium', 2)]);
   assert.equal(gfx.code, 0, gfx.err); assert.match(gfx.out, /^tier=hf-t4 slot=3 queued=0s/);

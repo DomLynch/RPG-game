@@ -179,7 +179,8 @@ const runEnv = (p: { env: Record<string, string> }) => p.env;
 function publisher() {
   const dir = mkdtempSync(join(tmpdir(), 'pub-')), bin = join(dir, 'bin'), state = join(dir, 'state'), repo = join(dir, 'repo'), log = join(dir, 'calls');
   mkdirSync(bin); mkdirSync(state); mkdirSync(join(repo, 'scripts'), { recursive: true });
-  for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));   // copies: node resolves a symlinked main module and its CLI guard would not fire
+  for (const f of ['release-train.mjs', 'cut-release.mjs']) copyFileSync(join('scripts', f), join(repo, 'scripts', f));
+  mkdirSync(join(repo, 'scripts', 'lib'), { recursive: true }); copyFileSync(join('scripts', 'lib', 'receipt-rule.mjs'), join(repo, 'scripts', 'lib', 'receipt-rule.mjs'));   // release-train.mjs imports the one receipt rule   // copies: node resolves a symlinked main module and its CLI guard would not fire
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
   sh('gh', `echo "gh $*" >> "${log}"; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
 case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
