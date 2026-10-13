@@ -1,6 +1,7 @@
 // The sparring banner at a phone: it must clear the stance panel (the column down the right edge) and not be cut off.
 // Serves the built dist (run `npx vite build` first); stills: artifacts/sparring-banner/.
 import { launch, phonePage, serveDist, waitForGame } from './lib/harness.mjs';
+import { webkit } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import process from 'node:process';
 import console from 'node:console';
@@ -8,7 +9,8 @@ import console from 'node:console';
 
 const out = process.env.OUT ?? 'artifacts/sparring-banner';
 await mkdir(out, { recursive: true });
-const site = await serveDist(), browser = await launch(), fails = [];
+const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.indexOf('--engine') + 1] : 'chromium';
+const site = await serveDist(), browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await launch(), fails = [];
 try {
   for (const [name, width, height] of [['375', 375, 812], ['320', 320, 568]]) {
     const { page } = await phonePage(browser, { viewport: { width, height }, timeout: 60000 });
@@ -27,5 +29,5 @@ try {
   }
 } catch (e) { fails.push(`ERROR ${String(e.message).slice(0, 300)}`); }
 finally { await browser.close(); await site.close(); }
-console.log(fails.length ? `sparring-banner FAIL\n${fails.join('\n')}` : 'sparring-banner PASS');
+console.log(fails.length ? `sparring-banner [${ENGINE}] FAIL\n${fails.join('\n')}` : `sparring-banner [${ENGINE}] PASS`);
 process.exitCode = fails.length ? 1 : 0;
