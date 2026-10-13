@@ -21,13 +21,13 @@ const kind = wearKindOf('item:loot.goblin.Helmet')!;
 const worn: Piece = { worn: 12, max: 40, baseMax: 40 };
 const cost = repairCost(kind.tier, worn, worn.worn, undefined, kind.slot);
 
-type Opts = { wear?: Piece | null; bronze?: number; ironQty?: number; stored?: unknown; stale?: boolean };
+type Opts = { wear?: Piece | null; bronze?: number; ironQty?: number; stored?: unknown; stale?: boolean; raced?: boolean };
 function stub(o: Opts = {}) {
   const commits: Record<string, unknown>[][] = [];
   const db: Db = { async run(sql, v = {}) {
-    if (/origins_commit/.test(sql)) { if (o.stale) throw new DbError('O0002', 'stale'); commits.push(JSON.parse(v.b!)); return '[]'; }
+    if (/origins_commit/.test(sql)) { if (o.stale) throw new DbError('O0002', 'stale'); if (o.raced) throw new DbError('O0001', 'duplicate'); commits.push(JSON.parse(v.b!)); return '[]'; }
     if (/origins_event\(/.test(sql)) return o.stored ? JSON.stringify({ payload: o.stored }) : 'null';
-    if (/origins_item_wear/.test(sql)) return o.wear === undefined || o.wear === null ? '{}' : JSON.stringify({ 'inst:t-1': { instance: 'inst:t-1', ...o.wear } });
+    if (/origins_item_wear/.test(sql)) return o.wear === undefined || o.wear === null ? '{}' : JSON.stringify({ 'inst:t-1': { instance: 'inst:t-1', seq: 3, ...o.wear } });
     if (/origins_metal_of/.test(sql)) return JSON.stringify({ bronze: o.bronze ?? 1000, version: 3 });
     const items = [helmet, ...((o.ironQty ?? 9) > 0 ? [iron(o.ironQty ?? 9)] : [])];
     return JSON.stringify({ marks: 0, career, characters: [{ id: PC, pack_slots: 64, bank_slots: 1000 }], items, quests: [], journal: [], talk: [] });
@@ -46,9 +46,10 @@ test('gear_repair: the cost is the wear-repair rows\' (nothing in the body); ONE
   const out = await run(s) as { points: number; cost: { bronze: number; metal: { item: string; qty: number } }; piece: Piece; replayed: boolean };
   assert.deepEqual([out.points, out.cost.bronze, out.cost.metal, out.piece, out.replayed], [worn.worn, cost.gold, { item: cost.metalItem, qty: cost.metal }, repairedPiece(worn), false]);
   assert.equal(s.commits.length, 1);
-  const [event, spend, burn] = s.commits[0]!;
+  const [event, wearEvent, spend, burn] = s.commits[0]!;
   assert.deepEqual([event!.op, event!.kind, event!.event_id], ['event', 'metal', `repair:${PC}:${OP}`]);
-  assert.deepEqual((event!.payload as { wear: unknown }).wear, { instance: 'inst:t-1', ...repairedPiece(worn) });
+  assert.deepEqual([wearEvent!.op, wearEvent!.event_id], ['event', 'wear:inst:t-1:4']);   // seq = the wear read at (3) + 1: the write guard
+  assert.deepEqual((wearEvent!.payload as { wear: unknown }).wear, { instance: 'inst:t-1', seq: 4, ...repairedPiece(worn) });
   assert.deepEqual([spend!.op, spend!.delta_bronze, spend!.reason, spend!.expected_version], ['metal', -cost.gold, 'spend', 3]);
   assert.deepEqual([burn!.op, burn!.id, burn!.count], ['burn', 'inst:t-9', cost.metal]);
 });
@@ -98,4 +99,10 @@ test('gear_wear: lists the worn pieces with the quote the smith would charge (th
   assert.deepEqual((await read(stub())).pieces, []);
   assert.deepEqual((await read(stub({ wear: { ...worn, worn: 0 } }))).pieces, []);
   await assert.rejects(gearWearHandler({ lookup })({ db: stub().db, account: UID } as never, { character: 12 }), /character/);
+});
+
+test('gear_repair: a settle or another repair that wrote the same wear first makes this one a 409 (the wear event id collides), nothing is charged', async () => {
+  const s = stub({ wear: worn, raced: true });
+  await assert.rejects(run(s), (e: unknown) => e instanceof Conflict && /wear changed/.test(e.message));
+  assert.equal(s.commits.length, 0);
 });

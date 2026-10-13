@@ -53,14 +53,20 @@ export function gearRepairHandler(content: Content): Handler {
 
     const after = repairedPiece(stored, quote.points);
     const receipt: RepairReceipt = { instance, points: quote.points, cost: { bronze: quote.gold, metal: { item: quote.metalItem, qty: quote.metal } }, piece: after };
+    // The wear is its own event `wear:<instance>:<seq>` (seq = the wear it was read at + 1): a settle or another repair that read the same wear writes the same id, the primary key
+    // refuses the second, and that loser answers 409 below. The newest wear is the highest seq.
     const batch: store.Json[] = [
-      { op: 'event', event_id: eventId, kind: 'metal', account, character, payload: { receipt, wear: { instance, ...after } } },
+      { op: 'event', event_id: eventId, kind: 'metal', account, character, payload: { receipt } },
+      { op: 'event', event_id: `wear:${instance}:${(stored.seq ?? 0) + 1}`, kind: 'metal', account, character, payload: { wear: { instance, seq: (stored.seq ?? 0) + 1, ...after } } },
       { op: 'metal', account, delta_bronze: -quote.gold, reason: 'spend', event_id: eventId, expected_version: metal!.version },
       ...burns,
     ];
     try { await store.commit(db, account, batch); }
     catch (e) {
-      if (e instanceof DbError && e.code === 'O0001') { const r = replay(await store.event(db, account, eventId)); if (r) return r; }   // a racing retry committed first
+      if (e instanceof DbError && e.code === 'O0001') {
+        const r = replay(await store.event(db, account, eventId)); if (r) return r;   // a racing retry committed first
+        throw new Conflict('the piece\'s wear changed since it was read (a fight settled or another repair ran); read it again and retry');
+      }
       if (e instanceof DbError && e.code === 'O0002') throw new DbError('O0002', 'stale: the balance or the pack changed since it was read; open again and retry');
       throw e;
     }
