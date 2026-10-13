@@ -17,7 +17,7 @@ APPLY=0; FORCE=0
 PATHS=""
 # What --path may remove (Lead 2026-10-13). Prints the kind of an allowed path, nothing for a refused one:
 #   lane   scratch under the lane roots: archive first, then delete (the original rule)
-#   aged   a direct child of /var/tmp (be-*: the per-head backend/PG checkout, ~1.1 GB each, leaked ~16 an hour) or /tmp (hooks-*): regenerable, deleted only
+#   aged   a direct child of /var/tmp (be-*: Backend's per-head PG checkout, ~1.1 GB each, leaked ~16 an hour until Backend adds an EXIT trap) or /tmp (hooks-*, cq-*): regenerable, deleted only
 #          once nothing inside changed for AGED_MIN minutes
 #   home   the six retired VPS lane homes (0 unpushed commits, only an untracked node_modules): archive first, then delete
 #   tmp    two exact one-off /tmp dirs (a regenerable compile cache, an old Lead env): deleted
@@ -29,7 +29,7 @@ sweep_kind() {
   case "$p" in
     /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) echo lane;;
     /var/tmp/be-*) [ "$(dirname "$p")" = /var/tmp ] && echo aged;;
-    /tmp/hooks-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;
+    /tmp/hooks-*|/tmp/cq-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;   # hooks-* review trees, cq-* the Auditor's worktrees (Lead 2026-10-13: standing root)
     /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
     /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
   esac
