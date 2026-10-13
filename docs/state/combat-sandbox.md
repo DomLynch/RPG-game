@@ -5,7 +5,9 @@ READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-
 ## 2026-10-13 evening (after Dom's account switch): rebased on EF, republished
 - sandbox/page is rebased onto release EF b416d5c6d (backup branch sandbox/page-pre-EF, local only). Conflicts resolved: tests/graphics.test.ts module map (+hit-stop-rows), duel.ts (trunk's v55 breath-cone pulse loop kept, then the boss-phase loop), and the sandbox files prepended to trunk's new cone lists in eslint.config.js, detmath and record-version-guard.
 - VPS: tsc clean; 148/149 targeted tests pass, the only red is the expected record-version-guard. Pushed 8bff819f7; preview republished and serving "trunk b416d5c6d".
-- Rows status: swarm and armour light/medium/heavy are done. CC fade and damage kinds are trunk rows already (cc-defs, damage-kind-defs). Gap: the armour casting penalty (Dom's pick) has no column; I asked Combat & Specials for a reuse point.
+- Rows status: swarm is done. CC fade and damage kinds are trunk rows already (cc-defs, damage-kind-defs).
+- Armour (Lead correction, 2026-10-13): the casting penalty column already exists in #2577 (346756ba1, Lead PASS, heading into EH): src/fight/armour-weights.json (castPenalty heavy 20 / medium 10 / light 0) plus a weightClass column on gear-defs. Reuse it; add no column of our own. The sandbox presets now match it: heavy = plate, medium = leathers, light = robes, no mail set. The cast hook (the castPenalty lookup) is Combat's to build on top of #2577; ask Combat for the hook, not for a column. Pick up armour-weights.json at the rebase after EH.
+- Mech count: 10 sandbox-mech commits against Strategy's max of 5. Lead (2026-10-13) confirms this is fine under Dom's direct "forget the rules" for the sandbox.
 - Breath cones are now on trunk (v55), so drop them from "not built".
 
 ## HANDOFF (2026-10-13, end of session; read this first)
