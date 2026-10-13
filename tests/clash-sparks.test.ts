@@ -53,3 +53,12 @@ test('block dust: every block puffs off the rear foot by how hard it was held; a
   assert.equal(blockDust(blocked({ type: 'Parried' })), null);
   assert.equal(blockDust({ tick: 1, type: 'Blocked', actor: 0 }), null, 'no attacker');
 });
+
+test('the spark rule reads the material rows (sparks, dull), not names: a new metal is one row, and the old three plus the wooden exception are pinned', async () => {
+  const { DEFINITIONS, materialRow } = await import('../src/core/contracts/definitions.ts');
+  assert.deepEqual(['iron', 'steel', 'bronze', 'gold', 'leather', 'cloth', 'bone', 'wood', 'stone', 'none'].map((m) => [m, !!materialRow(m).sparks, !!materialRow(m).dull]), [['iron', true, false], ['steel', true, false], ['bronze', true, false], ['gold', false, false], ['leather', false, false], ['cloth', false, false], ['bone', false, false], ['wood', false, true], ['stone', false, false], ['none', false, false]]);
+  const rows = DEFINITIONS.materials as Record<string, object>;
+  assert.equal(clashStrength(blocked({ material: 'mithril' as 'iron' }), WEAPONS.longsword), 0, 'an unknown material strikes none');
+  rows.mithril = { order: 99, sparks: true };
+  try { assert.ok(clashStrength(blocked({ material: 'mithril' as 'iron' }), WEAPONS.longsword) > 0, 'a new sparking material is one row'); } finally { delete rows.mithril; }
+});

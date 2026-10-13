@@ -6,11 +6,15 @@
 // ORIGINS_ENCOUNTERS=1 (turns on encounter_start/touch/settle, world creature fights: migration 202610080002 + Region 1 content must load; unset, the three ops answer 503 "encounter verify not installed"),
 // ORIGINS_REWARDS=1 (needs ORIGINS_ENCOUNTERS=1; a verified kill then also pays its CP and loot in the settle's one transaction, origins/server/mob-rewards.ts; unset, fights are RECORDED only and pay nothing),
 // ORIGINS_WRITER_INTERNAL_KEY (optional: turns on the internal saved-location routes presence calls, key + loopback; unset, those routes do not exist).
+// The live-ops rows (migration 202610120023): a switch row `op:<name>` off answers that op 503 within a minute, no restart; no rows or no migration = every switch on.
+// ORIGINS_LOCATION_FLUSH_MS (default 90000, 60000..120000, or 0 = the kill switch: every post written through): presence's saved positions are held in a dirty map and written as ONE statement per interval (and on SIGTERM).
 import process from 'node:process';
 import console from 'node:console';
 import { supabaseVerify } from '../origins/server/auth.ts';
 import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
+import { createLocationFlusher } from '../origins/server/location-flush.ts';
+import { createLiveOps } from '../origins/server/live-ops.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
 import { presenceWhere } from '../origins/presence/where.ts';
@@ -33,4 +37,12 @@ const content = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGI
 const presenceKey = process.env.PRESENCE_INTERNAL_KEY;
 if (!presenceKey) console.log('origins-writer: PRESENCE_INTERNAL_KEY is not set: no player counts as at the Exchange, every Exchange-only action is refused');
 const where = presenceKey ? presenceWhere(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : async () => ({ online: false });
-createWriter({ db: psqlDb(DATABASE_URL, 'psql', 30_000, Number(ORIGINS_DB_POOL)), verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : spawnDeps()), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY } : undefined }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+const flushMs = Number(process.env.ORIGINS_LOCATION_FLUSH_MS ?? '90000');
+if (!(flushMs === 0 || (Number.isInteger(flushMs) && flushMs >= 60_000 && flushMs <= 120_000))) { console.error('origins-writer: ORIGINS_LOCATION_FLUSH_MS is 0 or 60000..120000'); process.exit(1); }
+const db = psqlDb(DATABASE_URL, 'psql', 30_000, Number(ORIGINS_DB_POOL));
+const flusher = process.env.ORIGINS_WRITER_INTERNAL_KEY && flushMs > 0 ? createLocationFlusher(db, flushMs) : undefined;
+flusher?.start();
+const liveOps = createLiveOps(db);
+liveOps.start();
+const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : spawnDeps()), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });

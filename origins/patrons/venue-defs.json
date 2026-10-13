@@ -1,0 +1,8 @@
+{
+  "about": "Fight VENUES as rows (Backend 2026-10-12; Dom: everything as data). One row per venue, keyed by id. `perks`: the venue resolves the Section 10.2 (damage) patron templates (Strategy 2026-10-07: Origins PvE only; the arena and PvP get none, arena perks come only from Combat's no-damage sidegrade hook). A venue the rows do not name resolves nothing. A new venue is ONE row here; patrons.ts reads the flag, never a venue name.",
+  "venues": [
+    { "id": "origins-pve", "perks": true },
+    { "id": "arena", "perks": false },
+    { "id": "pvp", "perks": false }
+  ]
+}

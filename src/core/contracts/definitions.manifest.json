@@ -12,6 +12,8 @@
     {"table": "power", "file": "definitions.json", "at": "powers", "keyed": true, "key": "id", "required": {}},
     {"table": "category", "file": "definitions.json", "at": "categories", "keyed": true, "key": "id", "required": {"path": "string", "slot": "string"}},
     {"table": "storyTag", "file": "definitions.json", "at": "story", "keyed": true, "key": "id", "required": {}},
-    {"table": "provenanceKind", "file": "definitions.json", "at": "provenanceKinds", "keyed": true, "key": "id", "required": {"tradeable": "boolean"}}
+    {"table": "provenanceKind", "file": "definitions.json", "at": "provenanceKinds", "keyed": true, "key": "id", "required": {"tradeable": "boolean"}},
+    {"table": "drawMaterial", "file": "definitions.json", "at": "drawMaterials", "keyed": true, "key": "id", "required": {"order": "integer"}},
+    {"table": "drawSuffix", "file": "definitions.json", "at": "drawSuffixes", "keyed": true, "key": "id", "required": {"order": "integer", "class": "string"}}
   ]
 }

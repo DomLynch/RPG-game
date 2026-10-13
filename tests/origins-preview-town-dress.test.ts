@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { Bone, Matrix4, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { outfitProblems } from '../origins/npcs/cloth.ts';
 import { BANKER_OUTFIT, CLOTH_PIECES, NAMED_OUTFITS, clothesTriangles, outfitFor, talkClip, wearClothes } from '../origins/preview/town-dress.ts';
 
 async function parse(file: string) {
@@ -60,8 +61,6 @@ test('the three named townspeople (Backend #1828) have outfits whose pieces all 
   assert.deepEqual(Object.keys(NAMED_OUTFITS).sort(), ['character:banker-exchange', 'character:innkeeper-exchange', 'character:provisioner-exchange']);
   for (const [id, { pieces }] of Object.entries(NAMED_OUTFITS)) {
     assert.ok(pieces.every((p) => (CLOTH_PIECES as readonly string[]).includes(p)), id);
-    assert.equal(pieces.filter((p) => p === 'robe' || p === 'tunic').length, 1, `${id}: one body garment`);
-    assert.ok(!pieces.includes('apron') || pieces.includes('tunic'), `${id}: an apron only over a tunic`);
-    assert.ok(pieces.filter((p) => p === 'cap' || p === 'hat' || p === 'hood').length <= 1, `${id}: at most one headgear`);
+    assert.deepEqual(outfitProblems(pieces), [], `${id}: one piece per slot, a required piece under any apron`);
   }
 });

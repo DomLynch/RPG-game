@@ -1,0 +1,19 @@
+{
+  "slots": {
+    "body":    {"order": 1, "shift": 3},
+    "sleeves": {"order": 2, "shift": 4, "optional": true},
+    "belt":    {"order": 3, "shift": 5, "optional": true},
+    "apron":   {"order": 4, "shift": 6, "optional": true},
+    "head":    {"order": 5, "shift": 7, "optional": true}
+  },
+  "pieces": {
+    "robe":    {"order": 1, "slot": "body"},
+    "tunic":   {"order": 2, "slot": "body"},
+    "sleeves": {"order": 3, "slot": "sleeves"},
+    "belt":    {"order": 4, "slot": "belt"},
+    "cap":     {"order": 5, "slot": "head"},
+    "apron":   {"order": 6, "slot": "apron", "requires": "tunic"},
+    "hat":     {"order": 7, "slot": "head"},
+    "hood":    {"order": 8, "slot": "head"}
+  }
+}

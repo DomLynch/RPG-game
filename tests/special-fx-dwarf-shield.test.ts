@@ -32,7 +32,7 @@ test('the six pages name their opponent at level 5*(rank-1)+1 with the same 3 s 
     assert.ok(mode && mode.at === 'head' && !mode.held, `${name} has its one registry entry (heads, no pose)`);
   }
   for (const search of ['?special=dwarf', '?special=dwarf11', '?special=shield', '?special=shieldmaiden8']) assert.ok(!['dwarf', 'dwarf11', 'shieldmaiden8'].includes(specialParam(search) ?? ''), search);
-  assert.ok(!SPECIAL_MODES.hades, "Hades' cloud is still the default: no entry");
+  assert.ok(SPECIAL_MODES.hades && SPECIAL_MODES.hades.at === 'head' && SPECIAL_MODES.hades.lift === -0.28 && !SPECIAL_MODES.hades.held && !SPECIAL_MODES.hades.hideTrail, "Hades' cloud: a bosses.json row that loads the same default (heads, -0.28, no pose)");
 });
 
 test('the boss modules ship lazily: reached only through the registry, nothing imports them statically', () => {

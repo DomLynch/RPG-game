@@ -17,8 +17,10 @@ export function parseSpec(spec) {
   return { pr: Number(m[1]), head: m[2] };
 }
 
-/** Does a PR comment list hold a reviewer's PASS for exactly this head: the Auditor's, or Lead's for an independent platform review (Lead 2026-10-12, #2326)? */
-export const passAt = (bodies, head) => bodies.some(b => new RegExp(`^\\*{0,2}(?:Auditor|Lead): PASS @${head.slice(0, 9)}`, 'm').test(b));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
+const REVIEWERS = 'Auditor|Lead|Combat A|Deploy B';   // full reviewers: Auditor, Lead (#2326), Combat A and Deploy B (Strategy 2026-10-12)
+
+/** Does a PR comment list hold a full reviewer's PASS for exactly this head (9-char prefix)? */
+export const passAt = (bodies, head) => bodies.some(b => new RegExp(`^\\*{0,2}(?:${REVIEWERS}): PASS @${head.slice(0, 9)}`, 'm').test(b));   // at a line start: "waiting for Auditor: PASS @…" is not a PASS (Lead on #2336)
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails
@@ -63,7 +65,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   git(['fetch', '-q', 'origin']);
   if (!noVerify) for (const { pr, head } of specs) {
     const bodies = JSON.parse(run('gh', ['pr', 'view', String(pr), '--json', 'comments', '--jq', '[.comments[].body]']).stdout || '[]');
-    if (!passAt(bodies, head)) { console.error(`cut-release: no "Auditor: PASS @${head.slice(0, 9)}" on #${pr} (--no-verify to skip)`); process.exit(2); }
+    if (!passAt(bodies, head)) { console.error(`cut-release: no "<reviewer>: PASS @${head.slice(0, 9)}" (Auditor, Lead, Combat A or Deploy B) on #${pr} (--no-verify to skip)`); process.exit(2); }
   }
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }

@@ -4,7 +4,7 @@ import { BUNDLE } from '../region1/content.ts';
 import { REGION1_NPCS } from '../region1/npcs.ts';
 import { REGION1_SHOPS } from '../region1/shops.ts';
 import { CONCORD, CONCORD_REGION } from '../world/concord.ts';
-import { atWork, shopCounters, validateNpcRows, type NpcContext, type NpcRow } from './row.ts';
+import { NPC_ROLES, NPC_ROLE_ROWS, atWork, shopCounters, validateNpcRows, type NpcContext, type NpcRow } from './row.ts';
 
 const characters = new Set(BUNDLE.filter((r) => r.kind === 'character-definition').map((r) => r.id as string));
 const zones = CONCORD.regions[CONCORD_REGION]!.zones as Record<string, { layout?: Record<string, unknown> }>;
@@ -51,4 +51,19 @@ test('every Region 1 shop has its counter at a landmark that exists (shop_buy re
     assert.ok(c, `${shop} has a vendor row`);
     assert.ok(ctx.landmark(c.zone, c.at), `${shop}'s counter ${c.zone}/${c.at} is placed`);
   }
+});
+
+test('NPC roles are ROWS (roles.json): the seven old roles in order, only the vendor row sells from a shop, and a new role is one row with no code', () => {
+  assert.deepEqual([...NPC_ROLES], ['banker', 'vendor', 'smith', 'healer', 'fence', 'innkeeper', 'recorder']);
+  assert.deepEqual(Object.entries(NPC_ROLE_ROWS).filter(([, r]) => r.shop).map(([id]) => id), ['vendor']);
+  const rows = NPC_ROLE_ROWS as Record<string, object>, base: NpcRow = { npc: 'character:banker-exchange', roles: ['banker'], zone: 'exchange', at: 'bank', hours: 'always' };
+  const issues = (r: NpcRow) => validateNpcRows([r], ctx).issues.map((i) => i.path);
+  assert.deepEqual(issues({ ...base, roles: ['glazier'] }), ['npcs[0].roles'], 'an unknown role is refused');
+  rows.glazier = { order: 8 }; rows.vintner = { order: 9, shop: true };
+  try {
+    assert.deepEqual(issues({ ...base, roles: ['glazier'] }), [], 'a new role is one row');
+    assert.deepEqual(issues({ ...base, roles: ['glazier'], shop: 'service:exchange-provisioner' }), ['npcs[0].shop'], 'a role without the shop flag has no shop');
+    assert.deepEqual(issues({ ...base, roles: ['vintner'] }), ['npcs[0].shop'], 'a new role WITH the shop flag needs a shop, no code');
+    assert.deepEqual(issues({ ...base, roles: ['vintner'], shop: 'service:exchange-provisioner' }), []);
+  } finally { delete rows.glazier; delete rows.vintner; }
 });

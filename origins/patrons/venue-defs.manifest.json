@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "venue",
+      "file": "venue-defs.json",
+      "at": "venues",
+      "key": "id",
+      "required": {
+        "perks": "boolean"
+      }
+    }
+  ]
+}

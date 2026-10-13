@@ -2,6 +2,7 @@
 // contracts' registry (loadContent), reads the kinds the contracts do not have yet (towns, Bounties, twist flags, rifts, boss loot
 // rules), and checks every cross-reference between the three. No clock, no randomness, no DOM; every failure is a Result issue with a
 // path, never a throw. Nothing in src/ imports this module.
+import hazards from './hazards.json' with { type: 'json' };
 import { LOOT_ITEM_IDS } from '../inventory/loot-catalogue.ts';
 import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoolean, readEnum, readInt, readObject, readString, readText, type Obj, type Result } from '../../src/core/server.ts';
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../../src/core/server.ts';
@@ -12,7 +13,7 @@ import { toMetres } from '../world/derive.ts';
 import { loadWorld, resolveRegion } from '../world/resolve.ts';
 import type { Params } from '../world/schema.ts';
 import { WEAPON_SLOTS } from '../../src/core/server.ts';
-import { BUNDLE, LOCAL, PROPOSED_ROWS } from './content.ts';
+import { BUNDLE, LOCAL } from './content.ts';
 import { EXCHANGE_REGION, FRONTIER_REGION, REGION1_WORLD } from './world.ts';
 
 export const REGION1 = [EXCHANGE_REGION, FRONTIER_REGION] as const;
@@ -44,7 +45,10 @@ export const TWISTS = {
   candlelight: [],
 } as const satisfies Record<string, readonly string[]>;
 export type TwistKind = keyof typeof TWISTS;
-export const HAZARDS = ['embers', 'breaking-planks'] as const;
+// The hazards a Bounty twist can name are ROWS (hazards.json, loaded and checked by the registry loader): `text` is the line the player reads, `{s}` its stillSeconds. A new hazard is one row.
+export type HazardRow = { order: number; text: string };
+export const HAZARD_ROWS = hazards.hazards as Readonly<Record<string, HazardRow>>;
+export const HAZARDS: readonly string[] = Object.entries(HAZARD_ROWS).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
 export type Twist = { kind: TwistKind } & Record<string, unknown>;
 
 // Namespaces the contracts do not list yet (region1 §7 open 1g; feuds §13 open 4; living-world §14). Same local-part rule as ids.ts.
@@ -202,7 +206,7 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   for (const [c, row] of Object.entries(local.killRows)) {
     const id = ref(issues, c, `killRows.${c}`, 'character');
     if (id && !registry.characters.has(id)) issues.add('unknown-id', `killRows.${c}`, `${c} is not a character in Region 1`);
-    if (!Object.hasOwn(TYPE_WEIGHTS, row) && !(PROPOSED_ROWS as readonly string[]).includes(row)) issues.add('unknown-id', `killRows.${c}`, `no progression row "${row}"`);
+    if (!Object.hasOwn(TYPE_WEIGHTS, row)) issues.add('unknown-id', `killRows.${c}`, `no progression row "${row}"`);
   }
   const rule = new Map<string, Local['bossLoot'][number]>();
   local.bossLoot.forEach((r, i) => {

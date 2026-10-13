@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 
 type Site = { file: string; line: number; kind: string; category: string; text: string };
-type Report = { compares: number; byCategory: Record<string, number>; unions: number; sites: Site[]; allowed: (Site & { reason: string })[]; stale: { file: string; literal: string }[] };
+type Report = { compares: number; byCategory: Record<string, number>; unions: number; sites: Site[]; allowed: (Site & { reason: string })[]; stale: { file: string; literal: string }[]; verbs: { file: string; name: string; line: number; dispatch: string }[]; staleVerbs: { name: string }[] };
 const run = (root: string, allow?: string) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', root, ...(allow ? ['--allow', allow] : [])], { encoding: 'utf8', maxBuffer: 64 << 20 });
 const EMPTY = join(mkdtempSync(join(tmpdir(), 'as-data-empty-')), 'allow.json');   // a fixture tree has none of the repo's allowed sites: it gets an empty list, not the real one (whose entries would be stale there)
 writeFileSync(EMPTY, '{"allow":[]}');
@@ -69,11 +69,43 @@ test('the allow-list: an allowed literal is listed apart and never counted, and 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('the real allow-list has no stale entry', () => {
+test('the real allow-list has no stale entry or stale verb, and the four ratified verbs are listed with a dispatch', () => {
   const r = run('src');
   assert.equal(r.status, 0, `${r.stderr}${r.stdout.slice(0, 400)}`);
-  assert.deepEqual((JSON.parse(r.stdout) as Report).stale, []);
-  assert.ok((JSON.parse(r.stdout) as Report).allowed.length >= 1);
+  const report = JSON.parse(r.stdout) as Report;
+  assert.deepEqual(report.stale, []);
+  assert.deepEqual(report.staleVerbs, []);
+  assert.deepEqual(report.verbs.map((v) => [v.name, v.dispatch]), [['LOCAL_NAMESPACES', 'localId'], ['TOWN_NODES', 'building()'], ['ROW_KEYS', 'zoneFromRow'], ['GRIDS', 'sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)']]);
+  assert.ok(report.verbs.every((v) => v.line >= 1));
+});
+
+test('with no --root the checker scans src AND origins (shown on a fixture tree with one compare in each root); the real tree is done: 0 compares', () => {
+  // The real tree: as-data is finished (every name-switch is a row or an allowed verb), so the count is pinned to 0 and a new compare anywhere fails here. It is a gate now, not a measure.
+  const real = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  assert.equal(real.status, 0, real.stderr);
+  assert.equal((JSON.parse(real.stdout) as Report).compares, 0, 'a new content-name compare in src or origins');
+  // The both-roots behaviour, on a tree that has the compares: one in src, one in origins.
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-roots-'));
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\nconst SPECIAL_SETS = {\n  ash: ['ashfall'],\n} as const;\n");
+    writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+    writeFileSync(join(repo, 'src', 'a.ts'), "export const a = (o: string) => o === 'veteran';\n");
+    writeFileSync(join(repo, 'origins', 'b.ts'), "export const b = (o: string) => o === 'goblin';\n");
+    const go = (...extra: string[]) => JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as Report;
+    const both = go(), srcOnly = go('--root', 'src'), originsOnly = go('--root', 'origins');
+    assert.equal(both.compares, 2, 'no --root: src AND origins'); assert.deepEqual(both.sites.map((x) => x.file), ['origins/b.ts', 'src/a.ts']);
+    assert.equal(srcOnly.compares, 1); assert.equal(originsOnly.compares, 1);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+  const dir = mkdtempSync(join(tmpdir(), 'as-data-verb-'));
+  try {
+    const allowFile = join(dir, 'allow.json');
+    writeFileSync(allowFile, JSON.stringify({ allow: [], verbs: [{ file: 'src/roster.ts', name: 'NO_SUCH_LIST', dispatch: 'nothing', sunset: null }] }));
+    const stale = run('src', allowFile);
+    assert.equal(stale.status, 3);
+    assert.deepEqual((JSON.parse(stale.stdout) as Report).staleVerbs.map((v) => v.name), ['NO_SUCH_LIST']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 // Fail closed: a measuring stick that reads a broken tree as "0 left" reads as progress. --repo points the id lists at a fixture tree.

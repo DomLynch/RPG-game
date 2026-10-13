@@ -61,12 +61,30 @@ test('checksGreen: per check on the head, the latest attempt that is not SKIPPED
   assert.equal(checksGreen([...OK, run('x', 'job', 'SKIPPED', '2026-10-12T14:00:00Z'), run('x', 'job', 'SKIPPED', '2026-10-12T15:00:00Z')]), true, 'all skipped is green');
 });
 
+test('checksGreen: a CANCELLED row no later run reuses (a matrix placeholder, a renamed job) is ignored once its workflow\'s verdict job passed later; FAILURE stays strict (release-DC #2406)', () => {
+  const run = (wf: string, name: string, conclusion: string, startedAt: string) => ({ __typename: 'CheckRun', workflowName: wf, name, status: 'COMPLETED', conclusion, startedAt, completedAt: startedAt });
+  // #2406's shape: the first unit-ci / release-checks runs were cancelled before their matrices expanded; the re-runs named every row afresh
+  const cancelled = [run('unit-ci', 'shard', 'CANCELLED', '2026-10-12T17:57:48Z'), run('unit-ci', 'receipt', 'CANCELLED', '2026-10-12T17:57:48Z'),
+    run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'CANCELLED', '2026-10-12T17:57:48Z'),
+    run('release-checks', 'release rows (none for this diff)', 'CANCELLED', '2026-10-12T17:57:48Z'), run('release-checks', 'summary', 'CANCELLED', '2026-10-12T17:57:48Z')];
+  const later = [run('unit-ci', 'shard (1)', 'SUCCESS', '2026-10-12T18:05:00Z'), run('unit-ci', 'shard (8)', 'SUCCESS', '2026-10-12T18:05:00Z'), run('unit-ci', 'receipt', 'SUCCESS', '2026-10-12T18:20:00Z'),
+    run('release-checks', 'check 12 (polearm)', 'SUCCESS', '2026-10-12T18:06:00Z'), run('release-checks', 'release rows', 'SUCCESS', '2026-10-12T18:06:00Z'), run('release-checks', 'summary', 'SUCCESS', '2026-10-12T18:25:00Z')];
+  const base = OK.filter(c => c.workflowName !== 'unit-ci' && c.workflowName !== 'release-checks');
+  assert.equal(checksGreen([...base, ...cancelled, ...later]), true, 'cancelled placeholders + a later green run of each workflow are green');
+  assert.equal(checksGreen([...base, ...cancelled, ...later, run('release-checks', 'check 3 (combat)', 'FAILURE', '2026-10-12T18:06:00Z')]), false, 'a later run with one failure is not green');
+  assert.equal(checksGreen([...base, ...cancelled, ...later.filter(c => c.workflowName !== 'unit-ci')]), false, 'no later unit-ci run: its cancelled rows stay red');
+  assert.equal(checksGreen([...OK, run('pr-wording', 'wording', 'CANCELLED', '2026-10-12T19:00:00Z')]), false, 'a plain cancelled run with no later run is not green');
+  assert.equal(checksGreen([...OK, run('unit-ci', 'shard', 'CANCELLED', '2026-10-12T19:00:00Z')]), false, 'a verdict that passed BEFORE the cancel does not clear it');
+  assert.equal(checksGreen([...OK, run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'CANCELLED', '2026-10-12T19:00:00Z')]), true, 'an unexpanded matrix placeholder is never a real row');
+  assert.equal(checksGreen([...OK, run('release-checks', 'check ${{ matrix.check.index }} (${{ matrix.check.name }})', 'FAILURE', '2026-10-12T19:00:00Z')]), false, 'a placeholder that FAILED still blocks');
+});
+
 test('planTrain: release-order.txt first, then oldest PASS; only release:go + PASS at head + green; a PR already in the base is dropped silently', () => {
   const prs = [pr(5, { passedAt: '2026-10-12T09:00:00Z' }), pr(6, { passedAt: '2026-10-12T08:00:00Z' }), pr(7), pr(8, { passedAt: null }), pr(9, { green: false }), pr(10, { labels: [] }), pr(11), pr(12, { headRef: 'release-CO' })];
   const { pick, skipped } = planTrain({ prs, order: [7, 99], inBase: (h: string) => h.startsWith('11') });
   assert.deepEqual(pick.map((p) => p.pr), [7, 6, 5], 'listed 7 first, then 6 (older PASS) before 5');
   assert.deepEqual(skipped.map((s) => s.pr).sort(), [8, 9]);
-  assert.match(skipped.find((s) => s.pr === 8)!.why, /no "Auditor: PASS @" or "Lead: PASS @8aaaaaaaa" at its current head/);
+  assert.match(skipped.find((s) => s.pr === 8)!.why, /no "<reviewer>: PASS @8aaaaaaaa" \(Auditor, Lead, Combat A or Deploy B\) at its current head/);
   assert.ok(passAt(['Lead: PASS @8aaaaaaaa (independent platform review)'], '8'.padEnd(40, 'a')) && passAt(['Auditor: PASS @8aaaaaaaa'], '8'.padEnd(40, 'a')), 'Lead or the Auditor');
   assert.ok(!passAt(['Lead: PASS @9aaaaaaaa', 'Strategy: PASS @8aaaaaaaa'], '8'.padEnd(40, 'a')), 'another head, or another name, is not a PASS');
 });
