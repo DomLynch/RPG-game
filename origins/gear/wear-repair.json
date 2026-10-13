@@ -1,0 +1,22 @@
+{
+  "wearEvents": [
+    { "id": "hit", "chancePct": 25, "note": "a hit taken: one in four wears one piece, picked by the slot weights" },
+    { "id": "kill", "chancePct": 100, "note": "a kill: always wears one piece, picked by the slot weights" }
+  ],
+  "wearSlots": [
+    { "id": "Body", "share": 35, "note": "the sheet's chest" },
+    { "id": "Greaves", "share": 22, "note": "the sheet's legs" },
+    { "id": "Helmet", "share": 15, "note": "the sheet's head" },
+    { "id": "Arms", "share": 14, "note": "the sheet's arms" },
+    { "id": "Gloves", "share": 7, "note": "the sheet's hands" },
+    { "id": "Boots", "share": 7, "note": "stands in for the sheet's neck: a necklace is not an armour slot" }
+  ],
+  "wearTiers": [
+    { "id": "light", "hitWear": 3, "killWear": 6, "goldPerPoint": 4, "metalPerTenPoints": 1, "metalItem": "item:grave-iron" },
+    { "id": "medium", "hitWear": 2, "killWear": 4, "goldPerPoint": 6, "metalPerTenPoints": 2, "metalItem": "item:grave-iron" },
+    { "id": "heavy", "hitWear": 1, "killWear": 3, "goldPerPoint": 9, "metalPerTenPoints": 3, "metalItem": "item:grave-iron" }
+  ],
+  "repairRules": [
+    { "id": "smith", "wornSlopePct": 100, "wearMaxLossPer100": 2, "wearMaxFloorPct": 60, "qualityFloorPct": 40, "note": "town smith: a point costs more the more worn the piece is (slope), each repaired 100 points shave 2 off wearMax down to 60% of the original, and a worn-out piece still gives 40% of its quality, so gear never breaks to nothing" }
+  ]
+}
