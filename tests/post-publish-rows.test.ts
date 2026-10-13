@@ -138,7 +138,7 @@ test('deploy.sh: the rows are deferred before Published, run after the publish l
   const run = deploy.indexOf('post_publish_rows "$revision" "$post_publish"');
   const end = deploy.lastIndexOf('[[ "$post_rc" == 0 ]] || exit 1');
   assert.ok(defer > 0 && defer < published && published < drop && drop < run && run < end, 'order: defer < Published < lock drop < post-publish < exit');
-  assert.match(deploy, /DEPLOY_POST_PUBLISH:-on\}" == off \]\] \|\| post_publish=/, 'DEPLOY_POST_PUBLISH=off restores the old behaviour');
+  assert.match(deploy, /DEPLOY_POST_PUBLISH:-on\}" != off \]\]; then[\s\S]*post_publish=\$\(git diff --name-only "\$pp_live" "\$revision" \| node scripts\/lib\/row-placement\.mjs post-publish\)/, 'DEPLOY_POST_PUBLISH=off restores the old behaviour; the rows come from the diff against live');
   assert.match(deploy, /source scripts\/lib\/post-publish\.sh/);
 });
 
