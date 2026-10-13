@@ -26,8 +26,7 @@ import { repairCost, repairedPiece, wearKindOf } from '../origins/gear/wear-repa
 import { loadEncounterContent, lookupOf } from '../origins/encounters/encounters.ts';
 import { openHoldingsWith } from '../origins/server/holdings.ts';
 import { killWearLines, wearMaxOf } from '../origins/server/wear-settle.ts';
-import { REJOIN_EDGE, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
-import { zoneAt } from '../origins/presence/zones.ts';
+import { REJOIN_EDGE, zoneAt, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { handlers as clientOps } from '../origins/server/handlers.ts';
 
 
