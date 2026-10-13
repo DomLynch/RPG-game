@@ -28,6 +28,9 @@ import { REGION1_SHOPS, EXCHANGE_PROVISIONER } from '../region1/shops.ts';
 import { chromeText as shopText } from '../shops/shop-view.ts';
 import { mountShop } from './shop-screen.ts';
 import { buyOne, newOp, readStock } from './shop-net.ts';
+import { boardNamer } from '../board/board-names.ts';
+import { boardView, chromeText } from '../board/board-view.ts';
+import { mountBoard } from '../board/board-screen.ts';
 import { frontierDress } from './frontier-dress.ts';
 import { withCinder } from './frontier-cinder.ts';
 import { demoCamps } from './frontier-camp.ts';
@@ -413,6 +416,9 @@ let session: PitSession = newSession(START_LEVEL), fight: PitFight | null = null
 let source: Source = CHECKING;
 let duel: typeof import('./pit-duel.ts') | null = null, duelFailed = false;
 const duelLayer = document.getElementById('duel')!, career = document.getElementById('career')!, journalButton = document.getElementById('walk-journal')!;
+// The daily board (origins/board): a button under the Journal and a dialog; the tasks, their words and their names are rows, the reset is the board rule's.
+const boardButton = document.getElementById('walk-board')!, board = mountBoard(document.getElementById('board-dialog') as HTMLDialogElement, (now) => boardView(now, boardNamer()));
+boardButton.textContent = chromeText('button'); boardButton.addEventListener('click', () => { keys.clear(); releaseSticks(); board.open(); });
 // ?region=1: the walk uses the Pit's controls exactly (Dom 2026-10-07). pit-duel.ts (its own chunk) binds the game's kit and src/fight/input.ts in world mode; until
 // it has loaded the old floating sticks still work, and if it never loads they stay. The ☰ menu's "Camera locked" chip is the lock-on, saved in this page's own key.
 if (frontier) {
@@ -430,6 +436,9 @@ if (frontier) {
       const shopEntry = document.createElement('button'); shopEntry.id = 'menu-shop'; shopEntry.textContent = shopText('button');   // the Exchange provisioner: buy only, at the price the writer reports (shop_stock) through shop_buy
       shopEntry.addEventListener('click', () => { menu.close(); shopScreen.open(); });
       chips.append(shopEntry);
+      const boardEntry = document.createElement('button'); boardEntry.id = 'menu-board'; boardEntry.textContent = chromeText('button');   // the daily board, beside the Journal (the corner button is hidden in the kit)
+      boardEntry.addEventListener('click', () => { menu.close(); board.open(); });
+      chips.append(boardEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
       try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
@@ -483,7 +492,7 @@ async function startFight(pick?: string): Promise<PitFight | null> {
   const before = session;
   session = started(session); fight = next; last = null; showCareer();
   openPanel(null); keys.clear(); releaseSticks(); prompt.hidden = true; hint.hidden = true;
-  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = allegianceButton.hidden = true; place.textContent = 'The Pit — a duel';
+  fighting = true; duelLayer.hidden = false; canvas.hidden = journalButton.hidden = boardButton.hidden = allegianceButton.hidden = true; place.textContent = 'The Pit — a duel';
   renderer.setAnimationLoop(null);
   document.getElementById('art-status')!.textContent = 'Loading…';   // the arena is black until its art is in; the scene clears this when ready (Lead 2026-10-06)
   try { duel ??= await import('./pit-duel.ts'); await duel.sceneReady; } catch {
@@ -530,7 +539,7 @@ function leaveFight() {
   if (!fighting) return;
   const leaveButton = document.getElementById('leave')!; leaveButton.hidden = false; leaveButton.textContent = 'Leave the Pit';
   fighting = false; duel?.closeDuel(); document.getElementById('hunt-result')?.remove();
-  duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = false; showCareer(); keys.clear();
+  duelLayer.hidden = !frontier; canvas.hidden = journalButton.hidden = boardButton.hidden = false; showCareer(); keys.clear();
   lateOpen.settle();   // a saved career that arrived during the fight is adopted now (late-open.ts)
   if (frontier && duel) { duelLayer.classList.add('world'); duel.enterWorld(leaveFight, zoneExit()); kit = true; lockOn = null; }   // back to the walk: the same kit, the walk's controls again
   clock.getDelta(); renderer.setAnimationLoop(walkLoop);

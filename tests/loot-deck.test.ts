@@ -61,3 +61,27 @@ test('loot decks: a reset acts only on decks that list it (rank-up on ranked, no
   assert.deepEqual(applyReset(wild, dry, 'rank-up'), dry);
   assert.ok(LOOT_DECK_RESETS.every((r) => typeof r.clearsPity === 'boolean'));
 });
+
+test('loot decks: relation typos are refused at load', () => {
+  const edit = (f: (d: Record<string, number>) => void) => { const b = structuredClone(DATA) as unknown as { decks: Record<string, number>[] }; f(b.decks[0]!); return b; };
+  assert.throws(() => loadLootDecks(edit((d) => { d.hits = d.deckSize! + 1; })), /hits/);
+  assert.throws(() => loadLootDecks(edit((d) => { d.softPityFrom = d.hardPity! + 1; })), /softPityFrom/);
+  assert.throws(() => loadLootDecks(edit((d) => { d.pityStep = 0; })), /pityStep/);
+  assert.throws(() => loadLootDecks(edit((d) => { d.pityStep = 101; })), /pityStep/);
+  assert.doesNotThrow(() => loadLootDecks());
+});
+
+test('loot decks: hard pity can fire, so it sits at or below the longest dry run the deck allows without it', () => {
+  for (const d of LOOT_DECKS) {
+    const free = { ...d, hardPity: 1e9 };
+    let longest = 0;
+    for (let afterHit = 1; afterHit <= d.deckSize; afterHit++) {
+      let s: DeckState = { ...freshDeck(free), left: d.deckSize - afterHit, hitsLeft: 0 };
+      if (s.left <= 0) s = freshDeck(free);
+      let run = 0;
+      for (let i = 0; i < 1000; i++) { const r = drawCard(free, s, 0.9999999); if (r.dropped) break; run++; s = r.state; }
+      longest = Math.max(longest, run);
+    }
+    assert.ok(d.hardPity <= longest, `${d.id}: hardPity ${d.hardPity} is above the longest dry run ${longest}, so it could never fire`);
+  }
+});
