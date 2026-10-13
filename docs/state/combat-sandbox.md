@@ -2,6 +2,12 @@
 
 READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-13). Questions go to Project Strategy, not Dom.
 
+## 2026-10-13 evening (after Dom's account switch): rebased on EF, republished
+- sandbox/page is rebased onto release EF b416d5c6d (backup branch sandbox/page-pre-EF, local only). Conflicts resolved: tests/graphics.test.ts module map (+hit-stop-rows), duel.ts (trunk's v55 breath-cone pulse loop kept, then the boss-phase loop), and the sandbox files prepended to trunk's new cone lists in eslint.config.js, detmath and record-version-guard.
+- VPS: tsc clean; 148/149 targeted tests pass, the only red is the expected record-version-guard. Pushed 8bff819f7; preview republished and serving "trunk b416d5c6d".
+- Rows status: swarm and armour light/medium/heavy are done. CC fade and damage kinds are trunk rows already (cc-defs, damage-kind-defs). Gap: the armour casting penalty (Dom's pick) has no column; I asked Combat & Specials for a reuse point.
+- Breath cones are now on trunk (v55), so drop them from "not built".
+
 ## HANDOFF (2026-10-13, end of session; read this first)
 **Now:** branch sandbox/page on trunk 4891c6c38 (release EB) plus later work, preview https://frankendom.com/preview/sandbox/. Publish with `sandbox/publish.sh`; run tests on the VPS with `sandbox/vps-run.sh` then `capture --prio 3 sandbox node --test <files>` (never on the Mac). Dom's word beats the process rules; guardrails: only sandbox/page and /preview/sandbox/, nothing to trunk or live, Combat promotes.
 **Done today (all tests pass on the VPS):** stances 2x; flash off / ring row (off) / clash sparks on guard break; crowd roars; arm wound with on-screen notice and a stamina-ceiling cost; dodge counter (sandbox-rules-defs.json dodgeCounter 20); many-on-one rows 1.0/0.5/0.3/0.3 plus engine hook (duel.roll.attacker); interrupt lockout (interruptEarly 1000); armour classes as rows (leathers/mail/plate with a stamina cost, one blended value, no hit locations); boss phase rows (boss-phase-defs.json: enrage at 50%, share x1.5, cooldown 30%, message); donor research summary in docs/state/combat-research-2026-10-13.md.
