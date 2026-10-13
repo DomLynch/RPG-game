@@ -6,8 +6,7 @@
 //   nightSpawns - spawn rows live in one day part: {part, zone, character (a creature row id), count}. A night camp is one row; the table ships empty (no content invented);
 //   weather    - per biome, weighted picks of arena weather kinds (src/fight/arena-defs.json weather rows); `weatherFor` draws one per game day from the zone's seed, same day = same weather.
 // Pure: no DOM, no clock, no storage. Wiring the page (spawn the night rows when `night`, set the weather preset for the day) reads these functions and is a separate step.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
-import { mixSeed, nextRandom } from '../../src/core/server.ts';
+import { loadRegistry, mixSeed, nextRandom, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './clock.json' with { type: 'json' };
 import MANIFEST from './clock.manifest.json' with { type: 'json' };
 
