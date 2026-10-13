@@ -15,7 +15,23 @@ export type Discovery = { id: string; zone: string; landmark: string; firstFind:
 export type BoardTask = { id: string; kind: string; target: string; count: number; reward: string; weight: number };
 export type BoardRule = { id: string; slots: number; distinctKinds: boolean; noRepeatDays: number; anchorEvery: number; seedSalt: number; completionCap: number; resetHourUtc: number };
 
-export const loadDailyBoard = (data: unknown = DATA) => loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, data, 'daily-board.json')));
+// The registry checks types and refs; these are the relations in the board rule (a zero here would make the board recurse forever or never reset).
+export function checkBoardRelations(data: { boards: BoardRule[]; tasks: BoardTask[] }): void {
+  const bad: string[] = [];
+  for (const r of data.boards) {
+    if (!(r.anchorEvery >= 1)) bad.push(`${r.id}: anchorEvery must be >= 1 (0 gives d % 0 = NaN and the board never stops recursing)`);
+    if (!(r.slots >= 0) || !(r.noRepeatDays >= 0)) bad.push(`${r.id}: slots and noRepeatDays must be >= 0`);
+    if (!(r.resetHourUtc >= 0 && r.resetHourUtc <= 23)) bad.push(`${r.id}: resetHourUtc must be 0..23`);
+    if (!(r.completionCap >= 1)) bad.push(`${r.id}: completionCap must be >= 1`);
+  }
+  for (const t of data.tasks) if (!(t.count >= 1) || !(t.weight >= 1)) bad.push(`${t.id}: count and weight must be >= 1`);
+  if (bad.length) throw new Error(`daily-board relations: ${bad.join('; ')}`);
+}
+export const loadDailyBoard = (data: unknown = DATA) => {
+  const reg = loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, data, 'daily-board.json')));
+  checkBoardRelations(data as { boards: BoardRule[]; tasks: BoardTask[] });
+  return reg;
+};
 loadDailyBoard();
 export const BOARD_REWARDS: readonly BoardReward[] = DATA.rewards;
 export const DISCOVERIES: readonly Discovery[] = DATA.discoveries;

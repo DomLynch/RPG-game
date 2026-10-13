@@ -94,3 +94,12 @@ test('daily board: the day number turns over at the reset hour', () => {
   assert.equal(boardDay(midnight + 3 * 3_600_000, r), 19999);
   assert.equal(boardDay(midnight + 4 * 3_600_000, r), 20000);
 });
+
+test('daily board: relation typos in the rule are refused at load', () => {
+  const edit = (f: (r: Record<string, number>) => void) => { const b = structuredClone(DATA) as unknown as { boards: Record<string, number>[] }; f(b.boards[0]!); return b; };
+  assert.throws(() => loadDailyBoard(edit((r) => { r.anchorEvery = 0; })), /anchorEvery/);
+  assert.throws(() => loadDailyBoard(edit((r) => { r.resetHourUtc = 24; })), /resetHourUtc/);
+  assert.throws(() => loadDailyBoard(edit((r) => { r.slots = -1; })), /slots/);
+  assert.throws(() => loadDailyBoard(edit((r) => { r.noRepeatDays = -1; })), /noRepeatDays/);
+  assert.doesNotThrow(() => loadDailyBoard());
+});
