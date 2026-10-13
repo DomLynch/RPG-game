@@ -3,7 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { applyLocal, lootOfView, stepsFor, stepsToStow, stepsToWear, viewOf, type GearPiece, type GearView } from '../src/core/gear-ledger.ts';
-import { emptyLoot, stow, unwear, wear, wearFromPack } from '../src/core/loot.ts';
+import { emptyLoot, stow, unwear, wear, wearFromPack, type LootId } from '../src/core/loot.ts';
+import { TIERS } from '../src/core/grades.ts';
+import { wornGear } from '../src/fight/gear-stats.ts';
+import { sheetFor } from '../src/fight/gear-numbers.ts';
+import { sheetOf } from '../src/fight/sheet-rows.ts';
 
 const piece = (id: string, lootId: string | null, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
   ({ id, item: lootId ? `item:loot.${lootId}` : 'item:grave-iron', lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, level: 0, ...over });
@@ -65,4 +69,22 @@ test('inventory.unequip needs a free pack cell: swapping over an occupied slot w
   const full = { ...view([piece('i1', 'goblin.Body', 'equipped', { paperdoll: 'chest' }), piece('i2', 'veteran.Body', 'pack'), piece('i3', 'goblin.Helmet', 'pack', { index: 1 })], { chest: 'i1' }), packSize: 2 };
   assert.deepEqual(stepsToWear(full, 'veteran.Body' as never), []);
   assert.deepEqual(stepsToWear(full, 'goblin.Helmet' as never), [{ op: 'gear_equip', id: 'i3' }], 'the head slot is empty: no swap, no free cell needed');
+});
+
+// Auditor 2026-10-13: the same loot id held twice (a worn Origin Helmet and a packed Recruit Helmet). The server's frozen worn gear reads the WORN instance's tier; lootOfView used to keep the LAST row's, so the client's
+// sheet depended on row order (armour 5 on the client, 7 + health 2 + poise 1 on the server). The worn instance decides, in both orders.
+test('a duplicate loot id, worn at one rung and packed at another: the worn instance\'s tier wins in both row orders, and the sheet is the server\'s', () => {
+  const origin = TIERS[TIERS.length - 1]!, recruit = TIERS[0]!;
+  const worn = piece('w1', 'veteran.Helmet', 'equipped', { paperdoll: 'head', tier: origin }), packed = piece('p1', 'veteran.Helmet', 'pack', { tier: recruit });
+  const own = { level: 0, placed: {} as Record<string, number> };
+  const HELMET = 'veteran.Helmet' as LootId;
+  for (const [name, pieces] of [['worn row first', [worn, packed]], ['pack row first', [packed, worn]]] as const) {
+    const loot = lootOfView(view([...pieces], { head: 'w1' }));
+    assert.equal(loot.taken![HELMET]!.tier, TIERS.length, `${name}: the tier is the worn Origin piece's`);
+    assert.deepEqual(sheetFor(loot, own), sheetOf(own, wornGear({ head: HELMET }, (id) => (id === HELMET ? origin : undefined))), `${name}: the client sheet is what the server computes from the worn piece`);
+  }
+  const flipped = lootOfView(view([piece('w1', 'veteran.Helmet', 'equipped', { paperdoll: 'head', tier: recruit }), piece('p1', 'veteran.Helmet', 'pack', { tier: origin })], { head: 'w1' }));
+  assert.equal(flipped.taken![HELMET]!.tier, 1, 'worn Recruit + packed Origin: the worn Recruit rung wins');
+  const bare = lootOfView(view([piece('w1', 'veteran.Helmet', 'equipped', { paperdoll: 'head', tier: null }), piece('p1', 'veteran.Helmet', 'pack', { tier: origin })], { head: 'w1' }));
+  assert.equal(bare.taken![HELMET], undefined, 'a worn piece with no rung is identity on the server: the packed copy\'s rung must not leak into the sheet');
 });
