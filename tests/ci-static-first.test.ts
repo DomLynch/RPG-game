@@ -156,7 +156,9 @@ test('merge queue (hardening item 1, 2026-10-13): quality, unit-ci and release-c
   assert.ok(!ran.has('static'), 'no PR-only static gate on a queue entry (a trunk push has none either)');
   for (const j of ['quality-shard', 'quality', 'load-time', 'browser', 'net-engines', 'duel-two-page']) assert.ok(ran.has(j), `quality ${j} runs on merge_group`);
   const unit = schedule(U, mg);
+  assert.ok(unit.has('static'), 'unit-ci static (eslint + both typechecks + origins lint, the only place they run) runs on a queue entry: the combined tree is typechecked (the Auditor on #2475)');
   assert.ok(unit.has('shard') && unit.has('receipt'), 'the queue entry gets its unit receipt');
+  assert.ok(!schedule(U, { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} }).has('static'), 'a trunk push still skips it (unchanged)');
   const rc = schedule(R, mg, {}, { plan: { checks: '[{"index":1}]' } });
   for (const j of ['plan', 'check', 'summary']) assert.ok(rc.has(j), `release-checks ${j} runs on merge_group (the full matrix on the combined tree)`);
   // never cancelled by another run, and its own group per queue entry
