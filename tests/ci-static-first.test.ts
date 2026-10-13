@@ -76,13 +76,15 @@ test('a red tsc on a pull request queues no quality shard, no browser job and no
   assert.deepEqual([...unit].sort(), ['receipt', 'static'], 'unit-ci: no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
 });
 
-test('runner queue (Strategy 2026-10-12 21:5x): a push to a feature PR (labelled or not) runs static + plan + base only; the shards, the verdict and unit-ci run when auditor:ready is ADDED; no browser job ever runs on a feature PR (Lead 2026-10-13)', () => {
+test('runner queue (Strategy 2026-10-12 21:5x): a push to an UNLABELLED feature PR runs static + plan + base only; the shards, the verdict and unit-ci run when auditor:ready is added and on every push after it; no browser job ever runs on a feature PR (Lead 2026-10-13)', () => {
   const plain = schedule(Q, withLabelNames(pr('synchronize')), {}, { plan: { game: 'true', browser: 'false' } });
   assert.deepEqual([...plain].sort(), ['base', 'plan', 'static'], 'an unlabelled feature push: static (tsc + lint) and the cheap jobs only');
   assert.deepEqual([...schedule(U, withLabelNames(pr('synchronize')))], [], 'unit-ci: no job on an unlabelled feature push');
   const noBrowser = { plan: { game: 'true', browser: 'false' } };
-  assert.deepEqual([...schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, noBrowser)].sort(), ['base', 'plan', 'static'], 'a push to a LABELLED feature PR is static-only too: re-label to ask for the full read');
-  assert.deepEqual([...schedule(U, withLabelNames(pr('synchronize', ['auditor:ready'])))], [], 'unit-ci: nothing on a push to a labelled feature PR');
+  const pushed = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, noBrowser);
+  for (const j of ['static', 'quality-shard', 'quality', 'base', 'plan']) assert.ok(pushed.has(j), `a push to an already-labelled feature PR re-runs ${j} (Lead on #2546: no relying on the label being toggled)`);
+  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, withLabelNames(pr('synchronize', ['auditor:ready']))).has(j), `unit-ci ${j} on a push to a labelled feature PR`);
+  for (const j of BROWSER) assert.ok(!pushed.has(j), `${j}: still no browser job on a feature PR`);
   const ready = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, noBrowser);
   for (const j of ['static', 'quality-shard', 'quality']) assert.ok(ready.has(j), `${j} runs when auditor:ready is added`);
   for (const j of ['base', ...BROWSER]) assert.ok(!ready.has(j), `${j} does not run on a feature PR`);
@@ -116,7 +118,7 @@ test('adding auditor:ready runs the shard and the verdict (after static), not ba
   }
   const retarget = schedule(Q, withLabelNames(pr('edited', [], { changes: { base: {} } })), {}, { plan: { game: 'true', browser: 'false' } });
   assert.ok(retarget.has('base') && retarget.has('static'), 'a retarget still re-runs static and base');
-  assert.ok(!schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'but not the shard: only adding auditor:ready runs it');
+  assert.ok(schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'and the shard once auditor:ready is on');
 });
 
 test('the concurrency group: every label event but auditor:ready on a feature PR, and a title edit, get a group of their own, so none cancels the head\'s gate in flight', () => {
