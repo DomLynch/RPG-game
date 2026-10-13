@@ -11,6 +11,8 @@ import { DIALS, POINTS, SHEET_SKILLS, checkSheet, pointsAt, sheetOf, statDown, s
 import { GEAR, gearDeltas, loadGearDefs } from '../src/fight/gear-rows.ts';
 import { SCHOOLS, SCHOOL_IDS } from '../src/fight/schools.ts';
 import { createRecorder, encodeRecord, packRecord, unpackRecord, FIRST_SHEET_VERSION, RECORD_VERSION } from '../src/fight/record.ts';
+import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
+import { expectedSheet } from '../src/fight/build-check.ts';
 import { sheetRefusal, verifyRecord } from '../src/fight/replay.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
 import { refusal } from '../scripts/verify-loot.mjs';
@@ -171,7 +173,7 @@ test('armour weight classes are rows: every set and preset names one, a missing 
   assert.throws(() => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, mail] }), /missing-field.*weightClass is required/s);
   assert.throws(() => loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, { ...mail, weightClass: 'feather' }] }), /unknown-ref.*armourWeight/s);
   assert.throws(() => loadGearDefs({ ...gearDefs, gear: [...gearDefs.gear, { id: 'x', slot: 'Body', weight: 1, wearMax: 1, resist: {} }] }), /missing-field.*weightClass is required/s);
-  const weights = { armourWeight: [...(armourWeights as { armourWeight: unknown[] }).armourWeight, { id: 'ethereal', dial: 'spellPower', castPenalty: 0, note: 'test' }] };
+  const weights = { armourWeight: [...(armourWeights as { armourWeight: unknown[] }).armourWeight, { id: 'ethereal', dial: 'spellPower', fromRecordVersion: 58, castPenalty: 0, note: 'test' }] };
   const four = loadGearDefs({ ...gearDefs, sets: [...gearDefs.sets, { ...mail, weightClass: 'ethereal' }] }, undefined, undefined, undefined, weights);
   assert.equal(four.sets.mail!.weightClass, 'ethereal'); assert.equal(four.weights.ethereal!.castPenalty, 0);
 });
@@ -183,7 +185,7 @@ test('schools are rows: the five and earth and wind, each with a colour, and a n
   assert.doesNotThrow(() => loadGearDefs(raw, [...SCHOOL_IDS, 'lightning']));
 });
 
-test('a sheet fight records as v48 with its dials, round-trips, replays, and a sheet-less fight keeps its version', () => {
+test('a sheet fight records no lower than the cast-penalty version with its dials, round-trips, replays, and a sheet-less fight keeps its version', () => {
   assert.ok(RECORD_VERSION >= FIRST_SHEET_VERSION, 'the sheet flag exists from v48 on');
   const sheet = { attack: 40, armour: 30, recovery: 20 };
   const meta = { build: 't', opponent: 'veteran' as const, weapon: 'longsword' as const, level: 1, seed: 7 };
@@ -191,10 +193,10 @@ test('a sheet fight records as v48 with its dials, round-trips, replays, and a s
   const rec = createRecorder({ ...meta, sheet }), plain = createRecorder(meta);
   for (let i = 0; i < 30; i++) { rec.push(idle()); plain.push(idle()); }
   const a = rec.finish('abandoned'), b = plain.finish('abandoned');
-  assert.equal(a.v, FIRST_SHEET_VERSION); assert.notEqual(b.v, FIRST_SHEET_VERSION, 'no sheet: the lowest version that can express the fight');
+  assert.equal(a.v, FIRST_CAST_PENALTY_VERSION, 'a sheet fight carries the worn set\'s cast penalty from that version, so it is stamped no lower'); assert.notEqual(b.v, FIRST_CAST_PENALTY_VERSION, 'no sheet: the lowest version that can express the fight');
   assert.deepEqual(unpackRecord(packRecord(a)), a);
   const bytes = packRecord(a);
-  assert.equal(bytes[2], FIRST_SHEET_VERSION);
+  assert.equal(bytes[2], FIRST_CAST_PENALTY_VERSION);
   assert.equal(verifyRecord(a, undefined, { sheet: 'trust' }).ok, true);
   const at = bytes.length - 6 * 30 - (1 + 4 + 4 + 1) - (1 + 2 * 3 + 1 + 0 + 4);   // the sheet block: count, (code, value) x 3, an empty character id and a zero build version, just before level
   assert.equal(bytes[at], 3, 'three pairs');
@@ -247,5 +249,24 @@ test('the cast penalty lands on the sheet, not in the duel: a heavy set lowers a
   assert.equal(sheetOf({ level: 0, placed: {} }, gearDeltas('plate', 1, 0))?.spellPower, undefined, 'a non-caster in plate stays at the dial\'s base (floor 0)');
   const heavier = { armourWeight: (armourWeights as { armourWeight: { id: string; castPenalty: number }[] }).armourWeight.map((w) => (w.id === 'heavy' ? { ...w, castPenalty: 30 } : w)) };
   assert.equal(loadGearDefs(gearDefs, undefined, undefined, undefined, heavier).weights.heavy!.castPenalty, 30, 'a tuning is one row edit');
-  assert.throws(() => loadGearDefs(gearDefs, undefined, undefined, undefined, { armourWeight: [{ id: 'heavy', dial: 'agility', castPenalty: 5, note: 't' }, { id: 'medium', dial: 'spellPower', castPenalty: 1, note: 't' }, { id: 'light', dial: 'spellPower', castPenalty: 0, note: 't' }] }), /dial is a dial row/);
+  assert.throws(() => loadGearDefs(gearDefs, undefined, undefined, undefined, { armourWeight: [{ id: 'heavy', dial: 'agility', fromRecordVersion: 58, castPenalty: 5, note: 't' }, { id: 'medium', dial: 'spellPower', fromRecordVersion: 58, castPenalty: 1, note: 't' }, { id: 'light', dial: 'spellPower', fromRecordVersion: 58, castPenalty: 0, note: 't' }] }), /dial is a dial row/);
+});
+
+test('the cast penalty is keyed on the record\'s version: an older heavy-armour record still verifies without it, a new one carries it', async () => {
+  const build = { level: 40, placed: { spellPower: 40 } }, load = async () => build;
+  const meta = { build: 't', opponent: 'veteran' as const, weapon: 'longsword' as const, level: 1, seed: 7 };
+  // An older record (v48, the lowest a sheet record could be): its sheet was built with no penalty, and the verifier recomputes it with the record's own version.
+  const oldSheet = sheetOf(build, gearDeltas('plate', 1, 0, FIRST_SHEET_VERSION))!;
+  const old = { sheet: oldSheet, characterId: 'c1', buildVersion: 1, v: FIRST_SHEET_VERSION };
+  assert.equal(oldSheet.spellPower, 40, 'no penalty below the row\'s fromRecordVersion');
+  const okOld = await expectedSheet(old, load, gearDeltas('plate', 1, 0, old.v)); assert.deepEqual(okOld, { ok: true, sheet: oldSheet });
+  const wrongOld = await expectedSheet(old, load, gearDeltas('plate', 1, 0)); assert.ok(wrongOld.ok && wrongOld.sheet?.spellPower === 20, 'recomputing an old record at the current version would break it: the gate is needed');
+  // A new record: the recorder stamps it at the cast-penalty version and the penalised sheet matches the recomputation at that version.
+  const newSheet = sheetOf(build, gearDeltas('plate', 1, 0))!;
+  setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);
+  const rec = createRecorder({ ...meta, sheet: newSheet, characterId: 'c1', buildVersion: 1 }); for (let i = 0; i < 10; i++) rec.push(idle());
+  const fresh = rec.finish('abandoned');
+  assert.equal(fresh.v, FIRST_CAST_PENALTY_VERSION); assert.equal(newSheet.spellPower, 20, 'heavy takes 20 off a spellPower of 40');
+  assert.deepEqual(await expectedSheet(fresh, load, gearDeltas('plate', 1, 0, fresh.v)), { ok: true, sheet: newSheet });
+  assert.deepEqual(unpackRecord(packRecord({ ...fresh, v: FIRST_SHEET_VERSION as typeof fresh.v })).sheet, fresh.sheet, 'a v48 stamp still decodes: the version only picks the recomputation');
 });

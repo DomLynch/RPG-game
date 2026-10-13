@@ -8,7 +8,7 @@ import { wornGear } from '../../src/fight/server.ts';
 
 type LootId = NonNullable<ReturnType<typeof legacyLootOfItemId>>;
 
-export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Readonly<Record<string, number>> {
+export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): Readonly<Record<string, number>> {
   const equipped: Record<string, LootId> = {}, tiers = new Map<LootId, Tier | null>();
   for (const i of items) {
     if (i.location.kind !== 'equipped' || i.location.slot === undefined) continue;
@@ -19,23 +19,23 @@ export function wornGearOfItems(items: readonly { item: string; tier?: string | 
     equipped[i.location.slot] = id;
     tiers.set(id, isTier(i.tier) ? i.tier : null);
   }
-  return wornGear(equipped as Parameters<typeof wornGear>[0], (id) => tiers.get(id));
+  return wornGear(equipped as Parameters<typeof wornGear>[0], (id) => tiers.get(id), version);
 }
 
 type Row = { item: string; tier: string | null; loc_kind: string | null; loc_owner: string | null; loc_slot: string | null };
 
-export function wornGearOfSnapshot(snap: { items: readonly unknown[] }, character: string): Readonly<Record<string, number>> {
+export function wornGearOfSnapshot(snap: { items: readonly unknown[] }, character: string, version?: number): Readonly<Record<string, number>> {
   const rows = (snap.items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
-  return wornGearOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
+  return wornGearOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })), version);
 }
 
-export async function wornGearOf(db: Db, account: string, character: string): Promise<Readonly<Record<string, number>>> {
-  return wornGearOfSnapshot(await store.open(db, account), character);
+export async function wornGearOf(db: Db, account: string, character: string, version?: number): Promise<Readonly<Record<string, number>>> {
+  return wornGearOfSnapshot(await store.open(db, account), character, version);
 }
 
 // The copy frozen on a claim or daily row when it was posted (migration 202610130025): { "<character>": [{ item, tier, slot }] }. Null or a character without pieces: no gear held.
-export function wornGearOfFrozen(frozen: unknown, character: string): Readonly<Record<string, number>> {
+export function wornGearOfFrozen(frozen: unknown, character: string, version?: number): Readonly<Record<string, number>> {
   const pieces = frozen && typeof frozen === 'object' ? (frozen as Record<string, unknown>)[character] : undefined;
   if (!Array.isArray(pieces)) return {};
-  return wornGearOfItems(pieces.map((p: { item: string; tier?: string | null; slot?: string }) => ({ item: p.item, tier: p.tier ?? null, location: { kind: 'equipped', ...(p.slot ? { slot: p.slot } : {}) } })));
+  return wornGearOfItems(pieces.map((p: { item: string; tier?: string | null; slot?: string }) => ({ item: p.item, tier: p.tier ?? null, location: { kind: 'equipped', ...(p.slot ? { slot: p.slot } : {}) } })), version);
 }
