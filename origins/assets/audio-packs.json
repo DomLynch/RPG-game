@@ -1,0 +1,640 @@
+{
+  "licences": {
+    "CC0-1.0": {
+      "note": "Public domain dedication, https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    "CC-BY-4.0": {
+      "note": "Attribution licence, https://creativecommons.org/licenses/by/4.0/; a pack under it is held, never pulled"
+    },
+    "unconfirmed": {
+      "note": "no licence line found; never pulled"
+    }
+  },
+  "needKinds": {
+    "combat-cue": {
+      "note": "a cue of the combat sound sprite (src/audio/manifest.ts): a replacement or extra variant to audition"
+    },
+    "zone-ambience": {
+      "note": "a looping bed for a zone"
+    },
+    "ui-click": {
+      "note": "an interface press sound"
+    },
+    "spell-school": {
+      "note": "a cast sound for a spell school (school-defs.json)"
+    }
+  },
+  "packs": {
+    "kenney-impact-sounds": {
+      "source": "Kenney",
+      "name": "Impact Sounds",
+      "pageUrl": "https://kenney.nl/assets/impact-sounds",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states \"Creative Commons CC0\" and links the CC0 1.0 deed (checked 2026-10-13); the zip size is the Content-Length of a HEAD request, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "130 files per the page; formats inside the zip are not stated on the page",
+      "files": [
+        {
+          "name": "kenney_impact-sounds.zip",
+          "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+          "bytes": 800850
+        }
+      ]
+    },
+    "kenney-rpg-audio": {
+      "source": "Kenney",
+      "name": "RPG Audio",
+      "pageUrl": "https://kenney.nl/assets/rpg-audio",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states \"Creative Commons CC0\" and links the CC0 1.0 deed (checked 2026-10-13); the zip size is the Content-Length of a HEAD request, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "50 files per the page; formats inside the zip are not stated on the page",
+      "files": [
+        {
+          "name": "kenney_rpg-audio.zip",
+          "url": "https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip",
+          "bytes": 964837
+        }
+      ]
+    },
+    "kenney-ui-audio": {
+      "source": "Kenney",
+      "name": "UI Audio",
+      "pageUrl": "https://kenney.nl/assets/ui-audio",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states \"Creative Commons CC0\" and links the CC0 1.0 deed (checked 2026-10-13); the zip size is the Content-Length of a HEAD request, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "50 files per the page; formats inside the zip are not stated on the page",
+      "files": [
+        {
+          "name": "kenney_ui-audio.zip",
+          "url": "https://kenney.nl/media/pages/assets/ui-audio/490d233f68-1677590494/kenney_ui-audio.zip",
+          "bytes": 411949
+        }
+      ]
+    },
+    "kenney-interface-sounds": {
+      "source": "Kenney",
+      "name": "Interface Sounds",
+      "pageUrl": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states \"Creative Commons CC0\" and links the CC0 1.0 deed (checked 2026-10-13); the zip size is the Content-Length of a HEAD request, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "100 files per the page; formats inside the zip are not stated on the page",
+      "files": [
+        {
+          "name": "kenney_interface-sounds.zip",
+          "url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+          "bytes": 834536
+        }
+      ]
+    },
+    "kenney-sci-fi-sounds": {
+      "source": "Kenney",
+      "name": "Sci-fi Sounds",
+      "pageUrl": "https://kenney.nl/assets/sci-fi-sounds",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states \"Creative Commons CC0\" and links the CC0 1.0 deed (checked 2026-10-13); the zip size is the Content-Length of a HEAD request, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "70 files per the page; formats inside the zip are not stated on the page",
+      "files": [
+        {
+          "name": "kenney_sci-fi-sounds.zip",
+          "url": "https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip",
+          "bytes": 5875104
+        }
+      ]
+    },
+    "rubberduck-80-cc0-rpg-sfx": {
+      "source": "rubberduck (OpenGameArt)",
+      "name": "80 CC0 RPG SFX",
+      "pageUrl": "https://opengameart.org/content/80-cc0-rpg-sfx",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "80 effects: 3 blade, 4 book/page, 3 chain, 22 creature (die, hurt, misc, monster, roar, slime), 21 item, 3 lock, 3 metal, 3 misc, 9 spell (regular, fire), 4 stone, 5 wood",
+      "files": [
+        {
+          "name": "80-CC0-RPG-SFX_0.zip",
+          "url": "https://opengameart.org/sites/default/files/80-CC0-RPG-SFX_0.zip",
+          "bytes": 1845114
+        }
+      ]
+    },
+    "rubberduck-100-cc0-sfx-2": {
+      "source": "rubberduck (OpenGameArt)",
+      "name": "100 CC0 SFX #2",
+      "pageUrl": "https://opengameart.org/content/100-cc0-sfx-2",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "100 effects: air flow, doors, footsteps, glass, hits, items, ambient / machinery / construction / traffic / water loops, metal and metal-hit, stones, switches, thunder, wood and wood-hit",
+      "files": [
+        {
+          "name": "sfx_100_v2.zip",
+          "url": "https://opengameart.org/sites/default/files/sfx_100_v2.zip",
+          "bytes": 2367871
+        }
+      ]
+    },
+    "starninjas-20-sword-sound-effects": {
+      "source": "StarNinjas (OpenGameArt)",
+      "name": "20 Sword Sound Effects (Attacks and Clashes)",
+      "pageUrl": "https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "zip"
+      ],
+      "count": "10 sword attacks and 10 sword clashes (the author says the clashes also serve as shield blocks); two knives recorded and edited. The author asks, optionally, for a link to their OGA profile",
+      "files": [
+        {
+          "name": "sword_-_starninjas_1.zip",
+          "url": "https://opengameart.org/sites/default/files/sword_-_starninjas_1.zip",
+          "bytes": 149512
+        },
+        {
+          "name": "sword_clash_-_starninjas_0.zip",
+          "url": "https://opengameart.org/sites/default/files/sword_clash_-_starninjas_0.zip",
+          "bytes": 144575
+        }
+      ]
+    },
+    "starninjas-crowd-shouting": {
+      "source": "StarNinjas (OpenGameArt)",
+      "name": "Crowd Shouting/Speaking Ambience",
+      "pageUrl": "https://opengameart.org/content/crowd-shoutingspeaking-ambience",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "ogg"
+      ],
+      "count": "1 file: the author and siblings shouting and speaking, mixed to sound like a protest crowd or an army",
+      "files": [
+        {
+          "name": "crowd_shouting.ogg",
+          "url": "https://opengameart.org/sites/default/files/crowd_shouting_0.ogg",
+          "bytes": 335526
+        }
+      ]
+    },
+    "qubodup-well-done": {
+      "source": "qubodup (OpenGameArt)",
+      "name": "Well Done (people clapping)",
+      "pageUrl": "https://opengameart.org/content/well-done",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); the page says the licence changed to CC0 on 2024-10-05 and that the file name's CCBY3 label is outdated; size is a HEAD request, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "ogg",
+        "flac"
+      ],
+      "count": "1 clip, mono, people clapping, own recording at a hackathon (a FLAC of 306.2 Kb also exists, not listed)",
+      "files": [
+        {
+          "name": "Well Done CCBY3.ogg",
+          "url": "https://opengameart.org/sites/default/files/Well%20Done%20CCBY3.ogg",
+          "bytes": 44069
+        }
+      ]
+    },
+    "bmaczero-metal-impact-sounds": {
+      "source": "BMacZero (OpenGameArt)",
+      "name": "Metal Impact Sounds",
+      "pageUrl": "https://opengameart.org/content/metal-impact-sounds",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "wav"
+      ],
+      "count": "7 files: bing, bong, three clinks, two thuds; the author optionally asks for a credit to Brian MacIntosh",
+      "files": [
+        {
+          "name": "bing1.wav",
+          "url": "https://opengameart.org/sites/default/files/bing1.wav",
+          "bytes": 63532
+        },
+        {
+          "name": "bong1.wav",
+          "url": "https://opengameart.org/sites/default/files/bong1.wav",
+          "bytes": 186412
+        },
+        {
+          "name": "clink1.wav",
+          "url": "https://opengameart.org/sites/default/files/clink1_0.wav",
+          "bytes": 27692
+        },
+        {
+          "name": "clink2.wav",
+          "url": "https://opengameart.org/sites/default/files/clink2.wav",
+          "bytes": 22572
+        },
+        {
+          "name": "clink3.wav",
+          "url": "https://opengameart.org/sites/default/files/clink3.wav",
+          "bytes": 25644
+        },
+        {
+          "name": "thud2.wav",
+          "url": "https://opengameart.org/sites/default/files/thud2.wav",
+          "bytes": 51244
+        },
+        {
+          "name": "thud3.wav",
+          "url": "https://opengameart.org/sites/default/files/thud3.wav",
+          "bytes": 36908
+        }
+      ]
+    },
+    "lokif-swamp-environment-audio": {
+      "source": "LokiF (OpenGameArt)",
+      "name": "Swamp Environment Audio",
+      "pageUrl": "https://opengameart.org/content/swamp-environment-audio",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "ogg",
+        "zip"
+      ],
+      "count": "swamp bugs, atmosphere filler, bubbling and gurgling; the 18.1 MB swamp_low_quality.wav on the page is not listed",
+      "files": [
+        {
+          "name": "swamp.ogg",
+          "url": "https://opengameart.org/sites/default/files/swamp.ogg",
+          "bytes": 1252904
+        },
+        {
+          "name": "swamp_sounds.zip",
+          "url": "https://opengameart.org/sites/default/files/swamp_sounds.zip",
+          "bytes": 984765
+        }
+      ]
+    },
+    "jaggedstone-loopable-dungeon-ambience": {
+      "source": "JaggedStone (OpenGameArt)",
+      "name": "Loopable Dungeon Ambience",
+      "pageUrl": "https://opengameart.org/content/loopable-dungeon-ambience",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "ogg"
+      ],
+      "count": "1 loopable track: dungeon / cave bed with a low-frequency wind and water drips",
+      "files": [
+        {
+          "name": "dungeon_ambient_1.ogg",
+          "url": "https://opengameart.org/sites/default/files/dungeon_ambient_1_0.ogg",
+          "bytes": 1626352
+        }
+      ]
+    },
+    "paulwortmann-dark-cavern-ambient": {
+      "source": "Paul Wortmann (OpenGameArt)",
+      "name": "Dark Cavern Ambient",
+      "pageUrl": "https://opengameart.org/content/dark-cavern-ambient",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "ogg"
+      ],
+      "count": "2 files: 001 fades in and out, 002 is a continuous loop",
+      "files": [
+        {
+          "name": "dark_cavern_ambient_001.ogg",
+          "url": "https://opengameart.org/sites/default/files/dark_cavern_ambient_001.ogg",
+          "bytes": 1689062
+        },
+        {
+          "name": "dark_cavern_ambient_002.ogg",
+          "url": "https://opengameart.org/sites/default/files/dark_cavern_ambient_002.ogg",
+          "bytes": 1693463
+        }
+      ]
+    },
+    "sketchman3-wind-whoosh-loop": {
+      "source": "SketchMan3 (OpenGameArt)",
+      "name": "wind whoosh loop",
+      "pageUrl": "https://opengameart.org/content/wind-whoosh-loop",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 and links the CC0 1.0 deed (checked 2026-10-13); sizes are the Content-Length of a HEAD request on each file, nothing was downloaded",
+      "status": "listed",
+      "formats": [
+        "ogg"
+      ],
+      "count": "1 loop cut from Loopable Dungeon Ambience (also CC0) and equalised toward the highs",
+      "files": [
+        {
+          "name": "wind woosh loop.ogg",
+          "url": "https://opengameart.org/sites/default/files/wind%20woosh%20loop.ogg",
+          "bytes": 251584
+        }
+      ]
+    },
+    "quendel-free-crowd-cheering-sounds": {
+      "source": "Gregor Quendel (OpenGameArt)",
+      "name": "Free Crowd Cheering Sounds",
+      "pageUrl": "https://opengameart.org/content/free-crowd-cheering-sounds",
+      "licence": "CC-BY-4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenceEvidence": "Pack page states CC-BY 4.0 and links the deed (checked 2026-10-13); attribution is required, so it is held and never pulled",
+      "status": "hold-licence",
+      "formats": [
+        "mp3",
+        "zip"
+      ],
+      "count": "11 tracks: strong, soft and rhythmic cheering, ambience, a full recording",
+      "files": [
+        {
+          "name": "gregor_quendel_-_free_crowd_cheering_sounds_-_mp3.zip",
+          "url": "https://opengameart.org/sites/default/files/gregor_quendel_-_free_crowd_cheering_sounds_-_mp3.zip",
+          "bytes": null,
+          "note": "held: CC-BY 4.0, not pulled, size not read"
+        }
+      ]
+    },
+    "jc-sounds-nature-ambient-pack-vol-1": {
+      "source": "JC Sounds (OpenGameArt)",
+      "name": "Nature Ambient Pack Vol 1",
+      "pageUrl": "https://opengameart.org/content/jc-sounds-nature-ambient-pack-vol-1",
+      "licence": "CC-BY-4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenceEvidence": "Pack page states CC BY 4.0 (credit JC Sounds) and links the deed (checked 2026-10-13); attribution is required, so it is held and never pulled",
+      "status": "hold-licence",
+      "formats": [
+        "mp3",
+        "7z"
+      ],
+      "count": "26 nature loops over a minute each: forest, water, weather, fire / elemental",
+      "files": [
+        {
+          "name": "nature_ambient_pack_vol_1_-_mp3.7z",
+          "url": "https://opengameart.org/sites/default/files/nature_ambient_pack_vol_1_-_mp3.7z",
+          "bytes": null,
+          "note": "held: CC-BY 4.0, not pulled, size not read (the page says 78.5 MB)"
+        }
+      ]
+    }
+  },
+  "needs": {
+    "cue-hit_flesh": {
+      "kind": "combat-cue",
+      "target": "hit_flesh",
+      "packs": [
+        "kenney-impact-sounds",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "body hits: audition the Kenney impacts and the 100-SFX hits against today's sprite cue"
+    },
+    "cue-hit_heavy": {
+      "kind": "combat-cue",
+      "target": "hit_heavy",
+      "packs": [
+        "kenney-impact-sounds",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "heavy hits"
+    },
+    "cue-hit_kick": {
+      "kind": "combat-cue",
+      "target": "hit_kick",
+      "packs": [
+        "kenney-impact-sounds",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "kick thump"
+    },
+    "cue-block": {
+      "kind": "combat-cue",
+      "target": "block",
+      "packs": [
+        "starninjas-20-sword-sound-effects",
+        "bmaczero-metal-impact-sounds"
+      ],
+      "note": "the clash set is the author's own pick for shield blocks"
+    },
+    "cue-block_perfect": {
+      "kind": "combat-cue",
+      "target": "block_perfect",
+      "packs": [
+        "bmaczero-metal-impact-sounds",
+        "starninjas-20-sword-sound-effects"
+      ],
+      "note": "bright metal ring (bing / clink)"
+    },
+    "cue-parry": {
+      "kind": "combat-cue",
+      "target": "parry",
+      "packs": [
+        "starninjas-20-sword-sound-effects",
+        "bmaczero-metal-impact-sounds"
+      ],
+      "note": "sword-on-sword clash"
+    },
+    "cue-guard_break": {
+      "kind": "combat-cue",
+      "target": "guard_break",
+      "packs": [
+        "bmaczero-metal-impact-sounds",
+        "kenney-impact-sounds"
+      ],
+      "note": "a heavy metal break (bong / thud under a clink)"
+    },
+    "cue-whoosh_light": {
+      "kind": "combat-cue",
+      "target": "whoosh_light",
+      "packs": [
+        "starninjas-20-sword-sound-effects",
+        "kenney-rpg-audio"
+      ],
+      "note": "light swings: the ten sword attacks"
+    },
+    "cue-whoosh_heavy": {
+      "kind": "combat-cue",
+      "target": "whoosh_heavy",
+      "packs": [
+        "starninjas-20-sword-sound-effects",
+        "kenney-rpg-audio"
+      ],
+      "note": "heavy swings"
+    },
+    "crowd-crowd_cheer": {
+      "kind": "combat-cue",
+      "target": "crowd_cheer",
+      "packs": [
+        "qubodup-well-done",
+        "starninjas-crowd-shouting",
+        "quendel-free-crowd-cheering-sounds"
+      ],
+      "note": "the only CC0 crowd we found is applause (Well Done) and a shouting crowd; a stadium cheer is CC-BY (Quendel, held)"
+    },
+    "zone1-ambience": {
+      "kind": "zone-ambience",
+      "target": "zone1",
+      "packs": [
+        "sketchman3-wind-whoosh-loop",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "The Cinder Fields: wind plus the ambient loops; no CC0 pack names ash or cinders, so this is an audition set"
+    },
+    "zone2-ambience": {
+      "kind": "zone-ambience",
+      "target": "zone2",
+      "packs": [
+        "sketchman3-wind-whoosh-loop",
+        "jaggedstone-loopable-dungeon-ambience",
+        "paulwortmann-dark-cavern-ambient"
+      ],
+      "note": "The Ash Reach: wind over a low cavern bed; audition set"
+    },
+    "zone3-ambience": {
+      "kind": "zone-ambience",
+      "target": "zone3",
+      "packs": [
+        "sketchman3-wind-whoosh-loop",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "The Salt Flats: open wind; the 100-SFX loops (ambient, water) are the second audition"
+    },
+    "zone4-ambience": {
+      "kind": "zone-ambience",
+      "target": "zone4",
+      "packs": [
+        "lokif-swamp-environment-audio",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "The Drowned Marsh: the swamp pack is the one CC0 match; water loops from the 100-SFX pack"
+    },
+    "ui-tap": {
+      "kind": "ui-click",
+      "target": "ui-tap",
+      "packs": [
+        "kenney-ui-audio",
+        "kenney-interface-sounds"
+      ],
+      "note": "a button press: audition clicks and taps"
+    },
+    "ui-confirm": {
+      "kind": "ui-click",
+      "target": "ui-confirm",
+      "packs": [
+        "kenney-ui-audio",
+        "kenney-interface-sounds"
+      ],
+      "note": "confirm / equip / place a point"
+    },
+    "ui-back": {
+      "kind": "ui-click",
+      "target": "ui-back",
+      "packs": [
+        "kenney-ui-audio",
+        "kenney-interface-sounds"
+      ],
+      "note": "close / cancel / back"
+    },
+    "school-fire": {
+      "kind": "spell-school",
+      "target": "fire",
+      "packs": [
+        "rubberduck-80-cc0-rpg-sfx",
+        "kenney-sci-fi-sounds"
+      ],
+      "note": "the 80-SFX pack has fire spell sounds; the rest is generic"
+    },
+    "school-shadow": {
+      "kind": "spell-school",
+      "target": "shadow",
+      "packs": [
+        "kenney-sci-fi-sounds",
+        "rubberduck-80-cc0-rpg-sfx"
+      ],
+      "note": "no CC0 pack is written for this school; generic spell and energy sounds to audition and layer"
+    },
+    "school-poison": {
+      "kind": "spell-school",
+      "target": "poison",
+      "packs": [
+        "rubberduck-80-cc0-rpg-sfx",
+        "lokif-swamp-environment-audio"
+      ],
+      "note": "no CC0 pack is written for this school; generic spell and energy sounds to audition and layer"
+    },
+    "school-holy": {
+      "kind": "spell-school",
+      "target": "holy",
+      "packs": [
+        "kenney-sci-fi-sounds",
+        "rubberduck-80-cc0-rpg-sfx"
+      ],
+      "note": "no CC0 pack is written for this school; generic spell and energy sounds to audition and layer"
+    },
+    "school-frost": {
+      "kind": "spell-school",
+      "target": "frost",
+      "packs": [
+        "kenney-sci-fi-sounds",
+        "rubberduck-80-cc0-rpg-sfx"
+      ],
+      "note": "no CC0 pack is written for this school; generic spell and energy sounds to audition and layer"
+    },
+    "school-earth": {
+      "kind": "spell-school",
+      "target": "earth",
+      "packs": [
+        "bmaczero-metal-impact-sounds",
+        "rubberduck-100-cc0-sfx-2"
+      ],
+      "note": "no CC0 pack is written for this school; generic spell and energy sounds to audition and layer"
+    },
+    "school-wind": {
+      "kind": "spell-school",
+      "target": "wind",
+      "packs": [
+        "sketchman3-wind-whoosh-loop",
+        "kenney-sci-fi-sounds"
+      ],
+      "note": "no CC0 pack is written for this school; generic spell and energy sounds to audition and layer"
+    }
+  }
+}
