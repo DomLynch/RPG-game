@@ -79,7 +79,9 @@ test('call-site pin: the loop (src/fight/world-combat.ts) reaches combat only th
   assert.deepEqual(src.filter((f) => /src\/fight\/world\.ts'/.test(readFileSync(new URL(f, dir), 'utf8'))), [], 'the page goes through src/fight/index.ts');
   const text = readFileSync(new URL('../../src/fight/world-combat.ts', import.meta.url), 'utf8');
   assert.deepEqual([...text.matchAll(/from '(\.\/world\.ts)'/g)].map((m) => m[1]), ['./world.ts'], 'one door into the world loop');
-  assert.equal(text.match(/\bstepCombat\(/g)?.length, 1, 'with exactly one step call');
+  assert.equal(text.match(/\bstepCombat\(/g)?.length ?? 0, 0, 'which does not step it itself');
+  assert.equal(text.match(/\bstepHero\(/g)?.length, 1, 'but through the one frame step (world-record.ts stepHero, which the server replays), called once');
+  assert.equal(readFileSync(new URL('../../src/fight/world-record.ts', import.meta.url), 'utf8').match(/\bstepCombat\(/g)?.length, 1, 'whose body holds the one stepCombat call');
 });
 
 test('a creature that is struck down falls, is released and killed once (the engine\'s actor plays its Death from the duel)', () => {
@@ -120,7 +122,7 @@ test('a pack of four around the hero: three join and telegraph their own blows, 
   const tells = new Set<string>(), wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onTelegraph: (id) => void tells.add(id) });
   run(wc, { x: 0, z: 0, facing: 0 }, 3);
   assert.equal(wc.debug().filter((x) => x.hunting).length, 4, 'all four hunt him');
-  assert.deepEqual([...tells].sort(), ['w1', 'w2', 'w4'], 'three attack, each from its own duel: the fourth (w3, the farthest) waits its turn');
+  assert.equal(tells.size, 3, 'three attack, each from its own duel: the fourth waits its turn');   // the four stand on one ring, so which waits is a tie the pose's cm rounding settles (stepHero)
 });
 
 test('three joined: each joiner is driven with its own windup (one actor per creature)', () => {
