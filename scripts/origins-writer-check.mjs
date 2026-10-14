@@ -514,6 +514,25 @@ try {
       for (const sql of [`select * from public.origins_character_build;`, `select public.origins_get_build('${D}', '${daraTwo}');`, `update public.origins_character_build set level = 50;`])
         eq(asClient3(sql), 'permission denied', `a client may not: ${sql}`);
     }
+    // fame and karma (migration 202610130030): no row reads 0/0, adds clamp to 0..15000 and -15000..15000, ownership, both writer roles add, closed to clients
+    {
+      const asW = sql => psql(`set role frankendom_verifier; ${sql}`).split('\n').pop();
+      const rget = c => JSON.parse(asW(`select coalesce(public.origins_get_renown('${D}', '${c}')::text, 'null');`));
+      const radd = (c, f, k) => JSON.parse(asW(`select coalesce(public.origins_add_renown('${D}', '${c}', ${f}, ${k})::text, 'null');`));
+      const denied = fn => { try { fn(); return 'ok'; } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : 'other'; } };
+      eq(rget(daraTwo), { fame: 0, karma: 0 }, 'renown: no row reads fame 0, karma 0');
+      eq(radd(daraTwo, 100, -40), { fame: 100, karma: -40 }, 'renown: the first add creates the row');
+      eq(radd(daraTwo, 50, 10), { fame: 150, karma: -30 }, 'renown: later adds sum');
+      eq(radd(daraTwo, 99999, 99999), { fame: 15000, karma: 15000 }, 'renown: both clamp at the top');
+      eq(radd(daraTwo, -99999, -99999), { fame: 0, karma: -15000 }, 'renown: fame clamps at 0, karma at -15000');
+      eq(radd('pc:nobody', 1, 1), null, 'renown: not this account\'s character cannot be written');
+      eq(rget('pc:nobody'), null, 'renown: and reads null');
+      eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the verifier role reads');
+      eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the other writer role reads the same row');
+      eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_add_renown('${D}', '${daraTwo}', 5, 5)::text;`).split('\n').pop()), { fame: 5, karma: -14995 }, 'renown: the other writer role (frankendom_origins) adds too');
+      eq(denied(() => psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; select public.origins_get_renown('${D}', '${daraTwo}');`)), 'permission denied', 'renown: a client may not read');
+      eq(denied(() => psql(`set role authenticated; select * from public.origins_character_renown;`)), 'permission denied', 'renown: a client may not touch the table');
+    }
     // item 25: the dirty map. Posts are held and written as ONE statement (the same origins_save_location), a read flushes first (read your own write), the stale guard still stands
     {
       const flusher = createLocationFlusher(psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), 60_000, () => undefined);
