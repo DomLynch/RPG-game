@@ -178,3 +178,25 @@ test('a tuning number kept as a named constant in a moved file is counted; the m
     assert.equal(out.rows, 4, 'JAIL_S, NEG, the RULES object and a play.ts START_LEVEL count (WORLD_TUNING is its own slice); a constant read from a row, a lower-case local, a constant inside a function and a zero-valued CLEAN state do not');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
+
+test('tunables: a top-level numeric const in a moved file is counted (each declarator), a local or a non-number is not, an allowed one is listed apart, a stale entry fails; the real tree is at 0', () => {
+  const repo = fixtureRepo("export const ROSTER = { veteran: {} };\n");
+  const FILE = 'src/fight/world.ts', allowFile = join(repo, 'allow.json');
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true });
+    writeFileSync(join(repo, FILE), "export const ENGAGE = 4, REACH = 6, NAME = 'x';\nconst TICK = 1 / 60;\nexport function f() { const LOCAL = 3; return LOCAL; }\nexport const NEG = -2;\n");
+    writeFileSync(allowFile, '{"allow":[]}');
+    const go = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', allowFile, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
+    const planted = JSON.parse(go().stdout) as Report & { tunables: number };
+    assert.deepEqual(planted.sites.filter((s) => s.kind === 'tunable').map((s) => s.text), ['ENGAGE = 4', 'REACH = 6', 'NEG = -2'], 'two declarators in one const, a negative; not the string, the expression or the local');
+    assert.equal(planted.tunables, 3);
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [{ file: FILE, name: 'ENGAGE', reason: 'a test: not a rule' }] }));
+    const allowed = JSON.parse(go().stdout) as Report & { tunables: number; allowedTunables: { text: string; reason: string }[] };
+    assert.equal(allowed.tunables, 2); assert.deepEqual(allowed.allowedTunables.map((s) => [s.text, s.reason]), [['ENGAGE = 4', 'a test: not a rule']]);
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [{ file: FILE, name: 'GONE', reason: 'no such site' }] }));
+    assert.equal(go().status, 3, 'a stale tunable entry fails the run');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+  const real = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  assert.equal(real.status, 0, real.stderr);
+  assert.equal((JSON.parse(real.stdout) as { tunables: number }).tunables, 0, 'a numeric tunable back in src/fight/world.ts or world-combat.ts');
+});

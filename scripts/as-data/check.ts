@@ -21,9 +21,11 @@ type Category = (typeof CATEGORIES)[number];
 const roots = arg('--root') ? [arg('--root')!] : ['src', 'origins'];
 const allowFile = arg('--allow') ?? join(HERE, 'allow.json');
 type Allow = { file: string; literal: string; reason: string };
+type TunableAllow = { file: string; name: string; reason: string };   // a top-level numeric const that is not a rule (an engine mirror, a unit), with the reason
 // A VERB is a closed list kept in code on purpose (Strategy's verb rulings): named with the function that dispatches on it and the day it goes (sunset null = it stays). Listed apart, never counted; a verb whose declaration is gone is stale.
 type Verb = { file: string; name: string; dispatch: string; sunset: string | null };
-const allowData = JSON.parse(readFileSync(allowFile, 'utf8')) as { allow: Allow[]; verbs?: Verb[] };
+const allowData = JSON.parse(readFileSync(allowFile, 'utf8')) as { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[] };
+const tunableAllow: TunableAllow[] = allowData.tunables ?? [];
 const allow: Allow[] = allowData.allow, verbs: Verb[] = allowData.verbs ?? [];
 const read = (f: string) => (existsSync(join(REPO, f)) ? readFileSync(join(REPO, f), 'utf8') : '');
 const quoted = (text: string) => [...text.matchAll(/'([A-Za-z][\w-]*)'/g)].map((m) => m[1]!);
@@ -59,11 +61,16 @@ function run(template: string, extraGlobs: string[] = []) {
 try {
   const sites = [
     ...run('compare.yml').map((m) => ({ kind: 'compare', category: categoryOf(m.text.slice(1, -1)) ?? 'unknown', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text })),
+    ...run('tunable.yml').map((m) => ({ kind: 'tunable', category: 'tunable', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text })),
     ...run('map.yml').map((m) => ({ kind: 'map', category: categoryOf(/^['"]?([\w-]+)/.exec(m.text)![1]!) ?? 'unknown', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('union.yml').map((m) => ({ kind: 'union', category: 'union', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('rows.yml', ['!**/*.test.ts', '!**/fixtures.ts', '!src/**']).map((m) => ({ kind: 'row', category: 'content-row', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
     ...run('consts.yml').map((m) => ({ kind: 'row', category: 'content-const', file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, ' ').slice(0, 80) })),
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  const tunableEntry = (s: { file: string; text: string }) => tunableAllow.find((a) => a.file === s.file && new RegExp(`^${a.name}\\s*=`).test(s.text));
+  const allowedTunables = sites.filter((s) => s.kind === 'tunable' && tunableEntry(s)).map((s) => ({ ...s, reason: tunableEntry(s)!.reason }));
+  const staleTunables = tunableAllow.filter((a) => !allowedTunables.some((s) => s.file === a.file && new RegExp(`^${a.name}\\s*=`).test(s.text)));
+  for (let i = sites.length - 1; i >= 0; i--) if (sites[i]!.kind === 'tunable' && tunableEntry(sites[i]!)) sites.splice(i, 1);
   const entryFor = (s: { file: string; text: string }) => allow.find((a) => a.file === s.file && `'${a.literal}'` === s.text);
   const allowed = sites.filter((s) => s.kind === 'compare' && entryFor(s)).map((s) => ({ ...s, reason: entryFor(s)!.reason }));
   const stale = allow.filter((a) => !allowed.some((s) => s.file === a.file && s.text === `'${a.literal}'`));
@@ -71,16 +78,18 @@ try {
   const verbLine = (v: Verb) => { const at = read(v.file).split('\n').findIndex((l) => new RegExp(`\\bconst ${v.name}\\b`).test(l)); return at < 0 ? 0 : at + 1; };
   const verbSites = verbs.map((v) => ({ ...v, line: verbLine(v) })), staleVerbs = verbSites.filter((v) => !v.line);
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
-  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), maps: count('map') };
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs }));
+  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map') };
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}`);
+    for (const s of allowedTunables) console.log(`allowed-tunable ${s.file}:${s.line} ${s.text}  (${s.reason})`);
+    for (const a of staleTunables) console.log(`STALE tunable entry ${a.file} ${a.name}: no such site any more, delete it (${a.reason})`);
     for (const s of allowed) console.log(`allowed ${s.file}:${s.line} ${s.text}  (${s.reason})`);
     for (const v of verbSites.filter((x) => x.line)) console.log(`verb ${v.file}:${v.line} ${v.name}  (dispatch ${v.dispatch}; sunset ${v.sunset ?? 'none'})`);
     for (const v of staleVerbs) console.log(`STALE verb ${v.file} ${v.name}: no such declaration any more, delete it (${v.dispatch})`);
     for (const a of stale) console.log(`STALE allow entry ${a.file} ${a.literal}: no such site any more, delete it (${a.reason})`);
-    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, label maps ${summary.maps}`);
+    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps}`);
   }
-  if (stale.length || staleVerbs.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
-  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows)) process.exitCode = 1;   // --gate (CI): any new compare, closed union or content row in code is red
+  if (stale.length || staleVerbs.length || staleTunables.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row or tunable in code is red
 } finally { rmSync(dir, { recursive: true, force: true }); }
