@@ -8,6 +8,8 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS } from '../src/fight/moves.ts';
+import LOOK from '../src/fight/look-rules.json' with { type: 'json' };
+const BOSS_LEVELS = [0, 1, 2].map((i) => LOOK.specialLookRule[0].bossBaseLevel + i * LOOK.specialLookRule[0].bossLevelPerRank);   // ranks 8, 9, 10: the specialLookRule row
 import { PUNISH_WINDUP, SPECIAL, cell } from '../tests/special-battery.ts';
 import { STRATEGIES, TAP_ATTACK } from '../tests/strategies.ts';
 
@@ -58,7 +60,7 @@ if (arg('merge')) {
   if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n', { flag: 'a' });
   if (arg('out')) writeFileSync(arg('out'), md + '\n');
 } else {
-  const opponents = arg('opponents', LADDER.map(o => o.id).join(',')).split(','), levels = arg('levels', '1,6,12,18,30,36,41,46').split(',').map(Number), seeds = Number(arg('seeds', 16));
+  const opponents = arg('opponents', LADDER.map(o => o.id).join(',')).split(','), levels = arg('levels', [1, 6, 12, 18, 30, ...BOSS_LEVELS].join(',')).split(',').map(Number), seeds = Number(arg('seeds', 16));
   const cells = [];
   for (const id of opponents) for (const level of levels) for (const [group, strategies] of Object.entries(GROUPS)) {
     const started = Date.now(), modes = cell(level, seeds, OPPONENTS[id], strategies);

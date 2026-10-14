@@ -158,7 +158,7 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     if (low) return low;
     if (!replay) return null;
     let worn = {};   // the gear frozen on the claim when it was posted, never the ledger as it is when the sweep runs
-    if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+    if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`, record.v); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
     const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null), worn);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
     if (!want.ok) return want.reason;
     const spell = await spellRefusal(record, row.user_id, spellLoad);   // v53: the spell block is the client's claim too (origins/server/spell-gate.ts); no loader = nothing vouches, a spell record is refused

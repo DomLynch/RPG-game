@@ -1,4 +1,5 @@
 // The breath cone (Combat, top-30 item 23, PROVISIONAL numbers): a special with a row in cone-defs.json breathes in pulses instead of striking once. Era-keyed at v55 (cone-era.ts); creature specials only.
+import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stepDuel, withSpecials, type CombatEvent, type Duel } from '../src/fight/duel.ts';
@@ -92,7 +93,7 @@ test('a special with no cone row (the Veteran\'s quake) strikes once, as before,
   assert.equal(ev.filter((e) => e.type === 'SpecialLanded' && e.actor === 0 && e.cone).length, 0, 'fighter 0 has no special name, so no cone');
 });
 
-test('recorded and replayed: a Pitborn L42 Special Moves fight is stamped v55, packs, and replays to the very same state; a Veteran fight keeps its version', () => {
+test('recorded and replayed: a Pitborn L42 Special Moves fight is stamped at the cone era or later, packs, and replays to the very same state; a Veteran fight keeps its version', () => {
   const seed = 17, level = 42, o = OPPONENTS.pitborn, profile = profileAt(o, level);
   const sheet = { health: 70, armour: 30 };   // a sturdy hero, so he lives to the Pitborn's first special (1200 ticks in)
   const rec = liveRecorder({ build: 'test', opponent: 'pitborn', weapon: 'longsword', level, seed, specials: true, sheet });
@@ -101,10 +102,11 @@ test('recorded and replayed: a Pitborn L42 Special Moves fight is stamped v55, p
   for (let i = 0; i < RULES.special.first + RULES.special.windup + 120 && !p.finish; i++) { p = stepPractice(p, rec.push(i === 0 ? act('light') : idle()), profile); seen.push(...p.duel.events.filter((e) => e.type === 'SpecialLanded')); }
   assert.ok(seen.some((e) => e.cone), 'the Pitborn breathed in the recorded fight');
   const record = unpackRecord(packRecord(rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned')));
-  assert.equal(record.v, FIRST_CONE_VERSION);
+  assert.equal(record.v, FIRST_CAST_PENALTY_VERSION, 'a sheet fight is stamped no lower than the cast-penalty version, above the cone era');
   const replay = verifyRecord(record, undefined, { sheet: 'trust' });
   assert.ok(replay.ok, replay.ok ? '' : replay.reason); if (replay.ok) assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
   const stampOf = (opponent: 'veteran' | 'pitborn', specials: boolean) => { const r = liveRecorder({ build: 'test', opponent, weapon: 'longsword', level: 42, seed, ...(specials ? { specials: true } : {}) }); for (let i = 0; i < 10; i++) r.push(idle()); return unpackRecord(packRecord(r.finish('abandoned'))).v; };
   assert.equal(stampOf('veteran', true), 31, 'a Veteran quake fight is not a cone fight');
+  assert.equal(stampOf('pitborn', true), FIRST_CONE_VERSION, 'a Pitborn Special Moves fight with no sheet is the cone era');
   assert.equal(stampOf('pitborn', false), 54, 'a Pitborn fight without Special Moves has the poise ladder (54) but no cone');
 });
