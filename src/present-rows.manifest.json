@@ -1,0 +1,11 @@
+{
+  "tables": [
+    {
+      "table": "presentRow",
+      "file": "present-rows.json",
+      "at": "presentRows",
+      "key": "id",
+      "required": { "value": "number", "unit": "string" }
+    }
+  ]
+}

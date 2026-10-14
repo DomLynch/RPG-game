@@ -33,6 +33,7 @@ import {
 } from './items.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
 import { DEFINITIONS, categoryOf, ids, powerOf, provenanceOf, storyOf } from './definitions.ts';
+import RULES from './contract-rules.json' with { type: 'json' };
 
 // The neutral plaza beside the Pit (blueprint §8). The only place a trade settles.
 export const CONCORD_EXCHANGE = 'region:concord-exchange' as RegionId;
@@ -116,7 +117,7 @@ function cooldownIssue(id: ItemInstanceId, cd: TradeCooldown, path: string): Iss
 // ---- Trade ------------------------------------------------------------------------------------------------------------------------
 
 export const TRADE_VERSION = 1;
-export const MAX_OFFER = 16;
+export const MAX_OFFER = RULES.economyLimits[0]!.maxOffer;
 export type TradeSide = { character: CharacterInstanceId; account: AccountId; offered: ItemInstanceId[]; accepted: boolean };
 export type Trade = {
   kind: 'trade';
@@ -311,7 +312,7 @@ export function parseServiceDefinition(raw: unknown, path = ''): Result<ServiceD
 // Upgrade prices are DATA: one row per (level, rarity). `revision` is the price list's own version, stamped on every receipt, so a
 // receipt always says which prices it was charged at. The currency is the one trade currency ('coin').
 export const UPGRADE_COST_TABLE_VERSION = 1;
-export const MAX_COIN = 1_000_000_000;
+export const MAX_COIN = RULES.economyLimits[0]!.maxCoin;
 export type CostRow = { level: number; rarity: Rarity; coin: number; materials: { item: ItemId; quantity: number }[] };
 export type UpgradeCostTable = { kind: 'upgrade-cost-table'; schemaVersion: 1; id: CostTableId; revision: number; currency: 'coin'; rows: CostRow[] };
 
@@ -361,8 +362,8 @@ export const rarityPriceGaps = (table: Pick<UpgradeCostTable, 'rows'>): string[]
 // (an instance holds one item, so it pays at most one cost line), refuses a repeated instance, and refuses an offer longer than this,
 // so every receipt it writes parses under parseUpgradeReceipt. A cost line is payable from one stack (registry: quantity ≤ stack), so a
 // player never needs more than MAX_MATERIAL_LINES (4) instances; the headroom is for partial stacks.
-export const MAX_UPGRADE_MATERIAL_INPUTS = 64;
-export const MAX_MATERIAL_LINES = 4;
+export const MAX_UPGRADE_MATERIAL_INPUTS = RULES.economyLimits[0]!.maxUpgradeMaterialInputs;
+export const MAX_MATERIAL_LINES = RULES.economyLimits[0]!.maxMaterialLines;
 
 export const UPGRADE_REQUEST_VERSION = 1;
 export const UPGRADE_RECEIPT_VERSION = 1;
