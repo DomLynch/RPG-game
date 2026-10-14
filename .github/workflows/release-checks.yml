@@ -34,9 +34,10 @@ on:
 # One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), like
 # quality.yml, and cancel-on-close.yml cancels a closed PR's runs. deploy.sh only ever trusts a job whose run is for the exact
 # revision being deployed (scripts/ci-trusted-checks.mjs). Adding any other label (a lane tag) gets a group of its own (the run
-# id): it runs nothing, so it must never cancel a labelled PR's row matrix in flight (Lead 2026-09-29).
+# id): it runs nothing, so it must never cancel a labelled PR's row matrix in flight (Lead 2026-09-29). So does `opened`: plan skips it,
+# but a skipped run still joined the head group and, arriving late, cancelled the labeled run (FC 2026-10-14: run 38563078857 killed the rows run).
 concurrency:
-  group: release-checks-${{ github.event.pull_request.number || github.ref }}-${{ inputs.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'ci:release-checks' && format('-{0}', github.run_id) || '' }}
+  group: release-checks-${{ github.event.pull_request.number || github.ref }}-${{ inputs.ref }}${{ (github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name != 'ci:release-checks')) && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 env:
   # Release checks the runner takes ~28 min on (80 s on the Mac): never worth waiting for from a pull request.
