@@ -7,6 +7,7 @@
 "2026-10-14 Dom: ward: the Witch's raised guard throws the first blow back (80% of it at the attacker, never to death) and is down for 4 s; a cheap light pops it first.",
 "2026-10-14 Dom: shield wall vs flank: a side blow on a raised guard (outside its arc, not from behind) deals 120% and 140% posture; the Shieldmaiden cannot step while her guard is up, so the answer is the shove or the flank.",
 "2026-10-14 Dom: clock fighter: a landed Plague Doctor special poisons you: 2 health a second for 10 s, refreshed by a new landing, never to death; no marker, the health bar is the signal.",
+"2026-10-14 Dom: bind and disarm: a block with a trident or estoc binds the attacker's blade for 0.75 s (no swings, kick is legal); kick to break it or be disarmed for 5 s (kick and guard only). Disarmed has no fists animation yet: the weapon stays in hand, it simply cannot swing.",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
 "2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
@@ -96,6 +97,9 @@
 {"opponent":"shieldmaiden"}
 ],"poison":[
 {"opponent":"plaguedoctor","damage":2,"every":60,"duration":600}
+],"bind":[
+{"weapon":"trident","window":45,"hold":300,"react":28},
+{"weapon":"estoc","window":45,"hold":300,"react":28}
 ],"ward":[
 {"opponent":"witch","down":240,"reflect":800}
 ],"readyStyles":[

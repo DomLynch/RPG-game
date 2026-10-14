@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -43,6 +43,7 @@ export type Fighter = {
   scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
+  bound?: number; boundHold?: number; boundReact?: number; disarmed?: number;   // sandbox-mech bindAndDisarm: ticks left bound / the disarm it turns into / the AI's reaction / ticks left disarmed
   poisonEnemy?: string;   // the poisoner's id, whose row ticks the poison
   poisonUntil?: number;   // sandbox-mech clockFighter: poisoned until this tick
   wardAt?: number;   // sandbox-mech ward: the tick the ward is ready again (absent = ready)
@@ -237,7 +238,8 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
-  if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill')) return false;   // the special's recovery: no attack until it ends
+  if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill')) return false;
+  if ((f.bound || f.disarmed) && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'skill')) return false;   // sandbox-mech bindAndDisarm: a bound blade or an empty hand has no swing   // the special's recovery: no attack until it ends
   // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
   // the blade is out of line — so no swing comes out of either. A man's parry yields to any action and his exposure only bares his guard.
   const g = guardOf(f), committed = g.commits && ((f.phase === 'guard' && f.parrying && !f.punish && f.age < g.window) || (f.phase === 'ready' && f.exposed > 0));
@@ -270,6 +272,12 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const f of fighters) if (f.poiseRest) { if (f.poiseRest > 1) f.poiseRest--; else delete f.poiseRest; }
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
   for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }
+  for (const i of [0, 1] as const) {   // sandbox-mech bindAndDisarm: a kick breaks the bind; an unbroken bind becomes a disarm; a disarm runs down
+    const f = fighters[i]!;
+    if (f.bound && intents[i].action === 'kick' && legal(before[i]!, 'kick')) { delete f.bound; delete f.boundHold; delete f.boundReact; }
+    else if (f.bound && !--f.bound) { f.disarmed = f.boundHold; delete f.bound; delete f.boundHold; delete f.boundReact; }
+    if (f.disarmed && !--f.disarmed) delete f.disarmed;
+  }
   for (const f of fighters) if (f.poisonUntil) { const row = poisonOf(f.poisonEnemy); if (row && f.health > 1) f.health = Math.max(1, f.health - poisonTick(row, f.poisonUntil, tick)); if (f.poisonUntil < tick) { delete f.poisonUntil; delete f.poisonEnemy; } }   // sandbox-mech clockFighter: the poison ticks, never to death   // a trickster's feint beat runs down (RULES.feintBeat)
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}), ...(duel.cast ? { cast: duel.cast } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}), ...(duel.ccBase !== undefined ? { ccBase: duel.ccBase } : {}) };
   let gdraws = duel.gambit?.draws ?? 0, casts = duel.cast?.n ?? 0;   // casts: the seeded draws spells have taken so far (RV53)
@@ -521,6 +529,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // discounted price is what has to be affordable.
       const perfect = d.age - g.window < R.perfectBlock, cost = perfect ? blockCost * R.perfectBlockCost : blockCost, chip = perfect ? 0 : Math.round(def.damage * def.chip * R.location[location]), taken = chip ? rolled(chip, i, j, pen) : 0;
       spend(j, cost); D.counterWindow = STANCE_ROWS_ON ? R.guardCounter : stanced(d, 'counter', R.guardCounter);   // a block opens the guard-counter window (the same for every stance from v52; a Defensive record below it keeps its quarter longer)
+      { const br = bindOf(d.weapon); if (br && !A.bound && !A.disarmed) { A.bound = br.window; A.boundHold = br.hold; A.boundReact = br.react; } }
       events.push({ tick, type: 'Blocked', actor: j, target: i, move: a.move, stamina: cost, perfect, weapon: weapon.id, material: weapon.material, ...(chip ? { damage: taken, ...rollTag() } : {}) });
       if (chip) { wound(taken, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
       shake(j, dealtPosture(def.posture * (perfect ? R.posture.perfect : 1)));

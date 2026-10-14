@@ -167,3 +167,10 @@ export const POISON_ON = POISON.length > 0;
 export const poisonOf = (oid: string | undefined): PoisonRow | undefined => (POISON_ON && oid ? POISON.find((r) => r.opponent === oid) : undefined);
 export const poisonTick = (row: PoisonRow, until: number, tick: number): number => (until >= tick && (until - tick) % row.every === 0 ? row.damage : 0);
 export const OID_ON = ARMOUR_ON || WARD_ON || BRACE.length > 0 || POISON_ON;   // the opponent's id rides on its fighter only while a sandbox row reads it
+
+// bindAndDisarm (Dom 2026-10-14, Strategy #8; donors Bushido Blade, Mount & Blade chamber): a `bind` row { weapon, window, hold, react } makes a block with that weapon catch the blade: the attacker is BOUND for `window`
+// ticks (no swing, no thrust, no skill; a kick or shove is legal) and must kick to break free. If the window runs out the attacker is DISARMED for `hold` ticks (kick and guard only). `react`: the ticks left
+// when an AI attacker answers with the kick (a human attacker answers when he likes). The blocker must have the weapon and the block must land. No rows (trunk) = nothing.
+type BindRow = { weapon: string; window: number; hold: number; react: number };
+const BIND = ((DEFS as unknown as { bind?: BindRow[] }).bind ?? []);
+export const bindOf = (weapon: string): BindRow | undefined => (BIND.length ? BIND.find((r) => r.weapon === weapon) : undefined);

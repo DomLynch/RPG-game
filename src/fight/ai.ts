@@ -84,6 +84,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Special Moves (RULES.special, only when the fight has them: withSpecials): cast whenever it is ready and in reach. No roll is drawn, so a
   // fight without specials steps exactly as before.
   if (self.specialShare !== undefined && gap <= RULES.special.reach && legal(self, 'skill')) return { intent: { ...intent, action: 'skill' }, ai: next };
+  if (self.bound && self.bound <= (self.boundReact ?? 0) && legal(self, 'kick')) return { intent: { ...intent, action: 'kick' }, ai: next };   // sandbox-mech bindAndDisarm: the bound AI answers with the kick when its reaction time is up
   const guardShare = profile.guard ?? 1;   // fight-identity knobs (moves.ts AiProfile): absent = the warden as it always was
   // Hit and run: a blow that landed this tick earns a hop back out of range (profile.disengage), taken as soon as the swing has recovered.
   if (profile.disengage && duel.events.some(e => e.type === 'Hit' && e.actor === me) && roll() < profile.disengage) next.disengageUntil = tick + 40;
