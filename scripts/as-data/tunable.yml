@@ -4,8 +4,12 @@
 id: as-data-tunable
 language: typescript
 files:
-  - src/fight/world.ts
-  - src/fight/world-combat.ts
+  - 'src/**/*.ts'
+  - 'origins/**/*.ts'
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
 rule:
   kind: variable_declarator
   all:

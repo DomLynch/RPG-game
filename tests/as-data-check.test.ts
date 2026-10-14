@@ -190,13 +190,59 @@ test('tunables: a top-level numeric const in a moved file is counted (each decla
     const planted = JSON.parse(go().stdout) as Report & { tunables: number };
     assert.deepEqual(planted.sites.filter((s) => s.kind === 'tunable').map((s) => s.text), ['ENGAGE = 4', 'REACH = 6', 'NEG = -2'], 'two declarators in one const, a negative; not the string, the expression or the local');
     assert.equal(planted.tunables, 3);
-    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [{ file: FILE, name: 'ENGAGE', reason: 'a test: not a rule' }] }));
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [{ file: FILE, name: 'ENGAGE', kind: 'debt', reason: 'a test: not a rule', owner: 'Test', sunset: '2099-01-01' }] }));
     const allowed = JSON.parse(go().stdout) as Report & { tunables: number; allowedTunables: { text: string; reason: string }[] };
     assert.equal(allowed.tunables, 2); assert.deepEqual(allowed.allowedTunables.map((s) => [s.text, s.reason]), [['ENGAGE = 4', 'a test: not a rule']]);
-    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [{ file: FILE, name: 'GONE', reason: 'no such site' }] }));
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [{ file: FILE, name: 'GONE', kind: 'debt', reason: 'no such site entry', owner: 'Test', sunset: '2099-01-01' }] }));
     assert.equal(go().status, 3, 'a stale tunable entry fails the run');
   } finally { rmSync(repo, { recursive: true, force: true }); }
   const real = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
   assert.equal(real.status, 0, real.stderr);
   assert.equal((JSON.parse(real.stdout) as { tunables: number }).tunables, 0, 'a numeric tunable back in src/fight/world.ts or world-combat.ts');
+});
+
+test('the tunable rule covers ALL of src/ and origins/ (tests and fixtures excluded): a NEW literal anywhere goes red under --gate; a keeper needs a reason, an owner and a sunset', () => {
+  const repo = fixtureRepo("export const ROSTER = { veteran: {} };\n");
+  const allowFile = join(repo, 'allow.json');
+  try {
+    mkdirSync(join(repo, 'src', 'deep', 'er'), { recursive: true }); mkdirSync(join(repo, 'origins', 'x'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'deep', 'er', 'brand-new.ts'), "export const NEW_RANGE = 12;\nexport const SHAPE: Record<string, number> = { a: 40 };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'thing.ts'), "export const NEW_TICK = 5;\n");
+    writeFileSync(join(repo, 'src', 'deep', 'er', 'brand-new.test.ts'), "export const IN_A_TEST = 99;\n");
+    writeFileSync(join(repo, 'src', 'deep', 'er', 'fixtures.ts'), "export const IN_A_FIXTURE = 99;\n");
+    writeFileSync(allowFile, '{"allow":[]}');
+    const go = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', allowFile, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
+    const planted = JSON.parse(go().stdout) as Report & { tunables: number };
+    assert.deepEqual([...new Set(planted.sites.filter((x) => x.kind === 'tunable').map((x) => x.file))].sort(), ['origins/x/thing.ts', 'src/deep/er/brand-new.ts'], 'new numeric consts in any src/ or origins/ file; not the test or the fixtures');
+    assert.ok(planted.sites.some((x) => x.kind === 'row' && x.text.startsWith('SHAPE')), 'and the named-constant rule sees the object with a number in it');
+    assert.equal(go('--gate').status, 1, 'a new literal goes red under --gate');
+    const keep = (extra: object) => ({ file: 'src/deep/er/brand-new.ts', name: 'NEW_RANGE', reason: 'a test reason, long enough', ...extra });
+    for (const bad of [{ kind: 'debt', owner: '', sunset: '2099-01-01' }, { kind: 'debt', owner: 'Test' }, { kind: 'debt', owner: 'Test', sunset: 'soon' }, { owner: 'Test', sunset: '2099-01-01' }, { kind: 'exempt', reason: 'short' }]) {
+      writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [keep(bad)] }));
+      assert.equal(go().status, 2, `an entry without a reason, owner and sunset date is refused: ${JSON.stringify(bad)}`);
+    }
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: ['NEW_RANGE', 'NEW_TICK', 'SHAPE'].map((name) => ({ file: name === 'NEW_TICK' ? 'origins/x/thing.ts' : 'src/deep/er/brand-new.ts', name, kind: 'debt', reason: 'a test reason, long enough', owner: 'Test', sunset: '2099-01-01' })) }));
+    assert.equal(go('--gate').status, 0, 'every keeper listed with its owner and sunset: green');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('exempt vs debt: an exempt keeper never expires; a debt past its sunset turns --gate red and is named; one within 14 days warns', () => {
+  const repo = fixtureRepo("export const ROSTER = { veteran: {} };\n");
+  const allowFile = join(repo, 'allow.json');
+  try {
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'knobs.ts'), "export const WIRE_FIELD = 4;\nexport const OLD_DEBT = 9;\nexport const NEAR_DEBT = 7;\nexport const FAR_DEBT = 3;\n");
+    const entry = (name: string, extra: object) => ({ file: 'src/knobs.ts', name, reason: 'a test reason, long enough', ...extra });
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [entry('WIRE_FIELD', { kind: 'exempt' }), entry('OLD_DEBT', { kind: 'debt', owner: 'Test', sunset: '2026-10-01' }), entry('NEAR_DEBT', { kind: 'debt', owner: 'Test', sunset: '2026-10-20' }), entry('FAR_DEBT', { kind: 'debt', owner: 'Test', sunset: '2027-06-30' })] }));
+    const go = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', allowFile, '--today', '2026-10-13', ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
+    const gated = go('--gate');
+    assert.equal(gated.status, 1, 'a debt past its sunset turns --gate red');
+    const rep = JSON.parse(gated.stdout) as { overdue: { name: string }[]; soon: { name: string }[]; tunables: number };
+    assert.deepEqual(rep.overdue.map((x) => x.name), ['OLD_DEBT'], 'only the debt past its date; the exempt keeper and the future debts are not');
+    assert.deepEqual(rep.soon.map((x) => x.name), ['NEAR_DEBT'], 'a debt due within 14 days warns, a far one does not');
+    assert.equal(rep.tunables, 0, 'every site is listed');
+    assert.equal(go().status, 0, 'without --gate it only reports');
+    writeFileSync(allowFile, JSON.stringify({ allow: [], tunables: [entry('WIRE_FIELD', { kind: 'exempt' }), entry('OLD_DEBT', { kind: 'debt', owner: 'Test', sunset: '2026-12-01' }), entry('NEAR_DEBT', { kind: 'debt', owner: 'Test', sunset: '2026-12-01' }), entry('FAR_DEBT', { kind: 'debt', owner: 'Test', sunset: '2027-06-30' })] }));
+    assert.equal(go('--gate').status, 0, 'moving the dates out turns it green again');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
 });
