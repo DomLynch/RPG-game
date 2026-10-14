@@ -1,5 +1,6 @@
 {
   "name": "The Salt Flats",
+  "defaultKind": "goblin",
   "look": { "arena": "3" },
   "names": {
     "salt-flats": "The Salt Flats"

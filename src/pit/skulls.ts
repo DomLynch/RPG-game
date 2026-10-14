@@ -2,6 +2,8 @@
 // player, newest first, at most 30 (the skull wall's 6 x 5 niches). RECORD: the totals carved on the board. Both come from Backend's read-only
 // RPCs (pit_recent_kills, pit_record) for a signed-in fighter; a guest, an offline fighter or a missing migration falls back to loot.
 import type { Loot } from '../core/loot.ts';
+import { STEP } from '../fight/sim.ts';
+import { ui } from '../ui-rows.ts';
 
 export type Kill = { kind: 'ai' | 'duel'; key: string; name: string; level: number; gear: Record<string, string>; at: string | null; opponent?: string; rank?: number | null };
 export type Kills = Kill[];
@@ -9,7 +11,7 @@ export type PitRecord = { kills: number | null; wins: number | null; losses: num
 export type SkullDb = { rpc(name: string): PromiseLike<{ data: unknown; error: unknown }> };
 export type NameOf = (opponent: string, rank: number | null) => string;
 
-export const MAX_KILLS = 30, TEXT_MAX = 40, GEAR_MAX = 12;
+export const MAX_KILLS = ui('skulls-max-kills'), TEXT_MAX = ui('skulls-text-max'), GEAR_MAX = ui('skulls-gear-max');
 
 const text = (v: unknown): string | null => (typeof v === 'string' && v.length ? v.slice(0, TEXT_MAX) : null);
 const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
@@ -140,7 +142,7 @@ export const demoRecord = (): PitRecord => ({ kills: 73, wins: 73, losses: 19, s
 // object over verified deaths; verified rows rank first on the server). Up to five lines; an empty day is no lines at all.
 export type ChampionKey = 'fastestKill' | 'cleanestKill' | 'longestSurvived' | 'fastestDeath' | 'where' | 'pending';
 export type Champion = { key: ChampionKey; label: string; name: string; value: string; verified: boolean };
-export const NAME_MAX = 16, TICKS_PER_SECOND = 60;
+export const NAME_MAX = ui('skulls-name-max'), TICKS_PER_SECOND = Math.round(1 / STEP);   // the sim's tick rate, from the sim (fight/sim.ts STEP), not a copy
 // A fighter's name on the board: control and bidi-override characters out, whitespace collapsed, at most NAME_MAX characters; 'Fighter' when nothing is left.
 export const boardName = (v: unknown): string => {
   const s = typeof v === 'string' ? v.replace(/[\p{Cc}\u200b-\u200f\u202a-\u202e\u2066-\u2069]/gu, ' ').replace(/\s+/g, ' ').trim() : '';
