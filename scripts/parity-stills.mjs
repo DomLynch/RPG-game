@@ -10,7 +10,7 @@ import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const A = arg('a'), B = arg('b'), ARENA = arg('arena', ''), EVERY = Number(arg('every', 6)), OUT = arg('out', 'artifacts/parity'), KEEP = Number(arg('keep', 24)), PRE = Number(arg('pre', 40)), POST = Number(arg('post', 70));
+const A = arg('a'), B = arg('b'), ARENA = arg('arena', ''), EVERY = Number(arg('every', 6)), OUT = arg('out', 'artifacts/parity'), KEEP = Number(arg('keep', 24)), PRE = Number(arg('pre', 40)), POST = Number(arg('post', 70)), ATT = Math.max(2, Number(arg('attempts', 3)));   // ATT runs per build: stills of one build are not deterministic, so one arbitrary pair is no noise floor
 if (!A || !B) { console.error('usage: parity-stills.mjs --a <dist> --b <dist> [--specials all|a,b] [--arena a] [--every 6] [--out dir]'); process.exit(2); }
 let names = arg('specials', 'all').split(',');
 if (names[0] === 'all') { const { SPECIAL_TESTS } = await import('../src/fight/special-look.ts'); names = Object.keys(SPECIAL_TESTS); }
@@ -27,7 +27,8 @@ async function serveDist(dir) {   // special-clip.mjs's static server: gzip, no-
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-const servers = { a: await serveDist(A), a2: await serveDist(A), b: await serveDist(B) };   // a2 = the before build again: same code, so its difference from a is the run-to-run noise floor
+const sidesA = Array.from({ length: ATT }, (_, i) => `a${i}`), sidesB = Array.from({ length: ATT }, (_, i) => `b${i}`);   // same code, ATT attempts each: the smallest diff over all same-build pairs is the noise floor, over all before-after pairs the cross diff
+const servers = Object.fromEntries(await Promise.all([...sidesA.map(async (k) => [k, await serveDist(A)]), ...sidesB.map(async (k) => [k, await serveDist(B)])]));
 const browser = await chromium.launch({ headless: true, args: process.env.PARITY_SW ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [] });
 const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); return { tick: s.tick, caster: s.stages[1] ?? s.stages[0] }; });
 
@@ -77,25 +78,26 @@ await fs.mkdir(OUT, { recursive: true });
 const rows = []; let kept = 0;
 for (const special of names) {
   try {
-    const [sa, sa2, sb] = await Promise.all([run('a', special, null), run('a2', special, null), run('b', special, null)]);   // pass 1: where the wind-up starts and the strike lands, per build
-    const row = { special, a: sa, a2: sa2, b: sb, windup: [sa.land - sa.start, sa2.land - sa2.start, sb.land - sb.start], timingSame: sa.land - sa.start === sb.land - sb.start, noiseTimingSame: sa.land - sa.start === sa2.land - sa2.start, shots: 0, flagged: [] };
-    const plan = (s) => ({ from: Math.max(0, s.start - PRE), limit: s.land + POST + 120 });   // limit: the strike pass 1 saw + POST + slack; a pass 2 that gets past it never saw the strike
-    const [ra, ra2, rb] = await Promise.all([run('a', special, plan(sa)), run('a2', special, plan(sa2)), run('b', special, plan(sb))]);   // pass 2: shoot, matched by offset from each run's own wind-up start / strike
+    const all = [...sidesA, ...sidesB], batch = async (plans) => { const out = {}; for (let i = 0; i < all.length; i += 3) await Promise.all(all.slice(i, i + 3).map(async (k) => { out[k] = await run(k, special, plans(k)); })); return out; };   // 3 browsers at a time
+    const p1 = await batch(() => null), len = (k) => p1[k].land - p1[k].start, sa = p1[sidesA[0]], sb = p1[sidesB[0]];   // pass 1: where the wind-up starts and the strike lands, per attempt
+    const row = { special, a: sa, b: sb, windup: all.map(len), timingSame: sidesA.concat(sidesB).every((k) => len(k) === len(sidesA[0])), noiseTimingSame: sidesA.every((k) => len(k) === len(sidesA[0])), shots: 0, flagged: [] };
+    const p2 = await batch((k) => ({ from: Math.max(0, p1[k].start - PRE), limit: p1[k].land + POST + 120 }));   // pass 2: shoot, matched by offset from each run's own wind-up start / strike
     row.shotsList = [];
-    for (const [tick, pa] of ra.shots) {
-      const pa2 = ra2.shots.get(tick), pb = rb.shots.get(tick); if (!pa2 || !pb) { row.flagged.push({ tick, missing: !pa2 ? 'a2' : 'b' }); continue; }
-      row.shots++; const noise = await diff(pa, pa2), cross = await diff(pa, pb);
+    const minDiff = async (xs, ys, same) => { let best = null; for (let i = 0; i < xs.length; i++) for (let j = same ? i + 1 : 0; j < ys.length; j++) { const d = await diff(xs[i], ys[j]); if (best === null || (d.n ?? 0) < (best.n ?? 0) || (d.size && !best.size)) best = d; } return best; };
+    for (const [tick] of p2[sidesA[0]].shots) {
+      const pa = sidesA.map((k) => p2[k].shots.get(tick)), pb = sidesB.map((k) => p2[k].shots.get(tick)); if (pa.includes(undefined) || pb.includes(undefined)) { row.flagged.push({ tick, missing: pa.includes(undefined) ? 'a' : 'b' }); continue; }
+      row.shots++; const noise = await minDiff(pa, pa, true), cross = await minDiff(pa, pb, false);
       const nn = noise.n ?? 0, cn = cross.n ?? 0; row.shotsList.push({ tick, noise: nn, cross: cn });
-      if (cross.size || cn > nn * 1.5 + 25) {   // a cross diff clearly above the same-code noise at that tick
+      if (cross.size || cn > nn * 1.5 + 25) {   // the best-matching before-after pair is still clearly above the best-matching same-code pair
         row.flagged.push({ tick, noise: nn, ...cross });
-        if (kept < KEEP) { kept++; await fs.mkdir(`${OUT}/${special}`, { recursive: true }); await fs.writeFile(`${OUT}/${special}/${tick}-a.png`, pa); await fs.writeFile(`${OUT}/${special}/${tick}-b.png`, pb); }
+        if (kept < KEEP) { kept++; await fs.mkdir(`${OUT}/${special}`, { recursive: true }); await fs.writeFile(`${OUT}/${special}/${tick}-a.png`, pa[0]); await fs.writeFile(`${OUT}/${special}/${tick}-b.png`, pb[0]); }
       }
     }
     rows.push(row);
-    console.log(`${special}: wind-up ${row.timingSame ? `${sa.land - sa.start} ticks, same` : `DIFF a ${sa.land - sa.start} b ${sb.land - sb.start}`}${row.noiseTimingSame ? '' : ' (a vs a2 wind-up length differs: noisy run)'}, ${row.shots} shots, ${row.flagged.length} above noise`);
+    console.log(`${special}: wind-up ${row.timingSame ? `${len(sidesA[0])} ticks, same` : `DIFF ${row.windup.join('/')}`}${row.noiseTimingSame ? '' : ' (same-build wind-up length differs: noisy run)'}, ${row.shots} shots, ${row.flagged.length} above noise`);
   } catch (e) { rows.push({ special, error: String(e.message ?? e) }); console.log(`${special}: ERROR ${e.message}`); }
 }
-await browser.close(); await servers.a.close(); await servers.a2.close(); await servers.b.close();
+await browser.close(); for (const k of Object.keys(servers)) await servers[k].close();
 
 const bad = rows.filter((r) => r.error || !r.timingSame || r.flagged.length), cross = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.cross, 0), 0), noise = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.noise, 0), 0);
 const md = [`# Visual parity: ${A} (before) vs ${B} (after)`, '', `${rows.length} specials, ${rows.reduce((s, r) => s + (r.shots ?? 0), 0)} shots (375x812, every ${EVERY} ticks from the wind-up start to ${POST} after the strike; the draws turn on ${PRE} ticks before the wind-up so its first frame is a live one). ${bad.length} specials with a timing difference, an error or a shot above the noise floor. Differing pixels in all: before-vs-after ${cross}, before-vs-before (same code, the noise floor) ${noise}.`, '',
