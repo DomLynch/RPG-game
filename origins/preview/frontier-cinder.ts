@@ -3,7 +3,7 @@
 // the ground carried 120 m past (far enough that the fog has taken it over, so the ground meets the sky without a line) each zone's far and side edges (no hard horizon line); ground breakup (ash drifts, big scorched rings, cracks with a pale lip and a dark core);
 // and silhouettes, a skyline ring just outside each zone's far and side edges (spires, broken walls, dead trees, ridges) plus a few dead trees, spires, rubble and scrub inside.
 // Pure (Piece[] + Solid[]); it reads the base dressing so nothing lands on a road, a landmark, a building or a base prop. Deterministic per zone id.
-import { cinderRules, stageRule } from './stage-rules.ts';
+import { cinderRules, stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { footprintOf, rng, type Dress } from './frontier-dress.ts';

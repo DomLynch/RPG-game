@@ -5,7 +5,7 @@
 //   scale    the body's height multiplier on top of the roster's own (1 = the roster body as it is)
 //   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/fight/moves.ts); absent = the body's own
 //   dressing the Ash Frontier on him: soot = dark ash worked into the cloth and low on the body, 0..1; burnt = scorched, ragged cloth edges, 0..1
-import { stageRule } from './stage-rules.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 

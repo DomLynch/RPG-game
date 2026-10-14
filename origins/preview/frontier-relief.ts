@@ -2,7 +2,7 @@
 // The plan stays exactly where it was: every building, prop, road, camp and landmark keeps its place and stays on FLAT ground, because each gets a flat pad
 // (origins/world/relief.ts blends the hills back to height 0 round it). The hills are only the open ground between. The same function gives the mesh its heights and
 // the hero, the creatures and the camera their feet, so nothing floats or sinks. Each zone has its own params (terrain.relief / hillScale / seed) and its edge fades to 0.
-import { stageRule } from './stage-rules.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { reliefAt, type Pad } from '../world/relief.ts';
 import type { Piece } from './exchange-plan.ts';
 import { footprintOf, type Dress } from './frontier-dress.ts';

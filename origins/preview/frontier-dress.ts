@@ -3,7 +3,7 @@
 // frontier.ts meshes it through exchange.ts meshPieces. Deterministic: every zone seeds its own PRNG from its id, so a rebuild is the same ground and the test can pin it.
 // Presentation only: it adds pieces and walk-blocking circles to a Build, never touches the layout or the world data. Placement keeps clear of every landmark, the
 // west road, the way-on roads it lays itself and the buildings frontierBuild already stands.
-import { stageRule } from './stage-rules.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { inFirstView, inZone, onRoad, roadFrame, type Build, type Frontier, type Solid } from './frontier-plan.ts';

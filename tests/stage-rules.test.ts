@@ -1,14 +1,14 @@
-// The stage's numbers are rows (origins/preview/stage-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table.
+// The stage's numbers are rows (origins/world/stage-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { STAGE_RULES, loadStageRules, stageRule } from '../origins/preview/stage-rules.ts';
+import { STAGE_RULES, loadStageRules, stageRule } from '../origins/world/stage-rules.ts';
 import { CROWD, SKIRMISHER_HANDOVER, LEADER_HOLD, SWEEP } from '../origins/crowd/crowd.ts';
 import { KERB_INSET, STONE_RADIUS } from '../origins/preview/exchange-plan.ts';
 import { CINDER } from '../origins/preview/frontier-cinder.ts';
 import { EDGE_FADE, PAD_MARGIN, LANDMARK_PAD } from '../origins/preview/frontier-relief.ts';
 import { VARIANTS } from '../origins/preview/mob-looks.ts';
 import { LEVEL_NEAR_M, LEVEL_FAR_M } from '../origins/preview/mobs.ts';
-import DEFS from '../origins/preview/stage-rules-defs.json' with { type: 'json' };
+import DEFS from '../origins/world/stage-rules-defs.json' with { type: 'json' };
 
 test('every stage rule equals the literal it replaced', () => {
   assert.deepEqual(CROWD, { breath: 45, starts: 3, hold: 360, minPassGap: 120, ring: { min: 4, max: 6 }, ringReturn: 0.02, maxEnemies: 8 });

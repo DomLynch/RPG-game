@@ -1,7 +1,7 @@
 // The Ash Frontier's kit placements (?region=1, World lane): where the Characters lane's zone1-kit.glb nodes stand. Pure data, no three.js: the same rule as frontier-dress.ts
 // (deterministic per zone id, inside the zone, off the west road, the worn roads, every landmark, the buildings and the dressing's own solids), so a rebuild is the same ground.
 // Node names are the kit's contract (public/world/kit/zone1-kit.glb): trees, boulders, scrub and grass tufts.
-import { stageRule } from './stage-rules.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import { rng, type Dress } from './frontier-dress.ts';
 import { loadZone } from '../zones/loader.ts';

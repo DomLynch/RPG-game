@@ -4,7 +4,7 @@
 // Budget: round(density.creatures * footprint / 100 m2), at least 1, 0 in a safe zone. Whole camps are drawn until the budget is met. The zone rules
 // (origins/world/zone-rules.ts) then come first: an OPENER camp stands within 40 m of the entry (first fight within 10 s), and a camp is added
 // wherever the walk would be left more than 15 s with nothing to meet, even past the budget. `issues` is what is still broken, named by zone.
-import { stageRule } from '../preview/stage-rules.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
 import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';

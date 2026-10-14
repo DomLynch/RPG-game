@@ -1,7 +1,7 @@
 // The stage's numbers as data (World, Dom's data-layer day 2026-10-14): the crowd's token rules, the mob stream seed and level/spawn rings, the Exchange kerb and stone, the Ash Frontier's
 // ground decals, skyline and relief margins, the landmark footprint and the number of mob looks, one row each (id, value, unit) through the shared loader (src/core/registry.ts). Every default
-// equals the literal it replaced (tests/stage-rules.test.ts pins them). None is read by the sim, so this table is NOT part of the world digest. Pure, and page- and server-safe (registry only).
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
+// equals the literal it replaced (tests/stage-rules.test.ts pins them). None is read by the sim, so this table is NOT part of the world digest. Pure, and page- and server-safe (the renderer-free core door, like concord.ts).
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './stage-rules-defs.json' with { type: 'json' };
 import MANIFEST from './stage-rules-defs.manifest.json' with { type: 'json' };
 

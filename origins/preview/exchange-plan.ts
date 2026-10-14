@@ -5,7 +5,7 @@
 // Where things stand comes from the world data (origins/world/concord.ts through concordMounts and place): the gladiator gate's
 // passage, the Exchange's outer gate, the Covenant Stone, the contract board, the forge and the bank. Everything else is metres of
 // greybox massing measured from those anchors (a column's spacing, a step's rise), which is what a greybox is.
-import { stageRule } from './stage-rules.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import { CONCORD, CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { place, toMetres, toWorld } from '../world/derive.ts';
 import { resolveZone, type WorldData } from '../world/resolve.ts';
