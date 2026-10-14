@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { powerOf } from '../../src/core/server.ts';
 import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
+import { SHOP_RANGE_CM_BY_SHOP } from '../region1/shops.ts';
 import { receive } from '../inventory/inventory.ts';
 import { standingLevel } from '../../src/core/server.ts';
 import { checkBuy, costOf, stockNow } from '../shops/shop.ts';
@@ -37,10 +38,10 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     if (typeof shop !== 'string' || typeof item !== 'string') throw new BadRequest('shop, item: ids');
     const list = shops.get(shop);
     if (!list) throw new BadRequest(`shop: ${shop} is not a shop`);
-    // The buyer must stand at the shop's counter (Strategy 2026-10-08 13:46): within SHOP_RANGE_CM of its vendor's landmark, by presence's last fresh pose,
+    // The buyer must stand at the shop's counter (Strategy 2026-10-08 13:46): within the shop row's rangeCm of its vendor's landmark, by presence's last fresh pose,
     // never by the request. Presence down, slow, unplaced or stale counts as away (fail closed), as the Exchange ops do (upgrade.ts exchangePlace).
     const counter = content.counters?.get(shop);
-    if (!counter || !(await atCounter(where, account, counter))) throw new Refused(422, 'stand at the shop counter to buy', 'away');
+    if (!counter || !(await atCounter(where, account, counter, SHOP_RANGE_CM_BY_SHOP.get(shop)))) throw new Refused(422, 'stand at the shop counter to buy', 'away');
     const eventId = `shop:${character}:${op}`;
     const same = (r: ShopReceipt) => r.shop === shop && r.item === item && r.quantity === quantity;
     const replay = (stored: store.Json | null) => {
@@ -102,13 +103,12 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
 }
 
 
-// How near the counter a buyer must stand: 5 m (a stall's frontage plus a step back), in presence centimetres.
-export const SHOP_RANGE_CM = 500;
-async function atCounter(where: WhereFn | undefined, account: string, counter: { zone: string; at: string }): Promise<boolean> {
-  if (!where) return false;
+// How near the counter a buyer must stand, in presence centimetres: the shop row's rangeCm (origins/region1/shops.json); a shop without one counts the buyer as away.
+async function atCounter(where: WhereFn | undefined, account: string, counter: { zone: string; at: string }, rangeCm: number | undefined): Promise<boolean> {
+  if (!where || rangeCm === undefined) return false;
   try {
     const spot = landmarkCm(counter.zone as 'exchange', counter.at);
-    return standsWithin(await where(account), { x: spot.x, z: spot.z, radiusCm: SHOP_RANGE_CM }, PRESENCE_FRESH_MS);
+    return standsWithin(await where(account), { x: spot.x, z: spot.z, radiusCm: rangeCm }, PRESENCE_FRESH_MS);
   } catch (e) { console.error('origins-writer: shop counter check failed, the buyer counts as away:', e instanceof Error ? e.message : e); return false; }
 }
 
