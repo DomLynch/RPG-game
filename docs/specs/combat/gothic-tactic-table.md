@@ -30,7 +30,7 @@ Plan     = 'press' | 'circle' | 'guard' | 'backstep' | 'sidestep'      // the ex
 
 - Each list is `{ choice, weight }[]`, at most 6 entries; one is drawn with the warden's existing `roll()` (the seeded `lcg`). A list that is absent for a situation keeps today's logic for that situation.
 - `heroWinding` replaces the choice inside the existing "one response planned per noticed attack" step; it does not change *when* an attack is noticed (`reaction` ticks), so perception stays the same.
-- The reaction entries map onto responses the warden already produces: `parry` and `brace` are its guard plans, `backstep` and `sidestep` are its existing step moves. `trade` is "swing into it". No new move or timing; the warden still cannot do anything the player's fighter cannot (the duel's legality check runs unchanged).
+- The reaction entries map onto responses the warden already produces: `parry` and `brace` are its guard plans, `backstep` and `sidestep` are its existing step moves. (`trade`, "swing into it", is deferred past v1.) No new move or timing; the warden still cannot do anything the player's fighter cannot (the duel's legality check runs unchanged).
 - Authoring: `src/fight/tactic-defs.json` (+ manifest, rows module `tactic-rows.ts`, a SIM file and SIM_DATA entry, as sim batch A did). Kinds can share a row by id.
 
 ## Cost
