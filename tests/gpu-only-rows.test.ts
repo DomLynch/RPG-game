@@ -17,7 +17,7 @@ test('GPU_ONLY is the ceiling rule over ON_T4; row 13 (initdb as root) and row 9
 // The plan step's own script, extracted from the workflow and run with a stub gh (the PR's changed files): CI never schedules a GPU_ONLY row.
 const plan = (env: Record<string, string>) => {
   const yml = readFileSync('.github/workflows/release-checks.yml', 'utf8');
-  const start = yml.indexOf('        run: |\n          # Rows CI never schedules'), end = yml.indexOf('\n  rows:\n');
+  const start = yml.indexOf('        run: |\n          # Rows CI never schedules'), end = yml.indexOf('\n      - id: group\n');   // the list step ends where the group step (row-groups.mjs packing, not shell of this script) begins
   assert.ok(start > 0 && end > start, 'the plan step');
   const script = yml.slice(start, end).split('\n').slice(1).map(line => line.slice(10)).join('\n');
   const dir = mkdtempSync(join(tmpdir(), 'gpu-only-plan-')), out = join(dir, 'out'), gh = join(dir, 'gh');
