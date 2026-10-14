@@ -125,16 +125,7 @@
     {"file": "src/arena.ts", "name": "LAYOUT", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
     {"file": "src/arena.ts", "name": "PLAY_RADIUS", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
     {"file": "src/arena.ts", "name": "SAND_TILE", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "CLIP_FINISH_CAP", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "CLIP_HEIGHT", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "CLIP_LEAD", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "CLIP_SECONDS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "CLIP_TAIL", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "CLIP_WIDTH", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/clip.ts", "name": "FPS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/coach.ts", "name": "BUILD_MAX", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/coach.ts", "name": "LAPSE_MAX", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/coach.ts", "name": "LAPSE_MIN", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/coach.ts", "name": "BUILD_MAX", "kind": "exempt", "reason": "the record's build field is len u8 + ascii (src/fight/record.ts), so 255 bytes is the wire format: the contract with the record decoder, changes only with the record version"},
     {"file": "src/core/build-model.ts", "name": "FREE_RESPREAD_LEVEL", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
     {"file": "src/core/build-model.ts", "name": "RANK_LEVELS", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
     {"file": "src/core/career-ladder.ts", "name": "DIAL_TRAIL", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
@@ -453,9 +444,6 @@
     {"file": "src/fight/zone-finisher.ts", "name": "HEAD_LIFE", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
     {"file": "src/fight/zone-finisher.ts", "name": "SEVER_AT", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
     {"file": "src/fight/zone-fx.ts", "name": "IDLE_S", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
-    {"file": "src/gate-rise.ts", "name": "RISE_M", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/gate-rise.ts", "name": "RISE_MS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/lorarii.ts", "name": "LORARII", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
     {"file": "src/main.ts", "name": "HEAVY_BLOCK", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
     {"file": "src/main.ts", "name": "HEAVY_HIT", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
     {"file": "src/main.ts", "name": "HIT_STOP", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
@@ -469,8 +457,6 @@
     {"file": "src/net/rollback.ts", "name": "NET", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
     {"file": "src/net/rollback.ts", "name": "PLAYABLE", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
     {"file": "src/net/transport.ts", "name": "RECONNECT", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/pvp-hold.ts", "name": "CATCHUP", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/pvp-hold.ts", "name": "MAX_LAG_TICKS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
-    {"file": "src/share-store.ts", "name": "MAX_STORED_CHARS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"}
+    {"file": "src/share-store.ts", "name": "MAX_STORED_CHARS", "kind": "exempt", "reason": "the share table's own check constraint (a 30 s fight is ~1-3 K): the contract with the database, not a game rule"}
   ]
 }
