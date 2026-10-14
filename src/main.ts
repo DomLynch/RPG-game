@@ -1,5 +1,6 @@
 import { createInput } from './fight/index.ts';
 import { ui } from './ui-rows.ts';
+import { AFK_CAP_S } from './first-loss.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
 import { weightClassOf } from './fight/gear-weight.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
@@ -1457,7 +1458,7 @@ let last = performance.now(),
 // fightLive() alone owed a returning player the time the fight waited behind the loading card) is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
-const AFK_CAP = 300;
+const AFK_CAP = AFK_CAP_S;
 let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
 const fightLive = () => !invalidSparringPreview && welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a

@@ -13,7 +13,7 @@ import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
 
-export const ZONE_CM = 30000;   // presence's town square (origins/presence/interest.ts RULES.zoneCm); the migration's x/z check uses the same bound
+export const ZONE_CM = 30000;   // the saved x/z columns' bound, check (between 0 and 30000) in migration 202610070009 (old town frame): a storage contract, pinned by tests/location-bounds.test.ts
 
 // The rejoin edge and the trade area are presence's own (origins/presence/zones.ts, #1577): one definition for both servers. The saved columns stay in the OLD frame (town square, centre 15000)
 // until the location migration widens them (docs/specs/origins/frontier-presence.md §2), so presence's v2-frame answers are shifted back here.
