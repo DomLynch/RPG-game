@@ -22,6 +22,7 @@ import { fakeWhere, landmarkAt, standingAt } from '../origins/presence/fixtures.
 import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
 import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
+import { repairCost, repairedPiece, wearKindOf } from '../origins/gear/wear-repair.ts';
 import { REJOIN_EDGE, zoneAt, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { handlers as clientOps } from '../origins/server/handlers.ts';
 
@@ -655,6 +656,49 @@ try {
     const next = await gd({ owned: ids.slice(0, 6), equipped: {} });
     eq([next.status, next.json.result?.imported, next.json.result?.alreadyHeld.length], [200, [ids[5]], 5], 'gear_import: a retired migrated piece is alreadyHeld, the one new piece is imported, nothing 500s');
     eq((await gd({ owned: ids.slice(0, 6), equipped: {} })).json.result?.imported.length, 0, 'gear_import: and a replay after that imports nothing');
+    // gear_repair (migration 0032): the wear is the newest wear event, the price is the wear-repair rows', and bronze + grave iron + the new wear commit in ONE batch.
+    {
+      const piece = psql(`select id from public.origins_items where loc_owner = '${cd}' and item ~ '^item:loot[.][a-z]+[.](Helmet|Body|Greaves|Arms|Gloves|Boots)$' and loc_kind in ('pack', 'bank') and retired_at is null order by id limit 1`);
+      const item = psql(`select item from public.origins_items where id = '${piece}'`), kind = wearKindOf(item);
+      if (!kind) throw Error(`gear_repair: no wearable goblin piece for the section (piece ${JSON.stringify(piece)}, item ${JSON.stringify(item)}, held ${psql(`select string_agg(item || ':' || coalesce(loc_kind, '-'), ',') from public.origins_items where loc_owner = '${cd}'`)})`);
+      const worn = { worn: 12, max: 40, baseMax: 40 }, cost = repairCost(kind.tier, worn, worn.worn, undefined, kind.slot), after = repairedPiece(worn);
+      const wear = () => psql(`select coalesce((public.origins_item_wear('${D}', array['${piece}']) -> '${piece}')::text, 'none')`), sorted = o => Object.fromEntries(Object.entries(o).sort());   // jsonb reorders keys
+      const rep = over => call('gear_repair', 'td', { character: cd, op: 'repair:op-0001', instance: piece, ...over });
+      presence[D] = atBank();
+      psql(`select public.origins_commit('${D}', $j$[{"op":"metal","account":"${D}","delta_bronze":${cost.gold + 5},"reason":"award","event_id":"test:repair-seed"}]$j$::jsonb);`);
+      eq(wear(), 'none', 'gear_repair: a piece never worn has no wear row');
+      const none = await rep({});
+      eq([none.status, none.json.code], [422, 'not-worn'], 'gear_repair: an unworn piece is refused');
+      psql(`select public.origins_commit('${D}', $j$[{"op":"event","event_id":"wear:${piece}:1","kind":"metal","account":"${D}","character":"${cd}","payload":{"wear":${JSON.stringify({ instance: piece, seq: 1, ...worn })}}}]$j$::jsonb);`);
+      eq(sorted(JSON.parse(wear())), sorted({ instance: piece, seq: 1, ...worn }), 'gear_repair: the newest wear event is the piece\'s wear');
+      const seen = await call('gear_wear', 'td', { character: cd });
+      eq([seen.status, seen.json.result?.pieces.map(x => [x.instance, x.worn, x.max, x.baseMax, x.quote.bronze, x.quote.metal.qty])], [200, [[piece, worn.worn, worn.max, worn.baseMax, cost.gold, cost.metal]]], 'gear_wear: the worn piece with the smith\'s quote, read only');
+      const noIron = await rep({ op: 'repair:op-0002' });
+      eq([noIron.status, noIron.json.code], [422, 'metal'], 'gear_repair: no grave iron in the pack is refused');
+      if (!(cost.metal > 0)) throw Error('gear_repair: the rows must price some grave iron for this piece, or the burn check proves nothing');
+      psql(`select public.origins_commit('${D}', $j$[{"op":"mint","item":{"id":"inst:repair-iron","item":"item:grave-iron","quantity":${cost.metal},"mint_key":"test:repair-iron","loc":{"kind":"pack","owner":"${cd}","index":63},"provenance":{"mintKey":"test:repair-iron","at":"2026-10-06T12:00:00Z","wonBy":"${cd}","kind":"loot","table":"loottable:scavenger","encounter":null}}}]$j$::jsonb);`);
+      const bal = () => psql(`select bronze from public.origins_metal where account = '${D}'`);
+      const was = Number(bal());
+      const ok = await rep({ price: 1, tier: 'heavy' });
+      eq([ok.status, ok.json.result?.cost?.bronze, ok.json.result?.cost?.metal?.qty, sorted(ok.json.result?.piece), ok.json.result?.replayed], [200, cost.gold, cost.metal, sorted(after), false], 'gear_repair: priced from the rows (a price or tier in the body is ignored), the piece after');
+      eq([Number(bal()), sorted(JSON.parse(wear()))], [was - cost.gold, sorted({ instance: piece, seq: 2, ...after })], 'gear_repair: bronze spent and the wear reduced, in one batch');
+      eq(psql(`select retired_at is not null from public.origins_items where id = 'inst:repair-iron'`), 't', 'gear_repair: the grave iron is burned (the row is retired)');
+      const again = await rep({});
+      eq([again.status, again.json.result?.replayed, Number(bal())], [200, true, was - cost.gold], 'gear_repair: an identical retry answers the stored receipt and charges nothing');
+      eq((await rep({ instance: 'inst:other-0001' })).status, 409, 'gear_repair: the same op id for another piece is a 409');
+      eq([(await rep({ op: 'repair:op-0003' })).json.code], ['not-worn'], 'gear_repair: a fully repaired piece is not worn');
+      eq((await call('gear_wear', 'td', { character: cd })).json.result?.pieces, [], 'gear_wear: nothing worn after the repair is an empty list');
+      // A settle and a repair (or two repairs) that read the same wear must not both land: the wear event id carries the seq, so the second write collides and nothing is charged twice.
+      const again2 = { worn: 6, max: after.max, baseMax: after.baseMax }, cost2 = repairCost(kind.tier, again2, again2.worn, undefined, kind.slot);
+      psql(`select public.origins_commit('${D}', $j$[{"op":"event","event_id":"wear:${piece}:3","kind":"metal","account":"${D}","character":"${cd}","payload":{"wear":${JSON.stringify({ instance: piece, seq: 3, ...again2 })}}},{"op":"metal","account":"${D}","delta_bronze":${cost2.gold * 3},"reason":"award","event_id":"test:repair-seed2","expected_version":${psql(`select version from public.origins_metal where account = '${D}'`)}}]$j$::jsonb);`);
+      for (const n of [2, 3]) psql(`select public.origins_commit('${D}', $j$[{"op":"mint","item":{"id":"inst:repair-iron${n}","item":"item:grave-iron","quantity":${cost2.metal},"mint_key":"test:repair-iron${n}","loc":{"kind":"pack","owner":"${cd}","index":${60 - n}},"provenance":{"mintKey":"test:repair-iron${n}","at":"2026-10-06T12:00:00Z","wonBy":"${cd}","kind":"loot","table":"loottable:scavenger","encounter":null}}}]$j$::jsonb);`);
+      const before2 = Number(bal());
+      const race = await Promise.all([rep({ op: 'repair:op-0005' }), rep({ op: 'repair:op-0006' })]);
+      eq([race.filter(r => r.status === 200).length, Number(bal()), JSON.parse(wear()).seq], [1, before2 - cost2.gold, 4], 'gear_repair: two repairs that read the same wear: exactly one lands, one charge, one new wear event');
+      presence[D] = inPitYard();
+      const away = await rep({ op: 'repair:op-0004' });
+      eq([away.status, away.json.code], [422, 'away'], 'gear_repair: away from the smith is refused');
+    }
   }
   // order fail-safe (Auditor/Lead): merged code on a database without 0009 still creates characters, and a character switch answers 503, not 500
   const pre = await call('create_character', 'tb', { name: 'Brin' });

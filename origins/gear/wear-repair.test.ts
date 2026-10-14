@@ -30,7 +30,7 @@ test('the metal is a live item', () => {
 test('heavier gear wears slower per event and costs more to mend', () => {
   const [l, m, h] = ['light', 'medium', 'heavy'].map(tier) as [ReturnType<typeof tier>, ReturnType<typeof tier>, ReturnType<typeof tier>];
   assert.ok(l.hitWear > m.hitWear && m.hitWear > h.hitWear);
-  assert.ok(l.goldPerPoint < m.goldPerPoint && m.goldPerPoint < h.goldPerPoint);
+  assert.ok(l.bronzePerPoint < m.bronzePerPoint && m.bronzePerPoint < h.bronzePerPoint);
 });
 
 test('wearAfter: a hit wears only on a roll under the chance, a kill always wears, never past max', () => {
