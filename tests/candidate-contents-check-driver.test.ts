@@ -2,13 +2,13 @@
 // Plain `git merge-tree` conflicts on two PRs that add allow entries side by side, so without the driver the first such candidate would read as not treeEqual.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-const { mergeAll } = await import('../scripts/cut-release.mjs');
-const { driverArgs, rebuildTree, verifyCandidate } = await import('../scripts/candidate-contents-check.mjs');
+const { driverArgs, mergeAll } = await import('../scripts/cut-release.mjs');
+const { rebuildTree, verifyCandidate } = await import('../scripts/candidate-contents-check.mjs');
 const { serialize } = await import('../scripts/as-data/merge-allow.mjs');
 
 const REPO = new URL('..', import.meta.url).pathname;
@@ -67,5 +67,38 @@ test('a true clash still reports the PR (the driver exits 1); a base without the
     assert.deepEqual(rebuildTree(f.git, f.base, [{ pr: 3, head: p3 }, { pr: 4, head: p4 }]), { conflictAt: 4 });
     const none = driverArgs(f.git, f.old); assert.deepEqual(none.args, []); none.dispose();
     const some = driverArgs(f.git, f.base); assert.equal(some.args[0], '--attr-source'); assert.equal(some.args[1], f.base); assert.match(some.args[3], /^merge\.as-data-allow\.driver=node ".+merge-allow\.mjs" %O %A %B %P$/); some.dispose();
+  } finally { rmSync(f.dir, { recursive: true, force: true }); }
+});
+
+test('the driver the rebuild runs is the script of the tree being merged onto, not the checkout\'s; it leaves no file behind and writes no git config', () => {
+  const f = fixture();
+  try {
+    const p1 = f.pr('p1', doc('A', 'B', 'Z')), p2 = f.pr('p2', doc('A', 'C', 'Z'));
+    // A second base whose merge-allow.mjs differs from the checkout's copy by one comment line: the temp file must carry the TREE's bytes.
+    f.ok(['switch', '-q', '-c', 'marked', f.base]); writeFileSync(join(f.dir, 'scripts/as-data/merge-allow.mjs'), `// marker\n${readFileSync(join(f.dir, 'scripts/as-data/merge-allow.mjs'), 'utf8')}`);
+    f.ok(['commit', '-qam', 'marker']); const marked = f.ok(['rev-parse', 'HEAD']);
+    f.ok(['switch', '-q', 'main']); f.ok(['checkout', '-q', '--detach', f.old]);   // the working tree now has NO script at all
+    let seen = '', file = '';
+    const spy = (args: string[]) => {
+      const i = args.indexOf('merge-tree');
+      if (i >= 0) { const m = /node "(.+)" %O/.exec(args.join(' ')); file = m![1]!; seen = readFileSync(file, 'utf8'); }
+      return f.git(args);
+    };
+    const r = rebuildTree(spy, marked, [{ pr: 1, head: p1 }]);
+    assert.ok('tree' in r, JSON.stringify(r));
+    assert.ok(seen.startsWith('// marker\n'), 'the driver file carries the bytes of the tree being merged onto');
+    assert.equal(existsSync(file), false, 'the temp driver is removed after the call'); assert.equal(existsSync(join(file, '..')), false);
+    assert.notEqual(f.git(['config', '--get', 'merge.as-data-allow.driver']).status, 0, 'nothing is written to git config');
+    void p2;
+  } finally { rmSync(f.dir, { recursive: true, force: true }); }
+});
+
+test('mutation check: without the driver arguments the same rebuild conflicts, so the treeEqual tests above are not passing by accident', () => {
+  const f = fixture();
+  try {
+    const p1 = f.pr('p1', doc('A', 'B', 'Z')), p2 = f.pr('p2', doc('A', 'C', 'Z'));
+    const strip = (args: string[]) => { const out = [...args], i = out.indexOf('--attr-source'); if (i >= 0) out.splice(i, 4); return f.git(out); };   // drop --attr-source <tree> -c <driver>
+    assert.deepEqual(rebuildTree(strip, f.base, [{ pr: 1, head: p1 }, { pr: 2, head: p2 }]), { conflictAt: 2 });
+    assert.ok('tree' in rebuildTree(f.git, f.base, [{ pr: 1, head: p1 }, { pr: 2, head: p2 }]), 'with the driver the same two PRs rebuild');
   } finally { rmSync(f.dir, { recursive: true, force: true }); }
 });

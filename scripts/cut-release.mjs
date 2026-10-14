@@ -4,8 +4,9 @@
 // in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, driverResolved, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
 // Run it in the release worktree, which must be clean. The Auditor's PASS at each head is checked from the PR thread unless --no-verify.
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, openSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
 
 export const TRUNK = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1';
 export const LABELS = ['ci:release-checks', 'auditor:ready'];
@@ -30,12 +31,32 @@ export const passAt = (comments, head) => comments.some(c => TRUSTED.includes(c?
  * only for the paths .gitattributes names. A true clash makes the driver exit 1, which git reports as a conflict, so that PR is aborted and skipped exactly as before.
  * driverResolved names, per merged PR, the allow files both sides changed (the ones the driver, not a line merge, resolved), for the Auditor's contents-check.
  */
-export const ALLOW_DRIVER = 'merge.as-data-allow.driver=node scripts/as-data/merge-allow.mjs %O %A %B %P';
+/**
+ * The allow-list merge driver (scripts/as-data/merge-allow.mjs, PR #2725) as ONE shared helper: the cut (mergeAll below) and the Auditor's candidate-contents-check both
+ * build their git arguments here, so they agree by construction. When `tree` carries the script, the attributes come from THAT tree (`--attr-source`) and the driver is that
+ * tree's own copy of the script, written to a temp file: the answer does not depend on which commit the caller happens to be checked out on (a relative `-c` path only works
+ * where the checkout has the script and .gitattributes). Per call with -c, never written to git config. A tree without the script gets no arguments: git's own line merge.
+ * Returns { args, dispose }; call dispose() when the git command has run.
+ */
+export function driverArgs(git, tree) {
+  const script = git(['show', `${tree}:scripts/as-data/merge-allow.mjs`]);
+  if (script.status !== 0) return { args: [], dispose() {} };
+  const dir = mkdtempSync(join(tmpdir(), 'allow-driver-')), file = join(dir, 'merge-allow.mjs');
+  writeFileSync(file, script.stdout);
+  return {
+    args: ['--attr-source', tree, '-c', `merge.as-data-allow.driver=node "${file}" %O %A %B %P`],
+    dispose() {   // one file in one directory this call made: unlink + rmdir (no recursion), and only under the temp dir
+      if (!dir.startsWith(tmpdir() + sep)) throw new Error(`allow-driver: refusing to remove ${dir}`);
+      unlinkSync(file); rmdirSync(dir);
+    },
+  };
+}
 export function mergeAll(git, name, specs) {
   const merged = [], skipped = [], driverResolved = {};
   for (const { pr, head } of specs) {
-    const driver = git(['cat-file', '-e', 'HEAD:scripts/as-data/merge-allow.mjs']).status === 0 ? ['-c', ALLOW_DRIVER] : [];   // an older base has no script: git's own line merge, as before
-    const r = git([...driver, 'merge', '--no-ff', '-q', '-m', `Merge pull request #${pr} (release-${name} candidate)`, head]);
+    const driver = driverArgs(git, 'HEAD');   // per PR, from the branch as it stands: an older base has no script, so git's own line merge, as before
+    let r;
+    try { r = git([...driver.args, 'merge', '--no-ff', '-q', '-m', `Merge pull request #${pr} (release-${name} candidate)`, head]); } finally { driver.dispose(); }
     const conflicts = git(['diff', '--name-only', '--diff-filter=U']).stdout.split('\n').filter(Boolean);
     if (conflicts.length) { git(['merge', '--abort']); skipped.push({ pr, why: `conflicts in ${conflicts.join(', ')}` }); }
     else if (r.status !== 0 || git(['merge-base', '--is-ancestor', head, 'HEAD']).status !== 0) skipped.push({ pr, why: `merge failed (${String(r.stderr || r.stdout || '').trim().slice(0, 120)})` });

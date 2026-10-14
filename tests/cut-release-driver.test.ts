@@ -4,7 +4,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { ALLOW_DRIVER, mergeAll } from '../scripts/cut-release.mjs';
+import { driverArgs, mergeAll } from '../scripts/cut-release.mjs';
 import { serialize } from '../scripts/as-data/merge-allow.mjs';
 
 const REPO = new URL('..', import.meta.url).pathname;
@@ -41,7 +41,7 @@ test('the cut merges allow-list PRs through the driver: adjacent additions merge
     assert.ok(!text.includes('<<<<<<<'));
     assert.deepEqual((JSON.parse(text).tunables as { name: string; reason: string }[]).map(e => `${e.name}:${e.reason}`), ['A:one', 'B:r', 'C:r', 'Z:r']);
     assert.notEqual(f.git(['config', '--get', 'merge.as-data-allow.driver']).status, 0, 'the driver is passed per call, never written to the shared git config');
-    assert.match(ALLOW_DRIVER, /^merge\.as-data-allow\.driver=node scripts\/as-data\/merge-allow\.mjs %O %A %B %P$/);
+    const d = driverArgs(f.git, 'HEAD'); assert.deepEqual(d.args.slice(0, 3), ['--attr-source', 'HEAD', '-c']); assert.match(d.args[3], /^merge\.as-data-allow\.driver=node ".+merge-allow\.mjs" %O %A %B %P$/); d.dispose();
   } finally { rmSync(f.dir, { recursive: true, force: true }); }
 });
 
