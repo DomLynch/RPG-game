@@ -13,6 +13,7 @@ import {
 import { readId, readOptionalId, type CharacterInstanceId, type EncounterId, type FactionId, type ItemId, type LootTableId, type QuestId } from './ids.ts';
 import { DEFINITIONS, ids } from './definitions.ts';
 import { GATES, STANDING_MAX, STANDING_MIN, verifiedTier, type CareerStanding, type Gate } from './world.ts';
+import RULES from './contract-rules.json' with { type: 'json' };
 
 export const QUEST_DEFINITION_VERSION = 1;
 export const QUEST_STATE_VERSION = 1;
@@ -55,7 +56,7 @@ export type QuestDefinition = {
 };
 
 const QUEST_KEYS = ['kind', 'schemaVersion', 'id', 'title', 'storyVersion', 'scope', 'gate', 'start', 'stages', 'migrations'] as const;
-const MAX_DELTA = 200;
+const MAX_DELTA = RULES.storyLimits[0]!.maxDelta;
 
 export function readCondition(issues: Issues, raw: unknown, path: string): Condition | undefined {
   if (!isPlainObject(raw)) {
@@ -270,7 +271,7 @@ export type QuestState = {
   rewarded: string[];
 };
 const STATE_KEYS = ['kind', 'schemaVersion', 'character', 'quest', 'storyVersion', 'stage', 'status', 'journal', 'flags', 'rewarded'] as const;
-const MAX_STAGES = 64;
+const MAX_STAGES = RULES.storyLimits[0]!.maxStages;
 export const statusFor = (kind: StageKind): QuestStatus => (kind === 'finish' ? 'finished' : kind === 'fail' ? 'failed' : 'active');
 
 export function parseQuestState(raw: unknown, path = ''): Result<QuestState> {

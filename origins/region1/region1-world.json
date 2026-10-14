@@ -1,0 +1,141 @@
+{
+  "about": "Region 1's two world layers as data (World, Dom's data-layer day 2026-10-14): the Exchange amendment (spec \u00a71: the west road, the lit arch, the town quarter outside the square: not safe, guards and town services, trades still settle only in the square; the quarter's ring centre is 36 m from the arch so no guard ring overlaps the square, living-world \u00a712) and the Ash Frontier (spec \u00a71 verbatim; the seven Frontier zones are Zone 1's place, origins/zone-rows/zone1.row.json). world.ts only merges them.",
+  "exchangeLayer": {
+    "zones": {
+      "exchange": {
+        "layout": {
+          "west-gate": {
+            "u": 0,
+            "v": 0.5,
+            "facing": 90
+          },
+          "square-arch": {
+            "u": 1,
+            "v": 0.5,
+            "facing": -90
+          }
+        },
+        "passages": {
+          "west-road": {
+            "from": "west-gate",
+            "width": 3,
+            "length": 12
+          }
+        },
+        "connections": {
+          "quarter": {
+            "to": "exchange-quarter",
+            "kind": "gate",
+            "here": "square-arch",
+            "there": "quarter-arch",
+            "twoWay": true
+          }
+        }
+      },
+      "exchange-quarter": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 60
+        },
+        "layout": {
+          "quarter-arch": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "quarter-centre": {
+            "u": 0.5,
+            "v": 0.6,
+            "facing": 0
+          },
+          "quarter-hall": {
+            "u": 0.5,
+            "v": 0.92,
+            "facing": 180
+          },
+          "quarter-forge": {
+            "u": 0.18,
+            "v": 0.55,
+            "facing": -90
+          },
+          "quarter-healer": {
+            "u": 0.82,
+            "v": 0.45,
+            "facing": 90
+          },
+          "quarter-fence": {
+            "u": 0.82,
+            "v": 0.75,
+            "facing": 90
+          },
+          "quarter-jail": {
+            "u": 0.15,
+            "v": 0.88,
+            "facing": -90
+          }
+        },
+        "connections": {
+          "square": {
+            "to": "exchange",
+            "kind": "gate",
+            "here": "quarter-arch",
+            "there": "square-arch",
+            "twoWay": true
+          }
+        },
+        "rules": {
+          "safe": false,
+          "tradeAllowed": false
+        },
+        "density": {
+          "npcs": 0.4,
+          "props": 0.4,
+          "creatures": 0
+        },
+        "terrain": {
+          "ground": "ash"
+        },
+        "ambience": {
+          "preset": "exchange-dusk"
+        }
+      }
+    }
+  },
+  "frontier": {
+    "params": {
+      "difficulty": {
+        "levelMin": 11,
+        "levelMax": 15,
+        "lootTier": 3
+      },
+      "economy": {
+        "vendorTier": 3
+      },
+      "rules": {
+        "safe": false,
+        "pvp": false,
+        "tradeAllowed": false,
+        "restAllowed": true
+      },
+      "density": {
+        "npcs": 0.05,
+        "props": 0.4,
+        "creatures": 0.25
+      },
+      "spawns": {
+        "respawnSeconds": 300
+      },
+      "ambience": {
+        "weather": "dust",
+        "sound": "wind"
+      },
+      "terrain": {
+        "biome": "ash-waste",
+        "ground": "ash",
+        "relief": 1.5,
+        "hillScale": 40
+      }
+    },
+    "zones": {}
+  }
+}

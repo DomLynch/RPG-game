@@ -1,0 +1,459 @@
+{
+  "licences": {
+    "CC0-1.0": {
+      "note": "Public domain dedication, https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    "unconfirmed": {
+      "note": "no licence line found; never pulled"
+    }
+  },
+  "needKinds": {
+    "creature-kit": {
+      "note": "a body for a wild creature row"
+    },
+    "prop": {
+      "note": "a 3D prop for a landmark or a gear still"
+    },
+    "ui-icon": {
+      "note": "2D interface art"
+    },
+    "map-tile": {
+      "note": "a 2D tile for the map screen"
+    }
+  },
+  "packs": {
+    "quaternius-ultimate-animated-animals": {
+      "source": "Quaternius",
+      "name": "Ultimate Animated Animals",
+      "pageUrl": "https://quaternius.com/packs/ultimateanimatedanimals.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [
+        "glTF",
+        "FBX",
+        "OBJ",
+        "Blend"
+      ],
+      "count": "12 animals; Attack, Death, Gallop, Walk, Jump and more; species not named on the page",
+      "files": [
+        {
+          "name": "pack zip (button on the page; target not exposed)",
+          "url": "https://quaternius.com/packs/ultimateanimatedanimals.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "quaternius-animated-monster": {
+      "source": "Quaternius",
+      "name": "Animated Monster Pack",
+      "pageUrl": "https://quaternius.com/packs/animatedmonster.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [
+        "FBX",
+        "OBJ",
+        "Blend"
+      ],
+      "count": "4 animated monsters, untextured; names not on the page",
+      "files": [
+        {
+          "name": "pack zip (button on the page; target not exposed)",
+          "url": "https://quaternius.com/packs/animatedmonster.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "quaternius-bestiary-dungeon-monsters": {
+      "source": "Quaternius",
+      "name": "Bestiary - Dungeon Monsters Kit",
+      "pageUrl": "https://quaternius.com/packs/bestiarydungeonmonsterskit.html",
+      "licence": "unconfirmed",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "No CC0 line found in the page text on 2026-10-13; held until the maker's page or download states it",
+      "status": "hold-licence",
+      "formats": [],
+      "count": "7 monsters",
+      "files": []
+    },
+    "quaternius-medieval-village-megakit": {
+      "source": "Quaternius",
+      "name": "Medieval Village MegaKit",
+      "pageUrl": "https://quaternius.com/packs/medievalvillagemegakit.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [
+        "glTF",
+        "FBX",
+        "OBJ",
+        "Blend"
+      ],
+      "count": "304 models (page: 300+); Standard tier holds about 60-70% of them",
+      "files": [
+        {
+          "name": "pack zip (Standard tier)",
+          "url": "https://quaternius.com/packs/medievalvillagemegakit.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "quaternius-fantasy-props-megakit": {
+      "source": "Quaternius",
+      "name": "Fantasy Props MegaKit",
+      "pageUrl": "https://quaternius.com/packs/fantasypropsmegakit.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [
+        "glTF",
+        "FBX",
+        "OBJ",
+        "Blend"
+      ],
+      "count": "200+ models (furniture, tools, weapons, books, potions, breakables)",
+      "files": [
+        {
+          "name": "pack zip",
+          "url": "https://quaternius.com/packs/fantasypropsmegakit.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "quaternius-stylized-nature-megakit": {
+      "source": "Quaternius",
+      "name": "Stylized Nature MegaKit",
+      "pageUrl": "https://quaternius.com/packs/stylizednaturemegakit.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [
+        "glTF",
+        "FBX",
+        "OBJ",
+        "Blend"
+      ],
+      "count": "116 models: 40 trees, 35 plants and flowers, 27 rocks, more",
+      "files": [
+        {
+          "name": "pack zip",
+          "url": "https://quaternius.com/packs/stylizednaturemegakit.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "quaternius-modular-dungeon": {
+      "source": "Quaternius",
+      "name": "Modular Dungeons Pack",
+      "pageUrl": "https://quaternius.com/packs/modulardungeon.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [],
+      "count": "count not read",
+      "files": [
+        {
+          "name": "pack zip",
+          "url": "https://quaternius.com/packs/modulardungeon.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "quaternius-medieval-weapons": {
+      "source": "Quaternius",
+      "name": "Medieval Weapons",
+      "pageUrl": "https://quaternius.com/packs/medievalweapons.html",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Pack page states CC0 (checked 2026-10-13); the site home does not, so each pack is read on its own page",
+      "status": "listed",
+      "formats": [],
+      "count": "count not read",
+      "files": [
+        {
+          "name": "pack zip",
+          "url": "https://quaternius.com/packs/medievalweapons.html",
+          "bytes": null,
+          "note": "download host publishes no size; read it from the response at pull time"
+        }
+      ]
+    },
+    "kenney-survival-kit": {
+      "source": "Kenney",
+      "name": "Survival Kit",
+      "pageUrl": "https://kenney.nl/assets/survival-kit",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Asset page: \"Creative Commons CC0\"; https://kenney.nl/support says all asset-page assets are CC0",
+      "status": "listed",
+      "formats": [
+        "not listed on the page"
+      ],
+      "count": "80 models",
+      "files": [
+        {
+          "name": "kenney_survival-kit.zip",
+          "url": "https://kenney.nl/media/pages/assets/survival-kit/4065a8185b-1712149243/kenney_survival-kit.zip",
+          "bytes": 1948174,
+          "note": "size from HTTP HEAD, not downloaded"
+        }
+      ]
+    },
+    "kenney-fantasy-ui-borders": {
+      "source": "Kenney",
+      "name": "Fantasy UI Borders",
+      "pageUrl": "https://kenney.nl/assets/fantasy-ui-borders",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "https://kenney.nl/support says all asset-page assets are CC0; the pack page line is re-read at pull time",
+      "status": "listed",
+      "formats": [
+        "PNG sprites"
+      ],
+      "count": "130+ 9-slice sprites",
+      "files": [
+        {
+          "name": "kenney_fantasy-ui-borders.zip",
+          "url": "https://kenney.nl/media/pages/assets/fantasy-ui-borders/ab29cd0165-1701602367/kenney_fantasy-ui-borders.zip",
+          "bytes": 358780,
+          "note": "size from HTTP HEAD, not downloaded"
+        }
+      ]
+    },
+    "kenney-ui-pack-rpg-expansion": {
+      "source": "Kenney",
+      "name": "UI Pack (RPG Expansion)",
+      "pageUrl": "https://kenney.nl/assets/ui-pack-rpg-expansion",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Asset page: \"Creative Commons CC0\"",
+      "status": "listed",
+      "formats": [
+        "PNG sprites"
+      ],
+      "count": "85 files: buttons, panels, sliders",
+      "files": [
+        {
+          "name": "kenney_ui-pack-rpg-expansion.zip",
+          "url": "https://kenney.nl/media/pages/assets/ui-pack-rpg-expansion/7ec4a46657-1677661824/kenney_ui-pack-rpg-expansion.zip",
+          "bytes": 214394,
+          "note": "size from HTTP HEAD, not downloaded"
+        }
+      ]
+    },
+    "crawl-32x32-tiles": {
+      "source": "OpenGameArt (Dungeon Crawl Stone Soup tiles)",
+      "name": "Dungeon Crawl 32x32 tiles",
+      "pageUrl": "https://opengameart.org/content/dungeon-crawl-32x32-tiles",
+      "licence": "CC0-1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "licenceEvidence": "Page licence field: CC0. Page: no attribution required; artist list is FilteredList.txt inside the zip, so the per-tile check reads that file at pull time",
+      "status": "listed",
+      "formats": [
+        "PNG, 32x32 tiles"
+      ],
+      "count": "3000+ tiles in the main set, 3000+ more in the Utumno set",
+      "files": [
+        {
+          "name": "crawl-tiles Oct-5-2010.zip",
+          "url": "https://opengameart.org/sites/default/files/crawl-tiles%20Oct-5-2010.zip",
+          "bytes": 2703511,
+          "note": "size from HTTP HEAD, not downloaded"
+        },
+        {
+          "name": "Dungeon Crawl Stone Soup Full_0.zip",
+          "url": "https://opengameart.org/sites/default/files/Dungeon%20Crawl%20Stone%20Soup%20Full_0.zip",
+          "bytes": 5717663,
+          "note": "size from HTTP HEAD, not downloaded"
+        },
+        {
+          "name": "DungeonCrawl_ProjectUtumnoTileset.png",
+          "url": "https://opengameart.org/sites/default/files/DungeonCrawl_ProjectUtumnoTileset.png",
+          "bytes": 1439854,
+          "note": "size from HTTP HEAD, not downloaded"
+        },
+        {
+          "name": "ProjectUtumno_full_0.png",
+          "url": "https://opengameart.org/sites/default/files/ProjectUtumno_full_0.png",
+          "bytes": 4274658,
+          "note": "size from HTTP HEAD, not downloaded"
+        }
+      ]
+    }
+  },
+  "needs": {
+    "creature-ash-wolf": {
+      "kind": "creature-kit",
+      "target": "character:ash-wolf",
+      "packs": [
+        "quaternius-ultimate-animated-animals"
+      ],
+      "note": "wolf-class body; confirm a canine is in the 12 animals before pulling"
+    },
+    "creature-ember-wolf": {
+      "kind": "creature-kit",
+      "target": "character:ember-wolf",
+      "packs": [
+        "quaternius-ultimate-animated-animals"
+      ],
+      "note": "same body as ash-wolf, ember look is a material row"
+    },
+    "creature-ash-boar": {
+      "kind": "creature-kit",
+      "target": "character:ash-boar",
+      "packs": [
+        "quaternius-ultimate-animated-animals"
+      ],
+      "note": "boar-class body; confirm in the 12 animals"
+    },
+    "creature-cinder-bear": {
+      "kind": "creature-kit",
+      "target": "character:cinder-bear",
+      "packs": [
+        "quaternius-ultimate-animated-animals"
+      ],
+      "note": "bear-class body; confirm in the 12 animals"
+    },
+    "creature-cinder-scavenger": {
+      "kind": "creature-kit",
+      "target": "character:cinder-scavenger",
+      "packs": [
+        "quaternius-animated-monster",
+        "quaternius-bestiary-dungeon-monsters"
+      ],
+      "note": "humanoid or monster body; the bestiary is held until its licence line is found"
+    },
+    "creature-ruin-ghoul": {
+      "kind": "creature-kit",
+      "target": "character:ruin-ghoul",
+      "packs": [
+        "quaternius-animated-monster",
+        "quaternius-bestiary-dungeon-monsters"
+      ],
+      "note": "humanoid or monster body; the bestiary is held until its licence line is found"
+    },
+    "creature-mere-brood": {
+      "kind": "creature-kit",
+      "target": "character:mere-brood",
+      "packs": [
+        "quaternius-animated-monster",
+        "quaternius-bestiary-dungeon-monsters"
+      ],
+      "note": "humanoid or monster body; the bestiary is held until its licence line is found"
+    },
+    "creature-pit-goblin": {
+      "kind": "creature-kit",
+      "target": "character:pit-goblin",
+      "packs": [
+        "quaternius-animated-monster",
+        "quaternius-bestiary-dungeon-monsters"
+      ],
+      "note": "humanoid or monster body; the bestiary is held until its licence line is found"
+    },
+    "prop-camp": {
+      "kind": "prop",
+      "target": "landmark_camp",
+      "packs": [
+        "kenney-survival-kit",
+        "quaternius-fantasy-props-megakit"
+      ],
+      "note": "tents, fire, crates, tools"
+    },
+    "prop-ruin-arch": {
+      "kind": "prop",
+      "target": "landmark_ruin_arch",
+      "packs": [
+        "quaternius-medieval-village-megakit",
+        "quaternius-modular-dungeon"
+      ],
+      "note": "arches and wall pieces"
+    },
+    "prop-stone-circle": {
+      "kind": "prop",
+      "target": "landmark_stone_circle",
+      "packs": [
+        "quaternius-stylized-nature-megakit"
+      ],
+      "note": "27 rocks"
+    },
+    "prop-grove": {
+      "kind": "prop",
+      "target": "landmark_grove",
+      "packs": [
+        "quaternius-stylized-nature-megakit"
+      ],
+      "note": "40 trees, 35 plants"
+    },
+    "weapon-silhouettes": {
+      "kind": "prop",
+      "target": "gear-icon-stills",
+      "packs": [
+        "quaternius-medieval-weapons",
+        "quaternius-fantasy-props-megakit"
+      ],
+      "note": "reference silhouettes for icon stills; fitted weapons stay ours"
+    },
+    "ui-frames": {
+      "kind": "ui-icon",
+      "target": "grimoire-vendor-bank-panels",
+      "packs": [
+        "kenney-fantasy-ui-borders",
+        "kenney-ui-pack-rpg-expansion"
+      ],
+      "note": "9-slice frames, buttons, sliders"
+    },
+    "icons-bag": {
+      "kind": "ui-icon",
+      "target": "bag-grid-and-spell-icons",
+      "packs": [
+        "crawl-32x32-tiles"
+      ],
+      "note": "gear, potion, scroll, spell-school icons, after the per-tile check"
+    },
+    "map-tiles-zone1": {
+      "kind": "map-tile",
+      "target": "zone1",
+      "packs": [
+        "crawl-32x32-tiles"
+      ],
+      "note": "terrain, wall and feature tiles for the map screen, after the per-tile check; pick the set per zone at pull time"
+    },
+    "map-tiles-zone2": {
+      "kind": "map-tile",
+      "target": "zone2",
+      "packs": [
+        "crawl-32x32-tiles"
+      ],
+      "note": "terrain, wall and feature tiles for the map screen, after the per-tile check; pick the set per zone at pull time"
+    },
+    "map-tiles-zone3": {
+      "kind": "map-tile",
+      "target": "zone3",
+      "packs": [
+        "crawl-32x32-tiles"
+      ],
+      "note": "terrain, wall and feature tiles for the map screen, after the per-tile check; pick the set per zone at pull time"
+    },
+    "map-tiles-zone4": {
+      "kind": "map-tile",
+      "target": "zone4",
+      "packs": [
+        "crawl-32x32-tiles"
+      ],
+      "note": "terrain, wall and feature tiles for the map screen, after the per-tile check; pick the set per zone at pull time"
+    }
+  }
+}

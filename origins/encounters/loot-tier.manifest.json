@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "lootTierRule",
+      "file": "loot-tier.json",
+      "at": "lootTierRule",
+      "key": "id",
+      "required": {
+        "tier": "string"
+      }
+    }
+  ]
+}

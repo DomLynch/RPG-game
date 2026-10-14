@@ -7,7 +7,7 @@
 // VITE_ keys go to the job as secrets from .env.production.local. Every failure path (no hf, launch error, no hardware in time, the 45-min
 // job timeout, a blocker, unreadable output) ends in "trust nothing", which is today's behaviour: the rows run on the Mac.
 // Env: HF_WALL_ROWS_HF (the hf binary, tests stub it), HF_WALL_ROWS_STATE (state file), HF_WALL_ROWS_ENV_FILE, HF_WALL_ROWS_FLAVOR,
-// HF_WALL_ROWS_WIDTH, HF_WALL_ROWS_TIMEOUT (the job's own cap), HF_WALL_ROWS_SCHEDULE_MAX_S (hardware wait), HF_WALL_ROWS_WAIT_MAX_S
+// HF_WALL_ROWS_WIDTH, HF_WALL_ROWS_TIMEOUT (the job's own cap, default row-placement.mjs T4_JOB_TIMEOUT; the ledger books it), HF_WALL_ROWS_SCHEDULE_MAX_S (hardware wait), HF_WALL_ROWS_WAIT_MAX_S
 // (collect's own cap, inside the deploy ceiling), HF_WALL_ROWS_POLL_S.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,13 +17,13 @@ import { fileURLToPath } from 'node:url';
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
 import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 import { ledger } from './vps-shadow/launch.mjs';
-import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOBS } from './lib/row-placement.mjs';
+import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS } from './lib/row-placement.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const hf = process.env.HF_WALL_ROWS_HF || 'hf';
 const state = process.env.HF_WALL_ROWS_STATE || join(root, 'artifacts', 'hf-wall-rows', 'state');
 const envFile = process.env.HF_WALL_ROWS_ENV_FILE || join(root, '.env.production.local');
-const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || '45m';
+const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
 const num = (name, fallback) => (process.env[name] === undefined || process.env[name] === '' ? fallback : Number(process.env[name]));
 const scheduleMaxS = num('HF_WALL_ROWS_SCHEDULE_MAX_S', 600), waitMaxS = num('HF_WALL_ROWS_WAIT_MAX_S', 1500), pollS = num('HF_WALL_ROWS_POLL_S', 20);
 const say = message => process.stderr.write(`hf-wall-rows: ${message}\n`);

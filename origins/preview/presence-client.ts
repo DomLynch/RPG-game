@@ -5,11 +5,12 @@
 // No DOM, storage or clock read here: the socket, the clock and the timers are injected.
 import { computeBackoffDelay } from '../../src/net/backoff.ts';
 import { decodeDown, encodeUp, type Entity } from '../presence/wire.ts';
+import { previewRule } from './preview-rules.ts';
 
 export const PROTOCOL = 'frankendom.presence.v1';
 export const POSE_EVERY_MS = 100;       // presence's tick (RULES.tickMs): one pose a tick is all it reads
 export const CENTRE_CM = 15000;         // presence centimetres of the Concord frame's origin (origins/presence/zones.ts CENTRE_CM): world (0, 0) is the Pit yard's centre
-export const GIVE_UP_AFTER = 6;         // consecutive sockets that never reached `hello`: the service is off or refusing us, stop trying until the page reloads
+export const GIVE_UP_AFTER = previewRule('presenceGiveUp');        // consecutive sockets that never reached `hello`: the service is off or refusing us, stop trying until the page reloads
 export const presenceWanted = (search: string): boolean => !/[?&]presence=0(?:&|$)/.test(search);   // on for a signed-in page; ?presence=0 is the kill switch
 export const presenceUrl = (origin: string): string => `${origin.replace(/^http/, 'ws')}/origins/presence`;   // https://frankendom.com -> wss://frankendom.com/origins/presence
 

@@ -1,6 +1,7 @@
 // Where a release row runs (Dom 2026-10-09, "the Mac is the exception"): placement is DATA here, not a switch. A row is on the Mac only
 // when it is listed below with its reason; a row joins the list only with a reason and, for "slower on HF", a MEASURED number.
 // Re-measure monthly. tests/row-placement.test.ts pins this list to what vps-receipts.mjs coverageGaps() computes, so it cannot drift.
+import { matchesGlob } from 'node:path';
 export const MAC_MAX = 9;          // the most rows a release may run on the Mac: the 9 that are Mac-only by nature (row 54, the WebKit landscape Pit, Lead 2026-10-12) (Lead 2026-10-09: Mac = the Mac-only rows only)
 export const MAC_ENFORCE = false;  // false: an over-limit release prints the refusal text and runs (Lead 2026-10-09: do not block the next release)
 // Rows 2 and 44 were tried on the T4 again on 2026-10-10 (Strategy asked; job 6aca1214fee2c90070185fa6, release AD's tree a6d408cb4, t4-medium, width 1, 20 min cap):
@@ -37,6 +38,10 @@ export const ON_T4 = [
 // (release-checks.yml on every candidate) and the CPU waterfall. Row 13 is not here: its CPU gap is initdb refusing root, not the renderer (a runner is not root).
 export const ROW_CEILING_S = 600;
 export const GPU_ONLY = [5, 7, 16, 21, 28, 34, 36];
+// The T4 leg's job cap, which the HF cost ledger also BOOKS as the job's cost at launch (hf-ledger.mjs: timeout x $0.60/h), whatever the job really uses. Measured 2026-10-13: a gpu-only job runs 166-167 s
+// (about $0.03); with the old 45 m cap it booked $0.45, four jobs per candidate = $1.80, so the $5/day T4 stop was crossed by 06:41Z after ~3 candidates and every later candidate ran the GPU rows on the
+// Mac (DV: rows 5,7,16,21,28,34,36, ~8 min). 15 m = 5x the measured run, books $0.15 a job ($0.60 a candidate, 8 candidates under the stop).
+export const T4_JOB_TIMEOUT = '15m';
 // Every MAC_ONLY row, the list deploy.sh's placement uses: CI never vouches for one (ci-trusted-checks.mjs) and never schedules one (release-checks.yml
 // plan). The WebKit rows because the runner has no WebKit install (CK #2317, job 114771865725: row 52 died on "Executable doesn't exist ... webkit");
 // rows 2 and 44 because they fail off the Mac (CK: row 2 failed after 15 min on CI, 63 s on the Mac).
@@ -49,7 +54,27 @@ export const POST_PUBLISH = [
   { row: 9, why: 'polearm-browser-check: the longest CI row (854 s), a combat-feel check, not boot-critical', ci_s: 854, date: '2026-10-13' },
   { row: 46, why: 'desktop-intro-check: the second-longest CI row (458 s), the desktop intro, not boot-critical', ci_s: 458, date: '2026-10-13' },
 ];
+// More post-publish rows (Lead 2026-10-13, queue wait is the cost: DW's candidate had 36 jobs, 145 job-minutes and queue waits to 1236 s, rows ran at most 589 s).
+// They carry `family`: the files of the row's own area. A candidate whose diff touches one of them keeps the row PRE-publish (postPublishRowsFor); a diff that only
+// touches shared files (scripts/, ops/, tests/) defers it. A failure after Published is hold-only (RED, the next publish waits, fix forward), never an auto-rollback.
+// Rows 9 and 46 above have no family: they are always deferred, as before.
+const FINISHER = ['src/fight/finish*.ts', 'src/fight/finisher-*', 'src/fight/gore.ts', 'src/fight/opened.ts', 'src/fight/severed-head.ts', 'src/fight/blood-edge.ts', 'src/fight/opening-pose.ts', 'src/fight/stance-pose.ts', 'src/fight/zone-finisher.ts', 'src/fight/catalogue-data.ts', 'src/assets/**', 'public/world/**', 'scripts/finisher-preview.mjs'];   // catalogue-data: the finisher cuts and timing; src/assets and public/world: the rigs (Auditor on #2543)
+const POLEARM = ['src/fight/weapon*.ts', 'src/fight/dropped-weapon.ts', 'src/fight/blade*.ts', 'src/blade*.ts', 'src/fight/characters.ts', 'src/fight/shields.ts', 'src/gear-*.ts', 'src/fight/gear-*.ts', 'public/weapons/**', 'scripts/polearm-browser-check.mjs'];
+const LAYOUT = ['src/style.css', 'index.html', 'src/layout-tier.ts', 'src/fight/hud.ts', 'src/scorecard.ts', 'scripts/desktop-layout-check.mjs', 'scripts/lib/thumb-row.mjs'];
+const LOOT = ['src/core/loot.ts', 'src/loot-panel.ts', 'src/loot-data.ts', 'src/core/loot-panel.ts', 'src/core/gear-*.ts', 'src/core/profile.ts', 'public/game/img/**', 'scripts/worn-loot-check.mjs'];
+const MOVED = (rows, why, family) => rows.map(row => ({ row, why, family, ci_s: 0, date: '2026-10-13' }));
+POST_PUBLISH.push(
+  ...MOVED([3, 15, 17, 19, 23, 24, 25, 32], 'finisher-preview: a visual check of a finisher animation, 245-474 s as a CI job, not boot-critical', FINISHER),
+  ...MOVED([10, 11], 'polearm-browser-check: a combat-feel check (589 s for row 11), not boot-critical', POLEARM),
+  ...MOVED([38], 'desktop-layout-check at 1440x900; row 37 (1280x800) stays pre-publish as the layout row', LAYOUT),
+  ...MOVED([39], 'worn-loot-check: the loot display, 306 s, not boot-critical', LOOT),
+);
 export const POST_PUBLISH_ROWS = POST_PUBLISH.map(entry => entry.row);
+/** The post-publish rows for a candidate whose changed files (against the live revision) are `files`. `null` = the diff is unknown: only the rows with no family are deferred. */
+export function postPublishRowsFor(files) {
+  const touches = entry => files === null || files.some(file => entry.family.some(glob => matchesGlob(file, glob)));
+  return POST_PUBLISH.filter(entry => !entry.family || !touches(entry)).map(entry => entry.row);
+}
 // The first log line of a release: how every row is being handled. ci = trusted from CI, hf = trusted from an HF receipt, vps = trusted from the
 // VPS, mac = rows running on the Mac. Over the limit the refusal text names the rows that are not on the Mac list.
 export function placementLine({ total, ci, hf, vps = [], mac }) {
@@ -68,6 +93,10 @@ export function planLine(total, [ci, outOfScope, wall, cpu, vpsRows, deferred = 
   const mac = Array.from({ length: total }, (_, i) => i + 1).filter(n => !c.includes(n) && !o.includes(n) && !hf.includes(n) && !v.includes(n) && !d.includes(n));
   const line = placementLine({ total, ci: c, hf, vps: v.filter(n => !c.includes(n)), mac });
   return `${line.text}; out of scope ${o.length}${o.length ? ` (${o.join(',')})` : ''}; post-publish ${d.length}${d.length ? ` (${d.join(',')})` : ''}; T4 ${w.length}, HF CPU ${h.length}, VPS CPU ${v.length}${line.warning ? `\n${line.warning}` : ''}`;
+}
+if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'post-publish') {   // changed files on stdin; --unknown when the diff against live could not be read
+  const { readFileSync } = await import('node:fs');
+  console.log(postPublishRowsFor(process.argv.includes('--unknown') ? null : readFileSync(0, 'utf8').split('\n').map(f => f.trim()).filter(Boolean)).join(','));
 }
 if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'line') {
   const { readFileSync } = await import('node:fs');

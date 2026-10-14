@@ -113,6 +113,7 @@ jobs:
       - run: npm run typecheck:tests
       - run: npm run typecheck:origins
       - run: npm run lint:origins
+      - run: npm run check:as-data -- --gate   # as-data reached 0/0 on 2026-10-13: a new id compare or closed union is red
   quality-shard:
     # `quality:static` (lint, both typechecks, origins lint, registry gate, test:bot, build, audit, budget) and the database checks. test:all is
     # NOT here: unit-ci.yml owns it (8 shards, the unit receipt deploy.sh trusts; Lead 2026-10-12, so the suite does not run twice per PR on
