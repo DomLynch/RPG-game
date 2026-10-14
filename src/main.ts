@@ -1,6 +1,7 @@
 import { createInput } from './fight/index.ts';
 import { ui } from './ui-rows.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
+import { weightClassOf } from './fight/gear-weight.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -251,7 +252,7 @@ if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: locat
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 // eslint-disable-next-line prefer-const -- assigned after storage exists (below); closures above read it as undefined until then, which const would turn into a TDZ throw
 let serverGear: ReturnType<typeof createServerGear> | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
-const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
+const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, weightOf: weightClassOf, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');

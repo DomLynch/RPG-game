@@ -24,6 +24,12 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
+import { mountStats } from './stats-screen.ts';
+import { chromeText as statsText } from './stats-view.ts';
+import { REGION1_SHOPS, EXCHANGE_PROVISIONER } from '../region1/shops.ts';
+import { chromeText as shopText } from '../shops/shop-view.ts';
+import { mountShop } from './shop-screen.ts';
+import { buyOne, newOp, readStock } from './shop-net.ts';
 import { boardNamer } from '../board/board-names.ts';
 import { boardView, chromeText } from '../board/board-view.ts';
 import { mountBoard } from '../board/board-screen.ts';
@@ -56,6 +62,7 @@ import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneD
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
+import { previewRule } from './preview-rules.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -118,7 +125,7 @@ let mobs: Mobs | null = null, mobsAsked = false;
 const canStand = (x: number, z: number) => walkable(x, z) || (!!frontier && !!frontierParts && frontierWalkable(frontier, frontierParts, x, z));
 // Preview-only: Arena 1's painted far world is a ring ~40 m out, and the Exchange stands beyond it. Open the ring where the gate faces (−z)
 // so the Pit looks out onto the Exchange; the painting keeps the other 290°. A look question for Dom, not a change to arena.ts.
-const GAP = 0.62;   // radians either side of the gate
+const GAP = previewRule('gateGap');   // radians either side of the gate
 arena.group.traverse((o) => {
   if (o.name !== 'backdrop' || !(o instanceof THREE.Mesh)) return;
   o.geometry.dispose();
@@ -155,7 +162,7 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
-const HERO_WAIT_MS = 45000, warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
+const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
 loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
@@ -253,9 +260,9 @@ const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search) && zoneDayNig
 const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
 const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
-const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = 9, CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
+const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = previewRule('lockRange'), CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
-const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = 1.9, followCam = createFollowCamera(camera, { passage: zoneCamera<Passage>('camera.passage'), open: pickFraming(ZONE_FIELDS.fields!['camera.presets'] as Presets, /[?&]camera=([a-z])\b/.exec(location.search)?.[1], ZONE_FIELDS.fields!['camera.preset'] as string) });   // the zone row's camera data; presets and preset come from the schema DEFAULTS (camera B) unless the zone sets them; ?camera=a|b picks a preset on this page
+const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = previewRule('turnRate'), followCam = createFollowCamera(camera, { passage: zoneCamera<Passage>('camera.passage'), open: pickFraming(ZONE_FIELDS.fields!['camera.presets'] as Presets, /[?&]camera=([a-z])\b/.exec(location.search)?.[1], ZONE_FIELDS.fields!['camera.preset'] as string) });   // the zone row's camera data; presets and preset come from the schema DEFAULTS (camera B) unless the zone sets them; ?camera=a|b picks a preset on this page
 function zoneCamera<T>(path: string): T | undefined { return ZONE_FIELDS.set?.includes(path) ? ZONE_FIELDS.fields![path] as T : undefined; }   // a camera field the zone (or its biome) SET
 function step(dt: number) {
   let running = !!held('ShiftLeft', 'ShiftRight'), forward = held('KeyW', 'ArrowUp') * (running ? 2 : 1) - held('KeyS', 'ArrowDown') * 0.6, turn = held('KeyA', 'ArrowLeft') - held('KeyD', 'ArrowRight'), strafe = 0, pitch = 0;
@@ -344,8 +351,8 @@ let compileChain: Promise<unknown> = Promise.resolve(), programsInFlight = 0, up
 const uploaded = new WeakSet<object>();   // textures and geometries already on the GPU through this path
 // The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
 // frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
-const UPLOAD_BUDGET_MS = 6;
-const KINDS_WAIT_MS = 20000, MATERIAL_BOUND_MS = 4000;   // each scene-material compile on the chain is bounded too: one that never settles is logged and skipped, so the chain, programsInFlight and [zone ready] go on
+const UPLOAD_BUDGET_MS = previewRule('uploadBudget');
+const KINDS_WAIT_MS = previewRule('kindsWait'), MATERIAL_BOUND_MS = previewRule('materialBound');   // each scene-material compile on the chain is bounded too: one that never settles is logged and skipped, so the chain, programsInFlight and [zone ready] go on
 const kindsWarmed = async () => { const t0 = performance.now(); for (;;) { const w = mobs?.warmState(); if (!w || !w.kinds.length || w.warmed.length >= w.kinds.length || performance.now() - t0 > KINDS_WAIT_MS) return; await new Promise((r) => setTimeout(r, 50)); } };   // a zone with no mobs view or no kinds has nothing to wait for; the backstop keeps one stuck kind from holding every material compile (each kind is itself bounded by WARM_BOUND_MS)
 function planUpload() {
   wounds();   // the wound fx are made on the first wound (a lazy ??=): make them here so their ground marks exist for the compile below, not at the first hit (T4 2026-10-10: one unmapped 'basic' program linked at engage)
@@ -429,6 +436,12 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
+      const statsEntry = document.createElement('button'); statsEntry.id = 'menu-stats'; statsEntry.textContent = statsText('button');   // the stats sheet, beside the Journal
+      statsEntry.addEventListener('click', () => { menu.close(); void statsScreen.open(); });
+      chips.append(statsEntry);
+      const shopEntry = document.createElement('button'); shopEntry.id = 'menu-shop'; shopEntry.textContent = shopText('button');   // the Exchange provisioner: buy only, at the price the writer reports (shop_stock) through shop_buy
+      shopEntry.addEventListener('click', () => { menu.close(); shopScreen.open(); });
+      chips.append(shopEntry);
       const boardEntry = document.createElement('button'); boardEntry.id = 'menu-board'; boardEntry.textContent = chromeText('button');   // the daily board, beside the Journal (the corner button is hidden in the kit)
       boardEntry.addEventListener('click', () => { menu.close(); board.open(); });
       chips.append(boardEntry);
@@ -514,7 +527,7 @@ function settleFight(finish: Finished) {
 }
 // A legend boss (origins/preview/legend-mobs.ts): a tap within LEGEND_REACH asks the server for `boss:<legend>` (encounter_start), plays the duel on the server's seed with a record, and posts the record
 // to encounter_settle; a verified win takes the legend's spell (origins/server/grimoire.ts). A guest or an offline page is told to sign in / try again and nothing starts.
-const LEGEND_REACH = 6;
+const LEGEND_REACH = previewRule('legendReach');
 const legendNet: LegendNet = { token: () => storedToken(storage, Date.now()), character: () => characterNow(), start: (t, c, e) => startEncounter(t, c, e, { base: writerBase(location.search) }), settle: (t, f, r) => settleEncounter(t, f, r, { base: writerBase(location.search) }) };
 async function legendFight(spec: MobSpec) {
   if (fighting || duelFailed) return;
@@ -540,7 +553,7 @@ function leaveFight() {
 if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) => m.listenCreatures());   // ?look=creatures: the Frontier creatures' growl (a look test, default silent)
 // ?region=1: the hunt. A quick tap on a creature (not a drag: that is a stick) walks you into a fight with it when it is near enough; the duel
 // is Combat's (pit-duel.ts). A win clears the creature for a while; the server's kill_report pays (kill-apply.ts) and the page holds no loot.
-const REACH = 14, TAP_MS = 4000, TAP_PX = 12;   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
+const REACH = previewRule('tapRange'), TAP_MS = previewRule('tapMs'), TAP_PX = previewRule('tapPx');   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const itemName = itemNamer();
 let sayTimer = 0;
@@ -596,6 +609,19 @@ function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
+// The stats screen (origins/preview/stats-*.ts): the player's stored build (level, points placed) from the writer; the effective sheet (build plus worn gear) is shown only when the writer's sheet is supplied (the world sheet series), never guessed here.
+const statsScreen = mountStats(document.getElementById('stats-dialog') as HTMLDialogElement, async () => {
+  const own = await fetchOwnBuild({ storage, search: location.search });
+  return own ? { level: own.level, placed: own.placed } : { offline: storedToken(storage, Date.now()) ? 'unreadable' : 'no-session' };
+});
+// The shop screen (origins/shops): the rows as the writer reports them (shop_stock: the next unit's price with the zone tax, the account's stock, the restock time); a buy is one shop_buy op under a fresh op id, and the writer prices, stocks and gates it.
+const shopName = itemNamer(), shopBase = { base: writerBase(location.search) };
+const shopScreen = mountShop(document.getElementById('shop-dialog') as HTMLDialogElement, {
+  list: () => REGION1_SHOPS.get(EXCHANGE_PROVISIONER), nameOf: shopName, read: () => readStock(storedToken(storage, Date.now()), EXCHANGE_PROVISIONER, shopBase),
+  buy: async (item, revision) => {
+    const character = await characterNow();
+    return character ? buyOne(storedToken(storage, Date.now()), character, EXCHANGE_PROVISIONER, item, revision, newOp(item, Date.now()), shopBase) : { offline: 'no-session' };
+  } });
 play.link({ token: () => storedToken(storage, Date.now()), character: characterNow, base: writerBase(location.search), changed: () => { if (open === 'bank' || open === 'blacksmith') show(open); } });
 const spawnNet = spawnTracker({ encode: encodeWorldRecord, token: () => storedToken(storage, Date.now()), zone: pageZoneId, character: characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; }), now: () => Date.now(), base: writerBase(location.search) });
 let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a creature's catalogue `wounds` row draws (K5), made on the first wound

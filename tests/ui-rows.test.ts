@@ -8,6 +8,7 @@ import { layoutTier } from '../src/layout-tier.ts';
 test('every row holds the value the code held before', () => {
   const was: Record<string, number> = {
     'loot-line-ms': 4000, 'lesson-ms': 4000, 'face-wait-ms': 2000, 'replay-tail-s': 7,
+    'skulls-max-kills': 30, 'skulls-text-max': 40, 'skulls-gear-max': 12, 'skulls-name-max': 16,
     'compact-max-height-px': 480, 'compact-max-width-px': 700, 'tablet-min-dimension-px': 768, 'tablet-min-width-px': 1000, 'tablet-max-width-px': 1024,
   };
   for (const [id, v] of Object.entries(was)) assert.equal(ui(id), v, id);
@@ -30,4 +31,10 @@ test('main.ts and layout-tier.ts keep none of the numbers', () => {
   assert.match(main, /const LOOT_LINE_MS = ui\('loot-line-ms'\);/);
   assert.doesNotMatch(main, /const (LESSON_MS|REPLAY_TAIL|FACE_WAIT_MS) = \d/);
   assert.doesNotMatch(readFileSync(new URL('../src/layout-tier.ts', import.meta.url), 'utf8'), /_PX = \d/);
+});
+
+test('the skulls board caps are rows and its tick rate is the sim\'s own', async () => {
+  const { MAX_KILLS, TEXT_MAX, GEAR_MAX, NAME_MAX, TICKS_PER_SECOND } = await import('../src/pit/skulls.ts');
+  assert.deepEqual([MAX_KILLS, TEXT_MAX, GEAR_MAX, NAME_MAX, TICKS_PER_SECOND], [30, 40, 12, 16, 60]);
+  assert.doesNotMatch(readFileSync(new URL('../src/pit/skulls.ts', import.meta.url), 'utf8'), /TICKS_PER_SECOND = 60|MAX_KILLS = 30/);
 });

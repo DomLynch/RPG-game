@@ -62,7 +62,13 @@ vps_cpu_rows=$(sed -n 2p "${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${rev
 [[ -n "$vps_cpu_rows" ]] || vps_cpu_rows=$(node -e 'try{const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));if(r.kind==="vps-rows-live")console.log(r.rows.map(x=>x.n).join(","))}catch{}' "${PRELAUNCH_DIR:-$HOME/.claude/state/pre-launch}/${revision}.rowsvps" 2>/dev/null || true)   # or the finished receipt's rows
 # Rows that run AFTER Published (row-placement.mjs POST_PUBLISH; DEPLOY_POST_PUBLISH=off runs them before it, as it used to).
 post_publish=""
-[[ "${DEPLOY_POST_PUBLISH:-on}" == off ]] || post_publish=$(node --input-type=module -e 'import { POST_PUBLISH_ROWS } from "./scripts/lib/row-placement.mjs"; console.log(POST_PUBLISH_ROWS.join(","))')
+# A row with a `family` stays before Published when this release touches the row's own files (row-placement.mjs postPublishRowsFor); the diff is against the live revision, unknown = the family rows stay before.
+if [[ "${DEPLOY_POST_PUBLISH:-on}" != off ]]; then
+  pp_live=$(curl --fail --silent https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1 || true)
+  if [[ -n "$pp_live" ]] && git merge-base --is-ancestor "$pp_live" "$revision" 2>/dev/null; then
+    post_publish=$(git diff --name-only "$pp_live" "$revision" | node scripts/lib/row-placement.mjs post-publish)
+  else post_publish=$(node scripts/lib/row-placement.mjs post-publish --unknown </dev/null); fi
+fi
 node scripts/lib/row-placement.mjs line "$early_trusted" "$out_of_scope" "${hf_wall_planned:-}" "$hf_cpu_rows" "$vps_cpu_rows" "$post_publish"
 # Every PR GitHub calls MERGED must be in this tree (the #358 wrong-base-branch miss); a stacked PR still in flight is only noted.
 deploy_step "merged-on-trunk"
