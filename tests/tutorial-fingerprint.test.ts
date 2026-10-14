@@ -15,7 +15,7 @@ import { loadTrial } from '../src/trial.ts';
 import { STRATEGIES, P, act, idle, ready, gap, swingStart, guard } from './strategies.ts';
 import type { Duel, Intent } from '../src/fight/duel.ts';
 
-const GOLDEN = 'TBD';
+const GOLDEN = '2b215eff02e698664158ec1f1cdd6210e9b49e714e589ced6ef352219c1935f9';   // computed twice on the VPS at 45d6e1458 (the unchanged numbers)
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); }, removeItem: (k: string) => { m.delete(k); } }; };
 const doer = (step: () => TutorialStep | null) => (d: Duel): Intent => {
   const s = step();
