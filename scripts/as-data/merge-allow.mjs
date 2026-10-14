@@ -4,16 +4,20 @@
 //   git config merge.as-data-allow.driver 'node scripts/as-data/merge-allow.mjs %O %A %B %P'
 // Rules, per list entry (identity = file + literal for `allow`, file + name for `verbs` and `tunables`):
 //   kept by both sides -> kept (one side changed it -> that change; both changed it the same way -> kept; both changed it differently -> CLASH)
-//   retired by either side -> dropped (the other side's edit of a retired entry is reported, not kept: a debt paid in code has no row left to edit)
+//   retired by either side -> dropped (the other side's edit of it is reported, not kept: a debt paid in code has no row left to edit) -- unless the retiring side added the same
+//     name under another file (a move or rename): then the edit would be lost with the old entry, so it is a CLASH
 //   added by one side -> kept; added by both -> kept if identical, else CLASH
 // Order is ours', with the other side's additions placed after the entry that precedes them there; the file is written in the repo's own one-line-per-entry format.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const NAME = { allow: 'literal' };   // the field that names an entry apart from its file (default: name)
 const IDENT = { allow: ['file', 'literal'], verbs: ['file', 'name'], tunables: ['file', 'name'] };
 const canon = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x));
 const same = (a, b) => canon(a) === canon(b);
 const idOf = (section, e) => (IDENT[section] ?? ['file', 'name']).map((k) => e[k]).join(' | ');
-const line = (e) => `{${Object.entries(e).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}}`;
+const line = (e) => `{${Object.entries(e).filter(([, v]) => v !== undefined).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}}`;
 
 export function serialize(doc) {
   const parts = Object.entries(doc).map(([key, val]) => (Array.isArray(val) ? `  ${JSON.stringify(key)}: [\n${val.map((e) => `    ${line(e)}`).join(',\n')}\n  ]` : `  ${JSON.stringify(key)}: ${JSON.stringify(val)}`));
@@ -28,8 +32,13 @@ function mergeList(section, base, ours, theirs) {
     const b = B.get(id), o = O.get(id), t = T.get(id);
     if (!o && !t) continue;                                   // retired by both
     if (b && (!o || !t)) {                                    // retired by one side
-      const other = o ?? t;
-      if (!same(other, b)) notes.push(`${section} ${id}: retired on one side, edited on the other; dropped`);
+      const other = o ?? t, retiring = o ? theirs : ours;
+      if (!same(other, b)) {
+        // A file move or rename reads as retire + add: the other side's edit (verdict, owner, sunset) would be lost with the old entry, so that is a clash, not a paid debt.
+        const moved = retiring.find((e) => e[NAME[section] ?? 'name'] === b[NAME[section] ?? 'name'] && e.file !== b.file && !B.has(idOf(section, e)));
+        if (moved) clashes.push({ section, id, base: b, ours: o, theirs: t, why: `${o ? 'theirs' : 'ours'} retired it and added ${NAME[section] ?? 'name'} ${JSON.stringify(b[NAME[section] ?? 'name'])} under ${moved.file} (a move), while the other side edited it` });
+        else notes.push(`${section} ${id}: retired on one side, edited on the other; dropped`);
+      }
       continue;
     }
     if (!b) {                                                 // added
@@ -79,14 +88,15 @@ export function mergeAllow(baseText, oursText, theirsText) {
   return { text: serialize(Object.fromEntries(order.map((k) => [k, out[k]]))), clashes, notes };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMain = (() => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return basename(process.argv[1] ?? '') === 'merge-allow.mjs'; } })();   // never a silent no-op as a command; not a URL string compare: a path with a space or non-ASCII is percent-encoded in import.meta.url
+if (isMain) {
   const [base, ours, theirs, path = ours] = process.argv.slice(2);
   if (!base || !ours || !theirs) { console.error('usage: merge-allow.mjs <base> <ours> <theirs> [<path>]'); process.exit(2); }
   const { text, clashes, notes } = mergeAllow(readFileSync(base, 'utf8'), readFileSync(ours, 'utf8'), readFileSync(theirs, 'utf8'));
   for (const n of notes.slice(0, 5)) console.error(`merge-allow ${path}: ${n}`);
   if (notes.length > 5) console.error(`merge-allow ${path}: ... and ${notes.length - 5} more retired-vs-edited entries dropped`);
   if (clashes.length) {
-    for (const c of clashes) console.error(`merge-allow ${path}: CLASH on ${c.section} ${c.id}\n  base:   ${c.base ? line(c.base) : '(absent)'}\n  ours:   ${c.ours ? line(c.ours) : '(retired)'}\n  theirs: ${c.theirs ? line(c.theirs) : '(retired)'}`);
+    for (const c of clashes) console.error(`merge-allow ${path}: CLASH on ${c.section} ${c.id}${c.why ? ` (${c.why})` : ''}\n  base:   ${c.base ? line(c.base) : '(absent)'}\n  ours:   ${c.ours ? line(c.ours) : '(retired)'}\n  theirs: ${c.theirs ? line(c.theirs) : '(retired)'}`);
     console.error(`merge-allow ${path}: ${clashes.length} true clash(es); nothing written, resolve by hand`);
     process.exit(1);
   }
