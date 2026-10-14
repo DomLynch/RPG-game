@@ -50,8 +50,10 @@ async function run(side, special, plan) {
       if (!plan) { if (seen.land !== null && tick >= seen.land + POST) return seen; }
       else {
         if (!drawing && tick >= plan.from) { await skipDraws(page, false); await clock.run(48); drawing = true; }
-        if (drawing && tick % EVERY === 0 && !shots.has(tick)) shots.set(tick, await page.screenshot({ type: 'png', animations: 'disabled' }));
-        if (tick >= plan.to) return { seen, shots };
+        // Keyed by the offset from this run's own wind-up start (w) or strike (r), not the absolute tick: the start tick drifts a few ticks between runs of identical code (the fight's opening is wall-timed), the wind-up length does not.
+        const key = seen.land !== null ? ((tick - seen.land) % EVERY === 0 ? `r${tick - seen.land}` : null) : seen.start !== null ? ((tick - seen.start) % EVERY === 0 ? `w${tick - seen.start}` : null) : null;
+        if (drawing && key && !shots.has(key)) shots.set(key, await page.screenshot({ type: 'png', animations: 'disabled' }));
+        if (seen.land !== null && tick >= seen.land + POST) return { seen, shots };
       }
       await clock.run(16);
     }
@@ -75,8 +77,8 @@ const rows = []; let kept = 0;
 for (const special of names) {
   try {
     const [sa, sa2, sb] = await Promise.all([run('a', special, null), run('a2', special, null), run('b', special, null)]);   // pass 1: where the wind-up starts and the strike lands, per build
-    const row = { special, a: sa, a2: sa2, b: sb, timingSame: sa.start === sb.start && sa.land === sb.land, noiseTimingSame: sa.start === sa2.start && sa.land === sa2.land, shots: 0, flagged: [] };
-    const plan = (s) => ({ from: Math.max(0, s.start - PRE), to: s.land + POST });
+    const row = { special, a: sa, a2: sa2, b: sb, windup: [sa.land - sa.start, sa2.land - sa2.start, sb.land - sb.start], timingSame: sa.land - sa.start === sb.land - sb.start, noiseTimingSame: sa.land - sa.start === sa2.land - sa2.start, shots: 0, flagged: [] };
+    const plan = (s) => ({ from: Math.max(0, s.start - PRE) });
     const [ra, ra2, rb] = await Promise.all([run('a', special, plan(sa)), run('a2', special, plan(sa2)), run('b', special, plan(sb))]);   // pass 2: shoot, compared by absolute tick
     row.shotsList = [];
     for (const [tick, pa] of ra.shots) {
@@ -89,15 +91,15 @@ for (const special of names) {
       }
     }
     rows.push(row);
-    console.log(`${special}: timing ${row.timingSame ? 'same' : `DIFF a ${sa.start}/${sa.land} b ${sb.start}/${sb.land}`}${row.noiseTimingSame ? '' : ' (a vs a2 timing differs: noisy run)'}, ${row.shots} shots, ${row.flagged.length} above noise`);
+    console.log(`${special}: wind-up ${row.timingSame ? `${sa.land - sa.start} ticks, same` : `DIFF a ${sa.land - sa.start} b ${sb.land - sb.start}`}${row.noiseTimingSame ? '' : ' (a vs a2 wind-up length differs: noisy run)'}, ${row.shots} shots, ${row.flagged.length} above noise`);
   } catch (e) { rows.push({ special, error: String(e.message ?? e) }); console.log(`${special}: ERROR ${e.message}`); }
 }
 await browser.close(); await servers.a.close(); await servers.a2.close(); await servers.b.close();
 
 const bad = rows.filter((r) => r.error || !r.timingSame || r.flagged.length), cross = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.cross, 0), 0), noise = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.noise, 0), 0);
 const md = [`# Visual parity: ${A} (before) vs ${B} (after)`, '', `${rows.length} specials, ${rows.reduce((s, r) => s + (r.shots ?? 0), 0)} shots (375x812, every ${EVERY} ticks from ${PRE} before the wind-up to ${POST} after the strike). ${bad.length} specials with a timing difference, an error or a shot above the noise floor. Differing pixels in all: before-vs-after ${cross}, before-vs-before (same code, the noise floor) ${noise}.`, '',
-  '| special | wind-up/strike before | wind-up/strike after | shots | above noise | px before-vs-after | px noise |', '|---|---|---|---|---|---|---|',
-  ...rows.map((r) => r.error ? `| ${r.special} | ERROR ${r.error} | | | | | |` : `| ${r.special} | ${r.a.start}/${r.a.land} | ${r.b.start}/${r.b.land} | ${r.shots} | ${r.flagged.length} | ${r.shotsList.reduce((u, d) => u + d.cross, 0)} | ${r.shotsList.reduce((u, d) => u + d.noise, 0)} |`)].join('\n');
+  '| special | wind-up ticks before | wind-up ticks after | shots | above noise | px before-vs-after | px noise |', '|---|---|---|---|---|---|---|',
+  ...rows.map((r) => r.error ? `| ${r.special} | ERROR ${r.error} | | | | | |` : `| ${r.special} | ${r.a.land - r.a.start} | ${r.b.land - r.b.start} | ${r.shots} | ${r.flagged.length} | ${r.shotsList.reduce((u, d) => u + d.cross, 0)} | ${r.shotsList.reduce((u, d) => u + d.noise, 0)} |`)].join('\n');
 await fs.writeFile(`${OUT}/parity.json`, JSON.stringify({ a: A, b: B, every: EVERY, rows }, null, 1)); await fs.writeFile(`${OUT}/parity.md`, md + '\n');
 console.log(md.split('\n').slice(0, 4).join('\n'));
 process.exitCode = bad.length ? 3 : 0;
