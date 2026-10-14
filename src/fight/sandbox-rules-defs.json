@@ -12,5 +12,6 @@
     { "id": "stabSlide", "value": 18 }
   ],
   "castPenalty": [],
-  "hurtStyles": []
+  "hurtStyles": [],
+  "readyStyles": []
 }
