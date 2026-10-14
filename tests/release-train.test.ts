@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { mergeAll, passAt, pushWithRetry } from '../scripts/cut-release.mjs';
-import { browserRowsMissing, checksGreen, featureReceiptsMissing, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
+import { browserRowsMissing, checkGreen, checksGreen, featureReceiptsMissing, missingRows, pickPublish, planTrain, readOrder, trainName } from '../scripts/release-train.mjs';
 
 const TRUNK = 'codex/01a09a76/task-1';
 const OK = [
@@ -29,6 +29,17 @@ test('readOrder, checksGreen and the train name', () => {
   assert.equal(checksGreen([]), false, 'no checks at all is not green');
   assert.equal(trainName(new Date('2026-10-12T17:40:05Z'), '38251416111'), 'T1012174005r38251416111', 'seconds + run id: a label event and a cron tick in one minute get two names');
   assert.notEqual(trainName(new Date('2026-10-12T17:40:05Z'), '1'), trainName(new Date('2026-10-12T17:40:05Z'), '2'));
+});
+
+test('checkGreen: a rollup entry stuck IN_PROGRESS that already has a conclusion and a real completedAt is finished (FV #2750); a really running job is not', () => {
+  const run = { __typename: 'CheckRun', name: 'plan', workflowName: 'quality', startedAt: '2026-10-14T16:53:02Z' };
+  assert.equal(checkGreen({ ...run, status: 'IN_PROGRESS', conclusion: 'SUCCESS', completedAt: '2026-10-14T16:53:08Z' }), true, 'stale IN_PROGRESS + SUCCESS + completedAt after startedAt');
+  assert.equal(checkGreen({ ...run, status: 'IN_PROGRESS', conclusion: 'FAILURE', completedAt: '2026-10-14T16:53:08Z' }), false, 'a stale entry that FAILED is still red');
+  assert.equal(checkGreen({ ...run, status: 'IN_PROGRESS', conclusion: '', completedAt: '0001-01-01T00:00:00Z' }), false, 'a running job: no conclusion, no completedAt');
+  assert.equal(checkGreen({ ...run, status: 'IN_PROGRESS', conclusion: 'SUCCESS', completedAt: '0001-01-01T00:00:00Z' }), false, 'a conclusion without a real completedAt is not finished');
+  assert.equal(checkGreen({ ...run, status: 'IN_PROGRESS', conclusion: 'SUCCESS', completedAt: '2026-10-14T16:50:00Z' }), false, 'completedAt before startedAt is not trusted');
+  assert.equal(checkGreen({ ...run, status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: '2026-10-14T16:53:08Z' }), true, 'the normal case is unchanged');
+  assert.equal(checkGreen({ ...run, status: 'QUEUED', conclusion: '', completedAt: '' }), false, 'queued');
 });
 
 test('checksGreen: a feature head under the new quality.yml needs the browser-rows status SUCCESS; missing or pending is not green; release-* and old heads are exempt (#2359 (d))', () => {

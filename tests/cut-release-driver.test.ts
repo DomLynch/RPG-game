@@ -55,3 +55,34 @@ test('a base that does not carry the script merges as before (git\'s line merge)
     assert.deepEqual(out.driverResolved, {});
   } finally { rmSync(f.dir, { recursive: true, force: true }); }
 });
+
+// Deploy's request: the persistent shared-config driver (set today in the main .git/config) must not change what the cut or the contents-check produce.
+for (const [label, config] of [['UNSET', null], ['SET to the repo-relative command', 'node scripts/as-data/merge-allow.mjs %O %A %B %P'], ['SET to a broken command', 'false']] as const) {
+  test(`merge.as-data-allow.driver ${label}: the cut and the contents-check give the same tree, and the cut says which driver it used`, async () => {
+    const { verifyCandidate } = await import('../scripts/candidate-contents-check.mjs');
+    const f = fixture(true);
+    try {
+      const p1 = f.pr('p1', entry('A'), entry('B'), entry('Z')), p2 = f.pr('p2', entry('A'), entry('C'), entry('Z'));
+      const base = f.ok(['rev-parse', 'main']);
+      if (config) f.ok(['config', 'merge.as-data-allow.driver', config]);
+      f.release();
+      const out = mergeAll(f.git, 'X', [{ pr: 1, head: p1 }, { pr: 2, head: p2 }]);
+      assert.deepEqual(out.merged, [1, 2]);
+      assert.equal(out.driver, 'per-call (1 files)', 'a tree that carries the script always uses the per-call driver, whatever the config says');
+      const v = verifyCandidate({ git: f.git, candidate: 'HEAD', base, passes: () => true });
+      assert.equal(v.treeEqual, true, JSON.stringify(v.problems));
+      assert.deepEqual((JSON.parse(readFileSync(join(f.dir, ALLOW), 'utf8')).tunables as { name: string }[]).map(e => e.name), ['A', 'B', 'C', 'Z']);
+    } finally { rmSync(f.dir, { recursive: true, force: true }); }
+  });
+}
+
+test('a base without the script logs "none" with no config and "persistent config" with it set, so a silent config cannot hide', () => {
+  const f = fixture(false);
+  try {
+    assert.equal(driverArgs(f.git, 'HEAD').mode, 'none');
+    f.ok(['config', 'merge.as-data-allow.driver', 'node scripts/as-data/merge-allow.mjs %O %A %B %P']);
+    assert.equal(driverArgs(f.git, 'HEAD').mode, 'persistent config');
+    f.release();
+    assert.equal(mergeAll(f.git, 'X', []).driver, 'none');
+  } finally { rmSync(f.dir, { recursive: true, force: true }); }
+});

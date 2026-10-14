@@ -10,6 +10,7 @@
 //     name under another file (a move or rename): then the edit would be lost with the old entry, so it is a CLASH
 //   added by one side -> kept; added by both -> kept if identical, else CLASH
 // Order is ours', with the other side's additions placed after the entry that precedes them there; the file is written in the repo's own one-line-per-entry format.
+// Imports only `node:` builtins: the cut copies this file to a temp directory outside the repo (driverArgs in scripts/cut-release.mjs), and tests/merge-allow.test.ts enforces it.
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';

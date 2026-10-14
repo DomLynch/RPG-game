@@ -16,7 +16,7 @@
 // Numbers marked PROVISIONAL are the specs' own provisional values; PROPOSED marks anything this file had to choose (names of
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
-import { LOOT_ITEMS } from '../inventory/loot-catalogue.ts';
+import { LOOT_ITEMS } from '../../src/core/server.ts';
 import { placedSpawns, placedWaypoints } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import lootTableRows from './loot-tables.json' with { type: 'json' };
