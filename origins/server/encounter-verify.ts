@@ -18,7 +18,8 @@ import { withBar } from '../shared/with-bar.ts';
 // pose: the start pose the server issued at encounter_start (encounter-pose.ts, read back from the token), null for a pit-mark fight; the record must name exactly it.
 export type EncounterParams = { seed: number; enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; pose?: DuelPose | null; sheet?: Sheet };   // sheet: the one the server's stored build version gives (src/fight/build-check.ts); a record that carries a sheet must equal it
 // kitMismatch: the record was played on another mob kit than this build's (see src/core/world/kit-version.ts): not a loss, the fight cannot be judged here.
-export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number } | { ok: false; reason: string; kitMismatch?: true };
+// heroHits: per event type, how many of the sim's own events had the hero as their target over the replay, keyed by the sim's event type name ({ Hit: 4, Blocked: 2, GuardBroken: 1, ... }; a type that never targeted the hero is absent). No list of types lives here: Backend's wear rows choose which of them wear gear.
+export type Verified = { ok: true; result: 'won' | 'lost'; twist: TwistOutcome | null; ticks: number; heroHits: Readonly<Record<string, number>> } | { ok: false; reason: string; kitMismatch?: true };
 export type VerifyEncounter = (record: FightRecord, params: EncounterParams) => Verified;
 
 export const MAX_FIGHT_TICKS = Math.round(15 * 60 / STEP);   // a fight longer than 15 minutes is not a fight
@@ -29,6 +30,8 @@ export const liveSpecials = (level: number): boolean => Number.isInteger(level) 
 
 export const knownLayer = (layer: string): layer is MobStyle => (MOB_STYLES as readonly string[]).includes(layer);
 const refuse = (reason: string): Verified => ({ ok: false, reason });
+const HERO_SIDE = 0;   // the hero is side 0 in every fight (the foe's defeat is victim 1)
+const tallyHeroEvents = (into: Record<string, number>, events: readonly { type: string; target?: number }[]): void => { for (const e of events) if (e.target === HERO_SIDE) into[e.type] = (into[e.type] ?? 0) + 1; };
 // Exact, bit for bit: both sides are float32 values the server issued (Object.is also tells -0 from 0, as the record's bytes do).
 const samePose = (a: DuelPose | undefined, b: DuelPose | null): boolean => !a || !b ? !a && !b
   : Object.is(a.hero.x, b.hero.x) && Object.is(a.hero.z, b.hero.z) && Object.is(a.foe.x, b.foe.x) && Object.is(a.foe.z, b.foe.z) && Object.is(a.heroFacing, b.heroFacing);
@@ -58,9 +61,11 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   if (p.bar !== null && flags.some((f) => f.kind === 'one-health-bar')) practice = withBar(practice, p.bar);
   const layer = p.layer === null ? undefined : mobLayer(p.layer as MobStyle);   // fresh per fight: its state resets on tick 0, as the client's does
   let twist = noTwist(), endedAt = 0;
+  const heroHits: Record<string, number> = {};
   for (let i = 0; i < record.intents.length; i++) {
     if (endedAt) return refuse(`the fight ended at tick ${endedAt}, before the record's last tick ${record.ticks}`);
     practice = stepPractice(practice, record.intents[i]!, profile, layer);
+    tallyHeroEvents(heroHits, practice.duel.events);
     if (practice.finish) {
       if (flags.length && practice.finish.victim === 1) twist = stepTwist(practice.duel, flags, twist).twist;   // 'caught' inside the catch window
       endedAt = i + 1;
@@ -73,9 +78,9 @@ function run(record: FightRecord, p: EncounterParams): Verified {
   const finish = practice.finish;
   if (!finish) {   // a twist ended it with both fighters standing: the recorder's outcome for a fight with no finish is 'abandoned'
     if (record.outcome !== 'abandoned') return refuse(`the fight ended with the foe ${twist.outcome}, the record says "${record.outcome}"`);
-    return { ok: true, result: 'won', twist: twist.outcome, ticks: endedAt };
+    return { ok: true, result: 'won', twist: twist.outcome, ticks: endedAt, heroHits };
   }
   const outcome = finish.draw ? 'draw' : finish.victim === 1 ? 'killed' : 'died';
   if (outcome !== record.outcome) return refuse(`the replay ends in "${outcome}", the record says "${record.outcome}"`);
-  return outcome === 'killed' ? { ok: true, result: 'won', twist: twist.outcome === 'caught' ? 'caught' : null, ticks: endedAt } : { ok: true, result: 'lost', twist: null, ticks: endedAt };
+  return outcome === 'killed' ? { ok: true, result: 'won', twist: twist.outcome === 'caught' ? 'caught' : null, ticks: endedAt, heroHits } : { ok: true, result: 'lost', twist: null, ticks: endedAt, heroHits };
 }
