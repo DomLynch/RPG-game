@@ -17,8 +17,10 @@ import { openHoldingsWith, type Content } from './holdings.ts';
 import { DbError } from './db.ts';
 import { mintOp } from './mob-rewards.ts';
 import * as store from './store.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
-export const MAX_OWNED = 200;   // src/loot.ts knows ~75 pieces; the cap only bounds a hostile body
+const LIMITS = SERVER_RULES.serverLimits[0]!;
+export const MAX_OWNED = LIMITS.maxOwned;   // src/loot.ts knows ~75 pieces; the cap only bounds a hostile body
 export type ImportReceipt = { imported: string[]; alreadyHeld: string[]; skipped: { lootId: string; reason: string }[]; worn: string[]; bank: string[]; unworn: { lootId: string; reason: string }[]; replayed: boolean };
 const DOLLS = new Set(Object.keys(PAPERDOLL));
 

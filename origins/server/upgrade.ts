@@ -22,10 +22,11 @@ import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 export const COIN_NOT_BUILT = 'coin costs need the metals ledger, not built yet';
 // How old presence's last pose may be and still place the player (presence drops an idle socket at 30 s; a walking client poses many times a second).
-export const PRESENCE_FRESH_MS = 5000;
+export const PRESENCE_FRESH_MS = SERVER_RULES.serverLimits[0]!.presenceFreshMs;
 
 // X1: the bank's place when presence holds the account freshly in the Exchange zone, else nothing. Any failure to ask is "not there".
 export async function exchangePlace(where: WhereFn | undefined, account: string): Promise<typeof BANK_PLACE | undefined> {

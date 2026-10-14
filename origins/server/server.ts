@@ -8,13 +8,14 @@ import { BadRequest, Conflict, handlers as defaults, type Handler } from './hand
 import type { WhereFn } from '../presence/where.ts';
 import type { LiveOpsState } from './live-ops.ts';
 import { internalRoute, type InternalOptions } from './location.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const MAX_BODY = 64 * 1024;
 // One account's writes run ONE AT A TIME in this writer (the serial write queue): two taps of the same account (a double buy, a buy racing a kill's settle)
 // no longer race to the same row version and lose one to a 409; the second reads what the first committed. Per account, not per character: the bronze
 // balance and the career row are the account's, so two characters of one account would still race. Different accounts never wait on each other. The
 // database's version guards stay the backstop (a second writer process, a retry). A queue past QUEUE_MAX waiting requests answers 503 'busy'.
-export const QUEUE_MAX = 16;
+export const QUEUE_MAX = SERVER_RULES.serverLimits[0]!.queueMax;
 export function serialQueue(): <T>(key: string, run: () => Promise<T>) => Promise<T> {
   const tails = new Map<string, { tail: Promise<unknown>; waiting: number }>();
   return (key, run) => {
