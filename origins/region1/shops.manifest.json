@@ -13,7 +13,8 @@
         "rows[].item": "string",
         "rows[].price": "integer",
         "rows[].max": "integer",
-        "rows[].restockSeconds": "integer"
+        "rows[].restockSeconds": "integer",
+        "rangeCm": "integer"
       },
       "optional": {
         "rows[].minLevel": "integer",

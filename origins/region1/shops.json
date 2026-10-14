@@ -6,6 +6,7 @@
       "revision": 1,
       "currency": "bronze",
       "zone": "zone1",
+      "rangeCm": 500,
       "rows": [
         {
           "item": "item:grave-iron",
