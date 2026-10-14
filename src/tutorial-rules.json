@@ -1,0 +1,9 @@
+{
+  "tutorialRules": [
+    { "id": "gap", "value": 150, "unit": "ticks" },
+    { "id": "roll-span", "value": 60, "unit": "ticks" },
+    { "id": "settle", "value": 60, "unit": "ticks" },
+    { "id": "reach", "value": 2.1, "unit": "m" },
+    { "id": "floor", "value": 0.5, "unit": "share of a bar" }
+  ]
+}
