@@ -30,6 +30,7 @@ test('a shop row with a missing or mistyped field fails the loader', () => {
 
 test('the shop counter range is the shop row\'s rangeCm (500, the number shop-buy.ts held in code); a row without one fails the loader', () => {
   assert.equal(SHOP_RANGE_CM_BY_SHOP.get(EXCHANGE_PROVISIONER), 500);
+  assert.equal(REGION1_SHOPS.get(EXCHANGE_PROVISIONER)!.rangeCm, 500);   // the list shop-buy.ts holds carries it
   const noRange = Object.fromEntries(Object.entries(DATA.shops[0]!).filter(([k]) => k !== 'rangeCm'));
   assert.throws(() => loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, { shops: [noRange] }, 'shops.json')]), /rangeCm/);
 });

@@ -11,7 +11,6 @@ import { createHash } from 'node:crypto';
 import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { powerOf } from '../../src/core/server.ts';
 import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
-import { SHOP_RANGE_CM_BY_SHOP } from '../region1/shops.ts';
 import { receive } from '../inventory/inventory.ts';
 import { standingLevel } from '../../src/core/server.ts';
 import { checkBuy, costOf, stockNow } from '../shops/shop.ts';
@@ -41,7 +40,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     // The buyer must stand at the shop's counter (Strategy 2026-10-08 13:46): within the shop row's rangeCm of its vendor's landmark, by presence's last fresh pose,
     // never by the request. Presence down, slow, unplaced or stale counts as away (fail closed), as the Exchange ops do (upgrade.ts exchangePlace).
     const counter = content.counters?.get(shop);
-    if (!counter || !(await atCounter(where, account, counter, SHOP_RANGE_CM_BY_SHOP.get(shop)))) throw new Refused(422, 'stand at the shop counter to buy', 'away');
+    if (!counter || !(await atCounter(where, account, counter, list.rangeCm))) throw new Refused(422, 'stand at the shop counter to buy', 'away');
     const eventId = `shop:${character}:${op}`;
     const same = (r: ShopReceipt) => r.shop === shop && r.item === item && r.quantity === quantity;
     const replay = (stored: store.Json | null) => {
