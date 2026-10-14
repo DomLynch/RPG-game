@@ -28,7 +28,8 @@ export function createMeters(parent: HTMLElement) {
   const doc = parent.ownerDocument, make = <T extends HTMLElement>(tag: string, cls: string, label?: string): T => { const e = doc.createElement(tag) as T; e.className = cls; if (label) e.setAttribute('aria-label', label); return e; };
   const root = make('div', 'fm-meters'), name = make('div', 'fm-name'), you = make('div', 'fm-you'), flashEl = make('div', 'fm-flash');
   const foe = make<HTMLMeterElement>('meter', 'fm-bar fm-foe', 'Foe health'), hp = make<HTMLMeterElement>('meter', 'fm-bar fm-hp', 'Your health'), stamina = make<HTMLMeterElement>('meter', 'fm-bar fm-st', 'Your stamina');
-  root.hidden = true; you.textContent = 'You'; root.append(name, foe, you, hp, stamina);   // 'You' labels the two bars under it (health, stamina): the plate's one text line is otherwise the foe's name parent.append(root, flashEl);
+  // 'You' labels the two bars under it (health, stamina): the plate's one text line is otherwise the foe's name.
+  root.hidden = true; you.textContent = 'You'; root.append(name, foe, you, hp, stamina); parent.append(root, flashEl);
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
   return {
     /** Paint the meters; `shown` false hides them (the zone hides them while the hero is whole and nothing is in reach). */
