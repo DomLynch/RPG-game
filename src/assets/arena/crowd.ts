@@ -1,11 +1,13 @@
 import * as THREE from 'three';
+import { CATALOGUE } from '../../fight/catalogue-rows.ts';
 import { hash } from './textures.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Distant spectators, not fighter rigs: opaque, faceted bodies share one material and ten instanced meshes.
 // Linear colours stay subdued under the arena's sun. The silhouettes carry the roster identity at phone size.
-export const CROWD_KINDS = ['human', 'goblin', 'pitborn', 'executioner', 'nightborn'] as const;
-export function spectatorGeometry(kind: typeof CROWD_KINDS[number], pose = 0): THREE.BufferGeometry {
+// The silhouettes after the human: every catalogue row with a `crowd` slot field, in slot order (goblin 1, pitborn 2, executioner 3, nightborn 4).
+export const CROWD_KINDS: readonly string[] = ['human', ...CATALOGUE.filter((r) => typeof r.fields.crowd === 'number').sort((x, y) => (x.fields.crowd as number) - (y.fields.crowd as number)).map((r) => r.id)];
+export function spectatorGeometry(kind: string, pose = 0): THREE.BufferGeometry {
   const goblin = kind === 'goblin', brute = kind === 'pitborn', hood = kind === 'executioner', pale = kind === 'nightborn';
   const height = goblin ? 1.3 : brute ? 2.05 : hood ? 2.15 : pale ? 1.9 : 1.78;
   const width = brute ? 1.32 : hood ? 1.2 : pale ? 0.88 : 1;

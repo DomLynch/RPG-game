@@ -1,5 +1,6 @@
 // Real game routes: exact served GLBs, combat, phone layout, death/rematch and screenshots.
 import { ROSTER } from '../src/roster.ts';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -18,7 +19,7 @@ try {
   if (process.env.QA_URL) receipt.release = await (await fetch(new URL('/release.json', origin))).json();
   for (const opponent of ['minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf'].filter(id => !ROSTER[id].hold)) {   // held recipes are not in the bundle
     const context = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-    const page = inspectedPage = await context.newPage();
+    const page = inspectedPage = await context.newPage(); await quietDebug(page);
     page.on('pageerror', e => receipt.errors.push(String(e)));
     page.on('console', m => { if (m.type() === 'error' && /shader|WebGL|THREE/.test(m.text())) receipt.errors.push(m.text()); });
     await page.route('**/*sentry.io/**', r => r.abort());

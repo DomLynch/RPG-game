@@ -2,10 +2,10 @@
 // The rule tests feed the director synthetic observations; the last tests run it on the arena's own, unchanged simulation.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { initialAi } from '../../src/ai.ts';
-import { project, stepPractice } from '../../src/combat.ts';
-import { idleIntent, initialDuel, opponentFighter } from '../../src/duel.ts';
-import { OPPONENTS, PROFILES } from '../../src/moves.ts';
+import { initialAi } from '../../src/fight/ai.ts';
+import { project, stepPractice } from '../../src/fight/combat.ts';
+import { idleIntent, initialDuel, opponentFighter } from '../../src/fight/duel.ts';
+import { OPPONENTS, PROFILES } from '../../src/fight/moves.ts';
 import {
   carryPlayer, CROWD, encounterRecord, enemySeed, fromRing, handOver, LEADER_HOLD, limits, newCrowd, nextUp, observe, ringSpot, ROLE_RING,
   SKIRMISHER_HANDOVER, stepCrowd, SWEEP, type CrowdEvent, type CrowdState, type Observation, type PackMember,

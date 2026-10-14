@@ -6,7 +6,10 @@
 //                hanging beside a torso or the other leg is never swallowed into the hull.
 //   conformOver — pushes a mesh cut from another body out along its (position-shared) normals until it clears the wearer by `gap`: a piece
 //                authored on a narrower or broader frame then sits ON this one instead of through it. Vertices never move inward.
+import fs from 'node:fs';
 import * as T from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 // Triangles of every geometry, bucketed on a uniform grid by their bounding boxes. Rays walk the cells they cross (with a one-cell halo).
 export function triGrid(geometries, cell = .04) {
@@ -147,3 +150,95 @@ export const surfaceAlong = (grid, origin, dir, { layer = .03, far = .35 } = {})
 
 // Rest-space joint position of a bone, from the skeleton's inverse binds (the pattern every build-warrior block uses).
 export const jointOf = (skeleton, boneIndex) => name => new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(skeleton.boneInverses[boneIndex(name)]).invert());
+
+// The hero as he is drawn, in rest space: skin, head and neck, level-1 kit (src/assets/warrior.glb, weapon left out), geometry only. The loot build's own parts (body + level 1) have NO
+// neck, so a ray from the neck's axis goes clean through to the shoulders; the shipped hero has his neck, which is what a collar piece has to hug.
+export async function heroGeometries(file = 'src/assets/warrior.glb') {
+  globalThis.ProgressEvent ??= class {};
+  const raw = fs.readFileSync(file), jl = raw.readUInt32LE(12), j = JSON.parse(raw.subarray(20, 20 + jl).toString('utf8'));
+  j.images = []; j.textures = []; j.materials = (j.materials ?? []).map((m) => ({ name: m.name }));   // no textures in node
+  j.buffers[0].uri = `data:application/octet-stream;base64,${raw.subarray(28 + jl, 28 + jl + j.buffers[0].byteLength).toString('base64')}`;
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(j), ''), out = [];
+  asset.scene.updateMatrixWorld(true);
+  asset.scene.traverse((o) => { if (o.isSkinnedMesh && !/Weapon|Sword|Scabbard/i.test(o.name) && !o.userData.weapon) out.push(o.geometry.clone().applyMatrix4(o.bindMatrix)); });
+  return out;
+}
+
+// The goblin's trophy-necklace cord on the player (Characters 2026-10-09): 36 points round the neck's axis, FIRST layer of the wearer (skin plus what lies within 3 cm) plus `gap`, high at the
+// nape (+4 cm) and dropping cos^2 to the front height (a plain outermost hit lands on the shoulders: the cord floated at x +-0.29 m). Used by build-warrior.mjs and scripts/loot-refit-necklace.mjs.
+export function necklaceRing(grid, axis, gap = .007) {
+  const nape = axis.y + .04, front = axis.y + .012 - .065;
+  return Array.from({ length: 36 }, (_, k) => {
+    const a = k / 36 * Math.PI * 2, out = new T.Vector3(Math.sin(a), 0, Math.cos(a)), origin = new T.Vector3(axis.x, nape - (nape - front) * Math.max(0, Math.cos(a)) ** 2, axis.z);
+    return origin.addScaledVector(out, surfaceAlong(grid, origin, out, { layer: .03, far: .35 }) + gap);
+  });
+}
+
+// Skinned by height along a chain of joints (linear between the two a vertex sits between), on whatever indexing `g` has. build-warrior.mjs
+// skinBySpine wraps it (non-indexed first); witchCapelet keeps its rings indexed so scripts/loot-refit-witch-capelet.mjs can match them.
+export function skinAlong(g, at, boneIndex, chain) {
+  const spine = chain.map(n => ({ i: boneIndex(n), y: at(n).y }));
+  const p = g.getAttribute('position'), index = [], weight = [];
+  for (let k = 0; k < p.count; k++) {
+    const y = p.getY(k), j = Math.max(0, Math.min(spine.length - 2, spine.findLastIndex(b => b.y <= y))), f = Math.min(1, Math.max(0, (y - spine[j].y) / (spine[j + 1].y - spine[j].y)));
+    index.push(spine[j].i, spine[j + 1].i, 0, 0); weight.push(1 - f, f, 0, 0);
+  }
+  g.setAttribute('skinIndex', new T.Uint16BufferAttribute(index, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(weight, 4));
+  return g;
+}
+
+// The Witch's capelet on the player (loot build, build-warrior.mjs; scripts/loot-refit-witch-capelet.mjs replays it on the shipped loot.glb): from inside the hood's
+// lower rim down over the shoulders to the mid upper arm, flaring. 'outer' rays, then each ring below the collar is made an ellipse whose sides clear the hanging
+// upper arm, so the arm hangs INSIDE the drape; skinned up the neck at the collar, to the chest out over the shoulders. Returns the indexed, skinned rings.
+//   low     — the hem, metres from spine_02
+//   scale   — the ring radius factor along the capelet (t 0 = hem, 1 = neck)
+//   reach   — the sides' half-width below the armpit, less 3 cm (default: the middle of the upper arm). Infinity: no ellipse, the neck chain everywhere (the capelet
+//             shipped before 2026-10-10: in the T rest the 'outer' rays at shoulder height ran along the arm to the elbow, and that cloth, rigid above the arm, stood
+//             out as a flat wing once the arm dropped, while the ring at arm height dipped inside the deltoid).
+//   armBand — the band below the shoulder hands up to .9 of its side vertices to the upper arm (before 2026-10-10; it pulled the drape in to the arm line and the
+//             hanging arm came through it from behind).
+// Lead 2026-10-10 (option A): wider, down to the mid upper arm, hood and robe kept. Hem from spine_02 -.07 to +.10 (mid upper arm on the posed hero), flare 1.25 -> 1.45.
+export function witchCapelet(grid, at, boneIndex, { low = .1, scale = t => 1.45 - .37 * t, reach = 'midUpperArm', armBand = false } = {}) {
+  const capeTop = at('neck_01').add(new T.Vector3(0, .03, 0)), capeLow = at('spine_02').add(new T.Vector3(0, low, 0));
+  const cape = ringHull(grid, capeLow, capeTop, { stations: [0, .15, .3, .45, .6, .75, .9, 1], azimuths: 32, gap: .04, pick: 'outer', far: .45, up: new T.Vector3(0, 0, 1), scale });
+  const lateral = at('upperarm_l').sub(at('upperarm_r')).setY(0).normalize(), shoulderY = (at('upperarm_l').y + at('upperarm_r').y) / 2, mid = at('spine_03');
+  const shoulderOut = at('upperarm_l').sub(mid).dot(lateral);
+  if (reach === 'midUpperArm') reach = at('upperarm_l').add(at('lowerarm_l')).multiplyScalar(.5).sub(mid).dot(lateral);
+  if (Number.isFinite(reach)) {
+    // A-line, ring by ring below the collar: each ring becomes an ellipse whose side half-width is `half` (over the deltoid, 10 cm past the shoulder joint, at the
+    // collar; `reach` + 3 cm from the armpit down) and whose front and back keep their own flare. The T rest's rays at arm height land inside the arm or run
+    // along it, so the raw ring there either dipped to 25 cm (the dropped deltoid came through) or spiked to the elbow (a flat wing).
+    const cp = cape.geometry.getAttribute('position'), row = 33, rings = cp.count / row;
+    for (let i = 0; i < rings - 1; i++) {
+      const origin = cape.rings[i].origin, y = origin.y, half = reach + .03 + (shoulderOut + .1 - reach - .03) * Math.min(1, Math.max(0, (y - (shoulderY - .08)) / (capeTop.y - (shoulderY - .08))));
+      for (let k = 0; k < row; k++) {
+        const q = new T.Vector3().fromBufferAttribute(cp, i * row + k), off = q.clone().sub(origin).setY(0), d = off.length(), l = off.dot(lateral);
+        q.addScaledVector(lateral, (half * l / Math.max(d, 1e-6)) - l);
+        cp.setXYZ(i * row + k, q.x, q.y, q.z);
+      }
+    }
+    cape.geometry.computeVertexNormals();
+  }
+  const g = skinAlong(cape.geometry, at, boneIndex, ['spine_02', 'spine_03', 'neck_01', 'Head']);
+  if (Number.isFinite(reach)) {   // out over the shoulders the drape rides the chest, not the neck: the idle head turn swung it 5-10 cm into the deltoid
+    const gp = g.getAttribute('position'), si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight'), chest = boneIndex('spine_03'), head = [boneIndex('neck_01'), boneIndex('Head')];
+    for (let k = 0; k < gp.count; k++) {
+      const off = Math.hypot(gp.getX(k) - mid.x, gp.getZ(k) - mid.z), keep = Math.min(1, Math.max(0, 1 - (off - .14) / .1));
+      for (const c of [0, 1]) if (head.includes(si.getComponent(k, c))) {
+        const moved = sw.getComponent(k, c) * (1 - keep), other = 1 - c;
+        sw.setComponent(k, c, sw.getComponent(k, c) * keep);
+        if (si.getComponent(k, other) === chest) sw.setComponent(k, other, sw.getComponent(k, other) + moved); else { si.setComponent(k, 2, chest); sw.setComponent(k, 2, sw.getComponent(k, 2) + moved); }
+      }
+    }
+  }
+  if (armBand) {
+    const pos = g.getAttribute('position'), si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight');
+    for (let k = 0; k < pos.count; k++) {
+      const q = new T.Vector3().fromBufferAttribute(pos, k), off = q.clone().sub(mid).setY(0), lat = off.dot(lateral), side = Math.abs(lat) / Math.max(off.length(), 1e-6);
+      const band = Math.min(1, Math.max(0, (shoulderY + .04 - q.y) / .1)) * Math.min(1, Math.max(0, (q.y - (shoulderY - .2)) / .08));   // the rest pose is a T: a side vertex below the armpit that rode the arm swung into the ribs as it dropped
+      const w = .9 * band * Math.min(1, Math.max(0, (side - .72) / .2));   // only the ring OVER the arm
+      if (w > 0) { si.setXYZW(k, si.getX(k), si.getY(k), boneIndex(lat > 0 ? 'upperarm_l' : 'upperarm_r'), 0); sw.setXYZW(k, sw.getX(k) * (1 - w), sw.getY(k) * (1 - w), w, 0); }
+    }
+  }
+  return { rings: cape.rings, geometry: g };
+}

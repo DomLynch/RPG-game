@@ -14,7 +14,7 @@ test('presence-files: the closure holds the service and its world data, every fi
   const files: string[] = presenceFiles(repo);
   for (const f of ['origins/presence/main.ts', 'origins/presence/server.ts', 'origins/presence/zones.ts', 'origins/world/concord.ts', 'origins/server/auth.ts']) assert.ok(files.includes(f), `${f} is installed`);
   assert.ok(files.every(f => existsSync(join(repo, f))), 'every listed file exists');
-  assert.ok(files.every(f => /^(origins|src)\//.test(f) && !f.includes('node_modules') && !f.includes('.test.')), 'only origins/ and src/ sources, never a test');
+  assert.ok(files.every(f => (/^(origins|src)\//.test(f) || f.startsWith('scripts/lib/')) && !f.includes('node_modules') && !f.includes('.test.')), 'only origins/ and src/ sources, and scripts/lib helpers they import, never a test');
   assert.deepEqual(files, [...files].sort(), 'sorted, so the list is stable');
 });
 
@@ -28,9 +28,9 @@ test('presence-files: a multi-line import/export clause is followed, and no list
   } finally { rmSync(dir, { recursive: true, force: true }); }
   // the real entry: economy.ts imports items.ts across lines; and every relative import of every listed file resolves inside the list
   const files: string[] = presenceFiles(repo);
-  assert.ok(files.includes('origins/contracts/items.ts'), 'the multi-line import of items.ts is in the closure');
+  assert.ok(files.includes('src/core/contracts/items.ts'), 'the multi-line import of items.ts is in the closure');
   for (const f of files) {
-    for (const m of readFileSync(join(repo, f), 'utf8').matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
+    for (const m of readFileSync(join(repo, f), 'utf8').replace(/^\s*import\s+type\b[^;]*;/gm, '').matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
       const target = relative(repo, resolve(repo, dirname(f), m[1]!));
       assert.ok(files.includes(target), `${f} imports ${target}, which the install would not copy`);
     }
@@ -96,7 +96,7 @@ test('install: the first install needs the public Supabase values, writes a 0600
     const r = s.run(['rev1'], PUBLIC);
     assert.equal(r.status, 0, r.stderr);
     assert.ok(existsSync(join(s.root, 'opt/frankendom-presence/rev1/origins/presence/main.ts')), 'the code is under the revision');
-    assert.ok(existsSync(join(s.root, 'opt/frankendom-presence/rev1/src/loot.ts')), 'with the src files it imports');
+    assert.ok(existsSync(join(s.root, 'opt/frankendom-presence/rev1/src/core/loot.ts')), 'with the src files it imports');
     assert.equal(readlinkSync(join(s.root, 'opt/frankendom-presence/current')), join(s.root, 'opt/frankendom-presence/rev1'), 'current points at it');
     assert.equal((statSync(join(s.root, 'etc/frankendom/presence.env')).mode & 0o777), 0o600, 'the env file is root-only');
     const env = s.read('etc/frankendom/presence.env');
@@ -218,4 +218,32 @@ test('the unit and the env template: no secrets, loopback only, off by default, 
   assert.match(envTemplate, /^ORIGINS_PRESENCE=0\b/m, 'the template is OFF');
   assert.match(envTemplate, /^PRESENCE_HOST=127\.0\.0\.1\b/m);
   assert.doesNotMatch(envTemplate, /[0-9a-f]{32}/, 'no key-looking value in the template');
+});
+
+test('install --if-changed: a byte-identical installed service is left alone (no new revision, no restart); a differing, missing or extra file is a normal install', { skip: !linux }, () => {
+  const s = sandbox();
+  try {
+    assert.equal(s.run(['rev1'], PUBLIC).status, 0);
+    const opt = join(s.root, 'opt/frankendom-presence');
+    const before = s.calls();
+    const same = s.run(['--if-changed', 'rev2']);
+    assert.equal(same.status, 0, same.stderr);
+    assert.match(same.stdout, /closure identical to the installed rev1 \(\d+ files, byte for byte\); nothing installed/);
+    assert.ok(!existsSync(join(opt, 'rev2')), 'no new revision directory');
+    assert.equal(readlinkSync(join(opt, 'current')), join(opt, 'rev1'), 'current is untouched');
+    assert.equal(s.calls(), before, 'no systemctl, nginx or curl call: nothing restarted');
+    // a changed file: installs
+    writeFileSync(join(opt, 'rev1/origins/presence/main.ts'), '// stale\n');
+    const changed = s.run(['--if-changed', 'rev2']);
+    assert.equal(changed.status, 0, changed.stderr);
+    assert.equal(readlinkSync(join(opt, 'current')), join(opt, 'rev2'), 'a differing file installs the revision');
+    // an extra file in the installed tree: installs too (both ways, like the writer)
+    writeFileSync(join(opt, 'rev2/origins/presence/leftover.ts'), 'export {};\n');
+    assert.equal(s.run(['--if-changed', 'rev3']).status, 0);
+    assert.equal(readlinkSync(join(opt, 'current')), join(opt, 'rev3'), 'an extra file installs the revision');
+    // no installed service at all: a normal install, never a skip
+    rmSync(join(opt, 'current'));
+    assert.equal(s.run(['--if-changed', 'rev4']).status, 0);
+    assert.equal(readlinkSync(join(opt, 'current')), join(opt, 'rev4'));
+  } finally { s.clean(); }
 });

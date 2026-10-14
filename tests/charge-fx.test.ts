@@ -2,12 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { RULES } from '../src/moves.ts';
-import { CAST_MARGIN, LAND_AT, type Cast } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { BACK_PACE, charge, chargeGait, CUE_AT, CUE_LEAD, DISSOLVE, GATHER, isCharge, RACE, RACE_FROM, RIDE, RUN_PACE, SETTLE, slideAt, STUCK_AT } from '../src/charge-timing.ts';
-import { createChargeFx } from '../src/charge-fx.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
+import { RULES } from '../src/fight/moves.ts';
+import { CAST_MARGIN, LAND_AT, type Cast } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { BACK_PACE, charge, chargeGait, CUE_AT, CUE_LEAD, DISSOLVE, GATHER, isCharge, RACE, RACE_FROM, RIDE, RUN_PACE, SETTLE, slideAt, STUCK_AT } from '../src/fight/charge-timing.ts';
+import { createChargeFx } from '../src/fight/charge-fx.ts';
+import { fxNum } from '../src/fight/fx-rows.ts';
 
 // The Centurion's Charge (charge-timing.ts, charge-fx.ts): a line of dust races the last RACE ticks of the windup, reaches the target on the landing
 // tick, then settles. Presentation only: it follows Combat's special events and ships in its own lazy chunk.
@@ -106,13 +107,13 @@ test('the Centurion is drawn at the head of the dust, not planted: eased back be
 });
 
 test('the Charge is ONE registry entry (special-modes.ts) and a ?special= row; the scene names no special id', async () => {
-  const { SPECIAL_MODES } = await import('../src/special-modes.ts');
+  const { SPECIAL_MODES } = await import('../src/fight/special-modes.ts');
   const mode = SPECIAL_MODES.centurion!;
   assert.ok(mode && mode.at === 'feet', 'a ground effect: it reads the feet');
   const player = new THREE.Object3D(), opponent = new THREE.Object3D();
   assert.deepEqual(mode.extra!({ player: { boneWorld: () => null, anchor: player }, opponent: { boneWorld: () => null, anchor: opponent } }), [[player, opponent]], 'the anchors reach render as its seventh argument');
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
-  assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /charge-fx|centurion/, 'scene.ts has no per-special branch');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/charge-fx\.ts'\)/, 'reached only through the registry: a lazy chunk, nothing in the main bundle');
+  assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /charge-fx|centurion/, 'scene.ts has no per-special branch');
 });
 
 test('the body and its gait run on ONE clock: back while he gathers, running over the ride, the sim\'s again for the blow', async () => {
@@ -124,7 +125,7 @@ test('the body and its gait run on ONE clock: back while he gathers, running ove
   for (let age = 0; age < LAND_AT + 40; age++) assert.equal(chargeGait(age) !== undefined, slideAt(age, 2) > 0 || (age >= RACE_FROM - GATHER && age < RACE_FROM + RIDE), `gait and slide agree at ${age}`);
   assert.equal(chargeGait(RACE_FROM - 5), BACK_PACE); assert.equal(chargeGait(RACE_FROM + 3), RUN_PACE); assert.equal(chargeGait(RACE_FROM + RIDE), undefined);
   assert.ok(RUN_PACE > 3.2, "above #1224's ArmedRun threshold");
-  const { SPECIAL_MODES } = await import('../src/special-modes.ts');
+  const { SPECIAL_MODES } = await import('../src/fight/special-modes.ts');
   const travel = SPECIAL_MODES.centurion!.travel!, fighters = (special: number, who = 1) => [{ health: 1, special: 0 }, { health: 1, specialShare: 0.3, special, skillCooldown: 0 }].map((f, i) => (i === who ? f : { health: 1, special: 0 })) as unknown as readonly [Fighter, Fighter];
   const during = (age: number) => travel(1, fighters(RULES.special.windup - age));
   assert.equal(during(RACE_FROM - 5), BACK_PACE); assert.equal(during(RACE_FROM + 4), RUN_PACE); assert.equal(during(RACE_FROM + RIDE + 1), undefined);
@@ -149,11 +150,11 @@ test('a continuous dark streak trails his feet for the whole run: capped at 0.7 
 
 test('a fizzle freezes the streak at the frozen front: no puff is ever drawn past it while it fades', () => {
   const scene = new THREE.Scene(), fx = createChargeFx(scene, 'veteran'), heads = [new THREE.Vector3(-1, 1.6, 0), new THREE.Vector3(1, 1.6, 0)] as const;
-  const total = 2.0 + 2, at = 100 + RACE_FROM + 10;   // LEAD 2 m + the 2 m gap between the heads; he stands at +x, the target at -x, so `dir` is -x
+  const LEAD = fxNum('charge-fx.lead'), total = LEAD + 2, at = 100 + RACE_FROM + 10;   // the row's lead + the 2 m gap between the heads; he stands at +x, the target at -x, so `dir` is -x
   fx.render(1 / 60, [started(100)], fighters(120), 100, heads, false);
   fx.render(1 / 60, [], fighters(10), at, heads, false);
   fx.render(1 / 60, [{ tick: at, type: 'SpecialFizzled', actor: 1, move: 'skill_shove' } as unknown as CombatEvent], fighters(10), at, heads, false);
-  const front = charge({ ...cast, start: 100, fizzled: at }, at)!.front * total - 2.0;   // metres along dir from his spot
+  const front = charge({ ...cast, start: 100, fizzled: at }, at)!.front * total - LEAD;   // metres along dir from his spot
   for (let t = 1; t <= 8; t++) {
     fx.render(1 / 60, [], fighters(10), at + t, heads, false);
     for (const s of (scene.children[0] as THREE.Group).children.filter((c) => c.userData.streak && c.visible)) assert.ok(1 - s.position.x <= front + 1e-6, `tick +${t}: a puff is past the frozen front`);

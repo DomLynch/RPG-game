@@ -5,7 +5,7 @@
 //   node scripts/player-weapon-battery.mjs [--seeds 24] [--weapons knife,estoc] [--levels normal,hard]
 /* global process, console */
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { battery } from '../tests/strategies.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };

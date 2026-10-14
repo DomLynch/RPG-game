@@ -1,9 +1,10 @@
 // Origins slice 1 (?region=1): the Ash Frontier laid out from the Region 1 data, walkable from the Exchange to the Bounty giver and back,
 // the Bounty in the journal, and each zone's ambience preset. Pure: no DOM (exchange.ts's walkable uses three.js maths only).
+import { zonePlaces } from '../zones/loader.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CharacterInstanceId, QuestId } from '../contracts/ids.ts';
-import { parseQuestDefinition } from '../contracts/story.ts';
+import type { CharacterInstanceId, QuestId } from '../../src/core/index.ts';
+import { parseQuestDefinition } from '../../src/core/index.ts';
 import { advance, entries, newJournal } from '../quests/journal.ts';
 import { loadRegion1 } from '../region1/load.ts';
 import { choices, loadTalk, newTalkState, pick } from '../talk/talk.ts';
@@ -23,6 +24,7 @@ test('each zone carries its look preset: ash-pit at the Pit gate, exchange-dusk 
     'pit-yard': 'ash-pit', exchange: 'exchange-dusk', 'exchange-quarter': 'exchange-dusk',
     'east-road': 'frontier-haze', 'ferry-landing': 'frontier-haze', 'cinder-fields': 'frontier-haze', 'black-mere': 'frontier-haze',
     'blood-ruin': 'frontier-haze', 'cinder-hold': 'frontier-haze', 'mere-end': 'frontier-haze',
+    ...Object.fromEntries(zonePlaces().flatMap((pl) => Object.entries(pl.zones).map(([id, z]) => [id, (z.ambience as { preset: string }).preset]))),   // the zones the rows place (Zone 2's ash-reach, Zone 3's salt-flats, ...): a new zone row adds no line here
   });
 });
 

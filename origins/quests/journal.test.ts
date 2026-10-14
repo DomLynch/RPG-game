@@ -2,10 +2,10 @@
 // contracts' parse/migrate round trip, and a seeded property run.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Result } from '../contracts/core.ts';
-import * as C from '../contracts/fixtures.ts';
-import type { CharacterInstanceId, QuestId } from '../contracts/ids.ts';
-import { checkQuestState, parseQuestDefinition, parseQuestState, statusFor, type QuestDefinition } from '../contracts/story.ts';
+import type { Result } from '../../src/core/server.ts';
+import * as C from '../../src/core/server.ts';
+import type { CharacterInstanceId, QuestId } from '../../src/core/server.ts';
+import { checkQuestState, parseQuestDefinition, parseQuestState, statusFor, type QuestDefinition } from '../../src/core/server.ts';
 import { concordCommission, smithsFavour } from './fixtures.ts';
 import { advance, entries, loadJournal, newJournal, progressOf, type AdvanceContext, type Advanced, type Journal } from './journal.ts';
 

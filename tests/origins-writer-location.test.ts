@@ -5,8 +5,8 @@ import { test } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import type { Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
-import { REJOIN_EDGE, inTradeArea, noServerHeldState, parseServed, serve, writerSaveLocation, writerSavedLocation, type HeldFn } from '../origins/server/location.ts';
-import { zoneAt } from '../origins/presence/zones.ts';
+import { fakeWhere } from '../origins/presence/fixtures.ts';
+import { REJOIN_EDGE, inTradeArea, zoneAt, noServerHeldState, parseServed, serve, writerSaveLocation, writerSavedLocation, type HeldFn } from '../origins/server/location.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const KEY = 'test-writer-internal-key-0123456789';
@@ -54,7 +54,7 @@ function fakeDb() {
   return { db, calls };
 }
 async function start(db: Db, internal?: { key: string; held?: HeldFn }) {
-  const server = createWriter({ db, verify: async () => null, ...(internal ? { internal: { ...internal, now: () => 1_791_000_000_000 } } : {}) });
+  const server = createWriter({ db, verify: async () => null, where: fakeWhere({}), ...(internal ? { internal: { ...internal, now: () => 1_791_000_000_000 } } : {}) });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   return { server, base: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
 }

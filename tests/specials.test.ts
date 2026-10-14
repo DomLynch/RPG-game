@@ -2,12 +2,13 @@
 // intents, no AI: deterministic. A fight without withSpecials is the fight it always was (tests/fixtures/fight-records.json, v20, still replays).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/duel.ts';
-import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/moves.ts';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { RECORD_VERSION, decodeRecord, encodeRecord } from '../src/record.ts';
+import { legal, stepDuel, withSpecials, type Duel, type Intent } from '../src/fight/duel.ts';
+import { breathTicks, coneOf } from '../src/fight/cone-rules.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/fight/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { NO_PATRON_VERSION, decodeRecord, encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { recordSpecials, verifyRecord } from '../src/replay.ts';
+import { recordSpecials, verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
 const S = RULES.special;
@@ -77,19 +78,19 @@ test('specials: a fight with them records the flag (the current version: a live 
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
-  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [RECORD_VERSION, true, { level: 12, aiSkill: 'shove' }]);
+  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [NO_PATRON_VERSION, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });
 
 // The registry (special-modes.ts): a lane adds one entry, the scene has no per-special branch. Pinned: the scene names no special id and reads the registry.
 import { readFileSync } from 'node:fs';
-import { gait, SPECIAL_MODES, type SpecialMode } from '../src/special-modes.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
+import { gait, SPECIAL_MODES, type SpecialMode } from '../src/fight/special-modes.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
 test('the special registry: every entry names a page id, the scene branches on none of them', () => {
   for (const id of Object.keys(SPECIAL_MODES)) assert.ok(Object.hasOwn(SPECIAL_TESTS, id), `${id} is a ?special= page`);
-  assert.ok(SPECIAL_MODES.set && SPECIAL_MODES.shield && !SPECIAL_MODES.hades, 'Red Wind and Shield Quake have entries; Hades draws as the default');
-  const scene = readFileSync('src/scene.ts', 'utf8');
+  assert.ok(SPECIAL_MODES.set && SPECIAL_MODES.shield && SPECIAL_MODES.hades, 'Red Wind, Shield Quake and (a bosses.json row) Hades have entries');
+  const scene = readFileSync('src/fight/scene.ts', 'utf8');
   assert.match(scene, /SPECIAL_MODES\[specialId\]/);
   for (const flag of ["=== 'set'", "=== 'shield'", "=== 'tithe'"]) assert.ok(!scene.includes(flag), `no per-special branch ${flag} in scene.ts`);
   assert.equal(SPECIAL_MODES.shield!.lift, 0.12); assert.equal(SPECIAL_MODES.set!.lift, 0.12);
@@ -107,7 +108,7 @@ test('a mode without travel leaves the sim speed and pose untouched; one that an
   assert.deepEqual(gait({ ...base, travel: (side) => (side === 1 ? 4 : undefined) }, 0, fighters, 0.9, 'draw'), { travel: 0.9, pose: 'draw' }, 'it is per side: the other fighter keeps the sim speed');
   assert.deepEqual(seen, [1]);
   for (const id of ['set', 'shield'] as const) assert.equal(SPECIAL_MODES[id]!.travel, undefined, `${id} leaves the sim speed alone`);
-  const scene = readFileSync('src/scene.ts', 'utf8');
+  const scene = readFileSync('src/fight/scene.ts', 'utf8');
   assert.match(scene, /gait\(mode, 0, practice\.duel\.fighters,/); assert.match(scene, /gait\(mode, 1, practice\.duel\.fighters,/);
   assert.match(scene, /mineGait\.travel/); assert.match(scene, /theirGait\.pose/);
 });
@@ -127,11 +128,12 @@ for (const [id, set] of Object.entries(SETS)) {
       const d = withSpecials(arena(OPPONENTS[id as keyof typeof OPPONENTS]), level, spec.aiSkill, undefined, spec.name);
       assert.equal(d.fighters[1].specialName, name);
       d.fighters[1].skillCooldown = 0;
-      const out = run(d, S.windup + 5, () => [idle(), act('skill')]);
+      const cone = coneOf(name);   // a cone special breathes: one pulse per ramp weight after the release, which together deal the same share
+      const out = run(d, S.windup + 5 + (cone ? breathTicks(cone) : 0), () => [idle(), act('skill')]);
       const named = out.events.filter(e => e.type === 'SpecialStarted' || e.type === 'SpecialLanded');
-      assert.equal(named.length, 2, 'cast and release');
+      assert.equal(named.length, 1 + (cone ? cone.ramp.length : 1), 'cast and release');
       for (const e of named) assert.equal(e.name, name);
-      assert.equal(named[1].damage, Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
+      assert.equal(named.slice(1).reduce((a, e) => a + (e.damage ?? 0), 0), Math.round((level >= S.bossFrom ? S.bossDamage : S.damage) * out.d.fighters[0].maxHealth), 'same share as every other special');
     });
   }
 }

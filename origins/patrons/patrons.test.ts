@@ -2,13 +2,16 @@
 // and resolution of the §10.2 damage templates, which apply in Origins PvE only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCsv, patronsFromCsv, renderData } from './csv.ts';
 import { PATRON_ROWS } from './patrons.data.ts';
 import {
-  applyPermille, bookLine, changeAllegiance, chooseAtGraduation, FIGHT_HALF_TICKS, holds, loadPatrons, NEW_ALLEGIANCE, NO_MODIFIERS, parseAllegianceState,
-  parsePerkTemplate, PATRONS, PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA, PERK_TEMPLATES, resolvePerk, RULES, STATS, templateText, VENUES, WHENS, COMPLEMENT,
+  applyPermille, bookLine, changeAllegiance, chooseAtGraduation, FIGHT_HALF_TICKS, holds, loadPatrons, loadVenues, NEW_ALLEGIANCE, NO_MODIFIERS, parseAllegianceState,
+  deltaOf, loadStatDefs, parsePerkTemplate, PATRONS, PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA, PERK_TEMPLATES, resolvePerk, RULES, STATS, templateText, VENUES, venuePerks, WHENS, COMPLEMENT,
   type Allegiance, type AllegianceState, type FightContext, type PatronId, type When,
 } from './patrons.ts';
 
@@ -37,7 +40,7 @@ const contexts = function* (): Generator<FightContext> {
     for (const [selfLevel, foeLevel] of [[12, 11], [12, 12], [12, 13]]) for (const h of [0, 499, 500, 501, 1000]) yield { venue: 'origins-pve', clockHalf, moon, fightTicks, selfLevel: selfLevel!, foeLevel: foeLevel!, selfHealthPermille: h, foeHealthPermille: 1000 - h };
 };
 test('every template is equal power: never both sides at once (conditional), always both (always-on), net benefit 0', () => {
-  const sign = { damageDealtPermille: 1, damageTakenPermille: -1, staminaCostPermille: -1 } as const;
+  const sign: Record<string, number> = { damageDealtPermille: 1, damageTakenPermille: -1, staminaCostPermille: -1 };
   for (const t of PERK_TEMPLATES.values()) {
     assert.equal(sign[t.gain.stat] * t.gain.value + sign[t.cost.stat] * t.cost.value, 0, t.id);
     for (const f of contexts()) {
@@ -77,6 +80,40 @@ test('the reader refuses every template that is not a sidegrade', () => {
 
 test('stats are only damage dealt, damage taken and stamina cost: no tick, reach or timing ever', () => {
   assert.deepEqual([...STATS], ['damageDealtPermille', 'damageTakenPermille', 'staminaCostPermille']);
+});
+
+test('the stats are the rows of stat-defs.json, in order; the loader names a missing field, a wrong type and a duplicate id', () => {
+  const raw = JSON.parse(readFileSync(new URL('./stat-defs.json', import.meta.url), 'utf8')) as { stats: Record<string, unknown>[] };
+  assert.deepEqual([...STATS], raw.stats.map((r) => r.id));
+  assert.deepEqual(raw.stats.map((r) => r.benefit), [1, -1, -1]);
+  assert.equal(loadStatDefs(raw).length, 3);
+  assert.throws(() => loadStatDefs({ stats: [{ id: 'x', benefit: 1 }] }), /text/);
+  assert.throws(() => loadStatDefs({ stats: [{ id: 'x', benefit: 'up', text: 't' }] }), /benefit/);
+  assert.throws(() => loadStatDefs({ stats: [{ id: 'x', benefit: 1, text: 't' }, { id: 'x', benefit: 1, text: 'u' }] }), /duplicate/);
+});
+
+test('a new stat is ONE row in a copy of the tree, no code: a template may name it, resolution carries its delta; an unknown stat still rejects', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stat-rows-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true });
+    cpSync('src', join(dir, 'src'), { recursive: true });
+    for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, 'origins/patrons/stat-defs.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    rows.stats.push({ id: 'reachPermille', benefit: 1, text: 'reach' });
+    writeFileSync(file, JSON.stringify(rows));
+    writeFileSync(join(dir, 'probe.ts'), `import { NO_MODIFIERS, STATS, parsePerkTemplate, templateText } from './origins/patrons/patrons.ts';
+const mk = (stat: string) => parsePerkTemplate({ kind: 'perk-template', schemaVersion: 1, id: 'probe-tpl', gain: { when: 'always', stat, value: 30 }, cost: { when: 'always', stat: 'damageTakenPermille', value: 30 } });
+const ok = mk('reachPermille'), bad = mk('tickPermille');
+console.log(JSON.stringify({ stats: STATS, zero: NO_MODIFIERS.reachPermille, ok: ok.ok, text: ok.ok ? templateText(ok.value) : '', bad: bad.ok }));`);
+    const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(out.status, 0, out.stderr);
+    const got = JSON.parse(out.stdout.trim().split('\n').pop()!);
+    assert.deepEqual(got.stats, ['damageDealtPermille', 'damageTakenPermille', 'staminaCostPermille', 'reachPermille']);
+    assert.equal(got.zero, 0);
+    assert.equal(got.ok, true);
+    assert.match(got.text, /reach/);
+    assert.equal(got.bad, false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -238,6 +275,39 @@ test('applyPermille: integer in, integer out; a zero delta is the identity', () 
 test('every patron resolves inside the ±3% budget on every stat, in every context', () => {
   for (const p of PATRONS.values()) for (const f of contexts()) {
     const m = resolvePerk({ kind: 'patron-clan', patron: p.patron }, f);
-    for (const s of STATS) assert.ok(Math.abs(m[s]) <= PERK_BUDGET_PERMILLE, `${p.id} ${s}`);
+    for (const s of STATS) assert.ok(Math.abs(deltaOf(m, s)) <= PERK_BUDGET_PERMILLE, `${p.id} ${s}`);
   }
+});
+
+test('venues are rows: the flag, not the name, decides who gets the damage templates; a venue the rows do not name gets none', () => {
+  assert.equal(venuePerks('origins-pve'), true);
+  assert.equal(venuePerks('arena'), false);
+  assert.equal(venuePerks('duel-ring'), false, 'an unknown venue fails closed');
+  const rows = loadVenues({ venues: [{ id: 'origins-pve', perks: true }, { id: 'dungeon', perks: true }] });
+  assert.equal(venuePerks('dungeon', rows), true);
+  assert.throws(() => loadVenues({ venues: [{ id: 'arena', perks: false }, { id: 'arena', perks: true }] }), /arena/, 'a duplicate id is refused by the shared loader');
+  assert.throws(() => loadVenues({ venues: [{ id: 'arena' }] }), /perks/, 'a row without its flag is refused');
+});
+test('a new venue is ONE row in a copy of the tree, no code: it resolves the templates; the rows it does not flag still do not', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'venue-defs-'));
+  try {
+    cpSync('origins', join(dir, 'origins'), { recursive: true }); cpSync('src', join(dir, 'src'), { recursive: true });
+    for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
+    const file = join(dir, 'origins/patrons/venue-defs.json'), rows = JSON.parse(readFileSync(file, 'utf8'));
+    rows.venues.push({ id: 'dungeon', perks: true }, { id: 'tavern-brawl', perks: false });
+    writeFileSync(file, JSON.stringify(rows));
+    writeFileSync(join(dir, 'probe.ts'), `import { PATRONS, VENUES, resolvePerk } from './origins/patrons/patrons.ts';
+const a = { kind: 'patron-clan', patron: 'patron:zeus' } as const;
+const f = (venue: string) => resolvePerk(a, { venue, clockHalf: 'day', moon: 0, fightTicks: 0, selfLevel: 12, foeLevel: 12, selfHealthPermille: 1000, foeHealthPermille: 1000 }).damageDealtPermille;
+console.log(JSON.stringify({ venues: VENUES, dungeon: f('dungeon'), brawl: f('tavern-brawl'), arena: f('arena'), unknown: f('nowhere'), zeus: PATRONS.has('patron:zeus' as never) }));`);
+    const out = spawnSync(process.execPath, ['probe.ts'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(out.status, 0, out.stderr);
+    assert.deepEqual(JSON.parse(out.stdout.trim().split('\n').pop()!), { venues: ['origins-pve', 'arena', 'pvp', 'dungeon', 'tavern-brawl'], dungeon: 30, brawl: 0, arena: 0, unknown: 0, zeus: true });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the perk budget and allegiance rules moved to allegiance-rules.json read back identical to the constants patrons.ts held in code (trunk 400202c51)', async () => {
+  const { createHash } = await import('node:crypto');
+  const { PERK_BUDGET_PERMILLE, RULES } = await import('./patrons.ts');
+  assert.equal(createHash('sha256').update(JSON.stringify({ PERK_BUDGET_PERMILLE, RULES })).digest('hex'), '75ea38302d6391a26647f395aa9d535abd16dd8c74e0e2b48b77c5732bb3ecc0');
 });

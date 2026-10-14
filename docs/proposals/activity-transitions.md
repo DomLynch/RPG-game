@@ -4,7 +4,7 @@ Code Quality, 2026-09-29, for Lead (ruling: not before beta; decide after Thursd
 
 ## What exists today
 
-The page has one fight at a time (`Match`, src/match.ts). Everything else layered on the arena is a separate *activity*, started from `main.ts` and cancelled in its own way:
+The page has one fight at a time (`Match`, src/fight/match.ts). Everything else layered on the arena is a separate *activity*, started from `main.ts` and cancelled in its own way:
 
 | Activity | Starts | Async part | How a late result is stopped | Ends / cancelled by |
 |---|---|---|---|---|

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -163,7 +163,7 @@ test('ci-trusted-checks trusts a check only when its job is green and its receip
   const fake = join(dir, 'gh');
   // Fake gh: run 7 (still `queued` at run level, jobs already concluding) is recorded against branch head B, run 9
   // (completed) against trunk T0.
-  // Receipts: run 7 has 1 (ok), 2 (exit 3), 4 (ok); 3 is still running with no receipt. Run 9 has 3 ok but for T0's tree.
+  // Receipts: run 7 has 1 (ok), 6 (exit 3), 4 and 44 (ok, but MAC_ONLY rows: never trusted from CI); 3 is still running with no receipt. Run 9 has 3 ok but for T0's tree.
   writeFileSync(fake, `#!/bin/bash
 case "$1 $2" in
   "run list")
@@ -172,15 +172,16 @@ case "$1 $2" in
     elif [ "$commit" = "${t0}" ]; then echo '[{"databaseId":9,"headSha":"${t0}","url":"https://x/runs/9","status":"completed"}]'
     else echo '[]'; fi;;
   "run view")
-    if [ "$3" = "7" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 2 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":null},{"name":"check 4 (d)","conclusion":"success"},{"name":"plan","conclusion":"success"}]'
+    if [ "$3" = "7" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 6 (b)","conclusion":"failure"},{"name":"check 3 (c)","conclusion":null},{"name":"check 4 (d)","conclusion":"success"},{"name":"check 44 (sparring)","conclusion":"success"},{"name":"plan","conclusion":"success"}]'
     elif [ -n "$NO_CHECK_JOBS" ]; then echo '[{"name":"plan","conclusion":null},{"name":"check","conclusion":null}]'
     else echo '[{"name":"check 3 (c)","conclusion":"success"}]'; fi;;
   "run download")
     for i in "$@"; do case "$prev" in --dir) dir="$i";; esac; prev="$i"; done
     if [ "$3" = "7" ]; then
-      mkdir -p "$dir/release-check-1-receipt" "$dir/release-check-2-receipt" "$dir/release-check-4-receipt"
+      mkdir -p "$dir/release-check-1-receipt" "$dir/release-check-6-receipt" "$dir/release-check-4-receipt" "$dir/release-check-44-receipt"
       printf '%s' '${receipt(1, 0)}' > "$dir/release-check-1-receipt/release-check-1.json"
-      printf '%s' '${receipt(2, 3)}' > "$dir/release-check-2-receipt/release-check-2.json"
+      printf '%s' '${receipt(6, 3)}' > "$dir/release-check-6-receipt/release-check-6.json"
+      printf '%s' '${receipt(44, 0)}' > "$dir/release-check-44-receipt/release-check-44.json"
       printf '%s' '${receipt(4, 0)}' > "$dir/release-check-4-receipt/release-check-4.json"
     else
       mkdir -p "$dir/release-check-3-receipt"; printf '%s' '${receipt(3, 0, 'f'.repeat(40))}' > "$dir/release-check-3-receipt/release-check-3.json"
@@ -193,9 +194,9 @@ esac
   const call = (args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [resolver, ...args], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake, ...env } });
   let r = call([m]);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, '1,4', 'merge commit M: queued branch run vouches for 1 and 4 (green + receipt 0 + same tree); 2 failed; 3 unfinished: ' + r.stderr);
-  assert.match(r.stderr, /trusting 2 check\(s\) \[1,4\] for tree/);
-  assert.match(r.stderr, /running locally: \[2:failure\/receipt-status=3 3:unfinished\/no-receipt\]/);
+  assert.equal(r.stdout, '1', 'merge commit M: queued branch run vouches for 1 (green + receipt 0 + same tree); 4 (WebKit) and 44 (fails off the Mac) are green but MAC_ONLY (the Mac runs them, 2026-10-12); 6 failed; 3 unfinished: ' + r.stderr);
+  assert.match(r.stderr, /trusting 1 check\(s\) \[1\] for tree/);
+  assert.match(r.stderr, /running locally: \[3:unfinished\/no-receipt 4:mac-only\(the Mac runs it\) 6:failure\/receipt-status=3 44:mac-only\(the Mac runs it\)\]/);
   r = call([t0]);
   assert.equal(r.stdout, '', 'T0 has a green job 3 but its receipt is for another tree -> nothing trusted');
   assert.match(r.stderr, /3:other-tree/);
@@ -203,7 +204,7 @@ esac
   assert.equal(r.stdout, '', 'run found but its matrix has not started -> nothing trusted');
   assert.match(r.stderr, /running locally: \[all: no check jobs in the run\(s\) yet\]/);
   r = call([b]);
-  assert.equal(r.stdout, '1,4', 'deploying the branch head itself uses the same run');
+  assert.equal(r.stdout, '1', 'deploying the branch head itself uses the same run (row 4 is WebKit: the Mac runs it)');
   r = call([m], { RELEASE_CHECKS_TRUST_CI: '0' });
   assert.equal(r.stdout, '', 'kill switch');
   r = call(['abc']);
@@ -267,28 +268,26 @@ esac
 });
 
 test('release_triggers: a new row joins the rules its paths already hit, never a new first rule that steals them (first match wins)', () => {
-  // #865 put a double-tap rule FIRST for src/main.ts, src/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
+  // #865 put a double-tap rule FIRST for src/main.ts, src/fight/input.ts, src/style.css and index.html, so each of them triggered row 43 alone
   // and lost its earlier rows on every PR. Each file keeps its earlier rows plus double-tap-browser-check.
   const rowsFor = (file: string) => (JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', file], { encoding: 'utf8' })) as { name: string }[]).map((r) => r.name).sort();
   const boot = ['roster-browser-check', 'record-replay-check', 'kill-link-check', 'finisher-preview', 'account-database-check', 'account-browser-check'];
   const page = [...boot, 'loot-smoke-check', 'worn-loot-check', 'profile-figure-check', 'difficulty-persist-check', 'sparring-browser-check'];
-  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
-    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check', ...(file === 'src/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : [])].sort(), file);   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
+  for (const [file, before] of [['src/main.ts', page], ['index.html', page], ['src/fight/input.ts', boot], ['src/style.css', [...boot, 'viewport-check', 'profile-figure-check']]] as const)
+    assert.deepEqual(rowsFor(file), [...before, 'double-tap-browser-check', 'clip-send-tour-check', ...(file === 'src/fight/input.ts' ? [] : ['desktop-intro-check']), ...(file === 'src/main.ts' || file === 'index.html' ? ['first-loss-browser-check'] : []), ...(file === 'src/fight/input.ts' ? [] : ['next-fight-black-check']), ...(file === 'src/style.css' ? ['pit-landscape-webkit'] : [])].sort(), file);   // + the WebKit landscape Pit row (Lead 2026-10-12): the layout file runs it   // re-pinned 2026-10-06: the first-loss row (51) joined the page rule main.ts and index.html hit, so a change to the page runs a fresh visitor's first minute
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
-  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check'].sort());
+  assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
-  // The PIT EXIT row (2026-09-30, no black frame across the next-rung reload) joined the same three rules (main.ts + index.html's,
-  // style.css's and src/** for src/gate-light.ts), plus its own rule last.
-  assert.deepEqual(rowsFor('src/gate-light.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check'].sort());
-  assert.deepEqual(rowsFor('scripts/pit-exit-check.mjs'), ['pit-exit-check']);
+  // The PIT EXIT row (2026-09-30, no black frame across the next-rung reload) was removed 2026-10-08 with the Pit room it tested (gate light, exit button):
+  // its script, its triggers and its row are gone, never kept for a deleted script. Rows after it renumbered (first-loss 51 -> 50, stance-panel 52 -> 51).
   // The FIRST LOSS row (2026-10-06, Lead): a brand-new visitor's first minute. It joined the page rule (main.ts, index.html) and has a rule ahead of src/**
   // for src/lessons*.ts and src/first-loss*.ts that carries src/**'s rows too (so it never steals them); its own script runs only itself.
   assert.deepEqual(rowsFor('scripts/first-loss-browser-check.mjs'), ['first-loss-browser-check']);
-  for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'pit-exit-check', 'first-loss-browser-check'].sort(), file);
-  assert.ok(!rowsFor('src/hud.ts').includes('first-loss-browser-check'), 'other src files do not run the first-loss row');
+  for (const file of ['src/lessons.ts', 'src/first-loss.ts']) assert.deepEqual(rowsFor(file), [...boot, 'double-tap-browser-check', 'clip-send-tour-check', 'first-loss-browser-check', ...(file === 'src/first-loss.ts' ? ['origins-writer-boot-check'] : [])].sort(), file);   // first-loss.ts is in the writer's runtime closure, so it also runs the boot check (#2116)
+  assert.ok(!rowsFor('src/fight/hud.ts').includes('first-loss-browser-check'), 'other src files do not run the first-loss row');
 });
 
 test('ci-trusted-checks finds a run by TREE on a branch trunk never contains; a differing tree is never looked at', () => {
@@ -351,75 +350,93 @@ esac
   assert.doesNotMatch(r.stderr, /runs\/11|runs\/13/);
 });
 
+// Every row the gate has (51 since the Pit exit row 50 was removed with the Pit room, 2026-10-08; 52 with row 52 next-fight-black-check, the guard for Dom's 2 s black-frame report, Lead ruling 2026-10-08): 'all rows' is read, never a literal.
+const ROWS: number = JSON.parse(readFileSync(new URL('../.quality-gate.json', import.meta.url), 'utf8')).release_commands.length;
 test('deploy scope: a release runs about 5 rows for what it changed, none for docs, and a changed check script runs its own rows', () => {
   // Dom 2026-10-05: "get the 50 checks down to 5"; the full 50 still run once every 24 h (deploy.sh --full-age).
   const pick = (...files: string[]) => execFileSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-  const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return 51 - skip.size; };
-  assert.equal(kept('src/main.ts'), 7, 'any code change: the five core rows plus the first-loss row and the Stage picker row (main.ts is in both triggers)');
-  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the Pit adds pit-exit-check');
-  assert.equal(kept('src/ai.ts'), 7, 'combat adds the browser replay (chromium) and kill-link rows');
+  const kept = (...files: string[]) => { const skip = new Set(pick(...files).trim().split(',').filter(Boolean).map(Number)); return ROWS - skip.size; };
+  assert.equal(kept('src/main.ts'), 8, 'any code change: the five core rows plus the first-loss row, the Stage picker row and the next-fight black row (the page the reload loads; the Pit exit guard covered it; Auditor 2026-10-08)');
+  assert.equal(kept('src/main.ts', 'src/pit/skulls.ts'), 8, 'the kills-board data module triggers no row of its own (the Pit exit row was removed with the room)');
+  assert.equal(kept('src/fight/ai.ts'), 8, 'combat adds the browser replay (chromium) and kill-link rows, and the writer boot check (ai.ts is in the writer\'s runtime closure)');
   assert.equal(kept('docs/state/lead.md'), 0, 'docs only: no rows');
   assert.equal(kept('scripts/polearm-browser-check.mjs'), 9, 'a changed check script runs all of its rows');
   for (const file of ['package-lock.json', 'package.json', 'vite.config.mjs', 'tsconfig.json', '.quality-gate.json', 'scripts/lib/harness-clock.mjs'])
-    assert.equal(kept('src/main.ts', file), 51, `${file} changes the build or the gate (with no base to compare): every row (Auditor B1 on #1381)`);
+    assert.equal(kept('src/main.ts', file), ROWS, `${file} changes the build or the gate (with no base to compare): every row (Auditor B1 on #1381)`);
   assert.equal(kept('src/lessons.ts'), 6, 'the first-loss row joins the core five for the lesson files');
-  assert.equal(kept('src/first-loss.ts'), 6);
+  assert.equal(kept('src/first-loss.ts'), 7, 'the first-loss row and the writer boot check (first-loss.ts is in the writer\'s runtime closure)');
   assert.equal(kept('scripts/first-loss-browser-check.mjs'), 6, 'a changed check script runs its own row');
-  assert.equal(kept('src/hud.ts'), 7, 'files outside its trigger do not run it');
+  assert.equal(kept('src/fight/hud.ts'), 7, 'files outside its trigger do not run it');
   assert.equal(kept('src/audio/mix.ts'), 7, 'audio adds its two rows');
-  assert.equal(kept('src/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
+  assert.equal(kept('src/fight/hud.ts'), 7, 'the HUD adds endgame-hud and one desktop layout row');
 });
 
-test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the two rows that boot to a fight', () => {
-  // a2cf3529 (2026-10-06): #1420 fixed row 51 in src/first-frame.ts + src/scene.ts, yet the picker left 50 and 51 out of scope.
+test('deploy scope: the fight-boot files (first frame, scene warm-up) pick the first-loss row, the row that boots to a fight from an empty profile', () => {
+  // a2cf3529 (2026-10-06): #1420 fixed the first-loss row in src/first-frame.ts + src/fight/scene.ts, yet the picker left it out of scope (row 51 then, 50 since the Pit exit row went).
   const picked = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' }).stderr;
-  for (const file of ['src/first-frame.ts', 'src/scene.ts']) {
-    assert.match(picked(file), /\b50 pit-exit-check\b/, `${file} runs row 50 pit-exit-check`);
-    assert.match(picked(file), /\b51 first-loss-browser-check\b/, `${file} runs row 51 first-loss-browser-check`);
+  for (const file of ['src/first-frame.ts', 'src/fight/scene.ts']) {
+    assert.match(picked(file), /\b50 first-loss-browser-check\b/, `${file} runs row 50 first-loss-browser-check`);
   }
-  assert.match(picked('src/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+  assert.match(picked('src/fight/scene.ts'), /\barena-preview\b/, 'scene.ts keeps its arena row');
+  for (const file of ['src/first-frame.ts', 'src/fight/scene.ts']) assert.match(picked(file), /\b52 next-fight-black-check\b/, `${file} runs row 52 next-fight-black-check (the reload's black time)`);
+  assert.deepEqual(JSON.parse(execFileSync('node', ['scripts/release-rows-for.mjs', '--json', 'scripts/next-fight-black-check.mjs'], { encoding: 'utf8' })).map((r: { name: string }) => r.name), ['next-fight-black-check'], 'a changed check script runs its own row');
 });
 
 test('deploy scope: a public asset runs the rows of its folder, never all 51; the Stage picker row follows the arena, sparring and main files', () => {
   // Lead 2026-10-06: every arena or versus .webp ran all 51 rows (15-21 min), and row 44 had no mapping, so 17ab81e9 skipped it.
   const pick = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' });
-  const kept = (...files: string[]) => 51 - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
+  const kept = (...files: string[]) => ROWS - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
   const picked = (...files: string[]) => pick(...files).stderr;
   assert.equal(kept('public/versus/goblin.webp'), 5, 'a versus card: the core five only');
   assert.equal(kept('public/licenses/OFL.txt'), 5, 'a licence file: the core five only');
-  assert.ok(kept('public/arena/3/floor.webp') < 51, 'an arena texture is not a full run');
+  assert.ok(kept('public/arena/3/floor.webp') < ROWS, 'an arena texture is not a full run');
   assert.match(picked('public/arena/3/floor.webp'), /\b8 arena-preview\b/, 'an arena texture runs the arena preview');
   assert.match(picked('public/arena/3/floor.webp'), /\b44 sparring-browser-check\b/, 'and the Stage picker row');
-  assert.match(picked('public/pit/gate.glb'), /\b50 pit-exit-check\b/, 'a Pit asset runs the Pit exit row');
-  assert.equal(kept('public/pit/gate.glb'), 6);
-  assert.equal(kept('public/weapons/estoc.glb'), 51, 'any other public folder (GLBs many rows load) still runs every row');
+  assert.equal(kept('public/weapons/estoc.glb'), ROWS, 'any other public folder (GLBs many rows load) still runs every row');
   for (const file of ['src/arena-themes.ts', 'src/arena.ts', 'src/sparring.ts', 'src/stage-hide.ts', 'src/main.ts'])
     assert.match(picked(file), /\b44 sparring-browser-check\b/, `${file} runs row 44, the Stage picker`);
-  assert.doesNotMatch(picked('src/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
+  assert.doesNotMatch(picked('src/fight/hud.ts'), /\b44 sparring-browser-check\b/, 'a file outside the arena does not');
+});
+
+test('deploy.sh runs the Mac rows one at a time unless RELEASE_CHECK_CONCURRENCY says otherwise (Dom 2026-10-10)', () => {
+  const deploy = readFileSync(new URL('../scripts/deploy.sh', import.meta.url), 'utf8');
+  assert.match(deploy, /RELEASE_CHECK_CONCURRENCY="\$\{RELEASE_CHECK_CONCURRENCY:-1\}" RELEASE_CHECKS_SKIP=/, 'the Mac invocation defaults the width to 1 and keeps the caller\'s value');
+});
+
+test('deploy scope: a loot thumbnail or a deploy-pipeline library is not a full run (Strategy 2026-10-10: Y and Z each ran all 52 rows for two .webp files and for scripts/lib/data-only.mjs)', () => {
+  const pick = (...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip'], { input: files.join('\n'), encoding: 'utf8' });
+  const kept = (...files: string[]) => ROWS - new Set(pick(...files).stdout.trim().split(',').filter(Boolean)).size;
+  assert.ok(kept('public/game/img/loot/witch.Helmet.webp', 'public/game/img/loot/witch.Helmet.thumb.webp') < 12, 'loot images run the gear rows and the core five, not every row');
+  assert.match(pick('public/game/img/loot/witch.Helmet.webp').stderr, /\b36 loot-smoke-check\b/, 'a loot image runs the loot smoke row');
+  for (const lib of ['data-only.mjs', 'row-placement.mjs', 'vps-receipts.mjs', 'hf-slots.mjs', 'hf-wall-rows.mjs', 'published-summary.mjs', 'prelaunch-jobs.mjs', 'deploy-hf.sh', 'prune-releases.sh', 'glb-stats.mjs'])
+    assert.equal(kept(`scripts/lib/${lib}`), 5, `scripts/lib/${lib} builds no part of the game: the core five only`);
+  assert.match(pick('scripts/lib/thumb-row.mjs').stderr, /\bendgame-hud-check\b/, 'a library one row imports runs that row');
+  for (const file of ['scripts/lib/harness.mjs', 'scripts/lib/harness-clock.mjs', 'scripts/lib/a-library-nobody-listed.mjs'])
+    assert.equal(kept(file), ROWS, `${file}: the harness and any unlisted library stay a full run`);
 });
 
 test('deploy scope: a changed .quality-gate.json runs only the rows it adds or changes against the live revision (--base), every row without one', async () => {
   // Lead 2026-10-06: a row-list edit ran all 51 rows. The row diff is fed in directly (deployRowsFor's second argument), so the test
   // does not depend on the runner's git history: CI's shallow clone cannot `git show` an old trunk revision, and every row is then right.
   const pick = (base: string | null, ...files: string[]) => spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', ...(base ? ['--base', base] : [])], { input: files.join('\n'), encoding: 'utf8' });
-  const kept = (r: ReturnType<typeof pick>) => 51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
-  assert.equal(kept(pick(null, '.quality-gate.json')), 51, 'no base: every row');
-  assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), 51, 'an unreadable base: every row');
+  const kept = (r: ReturnType<typeof pick>) => ROWS - new Set(r.stdout.trim().split(',').filter(Boolean)).size;
+  assert.equal(kept(pick(null, '.quality-gate.json')), ROWS, 'no base: every row');
+  assert.equal(kept(pick('0000000000000000000000000000000000000000', '.quality-gate.json')), ROWS, 'an unreadable base: every row');
   const { deployRowsFor, rows } = await import('../scripts/release-rows-for.mjs');
   const live: string[][] = rows.map((r: { argv: string }) => JSON.parse(r.argv) as string[]);
   const names = (picked: { index: number; name: string }[]) => picked.map(r => `${r.index} ${r.name}`);
   assert.equal(deployRowsFor(['.quality-gate.json'], live).length, 5, 'identical lists: the core five only');
-  const added = names(deployRowsFor(['.quality-gate.json'], live.filter((_, i) => i !== 50)));
-  assert.ok(added.includes('51 first-loss-browser-check'), `a row the live gate lacks runs: ${added}`);
+  const added = names(deployRowsFor(['.quality-gate.json'], live.filter((_, i) => i !== 49)));
+  assert.ok(added.includes('50 first-loss-browser-check'), `a row the live gate lacks runs: ${added}`);
   assert.ok(!added.includes('44 sparring-browser-check') && added.length === 6, `rows unchanged since the base do not: ${added}`);
   const edited = live.map((command, i) => (i === 43 ? [...command, '--changed'] : command));
   assert.ok(names(deployRowsFor(['.quality-gate.json'], edited)).includes('44 sparring-browser-check'), 'a row whose argv changed runs');
-  assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, 51, 'no previous list: every row');
+  assert.equal(deployRowsFor(['.quality-gate.json'], undefined).length, ROWS, 'no previous list: every row');
 });
 
 test('deploy scope: a --base of HEAD (the same row list) runs the core five only', { skip: noGit }, () => {
   const r = spawnSync('node', ['scripts/release-rows-for.mjs', '--deploy-skip', '--base', 'HEAD'], { input: '.quality-gate.json', encoding: 'utf8' });
-  assert.equal(51 - new Set(r.stdout.trim().split(',').filter(Boolean)).size, 5, 'the same row list as the base: the core five only');
+  assert.equal(ROWS - new Set(r.stdout.trim().split(',').filter(Boolean)).size, 5, 'the same row list as the base: the core five only');
 });
 
 test('the unit gate ignores the deploy shell\'s own DEPLOY_* exports: a ci-trust-run still stamps a run of every row', () => {
@@ -462,4 +479,45 @@ test('deploy scope: the last full run is read from the stamp, else from a receip
   assert.ok(age() > 86_400, 'the stamp wins: over 24 h means the next release runs all 50');
   writeFileSync(join(root, 'artifacts/last-full-release.json'), JSON.stringify({ at: 'not a date' }));
   assert.equal(age(), -1, 'a bad stamp date is unknown, so the release runs all 50 (Auditor S2)');
+});
+
+test('Lead 2026-10-12 (CP): with CI_ROWS_WAIT_S, ci-trusted-checks waits for CI rows still running on this tree, then trusts them; bounded; default looks once', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'ci-trust-wait-'));
+  const g = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  g('init', '-q', '-b', 'trunk'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't');
+  writeFileSync(join(repo, 'a.txt'), '1\n'); g('add', '.'); g('commit', '-qm', 'c');
+  const sha = g('rev-parse', 'HEAD'), tree = g('rev-parse', 'HEAD^{tree}');
+  const dir = mkdtempSync(join(tmpdir(), 'ci-trust-wait-gh-')), fake = join(dir, 'gh'), views = join(dir, 'views');
+  const receipt = (index: number) => JSON.stringify({ index, status: 0, tree, sha });
+  // Run 5: row 1 green from the start; row 3 running for the first READY_AFTER views, then green with its receipt (CP's rows 18/20/23/25).
+  writeFileSync(fake, `#!/bin/bash
+n=$(cat '${views}' 2>/dev/null || echo 0)
+case "$1 $2" in
+  "run list") echo '[{"databaseId":5,"headSha":"${sha}","url":"https://x/runs/5","status":"in_progress"}]';;
+  "run view") echo $((n + 1)) > '${views}'
+    if [ "$n" -ge "\${READY_AFTER:-2}" ]; then echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 3 (c)","conclusion":"success"}]'
+    else echo '[{"name":"check 1 (a)","conclusion":"success"},{"name":"check 3 (c)","conclusion":null}]'; fi;;
+  "run download") for i in "$@"; do case "$prev" in --dir) d="$i";; esac; prev="$i"; done
+    mkdir -p "$d/release-check-1-receipt"; printf '%s' '${receipt(1)}' > "$d/release-check-1-receipt/release-check-1.json"
+    if [ "$n" -gt "\${READY_AFTER:-2}" ]; then mkdir -p "$d/release-check-3-receipt"; printf '%s' '${receipt(3)}' > "$d/release-check-3-receipt/release-check-3.json"; fi;;
+  *) exit 1;;
+esac
+`);
+  execFileSync('chmod', ['+x', fake]);
+  const resolver = join(process.cwd(), 'scripts', 'ci-trusted-checks.mjs');
+  const call = (env: Record<string, string>) => { rmSync(views, { force: true }); return spawnSync(process.execPath, [resolver, sha], { cwd: repo, encoding: 'utf8', env: { ...clean(), CI_TRUST_GH: fake, CI_ROWS_POLL_S: '1', ...env } }); };
+  let r = call({});
+  assert.equal(r.stdout, '1', 'no wait (the planning call): only what is finished: ' + r.stderr);
+  assert.match(r.stderr, /running locally: \[3:unfinished/);
+  r = call({ CI_ROWS_WAIT_S: '20' });
+  assert.equal(r.stdout, '1,3', 'waited for row 3 and trusted it once green: ' + r.stderr);
+  assert.match(r.stderr, /waiting for CI row\(s\) \[3\]/);
+  const t = Date.now();
+  r = call({ CI_ROWS_WAIT_S: '2', READY_AFTER: '999' });
+  assert.equal(r.stdout, '1', 'a row that never finishes inside the bound runs locally');
+  assert.match(r.stderr, /stopped waiting after 2s with CI row\(s\) \[3\] unfinished: they run locally/);
+  assert.ok(Date.now() - t < 15_000, 'bounded');
+  const deploy = readFileSync('scripts/deploy.sh', 'utf8');
+  assert.match(deploy, /trusted_checks=\$\(CI_ROWS_WAIT_S="\$\{CI_ROWS_WAIT_S:-900\}" node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the release-checks step waits');
+  assert.match(deploy, /early_trusted=\$\(node scripts\/ci-trusted-checks\.mjs "\$revision"/, 'the planning call stays instant');
 });

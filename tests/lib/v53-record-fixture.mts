@@ -1,0 +1,14 @@
+import { initialPractice, stepPractice } from '../../src/fight/combat.ts';
+import { OPPONENTS, RULES, opponentAt, profileAt } from '../../src/fight/moves.ts';
+import { recordSpecials, verifyRecord } from '../../src/fight/replay.ts';
+import { packRecord, unpackRecord } from '../../src/fight/record.ts';
+import { resolveSpell, SPELL_IDS } from '../../src/fight/spell-cast.ts';
+import { hashDuel } from '../../src/net/rollback.ts';
+import { act, idle } from '../strategies.ts';
+import { liveRecorder } from './live-recorder.ts';
+const id = SPELL_IDS.find((i) => resolveSpell(i, 0)!.cost > 0)!, spell = { id, skill: 5 }, seed = 31, o = OPPONENTS.veteran, pr = profileAt(o, 1);
+const rec = liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level: 1, seed, specials: true, spell });
+let p = initialPractice(seed, opponentAt(o, 1), 'longsword', null, recordSpecials({ specials: true, level: 1, opponent: 'veteran' }), undefined, undefined, undefined, undefined, resolveSpell(id, spell.skill, 0));
+for (let i = 0; i < RULES.special.first + RULES.special.windup + 150; i++) p = stepPractice(p, rec.push(i === 0 ? act('light') : i < RULES.special.first + 50 ? idle() : act('skill')), pr);
+const bytes = packRecord(rec.finish('abandoned')), r = unpackRecord(bytes), v = verifyRecord(r);
+console.log(JSON.stringify({ v: r.v, spell: r.spell, bytes: bytes.length, verifyOk: v.ok, hashMatch: v.ok && hashDuel(v.practice.duel) === hashDuel(p.duel), b64: Buffer.from(bytes).toString('base64') }));

@@ -556,8 +556,8 @@ candidates: true per-fight ≈ 10.4 of 12 MB.
 
 ## Contact grit — presentation lane, 2026-09-20 (branch presentation/impact-grit)
 Owner-directed small realistic contact feedback, four steps behind the existing event stream, no sim change: (1) metal sparks
-(`src/clash-sparks.ts`) off the defender's guard on a blade-to-blade block or parry — steel on steel only (a shaft, wood, a kick, a landed
-blow: none), 4–8 hot streaks under gravity, one bounce off the sand, out ≤ 0.45 s; (2) guard shudder (`src/camera-kick.ts`): the trunk
+(`src/fight/clash-sparks.ts`) off the defender's guard on a blade-to-blade block or parry — steel on steel only (a shaft, wood, a kick, a landed
+blow: none), 4–8 hot streaks under gravity, one bounce off the sand, out ≤ 0.45 s; (2) guard shudder (`src/fight/camera-kick.ts`): the trunk
 camera kick was applied before `lookAt` and along the view axis, so it measured 0 px; it is now a world offset applied after the look-at
 for the draw only — a heavy drops the camera 6 cm and holds two frames (11 px at phone framing), a heavy block 2.8 cm (6 px), a parry
 flicks 2 cm sideways (4 px), all settled within 13 frames; a heavy caught on the guard deepens the body recoil ×1.5; (3) sand puff off

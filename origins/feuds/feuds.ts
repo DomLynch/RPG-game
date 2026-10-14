@@ -5,76 +5,82 @@
 //
 // Pure like the rest of origins/: no DOM, clock, Math.random or storage. The caller (the preview page, later the world writer) passes
 // the server time `at` in whole seconds and the server seed in; the same inputs give the same output byte for byte, so a retried
-// writer op can be checked against its first run. Its imports are the ladder (src/career.ts, read only) and the shared mulberry32
+// writer op can be checked against its first run. Its imports are the ladder (src/core/career-ladder.ts, read only) and the shared mulberry32
 // (origins/world/generate.ts), so neither the cap nor the PRNG is declared twice.
 //
 // Deliberate scope (see the PR): §3 generator and grudge holding, §2 guardrails, §4 notoriety, §5 stand-in and successor, §5.1 trade
 // shunning, §6 succession outcome, §7 guards / arrest / jail, §7.1 alert spread, rings and the escalation table. Deferred: retaliation
 // grudges (§3 source 3, open question 3), patron-strike and bouncer fight details (§7.1.3–4), NPC hunters (§8), the PvP bounty (§9).
 
-import { MAX_LEVEL, RANK_STEPS, TITLES } from '../../src/career.ts';
+import { MAX_LEVEL, RANK_STEPS, TITLES, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import feudRows from './feud-rules.json' with { type: 'json' };
+import feudManifest from './feud-rules.manifest.json' with { type: 'json' };
 import { prng } from '../world/generate.ts';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-// Constants (feuds.md, PROVISIONAL until Dom rules; change them only with the doc).
+// Constants (feuds.md, PROVISIONAL until Dom rules; change them only with the doc): the numbers are ROWS in feud-rules.json, exported here under their old names.
+loadRegistry(feudManifest.tables.map((m) => tableFromFile(m as unknown as Manifest, feudRows, 'origins/feuds/feud-rules.json')));
+const R = feudRows.rules[0]!;
+const GENERATOR_ROW = feudRows.generators[0]!;
 
-export const DAY_S = 86_400;
+export const DAY_S = R.dayS;
 
 // §3.1 grudges a player may hold, expiry, re-offer. Gate: Gladiator, the outer gate (contracts/world.ts: Gladiator I is level 11).
-export const GRUDGE_HELD_MAX = 1;
-export const GRUDGE_EXPIRY_S = 259_200;
-export const GRUDGE_REOFFER_S = 86_400;
-export const GRUDGE_MIN_LEVEL = TITLES.indexOf('Gladiator') * RANK_STEPS + 1;
-export const GIVER_STANDING_DELTA = 50;
-export const RIVAL_TOWN_STANDING_DELTA = -100;
-export const NEUTRAL_ATTITUDE_FLOOR = -100; // attitudeFor must be > this
+export const GRUDGE_HELD_MAX = R.grudgeHeldMax;
+export const GRUDGE_EXPIRY_S = R.grudgeExpiryS;
+export const GRUDGE_REOFFER_S = R.grudgeReofferS;
+export const GRUDGE_MIN_LEVEL = (TITLES as readonly string[]).indexOf(R.grudgeMinTitle) * RANK_STEPS + 1;
+export const GIVER_STANDING_DELTA = R.giverStandingDelta;
+export const RIVAL_TOWN_STANDING_DELTA = R.rivalTownStandingDelta;
+export const NEUTRAL_ATTITUDE_FLOOR = R.neutralAttitudeFloor; // attitudeFor must be > this
 
 // §3.1 generator defaults (the `grudge-generator` row).
 export const GENERATOR_DEFAULTS: GeneratorConfig = {
-  rotationSeconds: 604_800, livePerTownMax: 2, livePerRegionMax: 6, varietyWindow: 4, rewardBronzePerLevel: 25, storyWeight: 5,
+  rotationSeconds: GENERATOR_ROW.rotationSeconds, livePerTownMax: GENERATOR_ROW.livePerTownMax, livePerRegionMax: GENERATOR_ROW.livePerRegionMax,
+  varietyWindow: GENERATOR_ROW.varietyWindow, rewardBronzePerLevel: GENERATOR_ROW.rewardBronzePerLevel, storyWeight: GENERATOR_ROW.storyWeight,
 };
 
 // §4 notoriety.
-export const NOTORIETY_MAX = 1000;
-export const NOTORIETY_RIVAL_KILL = 600;
-export const NOTORIETY_GUARD_BEATEN = 50;
-export const NOTORIETY_SETTLE_SIDE = 100;
-export const NOTORIETY_BACK_SIDE = -100;
-export const NOTORIETY_JAIL_SERVED = -200;
-export const NOTORIETY_DECAY_PER_DAY = 100;
-export const NOTORIETY_PAYOFF_BRONZE = 3;
-export const SUSPECT = 100;
-export const WANTED = 300;
-export const HUNTED = 600;
-export const SUSPECT_PRICE_PERMILLE = 1250;
+export const NOTORIETY_MAX = R.notorietyMax;
+export const NOTORIETY_RIVAL_KILL = R.notorietyRivalKill;
+export const NOTORIETY_GUARD_BEATEN = R.notorietyGuardBeaten;
+export const NOTORIETY_SETTLE_SIDE = R.notorietySettleSide;
+export const NOTORIETY_BACK_SIDE = R.notorietyBackSide;
+export const NOTORIETY_JAIL_SERVED = R.notorietyJailServed;
+export const NOTORIETY_DECAY_PER_DAY = R.notorietyDecayPerDay;
+export const NOTORIETY_PAYOFF_BRONZE = R.notorietyPayoffBronze;
+export const SUSPECT = R.suspect;
+export const WANTED = R.wanted;
+export const HUNTED = R.hunted;
+export const SUSPECT_PRICE_PERMILLE = R.suspectPricePermille;
 
 // §5 stand-in and successor.
-export const SUCCESSOR_MIN_S = 604_800;
-export const SUCCESSOR_MAX_S = 1_209_600;
-export const STANDIN_BUY_PERMILLE = 1500;
-export const STANDIN_BACKED_BUY_PERMILLE = 1250;
-export const STANDIN_SELL_PERMILLE = 667;
-export const STANDIN_UPGRADE_COST_PERMILLE = 1500;
-export const STANDIN_UPGRADE_TIER_CAP_OFFSET = 1;
+export const SUCCESSOR_MIN_S = R.successorMinS;
+export const SUCCESSOR_MAX_S = R.successorMaxS;
+export const STANDIN_BUY_PERMILLE = R.standinBuyPermille;
+export const STANDIN_BACKED_BUY_PERMILLE = R.standinBackedBuyPermille;
+export const STANDIN_SELL_PERMILLE = R.standinSellPermille;
+export const STANDIN_UPGRADE_COST_PERMILLE = R.standinUpgradeCostPermille;
+export const STANDIN_UPGRADE_TIER_CAP_OFFSET = R.standinUpgradeTierCapOffset;
 
 // §6 succession event.
-export const SUCCESSION_EVENT_S = 1800;
-export const SUCCESSION_REWARD_BRONZE = 100;
-export const GIVER_DISCOUNT_PERMILLE = 900;
+export const SUCCESSION_EVENT_S = R.successionEventS;
+export const SUCCESSION_REWARD_BRONZE = R.successionRewardBronze;
+export const GIVER_DISCOUNT_PERMILLE = R.giverDiscountPermille;
 
 // §7 guards, arrest, jail.
-export const GUARD_LEVEL_FLOOR = 25;
-export const GUARD_LEVEL_OVER = 5;
-export const GUARD_RECHALLENGE_S = 120;
-export const FINE_BRONZE_PER_POINT = 2;
-export const FINE_MIN_BRONZE = 100;
-export const JAIL_S = 600;
-export const JAIL_MAX_S = 1800;
-export const BAIL_BRONZE_PER_S = 1;
+export const GUARD_LEVEL_FLOOR = R.guardLevelFloor;
+export const GUARD_LEVEL_OVER = R.guardLevelOver;
+export const GUARD_RECHALLENGE_S = R.guardRechallengeS;
+export const FINE_BRONZE_PER_POINT = R.fineBronzePerPoint;
+export const FINE_MIN_BRONZE = R.fineMinBronze;
+export const JAIL_S = R.jailS;
+export const JAIL_MAX_S = R.jailMaxS;
+export const BAIL_BRONZE_PER_S = R.bailBronzePerS;
 
 // §7.1 alert spread.
-export const ALERT_SPREAD_PERMILLE = 500;
-export const ALERT_SPREAD_CROSS_REGION_PERMILLE = 0;
+export const ALERT_SPREAD_PERMILLE = R.alertSpreadPermille;
+export const ALERT_SPREAD_CROSS_REGION_PERMILLE = R.alertSpreadCrossRegionPermille;
 
 const own = <T>(rec: Readonly<Record<string, T>>, key: string): T | undefined => (Object.hasOwn(rec, key) ? rec[key] : undefined);
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));

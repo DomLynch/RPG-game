@@ -1,0 +1,25 @@
+{
+  "rows": [
+    { "id": "attack", "name": "Attack" },
+    { "id": "spellPower", "name": "Spell Power" },
+    { "id": "armour", "name": "Armour" },
+    { "id": "magicResist", "name": "Magic Resist" },
+    { "id": "health", "name": "Health" },
+    { "id": "stamina", "name": "Stamina" },
+    { "id": "poise", "name": "Poise" },
+    { "id": "luck", "name": "Luck" },
+    { "id": "focus", "name": "Focus" },
+    { "id": "recovery", "name": "Recovery" },
+    { "id": "sword", "name": "Sword" },
+    { "id": "axe", "name": "Axe" },
+    { "id": "spear", "name": "Spear" },
+    { "id": "bow", "name": "Bow" },
+    { "id": "fire", "name": "Fire" },
+    { "id": "frost", "name": "Frost" },
+    { "id": "shadow", "name": "Shadow" },
+    { "id": "earth", "name": "Earth" },
+    { "id": "wind", "name": "Wind" },
+    { "id": "holy", "name": "Holy" },
+    { "id": "poison", "name": "Poison" }
+  ]
+}

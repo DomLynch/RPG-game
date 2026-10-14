@@ -1,13 +1,13 @@
 // Pure: the snapshot's quest, journal and talk rows -> the O2 modules' journal and talk state, the facts their conditions read, and the
 // commit batch for one advanced quest (quest_set + its journal lines, the quest-stage event, the story event and its career_set). No I/O.
 // Every fact comes from the snapshot the server read; nothing here reads the client's body.
-import type { Issue, Result } from '../contracts/core.ts';
-import type { CharacterId, CharacterInstanceId, ItemId, QuestId } from '../contracts/ids.ts';
-import type { ConditionFacts, QuestDefinition, QuestState } from '../contracts/story.ts';
-import { award, levelOfCredit } from '../progression/model.ts';
+import type { Issue, Result } from '../../src/core/server.ts';
+import type { CharacterId, CharacterInstanceId, ItemId, QuestId } from '../../src/core/server.ts';
+import type { ConditionFacts, QuestDefinition, QuestState } from '../../src/core/server.ts';
+import { award, standingLevel } from '../../src/core/server.ts';
 import { loadJournal, type Advanced, type Journal } from '../quests/journal.ts';
 import type { Talk, TalkState } from '../talk/talk.ts';
-import { careerState } from './career.ts';
+import { careerState } from '../../src/core/server.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json, Snapshot } from './store.ts';
 
@@ -68,7 +68,7 @@ export function talkOf(snap: Snapshot, character: CharacterInstanceId): { state:
 export function factsOf(snap: Snapshot, character: CharacterInstanceId, journal: Journal): Omit<ConditionFacts, 'choice' | 'flag'> {
   const held = new Set(snap.items.filter(i => i.loc_owner === character && HELD.has(String(i.loc_kind))).map(i => String(i.item)));
   return {
-    standing: { source: 'server', careerLevel: levelOfCredit(Number(career(snap).total_credit)) },
+    standing: { source: 'server', careerLevel: standingLevel(Number(career(snap).total_credit)) },
     quest: (id: QuestId) => journal.quests.get(id),
     hasItem: (item: ItemId) => held.has(item),
   };

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
+import { fakeWhere } from '../origins/presence/fixtures.ts';
 import { withContent } from '../origins/server/handlers.ts';
 import { instanceOf } from '../origins/server/holdings.ts';
 import type { Json } from '../origins/server/store.ts';
@@ -60,7 +61,7 @@ function fakeDb(items: Json[], hooks: { eventHidden?: () => boolean; stale?: boo
 }
 
 async function serve(db: Db) {
-  const server = createWriter({ db, verify: async t => (t === 'ta' ? A : t === 'tb' ? B : null), handlers: withContent({ lookup }) });
+  const server = createWriter({ db, verify: async t => (t === 'ta' ? A : t === 'tb' ? B : null), where: fakeWhere({}), handlers: withContent({ lookup }) });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/consume`;
   const call = async (body: Json, token = 'ta') => {

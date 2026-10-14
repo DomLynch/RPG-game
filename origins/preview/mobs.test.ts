@@ -1,10 +1,17 @@
 // Origins slice 1, bite 1 (?region=1): the Frontier's creatures. Placement from the Region 1 data, the seeded wander, the aggro test with its
 // hysteresis, the facing, the cap and the cull. Pure: no DOM.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FRONTIER, frontierBuild, frontierPlan } from './frontier-plan.ts';
 import { mobLook } from './mob-looks.ts';
-import { TUNING, aggroTest, headingTo, mobSpecs, mobStand, newMob, nextRandom, pickVisible, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { signedIn } from './save.ts';
+import { campCount } from '../../src/core/index.ts';
+import { mixSeed } from './mobs.ts';
+import { loadZone } from '../zones/loader.ts';
+const ZONE_LEVEL = loadZone().level;
+import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
+import { catalogueRow, fieldOf } from '../../src/fight/catalogue-rows.ts';
 
 const F = frontierPlan(), B = frontierBuild(F), SPECS = mobSpecs(F, B), ZONES = new Map(F.zones.map((z) => [z.zone, z]));
 const standOf = (s: MobSpec) => mobStand(B, ZONES.get(s.zone)!);
@@ -12,13 +19,14 @@ const byZone = (zone: string) => SPECS.filter((s) => s.zone === zone);
 const at = (x: number, z: number) => ({ x, z });
 
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
-  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 6);
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:cinder-scavenger', 'character:hrungnir']);
+  assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 8, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp at the hold road: two now, since the camp size is drawn in 2..3 and no longer always the upper bound (re-pinned on purpose, Lead 10-10)');
+  assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
-  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul']);
-  assert.deepEqual(byZone('east-road').map((s) => s.character), ['character:court-thrall']);
-  for (const quiet of ['cinder-hold', 'mere-end', 'ferry-landing']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it`);
-  assert.equal(SPECS.length, 17);
+  assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
+  assert.deepEqual(byZone('east-road').map((s) => s.character).sort(), ['character:court-thrall', 'character:pit-goblin', 'character:pit-goblin'], 'the court thrall, and the Pit goblin camp of two at the watchtower by the start path (goblin camp added, Dom 10-09)');
+  for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
+  assert.equal(SPECS.length, 23, '22 + the two Pit goblins, minus one: the Ash Wolf camp is drawn in 2..3 and is two (re-pinned 10-10, Lead)');
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -27,11 +35,12 @@ test('each creature carries the body, level and encounter its character record n
   assert.deepEqual([row('character:cinder-scavenger').body, row('character:mere-brood').body, row('character:ruin-ghoul').body], ['goblin', 'goblin', 'goblin']);
   assert.deepEqual([row('character:hrungnir').body, row('character:peg-powler').body, row('character:mere-mother').body, row('character:court-thrall').body], ['knight', 'witch', 'witch', 'pitborn']);
   assert.equal(row('character:hrungnir').encounter, 'encounter:bounty-hrungnir');
-  assert.equal(row('character:mere-mother').level, 15);
+  assert.equal(row('character:mere-mother').level, ZONE_LEVEL + 3, 'the public world boss is the zone level + 3 (4,000 health, the 1,000-a-level rule; boss-battery tunable); the bounty bosses are the named rares at the zone level + 2');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
   assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));
-  assert.ok(SPECS.every((s) => s.level >= 11 && s.level <= 17));
+  assert.ok(SPECS.filter((s) => !s.named).every((s) => s.level === ZONE_LEVEL || s.level === ZONE_LEVEL + 1), 'Zone 1 creatures are level 1 near the spawn and 2 at the edge (was the flat 11-14 bands)');
+  assert.ok(SPECS.filter((s) => s.named && s.character !== 'character:mere-mother').every((s) => s.level === NAMED_LEVEL), 'the bounty bosses (the named rares) are the zone level + 2');
 });
 
 test('every home stands inside its own zone, clear of every building, and nobody starts near the Exchange', () => {
@@ -152,13 +161,134 @@ test("every creature on the Frontier has a look in Characters' mob-looks table, 
   }
 });
 
-test('the hero spawns among the creatures: on his feet in a Frontier zone, inside the crowd, but outside every notice ring', () => {
+// Dom's spawn ruling (2026-10-07, "simplest"; the bundle's spawnAmong uses 25/35 and [15, 25]): the Zone 1 hero starts 25-35 m from the nearest creature (past the 14 m tap reach and every notice ring, close enough to see them);
+// under ?wolf the nearest wolf is 15-25 m ahead and the hero faces the wolf camp. The bounds are the ruling, so they are written out here and not derived from the constants.
+test('the hero spawns in sight of the creatures but outside their reach: 25-35 m from the nearest, never inside a notice ring; under ?wolf 15-25 m from the nearest wolf, facing it', () => {
   const at = spawnAmong(F, B, SPECS)!;
   assert.ok(at, 'a spawn exists');
-  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 30)!.zone)!;
+  const zone = F.zones.find((z) => z.zone === SPECS.find((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 45)!.zone)!;
   assert.ok(mobStand(B, zone)(at.x, at.z), 'a free spot in the zone');
-  const nearest = Math.min(...SPECS.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
-  assert.ok(nearest >= TUNING.aggro, `no creature already has him (${nearest.toFixed(1)} m)`);
-  assert.ok(SPECS.filter((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z) < 20).length >= 4, 'at least four creatures within 20 m');
+  const dist = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z), wolves = SPECS.filter((s) => fieldOf(s.body, 'firstSight')), wd = Math.min(...wolves.map(dist)), others = Math.min(...SPECS.filter((s) => !fieldOf(s.body, 'firstSight')).map(dist));
+  assert.ok(wolves.length >= 2 && wd >= 15 && wd <= 25, `nearest wolf ${wd.toFixed(1)} m: the wolves are live, so the wolf rule is the default (Dom's ruling: 15-25 m ahead)`);
+  assert.ok(others >= 25, `the others stay ${others.toFixed(1)} m off`);
+  const c = wolves.reduce((n, s) => ({ x: n.x + s.home.x / wolves.length, z: n.z + s.home.z / wolves.length }), { x: 0, z: 0 }), dh = at.facing - headingTo(at, c);
+  assert.ok(Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh))) < 0.01, 'he faces the wolf camp');
+  assert.ok(SPECS.filter((s) => dist(s) < 45).length >= 4, 'at least four creatures within sight (45 m)');
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
 });
+
+test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
+  const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, 'Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
+});
+
+test('the Ash Wolf is a live row: ?wolf changes nothing, the wolf camp (2 or 3) stands on its own body in the Cinder Fields', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&wolf', false)), SPECS, '?wolf is accepted and does nothing');
+  const wolves = SPECS.filter((s) => s.character === 'character:ash-wolf');
+  assert.ok(wolves.length >= 2 && wolves.length <= 3, 'campSize 2..3: the camp is drawn inside the row\'s range (it was always the upper bound until 10-10)');
+  assert.ok(wolves.every((w) => fieldOf(w.body, 'firstSight') && w.zone === 'cinder-fields' && w.level >= ZONE_LEVEL && w.level <= ZONE_LEVEL + 1 && !w.named && standOf(w)(w.home.x, w.home.z)));
+});
+
+test('?lone makes every camp one creature and nothing else changes: the same spawns, one member each', () => {
+  const lone = mobSpecs(F, B, previewRows('?lone', false)), spawns = new Set(SPECS.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`));
+  assert.deepEqual([...new Set(lone.filter((s) => !s.named).map((s) => `${s.zone}/${s.spawn}`))].sort(), [...spawns].sort(), 'every spawn is still there');
+  for (const sp of spawns) assert.equal(lone.filter((s) => `${s.zone}/${s.spawn}` === sp).length, 1, `${sp} is one creature`);
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1', false)), SPECS, 'no ?lone, no change');
+});
+
+test('?lone is ignored when signed in: the server pays each kill, so a signed-in player cannot thin a pack', () => {
+  assert.deepEqual(mobSpecs(F, B, previewRows('?lone', true)), SPECS, 'signed in: the camps keep their size');
+  assert.deepEqual(mobSpecs(F, B, previewRows('?region=1&lone=1', true)), SPECS);
+  assert.ok(mobSpecs(F, B, previewRows('?lone', false)).length < SPECS.length, 'a guest still gets the lone camps');
+});
+
+test('signedIn: any stored sign-in counts, an unreadable store fails closed, no store is a guest', () => {
+  assert.equal(signedIn(null), false);
+  assert.equal(signedIn({ getItem: () => null }), false);
+  assert.equal(signedIn({ getItem: () => '{"access_token":"x","expires_at":1}' }), true, 'expired still counts');
+  assert.equal(signedIn({ getItem: () => { throw new Error('blocked'); } }), true);
+});
+
+test('a world fight hides only the duel\'s foe: packmates beside the hero and far creatures stay in view (Dom, 2026-10-08: 2 vs 1 is fine, nothing hides at engage; re-pinned from the 20 m freeze radius, which seamless combat removed)', () => {
+  assert.equal(hiddenInFight('wolves-1', 'wolves-1'), true, 'the duel draws the foe');
+  assert.equal(hiddenInFight('wolves-2', 'wolves-1'), false, 'a packmate beside the hero stays visible');
+  assert.equal(hiddenInFight('goblin-1', 'wolves-1'), false, 'a far creature is still drawn: nothing past a radius is hidden any more');
+  assert.equal(hiddenInFight('goblin-1', null), false);
+});
+
+test('the world keeps living during a fight: Zone 1\'s fight is the engine loop inside the walk, so the walk loop never stops and never hands the drawing away; creatures keep ticking, and a creature the engine marks engaged stays hidden from the view (K2d: re-pinned from the removed ?worldfight duel mount)', () => {
+  const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), view = readFileSync(new URL('./mobs-view.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(main, /duelDrawing|worldMount|startMobFight|WORLDFIGHT|WORLDCOMBAT/, 'no second fight path: nothing takes the drawing from the walk');
+  assert.match(main, /mobs\.update\(dt, state, cardId\)/, 'every walk frame steps the creatures');
+  assert.match(main, /wc\.update\(dt,/, 'and the engine loop with them');
+  assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
+});
+
+test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const auto = /([^{}]*)\{\s*pointer-events:\s*auto;\s*\}/g, lists = [...html.matchAll(auto)].map((m) => m[1]!);
+  assert.ok(lists.some((l) => l.includes('#duel.world #leave')), 'the world layer is pointer-events:none; #leave must opt back in');
+});
+
+test('levelAt: the band\'s low level within LEVEL_NEAR_M of the spawn, its high level from LEVEL_FAR_M on, rising in between (Zone 1 is [1,2], Zone 2 would be [2,3])', () => {
+  for (const band of [[1, 2], [2, 3], [10, 11]] as const) {
+    assert.equal(levelAt(0, band), band[0]); assert.equal(levelAt(LEVEL_NEAR_M, band), band[0]); assert.equal(levelAt(LEVEL_FAR_M, band), band[1]); assert.equal(levelAt(LEVEL_FAR_M * 3, band), band[1]);
+    let last = 0; for (let d = 0; d <= 200; d += 5) { const l = levelAt(d, band); assert.ok(l >= last && l >= band[0] && l <= band[1], `d ${d}: ${l}`); last = l; }
+  }
+});
+
+test('near the spawn the common creatures are the zone level; at the far edge one more', () => {
+  const origin = spawnAmong(F, B, SPECS)!, d = (s: MobSpec) => Math.hypot(s.home.x - origin.x, s.home.z - origin.z), common = SPECS.filter((s) => !s.named);
+  assert.ok(common.filter((s) => d(s) <= LEVEL_NEAR_M + 25).every((s) => s.level <= ZONE_LEVEL + 1) && common.some((s) => s.level === ZONE_LEVEL), 'the camps by the spawn are the zone level');
+  assert.ok(common.filter((s) => d(s) >= LEVEL_FAR_M).every((s) => s.level === ZONE_LEVEL + 1), 'the far zones are one above');
+});
+
+test('a world fight hides the zone header so the foe card no longer draws over it (live bug, Deploy Metal stills 2026-10-08), and keeps its height', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const rule = html.split('\n').find((l) => l.includes('body.infight #hud')) ?? '';
+  assert.match(rule, /body\.infight #hud \{ visibility: hidden; \}/, 'visibility, not display: --hud-bottom and the player\'s bars stay put');
+  assert.ok(!/body\.infight #hud \{[^}]*display/.test(html), 'never display:none on #hud');
+});
+
+test('name tags are kept below the HUD: the ceiling is the floor plus half a tag, in NDC', async () => {
+  const { labelCeilingNdc } = await import('./mobs.ts');
+  assert.equal(labelCeilingNdc(0, 800, 0), 1, 'no HUD: the top of the screen');
+  assert.equal(labelCeilingNdc(400, 800, 0), 0, 'a floor at mid-screen: the centre line');
+  const c = labelCeilingNdc(280, 812);   // 375x812 phone, bars end near y 280: tags sit at least 12 px under it
+  assert.ok(Math.abs(((1 - c) / 2) * 812 - 292) < 1e-6, 'centre 292 px from the top');
+  assert.ok(Number.isFinite(labelCeilingNdc(280, 0)), 'a zero-height window cannot divide by zero');
+});
+
+test('a camp\'s size is drawn inside the row\'s campSize range, not its upper bound (the populate.ts rule, one function)', () => {
+  const seen = new Set<number>();
+  for (let n = 0; n < 400; n++) { const k = campCount([2, 4], nextRandom(mixSeed(1234 + n, n))[0]); assert.ok(k >= 2 && k <= 4 && Number.isInteger(k), `size ${k}`); seen.add(k); }
+  assert.deepEqual([...seen].sort(), [2, 3, 4], 'every size in [2,4] comes up across seeds');
+  assert.equal(campCount([3, 3], 0.999), 3); assert.equal(campCount(undefined, 0), 2, 'no campSize: the default [2,3]');
+});
+
+test('arrival: a wandering creature stops inside TUNING.arrive of its spot and keeps walking outside it (pins the 0.35 m number)', () => {
+  assert.equal(TUNING.arrive, 0.35);
+  const stand = () => true, spec = { home: { x: 0, z: 0 }, roam: 6, aggro: 7 };
+  const wanderer = (gap: number) => ({ x: 0, z: 0, facing: Math.PI / 2, mode: 'wander' as const, wait: 3, tx: gap, tz: 0, rng: 1 });   // facing +x, the spot straight ahead
+  const inside = stepMob(wanderer(TUNING.arrive - 0.01), spec, null, 1 / 60, stand), outside = stepMob(wanderer(TUNING.arrive + 0.01), spec, null, 1 / 60, stand);
+  assert.equal(inside.mode, 'idle', 'closer than arrive: it has arrived');
+  assert.equal(outside.mode, 'wander', 'farther than arrive: it walks on');
+  assert.ok(outside.x > 0, 'and it has taken a step toward the spot');
+});
+
+test('the hero faces the camp of whichever creature row says firstSight: not a body name. Without the flag he stands 25-35 m off like the others; on another row it is that creature', async () => {
+  const row = (id: string) => catalogueRow(id)!, flags = (id: string) => row(id).fields as Record<string, string | number | boolean>;   // the row's open `fields` map, mutated and restored below
+  const nearest = (at: { x: number; z: number }, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - at.x, s.home.z - at.z)));
+  assert.equal(fieldOf('wolf', 'firstSight'), true, 'the Ash Wolf row carries the flag');
+  const goblin = row('goblin');
+  try {
+    flags('wolf').firstSight = false;
+    const plain = spawnAmong(F, B, SPECS)!;
+    assert.ok(nearest(plain, SPECS) >= 25, 'no flagged creature: every creature is 25 m or more off');
+    flags('goblin').firstSight = true;
+    const goblins = SPECS.filter((s) => row(s.body) === goblin);
+    if (goblins.length) { const at = spawnAmong(F, B, SPECS)!, d = nearest(at, goblins); assert.ok(d >= 15 && d <= 25, `a flagged goblin is the one 15-25 m ahead (${d.toFixed(1)} m)`); }
+  } finally { flags('wolf').firstSight = true; delete flags('goblin').firstSight; }
+  assert.deepEqual(spawnAmong(F, B, SPECS), spawnAmong(F, B, SPECS), 'deterministic again once the rows are restored');
+});
+

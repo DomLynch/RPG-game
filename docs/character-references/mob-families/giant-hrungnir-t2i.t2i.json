@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body character concept for a dark-fantasy game, single figure, centred, plain neutral grey background, even soft light, no cast shadow, whole body in frame from head to feet. A towering stone-and-ash giant of the Cinder Fields: about twice human height, broad hunched shoulders, huge forearms, small head with a heavy brow, skin like cracked grey stone and cold ash, scorched leather rags and a few rough iron bands at the wrists and waist, bare feet. Standing upright with arms held slightly out from the body, relaxed A-pose, empty hands. Clear readable silhouette, big simple shapes, matte materials.",
+  "seed": 11,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 49.6,
+  "sha256": "457a3495e133d794c0458e14fd145782c96a1311a91b61d318ffd5f0593e3997"
+}

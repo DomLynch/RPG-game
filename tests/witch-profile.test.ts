@@ -2,10 +2,10 @@
 // profile alone: 24 seeded AI-vs-AI fights each, the hero's brain against each warden's Easy, counting the warden's own actions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS, PROFILES, type AiProfile, type Opponent } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS, PROFILES, type AiProfile, type Opponent } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 const W = OPPONENTS.witch, C = OPPONENTS.veteran;   // the Centurion's ids stay `veteran` (docs/SCOPE.md)
 const ring = (o: Opponent): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.6, heading: Math.PI, distance: 0 }, 'ready'), opponentFighter(o, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });

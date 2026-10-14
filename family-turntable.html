@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Family turntable</title><style>html,body{margin:0;background:#2b2724;overflow:hidden}canvas{display:block}</style>
+<script type="module">
+// Characters lane review page (never shipped): one static family body GLB at one azimuth, normalised to a height of 1.8 m, studio light, plus its triangle and texture numbers.
+// ?glb=<url>&az=<degrees>&h=<metres, default 1.8>. Window.__turn = { ready, tris, maps: [[w,h]...], bytes? }.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const P = new URLSearchParams(location.search), az = Number(P.get('az') || 0), H = Number(P.get('h') || 1.8);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(innerWidth, innerHeight); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a3430);
+const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+const sun = new THREE.DirectionalLight(0xfff0dd, 1.5); sun.position.set(2, 4, 5); scene.add(sun);
+const gltf = await new GLTFLoader().loadAsync(P.get('glb')), root = gltf.scene, holder = new THREE.Group(); holder.add(root); scene.add(holder);
+let box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3());
+// A quadruped is longer than tall: scale by the larger of height and (length / 1.6) so it stands at a sane size next to a 1.8 m man.
+const k = H / Math.max(size.y, 0.001); root.scale.multiplyScalar(k); box = new THREE.Box3().setFromObject(root); const c = box.getCenter(new THREE.Vector3()), s2 = box.getSize(new THREE.Vector3());
+root.position.sub(new THREE.Vector3(c.x, box.min.y, c.z)); holder.rotation.y = THREE.MathUtils.degToRad(az);
+let tris = 0; const maps = new Set();
+root.traverse(o => { if (!o.isMesh) return; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; const m = o.material; for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap]) if (t?.image) maps.add(`${t.image.width}x${t.image.height}`); });
+const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshStandardMaterial({ color: 0x4a423a, roughness: 1 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const aspect = innerWidth / innerHeight, cam = new THREE.PerspectiveCamera(30, aspect, .1, 100), span = Math.max(s2.y, Math.max(s2.x, s2.z) / aspect);
+cam.position.set(0, s2.y * .55, (span * 1.25) / Math.tan(THREE.MathUtils.degToRad(15))); cam.lookAt(0, s2.y * .5, 0);
+renderer.render(scene, cam); window.__turn = { ready: true, tris: Math.round(tris), maps: [...maps], size: [s2.x, s2.y, s2.z].map(v => +v.toFixed(2)), scale: +k.toFixed(3) };
+</script>

@@ -1,7 +1,7 @@
 // Server-side sweep for ladder-win loot claims (brief 19 deliverable 3; migration 202609230001), the loot twin of verify-daily.mjs.
 // The client posts a claim for every ladder win with `verified = false`; this sweep, run on the VPS on a timer as frankendom_verifier,
 // settles each one exactly once:
-//   - the WIN: the record decodes, names the claim's opponent, says 'killed', and replays headless (src/replay.ts verifyRecord) to that
+//   - the WIN: the record decodes, names the claim's opponent, says 'killed', and replays headless (src/fight/replay.ts verifyRecord) to that
 //     finish. A win is a mark: `verified = true`. Anything else is refused with a note, never skipped — an unchecked claim would hold
 //     up every later claim from its account (below), so every claim leaves the sweep with `checked_at` set, whatever throws.
 //   - the PIECE: src/awards.ts awardFor at the account's server standing before this claim (standing_of, claims earlier by
@@ -37,9 +37,12 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { awardFor, levelRefusal } from '../src/awards.ts';
-import { verifyRecord } from '../src/replay.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
+import { expectedSheet } from '../src/fight/build-check.ts';
+import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
+import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 import { gunzipSync } from 'node:zlib';
-import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/record.ts';
+import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
 const LIMIT = 200;
@@ -54,7 +57,7 @@ const note = text => text.replace(/[^\x20-\x7e]/g, '?').slice(0, 200);   // loot
 // The fight a record string carries, as bytes two encodings of one fight share (F2): the gzip wrapper is not canonical (header, level,
 // block split) and `build` is a label the replay never reads. Decoded, the build blanked, packed again (flags re-derived, so unread flag
 // bits drop too); every readable version shares the layout, so an older record packs as this build's and gets its own version byte back.
-// Here, not in src/record.ts, which is sim-digested (record-version-guard): no bump for a verifier key. A record this build cannot unpack
+// Here, not in src/fight/record.ts, which is sim-digested (record-version-guard): no bump for a verifier key. A record this build cannot unpack
 // (a reach-refused older version) falls back to its gunzipped bytes, one that is not gzip to its own text. Never throws.
 export async function fightBytes(record) {
   let raw;
@@ -99,6 +102,9 @@ export async function duplicate(db, row) {
   return null;
 }
 
+// No spell loader (a caller that gave none): nothing can vouch for a spell block, so spellRefusal refuses any record that casts.
+const NO_SPELLS = { held: async () => ({ grimoire: {}, xp: {} }), build: async () => null };
+
 // One sweep over `db` ({ pending, waiting, standing, settle } — see psqlAdapter).
 export async function verifyClaims(db, { dry = false, recheck = false, heldMax = HELD_MAX_VERSION } = {}) {
   const rows = await db.pending(LIMIT, recheck);
@@ -118,7 +124,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
     if (await db.waiting(row.id)) { receipt.waiting++; return; }
     receipt.checked++;
     const standing = await db.standing(row.user_id, row.id);   // the account's server standing BEFORE this claim: the level floor and the award read it
-    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax }));   // a duplicate is never replayed, so never HELD
+    const reason = (await duplicate(db, row)) ?? (await refusal(row, standing, { heldMax, build: db.build ? (character, version) => db.build(row.user_id, character, version) : undefined, spellLoad: db.spellHeld ? { held: (account, character) => db.spellHeld(account, character), build: (account, character, version) => db.build(account, character, version) } : undefined }));   // a duplicate is never replayed, so never HELD
     if (reason) {
       receipt.refused.push({ id: row.id, reason });
       const held = /^HELD v(\d+):/.exec(reason);
@@ -138,7 +144,12 @@ async function settleOne(db, row, receipt, dry, heldMax) {
 // server standing before this claim; the level the win was fought at must clear its dial floor (src/awards.ts levelRefusal).
 // A replay that diverges on a record up to HELD_MAX_VERSION is HELD (header); a reach refusal is HELD at any version (RV29); every other reason stays plain. `replay: false` is
 // --accept's path: every check but the replay.
-export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION } = {}) {
+/**
+ * @param {any} row
+ * @param {any} standing
+ * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null> }} [options] build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
+ */
+export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS } = {}) {
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
@@ -146,7 +157,13 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
     if (!replay) return null;
-    const result = verifyRecord(record);
+    let worn = {};   // the gear frozen on the claim when it was posted, never the ledger as it is when the sweep runs
+    if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`, record.v); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+    const want = await expectedSheet(record, (character, version) => build ? build(character, version) : Promise.resolve(null), worn);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
+    if (!want.ok) return want.reason;
+    const spell = await spellRefusal(record, row.user_id, spellLoad);   // v53: the spell block is the client's claim too (origins/server/spell-gate.ts); no loader = nothing vouches, a spell record is refused
+    if (spell) return spell;
+    const result = verifyRecord(record, undefined, want.sheet ? { sheet: want.sheet } : undefined);
     // Only a replay that stepped and then diverged can pass a browser hand-check; an unknown opponent or a record this build cannot
     // step (practice null) is a plain refusal whatever its version.
     return result.ok ? null : result.practice && record.v <= heldMax ? `HELD v${record.v}: ${result.reason}` : result.reason;
@@ -228,10 +245,21 @@ export function psqlAdapter(databaseUrl, run = spawnSync) {
   const uuid = value => { if (!UUID.test(value)) throw Error(`refusing to query with a malformed user id: ${JSON.stringify(value)}`); return value; };
   const text = value => (value === null ? 'null' : `'${String(value).replace(/'/g, "''")}'`);
   return {
-    pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record from public.loot_claims where not verified${recheck ? '' : ' and checked_at is null'} order by created_at, id limit ${Number(limit)}) r`)),
-    claim: async claim => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, verified, note from public.loot_claims where id = ${id(claim)}) r`))[0] ?? null,
+    pending: async (limit, recheck) => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, worn_gear from public.loot_claims where not verified${recheck ? '' : ' and checked_at is null'} order by created_at, id limit ${Number(limit)}) r`)),
+    claim: async claim => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select id, user_id::text, opponent, piece, record, verified, note, worn_gear from public.loot_claims where id = ${id(claim)}) r`))[0] ?? null,
     stale: async () => JSON.parse(sql(`select coalesce(json_agg(id order by id), '[]') from public.loot_claims where checked_at is null and created_at < now() - interval '${STALE_MINUTES} minutes'`)),
     waiting: async claim => sql(`select exists (select 1 from public.loot_claims c, public.loot_claims x where x.id = ${id(claim)} and c.user_id = x.user_id and c.checked_at is null and (c.created_at, c.id) < (x.created_at, x.id))`) === 't',
+    // The stored build version a record names (migration 202610120024; frankendom_verifier may read it): null = unknown version or character, or the migration is not applied yet (a refusal, never a crash).
+    build: async (userId, characterId, version) => {
+      if (!/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) || !Number.isInteger(version) || version < 1) return null;
+      let out;
+      try { out = sql(`select coalesce(public.origins_get_build('${uuid(userId)}'::uuid, '${characterId}', ${version})::text, 'null')`); }
+      catch (error) { if (/origins_get_build.*does not exist|does not exist.*origins_get_build/.test(String(error.message))) return null; throw error; }
+      const row = JSON.parse(out);
+      return row === null ? null : { level: row.level, placed: row.placed };
+    },
+    // What a v53 record's spell block is checked against (origins/server/spell-gate.ts holds the read-only query).
+    spellHeld: async (userId, characterId) => (/^pc:[A-Za-z0-9_-]{1,64}$/.test(characterId) ? JSON.parse(sql(heldSql(userId, characterId))) : { grimoire: {}, xp: {} }),
     standing: async (userId, claim) => { const [marks, owned] = sql(`select marks || '|' || owned::text from public.standing_of('${uuid(userId)}', ${id(claim)})`).split('|'); return { marks: Number(marks), owned: JSON.parse(owned) }; },
     unhashed: async limit => JSON.parse(sql(`select coalesce(json_agg(r), '[]') from (select * from (select 'share' as kind, id, record from public.fight_records where fight_hash is null order by created_at, id limit ${Number(limit)}) s union all select * from (select 'claim', id::text, record from public.loot_claims where fight_hash is null order by id limit ${Number(limit)}) c limit ${Number(limit)}) r`)),
     hash: async (kind, key, fight) => {

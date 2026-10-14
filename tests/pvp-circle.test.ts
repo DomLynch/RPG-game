@@ -2,9 +2,9 @@
 // the same whatever circle the page's last Match left behind (play-radius.ts). A runner at the wall exercises the boundary.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { idleIntent, stepDuel, type Intent } from '../src/duel.ts';
+import { idleIntent, stepDuel, type Intent } from '../src/fight/duel.ts';
 import { hashDuel, pvpDuel } from '../src/net/rollback.ts';
-import { ARENA_ONE_SCALE, BASE_RADIUS, RADIUS, setPlayScale } from '../src/play-radius.ts';
+import { ARENA_ONE_SCALE, BASE_RADIUS, RADIUS, setPlayScale } from '../src/fight/play-radius.ts';
 
 const play = (left: number): { hash: string; edge: number } => {
   setPlayScale(left);   // what the page's Match left behind

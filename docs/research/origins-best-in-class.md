@@ -5,7 +5,7 @@ Status: research proposal for Dom to approve as a batch (2026-10-07). Docs only,
 ## Rules at the top (non-negotiable, Dom 2026-10-07)
 
 1. **One engine.** Every creature fight is the Pit duel: the same `src/` engine, no dice, no hit chance, no auto-swing, no tab-target, no second combat engine, no combat code copied into `origins/`. Any donor pattern that resolves a fight by dice or auto-swing is **SKIP** for the fight itself; only its presentation or world value may be kept. World-only behaviour (noticing, flee, beast moves, packs, caster tells, the plus-or-minus 10% seeded damage roll on world mobs) is an add-on layer over `src/`. A combat change is proven in the Pit first under the RV gates.
-2. **Nothing pauses in the open world.** Overlays are visual only over a running clock; a creature fight is locked 1v1 (any third party can watch, not hit or steal); no escape by pause, backgrounding or disconnect (see #1665).
+2. **Nothing pauses in the open world.** Overlays are visual only over a running clock; no escape by pause, backgrounding or disconnect (see #1665). The earlier "creature fight locked 1v1" line is dropped (Dom, 2026-10-07); PvP is its own design, the "PvP" section of `docs/specs/origins/server-save-schema.md`.
 3. **Patterns only, no GPL code.** EQEmu, ModernUO, OpenMW, Exult, GemRB, OpenEnroth (LGPL) and Cataclysm (CC BY-SA) are behaviour-only reads, restated in our words. MIT donors (daggerfall-unity, OpenGothic, ZenKit, OpenTESArena, world-of-claudecraft) may be adapted with a `THIRD_PARTY_NOTICES` line. Games that ship without data (OpenMW, Exult, GemRB, OpenEnroth) were read for schemas and AI only; no proprietary data was fetched or stored. The licence class of every donor is in each part.
 4. **Variety comes from data rows plus few rigs.** Stat-moving variety is Combat's call.
 
@@ -525,9 +525,9 @@ Legend: `##` the game leans on it hard, `#` present in the files read, `-` absen
 
 ## M9. Proposed FIRST body-family batch
 
-**Alignment note.** Characters' body-families spec (#1648) owns rigs, silhouettes and the family list. This batch is a *request* shaped by the donor patterns; it does not decide #1648's contents (I did not read it). Moveset hooks name only **existing** `MoveId`s and `AiProfile` knobs from `src/moves.ts` (ours); numbers are Combat's, proven in the Pit.
+**Alignment note.** Characters' body-families spec (#1648) owns rigs, silhouettes and the family list. This batch is a *request* shaped by the donor patterns; it does not decide #1648's contents (I did not read it). Moveset hooks name only **existing** `MoveId`s and `AiProfile` knobs from `src/fight/moves.ts` (ours); numbers are Combat's, proven in the Pit.
 
-**What the duel needs from any new body (from `src/moves.ts` and mobs.md 5.3):**
+**What the duel needs from any new body (from `src/fight/moves.ts` and mobs.md 5.3):**
 - A **windup tell** readable at 375 px: the swing's first phase is the only warning. Existing timings at 60 Hz: a light is 20 ticks of windup (333 ms), a thrust 16, a heavy 32, a kick 18. Our own comment in `moves.ts` records that a 14-tick tell (233 ms) read as "under human reaction". So a beast tell is **at least 16 ticks and a silhouette change** (head drop, haunch coil, rear-up), not a colour flash.
 - A **reach** number per attack (light 1.65, jab 1.0, lunge 2.4, ironrush 2.0, cleave 1.6, stomp 1.4, shove 1.3 in the existing tables) and a direction (right, left, overhead, thrust, low) so the player's guard read has something to read.
 - A **posture/stagger/knockback** profile so a bite feels like a bite and a charge like a charge.

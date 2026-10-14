@@ -1,12 +1,13 @@
 // Real SDK + rendered game. Provider transport is controlled; this is not a live Google login receipt.
 import { chromium } from 'playwright';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { rankFor } from '../src/career.ts';
-import { encodeRecord } from '../src/record.ts';
+import { rankFor } from '../src/core/server.ts';
+import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
 await build({ logLevel: 'error', build: { outDir }, define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(api), 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify('sb_publishable_test_only') } });
@@ -25,7 +26,7 @@ const user = { id: '11111111-1111-4111-8111-111111111111', email: 'fighter@examp
 const session = { access_token: 'qa-access-token', refresh_token: 'qa-refresh-token', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user };
 try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
+  const page = await context.newPage(); await quietDebug(page); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
   let row = null, standing = { marks: 12, owned: [], pending: 1, pending_owned: [] }, admin = false, failRead = false, failLogout = false, writes = [], claimPosts = [], claimedHashes = new Set(), authUrl;
   await context.route('**/*sentry.io/**', route => route.abort());
@@ -90,7 +91,13 @@ try {
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
   row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80, loot: { owned: [], equipped: {} } };   // the cloud row carries the loot column (PR #330); a row without it is refused as invalid
-  await page.goto(`${origin}/?account=return&code=qa-code`); await ready(page);
+  // The merge ends in location.replace (src/core/account.ts refresh(merge)): a second full load. `ready` and the opponent can both read true on the
+  // first page while that replace is pending, and an evaluate then dies with "Execution context was destroyed" (J4a run 1, row 14, load 30).
+  // So count real loads and read nothing until the restart's own load has fired and its page is ready.
+  let loads = 0; page.on('load', () => { loads++; });
+  await page.goto(`${origin}/?account=return&code=qa-code`);
+  for (const until = Date.now() + 120000; loads < 2; ) { if (Date.now() > until) throw new Error(`the sign-in merge never restarted the page (${loads} load)`); await page.waitForTimeout(100); }
+  await ready(page);
   // The sign-in merges the cloud fighter into the device and restarts once on it: the cloud's name and opponent, the higher mark count;
   // nothing is written up because the device had nothing the cloud lacked. No Save / Load buttons (owner 2026-09-21).
   await page.waitForFunction(() => document.querySelector('#opponent-select').value === 'goblin');
@@ -181,7 +188,7 @@ try {
   // nothing daily. A fresh guest with the Nightborn's estoc equipped opens it: no daily banner, the estoc in hand, and no Supabase call at
   // all before a fight ends (the daily_fight / daily_board_summary endpoints stay on the server, unused by this client).
   const dailyContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const daily = await dailyContext.newPage(); inspectedPage = daily; daily.setDefaultTimeout(60000);
+  const daily = await dailyContext.newPage(); await quietDebug(daily); inspectedPage = daily; daily.setDefaultTimeout(60000);
   daily.on('pageerror', error => receipt.errors.push(String(error)));
   const dailyCalls = [];
   await dailyContext.route('**/*sentry.io/**', route => route.abort());
@@ -211,7 +218,7 @@ try {
   for (const signedIn of [true, false]) {
     const who = signedIn ? 'signed-in' : 'guest';
     const linkContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-    const link = await linkContext.newPage(); inspectedPage = link; link.setDefaultTimeout(60000);
+    const link = await linkContext.newPage(); await quietDebug(link); inspectedPage = link; link.setDefaultTimeout(60000);
     link.on('pageerror', error => receipt.errors.push(String(error)));
     const viewerStanding = { marks: 200, owned: ['dwarf.Greaves'], pending: 0, pending_owned: [] };
     await linkContext.route('**/*sentry.io/**', route => route.abort());

@@ -5,6 +5,8 @@ description: Rules for the one shared MacBook that runs 21 lane sessions, GPT's 
 
 # The shared Mac
 
+> **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it (fold6 died that way). How: the `vps-heavy-jobs` skill. Only Safari/WebKit rows and real-iPhone checks stay on the Mac.
+
 Load 95 at 20:22 on 2026-09-27 came from four lanes restarting at once, each running Playwright. Load 125 blocked the quality gate. Deploy rows are wall-clock browser tests: under load they hang, and a hung row idles the box for everyone.
 
 ## Before anything heavy (build, test:all, Blender, a 47-row run, a contact sheet)
@@ -32,3 +34,6 @@ GPT's Pitborn previews rendered on the Mac's GPU through Metal and skipped the s
 
 ## Before deleting a cache folder (learned 2026-09-27 22:5x)
 `~/.cache` holds more than caches: `~/.cache/huggingface/token` is the Hugging Face login, and `~/.cache/uv` backs every uv-built Python venv (semble, serena, Armour's tools). Deleting it logged the whole Mac out of Hugging Face mid-sprint and blocked GPT's remote TRELLIS. Before any cache delete: `ls ~/.cache`, move the HF token out (`hf auth login` again is the only recovery), and delete subfolders, never the root. Space that stays "used" after a delete is a process holding the file open: `lsof +L1` finds it (the 19 GB codegraph orphan, pid by pid, never by name).
+
+## Candidate trees: delete them once the next sha is live (Lead ruling 2026-10-13, the disk hit 100%)
+A candidate tree in a scratchpad is 1.1 GB; 27 of them filled the Mac and every shell failed with ENOSPC. Every lane that builds one (Deploy, Auditor, Lead, any lane doing stills) deletes its own once the NEXT sha is live, keeping only the live tree and the previous one (the rollback pair). Never delete another lane's scratchpad, a tree a running process has as its cwd (`lsof -d cwd | grep claude-501`), or the `/private/tmp/dist-*.tgz` files. `scripts/lib/free-space.sh` (the cut and the release train, 20 GiB) names the five biggest dirs when it refuses. Check `df -h /System/Volumes/Data` too, not just `/`.

@@ -67,7 +67,7 @@ point on the player rig**.
 knife, cleaver, estoc; TWO-HAND trident, warhammer, scythe, hero sword.** The asset ships so either side can drive it.
 
 **The trident is TWO-hand, and this list is a spec rather than prose.** An earlier wording of it ("trident-as-spear") put the trident in
-the one-hand column, and `src/moves.ts` on trunk currently carries `TRIDENT ... grip: 'one-hand'` (verified at `becec83`; PR #472
+the one-hand column, and `src/fight/moves.ts` on trunk currently carries `TRIDENT ... grip: 'one-hand'` (verified at `becec83`; PR #472
 corrects it). Because the loader reads `grip` to decide where the shield sits, a wrong entry here is a **wrong transform**, not a wrong
 sentence — a one-hand trident would raise a shield straight through the haft.
 

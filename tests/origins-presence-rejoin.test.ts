@@ -34,15 +34,17 @@ test('rejoin: guarded like /internal/where: no key configured is a 404, a wrong 
 });
 
 test('rejoin: a connected account is dropped and placed again at the located spot, on the same socket with a fresh hello; one presence, not two', async () => {
-  const { p, base } = await start(async a => (a === acct(1) ? { x: 5000, z: 6000 } : null));
+  let switched = false;   // the first join has no saved place (a fresh join also asks locate); the switched-to character has one
+  const { p, base } = await start(async a => (switched && a === acct(1) ? { x: 5000, z: 6000 } : null));
   const where = presenceWhere(base, KEY), { ws, hellos } = await connect(p.port());
+  switched = true;
   try {
     const before = await where(acct(1));
-    assert.ok(before.online && !(before.placed && before.x === 5000), 'it does not start at the saved spot');
+    assert.ok(before.online && !(before.placed && before.x === 30000), 'it does not start at the saved spot');
     assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
     await sleep(50);
     const after = await where(acct(1));
-    assert.ok(after.online && after.placed && after.x === 5000 && after.z === 6000, 'the new character stands at its saved spot');
+    assert.ok(after.online && after.placed && after.x === 30000 && after.z === 31000, 'the new character stands at its saved spot');
     assert.equal(hellos.length, 2, 'the client got a fresh hello');
     assert.deepEqual([hellos[0]!.x, hellos[0]!.z], [15000, 15000], 'the first hello says where it was placed (the spawn)');
     assert.deepEqual([hellos[1]!.x, hellos[1]!.z], [5000, 6000], 'the rejoin hello says where the new character stands, so the client adopts it before posing');
@@ -60,7 +62,7 @@ test('rejoin: a locate that fails or answers nothing places the account at the d
       assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
       await sleep(50);
       const w = await where(acct(1));
-      assert.ok(w.online && w.placed && w.x === 15000 && w.z === 15000, 'the default placement: the spawn, never an invented position');
+      assert.ok(w.online && w.placed && w.x === 40000 && w.z === 40000, 'the default placement: the spawn, never an invented position');
     } finally { ws.close(); await p.close(); }
   }
 });
@@ -72,12 +74,12 @@ test('rejoin: with no saved spot the new character starts at the spawn, not wher
     assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
     await sleep(50);
     const at = await where(acct(1));
-    assert.ok(at.online && at.placed && at.x === 5000, 'placed at the first character\'s saved spot');
+    assert.ok(at.online && at.placed && at.x === 30000, 'placed at the first character\'s saved spot');
     spot = null;
     assert.deepEqual(await (await post(base, { account: acct(1) })).json(), { rejoined: true });
     await sleep(50);
     const w = await where(acct(1));
-    assert.ok(w.online && w.placed && w.x === 15000 && w.z === 15000, 'the second character, nothing saved: the spawn, not (5000, 6000)');
+    assert.ok(w.online && w.placed && w.x === 40000 && w.z === 40000, 'the second character, nothing saved: the spawn, not (5000, 6000)');
     assert.equal(p.world.memory.has(acct(1)), false, 'and the previous character\'s remembered spot is gone');
   } finally { ws.close(); await p.close(); }
 });

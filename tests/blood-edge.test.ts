@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { EDGE, EDGE_MS, HEAD_ON, PEAK, SPAN, STRIPS, WIDTH_VW, createBloodEdge, edgesOf, type Page } from '../src/blood-edge.ts';
-import { weaponOf, type MoveId } from '../src/moves.ts';
-import type { CombatEvent, Duel } from '../src/duel.ts';
+import { EDGE, EDGE_MS, HEAD_ON, PEAK, SPAN, STRIPS, WIDTH_VW, createBloodEdge, edgesOf, type Page } from '../src/fight/blood-edge.ts';
+import { weaponOf, type MoveId } from '../src/fight/moves.ts';
+import type { CombatEvent, Duel } from '../src/fight/duel.ts';
 
 // A stand-in page: records every element the overlay makes, in order, with its style, src and animations.
 type Frames = { opacity: number; offset?: number; easing?: string }[];
@@ -77,7 +77,7 @@ test('a new fight starts the rotation over even when its ticks do not go backwar
 });
 
 test('scene.ts calls bloodEdge.reset() where it clears the previous fight (both health bars full again)', () => {
-  const scene = readFileSync('src/scene.ts', 'utf8');
+  const scene = readFileSync('src/fight/scene.ts', 'utf8');
   assert.match(scene, /finisherBlood\.reset\(\);\s*bloodEdge\.reset\(\);/);
 });
 

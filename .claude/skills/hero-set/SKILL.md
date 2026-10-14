@@ -5,6 +5,8 @@ description: Generate one hero armour set or kit piece and fit it on the hero ri
 
 # Hero set recipe (Hero Look owns the recipe, Armour builds sets with it)
 
+> **Mac busy? Move the job (Dom, standing, 2026-10-08):** ANY work — deploys and release builds, test suites, Chromium, Blender, any CPU job — runs on the VPS or the Hugging Face 32 GB CPU instance ($0.03/h). Never wait on a busy Mac and never let a build time out on it (fold6 died that way). How: the `vps-heavy-jobs` skill. Only Safari/WebKit rows and real-iPhone checks stay on the Mac.
+
 The hero's head and face are fixed. They are Dom's own authored asset and never an input or an output of this recipe. Only armour, kit and weapons are generated. Any "make X look better" on a character means new geometry through this recipe, never a shader or light pass (measured: light + full-size maps moved the look 5 to 10 percent at most).
 
 Tooling lives on branch `herolook/sand-legionary` (6769aed5+) until its PR lands: `herolook_bake.py`, `glb_webp_to_png.py`, `herolook-sheet.mjs`, `herolook_probe.py` and the OWN_HEAD/HELM_FIT switches. None of them are on trunk yet.

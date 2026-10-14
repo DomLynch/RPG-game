@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 // Incident 2026-10-07 10:05: an iPhone tab opened before a publish lazy-loaded the previous release's hashed account chunk (404) and showed a dead
 // "Account unavailable" with Google greyed. A failed chunk import now says a new version is ready and its button reloads; a mount failure keeps the retry.
 test('the account chunk failing to load offers a reload, not a dead retry; a mount failure still retries', () => {
-  const src = readFileSync(new URL('../src/account-entry.ts', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../src/core/account-entry.ts', import.meta.url), 'utf8');
   const imp = src.match(/try \{ \(\{ mountAccount \} = await import\('\.\/account\.ts'\)\); \}\s*catch \{([^}]*)\}/);
   assert.ok(imp, 'the dynamic import has its own catch');
   assert.match(imp![1], /stale = true/); assert.match(imp![1], /tapped && !fightOn\(\) && autoReload\(/, 'only a tap, and never while a fight is on screen (welcome card hidden), may reload by itself'); assert.match(imp![1], /A new version is ready\. Tap to reload/); assert.match(imp![1], /retry\.textContent = 'Reload'/); assert.match(imp![1], /getElementById\('account-login'\)!\.hidden = true/, 'no greyed Google button');

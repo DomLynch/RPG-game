@@ -2,7 +2,7 @@
 
 - Author: Expansion lane analyst (clean-room spec author), 2026-10-07. For Dom, Strategy, Lead and the Combat lane.
 - Status: **proposal**. Nothing here ships or changes `src/`. Every number is PROVISIONAL until Combat measures it on the battery.
-- Trunk read at `0d2d9996`. Our side: `src/duel.ts`, `src/moves.ts` (`RULES`, `MOVES`, `OPPONENTS`), `src/ai.ts`, `src/record.ts`
+- Trunk read at `0d2d9996`. Our side: `src/fight/duel.ts`, `src/fight/moves.ts` (`RULES`, `MOVES`, `OPPONENTS`), `src/fight/ai.ts`, `src/fight/record.ts`
   (`RECORD_VERSION` 27), `src/net/rollback.ts`, `src/net/verify-duel.ts`, `scripts/rng-fingerprint.mjs`, `src/hud.ts`,
   [feuds.md](feuds.md), [progression-proposal.md](progression-proposal.md), [frankendom-baseline.md](frankendom-baseline.md),
   [patron-perks-sim.md](patron-perks-sim.md).
@@ -35,7 +35,7 @@ Dom wants the player to choose a temperament. The AI's opponent mood is the same
 
 | Stance | Bonus | Cost | Beats |
 |---|---|---|---|
-| Neutral | none | none | nothing (the safe middle) |
+| Balanced (id `neutral`) | none | none | nothing (the safe middle). Shown as "Balanced" (Dom 2026-10-07); the id `neutral` is unchanged in code and records |
 | Aggressive | +5% damage, +10% posture damage dealt | blocks cost 10% more stamina | Trickster |
 | Defensive | blocks cost 15% less stamina, faster posture recovery | −5% damage | Aggressive |
 | Trickster | feints cost half, kicks deal more posture damage | −5% damage on heavies | Defensive |
@@ -48,7 +48,7 @@ Dom wants the player to choose a temperament. The AI's opponent mood is the same
 - **Balance:** every stance pair wins 40–60% in the battery and the bot reruns, and no stance is dominant against the field.
 - **Tell:** weapon-hold poses (three guard poses from Characters, budgeted) plus a reveal on the versus card at fight start. Nothing appears over the arena. v1 may ship on the versus-card reveal while the poses are made.
 - **PvP:** both players commit a hidden pick at the same time, and the versus card reveals both.
-- **AI = opponent mood:** the AI draws its stance from the fight seed with a home-stance bias: 50% its home stance, 50% one of the others. Home stances: Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Neutral. The seed draw keeps re-sim exact.
+- **AI = opponent mood:** the AI draws its stance from the fight seed with a home-stance bias: 50% its home stance, 50% one of the others. Home stances: Executioner Aggressive, Shieldmaiden Defensive, Goblin Trickster, Centurion Balanced (id `neutral`). The seed draw keeps re-sim exact.
 - **Mood never touches difficulty:** reaction time, the read/habit knobs and the RV31 spam gate are excluded. The battery runs per stance per opponent: within ±5 points of base on the honest bots, and the ladder overall within ±3.
 - AI opponents only get moods. A player's stance is always the player's own pick.
 - **Dropped:** "+10% from behind" and the two-finger swipe.
@@ -389,9 +389,9 @@ Hold (d)'s PvE-only ±5% in reserve for after a playtest of (c).
 |---|---|---|---|---|
 | **0 (this PR)** | This spec | docs | Expansion | none |
 | **1 (preview, flags off in the live game)** | Encounter director: tag-team tokens (2A), roles (2E), sweep push (2F); mastery marks counter (4.1) in the Origins save; Ascapart prototype on existing moves (Special + charged heavy); the patron-strike marker reused as a between-duel Slam | `origins/` only, read-only reuse of `src/` (`stepDuel`, `opponentFighter`, `decide`) | Expansion | none: no `src/` file touched, fingerprint and digest unchanged; director has its own seeded stream and its own tests |
-| **2 (Combat, one bump)** | Hit quality (5c) location + timing terms as integer per-mille, behind a per-fight flag in the record header; the HUD tag; stagger reads pre-quality damage | `src/duel.ts`, `src/moves.ts`, `src/record.ts`, `src/hud.ts` | Combat (+ Web for the tag) | next free RV; writer stamps the old version with the flag off (patron-perks pattern); `REACH[new] = []`; flag-off byte-identical proofs (fingerprint 0 changed cells, `hashDuel` over the replay corpus); new fixture for flag-on cells; release order: verifier host first, then clients |
-| **3 (Combat)** | Big-attack move class (§3): new `MoveDef` rows, `BigAttackTell` event, AI knobs; the blade sweet-spot term (bake change) | `src/moves.ts`, `src/duel.ts`, `src/ai.ts`, `scripts/bake-blades.mjs` | Combat; World and audio draw the marker | RV bump; fingerprint fixture gains new opponents' cells |
-| **4 (arena, Dom's GO)** | Turn hit quality on in the Pit and PvP | `src/match.ts`, `src/net/rollback.ts` kit | Combat, Lead GO | RV bump with REACH = every opponent at every level; battery rerun and anchors held; `fight-records.json` regenerated with the reason; fix-forward re-pins named in the PR |
+| **2 (Combat, one bump)** | Hit quality (5c) location + timing terms as integer per-mille, behind a per-fight flag in the record header; the HUD tag; stagger reads pre-quality damage | `src/fight/duel.ts`, `src/fight/moves.ts`, `src/fight/record.ts`, `src/hud.ts` | Combat (+ Web for the tag) | next free RV; writer stamps the old version with the flag off (patron-perks pattern); `REACH[new] = []`; flag-off byte-identical proofs (fingerprint 0 changed cells, `hashDuel` over the replay corpus); new fixture for flag-on cells; release order: verifier host first, then clients |
+| **3 (Combat)** | Big-attack move class (§3): new `MoveDef` rows, `BigAttackTell` event, AI knobs; the blade sweet-spot term (bake change) | `src/fight/moves.ts`, `src/fight/duel.ts`, `src/fight/ai.ts`, `scripts/bake-blades.mjs` | Combat; World and audio draw the marker | RV bump; fingerprint fixture gains new opponents' cells |
+| **4 (arena, Dom's GO)** | Turn hit quality on in the Pit and PvP | `src/fight/match.ts`, `src/net/rollback.ts` kit | Combat, Lead GO | RV bump with REACH = every opponent at every level; battery rerun and anchors held; `fight-records.json` regenerated with the reason; fix-forward re-pins named in the PR |
 | **Later / maybe** | Trainer techniques (4.2); PvE-only luck (5d); true multi-fighter sim (2B) | | Combat | each its own bump |
 
 The Pit stays 1v1 in every phase.

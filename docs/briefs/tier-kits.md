@@ -23,7 +23,7 @@ Every opponent has a distinguishable look at every rank: 10 opponents × 10 rank
 | 9 Invictus | 41–45 | **HIGH `invictus`:** own mesh | gold |
 | 10 Origin | 46 | **HIGH `origin`:** own mesh | obsidian-ruby |
 
-The four HIGH looks differ in **real geometry and texture**, each with its own generation. Dom: "emerald plate is not a green rag". The rank tint (`src/rank-tint.ts`) is used only where a mesh spans several ranks (LOW, MID). HIGH materials come from their own bake. Emerald, gold and ruby inserts get a `null` class in `CLASS_OF`, as Ruby does today, so the tint never repaints them.
+The four HIGH looks differ in **real geometry and texture**, each with its own generation. Dom: "emerald plate is not a green rag". The rank tint (`src/fight/rank-tint.ts`) is used only where a mesh spans several ranks (LOW, MID). HIGH materials come from their own bake. Emerald, gold and ruby inserts get a `null` class in `CLASS_OF`, as Ruby does today, so the tint never repaints them.
 
 That is **50 generations**: 10 MID (the Centurion's is the Sand Legionary, done) + 40 HIGH, **GPT-generated, no HF spend** (Dom via Strategy, 2026-09-27: Dom's own GPT makes the meshes; Armour receives each set as an A-pose GLB with its source noted, fits it to the opponent's existing rig on the /hero-set Blender step, and ships stills: ready idle + mid-fight at the fight camera, 375 and 1280; Hero Look keeps the runtime). **Order:**
 1. The Centurion bronze proof (Armour, cut-and-fit of the GLB we already have, no generation; fixes pending).

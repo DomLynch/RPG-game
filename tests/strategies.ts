@@ -1,11 +1,11 @@
 // The scripted strategies and the battery runner shared by tests/battery.test.ts, tests/opponents.test.ts and tests/autopsy.test.ts.
 // Moved here verbatim from tests/battery.test.ts so a test can import the strategies without re-registering the battery's slow gates.
-import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { createFighter, elapsed, idleIntent, legal, mirror, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
 import { struck } from '../src/events.ts';
-import type { CombatEvent } from '../src/duel.ts';
-import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, opponentAt, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
+import { LONGSWORD, MOVES, OPPONENTS, PROFILES, RULES, opponentAt, profileAt, SKILL_MOVE, type AiProfile, type Opponent, type SkillId, type WeaponId } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 export const idle = (): Intent => ({ ...idleIntent(), lock: true });
 export const act = (action: Intent['action'], extra: Partial<Intent> = {}): Intent => ({ ...idle(), action, ...extra });

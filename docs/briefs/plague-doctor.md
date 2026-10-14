@@ -76,7 +76,7 @@ Required by the owner's ruling of 2026-09-22 23:12, now in `docs/SCOPE.md`: ever
 pieces of its own** plus its weapon, each a `loot.glb` draw with tier materials, and **nothing on the body is rig
 dressing**. A brief names all six before it merges. **Naming is not authoring** — the build order stays Recruit-2 first,
 and these six are authored when his tier kit is, not before. Mapped onto the approved reference (#493, "the patched
-beak"), and onto the slot ids loot v1 already exports (`src/loot.ts`, `<opponent>.<slot>`):
+beak"), and onto the slot ids loot v1 already exports (`src/fight/loot.ts`, `<opponent>.<slot>`):
 
 | slot | his piece | reads in the silhouette as |
 |---|---|---|
@@ -128,7 +128,7 @@ thing it is supposed to gate — see trap 1 below.
 
 ## His brain — what he ships with, and what waits
 
-`src/roster.ts` is explicit: *"Adding an individual must not add AI branches."* `ARCHETYPES` (`src/moves.ts:454`) is
+`src/roster.ts` is explicit: *"Adding an individual must not add AI branches."* `ARCHETYPES` (`src/fight/moves.ts:454`) is
 keyed by archetype name and the Wraith already proves the pattern by reusing `nightborn`.
 
 **He ships on an existing archetype.** The closest fit to poke-and-withdraw is `nightborn`; the alternative is `veteran`.
@@ -142,9 +142,9 @@ identity test, that is a Combat ask, and by Dom's instruction it queues **behind
 The routing identity ("opens a wound, backs off and lets it bleed") maps onto rules that are already in the tree, which
 is the cheap way to have it:
 
-- `RULES.wound = 240` ticks — four seconds at 60 Hz (`src/moves.ts:122`), with `woundRegen: .8` throttling stamina
+- `RULES.wound = 240` ticks — four seconds at 60 Hz (`src/fight/moves.ts:122`), with `woundRegen: .8` throttling stamina
   recovery while it runs.
-- `attrition: { stamina: 8, floor: 40, legSpeed: .85 }` (`src/moves.ts:147`) — **every blade wound permanently lowers the
+- `attrition: { stamina: 8, floor: 40, legSpeed: .85 }` (`src/fight/moves.ts:147`) — **every blade wound permanently lowers the
   wounded fighter's maximum stamina for that duel** (floor 40), and a leg wound slows his walk. A fighter who opens you
   and disengages is already rewarded by this; no new rule is needed to make bleeding matter.
 

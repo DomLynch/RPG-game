@@ -1,0 +1,6 @@
+{
+  "hazards": {
+    "embers":          {"order": 1, "text": "Embers: the floor burns whoever stands still for {s} s"},
+    "breaking-planks": {"order": 2, "text": "Breaking planks: they give under whoever stands still for {s} s"}
+  }
+}

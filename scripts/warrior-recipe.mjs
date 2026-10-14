@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { ROSTER, isOpponentId } from '../src/roster.ts';
-import { WEAPONS, weaponOf } from '../src/moves.ts';
+import { WEAPONS, weaponOf } from '../src/fight/moves.ts';
 
 // Resolve before loading any source art; the runtime and offline builder share the catalogue.
 export function warriorRecipe(fighter = 'hero', override) {

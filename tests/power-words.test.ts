@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor, powerWordsLook } from '../src/power-words.ts';
+import { announcePowerWord, POWER_WORD_GAIN, POWER_WORDS, powerWordFor, powerWordsLook } from '../src/fight/power-words.ts';
 
 test('muted, like the other voices', () => assert.equal(POWER_WORD_GAIN, 0));
 
@@ -37,7 +37,7 @@ test('?look=powerwords is a look test: absent = silent', () => {
 });
 
 test('the chant: a syllable per vowel group, onset and coda kept', async () => {
-  const { syllables } = await import('../src/audio/power-word.ts');
+  const { syllables } = await import('../src/fight/sound/power-word.ts');
   assert.deepEqual(syllables('Ashvael'), [{ onset: '', vowels: 'a', coda: '' }, { onset: 'shv', vowels: 'ae', coda: 'l' }]);
   for (const w of Object.values(POWER_WORDS).flat()) assert.ok(syllables(w).length >= 2, w);
 });

@@ -1,0 +1,1 @@
+ZONE=2 LONE=1 KILL=1 TAGS_TARGET=z2:reach-wolves node scripts/zone1-stab-stills.mjs artifacts/origins-preview evidence/char-zone2-after-lone-2026-10-10 (375x812, swiftshader, merged trunk deb712d58; kill true, 0 errors; kill loop now matches World's: 150 ms between cuts, 1200 ms stamina wait, up to 400 cuts)

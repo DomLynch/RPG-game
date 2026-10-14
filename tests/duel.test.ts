@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, opponentFighter, stepDuel, type Action, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PATHS, PLAYER_WEAPONS, PROFILES, RULES, total, type GuardProfile } from '../src/moves.ts';
-import { decide, initialAi } from '../src/ai.ts';
-import { RADIUS, TARGET } from '../src/sim.ts';
+import { createFighter, elapsed, lorariusGuard, idleIntent, initialDuel, legal, mirror, opponentFighter, stepDuel, type Action, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, OPPONENTS, PATHS, PLAYER_WEAPONS, PROFILES, RULES, total, type GuardProfile } from '../src/fight/moves.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { RADIUS, TARGET } from '../src/fight/sim.ts';
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 // Both fighters are scripted here; the AI has its own suite. Index 0 stands south of index 1, both facing each other.

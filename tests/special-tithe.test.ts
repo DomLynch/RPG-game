@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { RULES } from '../src/moves.ts';
-import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/special-timing.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { createBloodTithe, TINTS, ARM_OUT } from '../src/special-tithe.ts';
-import { actorPose, initialPractice, attackSpecs } from '../src/combat.ts';
-import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/special-modes.ts';
-import { OPPONENTS } from '../src/moves.ts';
-import { SPECIAL_CUE_OF } from '../src/audio/special.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
+import { RULES } from '../src/fight/moves.ts';
+import { advanceCast, isBloodTithe, LAND_AT, SPECIAL_RECOVER } from '../src/fight/special-timing.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { createBloodTithe, TINTS, ARM_OUT } from '../src/fight/special-tithe.ts';
+import { actorPose, initialPractice, attackSpecs } from '../src/fight/combat.ts';
+import { SPECIAL_MODES, TITHE_CHAMBER } from '../src/fight/special-modes.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
+import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 
 // Blood Tithe (special-tithe.ts): the Centurion's rank-10 special, presentation only, ?special=tithe. Dust lifts only in the last 0.6 s and is in the blade on the
 // landing tick; the light turns red (a wash element); the strike bursts off the blade; everything clears. Never hides both fighters.
@@ -86,7 +86,7 @@ test("the light turns red on the arena's OWN lights, fog and sky (no page overla
 });
 
 test('no page overlay: the module never touches the document, so the HUD and buttons stay as they are', () => {
-  assert.ok(!/document\.|getElementById|\.body\b/.test(readFileSync('src/special-tithe.ts', 'utf8').replace(/\/\/.*$/gm, '')), 'no DOM access');
+  assert.ok(!/document\.|getElementById|\.body\b/.test(readFileSync('src/fight/special-tithe.ts', 'utf8').replace(/\/\/.*$/gm, '')), 'no DOM access');
 });
 
 // Lead's rule for caster-moving effects (2026-10-01): write ABSOLUTELY each frame. In a hit-stop the rig runs mixer.update(0), which does not rewrite upperarm_r when the pose is unchanged
@@ -147,7 +147,7 @@ test('the strike bursts off the blade in dark blood red, then the leftovers sett
 test('special-tithe ships in its own lazy chunk: nothing imports it statically', () => {
   const statics = readdirSync('src').filter((f) => f.endsWith('.ts') && /from\s+['"]\.\/special-tithe\.ts['"]/.test(readFileSync(`src/${f}`, 'utf8')));
   assert.deepEqual(statics, []);
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-tithe\.ts'\)/);
 });
 
 // Preview-only: Blood Tithe is the registry's `tithe` entry, reached only by `?special=tithe` (special-look.ts SPECIAL_TESTS, the Centurion at level 46); scene.ts names no special (specials.test.ts).
@@ -198,7 +198,7 @@ test('the sword arm is yawed out through the gather and straight again on the st
 
 // Audio (Dom approved the Centurion cues; audio/special.ts from #1216): the Blood Tithe crowd swell rises from silence and PEAKS 2.0 s into the cue, so it starts with the
 // wind-up and the strike (tick LAND_AT of the 120-tick windup) lands on the peak. Wired on SpecialStarted, cut on SpecialFizzled, silent if the buffer has not loaded.
-import { createFeedback } from '../src/feedback.ts';
+import { createFeedback } from '../src/fight/sound/feedback.ts';
 test('the Tithe swell keeps its strike timing and fires once through the generic preview dispatch', () => {
   const CUE_PEAK = 2.0;   // seconds into tithe.m4a (Audio's note on #1216)
   assert.ok(Math.abs(LAND_AT / 60 - CUE_PEAK) <= 1 / 60, `the strike lands ${(LAND_AT / 60).toFixed(3)} s after SpecialStarted, within a tick of the cue's peak`);

@@ -24,15 +24,17 @@ exit 0
 STUB
 cat > "$bin/node" <<'STUB'
 #!/usr/bin/env bash
-if [ -n "${FAKE_NODE:-}" ]; then [ "$1" = "-v" ] && { echo "$FAKE_NODE"; exit 0; }; exit 1; fi
+if [ -n "${FAKE_NODE:-}" ] && [ "$1" = "-v" ]; then echo "$FAKE_NODE"; exit 0; fi   # only the version is faked: the closure walk and the dry import need a real node
 exec "$REAL_NODE" "$@"
 STUB
 chmod +x "$bin"/*
 export REAL_NODE="$(command -v node)" STUB_LOG="$tmp/log"
 : > "$STUB_LOG"
 export PATH="$bin:$PATH"
-fresh() {   # a clean scratch root with the real site config
-  rm -rf "$tmp/root"; mkdir -p "$tmp/root/etc/nginx/sites-enabled"; cp "$here/deploy/frankendom.com.conf" "$tmp/root/etc/nginx/sites-enabled/frankendom.com"
+export ORIGINS_SIDE_PORT=$(( 20000 + $$ % 20000 )) ORIGINS_SIDE_WAIT_S=15   # the side-port health check (blue-green B): a free high port, never the box's 8789
+fresh() {   # a clean scratch root with the real site config, as a box before any installer ran: the repo conf carries the box's own include lines
+  # (/etc/nginx/snippets/..., matching live), which the scratch root's prefixed snippet path would not recognise, so they are taken out here
+  rm -rf "$tmp/root"; mkdir -p "$tmp/root/etc/nginx/sites-enabled"; grep -v 'include /etc/nginx/snippets/frankendom-' "$here/deploy/frankendom.com.conf" > "$tmp/root/etc/nginx/sites-enabled/frankendom.com"
   export ORIGINS_INSTALL_ROOT="$tmp/root"; : > "$STUB_LOG"; unset NGINX_RC RELOAD_RC FAKE_NODE
 }
 site() { echo "$tmp/root/etc/nginx/sites-enabled/frankendom.com"; }
@@ -48,6 +50,7 @@ expect "one include inserted" "$(includes)" 1
 [ -f "$tmp/root/etc/nginx/conf.d/frankendom-origins-limits.conf" ] && ok || fail "limits not installed"
 [ -f "$tmp/root/etc/systemd/system/frankendom-origins-writer.service" ] && ok || fail "unit not installed"
 [ -f "$tmp/root/opt/frankendom-origins/rev1/scripts/origins-writer.mjs" ] && ok || fail "writer not copied"
+[ -f "$tmp/root/opt/frankendom-origins/rev1/scripts/lib/json-dup-keys.mjs" ] && ok || fail "a closure file outside src/ and origins/ (CH: json-dup-keys.mjs) was not copied"
 [ -z "$(find "$tmp/root/opt/frankendom-origins/rev1/origins" -name '*.test.ts' | head -1)" ] && ok || fail "tests were copied"
 [ -L "$tmp/root/opt/frankendom-origins/current" ] && ok || fail "current symlink missing"
 expect "sites-enabled holds only the site (nginx loads every file there: a backup would be a duplicate frankendom.com server)" "$(ls "$tmp/root/etc/nginx/sites-enabled")" "frankendom.com"
@@ -110,4 +113,109 @@ case "$out" in *"rolled back (service stopped"*) fail "it still claimed to be ro
 fresh; run rev1; export RELOAD_RC=1; run --rollback
 expect "a failing reload makes the rollback exit non-zero" "$rc" 1
 contains "and says the reload failed" "$out" "ROLLBACK INCOMPLETE: nginx -t passed but the reload failed"
+# The install prunes old installs (Lead 2026-10-10: automatic, never fails the install, keeps current + previous = the rollback target).
+hexdirs() { ls "$tmp/root/opt/frankendom-origins" | grep -cE '^[0-9a-f]{8}$' || true; }
+fresh; for i in 1 2 3 4 5 6 7; do run "a000000$i"; done
+expect "an install prunes to 5 installs: current, previous and the 3 newest others" "$(hexdirs)" 5
+[ ! -d "$tmp/root/opt/frankendom-origins/a0000001" ] && ok || fail "the oldest install survived the prune"
+expect "previous is the rollback target (the install before current)" "$(basename "$(readlink -f "$tmp/root/opt/frankendom-origins/previous")")" "a0000006"
+[ -d "$tmp/root/opt/frankendom-origins/a0000006" ] && [ "$(basename "$(readlink -f "$tmp/root/opt/frankendom-origins/current")")" = a0000007 ] && ok || fail "current or the rollback target was removed"
+printf '#!/usr/bin/env bash\nexit 7\n' > "$tmp/bin/failing-prune"
+fresh; export ORIGINS_PRUNE="$tmp/bin/failing-prune"; for i in 1 2 3 4 5 6 7; do run "a000000$i"; expect "a prune error leaves the install's exit code 0" "$rc" 0; done
+contains "the prune error is logged" "$out" "prune failed (exit 7)"
+expect "and nothing was removed" "$(hexdirs)" 7
+unset ORIGINS_PRUNE
+# The computed closure (writer PR A): a small fake repo, so the failures are real files and not the live tree. Its writer imports a module outside
+# src/ and origins/ (copied by the closure, not by name); a dangling import refuses the install before any copy; a module that fails to load
+# fails the dry import and current stays where it was.
+fake="$tmp/fake"; rm -rf "$fake"; mkdir -p "$fake/scripts/lib" "$fake/src" "$fake/origins"
+cp -R "$here/ops" "$fake/ops"; cp "$here/package.json" "$fake/"
+cp "$here/scripts/writer-closure.mjs" "$here/scripts/writer-closure-list.mjs" "$fake/scripts/"
+cp "$here/scripts/lib/prune-releases.sh" "$fake/scripts/lib/"
+printf "import { x } from './lib/extra.mjs';\nexport const writer = x;\n" > "$fake/scripts/origins-writer.mjs"
+printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fakerun() { out="$(bash "$fake/ops/install-origins-writer.sh" "$@" 2>&1)"; rc=$?; }
+fresh; fakerun f1
+expect "a writer whose closure leaves src/ and origins/ installs" "$rc" 0
+[ -f "$tmp/root/opt/frankendom-origins/f1/scripts/lib/extra.mjs" ] && ok || fail "the closure file outside src/ and origins/ was not copied"
+printf "import './gone.mjs';\nexport const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fakerun f2
+expect "a dangling import stops the install" "$rc" 1
+contains "naming it" "$out" "scripts/lib/extra.mjs: ./gone.mjs"
+[ ! -e "$tmp/root/opt/frankendom-origins/f2" ] && ok || fail "files were copied despite the dangling import"
+printf "import 'no-such-package-frankendom';\nexport const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fakerun f3
+expect "a module that cannot load fails the dry import" "$rc" 1
+contains "and says current was left alone" "$out" "dry import failed in"
+expect "current still points at the last good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/f1"
+# Blue-green B: with both env files complete the new install must answer one real request on the side port before current flips.
+envs() { mkdir -p "$tmp/root/etc/frankendom"; printf 'DATABASE_URL=postgresql://x\n' > "$tmp/root/etc/frankendom/verifier.env"; printf 'SUPABASE_URL=https://x\nSUPABASE_ANON_KEY=y\n' > "$tmp/root/etc/frankendom/origins-writer.env"; }
+writer() {   # a fake writer: $1 = the status it answers POST /origins/consume with, or "crash"; $2 = "quiet" to skip the real writer's listening line
+  local say="console.log('origins-writer listening on 127.0.0.1:' + process.env.PORT)"; [ "${2:-}" = quiet ] && say=""
+  printf "import { createServer } from 'node:http';\nimport { x } from './lib/extra.mjs';\nif ('%s' === 'crash') throw new Error('boot failed');\ncreateServer((q, s) => { s.writeHead(q.method === 'POST' && q.url === '/origins/consume' ? %s : 404); s.end('{}'); }).listen(Number(process.env.PORT), '127.0.0.1', () => { %s });\nexport const writer = x;\n" "$1" "${1/crash/500}" "$say" > "$fake/scripts/origins-writer.mjs"
+}
+printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"
+fresh; envs; writer 401; fakerun g1
+expect "a writer that answers 401 on the side port is installed" "$rc" 0
+contains "and says so" "$out" "side-port health ok: g1 on :$ORIGINS_SIDE_PORT answered 401"
+expect "current flipped to it" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+contains "the service was restarted after the check" "$(cat "$STUB_LOG")" "restart frankendom-origins-writer.service"
+writer 404; : > "$STUB_LOG"; fakerun g2
+expect "a writer that answers 404 is failed-at-writer" "$rc" 1
+contains "named" "$out" "failed-at-writer: g2 on :$ORIGINS_SIDE_PORT answered '404'"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+case "$(cat "$STUB_LOG")" in *"restart frankendom-origins-writer"*) fail "the service was restarted after a failed check" ;; *) ok ;; esac
+writer crash; fakerun g3
+expect "a writer that crashes at boot is failed-at-writer" "$rc" 1
+contains "with no answer" "$out" "answered '000'"
+contains "and its own error in the log tail" "$out" "boot failed"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+# Auditor HOLD on #2316: a stale listener on the side port (a side writer leaked by an interrupted install) answers 401 for a writer that crashes at boot.
+"$REAL_NODE" -e "require('node:http').createServer((q, s) => { s.writeHead(401); s.end('{}'); }).listen($ORIGINS_SIDE_PORT, '127.0.0.1')" & stale=$!
+for _ in $(seq 1 50); do curl -s -o /dev/null -m 1 "http://127.0.0.1:$ORIGINS_SIDE_PORT/" && break; sleep 0.1; done
+writer crash; fakerun g4
+kill "$stale" 2>/dev/null; wait "$stale" 2>/dev/null
+expect "a stale 401 listener + a crashing writer is refused" "$rc" 1
+contains "as a busy side port" "$out" "side port $ORIGINS_SIDE_PORT busy"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+writer 401 quiet; fakerun g5
+expect "a 401 without the new writer's own listening line is not proof" "$rc" 1
+contains "named" "$out" "answered '401-not-ours'"
+expect "current still on the good install" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/g1"
+writer 401; fakerun g6
+expect "a writer that answers 401 and logs its own listening line installs" "$rc" 0
+curl -s -o /dev/null -m 2 "http://127.0.0.1:$ORIGINS_SIDE_PORT/" && fail "the side writer is still listening after the install" || ok
+# Lead 2026-10-12 (CV): the reinstall was skipped as "closure identical to CU (138 files, no hash differences)" while #2352 had changed
+# src/fight/record.ts (RV46 -> RV47): the live client sent v47 records to a v46 writer for 7 minutes. --if-changed decides by the CONTENT of every
+# closure file at this revision against the INSTALLED tree (current), file by file: same list + one changed file reinstalls.
+unset ORIGINS_PRUNE; fresh; printf "export const x = 1;\n" > "$fake/scripts/lib/extra.mjs"; printf "import { x } from './lib/extra.mjs';\nexport const writer = x;\n" > "$fake/scripts/origins-writer.mjs"
+# --if-changed compares THIS checkout's files, so it must be AT the revision it is asked about (Auditor on #2370): the fake repo is a git repo here.
+git -C "$fake" init -q; commit() { git -C "$fake" add -A && git -C "$fake" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "$1" && git -C "$fake" rev-parse --short=12 HEAD; }
+h1=$(commit h1); fakerun "$h1"
+expect "the first install" "$rc" 0
+h2=$(commit h2); fakerun --if-changed "$h2"
+expect "an identical closure is not reinstalled" "$rc" 0
+contains "and says so, with the file count" "$out" "closure identical to the installed $h1 (3 files, byte for byte); nothing installed"
+expect "current stays" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/$h1"
+[ ! -e "$tmp/root/opt/frankendom-origins/$h2" ] && ok || fail "an identical closure was copied anyway"
+printf "export const x = 2;   // RV47\n" > "$fake/scripts/lib/extra.mjs"; h3=$(commit h3)
+fakerun --if-changed "$h3"
+expect "same file list, one changed file: reinstalled" "$rc" 0
+contains "naming the file that differs" "$out" "closure differs from the installed $h1 in 1 of 3 files: scripts/lib/extra.mjs"
+expect "current moved to the new revision" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/$h3"
+expect "with the new content" "$(cat "$tmp/root/opt/frankendom-origins/$h3/scripts/lib/extra.mjs")" "export const x = 2;   // RV47"
+# a stale checkout (HEAD is not the revision asked for) never "matches" the box: refused, nothing compared or installed
+git -C "$fake" checkout -q "$h1"; fakerun --if-changed "$h3"
+expect "a checkout that is not at the revision is refused" "$rc" 1
+contains "named" "$out" "--if-changed: this checkout is at $h1"
+expect "current untouched" "$(readlink "$tmp/root/opt/frankendom-origins/current")" "$tmp/root/opt/frankendom-origins/$h3"
+git -C "$fake" checkout -q "$h3"
+rm -f "$tmp/root/opt/frankendom-origins/$h3/scripts/lib/extra.mjs"
+fakerun --if-changed "$h3"
+expect "a closure file missing from the installed tree: reinstalled" "$rc" 0
+contains "named" "$out" "in 1 of 3 files: scripts/lib/extra.mjs"
+rm -rf "$tmp/root/opt/frankendom-origins/current"
+fakerun --if-changed "$h3"
+expect "nothing installed yet: installed" "$rc" 0
+contains "said" "$out" "no installed writer (current)"
 echo "origins-install-check: $checks checks passed"

@@ -1,9 +1,9 @@
 // The Centurion's loadout by level and the scutum's guard (SCOPE shield line; RV18, Combat 2026-09-27).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { covers, guardOf, opponentFighter } from '../src/duel.ts';
-import { LEVELS, LEVEL_ANCHORS, OPPONENTS, SCUTUM, opponentAt } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { covers, guardOf, opponentFighter } from '../src/fight/duel.ts';
+import { LEVELS, LEVEL_ANCHORS, OPPONENTS, SCUTUM, opponentAt } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 test('the Centurion fights with the trident as a Recruit and with gladius + scutum from Legionary (level 6) on', () => {
   for (let l = 1; l <= LEVELS; l++) {

@@ -92,7 +92,7 @@ or ASAP." The only deadline this lane gives Dom, Lead or Strategy is NOW or ASAP
 blocker (a battery still running with its minutes left, a red gate, the box busy, an HF quota), never a day or a clock time.
 
 **The lane is parked.** Dom's SCOPE rewrite (`docs/SCOPE.md`, #729, 2026-09-25) parks gear stats (Brief 19) and gear damage/defence
-until after Origin. #707 is closed with the `parked` label (branch kept at `9ddf6801`); `src/gear-stats.ts` is imported only by its
+until after Origin. #707 is closed with the `parked` label (branch kept at `9ddf6801`); `src/fight/gear-stats.ts` is imported only by its
 test, so no fight number on trunk depends on it. D3: #539, #551 and #554 are merged; the client-claims PR below is the next Stats item
 **only if Lead reopens the lane**, and the apply stays held for Lead. Phase L went to World #705. No open Stats PRs.
 
@@ -122,11 +122,11 @@ test, so no fight number on trunk depends on it. D3: #539, #551 and #554 are mer
 - **APPLY HELD.** Lead orders it only after the client PR and #554 are in. It ships in ONE publish: the apply, a VPS timer unit for `verify-loot.mjs`, and the client PR. Applying early loses every win between the apply and the client switching over. The post-apply receipt is non-identifying: `select count(*), sum(marks), sum(jsonb_array_length(owned)) from public.account_seed`.
 - **Still open (not Stats):** records aren't bound to an account (Lead's item: an opaque token in the record, which is PR B's format change).
 
-**Window 1:** #528 (PR A v2) goes first, then #530 (Combat's knife v6). PR B stacks on #530: the loadout tail, the version guard, the v6 fixture rewrite, the opaque account token. It must keep Web's `peekRecordHeader` (added to `src/record.ts` on top of #528) working.
+**Window 1:** #528 (PR A v2) goes first, then #530 (Combat's knife v6). PR B stacks on #530: the loadout tail, the version guard, the v6 fixture rewrite, the opaque account token. It must keep Web's `peekRecordHeader` (added to `src/fight/record.ts` on top of #528) working.
 
 ## Done today
 
-**2026-09-22 — Deliverable 1, the tier stat table (`src/gear-stats.ts`, `tests/gear-stats.test.ts`). Data and tests only; no sim
+**2026-09-22 — Deliverable 1, the tier stat table (`src/fight/gear-stats.ts`, `tests/gear-stats.test.ts`). Data and tests only; no sim
 change, and `src/loot.ts`'s "visual cosmetics only, no stats" header still stands.**
 
 **Two stats, not four.** The first cut had gear carrying Attack, Defence, Poise and Stamina. Brief 19 was revised at 22:40 to sit under
@@ -189,7 +189,7 @@ landed before the suite runs (see the gotcha at the top of this file):
   overturned within the hour — which is the whole value of separating the two. The ramp is `(level − 1) / 9`.
 - **SETTLED by Dom, 2026-09-23 00:45 — Brief 19 Addendum C** (`docs/briefs/gear-stats.md`, verified at source on
   `origin/briefs/gear-stats`, not taken from the relay). Three decisions, all matching what this lane proposed in #491:
-  1. **One Attack multiplier for every weapon**, ramped by tier exactly as `src/gear-stats.ts` does it — nothing at Recruit, one
+  1. **One Attack multiplier for every weapon**, ramped by tier exactly as `src/fight/gear-stats.ts` does it — nothing at Recruit, one
      step per tier, the cap at Origin. Grip is not a balance axis. **Caps stay 1.15 / 0.80**: Dom floated +10/+10, Strategy kept
      15/20 because the brackets are built on them and 10 is barely felt on a 150-health fight.
      **Correction, and it is in the brief too: changing a cap is TWO edits, not "one number in `CAPS`".** Addendum C says one;
@@ -216,14 +216,14 @@ landed before the suite runs (see the gotcha at the top of this file):
 - Superseded, kept for the trail — this was logged as an open question routed to Combat and Weapons by Lead (2026-09-22): heavy chip
   varies 2.5× across weapons, so the gear layer's value silently depends on which opponent you face.** Heavy `chip` — the
   fraction that passes through an ordinary block — is knife 0.2, estoc 0.25, warhammer 0.3, longsword 0.4, and cleaver, trident
-  and scythe all 0.5 (read from `src/moves.ts`, trunk 3405a95). Brief 19 has RES multiply damage taken *including* chip, so a
+  and scythe all 0.5 (read from `src/fight/moves.ts`, trunk 3405a95). Brief 19 has RES multiply damage taken *including* chip, so a
   player's RES is worth two and a half times more against a trident than against a knife. Nobody designed that interaction.
   It matters for sequencing, not just for tidiness: discovering it after the multiplier seam ships means re-measuring the
   ladder twice. Neither lane can act until its queue clears, so this file is the record.
 - Parked as an observation, not a defect (Lead, 2026-09-22): the cleaver's light attacks are asymmetric — `light_right` 17,
   `light_left` 9 — and it is the only player weapon where the two differ. Possibly deliberate character for a butcher's weapon.
   Note it, don't chase it. It does mean any Attack argument quoting "the cleaver's light" is ambiguous and must say which.
-- Deliverable 5 (the seam in `src/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
+- Deliverable 5 (the seam in `src/fight/duel.ts`, opponents wearing their tier, the ladder retune) is **blocked by Lead** behind
   Combat's queue: knife approach fix, Executioner profile, Nightborn retune, shield rule. Stats never jumps the four weapons.
 - Format constraint received from Web via Strategy for deliverable 4: the loot card has five 56 px tiles in one row at 375 px
   with no room inside a tile, so the take's delta gets its own line as short signed values per stat (`+3 DEF  +2 POI`), not a
@@ -256,8 +256,8 @@ landed before the suite runs (see the gotcha at the top of this file):
   `0.936`. 68 of the 901 reachable armour totals drift this way, and a Veteran set with Gladiator arms is one of them. This is not pedantry borrowed from a doc — the first version of the mixed-kit test was written the naive way and
   failed against the module, which is why `tests/gear-stats.test.ts` now pins both forms. A paperdoll rounds it away; a
   1500-tick fight does not, and that is what the arm64/x64 digest rule exists to stop.
-- `src/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a
-  `Loadout` — the four resolved numbers — and never sees a tier, a slot or a table, which keeps `src/duel.ts` free of any
+- `src/fight/gear-stats.ts` is deliberately **not** in `eslint.config.js`'s `SIM` list and never needs to be. The sim takes a
+  `Loadout` — the four resolved numbers — and never sees a tier, a slot or a table, which keeps `src/fight/duel.ts` free of any
   import of `loot.ts` or `grades.ts` that `tests/sim-boundary.test.ts` would refuse.
 - A zero-weight slot and an omitted slot behave identically today and diverge the moment the slot carries something: the
   omission silently under-weights every set while the total quietly stops being 100. Hence `Crest: 0` as an explicit row, with
@@ -270,7 +270,7 @@ landed before the suite runs (see the gotcha at the top of this file):
   - `ESTOC` reach on trunk is the sword's spacing estimate; the measured frontier is sword + 0.30 m = **2.30 m**, and that
     correction lives only on #419, parked at `ad928ec` pending a battery re-measure after Combat's approach fix.
   - Everything else in the weapon tables is current, including the knife's thrust recovery of 20 and the scythe's heel-jab
-    recovery of 30 (both #440). Verified by running `src/moves.ts`, not by reading a brief.
+    recovery of 30 (both #440). Verified by running `src/fight/moves.ts`, not by reading a brief.
 - **Reading a live table faithfully is not the same as being right.** A proposal that quotes trunk verbatim is accurate about
   the file and wrong about the weapons — the same shape as the float-drift test above, where a faithful reading of the wrong
   expression passed. Read the table, then ask the owning lane which entries are known wrong and where the correction lives.

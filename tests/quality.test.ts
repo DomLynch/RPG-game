@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Mesh, MeshStandardMaterial, Texture } from 'three';
-import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/quality.ts';
+import { budgetTextures, canvasResize, debugFlag, detectPhoneTier, DPR_CHOICES, DPR_OVERRIDE, exposeDebugView, FIGHTER_TEXTURE_CAP, phoneTier, pixelCap, rafCadence, resetPhoneTierForTests, urlDpr, withoutDpr } from '../src/fight/quality.ts';
 
 // The phone-tier graphics budget (the owner's live iPhone defect, 2026-09-18: fighters render black under
 // GPU memory pressure). Detection: a mobile UA AND a coarse pointer, overridable both ways by ?gfx= for QA.
@@ -29,9 +29,9 @@ test('tier detection: a bare environment (node, tests) is full tier and never th
 
 // The budget policy: walk a loaded fighter, resize each unique texture over the cap exactly once, pre-render.
 function fighterLike() {
-  const big = new Texture(); big.image = { width: 2048, height: 2048 };
-  const mid = new Texture(); mid.image = { width: 1024, height: 1024 };
-  const small = new Texture(); small.image = { width: 512, height: 512 };
+  const big = new Texture(); big.image = { width: 2 * FIGHTER_TEXTURE_CAP, height: 2 * FIGHTER_TEXTURE_CAP };
+  const mid = new Texture(); mid.image = { width: FIGHTER_TEXTURE_CAP, height: FIGHTER_TEXTURE_CAP };
+  const small = new Texture(); small.image = { width: FIGHTER_TEXTURE_CAP / 2, height: FIGHTER_TEXTURE_CAP / 2 };
   const root = new Group();
   const a = new Mesh(undefined, new MeshStandardMaterial({ map: big, normalMap: mid }));
   const b = new Mesh(undefined, new MeshStandardMaterial({ map: big, roughnessMap: small }));   // shares `big` with a
@@ -49,12 +49,12 @@ test('budgetTextures resizes only the oversized unique textures, once each', () 
   assert.equal(calls.length, 3, 'every unique texture is consulted once — the resizer declines the at-cap ones');
   assert.equal(calls.filter(([t]) => t === big).length, 1, 'the shared 2K texture is consulted once, not per material');
   assert.ok(calls.every(([, max]) => max === FIGHTER_TEXTURE_CAP));
-  assert.equal(mid.image && (mid.image as { width: number }).width, 1024, 'at-cap textures keep their pixels');
+  assert.equal(mid.image && (mid.image as { width: number }).width, FIGHTER_TEXTURE_CAP, 'at-cap textures keep their pixels');
 });
 
 test('budgetTextures leaves a fighter with no oversized textures untouched', () => {
   const { root, big } = fighterLike();
-  big.image = { width: 1024, height: 1024 };
+  big.image = { width: FIGHTER_TEXTURE_CAP, height: FIGHTER_TEXTURE_CAP };
   const resize = (t: Texture, max: number) => Math.max((t.image as { width: number; height: number }).width, (t.image as { width: number; height: number }).height) > max;
   assert.deepEqual(budgetTextures(root, FIGHTER_TEXTURE_CAP, resize), { textures: 3, resized: 0 });
 });

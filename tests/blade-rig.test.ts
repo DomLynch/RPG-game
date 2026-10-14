@@ -1,13 +1,13 @@
 // The blade seam pin: every (rig, weapon) pair the game can put in a hand has its own baked table, with every combat path the weapon's
-// moves need, and the lookup never serves another rig's sweep. A pair missing here is a fight that would throw in play (src/blade.ts).
+// moves need, and the lookup never serves another rig's sweep. A pair missing here is a fight that would throw in play (src/fight/blade.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bladePathsByRig } from '../src/blade-paths.ts';
-import { bladeFrames, bladePose } from '../src/blade.ts';
-import { createFighter, opponentFighter } from '../src/duel.ts';
-import { OPPONENTS, PLAYER_WEAPONS, WEAPONS, type WeaponId } from '../src/moves.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
+import { bladeFrames, bladePose } from '../src/fight/blade.ts';
+import { createFighter, opponentFighter } from '../src/fight/duel.ts';
+import { OPPONENTS, PLAYER_WEAPONS, WEAPONS, type WeaponId } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
-import { TARGET } from '../src/sim.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 const pairs = (): [string, string, string][] => [
   ...Object.values(OPPONENTS).map((o): [string, string, string] => [o.id, o.rig, o.weapon]),

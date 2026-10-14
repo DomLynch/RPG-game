@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent } from '../src/duel.ts';
-import { encodeRecord, type FightRecord } from '../src/record.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent } from '../src/fight/duel.ts';
+import { encodeRecord, RECORD_VERSION, type FightRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { psqlAdapter, restAdapter, verifyPending } from '../scripts/verify-daily.mjs';
 
@@ -23,7 +23,7 @@ async function dailyRecord(): Promise<{ record: FightRecord; text: string }> {
   return { record, text: await encodeRecord(record) };
 }
 
-type Row = { day: string; user_id: string; opponent: string; weapon: string; outcome: string; ticks: number; record: string };
+type Row = { day: string; user_id: string; opponent: string; weapon: string; outcome: string; ticks: number; record: string; worn_gear?: unknown };
 
 // Supabase REST as the sweep sees it: one page of unverified rows, daily_fight() per day, PATCH per verified row.
 function fakeSupabase(rows: Row[], seed = SEED, recheckWanted = false) {
@@ -104,4 +104,89 @@ test('the psql adapter issues the three statements as the verifier role and refu
   await psqlAdapter('postgres://verifier@db/postgres', run).refuse(DAY, '11111111-2222-3333-4444-555555555555');
   assert.match(statements[3]!, /^update public\.daily_results set checked_at = now\(\) where day = date '2026-09-22'/);
   await assert.rejects(psqlAdapter('postgres://verifier@db/postgres', run).verify("2026-09-22'; drop table x; --", 'u'), /malformed day/);
+});
+
+test('a record that carries a sheet verifies only against the stored build version it names: honest passes; forged, unknown version and other accounts\' builds stay unverified', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 10 } }, honest = sheetOf(stored)!;
+  const make = async (sheet: Record<string, number>, characterId = 'one', buildVersion = 1) => {
+    const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, sheet, characterId, buildVersion });
+    for (let i = 0; i < 30; i++) rec.push(idleIntent());
+    const record = rec.finish('abandoned');
+    return { day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row;
+  };
+  const asked: string[] = [];
+  const store = (user: string, character: string, version: number) => { asked.push(`${user}/${character}@${version}`); return Promise.resolve(user === 'u1' && character === 'pc:one' && version === 1 ? stored : null); };
+  const run = async (rows: Row[]) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => rows, seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: store });
+    return { receipt, verified };
+  };
+  assert.deepEqual((await run([await make(honest)])).verified, ['u1'], 'the sheet the stored build gives passes');
+  const forged = await run([await make({ ...honest, attack: 100 })]);
+  assert.match(forged.receipt.refused[0]!.reason, /not the one the player's stored build/);
+  assert.deepEqual((await run([await make(honest, 'one', 2)])).receipt.refused.map(r => r.reason), ['the record names a build version this server does not hold']);
+  const other = { ...(await make(honest)), user_id: 'u2' };
+  assert.equal((await run([other])).receipt.refused.length, 1, 'another account cannot name this account\'s build');
+  assert.ok(asked.includes('u1/pc:one@1') && asked.includes('u2/pc:one@1'), 'the lookup is by the ROW\'s account, never the record');
+});
+
+test('a daily record that carries worn gear in its sheet verifies against the gear frozen on its row; gear the row lacks is refused; later ledger changes do not matter', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const { wornGearOfItems } = await import('../origins/server/worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 } };
+  const piece = [{ item: 'item:loot.veteran.Helmet', tier: 'Origin', location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier: 'Origin', location: { kind: 'equipped', slot: 'chest' } }];
+  const geared = sheetOf(stored, wornGearOfItems(piece))!;
+  assert.notDeepEqual(geared, sheetOf(stored)!, 'the worn set moves a dial');
+  const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, sheet: geared, characterId: 'one', buildVersion: 1 });
+  for (let i = 0; i < 30; i++) rec.push(idleIntent());
+  const record = rec.finish('abandoned');
+  const base = { day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row;
+  const frozen = { 'pc:one': piece.map((h) => ({ item: h.item, tier: h.tier, slot: h.location.slot })) };
+  const run = async (row: Row) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => [row], seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: async () => stored });
+    return { receipt, verified };
+  };
+  assert.deepEqual((await run({ ...base, worn_gear: frozen })).verified, ['u1'], 'the gear frozen at post time gives this sheet (the ledger is never read by the sweep)');
+  assert.match((await run({ ...base, worn_gear: { 'pc:one': [] } })).receipt.refused[0]!.reason, /not the one the player's stored build/, 'gear the row lacks is refused');
+  assert.equal((await run(base)).receipt.refused.length, 1, 'a row posted before the migration holds no gear');
+  assert.equal((await run({ ...base, worn_gear: { 'pc:two': frozen['pc:one'] } })).receipt.refused.length, 1, 'another character\'s gear is not this one\'s');
+});
+
+test('the psql build lookup asks for one exact version, validates what it quotes, and reads an unapplied migration as no build', async () => {
+  const calls: string[] = [];
+  const answer = (out: string, status = 0, stderr = '') => ((_c: string, args: string[]) => { calls.push(args[args.length - 1]!); return { status, stdout: out, stderr } as never; }) as never;
+  const U = '11111111-2222-3333-4444-555555555555';
+  assert.deepEqual(await psqlAdapter('postgres://x', answer('{"level":10,"placed":{"attack":10},"respreadRank":1,"version":1}')).build(U, 'pc:one', 1), { level: 10, placed: { attack: 10 } });
+  assert.match(calls[0]!, /origins_get_build\('11111111-2222-3333-4444-555555555555'::uuid, 'pc:one', 1\)/);
+  assert.equal(await psqlAdapter('postgres://x', answer('null')).build(U, 'pc:one', 9), null);
+  assert.equal(await psqlAdapter('postgres://x', answer('', 1, 'ERROR:  function public.origins_get_build(uuid, unknown, integer) does not exist')).build(U, 'pc:one', 1), null);
+  await assert.rejects(psqlAdapter('postgres://x', answer('', 1, 'connection refused')).build(U, 'pc:one', 1), /connection refused/, 'an outage is not a verdict');
+  const n = calls.length;
+  assert.equal(await psqlAdapter('postgres://x', answer('null')).build(U, "x'; drop table y;--", 1), null);
+  assert.equal(calls.length, n, 'a malformed character id never reaches the database');
+});
+
+// RV53: the career/practice and daily sweeps replay a Pit record, and its spell block is the client's claim, so they ask the same gate the encounter settle asks (origins/server/spell-gate.ts).
+test('a daily record that casts a spell verifies only if the account owns it and the skill is within the stored ceiling; no loader, no build or no sheet is refused', { skip: RECORD_VERSION < 53 && 'needs the RV53 spell block (#2493); runs once both are on trunk' }, async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 5, wind: 5 } }, honest = sheetOf(stored)!;
+  const make = async (spell: { id: string; skill: number } | undefined, withBuild = true) => {
+    const rec = liveRecorder({ weapon: 'longsword', build: 'test', opponent: 'veteran', level: 18, seed: SEED, specials: true, ...(spell ? { spell } : {}), ...(withBuild ? { sheet: honest, characterId: 'one', buildVersion: 1 } : {}) } as Parameters<typeof liveRecorder>[0]);
+    for (let i = 0; i < 30; i++) rec.push(idleIntent());
+    const record = rec.finish('abandoned');
+    return { day: DAY, user_id: 'u1', opponent: 'veteran', weapon: 'longsword', outcome: 'abandoned', ticks: record.ticks, record: await encodeRecord(record) } satisfies Row;
+  };
+  const run = async (rows: Row[], held?: { grimoire: Record<string, unknown>; xp: Record<string, number> }) => {
+    const verified: string[] = [];
+    const receipt = await verifyPending({ pending: async () => rows, seed: async () => SEED, verify: async (_d: string, u: string) => { verified.push(u); }, refuse: async () => {}, build: async (u: string, c: string, v: number) => (u === 'u1' && c === 'pc:one' && v === 1 ? stored : null), ...(held ? { spellHeld: async () => held } : {}) });
+    return { receipt, verified };
+  };
+  const owns = { grimoire: { alvis: {} }, xp: { wind: 500 } };   // wind placed 10, xp 500: the ceiling is 5
+  assert.deepEqual((await run([await make({ id: 'alvis', skill: 5 })], owns)).verified, ['u1'], 'owned and within the ceiling: the replay runs and stands');
+  assert.deepEqual((await run([await make(undefined)], owns)).verified, ['u1'], 'a record with no spell is not touched by the gate');
+  assert.match((await run([await make({ id: 'alvis', skill: 6 })], owns)).receipt.refused[0]!.reason, /casts at 6, past the 5/);
+  assert.match((await run([await make({ id: 'alvis', skill: 5 })], { grimoire: {}, xp: owns.xp })).receipt.refused[0]!.reason, /not in this account's grimoire/);
+  assert.match((await run([await make({ id: 'alvis', skill: 5 })])).receipt.refused[0]!.reason, /grimoire/, 'a caller with no spell loader refuses a spell record');
 });

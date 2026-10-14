@@ -2,7 +2,7 @@
 
 - Spec author: analyst-expansion (clean-room spec, ruling 8), 2026-10-07. Implementers build from this file alone and must not open any donor tree.
 - Status: proposal for the Expansion lane to build in section order. Every number is a PARAMETER with a stated default and range; Combat and World tune the ones they own on a running build.
-- Our side read (it is ours): `origins/preview/mobs.ts` (on `origin/expansion/mob-fight`, not yet on trunk), `origins/preview/hunt.ts`, `origins/encounters/encounters.ts` (`fightSetup`, `resolveFight`, `rollLoot`, `intoBackpack`), `origins/progression/model.ts` (`falloffPermille`), `docs/specs/origins/region1-ash-frontier.md`, `eqemu-loot.md`, `gothic-routines.md`, `combat-study.md`, `src/moves.ts` (`AiProfile`).
+- Our side read (it is ours): `origins/preview/mobs.ts` (on `origin/expansion/mob-fight`, not yet on trunk), `origins/preview/hunt.ts`, `origins/encounters/encounters.ts` (`fightSetup`, `resolveFight`, `rollLoot`, `intoBackpack`), `origins/progression/model.ts` (`falloffPermille`), `docs/specs/origins/region1-ash-frontier.md`, `eqemu-loot.md`, `gothic-routines.md`, `combat-study.md`, `src/fight/moves.ts` (`AiProfile`).
 - Donors (read-only on the VPS at `/opt/frankendom-shadow/work/expansion-donors`, except world-of-claudecraft, now on Dom's Mac at `~/Developer/donors/world-of-claudecraft`): see the per-donor table. Skyrim was never read; the "alert beat" is our own design.
 - Units: metres, seconds, degrees. Fixed 60 Hz simulation time where a tick is named. Creature logic is presentation-and-world logic: it never touches `src/` (duel sim, `RECORD_VERSION`, RV, fingerprint). The duel itself is Combat's `startEncounterDuel`.
 
@@ -13,7 +13,7 @@
 ## Non-negotiable: nothing pauses in the open world (Dom, 2026-10-07)
 
 1. Every intro or overlay beat (standoff, versus card, Journal, bag, map, menus) is visual only, over a running clock; the hero stays vulnerable.
-2. A creature fight is locked 1v1 when it begins: any third party, other creatures and players alike, may watch but cannot hit the hero or the foe or steal the kill. A world-PvP exception (feuds, outlaw areas) is a later proposal to Dom, never a default.
+2. ~~A creature fight is locked 1v1~~ DROPPED (Dom, 2026-10-07 14:4x): a fight is not locked. The PvP design is the section "PvP" in `docs/specs/origins/server-save-schema.md` (design only, nothing built); creature loot goes to whoever did the most damage.
 3. No escape by pause, backgrounding or disconnect: the fight resolves on the server's terms (the X2 no-logout-escape ruling).
 4. Offline single-player previews may keep the Pit's pause. The present preview does (it is offline and writes nothing).
 
@@ -327,7 +327,7 @@ Per today's `stepMob`: a creature in `idle` waits `idle` seconds (1.5 to 4.5 s),
 - Roam never exceeds `leash / 3` (so a legal wander can never trip the leash).
 - After a `return`, the wander timer starts at `idle[0]` (no instant re-wander flicker).
 
-### 3.3 Behaviour: camps of 2 to 3
+### 3.3 Behaviour: camps of up to 4 (a leader and three); a boss camp up to 6
 
 A **camp** is the unit of placement. Today `MOB_PLAN` places `count` creatures scattered over `spread` around the spawn's landmark. Replace with camps:
 
@@ -383,7 +383,7 @@ Each creature form has `activity: 'diurnal' | 'nocturnal' | 'always'` (content; 
 
 ### 3.6 Data-driven content fields
 
-Per form: `activity`, `roam`, `campSize: [min, max]` (default `[2,3]`), `focus: boolean`. Per spawn plan: `camps: number` or `count`, `campRadius`. Proposed Frontier values (content owner confirms): cinder scavenger `diurnal`, ruin ghoul `nocturnal`, mere brood `always`.
+Per form: `activity`, `roam`, `campSize: [min, max]` (default `[2,3]`, at most 4; 6 only on a row flagged `bossCamp`), `focus: boolean`. Per spawn plan: `camps: number` or `count`, `campRadius`. Proposed Frontier values (content owner confirms): cinder scavenger `diurnal`, ruin ghoul `nocturnal`, mere brood `always`.
 
 ### 3.7 Acceptance tests
 
@@ -538,22 +538,22 @@ Tapping a creature starts Combat's duel; the creature's **kind** decides how it 
 
 ### 5.3 Behaviour: the four kinds
 
-**Authority (Strategy ruling 2026-10-07, 12:23).** The roles are `brute`, `skirmisher`, `caster`, `beast` (the earlier "archer" was renamed). Combat's `origins/mobs/styles.ts` (PR #1646, `origin/combat/mob-styles`; our code) is the single definition: `MOB_STYLES`, `MOB_STYLE[id]` (the roster `opponent` the duel uses, plus optional `fleeBelow`), `styleOpponent(id)` (the opponent, or `undefined` for an unknown id) and `fleesNow(style, health, maxHealth)` (true strictly below the threshold; beasts flee below 30 percent, every other style never). This spec **does not define a role, an opponent mapping or a flee threshold**; a mob row names a style id and reads these. Today the file maps brute to `pitborn`, skirmisher to `nightborn`, caster to `witch`, beast to `goblin`.
+**Authority (Strategy ruling 2026-10-07, 12:23).** The roles are `brute`, `skirmisher`, `caster`, `beast` (the earlier "archer" was renamed). Combat's `origins/mobs/styles.ts` (PR #1646, `origin/combat/mob-styles`; our code) is the single definition: `MOB_STYLES`, `MOB_STYLE[id]` (the roster `opponent` the duel uses, ), and `styleOpponent(id)` (the opponent, or `undefined` for an unknown id). Creature fleeing is cut (Dom, 2026-10-11): `fleeBelow` and `fleesNow` are gone. This spec **does not define a role or an opponent mapping**; a mob row names a style id and reads these. Today the file maps brute to `pitborn`, skirmisher to `nightborn`, caster to `witch`, beast to `goblin`.
 
 **Skirmisher is a name, not a ranged system.** It is the Nightborn's poke-and-withdraw at the estoc's reach. Ranged stays out of the duel (combat-study). A "volley while you approach" behaviour (a skirmisher shooting as the hero closes) is **parked**, a post-sprint world-layer idea; nothing in this spec builds it, and the in-world approach set below only gives a skirmisher a longer stand-off and a back-off, never a projectile.
 
 The table below is only the **world approach and flavour** each style leans on; the duel behaviour is whatever `styleOpponent` points at.
 
-UO-style roles (ModernUO `Mobiles/AI/*`, GPL-behaviour-only, behaviour in our words) mapped onto what our duel can express today. The "move" and "knob" columns name **existing** `MoveId` values and `AiProfile` fields from `src/moves.ts` (ours); Combat decides the values.
+UO-style roles (ModernUO `Mobiles/AI/*`, GPL-behaviour-only, behaviour in our words) mapped onto what our duel can express today. The "move" and "knob" columns name **existing** `MoveId` values and `AiProfile` fields from `src/fight/moves.ts` (ours); Combat decides the values.
 
 | Kind | World approach (in-world, before and after the duel) | Opening | Leans on (existing `AiProfile` knobs) | Leans on (existing moves) | Flees at low health | Source |
 |---|---|---|---|---|---|---|
-| `brute` | advances steadily, never circles, never backs off; fights to the end | charged heavy (combat-study "Brute" role) | high `pressure` toward heavy, low `dodge`, high `braceHeavy`/`guard`, slow `reaction` | `heavy_overhead`, `heavy_riposte`, `heavy_counter`, `kick` | no (`fleesNow` is never true for `brute`) | ModernUO melee role (a plain melee fighter flees only rarely and late): GPL, behaviour; combat-study 2E |
+| `brute` | advances steadily, never circles, never backs off; fights to the end | charged heavy (combat-study "Brute" role) | high `pressure` toward heavy, low `dodge`, high `braceHeavy`/`guard`, slow `reaction` | `heavy_overhead`, `heavy_riposte`, `heavy_counter`, `kick` | no | ModernUO melee role (a plain melee fighter flees only rarely and late): GPL, behaviour; combat-study 2E |
 | `skirmisher` | keeps a stand-off distance `standOff`, backs away when closed, regains line of sight if blocked, leaves the fight when out of "ammo" | none in v1 (poke and withdraw at the estoc's reach; no projectile) | high `disengage`, high `step`, `circle`, low `guard`, high `dash` to close gaps | `thrust`, `light_left`, `light_right`, `riposte` | no | ModernUO ranged role (its `ArcherAI.cs`; GPL, behaviour), kept as a role name only |
 | `caster` | keeps range and line of sight, closes to regain line of sight when blocked, acts on a cooldown | a telegraphed marker (same marker) or a `skill_*` opener | high `accuracy`, `discipline`, low `aggression` between casts, `disengage` | `skill_witchfire` and the other `skill_*` as Combat assigns | no by default; content may set | ModernUO mage role (GPL, behaviour) |
-| `beast` | skittish: while not committed it backs off from a nearby hero with `backoffChance`; once committed it closes fast; fights hard but runs when badly hurt | a lunge | high `aggression`, `dash`, `circle`, `disengage`, low `guard` | `light_right`, `light_left`, `thrust`, `skill_lunge` | **yes** (`fleesNow`, below 30 percent) | ModernUO animal role (GPL, behaviour); world-of-claudecraft flee rules (MIT-adapt) |
+| `beast` | skittish: while not committed it backs off from a nearby hero with `backoffChance`; once committed it closes fast; fights hard to the death | a lunge | high `aggression`, `dash`, `circle`, `disengage`, low `guard` | `light_right`, `light_left`, `thrust`, `skill_lunge` | no (cut by Dom 2026-10-11) | ModernUO animal role (GPL, behaviour); world-of-claudecraft flee rules (MIT-adapt) |
 
-Current roster mapping (proposal; the id is the row's `role`, section 7): cinder scavengers `brute` or `beast` (content decides per form), mere brood `beast`, ruin ghouls `brute`. Named creatures and bosses use their encounter's own opponent profile and never use `fleesNow` unless the twist says `flee-at`.
+Current roster mapping (proposal; the id is the row's `role`, section 7): cinder scavengers `brute` or `beast` (content decides per form), mere brood `beast`, ruin ghouls `brute`. Named creatures and bosses use their encounter's own opponent profile and never flee unless the twist says `flee-at`.
 
 ### 5.4 Behaviour: action rows (the style row's move table shape)
 
@@ -592,6 +592,8 @@ The radii blend by an `offence` ratio in `[0,1]` (1 = eager): `inner = lerp(min,
 
 ### 5.6 Behaviour: animals flee at low health
 
+**CUT by Dom 2026-10-11.** Every creature takes normal damage and dies at zero; `MOB_STYLE.beast.fleeBelow` and `fleesNow` were removed. The engine's encounter-flag `flee-at` twist (`src/fight/twist.ts`, Bounties and feuds) stays. If a specific creature ever needs to run (a deer, a scout), it comes back as ONE per-creature row field through that engine flag, never as a style branch. The text below is history and is not to be built.
+
 Fleeing reuses the existing `flee-at` twist (`origins/encounters/encounters.ts`: `{ percent, catchSeconds? }`) so no new outcome type exists and `resolveFight`'s rules hold (a flee with no catch window ends `fled`: no kill, no pay; a flee with a catch window ends `caught` or `escaped`).
 
 | Rule | Behaviour | Source |
@@ -611,7 +613,7 @@ Bounties keep their own `flee-at` twists (Peg Powler flees at 30 percent with a 
 
 | Name | Default | Range | Source |
 |---|---|---|---|
-| flee threshold | `MOB_STYLE[style].fleeBelow` (beast 0.3) | Combat's | `origins/mobs/styles.ts` (ours) |
+| flee threshold | CUT (Dom 2026-10-11); see 5.6 | n/a | n/a |
 | `fleeTime` | 8 s | 4 to 15 | world-of-claudecraft 5 s (MIT), ModernUO 10 to 30 s (GPL, behaviour): ours between |
 | `woundWindow` | 30 s | 10 to 90 | ours |
 | `fleeMult`, `fleeCap` | 1.4, 0.85 | 1 to 2, 0.5 to 0.95 | world-of-claudecraft 1.4 and 0.65 (MIT-adapt) |
@@ -622,13 +624,13 @@ Bounties keep their own `flee-at` twists (Peg Powler flees at 30 percent with a 
 
 ### 5.8 Data-driven content fields
 
-Per creature form: `role` (a `MobStyle` id; see section 7), `style` (the approach set and optional `rows`), `standOff`. Flee is not a field: it comes from `fleesNow`. Combat's `opponent` profile reference stays as the form's existing `opponent` field (the roster body). A new content kind `creature-style` holds the rows by kind so many forms share one.
+Per creature form: `role` (a `MobStyle` id; see section 7), `style` (the approach set and optional `rows`), `standOff`. Flee is not a field (creature fleeing is cut, see 5.6). Combat's `opponent` profile reference stays as the form's existing `opponent` field (the roster body). A new content kind `creature-style` holds the rows by kind so many forms share one.
 
 ### 5.9 Acceptance tests
 
 1. Tapping a creature in each allowed state starts exactly one duel with the right `fightId`; tapping `return`, `flee` or `down` starts none.
 2. The style row for the creature's kind is passed to `startEncounterDuel`; a missing style leaves behaviour unchanged (bit for bit with today's tap flow).
-3. A `beast` whose health falls strictly below 30 percent (`fleesNow` true) ends the duel `fled`: no loot, no Bounty, no kill count; at exactly 30 percent it still fights; `brute`, `skirmisher` and `caster` never flee by this rule.
+3. ~~A `beast` whose health falls strictly below 30 percent (`fleesNow` true) ends the duel `fled`: no loot, no Bounty, no kill count; at exactly 30 percent it still fights; `brute`, `skirmisher` and `caster` never flee by this rule.~~ (CUT by Dom 2026-10-11, see 5.6)
 4. A named creature, an elite and a boss never flee unless the form has an explicit `flee-at` twist.
 5. A re-tap inside `woundWindow` starts the next duel with the saved fraction; outside the window health is full.
 6. A fleeing creature at `fleeSpeed` is slower than the hero; a hero chasing reaches it; at the leash edge it returns.
@@ -733,7 +735,7 @@ MobRow {
     hearRadius?: number,         // metres                        (default 4.5)
     leash?: number,              // metres                        (default 26)
     roam?: number,               // home radius, metres           (default 6; never above leash / 3)
-    campSize?: [number, number], // 1..3                          (default [2,3])
+    campSize?: [number, number], // 1..4 (6 on a bossCamp row)       (default [2,3])
     activity?: 'diurnal' | 'nocturnal' | 'always',
     engage?: 'tap' | 'contact'
   },
@@ -777,12 +779,12 @@ Source { kind: 'myth' | 'folklore' | 'history' | 'literature' | 'chronicle',
 | `no-source` | `source` missing or incomplete and no `legendId`; or fails the 7.4 machine checks | message: "source citation required" |
 | `bad-role` | `styleOpponent(row.role)` is `undefined` (role is not in `MOB_STYLE`) | uses Combat's function, not a copy of the list |
 | `family-no-look` | `row.family` has no roster body, or `row.look.opponent !== row.family`, or the row has no `look` and `mobLook(row.id)` is null (a `later: true` row is exempt) | a body family needs a look so two figures on one body stay readable |
-| `level-band` | `level[0] > level[1]`, or the band does not intersect the zone's `difficulty.levelMin..levelMax` | when a zone is supplied; for a generator a non-intersecting row is simply not eligible there, but a **fixed** spawn that names it is an error |
+| `level-band` | the band is malformed: not whole numbers, below 1, or `level[0] > level[1]` (always an error, and the generator rejects the row by name). **`level-miss`** (a separate code, shipped in code): the band does not intersect the zone's `difficulty.levelMin..levelMax` | when a zone is supplied; for a generator a non-intersecting row is simply not eligible there, but a **fixed** spawn that names it is an error |
 | `tint-contrast` | the look's tint, as it reads against the zone's ground colour, has a contrast ratio below `minContrast` by day or by night | 7.5.1 |
 | `loot-unknown` | `row.loot` is not a registered loot table | |
 | `loot-tier` | the loot table's tier (`tierOfLootTier`) is above the zone's `difficulty.lootTier` | a creature may not out-drop its zone |
 | `roam-leash` | `behaviour.roam > behaviour.leash / 3` (defaults applied) | sections 2.7 and 3.2 |
-| `camp-size` | `campSize` outside 1 to 3, or min above max | section 3.3 |
+| `camp-size` | `campSize` outside 1 to 4 (1 to 6 on a `bossCamp` row), or min above max | section 3.3; Strategy 2026-10-07: an ordinary camp is a leader and three |
 | `behaviour-range` | any behaviour field outside its section's stated range | ranges are in sections 2 and 3 |
 | `habitat-unknown` | a `habitat` key is not a known biome | schema `terrain.biome` is a `key` |
 | `dup-id` | two rows share an `id` | |
@@ -799,7 +801,7 @@ populateZone(params: Params, rows: MobRow[], seed: number): Result<{ groups: Spa
 ```
 
 1. **Budget.** `target = round(params.density.creatures * realGroundArea / 100)`, where `realGroundArea` is the zone's walkable footprint (the area the density field is defined over); at least 1 unless the zone is `safe` (`safe` zones get 0: no hostile spawns, as the schema says). Clamp to `regionCap` and the zone `areaCap` (section 4).
-2. **Eligible rows.** Rows that are not `named`, not `later`, pass `validateMobRow` against **this** `params` (so `level-band`, `tint-contrast` and `loot-tier` use the zone's real `difficulty`, `terrain.ground` and `lootTier`), and whose `habitat` contains `params.terrain.biome` (or is empty). No eligible row is an error issue, not a silent empty zone.
+2. **Eligible rows.** Rows that are not `named`, not `later`, pass `validateMobRow` against **this** `params` (so `level-miss`, `tint-contrast` and `loot-tier` use the zone's real `difficulty`, `terrain.ground` and `lootTier`), and whose `habitat` contains `params.terrain.biome` (or is empty). No eligible row is an error issue, not a silent empty zone.
 3. **Mix.** Entry weights come from `row.weight` and the phase table (section 4.8 `phaseWeight`); the seeded draw is section 4.3's.
 4. **Camps.** `target` is met by whole camps drawn from each chosen row's `campSize`, positioned by section 3.3 near the zone's landmarks (its `layout`), never within `campGap` of one another, always on `mobStand` ground.
 5. **Respawn.** `params.spawns.respawnSeconds` is the group's `respawn.seconds` (templates should `vary` it inside 120 to 180 for the 2 to 3 minute rule). The schema has no variance field, so section 4's `respawn.variance` takes its default (60 s) until Architecture adds `spawns.respawnVariance` (a proposed schema addition: numeric, seconds, default 60).

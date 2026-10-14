@@ -1,0 +1,11 @@
+{
+  "shopLimits": [
+    {
+      "id": "limits",
+      "priceMax": 1000000,
+      "stockMax": 1000,
+      "buyMax": 100,
+      "note": "a shop list's bounds: the most one item may cost (bronze), the most of one item a shelf may hold, and the most a single buy request may take"
+    }
+  ]
+}

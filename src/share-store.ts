@@ -3,8 +3,8 @@
 // record itself (replay.ts MAX_SHARE_CHARS). Opening a short link reads the row straight from the REST endpoint with the publishable key —
 // no account SDK download on a link open, and a guest can read it. Everything here is bounded: id shape, stored size, insert retries.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { encodeRecord, type FightRecord } from './record.ts';
-import { tierAt, type Tier } from './grades.ts';
+import { encodeRecord, type FightRecord } from './fight/record.ts';
+import { tierAt, type Tier } from './core/grades.ts';
 
 export const SHORT_ID = /^[A-Za-z0-9_-]{8}$/;
 export const MAX_STORED_CHARS = 16384;   // the table's check; a 30 s fight is ~1–3 K

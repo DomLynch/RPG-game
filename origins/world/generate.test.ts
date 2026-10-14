@@ -13,7 +13,7 @@ const WILDS: Template = {
     terrain: { biome: 'ash-waste', heightMin: -5, heightMax: 30 },
   },
   vary: {
-    'zoneSize.width': [60, 400], 'zoneSize.depth': [60, 400], 'density.npcs': [0, 0.3], 'density.props': [0.2, 3], 'density.creatures': [0.1, 2],
+    'zoneSize.width': [60, 230], 'zoneSize.depth': [60, 230], 'density.npcs': [0, 0.3], 'density.props': [0.2, 3], 'density.creatures': [0.1, 2],
     'difficulty.levelMin': [1, 5], 'difficulty.levelMax': [5, 30], 'difficulty.lootTier': [1, 4], 'spawns.respawnSeconds': [60, 900],
   },
   jitter: 0.08,

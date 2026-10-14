@@ -1,5 +1,5 @@
-import { initialPractice } from '../src/combat.ts';
-import { OPPONENTS } from '../src/moves.ts';
+import { initialPractice } from '../src/fight/combat.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatCard, loadTrial, recordFight, recordPractice, recordRematch, saveTrial } from '../src/trial.ts';

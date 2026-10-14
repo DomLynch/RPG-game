@@ -26,11 +26,6 @@
       "node",
       "--test",
       "tests/player-bot-observation.test.mjs"
-    ],
-    [
-      "node",
-      "scripts/sparring-browser-check.mjs",
-      "--source"
     ]
   ],
   "release_commands": [
@@ -343,14 +338,38 @@
     ],
     [
       "node",
-      "scripts/pit-exit-check.mjs"
+      "scripts/first-loss-browser-check.mjs"
     ],
     [
       "node",
-      "scripts/first-loss-browser-check.mjs"
+      "scripts/stance-panel-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/next-fight-black-check.mjs"
+    ],
+    [
+      "bash",
+      "scripts/origins-writer-boot-check.sh"
+    ],
+    [
+      "node",
+      "scripts/pit-landscape-webkit.mjs",
+      "--engine",
+      "webkit"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "scripts/origins-writer.mjs",
+        "scripts/origins-writer-boot-check.sh",
+        "origins/**"
+      ],
+      "rows": [
+        "origins-writer-boot-check"
+      ]
+    },
     {
       "paths": [
         "docs/**",
@@ -420,21 +439,21 @@
     },
     {
       "paths": [
-        "src/loot.ts",
+        "src/core/loot.ts",
         "src/loot-panel.ts",
         "src/loot-data.ts",
-        "src/profile.ts",
-        "src/cloud-profile.ts",
+        "src/core/profile.ts",
+        "src/core/cloud-profile.ts",
         "src/main.ts",
-        "src/moves.ts",
+        "src/fight/moves.ts",
         "index.html",
         "scripts/loot-smoke-check.mjs",
         "scripts/worn-loot-check.mjs",
         "scripts/difficulty-persist-check.mjs",
         "scripts/sparring-browser-check.mjs",
         "src/sparring.ts",
-        "src/match.ts",
-        "src/characters.ts",
+        "src/fight/match.ts",
+        "src/fight/characters.ts",
         "scripts/lib/harness-clock.mjs"
       ],
       "rows": [
@@ -452,17 +471,17 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "pit-exit-check",
-        "first-loss-browser-check"
+        "first-loss-browser-check",
+        "next-fight-black-check"
       ]
     },
     {
       "paths": [
         "scripts/equip-fallback-check.mjs",
-        "src/match.ts",
+        "src/fight/match.ts",
         "src/main.ts",
         "src/scene.ts",
-        "src/characters.ts"
+        "src/fight/characters.ts"
       ],
       "rows": [
         "equip-fallback-check"
@@ -488,7 +507,8 @@
         "double-tap-browser-check",
         "desktop-intro-check",
         "clip-send-tour-check",
-        "pit-exit-check"
+        "next-fight-black-check",
+        "pit-landscape-webkit"
       ]
     },
     {
@@ -505,7 +525,6 @@
         "account-browser-check",
         "double-tap-browser-check",
         "clip-send-tour-check",
-        "pit-exit-check",
         "first-loss-browser-check"
       ]
     },
@@ -529,8 +548,7 @@
         "account-database-check",
         "account-browser-check",
         "double-tap-browser-check",
-        "clip-send-tour-check",
-        "pit-exit-check"
+        "clip-send-tour-check"
       ]
     },
     {
@@ -580,19 +598,11 @@
     {
       "paths": [
         "scripts/browser-replay-check.mjs",
-        "src/record.ts",
-        "src/replay.ts"
+        "src/fight/record.ts",
+        "src/fight/replay.ts"
       ],
       "rows": [
         "browser-replay-check"
-      ]
-    },
-    {
-      "paths": [
-        "scripts/pit-exit-check.mjs"
-      ],
-      "rows": [
-        "pit-exit-check"
       ]
     },
     {
@@ -601,6 +611,23 @@
       ],
       "rows": [
         "first-loss-browser-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/next-fight-black-check.mjs"
+      ],
+      "rows": [
+        "next-fight-black-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/pit-landscape-check.mjs",
+        "scripts/pit-landscape-webkit.mjs"
+      ],
+      "rows": [
+        "pit-landscape-webkit"
       ]
     }
   ],

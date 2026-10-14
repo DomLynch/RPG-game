@@ -1,5 +1,8 @@
 # Origins patrons and legends: the 500 list
 
+> **Superseded 2026-10-07.** The live list is the ladder `docs/research/legends-600-ladder.csv` (rank 1-10, measured fame), audited in `docs/research/legends-risk-audit.md`. Rows here that the ladder removed or renamed are marked `SUPERSEDED:` in the CSV `notes` column. Standing rules from the audit (Dom): no living national or indigenous heroes as opponents, no orders that still exist, no gods still worshipped in a living folk religion, no names a modern franchise owns.
+
+
 Data: [legends-500.csv](legends-500.csv), **600 rows**, one per figure: a **base of 500** plus four marked additions (45 world expansion, 41 lost civilisations, 13 cryptids, and Cain by Dom's ruling). The file keeps its `-500` name because other docs link to it. This is the canonical candidate list that
 [living-world.md](living-world.md) §10 (PR #1491) points to as `expansion/legends-500`. It is a **candidate list**: content
 data for clans, patrons, town patrons, Bounty targets and bosses. Nothing in `src/` reads it yet, and no row is shipped until a

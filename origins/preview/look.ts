@@ -1,8 +1,9 @@
 // Zone look (Origins, World lane): the environment's sky, fog, light and ground tint per zone, as DATA. A look is a row in PRESETS keyed by a zone's `ambience.preset`
 // (origins/world/schema.ts); fog distances come from the zone's `view`; nothing here knows a zone by name. Presentation only: no sim, no save, no camera. 'ash-pit' is
-// Arena 1's theme read from ARENA_THEMES, so today's Pit is byte-identical; new looks are new rows. Pure (hex strings and numbers) so it is testable without three.js.
+// Arena 1's theme pinned as literals (look.test.ts), so today's Pit is byte-identical; new looks are new rows. Pure (hex strings and numbers) so it is testable without three.js.
+import { SCHEMA } from '../world/schema.ts';
 import type * as THREE from 'three';
-import { ARENA_THEMES } from '../../src/arena-themes.ts';
+import { loadZone } from '../zones/loader.ts';
 
 export type Look = {
   fog: string; fogDensity: number;   // FogExp2 colour (also the scene background) and its density at the DEFAULT fogFar
@@ -14,19 +15,16 @@ export type Look = {
 };
 // The structural subset of a resolved zone's params this reads (origins/world Params satisfies it).
 export type LookParams = { ambience: { preset: string }; view: { fogFar: number } };
-export const DEFAULT_FOG_FAR = 107;   // schema.ts view.fogFar's default: the Pit's own distance, where a preset's fogDensity applies unchanged
+export const DEFAULT_FOG_FAR: number = SCHEMA.view.fields.fogFar.def;   // read from schema.ts view.fogFar's default: the Pit's own distance, where a preset's fogDensity applies unchanged
 
-const t1 = ARENA_THEMES['1'];
+// The Pit's golden hour, as literals (was read from src/arena-themes.ts ARENA_1: zones import nothing from the Pit; look.test.ts pins these numbers).
+const t1 = { fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25] as [string, string, number], sun: ['#ffb46a', 5.2] as [string, number], exposure: 1.3, light: { sun: [-24, 12, -15] as [number, number, number] } };
 export const PRESETS: Record<string, Look> = {
   'ash-pit': { fog: t1.fog, fogDensity: t1.fogDensity, hemiSky: t1.hemisphere[0], hemiGround: t1.hemisphere[1], hemiIntensity: t1.hemisphere[2], sunColor: t1.sun[0], sunIntensity: t1.sun[1], sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: t1.exposure, ground: [1, 1, 1] },
   // The Concord Exchange: a lamp-lit dusk. The sun is low and deep amber, the fog a warmer, darker haze, the shade cooler so the braziers and the forge read as the light.
   'exchange-dusk': { fog: '#8f5f3f', fogDensity: 0.024, hemiSky: '#7d86ad', hemiGround: '#3a2418', hemiIntensity: 0.95, sunColor: '#ff9a52', sunIntensity: 3.4, sunPos: [-24, 7, -15], exposure: 1.25, ground: [0.92, 0.88, 0.84] },
-  // The Ash Frontier (the Pit's sun direction, so no block throws a new hard shadow across the walker's foreground): open ground under a high, pale, dusty sky; a long soft horizon (low density), cooler fill, a brighter key.
-  'frontier-haze': { fog: '#d6bf9a', fogDensity: 0.012, hemiSky: '#b4c4da', hemiGround: '#6a5238', hemiIntensity: 1.35, sunColor: '#ffd6a0', sunIntensity: 5.6, sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: 1.35, ground: [1.05, 0.98, 0.88] },
+  ...loadZone().looks,   // Zone 1's presets (zone1, frontier-haze, cinder-haze, frontier-duel, frontier-night): data in origins/zone-rows/zone1.row.json (looks), through the loader
 };
-// Zone 1 (the Pit gate, the passage, the Exchange), for ?look=zone1: the arena's own sky and exposure; a darker, thinner haze with the key light from behind the walker, so the sunlit gate, bank and smithy fronts stand
-// out pale against it (they were sand on sand); the paving pulled down and cooler, the masonry lifted and warmer.
-PRESETS['zone1'] = { ...PRESETS['ash-pit']!, fog: '#6e5f52', fogDensity: 0.012, sunPos: [-16, 15, 20], sunIntensity: t1.sun[1] * 1.15, ground: [0.5, 0.47, 0.45], stone: [1.35, 1.2, 1] };
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -54,6 +52,30 @@ export function lookAlong(at: number, stops: readonly { at: number; preset: stri
 }
 // A zone's own look from its resolved params: the preset row with the fog density scaled to the zone's view.fogFar (default = unchanged; a longer view = thinner fog).
 export const zoneLook = (p: LookParams): Look => { const l = lookOf(p.ambience.preset); return { ...l, fogDensity: l.fogDensity * (DEFAULT_FOG_FAR / p.view.fogFar) }; };
+
+// The zone's own look fields (zones/schema.ts look.*, dayNight.*) laid over a preset look. ONLY the fields the zone or its biome SET change anything (`set`), so a zone that sets none renders exactly
+// as before; the schema defaults are never applied here. Fog: density is "at the default fogFar", a longer `far` thins it (the same scale zoneLook uses).
+export type ZoneFields = { fields?: Readonly<Record<string, unknown>>; set?: readonly string[] };
+export function withZoneLook(base: Look, z: ZoneFields): Look {
+  const f = z.fields ?? {}, on = (p: string) => !!z.set?.includes(p), out: Look = { ...base };
+  if (on('look.fog.colour')) out.fog = f['look.fog.colour'] as string;
+  if (on('look.fog.density') || on('look.fog.far')) out.fogDensity = (on('look.fog.density') ? f['look.fog.density'] as number : base.fogDensity) * (DEFAULT_FOG_FAR / (on('look.fog.far') ? f['look.fog.far'] as number : DEFAULT_FOG_FAR));
+  if (on('look.sun.colour')) out.sunColor = f['look.sun.colour'] as string;
+  if (on('look.sun.intensity')) out.sunIntensity = f['look.sun.intensity'] as number;
+  if (on('look.sun.pos')) out.sunPos = f['look.sun.pos'] as [number, number, number];
+  if (on('look.ambient.sky')) out.hemiSky = f['look.ambient.sky'] as string;
+  if (on('look.ambient.ground')) out.hemiGround = f['look.ambient.ground'] as string;
+  if (on('look.ambient.intensity')) out.hemiIntensity = f['look.ambient.intensity'] as number;
+  if (on('look.exposure')) out.exposure = f['look.exposure'] as number;
+  if (on('look.ground.tint')) out.ground = f['look.ground.tint'] as [number, number, number];
+  return out;
+}
+/** The Pit arena theme key a zone's walk-out is built and lit with: the zone's look.arena when its row SETS it and the themes have it, else Zone 1's '1' (so a zone that says nothing, and every old link, is unchanged). */
+export const zoneArena = (z: ZoneFields, themes: Readonly<Record<string, unknown>>): string => { const k = z.set?.includes('look.arena') ? z.fields?.['look.arena'] : undefined; return typeof k === 'string' && k in themes ? k : '1'; };
+/** A fixed hour of day when the zone says not to follow the clock (look.timeOfDay.follow false), else null. */
+export const zoneHour = (z: ZoneFields): number | null => z.set?.includes('look.timeOfDay.follow') && z.fields?.['look.timeOfDay.follow'] === false ? Number(z.fields['look.timeOfDay.hour'] ?? 12) : null;
+/** False when the zone turns the day/night cycle off (dayNight.on false). */
+export const zoneDayNight = (z: ZoneFields): boolean => !(z.set?.includes('dayNight.on') && z.fields?.['dayNight.on'] === false);
 
 // Put a look on the scene. `grounds` (optional) are the ground materials to tint: their first-seen base colour is kept in userData so a tint never compounds.
 export function applyLook(scene: THREE.Scene, renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, hemi: THREE.HemisphereLight, look: Look, grounds: readonly THREE.MeshStandardMaterial[] = [], stones: readonly THREE.MeshStandardMaterial[] = []): Look {

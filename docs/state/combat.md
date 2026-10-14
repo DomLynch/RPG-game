@@ -1,4 +1,39 @@
+## 2026-10-14 — HANDOFF at 602k context: the B chain, sim batch A and the view-layer debt PRs are all with the Auditor or Lead
+
+**Now (what the next session picks up):**
+1. **Chase the landings, nothing else is started.** Chain on trunk EX (WSV 28): #2584 fb21170c3 (WSV 29) → #2597 f40aec9f4 (30) → #2608 a0e64e76f (31) → #2614 05261c004 (32) → #2627 5e6b94c84 (33), all Auditor-armed. Sim batch A #2689 7b1e7341e (RV 61, WSV 34): Auditor PASS. When any of them reaches a release first it keeps its number; others renumber at merge-up (release WSV + 1, digest re-pinned from a VPS clone, gate exit 0).
+2. **#2694** (mobkit 3 + pack 3 + characters DEFLECT_FROM, e07b33058, armed) conflicts with World's #2698 on KIT_CODE_DIGEST (both re-pin it): whoever lands second merges up and re-pins over the combined text; tell World when #2694 / the chain land. The kit tag changes once (CHAIN_CAP joins kitTables()): old-client mob-layer records read as kit-mismatch after deploy, by design.
+3. **#2699** (Armfeel dials + GRAVITY + KNOCK_SETTLE + KICK/FULL_TIER_STOP_MS as rows, e7c3c2b21, draft) is stacked on #2515 (2471de705, still open): retarget onto trunk when #2515 lands, re-gate, mark ready. Non-blocking Auditor nit: KICK.drop lost its `?? 0.1` fallback.
+4. **Rulings I asked Lead for** (my proposed defaults, proceed unless told otherwise): replay.ts MAX_SHARE_CHARS and sheet-rows.ts UNIT = exempt (size cap; dial scale); open-fight.ts FAR_M and attackers.ts MAX_ATTACKERS = rows in ONE world-digest batch at the next free WSV above 34, after #2689 lands.
+5. After that: the 225 "Combat & Specials" src/fight debt (due today per Dom, no sunsets). My branch (chain + batch A) shows 189 left; Web holds 77 (signature #2680, blood/gore/wounds/nightfall #2681, fx-rows #2686, input #2687, all view-layer), my PRs hold the rest: special-* #2688 (60) + #2642 tithe (17), charge-timing #2691 (7), singles #2693 (7), mobkit/pack/characters #2694 (7), Armfeel follow-up #2699 (4).
+
+**Done today (2026-10-14):** chain rebuilt on trunk EX, #2678 (per-root allow files) merged once into each; sim batch A #2689 (16 sim entries to rows incl. ARCHETYPES as archetype-defs.json, 5 exempt with owners, sim-reading count 0, Auditor PASS); #2620 heroHits PASSED (HERO_SIDE exempt, trunk test stub fixed); #2515 re-merged (2471de705); reads posted for Web's #2643, #2647, #2648, #2687; #2632 fatigue rows rebuilt standalone and shipped in EU. Suites green on shallow clones: #2584 5186/0, #2627 tip 5225/0, #2689 5237/0, #2688 5202/0, #2642 5216/0, #2691 5216/0, #2693 5222/0, #2694 5218/0, #2699 5189/0, #2620 5235/0 (pass/fail).
+
+**Open (blocked on whom):** Auditor: #2699 after #2515; the chain/#2689 merge-only check after trunk moves. Lead: the four rulings above. #2515 landing (Lead cuts). World: re-merge of #2698 after #2694.
+
+**Gotchas (cost time):**
+- zsh: `$r:src` is a modifier (use `${r}`), `set -- $var` does not word-split, `pkill -f` patterns match your own ssh command (kill by pid from /proc cwd instead).
+- A rsync copy on the VPS has no .git, so ~17 tests that call `git ls-files` fail there: never call that "env noise" in a report; use a real shallow clone (`git clone --depth 1 --filter=blob:none`), at most 2 at a time, removed at the end of the run. The VPS disk hit 100% twice from full clones (~5 GB each) and a full disk corrupts runs.
+- Every SIM-listed file must appear in tests/detmath.test.ts SIM, eslint SIM/SIM_DATA, and (if it moves the digest) record-version-guard SIM_FILES/LOADER_ONLY; net-determinism catches a missing one. Top-level names in sim files must be unique across files (the digest test): prefix generated rows modules.
+- JSON key order matters when a test hashes the JSON (level-anchor identity hash, archetypes): rebuild objects in the original key order; a tier that is exactly a shared PROFILES tier must stay the same object (opponents.test).
+- A value moved to a row is invisible to a TEXT pin: tests/kit-version.test.ts pins the text of mobkit.ts/kits.ts, so a constant that feeds the kit tag must be added to kitTables() when it becomes a row.
+- Merge conflicts on lists (eslint SIM/SIM_DATA, detmath, world-sim-guard, record guard): resolve by taking theirs and re-adding ours-only items, then diff the lists against the first parent (a merge helper silently dropped three files once).
+- allow.json is split per root (scripts/as-data/allow/<root>.json): a retired entry must be DELETED in the same PR or the gate fails STALE; on conflict take theirs and re-delete.
+- Tooling: generators and merge helpers live in the session scratchpad (rowify.py, objrows.py, arch_gen.py, dropall.py, fixlists.py); if the scratchpad is gone, rebuild from the allow list and the rows-module shape of src/fight/fatigue-rows.ts (numbers) and archetype-rows.ts (tables).
+
 ## 2026-10-07 (morning) — RV30: three own rows, backstep B (no change), no whiff tax
+
+## 2026-10-07 (evening) — HANDOFF at 546k context: perks + roll release, mob styles/kit, standoff rematch, wolf in progress
+
+**Now (what the next session picks up):**
+1. **1v1 vs multi-attacker feasibility note** (Dom via Strategy/Lead): PvP flag, anti-gank (2nd attacker 50%, 3rd 25%, 4th+ 10%), loot to most damage. Options (a) second parallel 1v1 stream with shared foe health, (b) the creature disengages, (c) a true multi-foe step; sim/record/replay/RV/phone cost each, recommendation; send to Strategy and Lead.
+2. **Wolf** (combat/wolf @76326f12, no PR yet): row, weapon `bite`, blade bake (jaw, scale 1.3: lands from 1.22/1.52/1.64 m, the Goblin's 1.26/1.54/1.66), profile on the Goblin's rates (hero easy 7/24, normal 4/24, capsule scale .8). Switch to Characters' rig10 GLB (sha256 ef8809be04c13ab2e96e2d14428e6a6b3618f7ff9422126939024ea967bfc1dc), rebake, rebase on the #1642/#1660 release for the record bump, stills after their #1671 loader.
+3. Then #7 caster tells + deterministic flee, #4 packs (src/pack.ts, no RV; nothing pauses in the open world), #6 Gothic tactic table (own RV).
+
+**Open PRs, all green on the VPS:** #1642 perks record layer @299c8e05 (full 2597/2595/0/2, draft until Lead's go), #1660 world-mob roll @60d7d491 (one definition in src/roll.ts; full 2601/2599/0/2; needs the Auditor delta for the SIM-list fix), #1670 mob kit @d7ef9d7f (un-drafted for the Auditor; 45/45; battery table in the body), #1658 mob/beast/pack proposal (docs). #1646 mob styles and #1656 standoff rematch are in Deploy folds.
+
+**Rulings today:** perks, roll, then beasts, then packs; #1642 and #1660 ship as ONE release (merge #1642, retarget #1660); the pack walk-in beat is the only rest (stamina and posture recover at normal rates, health never); verification stays client-reported but the per-bout swap tick is designed in; the upright capsule for beasts is OK for v1 if stills show no blade through the back; Dom: ONE engine, world differences are add-on layers on src/, nothing pauses in the open world.
+
 
 **Identities (the spec for the next lane; AI profile numbers only, never move timings, one commit per row so one can be dropped alone):**
 - **Shieldmaiden (shield wall):** the Pitborn's body and stamina game with a guard-first brain: parry .1 (she blocks), aggression .65 normal / .85 hard, `braceHeavy` .6. `guard` stays absent (= 1; a share cannot go higher). `kick` was tried and dropped (it fires only against a roller or backstepper). Open design question, not RV30: "a kick should open a raised guard" needs a rule change.
@@ -56,7 +91,7 @@
 
 **Done today (heads):**
 - **#1481 clarity item 1** combat/clarity-cues @978ccad1: whiff = low swish (AttackMissed -> whoosh_light, rate .8); `AttackInterrupted` and `PressRefused {action, reason hurt|exhausted|recovering}` derived in combat.ts `clarityOf` (not a sim file: no RV/digest/RNG); `Practice.clarity` is per-tick. Audio's effort grunt (c179be80) is in but `EFFORT_VOICE = false` in audio/cues.ts keeps it SILENT until Dom picks (he rejected the first grunt; options A/B/C pending; his pick = one-file swap). Auditor passed 950a9046; Lead GO after the delta.
-- **#1483 fatigue driver** combat/fatigue-driver @038d2a5b: `src/fatigue.ts` (SIM list in eslint.config.js; level/band/gassed/second, hysteresis, FatigueBand event), `src/fatigue-layer.ts` (render bone layer, Math.sin lives here, not in a SIM file), Characters' slice 2a (gassed/second wind, per-foe FOE_TUNE, GUARD_DROP .3), Audio's breath behind `breathing = false` in feedback.ts line 21 (Dom has not OK'd). Practice.fatigue[side]. Auditor held 69570b0f on sim-boundary (fixed afcb2c77).
+- **#1483 fatigue driver** combat/fatigue-driver @038d2a5b: `src/fight/fatigue.ts` (SIM list in eslint.config.js; level/band/gassed/second, hysteresis, FatigueBand event), `src/fight/fatigue-layer.ts` (render bone layer, Math.sin lives here, not in a SIM file), Characters' slice 2a (gassed/second wind, per-foe FOE_TUNE, GUARD_DROP .3), Audio's breath behind `breathing = false` in feedback.ts line 21 (Dom has not OK'd). Practice.fatigue[side]. Auditor held 69570b0f on sim-boundary (fixed afcb2c77).
 - **#1494 draft** combat/opening-field @aa4a2b62: `Practice.opening {side, kind parry|posture, left, of}` + Characters' open-stagger pose (stacked on #1483).
 - **#1470 50 levels** combat/fifty-levels @821109d6 = 5a47bd47 + trunk merge (8f504b36) + `fingerprint: deliberate re-pin, 50 levels RV27` (0d47882d: version 26->27, levelCount 46->50, all 588 cells byte-identical) + the origins test fix. Web's #1475 (web/fifty-levels-ui @3188a5dc) stacks on it; they ship together.
 - **#1493** docs-only: docs/specs/origins/patron-perks-sim.md (perk hook costing, approved as design; no src/ before fatigue + 50 levels are live).
@@ -556,7 +591,7 @@ sim has 0 same-beat trades in 926 swing-start casts).
 
 **Gotcha:** 18+ parallel shards took the Mac to load 79 and stalled Deploy's browser rows (14:17). Max 4 shards, only after FREE.
 
-**Gotchas:** (1) Any edit to src/ai.ts or src/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
+**Gotchas:** (1) Any edit to src/fight/ai.ts or src/fight/moves.ts moves SIM_DIGEST → RV bump; data that must not bump lives outside SIM_FILES.
 (2) The dummy steps back out of reach, so a scripted player that never walks in can go 0 / 48; a real player walks.
 
 ## RV15 live, kick item closed, Cleave lever next — combat lane, 2026-09-26 midday
@@ -704,12 +739,12 @@ the 3 recorded below.
 the approach stop. Read it as refinement, not invalidation. The `cramped` branch was NOT redundant and stays.
 
 **Blast radius, narrower than first reported.** Gated on `guardShare === 0`, and `guard: 0` appears on exactly three lines of
-`src/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
+`src/fight/moves.ts` — the Goblin's easy/normal/hard. No other warden moves; the Nightborn is untouched, so #419 was never sequenced behind
 this. But the Goblin is the opponent in many rows, so the whole table was re-scanned, not the knife's.
 
 **Receipts.** `quality:stop` 468 tests / 466 pass / 0 fail (2 skipped). `test:slow` 94/94. `record-replay --write` then verify PASS
 (veteran-walk-in 1677 died, veteran-scripted 1452 died, both digests match). RECORD_VERSION 5 -> 6; SIM_DIGEST `713efc17…` ->
-`86e61b16…`, PINNED_FOR_VERSION 6 — **read AFTER the bump**, because `src/record.ts` is inside its own hashed set.
+`86e61b16…`, PINNED_FOR_VERSION 6 — **read AFTER the bump**, because `src/fight/record.ts` is inside its own hashed set.
 `READABLE_VERSIONS` deliberately untouched: widening the reader belongs with Stats' v5 decoder branch (#503), not this writer bump.
 `knife vs goblin hard: kick only untouched` 3/24 removed from `KNOWN_UNFAIR`; `knife` added to `PLAYER_WEAPONS_OFFERED`, now
 longsword / warhammer / trident / scythe / knife.
@@ -761,7 +796,7 @@ Even with every commitment knob at its limit the fight does not resolve. `reacti
 profile change that half-moves it would be tuning toward a pin without fixing the defect. The fix has to be the approach/in-reach
 disagreement itself in ai.ts — which is shared by every opponent, so it needs the full battery across all weapons.
 
-**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/ai.ts`.** The profile-only prescription is
+**RULING (Lead, 2026-09-22, after the sweep): fix the approach/in-reach disagreement in `src/fight/ai.ts`.** The profile-only prescription is
 superseded by measurement. Lead's reading, and he is accountable for it: GAME_SPEC's "profiles move reaction/prediction/aggression,
 never data" governs PROFILES; ai.ts approach logic is neither a profile nor weapon data, it is the code profiles feed, so fixing a
 logic defect there is in scope.
@@ -884,7 +919,7 @@ kick-only dies 24/24, all 24 knife fights stalemate at the tick limit). Weapons'
 (estoc/goblin hard ×2, scythe/goblin normal) — **unsigned by Combat**: re-deriving them needs the box, and a signature on someone else's
 numbers is worth nothing.
 
-## Tuning history moved out of src/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
+## Tuning history moved out of src/fight/moves.ts — 2026-09-22 (Auditer lane, GPT audit "readability")
 The comments in moves.ts now keep only why each current rule exists; the dated experiments and probe numbers that set them live here.
 - Anti-turtling band form (owner 2026-09-21): the "no regen while retreating anywhere" form failed 3 of the 24 rung identity pins (a charged-heavy spammer beat the Veteran 13/24, goblin fights ran past 45 s) and halved the hero brain's Veteran-normal wins — the rungs were tuned to recover by backing off. `RULES.retreat.wallOnly: false` restores it.
 - Trident: LIVE since slice V (combat review 2026-09-16) — initialDuel gives the Veteran the trident table; the shaft-guard and thrust-opener rules landed in the same slice.
@@ -906,7 +941,7 @@ Problem: on trunk 3a11413 the hero brain (`artifacts/ladder-levels.ts`, 24 seeds
 Method: nine single-knob experiments per rung. Nightborn: only `lapse` moves him (.25 → 10, .3 → 10, .35 → 9; `read` .7 → 5). Dwarf: only `read` moves him DOWN (.8 → 8, .9 → 3); lapse .2 → 12, parry .3 → 10, reaction 10 → 17, reaction 18 → 18, accuracy .9 + pressure .4 → 14, aggression .65 + lapse .4 → 14, read .9 + discipline 30 → 7, discipline 30 → 13 all make him easier.
 Shipped: Nightborn `lapse` .15 → .3; Dwarf `read` .7 → .8 (own commit). Ladder normal 15/13/5/10/6/8 (was 15/13/5/5/6/10 on 2c0fe0f), hard rows unchanged 6/11/2/1/1/11.
 NOT shipped — the Goblin, handed to Combat as a slice with the data: only `reaction` (+`accuracy`) moves the hero brain against him, and every reaction value tried fails a Combat-signed pin from one side or the other. 13/.7 (hero 8): opponents.test.ts 20/20 but the player-weapons KNOWN_UNFAIR snapshot changes (knife/goblin-normal "kick only untouched 3/24" clears; new knife "thrust from range wins 14/24", estoc "thrust from range untouched 6/24", scythe "thrust from range wins 24/24" + "untouched 3/24"; estoc thrust 23 → 24) and the seed-5 knife light-spam record fixture no longer finishes in 3600 ticks with either weapon. 12/.7 (hero 9): weapon rows smaller (estoc 24/24 + untouched 4/24, scythe 24/24; fixture finishes at tick 2538) but the identity pins fail ("read the feint": light spam 1 ≥ the answer's 1; AI-vs-AI median 52.9 s over the 25–45 s band). 12/.75 → 7, 11/.7 → 10, 13/.75 adds a trident row (an offered weapon). Accuracy alone does nothing: 10/.7 → 5, 10/.65 → 4 (AI-vs-AI median 46.4 s), 10/.6 → 4. Reading: a slower Goblin lets a poker park at range and drags AI-vs-AI fights; his hero-brain difficulty is his approach logic against a reading player, which is Combat's lever, not a profile knob.
-Kill links: `RECORD_VERSION` 2 → 3 in src/record.ts and the decoder now refuses every earlier version (Lead's decision, 02:06): #371 and this retune changed how fights play out, so a link recorded before them would replay a different fight; a version refusal is the honest answer. tests/fixtures/fight-records.json re-recorded (same ticks/outcomes, new encoding); scripts/kill-link-check.mjs (gate row 30 since #332) passes 36 fights with the refusal in place; its missing weapon field, which crashed the script on heads without #332, was fixed by #332 itself minutes before this branch tried to.
+Kill links: `RECORD_VERSION` 2 → 3 in src/fight/record.ts and the decoder now refuses every earlier version (Lead's decision, 02:06): #371 and this retune changed how fights play out, so a link recorded before them would replay a different fight; a version refusal is the honest answer. tests/fixtures/fight-records.json re-recorded (same ticks/outcomes, new encoding); scripts/kill-link-check.mjs (gate row 30 since #332) passes 36 fights with the refusal in place; its missing weapon field, which crashed the script on heads without #332, was fixed by #332 itself minutes before this branch tried to.
 Gates: opponents.test.ts identity/fairness pins 20/20 on the 3-rung candidate that included the Goblin, so Nightborn and Dwarf alone cannot fail them; the over-cap weapon table on 2c0fe0f + all three rungs changed only Goblin rows, so Nightborn and Dwarf add none. PR receipts: full ladder, pins, `npm test`, `npm run test:slow` on 2c0fe0f + these two commits, and `npm run quality:stop` on trunk + these two commits. Remaining validation: humans have not played these rungs; the 24-seed hero brain is a proxy for a reading player, not a phone player; Combat's review is the sign-off.
 
 ## Anti-turtling — combat half (sim rules + warden), 2026-09-21

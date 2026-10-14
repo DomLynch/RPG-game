@@ -11,8 +11,9 @@ import { execSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
 import { CUE_PROBES, scriptExchange } from '../src/audio/exchange.ts';
-import { cuesFor } from '../src/audio/cues.ts';
-import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/feedback.ts';
+import { cuesFor } from '../src/fight/sound/cues.ts';
+import { COMBAT_LEVEL, FINISH_LEVEL } from '../src/fight/sound/feedback.ts';
+import { CREATURE_CUES, THROATS } from '../src/fight/sound/creature.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const label = arg('label', 'preview'), seed = Number(arg('seed', 731)), against = arg('against', 'baseline'), fallback = process.argv.includes('--fallback'), RATE = 48000, TAIL = 4, PROBE_AT = .05, PROBE_LENGTH = 1.2;
@@ -24,7 +25,7 @@ const exchange = scriptExchange();
 const cues = exchange.ticks.map(({ tick, events, presentation }) => ({ t: tick / 60, events, presentation }));
 const seconds = exchange.length / 60 + TAIL;
 
-// --- Chromium page served by the Vite dev server, so /src/feedback.ts and any asset it imports resolve exactly as in the game.
+// --- Chromium page served by the Vite dev server, so /src/fight/sound/feedback.ts and any asset it imports resolve exactly as in the game.
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'error', server: { host: '127.0.0.1', port: 0, strictPort: false }, optimizeDeps: { noDiscovery: true, include: [] } });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -36,7 +37,7 @@ try {
   browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
   const page = await browser.newPage();
   const pageErrors = []; page.on('pageerror', e => pageErrors.push(e.message));
-  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
+  await page.route(`${origin}/harness`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><script type="module">import { createFeedback } from '/src/fight/sound/feedback.ts'; import { spriteFormats, loadSprite } from '/src/audio/sprite.ts'; import { MANIFEST } from '/src/audio/manifest.ts'; window.harness = { createFeedback, spriteFormats, loadSprite, MANIFEST };</script>` }));
   await page.goto(`${origin}/harness`);
   await page.waitForFunction(() => !!window.harness, null, { timeout: 20000 });
   const render = (cues, seconds, balance) => page.evaluate(async ({ cues, seconds, rate, seed, fallback, balance }) => {
@@ -44,7 +45,7 @@ try {
     let now = 0;
     const feedback = window.harness.createFeedback({ context, now: () => now, seed, ...(fallback ? { sprite: null } : {}), ...(balance ? { balance } : {}) });
     feedback.unlock(); const decoded = await feedback.ready();
-    for (const { t, events, presentation, control } of cues) { now = t; if (control) feedback[control](); else feedback.update(events, presentation); }
+    for (const { t, events, presentation, control, creature } of cues) { now = t; if (control) feedback[control](); else if (creature) feedback.creature(...creature); else feedback.update(events, presentation); }
     const data = (await context.startRendering()).getChannelData(0);
     // 16-bit PCM, transferred as base64 (Float32 arrays do not serialise through evaluate).
     const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
@@ -87,6 +88,22 @@ try {
     assert.ok(checks.stackedPeakDbfs <= -1, `stacked peak exceeds ceiling: ${checks.stackedPeakDbfs}`);
   }
   for (const probe of CUE_PROBES) rendered[`events/${probe.name}`] = await pcm([{ t: PROBE_AT, events: probe.events, presentation: probe.presentation }], probeLength(probe));
+  // The Frontier creature voices (src/audio/creature.ts, ?look=creatures): one probe per body throat x cue, synthesised on the combat bus, no sprite byte. Each must be audible, finish within its
+  // cue length (+ the room's .25 s), and peak under the break thud (bone_crack .55), so a creature never covers an impact; the count is pinned (5 bodies x growl/bite/death).
+  for (const body of Object.keys(THROATS)) for (const cue of Object.keys(CREATURE_CUES)) rendered[`events/creature-${body}-${cue}`] = await pcm([{ t: PROBE_AT, creature: [body, cue] }], PROBE_LENGTH + 1);
+  if (checks) {
+    const peakOf = pcm => pcm.reduce((m, v) => Math.max(m, Math.abs(v)), 0), thud = CUE_PROBES.find(p => p.events.some(e => e.type === 'PostureBroken')), thudPeak = peakOf(rendered[`events/${thud.name}`]);
+    checks.creatures = 0;
+    for (const body of Object.keys(THROATS)) for (const [cue, spec] of Object.entries(CREATURE_CUES)) {
+      const pcm = rendered[`events/creature-${body}-${cue}`], peak = peakOf(pcm); let last = pcm.length - 1; while (last > 0 && Math.abs(pcm[last]) < 33) last--;   // 33 = -60 dBFS
+      assert.ok(peak > 330, `creature-${body}-${cue} is silent (peak ${peak})`);
+      assert.ok(peak < thudPeak, `creature-${body}-${cue} peaks ${peak}, over the break thud's ${thudPeak}`);
+      assert.ok(last / RATE <= PROBE_AT + spec.length + .25, `creature-${body}-${cue} rings on to ${(last / RATE).toFixed(2)} s, past its ${spec.length} s`);
+      checks.creatures++;
+    }
+    assert.equal(checks.creatures, Object.keys(THROATS).length * Object.keys(CREATURE_CUES).length);   // every throat x cue was rendered ...
+    assert.ok(checks.creatures >= 24, `only ${checks.creatures} creature voices rendered`);   // ... and none dropped: 8 throats x 3 cues since #2009 (creature voices) added the Zone 1 wolf, boar and bear to the 5 pinned at 15
+  }
   // Phone-mix pin (checked after the loudness pass): the same probes with the balance stage flat at REFERENCE. Not ×1: there the
   // ordinary peaks (~.89 after the soft ceiling) sit above the output guard's .55 knee and the reference is itself compressed,
   // which read as a spurious .18 dB error the moment the mix dropped to .4 (deploy #21, 2026-09-20). At .5 both renders are linear, and

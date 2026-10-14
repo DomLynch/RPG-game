@@ -2,8 +2,8 @@
 // character exactly once, replay idempotence, the cooldown, and a seeded property run over random sequences.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MINT_KEY_PATTERN } from '../contracts/core.ts';
-import { award, newCareer } from '../progression/model.ts';
+import { MINT_KEY_PATTERN } from '../../src/core/server.ts';
+import { award, careerAtLevel } from '../../src/core/server.ts';
 import { dormant, parseBossDefinition, sharePermille, step, type Action, type BossEncounter, type BossState, type Step } from './boss.ts';
 import { matriarch } from './fixtures.ts';
 import { sha256, shortHash } from './hash.ts';
@@ -163,7 +163,7 @@ test('cooldown: reset is refused before restartSeconds and allowed at it; the ne
   const second = go(s, hit('pc:dom-1', 12_000, 3800));
   assert.equal(second.events[0]!.id, 'mgqknfrzhcxw:2:pc:dom-1');
   // The progression model, not this module, makes the second kill pay nothing.
-  const paid = award(newCareer(10), first.events[0]!);
+  const paid = award(careerAtLevel(1 + 10), first.events[0]!);
   assert.equal(paid.reason, 'ok');
   assert.equal(award(paid.state, second.events[0]!).reason, 'already-beaten');
 });

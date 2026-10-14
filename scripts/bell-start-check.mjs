@@ -10,7 +10,7 @@ const origin=`http://127.0.0.1:${server.httpServer.address().port}`,browser=awai
 const receipt={checks:[],physicalPhone:false};
 try {
  const page=await browser.newPage();
- await page.route(`${origin}/check`,r=>r.fulfill({contentType:'text/html',body:`<script type="module">import {createFeedback} from '/src/feedback.ts';window.make=createFeedback;</script>`}));
+ await page.route(`${origin}/check`,r=>r.fulfill({contentType:'text/html',body:`<script type="module">import {createFeedback} from '/src/fight/sound/feedback.ts';window.make=createFeedback;</script>`}));
  await page.goto(`${origin}/check`);await page.waitForFunction(()=>!!window.make);
  receipt.results=await page.evaluate(async(bellSeconds)=>{
   const results={};const realFetch=window.fetch;

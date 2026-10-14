@@ -1,0 +1,1414 @@
+{
+ "bodyHeight": 1.729918904362064,
+ "errors": [],
+ "report": [
+  {
+   "id": "dwarf.Arms",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.067,
+   "box": {
+    "min": [
+     -0.25,
+     1.34,
+     -0.21
+    ],
+    "max": [
+     0.28,
+     1.45,
+     0.11
+    ]
+   }
+  },
+  {
+   "id": "dwarf.Greaves",
+   "chosen": 3,
+   "worn": 3,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.221,
+   "box": {
+    "min": [
+     -0.26,
+     0.15,
+     -0.35
+    ],
+    "max": [
+     0.24,
+     0.53,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "dwarf.Helmet",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.117,
+   "box": {
+    "min": [
+     -0.13,
+     1.57,
+     -0.07
+    ],
+    "max": [
+     0.09,
+     1.78,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "executioner.Body",
+   "chosen": 4,
+   "worn": 4,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.348,
+   "box": {
+    "min": [
+     -0.23,
+     0.86,
+     -0.23
+    ],
+    "max": [
+     0.22,
+     1.46,
+     0.15
+    ]
+   }
+  },
+  {
+   "id": "executioner.Helmet",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.066,
+   "box": {
+    "min": [
+     -0.1,
+     1.48,
+     0.13
+    ],
+    "max": [
+     0.05,
+     1.59,
+     0.23
+    ]
+   }
+  },
+  {
+   "id": "goblin.Arms",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.087,
+   "box": {
+    "min": [
+     0.23,
+     0.96,
+     -0.06
+    ],
+    "max": [
+     0.33,
+     1.11,
+     0.07
+    ]
+   }
+  },
+  {
+   "id": "goblin.Body",
+   "chosen": 5,
+   "worn": 5,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.366,
+   "box": {
+    "min": [
+     -0.26,
+     0.85,
+     -0.22
+    ],
+    "max": [
+     0.25,
+     1.48,
+     0.13
+    ]
+   }
+  },
+  {
+   "id": "goblin.Greaves",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.249,
+   "box": {
+    "min": [
+     -0.25,
+     0.16,
+     -0.33
+    ],
+    "max": [
+     0.24,
+     0.6,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "goblin.Helmet",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.098,
+   "box": {
+    "min": [
+     -0.11,
+     1.58,
+     -0.07
+    ],
+    "max": [
+     0.08,
+     1.75,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "nightborn.Body",
+   "chosen": 4,
+   "worn": 4,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.408,
+   "box": {
+    "min": [
+     -0.3,
+     0.85,
+     -0.3
+    ],
+    "max": [
+     0.34,
+     1.56,
+     0.13
+    ]
+   }
+  },
+  {
+   "id": "nightborn.Greaves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.197,
+   "box": {
+    "min": [
+     -0.26,
+     0.19,
+     -0.34
+    ],
+    "max": [
+     0.25,
+     0.53,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "pitborn.Body",
+   "chosen": 3,
+   "worn": 3,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.313,
+   "box": {
+    "min": [
+     -0.19,
+     0.85,
+     -0.23
+    ],
+    "max": [
+     0.18,
+     1.39,
+     0.15
+    ]
+   }
+  },
+  {
+   "id": "pitborn.Greaves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.214,
+   "box": {
+    "min": [
+     -0.25,
+     0.14,
+     -0.35
+    ],
+    "max": [
+     0.24,
+     0.51,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "pitborn.Helmet",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.061,
+   "box": {
+    "min": [
+     -0.11,
+     1.63,
+     -0.05
+    ],
+    "max": [
+     0.08,
+     1.74,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.113,
+   "box": {
+    "min": [
+     -0.23,
+     1.27,
+     -0.23
+    ],
+    "max": [
+     0.28,
+     1.47,
+     0.1
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Body",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.509,
+   "box": {
+    "min": [
+     -0.3,
+     0.59,
+     -0.31
+    ],
+    "max": [
+     0.29,
+     1.47,
+     0.22
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Helmet",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.154,
+   "box": {
+    "min": [
+     -0.13,
+     1.56,
+     -0.06
+    ],
+    "max": [
+     0.09,
+     1.82,
+     0.21
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Shield",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.376,
+   "box": {
+    "min": [
+     0,
+     0.68,
+     -0.22
+    ],
+    "max": [
+     0.6,
+     1.33,
+     0.24
+    ]
+   }
+  },
+  {
+   "id": "veteran.Body",
+   "chosen": 4,
+   "worn": 4,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.348,
+   "box": {
+    "min": [
+     -0.23,
+     0.86,
+     -0.23
+    ],
+    "max": [
+     0.22,
+     1.46,
+     0.13
+    ]
+   }
+  },
+  {
+   "id": "dwarf.Body",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.214,
+   "box": {
+    "min": [
+     -0.23,
+     0.69,
+     -0.2
+    ],
+    "max": [
+     0.18,
+     1.06,
+     0.19
+    ]
+   }
+  },
+  {
+   "id": "knight.Body",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.255,
+   "box": {
+    "min": [
+     -0.26,
+     1.02,
+     -0.22
+    ],
+    "max": [
+     0.29,
+     1.46,
+     0.15
+    ]
+   }
+  },
+  {
+   "id": "witch.Body",
+   "chosen": 3,
+   "worn": 3,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.677,
+   "box": {
+    "min": [
+     -0.46,
+     0.1,
+     -0.47
+    ],
+    "max": [
+     0.43,
+     1.27,
+     0.39
+    ]
+   }
+  },
+  {
+   "id": "dwarf.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.138,
+   "box": {
+    "min": [
+     -0.33,
+     0.82,
+     -0.25
+    ],
+    "max": [
+     0.36,
+     1.06,
+     0.13
+    ]
+   }
+  },
+  {
+   "id": "executioner.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.139,
+   "box": {
+    "min": [
+     -0.32,
+     0.83,
+     -0.26
+    ],
+    "max": [
+     0.37,
+     1.07,
+     0.12
+    ]
+   }
+  },
+  {
+   "id": "goblin.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.139,
+   "box": {
+    "min": [
+     -0.32,
+     0.82,
+     -0.24
+    ],
+    "max": [
+     0.35,
+     1.06,
+     0.12
+    ]
+   }
+  },
+  {
+   "id": "nightborn.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.14,
+   "box": {
+    "min": [
+     -0.31,
+     0.81,
+     -0.23
+    ],
+    "max": [
+     0.35,
+     1.05,
+     0.14
+    ]
+   }
+  },
+  {
+   "id": "pitborn.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.139,
+   "box": {
+    "min": [
+     -0.31,
+     0.81,
+     -0.23
+    ],
+    "max": [
+     0.35,
+     1.05,
+     0.14
+    ]
+   }
+  },
+  {
+   "id": "plaguedoctor.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.138,
+   "box": {
+    "min": [
+     -0.33,
+     0.82,
+     -0.25
+    ],
+    "max": [
+     0.36,
+     1.06,
+     0.13
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.139,
+   "box": {
+    "min": [
+     -0.32,
+     0.83,
+     -0.26
+    ],
+    "max": [
+     0.37,
+     1.07,
+     0.12
+    ]
+   }
+  },
+  {
+   "id": "veteran.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.139,
+   "box": {
+    "min": [
+     -0.32,
+     0.82,
+     -0.24
+    ],
+    "max": [
+     0.35,
+     1.06,
+     0.12
+    ]
+   }
+  },
+  {
+   "id": "witch.Gloves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.14,
+   "box": {
+    "min": [
+     -0.31,
+     0.81,
+     -0.23
+    ],
+    "max": [
+     0.35,
+     1.05,
+     0.14
+    ]
+   }
+  },
+  {
+   "id": "veteran.Shield",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.288,
+   "box": {
+    "min": [
+     0.07,
+     0.74,
+     -0.16
+    ],
+    "max": [
+     0.53,
+     1.23,
+     0.19
+    ]
+   }
+  },
+  {
+   "id": "executioner.Boots",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.086,
+   "box": {
+    "min": [
+     -0.32,
+     0.01,
+     -0.39
+    ],
+    "max": [
+     0.29,
+     0.16,
+     0.29
+    ]
+   }
+  },
+  {
+   "id": "knight.Boots",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.134,
+   "box": {
+    "min": [
+     -0.33,
+     -0.01,
+     -0.4
+    ],
+    "max": [
+     0.3,
+     0.22,
+     0.3
+    ]
+   }
+  },
+  {
+   "id": "nightborn.Boots",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.296,
+   "box": {
+    "min": [
+     -0.33,
+     0.01,
+     -0.4
+    ],
+    "max": [
+     0.29,
+     0.52,
+     0.3
+    ]
+   }
+  },
+  {
+   "id": "plaguedoctor.Arms",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.244,
+   "box": {
+    "min": [
+     -0.3,
+     0.99,
+     -0.28
+    ],
+    "max": [
+     0.34,
+     1.42,
+     0.13
+    ]
+   }
+  },
+  {
+   "id": "plaguedoctor.Body",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.529,
+   "box": {
+    "min": [
+     -0.26,
+     0.53,
+     -0.29
+    ],
+    "max": [
+     0.26,
+     1.45,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "plaguedoctor.Boots",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.179,
+   "box": {
+    "min": [
+     -0.32,
+     0,
+     -0.39
+    ],
+    "max": [
+     0.3,
+     0.31,
+     0.3
+    ]
+   }
+  },
+  {
+   "id": "plaguedoctor.Greaves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.227,
+   "box": {
+    "min": [
+     -0.24,
+     0.15,
+     -0.35
+    ],
+    "max": [
+     0.25,
+     0.54,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "plaguedoctor.Helmet",
+   "chosen": 4,
+   "worn": 4,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.232,
+   "box": {
+    "min": [
+     -0.21,
+     1.42,
+     -0.16
+    ],
+    "max": [
+     0.15,
+     1.82,
+     0.36
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Boots",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.133,
+   "box": {
+    "min": [
+     -0.33,
+     -0.01,
+     -0.4
+    ],
+    "max": [
+     0.3,
+     0.22,
+     0.3
+    ]
+   }
+  },
+  {
+   "id": "veteran.Boots",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.086,
+   "box": {
+    "min": [
+     -0.32,
+     0.01,
+     -0.39
+    ],
+    "max": [
+     0.29,
+     0.16,
+     0.29
+    ]
+   }
+  },
+  {
+   "id": "executioner.Crest",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.197,
+   "box": {
+    "min": [
+     -0.14,
+     1.43,
+     -0.15
+    ],
+    "max": [
+     0.12,
+     1.77,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "executioner.Greaves",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.25,
+   "box": {
+    "min": [
+     -0.24,
+     0.16,
+     -0.34
+    ],
+    "max": [
+     0.25,
+     0.6,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "veteran.Greaves",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.251,
+   "box": {
+    "min": [
+     -0.25,
+     0.16,
+     -0.34
+    ],
+    "max": [
+     0.25,
+     0.6,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "veteran.Helmet",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.128,
+   "box": {
+    "min": [
+     -0.12,
+     1.52,
+     -0.09
+    ],
+    "max": [
+     0.08,
+     1.74,
+     0.22
+    ]
+   }
+  },
+  {
+   "id": "executioner.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.134,
+   "box": {
+    "min": [
+     -0.3,
+     0.85,
+     -0.23
+    ],
+    "max": [
+     0.35,
+     1.08,
+     0.11
+    ]
+   }
+  },
+  {
+   "id": "goblin.Boots",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.103,
+   "box": {
+    "min": [
+     -0.31,
+     0.01,
+     -0.4
+    ],
+    "max": [
+     0.29,
+     0.19,
+     0.23
+    ]
+   }
+  },
+  {
+   "id": "nightborn.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.131,
+   "box": {
+    "min": [
+     -0.32,
+     0.87,
+     -0.25
+    ],
+    "max": [
+     0.36,
+     1.1,
+     0.08
+    ]
+   }
+  },
+  {
+   "id": "pitborn.Boots",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.131,
+   "box": {
+    "min": [
+     -0.31,
+     0.01,
+     -0.39
+    ],
+    "max": [
+     0.28,
+     0.24,
+     0.24
+    ]
+   }
+  },
+  {
+   "id": "shieldmaiden.Greaves",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.215,
+   "box": {
+    "min": [
+     -0.25,
+     0.15,
+     -0.35
+    ],
+    "max": [
+     0.24,
+     0.52,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "veteran.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.134,
+   "box": {
+    "min": [
+     -0.3,
+     0.85,
+     -0.23
+    ],
+    "max": [
+     0.35,
+     1.08,
+     0.11
+    ]
+   }
+  },
+  {
+   "id": "pitborn.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.235,
+   "box": {
+    "min": [
+     -0.3,
+     1.04,
+     -0.21
+    ],
+    "max": [
+     0.27,
+     1.45,
+     0.06
+    ]
+   }
+  },
+  {
+   "id": "nightborn.Helmet",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.068,
+   "box": {
+    "min": [
+     -0.12,
+     1.67,
+     -0.01
+    ],
+    "max": [
+     0.08,
+     1.78,
+     0.23
+    ]
+   }
+  },
+  {
+   "id": "dwarf.Boots",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.08,
+   "box": {
+    "min": [
+     -0.32,
+     0.01,
+     -0.38
+    ],
+    "max": [
+     0.27,
+     0.15,
+     0.29
+    ]
+   }
+  },
+  {
+   "id": "knight.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.23,
+   "box": {
+    "min": [
+     -0.29,
+     0.99,
+     -0.27
+    ],
+    "max": [
+     0.34,
+     1.39,
+     0.09
+    ]
+   }
+  },
+  {
+   "id": "knight.Gloves",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.137,
+   "box": {
+    "min": [
+     -0.31,
+     0.83,
+     -0.24
+    ],
+    "max": [
+     0.35,
+     1.07,
+     0.12
+    ]
+   }
+  },
+  {
+   "id": "knight.Greaves",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.237,
+   "box": {
+    "min": [
+     -0.25,
+     0.12,
+     -0.38
+    ],
+    "max": [
+     0.26,
+     0.53,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "knight.Helmet",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.196,
+   "box": {
+    "min": [
+     -0.14,
+     1.42,
+     -0.1
+    ],
+    "max": [
+     0.12,
+     1.76,
+     0.23
+    ]
+   }
+  },
+  {
+   "id": "witch.Greaves",
+   "chosen": 2,
+   "worn": 2,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.211,
+   "box": {
+    "min": [
+     -0.25,
+     0.15,
+     -0.35
+    ],
+    "max": [
+     0.24,
+     0.52,
+     0.18
+    ]
+   }
+  },
+  {
+   "id": "witch.Helmet",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.473,
+   "box": {
+    "min": [
+     -0.4,
+     1.05,
+     -0.27
+    ],
+    "max": [
+     0.41,
+     1.87,
+     0.31
+    ]
+   }
+  },
+  {
+   "id": "witch.Arms",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.099,
+   "box": {
+    "min": [
+     -0.29,
+     0.99,
+     -0.27
+    ],
+    "max": [
+     0.33,
+     1.16,
+     0.07
+    ]
+   }
+  },
+  {
+   "id": "witch.Boots",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.175,
+   "box": {
+    "min": [
+     -0.32,
+     0,
+     -0.39
+    ],
+    "max": [
+     0.29,
+     0.31,
+     0.29
+    ]
+   }
+  },
+  {
+   "id": "veteran.Crest",
+   "chosen": 1,
+   "worn": 1,
+   "failed": [],
+   "allSkinned": true,
+   "finite": true,
+   "onBody": true,
+   "heightRatio": 0.1,
+   "box": {
+    "min": [
+     -0.1,
+     1.68,
+     0.06
+    ],
+    "max": [
+     0.06,
+     1.85,
+     0.14
+    ]
+   }
+  }
+ ]
+}

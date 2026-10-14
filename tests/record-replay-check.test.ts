@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
+import { decodeRecord, fromBase64Url, toBase64Url } from '../src/fight/record.ts';
 import { gunzipSync, gzipSync } from 'node:zlib';
 
 const repo = process.cwd();

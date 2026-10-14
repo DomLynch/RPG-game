@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/ai.ts';
-import { createFighter, elapsed, idleIntent, initialDuel, mirror, movesOf, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, PROFILES, RULES, type AiProfile } from '../src/moves.ts';
-import { RADIUS, TARGET } from '../src/sim.ts';
+import { READ, decide, initialAi, readOpponent, type AiState, type Habits, type Reads } from '../src/fight/ai.ts';
+import { createFighter, elapsed, idleIntent, initialDuel, mirror, movesOf, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, PROFILES, RULES, type AiProfile } from '../src/fight/moves.ts';
+import { RADIUS, TARGET } from '../src/fight/sim.ts';
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 const idle = (): Intent => ({ ...idleIntent(), lock: true });

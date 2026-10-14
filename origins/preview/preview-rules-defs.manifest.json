@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "preview-rule", "file": "preview-rules-defs.json", "at": "rules", "key": "id", "required": { "value": "number", "unit": "string" } }
+  ]
+}

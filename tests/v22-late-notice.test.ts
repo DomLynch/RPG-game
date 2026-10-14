@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { decodeRecord } from '../src/record.ts';
+import { decodeRecord } from '../src/fight/record.ts';
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/v22-warden-l12.json', import.meta.url), 'utf8')) as { records: { opponent: string; encoded: string }[] };
 

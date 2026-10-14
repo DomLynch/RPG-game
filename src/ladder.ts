@@ -1,10 +1,11 @@
-import { OPPONENTS, type Opponent, type OpponentId } from './moves.ts';
+import { OPPONENTS, type Opponent, type OpponentId } from './fight/moves.ts';
 import { ARENA_ROTATION, type ArenaKey } from './arena-themes.ts';
-import type { Finish } from './duel.ts';
+import type { Finish } from './fight/duel.ts';
 
 import { ENCOUNTERS, isHeld, isOpponentId } from './roster.ts';
-// Introductory encounter order: the roster's encounters minus the held ones. Career rank is independent of this selection.
-export const LADDER = ENCOUNTERS.filter(o => !o.hold);
+import { catalogueRow } from './fight/catalogue-rows.ts';
+// Introductory encounter order: the catalogue's ladder.order over the roster's encounters minus the held ones. Career rank is independent of this selection.
+export const LADDER = ENCOUNTERS.filter(o => !o.hold).sort((a, b) => catalogueRow(a.id)!.ladder.order! - catalogueRow(b.id)!.ladder.order!);   // the order is the catalogue row's `ladder.order` (1 = first)
 // A URL override (harness, dev look) beats saved progress; anything unknown — or a held encounter saved before the hold — falls back to the first rung.
 export const opponentFor = (ladder: string | undefined, override?: string): Opponent => { const id = override || ladder; return isOpponentId(id) && !isHeld(id) ? OPPONENTS[id] : OPPONENTS.veteran; };
 export const won = (finish: Finish | null): boolean => !!finish && finish.victim === 1 && !finish.draw;

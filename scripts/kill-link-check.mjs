@@ -3,19 +3,19 @@
 // through createRecorder.push and the sim steps the quantized intent), encoded to the share string, decoded back and
 // replayed with stepPractice from initialPractice(seed, opponent). The gate passes only when every replay reaches the
 // SAME finish on the SAME tick with the SAME outcome and byte-identical final fighters, and when a record carrying a
-// foreign version byte is refused with the version error rather than decoded best-effort, and when src/replay.ts verifyRecord
+// foreign version byte is refused with the version error rather than decoded best-effort, and when src/fight/replay.ts verifyRecord
 // (the replay page's own check) accepts every record this gate replays. Any other result, including
 // a replay that quietly ends elsewhere, exits 1 with the seed, opponent and both sides of the mismatch printed.
-// The player is driven by the same brain the AI uses (src/ai.ts decide for side 0) so the fights are real: both sides
+// The player is driven by the same brain the AI uses (src/fight/ai.ts decide for side 0) so the fights are real: both sides
 // attack, guard, parry and kill. Usage: node scripts/kill-link-check.mjs [--seeds N] [--profile normal|hard|easy]
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/record.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { decodeRecord, encodeRecord, fromBase64Url, toBase64Url } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
-import { decide, initialAi } from '../src/ai.ts';
-import { verifyRecord } from '../src/replay.ts';
-import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { verifyRecord } from '../src/fight/replay.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
-import { underRecord } from '../src/detmath.ts';
+import { underRecord } from '../src/fight/detmath.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback; };
 const SEEDS = Number(arg('--seeds', 6)), PROFILE = arg('--profile', 'normal'), MAX_TICKS = 60 * 120;
@@ -44,7 +44,7 @@ function record(opponent, seed) {
 }
 
 // Replay a decoded record with nothing but its own bytes: the finish must land on the last recorded intent, not before.
-function replay(r) { return underRecord(r, () => replayUnder(r)); }   // the record's version picks the sim's math (src/detmath.ts)
+function replay(r) { return underRecord(r, () => replayUnder(r)); }   // the record's version picks the sim's math (src/fight/detmath.ts)
 function replayUnder(r) {
   let practice = initialPractice(r.seed, opponentAt(OPPONENTS[r.opponent], r.level));   // as replay.ts verifyRecord
   for (let i = 0; i < r.intents.length; i++) {
@@ -65,7 +65,7 @@ for (const opponent of opponents) for (let s = 0; s < SEEDS; s++) {
   if (decoded.ticks !== live.record.ticks || decoded.outcome !== live.outcome) { fail(where, `decode changed the header: ticks ${decoded.ticks}/${live.record.ticks} outcome ${decoded.outcome}/${live.outcome}`); continue; }
   const back = replay(decoded);
   fights++;
-  // The game's own verifier (src/replay.ts, what the replay page runs) must agree with this gate's independent replay.
+  // The game's own verifier (src/fight/replay.ts, what the replay page runs) must agree with this gate's independent replay.
   const verdict = verifyRecord(decoded);
   if (!verdict.ok) { fail(where, `verifyRecord refused a live record: ${verdict.reason}`); continue; }
   if (live.outcome !== 'abandoned') finished++;

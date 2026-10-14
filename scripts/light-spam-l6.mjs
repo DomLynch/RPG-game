@@ -1,7 +1,7 @@
 // RV30 evidence: the light-spam script's win rate at level 6 against every ladder opponent (the cap is 80 % at L6 and up), pooled and per opponent.
 //   node scripts/light-spam-l6.mjs   env: SEEDS (24), LEVEL (6)
 import { LADDER } from '../src/ladder.ts';
-import { OPPONENTS } from '../src/combat.ts';
+import { OPPONENTS } from '../src/fight/combat.ts';
 import { battery, STRATEGIES } from '../tests/strategies.ts';
 
 const seeds = +(process.env.SEEDS ?? 24), level = +(process.env.LEVEL ?? 6);

@@ -1,0 +1,324 @@
+{
+  "definitions": {
+    "trades": {
+      "smith": {
+        "shop": true,
+        "order": 0,
+        "chimney": true,
+        "kit": {
+          "sign": "sign_smith_a"
+        }
+      },
+      "healer": {},
+      "fence": {},
+      "general": {
+        "shop": true,
+        "order": 1
+      },
+      "apothecary": {
+        "shop": true,
+        "order": 2
+      },
+      "inn": {
+        "shop": true,
+        "order": 3,
+        "kit": {
+          "sign": "sign_tavern_a"
+        }
+      },
+      "tailor": {
+        "shop": true,
+        "order": 4
+      },
+      "fletcher": {
+        "shop": true,
+        "order": 5
+      },
+      "chandler": {
+        "shop": true,
+        "order": 6
+      },
+      "baker": {
+        "shop": true,
+        "order": 7,
+        "chimney": true
+      },
+      "cooper": {
+        "shop": true,
+        "order": 8
+      },
+      "jeweller": {
+        "shop": true,
+        "order": 9
+      }
+    },
+    "temperaments": {
+      "ambitious": {},
+      "vengeful": {},
+      "mercantile": {},
+      "cautious": {}
+    },
+    "rulerTitles": {
+      "reeve": {},
+      "mayor": {},
+      "lord": {}
+    },
+    "lotKinds": {
+      "bank": {
+        "order": 0,
+        "ring": 0,
+        "civic": {
+          "w": [
+            12,
+            5
+          ],
+          "d": [
+            9,
+            3
+          ]
+        },
+        "walls": true,
+        "sign": true,
+        "counter": true,
+        "kit": {
+          "sign": "sign_bank_a",
+          "counter": "counter_bank_a"
+        }
+      },
+      "board": {
+        "order": 1,
+        "ring": 0,
+        "civic": {
+          "w": [
+            6,
+            0
+          ],
+          "d": [
+            4,
+            0
+          ]
+        },
+        "stand": 1.4
+      },
+      "rankings": {
+        "order": 2,
+        "ring": 0,
+        "civic": {
+          "w": [
+            6,
+            0
+          ],
+          "d": [
+            4,
+            0
+          ]
+        },
+        "stand": 1.4
+      },
+      "shop": {
+        "order": 3,
+        "ring": 1,
+        "count": [
+          4,
+          6
+        ],
+        "gap": [
+          16,
+          4
+        ],
+        "size": {
+          "w": [
+            7,
+            4,
+            3
+          ],
+          "d": [
+            6,
+            3,
+            0
+          ]
+        },
+        "walls": true,
+        "sign": true,
+        "trades": true
+      },
+      "house": {
+        "order": 4,
+        "ring": 2,
+        "count": [
+          6,
+          22
+        ],
+        "gap": [
+          14,
+          4
+        ],
+        "size": {
+          "w": [
+            5,
+            3,
+            2
+          ],
+          "d": [
+            5,
+            3,
+            0
+          ]
+        },
+        "walls": true,
+        "chimney": true
+      },
+      "stall": {
+        "order": 5,
+        "ring": 3,
+        "count": [
+          3,
+          5
+        ],
+        "gap": [
+          12,
+          0
+        ],
+        "size": {
+          "w": [
+            3,
+            0,
+            0
+          ],
+          "d": [
+            3,
+            0,
+            0
+          ]
+        },
+        "open": true
+      },
+      "gate": {
+        "order": 6,
+        "ring": 3,
+        "gate": {
+          "offset": 6,
+          "w": 6,
+          "d": 2
+        },
+        "arch": true,
+        "kit": {
+          "arch": "arch_gate_a"
+        }
+      }
+    }
+  },
+  "towns": [
+    {
+      "kind": "town-definition",
+      "schemaVersion": 1,
+      "id": "town:exchange-quarter",
+      "name": "The Exchange Quarter",
+      "region": "region:concord-exchange",
+      "zone": "exchange-quarter",
+      "safe": false,
+      "startProsperity": 500,
+      "patron": "patron:zeus",
+      "ruler": {
+        "title": "mayor",
+        "character": "character:mayor-hollin",
+        "temperament": "mercantile",
+        "standIn": "character:steward-quarter",
+        "successors": []
+      },
+      "centre": "quarter-centre",
+      "jail": "quarter-jail",
+      "services": [
+        {
+          "trade": "smith",
+          "npc": "character:smith-quarter",
+          "at": "quarter-forge"
+        },
+        {
+          "trade": "healer",
+          "npc": "character:healer-quarter",
+          "at": "quarter-healer"
+        },
+        {
+          "trade": "fence",
+          "npc": "character:fence-quarter",
+          "at": "quarter-fence"
+        }
+      ],
+      "resources": [
+        "rents",
+        "tolls"
+      ],
+      "riverside": false
+    },
+    {
+      "kind": "town-definition",
+      "schemaVersion": 1,
+      "id": "town:cinder-hold",
+      "name": "Cinder Hold",
+      "region": "region:ash-frontier",
+      "zone": "cinder-hold",
+      "safe": false,
+      "startProsperity": 260,
+      "patron": "patron:hel",
+      "ruler": {
+        "title": "reeve",
+        "character": "character:warden-brannoc",
+        "temperament": "ambitious",
+        "standIn": "character:steward-cinder",
+        "successors": []
+      },
+      "centre": "hold-centre",
+      "jail": "hold-jail",
+      "services": [
+        {
+          "trade": "smith",
+          "npc": "character:smith-cinder",
+          "at": "hold-forge"
+        },
+        {
+          "trade": "fence",
+          "npc": "character:fence-cinder",
+          "at": "hold-fence"
+        }
+      ],
+      "resources": [
+        "grave-iron",
+        "ash-salt"
+      ],
+      "riverside": false
+    },
+    {
+      "kind": "town-definition",
+      "schemaVersion": 1,
+      "id": "town:mere-end",
+      "name": "Mere End",
+      "region": "region:ash-frontier",
+      "zone": "mere-end",
+      "safe": false,
+      "startProsperity": 180,
+      "patron": "patron:poseidon",
+      "ruler": {
+        "title": "reeve",
+        "character": "character:reeve-osk",
+        "temperament": "cautious",
+        "standIn": "character:steward-mere",
+        "successors": []
+      },
+      "centre": "end-centre",
+      "jail": "end-jail",
+      "services": [
+        {
+          "trade": "healer",
+          "npc": "character:healer-mere",
+          "at": "end-healer"
+        }
+      ],
+      "resources": [
+        "eels",
+        "reed"
+      ],
+      "riverside": true
+    }
+  ]
+}

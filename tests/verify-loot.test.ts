@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import type { Intent } from '../src/duel.ts';
-import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import type { Intent } from '../src/fight/duel.ts';
+import { decodeRecord, encodeRecord, packRecord, RECORD_VERSION, toBase64Url } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -337,4 +337,72 @@ test('--accept still refuses a non-reach hold on a v20+ record (its replay is en
   const db = { ...fakeDb([], FRESH), claim: async () => ({ id: 9, user_id: U, opponent: 'goblin', piece: null, record: win, verified: false, note: 'HELD v29: the replay ends in "died", the record says "killed"' }) };
   await assert.rejects(acceptHeld(db, 9, 'chromium @10 on 0d2d9996'), /is a v31 record: its replay is engine-independent/);
   assert.equal(db.settled.size, 0);
+});
+
+test('a won claim whose record carries a sheet is replayed with the stored build version it names; forged, unknown, or no store means refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 10 } }, honest = sheetOf(stored)!;
+  const fightWith = async (sheet: Record<string, number>, buildVersion = 1) => {
+    const rec = liveRecorder({ build: 'test', opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1, sheet, characterId: 'one', buildVersion });
+    let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, sheet);
+    for (let t = 0; t < 20000 && !practice.finish; t++) {
+      const acts = ['light', 'heavy', 'thrust'] as const;
+      practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+    }
+    assert.equal(practice.finish?.victim, 1, 'a player win');
+    return encodeRecord(rec.finish('killed'));
+  };
+  const asked: string[] = [];
+  const build = async (character: string, version: number) => { asked.push(`${character}@${version}`); return character === 'pc:one' && version === 1 ? stored : null; };
+  const row = (record: string) => ({ opponent: 'goblin', record });
+  assert.equal(await refusal(row(await fightWith(honest)), FRESH, { build }), null, 'the build the record names gives this sheet: the win stands');
+  assert.match(String(await refusal(row(await fightWith({ ...honest, attack: 100 })), FRESH, { build })), /not the one the player's stored build/);
+  assert.match(String(await refusal(row(await fightWith(honest, 5)), FRESH, { build })), /build version this server does not hold/);
+  assert.match(String(await refusal(row(await fightWith(honest)), FRESH)), /build version this server does not hold/, 'a caller with no store refuses a sheet');
+  assert.deepEqual(asked, ['pc:one@1', 'pc:one@1', 'pc:one@5']);
+});
+
+test('a won claim whose record carries gear in its sheet verifies against the gear frozen on the claim; missing gear or a wrong rung is refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const { wornGearOfItems } = await import('../origins/server/worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 } };
+  const piece = (tier: string) => [{ item: 'item:loot.veteran.Helmet', tier, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier, location: { kind: 'equipped', slot: 'chest' } }];
+  const geared = sheetOf(stored, wornGearOfItems(piece('Origin')))!;
+  assert.notDeepEqual(geared, sheetOf(stored)!, 'the worn set moves a dial');
+  const rec = liveRecorder({ build: 'test', opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1, sheet: geared, characterId: 'one', buildVersion: 1 });
+  let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, geared);
+  for (let t = 0; t < 20000 && !practice.finish; t++) {
+    const acts = ['light', 'heavy', 'thrust'] as const;
+    practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+  }
+  assert.equal(practice.finish?.victim, 1, 'a player win');
+  const record = await encodeRecord(rec.finish('killed'));
+  const build = async (character: string, version: number) => character === 'pc:one' && version === 1 ? stored : null;
+  const frozen = (tier: string) => ({ 'pc:one': piece(tier).map((h) => ({ item: h.item, tier: h.tier, slot: h.location.slot })) });
+  const row = (worn_gear?: unknown) => ({ opponent: 'goblin', record, worn_gear });
+  assert.equal(await refusal(row(frozen('Origin')), FRESH, { build }), null, 'the gear frozen on the claim gives this sheet: the win stands');
+  assert.match(String(await refusal(row({ 'pc:one': [] }), FRESH, { build })), /not the one the player's stored build/, 'gear the claim lacks is refused');
+  assert.match(String(await refusal(row(), FRESH, { build })), /not the one the player's stored build/, 'a claim posted before the migration holds no gear');
+  assert.match(String(await refusal(row(frozen('Recruit')), FRESH, { build })), /not the one the player's stored build/, 'a wrong rung is refused');
+});
+
+// RV53: the career/practice sweep pays loot, so a v53 record's spell block goes through the same gate as the encounter settle (origins/server/spell-gate.ts): an unowned id and a skill past the stored ceiling are refused before the replay.
+test('a won claim that casts a spell: unowned, inflated skill, unknown build, no sheet or no spell loader is refused; owned and honest reaches the replay', { skip: RECORD_VERSION < 53 && 'needs the RV53 spell block (#2493); runs once both are on trunk' }, async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 5, wind: 5 } }, honest = sheetOf(stored)!;
+  const make = async (spell: { id: string; skill: number }, sheet = true) => {
+    const rec = liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level: 18, seed: 1, specials: true, spell, ...(sheet ? { sheet: honest, characterId: 'one', buildVersion: 1 } : {}) } as Parameters<typeof liveRecorder>[0]);
+    for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+    return { opponent: 'veteran', user_id: 'u1', record: await encodeRecord(rec.finish('killed')) };
+  };
+  const build = async (character: string, version: number) => (character === 'pc:one' && version === 1 ? stored : null);
+  const load = (held: { grimoire: Record<string, unknown>; xp: Record<string, number> }, b = async (_a: string, c: string, v: number) => (c === 'pc:one' && v === 1 ? stored : null)) => ({ held: async () => held, build: b });
+  const owns = { grimoire: { alvis: {} }, xp: { wind: 500 } };
+  const gate = (row: Awaited<ReturnType<typeof make>>, spellLoad?: ReturnType<typeof load>) => refusal(row, FRESH, { build, ...(spellLoad ? { spellLoad } : {}) });
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 6 }), load(owns))), /casts at 6, past the 5/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load({ grimoire: {}, xp: owns.xp }))), /not in this account's grimoire/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load(owns, async () => null))), /stored build is unknown/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }, false), load(owns))), /names no stored build/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }))), /stored build is unknown/, 'a caller with no spell loader refuses a spell record');
+  assert.doesNotMatch(String(await gate(await make({ id: 'alvis', skill: 5 }), load(owns))), /grimoire|casts at|stored build is unknown|names no stored build/, 'owned and honest passes the gate and meets the replay');
 });

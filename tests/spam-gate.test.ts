@@ -1,10 +1,10 @@
 // RV31 (docs/specs/combat/l6-anti-spam.md): `spamRun` reads a masher early; absent = the old read, byte for byte.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readOpponent, initialAi, decide, READ, type Habits } from '../src/ai.ts';
-import { OPPONENTS } from '../src/combat.ts';
-import { movesOf, type Duel } from '../src/duel.ts';
-import { profileAt, type AiProfile } from '../src/moves.ts';
+import { readOpponent, initialAi, decide, READ, type Habits } from '../src/fight/ai.ts';
+import { OPPONENTS } from '../src/fight/combat.ts';
+import { movesOf, type Duel } from '../src/fight/duel.ts';
+import { profileAt, type AiProfile } from '../src/fight/moves.ts';
 import { STRATEGIES, battery, arena, act, ready, gap, k, guard } from './strategies.ts';
 
 const habits = (over: Partial<Habits> = {}): Habits => ({ ...initialAi().habits, ...over });

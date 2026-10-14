@@ -1,0 +1,80 @@
+{
+ "origin": "http://127.0.0.1:58358",
+ "errors": [],
+ "stills": [],
+ "ab": {
+  "on": [
+   {
+    "frames": 478,
+    "median": 17,
+    "p95": 19,
+    "max": 44
+   },
+   {
+    "frames": 945,
+    "median": 17,
+    "p95": 21,
+    "max": 71
+   },
+   {
+    "frames": 1439,
+    "median": 17,
+    "p95": 20,
+    "max": 26
+   },
+   {
+    "frames": 1911,
+    "median": 17,
+    "p95": 20,
+    "max": 37
+   },
+   {
+    "frames": 2399,
+    "median": 17,
+    "p95": 19,
+    "max": 25
+   }
+  ],
+  "onCalls": 87,
+  "off": [
+   {
+    "frames": 479,
+    "median": 17,
+    "p95": 20,
+    "max": 32
+   },
+   {
+    "frames": 957,
+    "median": 17,
+    "p95": 19,
+    "max": 30
+   },
+   {
+    "frames": 1436,
+    "median": 17,
+    "p95": 19,
+    "max": 32
+   },
+   {
+    "frames": 1919,
+    "median": 17,
+    "p95": 19,
+    "max": 40
+   },
+   {
+    "frames": 2399,
+    "median": 17,
+    "p95": 20,
+    "max": 27
+   }
+  ],
+  "offCalls": 69
+ },
+ "gl": "Apple GPU",
+ "summary": {
+  "onMedianMax": 17,
+  "offMedianMax": 17,
+  "onP95Max": 21,
+  "offP95Max": 20
+ }
+}

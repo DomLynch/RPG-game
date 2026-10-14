@@ -8,14 +8,20 @@ import type { Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
-import { zoneAt } from './zones.ts';
+import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, ZONE_ROWS, fromLegacy, toLegacy, zoneAt } from './zones.ts';
+import { SAVE_EVERY_MS, saveQueue, type SaveFn } from './saves.ts';
+import { presenceRule } from './presence-rules.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
-export const PROTOCOL = 'frankendom.presence.v1';   // the one subprotocol the client offers next to `token.<jwt>`; the server echoes this one, never the token
+export const PROTOCOL = 'frankendom.presence.v1';   // the old town-only client (centre 15000, the 300 m square): served through the shim
+export const PROTOCOL_V2 = 'frankendom.presence.v2';   // the whole-world frame (CENTRE_CM, FRAME_CM); the client offers one of them next to `token.<jwt>`, the server echoes it, never the token
 const UUID = /^[0-9a-f-]{36}$/;
-export const LIMITS = { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 };
+export const LIMITS = { maxMessage: presenceRule('maxMessage'), perSecond: presenceRule('perSecond'), idleMs: presenceRule('idleMs'), ipSockets: presenceRule('ipSockets'), ipJoinsPerMinute: presenceRule('ipJoinsPerMinute'), beatMs: presenceRule('beatMs') };
 export type Limits = typeof LIMITS;
-const TICK_RING = 40_000;   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
+// GET /origins/presence/zones: the zone table the v2 client walks by (hello carries its hash). Corners in world metres.
+const ZONE_TABLE = JSON.stringify({ frame: { centreCm: CENTRE_CM, sizeCm: FRAME_CM }, zones: ZONE_ROWS.map(z => ({ id: z.id, corners: z.corners, speed: z.speed, quiet: z.quiet })), portals: PORTALS });
+export const ZONE_TABLE_HASH = createHash('sha1').update(ZONE_TABLE).digest('hex').slice(0, 8);
+const TICK_RING = presenceRule('tickRing');   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
 
 function frame(opcode: number, payload: Uint8Array): Buffer {
   const n = payload.length, head = n < 126 ? Buffer.from([0x80 | opcode, n]) : Buffer.from([0x80 | opcode, 126, n >> 8, n & 255]);
@@ -27,6 +33,7 @@ export type PresenceOptions = {
   rules?: Rules; limits?: Limits; maxLayers?: number;
   now?: () => number; log?: (line: string) => void; logEveryMs?: number; sweepEveryMs?: number; ipHeader?: boolean;   // ipHeader: trust nginx's X-Real-IP (only behind nginx on 127.0.0.1)
   locate?: (account: string) => Promise<{ x: number; z: number } | null>;   // where a rejoining account should stand (the writer's saved spot of its now-active character); any error or null: the default placement
+  save?: SaveFn; saveEveryMs?: number;   // the position save (origins/presence/saves.ts): presence's observation goes to the writer on leave, zone change and every saveEveryMs; unset, nothing is saved
   internalKey?: string;   // the shared secret of GET /internal/where (the writer asks where an account stands); unset: that route does not exist
 };
 export type Presence = { server: Server; world: World; port: () => number; stats: () => Record<string, unknown>; close: () => Promise<void> };
@@ -68,11 +75,17 @@ export function createPresence(opts: PresenceOptions): Presence {
   }, logEveryMs);
   // perIp must not grow with every address ever seen: an entry with no socket whose join window has passed holds nothing, so it goes.
   const sweeper = setInterval(() => { const t = now(); for (const [ip, b] of perIp) if (b.sockets <= 0 && t - b.windowStart >= 60_000) perIp.delete(ip); }, sweepEveryMs);
-  for (const t of [ticker, beats, reporter, sweeper]) t.unref();
+  // Position save: the newest observed place per account, through one bounded queue (never awaited here). A checkpoint skips a player who has not moved since its last save.
+  const saves = opts.save ? saveQueue(opts.save, log) : null, lastSaved = new WeakMap<Player, { x: number; z: number }>();
+  // The saved-location columns are in the old frame and hold the town square only (the 0..30000 check): a Frontier position is not saved until they widen, the last town spot stands.
+  const savePlace = (p: Player): void => { if (!saves) return; lastSaved.set(p, { x: p.x, z: p.z }); const at = toLegacy(p); if (at) saves.push(p.account, { ...at, atMs: now() }); };
+  const checkpoint = setInterval(() => { for (const p of sockets.keys()) { const l = lastSaved.get(p); if (!l || l.x !== p.x || l.z !== p.z) savePlace(p); } }, opts.saveEveryMs ?? SAVE_EVERY_MS);
+  for (const t of [ticker, beats, reporter, sweeper, checkpoint]) t.unref();
 
-  const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut) });
+  const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut), ...(saves ? { saves: saves.stats() } : {}) });
   // The hello carries where the server placed the player, so a client adopts it before its first pose (a rejoin or a recalled spot must not look like a teleport).
-  const hello = (p: Player): Buffer => frame(1, Buffer.from(JSON.stringify({ t: 'hello', id: p.id, layer: p.layer.id, x: p.x, z: p.z })));
+  const hello = (p: Player): Buffer => frame(1, Buffer.from(JSON.stringify(p.legacy ? { t: 'hello', id: p.id, layer: p.layer.id, x: p.x - LEGACY_SHIFT_CM, z: p.z - LEGACY_SHIFT_CM }
+    : { t: 'hello', id: p.id, layer: p.layer.id, x: p.x, z: p.z, frame: { centreCm: CENTRE_CM, sizeCm: FRAME_CM }, zones: ZONE_TABLE_HASH })));
   const rejoiners = new Map<string, () => Promise<boolean>>();   // account -> re-place that connected account (set per socket, removed when it goes)
   // The last `n` tick durations (ms), oldest first, at most what the ring holds.
   const recentTicks = (n: number): number[] => {
@@ -89,6 +102,7 @@ export function createPresence(opts: PresenceOptions): Presence {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       return void res.end(JSON.stringify(n > 0 ? { ...stats(), tickMs: recentTicks(n) } : stats()));
     }
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/zones') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' }); return void res.end(ZONE_TABLE); }
     if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/rejoin') return void rejoin(req, res);
     res.writeHead(404); res.end();
@@ -140,32 +154,37 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (url.searchParams.has('token')) return refuse(400, 'token-in-url');   // a token in the URL is already in a log: refuse it loudly rather than accept it
     const offered = String(req.headers['sec-websocket-protocol'] ?? '').split(',').map(x => x.trim()), friend = url.searchParams.get('friend')?.toLowerCase();
     const token = offered.find(x => x.startsWith('token.'))?.slice(6);
-    if (!offered.includes(PROTOCOL) || !token || token.length > 4096 || (friend && !UUID.test(friend))) return refuse(400, 'bad-request');
+    const speaks = offered.includes(PROTOCOL_V2) ? PROTOCOL_V2 : offered.includes(PROTOCOL) ? PROTOCOL : null, legacy = speaks === PROTOCOL;
+    if (!speaks || !token || token.length > 4096 || (friend && !UUID.test(friend))) return refuse(400, 'bad-request');
     const bucket = b; bucket.sockets++;   // held while the token is being checked, so a burst of slow checks cannot overshoot the cap
     socket.on('error', () => {});
-    void verify(token).then(account => {
+    void verify(token).then(async account => {
       if (!account || socket.destroyed) { bucket.sockets--; return refuse(403, 'token'); }
-      const first = world.join(account, now(), friend);
+      // A fresh join starts where `locate` says (a server-held state, else the saved place, trade areas already moved to their edge); with none, presence's own
+      // 10-minute memory, else the spawn (World.join). Any locate error or timeout is the same as "none": never the client's first pose.
+      const placed = world.byAccount.has(account) ? undefined : await (opts.locate?.(account) ?? Promise.resolve(null)).catch(() => null) ?? undefined, saved = placed && fromLegacy(placed);   // locate answers in the saved (old) frame
+      if (socket.destroyed) { bucket.sockets--; return refused('gone'); }   // closed while the saved place was read
+      const first = world.join(account, now(), friend, saved, legacy);
       if (!first) { bucket.sockets--; return refuse(503, world.byAccount.has(account) ? 'already-in' : 'world-full'); }
       let player: Player = first;   // re-pointed by a rejoin
       sockets.set(player, socket); counts.joined++;
       const me = account;
-      socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\nSec-WebSocket-Protocol: ${PROTOCOL}\r\n\r\n`);
+      socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\nSec-WebSocket-Protocol: ${speaks}\r\n\r\n`);
       (socket as Socket).setNoDelay(true);
       socket.write(hello(player));
-      let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout;
+      let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout, zone = zoneAt(player.x, player.z);
       const close = (code: number, why?: string): void => { if (why) refused(why); if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); } };
       const touch = (): void => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), limits.idleMs); };
       touch();
       rejoiners.set(me, async () => {
         if (socket.destroyed || sockets.get(player) !== socket) return false;
-        const at = await (opts.locate?.(me) ?? Promise.resolve(null)).catch(() => null) ?? undefined;
+        const was = await (opts.locate?.(me) ?? Promise.resolve(null)).catch(() => null) ?? undefined, at = was && fromLegacy(was);
         if (socket.destroyed || sockets.get(player) !== socket) return false;
-        const old = player; sockets.delete(old); world.leave(old, now());
+        const old = player; sockets.delete(old); world.leave(old, now()); saves?.drop(me);   // the old character's queued place must not land on the new one (Auditor M1)
         world.memory.delete(me);   // a rejoin is a different character: with no saved spot it starts at the spawn, never where the old one left
-        const fresh = world.join(me, now(), friend, at);
+        const fresh = world.join(me, now(), friend, at, legacy);
         if (!fresh) { bucket.sockets--; rejoiners.delete(me); close(1013, 'world-full'); return false; }
-        player = fresh; sockets.set(fresh, socket);
+        player = fresh; sockets.set(fresh, socket); zone = zoneAt(fresh.x, fresh.z);   // the old character's place is NOT saved here: the writer's active character is already the new one
         socket.write(hello(fresh));
         return true;
       });
@@ -190,19 +209,22 @@ export function createPresence(opts: PresenceOptions): Presence {
           const nowMs = now();
           if (nowMs - windowStart >= 1000) { windowStart = nowMs; count = 0; }
           if (++count > limits.perSecond) return close(4008, 'message-rate');
-          const pose = decodeUp(payload);
-          if (!pose) return close(1003, 'malformed');
+          const up = decodeUp(payload);
+          if (!up) return close(1003, 'malformed');
+          const pose = player.legacy ? { ...up, x: up.x + LEGACY_SHIFT_CM, z: up.z + LEGACY_SHIFT_CM } : up;
           counts.up++;
           if (world.move(player, pose, nowMs) === 'drop') return close(4009, 'teleport');
+          const into = zoneAt(player.x, player.z);
+          if (into !== zone) { zone = into; savePlace(player); }   // a zone change saves at once (EverQuest's save on zoning)
         }
       });
-      const gone = (): void => { clearTimeout(idle); rejoiners.delete(me); if (sockets.get(player) !== socket) return; sockets.delete(player); world.leave(player, now()); bucket.sockets--; };
+      const gone = (): void => { clearTimeout(idle); rejoiners.delete(me); if (sockets.get(player) !== socket) return; sockets.delete(player); world.leave(player, now()); savePlace(player); bucket.sockets--; };
       socket.on('close', gone); socket.on('error', gone);
     }, () => { bucket.sockets--; refuse(403, 'token'); });
   });
 
   return {
     server, world, stats, port: () => (server.address() as { port: number }).port,
-    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper]) clearInterval(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
+    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper, checkpoint]) clearInterval(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
   };
 }

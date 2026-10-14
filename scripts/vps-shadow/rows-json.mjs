@@ -2,7 +2,9 @@
 // log printed) plus the run's provenance. cwd is the repo checkout. Every row of .quality-gate.json appears, so a row the log never
 // mentions (the build failed, the run was killed) reads `status: "missing"` rather than vanishing from the table.
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { extractPins, parseRowsLog, rowSet } from './rows-lib.mjs';
 
 const [run, ...rest] = process.argv.slice(2);
@@ -20,12 +22,16 @@ const rows = set.map(row => {
   const result = byIndex.get(row.index);
   const file = logFor(row.index);
   const pins = file ? extractPins(readFileSync(join(logsDir, file), 'utf8')) : [];
-  return { ...row, status: result?.status ?? 'missing', seconds: result?.seconds ?? 0, attempts: result?.attempts ?? 0, ...(result?.exit !== undefined ? { exit: result.exit } : {}), ...(file ? { log: `logs/${file}` } : {}), pins };
+  return { ...row, status: result?.status ?? 'missing', seconds: result?.seconds ?? 0, attempts: result?.attempts ?? 0, ...(result?.status === 'pass' ? { exit: 0 } : result?.exit !== undefined ? { exit: result.exit } : {}), ...(file ? { log: `logs/${file}` } : {}), pins };
 });
 const summary = rows.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] || 0) + 1 }), {});
 const wall = /Release checks wall time (\d+)s/.exec(log);
+// The runner files this very run executed (they are copied into the shared bin/ by whoever started it): their sha256 rides in the
+// receipt, and deploy.sh trusts the receipt only when they match the deploy tree's own copies (Auditor, #1911).
+const here = dirname(fileURLToPath(import.meta.url));
+const scripts = Object.fromEntries(['run-rows.sh', 'rows-json.mjs', 'rows-lib.mjs'].map(f => [f, createHash('sha256').update(readFileSync(join(here, f))).digest('hex')]));
 const out = {
-  kind: 'vps-shadow-rows', host: 'Brain (49.12.7.18)', runner: 'linux-x64', ...meta,
+  kind: 'vps-shadow-rows', job: process.env.JOB_ID || null, scripts, runner: 'linux-x64', ...meta,   // the flavor is never self-declared: deploy looks the job up (hf jobs inspect)
   buildStatus: Number(meta.buildStatus ?? 0), rowsStatus: Number(meta.rowsStatus ?? 0), wall: Number(meta.wall ?? 0), dirty: Number(meta.dirty ?? 0),
   rowsWallSeconds: wall ? Number(wall[1]) : null, total: set.length, summary, rows,
 };

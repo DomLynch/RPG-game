@@ -14,7 +14,7 @@ export type Camp = { at: { x: number; z: number }; pieces: Piece[]; solids: Soli
 // The kit as data: every dimension and count the camp is built from.
 export const CAMP_KIT = {
   radius: 6,                                          // the clear circle the whole camp needs (metres)
-  fire: { stones: 9, ring: 1.0, stone: [0.32, 0.3, 0.42], coal: [0.8, 0.16], flame: [0.5, 1.5], logs: 4 },   // stone [w, h, d]; coal [radius, height]
+  fire: { stones: 9, ring: 1.0, stone: [0.32, 0.3, 0.42], coal: [0.8, 0.16], logs: 4 },   // stone [w, h, d]; coal [radius, height]
   seat: { ring: 2.9, log: [1.9, 0.5, 0.55], standOut: 4.6 },
   bedroll: [1.0, 0.2, 2.3], crate: [1.0, 0.9, 1.0], barrel: [0.48, 1.1],
   glow: { radius: 6.5, color: '#ff8a3a', opacity: 0.65 },
@@ -30,7 +30,6 @@ export function campKit(at: { x: number; z: number }, n: 2 | 3, seed: string, he
   // The fire: a ring of stones round a bed of coals (the arena's glowing coal layer), a few charred logs across it.
   for (let i = 0; i < K.fire.stones; i++) { const a = (i / K.fire.stones) * Math.PI * 2, p = at2(K.fire.ring, a); put('stone', ['box', ...K.fire.stone], p.x, K.fire.stone[1] / 2, p.z, ROCK, a + heading); }
   put('coal', ['cylinder', K.fire.coal[0], K.fire.coal[0], K.fire.coal[1], 10], at.x, K.fire.coal[1] / 2, at.z, [1, 1, 1]);
-  put('coal', ['cone', K.fire.flame[0], K.fire.flame[1], 7], at.x, K.fire.flame[1] / 2 + 0.1, at.z, [1, 1, 1]);   // the flame: the same glowing coal layer
   for (let i = 0; i < K.fire.logs; i++) put('soot', ['cylinder', 0.07, 0.07, 1.1, 6], at.x, 0.28 + i * 0.05, at.z, BURNT, (i / K.fire.logs) * Math.PI + R());
   solids.push({ x: at.x, z: at.z, r: K.fire.ring + 0.3 });
   // Members: each sits on a log set tangent to the fire (facing it); a third, if any, stands out as the lookout beside a post.
