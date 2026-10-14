@@ -84,7 +84,8 @@ test('unit-ci.yml wiring: delta never runs for a release candidate, every full-r
   for (const name of ['shard', 'origins-db']) {
     const j = job(name);
     assert.match(j, /needs: \[delta, static\]/, `${name} waits for delta`);
-    assert.match(j, /!cancelled\(\) && needs\.delta\.outputs\.unchanged != 'true'/, `${name} is skipped only on an unchanged delta, and runs if delta itself failed`);
+    assert.match(j, /if: \$\{\{ !cancelled\(\) && /, `${name} runs even when delta was skipped or failed`);
+    assert.match(j, /needs\.delta\.outputs\.unchanged != 'true'/, `${name} is skipped only on an unchanged delta`);   // other conditions (#2623's candidate-push skip) may sit between the two
   }
   const receipt = job('receipt');
   assert.match(receipt, /needs\.delta\.outputs\.unchanged == 'true' \|\| !\(needs\.static\.result == 'skipped' && needs\.shard\.result == 'skipped'\)/, 'the receipt job reports green on an unchanged delta');
