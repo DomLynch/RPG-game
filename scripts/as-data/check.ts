@@ -41,12 +41,12 @@ function fail(message: string): never { console.error(`as-data: ${message}`); pr
 async function ids(): Promise<Record<Category, string[]>> {
   const imp = async (f: string) => { try { return (await import(pathToFileURL(join(REPO, f)).href)) as Record<string, any>; } catch (e) { fail(`cannot import ${f}: ${(e as Error).message.split('\n')[0]}`); } };
   const roster = await imp('src/roster.ts'), fin = await imp('src/fight/finishers.ts');
-  const specials = /const SPECIAL_SETS = \{([\s\S]*?)\n\} as const/.exec(read('src/fight/moves.ts'));
+  const specials = (() => { try { return (JSON.parse(read('src/fight/special-set-defs.json')) as { sets: { specials: string[] }[] }).sets.flatMap((r) => r.specials); } catch { return []; } })();
   return {
     opponent: Object.keys(roster.ROSTER ?? {}),
     weapon: rowIds('src/fight/weapon-defs.json', 'weapons').concat(unionOf('src/fight/moves.ts', 'WeaponId')),
     skill: rowIds('src/fight/skill-defs.json', 'skills').concat(unionOf('src/fight/moves.ts', 'SkillId')),
-    special: specials ? [...specials[1]!.matchAll(/\[([^\]]*)\]/g)].flatMap((m) => quoted(m[1]!)) : [],
+    special: specials,
     finisher: (fin.FINISHERS?.rows?.map((r: { id: string }) => r.id) ?? Object.keys(fin.FINISHER_POSE ?? {})),
   };
 }
