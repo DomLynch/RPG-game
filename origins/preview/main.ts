@@ -612,7 +612,8 @@ const characterNow = characterFor({ storage, search: location.search }, () => ch
 // The stats screen (origins/preview/stats-*.ts): the player's stored build (level, points placed) from the writer; the effective sheet (build plus worn gear) is shown only when the writer's sheet is supplied (the world sheet series), never guessed here.
 const statsScreen = mountStats(document.getElementById('stats-dialog') as HTMLDialogElement, async () => {
   const own = await fetchOwnBuild({ storage, search: location.search });
-  return own ? { level: own.level, placed: own.placed } : { offline: storedToken(storage, Date.now()) ? 'unreadable' : 'no-session' };
+  const sheet = own ? gearMount?.sheet({ level: own.level, placed: own.placed }) : undefined;   // the sheet the fight and the writer's verify use (stored build + the SERVER's worn set), once the server's view has answered; none before, so no effective number is guessed
+  return own ? { level: own.level, placed: own.placed, ...(sheet ? { sheet } : {}) } : { offline: storedToken(storage, Date.now()) ? 'unreadable' : 'no-session' };
 });
 // The shop screen (origins/shops): the rows as the writer reports them (shop_stock: the next unit's price with the zone tax, the account's stock, the restock time); a buy is one shop_buy op under a fresh op id, and the writer prices, stocks and gates it.
 const shopName = itemNamer(), shopBase = { base: writerBase(location.search) };
