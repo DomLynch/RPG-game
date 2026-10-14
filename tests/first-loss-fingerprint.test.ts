@@ -15,7 +15,7 @@ import { STRATEGIES, act, idle } from './strategies.ts';
 import type { Duel, Intent } from '../src/fight/duel.ts';
 import type { LessonId } from '../src/first-loss.ts';
 
-const GOLDEN = 'TBD';
+const GOLDEN = 'd12c4a4a7927b9d1697bc89297268a5af8e088bae599ed287b3e8e8b7dd819c3';   // computed twice on the VPS at 8f5772df2 (the unchanged numbers)
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); }, removeItem: (k: string) => { m.delete(k); } }; };
 const PLAYERS: Record<string, (d: Duel) => Intent> = {
   idle: () => idle(),
