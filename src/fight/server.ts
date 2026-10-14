@@ -9,9 +9,11 @@ export * from './replay.ts';
 export * from './twist.ts';
 export * from './gambit.ts';
 export * from './gear-stats.ts';
+export { GEAR } from './gear-rows.ts';
 export * from './play-radius.ts';
 export { underRecord } from './detmath.ts';
 export { validateBuild, sheetOf, SHEET_SKILLS } from './sheet-rows.ts';   // the build field's one validation seam (origins/server/build.ts); SHEET_SKILLS: a skill's base for the spell check
+export { titleFor, titleRowFor, type TitleRow } from './titles.ts';   // a character's title from its fame and karma (origins/server/renown.ts)
 export type { Sheet } from './sheet-rows.ts';
 export { expectedSheet, NO_BUILD, type BuildLoader } from './build-check.ts';   // a record's build reference -> the sheet it must fight with (sweeps, encounter settle)
 export { setStab, STAB_ON } from './stab-rule.ts';

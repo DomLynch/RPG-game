@@ -1,5 +1,9 @@
 {
   "uiRows": [
+    { "id": "skulls-max-kills", "value": 30, "unit": "kills" },
+    { "id": "skulls-text-max", "value": 40, "unit": "chars" },
+    { "id": "skulls-gear-max", "value": 12, "unit": "slots" },
+    { "id": "skulls-name-max", "value": 16, "unit": "chars" },
     { "id": "loot-line-ms", "value": 4000, "unit": "ms" },
     { "id": "lesson-ms", "value": 4000, "unit": "ms" },
     { "id": "face-wait-ms", "value": 2000, "unit": "ms" },
