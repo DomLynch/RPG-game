@@ -2,6 +2,8 @@
 //   node scripts/as-data/merge-allow.mjs <base> <ours> <theirs> [<path>]    writes the result over <ours>, exit 0; exit 1 on a true clash (nothing is written)
 // Setup, once per clone (git merge drivers are local config; .gitattributes names the driver):
 //   git config merge.as-data-allow.driver 'node scripts/as-data/merge-allow.mjs %O %A %B %P'
+// In a worktree setup that line lands in the shared git dir, so every worktree of the clone uses the checked-out tree's copy. The cut and the contents check do not rely
+// on it: cut-release.mjs driverArgs passes --attr-source + -c per call, which overrides the config.
 // Rules, per list entry (identity = file + literal for `allow`, file + name for `verbs` and `tunables`):
 //   kept by both sides -> kept (one side changed it -> that change; both changed it the same way -> kept; both changed it differently -> CLASH)
 //   retired by either side -> dropped (the other side's edit of it is reported, not kept: a debt paid in code has no row left to edit) -- unless the retiring side added the same
