@@ -33,7 +33,7 @@ import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitK
 import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './core/index.ts';
 import { createLootPanel } from './core/index.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
-import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
+import { beatLegend, describe, initialPractice, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './fight/match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
@@ -69,7 +69,7 @@ import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './fight/tutorial-ui.ts';
-import { KICK, impactTier } from './fight/hit-impact.ts';
+import { impactTier } from './fight/hit-impact.ts';
 import { stopFor } from './hit-stop.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './fight/detmath.ts';
