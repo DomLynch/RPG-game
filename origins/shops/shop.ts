@@ -19,7 +19,7 @@ export const BUY_MAX = LIMITS.buyMax;                  // per request
 
 // `class` (vendor-economy.json: gear, material, cosmetic) switches a row to the stock-elastic price; `zone` (zone1..zone4) names the list's buy tax (default zone1).
 export type ShopRow = { item: string; price: number; max: number; restockSeconds: number; minLevel?: number; class?: string };
-export type ShopList = { id: string; revision: number; currency: 'bronze'; zone?: string; rows: readonly ShopRow[] };
+export type ShopList = { id: string; revision: number; currency: 'bronze'; zone?: string; rangeCm?: number; rows: readonly ShopRow[] };   // rangeCm: how near its counter a buyer must stand (presence centimetres); the server refuses a shop without one as away
 export type ShopIssue = { path: string; message: string };
 
 // Rejects a bad list before it ships. `item` says whether an item id is a registered item definition.
