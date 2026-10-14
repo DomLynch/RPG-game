@@ -1,5 +1,13 @@
 # Combat Sandbox (Dom's lane) — state
 
+## 2026-10-14 night: the asymmetric table is built (read this first)
+- Branch sandbox/page on trunk 25bc53809 (rebased; backup branch sandbox/page-pre-EP), preview https://frankendom.com/preview/sandbox/ at 6a7b972b0. Strategy's top-10 table, Dom's verdicts: BUILT 1 armour vs blow type (blowKinds + armourVs rows), 2 reach bands (bands/bandBest/bandOff 400, glance feel and sound, AI holds its band, ?bands=0 A/B; bands read the range the swing was THROWN from, attackFrom.gap), 4 commit vs bait (maul/warhammer heavy +30% windup, no feint, poise from tick 0), 5 clock fighter (Plague Doctor special poisons 2 hp/s for 10 s, never lethal), 6 ward (Witch guard reflects the first blow, 4 s down), 8 bind and disarm (trident/estoc block binds; kick breaks it or no swings for 5 s; no fists animation), 9 shield wall + flank (Shieldmaiden rooted while guarding, side blow on a raised guard 120% / 140% posture). HELD by Dom: 3 initiative, 10 beasts. NO: 7 rampage. CUT: stance picker hidden (hideStancePicker row, stances stay in the game), arm wound row deleted (kept in combat-new-ideas with the "must create a choice" test).
+- Dom's rules: NO markers or on-screen labels (ring tint and band words refused: "cheap and cheesy"); feel through the fight itself; no posture effects; data rows for every number.
+- Tests (VPS, all green 2026-10-14): tests/sandbox-*.test.ts (bands, armour, commit, ward, flank, poison, bind, fight-rules stepped duels) + fingerprint, detmath, ai, duel, hit-impact, hit-stop-rows, input, audio-rules, graphics. Never run on the Mac; vps-run.sh then ssh ... nice node --test (capture queue jams).
+- NOT verified: nobody has fought a live match in this build; the glance sound has not been heard; opponents do not adapt to armour, ward or bind except the AI band hold and the bound AI's kick; win-rate gate (AI-vs-AI batch, bands may not re-rank weapon classes) still owed before any promotion.
+- Gotchas found today: a rebase can leave sandbox/rows.json gear rows without trunk's new required field (the page crashed at load: weightClass); a swing's lunge closes the gap before it lands (use attackFrom.gap); hit-stop-rows.test pins the IMPACT table (do not add keys to it); never trust a hand-resolved merge, grep for conflict markers.
+- Promotion later: Combat bumps RECORD_VERSION; oid on Fighter and the new Fighter fields (poisonUntil, bound, disarmed, wardAt) are sandbox-only until then.
+
 READ FIRST: brief = Strategy's "Frankendom lane: Combat Sandbox" paste (2026-10-13). Questions go to Project Strategy, not Dom.
 
 ## 2026-10-13 evening (after Dom's account switch): rebased on EF, republished
