@@ -19,7 +19,7 @@ Built preview (`vite build`), headless Chromium at 375x812 (SwiftShader: the VPS
 |---|---|---|
 | [still1-roll.png](world-roll-guard/still1-roll.png) | ROLL pressed on the button: hero in the roll clip with creatures adjacent | `combat().hero.phase === 'roll'` |
 | [still2-guard.png](world-roll-guard/still2-guard.png) | GUARD held, thumb slid left | `hero.phase === 'guard'`, Guard button `data-side="left"` (the button lights; I read the side from the attribute, not from the pixels) |
-| [still3-stamina.png](world-roll-guard/still3-stamina.png) | stamina meter (yellow bar under health) after a roll | `.fm-st` 52 / 100, meters visible; hero stamina 52 / 100 |
+| [still3-stamina.png](world-roll-guard/still3-stamina.png) | stamina meter (yellow bar under health) after a roll | `.fm-st` 65 / 100, meters visible; hero stamina 65 / 100 (the value in receipt.json, from the same run as the three stills) |
 
 **Not shown: a roll that dodges a creature hit.** Two runs tried it and neither gives a clean result, so I am not claiming it: (run 2, wall-clock sampling) a ROLL pressed in a creature's windup was followed by 127 -> 95 hp, but I sampled at 0.7 s and cannot say whether the hit landed before the roll, during it or after; a second press, in the creature's recover phase, rolled with hp unchanged (nothing to dodge). (run 3, 25 ms timeline) the hero stayed in `roll` for about 380 samples: on the loaded VPS under SwiftShader the page runs at a few fps and `world-combat.ts` caps steps per frame (`MAX_STEPS`), so game time runs far slower than wall time and wall-clock timing is meaningless here. A roll's dodge is a sim rule, so it wants a deterministic test in game ticks, not a browser run.
 
