@@ -24,7 +24,7 @@ tactic: {
   closing:     Plan[]       // hero is walking/running at me, outside striking range
   afterHit:    Plan[]       // I was just hit (today: the 48-tick retreat, `hurt` age 1)
 }
-Reaction = 'parry' | 'backstep' | 'sidestep' | 'brace' | 'trade'      // weights, <= 6 entries per list
+Reaction = 'parry' | 'backstep' | 'sidestep' | 'brace'      // weights, <= 6 entries per list (no 'trade' in v1)
 Plan     = 'press' | 'circle' | 'guard' | 'backstep' | 'sidestep'      // the existing AiMode / plan targets
 ```
 
@@ -49,8 +49,14 @@ Plan     = 'press' | 'circle' | 'guard' | 'backstep' | 'sidestep'      // the ex
 2. **Implementation PR 1, zero behaviour:** the loader, the rows module and the branch reading an empty/absent block. Proof: `rng-fingerprint.mjs` output byte-identical, `record-replay-check` passes, `test:all`. (The loader and the dead branch can ship with the RV bump deferred only if the record guard accepts it; if the SIM digest moves, RV bumps here and the proof is the byte-identical fingerprint apart from the version stamp, as with sim batch B.)
 3. **Implementation PR 2, first tactics:** one block per kind, authored from the identities already ruled (Shieldmaiden brace/guard-first, Knight methodical, Plague Doctor parry-first) and the beasts' hop-back / sidestep rows. Each is its own commit so one can be dropped alone. Proof: the win-rate battery (`scripts/own-row-battery.mjs` as used for the RV30 own rows: hero normal vs each kind, 40 seeds, L6/L18/L46) before and after, no kind moving more than the ruled band, plus stills where a reaction is visible (before/after at 375, mid-fight).
 
-## Open questions for Lead / Strategy
+## Rulings (Lead and Strategy, 2026-10-14)
 
-1. Pit archetypes only for v1 (no WSV), or world creatures as well?
-2. May the `trade` reaction exist, or is "swing into an incoming swing" an AI behaviour we keep out of v1?
-3. The identities of record (Shieldmaiden, Knight, Plague Doctor rows) were RV30 profile numbers only; may their tactic blocks also change *how* they react, or keep them number-only?
+1. **Scope:** Pit archetypes only for v1, no WSV bump. World creatures come later as their own PR.
+2. **`trade` stays OUT of v1.** Trading blows is the riskiest reaction for win rate; add it later with its own ladder table. The `Reaction` list in v1 is `parry | backstep | sidestep | brace`.
+3. **Identity blocks may change how a kind reacts** (Strategy: YES), under four conditions:
+   1. Each identity is its own commit with its own win-rate table, so any one can be dropped alone.
+   2. A tactic must agree with the identity of record: **Shieldmaiden guard-first, Knight methodical, Plague Doctor parry-first**. Anything beyond those goes back to Strategy as a spec line first.
+   3. Win rates stay inside the tier band already ruled for the stat identities: no tactic quietly re-ranks a class.
+   4. Every tactic number is a row from day one: no new literals, and the allow list stays at 0 debt.
+
+**Order:** PR 1 is zero behaviour (loader, rows, the empty-block branch, with the fingerprint and replay proof); PR 2 is the first tactics. The build starts after #2532 (caster tells) lands.
