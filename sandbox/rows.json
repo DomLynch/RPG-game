@@ -2,6 +2,7 @@
 "2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints).",
 "2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
+"2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
 "2026-10-13 Dom: flash removed, ring now thin grey and only on parry and guard break; crowd roars about 4x louder.",
 "2026-10-13 Dom: arm wound shows as a temporary on-screen message (option B), about 2.6 seconds.",
@@ -24,7 +25,6 @@
 {"id":"trickster","heavyDamage":-100,"feint":-750,"kickPosture":1000}
 ],
 "wounds":[
-{"id":"sword-arm","site":"torso","below":10,"block":300,"damage":-200,"label":"ARM WOUNDED","note":"blocks cost +30% stamina · attacks do -20% damage · stamina ceiling -10","ceil":10}
 ]},
 "hit-stop-defs":{"contacts":[
 {"id":"hitLight","order":1,"ms":0,"frames":0,"knock":0.02,"push":0},
@@ -59,6 +59,7 @@
 {"id":"executeBelow","value":25},
 {"id":"oneButton","value":1},
 {"id":"plainPosture","value":1},
+{"id":"hideStancePicker","value":1},
 {"id":"heavyHold","value":220},
 {"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18}

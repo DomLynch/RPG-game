@@ -36,3 +36,6 @@ Directional hit spark/blood plus sand decals; three-layer hit sound (whoosh, mat
 
 ## Fits Dom's gritty / no-time-effects rules best (my pick order)
 Contact-point sparks + hit-direction splats; victim-only shake; sound layering; split swing/impact; knockdown bounce + repeat-knockdown scaling; bleed tick stream; wind-up power bar.
+
+## Arm wound: OFF in the sandbox (Dom + Strategy, 2026-10-14)
+The sword-arm wound (forms at 10% health or lower, rest of the fight: blocks +30% stamina, damage -20%, stamina ceiling -10) is removed from sandbox/rows.json. It only punished the fighter already losing and gave neither side a choice; in PvP it snowballs the weaker player. Test for any return: it must create a choice, i.e. be rare, visible to both fighters, curable at a cost (a bandage beat, a retreat), and able to form while the fight is still open, not only at the end. The wounds mech (code) stays; the rows are gone.
