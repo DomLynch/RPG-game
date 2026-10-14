@@ -1,7 +1,7 @@
 // Burn reasons are ROWS (src/core/items/burn-reasons.json): a new reason is one row and no code; an unknown reason still refuses; the story-item rule is a row flag.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -26,6 +26,7 @@ test('a new burn reason is ONE row in a copy of the tree, no code; an unknown re
   try {
     cpSync('origins', join(dir, 'origins'), { recursive: true });
     cpSync('src', join(dir, 'src'), { recursive: true });
+    mkdirSync(join(dir, 'tests')); cpSync('tests/items-testkit.ts', join(dir, 'tests/items-testkit.ts'));   // the probe imports the shared testkit
     for (const link of ['scripts', 'package.json', 'node_modules']) symlinkSync(resolve(link), join(dir, link));
     const file = join(dir, 'src/core/items/burn-reasons.json'), table = JSON.parse(readFileSync(file, 'utf8')) as typeof rows;
     table.reasons.push({ id: 'salvage', consumesStoryItem: false });
