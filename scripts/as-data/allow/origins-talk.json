@@ -1,0 +1,5 @@
+{
+  "tunables": [
+    {"file": "origins/talk/talk.ts", "name": "TALK_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"}
+  ]
+}
