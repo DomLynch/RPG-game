@@ -16,7 +16,7 @@ export const FIELDS: readonly Field[] = [
   // The facts every zone folder already states (zone.ts, spawns.ts, kit.ts, look.ts, mob-looks.ts, place.ts): wired.
   legacy('id', 'string', ''), legacy('name', 'string', ''), legacy('names', 'map', {}), legacy('world', 'list', []), legacy('level', 'number', 1, { min: 1 }),
   legacy('spawns', 'map', { openers: {}, rows: [] }), legacy('kit', 'map', { url: '', nodes: [], landmarks: [], kinds: [] }), legacy('looks', 'map', {}), legacy('mobLooks', 'map', null as never, { nullable: true }), legacy('place', 'map', null as never, { nullable: true }),
-  legacy('biome', 'string', 'ash-wastes'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
+  legacy('biome', 'string', 'ash-wastes'), legacy('defaultKind', 'string', 'goblin'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
   // DESCRIPTION (map, hint card, legend)
   description('region', 'string', '', { donor: 'EQEmu zone.long_name / expansion' }), description('blurb', 'string', ''), description('legend', 'list', []), description('icon', 'string', ''), description('minimap', 'string', ''),
   // WORLD POSITION. `exits` and `entry` are carried today by place.ts joins and spawns.openers; these rows are the zone-level overrides.

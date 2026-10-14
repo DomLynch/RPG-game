@@ -1,0 +1,18 @@
+{
+  "chrome": {
+    "button": "Stats",
+    "title": "Stats",
+    "close": "Close",
+    "loading": "Reading your sheet…",
+    "offline": "Sign in to see your stats.",
+    "unreadable": "Your stats could not be read. Try again.",
+    "level": "Level {level}",
+    "points": "{spent} of {budget} points placed",
+    "dials": "Dials",
+    "skills": "Skills",
+    "placed": "+{n} placed",
+    "none": "no points placed",
+    "effective": "{value}",
+    "noSheet": "The full sheet with your worn gear arrives with the world sheet."
+  }
+}

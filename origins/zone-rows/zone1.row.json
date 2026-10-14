@@ -1,5 +1,6 @@
 {
   "name": "The Cinder Fields",
+  "defaultKind": "goblin",
   "names": {
     "east-road": "The East Road",
     "ferry-landing": "The Grey Ferry",

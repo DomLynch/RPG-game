@@ -1,0 +1,11 @@
+{
+  "rules": [
+    { "id": "terrainOctaves", "value": 3, "unit": "octaves" },
+    { "id": "terrainGain", "value": 0.5, "unit": "ratio" },
+    { "id": "terrainLacunarity", "value": 2, "unit": "ratio" },
+    { "id": "terrainWarp", "value": 0.6, "unit": "ratio" },
+    { "id": "padBlend", "value": 1.6, "unit": "ratio" },
+    { "id": "roadHalf", "value": 6, "unit": "m" },
+    { "id": "buildingModule", "value": 3, "unit": "m" }
+  ]
+}

@@ -8,12 +8,13 @@ import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
 import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
 import { RARE_DEFAULT, campCount, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from '../../src/core/server.ts';
+import { worldRule } from '../../src/fight/server.ts';
 
 export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
 export type Populated = { camps: Camp[]; budget: number; rejected: { row: string; issues: RowIssue[] }[]; issues: ZoneIssue[] };
 
-const CAMP_GAP = 6;      // m: two camps' centres stay at least this far apart
+const CAMP_GAP = worldRule('campGap'); // m: two camps' centres stay at least this far apart
 const DOOR_CLEAR = OPENER_CLEAR;   // m: no camp within this of the entry landmark (the hero arrives there)
 const MOBS = 0x6d6f6273; // "mobs": the stream's seed offset
 
