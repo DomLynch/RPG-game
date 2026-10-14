@@ -98,7 +98,8 @@ test('git runs it as a merge driver: adjacent additions that conflict as text me
   git('switch', '-q', 'main'); put([entry('a.ts', 'A'), entry('c.ts', 'C'), entry('z.ts', 'Z')]); git('commit', '-qam', 'main adds C');
   const driver = `node ${SCRIPT} %O %A %B %P`;
   writeFileSync(join(repo, '.git/info/attributes'), 'scripts/as-data/allow/*.json merge=text\n');   // outranks .gitattributes: plain text merge, the baseline
-  assert.throws(() => git('merge', '--no-edit', 'other'), /CONFLICT|conflict/i);
+  assert.throws(() => git('merge', '--no-edit', 'other'));
+  assert.ok(readFileSync(file, 'utf8').includes('<<<<<<<'), 'plain text merge leaves conflict markers');
   git('merge', '--abort'); writeFileSync(join(repo, '.git/info/attributes'), '');
   const res = git('-c', `merge.as-data-allow.driver=${driver}`, 'merge', '--no-edit', 'other');
   assert.match(res, /Merge made|Merge/i);
