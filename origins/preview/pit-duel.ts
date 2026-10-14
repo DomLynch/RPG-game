@@ -38,6 +38,7 @@ import type { Object3D, Vector3 } from 'three';
 import { undressMob } from './mob-dress.ts';
 import type { Finished } from '../pit/pit.ts';
 import { addArenaEntry, addLeaveEntry } from './leave-entry.ts';
+import { pageRule } from './page-rules.ts';
 
 export type DuelFight = { opponent: string; level: number; seed: number; flags?: readonly TwistFlag[]; bar?: number; mob?: MobStyle; as?: Shown; record?: boolean };   // mob: the creature's style, which picks its signature moves (src/core/world/kits.ts); absent = the Pit's plain warden   // flags: an encounter's twist flags (src/fight/twist.ts), read each tick; absent = the Pit's plain duel; bar: the foe's health bar when it differs from his body's (one-health-bar: the summed pool)
 // How a world creature shows in the duel (presentation only, the sim never sees it): its name and level in the HUD name slot, a one-time dressing of the
@@ -57,7 +58,7 @@ type View = ReturnType<SceneModule['createScene']>;
 type Stage = { opponent: OpponentId; level: number; canvas: HTMLCanvasElement; view: View; ready: boolean; mounted: boolean; holder: Object3D | null };
 // ?worldfight: the duel runs inside the page's own world scene (scene.ts WorldMount). The page lends its renderer, canvas and a `holder` the world is moved into (attach) and out of
 // (detach); `at` is where the hero stands and `toward` the creature, in world metres: the duel is placed so its player stands at `at` facing `toward`.
-const CAMERA_EASE_S = 0.7;   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
+const CAMERA_EASE_S = pageRule('duel-camera-ease-s');   // seamless combat step 4: the duel's camera eases from the walk's pose in this long
 export type WorldDuel = WorldMount & { canvas: HTMLCanvasElement; attach(): void; detach(): void; cameraFrom?(): { position: Vector3; quaternion: Quaternion }; at: { x: number; z: number }; toward: { x: number; z: number }; groundY?: number };   // groundY: the walk ground's height at `at` (the hills), so the world lands on the duel's flat sand
 let mounted: WorldDuel | null = null;
 let stage: Stage | null = null;

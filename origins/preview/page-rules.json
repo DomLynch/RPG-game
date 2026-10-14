@@ -1,0 +1,15 @@
+{
+  "pageRule": [
+    { "id": "sticks-radius-px", "value": 48, "unit": "px" },
+    { "id": "sticks-look-gain", "value": 0.5, "unit": "gain" },
+    { "id": "sticks-dead", "value": 0.12, "unit": "share" },
+    { "id": "duel-camera-ease-s", "value": 0.7, "unit": "s" },
+    { "id": "hero-wait-ms", "value": 45000, "unit": "ms" },
+    { "id": "kinds-wait-ms", "value": 20000, "unit": "ms" },
+    { "id": "material-bound-ms", "value": 4000, "unit": "ms" },
+    { "id": "upload-budget-ms", "value": 6, "unit": "ms" },
+    { "id": "tap-ms", "value": 4000, "unit": "ms" },
+    { "id": "tap-px", "value": 12, "unit": "px" },
+    { "id": "turn-rate", "value": 1.9, "unit": "rad/s" }
+  ]
+}
