@@ -7,6 +7,7 @@
 // Output is placement data keyed on the building kit's node names (TOP10 row 3: wall, corner, arch, roof, stall, counter, sign, chimney); Characters' kit file maps them to meshes.
 // Donor: OpenTTD town growth (rings round a centre; study and rewrite, GPL) and 2004Scape's fixed civic NPC set; the circle-packing placement here is our own.
 import { TOWN_DEFS, shopTrades, type LotKindRow, type TownDefs } from './town-defs.ts';
+import { layoutRule } from './layout-rules.ts';
 export const TOWN_NODES = ['wall', 'corner', 'arch', 'roof', 'stall', 'counter', 'sign', 'chimney'] as const;
 export type TownNode = (typeof TOWN_NODES)[number];
 export type LotKind = string;   // a key of the lot kind rows (origins/region1/towns.json definitions.lotKinds, town-defs.ts): a new kind is a row
@@ -15,8 +16,8 @@ export type TownPiece = { node: TownNode; x: number; z: number; rotY: number; sc
 export type Lot = { id: string; kind: LotKind; ring: 0 | 1 | 2 | 3; x: number; z: number; rotY: number; w: number; d: number; r: number; trade?: string; pieces: TownPiece[] };
 export type Town = { seed: string; wealth: number; lots: Lot[]; radius: number };
 
-export const ROAD_HALF = 6;   // metres either side of the z axis kept clear of stalls: the road runs through the gate arches
-export const MODULE = 3;   // metres: the building kit's wall module
+export const ROAD_HALF = layoutRule('roadHalf');  // metres either side of the z axis kept clear of stalls: the road runs through the gate arches
+export const MODULE = layoutRule('buildingModule');  // metres: the building kit's wall module
 
 const rng = (seed: string) => {   // mulberry32 over a string hash
   let h = 1779033703 ^ seed.length;
