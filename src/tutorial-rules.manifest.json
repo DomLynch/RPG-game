@@ -1,0 +1,11 @@
+{
+  "tables": [
+    {
+      "table": "tutorialRule",
+      "file": "tutorial-rules.json",
+      "at": "tutorialRules",
+      "key": "id",
+      "required": { "value": "number", "unit": "string" }
+    }
+  ]
+}
