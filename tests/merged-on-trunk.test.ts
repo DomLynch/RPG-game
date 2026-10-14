@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -101,15 +101,23 @@ test('a PR whose merge commit really is in the tree still passes (the #1396 shap
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
 
-test('the window cap is 2000: 500 merged PRs (the old cap, FX 2026-10-14) pass, a full 2000 is still refused as truncated', () => {
+test('the window cap is 1000 (the search API ceiling): 999 merged PRs run the check, exactly 1000 is refused as truncated; the old 500 cap is gone (FX 2026-10-14)', () => {
   const w = world();
   const head = g(w.work, 'rev-parse', 'HEAD');
   const many = (n: number) => Array.from({ length: n }, (_, i) => ({ number: i + 1, title: 'x', baseRefName: TRUNK, mergeCommit: { oid: head }, labels: [] }));
   w.prs.push(...many(500)); w.gh();
-  const ok = w.run();
-  assert.equal(ok.status, 0, '500 PRs in the window is a normal day now: ' + ok.stdout + ok.stderr);
-  w.prs.length = 0; w.prs.push(...many(2000)); w.gh();
+  assert.equal(w.run().status, 0, '500 PRs is a normal window now');
+  w.prs.length = 0; w.prs.push(...many(999)); w.gh();
+  const under = w.run();
+  assert.equal(under.status, 0, 'count < LIMIT: the check runs and passes: ' + under.stdout + under.stderr);
+  w.prs.length = 0; w.prs.push(...many(1000)); w.gh();
   const full = w.run();
-  assert.equal(full.status, 1, 'a window that reaches the cap is still refused');
-  assert.match(full.stderr, /GitHub returned 2000 merged PRs since .*: the window is truncated, narrow --days/);
+  assert.equal(full.status, 1, 'count === LIMIT: refused');
+  assert.match(full.stderr, /GitHub returned 1000 merged PRs since .*: the window is truncated, narrow --days/);
+});
+
+test('the defaults: a 2-day window and a 60 s gh timeout (about 10 search pages must not fall back to git-only)', () => {
+  const src = readFileSync(script, 'utf8');
+  assert.match(src, /'--days=2'\)\.slice\(7\)\), LIMIT = 1000;/);
+  assert.match(src, /MERGED_ON_TRUNK_GH_TIMEOUT_MS\) \|\| 60_000/);
 });

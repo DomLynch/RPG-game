@@ -14,7 +14,7 @@ import { resolve } from 'node:path';
 const TRUNK = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1';
 const args = process.argv.slice(2);
 const root = resolve(args.find(a => !a.startsWith('--')) || '.');
-const days = Number((args.find(a => a.startsWith('--days=')) || '--days=3').slice(7)), LIMIT = 2000;   // 500 was blown on 2026-10-14 (a day of candidate merges over a 3-day window: every deploy exited 1, FX #2756); the truncation refusal below stays at the cap
+const days = Number((args.find(a => a.startsWith('--days=')) || '--days=2').slice(7)), LIMIT = 1000;   // 1000 is GitHub's search-API ceiling (`gh pr list --search`); 500 over a 3-day window was blown on 2026-10-14 (~170 merges a day: every deploy exited 1, FX #2756). 2 days = ~340. The truncation refusal below stays at the cap
 const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8', timeout: 60_000 }).trim();
 const ok = (...a) => { try { git(...a); return true; } catch { return false; } };
 // "Is a an ancestor of b?" has THREE answers: yes (exit 0), no (exit 1), and "git could not say" (exit 128: object missing; or a timeout). Collapsing the third into "no" made Release F report
@@ -35,7 +35,7 @@ const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10
 // The lookup is a network call: a hung or failing `gh` must not kill the deploy with an uncaught throw (Release F died at 02:42 on spawnSync gh ETIMEDOUT). Three tries with
 // backoff; if gh is still down, fall back to the ONE ancestry fact git can answer by itself after a fresh fetch: trunk's tip is an ancestor of HEAD (every PR merged to trunk is
 // in this tree). The fallback does NOT see the #358 shape (a PR merged into a side branch), so it says so loudly; it never passes a tree that is behind trunk.
-const GH = process.env.MERGED_ON_TRUNK_GH || 'gh', GH_TIMEOUT = Number(process.env.MERGED_ON_TRUNK_GH_TIMEOUT_MS) || 20_000, BACKOFF = Number(process.env.MERGED_ON_TRUNK_BACKOFF_MS) || 2000;
+const GH = process.env.MERGED_ON_TRUNK_GH || 'gh', GH_TIMEOUT = Number(process.env.MERGED_ON_TRUNK_GH_TIMEOUT_MS) || 60_000, BACKOFF = Number(process.env.MERGED_ON_TRUNK_BACKOFF_MS) || 2000;
 const sleep = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const listMerged = () => {
   let last;
