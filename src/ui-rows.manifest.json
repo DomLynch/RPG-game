@@ -1,0 +1,11 @@
+{
+  "tables": [
+    {
+      "table": "uiRow",
+      "file": "ui-rows.json",
+      "at": "uiRows",
+      "key": "id",
+      "required": { "value": "number", "unit": "string" }
+    }
+  ]
+}

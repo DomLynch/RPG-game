@@ -23,6 +23,7 @@ import { mobBatch, respawnMsOf } from './mob-rewards.ts';
 import { killWearLines, settleWithWear } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
 // Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a sheeted hero with his equipped weapon, the creature the Pit's level row (opponentAt). A kill report carries no record, so
@@ -30,7 +31,8 @@ import * as store from './store.ts';
 // downed back, the gear Attack cap, the top of the damage roll, a landed Gambit), and the fastest a first blow can land. With the Pit kit one blow can exceed a low-level creature's health, so the
 // hit floor is usually 1 and the time floor is the fastest windup: they stop scripted instant reports, not skilled play. The rest of the anti-cheat is the server's spawn state, the single-use
 // engage token and the per-account kill caps (migration 202610080014).
-export const SLACK = 0.5;
+const KILL = SERVER_RULES.worldKill[0]!;
+export const SLACK = KILL.slack;
 const BLOWS = PLAYER_WEAPONS.flatMap((w) => Object.values(weaponOf(w).moves));   // the envelope over every weapon a hero may carry (the world hero wields his equipped one), never the longsword alone
 const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * (1 + ROLL_BAND / 100) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
 export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
@@ -41,7 +43,7 @@ export const minHits = (hp: number): number => Math.max(1, Math.ceil(hp / maxHit
 export const minKillMs = (hp: number): number => Math.floor((FASTEST_WINDUP + (minHits(hp) - 1) * FASTEST_CYCLE) * 1000 / 60 * SLACK);   // the first blow after the fastest windup, every later one a full fastest cycle on
 const LIGHT_REACH = Math.max(...PLAYER_WEAPONS.map((w) => weaponOf(w).moves.light_right?.reach ?? 0));
 // Reach: the creature roams `roam` m from home; the longest light cut of any weapon reaches LIGHT_REACH; REACH_SLACK m for presence's pose lag (a pose is at most POSE_AGE_MS old).
-export const REACH_SLACK = 4, POSE_AGE_MS = 5000;
+export const REACH_SLACK = KILL.reachSlack, POSE_AGE_MS = KILL.poseAgeMs;
 export const withinReach = (spec: Pick<MobSpec, 'home' | 'roam'>, at: { x: number; z: number }): boolean =>
   Math.hypot(at.x - spec.home.x, at.z - spec.home.z) <= spec.roam + LIGHT_REACH + REACH_SLACK;
 
