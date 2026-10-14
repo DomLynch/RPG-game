@@ -13,7 +13,9 @@
     { "id": "stabSlide", "value": 18 },
     { "id": "bandOff", "value": 0 },
     { "id": "glanceGain", "value": 0 },
-    { "id": "glanceRate", "value": 1000 }
+    { "id": "glanceRate", "value": 1000 },
+    { "id": "flankDamage", "value": 0 },
+    { "id": "flankPosture", "value": 0 }
   ],
   "bands": [],
   "bandBest": [],
@@ -21,6 +23,7 @@
   "armourVs": [],
   "commit": [],
   "ward": [],
+  "brace": [],
   "castPenalty": [],
   "hurtStyles": [],
   "readyStyles": []

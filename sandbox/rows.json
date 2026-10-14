@@ -5,6 +5,7 @@
 "2026-10-14 Dom: armour vs blow type: plate takes 60% of cuts, 90% of stabs, 140% of crushes; leathers 85/65/100; robes 130/130/120 (blowKinds + armourVs rows); maul and warhammer crush, estoc and every thrust pierce, the rest cut.",
 "2026-10-14 Dom: commit vs bait: maul and warhammer heavies are 30% longer in the windup, cannot be feinted and shrug every stagger from the first tick; the dodge counter punishes them.",
 "2026-10-14 Dom: ward: the Witch's raised guard throws the first blow back (80% of it at the attacker, never to death) and is down for 4 s; a cheap light pops it first.",
+"2026-10-14 Dom: shield wall vs flank: a side blow on a raised guard (outside its arc, not from behind) deals 120% and 140% posture; the Shieldmaiden cannot step while her guard is up, so the answer is the shove or the flank.",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
 "2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
@@ -69,7 +70,9 @@
 {"id":"stabSlide","value":18},
 {"id":"bandOff","value":400},
 {"id":"glanceGain","value":450},
-{"id":"glanceRate","value":820}
+{"id":"glanceRate","value":820},
+{"id":"flankDamage","value":1200},
+{"id":"flankPosture","value":1400}
 ],"bands":[
 {"id":"inner","upTo":135},
 {"id":"mid","upTo":180},
@@ -88,6 +91,8 @@
 ],"commit":[
 {"weapon":"maul","move":"heavy_overhead","windup":30},
 {"weapon":"warhammer","move":"heavy_overhead","windup":30}
+],"brace":[
+{"opponent":"shieldmaiden"}
 ],"ward":[
 {"opponent":"witch","down":240,"reflect":800}
 ],"readyStyles":[

@@ -149,4 +149,12 @@ type WardRow = { opponent: string; down: number; reflect: number };
 const WARD = ((DEFS as unknown as { ward?: WardRow[] }).ward ?? []);
 export const WARD_ON = WARD.length > 0;
 export const wardOf = (oid: string | undefined): WardRow | undefined => (WARD_ON && oid ? WARD.find((r) => r.opponent === oid) : undefined);
-export const OID_ON = ARMOUR_ON || WARD_ON;   // the opponent's id rides on its fighter only while a sandbox row reads it
+
+// flank + shieldWall (Dom 2026-10-14, Strategy preview 2 and #9; donors For Honor guard direction, the Hoplite line in GAME_SPEC): a blow that lands on a RAISED guard from outside its arc but not from behind (a side
+// blow: the guard is already ignored there on trunk) deals `flankDamage` and `flankPosture` per-mille of itself (0 = off). A `brace` row { opponent } roots that creature while its guard is up: it absorbs the front
+// but cannot step, so the answer is the shove or the flank. No rows (trunk) = untouched.
+export const FLANK_DAMAGE = num('flankDamage', 'value'), FLANK_POSTURE = num('flankPosture', 'value');
+type BraceRow = { opponent: string };
+const BRACE = ((DEFS as unknown as { brace?: BraceRow[] }).brace ?? []);
+export const braced = (oid: string | undefined): boolean => BRACE.length > 0 && !!oid && BRACE.some((r) => r.opponent === oid);
+export const OID_ON = ARMOUR_ON || WARD_ON || BRACE.length > 0;   // the opponent's id rides on its fighter only while a sandbox row reads it
