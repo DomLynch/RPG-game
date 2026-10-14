@@ -51,6 +51,26 @@
       "refs": {
         "boss": "typeWeight"
       }
+    },
+    {
+      "table": "ladderRule",
+      "file": "career-rules.json",
+      "at": "ladderRule",
+      "key": "id",
+      "required": {
+        "maxLevel": "integer",
+        "oldMaxLevel": "integer",
+        "dialTrail": "integer"
+      }
+    },
+    {
+      "table": "respecRule",
+      "file": "career-rules.json",
+      "at": "respecRule",
+      "key": "id",
+      "required": {
+        "freeRespreadLevel": "integer"
+      }
     }
   ]
 }

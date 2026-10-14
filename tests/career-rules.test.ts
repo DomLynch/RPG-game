@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { MAX_LEVEL, OLD_MAX_LEVEL, DIAL_TRAIL } from '../src/core/career-ladder.ts';
+import { FREE_RESPREAD_LEVEL, RANK_LEVELS } from '../src/core/build-model.ts';
 import { LEVEL_CURVE, TYPE_WEIGHTS, MAX_PARTY, MIN_CONTRIBUTION_PERMILLE, HEAT_UNIT_S, FREE_REPEATS, RESTED_PER_DAY_CP, RESTED_CAP_CP } from '../src/core/career-model.ts';
 import { loadRegistry, tableFromFile, type Manifest } from '../src/core/registry.ts';
 import careerRules from '../src/core/career-rules.json' with { type: 'json' };
@@ -36,4 +38,14 @@ test('the level curve boss is a live typeWeight row (a ref the registry checks)'
   assert.ok(loadRegistry(careerManifest.tables.map((t) => tableFromFile(t as unknown as Manifest, careerRules, 'career-rules.json'))));
   const bad = { ...careerRules, levelCurve: [{ ...careerRules.levelCurve[0]!, boss: 'no-such-type' }] };
   assert.throws(() => loadRegistry(careerManifest.tables.map((t) => tableFromFile(t as unknown as Manifest, bad, 'career-rules.json'))));
+});
+
+test('the ladder and respec rows hold today\'s literals and equal the exports Backend will point at them (one fact, one place)', () => {
+  assert.deepEqual(careerRules.ladderRule, [{ id: 'ladder', maxLevel: 50, oldMaxLevel: 46, dialTrail: 5 }]);
+  assert.deepEqual(careerRules.respecRule, [{ id: 'respec', freeRespreadLevel: 10 }]);
+  const ladder = careerRules.ladderRule[0]!, respec = careerRules.respecRule[0]!;
+  assert.deepEqual([ladder.maxLevel, ladder.oldMaxLevel, ladder.dialTrail], [MAX_LEVEL, OLD_MAX_LEVEL, DIAL_TRAIL]);
+  assert.equal(respec.freeRespreadLevel, FREE_RESPREAD_LEVEL);
+  assert.equal(careerRules.levelCurve[0]!.rankLevels, RANK_LEVELS);
+  assert.ok(loadRegistry(careerManifest.tables.map((t) => tableFromFile(t as unknown as Manifest, careerRules, 'career-rules.json'))));
 });
