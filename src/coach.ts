@@ -6,6 +6,7 @@
 // Human reaction, by construction identical to the AI's: the coach never overrides `reaction`, `tellReaction`, `anticipate`, `accuracy` or `discipline`, so it notices a cut after the same ticks the
 // warden does at that level, and `decide()` applies the same reaction cap. tests/coach.test.ts pins that no stance brain touches them and that none is faster than the quickest AI profile.
 import { decide, initialAi, type AiState } from './fight/ai.ts';
+import { present } from './present-rows.ts';
 import { idleIntent, type Duel, type Intent } from './fight/duel.ts';
 import { PROFILES, type AiProfile, type Level } from './fight/moves.ts';
 import { PICKS, type PickedStance } from './fight/stance.ts';
@@ -27,7 +28,7 @@ export const FOE_LAPSE: Readonly<Record<string, number>> = { goblin: 0.15, night
 // The first n=100 table showed the stances answer lapse very differently: the defensive brain (it lives on its answers) fell from 62 % to 42 % against the Executioner on +0.2, while the aggressive one barely moved (99 % -> 93 %). So the
 // per-foe amount is scaled by how much each stance leans on answering.
 export const FOE_LAPSE_SCALE: Readonly<Record<PickedStance, number>> = { neutral: 1, aggressive: 1.8, defensive: 0.35, trickster: 0.8 };
-const LAPSE_MIN = 0.1, LAPSE_MAX = 0.85;
+const LAPSE_MIN = present('coach-lapse-min'), LAPSE_MAX = present('coach-lapse-max');
 export const coachProfile = (stance: PickedStance, level: Level = 'normal', foe?: string): AiProfile => {
   const p = { ...PROFILES[level], ...COACH_BRAINS[stance] }, add = foe ? FOE_LAPSE[foe] : undefined;
   return add ? { ...p, lapse: Math.min(LAPSE_MAX, Math.max(LAPSE_MIN, p.lapse + add * FOE_LAPSE_SCALE[stance])) } : p;
