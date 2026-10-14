@@ -31,7 +31,7 @@ const servers = { a: await serveDist(A), a2: await serveDist(A), b: await serveD
 const browser = await chromium.launch({ headless: true, args: process.env.PARITY_SW ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [] });
 const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); return { tick: s.tick, caster: s.stages[1] ?? s.stages[0] }; });
 
-// One deterministic run of one special on one build. plan null: draws off, find the wind-up start and the strike. Otherwise draw from plan.from to plan.to and shoot every EVERY ticks (keyed by tick).
+// One deterministic run of one special on one build. plan null: draws off, find the wind-up start and the strike. Otherwise draw from plan.from and shoot every EVERY ticks from the wind-up start to POST after the strike (keyed by offset from the wind-up start `w` or the strike `r`).
 async function run(side, special, plan) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }), page = await context.newPage();
   page.on('pageerror', (e) => console.log(`pageerror[${side} ${special}]:`, e.message));
@@ -54,6 +54,7 @@ async function run(side, special, plan) {
         const key = seen.land !== null ? ((tick - seen.land) % EVERY === 0 ? `r${tick - seen.land}` : null) : seen.start !== null ? ((tick - seen.start) % EVERY === 0 ? `w${tick - seen.start}` : null) : null;
         if (drawing && key && !shots.has(key)) shots.set(key, await page.screenshot({ type: 'png', animations: 'disabled' }));
         if (seen.land !== null && tick >= seen.land + POST) return { seen, shots };
+        if (tick > plan.limit) throw new Error(`pass 2 saw no strike by tick ${plan.limit} (pass 1 saw it earlier): a missed or late cast`);
       }
       await clock.run(16);
     }
@@ -78,8 +79,8 @@ for (const special of names) {
   try {
     const [sa, sa2, sb] = await Promise.all([run('a', special, null), run('a2', special, null), run('b', special, null)]);   // pass 1: where the wind-up starts and the strike lands, per build
     const row = { special, a: sa, a2: sa2, b: sb, windup: [sa.land - sa.start, sa2.land - sa2.start, sb.land - sb.start], timingSame: sa.land - sa.start === sb.land - sb.start, noiseTimingSame: sa.land - sa.start === sa2.land - sa2.start, shots: 0, flagged: [] };
-    const plan = (s) => ({ from: Math.max(0, s.start - PRE) });
-    const [ra, ra2, rb] = await Promise.all([run('a', special, plan(sa)), run('a2', special, plan(sa2)), run('b', special, plan(sb))]);   // pass 2: shoot, compared by absolute tick
+    const plan = (s) => ({ from: Math.max(0, s.start - PRE), limit: s.land + POST + 120 });   // limit: the strike pass 1 saw + POST + slack; a pass 2 that gets past it never saw the strike
+    const [ra, ra2, rb] = await Promise.all([run('a', special, plan(sa)), run('a2', special, plan(sa2)), run('b', special, plan(sb))]);   // pass 2: shoot, matched by offset from each run's own wind-up start / strike
     row.shotsList = [];
     for (const [tick, pa] of ra.shots) {
       const pa2 = ra2.shots.get(tick), pb = rb.shots.get(tick); if (!pa2 || !pb) { row.flagged.push({ tick, missing: !pa2 ? 'a2' : 'b' }); continue; }
@@ -97,7 +98,7 @@ for (const special of names) {
 await browser.close(); await servers.a.close(); await servers.a2.close(); await servers.b.close();
 
 const bad = rows.filter((r) => r.error || !r.timingSame || r.flagged.length), cross = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.cross, 0), 0), noise = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.noise, 0), 0);
-const md = [`# Visual parity: ${A} (before) vs ${B} (after)`, '', `${rows.length} specials, ${rows.reduce((s, r) => s + (r.shots ?? 0), 0)} shots (375x812, every ${EVERY} ticks from ${PRE} before the wind-up to ${POST} after the strike). ${bad.length} specials with a timing difference, an error or a shot above the noise floor. Differing pixels in all: before-vs-after ${cross}, before-vs-before (same code, the noise floor) ${noise}.`, '',
+const md = [`# Visual parity: ${A} (before) vs ${B} (after)`, '', `${rows.length} specials, ${rows.reduce((s, r) => s + (r.shots ?? 0), 0)} shots (375x812, every ${EVERY} ticks from the wind-up start to ${POST} after the strike; the draws turn on ${PRE} ticks before the wind-up so its first frame is a live one). ${bad.length} specials with a timing difference, an error or a shot above the noise floor. Differing pixels in all: before-vs-after ${cross}, before-vs-before (same code, the noise floor) ${noise}.`, '',
   '| special | wind-up ticks before | wind-up ticks after | shots | above noise | px before-vs-after | px noise |', '|---|---|---|---|---|---|---|',
   ...rows.map((r) => r.error ? `| ${r.special} | ERROR ${r.error} | | | | | |` : `| ${r.special} | ${r.a.land - r.a.start} | ${r.b.land - r.b.start} | ${r.shots} | ${r.flagged.length} | ${r.shotsList.reduce((u, d) => u + d.cross, 0)} | ${r.shotsList.reduce((u, d) => u + d.noise, 0)} |`)].join('\n');
 await fs.writeFile(`${OUT}/parity.json`, JSON.stringify({ a: A, b: B, every: EVERY, rows }, null, 1)); await fs.writeFile(`${OUT}/parity.md`, md + '\n');
