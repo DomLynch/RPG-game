@@ -5,46 +5,15 @@ import { fail, ok, type Result } from '../../src/core/server.ts';
 import { CONCORD_EXCHANGE } from '../../src/core/server.ts';
 import { toMetres, toWorld, type Mount } from './derive.ts';
 import { resolveZone, SCHEMA_VERSION, type WorldData } from './resolve.ts';
+import DATA from './concord.json' with { type: 'json' };
 
 export const CONCORD_REGION: string = CONCORD_EXCHANGE; // one id for the world, the contracts and Trade (region1 spec ruling 7)
 
-export const CONCORD: WorldData = {
-  schemaVersion: SCHEMA_VERSION,
-  regions: {
-    [CONCORD_REGION]: {
-      params: { rules: { safe: true }, density: { creatures: 0 }, ambience: { weather: 'dust' } },
-      zones: {
-        // The Pit's yard: 50 × 50 u around the arena (parapet outer radius 23.2 m). The gladiator gate's tunnel starts under the stands
-        // and runs 9.6 m to the yard's far edge, where the Exchange begins.
-        'pit-yard': {
-          zoneSize: { width: 50, depth: 50 },
-          layout: { centre: { u: 0.5, v: 0.5, facing: 0 }, 'pit-gate': { u: 0.5, v: 0.808, facing: 0 } },
-          passages: { 'gladiator-gate': { from: 'pit-gate', width: 2.5, length: 9.6 } },
-          connections: { exchange: { to: 'exchange', kind: 'gate', here: 'pit-gate', there: 'outer-gate', twoWay: true } },
-          density: { npcs: 0, props: 0 },
-          terrain: { ground: 'sand' },
-          ambience: { preset: 'ash-pit' }, // the Pit gate: the arena's own light
-        },
-        // The Exchange: 40 × 50 u of paved terrace. 14 standing figures and 11 props (6 braziers, 4 stalls, the contract board) on
-        // 2000 m² give its densities.
-        exchange: {
-          zoneSize: { width: 40, depth: 50 },
-          layout: {
-            'outer-gate': { u: 0.5, v: 0, facing: 180 },
-            'covenant-stone': { u: 0.5, v: 0.4, facing: 0 },
-            'contract-board': { u: 0.195, v: 0.22, facing: -90 },
-            forge: { u: 0.2375, v: 0.71, facing: -90 },
-            bank: { u: 0.5, v: 0.84, facing: 180 },
-          },
-          connections: { pit: { to: 'pit-yard', kind: 'gate', here: 'outer-gate', there: 'pit-gate', twoWay: true } },
-          density: { npcs: 0.7, props: 0.55 },
-          terrain: { ground: 'paving' },
-          ambience: { preset: 'exchange-dusk' },
-        },
-      },
-    },
-  },
-};
+// The data lives in concord.json (World, Dom's data-layer day 2026-10-14, as-data debt retired): the Pit's yard is 50 × 50 u around the arena (parapet outer radius 23.2 m); the
+// gladiator gate's tunnel starts under the stands and runs 9.6 m to the yard's far edge, where the Exchange begins. The Exchange is 40 × 50 u of paved terrace: 14 standing figures and
+// 11 props (6 braziers, 4 stalls, the contract board) on 2000 m² give its densities. concord.test.ts pins every number to 1 cm.
+export const CONCORD: WorldData = DATA as WorldData;
+if (CONCORD.schemaVersion !== SCHEMA_VERSION || !(CONCORD_REGION in CONCORD.regions)) throw Error('concord.json: its schema version or its region id does not match the code');
 
 // Where the two zones sit in today's scene: the Pit's centre at the world origin, everything facing the gate (−z, heading π), and the
 // Exchange's outer gate at the end of the Pit's gladiator gate. Derived from the data, so a rescale moves the Exchange with the passage.

@@ -266,3 +266,22 @@ test('settle: a GEARED record (worn gear on the sheet) verifies and pays against
   const ungeared = await settleWith((seed) => fightWith(seed, bare), []);
   assert.equal(ungeared.out.verified, true, String(ungeared.out.reason));
 });
+
+test('settle with a wear line: two kills on one piece, the second\'s wear-seq clashes, and the kill is STILL settled and paid (never the "already settled" conflict)', async () => {
+  const { db, events } = fakeDb({ t: 1e6 });
+  const reads: number[] = [];
+  const ops = encounterOps(deps({
+    verify: () => ({ ok: true, result: 'won', twist: null, ticks: 100 }),
+    rewards: (f) => [{ op: 'event', event_id: `reward:${f.token}`, kind: 'metal', account: f.account, character: f.character, payload: {} }],
+    wear: async (k) => { reads.push(1); const seq = reads.length === 1 ? 1 : reads.length === 2 ? 1 : 2; return [{ op: 'event', event_id: `wear:inst:p:${seq}`, kind: 'metal', account: k.account, character: k.character, payload: { wear: { instance: 'inst:p', seq } } }]; },
+  }));
+  const settle = async (n: number) => {
+    const start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
+    return ops.encounter_settle!(ctx(db), { token: start.token, record: fight(start.seed, n) }) as Promise<Record<string, unknown>>;
+  };
+  const a = await settle(1);                       // writes wear:inst:p:1
+  const b = await settle(2);                       // its first line is wear:inst:p:1 again (stale): clash, re-read -> seq 2
+  assert.deepEqual([a.result, b.result, a.verified, b.verified], ['won', 'won', true, true]);
+  assert.deepEqual(events.map((e) => e.event_id).filter((id) => String(id).startsWith('wear:')), ['wear:inst:p:1', 'wear:inst:p:2']);
+  assert.equal(events.filter((e) => String(e.event_id).startsWith('reward:')).length, 2, 'both kills were paid');
+});

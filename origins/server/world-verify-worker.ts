@@ -3,5 +3,5 @@ import { parentPort } from 'node:worker_threads';
 import { verifyWorldRecord, type VerifyJob } from './world-verify.ts';
 
 parentPort!.on('message', (m: VerifyJob & { id: number }) => {
-  void verifyWorldRecord(m.text, m.spawn, m.kind, m.limit, m.maxTicks).then((v) => parentPort!.postMessage({ id: m.id, v }));
+  void verifyWorldRecord(m.text, m.spawn, m.kind, m.limit, m.maxTicks, m.token).then((v) => parentPort!.postMessage({ id: m.id, v }));
 });
