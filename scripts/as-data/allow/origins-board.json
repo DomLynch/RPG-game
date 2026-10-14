@@ -1,5 +1,5 @@
 {
   "tunables": [
-    {"file": "origins/board/board-view.ts", "name": "BOARD_SEED", "kind": "exempt", "reason": "ruled by Lead 2026-10-13: BOARD_SEED = 0, the daily rotation comes from the date, not from this number"}
+    {"file": "origins/board/board-view.ts", "name": "BOARD_SEED", "kind": "exempt", "reason": "BOARD_SEED = 0 by Lead ruling 2026-10-13: the daily rotation comes from the date; this is an offset, not tuning", "owner": "Web & UI"}
   ]
 }

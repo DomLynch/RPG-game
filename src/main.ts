@@ -33,7 +33,7 @@ import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitK
 import { LOOT, PAPERDOLL, SKILLS, decline, dropFor, killAt, emptyLoot, equippedSkill, fightWeapon, isLootId, isSkillId, lootName, ownedName, recordTaken, skillOf, slotOf, store, takeWouldDrop, displacedBy, wearTaken, type Loot, type LootId } from './core/index.ts';
 import { createLootPanel } from './core/index.ts';
 import { loadScorecard, recordResult, saveScorecard, scorecardRows, totals } from './scorecard.ts';
-import { beatLegend, describe, initialPractice, type CombatEvent, type Practice } from './fight/combat.ts';
+import { beatLegend, describe, initialPractice, type Practice } from './fight/combat.ts';
 import { CLIP_SECONDS, clipEnded, clipFileName, clipStartTick, clipSupported, recordClip, type ClipRecording } from './clip.ts';
 import { Match, equipNotice } from './fight/match.ts';
 import { coachKilled, createCoachSession, type CoachEvent } from './fight/coach-ui.ts';
@@ -64,12 +64,13 @@ import { PICKER_OPTIONS, PLAIN_DEATH, isTemplate } from './fight/finisher-look.t
 import { hamstrungPick, resolveHamstrung } from './fight/hamstrung.ts';
 import { executionPick, resolveExecution } from './fight/execution.ts';
 
-import { HEAVY_MOVES, createHud } from './fight/hud.ts';
+import { createHud } from './fight/hud.ts';
 import { getTouchOwner, type TouchTarget } from './fight/touch-router.ts';
 import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './lessons.ts';
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './fight/tutorial-ui.ts';
-import { KICK, impactStopMs, impactTier, landedKick } from './fight/hit-impact.ts';
+import { impactTier } from './fight/hit-impact.ts';
+import { stopFor } from './hit-stop.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './fight/detmath.ts';
 import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
@@ -614,17 +615,7 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
-const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
-  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
-  Blocked: 30,
-  Hit: 50,
-  Parried: 70,
-  GuardBroken: 90,
-  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
-  Killed: 220,
-};
-const HEAVY_HIT = 90,
-  HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
+// The stop lengths are rows (hit-stop-rules.json); stopFor (hit-stop.ts) turns a frame's events into the hold, here and in scripts/impact-preview.mjs.
 const TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
@@ -653,20 +644,6 @@ feedback.breathing(breathLook(window.location?.search ?? ''));   // ?look=fatigu
 // Hit impact (hit-impact.ts, Dom 2026-09-29): a landed blow holds 3 or 5 frames longer, a block 2, a parry 11, always (reduced motion included, owner ruling 2026-09-29). The pause delays only the
 // presentation clock; every tick still runs, in order. In a live duel (Dom via Strategy, always on, no setting) the SAME ms hold only what is
 // DRAWN (pvpShown below): the sim tick and the network cadence never pause, and the screen catches up over a few frames.
-function stopFor(events: CombatEvent[]): number {
-  if (events.some(landedKick)) return KICK.stopMs;   // a landed kick's beat is 2 frames in all (hit-impact.ts KICK)
-  let ms = 0;
-  for (const e of events) {
-    const base = HIT_STOP[e.type] ?? 0;
-    if (!base) continue;
-    const heavy = !!e.charged || HEAVY_MOVES.has(e.move ?? '');
-    ms = Math.max(
-      ms,
-      e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base,
-    );
-  }
-  return ms + impactStopMs(events);
-}
 // The fallen legend's face beside "You beat <legend>" (Dom via Strategy 2026-09-28, the portrait handover): the versus card's medallion,
 // drawn by style.css #combat-status[data-face]::before from --face once the file has loaded, for the same level the line names. No face
 // file (or no legend) keeps the plain line, as on the card. Any other line (a new fight, a loss, a draw) clears it.

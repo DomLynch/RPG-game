@@ -4,7 +4,7 @@
 // The workflows' own `needs:` / `if:` / concurrency expressions are evaluated here per event, so this tests what Actions would schedule.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -28,6 +28,7 @@ const jobs = (file: string): Job[] => {
 // `chain`: the results of EVERY job upstream (needs of needs too): GitHub's success() is false when any of them was skipped or failed, so a job with no
 // `if` under a skipped `static` is skipped even when its direct need ran through !cancelled() (unit-ci run 38293767009 on trunk 4337cfe9b: 8 green shards, receipt skipped).
 const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>, chain: readonly string[] = Object.values(needs).map(n => n.result)) => {
+  if (github.event_name === 'push') (github.event as { head_commit?: unknown }).head_commit ??= { message: '' };   // a real push event always carries head_commit; Actions reads a missing one as null
   const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`).replace(/\.\*\./g, "['*'].");
   const fns = {
     contains: (h: unknown, n: string) => (Array.isArray(h) ? h.includes(n) : String(h).includes(n)),
@@ -144,6 +145,7 @@ test('DI/DH sequence (Lead 2026-10-13): a push, then a label, then the push\'s r
     assert.match(cancels(file), /true|pull_request/, `${file}: the group cancels the superseded run`);
   }
   assert.equal(grp(R, cand('labeled', 'ci:release-checks', '4')), grp(R, cand('synchronize')), 'the ci:release-checks label is the real row run: it stays in the head group');
+  assert.notEqual(grp(R, cand('opened', undefined, '5')), grp(R, cand('synchronize')), 'a late `opened` (plan skips it) must not share the head group, or it cancels the labeled rows run (FC 2026-10-14)');
 });
 
 test('a trunk push is unchanged: no static job, every shard and browser job runs', () => {
@@ -251,6 +253,49 @@ test('release-checks on a candidate: adding any label but ci:release-checks sche
   for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has(j), `ci:release-checks added: ${j} runs`);
   for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('synchronize'), {}, rows).has(j), `a push to the candidate: ${j} runs`);
   assert.ok(schedule(R, { event_name: 'workflow_dispatch', event: {} }, {}, rows).has('check'), 'a dispatch is unchanged');
+});
+
+test('a label event on a release-* candidate schedules 0 jobs in quality and unit-ci; the push/open run is the full one (cut applies the labels in the same second: EH ran 3 quality + 3 unit-ci runs, 2026-10-13)', () => {
+  const cand = (action: string, label?: string): Ctx => ({ ...withLabelNames(pr(action, ['ci:release-checks', 'auditor:ready', ...(label ? [label] : [])], label ? { label: { name: label } } : {})), head_ref: 'release-EH' });
+  const plan = { plan: { game: 'true', browser: 'true' } };
+  for (const file of [Q, U]) for (const l of ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']) assert.deepEqual([...schedule(file, cand('labeled', l), {}, plan)], [], `${file}: ${l} added to a candidate: 0 jobs`);
+  const rows = { plan: { checks: '[{"index":1}]' } };
+  assert.deepEqual([...schedule(R, cand('opened'), {}, rows)], [], 'release-checks: a candidate `opened` runs nothing (the label event is the run)');
+  assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has('plan'), 'release-checks: the ci:release-checks label event is the real run');
+  assert.ok(schedule(Q, cand('opened'), {}, plan).has('plan'), 'quality: the candidate open/push still runs the plan');
+  assert.ok(schedule(Q, cand('synchronize'), {}, plan).has('quality-shard'), 'quality: a push to the candidate runs the shards');
+  assert.ok(schedule(U, cand('synchronize'), {}, plan).has('shard'), 'unit-ci: a push to the candidate runs the shards');
+  assert.ok(schedule(Q, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }, {}, plan).has('plan'), 'a feature PR still runs the full set when auditor:ready is added');
+  assert.ok(schedule(U, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }).has('shard'), 'unit-ci: same on a feature PR');
+});
+
+// Release speed (Deploy, 2026-10-13): the publish moment of an already-tested candidate must start no CI. EK: `gh pr ready` 13 s before the merge started a second ~50-job
+// release-checks matrix (38440789792), and the train's fast-forward of trunk started a second unit-ci (38440811361) and quality (38440811418) beside the next candidate's.
+test('the train fast-forward of a tested candidate (a push whose merge commit says "(release-X candidate)") schedules no unit-ci and no quality job; any other trunk push still does', () => {
+  const push = (message: string): Ctx => ({ event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: { head_commit: { message } } });
+  const candidate = push('Merge pull request #2600 (release-EK candidate)'), other = push('Merge pull request #2599 from DomLynch/deploy/x');
+  assert.deepEqual([...schedule(U, candidate)], [], 'unit-ci: nothing');
+  assert.deepEqual([...schedule(Q, candidate, {}, game)], [], 'quality: nothing');
+  const unit = schedule(U, other), qual = schedule(Q, other, {}, game);
+  for (const j of ['shard', 'origins-db', 'receipt']) assert.ok(unit.has(j), `unit-ci ${j} still runs on an ordinary trunk push`);
+  for (const j of ['plan', 'quality-shard', 'quality']) assert.ok(qual.has(j), `quality ${j} still runs on an ordinary trunk push`);
+});
+
+test('release-checks does not start on ready_for_review: the train flips a candidate out of draft just before it merges it, after every row already ran', () => {
+  const types = /pull_request:\n(?:[^\n]*\n)*?\s+types: \[([^\]]*)\]/.exec(readFileSync(R, 'utf8'))![1];
+  assert.ok(!types.includes('ready_for_review'), types);
+  for (const t of ['opened', 'synchronize', 'labeled']) assert.ok(types.includes(t), `${t} still starts the matrix`);
+});
+
+// #2623 @dd45bd777 (Auditor HOLD): `if: !(...)` is a YAML TAG, not an expression. Ruby's YAML loader tolerated it, yaml.safe_load and GitHub do not: the file did not parse, quality would
+// have stopped running on every PR. A strict parser over every workflow is the guard for any future edit of an `if:` (an expression that starts with `!` must be wrapped in ${{ }}).
+test('every .github/workflows file parses with a strict YAML parser (PyYAML safe_load, as GitHub reads it): an if starting with ! must be wrapped in ${{ }}', () => {
+  const files = readdirSync('.github/workflows').filter(f => f.endsWith('.yml') && !f.startsWith('.'));   // not a macOS AppleDouble ._x.yml from a tar
+  assert.ok(files.length >= 8, `found ${files.length} workflows`);
+  for (const f of files) {
+    const r = spawnSync('python3', ['-c', 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))', `.github/workflows/${f}`], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `${f} does not parse: ${r.stderr.split('\n').filter(Boolean).slice(-2).join(' | ')}`);
+  }
 });
 
 test('unit-ci delta (Strategy 2026-10-14): an unchanged delta on a labelled feature PR skips the shards + origins-db (static still runs) and the receipt still reports; a changed or unknown delta, a release candidate and a trunk push run in full', () => {

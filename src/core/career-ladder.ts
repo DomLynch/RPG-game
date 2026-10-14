@@ -1,4 +1,7 @@
 import type { Profile } from './profile.ts';
+import CAREER_RULES from './career-rules.json' with { type: 'json' };
+
+const LADDER = CAREER_RULES.ladderRule[0]!;   // the ladderRule row of career-rules.json (every default equals the literal it replaced; tests/career-rules.test.ts pins it)
 
 // Career rank from victory marks — the 50-level ladder (Dom via Strategy, 2026-09-27; 2026-10-05: Origin gets its own I–V, was singular at 46):
 // level = 1 + wins, capped at 50. Ten street-plain titles, sub-ranks I–V on all ten; ONE win per
@@ -6,10 +9,10 @@ import type { Profile } from './profile.ts';
 // Existing marks carry over as they are: the count is the same, only the mapping changed. Pure: the same count renders the same rank on
 // the HUD, in the journal, in tests and on the loot verifier (deploy.sh ships src/ to it, so client and server switch together).
 export const TITLES = ['Recruit', 'Legionary', 'Gladiator', 'Veteran', 'Champion', 'Praetorian', 'Master', 'Primus', 'Invictus', 'Origin'] as const;
-export const MAX_LEVEL = 50;
+export const MAX_LEVEL = LADDER.maxLevel;
 // A fight recorded before the 50-level ladder (record version < FIRST_FIFTY_VERSION) was fought under a top of 46: the server judges it by the rank
 // that ladder gave (awards.ts levelRefusal), so a claim already in the queue at the deploy is not refused for a floor that did not exist when it was played.
-export const FIRST_FIFTY_VERSION = 27, OLD_MAX_LEVEL = 46;
+export const FIRST_FIFTY_VERSION = 27, OLD_MAX_LEVEL = LADDER.oldMaxLevel;
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const;
 // step/fill: the class-progress bar (Dom 2026-09-23; 2026-09-27: one whole segment per win, no partial fill) — one segment per numeral,
 // `step` of them lit, `fill` always 0 now (kept so the bar code reads unchanged); next: the class the bar climbs toward ('' at Origin, no bar).
@@ -32,7 +35,7 @@ export const levelOfMarks = (marks: number): number => Math.min(MAX_LEVEL, 1 + w
 // normally equals the rank level. Two straight losses at the same dial: dial −1 (rank unchanged, never below 1). Each win: dial +1, never
 // above the rank; three straight wins: the dial snaps to the rank. It never trails the rank by more than DIAL_TRAIL. Device-only state.
 export type Dial = { level: number; losses: number; wins: number };
-export const DIAL_TRAIL = 5;
+export const DIAL_TRAIL = LADDER.dialTrail;
 export const dialLevel = (dial: Pick<Dial, 'level'> | undefined, rank: number): number =>
   Math.min(rank, Math.max(1, rank - DIAL_TRAIL, Number.isInteger(dial?.level) ? dial!.level : rank));
 // The level a ladder fight is fought at: the dial against the career count's rank level. main.ts builds the Match and every career rematch

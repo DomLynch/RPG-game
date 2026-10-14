@@ -5,13 +5,10 @@
 // Rewards stay OFF: `decideDuelResult` pays 0 while PVP_REWARDS is false (src/net/rewards.ts, pinned by tests/net-rollback.test.ts), and says
 // what it WOULD have paid so the numbers can be checked before anything is switched on. Every number is in DUEL_ANTIFARM and is a placeholder.
 // Persistence (a rating per account, the day's counted wins) needs a migration and is NOT here; callers pass the history in.
+import { ANTIFARM_ROW } from './net-rules.ts';
 import { PVP_REWARDS } from './rewards.ts';
 
-export const DUEL_ANTIFARM = {
-  elo: { start: 1000, k: 32, floor: 100 },        // TODO(Stats): starting rating, K factor, lowest rating
-  reward: { base: 10, perFullWin: 3, step: 0.5, min: 0.1 },   // TODO(Stats): base pay of a counted win, how many a day pay in full, the multiplier after each further win, its floor
-  dayMs: 24 * 60 * 60 * 1000,                       // the day is the UTC day
-} as const;
+export const DUEL_ANTIFARM = ANTIFARM_ROW;
 export type AntifarmConfig = typeof DUEL_ANTIFARM;
 
 /** A counted win this account already has: who it beat and when (ms). The caller loads these for the winner's current UTC day. */

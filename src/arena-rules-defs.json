@@ -1,0 +1,24 @@
+{
+  "rules": [
+    { "id": "playRadius", "value": 8.55, "unit": "m" },
+    { "id": "cameraClamp", "value": 11.5, "unit": "m" },
+    { "id": "sandTile", "value": 3, "unit": "m" },
+    { "id": "wallInner", "value": 11.7, "unit": "m" },
+    { "id": "wallOuter", "value": 12.5, "unit": "m" },
+    { "id": "wallTop", "value": 2.6, "unit": "m" },
+    { "id": "tier1", "value": 3.4, "unit": "m" },
+    { "id": "tier2", "value": 4.2, "unit": "m" },
+    { "id": "tier3", "value": 5, "unit": "m" },
+    { "id": "tier4", "value": 5.8, "unit": "m" },
+    { "id": "tier5", "value": 6.6, "unit": "m" },
+    { "id": "tierDepth", "value": 1.6, "unit": "m" },
+    { "id": "gateWidth", "value": 3.2, "unit": "m" },
+    { "id": "colonnade", "value": 21.4, "unit": "m" },
+    { "id": "parapetInner", "value": 22.4, "unit": "m" },
+    { "id": "parapetOuter", "value": 23.2, "unit": "m" },
+    { "id": "parapetTop", "value": 8.6, "unit": "m" },
+    { "id": "segments", "value": 96, "unit": "segments" },
+    { "id": "propTextureFull", "value": 512, "unit": "px" },
+    { "id": "propTexturePhone", "value": 256, "unit": "px" }
+  ]
+}
