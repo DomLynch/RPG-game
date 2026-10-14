@@ -1,0 +1,40 @@
+{
+  "itemLimits": [
+    {
+      "id": "items",
+      "packSlots": 64,
+      "bankSlots": 1000,
+      "maxStack": 9999,
+      "maxUpgradeLevel": 9,
+      "maxCurrency": 1000000000,
+      "note": "the item contracts' caps: slots in a pack and in the bank, the most of one stackable in a stack, the highest upgrade level, and the most a loot table's currency range may name"
+    }
+  ],
+  "economyLimits": [
+    {
+      "id": "economy",
+      "maxCoin": 1000000000,
+      "maxOffer": 16,
+      "maxMaterialLines": 4,
+      "maxUpgradeMaterialInputs": 64,
+      "note": "the trade/service contracts' caps: the most coin in one trade, the most lines in one side's offer, material lines on one upgrade request, and material instances one upgrade may burn"
+    }
+  ],
+  "storyLimits": [
+    {
+      "id": "story",
+      "maxDelta": 200,
+      "maxStages": 64,
+      "note": "the quest contract's caps: the largest single state change a quest step may make, and the most stages one quest may have"
+    }
+  ],
+  "worldLimits": [
+    {
+      "id": "world",
+      "standingMin": -1000,
+      "standingMax": 1000,
+      "maxRanks": 10,
+      "note": "a faction's standing runs from min to max, and a faction has at most this many ranks"
+    }
+  ]
+}

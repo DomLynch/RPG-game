@@ -4,9 +4,10 @@
 // (a full budget, a refusal or an offline writer just means that bout has no token and plays band-off, exactly as today: never a refusal), and hands a token back that the hero walked away from (evaded) so it stops counting.
 // No DOM, clock or storage: the page passes the time. A creature already in the loop (fighting) is never handed back.
 import { MAX_ATTACKERS } from '../../src/fight/index.ts';
+import { previewRule } from './preview-rules.ts';
 export type AheadNet = { engaged(instance: string): Promise<unknown>; evaded(instance: string): void; open(): string[]; tokenOf(instance: string): string | null };
 export type Near = { id: string; dist: number; aggro: number };
-export const ASK_BUDGET = 4, BYSTANDER_BUDGET = ASK_BUDGET - MAX_ATTACKERS, ENGAGE_TTL_MS = 120_000, RELEASE_FACTOR = 1.5, RETRY_MS = 5000;   // the writer's open-engage budget per account; a creature is let go past 1.5x its aggro radius; a refused ask is repeated no sooner than this
+export const ASK_BUDGET = previewRule('askBudget'), BYSTANDER_BUDGET = ASK_BUDGET - MAX_ATTACKERS, ENGAGE_TTL_MS = previewRule('engageTtl'), RELEASE_FACTOR = previewRule('releaseFactor'), RETRY_MS = previewRule('engageRetry');   // rows (preview-rules-defs.json); the writer's open-engage budget per account; a creature is let go past 1.5x its aggro radius; a refused ask is repeated no sooner than this
 
 export function createEngageAhead(net: AheadNet, now: () => number) {
   const spent = new Map<string, number>();   // instance -> when its non-fighting ask was made, evaded or not

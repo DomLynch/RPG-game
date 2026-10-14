@@ -1,0 +1,10 @@
+{
+  "firstLossRules": [
+    { "id": "timeout", "value": 600, "unit": "ticks" },
+    { "id": "gap", "value": 90, "unit": "ticks" },
+    { "id": "reach", "value": 2.1, "unit": "m" },
+    { "id": "finale-limit", "value": 240, "unit": "ticks" },
+    { "id": "floor", "value": 0.5, "unit": "share of a bar" },
+    { "id": "afk-cap-s", "value": 300, "unit": "s" }
+  ]
+}
