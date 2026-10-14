@@ -5,6 +5,7 @@
 // Where things stand comes from the world data (origins/world/concord.ts through concordMounts and place): the gladiator gate's
 // passage, the Exchange's outer gate, the Covenant Stone, the contract board, the forge and the bank. Everything else is metres of
 // greybox massing measured from those anchors (a column's spacing, a step's rise), which is what a greybox is.
+import { stageRule } from '../world/stage-rules.ts';
 import { CONCORD, CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { place, toMetres, toWorld } from '../world/derive.ts';
 import { resolveZone, type WorldData } from '../world/resolve.ts';
@@ -72,8 +73,8 @@ export function openWest(plan: Plan, a: Anchors, z: number, half: number): Plan 
 }
 
 // Greybox sizes: not world data, the massing's own measurements.
-export const KERB_INSET = 4; // the paved field stops this far inside the zone's edge; the stoas' back walls stand in the gap
-export const STONE_RADIUS = 2.6;
+export const KERB_INSET = stageRule('kerbInset'); // the paved field stops this far inside the zone's edge; the stoas' back walls stand in the gap
+export const STONE_RADIUS = stageRule('stoneRadius');
 export const FORGE_HALF = { x: 2.2, z: 2.6 };
 
 const SANDSTONE: Tint = [1.05, 1, 0.92], DARKSTONE: Tint = [0.62, 0.6, 0.57], PAVING: Tint = [0.86, 0.83, 0.78], SOOT: Tint = [0.1, 0.09, 0.08];

@@ -22,7 +22,9 @@ on:
   # pull requests (RUNNER_SKIP_ON_PR); they run on the Mac at deploy time as before. The summary job is RED on a pull request
   # when any row failed: a red row is a defect until it is reproduced on the Mac and shown to be the runner's (AGENTS.md).
   pull_request:
-    types: [opened, labeled, synchronize, reopened, ready_for_review]
+    # Not `ready_for_review`: the train flips a candidate out of draft 13 s before it merges it (release-train-publish.sh), which started a second ~50-job matrix on a
+    # candidate whose checks had just passed (EK 2026-10-13: 38440789792). A candidate is a draft until then; every row already ran on opened/synchronize.
+    types: [opened, labeled, synchronize, reopened]
   workflow_dispatch:
     inputs:
       ref:
@@ -32,9 +34,10 @@ on:
 # One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), like
 # quality.yml, and cancel-on-close.yml cancels a closed PR's runs. deploy.sh only ever trusts a job whose run is for the exact
 # revision being deployed (scripts/ci-trusted-checks.mjs). Adding any other label (a lane tag) gets a group of its own (the run
-# id): it runs nothing, so it must never cancel a labelled PR's row matrix in flight (Lead 2026-09-29).
+# id): it runs nothing, so it must never cancel a labelled PR's row matrix in flight (Lead 2026-09-29). So does `opened`: plan skips it,
+# but a skipped run still joined the head group and, arriving late, cancelled the labeled run (FC 2026-10-14: run 38563078857 killed the rows run).
 concurrency:
-  group: release-checks-${{ github.event.pull_request.number || github.ref }}-${{ inputs.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'ci:release-checks' && format('-{0}', github.run_id) || '' }}
+  group: release-checks-${{ github.event.pull_request.number || github.ref }}-${{ inputs.ref }}${{ (github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name != 'ci:release-checks')) && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 env:
   # Release checks the runner takes ~28 min on (80 s on the Mac): never worth waiting for from a pull request.
@@ -43,13 +46,15 @@ jobs:
   plan:
     # A release candidate (head branch release-*) runs as a DRAFT and carries ci:release-checks from the cut (scripts/cut-release.mjs): plan runs for it (Dom 2026-10-12, CI runners first).
     # Only for it (Lead + Strategy 2026-10-12): a feature PR schedules nothing here, whatever its labels; a dispatch is unchanged.
+    # `opened` runs nothing on a candidate: the cut creates it already labelled, so the ci:release-checks label event is the one real run (2026-10-13: `opened` + two label events were 3 runs, 2 cancelled, one with a red summary).
     # On a candidate, adding any label but ci:release-checks (candidate:pass, release:go after the Auditor's PASS) schedules no job at all (Lead on CW:
     # those runs queued and read as pending at push time); its group is the run id (concurrency above), so it never cancels the rows in flight.
-    if: github.event_name != 'pull_request' || (startsWith(github.head_ref, 'release-') && (github.event.action != 'labeled' || github.event.label.name == 'ci:release-checks'))
+    if: github.event_name != 'pull_request' || (startsWith(github.head_ref, 'release-') && github.event.action != 'opened' && (github.event.action != 'labeled' || github.event.label.name == 'ci:release-checks'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       checks: ${{ steps.list.outputs.checks }}
+      groups: ${{ steps.group.outputs.groups }}
       ref: ${{ steps.list.outputs.ref }}
     steps:
       # The plan reads .quality-gate.json and scripts/ only; a full depth-1 checkout of the 1 GB tree (the .glb assets) took over
@@ -109,6 +114,20 @@ jobs:
             }))).filter(check => !skip.some(name => check.name.includes(name)) && !skipRows.includes(check.index));
             require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "checks=" + JSON.stringify(checks) + "\nref=" + process.env.RUN_REF + "\n");
           '
+      - id: group
+        # One GitHub job per ROW repeated ~110-125 s of identical setup 38 times (45% of EH's runner time) and held 38 of the account's ~40 slots (EH queued 708 s on average,
+        # EK 1131 s). The rows are packed into ~10 balanced jobs by their measured seconds (scripts/lib/row-groups.mjs); each job sets up once and runs its rows one after
+        # another (scripts/ci-row-group.mjs: a receipt per row, a flaky row retried alone). `checks` above stays the per-row plan the summary and the trust script compare against.
+        env:
+          CHECKS: ${{ steps.list.outputs.checks }}
+        run: |
+          node --input-type=module -e '
+            import { appendFileSync } from "node:fs";
+            import { groupLabel, packRows } from "./scripts/lib/row-groups.mjs";
+            const groups = packRows(JSON.parse(process.env.CHECKS)).map(g => ({ id: g.id, label: groupLabel(g), rows: JSON.stringify(g.rows), webkit: g.rows.some(r => r.argv.includes("webkit")) }));
+            console.log(groups.length + " group(s): " + groups.map(g => g.id + "=" + g.label).join("; "));
+            appendFileSync(process.env.GITHUB_OUTPUT, "groups=" + JSON.stringify(groups) + "\n");
+          '
   rows:
     # The visible receipt when nothing runs: one green job, under a minute, saying so — a PR page with no matrix job at all
     # reads as "CI never ran".
@@ -124,11 +143,12 @@ jobs:
     if: needs.plan.outputs.checks != '[]'
     strategy:
       fail-fast: false
-      # Every row starts at once (Lead 2026-10-13; the reason is in the header).
+      # Every group starts at once (Lead 2026-10-13; the reason is in the header).
       max-parallel: 40
       matrix:
-        check: ${{ fromJson(needs.plan.outputs.checks) }}
-    name: check ${{ matrix.check.index }} (${{ matrix.check.name }})
+        group: ${{ fromJson(needs.plan.outputs.groups) }}
+    # `checks 11,14,24 (names)`: scripts/ci-trusted-checks.mjs reads the row list from the leading `checks <csv> `.
+    name: checks ${{ matrix.group.label }}
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 30
@@ -148,34 +168,18 @@ jobs:
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - run: npx playwright install --with-deps chromium
       # Row 49 (browser-replay-check --engine webkit, Strategy 2026-09-29): Safari's engine, installed only for the rows that name it.
-      - if: contains(matrix.check.argv, 'webkit')
+      - if: matrix.group.webkit
         run: npx playwright install --with-deps webkit
       - name: Lossless JPEG build tool and ffmpeg (arena-audio-check spawns ffmpeg)
         run: sudo apt-get install -y libjpeg-turbo-progs ffmpeg
       - run: npm run build
-      - name: Release check ${{ matrix.check.index }}
+      - name: Release checks ${{ matrix.group.id }}
         env:
-          CHECK_INDEX: ${{ matrix.check.index }}
-          CHECK_ARGV: ${{ matrix.check.argv }}
-          CHECK_NAME: ${{ matrix.check.name }}
-        # Same argv the Mac runs, timed; the receipt is written whether it passes or not.
-        run: |
-          PG_BIN="$(pg_config --bindir 2>/dev/null || true)" node -e '
-            const { spawnSync } = require("child_process");
-            const argv = JSON.parse(process.env.CHECK_ARGV);
-            const started = Date.now();
-            const result = spawnSync(argv[0], argv.slice(1), { stdio: "inherit", env: { ...process.env, PG_BIN: process.env.PG_BIN } });
-            const seconds = Math.round((Date.now() - started) / 100) / 10;
-            const status = result.status ?? 1;
-            require("fs").mkdirSync("artifacts", { recursive: true });
-            // sha/tree are what the job actually checked out (a pull_request run checks out the merge ref, a dispatch
-            // may name another ref): deploy.sh trusts a receipt only for the tree it is deploying.
-            const rev = a => require("child_process").execFileSync("git", ["rev-parse", a], { encoding: "utf8" }).trim();
-            require("fs").writeFileSync(`artifacts/release-check-${process.env.CHECK_INDEX}.json`,
-              JSON.stringify({ index: Number(process.env.CHECK_INDEX), name: process.env.CHECK_NAME, command: argv.join(" "), seconds, status, runner: "ubuntu-latest", sha: rev("HEAD"), tree: rev("HEAD^{tree}"), event: process.env.GITHUB_EVENT_NAME }) + "\n");
-            console.log(`check ${process.env.CHECK_INDEX} ${status === 0 ? "passed" : "FAILED (exit " + status + ")"} in ${seconds}s`);
-            process.exit(status);
-          '
+          GROUP_ID: ${{ matrix.group.id }}
+          GROUP_ROWS: ${{ matrix.group.rows }}
+        # The same argv the Mac runs, row by row, each timed with its own receipt; a failed row is retried alone once (scripts/ci-row-group.mjs). The receipts are
+        # written whether or not rows pass; the step exits 1 when any row's final attempt failed, and the log names every failed row.
+        run: PG_BIN="$(pg_config --bindir 2>/dev/null || true)" node scripts/ci-row-group.mjs
       # The two uploads never colour the job (Auditer, 2026-09-28): GitHub's artifact service timed out five times on #1015's
       # check 1 after "check 1 passed", and the red upload step showed the passed row as FAILURE to `gh pr checks` and to Deploy's
       # strict-green watchers. The row's own result is the "Release check N" step and its receipt; a lost receipt is handled
@@ -186,16 +190,16 @@ jobs:
         # The receipt alone, tiny: what deploy.sh downloads (scripts/ci-trusted-checks.mjs).
         uses: actions/upload-artifact@v4
         with:
-          name: release-check-${{ matrix.check.index }}-receipt
-          path: artifacts/release-check-${{ matrix.check.index }}.json
+          name: release-check-${{ matrix.group.id }}-receipt
+          path: artifacts/release-check-${{ matrix.group.id }}.json
           if-no-files-found: ignore
       - if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: release-check-${{ matrix.check.index }}
+          name: release-check-${{ matrix.group.id }}
           path: |
-            artifacts/release-check-${{ matrix.check.index }}.json
+            artifacts/release-check-*.json
             artifacts/**/*.json
             artifacts/**/*.jpg
             artifacts/**/*.png
@@ -220,11 +224,16 @@ jobs:
             const rows = [];
             // Either upload of a check may have failed without colouring its job (continue-on-error above): read the full
             // artifact first, the tiny receipt as the fallback, and a planned row with neither is a failed row on a pull request.
+            // A grouped job (release-check-g<N>) holds an ARRAY with a receipt per row; the one-job-per-row shape is a single object. Either way a row counts once.
             const seen = new Set();
             for (const dir of fs.existsSync("receipts") ? fs.readdirSync("receipts").sort((a, b) => a.endsWith("-receipt") - b.endsWith("-receipt")) : []) {
               const stem = dir.replace(/-receipt$/, ""), file = path.join("receipts", dir, `${stem}.json`);
-              if (seen.has(stem) || !fs.existsSync(file)) continue;
-              seen.add(stem); rows.push(JSON.parse(fs.readFileSync(file, "utf8")));
+              if (!fs.existsSync(file)) continue;
+              const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+              for (const receipt of Array.isArray(parsed) ? parsed : [parsed]) {
+                if (seen.has(Number(receipt.index))) continue;
+                seen.add(Number(receipt.index)); rows.push(receipt);
+              }
             }
             for (const c of JSON.parse(process.env.PLANNED || "[]")) if (!rows.some(r => Number(r.index) === Number(c.index))) rows.push({ index: c.index, name: c.name, seconds: 0, status: "no receipt" });
             rows.sort((a, b) => b.seconds - a.seconds);
