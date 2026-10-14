@@ -3,6 +3,13 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-14 (+04, small hours) — HANDOFF #40: C stack merged up onto EM a379108ed and PUSHED (WSV 17-22)
+
+**Now:** read GitHub CI on the new heads (all MERGEABLE, no fail at push+minutes, shards pending): #2609 c8 d500e5ead (WSV 21), #2585 c1 648434112 (17), #2589 c2 4d5777dbd (18), #2590 c3 38b483bfa (19), #2596 c4 6251e90c0 (20), #2602 c6 db98b49a9 (20), #2605 c7 8d584da37 (21), #2611 c9 56cd02a1b (22), #2617 c10 ce4442b0c (22), #2619 c11 c1db854ce (22), #2628 c12 2f98fa65b (22). Do not move a head unless CI fails. Combat takes WSV 23/24 (#2584/#2597). Lead, Combat and Characters (#2622 takes c8) have the heads.
+**Done:** VPS tsc/typecheck clean on c6, c8, c12; world-sim guard 3/3 on c1-c4, c6-c9; as-data checker 0 on c8. c8 added four engage-ahead.ts numbers (ASK_BUDGET, ENGAGE_TTL_MS, RELEASE_FACTOR, RETRY_MS) to allow.json as debt (sunset 2026-11-13).
+**Open:** as-data tests (tests/as-data-check.test.ts) not rerun on the VPS after that fix; Auditor merge-only checks; Hooks Dev review of #2609.
+**Gotchas:** (1) zsh: `$b:src/x` is a history modifier, write `"${b}:src/x"`; `$K` ssh options need a bash script (no word splitting). (2) NEVER `git checkout --ours <file>` to resolve a merge: it takes the whole file; resolve hunks (my first pass lost EM's world-record.ts changes, the VPS tsc caught it). (3) a resolver that fails must stop the script: conflict markers got committed in allow.json on c10-c12 once. (4) macOS has no `timeout`; the Mac hook blocks `node --test` in a command string, put it in a script file and run it on the VPS (rsync src/tests to /opt/frankendom-shadow/work/world-spare-digest, taskset -c 15). (5) a stale index.lock in a worktree's admin dir: check lsof and age, then remove. Scripts and the rebump worktree live in /private/tmp/claude-501/rebump (scratch, may vanish).
+
 ## 2026-10-13 22:3x (+04) — HANDOFF #39 before /clear. READ FIRST, then memory `world_2026-10-13_session39.md`
 
 **Now (next session picks up):**
