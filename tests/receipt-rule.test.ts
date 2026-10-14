@@ -67,8 +67,8 @@ const job = (t: string, id: string) => { const at = t.indexOf(`\n  ${id}:\n`); c
 
 test('unit-ci `receipt` runs when static or a shard failed (and goes red), and is skipped only when nothing was meant to run', () => {
   const j = job(text('.github/workflows/unit-ci.yml'), 'receipt');
-  assert.match(j, /\n {4}needs: \[static, shard\]\n/);
-  assert.match(j, /\n {4}if: \$\{\{ !cancelled\(\) && !\(needs\.static\.result == 'skipped' && needs\.shard\.result == 'skipped'\) \}\}\n/, 'a red static skips the shards: the receipt must still run');
+  assert.match(j, /\n {4}needs: \[delta, static, shard\]\n/);
+  assert.match(j, /\n {4}if: \$\{\{ !cancelled\(\) && \(needs\.delta\.outputs\.unchanged == 'true' \|\| !\(needs\.static\.result == 'skipped' && needs\.shard\.result == 'skipped'\)\) \}\}\n/, 'a red static skips the shards: the receipt must still run (only an unchanged delta, 2026-10-14, reports green without them)');
   assert.match(j, /STATIC: \$\{\{ needs\.static\.result \}\}/);
   assert.match(j, /\[ "\$SHARDS" = success \] \|\| \{[^\n]*exit 1/, 'the first step fails the job unless every shard succeeded');
   assert.ok(j.indexOf('STATIC') < j.indexOf('actions/checkout'), 'before any other step');
