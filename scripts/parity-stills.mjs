@@ -35,6 +35,8 @@ const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); 
 async function run(side, special, plan) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }), page = await context.newPage();
   page.on('pageerror', (e) => console.log(`pageerror[${side} ${special}]:`, e.message));
+  // The effects draw particles from Math.random: seed it (mulberry32, same seed per run) so two runs of identical code draw identical pixels and a real difference stands out.
+  await context.addInitScript(() => { let s = 0x2f6e2b1; Math.random = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
   try {
     await page.goto(`${servers[side].origin}/?special=${special}${ARENA ? `&arena=${ARENA}` : ''}&debug`);
     await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
