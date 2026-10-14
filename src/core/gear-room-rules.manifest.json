@@ -1,0 +1,16 @@
+{
+  "tables": [
+    {
+      "table": "gearRoomRule",
+      "file": "gear-room-rules.json",
+      "at": "gearRoomRule",
+      "key": "id",
+      "required": {
+        "bodyM": "number",
+        "aimY": "number",
+        "backdrop": "string",
+        "turnRadPerPx": "number"
+      }
+    }
+  ]
+}
