@@ -11,5 +11,3 @@ loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, DATA, 'sh
 
 export const EXCHANGE_PROVISIONER = 'service:exchange-provisioner';
 export const REGION1_SHOPS: ReadonlyMap<string, ShopList> = new Map(DATA.shops.map((s) => [s.id, { id: s.list, revision: s.revision, currency: s.currency as 'bronze', zone: s.zone, rangeCm: s.rangeCm, rows: s.rows }]));
-// How close the buyer stands to the shop's counter: each shop row's rangeCm (shops.json), keyed by the shop's service id. shop-buy.ts reads it here instead of holding the number.
-export const SHOP_RANGE_CM_BY_SHOP: ReadonlyMap<string, number> = new Map(DATA.shops.map((s) => [s.id, s.rangeCm]));
