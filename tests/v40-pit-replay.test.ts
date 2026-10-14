@@ -14,7 +14,7 @@ const repo = process.cwd(), file = join(repo, 'tests', 'fixtures', 'v40-pit-reco
 const fixture = JSON.parse(readFileSync(file, 'utf8')) as { records: { name: string; encoded: string; expect: { digest: string } }[] };
 
 test('RV41 reads every record the RV40 build wrote (the stamped versions are all still readable)', async () => {
-  assert.equal(RECORD_VERSION, 54); assert.ok(fixture.records.length >= 5);
+  assert.equal(RECORD_VERSION, 62); assert.ok(fixture.records.length >= 5);
   for (const r of fixture.records) { const rec = await decodeRecord(r.encoded); assert.ok((READABLE_VERSIONS as readonly number[]).includes(rec.v) && rec.v <= 40, `${r.name} is a v${rec.v} record`); }
 });
 

@@ -1,0 +1,9 @@
+{
+  "about": "Feud economy numbers (issue #2554 group D; docs/specs/origins/feuds.md, PROVISIONAL until Dom rules): grudge holding, notoriety bands and decay, stand-in and successor pricing, the succession event, guards, fines and jail, alert spread, and the grudge generator defaults. feuds.ts exports each under its old name.",
+  "rules": [
+    {"id": "feud-rules", "dayS": 86400, "grudgeHeldMax": 1, "grudgeExpiryS": 259200, "grudgeReofferS": 86400, "grudgeMinTitle": "Gladiator", "giverStandingDelta": 50, "rivalTownStandingDelta": -100, "neutralAttitudeFloor": -100, "notorietyMax": 1000, "notorietyRivalKill": 600, "notorietyGuardBeaten": 50, "notorietySettleSide": 100, "notorietyBackSide": -100, "notorietyJailServed": -200, "notorietyDecayPerDay": 100, "notorietyPayoffBronze": 3, "suspect": 100, "wanted": 300, "hunted": 600, "suspectPricePermille": 1250, "successorMinS": 604800, "successorMaxS": 1209600, "standinBuyPermille": 1500, "standinBackedBuyPermille": 1250, "standinSellPermille": 667, "standinUpgradeCostPermille": 1500, "standinUpgradeTierCapOffset": 1, "successionEventS": 1800, "successionRewardBronze": 100, "giverDiscountPermille": 900, "guardLevelFloor": 25, "guardLevelOver": 5, "guardRechallengeS": 120, "fineBronzePerPoint": 2, "fineMinBronze": 100, "jailS": 600, "jailMaxS": 1800, "bailBronzePerS": 1, "alertSpreadPermille": 500, "alertSpreadCrossRegionPermille": 0}
+  ],
+  "generators": [
+    {"id": "default", "rotationSeconds": 604800, "livePerTownMax": 2, "livePerRegionMax": 6, "varietyWindow": 4, "rewardBronzePerLevel": 25, "storyWeight": 5}
+  ]
+}

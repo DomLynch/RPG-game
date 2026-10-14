@@ -1,6 +1,7 @@
 // Zone look (Origins, World lane): the environment's sky, fog, light and ground tint per zone, as DATA. A look is a row in PRESETS keyed by a zone's `ambience.preset`
 // (origins/world/schema.ts); fog distances come from the zone's `view`; nothing here knows a zone by name. Presentation only: no sim, no save, no camera. 'ash-pit' is
 // Arena 1's theme pinned as literals (look.test.ts), so today's Pit is byte-identical; new looks are new rows. Pure (hex strings and numbers) so it is testable without three.js.
+import { SCHEMA } from '../world/schema.ts';
 import type * as THREE from 'three';
 import { loadZone } from '../zones/loader.ts';
 
@@ -14,7 +15,7 @@ export type Look = {
 };
 // The structural subset of a resolved zone's params this reads (origins/world Params satisfies it).
 export type LookParams = { ambience: { preset: string }; view: { fogFar: number } };
-export const DEFAULT_FOG_FAR = 107;   // schema.ts view.fogFar's default: the Pit's own distance, where a preset's fogDensity applies unchanged
+export const DEFAULT_FOG_FAR: number = SCHEMA.view.fields.fogFar.def;   // read from schema.ts view.fogFar's default: the Pit's own distance, where a preset's fogDensity applies unchanged
 
 // The Pit's golden hour, as literals (was read from src/arena-themes.ts ARENA_1: zones import nothing from the Pit; look.test.ts pins these numbers).
 const t1 = { fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25] as [string, string, number], sun: ['#ffb46a', 5.2] as [string, number], exposure: 1.3, light: { sun: [-24, 12, -15] as [number, number, number] } };

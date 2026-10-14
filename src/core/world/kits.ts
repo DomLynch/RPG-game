@@ -4,21 +4,10 @@
 //  - a MODE is a small DELTA on the warden's own AiProfile numbers (shy, bold, ambusher): the fight-side half of Expansion's `mode` preset (the world half, aggro ring and leash, is theirs).
 import { profileAt, OPPONENTS, type AiProfile, initialKit, kitIntent, type ChainRow, type KitRow, type Duel, type Intent } from '../../fight/server.ts';
 import { MOB_STYLE, type MobStyle } from './styles.ts';
+import KIT_DATA from './mob-kits.json' with { type: 'json' };
 
-export const KITS: Readonly<Record<MobStyle, readonly KitRow[]>> = {
-  brute: [{ move: 'heavy', trigger: 'opener', cooldown: 1e9 }, { move: 'heavy', trigger: 'heroGuarding', cooldown: 420 }],   // opens with the maul; breaks a turtle's guard (a heavy breaks a guard), at most every 7 s
-  skirmisher: [{ move: 'thrust', trigger: 'afterHit', cooldown: 240 }],   // poke again right after it lands: the second blow of a hit-and-run
-  caster: [{ move: 'skill', trigger: 'opener', cooldown: 1e9 }],   // the witchfire opener (only where the fight has specials; legal() refuses it otherwise)
-  beast: [{ move: 'thrust', trigger: 'opener', cooldown: 1e9 }, { move: 'heavy', trigger: 'heroExhausted', cooldown: 600 }],   // the pounce to open; the maul on a winded hero
-};
-
-// Chains (C4): the authored follow-ups on the engine's 16-18 tick chain window, one short list per style (src/fight/mobkit.ts validateChains refuses a row that reaches past its weapon's window).
-export const CHAINS: Readonly<Record<MobStyle, readonly ChainRow[]>> = {
-  brute: [{ from: 'light_right', to: 'heavy', chance: 0.5, startsAfter: 3, endsBefore: 12 }, { from: 'light_left', to: 'heavy', chance: 0.5, startsAfter: 3, endsBefore: 12 }],   // cut, then the maul: the heavy finisher winds up quicker inside the window
-  skirmisher: [{ from: 'thrust', to: 'thrust', chance: 0.45, startsAfter: 3, endsBefore: 13 }],   // the double poke
-  caster: [],
-  beast: [{ from: 'light_right', to: 'light', chance: 0.6, startsAfter: 2, endsBefore: 12 }, { from: 'light_left', to: 'light', chance: 0.6, startsAfter: 2, endsBefore: 12 }],   // the quick double slash
-};
+export const KITS = KIT_DATA.kits as unknown as Readonly<Record<MobStyle, readonly KitRow[]>>;   // rows (mob-kits.json): the data the kit tag hashes
+export const CHAINS = KIT_DATA.chains as unknown as Readonly<Record<MobStyle, readonly ChainRow[]>>;
 
 export const MODES = ['shy', 'bold', 'ambusher'] as const;
 export type Mode = (typeof MODES)[number];

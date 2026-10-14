@@ -5,6 +5,7 @@
 // pits, brood at the reed bank, ghouls at the causeway's end) or an encounter (a Bounty's foe or the matriarch: one named creature at its
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
+import { stageRule } from '../world/stage-rules.ts';
 import { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode, type Mob } from '../../src/core/server.ts';
 export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode as Mode, type Mob };   // the pure behaviour lives in src/core/world-sim.ts (core slice 3)
 import type { CharacterId, EncounterId } from '../../src/core/server.ts';
@@ -38,6 +39,7 @@ const LONE_ROWS: readonly MobRow[] = FRONTIER_ROWS.map((r) => ({ ...r, behaviour
 export const previewRows = (search: string, signedIn: boolean): readonly MobRow[] => !signedIn && /[?&]lone\b/.test(search) ? LONE_ROWS : FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
+  const defaultKind = String(loadZone(f.zone).fields?.defaultKind);   // the zone row's column (schema default goblin): the body a character form that names none stands as
   const ID_PREFIX = zoneKeyPrefix(f.zone);   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
   for (const sp of reg.spawns) {
@@ -72,7 +74,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? defaultKind, level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
@@ -88,14 +90,14 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     let rng = mixSeed(TUNING.seed, 5000 + out.length);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
-    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
+    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   return levelByDistance(f, b, out, rows);
 }
 // Risk = reward by depth (Dom 2026-10-08): a common creature is its zone's level near the hero's spawn (Zone 1 = L1) and one more at the zone's edge, a
 // row's band [N, N+1] ramped by the distance of its home from the spawn; the named rares are N+2. The origin is the Zone 1 spawn (spawnAmong) until the bank
 // town is placed: then it is this one function to change. Rewards and loot already follow the resulting spec.level.
-export const LEVEL_NEAR_M = 30, LEVEL_FAR_M = 150, NAMED_LEVEL = ZONE_LEVEL + 2;
+export const LEVEL_NEAR_M = stageRule('levelNear'), LEVEL_FAR_M = stageRule('levelFar'), NAMED_LEVEL = ZONE_LEVEL + 2;
 export const levelAt = (d: number, band: readonly [number, number]): number => band[0] + Math.round(Math.max(0, Math.min(1, (d - LEVEL_NEAR_M) / (LEVEL_FAR_M - LEVEL_NEAR_M))) * (band[1] - band[0]));
 const levelByDistance = (f: Frontier, b: Build, specs: MobSpec[], rows: readonly MobRow[]): MobSpec[] => {
   const origin = spawnAmong(f, b, specs);
@@ -122,7 +124,7 @@ function zoneCentre(z: ZonePlan): Pos {
 // from 25 m, so nearest the group) that stands 25-35 m from the nearest creature (wolves aside) (clear of the 14 m tap reach and the notice rings, close enough to
 // see them). When wolves are placed (?wolf) it stands 15-25 m from the nearest wolf instead and faces the wolf camp: the first thing in front of him is
 // the wolf. Falls back to any spot clear of every notice ring. Deterministic.
-const SPAWN_NEAR = 25, SPAWN_FAR = 35, SPAWN_WOLF: readonly [number, number] = [15, 25];
+const SPAWN_NEAR = stageRule('spawnNear'), SPAWN_FAR = stageRule('spawnFar'), SPAWN_WOLF: readonly [number, number] = [15, 25];
 export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { x: number; z: number; facing: number } | null {
   const groups = new Map<string, MobSpec[]>();
   for (const s of specs) { const g = groups.get(s.zone + '/' + s.spawn); if (g) g.push(s); else groups.set(s.zone + '/' + s.spawn, [s]); }

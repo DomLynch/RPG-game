@@ -24,6 +24,10 @@
 // Constants (the proposal's table; change them only with the doc).
 
 import { MAX_LEVEL as LADDER_MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
+import CAREER_RULES from './career-rules.json' with { type: 'json' };
+
+// The pacing numbers are the one row of career-rules.json (careerRule); the names below keep their exports.
+const RULE = CAREER_RULES.careerRule[0]!;
 
 
 // THE LEVEL CURVE ROW (Dom's re-lock, #2408 2a; Strategy ruling 2026-10-12): the zone career runs level 0 (born) to maxLevel 100, and the whole curve is this
@@ -32,17 +36,19 @@ import { MAX_LEVEL as LADDER_MAX_LEVEL, RANK_STEPS } from './career-ladder.ts';
 //   cost(L)  = ⌊ bossPay(max(1, L)) · kills(L) / 1000 ⌋,   bossPay(l) = ⌊ killValue(l) · weight(boss) / 1000 ⌋.
 // Levels 0–9 are the opening, priced in Pit wins (`opening` below); from level 10 the boss-kill pricing above applies, ramps with the level and steepens
 // again at every rank-up (10, 20 … 90) because re-spread is once per rank-up. The Pit ladder (career-ladder.ts MAX_LEVEL 50, marks) is a different track and is untouched.
+type CurveRow = { maxLevel: number; boss: string; killBase: number; killStep: number; earlyLevels: number; earlyKills: number; ramp: number; rank: number; rankLevels: number; opening: readonly number[] };
+const CURVE = CAREER_RULES.levelCurve[0] as CurveRow;   // the levelCurve row of career-rules.json (every default equals the literal this replaced; tests/career-rules.test.ts pins it)
+// The opening: levels 0–9 are priced in Pit legend WINS at the lowest rank (Strategy ruling 2026-10-13: level 1 = 1 win, level 5 ≈ 5 minutes, level 10 = a first session of ~35 wins),
+// not in boss kills: wins[L] wins at the pay of a legend at level L buy level L → L + 1 (`opening`). From level 10 the boss-kill pricing above applies unchanged.
 export const LEVEL_CURVE = {
-  maxLevel: 100,
-  boss: 'world-boss',
-  killBase: 1000, killStep: 100,             // killValue(l) = killBase + killStep·(l − 1): the CP of one even-level kill at weight 1000
-  early: { levels: 5, kills: 2500 },          // permille of a boss kill: the base from level 10 (levels 5.. add the ramp)
-  ramp: 200,                                  // permille added per level from level 5
-  rank: 2000,                                 // permille added per whole rank passed
-  rankLevels: 10,
-  // The opening: levels 0–9 are priced in Pit legend WINS at the lowest rank (Strategy ruling 2026-10-13: level 1 = 1 win, level 5 ≈ 5 minutes, level 10 = a first session of ~35 wins),
-  // not in boss kills. wins[L] wins at the pay of a legend at level L buy level L → L + 1. From level 10 the boss-kill pricing above applies unchanged.
-  opening: [1, 1, 1, 1, 1, 6, 6, 6, 6, 6],
+  maxLevel: CURVE.maxLevel,
+  boss: CURVE.boss,
+  killBase: CURVE.killBase, killStep: CURVE.killStep,   // killValue(l) = killBase + killStep·(l − 1): the CP of one even-level kill at weight 1000
+  early: { levels: CURVE.earlyLevels, kills: CURVE.earlyKills },   // permille of a boss kill: the base from level 10 (levels 5.. add the ramp)
+  ramp: CURVE.ramp,                                 // permille added per level from level 5
+  rank: CURVE.rank,                                 // permille added per whole rank passed
+  rankLevels: CURVE.rankLevels,
+  opening: CURVE.opening,
 } as const;
 export const CAREER_MAX_LEVEL: number = LEVEL_CURVE.maxLevel;
 
@@ -63,16 +69,10 @@ export type TypeRow = {
   weight: number; once: boolean; rested: boolean; party: 'split' | 'each' | 'solo'; atOwn?: boolean; early?: { below: number; weight: number };
 };
 export type TypeTable = Readonly<Record<string, TypeRow>>;
-export const TYPE_WEIGHTS: TypeTable = {
-  legend: { weight: 100, early: { below: 11, weight: 200 }, once: true, rested: false, party: 'solo' }, // a Pit legend: a fifth of a level to L10, a tenth from Gladiator I
-  'world-boss': { weight: 500, once: true, rested: false, party: 'each' }, // half a level to 10; a fifth at 24; an eighth at 41
-  'rift-boss': { weight: 150, once: false, rested: true, party: 'each' }, // living-world §8.4: a rift boss, repeatable, paid out of the rested allowance, every eligible member awarded
-  named: { weight: 200, once: false, rested: true, party: 'split' },
-  elite: { weight: 80, once: false, rested: true, party: 'split' },
-  mob: { weight: 20, once: false, rested: true, party: 'split' },
-  'story-step': { weight: 100, once: true, rested: false, party: 'solo', atOwn: true },
-  'story-chapter': { weight: 500, once: true, rested: false, party: 'solo', atOwn: true },
-};
+type TypeRule = { id: string; weight: number; once: boolean; rested: boolean; party: TypeRow['party']; atOwn?: boolean; earlyBelow?: number; earlyWeight?: number };
+export const TYPE_WEIGHTS: TypeTable = Object.fromEntries((CAREER_RULES.typeWeight as readonly TypeRule[]).map((r): [string, TypeRow] => [r.id, {
+  weight: r.weight, ...(r.earlyBelow === undefined ? {} : { early: { below: r.earlyBelow, weight: r.earlyWeight! } }), once: r.once, rested: r.rested, party: r.party, ...(r.atOwn ? { atOwn: true } : {}),
+}]));
 export const isType = (types: TypeTable, t: unknown): t is string => typeof t === 'string' && own(types, t) !== undefined;
 
 // Level-difference falloff, permille, by d = target level − your level. CAP-INDEPENDENT by construction: it reads only the
@@ -90,7 +90,7 @@ export function falloffPermille(d: number): number {
 export const isGrey = (d: number): boolean => falloffPermille(d) === 0;
 
 // Party share for 'split' rows (EverQuest's group shape): pool = X·(1 + g/2), g = 1 + 0.2·(n−1); each member gets pool/n.
-export const MAX_PARTY = 4;
+export const MAX_PARTY = RULE.maxParty;
 export function partySharePermille(n: number): number {
   if (!Number.isInteger(n) || n < 1 || n > MAX_PARTY) return 0;
   if (n === 1) return 1000;
@@ -101,15 +101,15 @@ export function partySharePermille(n: number): number {
 export const partyEligible = (memberLevel: number, highestLevel: number): boolean =>
   highestLevel - memberLevel <= Math.max(5, Math.floor(memberLevel / 2));
 // An 'each' row (a boss) pays a member only for a real share of the fight.
-export const MIN_CONTRIBUTION_PERMILLE = 100; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
+export const MIN_CONTRIBUTION_PERMILLE = RULE.minContributionPermille; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
 
 // Repeat-kill heat, per character per target KIND (definition id, not spawn instance), for rested rows. Each kill adds one unit
 // (HEAT_UNIT_S seconds of heat); heat drains one second per second, so a kind cools fully six minutes after one kill. Before a kill
 // the heat is read as h = CEIL(units / HEAT_UNIT_S): any heat left over from a kill still counts as that whole kill, so the first
 // FREE_REPEATS kills of a kind pay in full and the next one is reduced whenever kills come closer than six minutes apart. After that
 // the kill pays FREE_REPEATS / (h + 1).
-export const HEAT_UNIT_S = 360;
-export const FREE_REPEATS = 3;
+export const HEAT_UNIT_S = RULE.heatUnitSeconds;
+export const FREE_REPEATS = RULE.freeRepeats;
 export const heatKills = (units: number): number => Math.max(0, Math.ceil(units / HEAT_UNIT_S));
 export function repeatPermille(heatUnits: number): number {
   const h = Math.max(0, Math.floor(heatUnits));
@@ -121,8 +121,8 @@ export function repeatPermille(heatUnits: number): number {
 // Other rows never touch the pool. Stored scaled by DAY_S so the refill is exact in integers. Fixed in CP at every level (decided,
 // Dom 2026-10-06): as the requirement rises, a day's allowance is a shrinking part of a level.
 export const DAY_S = 86_400;
-export const RESTED_PER_DAY_CP = 1500;
-export const RESTED_CAP_CP = 3000;
+export const RESTED_PER_DAY_CP = RULE.restedPerDayCp;
+export const RESTED_CAP_CP = RULE.restedCapCp;
 const RESTED_CAP_UNITS = RESTED_CAP_CP * DAY_S;
 
 // ---------------------------------------------------------------------------------------------------------------------------------

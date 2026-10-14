@@ -4,7 +4,7 @@
 // The workflows' own `needs:` / `if:` / concurrency expressions are evaluated here per event, so this tests what Actions would schedule.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -28,6 +28,7 @@ const jobs = (file: string): Job[] => {
 // `chain`: the results of EVERY job upstream (needs of needs too): GitHub's success() is false when any of them was skipped or failed, so a job with no
 // `if` under a skipped `static` is skipped even when its direct need ran through !cancelled() (unit-ci run 38293767009 on trunk 4337cfe9b: 8 green shards, receipt skipped).
 const evalExpr = (expr: string, github: Ctx, needs: Record<string, { result: string; outputs: Record<string, string> }>, chain: readonly string[] = Object.values(needs).map(n => n.result)) => {
+  if (github.event_name === 'push') (github.event as { head_commit?: unknown }).head_commit ??= { message: '' };   // a real push event always carries head_commit; Actions reads a missing one as null
   const js = expr.replace(/needs\.([a-z][a-z0-9-]*)/g, (_, j) => `needs[${JSON.stringify(j)}]`).replace(/\.\*\./g, "['*'].");
   const fns = {
     contains: (h: unknown, n: string) => (Array.isArray(h) ? h.includes(n) : String(h).includes(n)),
@@ -68,23 +69,28 @@ const game = { plan: { game: 'true', browser: 'true' } };
 const withLabelNames = (c: Ctx) => { const p = c.event.pull_request as { labels?: { name: string }[] } | undefined; if (p?.labels) Object.assign(p.labels, { '*': { name: p.labels.map(l => l.name) } }); return c; };
 
 test('a red tsc on a pull request queues no quality shard, no browser job and no unit-ci shard: only the static job and the verdicts', () => {
-  const ran = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), { static: 'failure' }, game);
+  const ran = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), { static: 'failure' }, { plan: { game: 'true', browser: 'false' } });
   assert.ok(ran.has('static'));
-  for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);
+  for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);   // a feature PR runs no browser job at all (Lead 2026-10-13)
   assert.ok(ran.has('quality'), 'the `quality` verdict still reports (red)');
-  const unit = schedule(U, withLabelNames(pr('synchronize', ['auditor:ready'])), { static: 'failure' });
-  assert.deepEqual([...unit].sort(), ['receipt', 'static'], 'unit-ci: no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
+  const unit = schedule(U, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), { static: 'failure' });
+  assert.deepEqual([...unit].sort(), ['delta', 'receipt', 'static'], 'unit-ci (delta joined 2026-10-14, Strategy: merge-up rounds off the runners): no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
 });
 
-test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature PR runs static + plan + base only; shards, the verdict, unit-ci and browser jobs wait for auditor:ready', () => {
+test('runner queue (Strategy 2026-10-12 21:5x): a push to an UNLABELLED feature PR runs static + plan + base only; the shards, the verdict and unit-ci run when auditor:ready is added and on every push after it; no browser job ever runs on a feature PR (Lead 2026-10-13)', () => {
   const plain = schedule(Q, withLabelNames(pr('synchronize')), {}, { plan: { game: 'true', browser: 'false' } });
   assert.deepEqual([...plain].sort(), ['base', 'plan', 'static'], 'an unlabelled feature push: static (tsc + lint) and the cheap jobs only');
   assert.deepEqual([...schedule(U, withLabelNames(pr('synchronize')))], [], 'unit-ci: no job on an unlabelled feature push');
-  const ready = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, game);
-  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(ready.has(j), `${j} runs once auditor:ready is on`);
-  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, withLabelNames(pr('synchronize', ['auditor:ready']))).has(j), `unit-ci ${j} with auditor:ready`);
+  const noBrowser = { plan: { game: 'true', browser: 'false' } };
+  const pushed = schedule(Q, withLabelNames(pr('synchronize', ['auditor:ready'])), {}, noBrowser);
+  for (const j of ['static', 'quality-shard', 'quality', 'base', 'plan']) assert.ok(pushed.has(j), `a push to an already-labelled feature PR re-runs ${j} (Lead on #2546: no relying on the label being toggled)`);
+  for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, withLabelNames(pr('synchronize', ['auditor:ready']))).has(j), `unit-ci ${j} on a push to a labelled feature PR`);
+  for (const j of BROWSER) assert.ok(!pushed.has(j), `${j}: still no browser job on a feature PR`);
+  const ready = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, noBrowser);
+  for (const j of ['static', 'quality-shard', 'quality']) assert.ok(ready.has(j), `${j} runs when auditor:ready is added`);
+  for (const j of ['base', ...BROWSER]) assert.ok(!ready.has(j), `${j} does not run on a feature PR`);
   const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-DB' };
-  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j}`);
+  for (const j of ['static', 'quality-shard', 'quality', 'base', ...BROWSER]) assert.ok(schedule(Q, cand, {}, game).has(j), `release-* without the label runs ${j} on every push`);
   for (const j of ['static', 'shard', 'receipt']) assert.ok(schedule(U, cand).has(j), `release-* unit-ci ${j}`);
   // adding auditor:ready starts unit-ci; any other label runs nothing and never shares (so never cancels) the real run's group
   const added = (l: string) => withLabelNames(pr('labeled', [l], { label: { name: l } }));
@@ -93,18 +99,20 @@ test('runner queue (Strategy 2026-10-12 21:5x): a push to an unlabelled feature 
   const ug = /\nconcurrency:\n {2}group: ([^\n]+)\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\n/.exec(readFileSync(U, 'utf8'))![1];
   const ugroup = (c: Ctx) => ug.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(ugroup(pr('synchronize')), 'unit-ci-7');
-  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7-inert-99', 'a label never shares the head\'s group: the code did not change');
+  assert.equal(ugroup(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'unit-ci-7', 'adding auditor:ready on a feature PR is the full run: it shares the PR group, so a newer push cancels it');
+  assert.equal(ugroup({ ...pr('labeled', [], { label: { name: 'auditor:ready' } }), head_ref: 'release-DB' }), 'unit-ci-7-inert-99', 'on a release-* candidate auditor:ready stays inert (DI/DH)');
   assert.equal(ugroup(pr('labeled', [], { label: { name: 'release:go' } })), 'unit-ci-7-inert-99');
   assert.match(readFileSync(U, 'utf8'), /\n {4}types: \[opened, synchronize, reopened, labeled\]\n/);
-  // the plan sets `browser` from the labels the event carries (the step reads them; a push always runs them)
+  // the plan sets `browser=true` only off a pull request or for a release-* candidate: a feature PR never runs a browser job
   const plan = readFileSync(Q, 'utf8');
-  assert.match(plan, /PR_LABELS: \$\{\{ join\(github\.event\.pull_request\.labels\.\*\.name, ','\) \}\}/);
-  assert.match(plan, /browser=true[^\n]*\n[^\n]*auditor:ready|auditor:ready[^\n]*browser=true/);
+  assert.match(plan, /== release-\* \]\]; then echo "browser=true"/);
+  assert.ok(!/grep -q ',auditor:ready,'/.test(plan), 'the label no longer turns the browser jobs on');
 });
 
-test('adding auditor:ready runs the shard, the verdict and the browser jobs (after static), not base; any other label or a title edit runs nothing', () => {
-  const added = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, game);
-  for (const j of ['quality-shard', 'quality', ...BROWSER]) assert.ok(added.has(j), j);
+test('adding auditor:ready runs the shard and the verdict (after static), not base and no browser job; any other label or a title edit runs nothing', () => {
+  const added = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, { plan: { game: 'true', browser: 'false' } });
+  for (const j of ['quality-shard', 'quality']) assert.ok(added.has(j), j);
+  for (const j of BROWSER) assert.ok(!added.has(j), `${j}: a feature PR runs no browser job`);
   assert.ok(!added.has('base'), 'base already ran on this head');
   for (const ev of [pr('labeled', ['release:go'], { label: { name: 'release:go' } }), pr('labeled', ['ci:release-checks'], { label: { name: 'ci:release-checks' } }), pr('edited', [], { changes: { title: {} } })]) {
     assert.deepEqual([...schedule(Q, withLabelNames(ev), {}, game)], [], `${ev.event.action} ${JSON.stringify(ev.event.label ?? ev.event.changes)} runs nothing`);
@@ -114,11 +122,12 @@ test('adding auditor:ready runs the shard, the verdict and the browser jobs (aft
   assert.ok(schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { base: {} } })), {}, game).has('quality-shard'), 'and the shard once auditor:ready is on');
 });
 
-test('the concurrency group: every label event (auditor:ready too) and a title edit get a group of their own, so none cancels the head\'s gate in flight', () => {
+test('the concurrency group: every label event but auditor:ready on a feature PR, and a title edit, get a group of their own, so none cancels the head\'s gate in flight', () => {
   const g = /\nconcurrency:\n(?: {2}#[^\n]*\n)* {2}group: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
   const group = (c: Ctx) => g.replace(/\$\{\{(.*?)\}\}/g, (_, e) => String(evalExpr(e.trim(), { ...c, run_id: '99' }, {})));
   assert.equal(group(pr('synchronize')), 'quality-7');
-  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7-inert-99');
+  assert.equal(group(pr('labeled', [], { label: { name: 'auditor:ready' } })), 'quality-7', 'the full run on a feature PR shares the PR group (a newer push cancels it)');
+  assert.equal(group({ ...pr('labeled', [], { label: { name: 'auditor:ready' } }), head_ref: 'release-DB' }), 'quality-7-inert-99', 'on a release-* candidate it stays inert (DI/DH)');
   assert.equal(group(pr('labeled', [], { label: { name: 'release:go' } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { title: {} } })), 'quality-7-inert-99');
   assert.equal(group(pr('edited', [], { changes: { base: {} } })), 'quality-7');
@@ -136,6 +145,7 @@ test('DI/DH sequence (Lead 2026-10-13): a push, then a label, then the push\'s r
     assert.match(cancels(file), /true|pull_request/, `${file}: the group cancels the superseded run`);
   }
   assert.equal(grp(R, cand('labeled', 'ci:release-checks', '4')), grp(R, cand('synchronize')), 'the ci:release-checks label is the real row run: it stays in the head group');
+  assert.notEqual(grp(R, cand('opened', undefined, '5')), grp(R, cand('synchronize')), 'a late `opened` (plan skips it) must not share the head group, or it cancels the labeled rows run (FC 2026-10-14)');
 });
 
 test('a trunk push is unchanged: no static job, every shard and browser job runs', () => {
@@ -202,21 +212,22 @@ const planOut = (env: Record<string, string>) => runStep(stepScript('      - id:
 const planStatus = (env: Record<string, string>) => runStep(stepScript('      - name: browser-rows status', '\n  static:\n'), { SHA: 'h'.repeat(40), RUN_URL: 'u', ...env }).status;
 const reportStatus = (results: string) => runStep(stepScript('\n  browser-rows:\n', '\n  base:\n'), { SHA: 'h'.repeat(40), RUN_URL: 'u', RESULTS: results }).status;
 
-test('the Auditor removes auditor:ready after its verdict: a release-* head always runs the browser jobs; a feature PR without it says so in the quality summary', () => {
+test('a release-* head always runs the browser jobs; a feature PR never does (the label no longer turns them on) and says so in the quality summary', () => {
   assert.deepEqual(planOut({ HEAD_REF: 'release-2026-10-12-b' }), { browser: 'true', game: 'true' }, 'release-* synchronize without the label');
   assert.deepEqual(planOut({}), { browser: 'false', game: 'true' }, 'feature synchronize without the label');
-  assert.deepEqual(planOut({ PR_LABELS: 'release:go,auditor:ready' }), { browser: 'true', game: 'true' });
+  assert.deepEqual(planOut({ PR_LABELS: 'release:go,auditor:ready' }), { browser: 'false', game: 'true' }, 'auditor:ready no longer turns the browser jobs on (Lead 2026-10-13: they run in the release candidate)');
   assert.match(readFileSync(Q, 'utf8'), /needs\.plan\.outputs\.browser == 'false'\n {8}run: echo "browser jobs NOT run on this head[^\n]*GITHUB_STEP_SUMMARY/, 'the quality summary says it');
 });
 
-test('browser-rows commit status: PENDING on every feature push until the browser jobs pass on that head; success/failure on the SAME sha; release-* gets none', () => {
+test('browser-rows commit status: SUCCESS on a feature push (the browser rows run in the release candidate), pending while the browser jobs of a game push run; success/failure on the SAME sha; release-* gets none', () => {
   const H = 'h'.repeat(40);
   // (a) every push: the status step is in plan, which runs on opened/synchronize/reopened/retarget and on adding auditor:ready; it is not gated on the action
   const statusIf = /- name: browser-rows status\n {8}if: ([^\n]+)\n/.exec(readFileSync(Q, 'utf8'))![1];
   assert.equal(statusIf, "github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-')");
   for (const a of ['opened', 'synchronize', 'reopened']) assert.ok(schedule(Q, withLabelNames(pr(a)), {}, game).has('plan'), `plan (and its status) on ${a}`);
   // (a)/(c) a push without the label: pending, waiting; with it: pending, running; no game path: success
-  assert.match(planStatus({ GAME: 'true', BROWSER: 'false' })!, new RegExp(`statuses/${H} -f state=pending -f context=browser-rows -f description=waiting for auditor:ready`));
+  assert.match(planStatus({ GAME: 'true', BROWSER: 'false' })!, new RegExp(`statuses/${H} -f state=success -f context=browser-rows -f description=browser rows run in the release candidate`));
+  assert.match(planStatus({ GAME: 'true', BROWSER: 'false' })!, /state=success/);
   assert.match(planStatus({ GAME: 'true', BROWSER: 'true' })!, /state=pending .*description=browser jobs running/);
   assert.match(planStatus({ GAME: 'false', BROWSER: 'false' })!, /state=success .*no browser rows needed/);
   // (b) the browser-rows job writes the verdict on the head sha it ran for (github.event.pull_request.head.sha, the same the plan used)
@@ -225,8 +236,8 @@ test('browser-rows commit status: PENDING on every feature push until the browse
   assert.match(reportStatus('static=failure load-time=skipped browser=skipped net-engines=skipped asset-rows=skipped duel-two-page=skipped')!, /state=failure/, 'a red static is not a pass');
   const yml = readFileSync(Q, 'utf8');
   assert.equal((yml.match(/SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/g) || []).length, 2, 'plan and the verdict write on the same head sha');
-  const ran = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, game);
-  assert.ok(ran.has('browser-rows'), 'adding auditor:ready writes the verdict');
+  const ran = schedule(Q, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), {}, { plan: { game: 'true', browser: 'false' } });
+  assert.ok(!ran.has('browser-rows'), 'a feature PR runs no browser jobs, so there is no browser verdict job either');
   assert.ok(!schedule(Q, withLabelNames(pr('synchronize')), {}, { plan: { game: 'true', browser: 'false' } }).has('browser-rows'), 'no verdict while waiting: it stays pending');
   // release-*: no pending status (it always runs the browser jobs, and they report as jobs)
   const rel = { ...withLabelNames(pr('synchronize')), head_ref: 'release-2026-10-12-b' };
@@ -242,4 +253,60 @@ test('release-checks on a candidate: adding any label but ci:release-checks sche
   for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has(j), `ci:release-checks added: ${j} runs`);
   for (const j of ['plan', 'check', 'summary']) assert.ok(schedule(R, cand('synchronize'), {}, rows).has(j), `a push to the candidate: ${j} runs`);
   assert.ok(schedule(R, { event_name: 'workflow_dispatch', event: {} }, {}, rows).has('check'), 'a dispatch is unchanged');
+});
+
+test('a label event on a release-* candidate schedules 0 jobs in quality and unit-ci; the push/open run is the full one (cut applies the labels in the same second: EH ran 3 quality + 3 unit-ci runs, 2026-10-13)', () => {
+  const cand = (action: string, label?: string): Ctx => ({ ...withLabelNames(pr(action, ['ci:release-checks', 'auditor:ready', ...(label ? [label] : [])], label ? { label: { name: label } } : {})), head_ref: 'release-EH' });
+  const plan = { plan: { game: 'true', browser: 'true' } };
+  for (const file of [Q, U]) for (const l of ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']) assert.deepEqual([...schedule(file, cand('labeled', l), {}, plan)], [], `${file}: ${l} added to a candidate: 0 jobs`);
+  const rows = { plan: { checks: '[{"index":1}]' } };
+  assert.deepEqual([...schedule(R, cand('opened'), {}, rows)], [], 'release-checks: a candidate `opened` runs nothing (the label event is the run)');
+  assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has('plan'), 'release-checks: the ci:release-checks label event is the real run');
+  assert.ok(schedule(Q, cand('opened'), {}, plan).has('plan'), 'quality: the candidate open/push still runs the plan');
+  assert.ok(schedule(Q, cand('synchronize'), {}, plan).has('quality-shard'), 'quality: a push to the candidate runs the shards');
+  assert.ok(schedule(U, cand('synchronize'), {}, plan).has('shard'), 'unit-ci: a push to the candidate runs the shards');
+  assert.ok(schedule(Q, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }, {}, plan).has('plan'), 'a feature PR still runs the full set when auditor:ready is added');
+  assert.ok(schedule(U, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }).has('shard'), 'unit-ci: same on a feature PR');
+});
+
+// Release speed (Deploy, 2026-10-13): the publish moment of an already-tested candidate must start no CI. EK: `gh pr ready` 13 s before the merge started a second ~50-job
+// release-checks matrix (38440789792), and the train's fast-forward of trunk started a second unit-ci (38440811361) and quality (38440811418) beside the next candidate's.
+test('the train fast-forward of a tested candidate (a push whose merge commit says "(release-X candidate)") schedules no unit-ci and no quality job; any other trunk push still does', () => {
+  const push = (message: string): Ctx => ({ event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: { head_commit: { message } } });
+  const candidate = push('Merge pull request #2600 (release-EK candidate)'), other = push('Merge pull request #2599 from DomLynch/deploy/x');
+  assert.deepEqual([...schedule(U, candidate)], [], 'unit-ci: nothing');
+  assert.deepEqual([...schedule(Q, candidate, {}, game)], [], 'quality: nothing');
+  const unit = schedule(U, other), qual = schedule(Q, other, {}, game);
+  for (const j of ['shard', 'origins-db', 'receipt']) assert.ok(unit.has(j), `unit-ci ${j} still runs on an ordinary trunk push`);
+  for (const j of ['plan', 'quality-shard', 'quality']) assert.ok(qual.has(j), `quality ${j} still runs on an ordinary trunk push`);
+});
+
+test('release-checks does not start on ready_for_review: the train flips a candidate out of draft just before it merges it, after every row already ran', () => {
+  const types = /pull_request:\n(?:[^\n]*\n)*?\s+types: \[([^\]]*)\]/.exec(readFileSync(R, 'utf8'))![1];
+  assert.ok(!types.includes('ready_for_review'), types);
+  for (const t of ['opened', 'synchronize', 'labeled']) assert.ok(types.includes(t), `${t} still starts the matrix`);
+});
+
+// #2623 @dd45bd777 (Auditor HOLD): `if: !(...)` is a YAML TAG, not an expression. Ruby's YAML loader tolerated it, yaml.safe_load and GitHub do not: the file did not parse, quality would
+// have stopped running on every PR. A strict parser over every workflow is the guard for any future edit of an `if:` (an expression that starts with `!` must be wrapped in ${{ }}).
+test('every .github/workflows file parses with a strict YAML parser (PyYAML safe_load, as GitHub reads it): an if starting with ! must be wrapped in ${{ }}', () => {
+  const files = readdirSync('.github/workflows').filter(f => f.endsWith('.yml') && !f.startsWith('.'));   // not a macOS AppleDouble ._x.yml from a tar
+  assert.ok(files.length >= 8, `found ${files.length} workflows`);
+  for (const f of files) {
+    const r = spawnSync('python3', ['-c', 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))', `.github/workflows/${f}`], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `${f} does not parse: ${r.stderr.split('\n').filter(Boolean).slice(-2).join(' | ')}`);
+  }
+});
+
+test('unit-ci delta (Strategy 2026-10-14): an unchanged delta on a labelled feature PR skips the shards + origins-db (static still runs) and the receipt still reports; a changed or unknown delta, a release candidate and a trunk push run in full', () => {
+  const labelled = withLabelNames(pr('synchronize', ['auditor:ready']));
+  assert.deepEqual([...schedule(U, labelled, {}, { delta: { unchanged: 'true', patch_id: 'abc' } })].sort(), ['delta', 'receipt', 'static'], 'a clean merge-up: delta, static (still catches a break against new trunk code) and the receipt; no shard');
+  for (const unchanged of ['false', '']) assert.ok(['static', 'shard', 'origins-db', 'receipt'].every(j => schedule(U, labelled, {}, { delta: { unchanged, patch_id: 'abc' } }).has(j)), `unchanged="${unchanged}": everything runs`);
+  assert.ok(['static', 'shard', 'origins-db', 'receipt'].every(j => schedule(U, labelled, { delta: 'failure' }).has(j)), 'a failing delta job fails open: everything runs');
+  const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-EX' };
+  const ranCand = schedule(U, cand, {}, { delta: { unchanged: 'true' } });
+  assert.ok(!ranCand.has('delta') && ['static', 'shard', 'origins-db', 'receipt'].every(j => ranCand.has(j)), 'a release-* candidate never runs delta and always runs in full');
+  const trunk: Ctx = { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} };
+  const ranTrunk = schedule(U, trunk);
+  assert.ok(!ranTrunk.has('delta') && ranTrunk.has('shard') && ranTrunk.has('receipt'), 'a trunk push runs the shards and the receipt as before');
 });

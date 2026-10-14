@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { LABELS, mergeAll, parseSpec, passAt } from '../scripts/cut-release.mjs';
+import { LABELS, mergeAll, openPrViaRest, parseSpec, passAt, runBounded } from '../scripts/cut-release.mjs';
 
 const own = (body: string) => ({ body, authorAssociation: 'OWNER' });
 const mkGit = (cwd: string) => (args: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL' });
@@ -57,9 +57,9 @@ test('passAt reads the Auditor\'s mid-line bold "Auditor: **PASS @sha**" (DI #24
   assert.ok(!passAt([own('Auditor: **contents OK @bac7e84f4** (not a PASS yet)')], head), 'contents OK is not a PASS');
 });
 
-test('passAt takes the five full reviewers (Auditor, Lead, Combat A, Combat B, Deploy B; Strategy 2026-10-12) at the exact head, 9-char prefix, trailing text allowed', () => {
+test('passAt takes the six full reviewers (Auditor, Lead, Combat A, Combat B, Deploy B; Strategy 2026-10-12; Hooks, the CI/workflow/scripts reviewer, Lead 2026-10-13) at the exact head, 9-char prefix, trailing text allowed', () => {
   const head = '23b4f51e0'.padEnd(40, 'a');
-  for (const who of ['Auditor', 'Lead', 'Combat A', 'Combat B', 'Deploy B']) {
+  for (const who of ['Auditor', 'Lead', 'Combat A', 'Combat B', 'Deploy B', 'Hooks']) {
     assert.ok(passAt([own(`${who}: PASS @23b4f51e0`)], head), `${who} at the head`);
     assert.ok(passAt([own(`**${who}: PASS @23b4f51e0** (notes)`)], head), `${who} bold, trailing text`);
     assert.ok(!passAt([own(`${who}: PASS @11111111a`)], head), `${who} at another head is not a PASS`);
@@ -89,14 +89,14 @@ test('the cut labels every candidate ci:release-checks, and release-checks.yml r
   assert.ok(LABELS.includes('ci:release-checks') && LABELS.includes('auditor:ready'));
   const wf = readFileSync('.github/workflows/release-checks.yml', 'utf8');
   assert.match(wf, /max-parallel: 40/);
-  assert.match(wf, /if: github\.event_name != 'pull_request' \|\| \(startsWith\(github\.head_ref, 'release-'\) && \(github\.event\.action != 'labeled' \|\| github\.event\.label\.name == 'ci:release-checks'\)\)\n/, 'a release-* candidate runs, drafts included; a feature PR schedules nothing (tests/ci-static-first.test.ts)');
+  assert.match(wf, /if: github\.event_name != 'pull_request' \|\| \(startsWith\(github\.head_ref, 'release-'\) && github\.event\.action != 'opened' && \(github\.event\.action != 'labeled' \|\| github\.event\.label\.name == 'ci:release-checks'\)\)\n/, 'a release-* candidate runs, drafts included, on its ci:release-checks label event (`opened` runs nothing since #2599: the cut always labels right after, gh or the REST fallback, and a missing run is caught by missingRows); a feature PR schedules nothing (tests/ci-static-first.test.ts)');
   assert.match(wf, /HEAD_REF\.startsWith\("release-"\)/);
 });
 
 test('a failed git push or gh pr create exits non-zero before any background job launches', () => {
   const src = readFileSync(new URL('../scripts/cut-release.mjs', import.meta.url), 'utf8');
   const launch = src.indexOf("bg('prelaunch.log'");
-  for (const guard of ['!pushed.ok', 'created.status !== 0']) {
+  for (const guard of ['!pushed.ok', 'could not open the PR']) {
     const at = src.indexOf(guard);
     assert.ok(at > 0 && at < launch, `${guard} must be checked before the background launch`);
   }
@@ -106,4 +106,29 @@ test('the cut launches no Hugging Face unit job: unit-ci.yml on the candidate is
   const src = readFileSync(new URL('../scripts/cut-release.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /launch\.mjs['"], ['"]unit/);
   assert.doesNotMatch(src, /bg\('unit\.log'/);
+});
+
+test('runBounded kills the whole process group at the deadline: a hung gh (and anything it spawned) cannot hold the cut (2026-10-14: gh pr create sat 17 min)', async () => {
+  const t0 = Date.now();
+  const r = await runBounded('bash', ['-c', 'sleep 30 & sleep 30'], 500);
+  assert.equal(r.timedOut, true);
+  assert.ok(Date.now() - t0 < 5000, `returned in ${Date.now() - t0} ms, not 30 s`);
+  const ok = await runBounded('bash', ['-c', 'echo https://github.com/o/r/pull/7'], 5000);
+  assert.equal(ok.status, 0);
+  assert.match(ok.stdout, /\/pull\/7/);
+});
+
+test('openPrViaRest reuses a PR gh already opened for the head, else opens a draft; it does not label (the cut labels once, in applyLabels)', async () => {
+  const calls: string[] = [];
+  const mk = (existing: unknown[]) => (async (url: string, init: { method?: string } = {}) => {
+    calls.push(`${init.method || 'GET'} ${url.replace('https://api.github.com/repos/o/r', '')}`);
+    const body = url.includes('/pulls?') ? existing : url.endsWith('/pulls') ? { number: 99 } : [];
+    return { ok: true, status: 200, json: async () => body };
+  }) as unknown as typeof fetch;
+  const args = { repo: 'o/r', token: 't', head: 'release-ZZ', base: 'trunk', title: 'x', body: 'y' };
+  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([{ number: 42 }]), log: () => {} }), 42);
+  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open']);
+  calls.length = 0;
+  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([]), log: () => {} }), 99);
+  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open', 'POST /pulls']);
 });

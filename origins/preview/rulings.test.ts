@@ -16,6 +16,7 @@ test('Dom 2026-10-07: Pit controls in the world, the camera lock is ON by defaul
 test('Dom / Lead 2026-10-07: the main screen is the combat HUD and the ☰ only; the preview\'s own floating sticks and extra buttons leave it', () => {
   assert.match(html, /body\.kit #move-stick, body\.kit #look-stick \{ display: none; \}/, 'the Pit\'s controls replace the preview\'s sticks');
   assert.match(html, /body\.kit #walk-journal, body\.kit #allegiance \{ display: none; \}/, 'Journal and Allegiance are in the ☰, not on the main screen');
+  assert.match(html, /body\.kit #walk-board \{ display: none; \}/, 'the daily board is in the ☰ too, not on the main screen');
 });
 
 test('Web 2026-10-07 (#1724): the take-one offer takes the end-screen column slot above Next, and DUEL is never in the hidden set (display:none is the only way it leaves)', () => {

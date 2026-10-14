@@ -6,14 +6,20 @@
 // Restock is 2004Scape's (MIT, Copyright (c) 2023-2025 Lost City; src/engine/World.ts, the inventory restock loop): a stocked item below its normal count
 // gains ONE every `stockrate` ticks. Here that is one per `restockSeconds` of elapsed time, computed lazily from the last write, so no tick has to run.
 
-export const SHOP_LIST_VERSION = 1;
-export const PRICE_MAX = 1_000_000;          // bronze
-export const STOCK_MAX = 1_000;
-export const RESTOCK_RANGE: readonly [number, number] = [10, 86_400];   // s
-export const BUY_MAX = 100;                  // per request
+import { buyPrice, restockedStock, vendorClass, zoneTax } from './vendor-economy.ts';
+import SHOP_RULES from './shop-rules.json' with { type: 'json' };
 
-export type ShopRow = { item: string; price: number; max: number; restockSeconds: number; minLevel?: number };
-export type ShopList = { id: string; revision: number; currency: 'bronze'; rows: readonly ShopRow[] };
+const LIMITS = SHOP_RULES.shopLimits[0]!;   // the shopLimits row of shop-rules.json (every default equals the literal it replaced; tests/shop-rules.test.ts pins it)
+
+export const SHOP_LIST_VERSION = 1;
+export const PRICE_MAX = LIMITS.priceMax;          // bronze
+export const STOCK_MAX = LIMITS.stockMax;
+export const RESTOCK_RANGE: readonly [number, number] = [10, 86_400];   // s
+export const BUY_MAX = LIMITS.buyMax;                  // per request
+
+// `class` (vendor-economy.json: gear, material, cosmetic) switches a row to the stock-elastic price; `zone` (zone1..zone4) names the list's buy tax (default zone1).
+export type ShopRow = { item: string; price: number; max: number; restockSeconds: number; minLevel?: number; class?: string };
+export type ShopList = { id: string; revision: number; currency: 'bronze'; zone?: string; rangeCm?: number; rows: readonly ShopRow[] };   // rangeCm: how near its counter a buyer must stand (presence centimetres); the server refuses a shop without one as away
 export type ShopIssue = { path: string; message: string };
 
 // Rejects a bad list before it ships. `item` says whether an item id is a registered item definition.
@@ -33,7 +39,9 @@ export function validateShopList(list: ShopList, item: (id: string) => boolean):
     if (!int(r.max, 1, STOCK_MAX)) out.push({ path: `${p}.max`, message: `max stock is 1..${STOCK_MAX}` });
     if (!int(r.restockSeconds, RESTOCK_RANGE[0], RESTOCK_RANGE[1])) out.push({ path: `${p}.restockSeconds`, message: `restock is ${RESTOCK_RANGE[0]}..${RESTOCK_RANGE[1]} s` });
     if (r.minLevel !== undefined && !int(r.minLevel, 1, 100)) out.push({ path: `${p}.minLevel`, message: 'the level gate is 1..100' });
+    if (r.class !== undefined && !vendorClass(r.class)) out.push({ path: `${p}.class`, message: `${r.class} is not a vendor class` });
   });
+  if (list.zone !== undefined && !zoneTax(list.zone)) out.push({ path: 'zone', message: `${list.zone} is not a tax zone` });
   return out;
 }
 
@@ -44,8 +52,18 @@ export type Stock = { count: number; at: number };   // at: ms, database clock
 export function stockNow(row: ShopRow, last: Stock | null, now: number): Stock {
   if (!last || last.count >= row.max) return { count: last ? Math.min(last.count, row.max) : row.max, at: now };
   const step = row.restockSeconds * 1000, gained = Math.max(0, Math.floor((now - last.at) / step));
-  const count = Math.min(row.max, last.count + gained);
+  const c = row.class ? vendorClass(row.class) : null;
+  const count = c ? restockedStock({ ...c, restockSeconds: row.restockSeconds }, last.count, (now - last.at) / 1000, row.max) : Math.min(row.max, last.count + gained);
   return { count, at: count >= row.max ? now : last.at + gained * step };
+}
+
+// What `quantity` units cost from a shelf of `count`: a classed row sums the per-unit stock-elastic price as the shelf empties, with the list's zone tax; an unclassed row is price x quantity.
+export function costOf(list: ShopList, row: ShopRow, count: number, quantity: number): number {
+  const c = row.class ? vendorClass(row.class) : null, tax = zoneTax(list.zone ?? 'zone1');
+  if (!c || !tax) return row.price * quantity;
+  let total = 0;
+  for (let i = 0; i < quantity; i++) total += buyPrice(c, row.price, count - i, tax, row.max);
+  return total;
 }
 
 export type BuyRequest = { item: string; quantity: number; revision: number };   // revision = the list the client was shown
@@ -64,7 +82,7 @@ export function checkBuy(list: ShopList, req: BuyRequest, s: BuyState): BuyCheck
   if (s.level < (row.minLevel ?? 1)) return { ok: false, reason: 'level' };
   const shelf = stockNow(row, s.stock, s.now);
   if (shelf.count < req.quantity) return { ok: false, reason: 'stock' };
-  const cost = row.price * req.quantity;
+  const cost = costOf(list, row, shelf.count, req.quantity);
   if (s.bronze < cost) return { ok: false, reason: 'funds' };
   // A full shelf starts its restock clock at the first sale; a partly stocked one keeps its partial step.
   return { ok: true, cost, stockAfter: { count: shelf.count - req.quantity, at: shelf.count >= row.max ? s.now : shelf.at } };

@@ -1,0 +1,10 @@
+{
+  "tunables": [
+    {"file": "origins/server/encounter-pose.ts", "name": "POSE_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
+    {"file": "origins/server/location.ts", "name": "MAX_BODY", "kind": "exempt", "reason": "wire limit: the most bytes of request body the location endpoint reads (a hostile-body bound of the HTTP contract with the presence writer), not a game rule", "owner": "Duels & Backend"},
+    {"file": "origins/server/location.ts", "name": "ZONE_CM", "kind": "exempt", "reason": "storage bound: the x/z columns of origins_character_location are check (between 0 and 30000) in the old town frame (migration 202610070009); the code must refuse exactly what the database refuses, so it is pinned to the migration by tests/location-bounds.test.ts, not tied to the live town size", "owner": "Duels & Backend"},
+    {"file": "origins/server/server.ts", "name": "STATUS", "kind": "exempt", "reason": "the error code -> HTTP status map: the protocol numbers of the API, not a game rule", "owner": "Duels & Backend"},
+    {"file": "origins/server/story.ts", "name": "MAX_EVENT_ID", "kind": "exempt", "reason": "wire / storage limit: the origins_events.event_id check's own bound, the contract with the database, not a game rule", "owner": "Duels & Backend"},
+    {"file": "origins/server/world-verify.ts", "name": "MAX_RECORD_CHARS", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"}
+  ]
+}

@@ -1,3 +1,26 @@
+## 2026-10-14 — HANDOFF at 602k context: the B chain, sim batch A and the view-layer debt PRs are all with the Auditor or Lead
+
+**Now (what the next session picks up):**
+1. **Chase the landings, nothing else is started.** Chain on trunk EX (WSV 28): #2584 fb21170c3 (WSV 29) → #2597 f40aec9f4 (30) → #2608 a0e64e76f (31) → #2614 05261c004 (32) → #2627 5e6b94c84 (33), all Auditor-armed. Sim batch A #2689 7b1e7341e (RV 61, WSV 34): Auditor PASS. When any of them reaches a release first it keeps its number; others renumber at merge-up (release WSV + 1, digest re-pinned from a VPS clone, gate exit 0).
+2. **#2694** (mobkit 3 + pack 3 + characters DEFLECT_FROM, e07b33058, armed) conflicts with World's #2698 on KIT_CODE_DIGEST (both re-pin it): whoever lands second merges up and re-pins over the combined text; tell World when #2694 / the chain land. The kit tag changes once (CHAIN_CAP joins kitTables()): old-client mob-layer records read as kit-mismatch after deploy, by design.
+3. **#2699** (Armfeel dials + GRAVITY + KNOCK_SETTLE + KICK/FULL_TIER_STOP_MS as rows, e7c3c2b21, draft) is stacked on #2515 (2471de705, still open): retarget onto trunk when #2515 lands, re-gate, mark ready. Non-blocking Auditor nit: KICK.drop lost its `?? 0.1` fallback.
+4. **Rulings I asked Lead for** (my proposed defaults, proceed unless told otherwise): replay.ts MAX_SHARE_CHARS and sheet-rows.ts UNIT = exempt (size cap; dial scale); open-fight.ts FAR_M and attackers.ts MAX_ATTACKERS = rows in ONE world-digest batch at the next free WSV above 34, after #2689 lands.
+5. After that: the 225 "Combat & Specials" src/fight debt (due today per Dom, no sunsets). My branch (chain + batch A) shows 189 left; Web holds 77 (signature #2680, blood/gore/wounds/nightfall #2681, fx-rows #2686, input #2687, all view-layer), my PRs hold the rest: special-* #2688 (60) + #2642 tithe (17), charge-timing #2691 (7), singles #2693 (7), mobkit/pack/characters #2694 (7), Armfeel follow-up #2699 (4).
+
+**Done today (2026-10-14):** chain rebuilt on trunk EX, #2678 (per-root allow files) merged once into each; sim batch A #2689 (16 sim entries to rows incl. ARCHETYPES as archetype-defs.json, 5 exempt with owners, sim-reading count 0, Auditor PASS); #2620 heroHits PASSED (HERO_SIDE exempt, trunk test stub fixed); #2515 re-merged (2471de705); reads posted for Web's #2643, #2647, #2648, #2687; #2632 fatigue rows rebuilt standalone and shipped in EU. Suites green on shallow clones: #2584 5186/0, #2627 tip 5225/0, #2689 5237/0, #2688 5202/0, #2642 5216/0, #2691 5216/0, #2693 5222/0, #2694 5218/0, #2699 5189/0, #2620 5235/0 (pass/fail).
+
+**Open (blocked on whom):** Auditor: #2699 after #2515; the chain/#2689 merge-only check after trunk moves. Lead: the four rulings above. #2515 landing (Lead cuts). World: re-merge of #2698 after #2694.
+
+**Gotchas (cost time):**
+- zsh: `$r:src` is a modifier (use `${r}`), `set -- $var` does not word-split, `pkill -f` patterns match your own ssh command (kill by pid from /proc cwd instead).
+- A rsync copy on the VPS has no .git, so ~17 tests that call `git ls-files` fail there: never call that "env noise" in a report; use a real shallow clone (`git clone --depth 1 --filter=blob:none`), at most 2 at a time, removed at the end of the run. The VPS disk hit 100% twice from full clones (~5 GB each) and a full disk corrupts runs.
+- Every SIM-listed file must appear in tests/detmath.test.ts SIM, eslint SIM/SIM_DATA, and (if it moves the digest) record-version-guard SIM_FILES/LOADER_ONLY; net-determinism catches a missing one. Top-level names in sim files must be unique across files (the digest test): prefix generated rows modules.
+- JSON key order matters when a test hashes the JSON (level-anchor identity hash, archetypes): rebuild objects in the original key order; a tier that is exactly a shared PROFILES tier must stay the same object (opponents.test).
+- A value moved to a row is invisible to a TEXT pin: tests/kit-version.test.ts pins the text of mobkit.ts/kits.ts, so a constant that feeds the kit tag must be added to kitTables() when it becomes a row.
+- Merge conflicts on lists (eslint SIM/SIM_DATA, detmath, world-sim-guard, record guard): resolve by taking theirs and re-adding ours-only items, then diff the lists against the first parent (a merge helper silently dropped three files once).
+- allow.json is split per root (scripts/as-data/allow/<root>.json): a retired entry must be DELETED in the same PR or the gate fails STALE; on conflict take theirs and re-delete.
+- Tooling: generators and merge helpers live in the session scratchpad (rowify.py, objrows.py, arch_gen.py, dropall.py, fixlists.py); if the scratchpad is gone, rebuild from the allow list and the rows-module shape of src/fight/fatigue-rows.ts (numbers) and archetype-rows.ts (tables).
+
 ## 2026-10-07 (morning) — RV30: three own rows, backstep B (no change), no whiff tax
 
 ## 2026-10-07 (evening) — HANDOFF at 546k context: perks + roll release, mob styles/kit, standoff rematch, wolf in progress

@@ -8,15 +8,19 @@
 // the exchange zone (the whole zone is the trade area, Lead 05:4x) is served just outside the Exchange's outer gate, Pit side, 50 cm in.
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { inTradeArea, REJOIN_EDGE, zoneAt } from '../presence/zones.ts';
+import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_EDGE_CM, zoneAt as zoneAtCm } from '../presence/zones.ts';
 import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
 
-export const ZONE_CM = 30000;   // presence's town square (origins/presence/interest.ts RULES.zoneCm); the migration's x/z check uses the same bound
+export const ZONE_CM = 30000;   // the saved x/z columns' bound, check (between 0 and 30000) in migration 202610070009 (old town frame): a storage contract, pinned by tests/location-bounds.test.ts
 
-// The rejoin edge and the trade area are presence's own (origins/presence/zones.ts, #1577): one definition for both servers.
-export { inTradeArea, REJOIN_EDGE };
+// The rejoin edge and the trade area are presence's own (origins/presence/zones.ts, #1577): one definition for both servers. The saved columns stay in the OLD frame (town square, centre 15000)
+// until the location migration widens them (docs/specs/origins/frontier-presence.md §2), so presence's v2-frame answers are shifted back here.
+const shift = (x: number, z: number): [number, number] => [x + LEGACY_SHIFT_CM, z + LEGACY_SHIFT_CM];
+export const zoneAt = (x: number, z: number): string | null => zoneAtCm(...shift(x, z));
+export const inTradeArea = (x: number, z: number): boolean => inTradeAreaCm(...shift(x, z));
+export const REJOIN_EDGE = { x: REJOIN_EDGE_CM.x - LEGACY_SHIFT_CM, z: REJOIN_EDGE_CM.z - LEGACY_SHIFT_CM };
 
 // Strategy's rule (a), no logout escape: a server-owned state that decides where the character stands (Feuds jail, an active bounty or feud, a duel in
 // progress) overrides the saved spot and never expires. The writer holds NO such state today (origins/feuds is a pure engine with no table; duels are not in

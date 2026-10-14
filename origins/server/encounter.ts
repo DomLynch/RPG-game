@@ -11,6 +11,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { wornGearOf } from './worn-gear.ts';
 import { practiceLines } from './practice.ts';
+import { settleWithWear, type KillWear } from './wear-settle.ts';
 import { spellLines } from './grimoire.ts';
 import { expectedSpell, type SpellClaim } from './spell-check.ts';
 import { careerState, levelOfCredit } from '../../src/core/server.ts';
@@ -21,6 +22,7 @@ import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
 import { knownLayer, type VerifyEncounter } from './encounter-verify.ts';
 import { issuePose, packPose, unpackPose } from './encounter-pose.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 // What `resolve` returns for a fight the character may start (Expansion's FightSetup, reduced to what the server holds and re-simulates).
 export type Resolved = { enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; instance: string | null };
@@ -31,6 +33,8 @@ export type EncounterDeps = {
   // fight id the server resolved at start (fightOfToken), null for a token issued before it carried one; `seed` is the server's; `db` is read-only here
   // (the lines commit in settle's one transaction, so a stale read aborts the whole settle and the token stays open for a retry).
   rewards?(fight: { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null }, db: Db): store.Json[] | Promise<store.Json[]>;
+  // The wear a PAID kill leaves on one equipped piece (wear-settle.ts); committed in the same transaction, retried once on a wear-seq clash and then dropped, never a failed payment.
+  wear?: KillWear;
   now?: () => number;   // the clock the expiry pre-check reads (tests); the database's now() decides at settle regardless
 };
 
@@ -38,12 +42,14 @@ const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/,
 // The token carries the fight id the server resolved at start: base64url(fight) + '_' + 32 random characters (24 bytes). The run row keeps only the foe and level,
 // and two fights can share both (Region 1: two goblin L11 creatures with different loot tables), so settle must not guess the fight back, nor take it from the client.
 // Only a token the database holds is ever settled, so the prefix is the server's own choice. A token without one (issued before this) reads as null.
-const RANDOM = 32;
+const TOKEN_RULE = SERVER_RULES.encounterToken[0]!;
+if (TOKEN_RULE.randomBytes < TOKEN_RULE.minRandomBytes) throw new Error(`server-rules: encounterToken.randomBytes ${TOKEN_RULE.randomBytes} is under its floor ${TOKEN_RULE.minRandomBytes}`);
+const RANDOM = Math.ceil(TOKEN_RULE.randomBytes * 4 / 3);   // base64url: 4 characters per 3 bytes
 // A POSED fight (seamless step 3, encounter-pose.ts) carries the server's issued pose the same way: the prefix is base64url(fight, a 0 byte, the five float32 of the pose), so settle
 // re-simulates from the pose the server issued and the record must name exactly it. A fight id is never longer than 50 characters in a posed token (the 128-character token cap).
-export const POSED_FIGHT_MAX = 50;
+export const POSED_FIGHT_MAX = TOKEN_RULE.posedFightMax;
 export const tokenFor = (fight: string, pose?: DuelPose): string =>
-  `${(pose ? Buffer.concat([Buffer.from(fight), Buffer.of(0), packPose(pose)]) : Buffer.from(fight)).toString('base64url')}_${randomBytes(24).toString('base64url')}`;
+  `${(pose ? Buffer.concat([Buffer.from(fight), Buffer.of(0), packPose(pose)]) : Buffer.from(fight)).toString('base64url')}_${randomBytes(TOKEN_RULE.randomBytes).toString('base64url')}`;
 const prefixOf = (token: string): { fight: string; pose: DuelPose | null } | null => {
   if (token.length <= RANDOM + 1 || token[token.length - RANDOM - 1] !== '_') return null;
   const raw = Buffer.from(token.slice(0, -RANDOM - 1), 'base64url'), cut = raw.indexOf(0);
@@ -113,7 +119,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
       weapon = record.weapon;
       // A record's sheet is the client's claim: the build version it names (this character's, from the writer's own store) is the only thing that can vouch for it.
       const want = record.sheet && record.characterId !== undefined && `pc:${record.characterId}` !== run.character ? { ok: false as const, reason: 'the record names another character\'s build' }
-        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character) : {});
+        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character, record.v) : {});
       const spell = (record as { spell?: SpellClaim }).spell, held = want.ok && spell ? await expectedSpell(db, account, run.character, spell) : null;   // the spell block is a claim too: owned, and no more skill than is stored
       verdict = held && !held.ok ? { ok: false, reason: held.reason } : want.ok ? verify(record, { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), ...(want.sheet ? { sheet: want.sheet } : {}) }) : { ok: false, reason: want.reason };
     }
@@ -134,7 +140,10 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     }
     // Grimoire (migration 0027): a VERIFIED win against a boss legend takes its spell, once per account and legend, in this same transaction.
     const spells = verdict.ok && result === 'won' ? spellLines(fight) : [];
-    const out = await store.encounterSettle(db, account, token, result, ticks, batch, practice, spells).catch(GONE);
+    const commit = (wear: store.Json[]) => store.encounterSettle(db, account, token, result, ticks, [...batch, ...wear], practice, spells).catch(GONE);
+    const out = rewards.length > 0 && deps.wear
+      ? await settleWithWear({ db, account, ownEventId: eventId, wear: () => deps.wear!({ account, character: run.character, token }, db), commit })
+      : await commit([]);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
     return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
   };
