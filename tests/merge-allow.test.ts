@@ -113,7 +113,7 @@ test('a file move or rename (retire + add of the same name) while the other side
   const edited = doc([entry('a.ts', 'N', { kind: 'exempt', reason: 'wire format' }), entry('z.ts', 'Z')]);   // the verdict changed on the old path
   for (const [ours, theirs] of [[moved, edited], [edited, moved]] as const) {
     const r = mergeAllow(base, ours, theirs);
-    assert.equal(r.clashes.length, 1); assert.equal(r.clashes[0].id, 'a.ts | N'); assert.match(r.clashes[0].why, /a move/);
+    assert.equal(r.clashes.length, 1); assert.equal(r.clashes[0].id, 'a.ts | N'); assert.match(String(r.clashes[0].why), /a move/);
   }
   const plain = mergeAllow(base, moved, base);                                                              // moved on one side, untouched on the other: no edit to lose
   assert.deepEqual(plain.clashes, []); assert.deepEqual((JSON.parse(plain.text).tunables as { file: string }[]).map((e) => e.file), ['b.ts', 'z.ts']);
