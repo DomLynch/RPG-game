@@ -1,6 +1,6 @@
 // A feature PR's full shards run only when the PR's OWN delta changed since its last green full run (Strategy 2026-10-14, runner queue: merge-up pushes were 20+
-// minutes of shards each). The delta id is `git patch-id --stable` of `git diff $(git merge-base trunk HEAD) HEAD`: a clean merge of trunk moves the merge-base and
-// leaves the id unchanged. A full run that went green writes the commit status `unit-ci/delta` = "patch-id <id>" on its head; this script looks for that status
+// minutes of shards each). The delta id is `git patch-id --verbatim` of `git diff $(git merge-base trunk HEAD) HEAD`: a clean merge of trunk moves the merge-base and
+// leaves the id unchanged. --verbatim, not --stable: --stable ignores whitespace, so a whitespace-only change inside a string or YAML (a real behaviour change) read as unchanged (Auditor on #2661). A full run that went green writes the commit status `unit-ci/delta` = "patch-id <id>" on its head; this script looks for that status
 // on the PR's earlier commits. Anything unknown (no id, an API error, no match) reads as CHANGED: the shards run. Release candidates and trunk pushes never skip.
 // Usage in a workflow job (env GH_TOKEN, GITHUB_REPOSITORY, PR_NUMBER, TRUNK_REF=origin/<trunk>): `node scripts/ci-delta.mjs` appends
 // `unchanged=true|false`, `patch_id=<id>` and `since=<sha>` to $GITHUB_OUTPUT.
@@ -18,7 +18,7 @@ export function deltaPatchId(cwd, trunkRef) {
   if (base.status !== 0 || !base.stdout.trim()) return null;
   const diff = git(['diff', base.stdout.trim(), 'HEAD']);
   if (diff.status !== 0 || !diff.stdout.trim()) return null;
-  const pid = git(['patch-id', '--stable'], diff.stdout);
+  const pid = git(['patch-id', '--verbatim'], diff.stdout);
   return pid.status === 0 ? pid.stdout.trim().split(/\s+/)[0] || null : null;
 }
 

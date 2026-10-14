@@ -27,7 +27,7 @@ jobs:
   delta:
     # Merge-up rounds off the runners (Strategy 2026-10-14): on a feature PR carrying auditor:ready, the shards run only when the PR's OWN delta (git patch-id --stable of
     # merge-base(trunk)..HEAD) differs from every earlier head that ran them green (the `unit-ci/delta` status the receipt job writes). A clean trunk merge-up keeps the
-    # id, so static, the shards, origins-db and the artifact are skipped and the receipt job reports "unchanged since <sha>". A release-* candidate, a trunk push and a
+    # id, so the shards, origins-db and the artifact are skipped and the receipt job reports "unchanged since <sha>". `static` (lint + both typechecks) still runs on every head: it is the check that catches a clean merge-up breaking against NEW trunk code (Auditor on #2661). A release-* candidate, a trunk push and a
     # dispatch skip THIS job and run in full; any doubt (no id, API error, this job failing) runs everything. Never a second full run on the same delta.
     if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-') && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
     runs-on: ubuntu-latest
@@ -59,7 +59,7 @@ jobs:
     # shards `needs:` it, so a red tsc costs this one job, not 9. A push or a dispatch skips it and the shards run as before.
     # A pull request runs it (and so the shards and the receipt) only with auditor:ready or as a release-* candidate (Strategy 2026-10-12 21:5x).
     needs: delta
-    if: ${{ !cancelled() && needs.delta.outputs.unchanged != 'true' && (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))) }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -159,8 +159,11 @@ jobs:
     steps:
       - name: Delta unchanged
         if: needs.delta.outputs.unchanged == 'true'
+        env:
+          STATIC: ${{ needs.static.result }}
         run: |
-          echo "unit-ci - this PR's own delta (patch-id ${{ needs.delta.outputs.patch_id }}) already ran green; the shards were not re-run (clean merge-up)"
+          [ "$STATIC" = success ] || { echo "unit-ci - delta unchanged but static did not pass (result: $STATIC)"; exit 1; }
+          echo "unit-ci - this PR's own delta (patch-id ${{ needs.delta.outputs.patch_id }}) already ran green; static passed on this head, the shards were not re-run (clean merge-up)"
       - if: needs.delta.outputs.unchanged != 'true'
         run: '[ "$STATIC" != failure ] && [ "$STATIC" != cancelled ] || { echo "unit-ci: static did not pass (result: $STATIC)"; exit 1; }; [ "$SHARDS" = success ] || { echo "unit-ci: a shard did not succeed (result: $SHARDS)"; exit 1; }'
         env:

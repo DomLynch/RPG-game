@@ -36,6 +36,17 @@ test('a clean trunk merge-up leaves the delta id unchanged; a real change to the
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('a whitespace-only change inside a string is a different delta (git patch-id --stable would call it unchanged)', () => {
+  const dir = fixture();
+  try {
+    put(dir, 'c.js', 'const s = `x y`;\n'); git(dir, 'add', '.'); git(dir, 'commit', '-qm', 'c');
+    const before = deltaPatchId(dir, 'trunk');
+    put(dir, 'c.js', 'const s = `x  y`;\n'); git(dir, 'commit', '-qam', 'whitespace inside the template literal');
+    const after = deltaPatchId(dir, 'trunk');
+    assert.ok(before && after && before !== after, 'a spacing change is a real change');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('no merge-base or an empty delta has no id (the shards then run)', () => {
   const dir = fixture();
   try {
@@ -67,14 +78,18 @@ test('unit-ci.yml wiring: delta never runs for a release candidate, every full-r
   const job = (name: string) => { const m = new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|$)`).exec(wf); assert.ok(m, `job ${name} exists`); return m[1]; };
   assert.match(job('delta'), /if: .*!startsWith\(github\.head_ref, 'release-'\)/, 'a candidate always runs in full');
   assert.match(job('delta'), /fetch-depth: 0/, 'the merge-base needs history');
-  for (const name of ['static', 'shard', 'origins-db']) {
+  assert.match(job('static'), /needs: delta/);
+  assert.doesNotMatch(job('static'), /needs\.delta\.outputs\.unchanged/, 'static runs on EVERY head: it catches a merge-up breaking against new trunk code (Auditor on #2661)');
+  assert.match(job('static'), /if: \$\{\{ !cancelled\(\) && /, 'and still runs if delta was skipped or failed');
+  for (const name of ['shard', 'origins-db']) {
     const j = job(name);
-    assert.match(j, /needs: (delta|\[delta, static\])/, `${name} waits for delta`);
+    assert.match(j, /needs: \[delta, static\]/, `${name} waits for delta`);
     assert.match(j, /!cancelled\(\) && needs\.delta\.outputs\.unchanged != 'true'/, `${name} is skipped only on an unchanged delta, and runs if delta itself failed`);
   }
   const receipt = job('receipt');
   assert.match(receipt, /needs\.delta\.outputs\.unchanged == 'true' \|\| !\(needs\.static\.result == 'skipped' && needs\.shard\.result == 'skipped'\)/, 'the receipt job reports green on an unchanged delta');
   assert.match(receipt, /statuses: write/);
+  assert.match(receipt, /name: Delta unchanged[\s\S]*?STATIC: \$\{\{ needs\.static\.result \}\}[\s\S]*?\[ "\$STATIC" = success \] \|\|[^\n]*exit 1/, 'an unchanged delta still needs static green on this head');
   assert.match(receipt, /name: Record the green delta\n\s+if: needs\.delta\.outputs\.unchanged != 'true' && needs\.delta\.outputs\.patch_id != ''/, 'only a changed delta with a computed id is recorded');
   assert.ok(receipt.indexOf('Record the green delta') > receipt.indexOf('actions/upload-artifact'), 'recorded last, after the shards and the artifact succeeded');
   assert.equal((receipt.match(/if: needs\.delta\.outputs\.unchanged != 'true'/g) || []).length >= 6, true, 'every artifact step is skipped when nothing ran');

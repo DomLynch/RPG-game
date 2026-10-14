@@ -253,9 +253,9 @@ test('release-checks on a candidate: adding any label but ci:release-checks sche
   assert.ok(schedule(R, { event_name: 'workflow_dispatch', event: {} }, {}, rows).has('check'), 'a dispatch is unchanged');
 });
 
-test('unit-ci delta (Strategy 2026-10-14): an unchanged delta on a labelled feature PR skips static + shards + origins-db but the receipt still reports; a changed or unknown delta, a release candidate and a trunk push run in full', () => {
+test('unit-ci delta (Strategy 2026-10-14): an unchanged delta on a labelled feature PR skips the shards + origins-db (static still runs) and the receipt still reports; a changed or unknown delta, a release candidate and a trunk push run in full', () => {
   const labelled = withLabelNames(pr('synchronize', ['auditor:ready']));
-  assert.deepEqual([...schedule(U, labelled, {}, { delta: { unchanged: 'true', patch_id: 'abc' } })].sort(), ['delta', 'receipt'], 'a clean merge-up: only delta and the receipt');
+  assert.deepEqual([...schedule(U, labelled, {}, { delta: { unchanged: 'true', patch_id: 'abc' } })].sort(), ['delta', 'receipt', 'static'], 'a clean merge-up: delta, static (still catches a break against new trunk code) and the receipt; no shard');
   for (const unchanged of ['false', '']) assert.ok(['static', 'shard', 'origins-db', 'receipt'].every(j => schedule(U, labelled, {}, { delta: { unchanged, patch_id: 'abc' } }).has(j)), `unchanged="${unchanged}": everything runs`);
   assert.ok(['static', 'shard', 'origins-db', 'receipt'].every(j => schedule(U, labelled, { delta: 'failure' }).has(j)), 'a failing delta job fails open: everything runs');
   const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-EX' };
