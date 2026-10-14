@@ -59,7 +59,7 @@ jobs:
     # shards `needs:` it, so a red tsc costs this one job, not 9. A push or a dispatch skips it and the shards run as before.
     # A pull request runs it (and so the shards and the receipt) only with auditor:ready or as a release-* candidate (Strategy 2026-10-12 21:5x).
     needs: delta
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))) }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.event.action != 'labeled' || (github.event.label.name == 'auditor:ready' && !startsWith(github.head_ref, 'release-'))) && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

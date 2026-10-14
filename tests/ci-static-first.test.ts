@@ -254,6 +254,20 @@ test('release-checks on a candidate: adding any label but ci:release-checks sche
   assert.ok(schedule(R, { event_name: 'workflow_dispatch', event: {} }, {}, rows).has('check'), 'a dispatch is unchanged');
 });
 
+test('a label event on a release-* candidate schedules 0 jobs in quality and unit-ci; the push/open run is the full one (cut applies the labels in the same second: EH ran 3 quality + 3 unit-ci runs, 2026-10-13)', () => {
+  const cand = (action: string, label?: string): Ctx => ({ ...withLabelNames(pr(action, ['ci:release-checks', 'auditor:ready', ...(label ? [label] : [])], label ? { label: { name: label } } : {})), head_ref: 'release-EH' });
+  const plan = { plan: { game: 'true', browser: 'true' } };
+  for (const file of [Q, U]) for (const l of ['auditor:ready', 'ci:release-checks', 'candidate:pass', 'release:go']) assert.deepEqual([...schedule(file, cand('labeled', l), {}, plan)], [], `${file}: ${l} added to a candidate: 0 jobs`);
+  const rows = { plan: { checks: '[{"index":1}]' } };
+  assert.deepEqual([...schedule(R, cand('opened'), {}, rows)], [], 'release-checks: a candidate `opened` runs nothing (the label event is the run)');
+  assert.ok(schedule(R, cand('labeled', 'ci:release-checks'), {}, rows).has('plan'), 'release-checks: the ci:release-checks label event is the real run');
+  assert.ok(schedule(Q, cand('opened'), {}, plan).has('plan'), 'quality: the candidate open/push still runs the plan');
+  assert.ok(schedule(Q, cand('synchronize'), {}, plan).has('quality-shard'), 'quality: a push to the candidate runs the shards');
+  assert.ok(schedule(U, cand('synchronize'), {}, plan).has('shard'), 'unit-ci: a push to the candidate runs the shards');
+  assert.ok(schedule(Q, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }, {}, plan).has('plan'), 'a feature PR still runs the full set when auditor:ready is added');
+  assert.ok(schedule(U, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }).has('shard'), 'unit-ci: same on a feature PR');
+});
+
 // Release speed (Deploy, 2026-10-13): the publish moment of an already-tested candidate must start no CI. EK: `gh pr ready` 13 s before the merge started a second ~50-job
 // release-checks matrix (38440789792), and the train's fast-forward of trunk started a second unit-ci (38440811361) and quality (38440811418) beside the next candidate's.
 test('the train fast-forward of a tested candidate (a push whose merge commit says "(release-X candidate)") schedules no unit-ci and no quality job; any other trunk push still does', () => {
