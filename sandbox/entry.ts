@@ -112,6 +112,9 @@ function panel(opponents: string[]) {
   document.body.append(tab, box);
 }
 
+// ?bands=0 switches the reach-band rule off for an A/B (the row stays in the panel).
+if (new URLSearchParams(location.search).get('bands') === '0') for (const r of RULES.rules as { id: string; value?: number }[]) if (r.id === 'bandOff') r.value = 0;
+
 await import('../src/main.ts');
 // The stance picker, restyled (Dom's pick of the icon stack: Neutral first, down the right edge, muted): the game's own #stance-panel buttons keep their handlers and aria-pressed; only the look changes.
 const GLYPH: Record<string, string> = { neutral: '\u25CB', aggressive: '\u2694', defensive: '\u26E8', trickster: '\u263D' };

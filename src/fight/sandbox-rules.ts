@@ -86,3 +86,17 @@ export const READY_STYLES: readonly ReadyStyle[] = ((DEFS as unknown as { readyS
 // plainPosture (Dom 2026-10-14: "remove all of the posture effects ... just use the vanilla base model"): 1 = the character driver adds no procedural posture on top of the recorded clips: no tired-body hunch and sagging sword arm, no
 // open-stagger lift and lean, no charge lean, no stance silhouette. Guard-side tilt (the sides a guard covers) and every finisher stay as they are. 0 = off (trunk).
 export const PLAIN_POSTURE = num('plainPosture', 'value') > 0;
+
+// reachBands (Dom 2026-10-14, positioning gates; Strategy: soft x0.6, never soften a hard miss; NO on-screen marker, Dom: cheap): the distance between the fighters at the moment a blow LANDS falls in a band (`bands` rows,
+// { id, upTo } in centimetres, ascending); each weapon has a best band (`bandBest` rows, { weapon, band }). A landed blow outside its weapon's band deals `bandOff` per-mille of its damage; inside it, all of it. A pole thrust inside
+// minReach and an out-of-reach swing still miss (duel.ts): a band only scales blows that already land. No rows / bandOff 0 (trunk) = untouched. Donors: For Honor and Mordhau range play, Chivalry 2 reach as a rule.
+type BandRow = { id: string; upTo: number }; type BandBestRow = { weapon: string; band: string };
+const BANDS = ((DEFS as unknown as { bands?: BandRow[] }).bands ?? []).slice().sort((a, b) => a.upTo - b.upTo);
+const BAND_BEST = ((DEFS as unknown as { bandBest?: BandBestRow[] }).bandBest ?? []);
+export const BAND_OFF = num('bandOff', 'value');
+export const bandOf = (distance: number): string | undefined => BANDS.find((b) => distance * 100 < b.upTo)?.id ?? BANDS[BANDS.length - 1]?.id;
+export const bandPerMille = (weapon: string, distance: number): number => {
+  if (!BAND_OFF || !BANDS.length) return 1000;
+  const best = BAND_BEST.find((r) => r.weapon === weapon);
+  return !best || bandOf(distance) === best.band ? 1000 : BAND_OFF;
+};
