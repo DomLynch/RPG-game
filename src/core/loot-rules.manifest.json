@@ -9,7 +9,17 @@
         "declinedKept": "integer",
         "claimsCap": "integer",
         "claimWaitMs": "integer",
-        "keepaliveBytes": "integer"
+        "keepaliveBytes": "integer",
+        "tapGuardMs": "integer"
+      }
+    },
+    {
+      "table": "platformCap",
+      "file": "loot-rules.json",
+      "at": "platformCap",
+      "key": "id",
+      "required": {
+        "bytes": "integer"
       }
     }
   ]

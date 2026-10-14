@@ -57,6 +57,18 @@ export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string
 export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const skillOf = (opponent: OpponentId): SkillId | null => Object.values(SKILL_ROWS).find((r) => r.opponent === opponent)?.id ?? null;
 loadRegistry(LOOT_RULES_MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, LOOT_RULES, 'loot-rules.json')));
+// A keepalive fetch body shares 64 KB in flight (a platform cap, not a tuning choice): a retune of keepaliveBytes may not pass it. The same relation check the wear rows use (checkWearRelations).
+export const KEEPALIVE_CAP: number = LOOT_RULES.platformCap.find((c) => c.id === 'keepalive-body')!.bytes;   // the platformCap row (src/core/loot-rules.json): a platform fact kept apart from the tunable it bounds
+export function checkLootRules(rows: readonly { keepaliveBytes: number; claimsCap: number; claimWaitMs: number }[]): void {
+  const bad: string[] = [];
+  for (const r of rows) {
+    if (!(r.keepaliveBytes >= 1 && r.keepaliveBytes <= KEEPALIVE_CAP)) bad.push(`keepaliveBytes must be 1..${KEEPALIVE_CAP} (the keepalive body cap)`);
+    if (!(r.claimsCap >= 1)) bad.push('claimsCap must be >= 1');
+    if (!(r.claimWaitMs >= 0)) bad.push('claimWaitMs must be >= 0');
+  }
+  if (bad.length) throw new Error(`loot-rules relations: ${bad.join('; ')}`);
+}
+checkLootRules(LOOT_RULES.lootRule);
 export const DECLINED_KEPT = LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
