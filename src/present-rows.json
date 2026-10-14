@@ -1,0 +1,28 @@
+{
+  "presentRows": [
+    { "id": "clip-seconds", "value": 10, "unit": "s" },
+    { "id": "clip-lead", "value": 5, "unit": "s" },
+    { "id": "clip-tail", "value": 1, "unit": "s" },
+    { "id": "clip-finish-cap", "value": 8, "unit": "s" },
+    { "id": "clip-width", "value": 720, "unit": "px" },
+    { "id": "clip-height", "value": 1280, "unit": "px" },
+    { "id": "clip-fps", "value": 30, "unit": "fps" },
+    { "id": "gate-rise-m", "value": 2.3, "unit": "m" },
+    { "id": "gate-rise-ms", "value": 1250, "unit": "ms" },
+    { "id": "pvp-catchup", "value": 3, "unit": "ticks per frame" },
+    { "id": "pvp-max-lag-ticks", "value": 6, "unit": "ticks" },
+    { "id": "coach-lapse-min", "value": 0.1, "unit": "share" },
+    { "id": "coach-lapse-max", "value": 0.85, "unit": "share" },
+    { "id": "lorarii.count", "value": 6, "unit": "guards" },
+    { "id": "lorarii.radius", "value": 12.1, "unit": "m" },
+    { "id": "lorarii.top", "value": 2.6, "unit": "m" },
+    { "id": "lorarii.reach", "value": 0.28, "unit": "rad" },
+    { "id": "lorarii.speed", "value": 0.963, "unit": "m/s" },
+    { "id": "lorarii.raiseClip", "value": 0.5, "unit": "s" },
+    { "id": "lorarii.turn", "value": 4, "unit": "per s" },
+    { "id": "lorarii.raise", "value": 0.35, "unit": "s" },
+    { "id": "lorarii.lash", "value": 0.22, "unit": "s" },
+    { "id": "lorarii.recover", "value": 0.6, "unit": "s" },
+    { "id": "lorarii.lead", "value": 60, "unit": "ticks" }
+  ]
+}

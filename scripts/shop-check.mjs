@@ -7,7 +7,10 @@ import path from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 import { chromium, webkit } from 'playwright';
+import { EXCHANGE_PROVISIONER, REGION1_SHOPS } from '../origins/region1/shops.ts';
+import { costOf } from '../origins/shops/shop.ts';
 
+const LIST = REGION1_SHOPS.get(EXCHANGE_PROVISIONER);
 const dist = process.argv[2] ?? 'artifacts/origins-preview', out = process.env.OUT || 'artifacts/shop', root = process.cwd();
 const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.indexOf('--engine') + 1] : 'chromium';
 fs.mkdirSync(out, { recursive: true });
@@ -35,11 +38,11 @@ try {
     await page.route('**/origins/**', async (route) => {
       if (route.request().method() !== 'POST') return route.continue();   // the page's own files live under /preview/origins/; only the writer's POST ops are answered here
       const op = new URL(route.request().url()).pathname.split('/').pop(), body = route.request().postDataJSON?.() ?? {};
-      if (op === 'shop_stock') return route.fulfill(reply({ shop: 'service:exchange-provisioner', revision: 1, now: T0, rows: [
-        { item: 'item:grave-iron', count: shelf.iron, max: 20, price: shelf.iron === 20 ? 5 : 6, nextRestockAt: shelf.iron < 20 ? T0 + 90_000 : null },
-        { item: 'item:frontier.ash-helm', count: 0, max: 1, price: 72, nextRestockAt: T0 + 1_800_000 },
-        { item: 'item:frontier.watch-greaves', count: 1, max: 1, price: 60, nextRestockAt: null }] }));
-      if (op === 'shop_buy') { asked.push(body); shelf.iron -= 1; return route.fulfill(reply({ shop: body.shop, item: body.item, quantity: 1, cost: 5, revision: 1, received: ['inst:x'], replayed: false })); }
+      if (op === 'shop_stock') return route.fulfill(reply({ shop: EXCHANGE_PROVISIONER, revision: LIST.revision, now: T0, rows: LIST.rows.map((r) => {   // the list's own rows: ids, shelf size, restock and the writer's price (costOf) at the stand-in's shelf
+        const count = r.item === 'item:grave-iron' ? shelf.iron : r.item === 'item:frontier.ash-helm' ? 0 : r.max;   // the three shelves this check walks: iron stocked and bought down, the helm sold out, the greaves full
+        return { item: r.item, count, max: r.max, price: costOf(LIST, r, count, 1), nextRestockAt: count >= r.max ? null : T0 + (r.item === 'item:grave-iron' ? 90_000 : r.restockSeconds * 1000) };   // iron is mid-restock (90 s to the next unit), the helm waits its full row restock
+      }) }));
+      if (op === 'shop_buy') { asked.push(body); const cost = costOf(LIST, LIST.rows.find((r) => r.item === body.item), shelf.iron, 1); shelf.iron -= 1; return route.fulfill(reply({ shop: body.shop, item: body.item, quantity: 1, cost, revision: 1, received: ['inst:x'], replayed: false })); }
       if (op === 'open') return route.fulfill(reply({ characters: [{ id: 'char:check', name: 'Check' }], career: null, marks: 0 }));
       return route.fulfill({ status: 404, body: '' });
     });
