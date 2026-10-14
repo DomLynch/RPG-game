@@ -33,6 +33,8 @@ sweep_kind() {
     /tmp/hooks-*|/tmp/cq-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;   # hooks-* review trees, cq-* the Auditor's worktrees (Lead 2026-10-13: standing root)
     /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
     /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
+    /tmp/rank-job) echo aged;;   # Web's rank-job tree (Lead 2026-10-14): exact, aged, and refused while anything runs inside (the sweep_in_use checks)
+    /root/cn[0-9]*) [ "$(dirname "$p")" = /root ] && [[ "$(basename "$p")" =~ ^cn[0-9]+$ ]] && echo aged;;   # the preflight full clones /root/cnNN (Lead 2026-10-14): digits only, direct children of /root
   esac
   return 0
 }
