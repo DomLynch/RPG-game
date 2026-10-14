@@ -4,6 +4,9 @@
 // is takeable instead (WEAPON_SLOTS below) and fills the paperdoll's main hand. The paperdoll is the six armour slots plus the two hands;
 // Store on a worn slot moves the piece into the pack (PACK below): two open slots, three drawn locked. Pure: the loader and the journal read this.
 import { TITLES, rankFor } from './career-ladder.ts';
+import { loadRegistry, tableFromFile, type Manifest } from './registry.ts';
+import LOOT_RULES from './loot-rules.json' with { type: 'json' };
+import LOOT_RULES_MANIFEST from './loot-rules.manifest.json' with { type: 'json' };
 import type { Tier } from './grades.ts';
 import { PLAYER_WEAPONS, DEFAULT_WEAPON, DAY_ONE_SKILL, SKILL_ROWS, isSkillId, type SkillId, type WeaponId } from '../fight/moves.ts';
 export { DAY_ONE_SKILL, isSkillId };
@@ -53,7 +56,20 @@ export const SKILLS: Record<SkillId, { opponent: OpponentId | null; name: string
 // battery; the Jab keeps reach 1.0. Binding pairing estoc v Goblin: Lunge 241, Rush 242, Jab 250 of 480, all ≤ Pommel + 40 = 266 (moves.ts).
 export const equippedSkill = (loot: Loot | undefined): SkillId => loot?.skill ?? DAY_ONE_SKILL;
 export const skillOf = (opponent: OpponentId): SkillId | null => Object.values(SKILL_ROWS).find((r) => r.opponent === opponent)?.id ?? null;
-export const DECLINED_KEPT = 50;
+loadRegistry(LOOT_RULES_MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, LOOT_RULES, 'loot-rules.json')));
+// A keepalive fetch body shares 64 KB in flight (a platform cap, not a tuning choice): a retune of keepaliveBytes may not pass it. The same relation check the wear rows use (checkWearRelations).
+export const KEEPALIVE_CAP: number = LOOT_RULES.platformCap.find((c) => c.id === 'keepalive-body')!.bytes;   // the platformCap row (src/core/loot-rules.json): a platform fact kept apart from the tunable it bounds
+export function checkLootRules(rows: readonly { keepaliveBytes: number; claimsCap: number; claimWaitMs: number }[]): void {
+  const bad: string[] = [];
+  for (const r of rows) {
+    if (!(r.keepaliveBytes >= 1 && r.keepaliveBytes <= KEEPALIVE_CAP)) bad.push(`keepaliveBytes must be 1..${KEEPALIVE_CAP} (the keepalive body cap)`);
+    if (!(r.claimsCap >= 1)) bad.push('claimsCap must be >= 1');
+    if (!(r.claimWaitMs >= 0)) bad.push('claimWaitMs must be >= 0');
+  }
+  if (bad.length) throw new Error(`loot-rules relations: ${bad.join('; ')}`);
+}
+checkLootRules(LOOT_RULES.lootRule);
+export const DECLINED_KEPT = LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
 export const PACK = { open: 2, total: 5 } as const;

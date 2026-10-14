@@ -43,6 +43,7 @@ const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/,
 // and two fights can share both (Region 1: two goblin L11 creatures with different loot tables), so settle must not guess the fight back, nor take it from the client.
 // Only a token the database holds is ever settled, so the prefix is the server's own choice. A token without one (issued before this) reads as null.
 const TOKEN_RULE = SERVER_RULES.encounterToken[0]!;
+if (TOKEN_RULE.randomBytes < TOKEN_RULE.minRandomBytes) throw new Error(`server-rules: encounterToken.randomBytes ${TOKEN_RULE.randomBytes} is under its floor ${TOKEN_RULE.minRandomBytes}`);
 const RANDOM = Math.ceil(TOKEN_RULE.randomBytes * 4 / 3);   // base64url: 4 characters per 3 bytes
 // A POSED fight (seamless step 3, encounter-pose.ts) carries the server's issued pose the same way: the prefix is base64url(fight, a 0 byte, the five float32 of the pose), so settle
 // re-simulates from the pose the server issued and the record must name exactly it. A fight id is never longer than 50 characters in a posed token (the 128-character token cap).
@@ -118,7 +119,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
       weapon = record.weapon;
       // A record's sheet is the client's claim: the build version it names (this character's, from the writer's own store) is the only thing that can vouch for it.
       const want = record.sheet && record.characterId !== undefined && `pc:${record.characterId}` !== run.character ? { ok: false as const, reason: 'the record names another character\'s build' }
-        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character) : {});
+        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character, record.v) : {});
       const spell = (record as { spell?: SpellClaim }).spell, held = want.ok && spell ? await expectedSpell(db, account, run.character, spell) : null;   // the spell block is a claim too: owned, and no more skill than is stored
       verdict = held && !held.ok ? { ok: false, reason: held.reason } : want.ok ? verify(record, { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), ...(want.sheet ? { sheet: want.sheet } : {}) }) : { ok: false, reason: want.reason };
     }
