@@ -8,6 +8,7 @@ import { classSpecialFor } from '../src/fight/class-special-identity.ts';
 import { SPECIAL_CUE_OF } from '../src/fight/sound/special.ts';
 import { specialCueFor } from '../src/fight/sparring-special-runtime.ts';
 import type { OpponentId } from '../src/roster.ts';
+import LOOK from '../src/fight/look-rules.json' with { type: 'json' };
 import { specialOf } from '../src/fight/moves.ts';
 import { createFeedback } from '../src/fight/sound/feedback.ts';
 
@@ -168,7 +169,7 @@ test('all 30 existing boss identities still prefetch and play their authored cue
     ['shieldmaiden', ['baredface', 'thering', 'aegis']], ['witch', ['avalon', 'foretold', 'theprice']],
     ['plaguedoctor', ['plagueflies', 'poisonstain', 'lastbreath']], ['knight', ['thesling', 'wrath', 'storm']],
   ] as const;
-  for (const [opponent, cues] of rows) for (const [i, level] of [36, 41, 46].entries()) {
+  for (const [opponent, cues] of rows) for (const [i, level] of [0, 1, 2].map((rank) => LOOK.specialLookRule[0]!.bossBaseLevel + rank * LOOK.specialLookRule[0]!.bossLevelPerRank).entries()) {
     const r = routing(); r.match.specialIdentity = { opponent, level }; r.sync();
     r.route([start(1, 100, specialOf(opponent, level)!)]);
     assert.deepEqual(r.wants, [cues[i]], `${opponent} L${level} prefetch`);
