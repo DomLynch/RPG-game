@@ -266,6 +266,8 @@ test('a label event on a release-* candidate schedules 0 jobs in quality and uni
   assert.ok(schedule(U, cand('synchronize'), {}, plan).has('shard'), 'unit-ci: a push to the candidate runs the shards');
   assert.ok(schedule(Q, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }, {}, plan).has('plan'), 'a feature PR still runs the full set when auditor:ready is added');
   assert.ok(schedule(U, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }).has('shard'), 'unit-ci: same on a feature PR');
+});
+
 // Release speed (Deploy, 2026-10-13): the publish moment of an already-tested candidate must start no CI. EK: `gh pr ready` 13 s before the merge started a second ~50-job
 // release-checks matrix (38440789792), and the train's fast-forward of trunk started a second unit-ci (38440811361) and quality (38440811418) beside the next candidate's.
 test('the train fast-forward of a tested candidate (a push whose merge commit says "(release-X candidate)") schedules no unit-ci and no quality job; any other trunk push still does', () => {
