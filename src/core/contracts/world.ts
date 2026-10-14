@@ -18,6 +18,7 @@ import {
   checkId, readId, readOptionalId,
   type AccountId, type CharacterId, type CharacterInstanceId, type EncounterId, type FactionId, type LootTableId, type QuestId, type RegionId,
 } from './ids.ts';
+import RULES from './contract-rules.json' with { type: 'json' };
 
 // ---- gates and the one career -----------------------------------------------------------------------------------------------------
 
@@ -247,9 +248,9 @@ export const FACTION_STANDING_VERSION = 1;
 export const ATTITUDES: readonly string[] = ids(DEFINITIONS.attitudes);   // rows of definitions.json `attitudes`: ordered, each band a threshold, one default between them
 export type Attitude = string;
 // Standing is a bounded integer. Bounded on purpose: repeated safe actions must not buy unlimited favour (blueprint §7).
-export const STANDING_MIN = -1000;
-export const STANDING_MAX = 1000;
-export const MAX_RANKS = 10;
+export const STANDING_MIN = RULES.worldLimits[0]!.standingMin;
+export const STANDING_MAX = RULES.worldLimits[0]!.standingMax;
+export const MAX_RANKS = RULES.worldLimits[0]!.maxRanks;
 
 export type FactionRank = { id: string; title: string; minStanding: number };
 export type FactionDefinition = {

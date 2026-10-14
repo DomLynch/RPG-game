@@ -13,12 +13,12 @@
         "rows[].item": "string",
         "rows[].price": "integer",
         "rows[].max": "integer",
-        "rows[].restockSeconds": "integer",
-        "zone": "string"
+        "rows[].restockSeconds": "integer"
       },
       "optional": {
         "rows[].minLevel": "integer",
-        "rows[].class": "string"
+        "rows[].class": "string",
+        "zone": "string"
       }
     }
   ]

@@ -1,0 +1,11 @@
+{
+  "gearRoomRule": [
+    {
+      "id": "gear-room",
+      "bodyM": 2.15,
+      "aimY": 0.98,
+      "backdrop": "#0d0b09",
+      "turnRadPerPx": 0.012
+    }
+  ]
+}

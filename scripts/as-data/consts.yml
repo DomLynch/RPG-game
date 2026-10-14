@@ -3,13 +3,12 @@
 id: as-data-consts
 language: typescript
 files:
-  - origins/feuds/feuds.ts
-  - origins/patrons/patrons.ts
-  - origins/preview/play.ts
-  - origins/encounters/encounters.ts
-  - origins/region1/shops.ts
-  - src/core/career-model.ts
-  - origins/server/practice.ts
+  - 'src/**/*.ts'
+  - 'origins/**/*.ts'
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
 rule:
   kind: variable_declarator
   all:

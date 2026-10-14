@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "regions": {
+    "region:concord-exchange": {
+      "params": {
+        "rules": {
+          "safe": true
+        },
+        "density": {
+          "creatures": 0
+        },
+        "ambience": {
+          "weather": "dust"
+        }
+      },
+      "zones": {
+        "pit-yard": {
+          "zoneSize": {
+            "width": 50,
+            "depth": 50
+          },
+          "layout": {
+            "centre": {
+              "u": 0.5,
+              "v": 0.5,
+              "facing": 0
+            },
+            "pit-gate": {
+              "u": 0.5,
+              "v": 0.808,
+              "facing": 0
+            }
+          },
+          "passages": {
+            "gladiator-gate": {
+              "from": "pit-gate",
+              "width": 2.5,
+              "length": 9.6
+            }
+          },
+          "connections": {
+            "exchange": {
+              "to": "exchange",
+              "kind": "gate",
+              "here": "pit-gate",
+              "there": "outer-gate",
+              "twoWay": true
+            }
+          },
+          "density": {
+            "npcs": 0,
+            "props": 0
+          },
+          "terrain": {
+            "ground": "sand"
+          },
+          "ambience": {
+            "preset": "ash-pit"
+          }
+        },
+        "exchange": {
+          "zoneSize": {
+            "width": 40,
+            "depth": 50
+          },
+          "layout": {
+            "outer-gate": {
+              "u": 0.5,
+              "v": 0,
+              "facing": 180
+            },
+            "covenant-stone": {
+              "u": 0.5,
+              "v": 0.4,
+              "facing": 0
+            },
+            "contract-board": {
+              "u": 0.195,
+              "v": 0.22,
+              "facing": -90
+            },
+            "forge": {
+              "u": 0.2375,
+              "v": 0.71,
+              "facing": -90
+            },
+            "bank": {
+              "u": 0.5,
+              "v": 0.84,
+              "facing": 180
+            }
+          },
+          "connections": {
+            "pit": {
+              "to": "pit-yard",
+              "kind": "gate",
+              "here": "outer-gate",
+              "there": "pit-gate",
+              "twoWay": true
+            }
+          },
+          "density": {
+            "npcs": 0.7,
+            "props": 0.55
+          },
+          "terrain": {
+            "ground": "paving"
+          },
+          "ambience": {
+            "preset": "exchange-dusk"
+          }
+        }
+      }
+    }
+  }
+}
