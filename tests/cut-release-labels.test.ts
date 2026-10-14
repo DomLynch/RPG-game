@@ -54,10 +54,10 @@ test('gh pr create gets no --label (it would land 1 s before our POST and cancel
 });
 
 test('a refused label POST, a thrown POST and a missing token all fail the cut loudly (ok:false with the reason), never "created with its labels"', async () => {
-  const refuse = (async (url: string, init: { method?: string } = {}) => (init.method === 'POST' ? { ok: false, status: 403, json: async () => ({}) } : { ok: true, status: 200, json: async () => [] })) as unknown as typeof fetch;
+  const refuse = (async (_url: string, init: { method?: string } = {}) => (init.method === 'POST' ? { ok: false, status: 403, json: async () => ({}) } : { ok: true, status: 200, json: async () => [] })) as unknown as typeof fetch;
   const r = await applyLabels({ ...args, fetchImpl: refuse, log: () => {} });
   assert.equal(r.ok, false); assert.match(r.failed!, /labels on #42: label POST on #42 failed \(HTTP 403\)/);
-  const boom = (async (url: string, init: { method?: string } = {}) => { if (init.method === 'POST') throw new Error('socket hang up'); return { ok: true, status: 200, json: async () => [] }; }) as unknown as typeof fetch;
+  const boom = (async (_url: string, init: { method?: string } = {}) => { if (init.method === 'POST') throw new Error('socket hang up'); return { ok: true, status: 200, json: async () => [] }; }) as unknown as typeof fetch;
   const t = await applyLabels({ ...args, fetchImpl: boom, log: () => {} });
   assert.equal(t.ok, false); assert.match(t.failed!, /socket hang up/);
   const none = await applyLabels({ ...args, token: '', fetchImpl: refuse, log: () => {} });
