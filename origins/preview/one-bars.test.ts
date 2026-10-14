@@ -8,8 +8,8 @@ const read = (p: string): string => readFileSync(new URL(p, import.meta.url), 'u
 
 test('the zone page shows the Pit\'s combat-hud bars when createZoneBars says so (body.zone-bars), and they are the only bars', () => {
   const html = read('./index.html');
-  assert.match(html, /#duel\.world \.combat-hud \{ display: none !important; \}/, 'hidden by default: no bars while the hero is whole and nothing is in reach');
-  assert.match(html, /body\.zone-bars #duel\.world \.combat-hud \{ display: revert !important;/, 'the Pit\'s own style.css draws it once shown');
+  assert.match(html, /body:not\(\.zone-bars\) #duel\.world \.combat-hud \{ display: none !important; \}/, 'hidden unless createZoneBars shows it: no bars while the hero is whole and nothing is in reach');
+  assert.doesNotMatch(html, /\.combat-hud \{[^}]*display: (revert|block|grid)/, 'no display override: the Pit\'s own style.css (a grid on a phone) draws it once shown');
   assert.doesNotMatch(html, /fm-meters/, 'no second plate');
   assert.match(read('../../src/fight/meters.css'), /^[^]*\.fm-flash/, 'the hit vignette stays');
   assert.doesNotMatch(read('../../src/fight/meters.css'), /fm-meters|fm-bar|fm-foe|fm-hp|fm-st\b|fm-name/, 'the old plate\'s rules are gone');

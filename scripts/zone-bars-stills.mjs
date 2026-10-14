@@ -27,8 +27,8 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const receipt = { zone: [], pit: null };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 72, timeout: 240000 });
 try {
-  if (ZONE) for (const width of [375, 320]) {
-    const z = { width, errors: [] }; receipt.zone.push(z);
+  if (ZONE) for (const width of [375, 320]) for (let attempt = 0; attempt < 3; attempt++) {   // a run that lands no cut in time is retaken (software GL is slow)
+    const z = { width, attempt, errors: [] }; receipt.zone.push(z);
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => z.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
@@ -53,6 +53,7 @@ try {
     z.shot = shot; z.hp = [first, await hp()];
     z.bars = await page.evaluate(() => { const r = document.querySelector('.combat-hud'); const b = r?.getBoundingClientRect(); return { present: !!r, shown: r ? getComputedStyle(r).display : null, rect: b ? [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)] : null, plate: !!document.querySelector('.fm-meters'), plateShown: document.querySelector('.fm-meters') ? !document.querySelector('.fm-meters').hidden : null, name: document.getElementById('opponent-name')?.textContent ?? null, health: document.getElementById('player-health-value')?.textContent ?? null }; });
     await page.context().close();
+    if (z.shot) break;
   }
   if (PIT) {
     const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
