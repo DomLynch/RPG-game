@@ -10,7 +10,7 @@ import { battery } from './strategies.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 
 const ladder = LADDER.map(o => OPPONENTS[o.id]);
-const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash', 'discipline', 'aggression', 'dodge', 'stab', 'anticipate', 'tellReaction', 'regen', 'braceHeavy'];
+const IDENTITY: Exclude<keyof AiProfile, 'tactic'>[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash', 'discipline', 'aggression', 'dodge', 'stab', 'anticipate', 'tellReaction', 'regen', 'braceHeavy'];
 
 // Levels 1–46 of every rung (profile and body) hashed on trunk 4e88c8d7, before the tail existed: the 50-level ladder must not move one of them.
 // Re-pinned 2026-10-07 (RV29, deliberately): the Nightborn's normal row moved (lapse .3 -> .25, aggression .55 -> .52: moves.ts), the one profile change in the batch; everything else on L1-46 is as before.

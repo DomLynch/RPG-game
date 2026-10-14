@@ -26,7 +26,7 @@ test('every shipped row passes the load check', () => {
   for (const [id, block] of Object.entries(TACTIC_ROWS)) assert.doesNotThrow(() => checkTactic(id, block.heroWinding), id);
 });
 
-test('the load check rejects an empty list, more than six entries, an unknown reaction (sidestep until ruled, trade out of v1) and a non-positive weight', () => {
+test('the load check rejects an empty list, more than six entries, an unknown reaction (sidestep and trade are out of v1) and a non-positive weight', () => {
   const e = (choice: string, weight = 1) => ({ choice, weight });
   assert.throws(() => checkTactic('t', []));
   assert.throws(() => checkTactic('t', Array.from({ length: 7 }, () => e('parry'))));
