@@ -1,0 +1,8 @@
+{
+  "dials": [
+    {"id": "DUST","value": 72},
+    {"id": "GRIT","value": 48},
+    {"id": "STRIDE","value": 8},
+    {"id": "NIGHT_CAP","value": 0.4}
+  ]
+}

@@ -3,6 +3,7 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
 import { advanceCast, shadowPhase, castPhase, isBloodTithe, LAND_AT, type Cast } from './special-timing.ts';
 import { clamp01, hash, smooth } from './fx-math.ts';
+import { RING } from './special-fx-legion-rows.ts';   // the dials are rows (special-fx-legion-defs.json)
 
 // Accepted Centurion class B: Stand Fast, ranks 4-7 (levels 16-35), previewed at level 21.
 // Combat owns the shared class selector; this effect observes Scutum Shove events only.
@@ -55,7 +56,6 @@ export function createSetFoot(scene: THREE.Scene, opponent: OpponentId, exposure
   };
 }
 
-const RING = 26;
 export function createLegionSpecial(scene: THREE.Scene, opponent: OpponentId) {
   const root = new THREE.Group(); root.name = 'legion fx'; root.visible = false; scene.add(root);
   const bg = scene.background instanceof THREE.Color ? scene.background : null, night = !!bg && bg.r + bg.g + bg.b < 0.45;

@@ -1,0 +1,10 @@
+{
+  "dials": [
+    {"id": "CLOUD","value": 14},
+    {"id": "HALO","value": 8},
+    {"id": "BURST","value": 20},
+    {"id": "BURST_LIFE","value": 0.55},
+    {"id": "CLOUD_HIGH","value": 0.7},
+    {"id": "CLOUD_LOW","value": 0.12}
+  ]
+}

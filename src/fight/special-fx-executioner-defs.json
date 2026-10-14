@@ -1,0 +1,6 @@
+{
+  "dials": [
+    {"id": "BUILD","value": 30},
+    {"id": "GRIT","value": 160}
+  ]
+}

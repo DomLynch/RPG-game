@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxClassDial",
+      "file": "special-fx-class-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

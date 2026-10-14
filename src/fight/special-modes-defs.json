@@ -1,0 +1,7 @@
+{
+  "dials": [
+    {"id": "TITHE_CHAMBER","value": 0.55},
+    {"id": "TITHE_CHAMBER_FROM","value": 0.84},
+    {"id": "TITHE_STRIKE_FROM","value": 0.92}
+  ]
+}

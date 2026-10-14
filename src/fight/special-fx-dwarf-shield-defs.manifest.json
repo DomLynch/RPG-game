@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxDwarfShieldDial",
+      "file": "special-fx-dwarf-shield-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

@@ -6,6 +6,8 @@ import { crowdWave } from '../arena.ts';
 import { clamp01, hash, noise, smooth } from './fx-math.ts';
 import { bossRow, kindsOf, type BossKind } from './boss-rows.ts';
 import { SPECIALS, dayNight, specialFamily, type SpecialRow } from './special-rows.ts';
+import { BUILD, GRIT } from './special-fx-executioner-rows.ts';   // the dials are rows (special-fx-executioner-defs.json)
+export { BUILD };
 
 // The Executioner's boss specials, rank 8, 9 and 10 (Executioner lane; Dom's picks via Strategy 2026-10-01). PREVIEW ONLY, behind ?special=<kind>, on the
 // seam of Hades' Shadow (special-timing.ts: the one 120-tick wind-up, SpecialStarted / Landed / Fizzled). Presentation only: it reads the sim's special
@@ -31,7 +33,7 @@ type DayNight<T> = { day: T; night: T };
 type Pal = { core: readonly number[]; edge: readonly number[] };
 type Params = { trails: number; rimRadius: number; trailAlpha: number; puffs: number; puffColor: DayNight<string>; puffAlpha: number;
   gritSize: number; gritShade: number; gritAlpha: number; shadowAlpha: DayNight<number>; poolAlpha: DayNight<number>; dimAlpha: DayNight<number>; crescentAlpha: DayNight<number>; cutAlpha: number };
-export const BUILD = 30;   // ticks of visible build-up before the landing (0.5 s; Dom: a 1-2 s build-up was too slow on Red Wind)
+// ticks of visible build-up before the landing (0.5 s; Dom: a 1-2 s build-up was too slow on Red Wind)
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const fbm = (x: number, y: number, seed: number) => noise(x, y, seed) * 0.55 + noise(x * 2.1, y * 2.1, seed + 7) * 0.3 + noise(x * 4.3, y * 4.3, seed + 13) * 0.15;
@@ -189,7 +191,7 @@ export function createHeelReap(scene: THREE.Scene, opponent: OpponentId, exposur
   };
 }
 
-const GRIT = 160;   // the grit pool every template shares (one Points buffer)
+// the grit pool every template shares (one Points buffer)
 
 export type ExecutionerSpecial = ReturnType<typeof createExecutionerSpecial>;
 // `kind`: a ?special= id of this family, or a row itself (a row loaded through specialFamily: how a new special is drawn before it is in the file).

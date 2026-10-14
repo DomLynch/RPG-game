@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxLegionDial",
+      "file": "special-fx-legion-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "dials": [
+    {"id": "BACK_TICKS","value": 30},
+    {"id": "LATERAL","value": 0.8},
+    {"id": "STEP_WINDOW","value": 26},
+    {"id": "DRAG_FROM","value": 36}
+  ]
+}

@@ -3,6 +3,8 @@ import type { CombatEvent, Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
 import { advanceCast, shadowPhase, type Cast } from './special-timing.ts';
 import { hash } from './fx-math.ts';
+import { CLOUD, HALO, BURST, BURST_LIFE, CLOUD_HIGH, CLOUD_LOW } from './special-fx-rows.ts';   // the dials are rows (special-fx-defs.json)
+export { CLOUD_HIGH, CLOUD_LOW };
 
 // Hades' Shadow, the in-game effect (Finishers, 2026-09-29; brief docs/briefs/special-moves-hades-pilot.md; timing agreed with Combat in
 // special-timing.ts; 2026-09-30, Dom: "the black cloud is enough", the cloud is the whole move). Presentation only: it reads the sim's special events and the
@@ -10,9 +12,7 @@ import { hash } from './fx-math.ts';
 // Loaded lazily by the scene only in a fight that has Special Moves. A black cloud of soft sprites gathers ABOVE the target's head through the
 // windup, drops onto it so it arrives on the landing tick with a dark burst, closes over the head, then thins and clears (a fizzle just dissolves
 // it where it hangs). A violet-grey halo bank under the black keeps it readable on the Night Pit's dark floor.
-const CLOUD = 14, HALO = 8, BURST = 20, BURST_LIFE = 0.55;
 // Metres above the target's Head bone: the cloud's centre while it gathers, and when it covers the head.
-export const CLOUD_HIGH = 0.7, CLOUD_LOW = 0.12;
 const smooth = (k: number) => k * k * (3 - 2 * k);   // UNCLAMPED on purpose: not fx-math's smooth (that one clamps to 0..1); kept so this effect renders exactly as before
 
 function puffTexture() {

@@ -1,0 +1,10 @@
+{
+  "dials": [
+    {"id": "PUFFS","value": 28},
+    {"id": "SPECKS","value": 44},
+    {"id": "PRINTS","value": 8},
+    {"id": "GHOST_SINCE","value": 0.1},
+    {"id": "SCOOP_TICKS","value": 48},
+    {"id": "DIP","value": 0.22}
+  ]
+}

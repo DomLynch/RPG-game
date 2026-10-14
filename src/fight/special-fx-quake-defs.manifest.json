@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxQuakeDial",
+      "file": "special-fx-quake-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

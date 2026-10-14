@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialTimingDial",
+      "file": "special-timing-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

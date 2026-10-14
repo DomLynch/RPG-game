@@ -1,0 +1,14 @@
+{
+  "dials": [
+    {"id": "PIT_MIST","value": 0.13},
+    {"id": "PIT_STAIN","value": 0.07},
+    {"id": "PIT_BREATH","value": 0.03},
+    {"id": "MIST","value": 64},
+    {"id": "GHOST","value": 23},
+    {"id": "FLIES","value": 280},
+    {"id": "WISP","value": 30},
+    {"id": "RING","value": 18},
+    {"id": "VEILS","value": 6},
+    {"id": "DROPS","value": 260}
+  ]
+}

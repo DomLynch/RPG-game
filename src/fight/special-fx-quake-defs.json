@@ -1,0 +1,11 @@
+{
+  "dials": [
+    {"id": "RIM","value": 0.6},
+    {"id": "STRIPS","value": 11},
+    {"id": "SHEETS","value": 6},
+    {"id": "GRIT","value": 220},
+    {"id": "DUST","value": 24},
+    {"id": "CAP","value": 0.92},
+    {"id": "CAP_PIT","value": 0.4}
+  ]
+}

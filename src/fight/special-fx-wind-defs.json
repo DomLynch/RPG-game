@@ -1,0 +1,9 @@
+{
+  "dials": [
+    {"id": "CAP","value": 0.8},
+    {"id": "STREAKS","value": 11},
+    {"id": "SHEETS","value": 4},
+    {"id": "GRIT","value": 80},
+    {"id": "GATHER_TICKS","value": 30}
+  ]
+}

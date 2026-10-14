@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxGoblinDial",
+      "file": "special-fx-goblin-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

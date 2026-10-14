@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialLookDial",
+      "file": "special-look-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

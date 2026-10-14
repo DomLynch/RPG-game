@@ -1,0 +1,11 @@
+{
+  "dials": [
+    {"id": "DROP_TICKS","value": 24},
+    {"id": "RIPPLE","value": 30},
+    {"id": "CAST_MARGIN","value": 60},
+    {"id": "CUTS","value": 7},
+    {"id": "CUT_GAP","value": 4},
+    {"id": "DISSOLVE_TICKS","value": 20},
+    {"id": "BOSS_TAIL","value": 84}
+  ]
+}

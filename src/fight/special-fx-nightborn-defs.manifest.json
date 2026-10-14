@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxNightbornDial",
+      "file": "special-fx-nightborn-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

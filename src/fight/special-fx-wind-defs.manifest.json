@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxWindDial",
+      "file": "special-fx-wind-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

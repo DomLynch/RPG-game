@@ -4,6 +4,8 @@ import type { OpponentId } from '../roster.ts';
 import { advanceCast, bossClock, shadowPhase, skillCast, LAND_AT, type Cast } from './special-timing.ts';
 import { hash } from './fx-math.ts';
 import { SPECIALS, specialFamily, type SpecialRow } from './special-rows.ts';
+import { DUST, GRIT, STRIDE, NIGHT_CAP } from './special-fx-dwarf-shield-rows.ts';   // the dials are rows (special-fx-dwarf-shield-defs.json)
+export { DUST, GRIT, STRIDE, NIGHT_CAP };
 
 // The Dwarf's and the Shieldmaiden's rank 8-10 special moves (Character lane, 2026-10-01; PREVIEW ONLY, `?special=dwarf8|dwarf9|dwarf10|shield8|shield9|shield10`).
 // Presentation only: it reads the cast's clock and the two fighters' Head bones, never the sim, a rig's root or Math.random (every "random" is an index
@@ -23,7 +25,7 @@ export const DWARF_SHIELD_OPPONENT: Readonly<Record<DwarfShieldKind, OpponentId>
 export const DWARF_SHIELD_KINDS: readonly DwarfShieldKind[] = ROWS.map((r) => r.id);
 // Which cast a boss page draws: the row's opponent's own special (no `cast.move`: any move, the page's fight is the boss against the player), on the row's side.
 export const isDwarfShieldCast = (kind: DwarfShieldKind | SpecialRow) => { const row = rowOf(kind); return (opponent: OpponentId, actor: number) => opponent === row.opponent && actor === row.cast.actor; };
-export const DUST = 72, GRIT = 48, STRIDE = 8;   // pool sizes; a particle is x, y, z, width, height, rotation, opacity, tone (0..1 along the palette)
+// pool sizes; a particle is x, y, z, width, height, rotation, opacity, tone (0..1 along the palette)
 export type Field = { dust: Float32Array; grit: Float32Array };
 export const makeField = (): Field => ({ dust: new Float32Array(DUST * STRIDE), grit: new Float32Array(GRIT * STRIDE) });
 // Where the two fighters stand on the sand (metres), from their Head bones: the caster, the target, the unit line caster -> target and its left-hand perpendicular.
@@ -191,7 +193,6 @@ const EFFECTS: Readonly<Record<string, (f: Field, rel: number, g: Geo) => void>>
 // Strategy's day verdicts (25c1a1e1): a pale wash over the hero fails. `tone` darkens the dust to a grey-brown below the floor's value; `top` (m) keeps a puff under that height, so it never reaches his torso.
 // Night Pit (Strategy 2026-10-02: the first night films read pale grey/tan over the fighters): the dust is soot/umber, darker than the clay, and no puff is above NIGHT_CAP.
 // `night` false (the day arena) changes nothing: every day value is the one above.
-export const NIGHT_CAP = 0.4;
 // Rim Shake's rings are dark on a shadowed floor and vanish at 0.4 (Strategy 2026-10-02, option B): it keeps the night palette but takes the day ceiling.
 export const NIGHT_CAP_OF: Readonly<Record<DwarfShieldKind, number>> = Object.fromEntries(ROWS.flatMap((r) => (typeof r.params.nightCap === 'number' ? [[r.id, r.params.nightCap]] : [])));
 // Rim Shake at night (Strategy 2026-10-02: dark on dark all but vanished; bigger grit did not help, the rim is out of frame): its dust rings near the pair are bigger, not lighter or denser than the 0.4 cap.

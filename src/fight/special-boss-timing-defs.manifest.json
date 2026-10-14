@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialBossTimingDial",
+      "file": "special-boss-timing-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

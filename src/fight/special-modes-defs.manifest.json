@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialModesDial",
+      "file": "special-modes-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

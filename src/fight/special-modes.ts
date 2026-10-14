@@ -11,6 +11,8 @@ import { chargeGait } from './charge-timing.ts';
 import type { BossKind } from './special-boss-timing.ts';
 import { BOSSES, type BossRow } from './boss-rows.ts';
 import { classTravel, type ClassSpecial } from './special-class-timing.ts';
+import { TITHE_CHAMBER, TITHE_CHAMBER_FROM, TITHE_STRIKE_FROM } from './special-modes-rows.ts';   // the dials are rows (special-modes-defs.json)
+export { TITHE_CHAMBER, TITHE_CHAMBER_FROM, TITHE_STRIKE_FROM };
 
 // The special-effect registry (Strategy 2026-10-01: thirty specials are coming, so a lane adds ONE entry here, not an if-branch in scene.ts). A mode is picked by the
 // page's `?special=<id>` (special-look.ts SPECIAL_TESTS) and says everything the scene needs: how to load its effect (a lazy chunk), which bones it reads, how the
@@ -40,7 +42,6 @@ export function gait<P extends string>(mode: SpecialMode | undefined, side: 0 | 
 const loadExecutioner = (scene: THREE.Scene, opponent: OpponentId, kind: BossKind, exposure: number) => import('./special-fx-executioner.ts').then(({ createExecutionerSpecial, bossLook }) => createExecutionerSpecial(scene, opponent, kind, bossLook(kind, exposure)));
 // Blood Tithe's forward pose (Dom, 2026-10-01: the heavy's raise cocks the gladius back like a backhand, and the thrust held short of contact tucks the blade at his chest):
 // the thrust clip held AT its contact pose through the gather, drawn back to TITHE_CHAMBER of it by TITHE_STRIKE_FROM, then driven to full contact on the strike tick.
-export const TITHE_CHAMBER = 0.55, TITHE_CHAMBER_FROM = 0.84, TITHE_STRIKE_FROM = 0.92;
 
 const ease = (k: number) => k * k * (3 - 2 * k), clamp = (k: number) => Math.min(1, Math.max(0, k));
 

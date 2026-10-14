@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxBossDial",
+      "file": "special-fx-boss-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

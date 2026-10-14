@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxPitbornDial",
+      "file": "special-fx-pitborn-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

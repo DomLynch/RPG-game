@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "specialFxExecutionerDial",
+      "file": "special-fx-executioner-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

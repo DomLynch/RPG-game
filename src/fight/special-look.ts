@@ -6,9 +6,11 @@ import { RULES } from './moves.ts';
 import type { Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
 import BOSS_ROWS from './bosses.json' with { type: 'json' };
+import { SPECIAL_RECOVER, SPECIAL_STRUCK } from './special-look-rows.ts';   // the dials are rows (special-look-defs.json)
+export { SPECIAL_RECOVER, SPECIAL_STRUCK };
 
-export const SPECIAL_RECOVER = 45;   // the cloud tears away and the caster returns to stance (Finishers, 2026-09-29: 30 read as a pop at phone size)
-export const SPECIAL_STRUCK = 45;   // the target's head-hit stagger after the strike (presentation only: the sim does not stagger him)
+// the cloud tears away and the caster returns to stance (Finishers, 2026-09-29: 30 read as a pop at phone size)
+// the target's head-hit stagger after the strike (presentation only: the sim does not stagger him)
 
 // `?special=set` is rank 8's Red Wind (level 36: (8 − 1) × 5 + 1); the same lunge special, its own art (special-fx-wind.ts).
 // `?special=hades`: a sparring fight (no record, rewards or writes) against the named warden at his rank's level, with Special Moves on for
