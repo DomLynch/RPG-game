@@ -14,7 +14,8 @@
         "rows[].price": "integer",
         "rows[].max": "integer",
         "rows[].restockSeconds": "integer",
-        "zone": "string"
+        "zone": "string",
+        "rangeCm": "integer"
       },
       "optional": {
         "rows[].minLevel": "integer",

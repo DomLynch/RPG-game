@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { REGION1_SHOPS } from './shops.ts';
+import { EXCHANGE_PROVISIONER, REGION1_SHOPS, SHOP_RANGE_CM_BY_SHOP } from './shops.ts';
+import { SHOP_RANGE_CM } from '../server/shop-buy.ts';
 import { BUNDLE } from './content.ts';
 import { validateShopList } from '../shops/shop.ts';
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
@@ -26,4 +27,11 @@ test('a shop row with a missing or mistyped field fails the loader', () => {
   assert.doesNotThrow(load([row]));
   assert.throws(load([{ ...row, rows: [{ item: 'item:x', max: 1, restockSeconds: 60 }] }]), /rows\[\]\.price|price/);
   assert.throws(load([{ ...row, revision: 'one' }]), /revision/);
+});
+
+test('the shop counter range is the shop row\'s rangeCm and equals the SHOP_RANGE_CM shop-buy.ts held in code; a row without one fails the loader', () => {
+  assert.equal(SHOP_RANGE_CM_BY_SHOP.get(EXCHANGE_PROVISIONER), 500);
+  assert.equal(SHOP_RANGE_CM_BY_SHOP.get(EXCHANGE_PROVISIONER), SHOP_RANGE_CM);
+  const { rangeCm: _drop, ...noRange } = DATA.shops[0]!;
+  assert.throws(() => loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, { shops: [noRange] }, 'shops.json')]), /rangeCm/);
 });
