@@ -8,7 +8,9 @@
 //      hand-resolved, added or dropped).
 // Usage: `node scripts/candidate-contents-check.mjs <candidate-ref> [--base <ref>]` (env GH_TOKEN, GITHUB_REPOSITORY=owner/repo). Exit 0 = ok. --offline checks chain + tree only and exits 3 with ok:false: PASS lines unchecked is never a verdict.
 import { spawnSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { passAt } from './cut-release.mjs';
 
@@ -40,11 +42,27 @@ export function readCandidate(git, candidate, base) {
   return { merges, problems, baseSha, candidateSha };
 }
 
+/**
+ * The allow-list merge driver (scripts/as-data/merge-allow.mjs, PR #2725) as the cut applies it, for merge-tree: when the tree being merged onto carries the script, the
+ * attributes come from THAT tree (`--attr-source`) and the driver is that tree's own script, written to a temp file, so the rebuild gives the same answer from any checkout
+ * (a bare `-c` with the repo's relative path only works where the checker happens to be on a commit that has the script and .gitattributes).
+ * A tree without the script gets plain merge-tree, as before. Returns { args, dispose }.
+ */
+export function driverArgs(git, tree) {
+  const script = git(['show', `${tree}:scripts/as-data/merge-allow.mjs`]);
+  if (script.status !== 0) return { args: [], dispose() {} };
+  const dir = mkdtempSync(join(tmpdir(), 'ccc-driver-')), file = join(dir, 'merge-allow.mjs');
+  writeFileSync(file, script.stdout);
+  return { args: ['--attr-source', tree, '-c', `merge.as-data-allow.driver=node "${file}" %O %A %B %P`], dispose() { rmSync(dir, { recursive: true, force: true }); } };
+}
+
 /** Re-merge the heads onto the base with merge-tree + commit-tree (no worktree). Returns { tree }, { conflictAt: pr } or { error }. */
 export function rebuildTree(git, baseSha, merges) {
   let acc = baseSha;
   for (const { pr, head } of merges) {
-    const mt = git(['merge-tree', '--write-tree', '--no-messages', acc, head]);
+    const driver = driverArgs(git, acc);   // per step, like the cut: the script of the tree being merged onto
+    let mt;
+    try { mt = git([...driver.args, 'merge-tree', '--write-tree', '--no-messages', acc, head]); } finally { driver.dispose(); }
     if (mt.status === 1) return { conflictAt: pr };   // merge-tree exits 1 for conflicts; anything else is a failure to run, not a verdict
     if (mt.status !== 0) return { error: `git merge-tree failed on #${pr}: ${String(mt.stderr).trim().slice(0, 160)}` };
     const tree = mt.stdout.trim().split('\n')[0];
