@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "mobLookRule",
+      "file": "mob-looks-rules.json",
+      "at": "mobLookRule",
+      "key": "id",
+      "required": {
+        "variants": "integer"
+      }
+    }
+  ]
+}

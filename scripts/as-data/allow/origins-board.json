@@ -1,0 +1,5 @@
+{
+  "tunables": [
+    {"file": "origins/board/board-view.ts", "name": "BOARD_SEED", "kind": "exempt", "reason": "ruled by Lead 2026-10-13: BOARD_SEED = 0, the daily rotation comes from the date, not from this number"}
+  ]
+}
