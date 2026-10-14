@@ -53,7 +53,7 @@ import { SPECIAL_LABELS, defaultSparringSpecial, resolveSparringPreview, sparrin
 import { createGearSheet, lootThumb } from './core/index.ts';
 import { wornIdsOf, wornTiersOf } from './core/index.ts';
 import { createServerGear } from './core/index.ts';
-import { openCharacter } from './core/index.ts';
+import { createServerTitle, openCharacter } from './core/index.ts';
 import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from './fight/sparring-special-runtime.ts';
 import { DEV_KIT_KEY, SPARRING_FOR_ALL, SPARRING_SKILLS, devKit, sparringAsked, sparringLink, sparringParam, type SparringKit } from './sparring.ts';
 import { exposeDebugView, phoneTier, rafCadence, urlDpr, withoutDpr } from './fight/quality.ts';
@@ -784,10 +784,16 @@ function openJournal() {
   renderScorecard(); renderLoot();
   journal.showModal();
   enterGear();
-  void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers (a guest or an unanswered writer keeps the local one)
+  void serverGear?.refresh();   // signed in: the sheet shows the server's ledger as soon as it answers
+  refreshTitle();   // the title may have moved since the page loaded (a guest or an unanswered writer keeps the local one)
 }
 serverGear = createServerGear({ storage, search: location.search, now: () => Date.now(), getLoot: () => profile.loot, show: showLoot });
 void openCharacter({ storage, search: location.search });
+const titleServer = createServerTitle({ storage, search: location.search, now: () => Date.now() });
+const showTitle = (title: string) => { for (const id of ['identity-title', 'journal-title']) { const e = element(id); e.textContent = title; e.hidden = !title; } };   // no title (a guest, offline, unrenowned) = no line
+const refreshTitle = () => { void titleServer.refresh().then(showTitle); };
+refreshTitle();
+
 void serverGear.importLocal().finally(() => void serverGear?.refresh());   // after the import (it may add pieces), read the server's ledger once at load: the Pit's sheet waits for it (gear-numbers.ts fightSheet)   // a signed-in device's local gear goes to the server once (gear_import: adds what it lacks, removes nothing)   // the signed-in account's character exists from the first page, whichever door it came through (src/core/open.ts; the gear sheet reads the same answer)
 { const buildServer = createServerBuild({ storage, search: location.search, now: () => Date.now() }), dialog = element<HTMLDialogElement>('build-dialog');   // "Place your point" (build-screen.ts): a signed-in character's build, the server's copy; a guest has none and sees nothing
   const show = (open: number) => { element('build-dot').hidden = open === 0; element('build-open-note').textContent = open ? `${open} to place` : ''; };

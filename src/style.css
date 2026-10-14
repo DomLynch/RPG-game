@@ -2636,6 +2636,10 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 .loot-compare img { display: block; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 6px #0004); }
 .loot-card-name { max-width: 100%; color: #1b1916; font: 600 15px/1.1 "Iowan Old Style", Palatino, Georgia, serif; overflow-wrap: anywhere; }
 .loot-card-slot { color: #7a5c18; font: 700 10px/1.2 "Instrument Sans", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+
+/* The player's title (title-server.ts): one quiet italic line under the rank, drawn only when the server gave one. */
+.player-title { display: block; color: var(--jg2, #e7cf93); font: italic 600 12px/1.25 "Cormorant", Georgia, serif; letter-spacing: .02em; overflow-wrap: anywhere; }
+.player-title[hidden] { display: none; }
 /* "Place your point" (build-screen.ts): a dialog, phone first; every control is 44 px or more. */
 #build-dot { display: inline-block; width: 9px; height: 9px; margin-left: 6px; border-radius: 50%; background: var(--jg2, #e7cf93); box-shadow: 0 0 0 3px #e7cf9355; vertical-align: middle; }
 #build-dot[hidden] { display: none; }
