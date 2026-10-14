@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -43,6 +43,8 @@ export type Fighter = {
   scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
+  poisonEnemy?: string;   // the poisoner's id, whose row ticks the poison
+  poisonUntil?: number;   // sandbox-mech clockFighter: poisoned until this tick
   wardAt?: number;   // sandbox-mech ward: the tick the ward is ready again (absent = ready)
   oid?: string;   // sandbox-mech armourVsBlow: the opponent's id, set only while armour rows exist, so its gear class can be read
   weapon: WeaponId;   // the tables this fighter fights with (moves, blade paths, guard kind, material): see moves.ts `WEAPONS`
@@ -267,7 +269,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   for (const f of fighters) if (f.poiseRest) { if (f.poiseRest > 1) f.poiseRest--; else delete f.poiseRest; }
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
-  for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }   // a trickster's feint beat runs down (RULES.feintBeat)
+  for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }
+  for (const f of fighters) if (f.poisonUntil) { const row = poisonOf(f.poisonEnemy); if (row && f.health > 1) f.health = Math.max(1, f.health - poisonTick(row, f.poisonUntil, tick)); if (f.poisonUntil < tick) { delete f.poisonUntil; delete f.poisonEnemy; } }   // sandbox-mech clockFighter: the poison ticks, never to death   // a trickster's feint beat runs down (RULES.feintBeat)
   if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}), ...(duel.cast ? { cast: duel.cast } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}), ...(duel.ccBase !== undefined ? { ccBase: duel.ccBase } : {}) };
   let gdraws = duel.gambit?.draws ?? 0, casts = duel.cast?.n ?? 0;   // casts: the seeded draws spells have taken so far (RV53)
   let hits = duel.roll?.hits ?? 0, lastRoll: number | undefined;   // the world-mob roll: a blow's health loss goes through rolled(); absent roll = the plain number
@@ -577,6 +580,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (A.spell && outcome && !mult) { events.push({ tick, type: 'SpecialFizzled', actor: i, spell: A.spell.id, outcome }); continue; }
     const damage = Math.round((A.spell && outcome ? A.spell.share * mult : A.specialShare!) * D.maxHealth);
     D.health = Math.max(0, D.health - damage);
+    { const pr = poisonOf(A.oid); if (pr && D.health) { D.poisonUntil = tick + pr.duration; D.poisonEnemy = A.oid!; } }
     events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}), ...(A.spell && outcome ? { spell: A.spell.id, outcome } : {}) });
     if (D.health) continue;
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
@@ -594,6 +598,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!D.health || !inCone(cone, distance(A.body, D.body), wrapAngle(aim(A.body, D.body) - b.heading))) continue;
     const move: MoveId = SKILL_MOVE[A.skill ?? DAY_ONE_SKILL]!, damage = pulseDamage(cone, Math.round(A.specialShare! * D.maxHealth), b.k);
     D.health = Math.max(0, D.health - damage);
+    { const pr = poisonOf(A.oid); if (pr && D.health) { D.poisonUntil = tick + pr.duration; D.poisonEnemy = A.oid!; } }
     events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, name: A.specialName!, pulse: b.k, cone: true, damageKind: cone.damageKind });
     if (D.health) continue;
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;

@@ -157,4 +157,13 @@ export const FLANK_DAMAGE = num('flankDamage', 'value'), FLANK_POSTURE = num('fl
 type BraceRow = { opponent: string };
 const BRACE = ((DEFS as unknown as { brace?: BraceRow[] }).brace ?? []);
 export const braced = (oid: string | undefined): boolean => BRACE.length > 0 && !!oid && BRACE.some((r) => r.opponent === oid);
-export const OID_ON = ARMOUR_ON || WARD_ON || BRACE.length > 0;   // the opponent's id rides on its fighter only while a sandbox row reads it
+
+// clockFighter (Dom 2026-10-14, Strategy #5, donors DotA and Street Fighter chip-and-stall characters): a `poison` row { opponent, damage, every, duration } makes that creature's landed special poison its target: `damage`
+// health every `every` ticks for `duration` ticks (a new landing refreshes it). Poison never kills (it stops at 1 health): it is a clock, the foe must press and the poisoner can wait behind a guard. No marker: the health
+// bar draining is the signal (Dom: no markers). No rows (trunk) = nothing.
+type PoisonRow = { opponent: string; damage: number; every: number; duration: number };
+const POISON = ((DEFS as unknown as { poison?: PoisonRow[] }).poison ?? []);
+export const POISON_ON = POISON.length > 0;
+export const poisonOf = (oid: string | undefined): PoisonRow | undefined => (POISON_ON && oid ? POISON.find((r) => r.opponent === oid) : undefined);
+export const poisonTick = (row: PoisonRow, until: number, tick: number): number => (until >= tick && (until - tick) % row.every === 0 ? row.damage : 0);
+export const OID_ON = ARMOUR_ON || WARD_ON || BRACE.length > 0 || POISON_ON;   // the opponent's id rides on its fighter only while a sandbox row reads it
