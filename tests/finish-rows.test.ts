@@ -16,8 +16,8 @@ test('rust is brown-orange with low sheen', () => {
 });
 
 test('finishedAs rusts metal and trim only, shared per (source, id), and leaves leather alone', () => {
-  const steel = new MeshStandardMaterial({ name: 'sword.blade.Steel', metalness: 0.9, roughness: 0.3 });
-  const grip = new MeshStandardMaterial({ name: 'sword.grip.Leather', metalness: 0, roughness: 0.8 });
+  const steel = new MeshStandardMaterial({ name: 'Steel', metalness: 0.9, roughness: 0.3 });
+  const grip = new MeshStandardMaterial({ name: 'Leather', metalness: 0, roughness: 0.8 });
   const a = finishedAs(steel, 'rust');
   assert.notEqual(a, steel, 'a tinted clone');
   assert.equal(finishedAs(steel, 'rust'), a, 'one clone per source and row');
