@@ -1,0 +1,20 @@
+{
+  "tunables": [
+    {"file": "origins/presence/interest.ts", "name": "RULES", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
+    {"file": "origins/presence/interest.ts", "name": "TOWN_HALF_CM", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
+    {"file": "origins/presence/saves.ts", "name": "SAVE_QUEUE_MAX", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
+    {"file": "origins/presence/server.ts", "name": "LIMITS", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
+    {"file": "origins/presence/server.ts", "name": "TICK_RING", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
+    {"file": "origins/presence/wire.ts", "name": "DOWN", "kind": "exempt", "reason": "presence wire message type id / field width: the client/server protocol", "owner": "Duels & Backend"},
+    {"file": "origins/presence/wire.ts", "name": "ENTITY_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
+    {"file": "origins/presence/wire.ts", "name": "HEAD_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
+    {"file": "origins/presence/wire.ts", "name": "UP", "kind": "exempt", "reason": "presence wire message type id / field width: the client/server protocol", "owner": "Duels & Backend"},
+    {"file": "origins/presence/wire.ts", "name": "UP_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
+    {"file": "origins/presence/zones.ts", "name": "CENTRE_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},
+    {"file": "origins/presence/zones.ts", "name": "EPS", "kind": "exempt", "reason": "float-comparison epsilon: numeric tolerance, not game tuning", "owner": "Duels & Backend"},
+    {"file": "origins/presence/zones.ts", "name": "FRAME_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},
+    {"file": "origins/presence/zones.ts", "name": "LEGACY_CENTRE_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},
+    {"file": "origins/presence/zones.ts", "name": "REJOIN_EDGE", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
+    {"file": "origins/presence/zones.ts", "name": "TOWN_CM", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"}
+  ]
+}
