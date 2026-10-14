@@ -1,8 +1,5 @@
 {
   "tunables": [
-    {"file": "origins/shops/shop.ts", "name": "BUY_MAX", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
-    {"file": "origins/shops/shop.ts", "name": "PRICE_MAX", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
-    {"file": "origins/shops/shop.ts", "name": "SHOP_LIST_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Duels & Backend"},
-    {"file": "origins/shops/shop.ts", "name": "STOCK_MAX", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"}
+    {"file": "origins/shops/shop.ts", "name": "SHOP_LIST_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Duels & Backend"}
   ]
 }
