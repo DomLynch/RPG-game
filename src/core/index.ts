@@ -6,6 +6,7 @@ export * from './build-ref.ts';
 export * from './title-server.ts';   // the player's title line (Backend title_get), for the Pit page
 export * from './build-screen.ts';   // "Place your point" (the dialog) and its server copy, for the Pit page
 export * from './build-server.ts';
+export { ROWS as SHEET_ROWS, spent as pointsSpent, pointsBudget, type Row as SheetRow } from './build-model.ts';   // the stats screen's rows (names are rows, row-names.json) and the spend, read from the same model Place your point uses
 export * from './grimoire-screen.ts';   // the spell book dialog and its op, for the Pit page
 export * from './grimoire-net.ts';
 export * from './spell-equip.ts';
