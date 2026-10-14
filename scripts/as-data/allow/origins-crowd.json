@@ -1,8 +1,0 @@
-{
-  "tunables": [
-    {"file": "origins/crowd/crowd.ts", "name": "CROWD", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-14"},
-    {"file": "origins/crowd/crowd.ts", "name": "LEADER_HOLD", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-14"},
-    {"file": "origins/crowd/crowd.ts", "name": "SKIRMISHER_HANDOVER", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-14"},
-    {"file": "origins/crowd/crowd.ts", "name": "SWEEP", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-14"}
-  ]
-}

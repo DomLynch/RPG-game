@@ -1,11 +1,6 @@
 {
   "tunables": [
-    {"file": "src/core/build-model.ts", "name": "FREE_RESPREAD_LEVEL", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
-    {"file": "src/core/build-model.ts", "name": "RANK_LEVELS", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
-    {"file": "src/core/career-ladder.ts", "name": "DIAL_TRAIL", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
     {"file": "src/core/career-ladder.ts", "name": "FIRST_FIFTY_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Duels & Backend"},
-    {"file": "src/core/career-ladder.ts", "name": "MAX_LEVEL", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
-    {"file": "src/core/career-ladder.ts", "name": "OLD_MAX_LEVEL", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-14"},
     {"file": "src/core/career-model.ts", "name": "DAY_S", "kind": "exempt", "reason": "seconds in a day: a physical constant, not a game rule", "owner": "Duels & Backend"},
     {"file": "src/core/contracts/economy.ts", "name": "HOUR_S", "kind": "exempt", "reason": "seconds in an hour: a physical constant, not a game rule", "owner": "Duels & Backend"},
     {"file": "src/core/contracts/economy.ts", "name": "SERVICE_DEFINITION_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Duels & Backend"},

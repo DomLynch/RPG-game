@@ -4,7 +4,7 @@
 // verifier refuses a different one as "kit mismatch", which is not a loss (settle answers 422 'kit-mismatch', the token is left to the sweep, nothing is paid).
 // The tag is a hash of the kit DATA (the tables below) plus KIT_LOGIC_VERSION: a hash of data cannot see a code change, so a change in behaviour with the tables untouched must bump
 // KIT_LOGIC_VERSION. tests/kit-version.test.ts pins the TEXT of the two files that code lives in, so a change there fails until someone decides and re-pins.
-import { AFTER_HIT_TICKS, EXHAUSTED_BELOW } from '../../fight/server.ts';
+import { AFTER_HIT_TICKS, CHAIN_CAP, EXHAUSTED_BELOW } from '../../fight/server.ts';
 import { CHAINS, KITS, MODE } from './kits.ts';
 
 // Bump when the kit CODE changes behaviour: src/fight/mobkit.ts (kitIntent, holds, validateChains) or src/core/world/kits.ts (mobLayer, mobProfile). (Combat owns those; the pin test below calls them out.)
@@ -24,7 +24,7 @@ const canonical = (value: unknown): string => JSON.stringify(value, (_key, v: un
 export const kitTagOf = (tables: unknown): string => cyrb53(canonical(tables)).toString(36);
 
 // What this build's mob layer is made of.
-export const kitTables = () => ({ logic: KIT_LOGIC_VERSION, KITS, CHAINS, MODE, AFTER_HIT_TICKS, EXHAUSTED_BELOW });
+export const kitTables = () => ({ logic: KIT_LOGIC_VERSION, KITS, CHAINS, MODE, AFTER_HIT_TICKS, CHAIN_CAP, EXHAUSTED_BELOW });
 export const kitTag = (): string => kitTagOf(kitTables());
 
 // The record's `build` string: the page's own label, then the tag. kitOfBuild reads it back (null: none).
