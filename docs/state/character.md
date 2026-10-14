@@ -7,6 +7,10 @@
 4. No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
 (Also in lane memory: `batch-rules`.)
 
+## 2026-10-13 (+04) — Characters lane runs on the Mac in ~/Developer/frankendom-char (Dom ruling, relayed by Lead Dev). READ FIRST.
+- The VPS dev lane is retired; no dev sessions run there. Heavy jobs (tests, Blender, stills) still go to the VPS by ssh (`vps-heavy-jobs`).
+- Open PR heads at the move: #2570 8906ed6fa, #2577 346756ba1, #2580 e482bf0b0, #2582 bece58dcc (waits on Backend's #2586, then rebase keeping shops.ts buyPrice/stock code as is), #2583 882fafa8d (labelled auditor:ready). Order: #2583, then #29 asset pulls (CC0 only, per-file sha256, licence copied, check-budget), then legend-families tests.
+
 ## 2026-10-11 (+04) — Zone 1 data parity (Characters VPS). Facts from gh/tool output this session.
 - LIVE/in flight: #2228 (3a: createGearStage, frontierKit zoneId) Auditor PASS @ebe3fd5a6; #2230 (4: zone1.row.json `place`) Auditor PASS @6561aaa56. Neither merged by me; deploy session merges. #2230 needs a writer reinstall (content.ts, world.ts, zone1.row.json are in the writer closure).
 - 3b (kit placements into the row) is DROPPED by Lead: the kit already reads kinds/landmarks/density from the row, placements are seeded.
