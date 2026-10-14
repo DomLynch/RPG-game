@@ -1,0 +1,9 @@
+{
+  "netRule": [
+    { "id": "presence-give-up-after", "value": 6, "unit": "sockets" },
+    { "id": "save-renew-timeout-ms", "value": 3000, "unit": "ms" },
+    { "id": "spawn-touch-every-ms", "value": 30000, "unit": "ms" },
+    { "id": "spawn-spent-ms", "value": 10000, "unit": "ms" },
+    { "id": "spawn-outbox-tries", "value": 12, "unit": "tries" }
+  ]
+}

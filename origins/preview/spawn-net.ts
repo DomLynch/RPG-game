@@ -11,18 +11,19 @@
 // Same contract as encounter-net.ts: no DOM, storage or clock read here; every failure (no session, a refusal, 503 off, the network) is an answer ({ offline }), never a throw. The page's own loot,
 // toast and respawn path runs exactly as today whatever the server says; the server's answer is the beta-ledger truth.
 import { call } from './encounter-net.ts';
+import { netRule } from './net-rules.ts';
 import { DEFAULT_ZONE } from '../zones/loader.ts';
 import type { Offline } from './save.ts';
 import type { WorldRecord } from '../../src/fight/index.ts';
 
 export type Engaged = { token: string; instance: string; generation: number; kind: string; level: number; hp: number; expiresAt: string };
 export type Killed = { result: 'killed'; instance: string; respawnAt: string | null; loot: { item: string; quantity: number }[]; cp: number; bronze: number; beta: boolean };
-export const TOUCH_EVERY_MS = 30_000;
+export const TOUCH_EVERY_MS = netRule('spawn-touch-every-ms');
 export const MAX_RECORD_CHARS = 45_000;   // the writer's body limit is 64 KB; a longer record is not sent (the kill pays scorecard counts only)
 // A killed creature is SPENT this long: a Hit or engage for it arriving after killed() (any event order) opens nothing. The server's shortest respawn is 10 s (migration 0014), so a respawned one is engaged again.
-export const SPENT_MS = 10_000;
+export const SPENT_MS = netRule('spawn-spent-ms');
 const isOffline = (r: object): r is Offline => 'offline' in r;
-export const OUTBOX_TRIES = 12;
+export const OUTBOX_TRIES = netRule('spawn-outbox-tries');
 const settledOffline = (r: Offline): boolean => r.offline === 'http-409' || r.offline === 'http-400' || r.offline === 'http-404';   // the server answered and will not change its mind
 
 const int = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
