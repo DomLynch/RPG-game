@@ -2,6 +2,7 @@ import { STAB_ON } from './stab-rule.ts';
 import { RULES, SKILL_ROWS, type AiProfile, type Direction, type MoveId, weaponOf } from './moves.ts';
 import { LATE_NOTICE } from './play-radius.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
+import { bandStop } from './sandbox-rules.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
@@ -353,7 +354,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   // Between a pole's point and its first move in reach (minReach … minReach + .1, the margin inReach keeps): a step back to where the pole works
   // instead of standing frozen — the reaper Wraith, whose approach stops at 1.9 m, met a fighter parked at 1.45 m and never moved again.
   const cramped = next.mode === 'approach' && gap < (mine.thrust.minReach ?? 0) + .1;
-  let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : fight.close) ? .6
+  let forward = next.mode === 'approach' && gap > (next.next === 'thrust' ? mine.thrust.reach - .2 : bandStop(self.weapon, fight.close, (next.next === 'heavy' ? mine.heavy_overhead : mine.light_right).reach)) ? .6
     : next.mode === 'retreat' && gap < (low ? 1.9 : 2.2) ? -.4
     : cramped ? -.4 : 0;
   // Never walk in on a charging heavy (profile.braceHeavy, with a guard that stops heavies): the short gladius stepped into the charged heavy's reach

@@ -100,3 +100,12 @@ export const bandPerMille = (weapon: string, distance: number): number => {
   const best = BAND_BEST.find((r) => r.weapon === weapon);
   return !best || bandOf(distance) === best.band ? 1000 : BAND_OFF;
 };
+// The AI holds its weapon's band (Strategy: without it the AI stands in the wrong band and the player wins for free): the approach stops where the weapon is IN its best band and can still start the planned move
+// (stop <= reach - .1, the same margin ai.ts inReach keeps). If the band cannot be reached with that move (a trident's light against the outer band), the stop is the weapon's own `fight.close`, as on trunk. Off = `close`.
+export const bandStop = (weapon: string, close: number, reach: number): number => {
+  if (!BAND_OFF || !BANDS.length) return close;
+  const i = BANDS.findIndex((b) => b.id === BAND_BEST.find((r) => r.weapon === weapon)?.band);
+  if (i < 0) return close;
+  const lo = i ? BANDS[i - 1]!.upTo / 100 : 0, top = Math.min(BANDS[i]!.upTo / 100 - .1, reach - .1);
+  return top < lo + .05 ? close : Math.round(Math.min(Math.max(close, lo + .05), top) * 100) / 100;   // whole centimetres, so the stop is the same on every engine
+};

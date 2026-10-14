@@ -1,7 +1,7 @@
 {"notes":[
 "2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints).",
 "2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
-"2026-10-14 Dom: reach bands (positioning gates): a landed blow outside its weapon's best distance band deals 60% (bandOff 600); inner <1.3 m, mid 1.3-1.9 m, outer beyond; NO on-screen marker (Dom: cheap). Strategy: never soften a hard miss.",
+"2026-10-14 Dom: reach bands (positioning gates): a landed blow outside its weapon's best distance band deals 60% (bandOff 600); inner <1.35 m, mid 1.35-1.8 m, outer beyond; NO on-screen marker (Dom: cheap). Strategy: never soften a hard miss.",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
 "2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
@@ -66,8 +66,8 @@
 {"id":"stabSlide","value":18},
 {"id":"bandOff","value":600}
 ],"bands":[
-{"id":"inner","upTo":130},
-{"id":"mid","upTo":190},
+{"id":"inner","upTo":135},
+{"id":"mid","upTo":180},
 {"id":"outer","upTo":100000}
 ],"bandBest":[
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
