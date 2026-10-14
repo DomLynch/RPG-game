@@ -11,9 +11,11 @@ import { LADDER } from '../src/ladder.ts';
 import { OPPONENTS, PROFILES, opponentAt, profileAt, RULES } from '../src/fight/moves.ts';
 import { skillOf } from '../src/core/server.ts';
 import { arena } from '../tests/strategies.ts';
+import LOOK from '../src/fight/look-rules.json' with { type: 'json' };
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const BANDS = [['ranks 1-3', 1, 15], ['ranks 4-7', 16, 35], ['ranks 8-10', 36, 50]];
+const BOSS_LEVELS = [0, 1, 2].map((i) => LOOK.specialLookRule[0].bossBaseLevel + i * LOOK.specialLookRule[0].bossLevelPerRank);   // ranks 8, 9, 10: the specialLookRule row
+const BANDS = [['ranks 1-3', 1, 15], ['ranks 4-7', 16, 35], ['ranks 8-10', LOOK.specialLookRule[0].bossBaseLevel, 50]];
 
 function fight(level, seed, opponent, specials) {
   const profile = profileAt(opponent, level), base = arena(opponentAt(opponent, level), 'longsword', 'pommel');
@@ -45,7 +47,7 @@ if (arg('merge')) {
   out.push('', flagged.length ? `**Flagged (more than 10 pts): ${flagged.join('; ')}**` : '**No opponent/band moves the hero brain by more than 10 points.**');
   const md = out.join('\n'); console.log(md); if (arg('out')) writeFileSync(arg('out'), md + '\n');
 } else {
-  const opponents = arg('opponents', LADDER.map(o => o.id).join(',')).split(','), levels = arg('levels', '1,6,12,18,30,36,41,46').split(',').map(Number), seeds = Number(arg('seeds', 24));
+  const opponents = arg('opponents', LADDER.map(o => o.id).join(',')).split(','), levels = arg('levels', [1, 6, 12, 18, 30, ...BOSS_LEVELS].join(',')).split(',').map(Number), seeds = Number(arg('seeds', 24));
   const cells = [];
   for (const id of opponents) for (const level of levels) {
     const mode = () => ({ wins: 0, fights: 0, landedHero: 0, landedFoe: 0, killShots: 0, killHero: 0, killFoe: 0, unfinished: 0 }), m = { off: mode(), on: mode() };
