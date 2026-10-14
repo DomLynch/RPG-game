@@ -25,6 +25,23 @@
     body:has(#duel:not([hidden])) #hud .walk-only { display: none; }   /* the walk help would wrap into the duel meters at 375 */
     #walk-journal { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     #allegiance { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
+    .stats-dialog { touch-action: pan-y; box-sizing: border-box; width: min(var(--panel-w), 100vw - 2 * var(--gap-s)); max-height: calc(100dvh - 2 * var(--gap-s)); margin: auto; padding: 18px var(--gap-m) var(--gap-m); overflow-y: auto; border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); -webkit-user-select: none; user-select: none; }
+    .stats-dialog::backdrop { background: var(--c-shade); }
+    .stats-dialog .stats-close { position: absolute; top: var(--gap-xs); right: var(--gap-xs); width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--c-ink); font-size: var(--fs-x); }
+    .stats-dialog h3 { margin: 0; padding-right: var(--tap); font-size: var(--fs-xl); } .stats-dialog .stats-group { margin: var(--gap-m) 0 0; color: var(--c-brass); font-size: var(--fs-m); }
+    .stats-dialog .stats-level, .stats-dialog .stats-points, .stats-dialog .stats-status { margin: var(--gap-xs) 0 0; color: var(--c-ink-2); font-size: var(--fs-s); } .stats-dialog .stats-status:empty { display: none; }
+    .stats-dialog .stats-list { list-style: none; margin: var(--gap-xs) 0 0; padding: 0; }
+    .stats-dialog .stats-row { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--gap-s); padding: var(--gap-xs) var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); }
+    .stats-dialog .stats-name { font-size: var(--fs-m); overflow-wrap: anywhere; } .stats-dialog .stats-value { color: var(--c-brass); text-align: right; } .stats-dialog .stats-note { grid-column: 1 / -1; color: var(--c-ink-2); font-size: var(--fs-s); }
+    .stats-dialog .stats-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--c-brass) var(--fill), var(--c-line) var(--fill)); }
+    .shop-dialog { touch-action: pan-y; box-sizing: border-box; width: min(var(--panel-w), 100vw - 2 * var(--gap-s)); max-height: calc(100dvh - 2 * var(--gap-s)); margin: auto; padding: 18px var(--gap-m) var(--gap-m); overflow-y: auto; border: 1px solid var(--c-brass); border-radius: var(--r-m); background: var(--c-panel); color: var(--c-ink); font: var(--fs-m)/1.4 var(--f-serif); -webkit-user-select: none; user-select: none; }
+    .shop-dialog::backdrop { background: var(--c-shade); }
+    .shop-dialog .shop-close { position: absolute; top: var(--gap-xs); right: var(--gap-xs); width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--c-ink); font-size: var(--fs-x); }
+    .shop-dialog h3 { margin: 0; padding-right: var(--tap); font-size: var(--fs-xl); } .shop-dialog .shop-status { margin: var(--gap-xs) 0 0; min-height: 1.4em; color: var(--c-ink-2); font-size: var(--fs-s); }
+    .shop-dialog .shop-list { list-style: none; margin: var(--gap-s) 0 0; padding: 0; }
+    .shop-dialog .shop-row { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--gap-s); align-items: center; padding: var(--gap-s); margin-top: var(--gap-xs); border: 1px solid var(--c-line); border-radius: var(--r-s); background: var(--c-well); }
+    .shop-dialog .shop-name { font-size: var(--fs-l); overflow-wrap: anywhere; } .shop-dialog .shop-price { color: var(--c-brass); font-size: var(--fs-m); text-align: right; } .shop-dialog .shop-note, .shop-dialog .shop-restock { grid-column: 1; color: var(--c-ink-2); font-size: var(--fs-s); } .shop-dialog .shop-restock:empty { display: none; }
+    .shop-dialog .shop-buy { grid-column: 2; grid-row: 2 / span 2; align-self: center; min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border: 1px solid var(--c-brass); border-radius: var(--r-pill); background: none; color: var(--c-ink); font: 600 var(--fs-m) var(--f-serif); } .shop-dialog .shop-buy:disabled { opacity: .45; }
     #walk-board { position: fixed; top: calc(env(safe-area-inset-top) + var(--gap-s) + var(--tap) + var(--gap-xs)); right: var(--gap-m); min-width: var(--tap); min-height: var(--tap); padding: 0 var(--gap-m); border-radius: var(--r-pill); font: 600 var(--fs-m) var(--f-serif); }
     body.kit #walk-board { display: none; }   /* the daily board is a ☰ Settings entry in the kit, like the Journal (main.ts menu-board) */
     #allegiance:not([hidden]) ~ #walk-board { top: calc(env(safe-area-inset-top) + var(--gap-s) + 2 * (var(--tap) + var(--gap-xs))); }   /* the Allegiance button holds the second slot while it is up */
@@ -101,6 +118,8 @@
   <button id="prompt" class="glass" hidden></button>
   <button id="walk-journal" class="glass">Journal</button>
   <button id="allegiance" class="glass" hidden>Allegiance</button>
+  <dialog id="stats-dialog"></dialog>
+  <dialog id="shop-dialog"></dialog>
   <button id="walk-board" class="glass"></button>
   <dialog id="board-dialog"></dialog>
   <div id="shade" hidden><div id="panel" role="dialog"><button id="shut" aria-label="Close">×</button><div id="card"></div></div></div>
