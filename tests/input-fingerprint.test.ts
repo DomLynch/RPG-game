@@ -8,7 +8,7 @@ import console from 'node:console';
 import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, HOLD_MS, SLASH_DECIDE_MS, SLASH_SLIDE_PX, SPRINT_PUSH, cutAction, cutSideOf, guardSide, slashSlide } from '../src/fight/input.ts';
 import type { Direction } from '../src/fight/moves.ts';
 
-const GOLDEN = 'TBD';
+const GOLDEN = '5ace91b82b3b56d660c9681ea479b587b7162628b1e70737cd0caddde3b9eb7c';   // computed twice on HF at f07537365 (the unchanged thresholds)
 
 test('every input maps to the same intent as before the thresholds became rows', () => {
   const hash = createHash('sha256');
