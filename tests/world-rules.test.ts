@@ -6,6 +6,7 @@ import { ENGAGE_M, ENGAGE_OUT_M, HOLD_M, PROTECT_LEVEL, MAX_LEVEL_GAP, AGGRO_WIN
 import { AGGRO_M } from '../src/fight/threat.ts';
 import { JOIN_M, DROP_M, FALL_S, PULSE_S, MAX_STEPS } from '../src/fight/world-combat.ts';
 import { SPEEDS, LEASH, OUT_OF_COMBAT_S, DISENGAGE_M, DISENGAGE_S, ENGAGE_GAP_MAX_M, COMMIT_RANGE_M } from '../src/fight/speeds.ts';
+import { MAX_ATTACKERS } from '../src/fight/attackers.ts';
 import { MAX_HERO_MPS, MAX_CREATURES, MAX_EVENTS, MAX_WORLD_TICKS } from '../src/fight/world-record.ts';
 import { RUN_SPEED, ACROSS_SECONDS, HOP_SECONDS, FIRST_FIGHT_SECONDS, OPENER_CLEAR, OPENER_FAR } from '../origins/world/zone-rules.ts';
 import { RARE_DEFAULT, CAMP_MAX, BOSS_CAMP_MAX } from '../src/core/world/row.ts';
@@ -23,7 +24,9 @@ test('every world rule equals the literal it replaced', () => {
   assert.equal(RESPAWN_MS, 300_000);   // the default respawn window reads its row
   assert.deepEqual([ACROSS_SECONDS, HOP_SECONDS, FIRST_FIGHT_SECONDS, OPENER_CLEAR, OPENER_FAR], [45, 15, 10, 15, 40]);   // the zone-size budgets and the opener ring read their rows
   assert.deepEqual([OUT_OF_COMBAT_S, DISENGAGE_M, DISENGAGE_S, ENGAGE_GAP_MAX_M, COMMIT_RANGE_M, MAX_HERO_MPS, MAX_CREATURES, MAX_EVENTS, MAX_WORLD_TICKS], [6, 12, 3, 6.5, 8, 12, 8, 256, 18_000]);   // the out-of-combat window, the disengage, the spec gaps and the record bounds read their rows
-  assert.equal(WORLD_RULES.length, 39);
+  assert.equal(MAX_ATTACKERS, 3);   // the attacker cap reads its row
+  assert.equal(worldRule('farM'), 1000);   // the far-off dummy foe's distance reads its row
+  assert.equal(WORLD_RULES.length, 41);
 });
 test('the loader refuses a missing named rule, a non-positive value, a duplicate id, an engageOut below engage, a holdFactor above 1; a new row is one entry', () => {
   const rows = DEFS.rules;
@@ -32,7 +35,7 @@ test('the loader refuses a missing named rule, a non-positive value, a duplicate
   assert.throws(() => loadWorldRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'engageOut' ? { ...r, value: 3 } : r)) }), /hysteresis/);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'holdFactor' ? { ...r, value: 1.2 } : r)) }), /holdFactor/);
-  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 40);
+  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 42);
   assert.equal(worldRule('engage'), 4);
 });
 test('the Pit sim keeps its own run literal (a Pit sim file: editing it would force a RECORD_VERSION bump); it must equal the playerRun row', () => {
