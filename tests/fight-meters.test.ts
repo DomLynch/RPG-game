@@ -13,7 +13,7 @@ class El {
 }
 const doc = { createElement(tag: string) { return new El(tag, doc); } };
 const mount = () => { const body = new El('body', doc); const m = createMeters(body as never); return { body, m, root: body.children[0]!, flash: body.children[1]! }; };
-const bars = (root: El) => ({ name: root.children[0]!, foe: root.children[1]!, hp: root.children[2]!, st: root.children[3]! });
+const bars = (root: El) => ({ name: root.children[0]!, foe: root.children[1]!, you: root.children[2]!, hp: root.children[3]!, st: root.children[4]! });
 
 test('fillMeter and paintMeter write the --fill percentage the style sheets draw (max, value, fill)', () => {
   const m = new El('meter', doc) as never as HTMLMeterElement;
@@ -24,8 +24,8 @@ test('fillMeter and paintMeter write the --fill percentage the style sheets draw
 });
 
 test('createMeters: hidden until shown, then health, stamina and the foe in reach are painted from plain numbers', () => {
-  const { m, root } = mount(), { name, foe, hp, st } = bars(root);
-  assert.equal(root.hidden, true);
+  const { m, root } = mount(), { name, foe, you, hp, st } = bars(root);
+  assert.equal(root.hidden, true); assert.equal(you.textContent, 'You', 'the label over the player\'s own two bars');
   m.update({ hp: 60, maxHp: 120, stamina: 30, maxStamina: 120, foe: { name: 'Goblin', hp: 10, max: 40 } }, true);
   assert.equal(root.hidden, false); assert.equal(name.textContent, 'Goblin');
   assert.equal(hp.props.get('--fill'), '50%'); assert.equal(st.props.get('--fill'), '25%'); assert.equal(foe.props.get('--fill'), '25%');
