@@ -155,3 +155,10 @@ test('sorted lists stay sorted: two PRs adding after the same entry give the sam
   assert.deepEqual(names(mergeAllow(base, withB, withC).text), ['A', 'B', 'C', 'Z']);
   assert.deepEqual(names(mergeAllow(base, withC, withB).text), ['A', 'B', 'C', 'Z']);
 });
+
+test('merge-allow.mjs imports only node: builtins (the cut runs a copy of it from a temp directory outside the repo)', () => {
+  const src = readFileSync(SCRIPT, 'utf8');
+  const specs = [...src.matchAll(/^\s*import\b[^'"]*['"]([^'"]+)['"]/gm), ...src.matchAll(/\bimport\(\s*['"]([^'"]+)['"]/g), ...src.matchAll(/\brequire\(\s*['"]([^'"]+)['"]/g)].map(m => m[1]);
+  assert.ok(specs.length > 0, 'the scan found the imports');
+  assert.deepEqual(specs.filter(s => !s.startsWith('node:')), []);
+});
