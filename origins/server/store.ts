@@ -186,6 +186,18 @@ export const buildGet = async (db: Db, account: string, character: string, versi
   const out = await gated(db, 'build', HAS_BUILD, 'build', version === undefined ? `select coalesce(public.origins_get_build(:'a'::uuid, :'c')::text, 'null');` : `select coalesce(public.origins_get_build(:'a'::uuid, :'c', :'v'::int)::text, 'null');`, version === undefined ? { a: acct(account), c: character } : { a: acct(account), c: character, v: String(version) });
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
+// The practice pool of one character (migration 0029; the table is RLS-closed to the writer, so only these definer functions read or flag it): skill -> { xp, focus }.
+// 'absent' = 0029 not applied; null = not the account's character.
+export type PoolRow = { xp: number; focus: boolean };
+const HAS_SKILL_POOL = `select to_regprocedure('public.origins_skill_pool(uuid,text)') is not null as skillpool \\gset\n`;
+export const skillPool = async (db: Db, account: string, character: string): Promise<Record<string, PoolRow> | null | 'absent'> => {
+  const out = await gated(db, 'skillpool', HAS_SKILL_POOL, 'skillpool', `select coalesce(public.origins_skill_pool(:'a'::uuid, :'c')::text, 'null');`, { a: acct(account), c: character });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+export const skillFocus = async (db: Db, account: string, character: string, skill: string, on: boolean): Promise<PoolRow | null | 'absent'> => {
+  const out = await gated(db, 'skillpool', HAS_SKILL_POOL, 'skillpool', `select coalesce(public.origins_skill_focus(:'a'::uuid, :'c', :'s', :'o'::boolean)::text, 'null');`, { a: acct(account), c: character, s: skill, o: on ? 'true' : 'false' });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
 export const buildSet = async (db: Db, account: string, character: string, placed: Record<string, number>, respreadRank: number, expected: number): Promise<BuildRow | null | 'absent'> => {
   const out = await gated(db, 'build', HAS_BUILD, 'build', `select coalesce(public.origins_set_build(:'a'::uuid, :'c', :'p'::jsonb, :'r'::int, :'e'::int)::text, 'null');`, { a: acct(account), c: character, p: JSON.stringify(placed), r: String(respreadRank), e: String(expected) });
   return out === 'absent' ? 'absent' : JSON.parse(out);

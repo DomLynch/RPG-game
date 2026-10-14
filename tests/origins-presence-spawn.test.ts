@@ -105,7 +105,7 @@ test('socket: reconnect with a forged first pose lands at the remembered spot, n
   try {
     const first = await open(p.port(), 'u1');
     assert.deepEqual([where()!.x, where()!.z], [SPAWN.x, SPAWN.z], 'a fresh socket join is at the spawn before any pose');
-    first.send(encodeUp(pose(SPAWN.x + 80, SPAWN.z)));
+    first.send(encodeUp(pose(SPAWN.x + 80 - 25000, SPAWN.z - 25000)));
     await new Promise(r => setTimeout(r, 300));
     const A = { x: where()!.x, z: where()!.z };
     assert.equal(A.x, SPAWN.x + 80, 'its first pose, inside the clamp, moved it');

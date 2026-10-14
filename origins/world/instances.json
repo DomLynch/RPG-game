@@ -1,0 +1,5 @@
+{
+  "kinds": {
+    "solo": {"order": 1, "slots": 24, "stride": 500, "graceS": 300, "maxS": 900, "spawnBase": 1, "spawnPerPlayer": 0}
+  }
+}

@@ -12,6 +12,9 @@ import { DbError, type Db } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { CareerRow, Json } from './store.ts';
 import type { WhereFn } from '../presence/where.ts';
+import { CENTRE_CM, LEGACY_SHIFT_CM, zoneAt } from '../presence/zones.ts';
+import { createPresence, PROTOCOL_V2 } from '../presence/server.ts';
+import { encodeUp } from '../presence/wire.ts';
 import { maxHit, minHits, minKillMs, withinReach, worldSpawnOps, zoneOfKey, defaultZoneSpawns, zoneSpawns, type Spawn } from './world-spawns.ts';
 
 const loaded = loadEncounterContent();
@@ -35,7 +38,7 @@ function stub(answers: Record<string, unknown>, opts: { absent?: boolean } = {})
   } };
   return { db, kills };
 }
-const poseAt = (s: Spawn): WhereFn => async () => ({ online: true as const, layer: 0, placed: true as const, x: s.spec.home.x * 100, z: s.spec.home.z * 100, zone: s.spec.zone, ageMs: 100 });
+const poseAt = (s: Spawn): WhereFn => async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + s.spec.home.x * 100, z: CENTRE_CM + s.spec.home.z * 100, zone: s.spec.zone, ageMs: 100 });
 const ctx = (db: Db, where: WhereFn | null = poseAt(wolf)) => ({ db, account: UID, ...(where ? { where } : {}) });
 const open = { token: TOKEN, character: PC, instance: wolf?.spec.id, generation: 0, issuedAt: '2026-10-08T10:00:00Z', expiresAt: '2026-10-08T10:02:00Z' };
 const status = (s: number, code: string) => (e: unknown) => e instanceof Refused && e.status === s && e.code === code;
@@ -128,9 +131,9 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
   await assert.rejects(async () => ops.kill_report!(ctx(with_({ refused: 'cap' })), { token: TOKEN, hits: 50 }), status(429, 'cap'));
   await assert.rejects(async () => ops.kill_report!(ctx(with_(new DbError('O0009', 'gone'))), { token: TOKEN, hits: 50 }), status(409, 'used'));
   await assert.rejects(async () => ops.kill_report!(ctx(stub({ origins_spawn_engage_get: null }).db), { token: TOKEN, hits: 50 }), status(409, 'used'));
-  const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: (wolf.spec.home.x + 50) * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
+  const far = async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + (wolf.spec.home.x + 50) * 100, z: CENTRE_CM + wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
   await assert.rejects(async () => ops.kill_report!(ctx(with_({ result: 'killed', instance: wolf.spec.id, respawnAt: 'R' }), far), { token: TOKEN, hits: 50 }), status(422, 'away'));
-  const poses = [null, async () => null, async () => ({ online: true as const, layer: 0, placed: false as const }), async () => ({ online: true as const, layer: 0, placed: true as const, x: 0, z: 0, zone: 'elsewhere', ageMs: 100 }), async () => ({ online: true as const, layer: 0, placed: true as const, x: wolf.spec.home.x * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 1e9 })];
+  const poses = [null, async () => null, async () => ({ online: true as const, layer: 0, placed: false as const }), async () => ({ online: true as const, layer: 0, placed: true as const, x: 0, z: 0, zone: 'elsewhere', ageMs: 100 }), async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + wolf.spec.home.x * 100, z: CENTRE_CM + wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 1e9 })];
   const strict = worldSpawnOps({ content, spawns, log: () => {}, refuseUnchecked: true });
   const none = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
   for (const w of poses) await assert.rejects(async () => strict.kill_report!(ctx(none.db, w as WhereFn | null), { token: TOKEN, hits: 50 }), status(422, 'unchecked'), 'refuseUnchecked on: no fresh placed pose in the zone is REFUSED');
@@ -140,7 +143,7 @@ test('kill_report: the database\'s refusals map to the contract (dead 409, too-f
     assert.equal((await ops.kill_report!(ctx(rec.db, w as WhereFn | null), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
     assert.equal(rec.kills[0]!.g.reach, 'unchecked', 'recorded on the row as unchecked');
   }
-  const near = async () => ({ online: true as const, layer: 0, placed: true as const, x: wolf.spec.home.x * 100, z: wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
+  const near = async () => ({ online: true as const, layer: 0, placed: true as const, x: CENTRE_CM + wolf.spec.home.x * 100, z: CENTRE_CM + wolf.spec.home.z * 100, zone: wolf.spec.zone, ageMs: 100 });
   const nearDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', instance: wolf.spec.id, respawnAt: 'R' } });
   assert.equal((await ops.kill_report!(ctx(nearDb.db, near), { token: TOKEN, hits: 50 }) as Json).result, 'killed');
   assert.equal(nearDb.kills[0]!.g.reach, 'checked', 'a fresh presence pose in the zone: reach checked');
@@ -238,6 +241,41 @@ test('guard (Strategy 2026-10-13): kill_report grants no XP-pool credit, level o
   const server = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
   for (const f of server) {
     const src = readFileSync(new URL(f, import.meta.url), 'utf8');
-    if (/spell-taken|origins_grimoire/.test(src)) assert.match(f, /^encounter(-verify)?\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path)`);
+    if (/spell-taken|origins_grimoire/.test(src)) assert.match(f, /^(encounter(-verify|-fixtures)?|spell-check|spell-gate)\.ts$/, `${f}: a spell is taken only on a verified record (the encounter-verify path; spell-check only READS the ledger)`);
   }
+});
+
+// Strategy's acceptance test (2026-10-13): a bot that speaks the v2 frame, a real presence server, and the strict reach rule (ORIGINS_SPAWN_REFUSE_UNCHECKED=1). A kill reported from
+// inside a Frontier zone pays as checked; one reported from outside is refused. Step 1 proves it; the production flip waits for Web's v2 client.
+test('acceptance: with refuseUnchecked on, a v2 bot standing in a Frontier zone is paid and one outside it is refused', async () => {
+  const BOT_IN = '00000000-0000-4000-8000-000000000001', BOT_OUT = '00000000-0000-4000-8000-000000000002';
+  const home = { x: CENTRE_CM + Math.round(wolf.spec.home.x * 100), z: CENTRE_CM + Math.round(wolf.spec.home.z * 100) };
+  assert.equal(zoneAt(home.x, home.z), wolf.spec.zone, 'the wolf\'s home is inside its Frontier zone');
+  let t = 1_000_000;
+  const p = createPresence({ verify: async tok => (tok === 'in' ? BOT_IN : tok === 'out' ? BOT_OUT : null), now: () => t, log: () => {},
+    locate: async a => (a === BOT_IN ? { x: home.x - LEGACY_SHIFT_CM, z: home.z - LEGACY_SHIFT_CM } : null) });   // a rejoin at the saved spot (the old frame, as the writer serves it)
+  await new Promise<void>(r => p.server.listen(0, '127.0.0.1', r));
+  const where: WhereFn = async a => { const q = p.world.byAccount.get(a); return q ? { online: true as const, layer: q.layer.id, placed: true as const, x: q.x, z: q.z, zone: zoneAt(q.x, q.z), ageMs: Math.max(0, t - q.seenAt) } : { online: false as const }; };
+  const join = (tok: string): Promise<WebSocket> => new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${p.port()}/origins/presence`, [PROTOCOL_V2, `token.${tok}`]);
+    ws.binaryType = 'arraybuffer';
+    ws.onmessage = ev => { if (typeof ev.data === 'string' && JSON.parse(ev.data).t === 'hello') resolve(ws); };
+    ws.onerror = () => reject(new Error('refused'));
+  });
+  const settle = (): Promise<unknown> => new Promise(r => setTimeout(r, 40));
+  try {
+    const bin = await join('in'), bout = await join('out');
+    const strict = worldSpawnOps({ content, spawns, log: () => {}, refuseUnchecked: true });
+    const kill = { instance: wolf.spec.id, respawnAt: 'R' };
+    for (let i = 1; i <= 3; i++) { t += 100; bin.send(encodeUp({ x: home.x + i * 20, z: home.z, heading: 0, anim: 0, flags: 0 })); bout.send(encodeUp({ x: home.x, z: home.z, heading: 0, anim: 0, flags: 0 })); await settle(); }
+    assert.equal(p.world.byAccount.get(BOT_IN)!.x, home.x + 60, 'the in-zone bot\'s v2 poses moved it');
+    assert.equal(zoneAt(p.world.byAccount.get(BOT_OUT)!.x, p.world.byAccount.get(BOT_OUT)!.z), 'pit-yard', 'the other bot\'s teleport into the zone was snapped: it still stands in the Pit');
+    const inDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', ...kill } });
+    assert.equal((await strict.kill_report!({ db: inDb.db, account: BOT_IN, where }, { token: TOKEN, hits: 50 }) as Json).result, 'killed', 'inside the zone: paid');
+    assert.equal(inDb.kills[0]!.g.reach, 'checked');
+    const outDb = stub({ origins_spawn_engage_get: open, origins_spawn_kill: { result: 'killed', ...kill } });
+    await assert.rejects(async () => strict.kill_report!({ db: outDb.db, account: BOT_OUT, where }, { token: TOKEN, hits: 50 }), (e: unknown) => e instanceof Refused && e.status === 422);
+    assert.equal(outDb.kills.length, 0, 'outside the zone: refused before anything is written');
+    bin.close(); bout.close();
+  } finally { await p.close(); }
 });

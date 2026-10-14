@@ -1,0 +1,66 @@
+{
+  "tables": [
+    {
+      "table": "feudRule",
+      "file": "feud-rules.json",
+      "at": "rules",
+      "key": "id",
+      "required": {
+        "dayS": "integer",
+        "grudgeHeldMax": "integer",
+        "grudgeExpiryS": "integer",
+        "grudgeReofferS": "integer",
+        "grudgeMinTitle": "string",
+        "giverStandingDelta": "integer",
+        "rivalTownStandingDelta": "integer",
+        "neutralAttitudeFloor": "integer",
+        "notorietyMax": "integer",
+        "notorietyRivalKill": "integer",
+        "notorietyGuardBeaten": "integer",
+        "notorietySettleSide": "integer",
+        "notorietyBackSide": "integer",
+        "notorietyJailServed": "integer",
+        "notorietyDecayPerDay": "integer",
+        "notorietyPayoffBronze": "integer",
+        "suspect": "integer",
+        "wanted": "integer",
+        "hunted": "integer",
+        "suspectPricePermille": "integer",
+        "successorMinS": "integer",
+        "successorMaxS": "integer",
+        "standinBuyPermille": "integer",
+        "standinBackedBuyPermille": "integer",
+        "standinSellPermille": "integer",
+        "standinUpgradeCostPermille": "integer",
+        "standinUpgradeTierCapOffset": "integer",
+        "successionEventS": "integer",
+        "successionRewardBronze": "integer",
+        "giverDiscountPermille": "integer",
+        "guardLevelFloor": "integer",
+        "guardLevelOver": "integer",
+        "guardRechallengeS": "integer",
+        "fineBronzePerPoint": "integer",
+        "fineMinBronze": "integer",
+        "jailS": "integer",
+        "jailMaxS": "integer",
+        "bailBronzePerS": "integer",
+        "alertSpreadPermille": "integer",
+        "alertSpreadCrossRegionPermille": "integer"
+      }
+    },
+    {
+      "table": "grudgeGenerator",
+      "file": "feud-rules.json",
+      "at": "generators",
+      "key": "id",
+      "required": {
+        "rotationSeconds": "integer",
+        "livePerTownMax": "integer",
+        "livePerRegionMax": "integer",
+        "varietyWindow": "integer",
+        "rewardBronzePerLevel": "integer",
+        "storyWeight": "integer"
+      }
+    }
+  ]
+}

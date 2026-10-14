@@ -19,7 +19,7 @@ on:
       - 'docs/**'
   workflow_dispatch:
 concurrency:
-  group: unit-ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && format('-inert-{0}', github.run_id) || '' }}
+  group: unit-ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && (github.event.label.name != 'auditor:ready' || startsWith(github.head_ref, 'release-')) && format('-inert-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
   UNIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -28,7 +28,7 @@ jobs:
     # Static first (Lead + Strategy 2026-10-12, runner budget): eslint + both typechecks + the origins lint, about a minute. On a pull request the 8
     # shards `needs:` it, so a red tsc costs this one job, not 9. A push or a dispatch skips it and the shards run as before.
     # A pull request runs it (and so the shards and the receipt) only with auditor:ready or as a release-* candidate (Strategy 2026-10-12 21:5x).
-    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -87,14 +87,45 @@ jobs:
           name: unit-shard-${{ matrix.shard }}
           path: out/shard-${{ matrix.shard }}.json
           if-no-files-found: ignore
+  origins-db:
+    # The Origins migrations and definer functions against a real Postgres (Auditor on #2487: the encounter check only ran on the VPS by hand). It starts after
+    # `static` like the shards, runs beside them, and is not part of the unit receipt.
+    needs: static
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.UNIT_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Postgres 16 binaries
+        run: |
+          if [ ! -x /usr/lib/postgresql/16/bin/initdb ]; then sudo apt-get update && sudo apt-get install -y postgresql-16; fi
+          echo "PG_BIN=/usr/lib/postgresql/16/bin" >> "$GITHUB_ENV"
+      - run: node scripts/origins-encounter-check.mjs
+      # The writer service end to end on the same disposable cluster (grants as the role the writer connects as; 0030/0031 shipped with wrong grants because only the VPS ran this).
+      - run: node scripts/origins-writer-check.mjs
   receipt:
-    needs: shard
+    needs: [static, shard]
     # Explicit: with no `if`, GitHub's implicit success() also counts `static`, which a push or a dispatch skips, so the receipt was skipped after 8 green
     # shards (run 38293767009, trunk 4337cfe9b: deploy.sh read "unit-ci-down: no unit-receipt artifact"). It still needs every shard green.
-    if: ${{ !cancelled() && needs.shard.result == 'success' }}
+    # Fail closed (hardening item 3, 2026-10-13; the Auditor's two findings on #2476): a skipped required check reads as passing to a ruleset or the merge queue.
+    # A failed shard used to SKIP this job, and so did a red `static` (it skips the shards, which skipped this). Now the ONLY skip is "nothing was meant to run"
+    # (static and shard both skipped: a feature PR without auditor:ready). Otherwise the job runs and its FIRST step goes red unless static did not fail and every
+    # shard succeeded; the receipt artifact is only made after that step.
+    if: ${{ !cancelled() && !(needs.static.result == 'skipped' && needs.shard.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - run: '[ "$STATIC" != failure ] && [ "$STATIC" != cancelled ] || { echo "unit-ci: static did not pass (result: $STATIC)"; exit 1; }; [ "$SHARDS" = success ] || { echo "unit-ci: a shard did not succeed (result: $SHARDS)"; exit 1; }'
+        env:
+          STATIC: ${{ needs.static.result }}
+          SHARDS: ${{ needs.shard.result }}
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.UNIT_SHA }}

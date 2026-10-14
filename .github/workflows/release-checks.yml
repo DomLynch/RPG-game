@@ -78,6 +78,8 @@ jobs:
           # Rows CI never schedules because it never trusts them (row-placement.mjs): GPU_ONLY (the T4's: they miss the 600 s row ceiling without a GPU)
           # and MAC_ROWS (every MAC_ONLY row, the list deploy.sh places on the Mac: WebKit has no install here, rows 2 and 44 fail off the Mac).
           export CI_SKIP_ROWS=$(node --input-type=module -e 'import { GPU_ONLY, MAC_ROWS } from "./scripts/lib/row-placement.mjs"; console.log([...GPU_ONLY, ...MAC_ROWS].join(","))')
+          # POST_PUBLISH rows (row-placement.mjs postPublishRowsFor): a candidate's matrix leaves out the rows whose own files its diff does not touch (computed below from the PR's files);
+          # deploy.sh runs them right after Published. A dispatch (the measurement) still runs them.
           node -e '
             const { execFileSync } = require("child_process");
             const gate = require("./.quality-gate.json");
@@ -89,16 +91,17 @@ jobs:
             if (pr && !labelled) { run = false; console.log("not a release-* candidate: release rows not run (the rows of a feature PR run in the candidate it rides)"); }
             // Another label being added to a candidate (merged-elsewhere, a lane tag) is not a request to run the rows.
             else if (pr && process.env.PR_ACTION === "labeled" && process.env.PR_LABEL !== "ci:release-checks") { run = false; console.log(`label ${process.env.PR_LABEL} added: not a request to run the rows`); }
+            let files = [];
             if (pr && run) {
               // A labelled PR whose changed files trigger no row (release_triggers in .quality-gate.json, printed locally by
               // scripts/release-rows-for.mjs) still runs nothing: a docs-only diff.
-              const files = execFileSync("gh", ["api", `repos/${process.env.GITHUB_REPOSITORY}/pulls/${process.env.PR_NUMBER}/files`, "--paginate", "--jq", ".[].filename"], { encoding: "utf8" }).split("\n").filter(Boolean);
+              files = execFileSync("gh", ["api", `repos/${process.env.GITHUB_REPOSITORY}/pulls/${process.env.PR_NUMBER}/files`, "--paginate", "--jq", ".[].filename"], { encoding: "utf8" }).split("\n").filter(Boolean);
               const triggered = JSON.parse(execFileSync("node", ["scripts/release-rows-for.mjs", "--json", ...files], { encoding: "utf8" }));
               if (!triggered.length) { run = false; console.log(`${files.length} changed file(s) trigger no release rows (they run at deploy): matrix skipped`); }
               else console.log(`${process.env.PR_ACTION}, labelled: full matrix (the diff triggers rows ${triggered.map(c => c.index).join(", ")})`);
             }
             const skip = pr ? (process.env.RUNNER_SKIP_ON_PR || "").split(/[\s,]+/).filter(Boolean) : [];
-            const skipRows = process.env.CI_SKIP_ROWS.split(",").map(Number);
+            const skipRows = [...process.env.CI_SKIP_ROWS.split(","), ...(pr ? execFileSync("node", ["scripts/lib/row-placement.mjs", "post-publish"], { encoding: "utf8", input: files.join("\n") }).trim().split(",") : [])].map(Number);
             const checks = !run ? [] : (gate.release_commands.map((command, i) => ({
               index: i + 1,
               name: (command.find(a => a.endsWith(".mjs")) || command[0]).replace(/^(scripts|artifacts)\//, "").replace(/\.mjs$/, "").replace(/[^\w.-]+/g, "_").slice(0, 40),
@@ -200,8 +203,9 @@ jobs:
           if-no-files-found: ignore
   summary:
     needs: [plan, check]
-    # Not when the matrix never ran (a docs-only PR push): a red "summary" there means nothing.
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.checks != '[]'
+    # Not when the matrix never ran (a docs-only PR push, or the plan job skipped): a red "summary" there means nothing. But when the plan FAILED or was
+    # cancelled the job runs and goes red: a skipped required check reads as passing to a ruleset or the merge queue (hardening item 3, 2026-10-13).
+    if: always() && needs.plan.result != 'skipped' && (needs.plan.result != 'success' || needs.plan.outputs.checks != '[]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -225,18 +229,19 @@ jobs:
             for (const c of JSON.parse(process.env.PLANNED || "[]")) if (!rows.some(r => Number(r.index) === Number(c.index))) rows.push({ index: c.index, name: c.name, seconds: 0, status: "no receipt" });
             rows.sort((a, b) => b.seconds - a.seconds);
             const passed = rows.filter(r => r.status === 0).length;
+            const gates = ["pull_request", "merge_group"].includes(process.env.GITHUB_EVENT_NAME);   // a dispatch gates nothing
             const lines = [
               `## Release checks on ubuntu-latest — ${passed}/${rows.length} passed, longest ${rows[0]?.seconds ?? 0}s`,
               "", "| # | check | seconds | result |", "|---|---|---:|---|",
               ...rows.map(r => `| ${r.index} | ${r.name} | ${r.seconds} | ${r.status === 0 ? "pass" : "FAIL (exit " + r.status + ")"} |`),
-              "", process.env.GITHUB_EVENT_NAME === "pull_request"
-                ? "On a pull request this job is red when any row failed: reproduce the row on the Mac (its argv is in .quality-gate.json) before merging — a red row is a defect until shown to be the runner (#435)."
+              "", gates
+                ? "On a pull request or a merge-queue entry this job is red when any row failed: reproduce the row on the Mac (its argv is in .quality-gate.json) before merging — a red row is a defect until shown to be the runner (#435)."
                 : "Measurement only on a dispatch: this run gates nothing. Compare against the Mac receipt in artifacts/release-checks.json before trusting any check here.",
             ];
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
             fs.writeFileSync("release-checks-summary.json", JSON.stringify({ sha: process.env.GITHUB_SHA, checks: rows.sort((a, b) => a.index - b.index) }) + "\n");
             console.log(lines.join("\n"));
-            if (process.env.GITHUB_EVENT_NAME === "pull_request" && passed < rows.length) { console.log(`::error::${rows.length - passed} release row(s) failed on this pull request`); process.exitCode = 1; }
+            if (gates && passed < rows.length) { console.log(`::error::${rows.length - passed} release row(s) failed on this pull request`); process.exitCode = 1; }
           '
         env:
           GITHUB_SHA: ${{ needs.plan.outputs.ref }}
@@ -247,3 +252,12 @@ jobs:
         with:
           name: release-checks-summary
           path: release-checks-summary.json
+      # Fail closed (hardening item 3): whatever the table says, this verdict is red unless the plan AND every check job succeeded. Last, so the table above still prints.
+      - name: Fail closed
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          CHECK_RESULT: ${{ needs.check.result }}
+        run: |
+          [ "$PLAN_RESULT" = success ] || { echo "::error::release-checks: the plan did not succeed (result: $PLAN_RESULT)"; exit 1; }
+          [ "$CHECK_RESULT" = success ] || { echo "::error::release-checks: the check jobs did not all succeed (result: $CHECK_RESULT)"; exit 1; }

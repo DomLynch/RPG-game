@@ -24,7 +24,7 @@ function breaks(world: World, victim: string, steps: number, press: (i: number) 
 
 test('three creatures on one hero: his posture breaks, whichever duel lands them, step one ladder (full, then half, then quarter...)', () => {
   const hero = player('p', 0, 0); hero.health = hero.maxHealth = 1e6;
-  let w = newWorld([hero, creature('a', 'goblin', 0, 2.2), creature('b', 'goblin', 1.6, 1.6), creature('c', 'goblin', -1.6, 1.6)]);
+  let w = newWorld([hero, creature('a', 'pitborn', 0, 2.2), creature('b', 'pitborn', 1.6, 1.6), creature('c', 'pitborn', -1.6, 1.6)]);   // pitborn: no `atOnce` row (the goblin row holds a camp to two on the hero, #2553), and this test is about the CC ladder, not the camp cap
   const r = breaks(w, 'p', 1500); w = r.world;
   assert.ok(w.streams.p!.joined!.length >= 2, 'three on him: the nearest plus two joiners');
   assert.ok(r.ms.length >= 3, `the hero was posture-broken ${r.ms.length} times`);

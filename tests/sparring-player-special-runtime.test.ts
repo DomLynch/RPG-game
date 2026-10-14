@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Match } from '../src/fight/match.ts';
 import { OPPONENTS, RULES } from '../src/fight/moves.ts';
+import { breathTicks, coneAt } from '../src/fight/cone-rules.ts';
 import { idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
 import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
@@ -33,9 +34,10 @@ for (const id of SUPPORTED_PLAYER_SPECIALS) test(`${id}: manual actor0 cast uses
   duel = stepDuel(duel, [skill(), idleIntent()]);
   assert.ok(duel.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   const castAt = duel.tick;
-  for (let t = 1; t < RULES.special.windup; t++) duel = stepDuel(duel, [idleIntent(), idleIntent()]);
+  const cone = coneAt(SPECIAL_TESTS[id].opponent, SPECIAL_TESTS[id].level), span = RULES.special.windup - 1 + (cone ? breathTicks(cone) : 0);   // a cone special breathes: its last pulse lands breathTicks after the release
+  for (let t = 1; t <= span; t++) duel = stepDuel(duel, [idleIntent(), idleIntent()]);
   const landed = duel.events.find(e => e.type === 'SpecialLanded');
-  assert.equal(landed?.actor, 0); assert.equal(landed?.target, 1); assert.equal(duel.tick - castAt, RULES.special.windup - 1);
+  assert.equal(landed?.actor, 0); assert.equal(landed?.target, 1); assert.equal(duel.tick - castAt, span);
   const share = SPECIAL_TESTS[id].level >= 36 ? RULES.special.bossDamage : RULES.special.damage;
   assert.equal(health - duel.fighters[1].health, Math.round(share * duel.fighters[1].maxHealth)); assert.equal(duel.fighters[0].health, own);
 });

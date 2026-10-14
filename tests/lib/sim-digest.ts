@@ -46,8 +46,9 @@ const dataOf = (path: string, source: string): Lit | undefined => {
 };
 type Obj = { [k: string]: Lit | undefined };
 /** The sim projection of the catalogue: pure, so it can be tested on synthetic rows. */
-export function catalogueProjection(rows: readonly Obj[], defs?: Obj): string {
-  const defFields = ((defs?.fields ?? []) as Obj[]).filter((f) => f.sim !== false), ids = [...new Set([...SIM_BASE, ...defFields.map((f) => f.id as string)])].sort();
+/** `world`: the world-loop digest (tests/world-sim-guard.test.ts) also takes the fields a def flags `world: true` (the open-world loop reads them: chase, leash, giveUp, atOnce), which the Pit's digest never sees. */
+export function catalogueProjection(rows: readonly Obj[], defs?: Obj, world = false): string {
+  const defFields = ((defs?.fields ?? []) as Obj[]).filter((f) => f.sim !== false || (world && f.world === true)), ids = [...new Set([...SIM_BASE, ...defFields.map((f) => f.id as string)])].sort();
   const pick = (r: Obj, id: string) => ((r.fields as Obj | undefined)?.[id] ?? r[id] ?? null);
   const body = rows.filter((r) => !('body' in r)).map((r) => ({
     id: r.id, fields: ids.map((id) => [id, pick(r, id)]),
@@ -79,7 +80,7 @@ function parse(path: string, source: string) {
 }
 
 /** The digest of a set of sim sources, keyed by path only to tell code from data: the paths themselves never reach the hash. */
-export function simDigest(files: Readonly<Record<string, string>>): string {
+export function simDigest(files: Readonly<Record<string, string>>, opts: { world?: boolean } = {}): string {
   const parts: string[] = [], rebinds = new Set<string>();
   let rows: Lit | undefined, defs: Lit | undefined;
   for (const [path, source] of Object.entries(files)) {
@@ -91,7 +92,7 @@ export function simDigest(files: Readonly<Record<string, string>>): string {
     parts.push(...p.statements);
     for (const r of p.rebinds) rebinds.add(r);
   }
-  if (rows !== undefined || defs !== undefined) parts.push(`catalogue\0${catalogueProjection((rows ?? []) as Obj[], defs as Obj | undefined)}`);
+  if (rows !== undefined || defs !== undefined) parts.push(`catalogue\0${catalogueProjection((rows ?? []) as Obj[], defs as Obj | undefined, opts.world === true)}`);
   const hash = createHash('sha256');
   for (const part of [...parts.sort(), ...[...rebinds].sort().map((r) => `rebind\0${r}`)]) hash.update(part).update('\0\0');
   return hash.digest('hex');

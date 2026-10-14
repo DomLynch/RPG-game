@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { TRUNK, mergeAll, passAt, pushWithRetry } from './cut-release.mjs';
+import { RECEIPT_WORKFLOWS, receiptState } from './lib/receipt-rule.mjs';
 
 export const GO = 'release:go';
 export const CANDIDATE_LABELS = ['ci:release-checks', 'auditor:ready'];
@@ -72,10 +73,16 @@ function orphanCancel(c, rollup) {
     && String(v.conclusion).toUpperCase() === 'SUCCESS' && String(v.startedAt || '') > String(c.startedAt || ''));
 }
 
-/** A rollup is green when the deciding attempt of every check is (and an empty rollup is not), and a feature head carries its browser-rows status at SUCCESS. */
+/** A feature head needs its unit-ci/receipt and quality verdicts PRESENT and green at this head (Lead + Auditor on #2546): a push to a feature PR that is not
+ * labelled, or a run that only did the static job, leaves them missing or skipped, and a skipped job reads as green to checkGreen. No head ref (a caller that
+ * does not know it) and a release-* head are exempt here: a candidate is held to all three verdicts by missingRows. */
+export const featureReceiptsMissing = (rollup, headRef = '') => !!headRef && !/^release-/.test(headRef)
+  && receiptState(rollup, [['unit-ci', 'receipt'], ['quality', 'quality']]).state !== 'green';
+
+/** A rollup is green when the deciding attempt of every check is (and an empty rollup is not), a feature head carries its browser-rows status at SUCCESS, and its unit and quality verdicts are in. */
 export function checksGreen(rollup, headRef = '') {
   if (!Array.isArray(rollup) || !rollup.length) return false;
-  return decisiveChecks(rollup).every(checkGreen) && !browserRowsMissing(rollup, headRef);
+  return decisiveChecks(rollup).every(checkGreen) && !browserRowsMissing(rollup, headRef) && !featureReceiptsMissing(rollup, headRef);
 }
 
 /**
@@ -87,7 +94,7 @@ export function planTrain({ prs, order, inBase, trunk = TRUNK }) {
   const eligible = [], skipped = [];
   for (const p of prs) {
     if (!p.labels.includes(GO) || /^release-/.test(p.headRef)) continue;
-    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B or Deploy B) at its current head` }); continue; }
+    if (!p.passedAt) { skipped.push({ pr: p.number, why: `no "<reviewer>: PASS @${p.head.slice(0, 9)}" (Auditor, Lead, Combat A, Combat B, Deploy B or Hooks) at its current head` }); continue; }
     if (!p.green) { skipped.push({ pr: p.number, why: 'checks not all green' }); continue; }
     if (inBase(p.head)) continue;   // already riding in the candidate we build on
     eligible.push(p);
@@ -111,8 +118,9 @@ export const newestCandidate = cands => [...cands].sort((a, b) => String(b.creat
 export const trainName = (d = new Date(), runId = process.env.GITHUB_RUN_ID || String(process.pid)) => `T${d.toISOString().slice(5, 19).replace(/[-T:]/g, '')}r${String(runId).replace(/\D/g, '')}`;
 
 /** The rows a candidate must carry, present and SUCCESS (a rollup that simply lacks them is not green: a failed dispatch left no unit-ci, Lead on #2336). */
-export const REQUIRED_ROWS = [['unit-ci', 'receipt'], ['quality', 'quality'], ['release-checks', 'summary']];
-export const missingRows = rollup => REQUIRED_ROWS.filter(([wf, name]) => !(rollup || []).some(c => c.workflowName === wf && c.name === name && c.status === 'COMPLETED' && c.conclusion === 'SUCCESS')).map(r => r.join('/'));
+export const REQUIRED_ROWS = RECEIPT_WORKFLOWS;
+/** Every verdict job that is not green, wait and red alike (scripts/lib/receipt-rule.mjs: the one rule; the latest attempt that carries a verdict decides). */
+export const missingRows = rollup => { const green = new Set(receiptState(rollup).green); return REQUIRED_ROWS.map(r => r.join('/')).filter(k => !green.has(k)); };
 
 /** The publisher's pick (Strategy's gate, 2026-10-12): an open candidate (head release-*, base trunk) with the candidate:pass label AND an Auditor's (or Lead's)
  * "PASS @<sha9>" comment naming its CURRENT head, every check green and the REQUIRED_ROWS present and green; OLDEST first (forward-only publish). Either
