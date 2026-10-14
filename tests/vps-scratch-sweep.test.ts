@@ -5,7 +5,10 @@ import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import nodeTest from 'node:test';
+
+// The tool is bash 5 on Linux (realpath -e, lsof, timeout): on macOS the checks fail for the platform, not the tool (the Stop gate ran this file on the Mac and went red). Skipped off Linux; CI and the VPS run it.
+const test = process.platform === 'linux' ? nodeTest : nodeTest.skip;
 
 const kind = (path: string) => {
   const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_kind "$1"', 'x', path], { encoding: 'utf8' });
