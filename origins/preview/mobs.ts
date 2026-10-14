@@ -38,6 +38,7 @@ const LONE_ROWS: readonly MobRow[] = FRONTIER_ROWS.map((r) => ({ ...r, behaviour
 export const previewRows = (search: string, signedIn: boolean): readonly MobRow[] => !signedIn && /[?&]lone\b/.test(search) ? LONE_ROWS : FRONTIER_ROWS;
 
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
+  const defaultKind = String(loadZone(f.zone).fields?.defaultKind);   // the zone row's column (schema default goblin): the body a character form that names none stands as
   const ID_PREFIX = zoneKeyPrefix(f.zone);   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
   const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
   for (const sp of reg.spawns) {
@@ -72,7 +73,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? 'goblin', level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
+          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? defaultKind, level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
           zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
         });
       }
@@ -88,7 +89,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     let rng = mixSeed(TUNING.seed, 5000 + out.length);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
-    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? 'goblin', level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
+    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
   return levelByDistance(f, b, out, rows);
 }
