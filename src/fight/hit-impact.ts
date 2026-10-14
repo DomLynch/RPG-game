@@ -15,9 +15,11 @@ export type Tier = 'full' | 'half' | 'parry' | 'block' | 'glance';
 // 90 + 5 = 173) with a small jolt TOWARD the attacker; a BLOCK is a short freeze with a half-strength knock back from the blow.
 export const IMPACT = {
   full: { frames: CONTACTS.hitHeavy.frames, knock: CONTACTS.hitHeavy.knock, push: CONTACTS.hitHeavy.push }, half: { frames: CONTACTS.hitLight.frames, knock: CONTACTS.hitLight.knock, push: CONTACTS.hitLight.push },
-  glance: { frames: 0, knock: 0, push: 0 },   // sandbox-mech reach bands: a blow outside its weapon's band (event.glance) lands dull: no impact frames, no camera knock; the foe's recoil is cut in the sim
   parry: { frames: CONTACTS.parry.frames, knock: CONTACTS.parry.knock, push: CONTACTS.parry.push }, block: { frames: CONTACTS.blockLight.frames, knock: CONTACTS.blockLight.knock, push: CONTACTS.blockLight.push },
 } as const;
+// sandbox-mech reach bands: a blow outside its weapon's band (event.glance) lands dull: no impact frames, no camera knock; the foe's recoil is cut in the sim. Kept out of IMPACT so that table stays what the rows say.
+export const GLANCE = { frames: 0, knock: 0, push: 0 } as const;
+const impactOf = (tier: Tier) => (tier === 'glance' ? GLANCE : IMPACT[tier]);
 export const KNOCK_SETTLE = 0.12;   // seconds: the knock is back in 120 ms
 // Kick and roll (Dom 2026-09-30, pick C of the ?look=hitfx-kick / hitfx-roll clips: "implement and get live"). A LANDED kick, either side,
 // is its own beat: the whole stop is 2 frames (not a hit's 50 ms + 3) and the camera drops 10 cm straight down, back in 120 ms. The
@@ -41,7 +43,7 @@ export const attackerOf = (e: CombatEvent): number | undefined => (e.type === 'B
 // Milliseconds added to the frame's hit-stop: the strongest contact of the frame decides.
 export function impactStopMs(events: readonly CombatEvent[]): number {
   let frames = 0;
-  for (const e of events) { const tier = impactTier(e); if (tier) frames = Math.max(frames, IMPACT[tier].frames); }
+  for (const e of events) { const tier = impactTier(e); if (tier) frames = Math.max(frames, impactOf(tier).frames); }
   return (frames * 1000) / 60;
 }
 
@@ -56,7 +58,7 @@ export function impactShove(e: CombatEvent, direction: Direction | undefined): S
   if (landedKick(e)) return { along: 0, drop: KICK.drop, side: 0, hold: 0, settle: KNOCK_SETTLE };   // straight down, no push, no side
   const tier = impactTier(e), base = shoveFor(e), attacker = attackerOf(e);
   if (!tier || !base || e.target === undefined || attacker === undefined) return null;
-  const { knock, push } = IMPACT[tier];
+  const { knock, push } = impactOf(tier);
   if (push) return { ...base, push: attacker === 1 ? push : -push, hold: 0, settle: KNOCK_SETTLE };
   const lateral = direction === 'right' || direction === 'left', struck = 1 - attacker;
   const from = lateral ? ((direction === 'right') === (struck === 1) ? 1 : -1) : 0;   // +1: the blow arrives from screen right
