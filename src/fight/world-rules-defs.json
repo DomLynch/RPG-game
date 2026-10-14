@@ -53,6 +53,8 @@
     { "id": "defaultRoam", "value": 6, "unit": "m" },
     { "id": "campSizeMin", "value": 2, "unit": "mobs" },
     { "id": "campSizeMax", "value": 3, "unit": "mobs" },
-    { "id": "defaultWeight", "value": 10, "unit": "weight" }
+    { "id": "defaultWeight", "value": 10, "unit": "weight" },
+    { "id": "maxAttackers", "value": 3, "unit": "creatures" },
+    { "id": "farM", "value": 1000, "unit": "m" }
   ]
 }
