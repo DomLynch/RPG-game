@@ -1,30 +1,33 @@
 # Code quality lane (Auditor)
 
-## 2026-10-14 ~11:4x (+04) — Auditor handoff: data-layer day (Dom: NO SUNSETS, everything to data). READ FIRST, then memory `frankendom_handoff_2026-10-13k`
+## 2026-10-14 ~14:4x (+04) — Auditor handoff (context clear). READ FIRST, then memory `frankendom_handoff_2026-10-14a`
 
-**Now.** Rows-only PRs from every lane come first, after candidates. Lead backs up presentation/view rows at 30 min. Armed on the VPS watcher (auto-PASS on green at the exact head): #2625 @4f7d6cf99 (release-row grouping; trust contract read, fails closed), #2645 @f1394a44f, #2650 @41016f98e, #2661 @518579de8 (unit-ci delta skip). Do a contents check on every new candidate, and run parity when it goes live.
+**Now.**
+- Candidates armed on the VPS watcher (auto-PASS + candidate:pass on green): **EY #2695 @411307210** (EX + #2676 + #2685[+#2645]) and **EZ #2696 @289ccd3e9** (EY + #2661 #2625 #2677). Both trees match a `git merge-tree` rebuild byte for byte. Run parity when each goes live.
+- Owed reads: #2623 @2eb92ee1d and #2599 @cc8b25af5 (merge-only: they merged EZ and were resolved against #2661); #2662 @afd885a27 (exempt review applied, now on EX). **WSV 29 collides with #2584 WSV 29**: whoever lands second renumbers. Also #2692 (the candidate-contents-check script) and the view-layer PRs #2688, #2642, #2693, #2691 (Lead backs these up).
+- Armed, waiting on CI or draft: the Combat chain #2584 fb21170c3 … #2627 5e6b94c84 (WSV 29–33), #2689 7b1e7341e (a draft, RV 61 / WSV 34), #2666, #2670 (stacked).
 
-**Done today (all PASSes at exact heads, receipts on each thread).**
-- Live: EP 2c2efb58f, then ES 1f82f7db4 (contains ER). Parity PASS by content on both: EP writer 249/0/0, verifier 175/0/0; ES 249/0/0, 177/0/0.
-- Candidates: EO #2637, EP #2651, ER #2656 and ES #2659 each match a `git merge-tree` rebuild byte for byte. EQ #2652 was closed unmerged.
-- C stack (World data layer): #2585 #2589 #2590 #2596 #2605 #2609 #2611 #2628. Rows: #2622 #2640 #2655 #2658 #2660. Pipeline: #2657, and #2625 / #2661 after their HOLDs were fixed.
-- **Exempt review of all 85** (posted on #2628, with an applicable JSON): 82 keep with owner and reason, 3 to debt (DEFAULT_FOG_FAR, POSE_EVERY_MS, STAMINA_MAX, duplicates of a value that has a source).
+**Open (HOLDs, each with its exact fix on the thread).**
+- **#2694:** CHAIN_CAP moved to mobkit-defs.json but is missing from `kitTables()`, so a retune would change the kit silently. Add it and a test.
+- **#2683:** a C1 boundary violation: server build.ts deep-imports src/core/build-model.ts. Re-export it via src/core/server.ts.
+- **#2680:** the OPPONENT_SIDE exempt has no owner. **#2648:** the BUILD_MAX and MAX_STORED_CHARS exempts have no owner.
+- **#2681:** conflicts with EX in allow/src-fight.json, so it needs a merge-up.
 
-**Open.**
-- Exempt-review JSON: who applies it to allow.json (asked Lead; World on the tip is the likely owner).
-- #2648 (Web): both exempts OK, but `owner` is missing on BUILD_MAX and MAX_STORED_CHARS.
-- LEVEL_CURVE → Characters: a row by Fri 10-17 (it was hidden by a consts.yml regex since 051cb0ce5).
-- World: the world-sim-guard failure hint reads `22${WORLD_SIM_VERSION + 1}` (a sed slip in the re-pin); fix it on the next touch.
-- 50 fight-SIM debt entries were dated as presentation (moot now that sunsets are gone, but they are game-affecting).
-- #2626 (sweep guard): arm after it retargets to trunk. The first real scheduled sweep after install deletes for real, so ask for its .removed.txt.
+**Done today.**
+- Live, each with parity PASS by content: EP 2c2efb58f, ES 1f82f7db4, EV e9bb560a4 (the sweep tool's md5 equals the tree and the unit is identical). EX 65c84f184 is on trunk.
+- **Caught:** EW (#2684) was built on EU and would have rolled back EV, so I held it and it was re-cut as EX.
+- Exempt review of all 85: 82 keep with owner and reason, 3 to debt; applied by #2662.
+- Allow split #2678 verified lossless against trunk twice.
 
 **Gotchas.**
 - `git patch-id --stable` ignores whitespace, so it is not content identity; use `--verbatim`.
-- A regex exclusion in consts.yml hides an entry from the exempt review; exemptions belong in allow.json.
-- The shared repo has a broken ref, `refs/heads/web/tutorial-rows 2` (a space in the name, Web's), so every local `git fetch` fails. Work in a side bare repo with alternates.
-- The Mac stalls `gh`. The watchers live on the VPS (`/srv/cq-watch/start.sh 'pr:sha:what'`, log `/srv/cq-watch/autopass.log`). Never `pkill -f` the watcher over ssh, because it matches the remote shell. The watcher never removes `auditor:ready`: remove it by hand and read the labels back.
-- The cross-session message cap pauses after 10 sends without a user turn; post on the PR thread instead.
-
+- A watcher label starting with "candidate" treats a feature PR as a candidate. Never start a feature label with that word.
+- A server file importing from src/ must go through src/core/server.ts (C1).
+- Moving a number out of code text can drop it out of a code-digest guard: check what the tag or digest actually hashes.
+- Every lane forgets `owner` on new exempt entries; ask each time.
+- zsh: write `"${ref}:path"` (`$x:e` is a modifier); `pkill -f` over ssh kills its own shell.
+- Local `git fetch` is broken by `refs/heads/web/tutorial-rows 2`; use a side bare repo with alternates.
+- Messages between sessions pause after 10 without a user turn, so post on the PR instead.
 ## 2026-10-10 ~12:1x (+04) — STANDING RULING: candidate review from Z (Strategy, Lead adopted the Auditor's conditions; Dom's "engine today"). READ FIRST, then memory `ruling_candidate_review_2026-10-10` and `frankendom_handoff_2026-10-10c`
 
 1. **From candidate Z onward the Auditor reviews the CANDIDATE once per batch** instead of re-passing each PR. A PR with an Auditor PASS on its head keeps it through Deploy's union merge. A **pure-move** PR (git mv + import rewrites, no logic change) with CI green on its head gets its PASS from the one candidate review. **A logic change still needs its own PASS on its own head first.**
