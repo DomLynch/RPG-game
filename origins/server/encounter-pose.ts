@@ -7,9 +7,11 @@
 // The issued pose rides in the token (encounter.ts tokenFor): the database holds the token, so settle reads the server's own pose back and a client cannot change it.
 import { roundPose, type DuelPose, FIRST_POSE_VERSION, BASE_RADIUS, BODY_RADIUS, playScaleFor, WALL_INNER } from '../../src/fight/server.ts';
 import { BadRequest } from './errors.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
-export const MIN_GAP = 2, MARK_GAP = 6.5, POSE_BYTES = 20;
-const EDGE = 0.01;   // stay this far inside the wall so float32 rounding can never push a fighter onto it
+const POSE = SERVER_RULES.encounterPose[0]!;
+export const MIN_GAP = POSE.minGap, MARK_GAP = POSE.markGap, POSE_BYTES = 20;
+const EDGE = POSE.edge;   // stay this far inside the wall so float32 rounding can never push a fighter onto it
 
 // The circle and the widest start gap for this foe, as a posed (v38) record of it replays (detmath.ts underRecord -> play-radius.ts underPlayScale).
 export function poseBounds(enemy: string): { radius: number; maxGap: number } {

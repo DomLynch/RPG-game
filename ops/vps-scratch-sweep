@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# Prunes stale lane scratch on the VPS. Dry run unless called with --apply.
+# Runs only when free space is under TRIGGER_GIB (or with --force).
+# Rules (Auditor + COO, 2026-10-08): never touch bn-trunk, in-use dirs, dirs with files newer than
+# MIN_AGE_H, dirty/unpushed/stashed checkouts (archive instead), open-PR heads. Copies are
+# rsync -c verified before any delete. Every removed path is written to the manifest.
+# NOTE: real node_modules dirs are NOT archived (regenerable from the lockfile); copy and verify both exclude them.
+set -u
+WORK=/opt/frankendom-shadow/work
+JOBS=/srv/dev-jobs
+ARCH=/mnt/frankendom-donors/vps-archive
+REPO=DomLynch/RPG-game
+TRIGGER_GIB=${TRIGGER_GIB:-60}
+MIN_AGE_H=${MIN_AGE_H:-48}
+EXCLUDE=${EXCLUDE:-"bn-trunk combat-t4 gambit expansion"}
+APPLY=0; FORCE=0; BAD_ARG=""
+PATHS=""
+# What --path may remove (Lead 2026-10-13). Prints the kind of an allowed path, nothing for a refused one:
+#   lane   scratch under the lane roots: archive first, then delete (the original rule)
+#   aged   a direct child of /var/tmp (be-*: Backend's per-head PG checkout, ~1.1 GB each, leaked ~16 an hour until Backend adds an EXIT trap) or /tmp (hooks-*, cq-*): regenerable, deleted only
+#          once nothing inside changed for AGED_MIN minutes
+#   home   the six retired VPS lane homes (0 unpushed commits, only an untracked node_modules): archive first, then delete
+#   tmp    two exact one-off /tmp dirs (a regenerable compile cache, an old Lead env): deleted
+# Anything else is refused: this list is the only place a root is added, and it needs a ruling by Lead.
+AGED_MIN=${AGED_MIN:-120}
+sweep_kind() {
+  local p=$1
+  case "$p" in *..*|*" "*) return 0;; esac
+  case "$p" in */|*//*|*/./*|*/.) return 0;; esac   # a trailing slash makes `[ -L x/ ]` follow the link and `rm -rf x/` empty its TARGET (Auditor, #2624, reproduced on the VPS)
+  case "$p" in
+    /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) echo lane;;
+    /var/tmp/be-*) [ "$(dirname "$p")" = /var/tmp ] && echo aged;;
+    /tmp/hooks-*|/tmp/cq-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;   # hooks-* review trees, cq-* the Auditor's worktrees (Lead 2026-10-13: standing root)
+    /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
+    /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
+  esac
+  return 0
+}
+# A --path must name exactly a real directory spelled canonically. Prints the reason and returns 1 otherwise. Every level is checked, not only the last: realpath -e must give
+# back the very same string, so a symlink anywhere in the path (a planted /tmp/cq-x -> /opt, a dir whose parent is a link, a dangling link) is refused, and the resolved path
+# must still be inside an allowed root. The caller then hands rm exactly this string (no trailing slash), so a link swapped in afterwards is unlinked, never followed.
+sweep_safe_path() {
+  local p=$1 real
+  case "$p" in /*) ;; *) echo "not an absolute path"; return 1;; esac
+  case "$p" in */|*//*|*/./*|*/.|*/..|*/../*) echo "not canonical: trailing slash, // or . or .."; return 1;; esac
+  [ ! -L "$p" ] || { echo "is a symlink"; return 1; }
+  [ -d "$p" ] || { echo "not a real directory"; return 1; }
+  real=$(realpath -e -- "$p" 2>/dev/null) || { echo "cannot be resolved"; return 1; }
+  [ "$real" = "$p" ] || { echo "a path component is a symlink ($p resolves to $real)"; return 1; }
+  [ -n "$(sweep_kind "$real")" ] || { echo "resolves outside the allowed roots"; return 1; }
+  mountpoint -q -- "$p" 2>/dev/null && { echo "is a mount point"; return 1; }
+  return 0
+}
+# In use = a process has its cwd inside, or lsof +D finds an open file. FAILS CLOSED: 0 (in use) for anything but a clean "nothing open" (lsof exit 1); a timeout (124) or any
+# other exit is "could not tell", which counts as in use. 1 = safe to remove.
+sweep_in_use() {
+  local p=$1 q rc
+  for q in /proc/[0-9]*; do case "$(readlink "$q/cwd" 2>/dev/null)" in "$p"|"$p"/*) return 0;; esac; done
+  timeout "${LSOF_TIMEOUT:-120}" lsof +D "$p" >/dev/null 2>&1; rc=$?
+  [ "$rc" = 1 ] && return 1
+  return 0
+}
+[ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
+for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) PATHS="$PATHS ${a#--path=}"; FORCE=1;; *) BAD_ARG="$a";; esac; done
+# Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
+# Nobody should reach it by accident (Lead 2026-10-13): a mistyped `--help` ran the whole dry run and held the lock for 6+ minutes. Unknown arguments, and any bare run
+# that is not the scheduled `--apply`, print this and exit before the lock, the log or the disk are touched.
+usage() { cat >&2 <<'USAGE'
+vps-scratch-sweep --path=<exact dir> [--path=...] [--apply]    remove exactly those dirs (dry run unless --apply); the allowed roots are in sweep_kind()
+(no --help: the bare form is the scheduled sweep and only vps-scratch-sweep.service runs it, with SWEEP_SCHEDULED=1 --apply)
+USAGE
+}
+[ -z "${BAD_ARG:-}" ] || { echo "vps-scratch-sweep: unknown argument '$BAD_ARG'" >&2; usage; exit 2; }
+if [ -z "$PATHS" ] && { [ "$APPLY" != 1 ] || [ "${SWEEP_SCHEDULED:-}" != 1 ]; }; then echo "vps-scratch-sweep: the bare mode is the scheduled sweep only" >&2; usage; exit 2; fi
+LOGDIR=/var/log/vps-scratch-sweep; mkdir -p "$LOGDIR"
+RUN=$(date +%Y%m%d-%H%M); MAN=$LOGDIR/$RUN.removed.txt; LOG=$LOGDIR/$RUN.log
+say(){ echo "$(date +%T) $*" | tee -a "$LOG"; }
+free_gib(){ df -BG --output=avail / | tail -1 | tr -dc 0-9; }
+
+exec 9>/var/lock/vps-scratch-sweep.lock; flock -n 9 || { say "another sweep running"; exit 0; }
+say "start free=$(free_gib)G apply=$APPLY force=$FORCE trigger=${TRIGGER_GIB}G min_age=${MIN_AGE_H}h"
+if [ "$FORCE" = 0 ] && [ "$(free_gib)" -ge "$TRIGGER_GIB" ]; then say "enough free space, nothing to do"; exit 0; fi
+
+# fail closed: need the box mounted and writable, and the open-PR list
+t="$ARCH/.sweep-probe.$$"; mkdir -p "$ARCH" && : > "$t" && rm -f "$t" || { say "ABORT: storage box not writable"; exit 3; }
+PRS=$(gh pr list -R "$REPO" --state open --limit 200 --json headRefName,headRefOid -q '.[]|.headRefName,.headRefOid' 2>/dev/null) \
+  && [ -n "$PRS" ] || { say "ABORT: cannot read open PR list"; exit 3; }
+INUSE=$( { lsof +D "$WORK" 2>/dev/null | awk 'NR>1{print $9}'; lsof +D "$JOBS" 2>/dev/null | awk 'NR>1{print $9}'
+          for p in /proc/[0-9]*; do readlink "$p/cwd" 2>/dev/null; done; } | sed -n -E "s#^($WORK|$JOBS)/([^/]+).*#\1/\2#p" | sort -u )
+# a dir another dir symlinks into (the shared node_modules in bn-trunk, world-z2fix, char-nk...) is never swept, one hop at a time: 2026-10-13 a hand-run prune deleted bn-trunk and every VPS lane job failed
+LINKED=$(find /opt/frankendom-shadow -maxdepth 4 -type l -printf '%h %l\n' 2>/dev/null | while read -r dir tgt; do case "$tgt" in /*) realpath -m -s "$tgt";; *) realpath -m -s "$dir/$tgt";; esac; done | sed -n -E "s#^($WORK)/([^/]+).*#\1/\2#p" | sort -u)
+HELD=$(cat /opt/frankendom-shadow/capture.holder* /opt/frankendom-shadow/capture.queue 2>/dev/null)
+
+# recent = any file changed (mtime OR ctime) inside the window; ctime catches `git archive | tar x` trees whose mtimes are the commit date
+recent(){ [ -n "$(find "$1" -path '*/node_modules' -prune -o \( -newermt "$MIN_AGE_H hours ago" -o -newerct "$MIN_AGE_H hours ago" \) -print -quit 2>/dev/null)" ]; }
+inuse(){ echo "$INUSE" | grep -qx "$1" || echo "$HELD" | grep -q "$(basename "$1")"; }
+
+archive_then_delete(){ # src sub
+  local s=$1 d=$ARCH/$2/$RUN/   # per-run folder so same-named dirs never merge into an old archive
+  if [ -n "$(find "$s" ! -type f ! -type d ! -type l -print -quit)" ]; then say "skip(nonregular) $s"; return; fi
+  if [ $APPLY = 0 ]; then say "would archive+delete $s"; return; fi
+  mkdir -p "$d"
+  rsync -rtlJ --exclude=node_modules --chmod=Du+rwx,Fu+rw --partial "$s" "$d" >>"$LOG" 2>&1 || { say "COPYFAIL $s"; return; }
+  local ch; ch=$(rsync -rcnlJ --exclude=node_modules --itemize-changes "$s" "$d" 2>&1 | grep -v '^$' | head -3)
+  [ -n "$ch" ] && { say "VERIFYFAIL $s: $ch"; return; }
+  echo "ARCHIVED $s" >> "$MAN"; rm -rf -- "$s"; say "archived+deleted $s"
+}
+delete_only(){
+  if [ $APPLY = 0 ]; then say "would delete $1"; return; fi
+  echo "DELETED $1" >> "$MAN"; rm -rf -- "$1"; say "deleted $1"
+}
+
+# Named-path mode (Lead 2026-10-13): --path=/abs/dir removes exactly that dir, through the same archive-first, manifest-writing route; nothing else is touched. Dry run unless --apply.
+if [ -n "$PATHS" ]; then
+  for p in $PATHS; do
+    case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
+    kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots, or not spelled canonically) $p"; continue; }
+    why=$(sweep_safe_path "$p") || { say "REFUSE($why) $p"; continue; }
+    case " $EXCLUDE " in *" $(basename "$p") "*) say "REFUSE(never-touch list) $p"; continue;; esac
+    if echo "$LINKED" | grep -qx "$p" || echo "$LINKED" | grep -q "^$p/"; then say "REFUSE(a symlink points into it) $p"; continue; fi
+    if echo "$INUSE" | grep -qx "$p" || echo "$INUSE" | grep -q "^$p/"; then say "REFUSE(in use) $p"; continue; fi
+    # every kind, the lane roots too: the INUSE scan above is lsof +D over the whole of work/ and dev-jobs/ and silently comes back empty on a timeout
+    if sweep_in_use "$p"; then say "REFUSE(in use, or the in-use probe could not tell: a process has its cwd or a file open inside, or lsof timed out) $p"; continue; fi
+    if [ "$kind" = aged ] && [ -n "$(find "$p" -path '*/node_modules' -prune -o \( -newermt "$AGED_MIN minutes ago" -o -newerct "$AGED_MIN minutes ago" \) -print -quit 2>/dev/null)" ]; then say "REFUSE(changed within the last ${AGED_MIN} min) $p"; continue; fi
+    case "$kind" in aged|tmp) delete_only "$p";; home) archive_then_delete "$p" named-home;; *) archive_then_delete "$p" named;; esac
+  done
+  say "named-path mode done"; exit 0
+fi
+
+# work/: lane scratch
+for d in "$WORK"/*/; do d=${d%/}; n=$(basename "$d")
+  [ -d "$d" ] && [ ! -L "$d" ] || continue
+  case " $EXCLUDE " in *" $n "*) continue;; esac
+  inuse "$d" && { say "keep(in-use) $n"; continue; }
+  echo "$LINKED" | grep -qx "$d" && { say "keep(symlink target) $n"; continue; }
+  recent "$d" && continue
+  if [ -e "$d/.git" ]; then
+    br=$(git -C "$d" symbolic-ref -q --short HEAD 2>/dev/null); hd=$(git -C "$d" rev-parse HEAD 2>/dev/null)
+    if echo "$PRS" | grep -qxF -e "$br" -e "$hd"; then say "keep(open-PR) $n"; continue; fi
+  fi
+  # never plain-delete: git can fail open and status hides ignored output, so everything is archived first
+  archive_then_delete "$d" work
+done
+
+# dev-jobs: finished jobs
+for e in "$JOBS"/*; do [ -e "$e" ] || continue
+  inuse "$e" && { say "keep(in-use) $e"; continue; }
+  recent "$e" && continue
+  archive_then_delete "$e" dev-jobs
+done
+
+# /tmp: old, not open, not sockets/systemd/X
+find /tmp -mindepth 1 -maxdepth 1 -mtime +2 ! -type s ! -type p ! -name '.*' ! -name 'systemd-private-*' ! -name 'snap-private-tmp' ! -name 'clr-debug-pipe*' ! -name 'vps-*' -print0 2>/dev/null |
+while IFS= read -r -d '' p; do
+  if [ -d "$p" ]; then lsof +D "$p" >/dev/null 2>&1 && continue; else lsof "$p" >/dev/null 2>&1 && continue; fi
+  recent "$p" && continue
+  delete_only "$p"
+done
+say "done free=$(free_gib)G manifest=$MAN"

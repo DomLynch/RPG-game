@@ -10,6 +10,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { loadAllow, type Allow, type TunableAllow, type Verb } from './load-allow.ts';
 
 export const AST_GREP = '@ast-grep/cli@0.45.3';   // pinned: the rules below were written against its output
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -19,19 +20,13 @@ const CATEGORIES = ['opponent', 'weapon', 'skill', 'special', 'finisher'] as con
 type Category = (typeof CATEGORIES)[number];
 
 const roots = arg('--root') ? [arg('--root')!] : ['src', 'origins'];
-const allowFile = arg('--allow') ?? join(HERE, 'allow.json');
-type Allow = { file: string; literal: string; reason: string };
-// A keeper is `exempt` (stays in code by design: a server mirror, a wire format, a version stamp, a schema default; a specific reason, no expiry) or `debt` (still owed as a row: an owner and a REAL sunset date).
-// --gate goes red on a debt past its sunset and warns for 14 days before it.
-type TunableAllow = { file: string; name: string; kind: 'exempt' | 'debt'; reason: string; owner?: string; sunset?: string };
-// A VERB is a closed list kept in code on purpose (Strategy's verb rulings): named with the function that dispatches on it and the day it goes (sunset null = it stays). Listed apart, never counted; a verb whose declaration is gone is stale.
-type Verb = { file: string; name: string; dispatch: string; sunset: string | null };
-const allowData = JSON.parse(readFileSync(allowFile, 'utf8')) as { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[] };
+const allowFile = arg('--allow') ?? join(HERE, 'allow');   // a directory of per-root files (allow/<root>.json, one lane's rows PRs touch only its own root) or one file
+const allowData = loadAllow(allowFile);
 const tunableAllow: TunableAllow[] = allowData.tunables ?? [];
 const today = arg('--today') ?? new Date().toISOString().slice(0, 10);
 const dayNo = (d: string) => Math.floor(Date.parse(`${d}T00:00:00Z`) / 86_400_000);
 for (const a of tunableAllow) {
-  const bad = (m: string) => { console.error(`as-data: allow.json tunables entry ${a.file} ${a.name} ${m}`); process.exit(2); };
+  const bad = (m: string) => { console.error(`as-data: allow tunables entry ${a.file} ${a.name} ${m}`); process.exit(2); };
   if (a.kind !== 'exempt' && a.kind !== 'debt') bad('needs a kind: "exempt" (stays in code by design) or "debt" (owed as a row)');
   if (!a.reason?.trim() || a.reason.trim().length < 12) bad('needs a real reason (12+ characters)');
   if (a.kind === 'debt' && (!a.owner?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(a.sunset ?? '') || Number.isNaN(Date.parse(a.sunset!)))) bad('is debt: it needs an owner and a sunset date (YYYY-MM-DD)');
