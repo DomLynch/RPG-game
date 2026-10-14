@@ -2,14 +2,15 @@
 // The plan stays exactly where it was: every building, prop, road, camp and landmark keeps its place and stays on FLAT ground, because each gets a flat pad
 // (origins/world/relief.ts blends the hills back to height 0 round it). The hills are only the open ground between. The same function gives the mesh its heights and
 // the hero, the creatures and the camera their feet, so nothing floats or sinks. Each zone has its own params (terrain.relief / hillScale / seed) and its edge fades to 0.
+import { stageRule } from '../world/stage-rules.ts';
 import { reliefAt, type Pad } from '../world/relief.ts';
 import type { Piece } from './exchange-plan.ts';
 import { footprintOf, type Dress } from './frontier-dress.ts';
 import { FRONTIER, inZone, toZone, type Build, type Frontier, type Solid, type ZonePlan } from './frontier-plan.ts';
 
-export const EDGE_FADE = 6;      // m: the ground eases to 0 over this distance from a zone's edge
-export const PAD_MARGIN = 2.5;   // m: flat ground beyond a prop's own footprint
-export const LANDMARK_PAD = 7;   // m: flat ground round a landmark (a camp, a gate, a shrine, a jetty)
+export const EDGE_FADE = stageRule('edgeFade');      // m: the ground eases to 0 over this distance from a zone's edge
+export const PAD_MARGIN = stageRule('padMargin');   // m: flat ground beyond a prop's own footprint
+export const LANDMARK_PAD = stageRule('landmarkPad');   // m: flat ground round a landmark (a camp, a gate, a shrine, a jetty)
 export type ReliefZone = { zone: ZonePlan; pads: Pad[] };
 
 // A piece's flat pads: a thin or short piece one disc; a long one (a road, a wall) a row of discs along its length, so a road flattens a strip, not a circle the size of its diagonal.

@@ -10,17 +10,18 @@ import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, ZONE_ROWS, fromLegacy, toLegacy, zoneAt } from './zones.ts';
 import { SAVE_EVERY_MS, saveQueue, type SaveFn } from './saves.ts';
+import { presenceRule } from './presence-rules.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 export const PROTOCOL = 'frankendom.presence.v1';   // the old town-only client (centre 15000, the 300 m square): served through the shim
 export const PROTOCOL_V2 = 'frankendom.presence.v2';   // the whole-world frame (CENTRE_CM, FRAME_CM); the client offers one of them next to `token.<jwt>`, the server echoes it, never the token
 const UUID = /^[0-9a-f-]{36}$/;
-export const LIMITS = { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 };
+export const LIMITS = { maxMessage: presenceRule('maxMessage'), perSecond: presenceRule('perSecond'), idleMs: presenceRule('idleMs'), ipSockets: presenceRule('ipSockets'), ipJoinsPerMinute: presenceRule('ipJoinsPerMinute'), beatMs: presenceRule('beatMs') };
 export type Limits = typeof LIMITS;
 // GET /origins/presence/zones: the zone table the v2 client walks by (hello carries its hash). Corners in world metres.
 const ZONE_TABLE = JSON.stringify({ frame: { centreCm: CENTRE_CM, sizeCm: FRAME_CM }, zones: ZONE_ROWS.map(z => ({ id: z.id, corners: z.corners, speed: z.speed, quiet: z.quiet })), portals: PORTALS });
 export const ZONE_TABLE_HASH = createHash('sha1').update(ZONE_TABLE).digest('hex').slice(0, 8);
-const TICK_RING = 40_000;   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
+const TICK_RING = presenceRule('tickRing');   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
 
 function frame(opcode: number, payload: Uint8Array): Buffer {
   const n = payload.length, head = n < 126 ? Buffer.from([0x80 | opcode, n]) : Buffer.from([0x80 | opcode, 126, n >> 8, n & 255]);
