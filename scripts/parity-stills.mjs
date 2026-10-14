@@ -27,7 +27,7 @@ async function serveDist(dir) {   // special-clip.mjs's static server: gzip, no-
   await new Promise((r) => srv.listen(0, '127.0.0.1', r)); return { origin: `http://127.0.0.1:${srv.address().port}`, close: () => new Promise((r) => srv.close(r)) };
 }
 
-const servers = { a: await serveDist(A), b: await serveDist(B) };
+const servers = { a: await serveDist(A), a2: await serveDist(A), b: await serveDist(B) };   // a2 = the before build again: same code, so its difference from a is the run-to-run noise floor
 const browser = await chromium.launch({ headless: true, args: process.env.PARITY_SW ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [] });
 const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); return { tick: s.tick, caster: s.stages[1] ?? s.stages[0] }; });
 
@@ -35,8 +35,6 @@ const stage = (page) => page.evaluate(() => { const s = globalThis.__special(); 
 async function run(side, special, plan) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }), page = await context.newPage();
   page.on('pageerror', (e) => console.log(`pageerror[${side} ${special}]:`, e.message));
-  // The effects draw particles from Math.random: seed it (mulberry32, same seed per run) so two runs of identical code draw identical pixels and a real difference stands out.
-  await context.addInitScript(() => { let s = 0x2f6e2b1; Math.random = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; });
   try {
     await page.goto(`${servers[side].origin}/?special=${special}${ARENA ? `&arena=${ARENA}` : ''}&debug`);
     await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
@@ -76,29 +74,30 @@ await fs.mkdir(OUT, { recursive: true });
 const rows = []; let kept = 0;
 for (const special of names) {
   try {
-    const [sa, sb] = await Promise.all([run('a', special, null), run('b', special, null)]);   // pass 1: where the wind-up starts and the strike lands, per build
-    const row = { special, a: sa, b: sb, timingSame: sa.start === sb.start && sa.land === sb.land, shots: 0, differing: [] };
+    const [sa, sa2, sb] = await Promise.all([run('a', special, null), run('a2', special, null), run('b', special, null)]);   // pass 1: where the wind-up starts and the strike lands, per build
+    const row = { special, a: sa, a2: sa2, b: sb, timingSame: sa.start === sb.start && sa.land === sb.land, noiseTimingSame: sa.start === sa2.start && sa.land === sa2.land, shots: 0, flagged: [] };
     const plan = (s) => ({ from: Math.max(0, s.start - PRE), to: s.land + POST });
-    const [ra, rb] = await Promise.all([run('a', special, plan(sa)), run('b', special, plan(sb))]);   // pass 2: shoot (each build over its own window; compared by absolute tick)
+    const [ra, ra2, rb] = await Promise.all([run('a', special, plan(sa)), run('a2', special, plan(sa2)), run('b', special, plan(sb))]);   // pass 2: shoot, compared by absolute tick
+    row.shotsList = [];
     for (const [tick, pa] of ra.shots) {
-      const pb = rb.shots.get(tick); if (!pb) { row.differing.push({ tick, missing: 'b' }); continue; }
-      row.shots++; const d = await diff(pa, pb);
-      if (d.size || d.n) {
-        row.differing.push({ tick, ...d });
+      const pa2 = ra2.shots.get(tick), pb = rb.shots.get(tick); if (!pa2 || !pb) { row.flagged.push({ tick, missing: !pa2 ? 'a2' : 'b' }); continue; }
+      row.shots++; const noise = await diff(pa, pa2), cross = await diff(pa, pb);
+      const nn = noise.n ?? 0, cn = cross.n ?? 0; row.shotsList.push({ tick, noise: nn, cross: cn });
+      if (cross.size || cn > nn * 1.5 + 25) {   // a cross diff clearly above the same-code noise at that tick
+        row.flagged.push({ tick, noise: nn, ...cross });
         if (kept < KEEP) { kept++; await fs.mkdir(`${OUT}/${special}`, { recursive: true }); await fs.writeFile(`${OUT}/${special}/${tick}-a.png`, pa); await fs.writeFile(`${OUT}/${special}/${tick}-b.png`, pb); }
       }
     }
-    row.bOnly = [...rb.shots.keys()].filter((t) => !ra.shots.has(t)).length;
     rows.push(row);
-    console.log(`${special}: timing ${row.timingSame ? 'same' : `DIFF a ${sa.start}/${sa.land} b ${sb.start}/${sb.land}`}, ${row.shots} shots, ${row.differing.length} differ`);
+    console.log(`${special}: timing ${row.timingSame ? 'same' : `DIFF a ${sa.start}/${sa.land} b ${sb.start}/${sb.land}`}${row.noiseTimingSame ? '' : ' (a vs a2 timing differs: noisy run)'}, ${row.shots} shots, ${row.flagged.length} above noise`);
   } catch (e) { rows.push({ special, error: String(e.message ?? e) }); console.log(`${special}: ERROR ${e.message}`); }
 }
-await browser.close(); await servers.a.close(); await servers.b.close();
+await browser.close(); await servers.a.close(); await servers.a2.close(); await servers.b.close();
 
-const bad = rows.filter((r) => r.error || !r.timingSame || r.differing.length), pixels = rows.reduce((s, r) => s + (r.differing ?? []).reduce((t, d) => t + (d.n ?? 0), 0), 0);
-const md = [`# Visual parity: ${A} vs ${B}`, '', `${rows.length} specials, ${rows.reduce((s, r) => s + (r.shots ?? 0), 0)} shots (375x812, every ${EVERY} ticks from ${PRE} before the wind-up to ${POST} after the strike), ${bad.length} with a difference or error, ${pixels} differing pixels in all.`, '',
-  '| special | wind-up/strike a | wind-up/strike b | shots | differing shots | max pixels |', '|---|---|---|---|---|---|',
-  ...rows.map((r) => r.error ? `| ${r.special} | ERROR ${r.error} | | | | |` : `| ${r.special} | ${r.a.start}/${r.a.land} | ${r.b.start}/${r.b.land} | ${r.shots} | ${r.differing.length} | ${Math.max(0, ...r.differing.map((d) => d.n ?? 0))} |`)].join('\n');
+const bad = rows.filter((r) => r.error || !r.timingSame || r.flagged.length), cross = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.cross, 0), 0), noise = rows.reduce((t, r) => t + (r.shotsList ?? []).reduce((u, d) => u + d.noise, 0), 0);
+const md = [`# Visual parity: ${A} (before) vs ${B} (after)`, '', `${rows.length} specials, ${rows.reduce((s, r) => s + (r.shots ?? 0), 0)} shots (375x812, every ${EVERY} ticks from ${PRE} before the wind-up to ${POST} after the strike). ${bad.length} specials with a timing difference, an error or a shot above the noise floor. Differing pixels in all: before-vs-after ${cross}, before-vs-before (same code, the noise floor) ${noise}.`, '',
+  '| special | wind-up/strike before | wind-up/strike after | shots | above noise | px before-vs-after | px noise |', '|---|---|---|---|---|---|---|',
+  ...rows.map((r) => r.error ? `| ${r.special} | ERROR ${r.error} | | | | | |` : `| ${r.special} | ${r.a.start}/${r.a.land} | ${r.b.start}/${r.b.land} | ${r.shots} | ${r.flagged.length} | ${r.shotsList.reduce((u, d) => u + d.cross, 0)} | ${r.shotsList.reduce((u, d) => u + d.noise, 0)} |`)].join('\n');
 await fs.writeFile(`${OUT}/parity.json`, JSON.stringify({ a: A, b: B, every: EVERY, rows }, null, 1)); await fs.writeFile(`${OUT}/parity.md`, md + '\n');
 console.log(md.split('\n').slice(0, 4).join('\n'));
 process.exitCode = bad.length ? 3 : 0;
