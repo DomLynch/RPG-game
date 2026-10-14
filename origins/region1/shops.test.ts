@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { EXCHANGE_PROVISIONER, REGION1_SHOPS, SHOP_RANGE_CM_BY_SHOP } from './shops.ts';
+import { EXCHANGE_PROVISIONER, REGION1_SHOPS } from './shops.ts';
 import { BUNDLE } from './content.ts';
 import { validateShopList } from '../shops/shop.ts';
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
@@ -31,7 +31,6 @@ test('a shop row with a missing or mistyped field fails the loader', () => {
 });
 
 test('the shop counter range is the shop row\'s rangeCm (500, the number shop-buy.ts held in code); a row without one fails the loader', () => {
-  assert.equal(SHOP_RANGE_CM_BY_SHOP.get(EXCHANGE_PROVISIONER), 500);
   assert.equal(REGION1_SHOPS.get(EXCHANGE_PROVISIONER)!.rangeCm, 500);   // the list shop-buy.ts holds carries it
   const noRange: Record<string, unknown> = { ...DATA.shops[0]! };
   delete noRange.rangeCm;
