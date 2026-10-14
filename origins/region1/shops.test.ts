@@ -8,12 +8,13 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import DATA from './shops.json' with { type: 'json' };
 import MANIFEST from './shops.manifest.json' with { type: 'json' };
 
-// Taken from trunk a379108ed (after Backend's #2586 added zone and class), where the list was built in shops.ts: the move to shops.json must change no value.
-// Re-pinned on purpose: each shop list now carries its counter range (rangeCm 500, read by shop-buy.ts as list.rangeCm); the previous pin was 4ae46a4b06d9fa44e8bffb253ea988ffe20fc53fa98af4ceb14c4aee3ef59a18 (the list without it).
-const TRUNK_SHA = '1e3654191cd64b427f03f118f12eda6343a9002da2ef01d653dc4383740f4347';
+// Pin of the Region 1 shop lists as shops.json builds them (sha256 of JSON.stringify of the REGION1_SHOPS entries). History: the first pin, 4ae46a4b06d9fa44e8bffb253ea988ffe20fc53fa98af4ceb14c4aee3ef59a18,
+// was taken from trunk a379108ed (after Backend's #2586 added zone and class), where the list was built in shops.ts: the move to shops.json changed no value. It was then re-pinned on purpose
+// because each list now also carries its counter range (rangeCm 500, read by shop-buy.ts as list.rangeCm): the only difference from that first pin is that one added field.
+const SHOP_LISTS_SHA = '1e3654191cd64b427f03f118f12eda6343a9002da2ef01d653dc4383740f4347';
 
-test('the shop rows read back byte-identical to the list shops.ts built in code', () => {
-  assert.equal(createHash('sha256').update(JSON.stringify([...REGION1_SHOPS])).digest('hex'), TRUNK_SHA);
+test('the shop lists read back from shops.json are exactly the pinned ones (the code-built list plus rangeCm)', () => {
+  assert.equal(createHash('sha256').update(JSON.stringify([...REGION1_SHOPS])).digest('hex'), SHOP_LISTS_SHA);
 });
 
 test('every shop list validates and every item it sells is a bundle record', () => {
