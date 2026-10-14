@@ -7,6 +7,12 @@
 4. No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
 (Also in lane memory: `batch-rules`.)
 
+## 2026-10-14 (+04) — Characters (Mac) handoff at /clear: data-layer rows landed, four PRs open. READ FIRST.
+**Now.** (1) #2673 (char/rows-fx, special-fx-boss.ts 10 + characters.ts DEFLECT_FROM as rows) is DIRTY: merge trunk once (allow list is now split in scripts/as-data/allow/<root>.json; keep my 11 retirements), VPS gate + suite, send Lead the head. (2) #2582 shops.json (77c019d48) waits on the Auditor's delta check; #2664 shop `rangeCm` (a7d8e7718, stacked on it, CI green) and #2607 legend-families tests (feacec7d9) are labelled auditor:ready. (3) #29 asset pulls need Dom's own yes in chat to download; nothing is fetched.
+**Done today (merged).** #2570 #2577 #2580 #2583 #2593 #2622 (11 Characters numbers into rows) #2633 (LEVEL_CURVE row) #2641 (loot-panel + gear-room rows, 64 KB keepalive cap as a platformCap row with a relation check) #2663 (ladderRule + respecRule rows).
+**Open.** Next Characters-owned item asked of Lead, unanswered. CATALOGUE_DEFS stays Combat's (SIM list). After the open PRs merge I own 0 stamped allow-list entries.
+**Gotchas.** Explicit paths on every git add (three untracked Mac files were swept into a commit twice); fetch the branch explicitly in the VPS clone and check the sha in the log; run `npm run lint:origins` as well as the gate and suite; a new numeric const in code fails the gate, put platform facts in a row; do not resolve other lanes' conflicts, wait for their push and merge once.
+
 ## 2026-10-13 (+04) — Characters lane runs on the Mac in ~/Developer/frankendom-char (Dom ruling, relayed by Lead Dev). READ FIRST.
 - The VPS dev lane is retired; no dev sessions run there. Heavy jobs (tests, Blender, stills) still go to the VPS by ssh (`vps-heavy-jobs`).
 - Open PR heads at the move: #2570 8906ed6fa, #2577 346756ba1, #2580 e482bf0b0, #2582 bece58dcc (waits on Backend's #2586, then rebase keeping shops.ts buyPrice/stock code as is), #2583 882fafa8d (labelled auditor:ready). Order: #2583, then #29 asset pulls (CC0 only, per-file sha256, licence copied, check-budget), then legend-families tests.
