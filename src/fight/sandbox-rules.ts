@@ -88,7 +88,7 @@ export const READY_STYLES: readonly ReadyStyle[] = ((DEFS as unknown as { readyS
 // open-stagger lift and lean, no charge lean, no stance silhouette. Guard-side tilt (the sides a guard covers) and every finisher stay as they are. 0 = off (trunk).
 export const PLAIN_POSTURE = num('plainPosture', 'value') > 0;
 
-// reachBands (Dom 2026-10-14, positioning gates; Strategy: soft x0.6, never soften a hard miss; NO on-screen marker, Dom: cheap): the distance between the fighters at the moment a blow LANDS falls in a band (`bands` rows,
+// reachBands (Dom 2026-10-14, positioning gates; Strategy: soft x0.6, never soften a hard miss; NO on-screen marker, Dom: cheap): the distance between the fighters when the blow was THROWN (duel.ts attackFrom.gap, the same read as the pole's minReach; the lunge closes the gap before it lands) falls in a band (`bands` rows,
 // { id, upTo } in centimetres, ascending); each weapon has a best band (`bandBest` rows, { weapon, band }). A landed blow outside its weapon's band deals `bandOff` per-mille of its damage; inside it, all of it. A pole thrust inside
 // minReach and an out-of-reach swing still miss (duel.ts): a band only scales blows that already land. No rows / bandOff 0 (trunk) = untouched. Donors: For Honor and Mordhau range play, Chivalry 2 reach as a rule.
 type BandRow = { id: string; upTo: number }; type BandBestRow = { weapon: string; band: string };
@@ -136,3 +136,8 @@ export const armourPerMille = (weapon: string, move: string, sheet: Sheet | unde
 type CommitRow = { weapon: string; move: string; windup: number };
 const COMMIT = ((DEFS as unknown as { commit?: CommitRow[] }).commit ?? []);
 export const commitOf = (weapon: string, move: string | null): CommitRow | undefined => (COMMIT.length && move ? COMMIT.find((r) => r.weapon === weapon && r.move === move) : undefined);
+
+// glanceSound (Dom 2026-10-14: an off-band blow lands "dull": a softer thud): a Hit event carrying `glance` (reach bands) plays its flesh/heavy impact cue at `glanceGain` per-mille of its gain and at `glanceRate`
+// per-mille playback speed (lower = duller). Presentation only (sound/cues.ts); 0 = off (trunk).
+export const GLANCE_GAIN = num('glanceGain', 'value');
+export const GLANCE_RATE = num('glanceRate', 'value') || 1000;

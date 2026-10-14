@@ -7,6 +7,7 @@ const d = DEFS as unknown as { rules: { id: string; value?: number }[]; bands: {
 const off = d.rules.find((r) => r.id === 'bandOff')!;
 const shipped = [off.value, d.bands.length, d.bandBest.length];
 off.value = 600;
+d.rules.find((r) => r.id === 'glanceGain')!.value = 450; d.rules.find((r) => r.id === 'glanceRate')!.value = 820;
 d.bands.push({ id: 'inner', upTo: 135 }, { id: 'mid', upTo: 180 }, { id: 'outer', upTo: 100000 });
 d.bandBest.push({ weapon: 'knife', band: 'inner' }, { weapon: 'longsword', band: 'mid' }, { weapon: 'trident', band: 'outer' });
 const { bandOf, bandPerMille, bandStop } = await import('../src/fight/sandbox-rules.ts');
@@ -32,4 +33,12 @@ test('an off-band hit lands as a glance: no impact frames, no camera knock', asy
   assert.equal(impactTier({ tick: 1, type: 'Hit', actor: 0, target: 1, move: 'light_right', glance: true } as never), 'glance');
   assert.equal(impactTier({ tick: 1, type: 'Hit', actor: 0, target: 1, move: 'light_right' } as never), 'half');
   assert.deepEqual(IMPACT.glance, { frames: 0, knock: 0, push: 0 });
+});
+test('an off-band hit sounds quiet and low; an in-band hit is the normal cue', async () => {
+  const { cuesFor } = await import('../src/fight/sound/cues.ts');
+  const hit = { tick: 1, type: 'Hit', actor: 0, target: 1, move: 'light_right', damage: 10, location: 'torso', heading: 0 };
+  const normal = cuesFor([hit as never]).find((c) => c.name === 'hit_flesh')!, glance = cuesFor([{ ...hit, glance: true } as never]).find((c) => c.name === 'hit_flesh')!;
+  assert.equal(glance.gain, normal.gain * 450 / 1000);
+  assert.equal(glance.rate, 0.82);
+  assert.equal(normal.rate, undefined);
 });

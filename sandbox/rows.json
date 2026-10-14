@@ -66,7 +66,9 @@
 {"id":"heavyHold","value":220},
 {"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18},
-{"id":"bandOff","value":400}
+{"id":"bandOff","value":400},
+{"id":"glanceGain","value":450},
+{"id":"glanceRate","value":820}
 ],"bands":[
 {"id":"inner","upTo":135},
 {"id":"mid","upTo":180},

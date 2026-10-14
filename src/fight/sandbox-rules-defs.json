@@ -11,7 +11,9 @@
     { "id": "heavyHold", "value": 220 },
     { "id": "stabHalfAngle", "value": 50 },
     { "id": "stabSlide", "value": 18 },
-    { "id": "bandOff", "value": 0 }
+    { "id": "bandOff", "value": 0 },
+    { "id": "glanceGain", "value": 0 },
+    { "id": "glanceRate", "value": 1000 }
   ],
   "bands": [],
   "bandBest": [],
