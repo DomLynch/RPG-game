@@ -1,0 +1,18 @@
+{
+  "tables": [
+    {
+      "table": "hitStop",
+      "file": "hit-stop-rules.json",
+      "at": "stop",
+      "key": "id",
+      "required": { "ms": "integer", "note": "string" }
+    },
+    {
+      "table": "hitStopHeavy",
+      "file": "hit-stop-rules.json",
+      "at": "heavy",
+      "key": "id",
+      "required": { "ms": "integer", "note": "string" }
+    }
+  ]
+}
