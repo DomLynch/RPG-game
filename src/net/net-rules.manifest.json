@@ -1,0 +1,92 @@
+{
+  "tables": [
+    {
+      "table": "net",
+      "file": "net-rules.json",
+      "at": "net",
+      "key": "id",
+      "required": {
+        "delay": "integer",
+        "maxDelay": "integer",
+        "maxRollback": "integer",
+        "hashEvery": "integer",
+        "redundancy": "integer",
+        "rttSamples": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "playable",
+      "file": "net-rules.json",
+      "at": "playable",
+      "key": "id",
+      "required": {
+        "stallsPerMin": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "ping",
+      "file": "net-rules.json",
+      "at": "ping",
+      "key": "id",
+      "required": {
+        "every": "integer",
+        "samples": "integer",
+        "maxFrames": "integer",
+        "hello": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "silence",
+      "file": "net-rules.json",
+      "at": "silence",
+      "key": "id",
+      "required": {
+        "waitMs": "integer",
+        "rejoinMs": "integer",
+        "abandonMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "reconnect",
+      "file": "net-rules.json",
+      "at": "reconnect",
+      "key": "id",
+      "required": {
+        "retryMs": "integer",
+        "fastMaxMs": "integer",
+        "maxRetryMs": "integer",
+        "reconnectMs": "integer",
+        "beatStaleMs": "integer",
+        "directQuietMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "messageCaps",
+      "file": "net-rules.json",
+      "at": "messageCaps",
+      "key": "id",
+      "required": {
+        "messageCap": "integer",
+        "intentsCap": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "duelAntifarm",
+      "file": "net-rules.json",
+      "at": "duelAntifarm",
+      "key": "id",
+      "required": {
+        "elo": "object",
+        "reward": "object",
+        "dayMs": "integer",
+        "note": "string"
+      }
+    }
+  ]
+}

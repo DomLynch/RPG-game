@@ -188,6 +188,13 @@ export const spawnKill = async (db: Db, account: string, token: string, minMs: n
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };
+// A character's fame (0..15000) and karma (-15000..15000), migration 202610130030: storage and read only for now. null = not this account's; 'absent' = the migration is not applied.
+export type Renown = { fame: number; karma: number };
+const HAS_RENOWN = `select to_regprocedure('public.origins_get_renown(uuid,text)') is not null as renown \\gset\n`;
+export const renownGet = async (db: Db, account: string, character: string): Promise<Renown | null | 'absent'> => {
+  const out = await gated(db, 'renown', HAS_RENOWN, 'renown', `select coalesce(public.origins_get_renown(:'a'::uuid, :'c')::text, 'null');`, { a: acct(account), c: character });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
 // The build of one character (migration 202610120024): level, points placed per dial or skill id, the rank of the last paid re-spread, version. null = not this account's; 'absent' = the migration is not applied.
 export type BuildRow = { level: number; placed: Record<string, number>; respreadRank: number; version: number; conflict?: true };
 const HAS_BUILD = `select to_regprocedure('public.origins_set_build(uuid,text,jsonb,integer,integer)') is not null as build \\gset\n`;

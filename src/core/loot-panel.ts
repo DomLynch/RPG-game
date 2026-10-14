@@ -20,9 +20,10 @@ export type LootPanelPiece = { id: string; name: string; owned: boolean; image?:
 export type LootPanelCompare = { slot: string; held: { name: string; image?: string } };
 export type LootPanelCard = { eyebrow: string; offer: string; name: string; image?: string; compare?: LootPanelCompare };
 export type LootPanelHandlers = { onTake: (id: string) => void; onDecline: () => void };
+import LOOT_RULES from './loot-rules.json' with { type: 'json' };
 type Doc = { createElement: (tag: string) => HTMLElement };
 
-export const TAP_GUARD_MS = 300;
+export const TAP_GUARD_MS = LOOT_RULES.lootRule[0]!.tapGuardMs;   // the lootRule row (src/core/loot-rules.json)
 // A tile names the piece, not its owner: the title above already says whose it is ("Take one from the Centurion"), and at a
 // 56 px tile "Centurion's helmet" broke mid-word at the apostrophe on a phone, nine times over. "the Centurion's helmet" →
 // "Helmet"; a name with no possessive just loses its article. The full name stays in the button's title.

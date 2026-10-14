@@ -4,18 +4,20 @@
 // Budget: round(density.creatures * footprint / 100 m2), at least 1, 0 in a safe zone. Whole camps are drawn until the budget is met. The zone rules
 // (origins/world/zone-rules.ts) then come first: an OPENER camp stands within 40 m of the entry (first fight within 10 s), and a camp is added
 // wherever the walk would be left more than 15 s with nothing to meet, even past the budget. `issues` is what is still broken, named by zone.
+import { stageRule } from '../world/stage-rules.ts';
 import { prng } from '../world/generate.ts';
 import type { Params } from '../world/schema.ts';
 import { MAX_HOP_M, OPENER_CLEAR, checkZone, openerSpot, sketchOf, worstHop, type ZoneIssue } from '../world/zone-rules.ts';
 import { RARE_DEFAULT, campCount, rungWeights, validateMobRow, type MobRow, type RowContext, type RowIssue } from '../../src/core/server.ts';
+import { worldRule } from '../../src/fight/server.ts';
 
 export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
 export type Populated = { camps: Camp[]; budget: number; rejected: { row: string; issues: RowIssue[] }[]; issues: ZoneIssue[] };
 
-const CAMP_GAP = 6;      // m: two camps' centres stay at least this far apart
+const CAMP_GAP = worldRule('campGap'); // m: two camps' centres stay at least this far apart
 const DOOR_CLEAR = OPENER_CLEAR;   // m: no camp within this of the entry landmark (the hero arrives there)
-const MOBS = 0x6d6f6273; // "mobs": the stream's seed offset
+const MOBS = stageRule('mobsSeed'); // "mobs": the stream's seed offset
 
 export function populateZone(zone: Params, rows: readonly MobRow[], seed: number, ctx: RowContext, stand: (x: number, z: number) => boolean = () => true, name = 'zone'): Populated {
   const mpu = zone.scale.metresPerUnit, width = zone.zoneSize.width * mpu, depth = zone.zoneSize.depth * mpu;

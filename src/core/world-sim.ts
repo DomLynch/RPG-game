@@ -1,7 +1,7 @@
 // The world sim's pure creature behaviour: the seeded random, a creature's notice (aggro with hysteresis), wander and facing, and who is drawn. Moved out of
 // origins/preview/mobs.ts (core slice 3, Combat + Backend) with no change to a number or a branch; mobs.ts imports and re-exports it, so every caller and test is
 // unchanged. Pure: no three.js, no DOM, no clock, no origins/ import. Server-run code reaches it through src/core/server.ts.
-import { SPEEDS } from '../fight/server.ts';
+import { SPEEDS, worldRule } from '../fight/server.ts';
 
 export type Pos = { x: number; z: number };
 export type MobMode = 'idle' | 'wander' | 'aggro';
@@ -12,17 +12,17 @@ export type Roamer = { home: Pos; roam: number; aggro: number };
 
 export const TUNING = {
   walk: SPEEDS.creature.amble,   // m/s: a creature's amble, well under the hero's walk (the one speed table, speeds.ts)
-  turn: 3.2,            // rad/s the body swings toward where it is going or looking
-  aggro: 7,             // m: the ring a creature notices the hero inside (named ones 9)
-  aggroNamed: 9,
-  hold: 1.5,            // m: it keeps looking until the hero is this much beyond the ring (no flicker on the rim)
-  idle: [1.5, 4.5] as const,   // s: how long it stands between amblings
-  arrive: 0.35,         // m: close enough to the spot
-  clear: 0.7,           // m: how far from a solid a creature keeps
-  edge: 2,              // m: and from its zone's edge
-  cap: 12,              // creatures drawn at once
-  range: 45,            // m: none are drawn beyond this
-  seed: 0x0f1e2d3c,
+  turn: worldRule('mobTurn'),            // rad/s the body swings toward where it is going or looking
+  aggro: worldRule('creatureNotice'),        // m: the ring a creature notices the hero inside (src/fight/world-rules-defs.json; named ones below)
+  aggroNamed: worldRule('namedNotice'),
+  hold: worldRule('noticeHold'),   // m: it keeps looking until the hero is this much beyond the ring (no flicker on the rim)
+  idle: [worldRule('idleMin'), worldRule('idleMax')] as const,   // s: how long it stands between amblings
+  arrive: worldRule('mobArrive'),         // m: close enough to the spot
+  clear: worldRule('mobClear'),           // m: how far from a solid a creature keeps
+  edge: worldRule('mobEdge'),              // m: and from its zone's edge
+  cap: worldRule('drawCap'),              // creatures drawn at once
+  range: worldRule('drawRange'),            // m: none are drawn beyond this
+  seed: worldRule('mobSeed'),
 };
 
 // ---- the seeded random: mulberry32, state in, [0..1) and the next state out ---------------------------------------------------
