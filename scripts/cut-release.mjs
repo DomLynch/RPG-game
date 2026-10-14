@@ -1,11 +1,12 @@
 // `node scripts/cut-release.mjs <name> <PR>@<head sha> [<PR>@<head sha> ...] [--base <release branch>] [--live <sha>]`: the release cut in one command (Dom 2026-10-12, CI runners first).
 // From trunk (or --base release-<N>: the next candidate on the last one's tip): a branch release-<name>, one `Merge pull request #N (release-<name> candidate)` merge per PR in the order given (a PR that conflicts is aborted and named, the rest
 // still merge), ONE push, a draft PR labelled ci:release-checks (the rows run on GitHub's 40 runners) and auditor:ready, then the pre-launch jobs (T4/CPU rows)
-// in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
+// in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, driverResolved, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
 // Run it in the release worktree, which must be clean. The Auditor's PASS at each head is checked from the PR thread unless --no-verify.
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, openSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
 
 export const TRUNK = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1';
 export const LABELS = ['ci:release-checks', 'auditor:ready'];
@@ -25,18 +26,49 @@ export const passAt = (comments, head) => comments.some(c => TRUSTED.includes(c?
 
 /**
  * Merges each spec into the current branch through git(args) -> { status, stdout }. A merge that leaves conflicts is aborted and reported; a merge that fails
- * without conflicts (an unknown sha) is reported too. Returns { merged: [pr], skipped: [{ pr, why }] }.
+ * without conflicts (an unknown sha) is reported too. Returns { merged: [pr], skipped: [{ pr, why }], driverResolved: { pr: [files] } }.
+ * The allow lists merge through scripts/as-data/merge-allow.mjs (PR #2725) when the branch carries it: passed per call with -c, never written to the shared git config, and
+ * only for the paths .gitattributes names. A true clash makes the driver exit 1, which git reports as a conflict, so that PR is aborted and skipped exactly as before.
+ * driverResolved names, per merged PR, the allow files both sides changed (the ones the driver, not a line merge, resolved), for the Auditor's contents-check.
  */
+/**
+ * The allow-list merge driver (scripts/as-data/merge-allow.mjs, PR #2725) as ONE shared helper: the cut (mergeAll below) and the Auditor's candidate-contents-check both
+ * build their git arguments here, so they agree by construction. When `tree` carries the script, the attributes come from THAT tree (`--attr-source`) and the driver is that
+ * tree's own copy of the script, written to a temp file: the answer does not depend on which commit the caller happens to be checked out on (a relative `-c` path only works
+ * where the checkout has the script and .gitattributes). Per call with -c, never written to git config. A tree without the script gets no arguments: git's own line merge.
+ * Returns { args, dispose }; call dispose() when the git command has run.
+ */
+export function driverArgs(git, tree) {
+  const script = git(['show', `${tree}:scripts/as-data/merge-allow.mjs`]);
+  if (script.status !== 0) return { args: [], dispose() {} };
+  const dir = mkdtempSync(join(tmpdir(), 'allow-driver-')), file = join(dir, 'merge-allow.mjs');
+  writeFileSync(file, script.stdout);
+  return {
+    args: ['--attr-source', tree, '-c', `merge.as-data-allow.driver=node "${file}" %O %A %B %P`],
+    dispose() {   // one file in one directory this call made: unlink + rmdir (no recursion), and only under the temp dir
+      if (!dir.startsWith(tmpdir() + sep)) throw new Error(`allow-driver: refusing to remove ${dir}`);
+      unlinkSync(file); rmdirSync(dir);
+    },
+  };
+}
 export function mergeAll(git, name, specs) {
-  const merged = [], skipped = [];
+  const merged = [], skipped = [], driverResolved = {};
   for (const { pr, head } of specs) {
-    const r = git(['merge', '--no-ff', '-q', '-m', `Merge pull request #${pr} (release-${name} candidate)`, head]);
+    const driver = driverArgs(git, 'HEAD');   // per PR, from the branch as it stands: an older base has no script, so git's own line merge, as before
+    let r;
+    try { r = git([...driver.args, 'merge', '--no-ff', '-q', '-m', `Merge pull request #${pr} (release-${name} candidate)`, head]); } finally { driver.dispose(); }
     const conflicts = git(['diff', '--name-only', '--diff-filter=U']).stdout.split('\n').filter(Boolean);
     if (conflicts.length) { git(['merge', '--abort']); skipped.push({ pr, why: `conflicts in ${conflicts.join(', ')}` }); }
     else if (r.status !== 0 || git(['merge-base', '--is-ancestor', head, 'HEAD']).status !== 0) skipped.push({ pr, why: `merge failed (${String(r.stderr || r.stdout || '').trim().slice(0, 120)})` });
-    else merged.push(pr);
+    else {
+      merged.push(pr);
+      const base = git(['merge-base', 'HEAD^1', 'HEAD^2']).stdout.trim();   // empty when the PR was already in the branch (no merge commit was made)
+      const changed = side => new Set(git(['diff', '--name-only', base, side, '--', 'scripts/as-data/allow']).stdout.split('\n').filter(Boolean));
+      const [a, b] = [changed('HEAD^1'), changed('HEAD^2')], both = [...a].filter(f => b.has(f));
+      if (base && both.length) driverResolved[pr] = both;
+    }
   }
-  return { merged, skipped };
+  return { merged, skipped, driverResolved };
 }
 
 /** git push with 3 tries and backoff (2 s, 4 s): a transient GitHub "remote rejected" stopped CO's cut. sleep is injectable for the test.
@@ -95,7 +127,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }
   if (git(['switch', '-q', '-c', `release-${name}`, from]).status !== 0) { console.error(`cut-release: cannot create release-${name} (exists?)`); process.exit(2); }
-  const { merged, skipped } = mergeAll(git, name, specs);
+  const { merged, skipped, driverResolved } = mergeAll(git, name, specs);
   if (!merged.length) { console.error(`cut-release: nothing merged: ${JSON.stringify(skipped)}`); process.exit(1); }
   const sha = git(['rev-parse', 'HEAD']).stdout.trim();
   const pushed = pushWithRetry(git, `release-${name}`);
@@ -114,5 +146,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const logs = join(process.env.HOME, '.claude/state', `cut-${name}`); mkdirSync(logs, { recursive: true });
   const bg = (file, cmd, args) => spawn(cmd, args, { detached: true, stdio: ['ignore', openSync(join(logs, file), 'a'), openSync(join(logs, file), 'a')] }).unref();
   if (live) bg('prelaunch.log', 'bash', ['scripts/pre-launch.sh', sha, live]);
-  console.log(JSON.stringify({ name, sha, pr, merged, skipped, logs }));
+  console.log(JSON.stringify({ name, sha, pr, merged, skipped, driverResolved, logs }));
 }

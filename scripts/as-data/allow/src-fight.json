@@ -1,7 +1,5 @@
 {
   "tunables": [
-    {"file": "src/fight/armfeel.ts", "name": "ARMFEEL", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
-    {"file": "src/fight/armfeel.ts", "name": "GRAVITY", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
     {"file": "src/fight/attackers.ts", "name": "MAX_ATTACKERS", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
     {"file": "src/fight/catalogue-defs.ts", "name": "CATALOGUE_DEFS", "kind": "exempt", "owner": "Combat & Specials", "reason": "the catalogue's own data module; a TS const because RigId's union (roster.ts) and the sim digest (tests/lib/sim-digest.ts) derive from it; ruled by Lead 2026-10-14, the Auditor confirms"},
     {"file": "src/fight/cone-era.ts", "name": "FIRST_CONE_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
@@ -25,8 +23,6 @@
     {"file": "src/fight/detmath.ts", "name": "S4", "kind": "exempt", "reason": "deterministic-math constants (polynomial coefficients, ranges, scales): arithmetic the sim must agree on across engines, not game tuning; pinned by tests/detmath.test.ts"},
     {"file": "src/fight/detmath.ts", "name": "S5", "kind": "exempt", "reason": "deterministic-math constants (polynomial coefficients, ranges, scales): arithmetic the sim must agree on across engines, not game tuning; pinned by tests/detmath.test.ts"},
     {"file": "src/fight/detmath.ts", "name": "S6", "kind": "exempt", "reason": "deterministic-math constants (polynomial coefficients, ranges, scales): arithmetic the sim must agree on across engines, not game tuning; pinned by tests/detmath.test.ts"},
-    {"file": "src/fight/hit-impact.ts", "name": "KICK", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
-    {"file": "src/fight/hit-impact.ts", "name": "KNOCK_SETTLE", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
     {"file": "src/fight/open-fight.ts", "name": "FAR_M", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
     {"file": "src/fight/play-radius.ts", "name": "FIRST_LATE_NOTICE_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
     {"file": "src/fight/play-radius.ts", "name": "FIRST_SCALED_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
