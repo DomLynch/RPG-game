@@ -43,6 +43,7 @@ const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/,
 // and two fights can share both (Region 1: two goblin L11 creatures with different loot tables), so settle must not guess the fight back, nor take it from the client.
 // Only a token the database holds is ever settled, so the prefix is the server's own choice. A token without one (issued before this) reads as null.
 const TOKEN_RULE = SERVER_RULES.encounterToken[0]!;
+if (TOKEN_RULE.randomBytes < TOKEN_RULE.minRandomBytes) throw new Error(`server-rules: encounterToken.randomBytes ${TOKEN_RULE.randomBytes} is under its floor ${TOKEN_RULE.minRandomBytes}`);
 const RANDOM = Math.ceil(TOKEN_RULE.randomBytes * 4 / 3);   // base64url: 4 characters per 3 bytes
 // A POSED fight (seamless step 3, encounter-pose.ts) carries the server's issued pose the same way: the prefix is base64url(fight, a 0 byte, the five float32 of the pose), so settle
 // re-simulates from the pose the server issued and the record must name exactly it. A fight id is never longer than 50 characters in a posed token (the 128-character token cap).

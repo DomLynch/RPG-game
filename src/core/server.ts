@@ -33,3 +33,4 @@ export type { Rarity } from './contracts/items.ts';
 export type { Rarity as MobRarity } from './world/row.ts';
 export { tierOf } from './career-model.ts';
 export { tierOf as standingTierOf } from './contracts/world.ts';
+export { FREE_RESPREAD_LEVEL, RANK_LEVELS } from './build-model.ts';   // the re-spread numbers: origins/server/build.ts reads them here (one copy, in the client model)

@@ -1,0 +1,32 @@
+{
+  "rules": [
+    { "id": "cellCm", "value": 1600, "unit": "cm" },
+    { "id": "radiusCm", "value": 4000, "unit": "cm" },
+    { "id": "nearCap", "value": 40, "unit": "players" },
+    { "id": "tier1Cm", "value": 1200, "unit": "cm" },
+    { "id": "tier1Every", "value": 1, "unit": "ticks" },
+    { "id": "tier2Cm", "value": 2500, "unit": "cm" },
+    { "id": "tier2Every", "value": 2, "unit": "ticks" },
+    { "id": "tier3Cm", "value": 4000, "unit": "cm" },
+    { "id": "tier3Every", "value": 5, "unit": "ticks" },
+    { "id": "tickMs", "value": 100, "unit": "ms" },
+    { "id": "softCap", "value": 80, "unit": "players" },
+    { "id": "hardCap", "value": 100, "unit": "players" },
+    { "id": "maxSpeedCmS", "value": 700, "unit": "cm/s" },
+    { "id": "speedSlack", "value": 1.5, "unit": "ratio" },
+    { "id": "strikesToDrop", "value": 5, "unit": "strikes" },
+    { "id": "strikeWindowMs", "value": 10000, "unit": "ms" },
+    { "id": "emptyLayerMs", "value": 300000, "unit": "ms" },
+    { "id": "memoryMs", "value": 600000, "unit": "ms" },
+    { "id": "memoryMax", "value": 10000, "unit": "accounts" },
+    { "id": "maxMessage", "value": 64, "unit": "bytes" },
+    { "id": "perSecond", "value": 30, "unit": "messages" },
+    { "id": "idleMs", "value": 30000, "unit": "ms" },
+    { "id": "ipSockets", "value": 8, "unit": "sockets" },
+    { "id": "ipJoinsPerMinute", "value": 30, "unit": "joins" },
+    { "id": "beatMs", "value": 2000, "unit": "ms" },
+    { "id": "tickRing", "value": 40000, "unit": "ticks" },
+    { "id": "townSideCm", "value": 30000, "unit": "cm" },
+    { "id": "rejoinPastGateCm", "value": 50, "unit": "cm" }
+  ]
+}

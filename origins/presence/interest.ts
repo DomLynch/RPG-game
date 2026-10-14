@@ -1,25 +1,11 @@
 // Layers and spatial interest management (docs/specs/origins/one-shard.md §2, §4, §5). Pure: no sockets, no clock of its own, so the rules are
 // testable and the load test can drive them. All numbers are the note's *est.* planning figures until the load test replaces them.
 import { ENTITY_BYTES, HEAD_BYTES, encodeDown, type Entity, type Pose } from './wire.ts';
-import { LEGACY_SHIFT_CM, SPAWN, clearOfTradeAreas, inTownSquare, walkable, zoneRowAt, type ZoneRow } from './zones.ts';
+import { interestRules } from './presence-rules.ts';
+import { LEGACY_SHIFT_CM, SPAWN, TOWN_CM, clearOfTradeAreas, inTownSquare, walkable, zoneRowAt, type ZoneRow } from './zones.ts';
 
-export const RULES = {
-  cellCm: 1600,                  // 16 m grid cells
-  radiusCm: 4000,                // visual radius 40 m
-  nearCap: 40,                   // nearest-first cap on other characters drawn at once
-  tiers: [[1200, 1], [2500, 2], [4000, 5]] as const,   // [distance cm, send every N ticks]: 10 Hz under 12 m, 5 Hz to 25 m, 2 Hz to 40 m
-  tickMs: 100,
-  softCap: 80,                   // a layer accepts joins until here, then arrivals go to another layer
-  hardCap: 100,                  // the rare friend-join may fill to here
-  maxSpeedCmS: 700,              // about 7 m/s, set from the sprint speed
-  speedSlack: 1.5,
-  strikesToDrop: 5,
-  strikeWindowMs: 10_000,
-  emptyLayerMs: 5 * 60_000,
-  memoryMs: 10 * 60_000,         // a leaver's last server-observed position is kept this long for a reconnect (X2 stage 1; the saved location of stage 2 supersedes it)
-  memoryMax: 10_000,             // accounts remembered at once, oldest dropped first
-};
-export type Rules = typeof RULES;
+export const RULES = interestRules();
+export type Rules = ReturnType<typeof interestRules>;
 
 // legacy: a v1 client (town square only, old frame): clamped to the square, sees only the square, and is sent the old frame (the shim; docs/specs/origins/frontier-presence.md §5). zone: its zone row, kept current by every accepted pose.
 export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null };
@@ -32,7 +18,7 @@ export class Layer {
 }
 
 export type MoveResult = 'ok' | 'snapped' | 'drop';
-const TOWN_HALF_CM = 15000;
+const TOWN_HALF_CM = TOWN_CM / 2;
 const cellOf = (r: Rules, x: number, z: number): number => Math.floor(x / r.cellCm) * 4096 + Math.floor(z / r.cellCm);
 
 export class World {

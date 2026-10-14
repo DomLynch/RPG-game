@@ -1,14 +1,6 @@
 {
   "tunables": [
-    {"file": "src/net/duel-antifarm.ts", "name": "DUEL_ANTIFARM", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
     {"file": "src/net/lobby.ts", "name": "RECORD_MAX_BYTES", "kind": "exempt", "reason": "wire / storage byte limit of a record or message: the contract with the writer and the database, not a game rule"},
-    {"file": "src/net/pvp.ts", "name": "INTENTS_CAP", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/net/pvp.ts", "name": "MESSAGE_CAP", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/net/pvp.ts", "name": "PING", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/net/pvp.ts", "name": "SILENCE", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/net/pvp.ts", "name": "SYNC_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
-    {"file": "src/net/rollback.ts", "name": "NET", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/net/rollback.ts", "name": "PLAYABLE", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"},
-    {"file": "src/net/transport.ts", "name": "RECONNECT", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-17"}
+    {"file": "src/net/pvp.ts", "name": "SYNC_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"}
   ]
 }
