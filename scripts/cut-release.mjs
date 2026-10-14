@@ -1,7 +1,7 @@
 // `node scripts/cut-release.mjs <name> <PR>@<head sha> [<PR>@<head sha> ...] [--base <release branch>] [--live <sha>]`: the release cut in one command (Dom 2026-10-12, CI runners first).
 // From trunk (or --base release-<N>: the next candidate on the last one's tip): a branch release-<name>, one `Merge pull request #N (release-<name> candidate)` merge per PR in the order given (a PR that conflicts is aborted and named, the rest
 // still merge), ONE push, a draft PR labelled ci:release-checks (the rows run on GitHub's 40 runners) and auditor:ready, then the pre-launch jobs (T4/CPU rows)
-// in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, driverResolved, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
+// in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, driverResolved, driver, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
 // Run it in the release worktree, which must be clean. The Auditor's PASS at each head is checked from the PR thread unless --no-verify.
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -36,14 +36,16 @@ export const passAt = (comments, head) => comments.some(c => TRUSTED.includes(c?
  * build their git arguments here, so they agree by construction. When `tree` carries the script, the attributes come from THAT tree (`--attr-source`) and the driver is that
  * tree's own copy of the script, written to a temp file: the answer does not depend on which commit the caller happens to be checked out on (a relative `-c` path only works
  * where the checkout has the script and .gitattributes). Per call with -c, never written to git config. A tree without the script gets no arguments: git's own line merge.
- * Returns { args, dispose }; call dispose() when the git command has run.
+ * Returns { args, dispose, mode }; call dispose() when the git command has run. mode is 'per-call' (the arguments above), 'persistent config' (no script in the tree but
+ * merge.as-data-allow.driver is set in the git config, so git runs THAT, with whatever path it names), or 'none' (git's own line merge): the cut logs it, so a silent config can't hide.
  */
 export function driverArgs(git, tree) {
   const script = git(['show', `${tree}:scripts/as-data/merge-allow.mjs`]);
-  if (script.status !== 0) return { args: [], dispose() {} };
+  if (script.status !== 0) return { args: [], dispose() {}, mode: git(['config', '--get', 'merge.as-data-allow.driver']).status === 0 ? 'persistent config' : 'none' };
   const dir = mkdtempSync(join(tmpdir(), 'allow-driver-')), file = join(dir, 'merge-allow.mjs');
   writeFileSync(file, script.stdout);
   return {
+    mode: 'per-call',
     args: ['--attr-source', tree, '-c', `merge.as-data-allow.driver=node "${file}" %O %A %B %P`],
     dispose() {   // one file in one directory this call made: unlink + rmdir (no recursion), and only under the temp dir
       if (!dir.startsWith(tmpdir() + sep)) throw new Error(`allow-driver: refusing to remove ${dir}`);
@@ -52,10 +54,10 @@ export function driverArgs(git, tree) {
   };
 }
 export function mergeAll(git, name, specs) {
-  const merged = [], skipped = [], driverResolved = {};
+  const merged = [], skipped = [], driverResolved = {}, modes = new Set();
   for (const { pr, head } of specs) {
     const driver = driverArgs(git, 'HEAD');   // per PR, from the branch as it stands: an older base has no script, so git's own line merge, as before
-    let r;
+    let r; modes.add(driver.mode);
     try { r = git([...driver.args, 'merge', '--no-ff', '-q', '-m', `Merge pull request #${pr} (release-${name} candidate)`, head]); } finally { driver.dispose(); }
     const conflicts = git(['diff', '--name-only', '--diff-filter=U']).stdout.split('\n').filter(Boolean);
     if (conflicts.length) { git(['merge', '--abort']); skipped.push({ pr, why: `conflicts in ${conflicts.join(', ')}` }); }
@@ -68,7 +70,8 @@ export function mergeAll(git, name, specs) {
       if (base && both.length) driverResolved[pr] = both;
     }
   }
-  return { merged, skipped, driverResolved };
+  const files = new Set(Object.values(driverResolved).flat()).size;
+  return { merged, skipped, driverResolved, driver: [...modes].map(m => (m === 'per-call' ? `per-call (${files} files)` : m)).join(' + ') || 'none' };
 }
 
 /** git push with 3 tries and backoff (2 s, 4 s): a transient GitHub "remote rejected" stopped CO's cut. sleep is injectable for the test.
@@ -127,7 +130,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }
   if (git(['switch', '-q', '-c', `release-${name}`, from]).status !== 0) { console.error(`cut-release: cannot create release-${name} (exists?)`); process.exit(2); }
-  const { merged, skipped, driverResolved } = mergeAll(git, name, specs);
+  const { merged, skipped, driverResolved, driver } = mergeAll(git, name, specs);
+  console.error(`cut-release: driver: ${driver}`);
   if (!merged.length) { console.error(`cut-release: nothing merged: ${JSON.stringify(skipped)}`); process.exit(1); }
   const sha = git(['rev-parse', 'HEAD']).stdout.trim();
   const pushed = pushWithRetry(git, `release-${name}`);
@@ -146,5 +150,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const logs = join(process.env.HOME, '.claude/state', `cut-${name}`); mkdirSync(logs, { recursive: true });
   const bg = (file, cmd, args) => spawn(cmd, args, { detached: true, stdio: ['ignore', openSync(join(logs, file), 'a'), openSync(join(logs, file), 'a')] }).unref();
   if (live) bg('prelaunch.log', 'bash', ['scripts/pre-launch.sh', sha, live]);
-  console.log(JSON.stringify({ name, sha, pr, merged, skipped, driverResolved, logs }));
+  console.log(JSON.stringify({ name, sha, pr, merged, skipped, driverResolved, driver, logs }));
 }
