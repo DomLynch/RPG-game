@@ -80,4 +80,6 @@ The bigger piece is the server: `kill_report` must become a *group settle* ("set
 3. **Between tap and most-damage:** the tap (AzerothCore) is cheapest and most predictable; the verified ledger makes most-damage almost as cheap and fairer. Recommend most-damage with the floor.
 4. **Not built from this note alone:** it is a ruling input for Strategy and Dom.
 
+**Ruled 2026-10-14 (Strategy, relayed by Lead):** PvP stays a strict 1v1 duel (Dom's 10-07 ruling holds). Shared PvE kills are NOT queued: several humans on one creature is grouping, and parties and guilds are Dom's call. The RV39 pool (`pack.ts`, `group-verify.ts`) stays built and unwired, with no sunset. Loot stays the first valid `kill_report`. The argmax-with-floor design and the donor precedents above are kept so that, if Dom rules on parties, it is a one-day job.
+
 **Not verified here:** the multi-human netcode topology (who steps the world and how remote inputs reach it), whether PvP bouts are record-verified at all, and Backend's settle rules for a shared kill. Each can move the costs in the table; they come from the sim and verifier code only.
