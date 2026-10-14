@@ -19,6 +19,17 @@
     { "id": "gameDayMinutes", "value": 100, "unit": "min" },
     { "id": "duskHour", "value": 19, "unit": "h" },
     { "id": "dawnHour", "value": 5, "unit": "h" },
-    { "id": "duskSpan", "value": 1.5, "unit": "h" }
+    { "id": "duskSpan", "value": 1.5, "unit": "h" },
+    { "id": "gateGap", "value": 0.62, "unit": "rad" },
+    { "id": "heroWait", "value": 45000, "unit": "ms" },
+    { "id": "kindsWait", "value": 20000, "unit": "ms" },
+    { "id": "materialBound", "value": 4000, "unit": "ms" },
+    { "id": "uploadBudget", "value": 6, "unit": "ms" },
+    { "id": "legendReach", "value": 6, "unit": "m" },
+    { "id": "lockRange", "value": 9, "unit": "m" },
+    { "id": "turnRate", "value": 1.9, "unit": "rad/s" },
+    { "id": "tapRange", "value": 14, "unit": "m" },
+    { "id": "tapMs", "value": 4000, "unit": "ms" },
+    { "id": "tapPx", "value": 12, "unit": "px" }
   ]
 }
