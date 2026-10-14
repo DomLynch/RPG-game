@@ -65,7 +65,12 @@ function mergeList(section, base, ours, theirs) {
   emit('');
   for (const id of out) { ordered.push(id); emit(id); }
   for (const id of keep.keys()) if (!ordered.includes(id)) ordered.push(id);   // unreachable anchors: keep, at the end
-  return { list: ordered.map((id) => keep.get(id)), clashes, notes };
+  const list = ordered.map((id) => keep.get(id));
+  // The lists are kept sorted by identity (the loader sorts too): when both sides are, so is the result, whatever the order the PRs merged in.
+  const fields = IDENT[section] ?? ['file', 'name'], cmp = (a, b) => { for (const k of fields) if (a[k] !== b[k]) return a[k] < b[k] ? -1 : 1; return 0; };
+  const sorted = (l) => l.every((e, i) => i === 0 || cmp(l[i - 1], e) <= 0);
+  if (sorted(ours) && sorted(theirs)) list.sort(cmp);
+  return { list, clashes, notes };
 }
 
 export function mergeAllow(baseText, oursText, theirsText) {
