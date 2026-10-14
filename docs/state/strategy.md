@@ -2,6 +2,18 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-14 17:5x Dubai — handoff before /clear (plumbing day: 433 → 226 debt, repo out of iCloud, 15 releases)
+
+**READ FIRST:** memory `session-handoff-2026-10-14-evening` in the lane key `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/`. Identity: **Project Strategy - Fable 5.1**.
+
+**Now.** Dom's single priority: everything on the central data layer, no sunsets, no feature PRs, no invented restrictions (no caps, cut-offs, holds, lid rules). Fight-engine debt parallelised: Combat keeps 41 (SIM list + adjacent), Web 70 (specials fx), World 23 (camera/scene/hud), Characters 43 (feel + specials timing), one PR per group from trunk, Combat reviews content, Auditor PASS by path. Lead posts the debt count every 2 h (18:00 next). Deploy: FE publishing at 17:35 (check 48/54), FF #2716 and FG cut behind it.
+
+**Done today.** LIVE FD 5f823bcb9 at 17:35 (my curl); 15 releases EP→FD since 09:00, cut→merge 19–23 min. Debt 433 (09:40) → 410 (noon) → 226 (16:26, my VPS run on trunk e2d5081). Gate widened repo-wide (#2609) and allow.json split per root (#2678). Shared .git moved out of iCloud Drive to `~/Developer/frankendom-main/.git`, 85 worktrees repaired, 21 stale nested worktrees removed, Mac 17 → 52 GiB free. Prompts: all lane sessions set to bypass; `bash -c` wrapper guard hook live (Codex-Hooks #143 b40a782); judge throttle live (#142 9c469c9). VPS self-hosted runner DROPPED (public repo, fork-PR RCE); fork-PR approval set to all external contributors. VPS disk 100% at 10:27 = Combat's full-clone suites (cn*), capped at 2 shallow. PicoClaw: A + B2 live, silent-lane fix live. Rulings: review system v2 (Hooks Dev = hooks only; Auditor = sim/server/money/candidates/CI); Dom's four decisions unchanged.
+
+**Open.** Lead's 18:00 count; the 136 non-SIM fight PRs (target: open by 20:00, live tonight); Combat's 41 SIM entries tomorrow morning; #2625 12-job grouping (Deploy fix pushed, needs Auditor + measure); World's remaining scratch (cam/, mu/ once pushed); orphan dir `~/Developer/frankendom-train.desktop-worktree`; PicoClaw receipts tomorrow (expiry, repeat-nudge, silent mis-call counts); Hooks Dev test fixtures naming the old repo path.
+
+**Gotchas.** `git worktree repair $VAR` with a newline list is ONE arg in zsh: loop per path. `gh pr view --json statusCheckRollup` lags and hangs on 150-check candidates: use REST /commits/status. Desktop & Documents sync OFF + opening iCloud settings moved ~/Desktop contents into CloudDocs; `~/Desktop/Business` is now a symlink into iCloud Drive (Dom's folder, off limits; only `.claude/worktrees/sleepy-perlman-6c93b1` of the old repo remains there, live Sandbox cwd). Cross-session messages to a non-bypass session are held for Dom's approval = the "prompt flood"; after a /clear the session id stays but the mode resets, re-set bypass. Never copy 44 GB on a 20 GB-free Mac (I did; 180 MiB free; killed).
+
 
 
 ## 2026-10-12 18:1x (+04, `date`) — HANDOFF before /clear (Dom). READ FIRST, then memory (scratch lane 2026-10-09-51f654, 33 files incl. MEMORY.md; newest: security-audit-workflow-incident-2026-10-12, coo-lean-mode-ruling-2026-10-12, picoclaw-passive-diagnosis-2026-10-12 (rewritten 17:2x-18:1x), merge-after-pass-label-ruling-2026-10-12, everything-as-data-programme-2026-10-12 (18:00 numbers), release-train-ruling-2026-10-12 (HOLD rulings)). Skill: ci-runners-first.
