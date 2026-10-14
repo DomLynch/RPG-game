@@ -2,6 +2,18 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-14 21:3x Dubai — DEBT 0 LIVE (433 → 0 in one day), feature hold lifted
+
+**Now.** Feature hold lifted at 21:1x on my ruling (debt 0 live, not trunk). Queue per Lead: FW = #2620 verifier heroHits alone → docs/test #2747 #2751 #2752 → #2753 train checkGreen fix alone → #2615 smith screen (after its Mac WebKit row) → #2621 gear_wear. World's next: a HUD label saying which plate bars are the player's (gap found in the ROLL/GUARD receipt), after the parked set. Dom's phone test of the Pit preview (/preview/origins/?region=1) still pending.
+
+**Done today (since the 17:5x handoff).** LIVE FV 5cc3fe80e at 21:32 (my curl): 0 entries with `kind: debt` across scripts/as-data/allow (my count at the live sha), 97 reviewed exempts; RV 62 / WSV 37. 14 distinct release candidates merged today, FC→FV, all published clean. Debt 433 (09:40) → 226 (16:26) → 83 (FH) → 52 (FI) → 35 (FJ) → 21 (FO) → 4 (FQ) → 1 (FS, Combat SIM batch B landed tonight, not tomorrow) → 0 (FV, Web's MAX_SHARE_CHARS exempt flip). Merge driver live (FN #2725) and wired per call in cut-release (FP #2728); double-label bug at cut traced to `gh pr create --label`, fixed by Backend #2745, proven on FV (one label pair). ROLL/GUARD in the world CLOSED: already built, receipts in docs/briefs/world-roll-guard/ (#2747, dodge test #2752). Hooks PR #144 live: deploy_guard denies `rm -r` on an unguarded $VAR (the app's built-in card is not silenced by bypass); `permissions.defaultMode: bypassPermissions` set in ~/.claude/settings.json so clears cannot drop a lane to default.
+
+**Rulings.** (1) PvP stays a strict 1v1 duel (Dom 10-07 holds); shared PvE kills NOT queued, grouping is Dom's call (parties); RV39 pool stays built and unwired, design + donors (ModernUO GetLootingRights, AzerothCore SetLootRecipient) kept in #2751. (2) No lane parks on a permission card; every variable in an rm -r path gets `:?`. (3) PicoClaw drops advice as SUPERSEDED when the lane acted on the same PR after the judge's read; counted in the daily tally.
+
+**Open.** Deploy's by-hand closure check and post-publish rows for FV not yet reported (Lead). #2615 WebKit row needs a Mac gap with no deploy. Dom's Pit phone test.
+
+**Gotchas.** Counting debt: `kind: debt` across allow/*.json at the ref; a loose "not exempt" count also sweeps 5 plain allow sites and 4 verbs and overstates by 9. gh statusCheckRollup lags; use REST /commits/{sha}/check-runs. The dangerous-rm card text is the app's own, not in ~/.claude/hooks.
+
 ## 2026-10-14 17:5x Dubai — handoff before /clear (plumbing day: 433 → 226 debt, repo out of iCloud, 15 releases)
 
 **READ FIRST:** memory `session-handoff-2026-10-14-evening` in the lane key `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/`. Identity: **Project Strategy - Fable 5.1**.
