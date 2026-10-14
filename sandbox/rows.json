@@ -2,6 +2,7 @@
 "2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints).",
 "2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
 "2026-10-14 Dom: reach bands (positioning gates): a landed blow outside its weapon's best distance band deals 40% (bandOff 400); inner <1.35 m, mid 1.35-1.8 m, outer beyond; NO on-screen marker (Dom: cheap). Strategy: never soften a hard miss.",
+"2026-10-14 Dom: armour vs blow type: plate takes 60% of cuts, 90% of stabs, 140% of crushes; leathers 85/65/100; robes 130/130/120 (blowKinds + armourVs rows); maul and warhammer crush, estoc and every thrust pierce, the rest cut.",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
 "2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
@@ -73,6 +74,13 @@
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
 {"weapon":"longsword","band":"mid"},{"weapon":"cleaver","band":"mid"},{"weapon":"maul","band":"mid"},{"weapon":"warhammer","band":"mid"},
 {"weapon":"trident","band":"outer"},{"weapon":"scythe","band":"outer"},{"weapon":"estoc","band":"outer"},{"weapon":"reaper","band":"outer"}
+],"blowKinds":[
+{"weapon":"*","move":"*","kind":"slash"},{"weapon":"*","move":"thrust","kind":"pierce"},{"weapon":"*","move":"riposte","kind":"pierce"},
+{"weapon":"estoc","move":"*","kind":"pierce"},{"weapon":"maul","move":"*","kind":"crush"},{"weapon":"warhammer","move":"*","kind":"crush"}
+],"armourVs":[
+{"kind":"slash","armour":"heavy","value":600},{"kind":"pierce","armour":"heavy","value":900},{"kind":"crush","armour":"heavy","value":1400},
+{"kind":"slash","armour":"medium","value":850},{"kind":"pierce","armour":"medium","value":650},{"kind":"crush","armour":"medium","value":1000},
+{"kind":"slash","armour":"light","value":1300},{"kind":"pierce","armour":"light","value":1300},{"kind":"crush","armour":"light","value":1200}
 ],"readyStyles":[
 {"id":1,"s1":-120,"s2":-120,"s3":-80,"neck":-100},
 {"id":2,"s1":-220,"s2":-200,"s3":-140,"neck":-160},

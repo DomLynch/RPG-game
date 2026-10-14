@@ -2,6 +2,7 @@ import DEFS from './sandbox-rules-defs.json' with { type: 'json' };
 import SWARM_DEFS from './swarm-defs.json' with { type: 'json' };
 import type { Sheet } from './sheet-rows.ts';
 import PHASE_DEFS from './boss-phase-defs.json' with { type: 'json' };
+import { weightClassOf } from './gear-weight.ts';
 
 // sandbox-mech: the sandbox's own rule rows (sandbox-rules-defs.json), one number each, read once at load. Every rule is 0 / absent as shipped on trunk,
 // so a trunk fight is byte-identical; the Sandbox panel (sandbox/rows.json) turns them on. A sim file: no clock, no Math.random.
@@ -108,4 +109,23 @@ export const bandStop = (weapon: string, close: number, reach: number): number =
   if (i < 0) return close;
   const lo = i ? BANDS[i - 1]!.upTo / 100 : 0, top = Math.min(BANDS[i]!.upTo / 100 - .1, reach - .1);
   return top < lo + .05 ? close : Math.round(Math.min(Math.max(close, lo + .05), top) * 100) / 100;   // whole centimetres, so the stop is the same on every engine
+};
+
+// armourVsBlow (Dom 2026-10-14, Strategy #1 "plate ignores cuts, mail ignores stabs, cloth fears everything, a maul breaks plate"): a blow has a KIND (`blowKinds` rows, { weapon, move, kind }, the most specific match wins:
+// weapon+move, weapon+'*', '*'+move, '*'+'*'); the defender has an armour CLASS (a creature by gear-defs owners: weightClassOf(opponent id); the player by the sheet's dials, armour >= 20 heavy, stamina >= 20 medium,
+// magicResist >= 20 light); `armourVs` rows { kind, armour, value } scale the landed blow by `value` per-mille. A kind or class with no row, or a defender with no class, = 1000. No rows (trunk) = untouched.
+type BlowKindRow = { weapon: string; move: string; kind: string }; type ArmourVsRow = { kind: string; armour: string; value: number };
+const BLOW_KINDS = ((DEFS as unknown as { blowKinds?: BlowKindRow[] }).blowKinds ?? []);
+const ARMOUR_VS = ((DEFS as unknown as { armourVs?: ArmourVsRow[] }).armourVs ?? []);
+export const ARMOUR_ON = ARMOUR_VS.length > 0;
+export const blowKind = (weapon: string, move: string): string | undefined => {
+  const hit = (w: string, m: string) => BLOW_KINDS.find((r) => r.weapon === w && r.move === m)?.kind;
+  return hit(weapon, move) ?? hit(weapon, '*') ?? hit('*', move) ?? hit('*', '*');
+};
+export const armourClassOf = (sheet: Sheet | undefined, oid: string | undefined): string | null =>
+  oid ? weightClassOf(oid) : !sheet ? null : (sheet.armour ?? 0) >= 20 ? 'heavy' : (sheet.stamina ?? 0) >= 20 ? 'medium' : (sheet.magicResist ?? 0) >= 20 ? 'light' : null;
+export const armourPerMille = (weapon: string, move: string, sheet: Sheet | undefined, oid: string | undefined): number => {
+  if (!ARMOUR_ON) return 1000;
+  const kind = blowKind(weapon, move), cls = armourClassOf(sheet, oid);
+  return kind && cls ? (ARMOUR_VS.find((r) => r.kind === kind && r.armour === cls)?.value ?? 1000) : 1000;
 };
