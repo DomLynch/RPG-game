@@ -7,17 +7,19 @@ import MANIFEST from './wear-repair.manifest.json' with { type: 'json' };
 
 export type WearEvent = { id: string; chancePct: number };
 export type WearSlot = { id: string; share: number };
-export type WearTier = { id: string; hitWear: number; killWear: number; goldPerPoint: number; metalPerTenPoints: number; metalItem: string };
+export type WearTier = { id: string; hitWear: number; killWear: number; bronzePerPoint: number; metalPerTenPoints: number; metalItem: string };
+export type WearFamily = { id: string; tier: string };
 export type RepairRule = { id: string; wornSlopePct: number; wearMaxLossPer100: number; wearMaxFloorPct: number; qualityFloorPct: number };
 export type Piece = { worn: number; max: number; baseMax: number };   // baseMax is the piece's original wearMax, the floor for max
 
-export function checkWearRelations(data: { wearEvents: WearEvent[]; wearSlots: WearSlot[]; wearTiers: WearTier[]; repairRules: RepairRule[] }): void {
+export function checkWearRelations(data: { wearEvents: WearEvent[]; wearSlots: WearSlot[]; wearTiers: WearTier[]; wearFamilies: WearFamily[]; repairRules: RepairRule[] }): void {
   const bad: string[] = [];
+  for (const f of data.wearFamilies) if (!data.wearTiers.some((t) => t.id === f.tier)) bad.push(`${f.id}: tier ${f.tier} is not a wearTiers row`);
   for (const e of data.wearEvents) if (!(e.chancePct >= 1 && e.chancePct <= 100)) bad.push(`${e.id}: chancePct must be 1..100`);
   if (data.wearSlots.reduce((n, s) => n + s.share, 0) !== 100 || data.wearSlots.some((s) => !(s.share >= 0))) bad.push('wearSlots: shares must each be >= 0 and sum to 100');
   for (const t of data.wearTiers) {
     if (!(t.hitWear >= 1 && t.killWear >= t.hitWear)) bad.push(`${t.id}: hitWear >= 1 and killWear >= hitWear`);
-    if (!(t.goldPerPoint >= 1 && t.metalPerTenPoints >= 0)) bad.push(`${t.id}: goldPerPoint >= 1, metalPerTenPoints >= 0`);
+    if (!(t.bronzePerPoint >= 1 && t.metalPerTenPoints >= 0)) bad.push(`${t.id}: bronzePerPoint >= 1, metalPerTenPoints >= 0`);
   }
   for (const r of data.repairRules) {
     if (!(r.qualityFloorPct >= 1 && r.qualityFloorPct <= 100)) bad.push(`${r.id}: qualityFloorPct must be 1..100 (gear never breaks to nothing)`);
@@ -36,6 +38,7 @@ loadWearRepair();
 export const WEAR_EVENTS: readonly WearEvent[] = DATA.wearEvents;
 export const WEAR_SLOTS: readonly WearSlot[] = DATA.wearSlots;
 export const WEAR_TIERS: readonly WearTier[] = DATA.wearTiers;
+export const WEAR_FAMILIES: readonly WearFamily[] = DATA.wearFamilies;
 export const REPAIR_RULES: readonly RepairRule[] = DATA.repairRules;
 export const wearTier = (id: string): WearTier | null => WEAR_TIERS.find((t) => t.id === id) ?? null;
 export const repairRule = (id = 'smith'): RepairRule | null => REPAIR_RULES.find((r) => r.id === id) ?? null;
@@ -70,7 +73,7 @@ export function repairCost(tier: WearTier, piece: Piece, points: number = piece.
   const p = Math.max(0, Math.min(points, piece.worn));
   if (p === 0 || (slot !== undefined && !slotWears(slot))) return { points: 0, gold: 0, metal: 0, metalItem: tier.metalItem };
   const wornPct = (piece.worn / piece.max) * 100;
-  const perPoint = tier.goldPerPoint * (100 + (rule.wornSlopePct * wornPct) / 100) / 100;
+  const perPoint = tier.bronzePerPoint * (100 + (rule.wornSlopePct * wornPct) / 100) / 100;
   return { points: p, gold: Math.ceil(perPoint * p), metal: Math.ceil((tier.metalPerTenPoints * p) / 10), metalItem: tier.metalItem };
 }
 
@@ -81,4 +84,12 @@ export function repairedPiece(piece: Piece, points: number = piece.worn, rule: R
   const floor = Math.ceil((piece.baseMax * rule.wearMaxFloorPct) / 100);
   const max = Math.max(floor, piece.max - Math.ceil((p * rule.wearMaxLossPer100) / 100));
   return { worn: Math.min(piece.worn - p, max), max, baseMax: piece.baseMax };
+}
+
+// A loot piece `item:loot.<family>.<Slot>` wears as its family's tier on its slot; anything else (a weapon, a material, an unlisted family) has no wear row here.
+export function wearKindOf(item: string, families: readonly WearFamily[] = WEAR_FAMILIES, slots: readonly WearSlot[] = WEAR_SLOTS): { tier: WearTier; slot: string } | null {
+  const m = /^item:loot\.([a-z0-9-]+)\.([A-Za-z]+)$/.exec(item);
+  const fam = m && families.find((f) => f.id === m[1]);
+  const tier = fam && wearTier(fam.tier);
+  return m && tier && slots.some((s) => s.id === m[2]) ? { tier, slot: m[2]! } : null;
 }
