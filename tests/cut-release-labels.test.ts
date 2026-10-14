@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { LABELS, ensureLabels, openPrViaRest } = await import('../scripts/cut-release.mjs');
+const { LABELS, ensureLabels, openPrViaRest, applyLabels, ghCreateArgs } = await import('../scripts/cut-release.mjs');
 
 // A GitHub that remembers: the labels on PR 42 persist between calls, and every request is recorded.
 function github(initial: string[], { readStatus = 200 }: { readStatus?: number } = {}) {
@@ -36,11 +36,32 @@ test('only the missing label is POSTed, and the line says what was found and wha
   assert.ok(lines.every(l => /^\[\d{4}-\d\d-\d\dT/.test(l)), 'every line is timestamped');
 });
 
-test('the REST fallback run twice (gh made the PR and hung, then a retry) POSTs the labels once: the second run POSTs nothing', async () => {
-  const g = github([]), lines: string[] = [], run = () => openPrViaRest({ repo: 'o/r', token: 't', head: 'release-ZZ', base: 'trunk', title: 'x', body: 'y', labels: LABELS, fetchImpl: g.fetchImpl, log: l => lines.push(l) });
-  assert.equal(await run(), 42); assert.equal(posts(g.calls).length, 1);
-  assert.equal(await run(), 42); assert.equal(posts(g.calls).length, 1, 'still one POST in total');
+test('the REST fallback only finds or opens the PR: it POSTs no labels, so the cut\'s single applyLabels step is the only labeller', async () => {
+  const g = github([]), lines: string[] = [], run = () => openPrViaRest({ repo: 'o/r', token: 't', head: 'release-ZZ', base: 'trunk', title: 'x', body: 'y', fetchImpl: g.fetchImpl, log: l => lines.push(l) });
+  assert.equal(await run(), 42); assert.equal(await run(), 42);
+  assert.deepEqual(g.calls.filter(c => c.includes('/labels')), [], 'no label request from the fallback');
   assert.ok(lines.some(l => /REST fallback reusing open PR #42 for release-ZZ/.test(l)), 'the fallback announces itself with a timestamp');
+});
+
+test('gh pr create gets no --label (it would land 1 s before our POST and cancel a CI run); applyLabels then labels the PR once, whichever path opened it', async () => {
+  const argv = ghCreateArgs({ name: 'ZZ', title: 't', body: 'b' });
+  assert.ok(!argv.some(a => a === '--label' || a.startsWith('--label=')), argv.join(' '));
+  assert.deepEqual(argv.slice(0, 2), ['pr', 'create']);
+  const g = github([]);
+  const first = await applyLabels({ ...args, repo: 'o/r', fetchImpl: g.fetchImpl, log: () => {} });
+  assert.deepEqual(first, { ok: true, added: [...LABELS] }); assert.equal(posts(g.calls).length, 1);
+  assert.deepEqual(await applyLabels({ ...args, fetchImpl: g.fetchImpl, log: () => {} }), { ok: true, added: [] }); assert.equal(posts(g.calls).length, 1, 'a second run POSTs nothing');
+});
+
+test('a refused label POST, a thrown POST and a missing token all fail the cut loudly (ok:false with the reason), never "created with its labels"', async () => {
+  const refuse = (async (_url: string, init: { method?: string } = {}) => (init.method === 'POST' ? { ok: false, status: 403, json: async () => ({}) } : { ok: true, status: 200, json: async () => [] })) as unknown as typeof fetch;
+  const r = await applyLabels({ ...args, fetchImpl: refuse, log: () => {} });
+  assert.equal(r.ok, false); assert.match(r.failed!, /labels on #42: label POST on #42 failed \(HTTP 403\)/);
+  const boom = (async (_url: string, init: { method?: string } = {}) => { if (init.method === 'POST') throw new Error('socket hang up'); return { ok: true, status: 200, json: async () => [] }; }) as unknown as typeof fetch;
+  const t = await applyLabels({ ...args, fetchImpl: boom, log: () => {} });
+  assert.equal(t.ok, false); assert.match(t.failed!, /socket hang up/);
+  const none = await applyLabels({ ...args, token: '', fetchImpl: refuse, log: () => {} });
+  assert.equal(none.ok, false); assert.match(none.failed!, /no repo slug or token/);
 });
 
 test('if the label read fails the labels are still POSTed (a missing ci:release-checks costs the cut) and the line says the read failed', async () => {
