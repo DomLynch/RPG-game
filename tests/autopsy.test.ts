@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi, readOpponent, type Habits, type Reads } from '../src/ai.ts';
+import { decide, initialAi, readOpponent, type Habits, type Reads } from '../src/fight/ai.ts';
 import { autopsy, cause, habit } from '../src/autopsy.ts';
-import { stepDuel, type CombatEvent, type Duel, type Intent } from '../src/duel.ts';
-import { OPPONENTS, RULES, type AiProfile, type Opponent } from '../src/moves.ts';
+import { stepDuel, type CombatEvent, type Duel, type Intent } from '../src/fight/duel.ts';
+import { OPPONENTS, RULES, type AiProfile, type Opponent } from '../src/fight/moves.ts';
 import { STRATEGIES, act, arena, idle, ready, swingStart } from './strategies.ts';
 
 type Fight = { h: Habits; reads: Reads; log: CombatEvent[]; duel: Duel; lines: string[] };

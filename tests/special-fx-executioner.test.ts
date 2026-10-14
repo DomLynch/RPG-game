@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 import { crowdWave } from '../src/arena.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { BOSS_KINDS, BUILD, bossLook, createExecutionerSpecial, isExecutionerCast, trailSchedule, waveLean, type BossKind } from '../src/special-fx-executioner.ts';
-import { SPECIAL_TESTS, specialParam } from '../src/special-look.ts';
-import { LAND_AT, isHadesShadow } from '../src/special-timing.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { BOSS_KINDS, BUILD, bossLook, createExecutionerSpecial, isExecutionerCast, trailSchedule, waveLean, type BossKind } from '../src/fight/special-fx-executioner.ts';
+import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
+import { LAND_AT, isHadesShadow } from '../src/fight/special-timing.ts';
 
 // The Executioner's boss specials (special-fx-executioner.ts): preview-only art on Hades' seam, on his Reaping Blow.
 const fighters = [{ special: 0 }, { special: 0, skill: 'reaping' }] as unknown as readonly [Fighter, Fighter];
@@ -24,7 +24,7 @@ test('?special=arawn|thanatos|reaper are the Executioner at ranks 8, 9, 10 (leve
   assert.ok(isExecutionerCast('executioner', 1, 'skill_reaping'));
   assert.ok(!isExecutionerCast('executioner', 0, 'skill_reaping') && !isExecutionerCast('executioner', 1, 'skill_lunge') && !isExecutionerCast('nightborn', 1, 'skill_lunge'));
   assert.ok(!isHadesShadow('executioner', 1, 'skill_reaping'), 'Hades\' cloud never draws on him');
-  for (const name of BOSS_KINDS) assert.equal(SPECIAL_MODES[name]?.at, 'feet', `${name} has a registry entry`);
+  for (const name of BOSS_KINDS) assert.equal((SPECIAL_MODES as Record<string, { at?: string } | undefined>)[name]?.at, 'feet', `${name} has a registry entry`);
 });
 
 test('Baying Circle schedule: the last trail arrives on the landing tick, none sets off before the build-up, every cast differs', () => {
@@ -67,6 +67,6 @@ test('the crowd lean is set by the Harvest Sweep alone, only while the sweep run
   assert.equal(crowdWave.lean as unknown, null, 'the other two never touch the crowd');
   createExecutionerSpecial(new THREE.Scene(), 'executioner', 'reaper', bossLook('reaper', 1));
   assert.equal(crowdWave.lean as unknown, null, 'idle: unregistered (the hook is only set while the sweep runs)');
-  assert.match(readFileSync('src/special-modes.ts', 'utf8'), /import\('\.\/special-fx-executioner\.ts'\)/);
-  assert.doesNotMatch(readFileSync('src/scene.ts', 'utf8'), /special-fx-executioner/, 'the scene names none of it');
+  assert.match(readFileSync('src/fight/special-modes.ts', 'utf8'), /import\('\.\/special-fx-executioner\.ts'\)/);
+  assert.doesNotMatch(readFileSync('src/fight/scene.ts', 'utf8'), /special-fx-executioner/, 'the scene names none of it');
 });

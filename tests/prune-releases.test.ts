@@ -84,3 +84,21 @@ test('refuses a KEEP below 2 and a current outside releases/', () => {
   assert.equal(left(root).length, 31);
   rmSync(root, { recursive: true });
 });
+
+// The writer's install layout: /opt/frankendom-origins/<8 hex>, `current` beside them, no `previous`.
+test('origins layout: KEEP=5 keeps current and the 4 newest others, leaves other names alone, --dry-run removes nothing', () => {
+  const root = mkdtempSync(join(tmpdir(), 'prune-origins-'));
+  const t0 = Date.now() / 1000 - 3600;
+  for (let i = 1; i <= 12; i++) { const d = join(root, sha(i).slice(-8)); mkdirSync(d); writeFileSync(join(d, 'f'), String(i)); utimesSync(d, t0 + i * 60, t0 + i * 60); }
+  mkdirSync(join(root, 'keep-me'));
+  symlinkSync(join(root, sha(12).slice(-8)), join(root, 'current'));
+  const before = readdirSync(root).sort();
+  const dry = run(root, '5', '--dry-run', 'origins');
+  assert.equal(dry.status, 0, dry.stdout + dry.stderr);
+  assert.match(dry.stdout, /5 kept .* 7 to remove/);
+  assert.deepEqual(readdirSync(root).sort(), before);
+  const real = run(root, '5', '', 'origins');
+  assert.equal(real.status, 0, real.stdout + real.stderr);
+  assert.deepEqual(readdirSync(root).sort(), [...[8, 9, 10, 11, 12].map((i) => sha(i).slice(-8)), 'current', 'keep-me'].sort());
+  rmSync(root, { recursive: true });
+});

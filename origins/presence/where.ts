@@ -18,7 +18,7 @@ export function parseWhere(v: unknown): Where {
   return { online: true, layer: o.layer, placed: true, x: o.x, z: o.z, zone: o.zone, ageMs: o.ageMs };
 }
 
-// The writer's client. `baseUrl` is the presence service on loopback (e.g. http://127.0.0.1:8788); `key` is the shared PRESENCE internal key.
+// The writer's client. `baseUrl` is the presence service on loopback (e.g. http://127.0.0.1:8793); `key` is the shared PRESENCE internal key.
 export function presenceWhere(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): WhereFn {
   return async account => {
     const res = await fetchImpl(`${baseUrl}/internal/where?account=${encodeURIComponent(account)}`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });

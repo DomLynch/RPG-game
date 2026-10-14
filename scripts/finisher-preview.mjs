@@ -1,4 +1,4 @@
-// Finishers review harness. Drives the REAL scene (src/scene.ts — selection, gore, camera dolly) with REAL simulated kills and
+// Finishers review harness. Drives the REAL scene (src/fight/scene.ts — selection, gore, camera dolly) with REAL simulated kills and
 // captures the death window at phone widths in all three blood modes. Never part of the build or the runtime.
 //   node scripts/finisher-preview.mjs --label finishers-v2
 //
@@ -33,10 +33,10 @@ const order = option('only') ? option('only').split(',') : ['splitCrown', 'decap
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Frankendom finisher preview</title>
 <style>html,body{margin:0;height:100%;background:#2b2d2f;overflow:hidden}#world{display:block;width:100vw;height:100vh}</style></head>
 <body><canvas id="world"></canvas><script type="module">
-import { createScene } from '/src/scene.ts';
-import { initialPractice, stepPractice } from '/src/combat.ts';
-import { selectFinisher } from '/src/finishers.ts';
-import { OPPONENTS } from '/src/moves.ts';
+import { createScene } from '/src/fight/scene.ts';
+import { initialPractice, stepPractice } from '/src/fight/combat.ts';
+import { selectFinisher } from '/src/fight/finishers.ts';
+import { OPPONENTS } from '/src/fight/moves.ts';
 import { Box3, Vector3, Raycaster } from 'three';
 const opponentId = ${JSON.stringify(opponent)}, wanted = ${JSON.stringify(order)};
 const PASSIVE = { reaction: 1e9, accuracy: 0, parry: 0, dodge: 0, aggression: 0, pressure: 0, discipline: 0, lapse: 1 };
@@ -55,13 +55,15 @@ window.__step = 'ready';
 // A real kill: light to draw, walk in, paced plain heavy overheads (the pacing lets posture drain so the killing blow stays a
 // plain heavy_overhead — the warden is passive, both sides stepped through the real sim). Each seed yields its own kill
 // event; the seeded rotation maps it to a finisher, and we keep the first death window each shipped finisher draws.
+// Execution runs about 3.5 s on screen: its window is kept 320 ticks past the blow (every other outcome keeps the 200 it always had).
+const TAIL = wanted.includes('execution') ? 320 : 200;
 function simulate(seed, hero = false, spare = false) {
   let p = initialPractice(seed, OPPONENTS[opponentId]);
   const frames = [];
   let kill = -1;
   let lastHit = -1e9;
   for (let tick = 0; tick < 60 * 120; tick++) {
-    if (kill >= 0 && p.duel.tick > kill + 200) break;   // the death window itself: 200 ticks (3.3 s) past the blow, corpse held
+    if (kill >= 0 && p.duel.tick > kill + TAIL) break;   // the death window itself: 200 ticks (3.3 s) past the blow (TAIL), corpse held
     const dx = p.enemy.x - p.fighter.x, dz = p.enemy.z - p.fighter.z;
     const dist = Math.hypot(dx, dz);
     const f = p.duel.fighters[0];
@@ -95,7 +97,7 @@ for (let seed = ${seedStart}; seed < ${seedStart + seedCount} && wanted.some(id 
   const finisher = selectFinisher(finish, [duel.fighters[0].weapon, duel.fighters[1].weapon]);
   if (finisher && windows[finisher] === undefined) {
     const from = sim.frames.findIndex(f => f.practice.duel.tick >= sim.kill - 45);
-    windows[finisher] = { frames: sim.frames.slice(from, from + 220), killIndex: sim.frames.slice(from, from + 220).findIndex(f => f.events.some(e => e.type === 'Killed')) };
+    windows[finisher] = { frames: sim.frames.slice(from, from + TAIL + 20), killIndex: sim.frames.slice(from, from + TAIL + 20).findIndex(f => f.events.some(e => e.type === 'Killed')) };
     provenance.push({ seed, finisher, finish });
   }
 }
@@ -230,7 +232,7 @@ window.__finisher = {
   },
   count(which) { return windows[which]?.frames.length ?? 0; },
   // Finisher-complete duration (Lead brief 2026-09-22): step this window's REAL frames from its first tick and report the
-  // frame at which src/scene.ts first says the ceremony has finished playing ('finishPhase().complete'), counted from the
+  // frame at which src/fight/scene.ts first says the ceremony has finished playing ('finishPhase().complete'), counted from the
   // Killed event. If the captured window runs out first the last frame is held — 'practice.finish' holds until rematch, so
   // the presentation clock keeps running exactly as it does in the game — up to a 12 s cap. Nothing here guesses: the number
   // is where the scene's own latch fired. Rendering is suppressed ('present = false') so this costs no compositor frames.
@@ -271,7 +273,9 @@ window.__finisher = {
     // and screenshots would show a stale frame. A fresh playback resets the cursor so the scene state rebuilds from tick 0.
     // Hamstrung's clips load lazily when the picker selects it (scene.ts wantHamstrung); the kill must not start before they are in,
     // or the scene (correctly) falls back to the plain death. A player picks it long before the kill; the harness waits for it.
-    const installed = windows[which].override === 'hamstrung' ? (async () => { view.setFinisherOverride('hamstrung'); for (let t = 0; t < 300 && !view.hamstrungInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })() : Promise.resolve();
+    // Execution's clips load the same way: the kill waits for them (view.executionInstalled).
+    const installed = windows[which].override === 'hamstrung' ? (async () => { view.setFinisherOverride('hamstrung'); for (let t = 0; t < 300 && !view.hamstrungInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })()
+      : windows[which].override === 'execution' ? (async () => { view.setFinisherOverride('execution'); for (let t = 0; t < 300 && !view.executionInstalled(); t++) await new Promise(r => setTimeout(r, 100)); })() : Promise.resolve();
     return installed.then(() => new Promise(resolve => requestAnimationFrame(() => {
       view.setFinisherOverride(windows[which].override ?? null);   // the picker's own path for outcomes outside the rotation
       if (which !== cursorWhich) { cursor = Number.MAX_SAFE_INTEGER; cursorWhich = which; }   // the cursor belongs to one window: another window replays from its own tick 0
@@ -315,7 +319,7 @@ try {
     }
     return page;
   };
-  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened', hamstrung: 'hamstrung' };
+  const NAMES = { splitCrown: 'split-crown', decapitation: 'decapitation', runThrough: 'run-through', plainDeath: 'plain-death', opened: 'opened', hamstrung: 'hamstrung', execution: 'execution' };
   const ORDER = order, cameraChecks = [], bloodChecks = [];
   const first = await open(VIEW);
   const info = await first.evaluate(() => ({ provenance: window.__finisher.provenance }));
@@ -393,8 +397,8 @@ try {
     await page.context().close();
   }
   // Finisher-complete durations (Lead brief 2026-09-22, Web's loot panel). Each requested outcome is played frame by frame on
-  // the production path and we record where src/scene.ts's own `finishPhase().complete` first fires, counted from the Killed
-  // event. This is the measurement behind the FINISHER_SECONDS table in src/finishers.ts — one number per finisher, measured,
+  // the production path and we record where src/fight/scene.ts's own `finishPhase().complete` first fires, counted from the Killed
+  // event. This is the measurement behind the FINISHER_SECONDS table in src/fight/finishers.ts — one number per finisher, measured,
   // never one constant for all of them, and never a guessed delay. The runtime keys on the event; the table exists so Web can
   // budget its layout against a real figure and so a drift in the ceremony shows up here as a changed number.
   if (option('durations')) {
@@ -418,9 +422,14 @@ try {
       const page = await open(VIEW);
       const { killIndex, count } = await page.evaluate(w => ({ killIndex: __finisher.killIndex(w), count: __finisher.count(w) }), which);
       const settled = count - 1;
-      for (const [i, suffix] of [[Math.min(killIndex + 26, settled), 'contact'], [Math.min(killIndex + 78, settled), 'drop'], [settled, 'settled']]) {
+      // Execution's four frames (Lead 2026-10-07): kneeling, the held raise (mid-hold, 90 ticks in), the cut, and the settled body. Its drop frame is the fall under way. Every other finisher keeps its three.
+      const frames = which === 'execution'
+        ? [[Math.min(killIndex + 66, settled), 'kneel'], [Math.min(killIndex + 90, settled), 'hold'], [Math.min(killIndex + 119, settled), 'contact'], [Math.min(killIndex + 150, settled), 'drop'], [settled, 'settled']]
+        : [[Math.min(killIndex + 26, settled), 'contact'], [Math.min(killIndex + 78, settled), 'drop'], [settled, 'settled']];
+      for (const [i, suffix] of frames) {
         const playing = await page.evaluate(([w, j, m]) => __finisher.play(w, j, m), [which, i, mode]);
         if (mode === 'red' && suffix === 'settled') console.log(`  ${which} rig at settle: ${playing.split(' ')[1]}`);
+        if (mode === 'red' && which === 'execution') console.log(`  execution ${suffix}: ${playing}`);   // what both rigs are playing at each of its frames (a plain-death fallback reads Death here)
         await page.screenshot({ path: `${dir}/${NAMES[which]}-phone${name}-${suffix}.png` });
         if (['runThrough', 'splitCrown'].includes(which) && suffix === 'contact') {
           const { framing } = await page.evaluate(() => __finisher.inspect());

@@ -253,7 +253,7 @@ estoc's windup/active/recovery/stepIn/feintUntil/chamber to the sword's *exactly
 the weapon is. So "tune the thrust recovery like the knife's" was never available for it, however the numbers looked. Sweep it anyway and
 record the closed door with evidence — an ambiguous door gets pushed again by the next person.
 
-**The `RECORD_VERSION` guard asks a behaviour question, not a file question.** It hashes `SIM_FILES`, so *any* edit to `src/moves.ts`
+**The `RECORD_VERSION` guard asks a behaviour question, not a file question.** It hashes `SIM_FILES`, so *any* edit to `src/fight/moves.ts`
 trips it — but the guard's own comment sets the rule: a re-pin without a bump needs a receipt that behaviour is unchanged. Two opposite
 answers on the same day, and the receipt is what separates them. #440 (knife recovery 15 → 20, scythe heel-jab 18 → 30) genuinely changed
 how fights play out, so the bump *was* the point. #472 (`TRIDENT.grip` → `two-hand`) changed a field no sim code reads — verified by grep
@@ -262,7 +262,7 @@ across `duel.ts`, `ai.ts`, `sim.ts`, `combat.ts` — and both committed referenc
 minted that day for nothing. Ask what the change does, not which file it touched.
 
 ### Not the shelf item it looks like: the maul (recorded ahead of the Knight)
-`MAUL` (`src/moves.ts`) is the `CLEAVER` spread with a two-hand grip and one overridden move, on `creaturePaths(CLEAVER_PATHS, 'Maul')`.
+`MAUL` (`src/fight/moves.ts`) is the `CLEAVER` spread with a two-hand grip and one overridden move, on `creaturePaths(CLEAVER_PATHS, 'Maul')`.
 There is **no maul asset in the repo** — the geometry lives inside the held `minotaur.glb`. So promoting it to a player weapon is a real
 deliverable, a hero-rig part *and* its own blade/contact table, not a data row. Confirmed by the lead. No owner yet; nothing started.
 
@@ -338,7 +338,7 @@ shelf one is not a trade I'll make". The branch as pushed *does* remove it, beca
 with no over-cap row must be offered and one with a row must not be). That is why this cannot land as-is and is held rather than fixed: the
 invariant and the ruling disagree until the trident row goes away. Same invariant that forced the scythe in on #440 — the system working.
 
-**Held, deliberately, on a dependency.** Combat is fixing a shared approach defect in `src/ai.ts`: every opponent's approach settles at a
+**Held, deliberately, on a dependency.** Combat is fixing a shared approach defect in `src/fight/ai.ts`: every opponent's approach settles at a
 *raw* reach value while `inReach` needs `reach − .1`, so wardens park just outside their own range. That changes stopping distance, which
 is exactly what +0.30 m interacts with — findings (2) and (3) are engagement-distance symptoms and may move on their own. Re-measuring
 before it lands would be the stale-base trap one layer up. **Nothing is retuned and nothing is measured again until that fix is on trunk.**
@@ -352,23 +352,23 @@ branch currently writes 6 itself — that stays only while it is a draft, and **
 goes READY behind Stats**. One bump for many, because kill links are the viral surface and N bumps means N waves of dead links.
 
 **SEQUENCING, 2026-09-22 (the lead, correcting himself with Combat's answer).** Combat's **knife** is next, not the cleaver, and it
-touches the warden approach in `src/ai.ts` rather than estoc data — so #419's draft status does **not** gate them tomorrow; only the
+touches the warden approach in `src/fight/ai.ts` rather than estoc data — so #419's draft status does **not** gate them tomorrow; only the
 cleaver-and-after stacks on this lane. Read the other direction, that is this entry's unblocking event: the approach fix this entry is
-held on is the thing Combat is about to ship, so **watch trunk for `src/ai.ts`** rather than waiting to be told. Combat is taking this
+held on is the thing Combat is about to ship, so **watch trunk for `src/fight/ai.ts`** rather than waiting to be told. Combat is taking this
 lane's knife `thrust.recovery` 15 → 20 as measured rather than re-deriving it.
 
 **CORRECTION, 2026-09-22 — the kicker hover is NOT this entry's unblocking event, and #419 should not be sequenced behind it.**
-Combat corrected their own mechanism (via the lead): the park is not the approach stop but the **kicker hover**, `src/ai.ts:323`
+Combat corrected their own mechanism (via the lead): the park is not the approach stop but the **kicker hover**, `src/fight/ai.ts:323`
 `const hover = guardShare === 0 ? (reads.poker ? theirs.thrust.reach : reads.kicker ? theirs.kick.reach + .3 : 0) : 0`, with the clamp at
 `:330` zeroing forward drive below `hover − margin` (`:328`, margin `.05` for a kicker). That mechanism is real and the arithmetic
 reproduces: `MOVES.kick.reach` is 1.2, so hover = 1.50 and forward drive dies at **1.45**; the parked warden's *usable* reaches
 (`reach − .1`, the margin `inReach` keeps) are light 1.10, thrust 1.35, heavy 1.45 — parked at exactly the heavy's usable edge, only the
 heavy legal. **But those are the knife's reaches (1.2 / 1.45 / 1.55), not the estoc's** (1.95 / 2.30 / 2.20 with the fix). The warden is
 the **Goblin**, and that is forced: `guardShare = profile.guard ?? 1` (`:68`), and `guard: 0` appears in exactly one opponent's profiles
-in `src/moves.ts` — the goblin's easy/normal/hard (`:509–511`), whose comment says outright "never guards (guard 0)".
+in `src/fight/moves.ts` — the goblin's easy/normal/hard (`:509–511`), whose comment says outright "never guards (guard 0)".
 
 **The Nightborn is not guardless**, so `hover` evaluates to 0 for him and the `hover > 0` clamp can never fire on his approach:
-`nightborn` (`src/moves.ts:495`) carries `guard: { window, recovery, commits }` — the directional-guard object, a different key — and
+`nightborn` (`src/fight/moves.ts:495`) carries `guard: { window, recovery, commits }` — the directional-guard object, a different key — and
 none of his three profiles sets the AiProfile `guard` share, so it defaults to 1. **Therefore Combat's kicker-hover fix cannot move
 findings (2) or (3), and cannot move the trident row.** What it *does* explain is the `knife vs goblin hard: kick only untouched` 3/24
 stalemate this lane already routed to Combat as his approach rather than knife data — that row now has its mechanism, at 1.45 m.
@@ -428,7 +428,7 @@ killed 24/24 by this same Goblin with every other weapon; only the knife pairing
    knife changed. Re-scan the whole table after any weapon edit; never assume the blast radius is the weapon you touched. It cost the
    estoc its reach fix (#419, parked) and it is the reason a knife tune needs Combat's re-signature.
 2. **Every weapon-data change invalidates every shared kill link.** `tests/record-version-guard.test.ts` hashes
-   `SIM_FILES = [duel.ts, moves.ts, ai.ts, sim.ts, record.ts]`; any change to `src/moves.ts` requires `RECORD_VERSION` to bump, which
+   `SIM_FILES = [duel.ts, moves.ts, ai.ts, sim.ts, record.ts]`; any change to `src/fight/moves.ts` requires `RECORD_VERSION` to bump, which
    refuses all previously shared links at decode. That is the correct behaviour — a link must not replay a different fight — but it means
    **N weapon PRs merged separately cost N link-invalidation events.** The remaining flip work should be batched behind ONE deliberate
    bump rather than paid per weapon. That sequencing is the lead's call, which is why this entry is BLOCKED rather than shipped.
@@ -501,7 +501,7 @@ excluded set from the table and asserts that a weapon with no row *must* be offe
 longsword, warhammer, trident, scythe.
 
 Also finishes the knife change from `1bb9153`: `KNIFE_MOVES.thrust` went to recovery 20 but `KNIFE_PATHS.thrust` stayed at 15. The path
-tables drive the clip retime (`clipSpec`, `src/combat.ts`), not the sim — a path shorter than its move leaves the stab looking recovered
+tables drive the clip retime (`clipSpec`, `src/fight/combat.ts`), not the sim — a path shorter than its move leaves the stab looking recovered
 for 5 ticks while the sim still holds the fighter. Both path tables now follow their moves. Presentation only, so no measurement re-opens.
 
 Every sweep ran an untouched control in the same process; it reproduced 19/24 and 16/24 exactly and restored to them after every patch
@@ -511,7 +511,7 @@ Evidence: `44d414e`. Gate 456/459 plus 93/93 slow, and the fairness table passes
 `RECORD_VERSION` guard, red deliberately under the lead's ruling (a): one 3 → 4 bump for the whole remaining flip work, not one per weapon.
 **The batch then closed, and the branch was rebased onto trunk `c43c677`** (head `3245d6e`, #440 MERGEABLE/CLEAN). Two things the rebase
 changed, both worth keeping: **`RECORD_VERSION` is 5, not 4** — trunk had already taken 4 for Brief 13's whip tell (#431) while this branch
-was in flight, so the batch is a further sim change on top of it. And the rebase pulled in a **299-line `src/ai.ts` change plus `duel.ts`,
+was in flight, so the batch is a further sim change on top of it. And the rebase pulled in a **299-line `src/fight/ai.ts` change plus `duel.ts`,
 `moves.ts` and `record.ts`** that belong to the lorarii work, not to this lane: the fairness table was therefore re-run on the rebased tree
 before the sha went to Combat, and the snapshot still matches exactly, so neither trunk's changes nor this lane's moved a row. The reference
 fights' state digests moved to `d953a09b` / `552f30e5`, which is byte-for-byte what trunk's own fixture already carried — the knife and
@@ -520,7 +520,7 @@ scythe move those two Veteran fights not at all (same ticks 1677/1452, outcome a
 The `grip` field also landed here (the shield brief, via the lead, folded in rather than paying a second bump): one-hand = knife, cleaver,
 estoc, trident; two-hand = warhammer, scythe, longsword. The brief named seven; `MAUL` and `REAPER` spread `CLEAVER` and `ESTOC`, so without
 an explicit override they would have silently inherited `one-hand` — both set to `two-hand` and flagged to the lead. Data only, nothing in
-the sim reads it. `RECORD_VERSION` 3 → 4 was the single bump ruling (a) reserved for the whole flip work. `src/record.ts`
+the sim reads it. `RECORD_VERSION` 3 → 4 was the single bump ruling (a) reserved for the whole flip work. `src/fight/record.ts`
 is itself one of the hashed `SIM_FILES`, so the digest was computed *after* the bump rather than copied from the failure message, which
 prints the pre-bump one. References regenerated per the documented procedure (`scripts/record-replay-check.mjs --write`, same PR as the
 bump) — and both replay to the **identical** fight, same ticks (1677, 1452), outcome, killed tick and state digest. Only the version byte

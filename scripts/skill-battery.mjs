@@ -5,7 +5,7 @@
 //   node scripts/skill-battery.mjs [--skill <id> | --skills a,b] [--seeds 24] [--weapons longsword,knife] [--levels normal]
 // Default: every skill in SKILL_MOVE. One --skill per process shards the sweep across cores.
 /* global process, console */
-import { OPPONENTS, PLAYER_WEAPONS } from '../src/moves.ts';
+import { OPPONENTS, PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { SKILL_STRATEGIES, battery } from '../tests/strategies.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };

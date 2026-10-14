@@ -1,0 +1,29 @@
+# Engine-slice wording (Dom via Strategy and Lead, 2026-10-09): a PR touching src/fight/ or origins/combat/ must not describe its work as copying,
+# porting or rebuilding the Pit. Warns on the first hit (a marked PR comment starts a 24 h clock), fails after it. scripts/pr-wording.mjs has the rules.
+# `edited` is in the set on purpose: fixing the title or body is how this check is cleared.
+name: pr-wording
+on:
+  pull_request:
+    branches: [codex/01a09a76/task-1]
+    types: [opened, edited, synchronize, reopened]
+concurrency:
+  group: pr-wording-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  wording:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/pr-wording.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}

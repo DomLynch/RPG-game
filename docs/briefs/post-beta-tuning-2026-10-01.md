@@ -69,7 +69,7 @@ It shows which opponents players are actually beating at which rank, and how man
 ```sql
 select id, opponent, record, created_at from public.fight_records order by created_at;
 ```
-then decode each `record` with `decodeRecord` from `src/record.ts` (it returns `opponent`, `weapon`, `level`, `outcome`, `ticks`) and group by opponent and rank, where rank = `least(10, (level - 1) / 5 + 1)` (R1 = levels 1-5 ... R9 = 41-45, R10 = 46) and a win is `outcome = 'killed'`:
+then decode each `record` with `decodeRecord` from `src/fight/record.ts` (it returns `opponent`, `weapon`, `level`, `outcome`, `ticks`) and group by opponent and rank, where rank = `least(10, (level - 1) / 5 + 1)` (R1 = levels 1-5 ... R9 = 41-45, R10 = 46) and a win is `outcome = 'killed'`:
 
 ```js
 // node --experimental-strip-types decode-shared.mts < export.json   (export.json = the rows above as JSON)
@@ -79,7 +79,7 @@ const cell: Record<string, { n: number; w: number }> = {};
 for (const r of rows) { try { const f = await decodeRecord(r.record); const k = `${f.opponent}|R${Math.min(10, Math.floor((f.level - 1) / 5) + 1)}`; (cell[k] ??= { n: 0, w: 0 }).n++; if (f.outcome === 'killed') cell[k].w++; } catch { /* a retired record version */ } }
 console.table(Object.entries(cell).map(([k, v]) => ({ cell: k, n: v.n, wins: v.w, winPct: Math.round(100 * v.w / v.n) })));
 ```
-(Field names checked against `src/record.ts`; not run on live rows.) Read it as a lower-bound sanity check only: the sample is self-selected, includes practice fights from a kill link's PLAY NOW (the record header has no mode), and holds 11 rows today.
+(Field names checked against `src/fight/record.ts`; not run on live rows.) Read it as a lower-bound sanity check only: the sample is self-selected, includes practice fights from a kill link's PLAY NOW (the record header has no mode), and holds 11 rows today.
 
 ### The missing piece: one row per fight with the result (post-beta, a few lines)
 

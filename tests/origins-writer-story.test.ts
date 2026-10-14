@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { creditFromMarks, levelOfCredit, basePay, TYPE_WEIGHTS } from '../origins/progression/model.ts';
+import { cumulative, levelOfCredit, basePay, TYPE_WEIGHTS } from '../src/core/career-model.ts';
 import { DbError, type Db } from '../origins/server/db.ts';
 import { loadStoryContent, readStoryContent } from '../origins/server/content.ts';
 import { Refused } from '../origins/server/errors.ts';
@@ -17,8 +17,9 @@ import { storyBundle } from '../origins/server/fixtures.ts';
 import { BadRequest, handlers, storyOps, type Ctx } from '../origins/server/handlers.ts';
 import { questAdvance } from '../origins/server/quest-advance.ts';
 import { createWriter } from '../origins/server/server.ts';
+import { fakeWhere } from '../origins/presence/fixtures.ts';
 import type { StoryContent } from '../origins/server/story.ts';
-import type { QuestId } from '../origins/contracts/ids.ts';
+import type { QuestId } from '../src/core/contracts/ids.ts';
 import type { Talk } from '../origins/talk/talk.ts';
 import { talkPick } from '../origins/server/talk-pick.ts';
 
@@ -36,7 +37,7 @@ const talkOp = async (ctx: Ctx, body: Record<string, unknown>): Promise<{ reply:
 type Row = Record<string, unknown>;
 type World = { career: Row; quests: Row[]; journal: Row[]; talk: Row[]; events: Map<string, Row>; items: Row[] };
 const MARKS = 10;   // level 11 (Gladiator I): the Concord Commission's outer gate is open
-const SEED = creditFromMarks(MARKS);
+const SEED = cumulative(1 + MARKS);
 
 // One account's rows (A, owning PA; PB is B's) and the migration's commit rules over them.
 function fakeDb(o: { items?: Row[] } = {}) {
@@ -276,7 +277,7 @@ test('talk_pick: refusals — another account\'s character, an unknown NPC or li
 test('the registry: with no content loaded both ops answer 503; with the bundle loaded they work', async () => {
   const f = fakeDb();
   const serve = async (ops: typeof handlers) => {
-    const server = createWriter({ db: f.db, verify: async t => (t === 'tok' ? A : null), handlers: ops });
+    const server = createWriter({ db: f.db, verify: async t => (t === 'tok' ? A : null), where: fakeWhere({}), handlers: ops });
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/origins/`;
     return { server, call: async (op: string, body: unknown) => { const res = await fetch(url + op, { method: 'POST', headers: { authorization: 'Bearer tok' }, body: JSON.stringify(body) }); return { status: res.status, body: await res.json() as { error?: string } }; } };
@@ -301,7 +302,7 @@ test('the registry: with no content loaded both ops answer 503; with the bundle 
 test('importing the registry reads no env and no file: ORIGINS_CONTENT naming a missing bundle neither throws nor loads', () => {
   const probe = `const h = await import(${JSON.stringify(new URL('../origins/server/handlers.ts', import.meta.url).href)}); console.log(JSON.stringify([Object.keys(h).includes('content'), Object.keys(h.handlers).sort()]));`;
   const out = execFileSync(process.execPath, ['--input-type=module', '-e', probe], { env: { ...process.env, ORIGINS_CONTENT: join(tmpdir(), 'origins-no-such-bundle', 'missing.json') }, encoding: 'utf8' });
-  assert.deepEqual(JSON.parse(out), [false, ['create_character', 'open', 'quest_advance', 'talk_pick']]);
+  assert.deepEqual(JSON.parse(out), [false, ['build_get', 'build_set', 'create_character', 'open', 'quest_advance', 'skill_focus', 'skills_get', 'talk_pick', 'title_get']]);
 });
 
 test('content: a bundle that does not load stops the writer', () => {

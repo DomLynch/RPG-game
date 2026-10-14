@@ -5,6 +5,9 @@ import { test } from 'node:test';
 import { decodeDown, decodeUp, encodeDown, encodeUp, ENTITY_BYTES } from '../origins/presence/wire.ts';
 import { RULES, World, type Player } from '../origins/presence/interest.ts';
 import { createPresence } from '../origins/presence/server.ts';
+import { CENTRE_CM } from '../origins/presence/zones.ts';
+
+const OPEN = { x: CENTRE_CM + 8000, z: CENTRE_CM };   // open ground 80 m east of the Pit (the Pit is quiet: nobody outside it sees in or out)
 
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
@@ -55,8 +58,8 @@ const put = (w: World, n: number, x: number, z: number): Player => w.join(acct(n
 
 test('interest: only others inside 40 m, nearest first, each ring at its own rate', () => {
   const w = new World();
-  const me = put(w, 1, 15000, 15000);
-  const near = put(w, 2, 15000 + 500, 15000), mid = put(w, 3, 15000 + 2000, 15000), far = put(w, 4, 15000 + 3500, 15000), out = put(w, 5, 15000 + 4500, 15000);
+  const me = put(w, 1, OPEN.x, OPEN.z);
+  const near = put(w, 2, OPEN.x + 500, OPEN.z), mid = put(w, 3, OPEN.x + 2000, OPEN.z), far = put(w, 4, OPEN.x + 3500, OPEN.z), out = put(w, 5, OPEN.x + 4500, OPEN.z);
   const seen = (tick: number): number[] => w.seenBy(me, tick).map(e => e.id).sort((a, b) => a - b);
   void out;
   const rate = (id: number): number => { let n = 0; for (let t = 0; t < 10; t++) if (seen(t).includes(id)) n++; return n; };
@@ -69,8 +72,8 @@ test('interest: only others inside 40 m, nearest first, each ring at its own rat
 
 test('interest: the 40 nearest are drawn and the rest are culled; a packet never exceeds the cap', () => {
   const w = new World(RULES, 1);
-  const me = put(w, 1, 15000, 15000);
-  for (let i = 2; i <= 79; i++) put(w, i, 15000 + (i % 10) * 100 + 1, 15000 + Math.floor(i / 10) * 100);   // all within 12 m, so every one is due every tick
+  const me = put(w, 1, OPEN.x, OPEN.z);
+  for (let i = 2; i <= 79; i++) put(w, i, OPEN.x + (i % 10) * 100 + 1, OPEN.z + Math.floor(i / 10) * 100);   // all within 12 m, so every one is due every tick
   const seen = w.seenBy(me, 0);
   assert.equal(seen.length, RULES.nearCap);
   const dist = seen.map(e => Math.hypot(e.x - me.x, e.z - me.z));
@@ -79,31 +82,36 @@ test('interest: the 40 nearest are drawn and the rest are culled; a packet never
   assert.ok(Math.max(...dist) <= all[RULES.nearCap - 1] + 1e-9, 'and they are the 40 nearest of the 77');
 });
 
-test('movement clamp: inside the zone, no faster than sprint; a jump is snapped back and a run of them drops the player', () => {
+test('movement clamp: walkable ground, no faster than sprint; a jump is snapped back and a run of them drops the player', () => {
   const w = new World();
-  const p = w.join(acct(1), 0, undefined, { x: 15000, z: 15000 })!;
+  const p = w.join(acct(1), 0, undefined, OPEN)!;
   const pose = (x: number, z: number) => ({ x, z, heading: 1, anim: 2, flags: 3 });
-  p.movedAt = 0; p.x = p.z = 15000;
-  assert.equal(w.move(p, pose(15000 + 100, 15000), 100), 'ok', '1 m in 100 ms is 10 m/s: inside the slack (7 m/s x 1.5)');
-  assert.equal(p.x, 15100);
-  assert.equal(w.move(p, pose(15100 + 5000, 15000), 200), 'snapped', 'a 50 m jump in 100 ms');
-  assert.equal(p.x, 15100, 'and the old position stays');
-  for (let i = 0; i < 4; i++) assert.equal(w.move(p, pose(20000, 15000), 300 + i * 100), 'snapped');
-  assert.equal(w.move(p, pose(20000, 15000), 800), 'drop', 'the sixth strike inside the window');
-  const q = w.join(acct(2), 0, undefined, { x: 100, z: 100 })!; q.movedAt = 0; q.x = q.z = 100;
-  assert.equal(w.move(q, pose(-50, 99999), 1000), 'snapped', 'a pose far outside the zone is a jump too');
-  const r = w.join(acct(3), 0, undefined, { x: 29900, z: 100 })!; r.movedAt = 0; r.x = 29900; r.z = 100;
-  assert.equal(w.move(r, pose(30040, 100), 1000), 'ok');
-  assert.equal(r.x, 30000, 'a small step past the edge is held at the edge');
+  p.movedAt = 0;
+  assert.equal(w.move(p, pose(OPEN.x + 100, OPEN.z), 100), 'ok', '1 m in 100 ms is 10 m/s: inside the slack (7 m/s x 1.5)');
+  assert.equal(p.x, OPEN.x + 100);
+  assert.equal(w.move(p, pose(OPEN.x + 5100, OPEN.z), 200), 'snapped', 'a 50 m jump in 100 ms');
+  assert.equal(p.x, OPEN.x + 100, 'and the old position stays');
+  for (let i = 0; i < 4; i++) assert.equal(w.move(p, pose(OPEN.x + 5000, OPEN.z), 300 + i * 100), 'snapped');
+  assert.equal(w.move(p, pose(OPEN.x + 5000, OPEN.z), 800), 'drop', 'the sixth strike inside the window');
+  const q = w.join(acct(2), 0)!; q.movedAt = 0;
+  assert.equal(w.move(q, pose(0, 65535), 1000), 'snapped', 'a pose far outside any walkable ground is a jump too');
+  const edge = CENTRE_CM + 15000;   // the town square's east edge: nothing walkable beyond it
+  const r = w.join(acct(3), 0, undefined, { x: edge - 100, z: CENTRE_CM })!; r.movedAt = 0;
+  assert.equal(w.move(r, pose(edge + 40, CENTRE_CM), 1000), 'snapped', 'a v2 pose past the walkable ground is refused, the old place stays');
+  assert.equal(r.x, edge - 100);
+  const old = w.join(acct(4), 0, undefined, { x: edge - 100, z: CENTRE_CM }, true)!; old.movedAt = 0;
+  assert.equal(w.move(old, pose(edge + 40, CENTRE_CM), 1000), 'ok', 'a v1 client is clamped to the square instead');
+  assert.equal(old.x, edge, 'a small step past the edge is held at the edge');
 });
 
-test('a player with no known position is placed by its first pose, then clamped like everyone', () => {
+test('a player with no known position starts at the spawn, and its first pose is clamped like every other (X2 stage 1: a first pose never places anyone)', () => {
   const w = new World();
   const p = w.join(acct(1), 0)!;
-  assert.equal(w.move(p, { x: 5000, z: 6000, heading: 0, anim: 0, flags: 0 }, 100), 'ok');
-  assert.deepEqual([p.x, p.z], [5000, 6000], 'the spawn is where the page says it stands');
-  assert.equal(w.move(p, { x: 25000, z: 6000, heading: 0, anim: 0, flags: 0 }, 200), 'snapped', 'the second jump is a teleport');
-  assert.equal(p.layer.cells.get(Math.floor(5000 / 1600) * 4096 + Math.floor(6000 / 1600))!.has(p), true, 'and the grid still holds it at the spawn');
+  assert.deepEqual([p.x, p.z], [CENTRE_CM, CENTRE_CM], 'the Pit yard centre, chosen by the server');
+  assert.equal(w.move(p, { x: 5000, z: 6000, heading: 0, anim: 0, flags: 0 }, 100), 'snapped', 'a first pose far from the spawn is a teleport, not a placement');
+  assert.deepEqual([p.x, p.z], [CENTRE_CM, CENTRE_CM], 'and the old position stays');
+  assert.equal(w.move(p, { x: CENTRE_CM + 100, z: CENTRE_CM, heading: 0, anim: 0, flags: 0 }, 200), 'ok', 'a first pose within the clamp is an ordinary move');
+  assert.equal(p.layer.cells.get(Math.floor((CENTRE_CM + 100) / 1600) * 4096 + Math.floor(CENTRE_CM / 1600))!.has(p), true, 'and the grid holds it there');
 });
 
 // The real socket path: Node's built-in WebSocket client against the service on loopback.

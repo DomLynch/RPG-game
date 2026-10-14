@@ -1,5 +1,7 @@
 # A closed pull request's runs are cancelled (Strategy 2026-09-23: matrices for closed PRs were still queued hours later,
 # ahead of live work). Only runs on this PR's head branch that have not finished; nothing else is touched.
+# Closed UNMERGED only (Lead + Strategy 2026-10-12): a MERGED pull request's runs are its receipt. CO #2331 merged and this cancelled release-checks
+# and unit-ci on 7ac7e0e6b, the sha deploy.sh then had to trust.
 name: cancel-on-close
 on:
   pull_request:
@@ -8,6 +10,7 @@ permissions:
   actions: write
 jobs:
   cancel:
+    if: github.event.pull_request.merged != true
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -15,8 +18,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Same branch AND this PR's head sha (Auditor, run 38252733109): every release re-cut reuses the branch name (release-CR), and closing the
+        # superseded CR #2346 cancelled 7 of the 8 runs of the new CR #2347 on that branch.
         run: |
           ids=$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$HEAD_BRANCH" --limit 100 --json databaseId,status,headSha,name \
-            --jq '.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending" or .status == "requested") | select(.name != "cancel-on-close") | .databaseId')
+            --jq '.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending" or .status == "requested") | select(.name != "cancel-on-close") | select(.headSha == env.HEAD_SHA) | .databaseId')
           if [ -z "$ids" ]; then echo "no unfinished runs on $HEAD_BRANCH ($HEAD_SHA)"; exit 0; fi
           for id in $ids; do echo "cancelling run $id"; gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true; done

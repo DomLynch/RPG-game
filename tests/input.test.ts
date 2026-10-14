@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, guardSide } from '../src/input.ts';
-import type { Direction } from '../src/moves.ts';
+import { CUT_PUSH, GUARD_DEAD_BAND_DEG, GUARD_SLIDE_PX, cutAction, cutSideOf, guardSide } from '../src/fight/input.ts';
+import type { Direction } from '../src/fight/moves.ts';
 
 test('combat buttons stay DOM hit targets during cooldown so repeated touches are consumed', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -11,7 +11,7 @@ test('combat buttons stay DOM hit targets during cooldown so repeated touches ar
     const button = html.match(new RegExp(`<button\\b[^>]*id="${id}"[^>]*>`))![0];
     assert.doesNotMatch(button, /\sdisabled(?:\s|=|>)/);
   }
-  for (const file of ['main.ts', 'input.ts']) {   // the button grammar lives in input.ts; the entry point keeps the fallback disables
+  for (const file of ['main.ts', 'fight/input.ts']) {   // the button grammar lives in input.ts; the entry point keeps the fallback disables
     const source = ts.createSourceFile(file, readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
     function visit(node: ts.Node) {
       if (ts.isPropertyAccessExpression(node) && ['attackButton', 'dodgeButton', 'guardButton'].includes(node.expression.getText(source))) assert.notEqual(node.name.getText(source), 'disabled', 'buttons stay hit targets; use aria-disabled');
@@ -42,7 +42,7 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /user-scalable\s*=\s*no/);
   assert.match(html, /maximum-scale\s*=\s*1(?:[,"\s])/);
-  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/zoom-guard.ts', import.meta.url), 'utf8');   // the guard lives in zoom-guard.ts, main.ts calls it with its fight surface
   assert.match(main, /gesturestart/);
   assert.match(main, /addEventListener\('touchstart'[^\n]*touches\.length > 1[^\n]*preventDefault/, 'the second finger is refused at touchstart, not only touchmove');
   // iOS Safari zooms the page into any focused form control whose font is under 16px and leaves it zoomed after the control
@@ -66,6 +66,8 @@ test('the fight surface refuses every browser gesture: page zoom locked, touch-a
   // A double tap on/near an attack button zoomed the page ~2x on iPhone (owner, 2026-09-26): the second quick touchend is refused at the document.
   assert.match(main, /addEventListener\('touchend', \(event\) => \{[^]*?timeStamp - lastTouchEnd < 350[^]*?event\.preventDefault\(\)[^]*?\}, \{ passive: false \}\)/);
   assert.match(main, /DOUBLE_TAP_SURFACE = '#world, #joystick, #actions'/, 'the refusal is scoped to the fight surface, so click-driven controls keep both taps (Lead, 2026-09-26)');
+  // The Origins preview zoomed on Dom's iPhone (2026-10-07): it had no guard. Every entry calls the one helper.
+  for (const entry of ['../src/main.ts', '../origins/preview/main.ts']) assert.match(readFileSync(new URL(entry, import.meta.url), 'utf8'), /\blockPageZoom\(document, \{ surface: /, `${entry} locks page zoom`);
 });
 
 test('the journal test tools ship hidden behind the admins roster; the Sparring tab holds the overrides and ships hidden', () => {
@@ -89,21 +91,27 @@ test('the thumb cluster is the one touch layout: the markup carries it and nothi
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<div class="actions" id="actions" data-gestures="cluster">/);
   assert.doesNotMatch(html, /controls-mode|strike circle|guard ring/);
-  for (const file of ['main.ts', 'input.ts', 'hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
+  for (const file of ['main.ts', 'fight/input.ts', 'fight/hud.ts', 'style.css']) assert.doesNotMatch(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'), /ring8|data-gestures=(?!cluster)/, `${file} still knows the retired scheme`);
 });
 
 test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): every combat button carries the same five marks; all rest at the same faint weight; one lights only while pressed — Slash the next cut (data-next), Stab the ring, Heavy up, Kick down, Guard the held side (aria-pressed + data-side)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   const button = (id: string) => html.match(new RegExp(`<button id="${id}-button"[\\s\\S]*?<\\/button>`))![0];
-  const compass = button('guard').match(/<svg class="[^"]*side-marks[^"]*"[\s\S]*?<\/svg>/)![0].replace(/class="[^"]*side-marks[^"]*"/, '');
-  for (const id of ['guard', 'attack', 'thrust', 'heavy', 'kick']) {
+  // Dom 2026-10-07 ("yes slash and guard"): the compass lives on SLASH (left/right ticks only) and GUARD (all five marks); no other fight button carries one.
+  for (const id of ['guard', 'attack']) {
     const b = button(id);
-    for (const side of ['overhead', 'low', 'left', 'right', 'straight']) assert.match(b, new RegExp(`class="side side-${side}"`), `${id}: ${side} mark`);
+    for (const side of id === 'guard' ? ['overhead', 'low', 'left', 'right', 'straight'] : ['left', 'right']) assert.match(b, new RegExp(`class="side side-${side}"`), `${id}: ${side} mark`);
     assert.match(b, /<svg class="[^"]*side-marks[^"]*"[^>]*aria-hidden="true"/, `${id}: decorative, hidden from the accessibility tree`);
-    assert.equal(b.match(/<svg[\s\S]*?<\/svg>/)![0].replace(/class="[^"]*side-marks[^"]*"/, ''), compass, `${id}: the same compass as Guard`);
   }
+  for (const side of ['left', 'right']) assert.match(button('attack'), new RegExp(`class="arc arc-${side}"`), `Slash: ${side} arc`);
+  for (const side of ['left', 'right', 'overhead', 'low']) assert.match(button('guard'), new RegExp(`class="arc arc-${side}"`), `Guard: ${side} arc`);
+  assert.match(css, /button \.arc\{[^}]*opacity: 0;/, 'no slide, no arc'); assert.doesNotMatch(css, /\.arc[^{}]*::(after|before)/, 'the arc never uses a pseudo-element (the Slash label is #attack-button::after)');
+  const src = readFileSync(new URL('../src/fight/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /const cutLateral = \(\) => Number\(keys\.has\('KeyD'\)/, 'the on-screen stick is movement only: the cut side never reads moveX'); assert.doesNotMatch(src.match(/const cutLateral[^\n]*/)![0], /moveX/);
+  for (const side of ['overhead', 'low', 'straight']) assert.doesNotMatch(button('attack'), new RegExp(`side-${side}`), `Slash has no ${side} mark`);
+  for (const id of ['thrust', 'heavy', 'kick', 'skill']) assert.doesNotMatch(button(id), /side-marks/, `${id}: no compass (it reads as a swipe hint on a tap button)`);
   const rule = css.match(/\/\* one lit mark per button[\s\S]*?\*\/([\s\S]*?)\{ opacity: \.95; stroke-width: 2; \}/)![1];
-  for (const sel of ['#attack-button[data-held][data-next=left] .side-left', '#attack-button[data-held][data-next=right] .side-right', '#thrust-button[data-held] .side-straight', '#heavy-button[data-held] .side-overhead', '#kick-button[data-held] .side-low',
+  for (const sel of ['#attack-button[data-held][data-next=left] .side-left', '#attack-button[data-held][data-next=right] .side-right',
     ...['left', 'right', 'overhead', 'low', 'straight'].map((s) => `#guard-button[aria-pressed=true][data-side=${s}] .side-${s}`), '#guard-button[aria-pressed=true]:not([data-side]) .side-straight'])
     assert.ok(rule.includes(sel), `${sel} lights`);
   // Owner 2026-09-22 (second look, presentation lane, #420): the four ticks rest brighter at .55, and the centre ring is invisible at
@@ -117,7 +125,7 @@ test('side hints v3 (owner 2026-09-21 "apply that everywhere consistently"): eve
   assert.match(css, /#heavy-button \{\s*width: 58px;\s*height: 58px;/, 'Heavy is wide enough for its label (owner: smaller than Slash, bigger than 50)');
   assert.match(css, /#thrust-button:not\(\[hidden\]\) \{\s*display: block;\s*width: 56px;\s*height: 56px;/, 'Stab ~10% bigger, spacing kept');
   assert.match(css, /#attack-button \{\s*width: 60px;\s*height: 60px;/, 'Slash -10% (owner)');
-  assert.match(button('guard'), /side-overhead" d="M32-6l/, 'v5: the ticks sit outside the rim (apex past the viewBox)'); assert.match(button('guard'), /side-left" d="M-6 32l/); assert.match(button('guard'), /side-right" d="M70 32l/); assert.match(button('guard'), /side-low" d="M32 70l/);
+  assert.match(button('guard'), /side-overhead" d="M32-6l/, 'v5: the ticks sit outside the rim (apex past the viewBox)'); assert.match(button('guard'), /side-left" d="M-6 32l/); assert.match(button('guard'), /side-right" d="M70 32l/); assert.match(button('guard'), /side-low" d="M25 69h14"/, 'Guard low is a short flat line under the button, not an arrow pointing away');
   assert.match(css, /button \.side-marks\{[^}]*overflow: visible/, 'the SVG may draw past the button');
   assert.match(css, /prefers-reduced-motion: reduce[\s\S]*side-marks/, 'the fade respects reduced motion');
 });
@@ -198,7 +206,7 @@ test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized
   const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
   assert.equal(width, 184, 'the six keep their trunk places: the cluster box is not widened for SKILL');
   assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
-  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<svg class="side-marks"/)!;
+  const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<\/button>/)!;
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
   assert.match(css, /#thrust-button,\n#skill-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row');
   assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
@@ -220,13 +228,13 @@ test('directional cuts (Dom GO 2026-10-07): LIGHT with the stick or A/D held to 
   assert.equal(cutAction(0), 'light'); assert.equal(cutAction(0.12), 'light'); assert.equal(cutAction(CUT_PUSH - 0.01), 'light', 'a wobble is not a cut');
   assert.equal(cutAction(-CUT_PUSH), 'light_left'); assert.equal(cutAction(-1), 'light_left');
   assert.equal(cutAction(CUT_PUSH), 'light_right'); assert.equal(cutAction(1.4), 'light_right');
-  const src = readFileSync(new URL('../src/input.ts', import.meta.url), 'utf8');
-  assert.match(src, /request\(isHeavy \? 'heavy' : cutAction\(lateral\(\)\)\)/, 'the LIGHT press reads the held side');
+  const src = readFileSync(new URL('../src/fight/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /take\(isHeavy \? 'heavy' : cutAction\(cutLateral\(\)\)\)/, 'the LIGHT press reads the keyboard side (the on-screen stick is movement only) and goes through take()');
   assert.match(src, /const arrowKey = \(code: string\) => !keys\.has\('KeyQ'\)/, 'Q + an arrow is the guard side, never a cut');
   assert.match(src, /attackButton\.dataset\.cut = cutSide/, 'the button shows the chosen side');
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-  assert.match(css, /#attack-button\[data-cut\]::after\{[^}]*border-left-color: var\(--cut-arc\)/, 'v2: a solid arc marks the chosen edge');
-  assert.match(css, /#attack-button\[data-cut=right\]::after\{ clip-path: inset\(0 0 0 50%\)/, 'right cut keeps the right half');
+  assert.match(css, /#attack-button\[data-cut=left\]:not\(\[data-held\]\) \.side-left/, 'the lit side tick still marks the chosen side');
+  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /#attack-button\[data-cut[^\]]*\][^,{]*::after/, 'Dom 2026-10-07: the arc is removed (it also replaced the Slash label)');
 });
 
 test('a refusal card over a stalled page quiets the fight controls behind it, and PLAY NOW stays (Lead 2026-10-07)', () => {
@@ -235,4 +243,32 @@ test('a refusal card over a stalled page quiets the fight controls behind it, an
   const rule = /:root\.card-up #joystick,[^{]*#actions button:not\(#reset-button\)\s*\{[^}]*visibility: hidden !important; pointer-events: none !important;/.exec(css);
   assert.ok(rule, 'the stick, hint, run toggle and every action but #reset-button are hidden and inert');
   assert.doesNotMatch(rule![0], /#reset-button\s*[,{]\s*$/m, 'PLAY NOW is exempt');
+});
+
+test('the Slash label survives every directional-cut state: nothing may repaint the attack button\'s ::after, which IS the mobile label', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  const label = rules.filter((r) => /button\[data-mobile\]::after/.test(r.selector) && /content:\s*attr\(data-mobile\)/.test(r.body));
+  assert.ok(label.length >= 1, 'the label is drawn by button[data-mobile]::after (content: attr(data-mobile))');
+  const clobbers = rules.filter((r) => /#attack-button[^,]*::after/.test(r.selector) && /\bcontent\s*:/.test(r.body));
+  assert.deepEqual(clobbers.map((r) => r.selector), [], 'an #attack-button ::after rule with its own content would replace the label (it did, with data-cut set: no text, only the arc)');
+  assert.ok(!/#attack-button\[data-cut[^\]]*\][^,{]*::after/.test(css), 'the directional-cut arc is gone (Dom 2026-10-07); the cut stays in input.ts (data-cut) and the lit tick');
+  const input = readFileSync(new URL('../src/fight/input.ts', import.meta.url), 'utf8');
+  assert.match(input, /cutAction\(cutLateral\(\)\)/, 'the cut itself reads the keyboard side only'); assert.match(input, /attackButton\.dataset\.cut = cutSide/);
+});
+
+test('the cut flash fires only for a taken side cut, at the press, on ::before, and never touches the label (Dom 2026-10-07)', () => {
+  assert.equal(cutSideOf('light_left'), 'left'); assert.equal(cutSideOf('light_right'), 'right');
+  assert.equal(cutSideOf('light'), null, 'a neutral LIGHT flashes nothing'); assert.equal(cutSideOf('heavy'), null, 'Heavy has no side'); assert.equal(cutSideOf('thrust'), null);
+  const src = readFileSync(new URL('../src/fight/input.ts', import.meta.url), 'utf8');
+  assert.match(src, /function take\(next: Action\) \{\s*request\(next\);\s*if \(action === next\) flashCut\(next\);/, 'one guard: flash only once the press was taken');
+  assert.match(src, /function fireSlash[\s\S]*?take\(side === 'left' \? 'light_left' : 'light_right'\)/, 'the thumb slide (fireSlash) goes through the same guard, so a touch cut flashes too');
+  const intentBody = src.slice(src.indexOf('intent(): ControlIntent {')); assert.ok(intentBody.length > 200 && !/flashCut/.test(intentBody.slice(0, intentBody.indexOf('return {'))), 'the held-stick intent never flashes: the indicator comes with the press, not before');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  const flash = rules.filter((r) => /#attack-button\[data-flash=(left|right)\]::before/.test(r.selector));
+  assert.equal(flash.length, 2, 'one rule per side, on ::before'); for (const r of flash) assert.match(r.body, /animation:\s*cut-flash 2[0-5]\dms/, '~200-250 ms');
+  assert.match(css, /@keyframes cut-flash\{\s*from\{\s*opacity: \.[1-6]/, 'faint: starts at 60% or less');
+  assert.deepEqual(rules.filter((r) => /#attack-button\[data-flash[^\]]*\][^,]*::after/.test(r.selector)).map((r) => r.selector), [], 'the flash never styles the label (::after)');
+  assert.ok(!/data-flash/.test(readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8')), 'hud.ts (which writes the label) never touches the flash');
 });

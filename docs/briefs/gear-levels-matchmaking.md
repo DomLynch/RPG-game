@@ -9,11 +9,11 @@ From Dom (owner) via Strategy. **Post-beta** unless Dom says otherwise: the Pit,
 - Equal levels cancel exactly (130 ÷ 130 = 1), so every current balance pin (fight length, kill times, finisher windows) must replay unchanged at equal level. That test is the proof nothing broke.
 - The player's **weapon level sets Attack**, the **armour level sets Defence**. No allocated points, no STR/DEX (Dom: gear is the build). Opponents use 100 + their fight level.
 - **No stat changes timing:** swing speed, wind-ups, parries, rolls and reach stay per weapon/armour TYPE, never per level.
-- Replaces `src/gear-stats.ts`'s caps (+15 % / ×0.80). Re-pin on purpose (fix-forward), never by loosening a test.
+- Replaces `src/fight/gear-stats.ts`'s caps (+15 % / ×0.80). Re-pin on purpose (fix-forward), never by loosening a test.
 
 ## 1b. Armour slots, shield and crest
 
-Defence = 100 + Σ(piece level × slot share). Shares already in `src/gear-stats.ts` SLOT_WEIGHT, summing to 100 %, so a full level-50 set is exactly +50:
+Defence = 100 + Σ(piece level × slot share). Shares already in `src/fight/gear-stats.ts` SLOT_WEIGHT, summing to 100 %, so a full level-50 set is exactly +50:
 
 | Slot | Share |
 |---|---|

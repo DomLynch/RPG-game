@@ -10,25 +10,18 @@
 // stepDuel is pure, so no src/ file changes, no record version, no fingerprint move. Its only randomness is its own seeded LCG (the order
 // and the ring's starting angles), a stream separate from every warden's AI seed. Waiting enemies are presentation: their ring places
 // come from here, never from the sim. Every number is PROVISIONAL (spec: "until Combat measures it on the battery"); 60 Hz ticks.
-import type { AiState } from '../../src/ai.ts';
-import type { CombatEvent, Duel, Fighter, Phase } from '../../src/duel.ts';
-import type { MoveId } from '../../src/moves.ts';
+import { crowdRules, skirmisherHandover, stageRule, sweepRules } from '../world/stage-rules.ts';
+import type { AiState } from '../../src/fight/index.ts';
+import type { CombatEvent, Duel, Fighter, Phase } from '../../src/fight/index.ts';
+import type { MoveId } from '../../src/fight/index.ts';
 
-export const CROWD = {
-  breath: 45,          // ticks after the holder falls before the next steps in ("so you can turn")
-  starts: 3,           // the holder's attack starts before he hands over
-  hold: 360,           // ticks (6 s) the holder may keep the token before he hands over
-  minPassGap: 120,     // never more than one hand-over per this many ticks
-  ring: { min: 4, max: 6 },   // metres from the player the waiting enemies circle at
-  ringReturn: 0.02,    // metres per tick a pushed enemy drifts back to his role's circle
-  maxEnemies: 8,       // a pack larger than this is refused (preview scale; one token, the rest presentation)
-} as const;
+export const CROWD = crowdRules();   // rows (origins/preview/stage-rules-defs.json): breath 45 ticks after the holder falls ("so you can turn"), starts 3, hold 360 (6 s), minPassGap 120, ring 4 to 6 m, ringReturn 0.02 m/tick, maxEnemies 8 (preview scale; one token, the rest presentation)
 // 2E: Skirmisher — the holder before him hands over sooner. Pack leader — while he lives the others hand over every 4 s.
-export const SKIRMISHER_HANDOVER = { starts: 2, hold: 240 } as const;
-export const LEADER_HOLD = 240;
+export const SKIRMISHER_HANDOVER = skirmisherHandover();
+export const LEADER_HOLD = stageRule('leaderHold');
 // 2F: a player sweep that lands on the holder pushes every waiting enemy within `reach` metres OF THE HOLDER back to the outer ring and
 // delays his next token by `delay` ticks. Which player moves count as a sweep: the horizontal cuts (no wide technique exists yet, §4).
-export const SWEEP = { reach: 2.5, delay: 60 } as const;
+export const SWEEP = sweepRules();
 export const SWEEP_MOVES: ReadonlySet<MoveId> = new Set<MoveId>(['light_left', 'light_right']);
 // A quiet moment (2A): neither fighter in one of these phases, nor in a Special wind-up, and the player not inside his chain window.
 export const BUSY_PHASES: ReadonlySet<Phase> = new Set<Phase>(['attack', 'hurt', 'roll']);
@@ -71,7 +64,7 @@ export type CrowdEvent =
   | { kind: 'won' } | { kind: 'lost' };
 export type Step = { state: CrowdState; events: CrowdEvent[] };
 
-// The director's own LCG (the same constants as pit.ts fightSeed / src/match.ts nextSeed), never 0.
+// The director's own LCG (the same constants as pit.ts fightSeed / src/fight/match.ts nextSeed), never 0.
 const lcg = (s: number): number => ((Math.imul(s >>> 0, 1664525) + 1013904223) >>> 0) || 731;
 const unit = (s: number): number => s / 0x1_0000_0000;
 // Each enemy's own AI seed: from the encounter seed and his slot, never 0.

@@ -1,16 +1,16 @@
-// ?look=armfeel (src/armfeel.ts): the flag, the flinch's numbers (Dom's Armagedom handoff), the blade's hit hold and its cap, and the promise that
+// ?look=armfeel (src/fight/armfeel.ts): the flag, the flinch's numbers (Dom's Armagedom handoff), the blade's hit hold and its cap, and the promise that
 // matters most: presentation only, so a fight's records and replays are byte-identical with the flag on or off.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { BLOOD, makeRng, spawnBlood } from '../src/blood-style.ts';
-import { ARMFEEL, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, tickParticle, weaponHoldMs } from '../src/armfeel.ts';
-import { createBurstPool } from '../src/armfeel-fx.ts';
-import { OPPONENTS, initialPractice, stepPractice } from '../src/combat.ts';
-import { createRecorder, packRecord } from '../src/record.ts';
-import { opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent, legal, type CombatEvent } from '../src/duel.ts';
+import { BLOOD, makeRng, spawnBlood } from '../src/fight/blood-style.ts';
+import { ARMFEEL, FLINCH_GAIN, FULL_TIER_STOP_MS, Flinch, armfeelFrom, energyOf, isFleshHit, newParticle, tickParticle, weaponHoldMs } from '../src/fight/armfeel.ts';
+import { createBurstPool } from '../src/fight/armfeel-fx.ts';
+import { OPPONENTS, initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { createRecorder, packRecord } from '../src/fight/record.ts';
+import { opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent, legal, type CombatEvent } from '../src/fight/duel.ts';
 
 test('the setting: High for everyone; ?feel= (with or without the old ?look=armfeel) picks Low or Off; reduced motion starts at Low', () => {
   assert.equal(armfeelFrom(''), 'high');
@@ -91,7 +91,7 @@ test('only a landed blow on the body bleeds: not a block, a parry or a guard bre
 });
 
 test('no body flash: a struck body is never tinted white (Dom 2026-10-06: the flash read as a glitch)', async () => {
-  const fx = await import('../src/armfeel-fx.ts'), feel = await import('../src/armfeel.ts');
+  const fx = await import('../src/fight/armfeel-fx.ts'), feel = await import('../src/fight/armfeel.ts');
   assert.equal('BodyFlash' in fx, false); assert.equal('FLASH' in feel, false);
 });
 
@@ -114,5 +114,5 @@ test('records and replays are byte-identical with the feel driven or not', () =>
 });
 test('the simulation never reads armfeel: no sim file imports it', () => {
   for (const file of ['duel', 'moves', 'ai', 'sim', 'record', 'blade', 'blade-paths', 'roster', 'finishers', 'detmath', 'combat', 'match', 'replay'])
-    assert.doesNotMatch(readFileSync(new URL(`../src/${file}.ts`, import.meta.url), 'utf8'), /armfeel/, `${file}.ts must not import armfeel`);
+    assert.doesNotMatch(readFileSync(new URL(`../src/${['finishers', 'duel', 'moves', 'ai', 'sim', 'combat', 'record', 'replay', 'blade', 'detmath', 'blade-paths', 'match'].includes(file) ? 'fight/' : ''}${file}.ts`, import.meta.url), 'utf8'), /armfeel/, `${file}.ts must not import armfeel`);
 });

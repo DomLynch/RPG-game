@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { breathe, fatigueLayer } from '../src/fatigue-layer.ts';
-import { fatigueRead, fatigueReadFrom, readRate, readWeight } from '../src/fatigue-read.ts';
+import { breathe, fatigueLayer } from '../src/fight/fatigue-layer.ts';
+import { fatigueRead, fatigueReadFrom, readRate, readWeight } from '../src/fight/fatigue-read.ts';
 
 // The live layer, copied verbatim from before ?look=fatigue-read existed: the flag-off output must equal it for every band.
 function liveLayer(f: { level: number; gassed: number; second: number }, phase: number, calm: number, t?: { rate?: number; depth?: number; sag?: number }) {
-  const depth = (t?.depth ?? 1) * calm, sag = (t?.sag ?? 1) * calm, winded = Math.max(0, Math.min(1, (f.level - .25) / .5)), ragged = Math.sin(phase * .37) * .35 * f.gassed;
+  const show = Math.max(f.gassed, Math.max(0, Math.min(1, (f.level - .9) / .1)));   // Dom 2026-10-07: the body tires only in the last tenth or exhausted
+  const depth = (t?.depth ?? 1) * calm * show, sag = (t?.sag ?? 1) * calm * show, winded = Math.max(0, Math.min(1, (f.level - .25) / .5)), ragged = Math.sin(phase * .37) * .35 * f.gassed;
   const chest = (Math.sin(phase) * (1 + ragged) * .1 * winded + Math.sin(phase * 2) * .02 * f.gassed) * depth, arch = f.second * .14 * depth;
   return { hunch: (f.level * .2 + f.gassed * .3) * depth - arch * .5, chest: chest - arch, arm: (f.level * .26 + f.gassed * .3) * sag };
 }
@@ -17,11 +18,14 @@ test('flag off: the layer is exactly the live layer for every band, and the read
   assert.equal(breathe(BANDS[3], { read: true }), breathe(BANDS[3]));
 });
 
-test('the flag is the ?look=fatigue-read token and nothing else', () => {
-  assert.equal(fatigueReadFrom(''), false);
+test('the read is ON by default and ?off=fatigue-read is the one opt-out; an old ?look=fatigue-read link still shows it', () => {
+  assert.equal(fatigueReadFrom(''), true);
   assert.equal(fatigueReadFrom('?look=fatigue-read'), true);
   assert.equal(fatigueReadFrom('?look=souls,fatigue-read'), true);
-  assert.equal(fatigueReadFrom('?look=fatigue'), false);
+  assert.equal(fatigueReadFrom('?off=fatigue-read'), false);
+  assert.equal(fatigueReadFrom('?off=lookbake,fatigue-read'), false);
+  assert.equal(fatigueReadFrom('?off=fatigue'), true);
+  assert.equal(fatigueReadFrom('?look=fatigue-read&off=fatigue-read'), false);
 });
 
 test('the read pose grows with the band: nothing fresh, partial winded, full gassed, lifted by the second wind', () => {

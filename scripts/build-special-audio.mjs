@@ -1,7 +1,7 @@
 // Reproducible audio for the Centurion's rank 8-10 specials (docs/briefs/specials/centurion-l8-l10-2026-10-01.md): the hooves of THE CHARGE (rank 9),
 // the sand thud of Ajax's SHIELD QUAKE (rank 8) and the crowd-roar swell of Mars's BLOOD TITHE (rank 10). Synthesised from noise and resonant modes:
 // original work, no recordings, no licence to carry. Own small files (src/assets/special-audio/): the sprite and the arena bank have no headroom.
-// The helpers below repeat build-gate-audio.mjs on purpose: that script's rebuild is pinned byte-identical, so it is not refactored to share them.
+// The helpers below repeat the helpers of build-gate-audio.mjs (the Pit gate winch's script, removed 2026-10-08) on purpose; they stay as they were.
 import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -83,7 +83,7 @@ function tithe() {
 }
 
 
-// The Nightborn bosses' rank 8-10 specials share one clock (src/special-timing.ts): the cast starts at SpecialStarted, the strike lands at LANDED = 119 ticks = 1.983 s,
+// The Nightborn bosses' rank 8-10 specials share one clock (src/fight/special-timing.ts): the cast starts at SpecialStarted, the strike lands at LANDED = 119 ticks = 1.983 s,
 // and the cast recovers over the next 0.75 s. Each cue below starts with the cast and its payoff sits on LANDED; the hit cue is the hit's own.
 const LANDED = 1.983;
 // Chamberlin state-variable filter with a moving cutoff (Hz as a function of time): the sweeps below need a filter that changes while it runs.

@@ -1,7 +1,8 @@
+import { propTextureCap } from './arena-rules.ts';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { budgetTextures } from './quality.ts';
+import { budgetTextures } from './fight/quality.ts';
 // Asset URLs the way scene.ts resolves the rigs (an expression, so Node tests can import this module without a bundler).
 const url = (file: string) => new URL(`./assets/arena/props/${file}.glb`, import.meta.url).href;
 const portcullisUrl = url('portcullis'), rackUrl = url('weapon-rack'), shieldUrl = url('shield'), drumUrl = url('column-drum'), bonesUrl = url('bone-pile');
@@ -20,7 +21,7 @@ export const PROPS: readonly ArenaProp[] = [
   { id: 'column-drum', url: drumUrl, size: [0.81, 0.78, 1.01], r: 10.9, angle: 2.35, y: 0.235, yaw: 2.35 + 0.6, scale: 0.6, metalness: 0, roughness: 0.95 },              // a fallen drum, on its side
   { id: 'bone-pile', url: bonesUrl, size: [0.99, 0.52, 0.99], r: 10.4, angle: 4.55, y: 0.21, yaw: 4.55, scale: 0.8, metalness: 0, roughness: 0.92 },                        // half-buried
 ];
-const PROP_TEXTURE_CAP = { full: 512, phone: 256 } as const;
+const PROP_TEXTURE_CAP = propTextureCap();
 // World-space extent of a placed prop: its scaled box, the horizontal reach taken as the box's diagonal (the yaw makes the exact
 // footprint irrelevant to the contract). A pitched prop swaps its height for its depth.
 export function extent(p: ArenaProp): { rMin: number; yMin: number; yMax: number } {

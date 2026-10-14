@@ -5,22 +5,22 @@
 // a journal goes in and a new journal comes out, the old one untouched. Rules: docs/specs/origins/openmw-quest-journal.md (entries are
 // appended as final text, never rewritten; a stage already in the journal adds no second entry) and modernuo-quests.md (a finished quest
 // is final; rewards are paid once).
-import { ISO_UTC, fail, ok, type Result } from '../contracts/core.ts';
-import type { CharacterInstanceId, QuestId } from '../contracts/ids.ts';
+import { ISO_UTC, fail, ok, type Result } from '../../src/core/server.ts';
+import type { CharacterInstanceId, QuestId } from '../../src/core/server.ts';
 import {
   checkQuestState, grantStageRewards, holdsCondition, migrateQuestState, parseQuestState, statusFor,
   type ConditionFacts, type QuestDefinition, type QuestState, type QuestStatus, type Stage,
-} from '../contracts/story.ts';
-import { gateAccess } from '../contracts/world.ts';
+} from '../../src/core/server.ts';
+import { gateAccess } from '../../src/core/server.ts';
 
 export type Journal = { character: CharacterInstanceId; quests: ReadonlyMap<QuestId, QuestState> };
 // The condition lookups (contracts' ConditionFacts) minus quest and flag, which come from the journal itself; the standing also opens the gate.
 export type AdvanceContext = Omit<ConditionFacts, 'quest' | 'flag'> & {
-  quests: ReadonlyMap<QuestId, QuestDefinition>; // the loaded content (Registry['quests'])
+  quests: ReadonlyMap<QuestId, QuestDefinition>; // the loaded content (ContractRegistry['quests'])
   member?: boolean;
   at: string; // server time (ISO UTC) stamped on a new journal entry
 };
-// What origins/progression's award() takes as a 'story' event, minus the server's own clock.
+// What src/core/career-model.ts's award() takes as a 'story' event, minus the server's own clock.
 export type StoryEvent = { kind: 'story'; type: 'story-step' | 'story-chapter'; id: string };
 export type Advanced = { journal: Journal; rewards: Stage['rewards'] | null; event: StoryEvent | null };
 

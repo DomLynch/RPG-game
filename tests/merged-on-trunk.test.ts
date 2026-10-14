@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -51,4 +51,73 @@ test('stacked on a base still in flight is noted, not failed; merged-to-trunk bu
   // a PR merged to trunk whose merge commit is not in the deployed tree = deploying behind trunk
   w.prs.push({ number: 4, title: 'ahead', baseRefName: TRUNK, mergeCommit: { oid: fix }, labels: [] }); w.gh();
   r = w.run(); assert.equal(r.status, 1); assert.match(r.stderr, /#4 \(trunk\) ahead: merged to trunk but not in this tree/);
+});
+
+// A hung/failing gh must not kill the deploy (Release F, 2026-10-09 02:42): retries, then the git-only trunk-ancestry fallback, which never passes a tree behind trunk.
+const slowGh = (w: ReturnType<typeof world>, script: string) => { const bin = join(w.work, '..', 'bin'); writeFileSync(join(bin, 'gh'), `#!/bin/sh\n${script}\n`); chmodSync(join(bin, 'gh'), 0o755); };
+const runFast = (w: ReturnType<typeof world>) => spawnSync(process.execPath, [script, w.work, '--days=1'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: `${join(w.work, '..', 'bin')}:${process.env.PATH}`, TRUNK_BRANCH: TRUNK, MERGED_ON_TRUNK_GH_TIMEOUT_MS: '300', MERGED_ON_TRUNK_BACKOFF_MS: '10' } });
+
+test('a timing-out gh is retried three times, then the git ancestry fallback passes a tree that contains trunk', () => {
+  const w = world(); slowGh(w, 'sleep 5');
+  const r = runFast(w);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal((r.stderr.match(/gh pr list failed/g) || []).length, 3, 'three tries');
+  assert.match(r.stderr, /falling back to the git ancestry check/);
+  assert.match(r.stdout, /gh unavailable; origin\/trunk is in .* \(git ancestry only: PRs merged into side branches were NOT checked\)/);
+});
+
+test('with gh down, a tree BEHIND trunk still fails (the fallback never passes it)', () => {
+  const w = world(); slowGh(w, 'exit 1');
+  g(w.work, 'checkout', '-q', TRUNK); const behind = g(w.work, 'rev-parse', 'HEAD');
+  w.commit(TRUNK, 'newer', 'newer on trunk'); pushAll(w.work); g(w.work, 'checkout', '-q', '--detach', behind);   // origin/trunk is ahead of HEAD
+  const r = runFast(w);
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /gh is unavailable, and origin\/trunk is not an ancestor of this tree \(it is behind trunk\)/);
+});
+
+test('gh that fails once and then answers is retried, not abandoned to the fallback', () => {
+  const w = world(); const count = join(w.work, '..', 'count');
+  slowGh(w, `n=$(cat '${count}' 2>/dev/null || echo 0); echo $((n+1)) > '${count}'; [ "$n" = 0 ] && exit 1; echo '[]'`);
+  const r = runFast(w);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal((r.stderr.match(/gh pr list failed/g) || []).length, 1);
+  assert.match(r.stdout, /0 PR\(s\) merged since/);
+});
+
+test('a git failure is reported as a git failure, never as "behind trunk" (Release F 04:21: #1396 was in the tree)', () => {
+  const w = world(); g(w.work, 'checkout', '-q', TRUNK);
+  w.prs.push({ number: 7, title: 'merge commit this clone has never seen', baseRefName: TRUNK, mergeCommit: { oid: 'a'.repeat(40) }, labels: [] }); w.gh();
+  const r = w.run();
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /cannot tell whether merge commit aaaaaaaaa is in this tree \(git exit 128: .*\); this is a git failure, not a verdict/);
+  assert.doesNotMatch(r.stderr, /behind trunk/);
+});
+
+test('a PR whose merge commit really is in the tree still passes (the #1396 shape)', () => {
+  const w = world(); g(w.work, 'checkout', '-q', TRUNK);
+  const merge = w.commit(TRUNK, 'f', 'a trunk commit'); pushAll(w.work);
+  w.prs.push({ number: 8, title: 'in the tree', baseRefName: TRUNK, mergeCommit: { oid: merge }, labels: [] }); w.gh();
+  const r = w.run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+test('the window cap is 1000 (the search API ceiling): 999 merged PRs run the check, exactly 1000 is refused as truncated; the old 500 cap is gone (FX 2026-10-14)', () => {
+  const w = world();
+  const head = g(w.work, 'rev-parse', 'HEAD');
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ number: i + 1, title: 'x', baseRefName: TRUNK, mergeCommit: { oid: head }, labels: [] }));
+  w.prs.push(...many(500)); w.gh();
+  assert.equal(w.run().status, 0, '500 PRs is a normal window now');
+  w.prs.length = 0; w.prs.push(...many(999)); w.gh();
+  const under = w.run();
+  assert.equal(under.status, 0, 'count < LIMIT: the check runs and passes: ' + under.stdout + under.stderr);
+  w.prs.length = 0; w.prs.push(...many(1000)); w.gh();
+  const full = w.run();
+  assert.equal(full.status, 1, 'count === LIMIT: refused');
+  assert.match(full.stderr, /GitHub returned 1000 merged PRs since .*: the window is truncated, narrow --days/);
+});
+
+test('the defaults: a 2-day window and a 60 s gh timeout (about 10 search pages must not fall back to git-only)', () => {
+  const src = readFileSync(script, 'utf8');
+  assert.match(src, /'--days=2'\)\.slice\(7\)\), LIMIT = 1000;/);
+  assert.match(src, /MERGED_ON_TRUNK_GH_TIMEOUT_MS\) \|\| 60_000/);
 });

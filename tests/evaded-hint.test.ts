@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, project, practiceHint, OPPONENTS, type Practice } from '../src/combat.ts';
-import { aim, idleIntent, stepDuel, type Action, type Intent } from '../src/duel.ts';
+import { initialPractice, project, practiceHint, OPPONENTS, type Practice } from '../src/fight/combat.ts';
+import { aim, idleIntent, stepDuel, type Action, type Intent } from '../src/fight/duel.ts';
 
 // "Evaded!" is earned by the player's own evade: an opponent's swing at a player who stands still is air and prints nothing,
 // while a roll or backstep out of the swing still reads "Evaded!".

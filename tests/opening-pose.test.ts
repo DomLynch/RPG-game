@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { NO_OPEN, openPose, openWeight } from '../src/opening-pose.ts';
+import { NO_OPEN, openPose, openWeight } from '../src/fight/opening-pose.ts';
 
 describe('open stagger pose', () => {
   it('is nothing without an opening, and nothing once its ticks are spent', () => {

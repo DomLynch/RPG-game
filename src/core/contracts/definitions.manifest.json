@@ -1,0 +1,19 @@
+{
+  "tables": [
+    {"table": "gate", "file": "definitions.json", "at": "gates", "keyed": true, "key": "id", "required": {"order": "integer", "tier": "string"}},
+    {"table": "relation", "file": "definitions.json", "at": "relations", "keyed": true, "key": "id", "required": {}},
+    {"table": "questRole", "file": "definitions.json", "at": "questRoles", "keyed": true, "key": "id", "required": {}},
+    {"table": "attitude", "file": "definitions.json", "at": "attitudes", "keyed": true, "key": "id", "required": {"order": "integer"}},
+    {"table": "questScope", "file": "definitions.json", "at": "questScopes", "keyed": true, "key": "id", "required": {}},
+    {"table": "rarity", "file": "definitions.json", "at": "rarities", "keyed": true, "key": "id", "required": {"order": "integer"}},
+    {"table": "material", "file": "definitions.json", "at": "materials", "keyed": true, "key": "id", "required": {"order": "integer"}},
+    {"table": "presentation", "file": "definitions.json", "at": "presentations", "keyed": true, "key": "id", "required": {}},
+    {"table": "serviceAccept", "file": "definitions.json", "at": "serviceAccepts", "keyed": true, "key": "id", "required": {"armour": "boolean", "weapons": "boolean"}},
+    {"table": "power", "file": "definitions.json", "at": "powers", "keyed": true, "key": "id", "required": {}},
+    {"table": "category", "file": "definitions.json", "at": "categories", "keyed": true, "key": "id", "required": {"path": "string", "slot": "string"}},
+    {"table": "storyTag", "file": "definitions.json", "at": "story", "keyed": true, "key": "id", "required": {}},
+    {"table": "provenanceKind", "file": "definitions.json", "at": "provenanceKinds", "keyed": true, "key": "id", "required": {"tradeable": "boolean"}},
+    {"table": "drawMaterial", "file": "definitions.json", "at": "drawMaterials", "keyed": true, "key": "id", "required": {"order": "integer"}},
+    {"table": "drawSuffix", "file": "definitions.json", "at": "drawSuffixes", "keyed": true, "key": "id", "required": {"order": "integer", "class": "string"}}
+  ]
+}

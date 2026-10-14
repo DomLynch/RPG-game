@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { initialDuel, withSpecials, type CombatEvent, type Fighter } from '../src/duel.ts';
-import { OPPONENTS } from '../src/moves.ts';
-import { createNightfallFx } from '../src/nightfall-fx.ts';
-import { createBossSpecial } from '../src/special-fx-boss.ts';
-import { createSpecialFx } from '../src/special-fx.ts';
-import { casterPair, casterEvent, createSpecialPresentation, disposeSpecialGroup } from '../src/special-presentation.ts';
-import type { SpecialFx } from '../src/special-modes.ts';
+import { initialDuel, withSpecials, type CombatEvent, type Fighter } from '../src/fight/duel.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
+import { createNightfallFx } from '../src/fight/nightfall-fx.ts';
+import { createBossSpecial } from '../src/fight/special-fx-boss.ts';
+import { createSpecialFx } from '../src/fight/special-fx.ts';
+import { casterPair, casterEvent, createSpecialPresentation, disposeSpecialGroup } from '../src/fight/special-presentation.ts';
+import type { SpecialFx } from '../src/fight/special-modes.ts';
 
 const fighters = (): [Fighter, Fighter] => {
   const pair = withSpecials(initialDuel(OPPONENTS.nightborn, 'longsword', 'lunge'), 41, 'lunge').fighters;
@@ -121,7 +121,7 @@ test('approved unnamed class routing uses supplied fight metadata and never assi
 
 
 test('real class Points and LineSegments release each owned resource once', async () => {
-  const { createClassSpecial } = await import('../src/special-fx-class.ts');
+  const { createClassSpecial } = await import('../src/fight/special-fx-class.ts');
   const group = new THREE.Scene(); createClassSpecial(group, 'knight', 'drag', 1);
   const grit = group.getObjectByName('class grit') as THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   assert.ok(grit?.isPoints); assert.ok(grit.material.map);
@@ -173,7 +173,7 @@ for (const actors of [[0], [1], [0, 1], [1, 0]] as const) test(`real default Tit
   const presentation = createSpecialPresentation(scene, 1, new THREE.PerspectiveCamera());
   presentation.prepare(1, actors.map(actor => ({ ...start(actor), name: 'tithe', move: 'skill_shove' })), pair, 100, false);
   // Await the real registry's lazy import, rather than replacing production plumbing.
-  await import('../src/special-tithe.ts'); await new Promise(resolve => setImmediate(resolve));
+  await import('../src/fight/special-tithe.ts'); await new Promise(resolve => setImmediate(resolve));
   presentation.render(0, pair, 100, bones, bones, undefined, false);
   presentation.prepare(1, [], pair, 205, false); presentation.render(0, pair, 205, bones, bones, undefined, false);
   for (const [i, c] of colours.entries()) assert.ok(c.g < base[i].g, `outer arena colour ${i} reddens`);
@@ -188,7 +188,7 @@ for (const actors of [[0], [1], [0, 1], [1, 0]] as const) test(`real default Tit
 
 
 test('manager Tithe matches authored solo arena transform and composes with real Nyx', async () => {
-  const { createBloodTithe } = await import('../src/special-tithe.ts');
+  const { createBloodTithe } = await import('../src/fight/special-tithe.ts');
   const arena = () => {
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#b8a58a'); scene.fog = new THREE.FogExp2('#b8a58a', .02); scene.environmentIntensity = .8;
     scene.add(new THREE.DirectionalLight('#fff0d8'), new THREE.HemisphereLight('#c8d4ff', '#8a6a4a'));
@@ -209,7 +209,7 @@ test('manager Tithe matches authored solo arena transform and composes with real
   fx.clear(); presentation.clear(); const base = capture(managed);
   pair[0].specialShare = .15; pair[0].specialName = 'nyxnightfall'; pair[0].skill = 'lunge';
   presentation.prepare(2, [{ ...start(0), name: 'nyxnightfall' }, event], pair, 100, false);
-  await import('../src/nightfall-fx.ts'); await new Promise(resolve => setImmediate(resolve));
+  await import('../src/fight/nightfall-fx.ts'); await new Promise(resolve => setImmediate(resolve));
   presentation.render(0, pair, 100, bones, bones, undefined, false);
   presentation.render(0, pair, 205, bones, bones, undefined, false);
   assert.ok(presentation.exposure < 1); assert.ok(capture(managed).sun[1] < base.sun[1]);
@@ -257,8 +257,8 @@ test('a load that failed is tried again on the next cast', async () => {
 
 // Reuse must be invisible: a second cast on the kept effect draws exactly what a freshly built effect draws for the same events. Every real special, same stream.
 test('every special: a second cast on the reused effect draws the same frames as a freshly built effect [slow]', async () => {
-  const { SPECIAL_MODES } = await import('../src/special-modes.ts');
-  const { SPECIAL_TESTS } = await import('../src/special-look.ts');
+  const { SPECIAL_MODES } = await import('../src/fight/special-modes.ts');
+  const { SPECIAL_TESTS } = await import('../src/fight/special-look.ts');
   const feet = [new THREE.Vector3(0, 0, 2), new THREE.Vector3(0, 0, -1.25)] as const, heads = [new THREE.Vector3(0, 1.7, 2), new THREE.Vector3(0, 1.7, -1.25)] as const;
   const rig = (x: number) => ({ boneWorld: () => new THREE.Vector3(x, 1.2, 0), anchor: new THREE.Group() });
   const warriors = { player: rig(0), opponent: rig(1) } as never;
@@ -276,7 +276,7 @@ test('every special: a second cast on the reused effect draws the same frames as
   // Some effects run a free-running flutter clock (a `t += dt` the wobble sines read) that a reused effect carries on from its last cast: positions may differ by the
   // wobble's amplitude, never by what is drawn. So: the same objects, and every number within a flutter's reach.
   const sameDrawing = (a: Drawn, b: Drawn): boolean => a.length === b.length && a.every((x, i) => x[0] === b[i]![0] && x.slice(1).every((v, k) => Math.abs((v as number) - (b[i]![k + 1] as number)) <= (k === 5 ? 0.08 : k >= 3 ? 0.5 : 0.3)));
-  const { SKILL_MOVE } = await import('../src/moves.ts');
+  const { SKILL_MOVE } = await import('../src/fight/moves.ts');
   const moves = [...new Set(Object.values(SKILL_MOVE))] as string[];   // each effect's own predicate names the move that is its cast (special-timing.ts is*): try them
   const frames = async (id: string, withFirst: boolean, move: string): Promise<Drawn[]> => {
     const ev = (type: 'SpecialStarted' | 'SpecialLanded', tick: number) => ({ type, actor: 1, tick, move } as unknown as CombatEvent);

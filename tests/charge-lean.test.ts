@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHARGE_LEAN, holdingCharge } from '../src/characters.ts';
-import { TRIDENT, WEAPONS } from '../src/moves.ts';
+import { CHARGE_LEAN, holdingCharge } from '../src/fight/characters.ts';
+import { TRIDENT, WEAPONS } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
 
 const chamber = TRIDENT.moves.heavy_overhead.chamber!;

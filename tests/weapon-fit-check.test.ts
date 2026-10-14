@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { ENVELOPE, fitCheck } from '../scripts/weapon-fit-check.mjs';
-import { SHAPE_OVERRIDES, SHIPPING_SHAPES } from '../src/weapon-shapes.ts';
+import { SHAPE_OVERRIDES, SHIPPING_SHAPES } from '../src/fight/weapon-shapes.ts';
 
 // The weapon-variants brief's envelope is measured on the parts that ship today: if one fails, the table is wrong, not the part (Lead
 // 2026-09-28; Strategy corrected the rows to the shipped measurements). They run on the `legacy` profile: envelope only, grandfathered.

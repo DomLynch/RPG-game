@@ -26,16 +26,20 @@
 // Pure: no DOM, network, timers or randomness. Every function takes an Inventory and returns a new one (or a refusal, with the input
 // untouched). Ids from the wire are compared with ===, kept in Maps and never used to index a plain object, so 'constructor',
 // '__proto__' or 'toString' are just strings that name nothing.
-import { levelOf as tierLevel, type Tier } from '../../src/grades.ts';
-import { paperdollOf, type Paperdoll } from '../../src/loot.ts';
-import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
-import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../contracts/economy.ts';
-import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';
+import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
+import { paperdollOf, type Paperdoll } from '../../src/core/server.ts';
+import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../../src/core/server.ts';
+import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../../src/core/server.ts';
+import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../../src/core/server.ts';
 import {
   BANK_SLOTS, PACK_SLOTS, checkCustody, checkHistoryKept, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
   type ItemDefinition, type ItemInstance, type Location,
-} from '../contracts/items.ts';
-import { verifiedTier, type CareerStanding } from '../contracts/world.ts';
+} from '../../src/core/server.ts';
+import { verifiedTier, type CareerStanding } from '../../src/core/server.ts';
+import { storyOf } from '../../src/core/server.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import BURN_DEFS from './burn-reasons.json' with { type: 'json' };
+import BURN_MANIFEST from './burn-reasons.manifest.json' with { type: 'json' };
 
 export const GRIDS = ['pack', 'bank'] as const;
 export type Grid = (typeof GRIDS)[number];
@@ -259,7 +263,7 @@ export function remove(inv: Inventory, id: unknown, lookup: Lookup, place?: unkn
     const gate = bankGate(place);
     if (!gate.ok) return gate;
   }
-  if (inst.value.boundTo !== null || def.value.story === 'story-critical') return fail('rule-violation', 'id', `${inst.value.id} is bound to ${inst.value.boundTo ?? inv.owner} and never leaves them`);
+  if (inst.value.boundTo !== null || storyOf(def.value.story).staysWithCharacter) return fail('rule-violation', 'id', `${inst.value.id} is bound to ${inst.value.boundTo ?? inv.owner} and never leaves them`);
   const next = commit(inv, lookup, new Map([[inst.value.id, null]]), [], false);
   return next.ok ? ok({ inventory: next.value, removed: inst.value }) : next;
 }
@@ -390,8 +394,19 @@ export function merge(inv: Inventory, fromId: unknown, intoId: unknown, lookup: 
 // ledger is the server's append-only table; `op` is the operation's idempotency key (Strategy, 2026-10-06): the same key with the same
 // request returns the ORIGINAL burn and changes nothing (a retry after a client timeout), the same key with a different request is
 // refused. Either way a key spends once.
-export const BURN_REASONS = ['quest-handin', 'upgrade-cost'] as const;
-export type BurnReason = (typeof BURN_REASONS)[number];
+// The reasons are ROWS (origins/inventory/burn-reasons.json, loaded and checked by the shared registry loader): a new reason is one row. `consumesStoryItem` lets a reason spend a
+// story-critical piece (only a quest hand-in does today). applyUpgrade emits 'upgrade-cost' itself, so loadBurnReasons refuses a table without that row.
+const UPGRADE_COST = 'upgrade-cost';
+export type BurnReasonRow = { readonly id: string; readonly consumesStoryItem: boolean };
+export function loadBurnReasons(raw: { reasons?: readonly unknown[] }): readonly BurnReasonRow[] {
+  loadRegistry([tableFromFile(BURN_MANIFEST.tables[0] as Manifest, raw, 'burn-reasons.json')]);
+  const rows = (raw.reasons ?? []) as readonly BurnReasonRow[];
+  if (!rows.some((r) => r.id === UPGRADE_COST)) throw Error(`burn-reasons: applyUpgrade burns under "${UPGRADE_COST}", so it needs a row`);
+  return rows;
+}
+export const BURN_REASONS: readonly BurnReasonRow[] = loadBurnReasons(BURN_DEFS);
+export type BurnReason = string;
+const burnReasonRow = (id: unknown): BurnReasonRow | undefined => BURN_REASONS.find((r) => r.id === id);
 export type BurnLine = { readonly instance: ItemInstanceId; readonly item: ItemId; readonly mintKey: string; readonly quantity: number };
 // What was asked for, compared on a retry: a hand-in's selector and count, or the smith's whole receipt.
 export type ConsumeAsk = { readonly qty: number; readonly itemId?: ItemId; readonly mintKey?: string; readonly consumesStoryItem?: ItemId };
@@ -410,7 +425,7 @@ export type ConsumeOp = ConsumeAsk & { op: string; owner: CharacterInstanceId; r
 function burnHeader(state: Holdings, op: unknown, owner: unknown, reason: unknown, asked: ConsumeAsk | UpgradeReceipt): Result<Burned | null> {
   if (typeof op !== 'string' || !MINT_KEY_PATTERN.test(op)) return fail('wrong-type', 'op', 'an operation id is an idempotency key (8..128 of a-z 0-9 : . _ -)');
   if (owner !== state.inventory.owner) return fail('rule-violation', 'owner', `this inventory is ${state.inventory.owner}'s`);
-  if (!BURN_REASONS.includes(reason as BurnReason)) return fail('wrong-type', 'reason', `expected one of ${BURN_REASONS.join(', ')}`);
+  if (!burnReasonRow(reason)) return fail('wrong-type', 'reason', `expected one of ${BURN_REASONS.map((r) => r.id).join(', ')}`);
   const prior = state.ledger.find((b) => b.op === op);
   if (!prior) return ok(null);
   if (prior.reason !== reason || !sameData(prior.asked, asked)) return fail('duplicate-id', 'op', `${op} was already used for a different burn; an op id names one request`);
@@ -429,7 +444,7 @@ function burn(state: Holdings, entry: Burn, changes: ReadonlyMap<string, ItemIns
   const next = commit(state.inventory, lookup, changes, [], true, [entry]);
   return next.ok ? ok({ inventory: next.value, ledger: [...state.ledger, entry], burn: entry, replayed: false }) : next;
 }
-const isStory = (lookup: Lookup, inst: ItemInstance): boolean => defOf(lookup, inst.item)?.story === 'story-critical';
+const isStory = (lookup: Lookup, inst: ItemInstance): boolean => storyOf(defOf(lookup, inst.item)?.story ?? '').staysWithCharacter === true;
 
 // Burn `qty` units from the BACKPACK only (what the character hands over is what they carry; the bank stays shut away from the
 // Exchange, and worn pieces are never spent), lowest slot first. All or nothing: too few units, an unknown item, a story-critical piece
@@ -450,7 +465,7 @@ export function consume(state: Holdings, op: ConsumeOp, lookup: Lookup): Result<
   }
   const rows = inv.items.filter((i) => i.location.kind === 'pack' && named(i)).sort((a, b) => indexOf(a) - indexOf(b));
   // Story pieces (Strategy, 2026-10-06): only a quest step that names the very item it burns; naming any other item is refused too.
-  if (consumesStoryItem !== undefined && (op.reason !== 'quest-handin' || rows.some((r) => r.item !== consumesStoryItem))) {
+  if (consumesStoryItem !== undefined && (!burnReasonRow(op.reason)?.consumesStoryItem || rows.some((r) => r.item !== consumesStoryItem))) {
     return fail('rule-violation', 'consumesStoryItem', `${String(consumesStoryItem)} is not the item this quest step burns`);
   }
   if (rows.some((r) => isStory(lookup, r) && r.item !== consumesStoryItem)) return fail('rule-violation', 'itemId', `${key} is story-critical; only a quest step that names it may spend it`);
@@ -504,7 +519,7 @@ export function applyUpgrade(state: Holdings, outcome: UpgradeOutcome, lookup: L
     return fail('version-conflict', 'outcome.materials', 'the outcome and its receipt disagree about what the smith took');
   }
   changes.set(after.id, after);
-  return burn(state, { op: receipt.idempotencyKey, owner: inv.owner, reason: 'upgrade-cost', asked: receipt, lines }, changes, lookup);
+  return burn(state, { op: receipt.idempotencyKey, owner: inv.owner, reason: UPGRADE_COST, asked: receipt, lines }, changes, lookup);
 }
 
 // ---- wearing ----------------------------------------------------------------------------------------------------------------------

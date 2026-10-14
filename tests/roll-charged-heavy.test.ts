@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, project, practiceHint, OPPONENTS, type Practice } from '../src/combat.ts';
-import { aim, legal, movesOf, stepDuel, type Intent } from '../src/duel.ts';
-import { RADIUS } from '../src/sim.ts';
+import { initialPractice, project, practiceHint, OPPONENTS, type Practice } from '../src/fight/combat.ts';
+import { aim, legal, movesOf, stepDuel, type Intent } from '../src/fight/duel.ts';
+import { RADIUS } from '../src/fight/sim.ts';
 import { ENCOUNTERS } from '../src/roster.ts';
 
 // A straight-back roll (no stick) escapes a fully charged heavy on every live opponent, in the open and with the wall 1.0 behind,

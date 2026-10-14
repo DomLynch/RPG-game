@@ -1,38 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import { gzipSync } from 'node:zlib';
-import { GATE_CUT, loadGate, playGate } from '../src/audio/gate.ts';
-
-const dir = new URL('../src/assets/gate-audio/', import.meta.url);
-test('the gate winch ships in both formats, small, inside the lane budget', () => {
-  for (const file of ['gate.ogg', 'gate.m4a']) {
-    const bytes = fs.readFileSync(new URL(file, dir)), gzip = gzipSync(bytes).length;
-    assert.ok(bytes.length > 1000, `${file} is present`);
-    assert.ok(gzip <= 60_000, `${file} is ${gzip} B gzip; the winch is a ~5 s cue and stays under 60 kB per format`);
-  }
-});
+import { GATE_CUT, playGate } from '../src/audio/gate.ts';
 
 const decoded = { duration: 5 } as AudioBuffer;
-const okFetch = (log: string[]) => (async (url: string) => { log.push(url.slice(url.lastIndexOf('/') + 1)); return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) } as Response; }) as unknown as typeof fetch;
-const context = (fail = false) => ({ decodeAudioData: async () => { if (fail) throw new Error('unsupported'); return decoded; } }) as unknown as BaseAudioContext;
-
-test('loadGate takes the first format that decodes, falls back to the other, and stays silent when the page is leaving', async () => {
-  const first: string[] = [];
-  assert.equal(await loadGate(context(), ['opus', 'aac'], okFetch(first), () => false), decoded);
-  assert.deepEqual(first, ['gate.ogg']);
-  const retry: string[] = [];
-  let calls = 0;
-  const flaky = { decodeAudioData: async () => { if (!calls++) throw new Error('unsupported'); return decoded; } } as unknown as BaseAudioContext;
-  assert.equal(await loadGate(flaky, ['opus', 'aac'], okFetch(retry), () => false), decoded);
-  assert.deepEqual(retry, ['gate.ogg', 'gate.m4a']);
-  const none: string[] = [];
-  assert.equal(await loadGate(context(true), ['opus', 'aac'], okFetch(none), () => false), null);
-  assert.deepEqual(none, ['gate.ogg', 'gate.m4a']);
-  const leaving: string[] = [];
-  assert.equal(await loadGate(context(), ['opus', 'aac'], okFetch(leaving), () => true), null);
-  assert.deepEqual(leaving, []);
-});
 
 const voiceOn = (delay: number) => {
   const calls: string[] = [];

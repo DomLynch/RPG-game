@@ -4,6 +4,7 @@
 // scripted duel lands on the same ticks on a loaded MacBook and on a software-GL CI runner (the real-time version hung in
 // locator.tap on ubuntu-latest — the freewheeling frame loop starved input). Boot and presentation setup stay on real time.
 import { chromium } from 'playwright';
+import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
 import { harnessClock } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -23,7 +24,7 @@ assert.ok(['splitCrown','decapitation','opened'].includes(finisher), `--finisher
 const dir=process.env.QUIET_RECEIPT_DIR || `artifacts/finishers/${finisher === 'splitCrown' ? 'split-crown' : finisher}/${opponent==='veteran' ? 'ui' : opponent+'/ui'}`; await fs.mkdir(dir,{recursive:true});
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 // 1× pixel density: this gate asserts clips, health and blood receipts, not pixels, and a software-GL runner renders every harness frame.
-const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
+const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage(); await quietDebug(page);
 // A named guest on 5 career marks, so rank level 6 (career.ts levelOf) IS the level-6 fight below: a pick off the rank's level is a Dev
 // override since #917 (practice only: no loot), so the row fights on the rank's own level to keep proving the reward path. Only when no
 // profile exists yet, so the row's own reloads keep what the fight wrote.
@@ -131,7 +132,7 @@ async function fight(name) {
   assert.equal(await page.locator('#target-health').evaluate(e => e.value),0,'real UI duel must kill the opponent');
   // Finisher-complete gate (Lead brief 2026-09-22; Dom on the phone: "I have never seen the decapitation land"). The loot panel
   // used to open on the Killed event, over the ceremony. It now opens on the scene's own finisher-complete latch
-  // (src/scene.ts finishPhase().complete — the victim's clip has run out, the camera has settled, a severed head has come to
+  // (src/fight/scene.ts finishPhase().complete — the victim's clip has run out, the camera has settled, a severed head has come to
   // rest — consumed by src/main.ts updateHud). Sampled here on a REAL win with THIS finisher selected: closed at the kill,
   // open once the latch fires, and nothing about the panel's geometry touched. Never a timer on either side.
   const lootState = async () => page.evaluate(() => ({ on: document.getElementById('loot-panel')?.getAttribute('data-on'), phase: JSON.parse(document.querySelector('#debug').dataset.finishPhase || 'null') }));

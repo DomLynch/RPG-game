@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_LEVEL, TITLES, rankFor } from '../src/career.ts';
+import { MAX_LEVEL, TITLES, rankFor } from '../src/core/career-ladder.ts';
 const ORIGIN_MARKS = MAX_LEVEL - 1;   // wins to reach Origin (level 46)
-import { TIERS, isTier, levelOf, opponentAt, tierAt, tierPin, urlTier, withoutTier } from '../src/grades.ts';
+import { TIERS, isTier, levelOf, opponentAt, tierAt, tierPin, urlTier, withoutTier } from '../src/core/grades.ts';
 import { ROSTER, type OpponentId } from '../src/roster.ts';
 
 // The whole point of this field is that it CANNOT be a second ladder. If tierAt ever stops being the career rung's own title,

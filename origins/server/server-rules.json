@@ -1,0 +1,39 @@
+{
+  "encounterPose": [
+    {
+      "id": "pose",
+      "minGap": 2,
+      "markGap": 6.5,
+      "edge": 0.01,
+      "note": "a posed fight start: the least gap the hero and foe may start at (m), the pit marks' own gap that caps it (m, times the foe's spawn scale), and how far inside the wall they stay so float32 rounding never pushes one onto it (m)"
+    }
+  ],
+  "encounterToken": [
+    {
+      "id": "token",
+      "randomBytes": 24,
+      "posedFightMax": 50,
+      "note": "an encounter token ends in this many random bytes (base64url, 4 characters per 3 bytes); a posed token's fight id is at most this many characters (the 128-character token cap); minRandomBytes is the floor the token's randomness may never be set under (it is what keeps a token unguessable)",
+      "minRandomBytes": 16
+    }
+  ],
+  "worldKill": [
+    {
+      "id": "kill",
+      "slack": 0.5,
+      "reachSlack": 4,
+      "poseAgeMs": 5000,
+      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, and the oldest presence pose (ms) that still counts"
+    }
+  ],
+  "serverLimits": [
+    {
+      "id": "limits",
+      "maxOwned": 200,
+      "maxPending": 50,
+      "queueMax": 16,
+      "presenceFreshMs": 5000,
+      "note": "gear import: most LootIds a body may list (it only bounds a hostile body); an open settles at most this many Pit claims, the rest wait for the next open; requests that may wait behind one account's queue before 'busy' (503); how old (ms) a presence pose may be for the Exchange bank to count the player as there"
+    }
+  ]
+}

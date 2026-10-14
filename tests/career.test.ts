@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_LEVEL, TITLES, awardMark, dialLevel, fightLevel, levelOf, marksOf, rankFor, shownMarks, turnDial, type Dial } from '../src/career.ts';
-import { LEVELS } from '../src/moves.ts';
-import type { Profile } from '../src/profile.ts';
+import { MAX_LEVEL, TITLES, awardMark, dialLevel, fightLevel, levelOfMarks, marksOf, rankFor, shownMarks, turnDial, type Dial } from '../src/core/career-ladder.ts';
+import { LEVELS } from '../src/fight/moves.ts';
+import type { Profile } from '../src/core/profile.ts';
 
 const at = (marks: number) => { const r = rankFor(marks); return `${[r.title, r.numeral].filter(Boolean).join(' ')} L${r.level}`; };
 
@@ -12,7 +12,7 @@ test('rank boundaries follow the 50-level ladder (Dom 2026-09-27; Origin I–V 2
   assert.equal(at(20), 'Champion I L21'); assert.equal(at(25), 'Praetorian I L26'); assert.equal(at(30), 'Master I L31');
   assert.equal(at(35), 'Primus I L36'); assert.equal(at(40), 'Invictus I L41'); assert.equal(at(44), 'Invictus V L45');
   assert.equal(at(45), 'Origin I L46'); assert.equal(at(46), 'Origin II L47'); assert.equal(at(49), 'Origin V L50'); assert.equal(at(9999), 'Origin V L50');
-  assert.equal(TITLES.length, 10); assert.equal(MAX_LEVEL, 50); assert.equal(levelOf(0), 1); assert.equal(levelOf(45), 46); assert.equal(levelOf(49), 50); assert.equal(levelOf(500), 50);
+  assert.equal(TITLES.length, 10); assert.equal(MAX_LEVEL, 50); assert.equal(levelOfMarks(0), 1); assert.equal(levelOfMarks(45), 46); assert.equal(levelOfMarks(49), 50); assert.equal(levelOfMarks(500), 50);
 });
 test('labels read "<Title> <numeral>", and bad counts fall to the first rung instead of throwing', () => {
   assert.equal(rankFor(0).label, 'Recruit I'); assert.equal(rankFor(12).label, 'Gladiator III'); assert.equal(rankFor(45).label, 'Origin I'); assert.equal(rankFor(49).label, 'Origin V');
@@ -49,8 +49,8 @@ test('the rank shows the server figure when there is one, else the device count 
   assert.equal(shownMarks(null, profile, 2), 100000); // no server figure: the device count alone, never plus the outbox
 });
 test('the ladder level is the career\'s: 1 + wins, capped at 50, and the sim reads the same ceiling', () => {
-  assert.equal(levelOf(0), 1); assert.equal(levelOf(17), 18); assert.equal(levelOf(49), MAX_LEVEL);
-  assert.equal(levelOf(Number.NaN), 1, 'a bad count is a fresh fighter');
+  assert.equal(levelOfMarks(0), 1); assert.equal(levelOfMarks(17), 18); assert.equal(levelOfMarks(49), MAX_LEVEL);
+  assert.equal(levelOfMarks(Number.NaN), 1, 'a bad count is a fresh fighter');
   assert.equal(MAX_LEVEL, LEVELS, 'career.ts and moves.ts profileAt agree on the top level');
 });
 
@@ -58,7 +58,7 @@ test('the ladder level is the career\'s: 1 + wins, capped at 50, and the sim rea
 test('the dial: two straight losses step it down, each win steps it up to the rank, three straight wins snap it to the rank', () => {
   let d = turnDial(undefined, 13, false); assert.deepEqual(d, { level: 13, losses: 1, wins: 0 }, 'one loss: no step');
   d = turnDial(d, 13, false); assert.equal(d.level, 12, '13 L, 13 L -> 12');
-  d = turnDial(d, 13, true); assert.equal(d.level, 13, 'W -> rank 14, dial 13'); assert.equal(levelOf(13), 14);
+  d = turnDial(d, 13, true); assert.equal(d.level, 13, 'W -> rank 14, dial 13'); assert.equal(levelOfMarks(13), 14);
   d = turnDial(d, 14, true); assert.equal(d.level, 14, 'W -> rank 15, dial 14');
   d = turnDial(d, 15, true); assert.equal(d.level, 16, 'third straight W -> rank 16, dial snaps to 16');
   assert.equal(turnDial(undefined, 1, false).level, 1); assert.equal(turnDial({ level: 1, losses: 1, wins: 0 }, 1, false).level, 1, 'no step-down at dial 1');
@@ -70,9 +70,9 @@ test('the dial: two straight losses step it down, each win steps it up to the ra
   assert.deepEqual(turnDial({ level: 12, losses: 1, wins: 2 }, 13, true), { level: 14, losses: 0, wins: 3 }, 'a win clears the loss run, and a third straight win snaps to the new rank');
 });
 test('a ladder fight is fought at the dial against the rank shown: two losses, then the rematch is one level under the rank (#901 + #621)', () => {
-  const marks = 19, rank = levelOf(marks);   // rank 20
+  const marks = 19, rank = levelOfMarks(marks);   // rank 20
   assert.equal(fightLevel(undefined, marks), rank);
   const dial = turnDial(turnDial(undefined, rank, false), rank, false);
   assert.equal(fightLevel(dial, marks), rank - 1);
-  assert.equal(fightLevel(dial, shownMarks(4, { career: { victoryMarks: 100000 } })), levelOf(4), 'the server figure caps the dial, never a forged device count');
+  assert.equal(fightLevel(dial, shownMarks(4, { career: { victoryMarks: 100000 } })), levelOfMarks(4), 'the server figure caps the dial, never a forged device count');
 });

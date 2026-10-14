@@ -4,7 +4,7 @@
 // fighter as both. The daily's hits-taken count read `target` for every type and so counted the warden's chip against the player and
 // missed the player's own (GPT audit 2026-09-24, finding C). One helper, held by tests/events.test.ts, for every consumer that asks
 // "who was hurt": null when nobody was.
-import type { CombatEvent, Side } from './duel.ts';
+import type { CombatEvent, Side } from './fight/duel.ts';
 
 export function struck(e: CombatEvent): Side | null {
   if (!e.damage) return null;

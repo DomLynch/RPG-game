@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import type { Intent } from '../src/duel.ts';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import type { Intent } from '../src/fight/duel.ts';
+import { decodeRecord, encodeRecord, packRecord, RECORD_VERSION, toBase64Url } from '../src/fight/record.ts';
+import { liveRecorder } from './lib/live-recorder.ts';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,7 +14,7 @@ import { acceptHeld, fightHash, HELD_MAX_VERSION, psqlAdapter, refusal, report, 
 // A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); every 44 is a
 // second, different win (1,265 ticks). `build` is only a label: two builds of one fight are ONE fight to the verifier (F2).
 async function goblinKill(build = 'test', every = 45): Promise<string> {
-  const rec = createRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
+  const rec = liveRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
   let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6));   // the level's body, as the game builds it
   for (let t = 0; t < 20000 && !practice.finish; t++) {
@@ -196,11 +197,11 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
 // build's instance of it (V18_REACH). HELD `reach` up to v19, cleared by --accept after the hand check on the last build that reads it.
 const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
 async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
-  const rec = createRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
+  const rec = liveRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const packed = packRecord(rec.finish(outcome));
   let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then (v21) the specials byte
-  const bytes = version >= 21 ? packed : new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]);
+  const bytes = version >= 26 ? packed : version >= 21 ? new Uint8Array([...packed.subarray(0, o + 2), ...packed.subarray(o + 3)]) : new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 3)]);   // the arena byte is v26's, the specials byte v21's: an older stamp has neither
   bytes[2] = version;   // the version byte (record.ts: 'F', 'K', version)
   return toBase64Url(await gzip(bytes));
 }
@@ -209,11 +210,9 @@ test('a reach refusal up to v19 is HELD (never lost to a publish); a plain unsup
   const record = await withVersion('veteran', 6, 18);
   const held = String(await refusal({ opponent: 'veteran', record }, FRESH));
   assert.match(held, /^HELD v18: reach: Fight record: version 18 is not supported for the veteran from level 6/);
-  assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^unreadable record: .*not supported for the veteran/, 'past heldMax a reach refusal is plain');
+  assert.match(String(await refusal({ opponent: 'veteran', record }, FRESH, { heldMax: 17 })), /^HELD v18: reach: .*not supported for the veteran/, 'a reach hold does not depend on heldMax (RV29: it covers every version a bump reaches)');
   assert.match(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 3) }, FRESH)), /^unreadable record: Fight record: version 3 is not supported \(/, 'an unreadable version is not a reach hold');
   const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 1 ? { id: 1, user_id: U, opponent: 'veteran', piece: null, record, verified: false, note: held.slice(0, 200) } : null) };
-  await assert.rejects(acceptHeld(db, 1, 'chromium @10 on fc2254aa', { heldMax: 17 }), /v18 record: its replay is engine-independent/);
-  assert.equal(db.settled.size, 0);
   const outcome = await acceptHeld(db, 1, 'chromium+webkit @10 on fc2254aa', { now: new Date('2026-09-29T11:00:00Z') });
   assert.deepEqual([outcome.verified, outcome.award], [true, null]);
   assert.match(outcome.note!, /^HELD v18: reach: .* \| ACCEPTED 2026-09-29T11:00:00.000Z by runbook: chromium\+webkit @10 on fc2254aa$/);
@@ -233,12 +232,13 @@ test('--accept on a reach hold still refuses a lost fight or another opponent fr
   for (const db of [lost, other, noHeader, gone]) assert.equal(db.settled.size, 0);
 });
 
-// Bump 21 (Special Moves behind the record's flag) reaches no fight: a v20 claim pending at the publish still verifies on the v21 build.
-test('a v20 win claim pending across bump 21 still verifies (REACH[21] is empty)', async () => {
+// Bump 21 (Special Moves behind the record's flag) reached no fight, so a v20 claim pending at that publish still verified; RV29's reach covers every fight, so a v20 claim pending
+// across it is HELD like any other (kept for the runbook, never lost).
+test('a v20 win claim pending across RV29 is HELD by the reach, not refused (REACH[29] lists every opponent)', async () => {
   const packed = packRecord(await decodeRecord(await goblinKill()));
-  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte
-  const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 2)]); v20[2] = 20;
-  assert.equal(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH), null);
+  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte and the v26 arena byte
+  const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 3)]); v20[2] = 20;
+  assert.match(String(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH)), /^HELD v20: reach: .*bump 29 changed that fight/);
 });
 
 // F2 (Auditer on 0895d84c; Strategy's A+ 2026-10-01): one FIGHT is one claim, whatever its string.
@@ -315,4 +315,94 @@ test('F2: a claim whose hash will not write holds only itself; a share whose has
   const shared = fakeDb([rows[1]!], undefined, [{ id: 'k1', user_id: U, record: other }]);
   const held = await verifyClaims({ ...shared, hash: async (kind: string, id: string, fight: string) => { if (kind === 'share') throw Error('psql: connection reset'); await shared.hash(kind, id, fight); } });
   assert.deepEqual([held.waiting, shared.settled.size], [1, 0], 'an unhashed share could hide a theft: nothing settles');
+});
+
+// RV29 (2026-10-07; Lead's condition a): REACH[29] lists every opponent, so a claim recorded at v<=28 and still pending when RV29 ships can no longer be read.
+// It is HELD, not lost: settled unverified with no award (the standing does not count it, nothing else about the player changes), kept for the runbook, which
+// replays the record on the last build that reads it (the revision before RV29) and clears it with --accept. A v29 record verifies as ever.
+test('RV29: a pending v28 claim is HELD by the reach (kept, no award), --accept clears it, and a v29 claim is unaffected', async () => {
+  const record = await withVersion('goblin', 6, 28);
+  const held = String(await refusal({ opponent: 'goblin', record }, FRESH));
+  assert.match(held, /^HELD v28: reach: Fight record: version 28 is not supported for the goblin from level 1 \(bump 29 changed that fight/);
+  const row = { id: 7, user_id: U, opponent: 'goblin', piece: null, record, verified: false, note: held.slice(0, 200) };
+  const db = { ...fakeDb([], FRESH), claim: async (id: number) => (id === 7 ? row : null) };
+  const outcome = await acceptHeld(db, 7, 'chromium+webkit @10 on 0d2d9996', { now: new Date('2026-10-08T09:00:00Z') });
+  assert.equal(outcome.verified, true);
+  assert.match(outcome.note!, /^HELD v28: reach: .* \| ACCEPTED 2026-10-08T09:00:00.000Z by runbook: chromium\+webkit @10 on 0d2d9996$/);
+  assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');
+});
+
+test('--accept still refuses a non-reach hold on a v20+ record (its replay is engine-independent); only a reach hold is accepted past heldMax', async () => {
+  const win = await goblinKill();
+  const db = { ...fakeDb([], FRESH), claim: async () => ({ id: 9, user_id: U, opponent: 'goblin', piece: null, record: win, verified: false, note: 'HELD v29: the replay ends in "died", the record says "killed"' }) };
+  await assert.rejects(acceptHeld(db, 9, 'chromium @10 on 0d2d9996'), /is a v31 record: its replay is engine-independent/);
+  assert.equal(db.settled.size, 0);
+});
+
+test('a won claim whose record carries a sheet is replayed with the stored build version it names; forged, unknown, or no store means refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 10 } }, honest = sheetOf(stored)!;
+  const fightWith = async (sheet: Record<string, number>, buildVersion = 1) => {
+    const rec = liveRecorder({ build: 'test', opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1, sheet, characterId: 'one', buildVersion });
+    let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, sheet);
+    for (let t = 0; t < 20000 && !practice.finish; t++) {
+      const acts = ['light', 'heavy', 'thrust'] as const;
+      practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+    }
+    assert.equal(practice.finish?.victim, 1, 'a player win');
+    return encodeRecord(rec.finish('killed'));
+  };
+  const asked: string[] = [];
+  const build = async (character: string, version: number) => { asked.push(`${character}@${version}`); return character === 'pc:one' && version === 1 ? stored : null; };
+  const row = (record: string) => ({ opponent: 'goblin', record });
+  assert.equal(await refusal(row(await fightWith(honest)), FRESH, { build }), null, 'the build the record names gives this sheet: the win stands');
+  assert.match(String(await refusal(row(await fightWith({ ...honest, attack: 100 })), FRESH, { build })), /not the one the player's stored build/);
+  assert.match(String(await refusal(row(await fightWith(honest, 5)), FRESH, { build })), /build version this server does not hold/);
+  assert.match(String(await refusal(row(await fightWith(honest)), FRESH)), /build version this server does not hold/, 'a caller with no store refuses a sheet');
+  assert.deepEqual(asked, ['pc:one@1', 'pc:one@1', 'pc:one@5']);
+});
+
+test('a won claim whose record carries gear in its sheet verifies against the gear frozen on the claim; missing gear or a wrong rung is refused', async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const { wornGearOfItems } = await import('../origins/server/worn-gear.ts');
+  const stored = { level: 10, placed: { attack: 10 } };
+  const piece = (tier: string) => [{ item: 'item:loot.veteran.Helmet', tier, location: { kind: 'equipped', slot: 'head' } }, { item: 'item:loot.veteran.Body', tier, location: { kind: 'equipped', slot: 'chest' } }];
+  const geared = sheetOf(stored, wornGearOfItems(piece('Origin')))!;
+  assert.notDeepEqual(geared, sheetOf(stored)!, 'the worn set moves a dial');
+  const rec = liveRecorder({ build: 'test', opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1, sheet: geared, characterId: 'one', buildVersion: 1 });
+  let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, geared);
+  for (let t = 0; t < 20000 && !practice.finish; t++) {
+    const acts = ['light', 'heavy', 'thrust'] as const;
+    practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+  }
+  assert.equal(practice.finish?.victim, 1, 'a player win');
+  const record = await encodeRecord(rec.finish('killed'));
+  const build = async (character: string, version: number) => character === 'pc:one' && version === 1 ? stored : null;
+  const frozen = (tier: string) => ({ 'pc:one': piece(tier).map((h) => ({ item: h.item, tier: h.tier, slot: h.location.slot })) });
+  const row = (worn_gear?: unknown) => ({ opponent: 'goblin', record, worn_gear });
+  assert.equal(await refusal(row(frozen('Origin')), FRESH, { build }), null, 'the gear frozen on the claim gives this sheet: the win stands');
+  assert.match(String(await refusal(row({ 'pc:one': [] }), FRESH, { build })), /not the one the player's stored build/, 'gear the claim lacks is refused');
+  assert.match(String(await refusal(row(), FRESH, { build })), /not the one the player's stored build/, 'a claim posted before the migration holds no gear');
+  assert.match(String(await refusal(row(frozen('Recruit')), FRESH, { build })), /not the one the player's stored build/, 'a wrong rung is refused');
+});
+
+// RV53: the career/practice sweep pays loot, so a v53 record's spell block goes through the same gate as the encounter settle (origins/server/spell-gate.ts): an unowned id and a skill past the stored ceiling are refused before the replay.
+test('a won claim that casts a spell: unowned, inflated skill, unknown build, no sheet or no spell loader is refused; owned and honest reaches the replay', { skip: RECORD_VERSION < 53 && 'needs the RV53 spell block (#2493); runs once both are on trunk' }, async () => {
+  const { sheetOf } = await import('../src/fight/sheet-rows.ts');
+  const stored = { level: 10, placed: { attack: 5, wind: 5 } }, honest = sheetOf(stored)!;
+  const make = async (spell: { id: string; skill: number }, sheet = true) => {
+    const rec = liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level: 18, seed: 1, specials: true, spell, ...(sheet ? { sheet: honest, characterId: 'one', buildVersion: 1 } : {}) } as Parameters<typeof liveRecorder>[0]);
+    for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+    return { opponent: 'veteran', user_id: 'u1', record: await encodeRecord(rec.finish('killed')) };
+  };
+  const build = async (character: string, version: number) => (character === 'pc:one' && version === 1 ? stored : null);
+  const load = (held: { grimoire: Record<string, unknown>; xp: Record<string, number> }, b = async (_a: string, c: string, v: number) => (c === 'pc:one' && v === 1 ? stored : null)) => ({ held: async () => held, build: b });
+  const owns = { grimoire: { alvis: {} }, xp: { wind: 500 } };
+  const gate = (row: Awaited<ReturnType<typeof make>>, spellLoad?: ReturnType<typeof load>) => refusal(row, FRESH, { build, ...(spellLoad ? { spellLoad } : {}) });
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 6 }), load(owns))), /casts at 6, past the 5/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load({ grimoire: {}, xp: owns.xp }))), /not in this account's grimoire/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load(owns, async () => null))), /stored build is unknown/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }, false), load(owns))), /names no stored build/);
+  assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }))), /stored build is unknown/, 'a caller with no spell loader refuses a spell record');
+  assert.doesNotMatch(String(await gate(await make({ id: 'alvis', skill: 5 }), load(owns))), /grimoire|casts at|stored build is unknown|names no stored build/, 'owned and honest passes the gate and meets the replay');
 });

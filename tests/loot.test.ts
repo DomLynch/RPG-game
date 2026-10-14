@@ -188,7 +188,7 @@ test('loot: every family with a source bake wears it — a textured <Family>Iron
 // The crest's own paperdoll key (Lead ruling a, 2026-09-26): helmet AND crest are worn together, and a ledger saved by an older build with the
 // crest under `head` (the one key both slots shared) comes back with the crest under `crest`, nothing lost.
 test('paperdoll: Crest has its own key, and a crest saved under head migrates to crest with the helmet, owned and pack untouched', async () => {
-  const { PAPERDOLL, cleanLoot, paperdollOf, wear } = await import('../src/loot.ts');
+  const { PAPERDOLL, cleanLoot, paperdollOf, wear } = await import('../src/core/loot.ts');
   assert.deepEqual(PAPERDOLL.head, ['Helmet']); assert.deepEqual(PAPERDOLL.crest, ['Crest']); assert.equal(paperdollOf('Crest'), 'crest');
   // An old ledger: the crest worn instead of a helmet, the helmet in the pack.
   const old = { owned: ['veteran.Crest', 'veteran.Helmet', 'goblin.Body'], equipped: { head: 'veteran.Crest', chest: 'goblin.Body' }, pack: ['veteran.Helmet'] };

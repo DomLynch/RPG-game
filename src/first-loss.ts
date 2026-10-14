@@ -21,11 +21,14 @@
 // wound) or, failing that, on a timeout, so every beat fires on every seed whatever the player does. Until the last beat the player is
 // kept above half health, and the foe is always kept above half: the lessons are not punishment. Then a finishing blow ends the player,
 // forced if it has to be, and the fight is a loss. The prompts are the Web lane's: this file only says WHICH lesson, once, on the tick its cue happens.
-import { decide } from './ai.ts';
-import { project, type Practice } from './combat.ts';
-import { distance, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './duel.ts';
-import { RULES, type MoveId } from './moves.ts';
+import { decide } from './fight/ai.ts';
+import { project, type Practice } from './fight/combat.ts';
+import { distance, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './fight/duel.ts';
+import { RULES, type MoveId } from './fight/moves.ts';
 import { SPARRING_DUMMY, disarm } from './sparring.ts';
+import { loadRegistry, tableFromFile, type Manifest } from './core/registry.ts';
+import RULES_MANIFEST from './first-loss-rules.manifest.json' with { type: 'json' };
+import RULES_ROWS from './first-loss-rules.json' with { type: 'json' };
 
 export const LESSONS = ['stayAfterParry', 'blockEarnsNothing', 'rollSideways', 'woundedStamina', 'tapStepHoldRoll'] as const;
 export type LessonId = (typeof LESSONS)[number];
@@ -38,11 +41,16 @@ const EPISODES: readonly { attack: Action | null; dwell: number; cue: (events: r
   { attack: 'light', dwell: 150, cue: () => false },                                                          // the wound: judged on the bar (below)
   { attack: null, dwell: 300, cue: () => true },                                                              // tap = step, hold = roll: said, then the finish
 ];
-const TIMEOUT = 600;      // ticks an episode waits for its cue before the beat fires anyway (10 s)
-const GAP = 90;           // ticks between the foe's swings
-const REACH = 2.1;        // the foe swings only inside this
-const FINALE_LIMIT = 240; // ticks the finishing blow is given to land by itself before it is forced
-const FLOOR = 0.5;        // share of a bar the lessons keep both fighters above
+const RULES_TABLE = tableFromFile(RULES_MANIFEST.tables[0] as Manifest, RULES_ROWS, 'first-loss-rules.json');
+loadRegistry([RULES_TABLE]);
+const rule = (id: string): number => (RULES_TABLE.rows.find((r) => r.id === id) as { value: number } | undefined)?.value ?? NaN;
+const TIMEOUT = rule('timeout');           // ticks an episode waits for its cue before the beat fires anyway (10 s)
+const GAP = rule('gap');                   // ticks between the foe's swings
+const REACH = rule('reach');               // the foe swings only inside this
+const FINALE_LIMIT = rule('finale-limit'); // ticks the finishing blow is given to land by itself before it is forced
+const FLOOR = rule('floor');               // share of a bar the lessons keep both fighters above
+export const AFK_CAP_S = rule('afk-cap-s');   // seconds of a hidden tab's missed fight the page simulates on return (main.ts): steers the stepped duel, so it sits with the lesson rows
+if ([TIMEOUT, GAP, REACH, FINALE_LIMIT, FLOOR, AFK_CAP_S].some((v) => !(v > 0))) throw new Error('first-loss-rules.json is missing a row');
 
 export function createFirstLoss(onLesson: (id: LessonId) => void = () => {}) {
   const fired: LessonId[] = [];

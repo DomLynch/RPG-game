@@ -3,7 +3,7 @@
 // (tick 2,172) while Node said a hero win (2,248), and Node alone could not reproduce it. Combat's cause (2026-09-29): ENGINE NUMERICS,
 // Node's V8 and Playwright's Chromium disagree by 1 ulp on some Math.atan2 / Math.sin calls, so the pure sim splits at tick 1,412 of that
 // fight. record-replay-check and kill-link-check are Node-only, so no row compared the two engines until this one; it is the gate for the
-// fix (src/detmath.ts, Combat) and stays as the standing guard.
+// fix (src/fight/detmath.ts, Combat) and stays as the standing guard.
 //
 // Fixtures (tests/fixtures/browser-replay-records.json, Strategy's spec: at least one record per playable roster opponent, plus every
 // known-divergent record): each is replayed twice:
@@ -38,14 +38,15 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { URL, fileURLToPath, pathToFileURL } from 'node:url';
 import process from 'node:process';
 import console from 'node:console';
-import { initialPractice, stepPractice, PROFILES } from '../src/combat.ts';
-import { recordSpecials } from '../src/replay.ts';
-import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/record.ts';
-import { underPlayScale } from '../src/play-radius.ts';
-import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { initialPractice, stepPractice, PROFILES } from '../src/fight/combat.ts';
+import { recordSpecials } from '../src/fight/replay.ts';
+import { createRecorder, decodeRecord, encodeRecord, NO_PATRON_VERSION, RECORD_VERSION } from '../src/fight/record.ts';
+import { underPlayScale } from '../src/fight/play-radius.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
+import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { ROSTER } from '../src/roster.ts';
-import { decide, initialAi } from '../src/ai.ts';
-import { underRecord } from '../src/detmath.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { underRecord } from '../src/fight/detmath.ts';
 
 export const FIXTURE = new URL('../tests/fixtures/browser-replay-records.json', import.meta.url);
 /** Known-divergent records (Strategy's "plus every known-divergent record"), pinned at their exact seed after the roster set. */
@@ -70,7 +71,7 @@ const show = (o) => o ? `${o.draw ? 'draw' : `victim ${o.victim}`} @ ${o.tick}` 
 
 /** The page's own construction of a decoded record (match.ts startReplay), stepped to the finish. */
 export function replayInNode(record, sampleEvery = 60) {
-  return underRecord(record, () => {   // the record's version picks the sim's math (src/detmath.ts), exactly as match.ts startReplay does
+  return underRecord(record, () => {   // the record's version picks the sim's math (src/fight/detmath.ts), exactly as match.ts startReplay does
     const o = OPPONENTS[record.opponent];
     let p = initialPractice(record.seed, opponentAt(o, record.level), record.weapon, record.skill ?? null, recordSpecials(record));
     const hashes = {};
@@ -85,6 +86,7 @@ export function replayInNode(record, sampleEvery = 60) {
 
 /** One standard-battery fight, recorded as rank-look-check records (Combat's method): L18, the AI drives the hero, tick 0 forced 'light'. */
 export async function recordFight(opponent, seed) {
+  setStab(true);   // a live fight (the Goblin's stab is an era flag, stab-rule.ts): without it the record is stamped v24, which RECORD_VERSION 29 refuses
   const level = LEVEL_ANCHORS.normal;
   const { p, killed, recorder } = underPlayScale(opponent, RECORD_VERSION, () => {   // fought in the circle this build records it in (play-radius.ts); the recorder is born inside it, so its version stamp names that circle
     const recorder = createRecorder({ build: 'replay-row', opponent, weapon: 'longsword', level, seed });
@@ -183,7 +185,7 @@ async function main() {
   if (process.argv.includes('--write')) {
     const records = await generateFixture();
     const note = loadFixture().note;
-    writeFileSync(FIXTURE, `${JSON.stringify({ note, generated: { revision: git('rev-parse', '--short', 'HEAD'), recordVersion: RECORD_VERSION, by: 'scripts/browser-replay-check.mjs --write' }, records }, null, 1)}\n`);
+    writeFileSync(FIXTURE, `${JSON.stringify({ note, generated: { revision: git('rev-parse', '--short', 'HEAD'), recordVersion: NO_PATRON_VERSION, by: 'scripts/browser-replay-check.mjs --write' }, records }, null, 1)}\n`);
     console.log(records.map((f) => `${f.opponent} seed ${f.seed}: victim ${f.expect.victim}${f.expect.draw ? ' (draw)' : ''} at ${f.expect.tick}${f.label ? ` [${f.label.slice(0, 40)}…]` : ''}`).join('\n'));
     return;
   }

@@ -3,8 +3,10 @@
 // knows which arena it is in. A theme is presentation only: its own floor material and wall masonry (the same generators with other
 // parameters), its sky, fog and light, its wall-top cloth, and its crowd's density and dress.
 // Pure data, no three.js: the texture worker imports the texture half of it.
-import type { OpponentId } from './moves.ts';
+import type { OpponentId } from './fight/moves.ts';
 import { LADDER } from './ladder.ts';
+import THEME_DATA from './arena-themes.json' with { type: 'json' };
+export { WEATHER_ROWS, weatherRow, FLOOR_ROWS, DUST_TONES, type WeatherRow, type FloorRow, type DustToneRow } from './arena-rows.ts';
 
 type RGB = [number, number, number];
 export type SkyLook = { base: RGB; sun: RGB; ground: RGB; sunV?: number };   // sunV: the sun's height on the dome (0.77 = Arena 1's)
@@ -17,7 +19,7 @@ export type Patch = Floor | 'puddle' | 'blood';
 export type TextureLook = { floor: Floor; patch?: Patch; sand: RGB; sandSeed: number; stone: RGB; stoneSeed: number; wall?: WallStyle; sky: SkyLook };
 // Weather: what the one Points cloud does (arena.ts). ash drifts (Arena 1), embers rise and glow, rain falls as streaks, dust hangs
 // low, drips fall from the dark. Count, sprite size (m) and opacity are the cost and the read.
-export type Weather = { kind: 'ash' | 'embers' | 'rain' | 'dust' | 'drips'; color: string; count: number; size: number; opacity: number };
+export type Weather = { kind: string; color: string; count: number; size: number; opacity: number };
 export type ArenaTheme = {
   id: ArenaKey; name: string; textures: TextureLook;
   fog: string; fogDensity: number; hemisphere: [string, string, number]; sun: [string, number]; exposure: number;
@@ -49,107 +51,15 @@ export type ArenaTheme = {
 };
 export type ArenaKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11' | 'a' | 'b' | 'c' | 'd';
 
-const ONE: RGB = [1, 1, 1];
-// Arena 1's numbers, exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes: its maps are byte-identical.
-const ARENA_1: ArenaTheme = {
-  // Golden hour (Dom 2026-10-03, arena-wow brief step 1): a low warm sun from one side for long hard shadows, a cool sky fill so the
-  // shade goes blue against the warm key, a honey haze at the rim and gold dust in the air. Settings only; the maps are unchanged.
-  id: '1', name: 'The Ash Pit', textures: { floor: 'sand', patch: 'blood', sand: ONE, sandSeed: 7, stone: ONE, stoneSeed: 11, sky: { base: [138, 122, 112], sun: [110, 70, 26], ground: [120, 92, 66], sunV: 0.62 } },
-  fog: '#c9a47a', fogDensity: 0.02, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2], exposure: 1.3,
-  light: { sun: [-24, 12, -15] },
-  weather: { kind: 'dust', color: '#f2c58a', count: 320, size: 0.06, opacity: 0.6 }, flame: 1.5, tiers: 3, parapet: false, colonnade: false, backdrop: '/arena/backdrop-1.webp', wallTop: 0, gate: false, flatStands: true, cliff: true, backdropDrop: 7, backdropTurn: 0.6, backdropScale: 0.45, backdropRepeat: 8.9, backdropTall: 0.9, spectators: false,
-  banners: ['#472622', '#7d7469'], banner: [1, 1], bannerSeed: 31,
-  dyes: ['#453538', '#30353d', '#514033', '#535451', '#3e4837', '#62503a'], crowd: 1, fill: 1,
-  motes: '#f2c58a', plain: '#4a463f', gateLight: 0.55, drape: false,
-};
-// Arena 2, the Skull Gate (Dom 2026-10-06, his own painting): Arena 1 byte for byte (light, sky, fog, abyss, island, props) with only the painted far world swapped. On the ladder for rungs 3–4 (ARENA_PICK).
-// On the ladder for rungs 3–4 (ARENA_PICK); ?arena=2 forces it. Every later arena follows the same rule: one backdrop URL.
-const ARENA_2: ArenaTheme = { ...ARENA_1, id: '2', name: 'The Skull Gate', backdrop: '/arena/backdrop-2.webp' };
-// Arena 3, Sunset Legion (Dom 2026-10-06, his own painting): the same rule, Arena 1 with only the far world swapped. On the ladder for rungs 5–6 (ARENA_PICK); ?arena=3 forces it.
-const ARENA_3: ArenaTheme = { ...ARENA_1, id: '3', name: 'Sunset Legion', backdrop: '/arena/backdrop-3.webp' };
-// Arena 4, Heaven's Breach (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=4; not on the ladder yet.
-const ARENA_4: ArenaTheme = { ...ARENA_1, id: '4', name: "Heaven's Breach", backdrop: '/arena/backdrop-4.webp' };
-// Arena 5, The Bone Camp (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=5; not on the ladder yet.
-const ARENA_5: ArenaTheme = { ...ARENA_1, id: '5', name: 'The Bone Camp', backdrop: '/arena/backdrop-5.webp' };
-// Arena 6, The Goblin King (Dom 2026-10-06, his own painting; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=6; not on the ladder (five bands, so it needs rotation: Lead's call).
-const ARENA_6: ArenaTheme = { ...ARENA_1, id: '6', name: 'The Goblin King', backdrop: '/arena/backdrop-6.webp' };
-// Arena 7, Cloud Reach (Dom 2026-10-06, the first painting made to the daylight brief; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=7; not on the ladder.
-const ARENA_7: ArenaTheme = { ...ARENA_1, id: '7', name: 'Cloud Reach', backdrop: '/arena/backdrop-7.webp' };
-// Arena 8, Legion Heights (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=8; not on the ladder.
-const ARENA_8: ArenaTheme = { ...ARENA_1, id: '8', name: 'Legion Heights', backdrop: '/arena/backdrop-8.webp' };
-// Arena 9, The Reaper Gate (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped (the strip is cropped above his painted ground). Reached by ?arena=9; not on the ladder.
-const ARENA_9: ArenaTheme = { ...ARENA_1, id: '9', name: 'The Reaper Gate', backdrop: '/arena/backdrop-9.webp' };
-// Arena 10, The Pale Gate (Dom 2026-10-06, daylight brief; working name): the same rule, Arena 1 with only the far world swapped (the strip is cropped above his painted marsh). Reached by ?arena=10; not on the ladder.
-const ARENA_10: ArenaTheme = { ...ARENA_1, id: '10', name: 'The Pale Gate', backdrop: '/arena/backdrop-10.webp' };
-// Arena 11, Bloodfall Keep (Dom 2026-10-06, the last painting for now; working name): the same rule, Arena 1 with only the far world swapped. Reached by ?arena=11; not on the ladder.
-const ARENA_11: ArenaTheme = { ...ARENA_1, id: '11', name: 'Bloodfall Keep', backdrop: '/arena/backdrop-11.webp' };
-// Arenas 2 and 3, round two (owner 2026-09-24 via Lead: 3B rejected, 2A "only a floor and a warm tint on the same walls"). Four
-// labelled options, each unlike Arena 1 on at least two of light / floor / weather / setting; the owner picks two for ARENA_PICK.
-const BRICK: WallStyle = { courses: 14, blocks: [6, 9], mortar: 0.62, hues: [[1.08, 0.94, 0.88], [1, 0.9, 0.84], [1.12, 0.98, 0.9], [0.94, 0.86, 0.82], [1.04, 0.96, 0.9], [0.9, 0.84, 0.8]] };
-export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = {
-  '1': ARENA_1,
-  '2': ARENA_2,
-  '3': ARENA_3,
-  '4': ARENA_4,
-  '5': ARENA_5,
-  '6': ARENA_6,
-  '7': ARENA_7,
-  '8': ARENA_8,
-  '9': ARENA_9,
-  '10': ARENA_10,
-  '11': ARENA_11,
-  // A — The Night Pit (2A evolved): no sun. A starless night; the braziers are the only warm light, one low firelight that sways
-  // and flickers so the fighters' shadows run long and move; embers rise off the coals instead of ash. Red clay, brick wall.
-  a: {
-    id: 'a', name: 'The Night Pit', textures: { floor: 'clay', sand: [1.18, 0.99, 0.88], sandSeed: 23, stone: [1.14, 0.9, 0.76], stoneSeed: 29, wall: BRICK,
-      sky: { base: [26, 24, 34], sun: [38, 20, 8], ground: [40, 26, 20], sunV: 0.56 } },
-    fog: '#261c1a', fogDensity: 0.028, hemisphere: ['#9496b8', '#5a3420', 2.4], sun: ['#ffa060', 6.5], exposure: 1.85,
-    light: { sun: [-19, 8.5, -15], flicker: 0.16 },
-    weather: { kind: 'embers', color: '#ff8a3a', count: 260, size: 0.08, opacity: 0.9 },
-    banners: ['#6a1a12', '#9a7038'], banner: [1, 1.2], bannerSeed: 47,
-    dyes: ['#5a2420', '#6a3a1e', '#4a2a22', '#7a5a2c', '#3a2a24', '#6a2a1c'], crowd: 0.9, fill: 1.2,
-    motes: '#ff8a3a', plain: '#1e1612', gateLight: 0.85, drape: true,
-  },
-  // B — The Rain Yard: an overcast grey-green afternoon and steady rain. Dark granite flags gone slick, a sheen off the whole pit and
-  // standing puddles that mirror the sky; rain streaks through the frame. Slate courses in the wall, a thin crowd in drab wool.
-  b: {
-    id: 'b', name: 'The Rain Yard', textures: { floor: 'flag', patch: 'puddle', sand: [0.97, 1.07, 1.14], sandSeed: 37, stone: [0.86, 0.94, 1.0], stoneSeed: 41,
-      wall: { courses: 9, blocks: [3, 5], mortar: 0.35, hues: [[1, 1, 1], [0.95, 0.98, 1.02], [0.9, 0.94, 0.98], [1.02, 1.02, 1.04], [0.94, 0.96, 0.98], [0.88, 0.9, 0.94]] },
-      sky: { base: [118, 126, 130], sun: [14, 14, 12], ground: [70, 76, 78] } },
-    fog: '#6e777c', fogDensity: 0.034, hemisphere: ['#aab6be', '#2c3234', 1.55], sun: ['#dfe6ea', 1.6], exposure: 1.3,
-    wet: 0.34,
-    weather: { kind: 'rain', color: '#d8e2ea', count: 1500, size: 0.5, opacity: 0.8 },
-    banners: ['#2a3440', '#5e5a50'], banner: [0.9, 0.8], bannerSeed: 59,
-    dyes: ['#3e4636', '#4a4a3e', '#36403a', '#545244', '#404838', '#4e4638'], crowd: 0.9, fill: 0.7,
-    motes: '#c8d4dc', plain: '#2e3436', gateLight: 0.15, drape: true,
-  },
-  // C — Blood Sand at High Noon: the sun straight overhead, so every shadow is short, hard and under the feet; a bleached white-blue
-  // sky; pale sand with old blood soaked in brown patches; dust hangs low and bright. Huge rough-hewn blocks in the wall.
-  c: {
-    id: 'c', name: 'Blood Sand', textures: { floor: 'sand', patch: 'blood', sand: [1.12, 1.04, 0.86], sandSeed: 43, stone: [1.1, 1.04, 0.92], stoneSeed: 47,
-      wall: { courses: 3, blocks: [1, 3], mortar: 0.55, hues: [[1, 1, 1], [1.04, 1.01, 0.96], [0.96, 0.95, 0.93], [1.02, 1.0, 0.96], [0.9, 0.88, 0.86], [0.98, 0.97, 0.95]] },
-      sky: { base: [206, 212, 214], sun: [60, 56, 44], ground: [176, 150, 112], sunV: 0.98 } },
-    fog: '#d6d4cc', fogDensity: 0.014, hemisphere: ['#f2eee4', '#8a6e4c', 1.3], sun: ['#fff8ea', 5.6], exposure: 1.1,
-    light: { sun: [-2.5, 30, -3] },
-    weather: { kind: 'dust', color: '#e8dcc0', count: 420, size: 0.12, opacity: 0.55 },
-    banners: ['#7c2a18', '#d6c6a0'], banner: [1.6, 0.55], bannerSeed: 71,
-    dyes: ['#8a8070', '#7a6a58', '#9a8a70', '#6a3a2a', '#5a5a60', '#8a7a5a'], crowd: 1.1, fill: 1.3,
-    motes: '#e8dcc0', plain: '#b09a78', gateLight: 0.2, drape: true,
-  },
-  // D — The Sunken Cistern: underground. A black vault instead of sky, a shallow sheet of water over the flags that mirrors the
-  // shafts of daylight falling through the grates overhead, water dripping from the dark. Wet green-black stone, a few watchers.
-  d: {
-    id: 'd', name: 'The Sunken Cistern', textures: { floor: 'sand', patch: 'puddle', sand: [0.89, 1.03, 0.99], sandSeed: 53, stone: [0.8, 0.94, 0.88], stoneSeed: 59,
-      wall: { courses: 7, blocks: [2, 4], mortar: 0.45, hues: [[1, 1, 1], [0.92, 1.0, 0.94], [0.88, 0.96, 0.92], [1.0, 1.02, 0.98], [0.9, 0.94, 0.9], [0.84, 0.9, 0.88]] },
-      sky: { base: [22, 30, 30], sun: [10, 12, 12], ground: [24, 30, 28], sunV: 0.95 } },
-    fog: '#101818', fogDensity: 0.04, hemisphere: ['#7a9898', '#141c1a', 1.0], sun: ['#e6f2ea', 5.0], exposure: 1.6,
-    light: { sun: [-3, 30, 2] }, wet: 0.06, shafts: 5,
-    weather: { kind: 'drips', color: '#cfe4e4', count: 160, size: 0.07, opacity: 0.8 },
-    banners: ['#1e2a28', '#4a4a40'], banner: [0.7, 0.9], bannerSeed: 67,
-    dyes: ['#3a3834', '#2e3440', '#44403c', '#3a4238', '#2a302e', '#4a4640'], crowd: 0.7, fill: 0.35,
-    motes: '#cfe4e4', plain: '#101614', gateLight: 0.0, drape: false,
-  },
-};
+// The themes are rows (arena-themes.json): Arena 1's numbers exactly as arena.ts / scene.ts / textures.ts / crowd.ts had them before the themes (its maps are byte-identical), the ten painted
+// arenas (Dom 2026-10-06, his own paintings: the same rule, Arena 1 with only the far world swapped: a name and a backdrop URL each), and the four older generated looks a-d (A The Night Pit,
+// B The Rain Yard, C Blood Sand, D The Sunken Cistern; owner 2026-09-24 "2A only a floor and a warm tint on the same walls"). A new painted arena is one entry in `painted`.
+export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = (() => {
+  const base = THEME_DATA.arena1 as unknown as ArenaTheme, themes: Record<string, ArenaTheme> = { '1': base };
+  for (const p of THEME_DATA.painted) themes[p.id] = { ...base, ...(p as unknown as Partial<ArenaTheme>) };
+  for (const l of THEME_DATA.looks) themes[l.id] = l as unknown as ArenaTheme;
+  return themes as Record<ArenaKey, ArenaTheme>;
+})();
 // Owner 2026-09-24 (via Strategy): "get all arenas, they are all good" — all five ride the ladder, two rungs each, in the order
 // they were made. The order is PROVISIONAL: Dom chooses the final rung → arena mapping later; that pick edits this one line.
 export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2', 3: '3', 4: 'c', 5: 'd' };
@@ -162,12 +72,6 @@ export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2',
 export const ARENA_ROTATION: readonly ArenaKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 export const isRotationArena = (k: unknown): k is ArenaKey => ARENA_ROTATION.includes(k as ArenaKey);
 export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(5, Math.ceil(rung / 2))) as 1 | 2 | 3 | 4 | 5;
-// True when a theme's sand maps are Arena 1's own (the plain gravelled sand: no clay or flags laid over it, no tint, the same seed). The glow Pit's yard
-// is always that sand, whatever arena the fight was in (scene.ts pitStage arenaMaterials).
-export const hasArena1Sand = (look: TextureLook): boolean => {
-  const one = ARENA_THEMES['1'].textures;
-  return look.floor === one.floor && look.sandSeed === one.sandSeed && look.sand.every((v, i) => v === one.sand[i]);
-};
 export function arenaFor(opponent: OpponentId, override?: string): ArenaTheme {
   if (override && override in ARENA_THEMES) return ARENA_THEMES[override as ArenaKey];
   const rung = LADDER.findIndex(o => o.id === opponent) + 1;   // 0 for a held or unknown id: Arena 1

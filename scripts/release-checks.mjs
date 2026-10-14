@@ -22,8 +22,10 @@ if (!Array.isArray(commands) || !commands.length || !commands.every(command =>
 const concurrency = Math.max(1, Number(process.env.RELEASE_CHECK_CONCURRENCY) || 4);
 const kind = extended ? 'Extended' : 'Release';
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-const receipt = join(root, 'artifacts', 'release-checks.json');
-const logDir = join(root, 'artifacts', 'release-checks');
+// RELEASE_CHECKS_RECEIPT / RELEASE_CHECKS_LOG_DIR: another receipt and log folder, so a run of a row subset (scripts/mac-rows-early.sh: the Mac-only
+// rows started at the cut) never clobbers a release run's artifacts/release-checks.json.
+const receipt = process.env.RELEASE_CHECKS_RECEIPT || join(root, 'artifacts', 'release-checks.json');
+const logDir = process.env.RELEASE_CHECKS_LOG_DIR || join(root, 'artifacts', 'release-checks');
 const previous = (() => { try { return JSON.parse(readFileSync(receipt, 'utf8')); } catch { return {}; } })();
 const knownSeconds = new Map((previous.checks_detail || []).map(check => [check.command, check.seconds]));
 rmSync(receipt, { force: true });
@@ -106,9 +108,16 @@ const trustedIndices = new Set(extended ? [] : String(process.env.RELEASE_CHECKS
 // RELEASE_CHECKS_OUT_OF_SCOPE="4,5" (from deploy.sh's change scope): rows NOT run because this release did not touch their area.
 // Kept apart from trusted rows in the receipt: nothing proved them for this revision (Auditor S1 on #1381).
 const outOfScope = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_OUT_OF_SCOPE || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length && !trustedIndices.has(n)));
+// RELEASE_CHECKS_DEFERRED="9,46" (deploy.sh, from row-placement.mjs POST_PUBLISH): rows NOT run before Published; deploy.sh runs them right after it (scripts/lib/post-publish.sh).
+// Recorded as deferred in the receipt, and a run with deferred rows is not a full run.
+const deferred = new Set(extended ? [] : String(process.env.RELEASE_CHECKS_DEFERRED || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length && !trustedIndices.has(n) && !outOfScope.has(n)));
+// RELEASE_CHECKS_ONLY="2,4" (scripts/mac-rows-early.sh): run only these rows; nothing else runs or is marked. Never a full run.
+const only = new Set(String(process.env.RELEASE_CHECKS_ONLY || '').split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length));
 const all = commands.map((command, index) => ({ command, index, fixedPort: bindsFixedPort(command), expected: knownSeconds.get(command.join(' ')) ?? fallback }))
-  .filter(item => !trustedIndices.has(item.index + 1) && !outOfScope.has(item.index + 1));
+  .filter(item => !trustedIndices.has(item.index + 1) && !outOfScope.has(item.index + 1) && !deferred.has(item.index + 1) && (!only.size || only.has(item.index + 1)));
+if (only.size) console.log(`${kind} checks: only rows ${[...only].sort((a, b) => a - b).join(',')} (RELEASE_CHECKS_ONLY)`);
 if (outOfScope.size) console.log(`${kind} checks: ${outOfScope.size} out of scope for this change (not run): ${[...outOfScope].sort((a, b) => a - b).join(',')}`);
+if (deferred.size) console.log(`${kind} checks: ${deferred.size} deferred to run right after Published: ${[...deferred].sort((a, b) => a - b).join(',')}`);
 for (const index of [...trustedIndices].sort((a, b) => a - b)) console.log(`${kind} check ${index}/${commands.length} trusted from ${trustedSource} — ${commands[index - 1].join(' ')}`);
 const ordered = [...all].sort((a, b) => b.expected - a.expected);  // longest known first; unknown checks sit at the median
 const fixed = all.filter(item => item.fixedPort).length;
@@ -147,6 +156,7 @@ const detail = [
   ...results.map(r => ({ index: r.index + 1, command: r.command.join(' '), seconds: Number(r.seconds.toFixed(1)), retried: retried.has(r.index) })),
   ...[...trustedIndices].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, trusted: trustedSource })),
   ...[...outOfScope].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, out_of_scope: true })),
+  ...[...deferred].map(index => ({ index, command: commands[index - 1].join(' '), seconds: 0, retried: false, deferred: true })),
 ].sort((a, b) => a.index - b.index);
 console.log(`${kind} checks wall time ${wallSeconds.toFixed(0)}s (serial sum ${detail.reduce((sum, r) => sum + r.seconds, 0).toFixed(0)}s)`);
 if (extended) { console.log(`Extended checks passed for ${revision}`); process.exit(0); }
@@ -156,5 +166,9 @@ writeFileSync(receipt, JSON.stringify({ revision, passed: true, checks: commands
 // deploy.sh scopes later releases to a few rows for 24 h after it (Auditor S3 on #1381). The stamp is about the rows: a run of
 // every row behind the fast unit gate (DEPLOY_FAST_GATE, slow tests skipped) is still full, and says so in the stamp (Lead
 // 2026-10-06: a 51/51 run was never stamped, so the daily full stayed due; this replaces Auditor S1 on #1385).
-if (!outOfScope.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), JSON.stringify({ revision, at: new Date().toISOString(), fast_gate: Boolean(process.env.DEPLOY_FAST_GATE) }) + '\n');
+const stamp = JSON.stringify({ revision, at: new Date().toISOString(), fast_gate: Boolean(process.env.DEPLOY_FAST_GATE) }) + '\n';
+if (!outOfScope.size && !deferred.size && !only.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'last-full-release.json'), stamp);
+// A run that was full but for the deferred (post-publish) rows leaves a PENDING stamp: post_publish_rows promotes it to the full stamp only when those rows pass on the live release,
+// so deploy_scope_apply's 24 h full-run clock keeps being reset and every release does not fall back to all 48 Mac rows (Auditor, #2500).
+else if (deferred.size && !outOfScope.size && !only.size && !process.env.DEPLOY_TRUST_ROWS) writeFileSync(join(root, 'artifacts', 'pending-full-release.json'), stamp);
 console.log(`Release checks passed for ${revision}`);

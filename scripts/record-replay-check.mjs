@@ -1,4 +1,4 @@
-// Release check: kill links stay true. A shared fight record (src/record.ts) replays the exact fight on the build under test,
+// Release check: kill links stay true. A shared fight record (src/fight/record.ts) replays the exact fight on the build under test,
 // so the rules must reproduce the reference fights in tests/fixtures/fight-records.json: same final tick, same outcome, same
 // Killed tick. Pure simulation, no browser, well under a second.
 //
@@ -16,11 +16,13 @@
 // test); deploy.sh runs it on the Mac, CI runs the soft gate, and the release is unaffected.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
-import { idleIntent, legal } from '../src/duel.ts';
-import { createRecorder, decodeRecord, encodeRecord } from '../src/record.ts';
-import { underRecord } from '../src/detmath.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { idleIntent, legal } from '../src/fight/duel.ts';
+import { createRecorder, decodeRecord, encodeRecord, RECORD_VERSION } from '../src/fight/record.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
+import { underRecord } from '../src/fight/detmath.ts';
 
 // RECORD_REPLAY_FIXTURE points the check at another fixture file (the check's own tests use it); --write always writes the real one.
 const FIXTURE = process.env.RECORD_REPLAY_FIXTURE && !process.argv.includes('--write') ? process.env.RECORD_REPLAY_FIXTURE : new URL('../tests/fixtures/fight-records.json', import.meta.url);
@@ -75,6 +77,7 @@ function play(intents, onIntent, skill = null) {
 }
 
 if (write) {
+  setPlayScale(playScaleFor(META.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);   // the references are LIVE fights: a headless recorder stamps an older era, which RECORD_VERSION 29 refuses (REACH[29])
   const records = [];
   for (const [name, script] of Object.entries(REFERENCES)) {
     const skill = SKILLS[name] ?? null, rec = createRecorder({ ...META, ...(skill ? { skill } : {}) });
@@ -105,7 +108,7 @@ for (const { name, encoded, expect } of records) {
     failed++; results.push({ name, error: `fixture does not decode: ${message}` }); continue;
   }
   if (record.opponent !== META.opponent || record.level !== META.level || record.seed !== META.seed) { failed++; results.push({ name, error: 'fixture metadata is not the reference fight' }); continue; }
-  const { practice, killed } = underRecord(record, () => play(record.intents, undefined, record.skill ?? null));   // the record's version picks the sim's math (src/detmath.ts), as the page and the verifier do
+  const { practice, killed } = underRecord(record, () => play(record.intents, undefined, record.skill ?? null));   // the record's version picks the sim's math (src/fight/detmath.ts), as the page and the verifier do
   const got = { ticks: practice.duel.tick, outcome: outcomeOf(practice), killedTick: killed, digest: digestOf(practice) };
   const gated = strict ? ['ticks', 'outcome', 'killedTick', 'digest'] : ['ticks', 'outcome', 'killedTick'];
   const drift = gated.filter(k => got[k] !== expect[k]);

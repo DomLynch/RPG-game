@@ -2,10 +2,10 @@
 // profile alone: 24 seeded AI-vs-AI fights each, the hero's brain against each warden's Easy, counting the warden's own actions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
-import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/duel.ts';
-import { OPPONENTS, PROFILES, type AiProfile, type Opponent } from '../src/moves.ts';
-import { TARGET } from '../src/sim.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { createFighter, opponentFighter, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { OPPONENTS, PROFILES, type AiProfile, type Opponent } from '../src/fight/moves.ts';
+import { TARGET } from '../src/fight/sim.ts';
 
 const W = OPPONENTS.witch, C = OPPONENTS.veteran;   // the Centurion's ids stay `veteran` (docs/SCOPE.md)
 const ring = (o: Opponent): Duel => ({ tick: 0, fighters: [createFighter({ x: 0, z: TARGET.z + 1.6, heading: Math.PI, distance: 0 }, 'ready'), opponentFighter(o, { ...TARGET, heading: 0, distance: 0 })], finish: null, events: [] });
@@ -39,8 +39,8 @@ test('the Witch\'s Easy fingerprint differs from the Centurion\'s (lights and ba
   for (const [w, c] of [[easyW, easyC], [normW, normC]]) {
     assert.ok(w.light > 2 * c.light, `she sweeps lights: ${w.light} vs his ${c.light}`);
     assert.ok(w.heavy < c.heavy, `he is the heavy hitter: her ${w.heavy} vs ${c.heavy}`);
-    // He stands: at most 3 backsteps in 24 fights (was 2; RV19's tellReaction lets him evade a noticed thrust, normal brain 3 v her 81).
-    assert.ok(w.backstep > 10 && c.backstep <= 3, `she steps back out, he stands: ${w.backstep} vs ${c.backstep}`);
+    // He stands: at most 4 backsteps in 24 fights (was 3 at RV28, 2 before RV19's tellReaction let him evade a noticed thrust; RV29's posture/rear rules end fights sooner, normal brain 4 v her 82, measured 2026-10-07: centurion backsteps 3 -> 4, witch 80 -> 82, wins 23 -> 24 and 19 -> 21).
+    assert.ok(w.backstep > 10 && c.backstep <= 4, `she steps back out, he stands: ${w.backstep} vs ${c.backstep}`);
   }
   // Easy stays easy: she is no harder to beat than he is, within two fights in 24 for the hero's easy brain. For its normal brain the
   // margin is four, for the Witch only (Lead ruling, 2026-09-27: the 80 % bar wins): the RV17 skill fields that close her thrust hole

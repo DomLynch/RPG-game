@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body character concept for a dark-fantasy game, single figure, centred, plain neutral grey background, even soft light, no cast shadow, whole body in frame from head to feet. A hulking stone giant, about twice human height, body built of weathered grey boulders and plates of ash-crusted stone fused to dark skin, a wide low-slung head, thick arms hanging to the knees, a ragged fur-and-hide kilt, a rough iron-banded belt, bare feet. Standing upright, arms slightly out from the body, relaxed A-pose, empty hands. Strong readable silhouette, matte materials.",
+  "seed": 12,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 46.5,
+  "sha256": "504bbb7c5c78e9d0a0d63c9a63d25e2f3d582d4a34aafd8309f75ad707062ed7"
+}

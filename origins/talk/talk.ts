@@ -5,9 +5,9 @@
 // condition must hold, AND; structured conditions, never script text; result scripts become a data-driven effect list).
 // Pure: no clock, randomness or I/O. Quest state comes in through `Facts.quest` and a quest step goes out through the caller's `advance`
 // (the O2 quest journal's advance, bound to the current journal), so this module never imports the journal. State in, new state out.
-import { Issues, LOCAL_KEY, fail, isPlainObject, join, ok, readArray, readBoolean, readInt, readKind, readObject, readSchemaVersion, readString, readText, type Result } from '../contracts/core.ts';
-import { readId, type CharacterId, type QuestId } from '../contracts/ids.ts';
-import { holdsCondition, readCondition, type Condition, type ConditionFacts } from '../contracts/story.ts';
+import { Issues, LOCAL_KEY, fail, isPlainObject, join, ok, readArray, readBoolean, readInt, readKind, readObject, readSchemaVersion, readString, readText, type Result } from '../../src/core/server.ts';
+import { readId, type CharacterId, type QuestId } from '../../src/core/server.ts';
+import { holdsCondition, readCondition, type Condition, type ConditionFacts } from '../../src/core/server.ts';
 
 export const TALK_VERSION = 1;
 // The contracts' conditions minus 'choice' (here the pick is the choice). 'flag' reads this character's talk flags, which 'set-flag' writes.

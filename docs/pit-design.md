@@ -1,5 +1,7 @@
 # The Pit: design note v1
 
+> **Removed 2026-10-08, see the draft PR `web/pit-room-removal-impl` (Dom approved, docs/TOP10.md "Remove the Pit holding cell").** The walkable stone room after an arena fight, its gate walk and its winch are gone from the game; this note is kept as history. Arena fights, the 50-level ladder and the kill screen stay; the kill screen's primary is "Next fight". `src/pit/skulls.ts` (kills feed, champions, record) stays as the data for the future kills and rankings boards.
+
 Pit lane to Lead, 2026-09-29. The brief is `docs/state/pit.md`. This note covers design only: nothing here is built, and every number labelled measured was read from live revision 303af39e today. All other numbers are budgets for the first PR to meet, not results.
 
 ## 1. Room layout (phone first, one room)

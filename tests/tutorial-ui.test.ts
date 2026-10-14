@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TUTORIAL_CLOSER, TUTORIAL_READY, tutorialPrompt } from '../src/tutorial-ui.ts';
+import { TUTORIAL_CLOSER, TUTORIAL_READY, tutorialPrompt } from '../src/fight/tutorial-ui.ts';
 import { TUTORIAL_STEPS } from '../src/tutorial.ts';
 
 

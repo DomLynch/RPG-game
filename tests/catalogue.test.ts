@@ -1,0 +1,202 @@
+// The character catalogue (src/fight/catalogue.ts + catalogue-data.ts, read through catalogue-rows.ts): every roster character has a row, every Pit rank resolves to a row's named opponent, the rows say what their files say, each fault is
+// named, and the engine reads a row by id with no per-character code (a new character is one row).
+import { CC_LADDER } from '../src/fight/cc-ladder.ts';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { catalogueProblems, catalogueRowsProblems, type CatalogueRow } from '../src/fight/catalogue.ts';
+import { CATALOGUE, DEFS, catalogueRow } from '../src/fight/catalogue-rows.ts';
+import { LEVELS, statsAt, opponentAt, OPPONENTS } from '../src/fight/stats.ts';
+import { ROSTER, type OpponentId } from '../src/roster.ts';
+import { LOOT, LOOT_IDS } from '../src/core/loot.ts';
+import { ROTATION, FINISHER_POSE, finisherSeconds } from '../src/fight/finishers.ts';
+import { WEAPONS } from '../src/fight/moves.ts';
+import { PICKS, homePick } from '../src/fight/stance.ts';
+import { THROATS } from '../src/fight/sound/creature.ts';
+import { beastRenderScale } from '../src/fight/beast-scale.ts';
+import { SHIPPING_LOOKS, PHONE_LOOKS } from '../src/fight/rank-look.ts';
+import { LADDER } from '../src/ladder.ts';
+import { BODYTYPES, SPECIES } from '../src/fight/body-tables.ts';
+import { LEGEND_OPPONENTS, legendForLevel, rungOf } from '../src/legends.ts';
+import { POOLS } from '../src/fight/pools.ts';
+import { MAX_LEVEL } from '../src/core/career-ladder.ts';
+import { glbStats } from '../scripts/lib/glb-stats.mjs';
+import { LOOT_TABLES } from '../origins/region1/content.ts';
+
+const known = {
+  roster: new Set(Object.keys(ROSTER)), loot: LOOT_IDS as ReadonlySet<string>, tables: new Set((LOOT_TABLES as { id: string }[]).map((t) => t.id)),
+  finishers: new Set<string>([...ROTATION, 'quietOne', 'hamstrung', 'execution']), archetypes: new Set(Object.values(ROSTER).map((r) => r.archetype)),
+  refs: { weapons: new Set(Object.keys(WEAPONS)), ccTiers: new Set(Object.keys(CC_LADDER.tiers)), ccResists: new Set(Object.keys(CC_LADDER.resists)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)), bodytypes: BODYTYPES, species: SPECIES,
+};
+const root = (p: string) => new URL(`../${p}`, import.meta.url);
+const glb = (path: string) => { const s = glbStats(path); return { tris: s.tris, joints: s.jointNames, clips: s.clips }; };
+const goblin = () => structuredClone(catalogueRow('goblin')!) as CatalogueRow;
+
+// A VARIANT row (`body` set: the Ember wolf on the Ash wolf's body) is a creature of its own that shares a roster body; the roster-keyed checks below read the BODY rows.
+const BODIES = CATALOGUE.filter((r) => !r.body);
+test('the catalogue is valid, ids are unique, and every roster character has a row', () => {
+  assert.deepEqual(catalogueRowsProblems(CATALOGUE, known), []);
+  assert.deepEqual(BODIES.map((r) => r.id).sort(), Object.keys(ROSTER).sort());
+  assert.deepEqual(catalogueRowsProblems([CATALOGUE[0]!, CATALOGUE[0]!], known).map((p) => p.code), ['dup-id', 'dup-sparring']);
+});
+
+test('every Pit rank resolves to a catalogue row: the ten legends of each of the ten opponents, at every ladder level', () => {
+  assert.equal(LEGEND_OPPONENTS.length * 10, 100);
+  for (const id of LEGEND_OPPONENTS) {
+    const row = catalogueRow(id)!;
+    assert.equal(row.ranks.length, 10, `${id}: ten ranks`);
+    for (let level = 1; level <= MAX_LEVEL; level++) {
+      const legend = legendForLevel(id, level), rank = row.ranks[rungOf(level) - 1]!;
+      assert.deepEqual(rank, { name: legend.name, source: legend.source, backstory: legend.backstory }, `${id} level ${level}`);
+    }
+  }
+  for (const row of CATALOGUE) if (!(LEGEND_OPPONENTS as readonly string[]).includes(row.id)) assert.equal(row.ranks.length, 0, `${row.id}: a creature or held character has no Pit ranks`);
+});
+
+test('stats resolve inside the engine: every row at every level of its band through src/fight/stats.ts, the same fighter the Pit builds', () => {
+  assert.equal(LEVELS, MAX_LEVEL);
+  for (const row of BODIES) {
+    const id = row.id as OpponentId;
+    for (const level of [row.stats.levels[0], 6, 18, 46, row.stats.levels[1]]) {
+      const f = statsAt(id, level);
+      assert.equal(f.id, id); assert.deepEqual(f, opponentAt(OPPONENTS[id], level)); assert.equal(f.rig, row.rig, `${id}: the row's rig is the fighter's`);
+      assert.ok(f.health > 0, `${id} L${level}`);
+    }
+    assert.equal(row.stats.archetype, ROSTER[id].archetype);
+  }
+});
+
+test('each fault is named', () => {
+  const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => p.code).join(','); };
+  assert.equal(edit(() => {}), '');
+  assert.equal(edit((r) => { r.stats.pools = { health: 90, stamina: 120, mana: 0, focus: 5 }; }), '', 'pools: a row may name any of the four');
+  assert.equal(edit((r) => { r.stats.pools = { stamina: 0 }; }), 'stats', 'a stamina bar of 0 is no bar');
+  assert.equal(edit((r) => { r.stats.pools = { mana: -1 }; }), 'stats');
+  assert.equal(edit((r) => { r.stats.pools = { rage: 10 }; }), 'stats', 'an unknown pool is refused');
+  const withIntelligence = { ...known, pools: [...POOLS, { id: 'intelligence', default: 10, min: 0, max: 100, sim: false }] };
+  assert.equal(catalogueProblems(Object.assign(goblin(), { stats: { ...goblin().stats, pools: { intelligence: 14 } } }), withIntelligence).map((p) => p.code).join(','), '', 'a new pool is one definition row: a row may name it with no code change');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'dragon'; }), 'id');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.summary = 'A goblin that burned.'; }), '', 'a variant row: its own id, a roster body, a line of lore');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'dragon'; }), 'id', 'a variant row whose body is not a roster id');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.loot = { table: 'loottable:ember-wolf' }; }), '', 'a variant row names a table that resolves');
+  assert.equal(edit((r) => { (r as { id: string }).id = 'ember-goblin'; r.body = 'goblin'; r.loot = { table: 'loottable:ember-wolff' }; }), 'loot', 'a variant row whose table does not resolve (a typo) is refused, never data');
+  assert.equal(edit((r) => { r.loot = { table: 'loottable:nope' }; }), 'loot', 'a body row needs a known table too')
+  assert.equal(edit((r) => { r.body = r.id; }), 'id', 'a variant row cannot be its own body');
+  assert.equal(edit((r) => { r.summary = '  '; }), 'id', 'an empty summary');
+  assert.equal(edit((r) => { r.world = { ...r.world!, tris: 62000, maxTris: 62000 }; }), 'budget');
+  assert.equal(edit((r) => { r.world = { ...r.world!, asset: r.engine.asset }; }), 'asset');
+  assert.equal(edit((r) => { (r.armour as string[]).push('goblin.Cape'); }), 'armour');
+  assert.equal(edit((r) => { r.stats = { archetype: 'nope', levels: [1, 10] }; }), 'stats');
+  assert.equal(edit((r) => { r.finisher.cut!.neck = []; }), 'finisher');
+  assert.equal(edit((r) => { r.finisher.finishers = ['decapitation']; }), 'finisher,timing');   // the picks and their timing rows must agree
+  assert.equal(edit((r) => { r.blood = { start: 'red', end: '#000000', amount: 1 }; }), 'blood');
+  assert.equal(edit((r) => { r.loot = { table: 'loottable:nothing' }; }), 'loot');
+  assert.equal(edit((r) => { Object.assign(r, { ranks: [] }); }), 'look,sparring,legend');   // rank looks need the ten ranks too, and a row with no ranks has no sparring place
+  assert.equal(edit((r) => { Object.assign(r, { sparring: undefined }); }), 'sparring', 'a ranked opponent needs a sparring.order');
+  assert.equal(edit((r) => { Object.assign(r, { sparring: { order: 0 } }); }), 'sparring', 'a 1-based order');
+  assert.equal(edit((r) => { r.render = { scale: 0 }; }), 'render');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, weapon: 'lightsaber' }; }), 'field');
+  assert.equal(edit((r) => { (r as { home: string }).home = 'berserk'; }), 'home');
+  assert.equal(edit((r) => { r.voice = 'dragon'; }), 'voice');
+  assert.equal(edit((r) => { r.look = { ...r.look, levels: [3, 2] }; }), 'look');
+  assert.equal(edit((r) => { r.ladder = { order: 2, hold: true }; }), 'ladder');
+  assert.equal(edit((r) => { r.finisher.timing = r.finisher.timing.slice(1); }), 'timing');
+});
+
+test('the rows say what the files say: tri counts, clips, cut bones, the armour set, the loot table', () => {
+  for (const row of CATALOGUE) {
+    const engine = glb(row.engine.asset);
+    assert.equal(engine.tris, row.engine.tris, `${row.id}: engine tris`);
+    assert.deepEqual([...row.animations.clips].sort(), [...engine.clips].sort(), `${row.id}: clips`);
+    if (row.finisher.cut) for (const bone of [...row.finisher.cut.head, ...row.finisher.cut.neck, ...Object.values(row.finisher.cut.limbs).flat()]) assert.ok(engine.joints.has(bone), `${row.id}: ${bone} is a joint`);
+    if (row.world) {
+      const world = glb(row.world.asset);
+      assert.equal(world.tris, row.world.tris, `${row.id}: world tris`); assert.ok(world.tris <= row.world.maxTris);
+      assert.deepEqual([...world.clips].sort(), [...engine.clips].sort(), `${row.id}: the world asset carries every clip`);
+      if (row.finisher.cut) for (const bone of Object.values(row.finisher.cut).flatMap((b) => (Array.isArray(b) ? b : Object.values(b).flat()))) assert.ok(world.joints.has(bone as string), `${row.id}: ${bone} is a joint of the world asset`);
+    }
+    assert.ok(row.armour.every((id) => (LOOT[row.id as OpponentId] ?? []).includes(id)), `${row.id}: armour comes from its own loot pieces`);
+  }
+  const g = catalogueRow('goblin')!;
+  assert.deepEqual(g.armour, ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves']);
+  assert.equal(g.loot.table, 'loottable:pit-goblin'); assert.equal(g.world!.tris, 7999);
+  assert.equal(catalogueRow('skeleton')!.blood, null, 'the Skeleton is bloodless as the roster says');
+});
+
+test('the engine reads a row by id with no per-character code: a new character is one row', () => {
+  for (const f of ['src/fight/catalogue.ts', 'src/fight/stats.ts']) assert.ok(!/['"`](wolf|boar|bear|goblin|veteran|dwarf)['"`]/.test(readFileSync(root(f), 'utf8').replace(/\/\/.*$/gm, '')), `${f} names no character`);
+  assert.equal(catalogueRow('dragon'), null);
+  const second = { ...goblin(), id: 'knight', name: 'the Knight' };
+  assert.ok(!catalogueProblems(second as CatalogueRow, known).some((p) => p.code === 'id' || p.code === 'asset'), 'a second row needs only data');
+});
+
+test('the new fields are what their sources say: render scale, weapon, home stance, voice, rank looks, finisher timing, ladder order', () => {
+  for (const row of BODIES) {
+    const id = row.id as OpponentId;
+    assert.equal(row.render.scale, beastRenderScale(id), `${id}: render scale`);
+    assert.equal(row.fields.weapon, ROSTER[id].weapon, `${id}: weapon`);
+    assert.equal(row.home, homePick(id), `${id}: home stance`);
+    assert.equal(row.voice, THROATS[ROSTER[id].body] ? ROSTER[id].body : null, `${id}: voice`);
+    assert.deepEqual(row.look.levels, SHIPPING_LOOKS[id] ?? [], `${id}: rank looks`);
+    assert.equal(row.look.phone, PHONE_LOOKS.has(id), `${id}: phone looks`);
+    const at = LADDER.findIndex((o) => o.id === id);
+    assert.deepEqual(row.ladder, { order: at < 0 ? null : at + 1, hold: at < 0 }, `${id}: ladder`);
+    assert.deepEqual(row.finisher.timing.map((t) => [t.id, t.pose, t.seconds, t.measured]), row.finisher.finishers.map((f) => [f, FINISHER_POSE[f] ?? null, finisherSeconds(f).seconds, finisherSeconds(f).measured]), `${id}: finisher timing`);
+  }
+  assert.deepEqual(['wolf', 'boar', 'bear'].map((id) => catalogueRow(id)!.render.scale), [2, 1.8, 2.2], 'the beasts draw at the size they are met walking');
+  assert.equal(catalogueRow('goblin')!.home, 'trickster'); assert.equal(catalogueRow('executioner')!.home, 'aggressive'); assert.equal(catalogueRow('shieldmaiden')!.home, 'defensive');
+  assert.deepEqual(CATALOGUE.filter((r) => r.ladder.order !== null).map((r) => r.ladder.order), LADDER.map((_, i) => i + 1).slice(0, LADDER.length), 'the ladder is 1..n with no gaps');
+});
+
+test('a variant row shares its body: everything but its own name, lore, level band, loot and citation is the body row\'s', () => {
+  for (const row of CATALOGUE.filter((r) => r.body)) {
+    const body = catalogueRow(row.body!)!;
+    assert.ok(body && !body.body, `${row.id}: its body ${row.body} is a body row`);
+    const strip = (r: CatalogueRow) => { const { id, body: b, name, summary, stats, loot, legend, ...rest } = r; void id; void b; void name; void summary; void loot; void legend; return { ...rest, archetype: stats.archetype }; };
+    assert.deepEqual(strip(row), strip(body), `${row.id}: shares ${row.body}'s rig, assets, clips, finishers, blood, wounds, weapon, voice`);
+  }
+});
+
+test('a typo\'d creature CC tier or resist is refused at row load, and a real one (and a tier that names no kind) is judged against the cc-defs rows', async () => {
+  const edit = (f: (r: CatalogueRow) => void) => { const r = goblin(); f(r); return catalogueProblems(r, known).map((p) => `${p.code}:${p.path}`).join(','); };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 'unstoppable' }; }), '', 'a real tier name loads');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, resist: 'iron' }; }), '', 'a real resist name loads');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 'unstopable' }; }), 'field:fields.immuneTier', 'a typo\'d tier is refused, not silently ignored');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, resist: 'irn' }; }), 'field:fields.resist', 'a typo\'d resist is refused');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, immuneTier: 7 }; }), 'field:fields.immuneTier', 'a tier must be a string');
+  const { ccRows, CC_LADDER } = await import('../src/fight/cc-ladder.ts');
+  const kinds = Object.values(CC_LADDER.kinds), resists = Object.entries(CC_LADDER.resists).map(([id, r]) => ({ id, ...r }));
+  assert.throws(() => ccRows(kinds, [{ id: 'x', immune: ['stun'], from: 1, to: 1 }, { id: 'y', immune: ['stun'], from: 1, to: 2 }], resists), /cover the same rank/, 'two tiers on one rank');
+});
+
+test('the catalogue is open (Dom 2026-10-12): a field is a defs row and a rig is a defs row, never a type edit', () => {
+  const edit = (f: (r: CatalogueRow) => void, defs: typeof DEFS = DEFS) => { const r = goblin(); f(r); return catalogueProblems(r, { ...known, defs }).map((p) => p.code).join(','); };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }), 'field', 'a key with no definition is refused');
+  assert.equal(edit((r) => { r.fields = {}; }), 'field', 'a required field must be present');
+  assert.equal(edit((r) => { r.fields = { weapon: 7 }; }), 'field', 'a ref must be a string in its table');
+  const withStamina = { ...DEFS, fields: [...DEFS.fields, { id: 'stamina', kind: 'number' as const, min: 0, max: 200, sim: true }] };
+  assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 80 }; }, withStamina), '', 'ONE defs row makes the attribute legal on any row, with no code edit');
+  assert.equal(edit((r) => { r.fields = { ...r.fields, stamina: 999 }; }, withStamina), 'field', 'and its range is enforced');
+  assert.equal(edit((r) => { r.rig = 'dragon'; }), 'rig');
+  assert.equal(edit((r) => { r.rig = 'dragon'; }, { ...DEFS, rigs: [...DEFS.rigs, { id: 'dragon' }] }), '', 'a new rig family is one defs row');
+});
+
+test('every rig family in the defs has a baked blade table (the one thing a rig row needs besides its row)', async () => {
+  const { bladePathsByRig } = await import('../src/fight/blade-paths.ts');
+  for (const rig of DEFS.rigs) assert.ok(Object.hasOwn(bladePathsByRig, rig.id), `${rig.id}: a blade table in blade-paths.ts`);
+});
+
+test('every field definition says whether it is sim (it feeds the record digest), and weapon is', () => {
+  for (const f of DEFS.fields) assert.equal(typeof f.sim, 'boolean', `${f.id}: sim: true|false`);
+  assert.equal(DEFS.fields.find((f) => f.id === 'weapon')!.sim, true);
+});
+
+test('species switches are row fields: wolf chase/leash, veteran shield level, wraith spectral, shieldmaiden night bronze, crowd slots (no species name left in the readers)', async () => {
+  const { chaseSpeed, leashOf } = await import('../src/fight/speeds.ts'), { shieldFor } = await import('../src/fight/shields.ts');
+  const { nightBronzeApplies } = await import('../src/fight/night-armour.ts'), { CROWD_KINDS } = await import('../src/assets/arena/crowd.ts');
+  assert.equal(chaseSpeed('wolf'), 6); assert.equal(chaseSpeed('bear'), 4.5); assert.equal(leashOf('wolf'), 15); assert.equal(leashOf('bear'), 30);
+  assert.equal(shieldFor('veteran', 1, true), undefined); assert.ok(shieldFor('veteran', 2, true)); assert.ok(shieldFor('shieldmaiden', 1, true));
+  assert.ok(nightBronzeApplies('a', 'shieldmaiden', 9)); assert.ok(!nightBronzeApplies('a', 'shieldmaiden', 8)); assert.ok(!nightBronzeApplies('b', 'shieldmaiden', 9)); assert.ok(!nightBronzeApplies('a', 'knight', 9));
+  assert.deepEqual(CROWD_KINDS, ['human', 'goblin', 'pitborn', 'executioner', 'nightborn']);
+  assert.deepEqual(CATALOGUE.filter((r) => r.fields.spectral).map((r) => r.id), ['wraith']);
+});

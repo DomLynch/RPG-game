@@ -9,8 +9,8 @@ import { BOT_CONFIG as CONFIG, chooseChargedAttack, chooseGuardCounter, chooseTa
 import { chargedAnswers, damageSources, defenceEarned, defenceExchanges, explainDecisions, intentFor, selectMoments, summarizeDefences, videoSecondAt } from './lib/player-bot-review.mjs';
 import { limitedObservation } from './lib/player-bot-observation.mjs';
 import { ENCOUNTERS } from '../src/roster.ts';
-import { LEVEL_ANCHORS, LONGSWORD, OPPONENTS, RULES, WEAPONS, opponentAt } from '../src/moves.ts';
-import { RADIUS } from '../src/sim.ts';
+import { LEVEL_ANCHORS, LONGSWORD, OPPONENTS, RULES, WEAPONS, opponentAt } from '../src/fight/moves.ts';
+import { RADIUS } from '../src/fight/sim.ts';
 
 const LEVEL = LEVEL_ANCHORS.easy;   // the one level the bot fights: the seed, the pick, the assert and his weapon tables all read it
 

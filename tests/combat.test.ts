@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, beatLegend, counterLine, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/combat.ts';
-import { PATHS, total } from '../src/moves.ts';
-import { movesOf } from '../src/duel.ts';
-import { RADIUS, TARGET } from '../src/sim.ts';
+import { ATTACKS, MOVES, PROFILES, RULES, SWORD, accepts, actorPose, attackSpecs, beatLegend, counterLine, canDefend, canStrike, describe, initialPractice, practiceHint, project, stepPractice, type Intent, type Practice } from '../src/fight/combat.ts';
+import { PATHS, total } from '../src/fight/moves.ts';
+import { movesOf } from '../src/fight/duel.ts';
+import { RADIUS, TARGET } from '../src/fight/sim.ts';
 
 const HP = RULES.health;   // fighters start at RULES.health; the numbers below are written against it
 // Practice is the renderer/HUD view over the duel; these tests cover the projection, hints, control gating and replays.

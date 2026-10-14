@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { headlineFlag, victoryHeadline } from '../src/victory-headline.ts';
-import type { CombatEvent } from '../src/duel.ts';
+import { headlineFlag, victoryHeadline } from '../src/fight/victory-headline.ts';
+import type { CombatEvent } from '../src/fight/duel.ts';
 
 const ev = (type: CombatEvent['type'], actor: 0 | 1, target: 0 | 1, extra: Partial<CombatEvent> = {}): CombatEvent => ({ tick: 1, type, actor, target, ...extra });
 const hitOnMe = ev('Hit', 1, 0), parry = ev('Parried', 0, 1), perfect = ev('Blocked', 0, 1, { perfect: true }), plain = ev('Blocked', 0, 1), brokeHim = ev('PostureBroken', 0, 1);
@@ -26,7 +26,7 @@ test('after a hit taken: two parries, two perfect blocks, two posture breaks, th
   assert.equal(victoryHeadline([hitOnMe, parry, perfect], 70), null, 'one of each earns nothing');
   assert.equal(victoryHeadline([hitOnMe, perfect, perfect], 70), 'Won on 2 perfect blocks.');
   assert.equal(victoryHeadline([hitOnMe, parry, parry, perfect, perfect], 70), 'Won on 2 parries.', 'parries rank above perfect blocks');
-  assert.equal(victoryHeadline([hitOnMe, brokeHim, brokeHim], 70), 'You broke his posture 2 times.');
+  assert.equal(victoryHeadline([hitOnMe, brokeHim, brokeHim], 70), 'You broke their posture 2 times.');
   assert.equal(victoryHeadline([ev('PostureBroken', 1, 0), ev('PostureBroken', 1, 0), hitOnMe], 70), null, 'his breaks of the player earn nothing');
   assert.equal(victoryHeadline([hitOnMe], 9.6), 'Won with 10 HP left.');
   assert.equal(victoryHeadline([hitOnMe], 21), null, 'nothing earned, nothing said');
@@ -42,7 +42,7 @@ test('the line is read from events only: it never touches the log it is given', 
 
 test('the HUD splices the headline before the rematch prompt of a win and leaves every other line alone (wiring pin)', async () => {
   const { readFileSync } = await import('node:fs');
-  const hud = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  const hud = readFileSync(new URL('../src/fight/hud.ts', import.meta.url), 'utf8');
   assert.match(hud, /view\.headline \? practiceHint\(practice, foe, view\.legend\)\.replace\(' Ready for a rematch\?'/);
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   assert.match(main, /const HEADLINE = headlineFlag\(window\.location\?\.search \?\? ''\)/);

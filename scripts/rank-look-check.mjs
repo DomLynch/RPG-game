@@ -1,4 +1,4 @@
-// Rank look stream gate (src/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
+// Rank look stream gate (src/fight/rank-look.ts, docs/briefs/tier-looks-runtime.md; the five rows Lead accepted 2026-09-27, plus A and B).
 // The real game in mobile Chromium at 375x812 against a vite dev server, the look served from public/looks/ (never committed).
 //   node scripts/rank-look-check.mjs --opponent goblin --look /looks/goblin-l3.glb [--dist dist [--build]] [--runs 3] [--mbps 9] [--latency 40] [--label goblin-l3] [--skip-load] [--skip-replay]
 // --dist <dir>: a `vite build` output (meshopt-packed, as shipped) served gzipped like the host (Armour's look-load-ab.mjs server), with the
@@ -23,11 +23,12 @@
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { createRecorder, encodeRecord } from '../src/record.ts';
-import { decide, initialAi } from '../src/ai.ts';
-import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/moves.ts';
-import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/rank-look.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { encodeRecord } from '../src/fight/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { LEVEL_ANCHORS, OPPONENTS, PROFILES, opponentAt, profileAt } from '../src/fight/moves.ts';
+import { PHONE_LOOKS, SHIPPING_LOOKS, lookMapCapMiB } from '../src/fight/rank-look.ts';
 import { rowVerdict } from './rank-look-rows.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
@@ -67,7 +68,7 @@ if (process.argv.includes('--judge')) {
   await b.close(); process.exit(0);
 }
 if (!LOOK) { console.error('--look /looks/<name>.glb is required'); process.exit(2); }
-// --load-query '&gfx=phone&lookbake=off' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
+// --load-query '&gfx=phone&off=lookbake' adds to the load rows' page URL (the phone profile; the no-bake baseline for condition 2).
 const LOAD_QUERY = arg('--load-query', '');
 const DIST = arg('--dist'), LOOK_FILE = `${DIST ?? 'public'}${LOOK}`;
 // A --dist replays the Node leg's record, so it must be the build of THIS tree (Combat/Lead 2026-09-29): a stale dist replays the same
@@ -107,7 +108,7 @@ async function guest(page, query = '') { await page.goto(`${origin}/?opponent=${
 // One winning fight vs the opponent (the first seed the AI-driven hero wins), as herolook-kill-record.mjs.
 async function winningRecord() {
   for (let s = 0; s < 40; s++) {
-    const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = createRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
+    const seed = 731 + s * 97, level = LEVEL_ANCHORS.normal, recorder = liveRecorder({ build: 'rank-look', opponent: OPP, weapon: 'longsword', level, seed });
     let practice = initialPractice(seed, opponentAt(OPPONENTS[OPP], level)), hero = initialAi(seed ^ 0x5bd1e995);   // the level's body, as the replay page builds it
     while (!practice.finish && practice.duel.tick < 60 * 120) { const w = decide(practice.duel, 0, hero, PROFILES.normal); hero = w.ai; practice = stepPractice(practice, recorder.push(practice.duel.tick === 0 ? { ...w.intent, action: 'light' } : w.intent), profileAt(OPPONENTS[OPP], level)); }
     if (practice.finish && !practice.finish.draw && practice.finish.victim === 1) return { seed, ticks: practice.duel.tick, query: `?replay=${await encodeRecord(recorder.finish('killed'))}` };
@@ -184,7 +185,7 @@ if (process.argv.includes('--matched')) {
 // mid-fight frame at 375: the sword drawn and --approach ms given for him to close (the fight camera frames both), then an attack tapped.
 // --tiers Recruit,Origin shoots a subset. No ?perf overlay. Writes artifacts/herolook/<label>/<n>-<Rank>-{idle,fight}.png and rungs.json.
 if (process.argv.includes('--rungs')) {
-  const { TIERS } = await import('../src/grades.ts');
+  const { TIERS } = await import('../src/core/server.ts');
   const dir = `artifacts/herolook/${LABEL}`; await fs.mkdir(dir, { recursive: true });
   // --query '&gfx=phone[&ranklook=/looks/<opp>-L{n}.glb]' adds to each page's URL, {n} = the rank (phone-LOD before/after stills, #1017).
   const rungs = [], only = arg('--tiers', '').split(',').filter(Boolean), approach = Number(arg('--approach', 3000)), query = arg('--query', '');
@@ -240,7 +241,7 @@ try {
           // Where the worst frame sits against the swap stamp, and the long tasks that overlap it (what row 4 is made of).
           const worstAt = +(worst[0] - s.on).toFixed(1), longTasks = globalThis.__long.filter(([t, d]) => t < worst[0] && t + d > worst[0] - worst[1]).map(([t, d]) => [+(t - s.on).toFixed(1), +d.toFixed(1)]);
           // Lead on 8d138778 (condition 2): the frames from the fetch's end to the swap hold the map uploads and the pre-swap bake; their p95
-          // against the same span with ?lookbake=off (--load-query '&lookbake=off') is the no-hitch evidence.
+          // against the same span with ?off=lookbake (--load-query '&off=lookbake') is the no-hitch evidence.
           const span = globalThis.__frames.filter(([t]) => t >= from && t < s.on).map(([, ms]) => ms).sort((a, b) => a - b);
           const bakeP95 = span.length ? +span[Math.min(span.length - 1, Math.ceil(span.length * 0.95) - 1)].toFixed(1) : null, bakeFrames = span.length;
           return { bakeP95, bakeFrames, state: globalThis.__rankLook.state(), fetchStart: fetch?.startTime, fetchEnd: fetch?.responseEnd, loaded: s.loaded, on: s.on, applyMs: s.applyMs, swapFrame, worstAt, longTasks, cost: globalThis.__rankLookOn };

@@ -1,0 +1,15 @@
+{
+  "dayParts": {
+    "day":   {"order": 1, "night": false},
+    "night": {"order": 2, "night": true}
+  },
+  "clockBonus": {
+    "lawful":  {"order": 1, "day": 3, "night": -3},
+    "chaotic": {"order": 2, "day": -3, "night": 3}
+  },
+  "nightSpawns": {},
+  "weather": {
+    "ash-wastes":    {"order": 1, "picks": {"dust": 6, "ash": 3, "embers": 1}},
+    "drowned-marsh": {"order": 2, "picks": {"rain": 5, "drips": 4, "dust": 1}}
+  }
+}

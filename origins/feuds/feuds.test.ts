@@ -3,7 +3,7 @@
 // guard rings, and arrest as metal and jail, never gear.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MAX_LEVEL } from '../../src/career.ts';
+import { MAX_LEVEL } from '../../src/core/server.ts';
 import {
   CLEAN, DAY_S, DEFAULT_RINGS, GENERATOR_DEFAULTS, GRUDGE_EXPIRY_S, GRUDGE_MIN_LEVEL, GRUDGE_REOFFER_S, SUCCESSOR_MAX_S, SUCCESSOR_MIN_S,
   addNotoriety, alertSpread, arrest, bailBronze, bandOf, canJoin, closeSuccession, giverPricePermille, grudgeAt, grudgeOpen, guardChallenge,
@@ -316,3 +316,10 @@ const PINNED: GrudgeRoll = {
     { id: 'grudge:ash-frontier-r2931-3', giver: 'character:rival-mimir', rival: 'character:fence-cinder', motive: 'old-debt', kit: 'ringed', twist: 'flee-at', rewardBronze: 300, rivalKillNotoriety: 600, story: false },
   ],
 };
+
+test('the feud numbers moved to feud-rules.json read back byte-identical to the constants feuds.ts held in code (trunk 400202c51)', async () => {
+  const { createHash } = await import('node:crypto');
+  const mod = await import('./feuds.ts');
+  const plain = Object.fromEntries(Object.entries(mod).filter(([, v]) => typeof v !== 'function'));
+  assert.equal(createHash('sha256').update(JSON.stringify(plain)).digest('hex'), '06a2e6f46136995fe694a28513840912ce46c5f731f42733ee18f2ce123a7cad');
+});

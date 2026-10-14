@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Object3D, Texture, Vector3 } from 'three';
-import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/finishers.ts';
-import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, hamstrungPick, poseOf, resolveHamstrung } from '../src/hamstrung.ts';
-import { createHamstrungAssets } from '../src/hamstrung-assets.ts';
+import { FINISHER_POSE, ROTATION, selectFinisher, type FinisherId } from '../src/fight/finishers.ts';
+import { HAMSTRUNG_BEATS, HAMSTRUNG_VICTIMS, hamstrungPick, poseOf, resolveHamstrung } from '../src/fight/hamstrung.ts';
+import { createHamstrungAssets } from '../src/fight/hamstrung-assets.ts';
 import { readFileSync } from 'node:fs';
 import { isHeld, resolveFinisher, ROSTER, type OpponentId } from '../src/roster.ts';
-import { cuesFor, type DeathPresentation } from '../src/audio/cues.ts';
-import { createFinisherBlood, finisherBloodSources } from '../src/finisher-blood.ts';
-import type { CombatEvent } from '../src/combat.ts';
-import type { Finish } from '../src/duel.ts';
+import { cuesFor, type DeathPresentation } from '../src/fight/sound/cues.ts';
+import { createFinisherBlood, finisherBloodSources } from '../src/fight/finisher-blood.ts';
+import type { CombatEvent } from '../src/fight/combat.ts';
+import type { Finish } from '../src/fight/duel.ts';
 
 const finish: Finish = { victim: 1, location: 'legs', move: 'light_right', heading: 0, draw: false };
 const swords = ['longsword', 'longsword'] as const;
@@ -90,22 +90,22 @@ test('an uninstalled Hamstrung pick is the plain death for the picture and the c
   assert.equal(resolveHamstrung('veteran', finish, weapons, plain, null, resolveFinisher('veteran', finish, weapons, plain)), 'plainDeath');
   // scene.ts and main.ts both take their pick from hamstrungPick, so the render and cues.ts see one id.
   const source = (file: string) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
-  assert.match(source('scene.ts'), /hamstrungPick\(finisherOverride, hamstrungLatch === true\)/);
+  assert.match(source('fight/scene.ts'), /hamstrungPick\(finisherOverride, hamstrungLatch === true\)/);
   assert.match(source('main.ts'), /hamstrungPick\([^\n]*view\.hamstrungInstalled\(\)\)/);
 });
 
 test('a normal fight\'s ready path never fetches or awaits the Hamstrung assets', () => {
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   assert.equal([...scene.matchAll(/assets\/hamstrung-/g)].length, 2, 'both clips are imported in one place only');
   const load = scene.slice(scene.indexOf('function loadFighters'), scene.indexOf("assetStatus('', 'ready');"));
   assert.doesNotMatch(load, /import\('\.\/assets\/hamstrung|await[^\n]*hamstrung|prepareHamstrung/i, 'loadFighters neither imports nor awaits them');
   assert.doesNotMatch(load, /wantHamstrung|prefetchHamstrung/, 'ready neither asks for nor awaits the clips');
-  assert.match(scene, /const wantHamstrung = \(prefetch = false\) => \{ if \(\(prefetch \|\| finisherOverride === 'hamstrung'\) && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
+  assert.match(scene, /const wantHamstrung = \(prefetch = false\) => \{ if \(\(prefetch \|\| isTemplate\(finisherOverride, 'hamstring'\)\) && warriors && HAMSTRUNG_VICTIMS\.includes\(opponentId\)\) void hamstrungAssets\.request\(warriors\); \};/);
   assert.match(scene, /setFinisherOverride\(id: FinisherId \| null\) \{\n\s*finisherOverride = id;\n\s*wantHamstrung\(\);/, 'the picker choosing it starts the fetch');
 });
 
 test('the Hamstrung prefetch starts only after ready, unawaited, on idle, and its failure stays silent', () => {
-  const scene = readFileSync(new URL('../src/scene.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/fight/scene.ts', import.meta.url), 'utf8');
   const ready = scene.indexOf("assetStatus('', 'ready');"), calls = [...scene.matchAll(/\bprefetchHamstrung\(\)/g)].map((m) => m.index!);
   assert.equal(calls.length, 1, 'one call site');
   assert.match(scene.slice(ready, ready + 400), /^assetStatus\('', 'ready'\);\n\s*prefetchHamstrung\(\);/, 'immediately after ready, not awaited');

@@ -1,15 +1,16 @@
 // One character's stored items -> the pure inventory module's Holdings. Rows come from origins_open (the token's account only), so a character
 // of another account is simply not there. A row the contracts refuse is a server fault (500), never repaired here.
-import { accountIdFromAuthUid, type CharacterInstanceId } from '../contracts/ids.ts';
-import type { ServiceDefinition, UpgradeCostTable } from '../contracts/economy.ts';
-import { parseItemInstance, type ItemInstance } from '../contracts/items.ts';
+import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
+import type { ServiceDefinition, UpgradeCostTable } from '../../src/core/server.ts';
+import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { openInventory, type Inventory, type Lookup } from '../inventory/inventory.ts';
 import { BadRequest } from './handlers.ts';
 import type { Db } from './db.ts';
 import * as store from './store.ts';
+import type { ShopList } from '../shops/shop.ts';
 
 // `smith`: the forge's service definition and cost table, parsed by the contracts (smithContent in upgrade.ts). Absent = no smith in this content.
-export type Content = { lookup: Lookup; smith?: { service: ServiceDefinition; costs: UpgradeCostTable } };
+export type Content = { lookup: Lookup; smith?: { service: ServiceDefinition; costs: UpgradeCostTable }; shops?: ReadonlyMap<string, ShopList>; counters?: ReadonlyMap<string, { zone: string; at: string }> };   // counters: shop service id -> its vendor's landmark   // shops: service id -> list (Town plan A2)
 type Row = store.Json & { id: string; loc_kind: string | null; loc_owner: string | null; mint_key: string; provenance: store.Json };
 
 // The stored row as an ItemInstance. A split child keeps its parent's provenance in the database but carries its own mint key (parent::s<v>),

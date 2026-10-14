@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type { CombatEvent, Fighter } from '../src/duel.ts';
-import { SHIPPED, SIGNATURES, pickSignature, createSignatureMarks, type SignatureFrame } from '../src/signature.ts';
-import { ROT, rotSite } from '../src/signature-plaguedoctor.ts';
+import type { CombatEvent, Fighter } from '../src/fight/duel.ts';
+import { SHIPPED, SIGNATURES, pickSignature, createSignatureMarks, type SignatureFrame } from '../src/fight/signature.ts';
+import { ROT, rotSite } from '../src/fight/signature-plaguedoctor.ts';
 
 test('Rot Bloom is the Plague Doctor\'s A and answers only a blade blow he lands', () => {
   const effect = pickSignature(SIGNATURES.plaguedoctor, 'on');

@@ -1,0 +1,76 @@
+{
+  "tables": [
+    {
+      "table": "careerRule",
+      "file": "career-rules.json",
+      "at": "careerRule",
+      "key": "id",
+      "required": {
+        "maxParty": "integer",
+        "minContributionPermille": "integer",
+        "heatUnitSeconds": "integer",
+        "freeRepeats": "integer",
+        "restedPerDayCp": "integer",
+        "restedCapCp": "integer"
+      }
+    },
+    {
+      "table": "typeWeight",
+      "file": "career-rules.json",
+      "at": "typeWeight",
+      "key": "id",
+      "required": {
+        "weight": "integer",
+        "once": "boolean",
+        "rested": "boolean",
+        "party": "string"
+      },
+      "optional": {
+        "atOwn": "boolean",
+        "earlyBelow": "integer",
+        "earlyWeight": "integer"
+      }
+    },
+    {
+      "table": "levelCurve",
+      "file": "career-rules.json",
+      "at": "levelCurve",
+      "key": "id",
+      "required": {
+        "maxLevel": "integer",
+        "boss": "string",
+        "killBase": "integer",
+        "killStep": "integer",
+        "earlyLevels": "integer",
+        "earlyKills": "integer",
+        "ramp": "integer",
+        "rank": "integer",
+        "rankLevels": "integer",
+        "opening": "array"
+      },
+      "refs": {
+        "boss": "typeWeight"
+      }
+    },
+    {
+      "table": "ladderRule",
+      "file": "career-rules.json",
+      "at": "ladderRule",
+      "key": "id",
+      "required": {
+        "maxLevel": "integer",
+        "oldMaxLevel": "integer",
+        "dialTrail": "integer"
+      }
+    },
+    {
+      "table": "respecRule",
+      "file": "career-rules.json",
+      "at": "respecRule",
+      "key": "id",
+      "required": {
+        "freeRespreadLevel": "integer"
+      }
+    }
+  ]
+}

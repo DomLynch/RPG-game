@@ -27,21 +27,109 @@ on:
     # every 2026-10-06 run where it ran it finished in 43-67 s (fetch-depth 0 + blob:none is what pr-base-check's
     # merge-base needs); its CANCELLED verdicts are the concurrency group cancelling a superseded run, and its long
     # "queued" waits are the runner pool.
-    types: [opened, synchronize, reopened, edited]
+    # `labeled` (Lead + Strategy 2026-10-12, runner budget): a feature PR's browser jobs wait for auditor:ready, so adding that label starts a
+    # browser-only run (static + plan + the browser jobs; see BROWSER_LABEL below). Every other label runs nothing, like a title edit.
+    types: [opened, synchronize, reopened, edited, labeled]
     # Repeated rather than a YAML anchor: the Actions workflow parser does not support anchors or aliases.
     paths-ignore:
       - '**.md'
       - 'docs/**'
+  # The release train's candidate when the cutter opened it with the Actions token (no pull_request run then): scripts/release-train.mjs dispatches it.
+  workflow_dispatch:
 # One run per trunk push and one per pull request; a newer push cancels the superseded run (queued or running), and
 # cancel-on-close.yml cancels a closed PR's runs.
 concurrency:
-  # A non-retarget `edited` run (title/body) gets its own group: it skips every job and must not cancel the real run.
-  group: quality-${{ github.event.pull_request.number || github.ref }}${{ (github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) && '-edit' || '' }}
-  cancel-in-progress: true
+  # A run that does no new work never shares the head's group (Lead 2026-10-13, after DI/DH): a title/body `edited` and every `labeled` event but auditor:ready
+  # get a group of their own (the run id), so none cancels the head's gate still in flight; on a release-* candidate auditor:ready is inert too. A push and adding auditor:ready (the full run on a FEATURE PR,
+  # Lead 2026-10-13) share the PR's group: a newer push cancels a superseded full run, and the full run replaces the push's static-only run of the same head.
+  group: quality-${{ github.event.pull_request.number || github.ref }}${{ ((github.event.action == 'edited' && !contains(toJSON(github.event.changes), '"base"')) || (github.event.action == 'labeled' && (github.event.label.name != 'auditor:ready' || startsWith(github.head_ref, 'release-')))) && format('-inert-{0}', github.run_id) || '' }}
+  # A trunk push never cancels the run in progress (Lead 2026-10-10: each merge of a batch cancelled and restarted trunk's quality run, so the
+  # batch head's run never finished; deploy.sh needs that run green on the exact sha). Pull-request groups still cancel a superseded run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  quality:
-    # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+  plan:
+    # Which heavy jobs does this change need? (Lead 2026-10-10, after trunk's run for S sat queued 13 min behind 12 other runs: 15 jobs a PR
+    # was the load.) A pull request whose files touch nothing the game, its assets or its browser/net gates are built from runs only
+    # `quality` (every test, tsc, lint, build) and the cheap jobs: load-time, browser, net-engines, asset-rows and duel-two-page are skipped.
+    # A trunk push always runs everything (deploy.sh reads `quality` + `browser (combat)` from the trunk run). A listing failure runs everything.
+    # Browser jobs on a feature PR (Lead + Strategy 2026-10-12): only once it carries auditor:ready (`browser`); the unit and quality shards run on every push.
+    # NOT_RETARGET: a title/body `edited` event is not a code change. BROWSER_LABEL: adding auditor:ready is a run of the browser jobs only.
+    # Not on the push of an already-tested candidate (the train's fast-forward of trunk to its "... (release-X candidate)" merge commit): its pull_request run covered this tree.
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready' && !startsWith(github.head_ref, 'release-'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    outputs:
+      game: ${{ steps.diff.outputs.game }}
+      browser: ${{ steps.diff.outputs.browser }}
+    steps:
+      - id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          # A release-* candidate always runs them (Lead 2026-10-12: the Auditor removes auditor:ready after its verdict, so a re-pushed head must not skip them).
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [[ "$HEAD_REF" == release-* ]]; then echo "browser=true" >> "$GITHUB_OUTPUT"; else echo "browser=false" >> "$GITHUB_OUTPUT"; echo "feature PR: browser jobs run in the release candidate, not here"; fi
+          GAME_RE='^(src/|public/|origins/|supabase/|index\.html$|vite\.config|package(-lock)?\.json$|tsconfig|tests/fixtures/|\.github/workflows/quality\.yml$|scripts/(lib/harness|browser-check|stance-panel-check|counter-browser-check|origins-seamless-check|duel-two-page-check|duel-relay|net-|check-budget|load-time|[a-z-]+-polish-check)|.*\.(glb|webp|png|jpe?g|ogg|mp3|wav)$)'
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "not a pull request: everything runs"; exit 0; fi
+          if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then echo "game=true" >> "$GITHUB_OUTPUT"; echo "could not list the files: everything runs"; exit 0; fi
+          if printf '%s\n' "$files" | grep -Eq "$GAME_RE"; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "game paths touched: heavy jobs run"; printf '%s\n' "$files" | grep -E "$GAME_RE" | head -5
+          else echo "game=false" >> "$GITHUB_OUTPUT"; echo "no game, asset, browser-gate or net path in the diff: heavy jobs skipped"; fi
+      # The `browser-rows` commit status on a feature PR's head (Lead + Auditor 2026-10-12: no branch protection, and skipped jobs read as green): set on
+      # EVERY push and on adding auditor:ready. PENDING while the browser jobs wait for the label or run; the `browser-rows` job below writes success or
+      # failure on the same head sha. A diff with no game path gets success (nothing to run). A release-* candidate always runs them: no status.
+      - name: browser-rows status
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          GAME: ${{ steps.diff.outputs.game }}
+          BROWSER: ${{ steps.diff.outputs.browser }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$GAME" != true ]; then st=success; d="no game, asset or browser-gate path: no browser rows needed"
+          elif [ "$BROWSER" = true ]; then st=pending; d="browser jobs running"
+          else st=success; d="browser rows run in the release candidate this rides, not on a feature PR"; fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$st" -f context=browser-rows -f description="$d" -f target_url="$RUN_URL" > /dev/null
+          echo "browser-rows: $st ($d) on $SHA"
+  static:
+    # Static first (Lead + Strategy 2026-10-12: 39/40 runners busy, a red tsc on #2352 kept 15 shards running): eslint + both typechecks + the origins
+    # lint, about a minute. On a pull request every quality shard and browser job `needs:` it, so a red tsc costs this one job. A trunk push skips
+    # it (deploy.sh reads that run; quality:static still runs all of this inside `quality`).
+    if: github.event_name == 'pull_request' && (((github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled') || (github.event.action == 'labeled' && github.event.label.name == 'auditor:ready' && !startsWith(github.head_ref, 'release-')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx eslint src
+      - run: npm run typecheck:tests
+      - run: npm run typecheck:origins
+      - run: npm run lint:origins
+      - run: npm run check:as-data -- --gate   # as-data reached 0/0 on 2026-10-13: a new id compare or closed union is red
+  quality-shard:
+    # `quality:static` (lint, both typechecks, origins lint, registry gate, test:bot, build, audit, budget) and the database checks. test:all is
+    # NOT here: unit-ci.yml owns it (8 shards, the unit receipt deploy.sh trusts; Lead 2026-10-12, so the suite does not run twice per PR on
+    # the 40 runners). quality:static + unit-ci's test:all is exactly quality:ci (tests/quality-shards.test.ts), and deploy.sh skips the Mac's
+    # suite only when `quality` is green AND a unit receipt vouches for the tree.
+    # NOT_RETARGET: a title/body `edited` event is not a code change; a label is not either (auditor:ready runs the browser jobs only).
+    # RUNNER QUEUE (Strategy 2026-10-12 21:5x): on a feature PR the shard and the `quality` verdict wait for auditor:ready (adding it runs them), like
+    # the browser jobs; a push to an unlabelled PR runs static + plan + base only. A trunk push and a release-* candidate are unchanged (deploy.sh reads them).
+    needs: static
+    if: ${{ !cancelled() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || (github.event.label.name == 'auditor:ready' && !startsWith(github.head_ref, 'release-'))) && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready')) && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [static]
+    name: quality (${{ matrix.part }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -58,17 +146,59 @@ jobs:
         run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
       - name: Lossless JPEG build tool
         run: sudo apt-get update && sudo apt-get install -y libjpeg-turbo-progs
-      - run: npm run quality:ci
-      - name: Account database isolation
+      - if: matrix.part == 'static'
+        run: npm run quality:static
+      - if: matrix.part == 'static'
+        name: Account database isolation
         run: PG_BIN="$(pg_config --bindir)" node scripts/account-database-check.mjs
-      - name: Server awards database
+      - if: matrix.part == 'static'
+        name: Server awards database
         run: PG_BIN="$(pg_config --bindir)" node scripts/awards-database-check.mjs
       # The Origins save/verify invariants on real PostgreSQL (GPT audit 2026-10-06, finding B: the harness existed but no required job ran it).
-      - name: Origins database
+      - if: matrix.part == 'static'
+        name: Origins database
         run: PG_BIN="$(pg_config --bindir)" node scripts/origins-database-check.mjs
+      - if: matrix.part == 'static'
+        name: Duel season archive database
+        run: PG_BIN="$(pg_config --bindir)" node scripts/duel-season-database-check.mjs
+  quality:
+    # The one verdict deploy.sh reads (`quality` == success, scripts/deploy.sh:73): green only when every shard concluded success. A failed,
+    # cancelled or skipped shard makes it red, never green. Same NOT_RETARGET skip as the shards, so a title/body edit still skips everything.
+    needs: [quality-shard, plan]
+    if: always() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || (github.event.label.name == 'auditor:ready' && !startsWith(github.head_ref, 'release-'))) && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: '[ "$SHARDS" = success ] || { echo "quality: a shard did not succeed (result: $SHARDS)"; exit 1; }'
+        env:
+          SHARDS: ${{ needs.quality-shard.result }}
+      # Skipped browser jobs read as green: say so here; the `browser-rows` commit status (plan) stays PENDING on such a head (Lead 2026-10-12).
+      - if: needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'false'
+        run: echo "browser jobs NOT run on this head (a feature PR, they run in the release candidate it rides); a skipped browser row is not a pass" | tee -a "$GITHUB_STEP_SUMMARY"
+  browser-rows:
+    # The browser jobs' verdict as the `browser-rows` commit status, on the head sha this run tested (the plan set it PENDING). Not when the run was
+    # cancelled (a newer push owns the status then). Optional gates (continue-on-error) never colour it, as they never colour their job.
+    needs: [plan, static, load-time, browser, net-engines, asset-rows, duel-two-page]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-') && needs.plan.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true' }}
+    name: browser-rows (status)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RESULTS: static=${{ needs.static.result }} load-time=${{ needs.load-time.result }} browser=${{ needs.browser.result }} net-engines=${{ needs.net-engines.result }} asset-rows=${{ needs.asset-rows.result }} duel-two-page=${{ needs.duel-two-page.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          bad=$(printf '%s\n' $RESULTS | grep -v '=success$' | tr '\n' ' ')
+          if [ -z "$bad" ]; then st=success; d="browser jobs passed"; else st=failure; d="not passed: $bad"; fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$st" -f context=browser-rows -f description="${d:0:140}" -f target_url="$RUN_URL" > /dev/null
+          echo "browser-rows: $st ($d) on $SHA"
   base:
     # A PR whose base branch has already landed on trunk can only merge into a dead branch (#358, 2026-09-21, missed a deploy).
-    if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"'))
+    if: github.event_name == 'pull_request' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -88,8 +218,9 @@ jobs:
     # like frankendom.com: FAIL when head's first-playable median is over base's by more than 1 s, or over 30 s (the absolute tripwire; Lead 2026-09-28: trunk measured 16.9 s and
     # 21.9 s on two runners, so 25 s could paint an innocent PR red on a slow one). The label
     # `load-time-ruled` (Lead only) makes the delta report-only; it is read live, so add it and re-run this job. CI only.
-    # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    needs: [plan, static]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -136,13 +267,15 @@ jobs:
           if-no-files-found: ignore
   browser:
     # One runner per gate: each harness-clock gate renders every frame on software GL, so they run in parallel with room for slow runners.
-    # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    needs: [plan, static]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
     strategy:
       fail-fast: false
       matrix:
         gate:
           - { name: combat, script: scripts/browser-check.mjs, required: true }
+          - { name: stance-panel, script: scripts/stance-panel-check.mjs, required: true }   # ?stances= must show the panel (live 1d9269c8 never mounted it)
           # The counter gate passes on the Mac, on a GPU-less VPS and in deploy.sh; on this runner it failed at first (guard never
           # enabled under harness time) and passed 6/6 on 2026-09-22 (Hooks dev's sample). Still optional here until someone
           # promotes it on a longer sample; its receipts are uploaded for diagnosis.
@@ -153,6 +286,10 @@ jobs:
           - { name: counter-slash, script: scripts/counter-browser-check.mjs, required: false, only: slash_riposte }
           - { name: counter-thrust, script: scripts/counter-browser-check.mjs, required: false, only: riposte }
           - { name: counter-heavy, script: scripts/counter-browser-check.mjs, required: false, only: heavy_riposte }
+          # Seamless Zone 1 combat (World, #1758 gates): no swap at engage, the world alive during the fight, the engage hitch budget. Optional until it has a sample on this runner; builds the origins preview itself.
+          - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
+          # The same gate with no fight before [zone ready] (SEAMLESS_QUIET), a forced first hit (SEAMLESS_STRIKE) and the program rule on any renderer (SEAMLESS_PROGRAMS): the first-contact particle programs must be warmed by the zone, not by luck of timing (#2289/#2299). Fails on trunk before the planUpload Points warm-up.
+          - { name: seamless-quiet, script: scripts/origins-seamless-check.mjs, required: false, seamless: '1' }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}
@@ -177,6 +314,9 @@ jobs:
         run: node ${{ matrix.gate.script }}
         env:
           COUNTER_ONLY: ${{ matrix.gate.only }}
+          SEAMLESS_QUIET: ${{ matrix.gate.seamless }}
+          SEAMLESS_STRIKE: ${{ matrix.gate.seamless }}
+          SEAMLESS_PROGRAMS: ${{ matrix.gate.seamless }}
         timeout-minutes: 30
       - if: always()
         continue-on-error: true   # a lost receipt upload never colours the gate's own result (see release-checks.yml)
@@ -191,8 +331,9 @@ jobs:
   net-engines:
     # Live PvP rollback needs bit-identical state on every phone (docs/duel-architecture.md §2.3): the PvP fixture's fingerprint chains in
     # Node 22 (the verifier's engine), Chromium (Android Chrome's) and WebKit (iOS Safari's) must match fight for fight. CPU only, no GPU.
-    # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    needs: [plan, static]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -217,11 +358,50 @@ jobs:
           path: artifacts/net-engines/receipt.json
           if-no-files-found: ignore
 
+  # Asset rows in PR time (Deploy, Lead 2026-10-08: row 29 went red on fold 11 because no PR job ran it; Dom: no asset change rides a fold
+  # without its matching rows green). Runs only when the PR changes a shipped look/texture/GLB, a material source map or manifest, or a polish script itself; every
+  # scripts/*-polish-check.mjs (today veteran-polish-check, release row 29) runs on the PR's merge result. tests/rank-look already runs
+  # inside quality (test:all). Not a gate on docs or code-only PRs: they finish in seconds without installing anything.
+  asset-rows:
+    # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    needs: [plan, static]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && github.event_name == 'pull_request' && needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Does this PR touch shipped assets?
+        id: scope
+        run: |
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
+          if grep -E -q '^(src/assets/.*\.glb|src/assets/source/materials/|public/looks/|public/assets/textures/|scripts/[a-z-]+-polish-check\.mjs)' changed.txt; then
+            echo "run=1" >> "$GITHUB_OUTPUT"; grep -E '^(src/assets/.*\.glb|src/assets/source/materials/|public/looks/|public/assets/textures/|scripts/[a-z-]+-polish-check\.mjs)' changed.txt | head -20
+          else
+            echo "run=0" >> "$GITHUB_OUTPUT"; echo "no shipped-asset path changed: nothing to run"
+          fi
+      - if: steps.scope.outputs.run == '1'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.scope.outputs.run == '1'
+        run: npm ci
+      - if: steps.scope.outputs.run == '1'
+        name: Drop the Microsoft apt source
+        run: grep -ls packages.microsoft.com /etc/apt/sources.list.d/* 2>/dev/null | xargs -r sudo rm -f || true
+      - if: steps.scope.outputs.run == '1'
+        run: npx playwright install --with-deps chromium
+      - if: steps.scope.outputs.run == '1'
+        name: Polish rows (release row 29 and any later *-polish-check)
+        run: for f in scripts/*-polish-check.mjs; do echo "== $f"; node "$f"; done
   duel-two-page:
     # A live duel between two real pages over the real path (challenge link, relay, WebRTC when it opens, lobby, rollback): both must settle
     # on the same finish with the same confirmed fingerprints and 0 desyncs (scripts/duel-two-page-check.mjs). CPU only, draws skipped.
-    # NOT_RETARGET: a title/body `edited` event is not a code change.
-    if: github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')
+    # The plan skips on a title/body edit or another label (NOT_RETARGET); a PR runs this after a green `static` and once it carries auditor:ready.
+    needs: [plan, static]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (github.event_name != 'pull_request' || (needs.static.result == 'success' && needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

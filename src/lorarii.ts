@@ -14,31 +14,31 @@
 // The asset's URL is handed in (scene.ts already globs ./assets/*.glb): this module stays plain TypeScript, so the unit test
 // can import it under node without Vite's `?url`.
 import * as THREE from 'three';
+import { presentGroup } from './present-rows.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
-import type { CombatEvent } from './duel.ts';
+import type { CombatEvent } from './fight/duel.ts';
 import type { SimView } from './arena.ts';
-import { retryTransient } from './characters.ts';
+import { retryTransient } from './fight/characters.ts';
 
 const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
 
-export const LORARII = {
-  count: 6,
-  radius: 12.1,          // mid-walkway: LAYOUT.wall.inner 11.7 .. outer 12.5 (arena.ts); CAMERA_CLAMP is 11.5, so never in the fight camera's clear zone
-  top: 2.6,              // LAYOUT.wall.top: the walkway surface
-  sixth: Math.PI / 3,
-  reach: 0.28,           // radians each side of his post that he paces (±16°): sixths never overlap and the gate (π ± 0.13, plus a shoulder) stays clear (tests/lorarii.test.ts)
-  // Pace's own ground speed, measured by Multi Chars off guard.glb (maximum forward foot separation 0.642 m across the clip's
-  // 1.333 s = 1.284 m per cycle): 0.963 m/s at timeScale 1. Walking them slower than the clip makes the feet skate, and below
-  // ~0.7 m/s the gait wants re-authoring — so the patrol moves at the clip's own speed and the mixer stays at 1. Every guard
-  // walks the same speed and only his phase differs, so one timeScale serves all six.
-  speed: 0.963,          // metres per second along the wall; the period follows from it (see lorariusAngle)
-  raiseClip: 0.5,        // seconds: guard.glb's Raise (Lash is 0.6) — what the lead is filled with
-  turn: 4,               // yaw lerp rate toward the nearest fighter (per second)
-  raise: 0.35, lash: 0.22, recover: 0.6,   // seconds: the placeholder's beat. With the real body, Raise and Lash are the clips' own lengths (0.6 s each)
-  lead: 60,                // default ticks between WhipRaised and Whipped when the event carries no `lead` (RULES.wall.loiter: 60 before the first lash, 30 before a repeat)
-} as const;
+// Every number is a row (present-rows.json, `lorarii.*`); only the sixth is derived. Notes from the old literal:
+// radius: mid-walkway: LAYOUT.wall.inner 11.7 .. outer 12.5 (arena.ts); CAMERA_CLAMP is 11.5, so never in the fight camera's clear zone
+// top: LAYOUT.wall.top: the walkway surface
+// reach: radians each side of his post that he paces (±16°): sixths never overlap and the gate (π ± 0.13, plus a shoulder) stays clear (tests/lorarii.test.ts)
+// Pace's own ground speed, measured by Multi Chars off guard.glb (maximum forward foot separation 0.642 m across the clip's
+// 1.333 s = 1.284 m per cycle): 0.963 m/s at timeScale 1. Walking them slower than the clip makes the feet skate, and below
+// ~0.7 m/s the gait wants re-authoring — so the patrol moves at the clip's own speed and the mixer stays at 1. Every guard
+// walks the same speed and only his phase differs, so one timeScale serves all six.
+// speed: metres per second along the wall; the period follows from it (see lorariusAngle)
+// raiseClip: seconds: guard.glb's Raise (Lash is 0.6) — what the lead is filled with
+// turn: yaw lerp rate toward the nearest fighter (per second)
+// raise: seconds: the placeholder's beat. With the real body, Raise and Lash are the clips' own lengths (0.6 s each)
+// lead: default ticks between WhipRaised and Whipped when the event carries no `lead` (RULES.wall.loiter: 60 before the first lash, 30 before a repeat)
+type LorariiKey = 'count' | 'radius' | 'top' | 'sixth' | 'reach' | 'speed' | 'raiseClip' | 'turn' | 'raise' | 'lash' | 'recover' | 'lead';
+export const LORARII = { ...presentGroup('lorarii'), sixth: Math.PI / 3 } as Readonly<Record<LorariiKey, number>>;
 
 // Where guard `i` stands at sim tick `tick`: his post is the centre of his sixth, offset by half a sixth so no post sits on the
 // gate axis, and he walks a slow triangle wave along the wall with his own phase and period. Pure — Combat may call it too.

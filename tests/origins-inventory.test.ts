@@ -2,3 +2,5 @@
 import '../origins/inventory/inventory.test.ts';
 import '../origins/inventory/property.test.ts';
 import '../origins/inventory/consume.test.ts';
+import './items-loot-catalogue.test.ts';
+import '../origins/inventory/burn-reasons.test.ts';

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { advance, initialState, RADIUS, STEP, TARGET, wrapAngle } from '../src/sim.ts';
+import { advance, initialState, RADIUS, STEP, TARGET, wrapAngle } from '../src/fight/sim.ts';
 
 test('one second walks three metres; diagonals cannot move faster', () => {
   for (const input of [{ x: 1, z: 0 }, { x: 1, z: 1 }, { x: 100, z: 100 }]) {

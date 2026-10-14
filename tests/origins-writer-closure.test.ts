@@ -1,0 +1,87 @@
+// The box's five node services (systemd ExecStart) run under plain node with no `three` installed. Release AA crash-looped it because origins/preview/mobs.ts
+// (loaded by origins/server/world-spawns.ts) took SPEEDS from the page door src/fight/index.ts, which re-exports characters.ts -> 'three'. The K7 test only guards
+// src/fight/server.ts's own closure; this walks the WRITER's RUNTIME imports (type-only imports are erased by node, so they do not load anything).
+import { zoneRows } from '../scripts/gen-zones.mjs';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import test from 'node:test';
+
+import { SERVER_ENTRIES as ENTRIES, serverClosure, stripComments, writerClosure } from '../scripts/writer-closure.mjs';
+
+const BANNED_FILES = ['src/fight/index.ts', 'src/core/index.ts'];
+const BANNED_PACKAGES = /^three(\/|$)/;
+
+const disk = (f: string): string => readFileSync(f, 'utf8');
+
+test('no server entry\'s runtime closure reaches the page door src/fight/index.ts or the three package', () => {
+  for (const entry of ENTRIES) {
+    const { files, packages } = writerClosure(disk, existsSync, entry);
+    assert.ok(files.includes(entry), `${entry}: the walk did not start at the entry`);
+    assert.deepEqual(files.filter((f) => BANNED_FILES.includes(f)), [], `${entry} loads a page door (src/fight/index.ts or src/core/index.ts): take src/fight/server.ts or src/core/server.ts (re-exports only, no renderer)`);
+    assert.deepEqual(packages.filter((p) => BANNED_PACKAGES.test(p)), [], `${entry} loads three, which is not installed on the box`);
+  }
+});
+
+test('the writer walk reaches the files the AA crash came through', () => {
+  const { files } = writerClosure(disk, existsSync);
+  for (const must of ['origins/server/world-spawns.ts', 'origins/preview/mobs.ts', 'src/fight/server.ts', 'src/fight/speeds.ts']) assert.ok(files.includes(must), `the walk no longer reaches ${must}: the entry or the import pattern broke`);
+});
+
+test('the parity list is the union of every service entry, so it holds the files only the other services load', () => {
+  const all = serverClosure(disk, existsSync);
+  for (const must of ['src/fight/match.ts', 'src/core/profile.ts', 'src/trial.ts', 'src/scorecard.ts', 'scripts/duel-relay.mjs', 'scripts/verify-daily.mjs']) assert.ok(all.includes(must), `${must} is missing from the parity list`);
+  assert.ok(all.length > writerClosure(disk, existsSync).files.length, 'the union must be larger than the writer entry alone');
+});
+
+test('the installer copies every writer-closure file that lives outside src/ and origins/ (CH: loader.ts imported scripts/lib/json-dup-keys.mjs, the installer did not copy it, the writer crash-looped)', () => {
+  // Writer PR A: no hand list any more. The installer copies the computed closure; scripts/origins-install-check.sh installs it for real in a scratch root.
+  const installer = readFileSync('ops/install-origins-writer.sh', 'utf8');
+  const outside = writerClosure(disk, existsSync).files.filter((f) => !f.startsWith('src/') && !f.startsWith('origins/'));
+  assert.ok(outside.includes('scripts/origins-writer.mjs') && outside.includes('scripts/lib/json-dup-keys.mjs'), `the walk should reach both: ${outside.join(', ')}`);
+  assert.match(installer, /closure="\$\(cd "\$here" && node scripts\/writer-closure-list\.mjs --paths writer\)" \|\| \{/);
+  assert.doesNotMatch(installer, /install -m 0644 "\$here\/scripts\/lib\/json-dup-keys\.mjs"/, 'no hand list');
+  const at = (n: string) => { const i = installer.indexOf(n); assert.ok(i >= 0, n); return i; };
+  assert.ok(at('xargs -0 node --input-type=module') < at('ln -sfn "$dest" "$opt/current"'), 'the dry import gates the flip');
+});
+
+test('[slow] scripts/origins-install-check.sh: install, closure copy, dangling import refused, failed dry import keeps current', () => {
+  const r = spawnSync('bash', ['scripts/origins-install-check.sh'], { encoding: 'utf8', timeout: 240_000 });
+  assert.equal(r.status, 0, (r.stderr || '') + r.stdout);
+  assert.match(r.stdout, /origins-install-check: \d+ checks passed/);
+});
+
+test('the walk goes red on the AA mistake (mobs.ts taking the page door) and ignores type-only imports', () => {
+  const real = (f: string): string => disk(f);
+  const bad = (f: string): string => f === 'origins/preview/mobs.ts' ? real(f).replace('src/core/server.ts', 'src/core/index.ts') : real(f);
+  assert.ok(writerClosure(bad, existsSync).files.includes('src/core/index.ts'), 'the AA import must pull the page door into the closure');
+  const typeOnly = (f: string): string => f === 'origins/preview/mobs.ts' ? `import type { X } from '../../src/fight/index.ts';\n${real(f)}` : real(f);
+  assert.ok(!writerClosure(typeOnly, existsSync).files.includes('src/fight/index.ts'), 'a type-only import loads nothing and must not count');
+});
+
+test('comment markers inside the other comment kind or a string do not hide imports (loader.ts line 2 held a slash-star-star in a line comment)', () => {
+  const files: Record<string, string> = {
+    'a.ts': "// see origins/zones/** for data\nimport { x } from './b.ts';\nimport { y } from './c.ts';\n",
+    'b.ts': "/* a // b */\nimport { z } from './d.ts';\n",
+    'c.ts': "const s = '/* not a comment';\nimport { w } from './e.ts';\n// */\n",
+    'd.ts': "/* import { gone } from './gone.ts'; */\n// import { gone2 } from './gone.ts';\n",
+    'e.ts': "const re = /a\\/*b/;\nconst q = x.replace(/'/g, '') / 2;\nimport { v } from './f.ts';\n// */\n",
+    'f.ts': '', 'gone.ts': '',
+  };
+  const got = writerClosure((f: string) => files[f], (f: string) => f in files, 'a.ts').files;
+  assert.deepEqual(got, ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'], 'both imports after the tricky comments are kept; the commented-out imports are not');
+  assert.equal(stripComments('a // x /* y\nb /* z // w */ c').replace(/ +/g, ' '), 'a \nb c'.replace(/ +/g, ' '));
+});
+
+test('stripComments leaves division after a postfix ++/-- and after an identifier alone (x++ / y is not a regex literal)', () => {
+  for (const code of ['let n = i++ / 2; let m = j-- / 3 + 4 / 2;', 'const r = a / b / c;']) assert.equal(stripComments(code), code);
+  assert.ok(!stripComments("n = i++ / 2; // import { gone } from './gone.ts';").includes('gone'), 'the trailing line comment after a division is still stripped');
+  assert.ok(!stripComments("n = j-- / 2; /* import { gone } from './gone.ts'; */").includes('gone'), 'and so is a block comment');
+});
+
+test('the writer walk reaches every origins/zones file the loader, registry and resolve import (the walker once lost 15 of them)', () => {
+  const { files } = writerClosure(disk, existsSync);
+  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes-data.ts', 'origins/zones/from-row.ts', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone2.row.json']) assert.ok(files.includes(must), `the walk lost ${must}`);
+  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 8, 'origins/zones/* files in the writer closure');
+  assert.deepEqual(files.filter((f) => f.startsWith('origins/zone-rows/')), zoneRows().map((r: { file: string }) => `origins/zone-rows/${r.file}`), 'one row file per zone, and nothing else, rides with the writer (a new zone row adds a file here: update nothing, it is derived)');
+});

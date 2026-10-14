@@ -10,12 +10,13 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { initialPractice, stepPractice } from '../src/combat.ts';
-import { idleIntent } from '../src/duel.ts';
-import { levelOf, tierAt } from '../src/grades.ts';
-import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/moves.ts';
+import { initialPractice, stepPractice } from '../src/fight/combat.ts';
+import { idleIntent } from '../src/fight/duel.ts';
+import { levelOf, tierAt } from '../src/core/server.ts';
+import { LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { gzipSync } from 'node:zlib';
-import { createRecorder, decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/record.ts';
+import { decodeRecord, encodeRecord, packRecord, toBase64Url } from '../src/fight/record.ts';
+import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 import { psqlAdapter, verifyClaims } from './verify-loot.mjs';
 
 const D3 = '202609230001_server_awards.sql';
@@ -74,7 +75,7 @@ try {
   const nudges = new Map(), nudge = build => (nudges.has(build) || nudges.set(build, nudges.size + 1), nudges.get(build) / 127);
   const fight = async (opponent, preset, seed, intent, build, claimed) => {
     const level = typeof preset === 'number' ? preset : LEVEL_ANCHORS[preset], o = OPPONENTS[opponent];   // records carry a ladder level since the 46-level ladder (replay.ts)
-    const rec = createRecorder({ build, opponent, weapon: 'longsword', level, seed }), dx = nudge(build);
+    const rec = liveRecorder({ build, opponent, weapon: 'longsword', level, seed }), dx = nudge(build);
     let practice = initialPractice(seed, opponentAt(o, level));
     for (let t = 0; t < 20000 && !practice.finish; t++) { const i = intent(t); practice = stepPractice(practice, rec.push(t ? i : { ...i, move: { ...i.move, x: i.move.x + dx } }), profileAt(o, level)); }
     return encodeRecord(rec.finish(claimed ?? (practice.finish.victim === 1 ? 'killed' : 'died')));   // `claimed`: a record that lies
@@ -163,7 +164,14 @@ try {
   // Lead's level floor (#621): a win fought below the dial floor under the account's SERVER rank is refused with its reason: no mark.
   // Scripted walk-in wins at exact levels (seeds found by search): level 1 (a fresh device at the device count), 14 (one under the floor),
   // 15 (the floor). The two refusals go first so the standing is still level 20 when the floor case is swept.
-  const winAt = (level, seed, build) => fight('goblin', level, seed, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
+  // The walk-in's outcome at a given (level, seed) moves with every rule batch (RV29 killed it at L14 seed 10): take the first seed from `seed` up whose fight is a win.
+  const winAt = async (level, seed, build) => {
+    for (let s = seed; s < seed + 40; s++) {
+      const record = await fight('goblin', level, s, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
+      if ((await decodeRecord(record)).outcome === 'killed') return record;
+    }
+    fail(`no walk-in win at level ${level} within 40 seeds from ${seed}`);
+  };
   const fresh = claim(H, await winAt(1, 1, 'h-fresh'), 'goblin', 'goblin.Knife');
   const under = claim(H, await winAt(14, 10, 'h-14'));
   await sweep();
@@ -277,6 +285,25 @@ try {
   if (Number(psql(`select count(*) from public.loot_claims where user_id = '${Z}';`)) !== zClaims) fail('a refused bulk insert left rows behind');
   as('authenticated', Z, `do $$begin for i in 1..${60 - zClaims} loop insert into public.loot_claims(opponent, record) values ('veteran', 'rate' || i); end loop; end$$;`);   // 60 this hour
   if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'rate61')`, 'insufficient_privilege')) fail('a 61st claim within the hour was accepted');
+  // The worn gear is FROZEN on a claim and a daily row when it is posted (202610130025): the client's own value is overwritten, and a later equip changes nothing on the row.
+  psql(`set session_replication_role = replica;
+    insert into public.origins_characters(id, account, name) values ('pc:gear', '${Z}', 'Gear');
+    insert into public.origins_items(id, item, quantity, tier, loc_kind, loc_owner, loc_slot, loc_index, mint_key, provenance) values
+      ('it:gear:h', 'item:loot.veteran.Helmet', 1, 'Origin', 'equipped', 'pc:gear', 'head', null, 'mk:gear:h', '{}'),
+      ('it:gear:p', 'item:loot.veteran.Body', 1, 'Origin', 'pack', 'pc:gear', null, 0, 'mk:gear:p', '{}');`);
+  psql(`alter table public.loot_claims disable trigger loot_claims_rate;`);
+  if (!refused('authenticated', Z, `insert into public.loot_claims(opponent, record, worn_gear) values ('veteran', 'gearforged', '{"pc:forged":[]}')`, 'insufficient_privilege')) fail('a client sent its own worn gear on a claim');
+  as('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'geargear1');`);
+  const frozenOf = psql(`select worn_gear::text from public.loot_claims where record = 'geargear1';`);
+  if (frozenOf !== '{"pc:gear": [{"item": "item:loot.veteran.Helmet", "slot": "head", "tier": "Origin"}]}') fail(`the claim froze ${frozenOf}, not the equipped piece only (a pack piece is not worn gear)`);
+  psql(`set session_replication_role = replica; update public.origins_items set loc_kind = 'equipped', loc_slot = 'chest', loc_index = null where id = 'it:gear:p';`);
+  as('authenticated', Z, `insert into public.loot_claims(opponent, record) values ('veteran', 'geargear2');`);
+  if (psql(`select worn_gear->'pc:gear' is not null and jsonb_array_length(worn_gear->'pc:gear') = 2 from public.loot_claims where record = 'geargear2';`) !== 't') fail('a claim posted after the second piece went on does not hold it');
+  if (psql(`select worn_gear::text from public.loot_claims where record = 'geargear1';`) !== frozenOf) fail('a later equip changed the gear frozen on an earlier claim');
+  const dayNo = psql(`select (now() at time zone 'utc')::date - date '2026-09-22';`);
+  as('authenticated', Z, `insert into public.daily_results(day, user_id, number, opponent, weapon, outcome, ticks, record) values ((now() at time zone 'utc')::date, '${Z}', ${dayNo}, 'veteran', 'longsword', 'abandoned', 30, 'dailygear');`);
+  if (psql(`select jsonb_array_length(worn_gear->'pc:gear') from public.daily_results where record = 'dailygear';`) !== '2') fail('a daily row did not freeze the ledger gear');
+  if (psql(`select has_column_privilege('frankendom_verifier', 'public.loot_claims', 'worn_gear', 'select') and has_column_privilege('frankendom_verifier', 'public.daily_results', 'worn_gear', 'select');`) !== 't') fail('the verifier cannot read the frozen gear');
   console.log('Awards database PASS: seed written once at apply from the fixture profiles and unwritable after; the real sweep settles replayed records: pending = own unchecked claims only; verified win = seed + 1 with the claimed piece at the server tier; wrong opponent, lost fight and unreadable record refused with a note, never blocking; off-kit take keeps the mark; a win below the dial floor under the server rank refused; reverse-order sweeps give the same tiers; converted guest starts at 0; forged cache ignored; client cannot write awards or flip verified; verifier cannot award a missing, unverified or already-awarded claim; owner-only reads, anon none; global record-hash uniqueness; one fight one claim (a re-gzip refused as "same fight as claim N", a fight first shared by another account or a guest refused, the owner\'s own share claimable, the unique index on verified claims, fight_hash unwritable by clients); size cap and the hourly cap, bulk insert included. No hosted database changed.');
 } finally {
   if (started) run('pg_ctl', ['-D', join(root, 'data'), '-m', 'fast', '-w', 'stop']);

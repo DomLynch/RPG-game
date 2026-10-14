@@ -1,18 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { Match } from '../src/match.ts';
-import { OPPONENTS, RULES } from '../src/moves.ts';
-import { idleIntent, stepDuel, type Duel, type CombatEvent } from '../src/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { Match } from '../src/fight/match.ts';
+import { OPPONENTS, RULES } from '../src/fight/moves.ts';
+import { idleIntent, stepDuel, type Duel, type CombatEvent } from '../src/fight/duel.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { classSpecialFor } from '../src/class-special-identity.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { type SpecialTest } from '../src/special-look.ts';
-import { specialCueFor } from '../src/sparring-special-runtime.ts';
-import { sparringSpecialOptions } from '../src/sparring-specials.ts';
-import { disposeSpecialGroup } from '../src/special-presentation.ts';
+import { classSpecialFor } from '../src/fight/class-special-identity.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { type SpecialTest } from '../src/fight/special-look.ts';
+import { specialCueFor } from '../src/fight/sparring-special-runtime.ts';
+import { sparringSpecialOptions } from '../src/fight/sparring-specials.ts';
+import { disposeSpecialGroup } from '../src/fight/special-presentation.ts';
 
 const cases = [
   { id: 'earthfold' as SpecialTest, opponent: 'pitborn' as const, root: 'earth fold' },
@@ -55,7 +55,7 @@ for (const c of cases) {
     for (let t = 0; t < 170 && !m.practice.finish; t++) m.step(() => ({ ...idleIntent(), guard: true }));
     for (const actor of [0, 1] as const) {
       const start = m.fightLog.find(e => e.type === 'SpecialStarted' && e.actor === actor), land = m.fightLog.find(e => e.type === 'SpecialLanded' && e.actor === actor);
-      assert.equal(!!start, actor === 0 ? player : foe); assert.equal(!!land, !!start);
+      assert.equal(!!start, actor === 0 ? player : foe); const cut = m.fightLog.find(e => e.type === 'SpecialInterrupted' && e.actor === actor); assert.equal(!!land, !!start && !(player && foe && cut)); assert.equal(!!cut, !!start && player && foe && !land, 'two casts: the first strike cuts the other (interruptible casts); one cast alone is never cut');
       if (start && land) { assert.equal(land.tick - start.tick, RULES.special.windup - 1); assert.equal(land.target, 1 - actor); assert.equal(land.damage, Math.round(0.2 * m.practice.duel.fighters[1 - actor].maxHealth)); }
     }
     assert.deepEqual(m.practice.duel.fighters.map(f => f.weapon), nativeKit); assert.equal(m.recorder, null); assert.equal(writes.length, before);

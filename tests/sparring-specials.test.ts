@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPECIAL_TESTS, type SpecialTest } from '../src/special-look.ts';
-import { SPECIAL_MODES } from '../src/special-modes.ts';
-import { SPECIAL_LABELS, SPECIAL_BANDS, specialBand, sparringSpecialOptions, defaultSparringSpecial, resolveSparringPreview, playerSparringChoice } from '../src/sparring-specials.ts';
+import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
+import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
+import { SPECIAL_LABELS, SPECIAL_BANDS, specialBand, sparringSpecialOptions, defaultSparringSpecial, resolveSparringPreview, playerSparringChoice } from '../src/fight/sparring-specials.ts';
 import { sparringLink } from '../src/sparring.ts';
-import { Match } from '../src/match.ts';
-import { OPPONENTS, RULES, opponentAt, SKILL_MOVE } from '../src/moves.ts';
-import { skillOf } from '../src/loot.ts';
-import { specialOf } from '../src/moves.ts';
-import { idleIntent } from '../src/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { Match } from '../src/fight/match.ts';
+import { OPPONENTS, RULES, opponentAt, SKILL_MOVE } from '../src/fight/moves.ts';
+import { skillOf } from '../src/core/loot.ts';
+import { specialOf } from '../src/fight/moves.ts';
+import { idleIntent } from '../src/fight/duel.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 
@@ -78,7 +78,7 @@ const make = (opponent: keyof typeof matrix) => {
 };
 test('real Match cross-band previews retain body/AI level and player MOVE, use selected event identity/share, and write nothing', () => {
   for (const [id, difficulty] of [['nyx', 6], ['drag', 46], ['standfast', 6], ['ratrun', 46]] as const) {
-    const preview = SPECIAL_TESTS[id], { m, writes, snapshot } = make(preview.opponent);
+    const preview = SPECIAL_TESTS[id], { m, writes, snapshot } = make(preview.opponent as Parameters<typeof make>[0]);
     const before = snapshot(), count = writes.length;
     m.startSparring({ weapon: 'estoc', skill: 'miasma', difficulty }, { first: preview.first, level: preview.level });
     const check = () => {

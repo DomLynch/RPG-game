@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { nightBronzeApplies, toneNightBronze, NIGHT_BRONZE } from '../src/night-armour.ts';
+import { nightBronzeApplies, toneNightBronze, NIGHT_BRONZE } from '../src/fight/night-armour.ts';
 import { ARENA_THEMES } from '../src/arena-themes.ts';
 
 test('night bronze applies to Brynhildr L9 in the Night Pit only', () => {

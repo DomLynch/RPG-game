@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match } from '../src/match.ts';
-import { OPPONENTS, RULES } from '../src/moves.ts';
-import { idleIntent, stepDuel, type Duel } from '../src/duel.ts';
-import { loadProfile } from '../src/profile.ts';
+import { Match } from '../src/fight/match.ts';
+import { OPPONENTS, RULES } from '../src/fight/moves.ts';
+import { breathTicks, coneAt } from '../src/fight/cone-rules.ts';
+import { idleIntent, stepDuel, type Duel } from '../src/fight/duel.ts';
+import { loadProfile } from '../src/core/profile.ts';
 import { loadTrial } from '../src/trial.ts';
 import { loadScorecard } from '../src/scorecard.ts';
-import { SPECIAL_TESTS } from '../src/special-look.ts';
-import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from '../src/sparring-special-runtime.ts';
-import { createRecorder } from '../src/record.ts';
+import { SPECIAL_TESTS } from '../src/fight/special-look.ts';
+import { SUPPORTED_PLAYER_SPECIALS, specialCueFor } from '../src/fight/sparring-special-runtime.ts';
+import { createRecorder } from '../src/fight/record.ts';
 import * as THREE from 'three';
-import { createSpecialPresentation } from '../src/special-presentation.ts';
+import { createSpecialPresentation } from '../src/fight/special-presentation.ts';
 
 const setup = () => {
   const writes: string[] = [], storage = { getItem: () => null, setItem: (key: string) => { writes.push(key); } };
@@ -33,9 +34,10 @@ for (const id of SUPPORTED_PLAYER_SPECIALS) test(`${id}: manual actor0 cast uses
   duel = stepDuel(duel, [skill(), idleIntent()]);
   assert.ok(duel.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   const castAt = duel.tick;
-  for (let t = 1; t < RULES.special.windup; t++) duel = stepDuel(duel, [idleIntent(), idleIntent()]);
+  const cone = coneAt(SPECIAL_TESTS[id].opponent, SPECIAL_TESTS[id].level), span = RULES.special.windup - 1 + (cone ? breathTicks(cone) : 0);   // a cone special breathes: its last pulse lands breathTicks after the release
+  for (let t = 1; t <= span; t++) duel = stepDuel(duel, [idleIntent(), idleIntent()]);
   const landed = duel.events.find(e => e.type === 'SpecialLanded');
-  assert.equal(landed?.actor, 0); assert.equal(landed?.target, 1); assert.equal(duel.tick - castAt, RULES.special.windup - 1);
+  assert.equal(landed?.actor, 0); assert.equal(landed?.target, 1); assert.equal(duel.tick - castAt, span);
   const share = SPECIAL_TESTS[id].level >= 36 ? RULES.special.bossDamage : RULES.special.damage;
   assert.equal(health - duel.fighters[1].health, Math.round(share * duel.fighters[1].maxHealth)); assert.equal(duel.fighters[0].health, own);
 });
@@ -122,7 +124,8 @@ for (const kind of ['player', 'foe', 'both', 'none'] as const) test(`${kind}: re
     assert.ok(m.practice.events.some(e => e.type === 'SpecialStarted' && e.actor === 0));
   }
   for (let t = 0; t < 200 && !m.practice.finish; t++) m.step(() => ({ ...idleIntent(), guard: true }));
-  assert.equal(m.fightLog.some(e => e.type === 'SpecialLanded' && e.actor === 0 && e.target === 1), kind === 'player' || kind === 'both');
-  assert.equal(m.fightLog.some(e => e.type === 'SpecialLanded' && e.actor === 1 && e.target === 0), kind === 'foe' || kind === 'both');
+  const landed = (actor: 0 | 1) => m.fightLog.some(e => e.type === 'SpecialLanded' && e.actor === actor && e.target === 1 - actor), cut = (actor: 0 | 1) => m.fightLog.some(e => e.type === 'SpecialInterrupted' && e.actor === actor);
+  if (kind === 'both') { assert.equal(Number(landed(0)) + Number(landed(1)), 1, 'two casts: the first strike lands'); assert.ok(cut(0) || cut(1), 'and cuts the other (interruptible casts)'); }
+  else { assert.equal(landed(0), kind === 'player'); assert.equal(landed(1), kind === 'foe'); assert.ok(!cut(0) && !cut(1), 'one cast alone is never cut'); }
   assert.equal(m.recorder, null); assert.equal(writes.length, before);
 });

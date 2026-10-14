@@ -2,14 +2,14 @@
 // shipped — `initialDuel()` is still exactly him. The Pitborn is the first creature: relentless, poised, more health, honest openings.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, initialAi } from '../src/ai.ts';
-import { bladeImpact } from '../src/blade.ts';
-import { bladePathsByRig } from '../src/blade-paths.ts';
-import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/duel.ts';
-import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/moves.ts';
-import { RADIUS, TARGET, type State } from '../src/sim.ts';
+import { decide, initialAi } from '../src/fight/ai.ts';
+import { bladeImpact } from '../src/fight/blade.ts';
+import { bladePathsByRig } from '../src/fight/blade-paths.ts';
+import { createFighter, guardOf, idleIntent, initialDuel, legal, movesOf, opponentFighter, stepDuel, type Duel, type Intent } from '../src/fight/duel.ts';
+import { MOVES, OPPONENTS, PROFILES, RULES, WEAPONS, type AiProfile, type Opponent } from '../src/fight/moves.ts';
+import { RADIUS, TARGET, type State } from '../src/fight/sim.ts';
 import { STRATEGIES, battery, side } from './strategies.ts';
-import { setStab } from '../src/stab-rule.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an era flag, off in a headless run): the shipped warden is the one these rows judge
 
 const P = OPPONENTS.pitborn;
@@ -27,8 +27,8 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
   const [hero, warden] = initialDuel().fighters;
   assert.equal(hero.weapon, 'longsword'); assert.equal(warden.weapon, 'trident');
   for (const f of [hero, warden]) { assert.equal(f.scale, 1); assert.equal(f.poise, 0); assert.equal(f.health, RULES.health); assert.equal(f.maxHealth, RULES.health); }
-  // RV19 (2026-09-28, Strategy ruling): the shipped tables plus his own two knobs (moves.ts OWN_KNOBS), nothing else.
-  const own = { tellReaction: 15, braceHeavy: 1 };
+  // RV19 (2026-09-28, Strategy ruling): the shipped tables plus his own knobs (moves.ts OWN_KNOBS; spamRun, RV31), nothing else.
+  const own = { tellReaction: 15, braceHeavy: 1, spamRun: 5 };
   assert.deepEqual(OPPONENTS.veteran.profiles.easy, { ...PROFILES.easy, ...own }); assert.deepEqual(OPPONENTS.veteran.profiles.normal, { ...PROFILES.normal, ...own });   // his own table since the hard tune (owner, 2026-09-20)
   assert.deepEqual(OPPONENTS.veteran.profiles.hard, { ...PROFILES.hard, pressure: .7, discipline: 30, ...own }, 'hard differs from the shared table in pressure and discipline only, plus his own knobs');
   assert.deepEqual(OPPONENTS.skeleton.profiles, { ...PROFILES, hard: { ...PROFILES.hard, pressure: .7, discipline: 30 } }, 'the Skeleton, his archetype twin, has none of his own knobs');

@@ -1,0 +1,1112 @@
+{
+  "name": "The Cinder Fields",
+  "defaultKind": "goblin",
+  "names": {
+    "east-road": "The East Road",
+    "ferry-landing": "The Grey Ferry",
+    "cinder-fields": "The Cinder Fields",
+    "black-mere": "The Black Mere",
+    "blood-ruin": "The Blood Ruin",
+    "cinder-hold": "Cinder Hold",
+    "mere-end": "Mere End"
+  },
+  "world": [
+    "east-road",
+    "ferry-landing",
+    "cinder-fields",
+    "black-mere",
+    "blood-ruin",
+    "cinder-hold",
+    "mere-end"
+  ],
+  "camera": {
+    "passage": {
+      "zMax": -9,
+      "zMin": -26.5,
+      "halfWidth": 20,
+      "back": 3.4,
+      "up": 2.1
+    }
+  },
+  "spawns": {
+    "openers": {
+      "ferry-landing": "character:mere-brood",
+      "cinder-fields": "character:cinder-scavenger"
+    },
+    "rows": [
+      {
+        "id": "character:cinder-scavenger",
+        "source": {
+          "kind": "chronicle",
+          "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)",
+          "author": "Orderic Vitalis",
+          "year": 1141,
+          "authorDied": 1142,
+          "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\""
+        },
+        "role": "beast",
+        "loot": "loottable:cinder-scavenger",
+        "level": [
+          1,
+          2
+        ],
+        "behaviour": {
+          "roam": 8,
+          "spread": 16,
+          "pull": 0,
+          "campSize": [
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "id": "character:mere-brood",
+        "source": {
+          "kind": "literature",
+          "work": "Beowulf (Hrothgar's mere and its nicors)",
+          "author": "anonymous, Old English",
+          "year": 1000,
+          "locator": "ll. 1357-1379 (the mere), 1408-1428 (the nicors' homes; nicors on the ledges, l. 1427)"
+        },
+        "role": "beast",
+        "loot": "loottable:mere-brood",
+        "level": [
+          1,
+          2
+        ],
+        "behaviour": {
+          "roam": 6,
+          "spread": 9,
+          "pull": 0,
+          "campSize": [
+            4,
+            4
+          ]
+        }
+      },
+      {
+        "id": "character:ruin-ghoul",
+        "source": {
+          "kind": "folklore",
+          "work": "Les Mille et une nuits (the graveyard ghouls); read in Andrew Lang's 1898 Arabian Nights Entertainments, from Galland",
+          "author": "Antoine Galland (translator)",
+          "year": 1704,
+          "authorDied": 1715,
+          "locator": "Histoire de Sidi-Nouman (\"The Story of Sidi-Nouman\"): his wife Amina and the female ghoul of the cemetery"
+        },
+        "role": "brute",
+        "loot": "loottable:ruin-ghoul",
+        "level": [
+          1,
+          2
+        ],
+        "behaviour": {
+          "roam": 6,
+          "spread": 7,
+          "pull": 9,
+          "campSize": [
+            3,
+            3
+          ]
+        }
+      },
+      {
+        "id": "character:cinder-bear",
+        "source": {
+          "kind": "folklore",
+          "work": "Kinder- und Hausmärchen, 7th ed. (Schneeweißchen und Rosenrot: the bear at the cottage door in the snow)",
+          "author": "Jacob and Wilhelm Grimm",
+          "year": 1857,
+          "authorDied": 1863,
+          "locator": "KHM 161, Schneeweißchen und Rosenrot (the bear knocks; the winter-door scene)"
+        },
+        "role": "brute",
+        "loot": "loottable:cinder-bear",
+        "level": [
+          1,
+          2
+        ],
+        "weight": 0.3,
+        "respawnSeconds": 75,
+        "behaviour": {
+          "aggro": 8,
+          "roam": 6,
+          "spread": 6,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "character:ash-boar",
+        "source": {
+          "kind": "literature",
+          "work": "Metamorphoses (the boar Diana loosed on Calydon, and the hunt that took it)",
+          "author": "Ovid",
+          "year": 8,
+          "authorDied": 17,
+          "locator": "Bk. VIII, ll. 260-424 (the boar ravages the fields; the hunt)"
+        },
+        "role": "beast",
+        "loot": "loottable:ash-boar",
+        "level": [
+          1,
+          2
+        ],
+        "weight": 3,
+        "respawnSeconds": 75,
+        "behaviour": {
+          "aggro": 6,
+          "roam": 5,
+          "spread": 8,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "character:ash-wolf",
+        "source": {
+          "kind": "folklore",
+          "work": "Kinder- und Hausmärchen, 7th ed. (Rotkäppchen: the wolf on the forest road)",
+          "author": "Jacob and Wilhelm Grimm",
+          "year": 1857,
+          "authorDied": 1863,
+          "locator": "KHM 26, Rotkäppchen (the wolf meets her on the path)"
+        },
+        "role": "beast",
+        "loot": "loottable:ash-wolf",
+        "level": [
+          1,
+          2
+        ],
+        "respawnSeconds": 75,
+        "behaviour": {
+          "aggro": 9,
+          "roam": 7,
+          "spread": 10,
+          "pull": 0,
+          "campSize": [
+            2,
+            3
+          ]
+        }
+      },
+      {
+        "id": "character:pit-goblin",
+        "source": {
+          "kind": "chronicle",
+          "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)",
+          "author": "Orderic Vitalis",
+          "year": 1141,
+          "authorDied": 1142,
+          "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\""
+        },
+        "role": "beast",
+        "loot": "loottable:pit-goblin",
+        "level": [
+          1,
+          1
+        ],
+        "respawnSeconds": 75,
+        "behaviour": {
+          "roam": 6,
+          "spread": 6,
+          "pull": 0,
+          "campSize": [
+            2,
+            2
+          ]
+        }
+      }
+    ]
+  },
+  "kit": {
+    "url": "/world/kit/zone1-kit.glb",
+    "nodes": [
+      "boulder_a",
+      "boulder_b",
+      "boulder_c",
+      "bush_scrub_a",
+      "bush_scrub_b",
+      "tree_dead_a",
+      "tree_dead_b",
+      "tree_dead_c",
+      "tuft_a",
+      "tuft_b"
+    ],
+    "landmarks": [
+      "landmark_camp",
+      "landmark_ruin_arch",
+      "landmark_stone_circle",
+      "landmark_grove"
+    ],
+    "kinds": [
+      {
+        "nodes": [
+          "tree_dead_a",
+          "tree_dead_b",
+          "tree_dead_c"
+        ],
+        "per": 3,
+        "r": 1.2,
+        "solid": 0.6,
+        "scale": [
+          0.9,
+          1.35
+        ]
+      },
+      {
+        "nodes": [
+          "boulder_a",
+          "boulder_b",
+          "boulder_c"
+        ],
+        "per": 4,
+        "r": 1.4,
+        "solid": 1,
+        "scale": [
+          0.8,
+          1.4
+        ]
+      },
+      {
+        "nodes": [
+          "bush_scrub_a",
+          "bush_scrub_b"
+        ],
+        "per": 8,
+        "r": 0.9,
+        "solid": 0,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      },
+      {
+        "nodes": [
+          "tuft_a",
+          "tuft_b"
+        ],
+        "per": 14,
+        "r": 0.4,
+        "solid": 0,
+        "scale": [
+          0.8,
+          1.5
+        ]
+      }
+    ]
+  },
+  "looks": {
+    "zone1": {
+      "fog": "#6e5f52",
+      "fogDensity": 0.012,
+      "hemiSky": "#9fb2d4",
+      "hemiGround": "#4a3426",
+      "hemiIntensity": 1.25,
+      "sunColor": "#ffb46a",
+      "sunIntensity": 5.9799999999999995,
+      "sunPos": [
+        -16,
+        15,
+        20
+      ],
+      "exposure": 1.3,
+      "ground": [
+        0.5,
+        0.47,
+        0.45
+      ],
+      "stone": [
+        1.35,
+        1.2,
+        1
+      ]
+    },
+    "frontier-haze": {
+      "fog": "#d6bf9a",
+      "fogDensity": 0.012,
+      "hemiSky": "#b4c4da",
+      "hemiGround": "#6a5238",
+      "hemiIntensity": 1.35,
+      "sunColor": "#ffd6a0",
+      "sunIntensity": 5.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.05,
+        0.98,
+        0.88
+      ]
+    },
+    "cinder-haze": {
+      "fog": "#d6bf9a",
+      "fogDensity": 0.0095,
+      "hemiSky": "#b4c4da",
+      "hemiGround": "#52402c",
+      "hemiIntensity": 1.35,
+      "sunColor": "#ffd6a0",
+      "sunIntensity": 5.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.05,
+        0.98,
+        0.88
+      ]
+    },
+    "frontier-duel": {
+      "fog": "#d6bf9a",
+      "fogDensity": 0.0095,
+      "hemiSky": "#b4c4da",
+      "hemiGround": "#6a5238",
+      "hemiIntensity": 1.35,
+      "sunColor": "#ffd6a0",
+      "sunIntensity": 5.04,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.2075,
+        1.127,
+        1.012
+      ]
+    },
+    "frontier-night": {
+      "fog": "#141a2a",
+      "fogDensity": 0.02,
+      "hemiSky": "#2a3558",
+      "hemiGround": "#14100e",
+      "hemiIntensity": 0.45,
+      "sunColor": "#6a7ab0",
+      "sunIntensity": 0.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.1,
+      "ground": [
+        0.8,
+        0.8,
+        0.9
+      ]
+    }
+  },
+  "mobLooks": {
+    "looks": {
+      "character:mere-mother": {
+        "opponent": "witch",
+        "tint": 5204826,
+        "scale": 1.35,
+        "dressing": {
+          "soot": 0.15,
+          "burnt": 0.1
+        }
+      },
+      "character:hrungnir": {
+        "opponent": "knight",
+        "tint": 9078399,
+        "scale": 1.5,
+        "dressing": {
+          "soot": 0.6,
+          "burnt": 0.2
+        }
+      },
+      "character:peg-powler": {
+        "opponent": "witch",
+        "tint": 7308663,
+        "scale": 0.95,
+        "gear": "trident",
+        "dressing": {
+          "soot": 0.05,
+          "burnt": 0
+        }
+      },
+      "character:court-thrall": {
+        "opponent": "pitborn",
+        "tint": 9187119,
+        "scale": 1,
+        "dressing": {
+          "soot": 0.35,
+          "burnt": 0.5
+        }
+      },
+      "character:cinder-scavenger": {
+        "opponent": "goblin",
+        "tint": 7035464,
+        "scale": 0.9,
+        "dressing": {
+          "soot": 0.7,
+          "burnt": 0.3
+        }
+      },
+      "character:pit-goblin": {
+        "opponent": "goblin",
+        "tint": 16777215,
+        "scale": 1,
+        "dressing": {
+          "soot": 0,
+          "burnt": 0
+        }
+      },
+      "character:mere-brood": {
+        "opponent": "goblin",
+        "tint": 7244366,
+        "scale": 0.75,
+        "dressing": {
+          "soot": 0,
+          "burnt": 0
+        }
+      },
+      "character:ruin-ghoul": {
+        "opponent": "goblin",
+        "tint": 7829114,
+        "scale": 1.1,
+        "dressing": {
+          "soot": 0.5,
+          "burnt": 0.6
+        }
+      },
+      "character:ash-wolf": {
+        "opponent": "wolf",
+        "tint": 9077624,
+        "dressing": {
+          "soot": 0.4,
+          "burnt": 0
+        }
+      },
+      "character:cinder-bear": {
+        "opponent": "bear",
+        "tint": 7300442,
+        "dressing": {
+          "soot": 0.5,
+          "burnt": 0.1
+        }
+      },
+      "character:ash-boar": {
+        "opponent": "boar",
+        "tint": 8021330,
+        "dressing": {
+          "soot": 0.35,
+          "burnt": 0
+        }
+      },
+      "character:lambton-worm": {
+        "opponent": "minotaur",
+        "tint": 5917242,
+        "scale": 1.2,
+        "dressing": {
+          "soot": 0.8,
+          "burnt": 0.4
+        },
+        "later": true
+      },
+      "character:rift-spawn": {
+        "opponent": "goblin",
+        "tint": 8019852,
+        "scale": 1,
+        "dressing": {
+          "soot": 0.2,
+          "burnt": 0.1
+        },
+        "later": true
+      }
+    },
+    "spread": {
+      "character:cinder-scavenger": {
+        "tints": [
+          6115135,
+          8021584,
+          5196357
+        ],
+        "scale": 0.08,
+        "soot": 0.2,
+        "burnt": 0.2
+      },
+      "character:mere-brood": {
+        "tints": [
+          6258522,
+          8229974,
+          5798499
+        ],
+        "scale": 0.08,
+        "soot": 0,
+        "burnt": 0
+      },
+      "character:ruin-ghoul": {
+        "tints": [
+          6974576,
+          8749178,
+          7367272
+        ],
+        "scale": 0.08,
+        "soot": 0.2,
+        "burnt": 0.2
+      }
+    }
+  },
+  "place": {
+    "zones": {
+      "east-road": {
+        "zoneSize": {
+          "width": 40,
+          "depth": 100
+        },
+        "layout": {
+          "exchange-gate": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "milestone": {
+            "u": 0.5,
+            "v": 0.3,
+            "facing": 0
+          },
+          "watchtower": {
+            "u": 0.82,
+            "v": 0.55,
+            "facing": -90
+          },
+          "fields-turn": {
+            "u": 0,
+            "v": 0.7,
+            "facing": 90
+          },
+          "crossroads": {
+            "u": 0.5,
+            "v": 1,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "ferry": {
+            "to": "ferry-landing",
+            "kind": "road",
+            "here": "crossroads",
+            "there": "road-end"
+          },
+          "fields": {
+            "to": "cinder-fields",
+            "kind": "road",
+            "here": "fields-turn",
+            "there": "road-gate"
+          }
+        },
+        "difficulty": {
+          "levelMin": 11,
+          "levelMax": 12
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "ferry-landing": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 60
+        },
+        "layout": {
+          "road-end": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "ferry-house": {
+            "u": 0.2,
+            "v": 0.5,
+            "facing": 90
+          },
+          "boathouse": {
+            "u": 0.8,
+            "v": 0.7,
+            "facing": -90
+          },
+          "mere-shore": {
+            "u": 1,
+            "v": 0.4,
+            "facing": -90
+          },
+          "dock": {
+            "u": 0.5,
+            "v": 0.9,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "road": {
+            "to": "east-road",
+            "kind": "road",
+            "here": "road-end",
+            "there": "crossroads"
+          },
+          "mere": {
+            "to": "black-mere",
+            "kind": "road",
+            "here": "mere-shore",
+            "there": "landing-shore"
+          },
+          "night-boat": {
+            "to": "blood-ruin",
+            "kind": "portal",
+            "here": "dock",
+            "there": "ruin-jetty"
+          }
+        },
+        "density": {
+          "npcs": 0.4,
+          "creatures": 0
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "cinder-fields": {
+        "zoneSize": {
+          "width": 120,
+          "depth": 120
+        },
+        "layout": {
+          "road-gate": {
+            "u": 1,
+            "v": 0.5,
+            "facing": -90
+          },
+          "ash-pits": {
+            "u": 0.5,
+            "v": 0.5,
+            "facing": 0
+          },
+          "shrine": {
+            "u": 0.2,
+            "v": 0.8,
+            "facing": 0
+          },
+          "hold-road": {
+            "u": 0,
+            "v": 0.3,
+            "facing": 90
+          }
+        },
+        "connections": {
+          "road": {
+            "to": "east-road",
+            "kind": "road",
+            "here": "road-gate",
+            "there": "fields-turn"
+          },
+          "hold": {
+            "to": "cinder-hold",
+            "kind": "road",
+            "here": "hold-road",
+            "there": "hold-gate"
+          }
+        },
+        "density": {
+          "creatures": 0.35
+        },
+        "spawns": {
+          "respawnSeconds": 240
+        },
+        "difficulty": {
+          "levelMin": 11,
+          "levelMax": 13
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "black-mere": {
+        "zoneSize": {
+          "width": 100,
+          "depth": 140
+        },
+        "layout": {
+          "landing-shore": {
+            "u": 0,
+            "v": 0.3,
+            "facing": 90
+          },
+          "reed-bank": {
+            "u": 0.35,
+            "v": 0.4,
+            "facing": 0
+          },
+          "mere-hollow": {
+            "u": 0.5,
+            "v": 0.65,
+            "facing": 0
+          },
+          "causeway": {
+            "u": 0.5,
+            "v": 1,
+            "facing": 0
+          },
+          "causeway-foot": {
+            "u": 0.75,
+            "v": 0.95,
+            "facing": -90
+          }
+        },
+        "connections": {
+          "landing": {
+            "to": "ferry-landing",
+            "kind": "road",
+            "here": "landing-shore",
+            "there": "mere-shore"
+          },
+          "causeway": {
+            "to": "blood-ruin",
+            "kind": "road",
+            "here": "causeway",
+            "there": "causeway-end"
+          },
+          "mere-end": {
+            "to": "mere-end",
+            "kind": "road",
+            "here": "causeway-foot",
+            "there": "end-gate"
+          }
+        },
+        "spawns": {
+          "boss": "mere-hollow"
+        },
+        "density": {
+          "creatures": 0.2
+        },
+        "difficulty": {
+          "levelMin": 12,
+          "levelMax": 15
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "blood-ruin": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 80
+        },
+        "layout": {
+          "causeway-end": {
+            "u": 0.5,
+            "v": 0,
+            "facing": 180
+          },
+          "ruin-jetty": {
+            "u": 0,
+            "v": 0.2,
+            "facing": 90
+          },
+          "ruin-gate": {
+            "u": 0.5,
+            "v": 0.45,
+            "facing": 0
+          },
+          "crypt": {
+            "u": 0.5,
+            "v": 0.85,
+            "facing": 0
+          }
+        },
+        "connections": {
+          "causeway": {
+            "to": "black-mere",
+            "kind": "road",
+            "here": "causeway-end",
+            "there": "causeway"
+          },
+          "night-boat": {
+            "to": "ferry-landing",
+            "kind": "portal",
+            "here": "ruin-jetty",
+            "there": "dock"
+          }
+        },
+        "spawns": {
+          "boss": "crypt"
+        },
+        "density": {
+          "creatures": 0.15
+        },
+        "difficulty": {
+          "levelMin": 13,
+          "levelMax": 14
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "cinder-hold": {
+        "zoneSize": {
+          "width": 60,
+          "depth": 60
+        },
+        "layout": {
+          "hold-gate": {
+            "u": 1,
+            "v": 0.3,
+            "facing": -90
+          },
+          "hold-centre": {
+            "u": 0.45,
+            "v": 0.5,
+            "facing": 0
+          },
+          "hold-hall": {
+            "u": 0.3,
+            "v": 0.85,
+            "facing": 0
+          },
+          "hold-forge": {
+            "u": 0.2,
+            "v": 0.45,
+            "facing": 90
+          },
+          "hold-fence": {
+            "u": 0.7,
+            "v": 0.75,
+            "facing": 180
+          },
+          "hold-jail": {
+            "u": 0.1,
+            "v": 0.8,
+            "facing": 90
+          }
+        },
+        "connections": {
+          "fields": {
+            "to": "cinder-fields",
+            "kind": "road",
+            "here": "hold-gate",
+            "there": "hold-road"
+          }
+        },
+        "density": {
+          "npcs": 0.3,
+          "creatures": 0
+        },
+        "difficulty": {
+          "levelMin": 11,
+          "levelMax": 13
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      },
+      "mere-end": {
+        "zoneSize": {
+          "width": 50,
+          "depth": 50
+        },
+        "layout": {
+          "end-gate": {
+            "u": 0,
+            "v": 0.5,
+            "facing": 90
+          },
+          "end-centre": {
+            "u": 0.55,
+            "v": 0.5,
+            "facing": 0
+          },
+          "end-hall": {
+            "u": 0.6,
+            "v": 0.88,
+            "facing": 180
+          },
+          "end-healer": {
+            "u": 0.85,
+            "v": 0.4,
+            "facing": -90
+          },
+          "end-jail": {
+            "u": 0.9,
+            "v": 0.85,
+            "facing": -90
+          }
+        },
+        "connections": {
+          "mere": {
+            "to": "black-mere",
+            "kind": "road",
+            "here": "end-gate",
+            "there": "causeway-foot"
+          }
+        },
+        "density": {
+          "npcs": 0.2,
+          "creatures": 0
+        },
+        "difficulty": {
+          "levelMin": 12,
+          "levelMax": 15
+        },
+        "ambience": {
+          "preset": "frontier-haze"
+        }
+      }
+    },
+    "joins": [],
+    "waypoints": [
+      "exchange-gate",
+      "milestone",
+      "watchtower",
+      "fields-turn",
+      "crossroads",
+      "road-end",
+      "ferry-house",
+      "boathouse",
+      "mere-shore",
+      "dock",
+      "road-gate",
+      "ash-pits",
+      "shrine",
+      "hold-road",
+      "landing-shore",
+      "reed-bank",
+      "mere-hollow",
+      "causeway",
+      "causeway-foot",
+      "causeway-end",
+      "ruin-jetty",
+      "ruin-gate",
+      "crypt",
+      "hold-gate",
+      "hold-centre",
+      "hold-hall",
+      "hold-forge",
+      "hold-fence",
+      "hold-jail",
+      "end-gate",
+      "end-centre",
+      "end-hall",
+      "end-healer",
+      "end-jail"
+    ],
+    "spawns": [
+      {
+        "id": "scavengers",
+        "at": "ash-pits",
+        "characters": [
+          "character:cinder-scavenger"
+        ]
+      },
+      {
+        "id": "wolves",
+        "at": "hold-road",
+        "characters": [
+          "character:ash-wolf"
+        ]
+      },
+      {
+        "id": "brood",
+        "at": "reed-bank",
+        "characters": [
+          "character:mere-brood"
+        ]
+      },
+      {
+        "id": "ghouls",
+        "at": "causeway-end",
+        "characters": [
+          "character:ruin-ghoul"
+        ]
+      },
+      {
+        "id": "hold-ruler",
+        "at": "hold-hall",
+        "characters": [
+          "character:warden-brannoc"
+        ]
+      },
+      {
+        "id": "hold-steward",
+        "at": "hold-hall",
+        "characters": [
+          "character:steward-cinder"
+        ]
+      },
+      {
+        "id": "hold-smith",
+        "at": "hold-forge",
+        "characters": [
+          "character:smith-cinder"
+        ]
+      },
+      {
+        "id": "hold-fence",
+        "at": "hold-fence",
+        "characters": [
+          "character:fence-cinder"
+        ]
+      },
+      {
+        "id": "end-ruler",
+        "at": "end-hall",
+        "characters": [
+          "character:reeve-osk"
+        ]
+      },
+      {
+        "id": "end-steward",
+        "at": "end-hall",
+        "characters": [
+          "character:steward-mere"
+        ]
+      },
+      {
+        "id": "end-healer",
+        "at": "end-healer",
+        "characters": [
+          "character:healer-mere"
+        ]
+      },
+      {
+        "id": "bears",
+        "at": "ruin-jetty",
+        "characters": [
+          "character:cinder-bear"
+        ]
+      },
+      {
+        "id": "boars",
+        "at": "hold-road",
+        "characters": [
+          "character:ash-boar"
+        ]
+      },
+      {
+        "id": "pit-goblins",
+        "at": "watchtower",
+        "characters": [
+          "character:pit-goblin"
+        ]
+      }
+    ]
+  },
+  "notes": {
+    "zone": "Zone 1 (zone-runtime step 1): the zone's own facts. `level` is the zone number = its base level (Dom 2026-10-08: Zone N = level N); the common creatures are [level, level+1], the named rares level+2.",
+    "spawns": "Zone 1's creatures as data (zone-runtime step 1): the Ash Frontier's mob rows (mobs.md 7.3), moved verbatim from origins/mobs/frontier-rows.ts with the sources spelled out and the level band as numbers\n(Zone N's common creatures are level N near the town and N+1 at the edge, the named rares N+2, Dom 2026-10-08: loadZone checks every common row is [level, level+1]). Every source is public-domain folklore,\nchronicle or literature (legends-rule), no living-religion scripture. Named creatures (Hrungnir, the Mere-Mother, the bounty foes) stay on their encounters and have no row. origins/preview/mobs.golden.json pins the list.\n`openers`: a zone that is not safe opens with a fight inside 10 s of its entry (zone-rules.ts); where the data has no creature near the entry, this names the kind that stands there as a lone opener. Zone id -> row id.\nDonor: field names only (ModernUO spawn fields, Cataclysm place_monsters), nothing copied.",
+    "kit": "Zone 1's kit (zone-runtime step 1): the Characters lane's zone1-kit.glb contract and how many of each node the Frontier gets. Node names are the kit's contract (public/world/kit/zone1-kit.glb); `kinds` is the\ndensity table (per: placements per 1000 m2 of zone; r: footprint; solid: collision radius per scale, 0 = walk-through; scale: min/max). The placement rule itself (deterministic per zone id, off the roads) stays in\norigins/preview/frontier-kit.ts, which reads this through loadZone.",
+    "look": "Zone 1's looks, as data (zone-runtime step 1): the presets the Frontier and the Zone 1 page use, as literals (derived rows spelled out: cinder-haze = frontier-haze with a thinner haze and darker bounce,\nfrontier-duel = cinder-haze with the ground lifted 15 % and the key 10 % softer, zone1 = the Pit's sky and exposure with a darker haze and the key from behind the walker). Read through loadZone only."
+  }
+}
