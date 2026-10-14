@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATCHUP, MAX_LAG_TICKS, clearHold, newHold, onFrame, onTick, visible } from '../src/pvp-hold.ts';
+import { HIT_STOP } from '../src/hit-stop-rules.ts';
 
 type Snap = { tick: number; events: string[]; stop: number };
 const stopOf = (s: Snap) => s.stop, eventsOf = (s: Snap) => s.events;
 const snap = (tick: number, stop = 0): Snap => ({ tick, events: stop ? [`hit${tick}`] : [], stop });
-const FRAME = 1000 / 60;
+const FRAME = 1000 / 60, HIT = HIT_STOP.Hit!, KILL = HIT_STOP.Killed!;   // the rows' stops (src/hit-stop-rules.json): the fixtures follow them
 
 // One frame of a duel as main.ts runs it: n sim ticks (all of them, always), then the draw.
 function run(ticksPerFrame: number[], stops: Record<number, number>) {
@@ -26,17 +27,17 @@ test('with no contact the hold never engages and the live tick is drawn', () => 
 });
 
 test('a contact holds the drawn frame for the same milliseconds a solo fight holds, while every sim tick still steps', () => {
-  const r = run(new Array(12).fill(1), { 2: 50 });   // Hit = 50 ms (src/hit-stop-rules.json, read by main.ts) = 3 frames at 60 Hz
+  const r = run(new Array(12).fill(1), { 2: HIT });   // Hit = 50 ms (src/hit-stop-rules.json, read by main.ts) = 3 frames at 60 Hz
   assert.equal(r.simTicks, 12, 'the sim never pauses');
   const heldFrames = r.held.filter(Boolean).length;
   assert.equal(r.shownTicks[1], 2, 'the contact frame draws the contact tick');
-  assert.ok(Math.abs(heldFrames * FRAME - 50) <= FRAME, `held ${heldFrames} frames for 50 ms`);
+  assert.ok(Math.abs(heldFrames * FRAME - HIT) <= FRAME, `held ${heldFrames} frames for ${HIT} ms`);
   assert.equal(r.shownTicks.slice(1, 1 + heldFrames).every((t) => t === 2), true, 'the picture stays on the contact tick');
 });
 
 test('queued ticks catch up CATCHUP per frame, in order, and the contact events arrive once', () => {
   assert.equal(CATCHUP, 3);
-  const r = run(new Array(40).fill(1), { 2: 220 });   // a kill holds 220 ms: 13 ticks queue
+  const r = run(new Array(40).fill(1), { 2: KILL });   // a kill holds 220 ms: 13 ticks queue
   const after = r.shownTicks.slice(r.held.lastIndexOf(true) + 1).filter((t): t is number => t !== null);
   const steps = after.slice(1).map((t, i) => t - after[i]);
   assert.ok(steps.length > 0 && steps.every((d) => d <= CATCHUP + 1), 'no frame jumps further than the catch-up rate plus the live tick');
@@ -46,7 +47,7 @@ test('queued ticks catch up CATCHUP per frame, in order, and the contact events 
 });
 
 test('a second contact reached while catching up holds again, and its events are delivered once', () => {
-  const r = run(new Array(30).fill(1), { 2: 50, 6: 50 });   // tick 6 is queued behind the first hold and reached during the catch-up
+  const r = run(new Array(30).fill(1), { 2: HIT, 6: HIT });   // tick 6 is queued behind the first hold and reached during the catch-up
   assert.equal(r.simTicks, 30);
   const holds = r.held.reduce((n, v, i) => n + (v && !r.held[i - 1] ? 1 : 0), 0);
   assert.equal(holds, 2, 'two separate holds');
@@ -56,13 +57,13 @@ test('a second contact reached while catching up holds again, and its events are
 });
 
 test('events after the contact tick inside the contact frame are not delivered early', () => {
-  const r = run([4, 4, 4, 4], { 2: 50, 3: 50 });   // ticks 2 and 3 share a frame; 3 is queued behind 2
+  const r = run([4, 4, 4, 4], { 2: HIT, 3: HIT });   // ticks 2 and 3 share a frame; 3 is queued behind 2
   assert.deepEqual(r.delivered, ['hit2', 'hit3']);
   assert.equal(r.delivered.indexOf('hit2') < r.delivered.indexOf('hit3'), true);
 });
 
 test('clearHold returns to live', () => {
-  const r = run([1, 1], { 1: 220 });
+  const r = run([1, 1], { 1: KILL });
   assert.ok(r.h.shown);
   clearHold(r.h);
   assert.deepEqual([r.h.shown, r.h.holdMs, r.h.queue.length], [null, 0, 0]);
@@ -73,7 +74,7 @@ test('a rollback drops the queued predicted ticks: their events are still delive
   const h = newHold<RSnap>(); let gen = 0;
   const tickOnce = (tick: number, stop = 0) => { const s: RSnap = { tick, events: stop ? [`hit${tick}`] : [`e${tick}`], stop, gen }; onTick(h, s, h.shown ? 0 : stop, 99); };
   tickOnce(1); onFrame(h, FRAME, [], stopOf, eventsOf);
-  tickOnce(2, 220);                                   // contact: a 220 ms hold
+  tickOnce(2, KILL);                                   // contact: a 220 ms hold
   const first = onFrame(h, FRAME, ['hit2'], stopOf, eventsOf, (s) => s.gen !== gen);
   assert.equal(first.shown?.tick, 2); assert.equal(first.held, true);
   tickOnce(3); tickOnce(4); tickOnce(5);              // predicted ticks queue behind the hold
@@ -88,7 +89,7 @@ test('a rollback drops the queued predicted ticks: their events are still delive
 test('the picture is never more than MAX_LAG_TICKS behind the sim, whatever the contact burst: a long hold is shortened, a contact with no room does not hold', () => {
   assert.equal(MAX_LAG_TICKS, 6);
   // A kill (220 ms = 13 ticks) holds 100 ms at most.
-  const kill = run(new Array(30).fill(1), { 2: 220 });
+  const kill = run(new Array(30).fill(1), { 2: KILL });
   assert.ok(kill.held.filter(Boolean).length * FRAME <= 100 + FRAME, `the kill hold was ${kill.held.filter(Boolean).length} frames`);
   // A burst: a 90 ms contact every 3 ticks for 120 ticks, one tick a frame. The queue (ticks the screen has not shown) never passes the cap at a frame's end.
   const stops: Record<number, number> = {}; for (let t = 2; t <= 120; t += 3) stops[t] = 90;
@@ -105,7 +106,7 @@ test('the picture is never more than MAX_LAG_TICKS behind the sim, whatever the 
 test('visible(): while the screen is behind the sim the HUD and the end banner read the drawn snapshot, so a finish is announced when its last blow is drawn', () => {
   const live = { tick: 9, events: ['Killed'], stop: 0 }, h = newHold<Snap>();
   assert.equal(visible(h, live), live, 'live when not behind');
-  onTick(h, { tick: 2, events: ['hit2'], stop: 220 }, 220, 1);   // the contact; the kill is ticks away and queued behind the hold
+  onTick(h, { tick: 2, events: ['hit2'], stop: KILL }, KILL, 1);   // the contact; the kill is ticks away and queued behind the hold
   onTick(h, live, 0, 1);
   assert.equal(visible(h, live).tick, 2, 'the held picture, not the live finish');
   for (let i = 0; i < 40 && h.shown; i++) onFrame(h, FRAME, [], stopOf, eventsOf);
