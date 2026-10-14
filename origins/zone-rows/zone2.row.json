@@ -1,5 +1,6 @@
 {
   "name": "The Ash Reach",
+  "defaultKind": "goblin",
   "look": { "arena": "2" },
   "names": {
     "ash-reach": "The Ash Reach"
