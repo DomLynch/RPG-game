@@ -11,6 +11,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { wornGearOf } from './worn-gear.ts';
 import { practiceLines } from './practice.ts';
+import { hitsTaken } from '../gear/wear-repair.ts';
 import { settleWithWear, type KillWear } from './wear-settle.ts';
 import { spellLines } from './grimoire.ts';
 import { expectedSpell, type SpellClaim } from './spell-check.ts';
@@ -139,7 +140,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     const spells = verdict.ok && result === 'won' ? spellLines(fight) : [];
     const commit = (wear: store.Json[]) => store.encounterSettle(db, account, token, result, ticks, [...batch, ...wear], practice, spells).catch(GONE);
     const out = rewards.length > 0 && deps.wear
-      ? await settleWithWear({ db, account, ownEventId: eventId, wear: () => deps.wear!({ account, character: run.character, token }, db), commit })
+      ? await settleWithWear({ db, account, ownEventId: eventId, wear: () => deps.wear!({ account, character: run.character, token, hits: verdict.ok ? hitsTaken(verdict.heroHits) : 0 }, db), commit })
       : await commit([]);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
     return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
