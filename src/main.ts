@@ -1,5 +1,5 @@
 import { createInput } from './fight/index.ts';
-import { ui, uiGroup } from './ui-rows.ts';
+import { ui } from './ui-rows.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
@@ -612,9 +612,17 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
-const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = uiGroup('hit-stop');   // ms per contact type, rows in ui-rows.json (SpecialLanded 50, Blocked 30, Hit 50, Parried 70, GuardBroken 90, PostureBroken 150, Killed 220)
-const HEAVY_HIT = ui('heavy-hit-stop-ms'),
-  HEAVY_BLOCK = ui('heavy-block-stop-ms'); // a heavy-class contact stops longer whether it lands or is blocked
+const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
+  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
+  Blocked: 30,
+  Hit: 50,
+  Parried: 70,
+  GuardBroken: 90,
+  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
+  Killed: 220,
+};
+const HEAVY_HIT = 90,
+  HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
 const TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.

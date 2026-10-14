@@ -2,8 +2,8 @@ import { loadRegistry, tableFromFile, type Manifest } from './core/registry.ts';
 import UI_MANIFEST from './ui-rows.manifest.json' with { type: 'json' };
 import UI_ROWS from './ui-rows.json' with { type: 'json' };
 
-// The page's view-layer tunables as rows (ui-rows.json; Dom's data-layer rule 2026-10-13): wall-clock timers, hit-stop pauses, the replay window and the HUD layout breakpoints.
-// None of them is read by the sim, a record or the digest (the sim-steering numbers in first-loss.ts, tutorial.ts and main.ts AFK_CAP stay in code, see scripts/as-data/allow.json).
+// The page's view-layer tunables as rows (ui-rows.json; Dom's data-layer rule 2026-10-13): wall-clock timers, the replay window and the HUD layout breakpoints.
+// None of them is read by the sim, a record or the digest (the sim-steering numbers in first-loss.ts, tutorial.ts and main.ts AFK_CAP stay in code, see scripts/as-data/allow.json; the per-contact impact numbers are Combat's, src/fight/hit-stop-defs.json).
 const TABLE = tableFromFile(UI_MANIFEST.tables[0] as Manifest, UI_ROWS, 'ui-rows.json');
 loadRegistry([TABLE]);
 const VALUES = new Map((TABLE.rows as unknown as { id: string; value: number }[]).map((r) => [r.id, r.value]));
@@ -14,6 +14,3 @@ export function ui(id: string): number {
   if (v === undefined) throw new Error(`ui-rows.json has no row "${id}"`);
   return v;
 }
-/** Every row whose id starts with `<prefix>.`, keyed by the rest of the id. */
-export const uiGroup = (prefix: string): Record<string, number> =>
-  Object.fromEntries([...VALUES].filter(([id]) => id.startsWith(`${prefix}.`)).map(([id, v]) => [id.slice(prefix.length + 1), v]));

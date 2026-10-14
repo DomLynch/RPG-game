@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { uiGroup } from '../src/ui-rows.ts';
+import { readFileSync } from 'node:fs';
 import { cuesFor } from '../src/fight/sound/cues.ts';
 import type { CombatEvent } from '../src/fight/combat.ts';
 
 // Strategy's ruling 2026-10-07 (Dom delegated): the posture-break beat ships as ?look=breakbeat150 did, flag removed. Re-pinned from 120 ms and no thud.
 test('a PostureBroken holds the frame 150 ms (was 120)', () => {
-  assert.equal(uiGroup('hit-stop').PostureBroken, 150);   // the pause is the hit-stop row in src/ui-rows.json now, not a literal in main.ts
+  assert.match(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8'), /PostureBroken: 150,/);
 });
 
 test('the break always has the dry thud: the existing bone_crack, a short room send', () => {
