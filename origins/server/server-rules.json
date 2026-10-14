@@ -13,7 +13,8 @@
       "id": "token",
       "randomBytes": 24,
       "posedFightMax": 50,
-      "note": "an encounter token ends in this many random bytes (base64url, 4 characters per 3 bytes); a posed token's fight id is at most this many characters (the 128-character token cap)"
+      "note": "an encounter token ends in this many random bytes (base64url, 4 characters per 3 bytes); a posed token's fight id is at most this many characters (the 128-character token cap); minRandomBytes is the floor the token's randomness may never be set under (it is what keeps a token unguessable)",
+      "minRandomBytes": 16
     }
   ],
   "worldKill": [

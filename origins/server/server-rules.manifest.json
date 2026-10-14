@@ -20,7 +20,8 @@
       "required": {
         "randomBytes": "integer",
         "posedFightMax": "integer",
-        "note": "string"
+        "note": "string",
+        "minRandomBytes": "integer"
       }
     },
     {
