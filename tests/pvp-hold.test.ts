@@ -26,7 +26,7 @@ test('with no contact the hold never engages and the live tick is drawn', () => 
 });
 
 test('a contact holds the drawn frame for the same milliseconds a solo fight holds, while every sim tick still steps', () => {
-  const r = run(new Array(12).fill(1), { 2: 50 });   // Hit = 50 ms (main.ts HIT_STOP) = 3 frames at 60 Hz
+  const r = run(new Array(12).fill(1), { 2: 50 });   // Hit = 50 ms (src/hit-stop-rules.json, read by main.ts) = 3 frames at 60 Hz
   assert.equal(r.simTicks, 12, 'the sim never pauses');
   const heldFrames = r.held.filter(Boolean).length;
   assert.equal(r.shownTicks[1], 2, 'the contact frame draws the contact tick');
