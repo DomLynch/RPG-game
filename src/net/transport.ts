@@ -4,6 +4,7 @@
 // `directMs` do the packets ride the relay itself (scripts/duel-relay.mjs, in Germany: a Dubai↔Dubai duel relayed pays Dubai→Germany→Dubai,
 // so it is the fallback, not the plan). The path taken and the ICE candidate type of the selected pair go into duel_metrics.
 // Browser-only; imported by nothing in single-player.
+import { RECONNECT_ROW } from './net-rules.ts';
 import { SILENCE, type DuelMessage } from './pvp.ts';
 import { computeBackoffDelay } from './backoff.ts';
 import { isFinalClose } from './reconnect-policy.ts';
@@ -43,7 +44,7 @@ export const sideOf = (token: string): 0 | 1 => (token.split('.')[1] === '1' ? 1
 // phone switching networks) is retried with jittered exponential backoff from `retryMs` for up to `reconnectMs`: capped at `fastMaxMs` until SILENCE.rejoinMs has passed since the loss (the page forfeits then, so a link that is back at 8 s must be heard by 10 s), at `maxRetryMs` after, unless the relay closed it for good (reconnect-policy.ts), with the same token (the relay lets its holder take the
 // side back), and the challenger re-offers WebRTC when the peer reappears. `direct: false` never builds a peer connection (a test, or a
 // browser with no WebRTC): everything rides the relay.
-export const RECONNECT = { retryMs: 500, fastMaxMs: 1000, maxRetryMs: 4000, reconnectMs: 30_000, beatStaleMs: 5000, directQuietMs: 1500 };
+export const RECONNECT = RECONNECT_ROW;
 export function connectDuel(token: string, { url = relayUrl(), iceServers = ICE_SERVERS, directMs = 5000, direct = true } = {}): Promise<Transport> {
   const side = sideOf(token);
   return new Promise((resolve, reject) => {
