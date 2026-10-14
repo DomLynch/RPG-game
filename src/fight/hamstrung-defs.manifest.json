@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "hamstrungDial",
+      "file": "hamstrung-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

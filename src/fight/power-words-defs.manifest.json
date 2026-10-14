@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "powerWordsDial",
+      "file": "power-words-defs.json",
+      "at": "dials",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

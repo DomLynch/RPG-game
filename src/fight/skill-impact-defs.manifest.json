@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "skill_impact_impact",
+      "file": "skill-impact-defs.json",
+      "at": "impact",
+      "key": "id",
+      "required": {
+        "value": "number"
+      }
+    }
+  ]
+}

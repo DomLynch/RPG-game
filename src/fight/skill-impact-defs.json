@@ -1,0 +1,24 @@
+{
+ "impact": [
+  {
+   "id": "flash",
+   "value": 0.12
+  },
+  {
+   "id": "flashSize",
+   "value": 0.9
+  },
+  {
+   "id": "sparks",
+   "value": 10
+  },
+  {
+   "id": "life",
+   "value": 0.4
+  },
+  {
+   "id": "reach",
+   "value": 0.28
+  }
+ ]
+}
