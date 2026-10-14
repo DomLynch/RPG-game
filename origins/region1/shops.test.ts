@@ -32,6 +32,7 @@ test('a shop row with a missing or mistyped field fails the loader', () => {
 test('the shop counter range is the shop row\'s rangeCm and equals the SHOP_RANGE_CM shop-buy.ts held in code; a row without one fails the loader', () => {
   assert.equal(SHOP_RANGE_CM_BY_SHOP.get(EXCHANGE_PROVISIONER), 500);
   assert.equal(SHOP_RANGE_CM_BY_SHOP.get(EXCHANGE_PROVISIONER), SHOP_RANGE_CM);
-  const { rangeCm: _drop, ...noRange } = DATA.shops[0]!;
+  const noRange: Record<string, unknown> = { ...DATA.shops[0]! };
+  delete noRange.rangeCm;
   assert.throws(() => loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, { shops: [noRange] }, 'shops.json')]), /rangeCm/);
 });
