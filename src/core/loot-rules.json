@@ -1,0 +1,11 @@
+{
+  "lootRule": [
+    {
+      "id": "loot",
+      "declinedKept": 50,
+      "claimsCap": 50,
+      "claimWaitMs": 3000,
+      "keepaliveBytes": 60000
+    }
+  ]
+}
