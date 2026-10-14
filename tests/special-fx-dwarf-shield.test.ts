@@ -84,9 +84,9 @@ test('every boss move is a pure timeline: the same inputs give the same particle
   assert.ok(DUST === 72 && GRIT === 48, 'pools stay modest');
 });
 
-test('cover is the wrong lever: dust never passes 0.7 (The Ring 0.4) so both fighters stay readable; Three Blows is dark iron grit, three strikes, the third at the target', () => {
+test('cover is the wrong lever: dust never passes 0.7 (Bared Face and The Ring 0.4, their special-defs.json cap) so both fighters stay readable; Three Blows is dark iron grit, three strikes, the third at the target', () => {
   const g = geometry(), f = makeField();
-  for (const kind of DWARF_SHIELD_KINDS) { for (let rel = -LAND_AT; rel <= 50; rel++) { fillBoss(kind, f, rel, g); assert.ok(peak(f.dust) <= (kind === 'shield9' ? 0.4001 : 0.7001), `${kind} dust ceiling at ${rel} (${peak(f.dust).toFixed(2)})`); } }
+  for (const kind of DWARF_SHIELD_KINDS) { for (let rel = -LAND_AT; rel <= 50; rel++) { fillBoss(kind, f, rel, g); assert.ok(peak(f.dust) <= (kind === 'shield8' || kind === 'shield9' ? 0.4001 : 0.7001), `${kind} dust ceiling at ${rel} (${peak(f.dust).toFixed(2)})`); } }
   const gritNear = (rel: number, x: number, z: number, r: number) => { fillBoss('dwarf9', f, rel, g); let n = 0; for (let i = 0; i < GRIT; i++) { const o = i * STRIDE; if (f.grit[o + 6] > 0.004 && Math.hypot(f.grit[o] - x, f.grit[o + 2] - z) < r) n++; } return n; };
   assert.ok(gritNear(-20, g.cx + g.dx * 0.8, g.cz + g.dz * 0.8, 1.2) > 0 && gritNear(-20, g.tx, g.tz, 0.9) === 0, "blow one: grit at the dwarf's feet-front, none at the target yet");
   assert.ok(gritNear(1, g.tx, g.tz, 1.5) >= 10, "the third blow, on the landing tick, throws its grit at the TARGET's feet");
