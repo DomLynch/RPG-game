@@ -143,3 +143,42 @@ test('fail closed: an empty id list exits 2 naming the category', () => {
     assert.equal(r.stdout, '');
   } finally { rmSync(repo, { recursive: true, force: true }); }
 });
+
+test('content rows built in code are counted: a record-kind literal in origins counts, in tests and fixtures it does not, and the real tree is at 0', () => {
+  const real = spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  assert.equal(real.status, 0, real.stderr);
+  assert.equal((JSON.parse(real.stdout) as { rows: number }).rows, 0, 'a foe, encounter, Bounty or rift record built in TypeScript: add it to origins/region1/progression.json');
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-rows-'));
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'x'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\n");
+    writeFileSync(join(repo, 'src', 'fight', 'special-set-defs.json'), '{"sets":[{"id":"ash","specials":["ashfall"]}],"ranks":[{"id":"first","level":36}]}');
+    writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'a.ts'), "export const a = { kind: 'bounty-definition', id: 'bounty:x' };\nexport const b = { kind: 'item-definition' };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'a.test.ts'), "export const t = { kind: 'bounty-definition' };\n");
+    writeFileSync(join(repo, 'origins', 'x', 'fixtures.ts'), "export const f = { kind: 'rift-site' };\n");
+    const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; file: string }[] };
+    assert.equal(out.rows, 1);
+    assert.deepEqual(out.sites.filter((x) => x.kind === 'row').map((x) => x.file), ['origins/x/a.ts']);
+    const gated = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 }).status;
+    assert.equal(gated(), 0, 'without --gate a planted row only reports');
+    assert.equal(gated('--gate'), 1, 'under --gate a planted row exits 1');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('a tuning number kept as a named constant in a moved file is counted; the moved feuds.ts has none', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'as-data-consts-'));
+  try {
+    mkdirSync(join(repo, 'src', 'fight'), { recursive: true }); mkdirSync(join(repo, 'origins', 'feuds'), { recursive: true }); mkdirSync(join(repo, 'origins', 'patrons'), { recursive: true }); mkdirSync(join(repo, 'origins', 'preview'), { recursive: true });
+    writeFileSync(join(repo, 'origins', 'preview', 'play.ts'), "export const START_LEVEL = 16;\nexport const WORLD_TUNING = { reach: 3, far: 40 };\nexport const FROM_ROW = START.startLevel;\n");
+    writeFileSync(join(repo, 'origins', 'patrons', 'patrons.ts'), "export const RULES = { switchBronze: 2000, wait: 28 * 86400 } as const;\nexport const CLEAN = { points: 0, at: 0 };\n");
+    writeFileSync(join(repo, 'src', 'roster.ts'), "export const ROSTER = { veteran: {}, goblin: {} };\n");
+    writeFileSync(join(repo, 'src', 'fight', 'moves.ts'), "export type WeaponId = 'trident';\nexport type SkillId = 'jab';\n");
+    writeFileSync(join(repo, 'src', 'fight', 'special-set-defs.json'), '{"sets":[{"id":"ash","specials":["ashfall"]}],"ranks":[{"id":"first","level":36}]}');
+    writeFileSync(join(repo, 'src', 'fight', 'finishers.ts'), "export const FINISHERS = { rows: [{ id: 'beheading' }] };\n");
+    writeFileSync(join(repo, 'origins', 'feuds', 'feuds.ts'), "export const JAIL_S = 600;\nexport const NEG = -5;\nexport const FROM_ROW = R.jailS;\nconst local = 3;\nexport const fn = () => { const INNER = 4; return INNER; };\n");
+    const out = JSON.parse(spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--repo', repo, '--allow', EMPTY], { encoding: 'utf8', maxBuffer: 64 << 20 }).stdout) as { rows: number; sites: { kind: string; text: string }[] };
+    assert.equal(out.rows, 4, 'JAIL_S, NEG, the RULES object and a play.ts START_LEVEL count (WORLD_TUNING is its own slice); a constant read from a row, a lower-case local, a constant inside a function and a zero-valued CLEAN state do not');
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
