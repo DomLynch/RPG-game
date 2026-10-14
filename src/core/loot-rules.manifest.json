@@ -1,0 +1,16 @@
+{
+  "tables": [
+    {
+      "table": "lootRule",
+      "file": "loot-rules.json",
+      "at": "lootRule",
+      "key": "id",
+      "required": {
+        "declinedKept": "integer",
+        "claimsCap": "integer",
+        "claimWaitMs": "integer",
+        "keepaliveBytes": "integer"
+      }
+    }
+  ]
+}
