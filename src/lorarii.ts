@@ -37,7 +37,8 @@ const TICK = 1 / 60;   // the sim's fixed step (duel.ts stepDuel at 60 Hz)
 // turn: yaw lerp rate toward the nearest fighter (per second)
 // raise: seconds: the placeholder's beat. With the real body, Raise and Lash are the clips' own lengths (0.6 s each)
 // lead: default ticks between WhipRaised and Whipped when the event carries no `lead` (RULES.wall.loiter: 60 before the first lash, 30 before a repeat)
-export const LORARII: Readonly<Record<'count' | 'radius' | 'top' | 'sixth' | 'reach' | 'speed' | 'raiseClip' | 'turn' | 'raise' | 'lash' | 'recover' | 'lead', number>> = { ...presentGroup('lorarii'), sixth: Math.PI / 3 } as never;
+type LorariiKey = 'count' | 'radius' | 'top' | 'sixth' | 'reach' | 'speed' | 'raiseClip' | 'turn' | 'raise' | 'lash' | 'recover' | 'lead';
+export const LORARII = { ...presentGroup('lorarii'), sixth: Math.PI / 3 } as Readonly<Record<LorariiKey, number>>;
 
 // Where guard `i` stands at sim tick `tick`: his post is the centre of his sixth, offset by half a sixth so no post sits on the
 // gate axis, and he walks a slow triangle wave along the wall with his own phase and period. Pure — Combat may call it too.
