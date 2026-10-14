@@ -30,4 +30,4 @@ Target plate (still2): `wc.target()` (`src/fight/world-combat.ts` L148) names th
 ## Verdict
 (a) Creature hits go through the same sim as the Pit's roll/guard: read from code, the browser run shows the controls drive that sim (roll and guard phases) but does not show a dodge. (b) Guard side: shown, `data-side` follows the slide. (c) Stamina meter: shown after a roll.
 
-Build list (one small item, Lead's OK needed): a node test that steps `stepHero` with a creature in windup and the hero rolling, asserting no `Hit` on the hero, against the same without the roll. No sim file changes, no WSV.
+The dodge itself is covered deterministically in game ticks by PR #2752 (`tests/world-roll-dodge.test.ts`, test only, no WSV): no roll = a Hit on the hero; rolling toward the foe 8-16 ticks ahead of the blow = a `Dodged` and no Hit; pressed on the blow tick = too late, the Hit lands; rolling away = the blow finds nothing in reach. Measured band on trunk bac87dac8: 4-20 ticks ahead dodges, 0-3 too late. 2/2 pass on the VPS, typecheck:tests clean.
