@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "charactersRule",
+      "file": "characters-rules.json",
+      "at": "charactersRule",
+      "key": "id",
+      "required": {
+        "deflectFrom": "number"
+      }
+    }
+  ]
+}

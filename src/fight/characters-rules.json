@@ -1,0 +1,8 @@
+{
+  "charactersRule": [
+    {
+      "id": "characters",
+      "deflectFrom": 0.35
+    }
+  ]
+}

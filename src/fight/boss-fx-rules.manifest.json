@@ -1,0 +1,22 @@
+{
+  "tables": [
+    {
+      "table": "bossFxRule",
+      "file": "boss-fx-rules.json",
+      "at": "bossFxRule",
+      "key": "id",
+      "required": {
+        "pitMist": "number",
+        "pitStain": "number",
+        "pitBreath": "number",
+        "mist": "integer",
+        "ghost": "integer",
+        "flies": "integer",
+        "wisp": "integer",
+        "ring": "integer",
+        "veils": "integer",
+        "drops": "integer"
+      }
+    }
+  ]
+}

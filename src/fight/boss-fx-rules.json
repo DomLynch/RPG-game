@@ -1,0 +1,17 @@
+{
+  "bossFxRule": [
+    {
+      "id": "boss-fx",
+      "pitMist": 0.13,
+      "pitStain": 0.07,
+      "pitBreath": 0.03,
+      "mist": 64,
+      "ghost": 23,
+      "flies": 280,
+      "wisp": 30,
+      "ring": 18,
+      "veils": 6,
+      "drops": 260
+    }
+  ]
+}
