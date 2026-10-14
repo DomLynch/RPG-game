@@ -37,7 +37,7 @@ async function run(side, special, plan) {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }), page = await context.newPage();
   page.on('pageerror', (e) => console.log(`pageerror[${side} ${special}]:`, e.message));
   try {
-    await page.goto(`${servers[side].origin}/?special=${special}${ARENA ? `&arena=${ARENA}` : ''}&debug`);
+    await page.goto(`${servers[side].origin}/?special=${special}${ARENA ? `&arena=${ARENA}` : ''}&debug`, { timeout: 180000 });
     await page.waitForFunction(() => typeof globalThis.__special === 'function' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 180000, polling: 200 });
     await page.addStyleTag({ content: '#debug{display:none!important}' });
     const clock = await harnessClock(page);
