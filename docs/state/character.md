@@ -7,6 +7,12 @@
 4. No batch waits for a slice: READY at the cut goes, the rest rolls to the next batch, zero idle gap.
 (Also in lane memory: `batch-rules`.)
 
+## 2026-10-14 (+04) late — Characters & Art: two row PRs chained, #2673 closed. READ FIRST (supersedes the "Now" below).
+**Now.** Watch #2711 (feel, 8 rows, `src/fight/feel-rules.json`) and #2712 (specials timing, 16 rows, `src/fight/special-timing-rules.json`, chained on #2711, cut #2711 first). Both had Combat content PASS and Auditor PASS on the earlier heads (#2711 449fe6fd, #2712 9d744ff0f); trunk then moved (Web's fx-rows took beast-scale and opened), so each was merged up and the Auditor/Combat need a merge-only look at the new heads (post the sha when the VPS run is green).
+**Done today.** #2673 closed as superseded by #2706 (boss FX rows, Web) + #2694 (DEFLECT_FROM, Combat). #2582, #2664, #2607 CLEAN and auditor:ready (verify with gh before acting).
+**Open.** #29 asset downloads still need Dom's own yes in chat; Lead cannot give it. Next Characters item after the rows: ask Lead.
+**Gotchas.** Reuse-first bit twice: Web's #2706/fx-rows took rows I had written (opened, beast-scale), so `git log -- <file>` on trunk before converting a file. Batch rule 1 (no title/body edits after a PR opens) is easy to break: the bot's "build" wording warning on #2712 was fixed by a retitle, which left the head and labels intact but is against the rule. Retire allow entries by recomputing the list from trunk, not by hand-resolving the conflict; check the last array entry has no trailing comma (6 as-data tests failed on one).
+
 ## 2026-10-14 (+04) — Characters (Mac) handoff at /clear: data-layer rows landed, four PRs open. READ FIRST.
 **Now.** (1) #2673 (char/rows-fx, special-fx-boss.ts 10 + characters.ts DEFLECT_FROM as rows) is DIRTY: merge trunk once (allow list is now split in scripts/as-data/allow/<root>.json; keep my 11 retirements), VPS gate + suite, send Lead the head. (2) #2582 shops.json (77c019d48) waits on the Auditor's delta check; #2664 shop `rangeCm` (a7d8e7718, stacked on it, CI green) and #2607 legend-families tests (feacec7d9) are labelled auditor:ready. (3) #29 asset pulls need Dom's own yes in chat to download; nothing is fetched.
 **Done today (merged).** #2570 #2577 #2580 #2583 #2593 #2622 (11 Characters numbers into rows) #2633 (LEVEL_CURVE row) #2641 (loot-panel + gear-room rows, 64 KB keepalive cap as a platformCap row with a relation check) #2663 (ladderRule + respecRule rows).
