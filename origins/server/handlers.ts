@@ -18,13 +18,14 @@ import { gearWearHandler } from './gear-wear.ts';
 import { shopBuyHandler, shopStockHandler } from './shop-buy.ts';
 import { gearHandlers } from './gear.ts';
 import { upgradeHandler } from './upgrade.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 // `where` asks presence where the account stands (X1: the only source of a player's place); a handler without it treats the player as nowhere.
 export type Ctx = { db: Db; account: string; where?: WhereFn };
 export type Handler = (ctx: Ctx, body: store.Json) => Promise<unknown>;
 export { BadRequest, Conflict };
 
-const MAX_PENDING = 50;   // one open settles at most this many Pit claims; the rest wait for the next open
+const MAX_PENDING = SERVER_RULES.serverLimits[0]!.maxPending;   // one open settles at most this many Pit claims; the rest wait for the next open
 
 // Snapshot the account once (its marks, recorded; the zone career starts at credit 0: Pit marks do NOT seed zone level, Strategy's ruling 2026-10-09), then pay every verified Pit win the snapshot did not
 // already count. Returns the fresh snapshot.
