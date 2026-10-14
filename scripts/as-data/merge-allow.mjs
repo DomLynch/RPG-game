@@ -17,7 +17,7 @@ const IDENT = { allow: ['file', 'literal'], verbs: ['file', 'name'], tunables: [
 const canon = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x));
 const same = (a, b) => canon(a) === canon(b);
 const idOf = (section, e) => (IDENT[section] ?? ['file', 'name']).map((k) => e[k]).join(' | ');
-const line = (e) => `{${Object.entries(e).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}}`;
+const line = (e) => `{${Object.entries(e).filter(([, v]) => v !== undefined).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}}`;
 
 export function serialize(doc) {
   const parts = Object.entries(doc).map(([key, val]) => (Array.isArray(val) ? `  ${JSON.stringify(key)}: [\n${val.map((e) => `    ${line(e)}`).join(',\n')}\n  ]` : `  ${JSON.stringify(key)}: ${JSON.stringify(val)}`));

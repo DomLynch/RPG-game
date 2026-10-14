@@ -110,7 +110,7 @@ test('git runs it as a merge driver: adjacent additions that conflict as text me
 test('a file move or rename (retire + add of the same name) while the other side edited the old entry is a clash, not a paid debt', () => {
   const base = doc([entry('a.ts', 'N', { sunset: '2026-10-24' }), entry('z.ts', 'Z')]);
   const moved = doc([entry('b.ts', 'N', { sunset: '2026-10-24' }), entry('z.ts', 'Z')]);                      // a.ts -> b.ts
-  const edited = doc([entry('a.ts', 'N', { kind: 'exempt', reason: 'wire format', sunset: undefined }), entry('z.ts', 'Z')]);   // the verdict changed on the old path
+  const edited = doc([entry('a.ts', 'N', { kind: 'exempt', reason: 'wire format' }), entry('z.ts', 'Z')]);   // the verdict changed on the old path
   for (const [ours, theirs] of [[moved, edited], [edited, moved]] as const) {
     const r = mergeAllow(base, ours, theirs);
     assert.equal(r.clashes.length, 1); assert.equal(r.clashes[0].id, 'a.ts | N'); assert.match(r.clashes[0].why, /a move/);
