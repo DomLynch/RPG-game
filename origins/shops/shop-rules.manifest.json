@@ -1,0 +1,16 @@
+{
+  "tables": [
+    {
+      "table": "shopLimits",
+      "file": "shop-rules.json",
+      "at": "shopLimits",
+      "key": "id",
+      "required": {
+        "priceMax": "integer",
+        "stockMax": "integer",
+        "buyMax": "integer",
+        "note": "string"
+      }
+    }
+  ]
+}
