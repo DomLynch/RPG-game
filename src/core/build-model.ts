@@ -12,6 +12,7 @@ const nameOf = (id: string): string => NAME.get(id) ?? id;
 export const ROWS: readonly Row[] = [...DIALS.map((d) => ({ id: d.id, name: nameOf(d.id), kind: 'dial' as const, room: d.cap - d.base })), ...SHEET_SKILLS.map((s) => ({ id: s.id, name: nameOf(s.id), kind: 'skill' as const, room: s.cap - s.base }))];
 
 export const FREE_RESPREAD_LEVEL = 10, RANK_LEVELS = 10;   // the server's numbers (origins/server/build.ts)
+export const pointsBudget = (level: number): number => pointsAt(level);   // the stats screen's "of N": asked of the rows, never answered twice
 export const spent = (v: BuildView): number => Object.values(v.placed).reduce((n, x) => n + x, 0);
 export const unspent = (v: BuildView): number => Math.max(0, pointsAt(v.level) - spent(v));
 export const placedOn = (v: BuildView, id: string): number => v.placed[id] ?? 0;
