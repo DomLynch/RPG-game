@@ -7,6 +7,9 @@ import { decide } from './fight/ai.ts';
 import { project, type Practice } from './fight/combat.ts';
 import { distance, guardOf, legal, stepDuel, timing, type Action, type CombatEvent, type Duel, type Intent } from './fight/duel.ts';
 import { SPARRING_DUMMY, disarm } from './sparring.ts';
+import { loadRegistry, tableFromFile, type Manifest } from './core/registry.ts';
+import RULES_MANIFEST from './tutorial-rules.manifest.json' with { type: 'json' };
+import RULES_ROWS from './tutorial-rules.json' with { type: 'json' };
 
 export const TUTORIAL_STEPS = ['slash', 'stab', 'heavy', 'guard', 'parry', 'kick', 'roll'] as const;
 export type TutorialStep = (typeof TUTORIAL_STEPS)[number];
@@ -21,11 +24,15 @@ const STEPS: Record<TutorialStep, { swing: Action | null; guard: boolean; cue: (
   kick: { swing: null, guard: true, cue: (e) => e.actor === 0 && e.move === 'kick' && (e.type === 'Hit' || e.type === 'GuardBroken') },
   roll: { swing: 'heavy', guard: false, cue: (e) => e.type === 'Dodged' && e.actor === 0 },   // a HEAVY (32-tick tell): a roll whose intent is issued by foe swing age 27 completes the step (measured, 8 seeds; 28 fails), so a held E (HOLD_MS = 9 ticks) must be pressed by age 18 (300 ms after the swing starts) and E + a direction by age 27 (450 ms); the thrust's 16-tick tell left a held E about 2 ticks (plus a roll out of reach whiffing the swing: rolledOut below)
 };
-const GAP = 150;      // ticks between the foe's swings: one at a time, the window to answer is clear
-const ROLL_SPAN = 60;  // ticks after a roll starts in which the foe's swing ending with no hit counts as rolling out of it
-const SETTLE = 60;    // ticks the foe stands after a step is done, so the next prompt is read before he moves
-const REACH = 2.1;    // the foe swings only inside this
-const FLOOR = 0.5;    // share of a bar both fighters are kept above
+const RULES_TABLE = tableFromFile(RULES_MANIFEST.tables[0] as Manifest, RULES_ROWS, 'tutorial-rules.json');
+loadRegistry([RULES_TABLE]);
+const rule = (id: string): number => (RULES_TABLE.rows.find((r) => r.id === id) as { value: number } | undefined)?.value ?? NaN;
+const GAP = rule('gap');            // ticks between the foe's swings: one at a time, the window to answer is clear
+const ROLL_SPAN = rule('roll-span'); // ticks after a roll starts in which the foe's swing ending with no hit counts as rolling out of it
+const SETTLE = rule('settle');      // ticks the foe stands after a step is done, so the next prompt is read before he moves
+const REACH = rule('reach');        // the foe swings only inside this
+const FLOOR = rule('floor');        // share of a bar both fighters are kept above
+if ([GAP, ROLL_SPAN, SETTLE, REACH, FLOOR].some((v) => !(v > 0))) throw new Error('tutorial-rules.json is missing a row');
 
 export function createTutorial(onDone: (id: TutorialStep) => void = () => {}) {
   const done: TutorialStep[] = [];

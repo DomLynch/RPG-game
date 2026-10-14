@@ -14,23 +14,18 @@ import { loadWorld, resolveRegion } from '../world/resolve.ts';
 import type { Params } from '../world/schema.ts';
 import { WEAPON_SLOTS } from '../../src/core/server.ts';
 import { BUNDLE, LOCAL } from './content.ts';
+import RULES from './region1-rules.json' with { type: 'json' };
 import { EXCHANGE_REGION, FRONTIER_REGION, REGION1_WORLD } from './world.ts';
 
 export const REGION1 = [EXCHANGE_REGION, FRONTIER_REGION] as const;
 
 // Spec numbers the data must sit inside (region1 §3 Bounties table; living-world §3.3, §12; feuds §3.1).
-export const BOUNTY_METAL = { min: 30, max: 50 } as const; // bronze per paid win
-export const BOUNTY_DAILY_CAP = { min: 1, max: 3 } as const; // paid wins per character per UTC day
-export const MIN_TOWNS_FOR_WAR = 3; // living-world §4.3 / §12
-export const TOWN_SAFE_CLEARANCE_M = 30; // living-world §12: a quarter's ring centre sits ≥ 30 m from the square's gate
+export const BOUNTY_METAL: { readonly min: number; readonly max: number } = RULES.bountyMetal; // bronze per paid win
+export const BOUNTY_DAILY_CAP: { readonly min: number; readonly max: number } = RULES.bountyDailyCap; // paid wins per character per UTC day
+export const MIN_TOWNS_FOR_WAR: number = RULES.minTownsForWar; // living-world §4.3 / §12
+export const TOWN_SAFE_CLEARANCE_M: number = RULES.townSafeClearanceM; // living-world §12: a quarter's ring centre sits ≥ 30 m from the square's gate
 // living-world §3.3 tiers: prosperity floor, services open, ruler title (§4.1).
-export const TIERS = [
-  { tier: 'ruin', from: 0, services: 0, title: null },
-  { tier: 'hamlet', from: 50, services: 1, title: 'reeve' },
-  { tier: 'village', from: 200, services: 2, title: 'reeve' },
-  { tier: 'town', from: 450, services: 3, title: 'mayor' },
-  { tier: 'city', from: 750, services: 4, title: 'lord' },
-] as const;
+export const TIERS: readonly { readonly tier: string; readonly from: number; readonly services: number; readonly title: string | null }[] = RULES.tiers;
 export const tierOf = (prosperity: number) => [...TIERS].reverse().find((t) => prosperity >= t.from)!;
 
 // The twist flags (region1 §4 and §7 ruling 10), each with exactly its fields. Origins encounter flags only: they are read by the Origins
