@@ -100,3 +100,16 @@ test('a PR whose merge commit really is in the tree still passes (the #1396 shap
   const r = w.run();
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
+
+test('the window cap is 2000: 500 merged PRs (the old cap, FX 2026-10-14) pass, a full 2000 is still refused as truncated', () => {
+  const w = world();
+  const head = g(w.work, 'rev-parse', 'HEAD');
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ number: i + 1, title: 'x', baseRefName: TRUNK, mergeCommit: { oid: head }, labels: [] }));
+  w.prs.push(...many(500)); w.gh();
+  const ok = w.run();
+  assert.equal(ok.status, 0, '500 PRs in the window is a normal day now: ' + ok.stdout + ok.stderr);
+  w.prs.length = 0; w.prs.push(...many(2000)); w.gh();
+  const full = w.run();
+  assert.equal(full.status, 1, 'a window that reaches the cap is still refused');
+  assert.match(full.stderr, /GitHub returned 2000 merged PRs since .*: the window is truncated, narrow --days/);
+});

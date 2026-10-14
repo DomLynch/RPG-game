@@ -14,7 +14,7 @@ import { resolve } from 'node:path';
 const TRUNK = process.env.TRUNK_BRANCH || 'codex/01a09a76/task-1';
 const args = process.argv.slice(2);
 const root = resolve(args.find(a => !a.startsWith('--')) || '.');
-const days = Number((args.find(a => a.startsWith('--days=')) || '--days=3').slice(7)), LIMIT = 500;   // ~100 merges a day on this repo; a deploy runs many times a day
+const days = Number((args.find(a => a.startsWith('--days=')) || '--days=3').slice(7)), LIMIT = 2000;   // 500 was blown on 2026-10-14 (a day of candidate merges over a 3-day window: every deploy exited 1, FX #2756); the truncation refusal below stays at the cap
 const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8', timeout: 60_000 }).trim();
 const ok = (...a) => { try { git(...a); return true; } catch { return false; } };
 // "Is a an ancestor of b?" has THREE answers: yes (exit 0), no (exit 1), and "git could not say" (exit 128: object missing; or a timeout). Collapsing the third into "no" made Release F report
