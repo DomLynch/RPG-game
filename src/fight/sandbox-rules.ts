@@ -77,3 +77,8 @@ export const STAB_HALF_ANGLE = num('stabHalfAngle', 'value') || 50;
 // normal blend, the rest is the standing pose), `s1` / `s2` (radians, per-mille) lean the lower and upper spine (negative = back), `twist` turns the lower spine. Presentation only (characters.ts, after the mixer); no row picked = today's hurt.
 export type HurtStyle = { id: number; weight: number; s1: number; s2: number; twist: number };
 export const HURT_STYLES: readonly HurtStyle[] = ((DEFS as unknown as { hurtStyles?: HurtStyle[] }).hurtStyles ?? []);
+
+// readyStyle (Dom 2026-10-14: "this dumb pose", the armed ready stance, bent forward over the sword): `?ready=1|2|3` picks a row of sandbox-rules-defs.json `readyStyles` { id, s1, s2, s3, neck } (radians, per-mille, added to the
+// lower, middle and upper spine and the neck while the fighter stands armed and calm; negative = back/up). Presentation only, characters.ts after the mixer; no row picked = today's stance.
+export type ReadyStyle = { id: number; s1: number; s2: number; s3: number; neck: number };
+export const READY_STYLES: readonly ReadyStyle[] = ((DEFS as unknown as { readyStyles?: ReadyStyle[] }).readyStyles ?? []);

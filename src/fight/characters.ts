@@ -1,6 +1,6 @@
 // THE ACTOR DRIVER, in the shared fight core (src/fight/, Dom via Strategy 2026-10-09: the Pit and every zone play one fight, one animation system). Moved from src/characters.ts, which now re-exports it
 // so the Pit's importers are untouched; Zone 1 imports it from src/fight/index.ts. Nothing in this file changed but the relative paths.
-import { HURT_STYLES } from './sandbox-rules.ts';
+import { HURT_STYLES, READY_STYLES } from './sandbox-rules.ts';
 import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
@@ -518,8 +518,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     // tilted for the beta; the weapons lane replaces it with authored guard clips family by family. Blended so a slide never snaps.
     const spine1 = root.getObjectByName('spine_01'), spine2 = root.getObjectByName('spine_02');
     const hurtStyle = HURT_STYLES.find((h) => String(h.id) === new URLSearchParams(typeof location === 'undefined' ? '' : location.search).get('hurt'));   // sandbox-mech hurtStyle
-    let hurtDrive = 0;
-    const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
+    let hurtDrive = 0, readyDrive = 0;
+    const readyStyle = READY_STYLES.find((r) => String(r.id) === new URLSearchParams(typeof location === 'undefined' ? '' : location.search).get('ready'));   // sandbox-mech readyStyle
+    const spine3 = root.getObjectByName('spine_03'), neckBone = root.getObjectByName('neck_01');
+    const tilt = { yaw: 0, arm: 0, spine: 0 }, tilted = [spine1, spine2, upperArm, spine3, neckBone].filter((b): b is NonNullable<typeof b> => !!b), untilted = tilted.map(b => b.quaternion.clone());
     let open: Opening | null = null, openW = 0;   // opening-pose.ts: the sim's open stagger on this body, and its eased weight
     let tired: Pick<Fatigue, 'level' | 'gassed' | 'second'> = { level: 0, gassed: 0, second: 0 }, tune: FatigueTune | undefined, breath = 0, calmWeight = 0;   // fatigue.ts: the tired-body layer (presentation only), its body's tuning, the breath clock and how calm the pose is
     // ?look=fatigue-read (fatigue-read.ts): the extra bones its pose moves, restored before every update like the guard tilt; empty and untouched without the flag.
@@ -773,9 +775,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         const gap = dead || pose === 'attack' ? NO_OPEN : openPose(openW, open?.kind);
         hurtDrive += ((hurtStyle && pose === 'hit' ? Math.sin(Math.min(1, progress) * Math.PI) : 0) - hurtDrive) * ease;   // up and back over the hurt, eased
         if (hurtDrive < 1e-3) hurtDrive = 0;
-        if (tilt.yaw || tilt.spine || tilt.arm || leaning || layer || gap !== NO_OPEN || hurtDrive) {
+        readyDrive += ((readyStyle && (pose === 'ready' || pose === 'guard') ? 1 : 0) - readyDrive) * ease;
+        if (readyDrive < 1e-3) readyDrive = 0;
+        if (tilt.yaw || tilt.spine || tilt.arm || leaning || layer || gap !== NO_OPEN || hurtDrive || readyDrive) {
           tilted.forEach((b, i) => untilted[i].copy(b.quaternion)); tiltApplied = true;
           if (spine1) { spine1.rotation.y += tilt.yaw + leaning * l.yaw; spine1.rotation.z += leaning * l.side; }
+          if (readyStyle && readyDrive) { if (spine1) spine1.rotation.x += (readyDrive * readyStyle.s1) / 1000; if (spine2) spine2.rotation.x += (readyDrive * readyStyle.s2) / 1000; if (spine3) spine3.rotation.x += (readyDrive * readyStyle.s3) / 1000; if (neckBone) neckBone.rotation.x += (readyDrive * readyStyle.neck) / 1000; }
           if (hurtStyle && hurtDrive) { if (spine1) { spine1.rotation.x += (hurtDrive * hurtStyle.s1) / 1000; spine1.rotation.y += (hurtDrive * hurtStyle.twist) / 1000; } if (spine2) spine2.rotation.x += (hurtDrive * hurtStyle.s2) / 1000; }
           if (spine2) { spine2.rotation.x += tilt.spine; spine2.rotation.z += leaning * l.chest; }
           if (upperArm) { upperArm.rotation.x += tilt.arm + leaning * (l.lift ?? 0); upperArm.rotation.y += leaning * l.arm; }
