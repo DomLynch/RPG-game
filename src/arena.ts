@@ -1,3 +1,4 @@
+import { arenaRule, layoutRules } from './arena-rules.ts';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { specialGust } from './fight/special-gust.ts';
@@ -19,10 +20,10 @@ import { patchRow } from './arena-rows.ts';
 // `floor` is the sand: the decal target for the presentation lane (planar UVs, u = x / SAND_TILE, v = z / SAND_TILE).
 // Preview-only (special-fx-executioner.ts, the Harvest Sweep): extra forward lean by a seat's angle round the pit, on top of the crowd's mood. Null draws nothing.
 export const crowdWave: { lean: ((angle: number) => number) | null } = { lean: null };
-export const PLAY_RADIUS = 8.55, CAMERA_CLAMP = 11.5, SAND_TILE = 3;
+export const PLAY_RADIUS = arenaRule('playRadius'), CAMERA_CLAMP = arenaRule('cameraClamp'), SAND_TILE = arenaRule('sandTile');
 // The pit: sand to the podium wall, whose inner face stands outside the camera clamp so the lock camera never clips it; five broken stone
 // tiers climb behind it, a ruined colonnade and outer wall make the skyline. The gate faces the hero's start (he walks in from the sun).
-export const LAYOUT = { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 };
+export const LAYOUT = layoutRules();
 export type Arena = { group: THREE.Group; floor: THREE.Mesh; readonly sky: THREE.Texture; readonly materials: ArenaMaterials; ready: Promise<void>; update(dt: number, events: CombatEvent[], camera?: THREE.Camera, sim?: SimView): void; raiseGate(open: boolean): void; thinCrowd(): void; dispose(): void; readonly guards: { built: number; of: number } };
 // What the arena may watch of the fight, read-only: the sim tick (the lorarii pace on it, so live and replay place the same guard) and where the fighters stand.
 // The ring's own surface set, read-only.
