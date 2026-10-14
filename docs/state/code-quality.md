@@ -1,5 +1,15 @@
 # Code quality lane (Auditor)
 
+## 2026-10-14 ~18:5x (+04) — HANDOFF before /clear (Dom). LIVE FJ 2b0ca8887 (my curl). READ FIRST, then memory `frankendom_handoff_2026-10-14b`
+
+**Now, in order.** (1) **FM**: World's #2724 @f605f95c3, #2662 @2e4dd8594 (WSV 35) and #2698 @1598787f7 (WSV 36) are PASSED; do the candidate contents read when Lead cuts it (#2662 before #2698). (2) **#2725 @ac1040159** (allow-list merge driver): re-read OK, armed; **#2728 @623ea2ea7** (cut-release `-c` wiring, draft) read OK, goes after it. Once #2725 lands, every candidate rebuild must pass `-c merge.as-data-allow.driver=...` to `git merge-tree` (verified: with it, merge-tree equals a real driver merge; without it, a driver-resolved candidate is not treeEqual). #2692's checker needs the same change. (3) #2671 (World d8 stage rows) when pushed. (4) #2699 after #2515 lands.
+
+**Done today.** Candidate contents FA through FL (FK PASSED + candidate:pass 14:49Z; FL #2730 armed). Feature PASSes or arms are on each thread (list in the memory handoff). Found and fixed through Deploy: a late `opened` event cancelled FC's release-checks run (#2599's skip still joined the concurrency group); #2713 gives it its own group, and FE proved it live.
+
+**Open.** FL publishes after FK. #2630 (Lead docs) is armed; only static CI had run.
+
+**Gotchas.** VPS watchers: one PR per autopass process, since a combined one kept restarting and never posted. A candidate's label must START with "candidate", and a feature PR's must not. The 10-14 debt sunsets are Dom's NO SUNSETS ruling, not a merge loss. zsh: write `${x}:path` (`$x:s` is a modifier) and `${=v}` to word-split. Guard every `rm -r` variable with `:?`. Check scripts are in memory/tools (cmp2, cmp3, closure.mjs).
+
 ## 2026-10-10 ~12:1x (+04) — STANDING RULING: candidate review from Z (Strategy, Lead adopted the Auditor's conditions; Dom's "engine today"). READ FIRST, then memory `ruling_candidate_review_2026-10-10` and `frankendom_handoff_2026-10-10c`
 
 1. **From candidate Z onward the Auditor reviews the CANDIDATE once per batch** instead of re-passing each PR. A PR with an Auditor PASS on its head keeps it through Deploy's union merge. A **pure-move** PR (git mv + import rewrites, no logic change) with CI green on its head gets its PASS from the one candidate review. **A logic change still needs its own PASS on its own head first.**
