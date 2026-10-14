@@ -8,6 +8,10 @@ files:
   - origins/preview/play.ts
   - origins/encounters/encounters.ts
   - src/core/career-model.ts
+  - src/net/duel-antifarm.ts
+  - src/net/pvp.ts
+  - src/net/rollback.ts
+  - src/net/transport.ts
   - origins/server/practice.ts
 rule:
   kind: variable_declarator
@@ -17,6 +21,8 @@ rule:
     - not: { has: { field: name, kind: identifier, regex: "^WORLD_TUNING$" } }
     # career-model.ts: DAY_S is seconds in a day (physical); LEVEL_CURVE is the level-curve slice of its own
     - not: { has: { field: name, kind: identifier, regex: "^(DAY_S|LEVEL_CURVE)$" } }
+    # SYNC_VERSION (src/net/pvp.ts): a wire version stamp guarded by its own version test, not a tuning number
+    - not: { has: { field: name, kind: identifier, regex: "^SYNC_VERSION$" } }
     # a number, a negative number, or an object (optionally `as const`) holding a number of two digits or more
     - any:
         - has: { field: value, any: [{ kind: number }, { kind: unary_expression, regex: "^-?[0-9]" }, { any: [{ kind: object }, { kind: as_expression }], regex: "(?s):\\s*[0-9]{2,}|[*+]\\s*[0-9]{2,}" }] }
