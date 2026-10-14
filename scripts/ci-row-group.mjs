@@ -37,8 +37,10 @@ export function runGroup({ id, rows, event, retries = 1, dir = 'artifacts', run 
   return { receipts, failed };
 }
 
-const defaultRun = argv => spawnSync(argv[0], argv.slice(1), { stdio: 'inherit', env: { ...process.env, PG_BIN: process.env.PG_BIN } }).status ?? 1;
-const defaultRev = a => execFileSync('git', ['rev-parse', a], { encoding: 'utf8' }).trim();
+// A row that hangs is killed at 30 min (the slowest measured group ran 754 s) and reads as FAILED (status null -> 1), so it is retried once like any red row and can never hold the job.
+const ROW_TIMEOUT_MS = 30 * 60_000;
+const defaultRun = argv => spawnSync(argv[0], argv.slice(1), { stdio: 'inherit', env: { ...process.env, PG_BIN: process.env.PG_BIN }, timeout: ROW_TIMEOUT_MS, killSignal: 'SIGKILL' }).status ?? 1;
+const defaultRev = a => execFileSync('git', ['rev-parse', a], { encoding: 'utf8', timeout: 60_000 }).trim();
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { GROUP_ID, GROUP_ROWS, GITHUB_EVENT_NAME, ROW_RETRIES, RECEIPT_DIR } = process.env;
