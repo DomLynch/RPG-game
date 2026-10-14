@@ -28,6 +28,7 @@ import {
 } from './ids.ts';
 import { verifiedTier, type CareerStanding } from './world.ts';
 import { DEFINITIONS, categoryOf, ids, powerOf, provenanceOf, storyOf } from './definitions.ts';
+import RULES from './contract-rules.json' with { type: 'json' };
 
 // ---- ItemDefinition ---------------------------------------------------------------------------------------------------------------
 
@@ -47,7 +48,7 @@ export type Binding = (typeof BINDINGS)[number];
 // The power budget. 'slot-weight': the slot's SLOT_WEIGHT × (tier level − 1), exactly as src/fight/gear-stats.ts prices today's loot.
 export const POWERS: readonly string[] = ids(DEFINITIONS.powers);   // rows of definitions.json `powers` (tiered, upgradeable, gearOnly)
 export type Power = string;
-export const MAX_STACK = 9999;
+export const MAX_STACK = RULES.itemLimits[0]!.maxStack;
 
 export type ItemDefinition = {
   kind: 'item-definition';
@@ -116,12 +117,12 @@ export function parseItemDefinition(raw: unknown, path = ''): Result<ItemDefinit
 // ---- ItemInstance and its one location --------------------------------------------------------------------------------------------
 
 export const ITEM_INSTANCE_VERSION = 1;
-export const PACK_SLOTS = 64;
-export const BANK_SLOTS = 1000;
+export const PACK_SLOTS = RULES.itemLimits[0]!.packSlots;
+export const BANK_SLOTS = RULES.itemLimits[0]!.bankSlots;
 // The upgrade level a smith can add (economy.ts UpgradeService). Optional on the record with a defined default of 0, so every instance
 // written before upgrades existed validates unchanged. Each level is worth one rung of the piece's OWN slot weight, and the effective rung
 // never passes Origin, so no kit can pass the 1.15 / 0.80 caps however many levels are bought.
-export const MAX_UPGRADE_LEVEL = 9;
+export const MAX_UPGRADE_LEVEL = RULES.itemLimits[0]!.maxUpgradeLevel;
 const PAPERDOLL_KEYS = Object.keys(PAPERDOLL) as Paperdoll[];
 const LEGEND_KEYS: ReadonlySet<string> = new Set(PORTRAIT_KEYS);
 
@@ -572,7 +573,7 @@ export const LOOT_TABLE_VERSION = 1;
 export const PRESENTATIONS: readonly string[] = ids(DEFINITIONS.presentations); // take-one: the Pit rule, kept for elites and bosses; collect: everyday drops
 export const DISTRIBUTIONS = ['personal'] as const; // personal group loot first (blueprint §8); a shared mode is a later version
 export const ROLL_MODES = ['independent', 'weighted'] as const;
-export const MAX_CURRENCY = 1_000_000_000;
+export const MAX_CURRENCY = RULES.itemLimits[0]!.maxCurrency;
 
 export type LootEntry = { item: ItemId; chance: number; quantity: number; levelMin: number | null; levelMax: number | null };
 export type LootRoll = { probability: number; repeat: number; mode: (typeof ROLL_MODES)[number]; dropLimit: number; minDrop: number; entries: LootEntry[] };
