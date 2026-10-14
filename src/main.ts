@@ -403,7 +403,7 @@ function nameOpponent() {
 // revision there (a replay must run on the same rules; the harness has no document element).
 const BUILD = document.documentElement?.dataset?.release || 'dev';
 // A local build (the release gates and the bot serve dist on localhost): the one place ?debug acts on its own.
-const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '');
+const localBuild = /^(localhost|127\.0\.0\.1)$/.test(window.location?.hostname ?? '') || (globalThis as { __SANDBOX__?: boolean }).__SANDBOX__ === true;   // the Combat Sandbox build (sandbox/entry.ts) counts as a local build: the admin test tools and the Sparring tab show; undefined on every other build
 // Local browser QA may select a seed without changing any combat rule or a public fight.
 const botSeed = localBuild && /[?&]debug\b/.test(window.location?.search ?? '')
   ? /[?&]botSeed=(\d+)/.exec(window.location?.search ?? '')?.[1] : undefined;
