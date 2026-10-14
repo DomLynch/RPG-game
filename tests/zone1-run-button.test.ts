@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../origins/preview/index.html', import.meta.url), 'utf8'), main = readFileSync(new URL('../origins/preview/main.ts', import.meta.url), 'utf8');
 test('the world mode hides the run button and draws no replacement', () => {
-  const hide = html.split('\n').find((l) => l.includes('#duel.world #opponent-name') && l.includes('display: none')) ?? '';
+  const hide = html.split('\n').find((l) => l.includes('#duel.world #run-button') && l.includes('display: none')) ?? '';
   assert.ok(hide.includes('#duel.world #run-button'), '#run-button is on the world hide list');
   assert.ok(!/#duel\.world #run-button[^{]*\{ display: block/.test(html), 'no rule shows it again');
   assert.ok(!html.includes("content: 'RUN'"));
