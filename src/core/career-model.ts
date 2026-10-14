@@ -36,17 +36,19 @@ const RULE = CAREER_RULES.careerRule[0]!;
 //   cost(L)  = ⌊ bossPay(max(1, L)) · kills(L) / 1000 ⌋,   bossPay(l) = ⌊ killValue(l) · weight(boss) / 1000 ⌋.
 // Levels 0–9 are the opening, priced in Pit wins (`opening` below); from level 10 the boss-kill pricing above applies, ramps with the level and steepens
 // again at every rank-up (10, 20 … 90) because re-spread is once per rank-up. The Pit ladder (career-ladder.ts MAX_LEVEL 50, marks) is a different track and is untouched.
+type CurveRow = { maxLevel: number; boss: string; killBase: number; killStep: number; earlyLevels: number; earlyKills: number; ramp: number; rank: number; rankLevels: number; opening: readonly number[] };
+const CURVE = CAREER_RULES.levelCurve[0] as CurveRow;   // the levelCurve row of career-rules.json (every default equals the literal this replaced; tests/career-rules.test.ts pins it)
+// The opening: levels 0–9 are priced in Pit legend WINS at the lowest rank (Strategy ruling 2026-10-13: level 1 = 1 win, level 5 ≈ 5 minutes, level 10 = a first session of ~35 wins),
+// not in boss kills: wins[L] wins at the pay of a legend at level L buy level L → L + 1 (`opening`). From level 10 the boss-kill pricing above applies unchanged.
 export const LEVEL_CURVE = {
-  maxLevel: 100,
-  boss: 'world-boss',
-  killBase: 1000, killStep: 100,             // killValue(l) = killBase + killStep·(l − 1): the CP of one even-level kill at weight 1000
-  early: { levels: 5, kills: 2500 },          // permille of a boss kill: the base from level 10 (levels 5.. add the ramp)
-  ramp: 200,                                  // permille added per level from level 5
-  rank: 2000,                                 // permille added per whole rank passed
-  rankLevels: 10,
-  // The opening: levels 0–9 are priced in Pit legend WINS at the lowest rank (Strategy ruling 2026-10-13: level 1 = 1 win, level 5 ≈ 5 minutes, level 10 = a first session of ~35 wins),
-  // not in boss kills. wins[L] wins at the pay of a legend at level L buy level L → L + 1. From level 10 the boss-kill pricing above applies unchanged.
-  opening: [1, 1, 1, 1, 1, 6, 6, 6, 6, 6],
+  maxLevel: CURVE.maxLevel,
+  boss: CURVE.boss,
+  killBase: CURVE.killBase, killStep: CURVE.killStep,   // killValue(l) = killBase + killStep·(l − 1): the CP of one even-level kill at weight 1000
+  early: { levels: CURVE.earlyLevels, kills: CURVE.earlyKills },   // permille of a boss kill: the base from level 10 (levels 5.. add the ramp)
+  ramp: CURVE.ramp,                                 // permille added per level from level 5
+  rank: CURVE.rank,                                 // permille added per whole rank passed
+  rankLevels: CURVE.rankLevels,
+  opening: CURVE.opening,
 } as const;
 export const CAREER_MAX_LEVEL: number = LEVEL_CURVE.maxLevel;
 
