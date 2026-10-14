@@ -69,6 +69,7 @@ import { LESSON_DONE_KEY, PACE_KEY, firstLossDue, type LessonLine } from './less
 import { layoutTier } from './layout-tier.ts';
 import { createTutorialUi } from './fight/tutorial-ui.ts';
 import { KICK, impactStopMs, impactTier, landedKick } from './fight/hit-impact.ts';
+import { CONTACTS } from './fight/hit-stop-rows.ts';
 import { armfeelFrom, weaponHoldMs } from './fight/armfeel.ts';
 import { underRecord } from './fight/detmath.ts';
 import { clearHold, newHold, onFrame, onTick, visible } from './pvp-hold.ts';
@@ -613,17 +614,17 @@ let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
 // This is the one owner of the impact pause: the renderer is told the sim is frozen and holds its combat animation (effects run on),
 // the contact tick's own bodies are what the frozen frames show, and the part of a frame that outlives the pause goes on to the next tick.
 // A kick's lunge carries its short cone forward: it lands on a standing target from 1.58 m (tests/duel 'kick lands'); the HUD flags 1.5.
-const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {
-  SpecialLanded: 50,   // a Special Move's strike holds like a clean hit
-  Blocked: 30,
-  Hit: 50,
-  Parried: 70,
-  GuardBroken: 90,
-  PostureBroken: 150,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
-  Killed: 220,
+const HIT_STOP: Partial<Record<CombatEvent['type'], number>> = {   // the pause per contact is a ROW each (hit-stop-defs.json); the heavy-class overrides are the hitHeavy / blockHeavy rows
+  SpecialLanded: CONTACTS.special.ms,   // a Special Move's strike holds like a clean hit
+  Blocked: CONTACTS.blockLight.ms,
+  Hit: CONTACTS.hitLight.ms,
+  Parried: CONTACTS.parry.ms,
+  GuardBroken: CONTACTS.guardBreak.ms,
+  PostureBroken: CONTACTS.postureBreak.ms,   // Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)
+  Killed: CONTACTS.kill.ms,
 };
-const HEAVY_HIT = 90,
-  HEAVY_BLOCK = 50; // a heavy-class contact stops longer whether it lands or is blocked
+const HEAVY_HIT = CONTACTS.hitHeavy.ms,
+  HEAVY_BLOCK = CONTACTS.blockHeavy.ms; // a heavy-class contact stops longer whether it lands or is blocked
 const TEMPO_KEY = 'frankendom.tempo.v1',
   DAMAGE_KEY = 'frankendom.damage-numbers.v1';
 // Damage numbers: off by default (owner 2026-09-20), a journal setting for those who want them; the HUD floats them.
