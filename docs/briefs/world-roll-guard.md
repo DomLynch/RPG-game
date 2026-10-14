@@ -12,8 +12,18 @@ Source: the "ROLL/GUARD in the world = Expansion follow-up" line in `docs/state/
 2. **Guard side in the HUD: YES, by the control itself.** The world uses `src/fight/input.ts` (the Pit's kit, switched on with the duel chunk, `origins/preview/index.html` L127): the Guard button's `data-side` follows the thumb slide or Q+arrow (input.ts L346-360, L447-450) and `src/style.css` L1366-1381 draws the tick for the side. Same element, same CSS.
 3. **Stamina in the HUD: YES.** `meters.feed(wc)` runs every frame in `main.ts` (after the walk step) and paints `wc.hero().stamina` into the `fm-st` meter (`src/fight/hud.ts` createMeters.feed). It hides while the hero is at full health and stamina with no foe and no fight, so it appears the moment a roll spends stamina.
 
-## Verdict
-All three hold. This item closes with **no build**; the Strategy "Now" line ("ROLL/GUARD in the world = Expansion follow-up") is stale. No sim file changes, so no WSV.
+## Browser receipt (VPS, 2026-10-14 ~21:00, trunk bac87dac8, one niced core, no HF spend)
+Built preview (`vite build`), headless Chromium at 375x812 (SwiftShader: the VPS has no GPU), `/preview/origins/?region=1`, goblin "Cinder scavenger" engaged, driven through the REAL on-screen buttons (`#dodge-button` tap, `#guard-button` mouse-down + slide). Page errors: none. Receipt: `world-roll-guard/receipt.json`.
 
-## Caveat and the one check I'd still run if Lead wants it
-Everything above is from reading code; I did not run it. A short headless browser pass on the VPS (375 wide, `/preview/origins/?region=1`, walk into a creature's aggro, press ROLL, hold GUARD, read the stamina meter and the Guard button's `data-side`) would turn "by construction" into a receipt. Say the word and I run it and add the stills here.
+| Still | Shows | Evidence |
+|---|---|---|
+| [still1-roll.png](world-roll-guard/still1-roll.png) | ROLL pressed on the button: hero in the roll clip with creatures adjacent | `combat().hero.phase === 'roll'` |
+| [still2-guard.png](world-roll-guard/still2-guard.png) | GUARD held, thumb slid left | `hero.phase === 'guard'`, Guard button `data-side="left"` (the button lights; I read the side from the attribute, not from the pixels) |
+| [still3-stamina.png](world-roll-guard/still3-stamina.png) | stamina meter (yellow bar under health) after a roll | `.fm-st` 52 / 100, meters visible; hero stamina 52 / 100 |
+
+**Not shown: a roll that dodges a creature hit.** Two runs tried it and neither gives a clean result, so I am not claiming it: (run 2, wall-clock sampling) a ROLL pressed in a creature's windup was followed by 127 -> 95 hp, but I sampled at 0.7 s and cannot say whether the hit landed before the roll, during it or after; a second press, in the creature's recover phase, rolled with hp unchanged (nothing to dodge). (run 3, 25 ms timeline) the hero stayed in `roll` for about 380 samples: on the loaded VPS under SwiftShader the page runs at a few fps and `world-combat.ts` caps steps per frame (`MAX_STEPS`), so game time runs far slower than wall time and wall-clock timing is meaningless here. A roll's dodge is a sim rule, so it wants a deterministic test in game ticks, not a browser run.
+
+## Verdict
+(a) Creature hits go through the same sim as the Pit's roll/guard: read from code, the browser run shows the controls drive that sim (roll and guard phases) but does not show a dodge. (b) Guard side: shown, `data-side` follows the slide. (c) Stamina meter: shown after a roll.
+
+Build list (one small item, Lead's OK needed): a node test that steps `stepHero` with a creature in windup and the hero rolling, asserting no `Hit` on the hero, against the same without the roll. No sim file changes, no WSV.

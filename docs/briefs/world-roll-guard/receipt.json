@@ -1,0 +1,64 @@
+{
+  "origin": "http://127.0.0.1:42991",
+  "log": [
+    "still1 roll: phase roll hp 150 -> 150 foe phases [\"roll\",\"ready\",\"ready\"]",
+    "still3 stamina meter {\"value\":65.00000000000014,\"max\":100,\"hidden\":false} hero 65.00000000000014 / 100",
+    "still2 guard: phase guard data-side left aria-pressed false",
+    "page errors: []"
+  ],
+  "target": {
+    "id": "scavengers-1",
+    "body": "goblin"
+  },
+  "phases": [],
+  "buttons": {
+    "dodge": {
+      "x": 208,
+      "y": 746
+    },
+    "guard": {
+      "x": 327,
+      "y": 758
+    }
+  },
+  "stamina": {
+    "meter": {
+      "value": 65.00000000000014,
+      "max": 100,
+      "hidden": false
+    },
+    "hero": {
+      "stamina": 65.00000000000014,
+      "max": 100
+    }
+  },
+  "roll": {
+    "heroPhase": "roll",
+    "hpBefore": 150,
+    "hpDuring": 150,
+    "foeAttackingBefore": false
+  },
+  "timeline": [
+    {
+      "kind": "roll",
+      "heroPhases": [
+        "roll"
+      ],
+      "hpStart": 150,
+      "hpEnd": 150,
+      "tookHit": false,
+      "foeSawAttack": false
+    }
+  ],
+  "census": {
+    "ready|ready/ready/windup": 1,
+    "roll|roll/ready/guard": 16,
+    "roll|roll/ready/ready": 383
+  },
+  "guard": {
+    "phase": "guard",
+    "side": "left",
+    "pressed": "false"
+  },
+  "errors": []
+}
