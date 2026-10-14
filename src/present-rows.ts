@@ -14,3 +14,6 @@ export function present(id: string): number {
   if (v === undefined) throw new Error(`present-rows.json has no row "${id}"`);
   return v;
 }
+/** Every row whose id starts with `<prefix>.`, keyed by the rest of the id. */
+export const presentGroup = (prefix: string): Record<string, number> =>
+  Object.fromEntries([...VALUES].filter(([id]) => id.startsWith(`${prefix}.`)).map(([id, v]) => [id.slice(prefix.length + 1), v]));
