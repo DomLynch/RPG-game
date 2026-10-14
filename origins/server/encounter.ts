@@ -11,6 +11,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { wornGearOf } from './worn-gear.ts';
 import { practiceLines } from './practice.ts';
+import { settleWithWear, type KillWear } from './wear-settle.ts';
 import { spellLines } from './grimoire.ts';
 import { expectedSpell, type SpellClaim } from './spell-check.ts';
 import { careerState, levelOfCredit } from '../../src/core/server.ts';
@@ -32,6 +33,8 @@ export type EncounterDeps = {
   // fight id the server resolved at start (fightOfToken), null for a token issued before it carried one; `seed` is the server's; `db` is read-only here
   // (the lines commit in settle's one transaction, so a stale read aborts the whole settle and the token stays open for a retry).
   rewards?(fight: { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null }, db: Db): store.Json[] | Promise<store.Json[]>;
+  // The wear a PAID kill leaves on one equipped piece (wear-settle.ts); committed in the same transaction, retried once on a wear-seq clash and then dropped, never a failed payment.
+  wear?: KillWear;
   now?: () => number;   // the clock the expiry pre-check reads (tests); the database's now() decides at settle regardless
 };
 
@@ -136,7 +139,10 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
     }
     // Grimoire (migration 0027): a VERIFIED win against a boss legend takes its spell, once per account and legend, in this same transaction.
     const spells = verdict.ok && result === 'won' ? spellLines(fight) : [];
-    const out = await store.encounterSettle(db, account, token, result, ticks, batch, practice, spells).catch(GONE);
+    const commit = (wear: store.Json[]) => store.encounterSettle(db, account, token, result, ticks, [...batch, ...wear], practice, spells).catch(GONE);
+    const out = rewards.length > 0 && deps.wear
+      ? await settleWithWear({ db, account, ownEventId: eventId, wear: () => deps.wear!({ account, character: run.character, token }, db), commit })
+      : await commit([]);
     if (out === null) throw new Refused(503, 'encounters are not installed yet');
     return { result, verified: verdict.ok, twist, ticks, event: eventId, ...(verdict.ok ? {} : { reason: verdict.reason.slice(0, 200) }) };
   };
