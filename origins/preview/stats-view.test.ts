@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { statsView, chromeText } from './stats-view.ts';
 import { readFileSync } from 'node:fs';
 import { SHEET_ROWS } from '../../src/core/index.ts';
-import { sheetOf } from '../../src/fight/index.ts';
+import { sheetOf } from '../../src/fight/sheet-rows.ts';
 
 test('the view has one line per dial and skill row, named from the rows, never an id', () => {
   const v = statsView({ level: 4, placed: { attack: 3, armour: 1 } });
