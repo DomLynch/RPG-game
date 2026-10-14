@@ -24,6 +24,9 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
+import { mountRepair } from './repair-screen.ts';
+import { readWear, repairPiece, repairOp } from './repair-net.ts';
+import { chromeText as repairText } from './repair-view.ts';
 import { mountStats } from './stats-screen.ts';
 import { chromeText as statsText } from './stats-view.ts';
 import { REGION1_SHOPS, EXCHANGE_PROVISIONER } from '../region1/shops.ts';
@@ -436,6 +439,9 @@ if (frontier) {
       const entry = document.createElement('button'); entry.id = 'menu-journal'; entry.textContent = 'Journal';
       entry.addEventListener('click', () => { menu.close(); openPanel('journal'); });
       chips.append(entry);
+      const repairEntry = document.createElement('button'); repairEntry.id = 'menu-repair'; repairEntry.textContent = repairText('button');   // the smith: worn pieces and the writer's quote, one repair per click
+      repairEntry.addEventListener('click', () => { menu.close(); void repairScreen.open(); });
+      chips.append(repairEntry);
       const statsEntry = document.createElement('button'); statsEntry.id = 'menu-stats'; statsEntry.textContent = statsText('button');   // the stats sheet, beside the Journal
       statsEntry.addEventListener('click', () => { menu.close(); void statsScreen.open(); });
       chips.append(statsEntry);
@@ -609,6 +615,12 @@ function creatureFell(spec: MobSpec) {
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
+// The smith screen (origins/preview/repair-*.ts): gear_wear lists the worn pieces with the writer's own quote; a repair is one gear_repair under a fresh op id. The page prices and wears nothing.
+const repairName = itemNamer(), repairBase = { base: writerBase(location.search) };
+const repairScreen = mountRepair(document.getElementById('repair-dialog') as HTMLDialogElement, {
+  nameOf: repairName,
+  read: async () => { const character = await characterNow(); return character ? readWear(storedToken(storage, Date.now()), character, repairBase) : { offline: 'no-session' }; },
+  repair: async (instance) => { const character = await characterNow(); return character ? repairPiece(storedToken(storage, Date.now()), character, instance, repairOp(instance, Date.now()), repairBase) : { offline: 'no-session' }; } });
 // The stats screen (origins/preview/stats-*.ts): the player's stored build (level, points placed) from the writer; the effective sheet (build plus worn gear) is shown only when the writer's sheet is supplied (the world sheet series), never guessed here.
 const statsScreen = mountStats(document.getElementById('stats-dialog') as HTMLDialogElement, async () => {
   const own = await fetchOwnBuild({ storage, search: location.search });
