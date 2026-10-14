@@ -271,7 +271,7 @@ test('settle with a wear line: two kills on one piece, the second\'s wear-seq cl
   const { db, events } = fakeDb({ t: 1e6 });
   const reads: number[] = [];
   const ops = encounterOps(deps({
-    verify: () => ({ ok: true, result: 'won', twist: null, ticks: 100 }),
+    verify: () => ({ ok: true, result: 'won', twist: null, ticks: 100, heroHits: {} }),
     rewards: (f) => [{ op: 'event', event_id: `reward:${f.token}`, kind: 'metal', account: f.account, character: f.character, payload: {} }],
     wear: async (k) => { reads.push(1); const seq = reads.length === 1 ? 1 : reads.length === 2 ? 1 : 2; return [{ op: 'event', event_id: `wear:inst:p:${seq}`, kind: 'metal', account: k.account, character: k.character, payload: { wear: { instance: 'inst:p', seq } } }]; },
   }));
