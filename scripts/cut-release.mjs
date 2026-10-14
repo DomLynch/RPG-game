@@ -65,13 +65,38 @@ export const runBounded = (cmd, args, ms = 60_000) => new Promise(resolve => {
   child.on('error', e => finish({ status: null, stderr: String(e) })); child.on('close', code => finish({ status: code }));
 });
 
-/** The REST fallback when gh hangs or fails: reuse an open PR for the head (gh may have made it before it hung), else open a draft; then label it. Returns the PR number or null. */
-export async function openPrViaRest({ repo, token, head, base, title, body, labels, fetchImpl = fetch }) {
-  const api = (path, init = {}) => fetchImpl(`https://api.github.com/repos/${repo}${path}`, { ...init, headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'content-type': 'application/json' }, signal: AbortSignal.timeout(30_000) });
+const stamp = () => new Date().toISOString();
+const ghApi = (repo, token, fetchImpl) => (path, init = {}) => fetchImpl(`https://api.github.com/repos/${repo}${path}`, { ...init, headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'content-type': 'application/json' }, signal: AbortSignal.timeout(30_000) });
+
+/** Labels are applied once: read the PR's labels and POST only the ones it lacks, so a label that is already there is never POSTed again (a second POST 1 s after the first
+ *  cancelled the first CI run: FM #2732 and FN #2733). One timestamped line says what was found and what was POSTed, so the next double-label explains itself.
+ *  If the read fails, the labels are POSTed anyway (a missing ci:release-checks costs the cut; a repeat costs one run) and the line says so. Returns { added }. */
+export async function ensureLabels({ repo, token, number, labels, fetchImpl = fetch, log = console.error }) {
+  const api = ghApi(repo, token, fetchImpl);
+  let have = null;
+  try {
+    const res = await api(`/issues/${number}/labels?per_page=100`);
+    const body = await res.json();
+    if (res.ok !== false && Array.isArray(body)) have = body.map(l => l.name);
+    else log(`[${stamp()}] cut-release: reading the labels of #${number} failed (HTTP ${res.status}); POSTing all of ${labels.join(', ')}`);
+  } catch (e) { log(`[${stamp()}] cut-release: reading the labels of #${number} threw (${String(e).slice(0, 80)}); POSTing all of ${labels.join(', ')}`); }
+  const missing = have ? labels.filter(l => !have.includes(l)) : labels;
+  if (!missing.length) { log(`[${stamp()}] cut-release: #${number} already has ${labels.join(', ')}; no label POST`); return { added: [] }; }
+  if (have) log(`[${stamp()}] cut-release: #${number} has [${have.join(', ')}]; POSTing ${missing.join(', ')}`);
+  const res = await api(`/issues/${number}/labels`, { method: 'POST', body: JSON.stringify({ labels: missing }) });
+  log(`[${stamp()}] cut-release: label POST on #${number} (${missing.join(', ')}) -> HTTP ${res.status ?? 'n/a'}`);
+  return { added: missing };
+}
+
+/** The REST fallback when gh hangs or fails: reuse an open PR for the head (gh may have made it before it hung), else open a draft; then make sure it is labelled (only
+ *  the missing labels are POSTed). Logs, with a timestamp, that the fallback ran and what it did. Returns the PR number or null. */
+export async function openPrViaRest({ repo, token, head, base, title, body, labels, fetchImpl = fetch, log = console.error }) {
+  const api = ghApi(repo, token, fetchImpl);
   const found = await (await api(`/pulls?head=${repo.split('/')[0]}:${head}&state=open`)).json();
   let number = Array.isArray(found) ? found[0]?.number : null;
+  log(`[${stamp()}] cut-release: REST fallback ${number ? `reusing open PR #${number}` : 'opening a draft PR'} for ${head}`);
   if (!number) number = (await (await api('/pulls', { method: 'POST', body: JSON.stringify({ title, head, base, body, draft: true }) })).json()).number;
-  if (number) await api(`/issues/${number}/labels`, { method: 'POST', body: JSON.stringify({ labels }) });
+  if (number) await ensureLabels({ repo, token, number, labels, fetchImpl, log });
   return number || null;
 }
 
@@ -103,14 +128,20 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const body = `Release candidate ${name} = ${base || 'trunk'} ${trunk.slice(0, 9)} + ${merged.map(pr => `#${pr} @${specs.find(s => s.pr === pr).head}`).join(' + ')}, each with Auditor PASS at head.${skipped.length ? ` Not included: ${skipped.map(s => `#${s.pr} (${s.why})`).join('; ')}.` : ''}\n\nDonor: n/a (release merge)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
   const created = await runBounded('gh', ['pr', 'create', '--draft', '--base', TRUNK, '--head', `release-${name}`, '--title', `release-${name}: ${merged.map(pr => `#${pr}`).join(' + ')}`, '--body', body, ...LABELS.flatMap(l => ['--label', l])], 60_000);   // a hung gh must not hold the cut: 60 s, then the REST API
   let pr = Number((/\/pull\/(\d+)/.exec(created.stdout) || [])[1]) || null;
+  const viaGh = Boolean(pr);
   if (!pr) {
-    console.error(`cut-release: gh pr create ${created.timedOut ? 'timed out after 60 s' : 'failed'} (${String(created.stderr).trim().slice(0, 120)}); opening the PR through the REST API`);
+    console.error(`[${stamp()}] cut-release: gh pr create ${created.timedOut ? 'timed out after 60 s' : 'failed'} (${String(created.stderr).trim().slice(0, 120)}); opening the PR through the REST API`);
     const slug = /github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/.exec(run('git', ['remote', 'get-url', 'origin']).stdout.trim())?.[1];
     const token = process.env.GH_TOKEN || (await runBounded('gh', ['auth', 'token'], 10_000)).stdout.trim();
     const title = `release-${name}: ${merged.map(pr => `#${pr}`).join(' + ')}`;
     pr = slug && token ? await openPrViaRest({ repo: slug, token, head: `release-${name}`, base: TRUNK, title, body, labels: LABELS }).catch(() => null) : null;
   }
   if (!pr) { console.error('cut-release: could not open the PR (gh and the REST API both failed); the branch is pushed, open the PR by hand'); process.exit(1); }
+  if (viaGh) {   // gh opened it with --label: confirm, and POST only what is missing (usually nothing; the REST path already did this)
+    const slug = /github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/.exec(run('git', ['remote', 'get-url', 'origin']).stdout.trim())?.[1];
+    const token = process.env.GH_TOKEN || (await runBounded('gh', ['auth', 'token'], 10_000)).stdout.trim();
+    if (slug && token) await ensureLabels({ repo: slug, token, number: pr, labels: LABELS }).catch(e => console.error(`[${stamp()}] cut-release: label check on #${pr} failed (${String(e).slice(0, 100)}); the PR was created with its labels`));
+  }
   const logs = join(process.env.HOME, '.claude/state', `cut-${name}`); mkdirSync(logs, { recursive: true });
   const bg = (file, cmd, args) => spawn(cmd, args, { detached: true, stdio: ['ignore', openSync(join(logs, file), 'a'), openSync(join(logs, file), 'a')] }).unref();
   if (live) bg('prelaunch.log', 'bash', ['scripts/pre-launch.sh', sha, live]);
