@@ -9,8 +9,9 @@ import { CHAINS, KITS, MODE } from '../src/core/world/kits.ts';
 import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } from '../src/core/world/kit-version.ts';
 
 // sha-256 of the text of src/fight/mobkit.ts + src/core/world/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
+// Re-pinned 2026-10-14 (World, data-layer day): the KITS and CHAINS tables moved out of kits.ts into mob-kits.json (the kit tag over the same data is unchanged: 1zqmougjnm3 before and after), behaviour did not move, KIT_LOGIC_VERSION stays.
 // Re-pinned for the move to src/core/world (core slice 3): only the file path, the import specifier and a comment changed; behaviour did not, KIT_LOGIC_VERSION stays.
-const KIT_CODE_DIGEST = '5b95cfa62f40ecc324e267e2352b58ecc3f32dcf7be3f3e7be789be187bee99a';
+const KIT_CODE_DIGEST = '3620801a2b467dbe4aa8207ef1f52ca57a8e24b307044bdbadc8dd36af149f8a';
 
 test('the kit code is pinned: a change in src/fight/mobkit.ts or src/core/world/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
   const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../src/core/world/kits.ts', import.meta.url))).digest('hex');
