@@ -48,7 +48,7 @@ export type RowContext = {
   generated?: boolean;                                  // the generator's eligibility check: no pending source, no named row
 };
 
-export const DEFAULTS = { aggro: 7, leash: 26, roam: 6, campSize: [2, 3] as const, weight: 10 };
+export const DEFAULTS = { aggro: worldRule('defaultAggro'), leash: worldRule('defaultLeash'), roam: worldRule('defaultRoam'), campSize: [worldRule('campSizeMin'), worldRule('campSizeMax')] as const, weight: worldRule('defaultWeight') };
 /** A camp's size from a draw `u` in [0,1): a whole number in the row's campSize range (both bounds inclusive). The ONE rule: populate.ts and the preview's mobs.ts both call it. */
 export const campCount = (campSize: readonly [number, number] | undefined, u: number): number => { const [lo, hi] = campSize ?? DEFAULTS.campSize; return lo + Math.floor(u * (hi - lo + 1)); };
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 1, uncommon: 0.3, rare: 0 };   // x the row's own weight in a zone's draw
