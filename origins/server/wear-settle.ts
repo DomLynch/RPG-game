@@ -7,7 +7,7 @@ import type { EncounterContent } from '../encounters/encounters.ts';
 import { lookupOf } from '../encounters/encounters.ts';
 import type { Inventory } from '../inventory/inventory.ts';
 import { GEAR } from '../../src/fight/server.ts';
-import { freshPiece, wearAfter, wearKindOf, wornSlot, type WearTier } from '../gear/wear-repair.ts';
+import { freshPiece, wearAfter, wearKindOf, wornSlot, type Piece, type WearTier } from '../gear/wear-repair.ts';
 import { DbError, type Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
 import * as store from './store.ts';
@@ -37,7 +37,7 @@ export async function killWearLines(db: Db, kill: { account: string; character: 
   const ids = [...new Set(targets.map((t) => t.hit.id))];
   const wears = await store.itemWears(db, kill.account, ids);
   if (wears === 'absent') return [];
-  const start = new Map(ids.map((id) => [id, wears[id] ?? freshPiece(wearMaxOf(targets.find((t) => t.hit.id === id)!.hit.kind.tier))] as const)), now = new Map(start);
+  const start = new Map<string, Piece>(ids.map((id) => [id, wears[id] ?? freshPiece(wearMaxOf(targets.find((t) => t.hit.id === id)!.hit.kind.tier))])), now = new Map<string, Piece>(start);
   for (const t of targets) now.set(t.hit.id, wearAfter(t.hit.kind.tier, now.get(t.hit.id)!, t.event, t.roll));
   // ONE line per piece however many bites it took: the wear is the newest seq, so two lines for one piece in one batch would clash.
   return ids.flatMap((id) => {
