@@ -21,6 +21,8 @@ rule:
     - not: { has: { field: name, kind: identifier, regex: "^WORLD_TUNING$" } }
     # career-model.ts: DAY_S and HOUR_S are seconds in a day and an hour (physical); LEVEL_CURVE is the level-curve slice of its own
     - not: { has: { field: name, kind: identifier, regex: "^(DAY_S|HOUR_S|LEVEL_CURVE)$" } }
+    # *_VERSION (src/core/contracts): a record, wire or table version stamp guarded by its own version test, not a tuning number
+    - not: { has: { field: name, kind: identifier, regex: "_VERSION$" } }
     # a number, a negative number, or an object (optionally `as const`) holding a number of two digits or more
     - any:
         - has: { field: value, any: [{ kind: number }, { kind: unary_expression, regex: "^-?[0-9]" }, { any: [{ kind: object }, { kind: as_expression }], regex: "(?s):\\s*[0-9]{2,}|[*+]\\s*[0-9]{2,}" }] }
