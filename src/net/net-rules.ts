@@ -2,7 +2,7 @@
 // Each export keeps the exact shape the code had: the row's id and note are the row's, not the number set's.
 import RULES from './net-rules.json' with { type: 'json' };
 
-const bare = <T extends { id: string; note: string }>(row: T): Omit<T, 'id' | 'note'> => { const { id: _id, note: _note, ...numbers } = row; return numbers; };
+const bare = <T extends { id: string; note: string }>(row: T): Omit<T, 'id' | 'note'> => Object.fromEntries(Object.entries(row).filter(([k]) => k !== 'id' && k !== 'note')) as Omit<T, 'id' | 'note'>;
 
 export const NET_ROW = bare(RULES.net[0]!);
 export const PLAYABLE_ROW = bare(RULES.playable[0]!);
