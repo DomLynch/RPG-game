@@ -2,14 +2,23 @@
 // records a tree-bound receipt; deploy.sh trusts the passed rows by tree, waiting while a run for that tree is still going; the Published line shows start-end.
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import test from 'node:test';
+import { basename, join } from 'node:path';
+import test, { after } from 'node:test';
 
 import { findReceipt, receiptFrom, runningFor, trust } from '../scripts/lib/mac-rows-early.mjs';
 import { MAC_ROWS } from '../scripts/lib/row-placement.mjs';
 import { earlyMacText, summaryLine } from '../scripts/lib/published-summary.mjs';
+
+// Every fixture below lives under ONE root per run (each mac-rows-early.sh run checks out a ~1.1 GB worktree; 16 leaked trees filled the Mac disk on 2026-10-13).
+// after() removes it; a SIGKILL or a timeout skips every finally, so the next run first sweeps roots of this name older than 30 minutes (a live run is younger).
+const ROOT = mkdtempSync(join(tmpdir(), 'mre-root-'));
+for (const name of readdirSync(tmpdir())) {
+  if (!name.startsWith('mre-root-') || name === basename(ROOT)) continue;
+  try { if (Date.now() - statSync(join(tmpdir(), name)).mtimeMs > 30 * 60_000) rmSync(join(tmpdir(), name), { recursive: true, force: true }); } catch { /* another run owns it */ }
+}
+after(() => { spawnSync('git', ['worktree', 'prune']); rmSync(ROOT, { recursive: true, force: true }); });
 
 const TREE = 'a'.repeat(40), SHA = 'b'.repeat(40);
 const receipt = (over: Record<string, unknown> = {}) => ({ kind: 'mac-rows-early', sha: SHA, tree: TREE, rows: [2, 4], ran: [2, 4, 22], started: '2026-10-12T14:00:00Z', ended: '2026-10-12T14:09:00Z', exit: 1, ...over });
@@ -95,7 +104,7 @@ test('release-checks.mjs RELEASE_CHECKS_ONLY: only those rows run, into RELEASE_
 });
 
 test('mac-rows-early.sh: MAC_ROWS only, under the Mac-rows lock, a tree-bound receipt; a second call for the same sha does nothing', () => {
-  const base = mkdtempSync(join(tmpdir(), 'mre-')), state = join(base, 'state'), dir = join(base, 'wt');
+  const base = mkdtempSync(join(ROOT, 'mre-')), state = join(base, 'state'), dir = join(base, 'wt');
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim();
   mkdirSync(state);
@@ -121,7 +130,7 @@ test('mac-rows-early.sh: MAC_ROWS only, under the Mac-rows lock, a tree-bound re
 });
 
 test('mac-rows-early.sh never overlaps a deploy\'s Mac rows: while deploy_rows.lock is held by a live pid it starts no row and writes no running marker', () => {
-  const base = mkdtempSync(join(tmpdir(), 'mre-held-')), state = join(base, 'state'), dir = join(base, 'wt'), locks = join(base, 'locks');
+  const base = mkdtempSync(join(ROOT, 'mre-held-')), state = join(base, 'state'), dir = join(base, 'wt'), locks = join(base, 'locks');
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   mkdirSync(state); mkdirSync(locks);
   const rowsLock = join(locks, 'deploy_rows.lock');
@@ -164,4 +173,8 @@ test('deploy.sh trusts the early Mac rows by tree after taking the Mac-rows lock
   assert.equal(earlyMacText(''), '');
   const line = summaryLine({ total: 2, mac: [], ci: [], vps: [], hf: [], other: [2, 4], outOfScope: 0, retried: 0 }, '9 min', 12, '0', '2,4|14:00|14:09');
   assert.match(line, /orphaned T4 jobs: 0; Mac-only rows run at the cut \(counted in other trusted\): \[2,4\] 14:00 - 14:09$/);
+});
+
+test('the mac-rows-early fixtures leave no tree behind: every mre- dir under this run root is gone by the end', () => {
+  assert.deepEqual(readdirSync(ROOT), [], 'a fixture that skips its finally leaks a ~1.1 GB worktree per run');
 });

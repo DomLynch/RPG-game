@@ -59,7 +59,7 @@ jobs:
     # shards `needs:` it, so a red tsc costs this one job, not 9. A push or a dispatch skips it and the shards run as before.
     # A pull request runs it (and so the shards and the receipt) only with auditor:ready or as a release-* candidate (Strategy 2026-10-12 21:5x).
     needs: delta
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))) }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' && (github.event.action != 'labeled' || (github.event.label.name == 'auditor:ready' && !startsWith(github.head_ref, 'release-'))) && (startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -77,7 +77,9 @@ jobs:
       - run: npm run lint:origins
   shard:
     needs: [delta, static]
-    if: ${{ !cancelled() && needs.delta.outputs.unchanged != 'true' && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    # Not on the push of an already-tested candidate: the train fast-forwards trunk to the candidate's merge commit ("... (release-X candidate)"), whose tree the
+    # candidate's own pull_request run just covered; ci-unit trust is by tree. EK's merge started a second full suite (38440811361) beside the next candidate's.
+    if: ${{ !cancelled() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && needs.delta.outputs.unchanged != 'true' && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -122,7 +124,9 @@ jobs:
     # The Origins migrations and definer functions against a real Postgres (Auditor on #2487: the encounter check only ran on the VPS by hand). It starts after
     # `static` like the shards, runs beside them, and is not part of the unit receipt.
     needs: [delta, static]
-    if: ${{ !cancelled() && needs.delta.outputs.unchanged != 'true' && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    # Not on the push of an already-tested candidate: the train fast-forwards trunk to the candidate's merge commit ("... (release-X candidate)"), whose tree the
+    # candidate's own pull_request run just covered; ci-unit trust is by tree. EK's merge started a second full suite (38440811361) beside the next candidate's.
+    if: ${{ !cancelled() && !(github.event_name == 'push' && contains(github.event.head_commit.message, ' candidate)')) && needs.delta.outputs.unchanged != 'true' && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

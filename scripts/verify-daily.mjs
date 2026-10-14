@@ -49,7 +49,7 @@ async function refusal(row, seeds, db) {
     if (record[field] !== row[field]) return `${field}: record ${String(record[field])}, row ${String(row[field])}`;
   }
   let gear = {};   // the gear frozen on the row when it was posted, never the ledger as it is when the sweep runs
-  if (record.sheet && record.characterId !== undefined) { try { gear = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
+  if (record.sheet && record.characterId !== undefined) { try { gear = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`, record.v); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
   const want = await expectedSheet(record, (character, version) => db.build ? db.build(row.user_id, character, version) : Promise.resolve(null), gear);   // a record's sheet is the client's claim: only the stored build version it names can vouch for it
   if (!want.ok) return want.reason;
   const spell = await spellRefusal(record, row.user_id, { held: (account, character) => db.spellHeld ? db.spellHeld(account, character) : Promise.resolve({ grimoire: {}, xp: {} }), build: (account, character, version) => db.build ? db.build(account, character, version) : Promise.resolve(null) });   // v53: the spell block is the client's claim too (origins/server/spell-gate.ts); no loader = nothing vouches
