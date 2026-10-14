@@ -97,7 +97,8 @@ try {
   const tally: Tally = {};
   for (const c of clamps) (tally[c.file] ??= {})[c.text] = (tally[c.file]![c.text] ?? 0) + 1;
   const newClamps = clamps.filter((c) => { const seen = clamps.filter((o) => o.file === c.file && o.text === c.text); return seen.indexOf(c) >= (clampBase[c.file]?.[c.text] ?? 0); });   // per file and literal, the occurrences past the baseline's count (a second 0.5 where one was is new)
-  let lowered = Object.entries(clampBase).filter(([f]) => inRoots(f)).flatMap(([f, lits]) => Object.entries(lits).filter(([lit, n]) => (tally[f]?.[lit] ?? 0) < n).map(([lit, n]) => ({ file: f, literal: lit, baseline: n, now: tally[f]?.[lit] ?? 0 })));
+  const underRoot = (f: string) => roots.some((r) => { const R = resolve(REPO, r), F = resolve(REPO, f); return F === R || F.startsWith(`${R}/`); });   // baseline keys are repo-relative; a --root may be absolute
+  let lowered = Object.entries(clampBase).filter(([f]) => underRoot(f)).flatMap(([f, lits]) => Object.entries(lits).filter(([lit, n]) => (tally[f]?.[lit] ?? 0) < n).map(([lit, n]) => ({ file: f, literal: lit, baseline: n, now: tally[f]?.[lit] ?? 0 })));
   if (process.argv.includes('--write-clamp-baseline')) {
     if (newClamps.length && existsSync(clampFile)) fail(`not writing ${relative(REPO, clampFile)}: ${newClamps.length} inline clamp literal(s) are new (${newClamps.slice(0, 3).map((c) => `${c.file}:${c.line} ${c.text}`).join(', ')}); the baseline only shrinks`);
     writeFileSync(clampFile, `${JSON.stringify(Object.fromEntries(Object.entries(tally).sort(([a], [b]) => a.localeCompare(b))), null, 1)}\n`);
