@@ -10,7 +10,7 @@ import fs from 'node:fs/promises';
 import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const A = arg('a'), B = arg('b'), ARENA = arg('arena', ''), EVERY = Number(arg('every', 6)), OUT = arg('out', 'artifacts/parity'), KEEP = Number(arg('keep', 24)), PRE = Number(arg('pre', 40)), POST = Number(arg('post', 70)), ATT = Math.max(2, Number(arg('attempts', 3)));   // ATT runs per build: stills of one build are not deterministic, so one arbitrary pair is no noise floor
+const A = arg('a'), B = arg('b'), ARENA = arg('arena', ''), EVERY = Number(arg('every', 6)), OUT = arg('out', 'artifacts/parity'), KEEP = Number(arg('keep', 24)), PRE = Number(arg('pre', 40)), POST = Number(arg('post', 70)), TIMING = process.argv.includes('--timing-only'), ATT = Math.max(2, Number(arg('attempts', 3)));   // ATT runs per build: stills of one build are not deterministic, so one arbitrary pair is no noise floor
 if (!A || !B) { console.error('usage: parity-stills.mjs --a <dist> --b <dist> [--specials all|a,b] [--arena a] [--every 6] [--out dir]'); process.exit(2); }
 let names = arg('specials', 'all').split(',');
 if (names[0] === 'all') { const { SPECIAL_TESTS } = await import('../src/fight/special-look.ts'); names = Object.keys(SPECIAL_TESTS); }
@@ -78,6 +78,10 @@ await fs.mkdir(OUT, { recursive: true });
 const rows = []; let kept = 0;
 for (const special of names) {
   try {
+    if (TIMING) {   // draws off, one run per build: the wind-up length is deterministic, so this needs no screenshots and no noise floor
+      const [ta, tb] = await Promise.all([run(sidesA[0], special, null), run(sidesB[0], special, null)]), la = ta.land - ta.start, lb = tb.land - tb.start;
+      rows.push({ special, timingSame: la === lb, windup: [la, lb], shotsList: [], flagged: [], a: ta, b: tb, shots: 0 }); console.log(`${special}: wind-up ${la === lb ? `${la} ticks, same` : `DIFF a ${la} b ${lb}`}`); continue;
+    }
     const all = [...sidesA, ...sidesB], batch = async (plans) => { const out = {}; for (let i = 0; i < all.length; i += 3) await Promise.all(all.slice(i, i + 3).map(async (k) => { out[k] = await run(k, special, plans(k)); })); return out; };   // 3 browsers at a time
     const p1 = await batch(() => null), len = (k) => p1[k].land - p1[k].start, sa = p1[sidesA[0]], sb = p1[sidesB[0]];   // pass 1: where the wind-up starts and the strike lands, per attempt
     const row = { special, a: sa, b: sb, windup: all.map(len), timingSame: sidesA.concat(sidesB).every((k) => len(k) === len(sidesA[0])), noiseTimingSame: sidesA.every((k) => len(k) === len(sidesA[0])), shots: 0, flagged: [] };
