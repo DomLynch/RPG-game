@@ -90,7 +90,7 @@ function look(tree) {
   let started = false;
   for (const run of runs) {
     const jobs = ghJson(['run', 'view', String(run.databaseId), '--json', 'jobs', '--jq', '[.jobs[] | {name, conclusion}]']);
-    if (jobs.some(job => /^check \d+ /.test(job.name || ''))) started = true;
+    if (jobs.some(job => /^checks? \d+/.test(job.name || ''))) started = true;
     const dir = mkdtempSync(join(tmpdir(), 'ci-trusted-checks-'));
     // Only the tiny receipt artifacts, never the screenshots/videos the full check artifacts carry.
     const download = spawnSync(gh, ['run', 'download', String(run.databaseId), '--pattern', 'release-check-*-receipt', '--dir', dir], { encoding: 'utf8' });
@@ -99,31 +99,34 @@ function look(tree) {
       for (const entry of readdirSync(dir)) {
         const file = join(dir, entry, `${entry.replace(/-receipt$/, '')}.json`);
         if (!existsSync(file)) continue;
-        try { const receipt = JSON.parse(readFileSync(file, 'utf8')); receipts.set(Number(receipt.index), receipt); } catch { /* unreadable receipt: not trusted */ }
+        // A grouped job (release speed 2026-10-13) uploads ONE receipt file holding an array with a receipt per row; the one-job-per-row shape is a single object.
+        try { const parsed = JSON.parse(readFileSync(file, 'utf8')); for (const receipt of Array.isArray(parsed) ? parsed : [parsed]) receipts.set(Number(receipt.index), receipt); } catch { /* unreadable receipt: not trusted */ }
       }
     }
     for (const job of jobs) {
-      const m = /^check (\d+) /.exec(job.name || '');
+      // `check 14 (name)` (one row per job) or `checks 11,14,24 (names)` (a group): the job's conclusion applies to every row it lists, each row still needs its own receipt.
+      const m = /^checks? (\d+(?:,\d+)*)(?: |$)/.exec(job.name || '');
       if (!m) continue;
-      const index = Number(m[1]);
-      if (WEBKIT_ROWS.has(index)) { reasons.set(index, 'mac-only(the Mac runs it)'); continue; }
-      if (trusted.has(index)) continue;
-      const receipt = receipts.get(index);
-      const why = [];
-      let how = 'same-tree';
-      if (job.conclusion !== 'success') why.push(job.conclusion || 'unfinished');
-      if (!receipt) why.push('no-receipt');
-      else {
-        if (receipt.status !== 0) why.push(`receipt-status=${receipt.status}`);
-        if (receipt.tree !== tree) {
-          const seen = visibleDelta(receipt.tree, tree);
-          if (seen === null) why.push('other-tree(unknown)');
-          else if (seen.length) why.push(`other-tree(${seen.length} code file(s), e.g. ${seen[0]})`);
-          else how = 'docs/tests-only delta';
+      for (const index of m[1].split(',').map(Number)) {
+        if (WEBKIT_ROWS.has(index)) { reasons.set(index, 'mac-only(the Mac runs it)'); continue; }
+        if (trusted.has(index)) continue;
+        const receipt = receipts.get(index);
+        const why = [];
+        let how = 'same-tree';
+        if (job.conclusion !== 'success') why.push(job.conclusion || 'unfinished');
+        if (!receipt) why.push('no-receipt');
+        else {
+          if (receipt.status !== 0) why.push(`receipt-status=${receipt.status}`);
+          if (receipt.tree !== tree) {
+            const seen = visibleDelta(receipt.tree, tree);
+            if (seen === null) why.push('other-tree(unknown)');
+            else if (seen.length) why.push(`other-tree(${seen.length} code file(s), e.g. ${seen[0]})`);
+            else how = 'docs/tests-only delta';
+          }
         }
+        if (why.length) reasons.set(index, why.join('/'));
+        else { trusted.set(index, { url: run.url, how }); reasons.delete(index); }
       }
-      if (why.length) reasons.set(index, why.join('/'));
-      else { trusted.set(index, { url: run.url, how }); reasons.delete(index); }
     }
   }
   const list = [...trusted.keys()].sort((a, b) => a - b);

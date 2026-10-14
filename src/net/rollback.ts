@@ -4,6 +4,7 @@
 // calls frame() once per 60 Hz tick and moves packets; the fake-link test (tests/net-rollback.test.ts) drives two sessions in one process.
 // Snapshots are the Duel objects stepDuel returned: it never writes into its input (tests/net-determinism.test.ts freezes it to prove it).
 // Nothing in the fight imports this file; single-player never reaches it.
+import { NET_ROW, PLAYABLE_ROW } from './net-rules.ts';
 import { createFighter, idleIntent, stepDuel, type CombatEvent, type Duel, type Intent, type Side } from '../fight/duel.ts';
 import { quantizeIntent } from '../fight/record.ts';
 import { initialState, TARGET } from '../fight/sim.ts';
@@ -12,7 +13,7 @@ import { DEFAULT_WEAPON, type SkillId, type WeaponId } from '../fight/moves.ts';
 
 // delay: the starting input delay, the same on both sides (the first `delay` ticks are idle by agreement). maxDelay: the ceiling the
 // adaptive delay may climb to when the link is slow; past it the session stalls rather than lag further (§3).
-export const NET = { delay: 2, maxDelay: 12, maxRollback: 8, hashEvery: 30, redundancy: 64, rttSamples: 120 };
+export const NET = NET_ROW;
 
 // Two men, both sheathed: the challenger (side 0) where the player stands, the guest (side 1) where the opponent stands.
 // `gear`: the equipped piece ids (loot.ts LootId, as text: src/net never imports loot.ts). Duels are gear-based at full power inside the
@@ -62,7 +63,7 @@ export type NetMetrics = { tooSlow: boolean; frames: number; rollbacksPerMin: nu
 // ruling: the Dubai→Germany→Dubai relay case): the fight rarely freezes (under a second of stalls a minute), the input lag stays under
 // 200 ms (maxDelay 12), and rollbacks stay inside the window at the 95th percentile. Slower links are reported, not held to it: the
 // session says `tooSlow` (the page shows "connection too slow") and degrades by stalling, never by desyncing or lagging past the cap.
-export const PLAYABLE = { stallsPerMin: 60, maxDelay: NET.maxDelay, depthP95: NET.maxRollback };
+export const PLAYABLE = { stallsPerMin: PLAYABLE_ROW.stallsPerMin, maxDelay: NET.maxDelay, depthP95: NET.maxRollback };
 export const playable = (m: NetMetrics): boolean => m.stallsPerMin <= PLAYABLE.stallsPerMin && m.maxDelay <= PLAYABLE.maxDelay && m.depthP95 <= PLAYABLE.depthP95;
 
 // The input delay a round trip needs (frames, 90th percentile): the peer's intent for tick T leaves it `delay` ticks before T and lands a
