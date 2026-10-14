@@ -207,6 +207,6 @@
     {"file": "src/fight/stance-era.ts", "name": "FIRST_STANCE_ROWS_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
     {"file": "src/fight/stance.ts", "name": "LEGACY_DEFENSIVE", "kind": "debt", "reason": "a fight / FX / timing number still in code, owed as a row of its module (owner by directory, unreviewed)", "owner": "Combat & Specials", "sunset": "2026-10-24"},
     {"file": "src/fight/world-record.ts", "name": "WORLD_SIM_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
-    {"file": "src/fight/world.ts", "name": "STAMINA_MAX", "kind": "exempt", "reason": "mirrors the Pit's createFighter bar (duel.ts); pinned equal by tests/world-record.test.ts, owned by group B"},
+    {"file": "src/fight/world.ts", "name": "STAMINA_MAX", "kind": "exempt", "reason": "mirrors the Pit's createFighter bar (duel.ts); pinned equal by tests/world-record.test.ts, owned by group B"}
   ]
 }
