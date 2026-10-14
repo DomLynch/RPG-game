@@ -1,0 +1,11 @@
+{
+  "tables": [
+    {
+      "table": "firstLossRule",
+      "file": "first-loss-rules.json",
+      "at": "firstLossRules",
+      "key": "id",
+      "required": { "value": "number", "unit": "string" }
+    }
+  ]
+}
