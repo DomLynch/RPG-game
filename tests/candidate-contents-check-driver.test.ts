@@ -54,10 +54,9 @@ test('a hand-resolved allow list is still caught: the rebuilt tree differs from 
   try {
     const p1 = f.pr('p1', doc('A', 'B', 'Z')), p2 = f.pr('p2', doc('A', 'C', 'Z'));
     f.ok(['switch', '-q', '-c', 'release-X', f.base]); mergeAll(f.git, 'X', [{ pr: 1, head: p1 }, { pr: 2, head: p2 }]);
-    f.ok(['commit', '-q', '--amend', '-m', 'Merge pull request #2 (release-X candidate)']);   // same subject; now edit the tree inside the merge
-    writeFileSync(join(f.dir, ALLOW), doc('A', 'B', 'C', 'Y', 'Z')); f.ok(['commit', '-qam', 'x', '--amend', '-m', 'Merge pull request #2 (release-X candidate)']);
-    const v = verifyCandidate({ git: f.git, candidate: f.ok(['rev-parse', 'HEAD']), base: f.base, passes: () => true });
-    assert.equal(v.treeEqual, false); assert.equal(v.ok, false);
+    writeFileSync(join(f.dir, ALLOW), doc('A', 'B', 'C', 'Y', 'Z')); f.ok(['commit', '-q', '-a', '--amend', '--no-edit']);   // someone adds an entry inside the merge commit
+    const v = verifyCandidate({ git: f.git, candidate: 'HEAD', base: f.base, passes: () => true });
+    assert.equal(v.treeEqual, false, JSON.stringify(v.problems)); assert.equal(v.ok, false);
   } finally { rmSync(f.dir, { recursive: true, force: true }); }
 });
 
