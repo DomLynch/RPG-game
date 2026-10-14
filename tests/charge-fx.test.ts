@@ -8,6 +8,7 @@ import { CAST_MARGIN, LAND_AT, type Cast } from '../src/fight/special-timing.ts'
 import { SPECIAL_TESTS, specialParam } from '../src/fight/special-look.ts';
 import { BACK_PACE, charge, chargeGait, CUE_AT, CUE_LEAD, DISSOLVE, GATHER, isCharge, RACE, RACE_FROM, RIDE, RUN_PACE, SETTLE, slideAt, STUCK_AT } from '../src/fight/charge-timing.ts';
 import { createChargeFx } from '../src/fight/charge-fx.ts';
+import { fxNum } from '../src/fight/fx-rows.ts';
 
 // The Centurion's Charge (charge-timing.ts, charge-fx.ts): a line of dust races the last RACE ticks of the windup, reaches the target on the landing
 // tick, then settles. Presentation only: it follows Combat's special events and ships in its own lazy chunk.
@@ -149,11 +150,11 @@ test('a continuous dark streak trails his feet for the whole run: capped at 0.7 
 
 test('a fizzle freezes the streak at the frozen front: no puff is ever drawn past it while it fades', () => {
   const scene = new THREE.Scene(), fx = createChargeFx(scene, 'veteran'), heads = [new THREE.Vector3(-1, 1.6, 0), new THREE.Vector3(1, 1.6, 0)] as const;
-  const total = 2.0 + 2, at = 100 + RACE_FROM + 10;   // LEAD 2 m + the 2 m gap between the heads; he stands at +x, the target at -x, so `dir` is -x
+  const LEAD = fxNum('charge-fx.lead'), total = LEAD + 2, at = 100 + RACE_FROM + 10;   // the row's lead + the 2 m gap between the heads; he stands at +x, the target at -x, so `dir` is -x
   fx.render(1 / 60, [started(100)], fighters(120), 100, heads, false);
   fx.render(1 / 60, [], fighters(10), at, heads, false);
   fx.render(1 / 60, [{ tick: at, type: 'SpecialFizzled', actor: 1, move: 'skill_shove' } as unknown as CombatEvent], fighters(10), at, heads, false);
-  const front = charge({ ...cast, start: 100, fizzled: at }, at)!.front * total - 2.0;   // metres along dir from his spot
+  const front = charge({ ...cast, start: 100, fizzled: at }, at)!.front * total - LEAD;   // metres along dir from his spot
   for (let t = 1; t <= 8; t++) {
     fx.render(1 / 60, [], fighters(10), at + t, heads, false);
     for (const s of (scene.children[0] as THREE.Group).children.filter((c) => c.userData.streak && c.visible)) assert.ok(1 - s.position.x <= front + 1e-6, `tick +${t}: a puff is past the frozen front`);
