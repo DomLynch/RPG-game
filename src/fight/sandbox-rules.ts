@@ -141,3 +141,12 @@ export const commitOf = (weapon: string, move: string | null): CommitRow | undef
 // per-mille playback speed (lower = duller). Presentation only (sound/cues.ts); 0 = off (trunk).
 export const GLANCE_GAIN = num('glanceGain', 'value');
 export const GLANCE_RATE = num('glanceRate', 'value') || 1000;
+
+// ward (Dom 2026-10-14, Strategy #6; donors Magicka and Absolver ward stance): a `ward` row { opponent, down, reflect } makes that creature's raised guard a ward. The first blow that meets its guard is reflected: the
+// defender takes nothing, the attacker takes `reflect` per-mille of the blow (never to death) and staggers, and the ward is DOWN for `down` ticks (the guard is an ordinary guard meanwhile). A cheap light into the
+// ward pops it before the real blow. No rows (trunk) = every guard as it was.
+type WardRow = { opponent: string; down: number; reflect: number };
+const WARD = ((DEFS as unknown as { ward?: WardRow[] }).ward ?? []);
+export const WARD_ON = WARD.length > 0;
+export const wardOf = (oid: string | undefined): WardRow | undefined => (WARD_ON && oid ? WARD.find((r) => r.opponent === oid) : undefined);
+export const OID_ON = ARMOUR_ON || WARD_ON;   // the opponent's id rides on its fighter only while a sandbox row reads it
