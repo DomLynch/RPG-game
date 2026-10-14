@@ -3,15 +3,16 @@
 // the ground carried 120 m past (far enough that the fog has taken it over, so the ground meets the sky without a line) each zone's far and side edges (no hard horizon line); ground breakup (ash drifts, big scorched rings, cracks with a pale lip and a dark core);
 // and silhouettes, a skyline ring just outside each zone's far and side edges (spires, broken walls, dead trees, ridges) plus a few dead trees, spires, rubble and scrub inside.
 // Pure (Piece[] + Solid[]); it reads the base dressing so nothing lands on a road, a landmark, a building or a base prop. Deterministic per zone id.
+import { cinderRules, stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
 import { footprintOf, rng, type Dress } from './frontier-dress.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
-const SLAB = 0.03, DRIFT = 0.065, RING = [0.105, 0.11], LIP = 0.112, CORE = 0.118;   // decal heights; the base uses .04 slab, .06 ash, .075 road, .085 ruts, .1 scorch (frontier-dress.ts)
+const SLAB = stageRule('cinderSlab'), DRIFT = stageRule('cinderDrift'), RING = [stageRule('cinderRingA'), stageRule('cinderRingB')], LIP = stageRule('cinderLip'), CORE = stageRule('cinderCore');   // decal heights; the base uses .04 slab, .06 ash, .075 road, .085 ruts, .1 scorch (frontier-dress.ts)
 const PALE: Tint[] = [[1.3, 1.26, 1.2], [1.5, 1.45, 1.38], [1.2, 1.15, 1.1]], RINGS: Tint[] = [[0.58, 0.54, 0.5], [0.36, 0.33, 0.31]], LIPT: Tint = [1.12, 1.07, 1.02], CORET: Tint = [0.2, 0.18, 0.17];
 const DARK: Tint = [0.4, 0.37, 0.35], DARKER: Tint = [0.3, 0.28, 0.27], BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.56, 0.54, 0.54]];
-export const CINDER = { beyond: 120, skylineGap: [3, 15], skylineStep: [6, 12] } as const;   // metres the ground is carried out; how far outside the edge the skyline stands; the spacing along it
+export const CINDER = cinderRules();   // metres the ground is carried out; how far outside the edge the skyline stands; the spacing along it
 
 export function cinderDress(f: Frontier, b: Build, base: Dress): Dress {
   const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [];   // solids stays empty: see the note above the inside dressing

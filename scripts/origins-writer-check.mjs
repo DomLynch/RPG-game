@@ -43,7 +43,7 @@ const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G, tg: H };
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
 const SHOP = 'service:frontier-provisioner';
-const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rows: [
+const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rangeCm: 500, rows: [
   { item: 'item:grave-iron', price: 4, max: 5, restockSeconds: 60 }, { item: 'item:exchange-ore', price: 1, max: 5, restockSeconds: 60, minLevel: 99 },
   { item: 'item:loot.veteran.Arms', price: 5, max: 1, restockSeconds: 600 }] };
 let checks = 0, started = false, server;
