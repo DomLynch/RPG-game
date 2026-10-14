@@ -1,0 +1,13 @@
+{
+  "uiRows": [
+    { "id": "loot-line-ms", "value": 4000, "unit": "ms" },
+    { "id": "lesson-ms", "value": 4000, "unit": "ms" },
+    { "id": "face-wait-ms", "value": 2000, "unit": "ms" },
+    { "id": "replay-tail-s", "value": 7, "unit": "s" },
+    { "id": "compact-max-height-px", "value": 480, "unit": "px" },
+    { "id": "compact-max-width-px", "value": 700, "unit": "px" },
+    { "id": "tablet-min-dimension-px", "value": 768, "unit": "px" },
+    { "id": "tablet-min-width-px", "value": 1000, "unit": "px" },
+    { "id": "tablet-max-width-px", "value": 1024, "unit": "px" }
+  ]
+}
