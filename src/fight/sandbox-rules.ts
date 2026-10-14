@@ -129,3 +129,10 @@ export const armourPerMille = (weapon: string, move: string, sheet: Sheet | unde
   const kind = blowKind(weapon, move), cls = armourClassOf(sheet, oid);
   return kind && cls ? (ARMOUR_VS.find((r) => r.kind === kind && r.armour === cls)?.value ?? 1000) : 1000;
 };
+
+// commitVsBait (Dom 2026-10-14, Strategy #4; donor Dark Souls hyper-armour): a `commit` row { weapon, move, windup } makes that weapon's move a commitment: its windup is `windup` percent longer (a long, readable tell),
+// it cannot be feinted, and it shrugs every stagger from its first tick to the end of its active window (a hit does not interrupt it). The answer is the dodge-counter (dodgeCounter row) or a guard-break: a bait.
+// No rows (trunk) = every move as it was.
+type CommitRow = { weapon: string; move: string; windup: number };
+const COMMIT = ((DEFS as unknown as { commit?: CommitRow[] }).commit ?? []);
+export const commitOf = (weapon: string, move: string | null): CommitRow | undefined => (COMMIT.length && move ? COMMIT.find((r) => r.weapon === weapon && r.move === move) : undefined);

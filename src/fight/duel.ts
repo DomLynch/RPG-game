@@ -15,7 +15,7 @@ import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, ARMOUR_ON } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, ARMOUR_ON, commitOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -189,7 +189,8 @@ export const walled = (body: State, dx: number, dz: number, radius: number = RAD
 // Ticks since the current phase began. `age` is the animation clock (a chambered swing rewinds it); `charge` counts the parked ticks,
 // so age + charge is monotonic elapsed time — what perception and reaction delays must read.
 export const elapsed = (f: Fighter): number => f.age + f.charge;
-export const timing = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
+const baseTiming = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
+export const timing = (f: Fighter): Timing => { const t = baseTiming(f), c = commitOf(f.weapon, f.move); return c ? { ...t, windup: t.windup + Math.round((t.windup * c.windup) / 100) } : t; };   // sandbox-mech commitVsBait: a committed swing's longer tell
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
 const baseGuard = (f: Fighter, R: typeof RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
 // A stance never moves the parry window (v52, stance-era.ts: timing is sacred). Only while a record BELOW v52 replays does the old Defensive window (a quarter longer, stance.ts LEGACY) apply.
@@ -205,7 +206,7 @@ export const covers = (f: Pick<Fighter, 'guardDirection' | 'guardProfile'>, atta
   return !!f.guardProfile?.wide && flank(guardSide(f)) && flank(attack);   // a shield held to either flank covers both
 };
 // A swing may be feinted (cancelled into a fresh guard) only in its first ticks and only for a price.
-export const feintable = (f: Fighter, R: typeof RULES = RULES): boolean => f.phase === 'attack' && f.move !== null && f.age < movesOf(f)[f.move].feintUntil && f.stamina >= stanced(f, 'feint', R.feintCost);
+export const feintable = (f: Fighter, R: typeof RULES = RULES): boolean => f.phase === 'attack' && f.move !== null && !commitOf(f.weapon, f.move) && f.age < movesOf(f)[f.move].feintUntil && f.stamina >= stanced(f, 'feint', R.feintCost);
 // Ticks a committed phase lasts; null for phases that end on input.
 function phaseLength(f: Fighter): number | null {
   if (f.phase === 'draw') return RULES.draw;
@@ -521,7 +522,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
         // uncharged is a plain heavy again (armour from its poise tick only).
-        const poised = d.phase === 'attack' && d.move !== null && ((movesOf(d)[d.move].charges && (d.charged || (d.charge > 0 && d.age === movesOf(d)[d.move].chamber)) && d.age < timing(d).windup + timing(d).active) || (movesOf(d)[d.move].poise >= def.stagger && d.age >= movesOf(d)[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active));
+        const poised = d.phase === 'attack' && d.move !== null && ((!!commitOf(d.weapon, d.move) && d.age < timing(d).windup + timing(d).active) || (movesOf(d)[d.move].charges && (d.charged || (d.charge > 0 && d.age === movesOf(d)[d.move].chamber)) && d.age < timing(d).windup + timing(d).active) || (movesOf(d)[d.move].poise >= def.stagger && d.age >= movesOf(d)[d.move].poiseFrom && d.age < timing(d).windup + timing(d).active));
         // Counter-hit and rear-hit multiply the clean hit; they never apply through a guard or a parry.
         const counter = d.phase === 'attack' || (d.phase === 'roll' && d.age > R.safeEnd);
         // The thrust is the stop-hit: into a swing, or into an opponent walking onto the point, it lands harder than a cut's counter-hit.
