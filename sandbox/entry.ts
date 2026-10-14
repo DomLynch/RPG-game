@@ -41,6 +41,8 @@ for (const [file, fams] of Object.entries(current.files ?? {})) for (const [fam,
 }
 
 const lines = (rows: unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n');
+const WEAPON_IDS = ['longsword', 'trident', 'cleaver', 'estoc', 'knife', 'gladius', 'scythe', 'maul', 'reaper', 'warhammer', 'bite'];
+const ARMOUR_CLASSES = ['', 'unarmoured', 'light', 'medium', 'heavy'];   // index = the armourYou / armourFoe row value (0 = auto)
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...kids: (Node | string)[]) => {
   const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e;
 };
@@ -62,6 +64,16 @@ function panel(opponents: string[]) {
   if (!params.get('opponent')) opp.prepend(el('option', { value: '', textContent: '(game default)', selected: true }));
   opp.onchange = () => { const u = new URL(location.href); if (opp.value) u.searchParams.set('opponent', opp.value); else u.searchParams.delete('opponent'); location.assign(u.href); };
 
+  const pick = (label: string, param: string, values: string[]) => {
+    const sel = el('select'); sel.append(el('option', { value: '', textContent: '(auto)' }));
+    for (const v of values) sel.append(el('option', { value: v, textContent: v, selected: params.get(param) === v }));
+    sel.onchange = () => { const u = new URL(location.href); if (sel.value) u.searchParams.set(param, sel.value); else u.searchParams.delete(param); location.assign(u.href); };
+    return el('div', { style: 'margin:4px 0' }, el('span', { textContent: label + ' ' }), sel);
+  };
+  const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
+    el('div', { textContent: 'Loadout (reloads the page)', style: 'color:#c9a227;font-weight:600' }),
+    pick('Opponent weapon', 'foeWeapon', WEAPON_IDS), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)),
+    el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and both sides\' spells: Field journal, Sparring tab.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
   const status = el('div');
   const areas: { file: string; fam: string; ta: HTMLTextAreaElement }[] = [];
@@ -105,7 +117,7 @@ function panel(opponents: string[]) {
     status.className = ''; status.textContent = 'Saved: send rows.json to the sandbox lane to commit.';
   };
   const changedCount = Object.values(current.files ?? {}).reduce((n, f) => n + Object.keys(f).length, 0);
-  box.append(el('div', { textContent: `Opponent (boss row from the catalogue):` }), opp,
+  box.append(el('div', { textContent: `Opponent (boss row from the catalogue):` }), opp, loadout,
     el('div', { textContent: `${changedCount} row famil${changedCount === 1 ? 'y' : 'ies'} changed from live. One row per line; edit, then Apply.`, style: 'margin-top:8px' }),
     note, apply, reset, back, save, status, ...sections,
     el('div', { textContent: __SANDBOX_INFO__, style: 'margin-top:16px;color:#888;font-size:11px' }));
@@ -115,6 +127,15 @@ function panel(opponents: string[]) {
 // ?bands=0 switches the reach-band rule off for an A/B (the row stays in the panel).
 if (new URLSearchParams(location.search).get('bands') === '0') for (const r of RULES.rules as { id: string; value?: number }[]) if (r.id === 'bandOff') r.value = 0;
 
+// Loadout (the sandbox panel's menu): ?foeWeapon= swaps every warden's weapon (the sim, the AI and the rig's grafted equip follow the fighter's weapon), ?foeArmour= / ?myArmour= force the armour class the blow-type table reads.
+{
+  const q = new URLSearchParams(location.search), { OPPONENTS } = await import('../src/fight/moves.ts');
+  const fw = q.get('foeWeapon'); if (fw && WEAPON_IDS.includes(fw)) for (const o of Object.values(OPPONENTS)) (o as { weapon: string }).weapon = fw;
+  for (const [param, id] of [['myArmour', 'armourYou'], ['foeArmour', 'armourFoe']] as const) {
+    const v = ARMOUR_CLASSES.indexOf(q.get(param) ?? ''); const row = (RULES.rules as { id: string; value?: number }[]).find((r) => r.id === id);
+    if (row && v > 0) row.value = v;
+  }
+}
 // The sandbox is an admin test bench: the journal's test tools and the Sparring tab (opponent, level 1-50, weapon, move, both sides' specials) are on, the way a local ?debug build has them.
 (globalThis as { __SANDBOX__?: boolean }).__SANDBOX__ = true;
 if (!/[?&]debug\b/.test(location.search)) { const u = new URL(location.href); u.searchParams.set('debug', '1'); history.replaceState(null, '', u.href); }

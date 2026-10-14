@@ -124,9 +124,12 @@ export const blowKind = (weapon: string, move: string): string | undefined => {
 };
 export const armourClassOf = (sheet: Sheet | undefined, oid: string | undefined): string | null =>
   oid ? weightClassOf(oid) : !sheet ? null : (sheet.armour ?? 0) >= 20 ? 'heavy' : (sheet.stamina ?? 0) >= 20 ? 'medium' : (sheet.magicResist ?? 0) >= 20 ? 'light' : null;
-export const armourPerMille = (weapon: string, move: string, sheet: Sheet | undefined, oid: string | undefined): number => {
+// The loadout menu (sandbox panel, ?myArmour= / ?foeArmour=): `armourYou` / `armourFoe` rows force the defender's class for this table: 1 unarmoured, 2 light, 3 medium, 4 heavy; 0 = read it from the gear / the creature.
+const FORCED: readonly (string | null)[] = [null, null, 'light', 'medium', 'heavy'];
+const forced = (side: number | undefined): string | null | undefined => { const v = num(side === 0 ? 'armourYou' : 'armourFoe', 'value'); return v ? FORCED[v] : undefined; };
+export const armourPerMille = (weapon: string, move: string, sheet: Sheet | undefined, oid: string | undefined, side?: number): number => {
   if (!ARMOUR_ON) return 1000;
-  const kind = blowKind(weapon, move), cls = armourClassOf(sheet, oid);
+  const f = forced(side), kind = blowKind(weapon, move), cls = f !== undefined ? f : armourClassOf(sheet, oid);
   return kind && cls ? (ARMOUR_VS.find((r) => r.kind === kind && r.armour === cls)?.value ?? 1000) : 1000;
 };
 

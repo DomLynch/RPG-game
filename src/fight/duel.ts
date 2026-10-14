@@ -534,7 +534,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (chip) { wound(taken, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
       shake(j, dealtPosture(def.posture * (perfect ? R.posture.perfect : 1)));
     } else {
-      const damage = Math.round(stanced(a, 'damage', def.charges ? stanced(a, 'heavyDamage', def.damage) : def.damage) * R.location[location] * (charged ? R.charge.damage : 1) * bandPerMille(a.weapon, a.attackFrom?.gap ?? distance(a.body, d.body)) / 1000 * armourPerMille(a.weapon, a.move!, d.sheet, d.oid) / 1000), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
+      const damage = Math.round(stanced(a, 'damage', def.charges ? stanced(a, 'heavyDamage', def.damage) : def.damage) * R.location[location] * (charged ? R.charge.damage : 1) * bandPerMille(a.weapon, a.attackFrom?.gap ?? distance(a.body, d.body)) / 1000 * armourPerMille(a.weapon, a.move!, d.sheet, d.oid, j) / 1000), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
       if (guarding && !beaten) { const hit = rolled(damage, i, j, pen); spend(j, perked(d, 'guard', R.breakCost)); wound(hit, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released

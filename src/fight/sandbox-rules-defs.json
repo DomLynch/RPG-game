@@ -15,7 +15,9 @@
     { "id": "glanceGain", "value": 0 },
     { "id": "glanceRate", "value": 1000 },
     { "id": "flankDamage", "value": 0 },
-    { "id": "flankPosture", "value": 0 }
+    { "id": "flankPosture", "value": 0 },
+    { "id": "armourYou", "value": 0 },
+    { "id": "armourFoe", "value": 0 }
   ],
   "bands": [],
   "bandBest": [],
