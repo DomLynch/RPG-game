@@ -10,7 +10,8 @@ import { KIT_LOGIC_VERSION, kitBuild, kitOfBuild, kitTables, kitTag, kitTagOf } 
 
 // sha-256 of the text of src/fight/mobkit.ts + src/core/world/kits.ts (in that order). Re-pin when it changes: first decide whether behaviour moved (then bump KIT_LOGIC_VERSION in kit-version.ts), then paste the digest the failure prints.
 // Re-pinned for the move to src/core/world (core slice 3): only the file path, the import specifier and a comment changed; behaviour did not, KIT_LOGIC_VERSION stays.
-const KIT_CODE_DIGEST = '5b95cfa62f40ecc324e267e2352b58ecc3f32dcf7be3f3e7be789be187bee99a';
+// Re-pinned for Combat debt (mobkit AFTER_HIT_TICKS, CHAIN_CAP, EXHAUSTED_BELOW moved to mobkit-defs.json rows): the same numbers, behaviour did not move, KIT_LOGIC_VERSION stays.
+const KIT_CODE_DIGEST = '6065ab1b37f5a735631a64d76f34b80c6200fa73e450b55702d11ffa47fd530d';
 
 test('the kit code is pinned: a change in src/fight/mobkit.ts or src/core/world/kits.ts forces the KIT_LOGIC_VERSION decision', () => {
   const digest = createHash('sha256').update(readFileSync(new URL('../src/fight/mobkit.ts', import.meta.url))).update(readFileSync(new URL('../src/core/world/kits.ts', import.meta.url))).digest('hex');
