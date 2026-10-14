@@ -54,6 +54,27 @@ export function pushWithRetry(git, branch, { tries = 3, extra = [], sleep = s =>
 
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL', ...opts });
 
+/** gh can hang for many minutes on this Mac (2026-10-14: `gh pr create` sat 17 min after the push, its own spawnSync timeout never fired). Run it in its own process
+ *  group and SIGKILL the whole group at `ms`; resolves { status, stdout, stderr, timedOut } and never throws. */
+export const runBounded = (cmd, args, ms = 60_000) => new Promise(resolve => {
+  let out = '', err = '', done = false, timer;
+  const child = spawn(cmd, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const finish = r => { if (!done) { done = true; clearTimeout(timer); resolve({ stdout: out, stderr: err, ...r }); } };
+  timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ } finish({ status: null, timedOut: true }); }, ms);
+  child.stdout.on('data', d => { out += d; }); child.stderr.on('data', d => { err += d; });
+  child.on('error', e => finish({ status: null, stderr: String(e) })); child.on('close', code => finish({ status: code }));
+});
+
+/** The REST fallback when gh hangs or fails: reuse an open PR for the head (gh may have made it before it hung), else open a draft; then label it. Returns the PR number or null. */
+export async function openPrViaRest({ repo, token, head, base, title, body, labels, fetchImpl = fetch }) {
+  const api = (path, init = {}) => fetchImpl(`https://api.github.com/repos/${repo}${path}`, { ...init, headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'content-type': 'application/json' }, signal: AbortSignal.timeout(30_000) });
+  const found = await (await api(`/pulls?head=${repo.split('/')[0]}:${head}&state=open`)).json();
+  let number = Array.isArray(found) ? found[0]?.number : null;
+  if (!number) number = (await (await api('/pulls', { method: 'POST', body: JSON.stringify({ title, head, base, body, draft: true }) })).json()).number;
+  if (number) await api(`/issues/${number}/labels`, { method: 'POST', body: JSON.stringify({ labels }) });
+  return number || null;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const argv = process.argv.slice(2);
   const flag = f => { const i = argv.indexOf(f); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, f === '--no-verify' ? 1 : 2); return v ?? true; };
@@ -80,9 +101,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const pushed = pushWithRetry(git, `release-${name}`);
   if (!pushed.ok) { console.error(`cut-release: git push failed after ${pushed.tries} tries: ${pushed.err}`); process.exit(1); }
   const body = `Release candidate ${name} = ${base || 'trunk'} ${trunk.slice(0, 9)} + ${merged.map(pr => `#${pr} @${specs.find(s => s.pr === pr).head}`).join(' + ')}, each with Auditor PASS at head.${skipped.length ? ` Not included: ${skipped.map(s => `#${s.pr} (${s.why})`).join('; ')}.` : ''}\n\nDonor: n/a (release merge)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
-  const created = run('gh', ['pr', 'create', '--draft', '--base', TRUNK, '--head', `release-${name}`, '--title', `release-${name}: ${merged.map(pr => `#${pr}`).join(' + ')}`, '--body', body, ...LABELS.flatMap(l => ['--label', l])]);
-  const pr = Number((/\/pull\/(\d+)/.exec(created.stdout) || [])[1]) || null;
-  if (created.status !== 0 || !pr) { console.error(`cut-release: gh pr create failed: ${String(created.stderr || created.stdout).trim().slice(0, 200)}`); process.exit(1); }
+  const created = await runBounded('gh', ['pr', 'create', '--draft', '--base', TRUNK, '--head', `release-${name}`, '--title', `release-${name}: ${merged.map(pr => `#${pr}`).join(' + ')}`, '--body', body, ...LABELS.flatMap(l => ['--label', l])], 60_000);   // a hung gh must not hold the cut: 60 s, then the REST API
+  let pr = Number((/\/pull\/(\d+)/.exec(created.stdout) || [])[1]) || null;
+  if (!pr) {
+    console.error(`cut-release: gh pr create ${created.timedOut ? 'timed out after 60 s' : 'failed'} (${String(created.stderr).trim().slice(0, 120)}); opening the PR through the REST API`);
+    const slug = /github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/.exec(run('git', ['remote', 'get-url', 'origin']).stdout.trim())?.[1];
+    const token = process.env.GH_TOKEN || (await runBounded('gh', ['auth', 'token'], 10_000)).stdout.trim();
+    const title = `release-${name}: ${merged.map(pr => `#${pr}`).join(' + ')}`;
+    pr = slug && token ? await openPrViaRest({ repo: slug, token, head: `release-${name}`, base: TRUNK, title, body, labels: LABELS }).catch(() => null) : null;
+  }
+  if (!pr) { console.error('cut-release: could not open the PR (gh and the REST API both failed); the branch is pushed, open the PR by hand'); process.exit(1); }
   const logs = join(process.env.HOME, '.claude/state', `cut-${name}`); mkdirSync(logs, { recursive: true });
   const bg = (file, cmd, args) => spawn(cmd, args, { detached: true, stdio: ['ignore', openSync(join(logs, file), 'a'), openSync(join(logs, file), 'a')] }).unref();
   if (live) bg('prelaunch.log', 'bash', ['scripts/pre-launch.sh', sha, live]);

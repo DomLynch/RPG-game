@@ -3,11 +3,11 @@
 // taking points off anything is free until level 10, then once per rank-up (rank = level / 10, the stored respreadRank is the last one used). Spending unspent points is always free.
 // The level is the server's (levelSet), never the client's.
 import { validateBuild } from '../../src/fight/server.ts';
+import { FREE_RESPREAD_LEVEL, RANK_LEVELS } from '../../src/core/server.ts';   // the client's re-spread numbers are the same two facts: one place, never two copies
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
 
-export const FREE_RESPREAD_LEVEL = 10, RANK_LEVELS = 10;
 const CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/;
 
 // The ONE seam to the shared validator: the problems with this level + placement, [] when legal.

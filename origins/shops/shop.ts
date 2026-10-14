@@ -6,16 +6,20 @@
 // Restock is 2004Scape's (MIT, Copyright (c) 2023-2025 Lost City; src/engine/World.ts, the inventory restock loop): a stocked item below its normal count
 // gains ONE every `stockrate` ticks. Here that is one per `restockSeconds` of elapsed time, computed lazily from the last write, so no tick has to run.
 
-export const SHOP_LIST_VERSION = 1;
-export const PRICE_MAX = 1_000_000;          // bronze
-export const STOCK_MAX = 1_000;
-export const RESTOCK_RANGE: readonly [number, number] = [10, 86_400];   // s
-export const BUY_MAX = 100;                  // per request
 import { buyPrice, restockedStock, vendorClass, zoneTax } from './vendor-economy.ts';
+import SHOP_RULES from './shop-rules.json' with { type: 'json' };
+
+const LIMITS = SHOP_RULES.shopLimits[0]!;   // the shopLimits row of shop-rules.json (every default equals the literal it replaced; tests/shop-rules.test.ts pins it)
+
+export const SHOP_LIST_VERSION = 1;
+export const PRICE_MAX = LIMITS.priceMax;          // bronze
+export const STOCK_MAX = LIMITS.stockMax;
+export const RESTOCK_RANGE: readonly [number, number] = [10, 86_400];   // s
+export const BUY_MAX = LIMITS.buyMax;                  // per request
 
 // `class` (vendor-economy.json: gear, material, cosmetic) switches a row to the stock-elastic price; `zone` (zone1..zone4) names the list's buy tax (default zone1).
 export type ShopRow = { item: string; price: number; max: number; restockSeconds: number; minLevel?: number; class?: string };
-export type ShopList = { id: string; revision: number; currency: 'bronze'; zone?: string; rows: readonly ShopRow[] };
+export type ShopList = { id: string; revision: number; currency: 'bronze'; zone?: string; rangeCm?: number; rows: readonly ShopRow[] };   // rangeCm: how near its counter a buyer must stand (presence centimetres); the server refuses a shop without one as away
 export type ShopIssue = { path: string; message: string };
 
 // Rejects a bad list before it ships. `item` says whether an item id is a registered item definition.
