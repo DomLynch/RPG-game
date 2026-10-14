@@ -12,6 +12,11 @@ files:
   - origins/server/encounter.ts
   - origins/server/encounter-pose.ts
   - origins/server/world-spawns.ts
+  - origins/server/gear-import.ts
+  - origins/server/handlers.ts
+  - origins/server/server.ts
+  - origins/server/upgrade.ts
+  - origins/server/story.ts
 rule:
   kind: variable_declarator
   all:
@@ -22,6 +27,8 @@ rule:
     - not: { has: { field: name, kind: identifier, regex: "^(DAY_S|LEVEL_CURVE)$" } }
     # POSE_BYTES (encounter-pose.ts): the byte length of a packed pose, a wire/storage contract with the writer and the database, not a game rule
     - not: { has: { field: name, kind: identifier, regex: "^POSE_BYTES$" } }
+    # STATUS (server.ts): the error code -> HTTP status map, the protocol's numbers; MAX_EVENT_ID (story.ts): the origins_events.event_id check's own bound, a storage contract with the database
+    - not: { has: { field: name, kind: identifier, regex: "^(STATUS|MAX_EVENT_ID)$" } }
     # a number, a negative number, or an object (optionally `as const`) holding a number of two digits or more
     - any:
         - has: { field: value, any: [{ kind: number }, { kind: unary_expression, regex: "^-?[0-9]" }, { any: [{ kind: object }, { kind: as_expression }], regex: "(?s):\\s*[0-9]{2,}|[*+]\\s*[0-9]{2,}" }] }

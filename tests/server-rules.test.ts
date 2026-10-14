@@ -24,3 +24,8 @@ test('server rules: a token still ends in 32 random characters (24 bytes), and s
   assert.equal(t.length - t.lastIndexOf('_') - 1, 32);
   assert.equal(fightOfToken(t), 'goblin-1');
 });
+
+test('server limits: the exports keep the numbers they had in code', async () => {
+  const { MAX_OWNED } = await import('../origins/server/gear-import.ts'), { QUEUE_MAX } = await import('../origins/server/server.ts'), { PRESENCE_FRESH_MS } = await import('../origins/server/upgrade.ts');
+  assert.deepEqual([MAX_OWNED, QUEUE_MAX, PRESENCE_FRESH_MS, rules.serverLimits[0]!.maxPending], [200, 16, 5000, 50]);
+});

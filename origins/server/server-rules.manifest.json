@@ -1,7 +1,52 @@
 {
   "tables": [
-    { "table": "encounterPose", "file": "server-rules.json", "at": "encounterPose", "key": "id", "required": { "minGap": "number", "markGap": "number", "edge": "number", "note": "string" } },
-    { "table": "encounterToken", "file": "server-rules.json", "at": "encounterToken", "key": "id", "required": { "randomBytes": "integer", "posedFightMax": "integer", "note": "string" } },
-    { "table": "worldKill", "file": "server-rules.json", "at": "worldKill", "key": "id", "required": { "slack": "number", "reachSlack": "number", "poseAgeMs": "integer", "note": "string" } }
+    {
+      "table": "encounterPose",
+      "file": "server-rules.json",
+      "at": "encounterPose",
+      "key": "id",
+      "required": {
+        "minGap": "number",
+        "markGap": "number",
+        "edge": "number",
+        "note": "string"
+      }
+    },
+    {
+      "table": "encounterToken",
+      "file": "server-rules.json",
+      "at": "encounterToken",
+      "key": "id",
+      "required": {
+        "randomBytes": "integer",
+        "posedFightMax": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "worldKill",
+      "file": "server-rules.json",
+      "at": "worldKill",
+      "key": "id",
+      "required": {
+        "slack": "number",
+        "reachSlack": "number",
+        "poseAgeMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "serverLimits",
+      "file": "server-rules.json",
+      "at": "serverLimits",
+      "key": "id",
+      "required": {
+        "maxOwned": "integer",
+        "maxPending": "integer",
+        "queueMax": "integer",
+        "presenceFreshMs": "integer",
+        "note": "string"
+      }
+    }
   ]
 }
