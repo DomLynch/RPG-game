@@ -22,7 +22,9 @@ on:
   # pull requests (RUNNER_SKIP_ON_PR); they run on the Mac at deploy time as before. The summary job is RED on a pull request
   # when any row failed: a red row is a defect until it is reproduced on the Mac and shown to be the runner's (AGENTS.md).
   pull_request:
-    types: [opened, labeled, synchronize, reopened, ready_for_review]
+    # Not `ready_for_review`: the train flips a candidate out of draft 13 s before it merges it (release-train-publish.sh), which started a second ~50-job matrix on a
+    # candidate whose checks had just passed (EK 2026-10-13: 38440789792). A candidate is a draft until then; every row already ran on opened/synchronize.
+    types: [opened, labeled, synchronize, reopened]
   workflow_dispatch:
     inputs:
       ref:
@@ -43,9 +45,10 @@ jobs:
   plan:
     # A release candidate (head branch release-*) runs as a DRAFT and carries ci:release-checks from the cut (scripts/cut-release.mjs): plan runs for it (Dom 2026-10-12, CI runners first).
     # Only for it (Lead + Strategy 2026-10-12): a feature PR schedules nothing here, whatever its labels; a dispatch is unchanged.
+    # `opened` runs nothing on a candidate: the cut creates it already labelled, so the ci:release-checks label event is the one real run (2026-10-13: `opened` + two label events were 3 runs, 2 cancelled, one with a red summary).
     # On a candidate, adding any label but ci:release-checks (candidate:pass, release:go after the Auditor's PASS) schedules no job at all (Lead on CW:
     # those runs queued and read as pending at push time); its group is the run id (concurrency above), so it never cancels the rows in flight.
-    if: github.event_name != 'pull_request' || (startsWith(github.head_ref, 'release-') && (github.event.action != 'labeled' || github.event.label.name == 'ci:release-checks'))
+    if: github.event_name != 'pull_request' || (startsWith(github.head_ref, 'release-') && github.event.action != 'opened' && (github.event.action != 'labeled' || github.event.label.name == 'ci:release-checks'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
