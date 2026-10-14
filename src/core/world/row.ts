@@ -5,6 +5,7 @@
 // Pure: no DOM, no clock, no storage. Not built yet (they need data this branch does not have): tint-contrast, loot-tier, habitat (spec 7.5).
 // To extend: add the field to MobRow or Behaviour, one range line in RANGES, and one case in validateMobRow; nothing else reads a row by position.
 import { styleOpponent, type MobStyle } from './styles.ts';
+import { worldRule } from '../../fight/server.ts';   // the camp numbers are rows (src/fight/world-rules-defs.json)
 
 export type Source = { kind: 'myth' | 'folklore' | 'history' | 'literature' | 'chronicle'; work: string; author?: string; year?: number; authorDied?: number; locator?: string; scripture?: boolean };
 // A complete citation, or a legends-500.csv row, or `pending`: the shipped hand-authored kinds wait for Content/Strategy to cite them. The generator
@@ -52,10 +53,10 @@ export const DEFAULTS = { aggro: 7, leash: 26, roam: 6, campSize: [2, 3] as cons
 export const campCount = (campSize: readonly [number, number] | undefined, u: number): number => { const [lo, hi] = campSize ?? DEFAULTS.campSize; return lo + Math.floor(u * (hi - lo + 1)); };
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 1, uncommon: 0.3, rare: 0 };   // x the row's own weight in a zone's draw
 export const RARE_CHANCE: readonly [number, number] = [0.01, 0.25];
-export const RARE_DEFAULT = 0.05;
+export const RARE_DEFAULT = worldRule('rareDefault');
 export const RESPAWN_RANGE: readonly [number, number] = [30, 300];   // s: wide enough for the animal rule (60-90) and a slow boss-ish kind; outside is a typo
-export const CAMP_MAX = 4;        // Strategy 2026-10-07: an ordinary camp is a leader and three followers
-export const BOSS_CAMP_MAX = 6;   // ... and only a row flagged `bossCamp` may go to six
+export const CAMP_MAX = worldRule('campMax');       // Strategy 2026-10-07: an ordinary camp is a leader and three followers
+export const BOSS_CAMP_MAX = worldRule('bossCampMax');  // ... and only a row flagged `bossCamp` may go to six
 // Each number a behaviour field may take (spec sections 2 and 3, widened to the shipped data): [min, max].
 export const RANGES: Record<string, readonly [number, number]> = { aggro: [2, 20], leash: [5, 80], roam: [0, 30], spread: [0, 40], pull: [0, 30] };
 

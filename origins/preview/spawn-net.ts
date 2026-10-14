@@ -14,15 +14,16 @@ import { call } from './encounter-net.ts';
 import { DEFAULT_ZONE } from '../zones/loader.ts';
 import type { Offline } from './save.ts';
 import type { WorldRecord } from '../../src/fight/index.ts';
+import { previewRule } from './preview-rules.ts';
 
 export type Engaged = { token: string; instance: string; generation: number; kind: string; level: number; hp: number; expiresAt: string };
 export type Killed = { result: 'killed'; instance: string; respawnAt: string | null; loot: { item: string; quantity: number }[]; cp: number; bronze: number; beta: boolean };
-export const TOUCH_EVERY_MS = 30_000;
-export const MAX_RECORD_CHARS = 45_000;   // the writer's body limit is 64 KB; a longer record is not sent (the kill pays scorecard counts only)
+export const TOUCH_EVERY_MS = previewRule('touchEvery');
+export const MAX_RECORD_CHARS = previewRule('maxRecordChars');   // the writer's body limit is 64 KB; a longer record is not sent (the kill pays scorecard counts only)
 // A killed creature is SPENT this long: a Hit or engage for it arriving after killed() (any event order) opens nothing. The server's shortest respawn is 10 s (migration 0014), so a respawned one is engaged again.
-export const SPENT_MS = 10_000;
+export const SPENT_MS = previewRule('spentWindow');
 const isOffline = (r: object): r is Offline => 'offline' in r;
-export const OUTBOX_TRIES = 12;
+export const OUTBOX_TRIES = previewRule('outboxTries');
 const settledOffline = (r: Offline): boolean => r.offline === 'http-409' || r.offline === 'http-400' || r.offline === 'http-404';   // the server answered and will not change its mind
 
 const int = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;

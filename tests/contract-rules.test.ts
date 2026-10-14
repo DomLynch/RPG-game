@@ -19,3 +19,12 @@ test('contract rules: the file loads through the registry, one row per table', (
   assert.ok(reg);
   for (const rows of Object.values(rules)) assert.equal(rows.length, 1);
 });
+
+test('contract rules: maxCurrency and maxCoin never exceed the database bound (origins_metal_bronze_check), so a retune cannot make the contract accept what the insert refuses (23514)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const sql = readFileSync(new URL('../supabase/migrations/202610070007_origins_metal.sql', import.meta.url), 'utf8');
+  const bound = Number(/origins_metal_bronze_check check \(bronze between 0 and (\d+)\)/.exec(sql)?.[1]);
+  assert.ok(Number.isInteger(bound) && bound > 0, 'the migration still names the bronze bound');
+  assert.ok(rules.itemLimits[0]!.maxCurrency <= bound, `itemLimits.maxCurrency ${rules.itemLimits[0]!.maxCurrency} <= ${bound}`);
+  assert.ok(rules.economyLimits[0]!.maxCoin <= bound, `economyLimits.maxCoin ${rules.economyLimits[0]!.maxCoin} <= ${bound}`);
+});

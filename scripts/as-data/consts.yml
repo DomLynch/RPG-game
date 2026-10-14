@@ -3,26 +3,20 @@
 id: as-data-consts
 language: typescript
 files:
-  - origins/feuds/feuds.ts
-  - origins/patrons/patrons.ts
-  - origins/preview/play.ts
-  - origins/encounters/encounters.ts
-  - src/core/career-model.ts
-  - src/core/contracts/economy.ts
-  - src/core/contracts/items.ts
-  - src/core/contracts/story.ts
-  - src/core/contracts/world.ts
-  - origins/server/practice.ts
+  - 'src/**/*.ts'
+  - 'origins/**/*.ts'
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
 rule:
   kind: variable_declarator
   all:
     - has: { field: name, kind: identifier, regex: "^[A-Z][A-Z0-9_]*$" }
     # WORLD_TUNING (origins/preview/play.ts) is the greybox's placement numbers, "to be swapped for origins/world": a world-row slice of its own, not this rule's.
     - not: { has: { field: name, kind: identifier, regex: "^WORLD_TUNING$" } }
-    # career-model.ts: DAY_S and HOUR_S are seconds in a day and an hour (physical); LEVEL_CURVE is the level-curve slice of its own
-    - not: { has: { field: name, kind: identifier, regex: "^(DAY_S|HOUR_S|LEVEL_CURVE)$" } }
-    # *_VERSION (src/core/contracts): a record, wire or table version stamp guarded by its own version test, not a tuning number
-    - not: { has: { field: name, kind: identifier, regex: "_VERSION$" } }
+    # career-model.ts: DAY_S is seconds in a day (physical); LEVEL_CURVE is the level-curve slice of its own
+    - not: { has: { field: name, kind: identifier, regex: "^(DAY_S|LEVEL_CURVE)$" } }
     # a number, a negative number, or an object (optionally `as const`) holding a number of two digits or more
     - any:
         - has: { field: value, any: [{ kind: number }, { kind: unary_expression, regex: "^-?[0-9]" }, { any: [{ kind: object }, { kind: as_expression }], regex: "(?s):\\s*[0-9]{2,}|[*+]\\s*[0-9]{2,}" }] }
