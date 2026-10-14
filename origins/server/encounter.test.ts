@@ -44,7 +44,7 @@ test('touch inside the grace continues the SAME token and seed; after the expiry
 
 test('settle: a verified record writes the event enc:<token> and the reward lines once; a replay of the same settle is refused and writes nothing more', async () => {
   const { db, events } = fakeDb({ t: 1e6 }), rewards: string[] = [];
-  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321 }), rewards: (f, rdb) => { rewards.push(f.token); assert.equal(f.fight, 'encounter:knight', 'the hook is told the fight the server resolved'); assert.equal(f.seed, start.seed, 'and the server seed'); assert.equal(rdb, db); return [{ op: 'reward-line', token: f.token }]; } }));
+  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: 'caught', ticks: 321, heroHits: {} }), rewards: (f, rdb) => { rewards.push(f.token); assert.equal(f.fight, 'encounter:knight', 'the hook is told the fight the server resolved'); assert.equal(f.seed, start.seed, 'and the server seed'); assert.equal(rdb, db); return [{ op: 'reward-line', token: f.token }]; } }));
   let start = { token: '', seed: 0 };
   start = await ops.encounter_start!(ctx(db), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
   const record = fight(start.seed, 1);
@@ -97,7 +97,7 @@ test('a stale reward line (O0002 at settle) is a retryable 503 code "stale", nev
   const { db, events } = fakeDb({ t: 1e6 });
   let stale = true;
   const flaky = { run: async (sql: string, v?: Record<string, string>) => { if (stale && /origins_encounter_settle/.test(sql)) { stale = false; throw new DbError('O0002', 'career write is stale'); } return db.run(sql, v); } } as Db;
-  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 200 }), rewards: () => [{ op: 'reward-line' }] }));
+  const ops = encounterOps(deps({ verify: () => ({ ok: true, result: 'won', twist: null, ticks: 200, heroHits: {} }), rewards: () => [{ op: 'reward-line' }] }));
   const start = await ops.encounter_start!(ctx(flaky), { character: CHAR, encounter: 'encounter:knight' }) as { token: string; seed: number };
   const record = fight(start.seed, 1);
   await assert.rejects(async () => ops.encounter_settle!(ctx(flaky), { token: start.token, record }), (e: unknown) => e instanceof Refused && e.status === 503 && e.code === 'stale');
