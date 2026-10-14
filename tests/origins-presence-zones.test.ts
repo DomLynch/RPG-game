@@ -1,5 +1,5 @@
 // Which Concord zone a presence position is in (origins/presence/zones.ts): computed from x, z in the one Concord frame, never from a client.
-// Presence is centimetres in the 300 m town square; Concord is metres with the Pit yard's centre at the origin, so world (0, 0) is presence (15000, 15000).
+// Presence is u16 centimetres (centre CENTRE_CM, the whole world: town square and Frontier); Concord is metres with the Pit yard's centre at the origin, so world (0, 0) is presence (CENTRE_CM, CENTRE_CM).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CENTRE_CM, worldMetres, zoneAt } from '../origins/presence/zones.ts';
@@ -9,7 +9,7 @@ import { CONCORD, CONCORD_REGION } from '../origins/world/concord.ts';
 const cm = (wx: number, wz: number): [number, number] => [CENTRE_CM + wx * 100, CENTRE_CM + wz * 100];   // world metres to a presence position
 
 test('zones: the Pit yard is 50 x 50 m around the origin, the Exchange 40 x 50 m beyond its far edge, and everything else is null', () => {
-  assert.deepEqual(worldMetres(15000, 15000), { x: 0, z: 0 }, 'the frame offset: presence centre is world origin');
+  assert.deepEqual(worldMetres(CENTRE_CM, CENTRE_CM), { x: 0, z: 0 }, 'the frame offset: presence centre is world origin');
   assert.equal(zoneAt(...cm(0, 0)), 'pit-yard', 'the Pit yard centre');
   assert.equal(zoneAt(...cm(24.9, 24.9)), 'pit-yard', 'inside a corner of the yard');
   assert.equal(zoneAt(...cm(-24.9, -24.9)), 'pit-yard');
