@@ -9,7 +9,11 @@ export const DEFAULT_ROW_S = 120;
 export const TARGET_GROUP_S = 480;
 
 /** rows: [{ index, name, argv }]. Longest-processing-time first into n balanced bins (n = ceil(total / target)); a single row longer than the target gets a bin alone.
- *  Deterministic: ties by row index. Returns [{ id, rows, estimateS }] with ids g1.. in descending estimate, rows inside a group in ascending index. */
+ *  Deterministic: ties by row index. Returns [{ id, rows, estimateS }] with ids g1.. in descending estimate, rows inside a group in ascending index.
+ *  @param {Array<{ index: number, name?: string, argv?: string }>} rows
+ *  @param {Record<string, number>} [seconds]
+ *  @param {number} [target]
+ *  @returns {Array<{ id: string, rows: Array<{ index: number, name?: string, argv?: string }>, estimateS: number }>} */
 export function packRows(rows, seconds = rowSeconds(), target = TARGET_GROUP_S) {
   if (!Array.isArray(rows) || !rows.length) return [];
   const w = r => Number(seconds[r.index]) || DEFAULT_ROW_S;
