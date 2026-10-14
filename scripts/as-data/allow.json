@@ -129,7 +129,6 @@
     {"file": "origins/shops/shop.ts", "name": "SHOP_LIST_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
     {"file": "origins/shops/shop.ts", "name": "STOCK_MAX", "kind": "debt", "reason": "a server / economy / limit number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Backend", "sunset": "2026-10-24"},
     {"file": "origins/talk/talk.ts", "name": "TALK_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
-    {"file": "origins/world/concord.ts", "name": "CONCORD", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-17"},
     {"file": "origins/world/resolve.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
     {"file": "origins/zones/schema.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"},
     {"file": "src/arena-props.ts", "name": "PROP_TEXTURE_CAP", "kind": "debt", "reason": "a world, preview, audio or presentation number still in code, owed as a row (owner by directory, unreviewed)", "owner": "World & Audio", "sunset": "2026-10-24"},
