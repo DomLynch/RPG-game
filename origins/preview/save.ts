@@ -19,7 +19,7 @@ import { openAccount, type OpenDeps } from '../../src/core/index.ts';
 // Zone 1 renews a stale stored session through supabase-js itself (src/core/account.ts builds the same client on the same storageKey): getSession() exchanges
 // the refresh_token inside the library's own navigator lock and writes the session back. The library is only imported (dynamic chunk) when a session is
 // stored and its access token is expired or about to be; a fresh token, or none, costs nothing. Any failure leaves the storage as it was = signed out.
-export const RENEW_TIMEOUT_MS = 3000;
+export const RENEW_TIMEOUT_MS = previewRule('renewTimeout');
 export type AuthClient = { auth: { getSession(): Promise<unknown> } };
 export async function ensureFreshSession(storage: { getItem(key: string): string | null } | null, nowMs: number, makeClient: () => Promise<AuthClient | null>): Promise<void> {
   try {
@@ -36,6 +36,7 @@ export const authClient = async (env: { url?: string; key?: string }): Promise<A
 export type Character = { id: string; name: string };
 export type Opened = { career: CareerState; characters: Character[]; marks: number };
 import type { Offline } from '../../src/core/index.ts';
+import { previewRule } from './preview-rules.ts';
 export const isOffline = (r: Opened | Offline): r is Offline => 'offline' in r;
 
 const count = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;

@@ -23,6 +23,9 @@ import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
 import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { repairCost, repairedPiece, wearKindOf } from '../origins/gear/wear-repair.ts';
+import { loadEncounterContent, lookupOf } from '../origins/encounters/encounters.ts';
+import { openHoldingsWith } from '../origins/server/holdings.ts';
+import { killWearLines, wearMaxOf } from '../origins/server/wear-settle.ts';
 import { REJOIN_EDGE, zoneAt, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
 import { handlers as clientOps } from '../origins/server/handlers.ts';
 
@@ -514,6 +517,25 @@ try {
       for (const sql of [`select * from public.origins_character_build;`, `select public.origins_get_build('${D}', '${daraTwo}');`, `update public.origins_character_build set level = 50;`])
         eq(asClient3(sql), 'permission denied', `a client may not: ${sql}`);
     }
+    // fame and karma (migration 202610130030): no row reads 0/0, adds clamp to 0..15000 and -15000..15000, ownership, both writer roles add, closed to clients
+    {
+      const asW = sql => psql(`set role frankendom_verifier; ${sql}`).split('\n').pop();
+      const rget = c => JSON.parse(asW(`select coalesce(public.origins_get_renown('${D}', '${c}')::text, 'null');`));
+      const radd = (c, f, k) => JSON.parse(asW(`select coalesce(public.origins_add_renown('${D}', '${c}', ${f}, ${k})::text, 'null');`));
+      const denied = fn => { try { fn(); return 'ok'; } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : 'other'; } };
+      eq(rget(daraTwo), { fame: 0, karma: 0 }, 'renown: no row reads fame 0, karma 0');
+      eq(radd(daraTwo, 100, -40), { fame: 100, karma: -40 }, 'renown: the first add creates the row');
+      eq(radd(daraTwo, 50, 10), { fame: 150, karma: -30 }, 'renown: later adds sum');
+      eq(radd(daraTwo, 99999, 99999), { fame: 15000, karma: 15000 }, 'renown: both clamp at the top');
+      eq(radd(daraTwo, -99999, -99999), { fame: 0, karma: -15000 }, 'renown: fame clamps at 0, karma at -15000');
+      eq(radd('pc:nobody', 1, 1), null, 'renown: not this account\'s character cannot be written');
+      eq(rget('pc:nobody'), null, 'renown: and reads null');
+      eq(JSON.parse(psql(`set role frankendom_verifier; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the verifier role reads');
+      eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_get_renown('${D}', '${daraTwo}')::text;`).split('\n').pop()), { fame: 0, karma: -15000 }, 'renown: the other writer role reads the same row');
+      eq(JSON.parse(psql(`set role frankendom_origins; select public.origins_add_renown('${D}', '${daraTwo}', 5, 5)::text;`).split('\n').pop()), { fame: 5, karma: -14995 }, 'renown: the other writer role (frankendom_origins) adds too');
+      eq(denied(() => psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; select public.origins_get_renown('${D}', '${daraTwo}');`)), 'permission denied', 'renown: a client may not read');
+      eq(denied(() => psql(`set role authenticated; select * from public.origins_character_renown;`)), 'permission denied', 'renown: a client may not touch the table');
+    }
     // item 25: the dirty map. Posts are held and written as ONE statement (the same origins_save_location), a read flushes first (read your own write), the stale guard still stands
     {
       const flusher = createLocationFlusher(psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql')), 60_000, () => undefined);
@@ -635,6 +657,25 @@ try {
     eq([again.status, again.json.result?.imported.length, again.json.result?.alreadyHeld.length], [200, 0, ids.length], 'gear_import: a replay imports nothing');
     eq(psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`), before, 'gear_import: a replay writes nothing');
     eq((await gi({ owned: ['nobody.Helmet'], equipped: {} })).json.result?.skipped.map(x => x.lootId), ['nobody.Helmet'], 'gear_import: an unknown LootId is skipped and reported, not fatal');
+    // The wear writer (slice 1) against REAL Postgres: a paid kill's wear line, computed from the character's real equipped pieces and the real wear read, commits as one guarded event.
+    {
+      const enc = loadEncounterContent(); if (!enc.ok) throw Error('encounter content does not load');
+      const wdb = psqlDb(`postgresql://frankendom_origins@/postgres?host=${root}`, pg('psql'));
+      const { inventory } = await openHoldingsWith(wdb, B, gc, { lookup: lookupOf(enc.value) });
+      const kill = token => ({ account: B, character: gc, token });
+      const lineFor = async (n, only) => { for (let i = 0; i < 60; i++) { const l = await killWearLines(wdb, kill(`wear-kill-${n}-${i}-xxxxxxxxxxxx`), inventory); if (l.length && (!only || l[0].payload.wear.instance === only)) return l; } throw Error('no kill token wears an equipped piece'); };
+      const wearOf = id => psql(`select coalesce((public.origins_item_wear('${B}', array['${id}']) -> '${id}')::text, 'none')`);
+      const first = await lineFor(1), w1 = first[0].payload.wear, held = inventory.items.find(i => i.id === w1.instance), tier = wearKindOf(held.item).tier;
+      eq([w1.seq, w1.worn, w1.max, w1.baseMax, wearOf(w1.instance)], [1, tier.killWear, wearMaxOf(tier), wearMaxOf(tier), 'none'], 'wear writer: a kill bites an equipped piece by the rows (killWear, the gear row\'s wearMax); nothing is stored until the batch commits');
+      psql(`select public.origins_commit('${B}', $j$${JSON.stringify(first)}$j$::jsonb);`);
+      eq(JSON.parse(wearOf(w1.instance)).seq, 1, 'wear writer: the committed wear event is the piece\'s wear');
+      const second = await lineFor(2, w1.instance), w2 = second[0].payload.wear;
+      eq([w2.seq, w2.worn, second[0].event_id], [2, w1.worn + tier.killWear, `wear:${w1.instance}:2`], 'wear writer: the next kill on the same piece continues it (seq 2, worn adds)');
+      psql(`select public.origins_commit('${B}', $j$${JSON.stringify(second)}$j$::jsonb);`);
+      let refused = false;
+      try { psql(`select public.origins_commit('${B}', $j$${JSON.stringify(second)}$j$::jsonb);`); } catch { refused = true; }
+      eq([refused, JSON.parse(wearOf(w1.instance)).seq], [true, 2], 'wear writer: a second write of the same wear seq (a racing settle or repair) is refused by the primary key');
+    }
     const op = await call('gear_open', 'tb', { character: gc });
     eq([op.json.result.pieces.length, Object.keys(op.json.result.worn).length], [ids.length, dolls.length], 'gear_open: every piece, the worn map');
     const head = op.json.result.worn.head;
