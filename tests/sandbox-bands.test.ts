@@ -27,3 +27,9 @@ test('the AI approach stops inside the weapon\'s band and can still start the pl
   assert.equal(bandStop('trident', 1.4, 1.75), 1.4, 'the outer band is out of a trident light\'s reach: trunk close');
   assert.equal(bandStop('fists', 1.1, 1.2), 1.1, 'no band row: trunk close');
 });
+test('an off-band hit lands as a glance: no impact frames, no camera knock', async () => {
+  const { impactTier, IMPACT } = await import('../src/fight/hit-impact.ts');
+  assert.equal(impactTier({ tick: 1, type: 'Hit', actor: 0, target: 1, move: 'light_right', glance: true } as never), 'glance');
+  assert.equal(impactTier({ tick: 1, type: 'Hit', actor: 0, target: 1, move: 'light_right' } as never), 'half');
+  assert.deepEqual(IMPACT.glance, { frames: 0, knock: 0, push: 0 });
+});

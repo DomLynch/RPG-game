@@ -10,11 +10,12 @@ import type { CombatEvent } from './duel.ts';
 import type { Direction } from './moves.ts';
 import { CONTACTS } from './hit-stop-rows.ts';   // the numbers below are ROWS (hit-stop-defs.json): the frames and the camera jolt per contact; presentation only, outside the sim
 
-export type Tier = 'full' | 'half' | 'parry' | 'block';
+export type Tier = 'full' | 'half' | 'parry' | 'block' | 'glance';
 // Guard tiers (Dom 2026-09-29, "implement this also"): a PARRY is the longest beat in the game (70 ms + 11 frames = 253 ms, a heavy hit is
 // 90 + 5 = 173) with a small jolt TOWARD the attacker; a BLOCK is a short freeze with a half-strength knock back from the blow.
 export const IMPACT = {
   full: { frames: CONTACTS.hitHeavy.frames, knock: CONTACTS.hitHeavy.knock, push: CONTACTS.hitHeavy.push }, half: { frames: CONTACTS.hitLight.frames, knock: CONTACTS.hitLight.knock, push: CONTACTS.hitLight.push },
+  glance: { frames: 0, knock: 0, push: 0 },   // sandbox-mech reach bands: a blow outside its weapon's band (event.glance) lands dull: no impact frames, no camera knock; the foe's recoil is cut in the sim
   parry: { frames: CONTACTS.parry.frames, knock: CONTACTS.parry.knock, push: CONTACTS.parry.push }, block: { frames: CONTACTS.blockLight.frames, knock: CONTACTS.blockLight.knock, push: CONTACTS.blockLight.push },
 } as const;
 export const KNOCK_SETTLE = 0.12;   // seconds: the knock is back in 120 ms
@@ -31,6 +32,7 @@ export function impactTier(e: CombatEvent): Tier | null {
   if (e.type === 'Parried') return 'parry';
   if (e.type === 'Blocked') return 'block';
   if (e.type !== 'Hit') return null;
+  if (e.glance) return 'glance';
   return e.charged || HEAVY_CLASS.has(e.move ?? '') || e.move?.startsWith('skill_') ? 'full' : 'half';
 }
 // Event sides (duel.ts): a landed blow names the attacker `actor`; a defence (Blocked, Parried) names the DEFENDER `actor`, the attacker `target`.
