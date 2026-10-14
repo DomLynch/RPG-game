@@ -21,6 +21,7 @@ import type { Handler } from './handlers.ts';
 import * as store from './store.ts';
 import { knownLayer, type VerifyEncounter } from './encounter-verify.ts';
 import { issuePose, packPose, unpackPose } from './encounter-pose.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 // What `resolve` returns for a fight the character may start (Expansion's FightSetup, reduced to what the server holds and re-simulates).
 export type Resolved = { enemy: string; level: number; bar: number | null; flags: readonly TwistFlag[]; layer: string | null; instance: string | null };
@@ -38,12 +39,13 @@ const TOKEN = /^[A-Za-z0-9_-]{16,128}$/, CHARACTER = /^pc:[A-Za-z0-9_-]{1,64}$/,
 // The token carries the fight id the server resolved at start: base64url(fight) + '_' + 32 random characters (24 bytes). The run row keeps only the foe and level,
 // and two fights can share both (Region 1: two goblin L11 creatures with different loot tables), so settle must not guess the fight back, nor take it from the client.
 // Only a token the database holds is ever settled, so the prefix is the server's own choice. A token without one (issued before this) reads as null.
-const RANDOM = 32;
+const TOKEN = SERVER_RULES.encounterToken[0]!;
+const RANDOM = Math.ceil(TOKEN.randomBytes * 4 / 3);   // base64url: 4 characters per 3 bytes
 // A POSED fight (seamless step 3, encounter-pose.ts) carries the server's issued pose the same way: the prefix is base64url(fight, a 0 byte, the five float32 of the pose), so settle
 // re-simulates from the pose the server issued and the record must name exactly it. A fight id is never longer than 50 characters in a posed token (the 128-character token cap).
-export const POSED_FIGHT_MAX = 50;
+export const POSED_FIGHT_MAX = TOKEN.posedFightMax;
 export const tokenFor = (fight: string, pose?: DuelPose): string =>
-  `${(pose ? Buffer.concat([Buffer.from(fight), Buffer.of(0), packPose(pose)]) : Buffer.from(fight)).toString('base64url')}_${randomBytes(24).toString('base64url')}`;
+  `${(pose ? Buffer.concat([Buffer.from(fight), Buffer.of(0), packPose(pose)]) : Buffer.from(fight)).toString('base64url')}_${randomBytes(TOKEN.randomBytes).toString('base64url')}`;
 const prefixOf = (token: string): { fight: string; pose: DuelPose | null } | null => {
   if (token.length <= RANDOM + 1 || token[token.length - RANDOM - 1] !== '_') return null;
   const raw = Buffer.from(token.slice(0, -RANDOM - 1), 'base64url'), cut = raw.indexOf(0);

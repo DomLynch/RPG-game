@@ -9,6 +9,9 @@ files:
   - origins/encounters/encounters.ts
   - src/core/career-model.ts
   - origins/server/practice.ts
+  - origins/server/encounter.ts
+  - origins/server/encounter-pose.ts
+  - origins/server/world-spawns.ts
 rule:
   kind: variable_declarator
   all:
@@ -17,6 +20,8 @@ rule:
     - not: { has: { field: name, kind: identifier, regex: "^WORLD_TUNING$" } }
     # career-model.ts: DAY_S is seconds in a day (physical); LEVEL_CURVE is the level-curve slice of its own
     - not: { has: { field: name, kind: identifier, regex: "^(DAY_S|LEVEL_CURVE)$" } }
+    # POSE_BYTES (encounter-pose.ts): the byte length of a packed pose, a wire/storage contract with the writer and the database, not a game rule
+    - not: { has: { field: name, kind: identifier, regex: "^POSE_BYTES$" } }
     # a number, a negative number, or an object (optionally `as const`) holding a number of two digits or more
     - any:
         - has: { field: value, any: [{ kind: number }, { kind: unary_expression, regex: "^-?[0-9]" }, { any: [{ kind: object }, { kind: as_expression }], regex: "(?s):\\s*[0-9]{2,}|[*+]\\s*[0-9]{2,}" }] }
