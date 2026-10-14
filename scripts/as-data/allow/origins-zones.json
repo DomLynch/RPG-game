@@ -1,0 +1,5 @@
+{
+  "tunables": [
+    {"file": "origins/zones/schema.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"}
+  ]
+}

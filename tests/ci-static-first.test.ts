@@ -73,7 +73,7 @@ test('a red tsc on a pull request queues no quality shard, no browser job and no
   for (const j of ['quality-shard', ...BROWSER]) assert.ok(!ran.has(j), `${j} must not run after a red static`);   // a feature PR runs no browser job at all (Lead 2026-10-13)
   assert.ok(ran.has('quality'), 'the `quality` verdict still reports (red)');
   const unit = schedule(U, withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })), { static: 'failure' });
-  assert.deepEqual([...unit].sort(), ['receipt', 'static'], 'unit-ci: no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
+  assert.deepEqual([...unit].sort(), ['delta', 'receipt', 'static'], 'unit-ci (delta joined 2026-10-14, Strategy: merge-up rounds off the runners): no shard after a red static, but the receipt job RUNS and goes red (hardening item 3, the Auditor on #2476: a skipped verdict reads as passing to a ruleset); no receipt artifact is made');
 });
 
 test('runner queue (Strategy 2026-10-12 21:5x): a push to an UNLABELLED feature PR runs static + plan + base only; the shards, the verdict and unit-ci run when auditor:ready is added and on every push after it; no browser job ever runs on a feature PR (Lead 2026-10-13)', () => {
@@ -265,4 +265,15 @@ test('a label event on a release-* candidate schedules 0 jobs in quality and uni
   assert.ok(schedule(U, cand('synchronize'), {}, plan).has('shard'), 'unit-ci: a push to the candidate runs the shards');
   assert.ok(schedule(Q, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }, {}, plan).has('plan'), 'a feature PR still runs the full set when auditor:ready is added');
   assert.ok(schedule(U, { ...withLabelNames(pr('labeled', ['auditor:ready'], { label: { name: 'auditor:ready' } })) }).has('shard'), 'unit-ci: same on a feature PR');
+test('unit-ci delta (Strategy 2026-10-14): an unchanged delta on a labelled feature PR skips the shards + origins-db (static still runs) and the receipt still reports; a changed or unknown delta, a release candidate and a trunk push run in full', () => {
+  const labelled = withLabelNames(pr('synchronize', ['auditor:ready']));
+  assert.deepEqual([...schedule(U, labelled, {}, { delta: { unchanged: 'true', patch_id: 'abc' } })].sort(), ['delta', 'receipt', 'static'], 'a clean merge-up: delta, static (still catches a break against new trunk code) and the receipt; no shard');
+  for (const unchanged of ['false', '']) assert.ok(['static', 'shard', 'origins-db', 'receipt'].every(j => schedule(U, labelled, {}, { delta: { unchanged, patch_id: 'abc' } }).has(j)), `unchanged="${unchanged}": everything runs`);
+  assert.ok(['static', 'shard', 'origins-db', 'receipt'].every(j => schedule(U, labelled, { delta: 'failure' }).has(j)), 'a failing delta job fails open: everything runs');
+  const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-EX' };
+  const ranCand = schedule(U, cand, {}, { delta: { unchanged: 'true' } });
+  assert.ok(!ranCand.has('delta') && ['static', 'shard', 'origins-db', 'receipt'].every(j => ranCand.has(j)), 'a release-* candidate never runs delta and always runs in full');
+  const trunk: Ctx = { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} };
+  const ranTrunk = schedule(U, trunk);
+  assert.ok(!ranTrunk.has('delta') && ranTrunk.has('shard') && ranTrunk.has('receipt'), 'a trunk push runs the shards and the receipt as before');
 });
