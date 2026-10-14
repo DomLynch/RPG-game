@@ -6,6 +6,7 @@ import { resolveZone } from '../world/resolve.ts';
 import { toMetres, toWorld } from '../world/derive.ts';
 import { frontierPlan, type ZonePlan } from '../preview/frontier-plan.ts';
 import { zoneIds } from '../zones/loader.ts';
+import { presenceRule } from './presence-rules.ts';
 
 // The frame (docs/specs/origins/frontier-presence.md §2): u16 centimetres, world (0,0) at CENTRE_CM, so the town square (+-150 m) AND the Ash Frontier (x -334..25 m, z -205..150 m) fit.
 // v1 clients and the saved-location columns speak the old frame (centre 15000, town square only): LEGACY_SHIFT_CM converts. East of +255 m, or wider than 655 m, needs a v3 frame.
@@ -13,7 +14,7 @@ export const CENTRE_CM = 40000;
 export const FRAME_CM = 65535;
 export const LEGACY_CENTRE_CM = 15000;
 export const LEGACY_SHIFT_CM = CENTRE_CM - LEGACY_CENTRE_CM;
-export const TOWN_CM = 30000;   // the town square's side
+export const TOWN_CM = presenceRule('townSideCm');   // the town square's side
 type Pt = { x: number; z: number };
 
 const mounts = concordMounts();
@@ -94,5 +95,5 @@ export const inTradeArea = (x: number, z: number): boolean => zoneAt(x, z) === '
 // Where a rejoin goes when its remembered or saved spot is in a trade area (Strategy's rule f; Lead's ruling 2026-10-07): just outside the Exchange's outer gate on the Pit side, 50 cm
 // into the Pit yard, so a rejoin is never "at the Exchange" at all and the player must walk in fresh (the stricter of the two edges Expansion offered).
 const OUTER_GATE = landmarkCm('exchange', 'outer-gate');
-export const REJOIN_EDGE: Pt = { x: OUTER_GATE.x, z: OUTER_GATE.z + 50 };
+export const REJOIN_EDGE: Pt = { x: OUTER_GATE.x, z: OUTER_GATE.z + presenceRule('rejoinPastGateCm') };
 export const clearOfTradeAreas = (x: number, z: number): Pt => (inTradeArea(x, z) ? REJOIN_EDGE : { x, z });
