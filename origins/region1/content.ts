@@ -2,7 +2,7 @@
 //
 // Two parts:
 //   1. BUNDLE: records in the contracts' own shapes (item, loot table, character, faction, region, encounter), loaded by
-//      origins/contracts/registry.ts loadContent with no new fields.
+//      src/core/contracts/registry.ts loadContent with no new fields.
 //   2. LOCAL: the kinds the contracts do not have yet, in the shapes the specs propose: `town-definition` (living-world §3.1),
 //      `bounty-definition` (region1 §3, Bounties), the encounter twist flags (region1 §7, open question 1a), the rift records
 //      (living-world §8.1) and the boss loot rules (region1 §4–§5: first win only). Each moves into the contracts when its kind,
