@@ -12,7 +12,7 @@ const NAME = new Map((ROW_NAMES.rows as readonly { id: string; name: string }[])
 const nameOf = (id: string): string => NAME.get(id) ?? id;
 export const ROWS: readonly Row[] = [...DIALS.map((d) => ({ id: d.id, name: nameOf(d.id), kind: 'dial' as const, room: d.cap - d.base })), ...SHEET_SKILLS.map((s) => ({ id: s.id, name: nameOf(s.id), kind: 'skill' as const, room: s.cap - s.base }))];
 
-export const FREE_RESPREAD_LEVEL = CAREER_RULES.respecRule[0]!.freeRespreadLevel, RANK_LEVELS = CAREER_RULES.levelCurve[0]!.rankLevels;   // the server's numbers (origins/server/build.ts), rows of career-rules.json
+export const FREE_RESPREAD_LEVEL = CAREER_RULES.respecRule[0]!.freeRespreadLevel, RANK_LEVELS = CAREER_RULES.levelCurve[0]!.rankLevels;   // the one copy (rows of career-rules.json): origins/server/build.ts imports these
 export const pointsBudget = (level: number): number => pointsAt(level);   // the stats screen's "of N": asked of the rows, never answered twice
 export const spent = (v: BuildView): number => Object.values(v.placed).reduce((n, x) => n + x, 0);
 export const unspent = (v: BuildView): number => Math.max(0, pointsAt(v.level) - spent(v));

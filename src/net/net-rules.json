@@ -1,0 +1,78 @@
+{
+  "net": [
+    {
+      "id": "net",
+      "delay": 2,
+      "maxDelay": 12,
+      "maxRollback": 8,
+      "hashEvery": 30,
+      "redundancy": 64,
+      "rttSamples": 120,
+      "note": "rollback netcode: input delay (frames), its ceiling, the deepest rollback, the state-hash interval (frames), how many past intents each packet repeats, how many round trips the delay estimate keeps"
+    }
+  ],
+  "playable": [
+    {
+      "id": "playable",
+      "stallsPerMin": 60,
+      "note": "a link is playable when it stalls no more than this per minute (its delay and rollback ceilings are the net row's)"
+    }
+  ],
+  "ping": [
+    {
+      "id": "ping",
+      "every": 6,
+      "samples": 10,
+      "maxFrames": 300,
+      "hello": 30,
+      "note": "the delay handshake: a ping every N frames, the round trips it takes, the frame cap, and how often hello repeats before the fight starts"
+    }
+  ],
+  "silence": [
+    {
+      "id": "silence",
+      "waitMs": 3000,
+      "rejoinMs": 10000,
+      "abandonMs": 15000,
+      "note": "a quiet peer: the wait before the fight shows it, the time it may rejoin, the time before it counts as having left"
+    }
+  ],
+  "reconnect": [
+    {
+      "id": "reconnect",
+      "retryMs": 500,
+      "fastMaxMs": 1000,
+      "maxRetryMs": 4000,
+      "reconnectMs": 30000,
+      "beatStaleMs": 5000,
+      "directQuietMs": 1500,
+      "note": "the duel link's reconnect timing (ms): first retry, the backoff cap in the fast window and after it, how long it keeps trying, when a heartbeat counts as stale, when a quiet direct path is also sent over the relay"
+    }
+  ],
+  "messageCaps": [
+    {
+      "id": "caps",
+      "messageCap": 4096,
+      "intentsCap": 1024,
+      "note": "characters: a whole duel message, and one packet's intent columns (64 intents are about 560)"
+    }
+  ],
+  "duelAntifarm": [
+    {
+      "id": "antifarm",
+      "elo": {
+        "start": 1000,
+        "k": 32,
+        "floor": 100
+      },
+      "reward": {
+        "base": 10,
+        "perFullWin": 3,
+        "step": 0.5,
+        "min": 0.1
+      },
+      "dayMs": 86400000,
+      "note": "PLACEHOLDERS (Stats): starting rating, K factor, lowest rating; base pay of a counted win, how many a day pay in full, the multiplier after each further win and its floor; the day is the UTC day"
+    }
+  ]
+}

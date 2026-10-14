@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { LABELS, mergeAll, parseSpec, passAt } from '../scripts/cut-release.mjs';
+import { LABELS, mergeAll, openPrViaRest, parseSpec, passAt, runBounded } from '../scripts/cut-release.mjs';
 
 const own = (body: string) => ({ body, authorAssociation: 'OWNER' });
 const mkGit = (cwd: string) => (args: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL' });
@@ -96,7 +96,7 @@ test('the cut labels every candidate ci:release-checks, and release-checks.yml r
 test('a failed git push or gh pr create exits non-zero before any background job launches', () => {
   const src = readFileSync(new URL('../scripts/cut-release.mjs', import.meta.url), 'utf8');
   const launch = src.indexOf("bg('prelaunch.log'");
-  for (const guard of ['!pushed.ok', 'created.status !== 0']) {
+  for (const guard of ['!pushed.ok', 'could not open the PR']) {
     const at = src.indexOf(guard);
     assert.ok(at > 0 && at < launch, `${guard} must be checked before the background launch`);
   }
@@ -106,4 +106,29 @@ test('the cut launches no Hugging Face unit job: unit-ci.yml on the candidate is
   const src = readFileSync(new URL('../scripts/cut-release.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /launch\.mjs['"], ['"]unit/);
   assert.doesNotMatch(src, /bg\('unit\.log'/);
+});
+
+test('runBounded kills the whole process group at the deadline: a hung gh (and anything it spawned) cannot hold the cut (2026-10-14: gh pr create sat 17 min)', async () => {
+  const t0 = Date.now();
+  const r = await runBounded('bash', ['-c', 'sleep 30 & sleep 30'], 500);
+  assert.equal(r.timedOut, true);
+  assert.ok(Date.now() - t0 < 5000, `returned in ${Date.now() - t0} ms, not 30 s`);
+  const ok = await runBounded('bash', ['-c', 'echo https://github.com/o/r/pull/7'], 5000);
+  assert.equal(ok.status, 0);
+  assert.match(ok.stdout, /\/pull\/7/);
+});
+
+test('openPrViaRest reuses a PR gh already opened for the head, else opens a draft; either way it labels it', async () => {
+  const calls: string[] = [];
+  const mk = (existing: unknown[]) => (async (url: string, init: { method?: string } = {}) => {
+    calls.push(`${init.method || 'GET'} ${url.replace('https://api.github.com/repos/o/r', '')}`);
+    const body = url.includes('/pulls?') ? existing : url.endsWith('/pulls') ? { number: 99 } : [];
+    return { json: async () => body };
+  }) as unknown as typeof fetch;
+  const args = { repo: 'o/r', token: 't', head: 'release-ZZ', base: 'trunk', title: 'x', body: 'y', labels: LABELS };
+  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([{ number: 42 }]) }), 42);
+  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open', 'POST /issues/42/labels']);
+  calls.length = 0;
+  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([]) }), 99);
+  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open', 'POST /pulls', 'POST /issues/99/labels']);
 });
