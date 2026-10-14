@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import ROW_NAMES from '../src/core/row-names.json' with { type: 'json' };
 import { FREE_RESPREAD_LEVEL, ROWS, canPlace, canTakeBack, needsPoint, place, placedOn, resetAll, spent, takeBack, unspent } from '../src/core/build-model.ts';
 import { viewOf, type BuildView } from '../src/core/build-net.ts';
 import { DIALS, SHEET_SKILLS, pointsAt } from '../src/fight/sheet-rows.ts';
@@ -42,4 +43,10 @@ test('taking back is free to level 10, then once per rank, and the rank is the s
 test('the writer\'s reply is read strictly: a whole-number level, version, respreadRank and placed map, zeros dropped', () => {
   assert.deepEqual(viewOf({ level: 3, placed: { [dial]: 2, [other]: 0 }, respreadRank: 0, version: 4 }), { level: 3, placed: { [dial]: 2 }, respreadRank: 0, version: 4 });
   for (const bad of [null, {}, { level: 1.5, placed: {}, respreadRank: 0, version: 1 }, { level: 1, placed: [], respreadRank: 0, version: 1 }, { level: 1, placed: { a: -1 }, respreadRank: 0, version: 1 }, { level: 1, placed: {}, respreadRank: 0 }]) assert.equal(viewOf(bad), null, JSON.stringify(bad));
+});
+
+test('every dial and skill row has a display name in row-names.json, and the file names no row that does not exist', () => {
+  const ids = ROWS.map((r) => r.id);
+  assert.ok(ROWS.every((r) => r.name !== r.id), `a row shows its id: ${ROWS.filter((r) => r.name === r.id).map((r) => r.id)}`);
+  assert.equal(new Set(ROW_NAMES.rows.map((r) => r.id)).size, ids.length, 'one name per row, none extra');
 });

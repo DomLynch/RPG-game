@@ -16,7 +16,7 @@ import { loadProfile } from '../src/core/profile.ts';
 import { loadScorecard } from '../src/scorecard.ts';
 import { loadTrial } from '../src/trial.ts';
 import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
-import { FIRST_SHEET_VERSION, RECORD_VERSION, packRecord, unpackRecord } from '../src/fight/record.ts';
+import { RECORD_VERSION, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 import { validateBuild } from '../src/fight/sheet-rows.ts';

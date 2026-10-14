@@ -15,6 +15,7 @@ import { psqlDb } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { createLocationFlusher } from '../origins/server/location-flush.ts';
 import { createLiveOps } from '../origins/server/live-ops.ts';
+import { heroLimitOf } from '../origins/server/worn-gear.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
 import { presenceWhere } from '../origins/presence/where.ts';
@@ -27,12 +28,14 @@ import { worldSpawnOps, zoneKeyProblems } from '../origins/server/world-spawns.t
 import { resolveFromRegion1 } from '../origins/server/encounter-setup.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
 import { mobRewards } from '../origins/server/mob-rewards.ts';
+import { killWear } from '../origins/server/wear-settle.ts';
 // The kill's pay (CP + loot) from Region 1's content; the flag already requires that content to load (resolveFromRegion1 throws otherwise).
 // Zone 1 world spawns (202610080014): ON unless ORIGINS_SPAWNS=0 (the kill switch); without the migration every op answers 503.
 const verifyPool = createVerifyPool();
 const tally = createVerdictTally();
 setInterval(() => { const t = tally.snapshot(); if (t.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}`); }, 3_600_000).unref();
-const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally }; };
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, heroOf: (account, character) => heroLimitOf(db, account, character) }; };
+const regionWear = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return killWear(c.value); };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 
 const { DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, PORT = '8788', ORIGINS_DB_POOL = '4' } = process.env;   // ORIGINS_DB_POOL: persistent psql sessions (0 = one psql per op)
@@ -49,5 +52,5 @@ const flusher = process.env.ORIGINS_WRITER_INTERNAL_KEY && flushMs > 0 ? createL
 flusher?.start();
 const liveOps = createLiveOps(db);
 liveOps.start();
-const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1' }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords: tally, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1' }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords: tally, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
 for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });

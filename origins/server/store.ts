@@ -58,6 +58,15 @@ export const shopStock = async (db: Db, account: string, shop: string, item: str
   return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 
+// Pieces' wear (migration 20261013174936): the newest {worn, max, baseMax} an event left for each of these item instances, keyed by instance (an unworn piece is absent),
+// in one round trip; 'absent' on a database without the migration.
+export type WearRow = { seq: number; worn: number; max: number; baseMax: number };   // seq counts the piece's wear events (the write guard: wear:<instance>:<seq>)
+const HAS_ITEM_WEAR = `select to_regprocedure('public.origins_item_wear(uuid,text[])') is not null as itemwear \\gset\n`;
+export const itemWears = async (db: Db, account: string, instances: readonly string[]): Promise<Record<string, WearRow> | 'absent'> => {
+  const out = await gated(db, 'item_wear', HAS_ITEM_WEAR, 'itemwear', `select public.origins_item_wear(:'a'::uuid, (select coalesce(array_agg(k), '{}'::text[]) from jsonb_array_elements_text(:'k'::jsonb) k))::text;`, { a: acct(account), k: JSON.stringify(instances) });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
+};
+
 // Which of these legacy mint keys of this account exist in origins_items in ANY state (migration 202610100018): 'absent' on a database without it, so gear_import falls back to the live view.
 const HAS_MINT_KEYS = `select to_regprocedure('public.origins_mint_keys_held(uuid,text[])') is not null as mintkeys \\gset\n`;
 export const mintKeysHeld = async (db: Db, account: string, keys: readonly string[]): Promise<string[] | 'absent'> => {
@@ -178,6 +187,13 @@ export type BetaLedger = { reach: 'checked' | 'unchecked' };   // cp is derived 
 export const spawnKill = async (db: Db, account: string, token: string, minMs: number, respawnS: number, batch: readonly Json[], ledger: BetaLedger): Promise<({ result?: string; instance?: string; respawnAt?: string } & SpawnRefusal) | null> => {
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
+};
+// A character's fame (0..15000) and karma (-15000..15000), migration 202610130030: storage and read only for now. null = not this account's; 'absent' = the migration is not applied.
+export type Renown = { fame: number; karma: number };
+const HAS_RENOWN = `select to_regprocedure('public.origins_get_renown(uuid,text)') is not null as renown \\gset\n`;
+export const renownGet = async (db: Db, account: string, character: string): Promise<Renown | null | 'absent'> => {
+  const out = await gated(db, 'renown', HAS_RENOWN, 'renown', `select coalesce(public.origins_get_renown(:'a'::uuid, :'c')::text, 'null');`, { a: acct(account), c: character });
+  return out === 'absent' ? 'absent' : JSON.parse(out);
 };
 // The build of one character (migration 202610120024): level, points placed per dial or skill id, the rank of the last paid re-spread, version. null = not this account's; 'absent' = the migration is not applied.
 export type BuildRow = { level: number; placed: Record<string, number>; respreadRank: number; version: number; conflict?: true };

@@ -1,0 +1,6 @@
+{
+  "about": "Patron and clan allegiance numbers (issue #2554 group D; living-world \u00a710): the perk budget in per-mille and the allegiance rules (switch cost in bronze, the wait before switching clan to clan, the wait before joining again after leaving). patrons.ts exports them under their old names.",
+  "rules": [
+    {"id": "allegiance-rules", "perkBudgetPermille": 30, "switchBronze": 2000, "switchCooldownSeconds": 2419200, "leaveCooldownSeconds": 604800}
+  ]
+}

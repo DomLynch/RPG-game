@@ -1,0 +1,18 @@
+{
+  "tables": [
+    {
+      "table": "vendorClass",
+      "file": "vendor-economy.json",
+      "at": "classes",
+      "key": "id",
+      "required": { "stockSlope": "integer", "priceFloor": "integer", "priceCeil": "integer", "sellPct": "integer", "salesSlope": "integer", "salesFloor": "integer", "salesRecoverySeconds": "integer", "restockSeconds": "integer", "stockCap": "integer" }
+    },
+    {
+      "table": "zoneTax",
+      "file": "vendor-economy.json",
+      "at": "zoneTax",
+      "key": "id",
+      "required": { "buyTaxPct": "integer", "sellTaxPct": "integer" }
+    }
+  ]
+}
