@@ -3,6 +3,12 @@
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
 
+## 2026-10-14 (+04, afternoon) — HANDOFF #43: EP and ER are on trunk; five PRs open on release-ER
+
+**EP #2651 is LIVE (2c2efb58f); the C stack is on trunk.** Open PRs (all base trunk, labelled, built on release-ER 06b582515): #2644 d1 72841c461, #2653 d2 3e0159ddc, #2654 d3 62a92e98b (economy part is the Auditor's; its combined VPS run had 3 load-timeout failures that pass alone, 21/21), #2658 d4 606dd64a6 (WSV 28, Auditor's), #2662 d5 `world/d5-exempt-review` 69778524f (all 416 debt sunsets = 2026-10-14, the Auditor's 82 exempt verdicts written in, DEFAULT_FOG_FAR / POSE_EVERY_MS / STAMINA_MAX read their source, CENTRE_CM comment fixed, WSV 30, VPS 312/312). WSV order: Combat 23-27, mine 28, Combat's sim batch 29, mine 30; whoever lands later merges the earlier one and re-pins the digest.
+**Now:** read GitHub CI on #2644 #2653 #2654 #2658 #2662 and fix red; when Lead merges one, merge trunk into the others and re-pin #2658/#2662 digests if another WSV PR landed. KEEPALIVE_BYTES exempt entry goes when #2622 lands. Then the 10-24 list (all debt is now due TODAY 10-14, so "not at zero by 18:00 is listed with a reason"): my src/fight 42 (non-SIM files), origins/preview rest, audio, arena, crowd 4, mobs 1, shops 3.
+**Scratch:** /private/tmp/claude-501/rebump (wt/ worktree, branches world/d1..d5, scripts mergeer.sh erv.sh d5v.sh, exempt-review.json).
+
 ## 2026-10-14 (+04, midday) — HANDOFF #42: four data PRs open (all 10-17 entries done), stack still frozen
 
 **PRs (all base trunk, labelled auditor:ready + ci:release-checks, stacked on the C stack until EP lands, merge trunk in then):** #2644 d1 `world/d1-world-rows` 140375ce8 (engage-ahead 4 -> preview rows, CONCORD -> concord.json, guard hint restored); #2653 d2 `world/d2-presence-rows` 9eca3ba80 (presence 7 -> 28 presence-rules rows); #2654 d3 `world/d3-region1-rows` 3a8495dd9 (region1 6 -> region1-rules.json + region1-world.json; Auditor reads the economy part); #2658 d4 `world/d4-sim-rows` 9c7c3f34f (speeds 5 + world-record 4 -> world-rules rows, WSV 28, digest aba03176..., built on release-EP 2c2efb58f). VPS-verified: tsc/typecheck clean, check:as-data 0/0, tests 81/80/173/78 pass. GitHub CI read: #2644 18 pass 0 fail; #2653 one cancelled job (superseded run) not a fail; the rest pending when last read.
