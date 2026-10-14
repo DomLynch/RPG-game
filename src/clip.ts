@@ -3,19 +3,20 @@
 // file to the phone's share sheet. Nothing is drawn over the fight: the WebGL canvas never holds the HUD (that is DOM), so the clip
 // has none. Zero dependencies: canvas.captureStream + MediaRecorder, MP4 where the browser records it, WebM elsewhere.
 import { STEP } from './fight/sim.ts';
+import { present } from './present-rows.ts';
 
-export const CLIP_SECONDS = 10;   // the countdown's nominal length (5 s lead + a finisher + the 1 s tail); the clip itself runs until the finish has played
+export const CLIP_SECONDS = present('clip-seconds');   // the countdown's nominal length (5 s lead + a finisher + the 1 s tail); the clip itself runs until the finish has played
 // Seconds of fight before the killing tick. 5, was 9 (Lead B4 part 1, 2026-09-30): the clip records in real time, so the lead-in is the
 // player's wait; Dom found the export slow.
-export const CLIP_LEAD = 5;
+export const CLIP_LEAD = present('clip-lead');
 // After the kill the re-play plays on, as a watched replay does (Match.step), so the finisher and the kill camera move in the clip. It stops
 // CLIP_TAIL seconds after the scene reports the ceremony complete (view.finishPhase().complete), or CLIP_FINISH_CAP seconds after the kill
 // when that never comes (a record that ran out before its finish). Lead B2, 2026-09-30: Dom's clip froze on the killing tick for its last 3.5 s.
-export const CLIP_TAIL = 1, CLIP_FINISH_CAP = 8;
+export const CLIP_TAIL = present('clip-tail'), CLIP_FINISH_CAP = present('clip-finish-cap');
 export const clipEnded = (killedAt: number | null, completeAt: number | null, now: number) =>
   killedAt !== null && (now - killedAt >= CLIP_FINISH_CAP * 1000 || (completeAt !== null && now - completeAt >= CLIP_TAIL * 1000));
-export const CLIP_WIDTH = 720, CLIP_HEIGHT = 1280;
-const FPS = 30;
+export const CLIP_WIDTH = present('clip-width'), CLIP_HEIGHT = present('clip-height');
+const FPS = present('clip-fps');
 
 // The tick the re-play starts from: CLIP_LEAD before the record's end (the killing tick), never before the first.
 export const clipStartTick = (ticks: number) => Math.max(0, ticks - Math.round(CLIP_LEAD / STEP));

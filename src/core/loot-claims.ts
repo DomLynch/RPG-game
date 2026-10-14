@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { StoragePort } from './profile.ts';
 import { readStanding, type Standing } from './cloud-profile.ts';
 import { isLootId } from './loot.ts';
+import LOOT_RULES from './loot-rules.json' with { type: 'json' };
 import { AUTH_KEY } from './writer-call.ts';
 
 // The claims outbox (SCOPE 9(a), Backend's contract 2026-09-25): every signed-in ladder win posts one loot_claims row (migration
@@ -11,10 +12,10 @@ import { AUTH_KEY } from './writer-call.ts';
 // load or fight is made final with no piece (settleClaims). Posts go on sign-in, on a page load and on the final word; never in a loop.
 export type Claim = { userId: string; opponent: string; record: string; piece: string | null; final: boolean };
 export const CLAIMS_KEY = 'frankendom.claims.v1';
-export const CLAIMS_CAP = 50;   // 10 → 50 (Strategy 2026-09-29): a bounded outbox; each entry is one fight's share string
+export const CLAIMS_CAP = LOOT_RULES.lootRule[0]!.claimsCap;   // the lootRule row (loot-rules.json; 10 → 50, Strategy 2026-09-29): a bounded outbox; each entry is one fight's share string
 // Share stays hidden until the win's claim has been posted, or this long: the record hash is first-claimer-wins, so a link shared
 // before the post lands would let whoever opens it claim the fight.
-export const CLAIM_WAIT_MS = 3000;
+export const CLAIM_WAIT_MS = LOOT_RULES.lootRule[0]!.claimWaitMs;
 // The DB's own checks on a claim (loot_claims): an entry that fails one could only ever be refused, so it is never stored.
 const OPPONENT = /^[a-z]{1,32}$/, PIECE = /^[a-z]{1,32}\.[A-Za-z]{1,32}$/, RECORD = /^[A-Za-z0-9_-]+$/;
 const isClaim = (value: unknown): value is Claim => {
@@ -148,7 +149,7 @@ export function flushClaims(db: SupabaseClient, userId: string, storage: Storage
 // claim either way. The token is supabase-js's stored session (account.ts storageKey); none, or expired, sends nothing and the next load
 // posts. Keepalive bodies share 64 KB in flight, so it sends at most what fits.
 export { AUTH_KEY };   // one constant, defined in writer-call.ts (both doors re-export the same binding)
-export const KEEPALIVE_BYTES = 60000;
+export const KEEPALIVE_BYTES = LOOT_RULES.lootRule[0]!.keepaliveBytes;
 export function claimOnHide(storage: StoragePort, userId: string, piece: string | null, api: { url: string; key: string } | null, send: typeof fetch, now = Date.now()): number {
   const open = outbox(storage).filter((c) => !c.final && c.userId === userId).at(-1);
   if (open) finaliseClaim(storage, open.record, piece);   // unwritten, the entry is held and sent below all the same
