@@ -24,13 +24,13 @@ tactic: {
   closing:     Plan[]       // hero is walking/running at me, outside striking range
   afterHit:    Plan[]       // I was just hit (today: the 48-tick retreat, `hurt` age 1)
 }
-Reaction = 'parry' | 'backstep' | 'sidestep' | 'brace'      // weights, <= 6 entries per list (no 'trade' in v1)
-Plan     = 'press' | 'circle' | 'guard' | 'backstep' | 'sidestep'      // the existing AiMode / plan targets
+Reaction = 'parry' | 'backstep' | 'brace'      // weights, <= 6 entries per list (no 'trade' and no 'sidestep' in v1)
+Plan     = 'press' | 'circle' | 'guard' | 'backstep'      // the existing AiMode / plan targets
 ```
 
 - Each list is `{ choice, weight }[]`, at most 6 entries; one is drawn with the warden's existing `roll()` (the seeded `lcg`). A list that is absent for a situation keeps today's logic for that situation.
 - `heroWinding` replaces the choice inside the existing "one response planned per noticed attack" step; it does not change *when* an attack is noticed (`reaction` ticks), so perception stays the same.
-- The reaction entries map onto responses the warden already produces: `parry` and `brace` are its guard plans, `backstep` and `sidestep` are its existing step moves. (`trade`, "swing into it", is deferred past v1.) No new move or timing; the warden still cannot do anything the player's fighter cannot (the duel's legality check runs unchanged).
+- The reaction entries map onto responses the warden already produces: `parry` and `brace` are its guard plans, `backstep` is its existing step move. (`trade`, "swing into it", is deferred past v1; `sidestep` is out of v1: the duel has no sidestep move, Lead 2026-10-14.) No new move or timing; the warden still cannot do anything the player's fighter cannot (the duel's legality check runs unchanged).
 - Authoring: `src/fight/tactic-defs.json` (+ manifest, rows module `tactic-rows.ts`, a SIM file and SIM_DATA entry, as sim batch A did). Kinds can share a row by id.
 
 ## Cost
@@ -47,12 +47,12 @@ Plan     = 'press' | 'circle' | 'guard' | 'backstep' | 'sidestep'      // the ex
 
 1. **Spec merge** (this file).
 2. **Implementation PR 1, zero behaviour:** the loader, the rows module and the branch reading an empty/absent block. Proof: `rng-fingerprint.mjs` output byte-identical, `record-replay-check` passes, `test:all`. (The loader and the dead branch can ship with the RV bump deferred only if the record guard accepts it; if the SIM digest moves, RV bumps here and the proof is the byte-identical fingerprint apart from the version stamp, as with sim batch B.)
-3. **Implementation PR 2, first tactics:** one block per kind, authored from the identities already ruled (Shieldmaiden brace/guard-first, Knight methodical, Plague Doctor parry-first) and the beasts' hop-back / sidestep rows. Each is its own commit so one can be dropped alone. Proof: the win-rate battery (`scripts/own-row-battery.mjs` as used for the RV30 own rows: hero normal vs each kind, 40 seeds, L6/L18/L46) before and after, no kind moving more than the ruled band, plus stills where a reaction is visible (before/after at 375, mid-fight).
+3. **Implementation PR 2, first tactics:** one block per kind, authored from the identities already ruled (Shieldmaiden brace/guard-first, Knight methodical, Plague Doctor parry-first) and the beasts' hop-back rows. Each is its own commit so one can be dropped alone. Proof: the win-rate battery (`scripts/own-row-battery.mjs` as used for the RV30 own rows: hero normal vs each kind, 40 seeds, L6/L18/L46) before and after, no kind moving more than the ruled band, plus stills where a reaction is visible (before/after at 375, mid-fight).
 
 ## Rulings (Lead and Strategy, 2026-10-14)
 
-1. **Scope:** Pit archetypes only for v1, no WSV bump. World creatures come later as their own PR.
-2. **`trade` stays OUT of v1.** Trading blows is the riskiest reaction for win rate; add it later with its own ladder table. The `Reaction` list in v1 is `parry | backstep | sidestep | brace`.
+1. **Scope:** Pit archetypes only for v1; "no WSV" meant no world-behaviour change. The world digest hashes the Pit's RECORD_VERSION, so the RV bump moves it and WSV follows mechanically (accepted by Lead, 2026-10-14: PR 1 ships RV 63 / WSV 38). World creatures come later as their own PR.
+2. **`trade` stays OUT of v1.** Trading blows is the riskiest reaction for win rate; add it later with its own ladder table. The `Reaction` list in v1 is `parry | backstep | brace` (`sidestep` out: no duel move).
 3. **Identity blocks may change how a kind reacts** (Strategy: YES), under four conditions:
    1. Each identity is its own commit with its own win-rate table, so any one can be dropped alone.
    2. A tactic must agree with the identity of record: **Shieldmaiden guard-first, Knight methodical, Plague Doctor parry-first**. Anything beyond those goes back to Strategy as a spec line first.
