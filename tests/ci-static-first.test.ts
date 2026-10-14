@@ -145,6 +145,7 @@ test('DI/DH sequence (Lead 2026-10-13): a push, then a label, then the push\'s r
     assert.match(cancels(file), /true|pull_request/, `${file}: the group cancels the superseded run`);
   }
   assert.equal(grp(R, cand('labeled', 'ci:release-checks', '4')), grp(R, cand('synchronize')), 'the ci:release-checks label is the real row run: it stays in the head group');
+  assert.notEqual(grp(R, cand('opened', undefined, '5')), grp(R, cand('synchronize')), 'a late `opened` (plan skips it) must not share the head group, or it cancels the labeled rows run (FC 2026-10-14)');
 });
 
 test('a trunk push is unchanged: no static job, every shard and browser job runs', () => {
