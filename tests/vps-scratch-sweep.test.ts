@@ -24,12 +24,18 @@ test('sweep_kind: be-*, hooks-* and cq-* are aged roots, direct children of /var
   for (const p of ['/var/tmp/be-eb5eba4c/sub', '/tmp/hooks-x/sub', '/tmp/cq-x/y', '/tmp/be-eb5eba4c', '/var/tmp/hooks-x', '/var/tmp/cq-x']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
+// /tmp/rank-job left this refused list on 2026-10-14: Lead ruled it a standing aged root (see the test below), so it is pinned there now.
 test('sweep_kind: the six retired lane homes and the two /tmp one-offs, exactly; the live homes and everything else are refused', () => {
   for (const n of ['char-cd', 'deploy-b', 'char-20b', 'char-boss', 'char-lg', 'combat-b']) assert.equal(kind(`/home/lanes/frankendom-${n}`), 'home', n);
   for (const p of ['/tmp/node-compile-cache', '/tmp/lead-env-tab4']) assert.equal(kind(p), 'tmp', p);
   for (const p of ['/home/lanes/frankendom-backend', '/home/lanes/frankendom-char', '/home/lanes', '/home/lanes/.claude', '/home/lanes/.spill-tools', '/home/lanes/frankendom-char-cd/node_modules',
-    '/tmp/lm', '/tmp/claude-1003', '/tmp/rank-job', '/tmp', '/var/tmp', '/root', '/etc', '/', '/opt/frankendom-shadow', '/opt/frankendom-shadow/work', '/srv/dev-jobs'])
+    '/tmp/lm', '/tmp/claude-1003', '/tmp', '/var/tmp', '/root', '/etc', '/', '/opt/frankendom-shadow', '/opt/frankendom-shadow/work', '/srv/dev-jobs'])
     assert.equal(kind(p), '', `${p} is refused`);
+});
+
+test('sweep_kind: /tmp/rank-job and /root/cnNN are aged roots, exact (Lead 2026-10-14); lookalikes, children and other parents are refused', () => {
+  for (const p of ['/tmp/rank-job', '/root/cn1', '/root/cn20', '/root/cn007']) assert.equal(kind(p), 'aged', p);
+  for (const p of ['/tmp/rank-job/sub', '/tmp/rank-job2', '/tmp/rank-jobs', '/var/tmp/rank-job', '/rank-job', '/root/cn', '/root/cnx1', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/tmp/cn1', '/home/lanes/cn1', '/root/xcn1']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: odd paths are refused', () => {
