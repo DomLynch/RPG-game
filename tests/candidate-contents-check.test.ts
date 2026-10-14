@@ -1,7 +1,7 @@
 // scripts/candidate-contents-check.mjs: a deterministic read of a candidate's contents. Fixture repos are built with the cutter's own mergeAll, so the check verifies exactly what a cut produces.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -112,4 +112,18 @@ test('it works in a repo with NO git identity configured (the VPS and CI clones 
     const v = verifyCandidate({ git: bare, candidate: cand, base: f.base, passes: allPass });
     assert.equal(v.ok, true, JSON.stringify(v.problems));
   } finally { rmSync(f.dir, { recursive: true, force: true }); }
+});
+
+test('the CLI runs (and prints its verdict) when invoked through a symlinked directory, as under macOS $TMPDIR', () => {
+  const f = fixture();
+  const holder = mkdtempSync(join(tmpdir(), 'ccc-link-'));
+  try {
+    const cand = f.cut('X', f.base, [{ pr: 1, head: f.p1 }]);
+    mkdirSync(join(holder, 'real'));
+    cpSync(new URL('../scripts', import.meta.url), join(holder, 'real', 'scripts'), { recursive: true });
+    symlinkSync(join(holder, 'real'), join(holder, 'link'));
+    const r = spawnSync('node', [join(holder, 'link', 'scripts', 'candidate-contents-check.mjs'), cand, '--base', f.base, '--offline'], { cwd: f.dir, encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(JSON.parse(r.stdout).ok, true, 'a verdict was printed through the symlink');
+  } finally { rmSync(f.dir, { recursive: true, force: true }); rmSync(holder, { recursive: true, force: true }); }
 });

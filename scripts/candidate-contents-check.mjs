@@ -8,6 +8,8 @@
 //      hand-resolved, added or dropped).
 // Usage: `node scripts/candidate-contents-check.mjs <candidate-ref> [--base <ref>]` (env GH_TOKEN, GITHUB_REPOSITORY=owner/repo; --offline skips the PASS lookup). Exit 0 = ok.
 import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { passAt } from './cut-release.mjs';
 
 const SUBJECT = /^Merge pull request #(\d+) \(release-[A-Za-z0-9]+ candidate\)$/;
@@ -83,7 +85,9 @@ async function commentsOf(repo, pr, token) {
   return (await r.json()).map(c => ({ body: c.body, authorAssociation: c.author_association }));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Compare real paths: on macOS $TMPDIR and many checkouts sit behind a symlink (/var -> /private/var), where a literal file:// comparison is false and the script would print nothing.
+const isMain = (() => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } })();
+if (isMain) {
   const argv = process.argv.slice(2);
   const flag = f => { const i = argv.indexOf(f); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v ?? null; };
   const offline = argv.includes('--offline'); if (offline) argv.splice(argv.indexOf('--offline'), 1);
