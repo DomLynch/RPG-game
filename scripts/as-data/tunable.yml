@@ -1,5 +1,5 @@
 # as-data check (c): a numeric tunable kept in code (#2554 group C): a top-level `const NAME = <number>` (several declarators in one `const` each count) in a file the group has moved to rows. The rows live in JSON
-# (manifest-loaded through src/core/registry.ts); a number that is not a rule (an engine mirror, a unit) is listed with its reason in allow.json `tunables`. A group extends `files` with its own moved files, so the gate holds
+# (manifest-loaded through src/core/registry.ts); a number that is not a rule (an engine mirror, a unit) is listed with its reason in scripts/as-data/allow/<root>.json `tunables`. A group extends `files` with its own moved files, so the gate holds
 # them at zero. Names are UPPER_SNAKE only: a local or a function-body number is not a tunable.
 id: as-data-tunable
 language: typescript
