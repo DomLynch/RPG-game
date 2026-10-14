@@ -1,0 +1,23 @@
+{
+  "tunables": [
+    {"file": "src/clip.ts", "name": "CLIP_FINISH_CAP", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/clip.ts", "name": "CLIP_HEIGHT", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/clip.ts", "name": "CLIP_LEAD", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/clip.ts", "name": "CLIP_SECONDS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/clip.ts", "name": "CLIP_TAIL", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/clip.ts", "name": "CLIP_WIDTH", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/clip.ts", "name": "FPS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/coach.ts", "name": "BUILD_MAX", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/coach.ts", "name": "LAPSE_MAX", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/coach.ts", "name": "LAPSE_MIN", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/gate-rise.ts", "name": "RISE_M", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/gate-rise.ts", "name": "RISE_MS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/lorarii.ts", "name": "LORARII", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/main.ts", "name": "HEAVY_BLOCK", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/main.ts", "name": "HEAVY_HIT", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/main.ts", "name": "HIT_STOP", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/pvp-hold.ts", "name": "CATCHUP", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/pvp-hold.ts", "name": "MAX_LAG_TICKS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"},
+    {"file": "src/share-store.ts", "name": "MAX_STORED_CHARS", "kind": "debt", "reason": "a page, layout or UI number still in code, owed as a row (owner by directory, unreviewed)", "owner": "Web & UI", "sunset": "2026-10-24"}
+  ]
+}
