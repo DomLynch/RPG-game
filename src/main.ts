@@ -1,5 +1,8 @@
 import { createInput } from './fight/index.ts';
+import { ui } from './ui-rows.ts';
+import { AFK_CAP_S } from './first-loss.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
+import { weightClassOf } from './fight/gear-weight.ts';
 import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
@@ -141,7 +144,7 @@ function renderFightRank() {
 const skillThumb = (id: SkillId) => `/game/img/loot/${id}.thumb.svg`;   // a move has no mesh to render: its tile shows a drawn glyph, same 48 px slot (Strategy 09-25: text-only read as a placeholder)
 const lootPanel = createLootPanel(element, document, () => performance.now());   // the clock is injected: the panel's tap guard must be steppable by the harness
 let lootLineTimer: ReturnType<typeof setTimeout> | undefined;   // the Undo line's ~4 s on screen
-const LOOT_LINE_MS = 4000;
+const LOOT_LINE_MS = ui('loot-line-ms');
 // A take is provisional while its Undo line is up: the device saves at once, but the account is told only when the window closes
 // (the line's timer, the next fight, a dismissed panel). The cloud merge unions ownership from both sides and never deletes, so a
 // take that had already reached the account came back on the next merge whatever Undo did (GPT audit 2026-09-25, A). A page
@@ -250,7 +253,7 @@ if (typeof location !== 'undefined') { try { const to = zone1Hop({ search: locat
 if (typeof location !== 'undefined' && /[?&]dpr=/i.test(location.search)) { try { history.replaceState(history.state, '', `${location.pathname}${withoutDpr(location.search)}${location.hash}`); } catch { /* no history API: the dpr stays in the address */ } }
 // eslint-disable-next-line prefer-const -- assigned after storage exists (below); closures above read it as undefined until then, which const would turn into a TDZ throw
 let serverGear: ReturnType<typeof createServerGear> | undefined;   // assigned once storage exists (below): a signed-in character's gear is the server's ledger
-const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
+const { setLoot, showLoot, renderLoot, enterGear, leaveGear, thumbFor, sentence, rankText, gear: gearRoom } = createGearSheet({ element, journal, canvas, weightOf: weightClassOf, act: (op) => serverGear?.act(op) ?? false, profile: () => serverGear?.profileFor(profile) ?? profile, persist, view: () => view, weapon: () => match.weapon, numbers: gearNumbers });
 lootPanel.wire();
 const cameraButton = element<HTMLButtonElement>('camera-button');
 const attackButton = element<HTMLButtonElement>('attack-button');
@@ -678,7 +681,7 @@ function winFace(src: string | null) {
   img.src = src;
 }
 // The teaching beat the scripted first loss fired (first-loss.ts calls onLesson): shown in the combat-status line for LESSON_MS, or until the next beat.
-const LESSON_MS = 4000;
+const LESSON_MS = ui('lesson-ms');
 const PACE_STILL = /[?&]pacestill=1(&|$)/.test(window.location?.search ?? '');   // stills only (PR #1484): shows the pace line at tick 120 without fatiguing a real fight; inert without the query
 let lessonNow: LessonLine | undefined, lessonTimer = 0;
 export function onLesson(id: LessonLine) { lessonNow = id; clearTimeout(lessonTimer); lessonTimer = window.setTimeout(() => { lessonNow = undefined; }, LESSON_MS); }
@@ -1049,7 +1052,7 @@ let watching = Boolean(replayText || sharedId);
 // the deterministic sim is stepped silently to REPLAY_TAIL seconds before the record's end, then rendered from there. Blows before
 // the window leave no wound marks (they were never drawn). "Watch the whole fight" is gone (owner 2026-09-22: "boring, huge memory
 // and bandwidth") — the ending is the whole viewer page, and PLAY NOW under it is the only thing to press.
-const REPLAY_TAIL = 7;
+const REPLAY_TAIL = ui('replay-tail-s');
 // A response that arrives after a later start (the player pressed Rematch while the link loaded) is refused by the match and the
 // fight in play stays; only its loading line goes.
 function startReplay(record: FightRecord, fromTick: number, epoch: number) {
@@ -1249,7 +1252,7 @@ const showVersus = () => { if (stillIn && faceSettled && !assetsReady && !artFai
 versusStill.addEventListener('error', () => { versus.hidden = true; versusUp = false; });
 // A face that neither loads nor fails (a stalled request) never holds the card: 2 s after the still (Lead, on the Auditer's N1), it shows without one, and a
 // face arriving after that is left out (no layout jump under the player).
-const FACE_WAIT_MS = 2000;
+const FACE_WAIT_MS = ui('face-wait-ms');
 versusStill.addEventListener('load', () => { stillIn = true; if (!faceSettled) setTimeout(() => { faceSettled = true; showVersus(); }, FACE_WAIT_MS); showVersus(); });
 versusPortrait.addEventListener('load', () => { if (faceSettled) return; versusPortrait.hidden = false; versus.dataset.portrait = 'true'; faceSettled = true; showVersus(); });
 versusPortrait.addEventListener('error', () => { faceSettled = true; showVersus(); });
@@ -1449,7 +1452,7 @@ let last = performance.now(),
 // fightLive() alone owed a returning player the time the fight waited behind the loading card) is owed to it: the browser cannot run the fight while hidden, so the missed time is simulated on return with
 // no input — the fight goes on as if the player stood still (owner 2026-09-20, "nothing more, nothing less"). Both clocks are read because a
 // suspended phone browser may not advance performance.now(); the cap only bounds the work, an idle fighter is long dead before it.
-const AFK_CAP = 300;
+const AFK_CAP = AFK_CAP_S;
 let hiddenPerf = 0, hiddenWall = 0, hiddenPlayable = false, owed = 0, marked = false;
 const fightLive = () => !invalidSparringPreview && welcome.hidden && !journal.open && !match.practice.finish;
 // The ?perf=1 fight figures count playable frames only: rigs in, versus card gone, graphics up. fightLive() alone is true for a

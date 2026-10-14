@@ -14,6 +14,7 @@ type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; g
 export type GearSheetDeps = {
   element: <T extends HTMLElement = HTMLElement>(id: string) => T; journal: HTMLElement; canvas: HTMLElement;
   profile: () => { loot?: Loot }; persist: () => void; view: () => View; weapon: () => string;
+  weightOf?: (id: LootId) => string | null;   // a piece's armour weight class as the host's gear rows name it (heavy / medium / light), or null for a piece no set owns: a read-only badge on the rail, the rack and the pack
   numbers?: (loot: Loot | undefined) => Record<string, number>;   // the host's numbers for the stat strip (gear-strip.ts): the Pit and the zone read their combat constants, so the core imports no fight code
   emptyPack?: string;   // the empty rack's line: a host that is not the Pit says its own words
   act?: (op: GearOp) => boolean;   // a signed-in character's wear / stow goes to the server (gear-ledger.ts stepsFor): true = handled; false or absent = the local ledger (a guest, the Pit today)
@@ -21,6 +22,7 @@ export type GearSheetDeps = {
 export function createGearSheet(d: GearSheetDeps) {
   const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
   const pieceName = (id: LootId) => ownedName(id, d.profile().loot?.taken?.[id]?.tier);   // the ledger the sheet is showing (the server's, signed in), never the device profile's
+  const weightBadge = (host: HTMLElement, id: LootId | undefined | null) => { const w = id ? d.weightOf?.(id) ?? null : null; if (w) host.setAttribute('data-weight', w[0]!.toUpperCase() + w.slice(1)); else host.removeAttribute('data-weight'); };
   const act = (op: GearOp) => { if (!d.act?.(op)) setLoot(applyLocal(d.profile().loot ?? emptyLoot(), op)); };
   // Show a ledger that is not the local profile's (the server's, for a signed-in character): the rig and the sheet follow it, nothing is written to the profile.
   function showLoot(loot: Loot) { d.profile().loot = loot; d.view().wear(wornIdsOf(d.profile().loot), wornTiersOf(d.profile().loot)); renderLoot(); }
@@ -30,7 +32,7 @@ export function createGearSheet(d: GearSheetDeps) {
     const loot = d.profile().loot ?? emptyLoot(), worn = wornIdsOf(d.profile().loot);
     const li = document.createElement('li'), name = document.createElement('span'), button = document.createElement('button'), taken = loot.taken?.[id], isWorn = worn.includes(id);
     li.setAttribute('data-loot', id); li.setAttribute('data-worn', String(isWorn)); li.setAttribute('tabindex', '0');
-    name.textContent = pieceName(id);
+    name.textContent = pieceName(id); weightBadge(name, id);
     button.setAttribute('data-wear', id); button.textContent = isWorn ? 'Worn' : 'Wear';
     button.addEventListener('click', () => act(isWorn ? { kind: 'unwear', key: paperdollOf(slotOf(id)) } : { kind: 'wear', id }));
     li.append(name);
@@ -69,7 +71,7 @@ export function createGearSheet(d: GearSheetDeps) {
       if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
       if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = d.emptyPack ?? 'Nothing stored. Win gear in the arena.'; return li; }
       const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
-      li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, d.profile().loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
+      li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); weightBadge(name, id); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, d.profile().loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
       button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
       button.addEventListener('click', () => tryOn(id));
       text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');
@@ -119,7 +121,7 @@ export function createGearSheet(d: GearSheetDeps) {
     const replaced = fitId ? loot.equipped[paperdollOf(slotOf(fitId))] : undefined, full = packFull(loot);
     const holder = d.element('fitting'), thumb = d.element<HTMLImageElement>('fitting-thumb');
     thumb.hidden = false; thumb.src = lootThumb(shown);
-    d.element('fitting-name').textContent = sentence(pieceName(shown));
+    d.element('fitting-name').textContent = sentence(pieceName(shown)); weightBadge(d.element('fitting-name'), shown);
     d.element('fitting-rank').textContent = fitId ? `${rankText(fitId)} · ${replaced ? `replaces ${pieceName(replaced)}, ${rankText(replaced)}` : 'fills an empty slot'}` : `${rankText(shown)} · worn`;
     d.element('fitting-note').textContent = !fitId && full ? 'Pack full: wear a packed piece to free a slot.' : '';
     d.element('fitting-cancel').hidden = d.element('fitting-wear').hidden = !fitId;
