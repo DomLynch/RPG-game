@@ -24,5 +24,5 @@ Core slice 3b was "the item and economy packages into `src/core`". 3b-1 was luck
 
 ## Hazards to check in every slice
 - The writer's import closure and the presence file list (`ops/presence-files.mjs`, `scripts/writer-closure*.mjs`) are derived from import paths: a moved file must keep closure parity, and the deploy install must be run only by Deploy.
-- Slices 1-3 touch `scripts/as-data/allow/*.json` and `scripts/cut-release.mjs` is not involved, but the allow lists conflict easily: merge with the as-data driver (`scripts/as-data/merge-allow.mjs`) when rebasing.
+- Slices 2 and 3 edit `scripts/as-data/allow/*.json`, and those lists conflict easily: merge trunk in with the as-data driver (`scripts/as-data/merge-allow.mjs`, passed per call).
 - Do not start before Strategy schedules Core 3b; Dom's current order is data layer only.
