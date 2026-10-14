@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 const { mergeAll } = await import('../scripts/cut-release.mjs');
-const { rebuildTree, verifyCandidate } = await import('../scripts/candidate-contents-check.mjs');
+const { commentsOf, rebuildTree, verifyCandidate } = await import('../scripts/candidate-contents-check.mjs');
 
 const mkGit = (cwd: string) => (args: string[], input?: string) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, input, encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL' });
 
@@ -123,7 +123,31 @@ test('the CLI runs (and prints its verdict) when invoked through a symlinked dir
     cpSync(new URL('../scripts', import.meta.url), join(holder, 'real', 'scripts'), { recursive: true });
     symlinkSync(join(holder, 'real'), join(holder, 'link'));
     const r = spawnSync('node', [join(holder, 'link', 'scripts', 'candidate-contents-check.mjs'), cand, '--base', f.base, '--offline'], { cwd: f.dir, encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
-    assert.equal(r.status, 0, r.stderr);
-    assert.equal(JSON.parse(r.stdout).ok, true, 'a verdict was printed through the symlink');
+    assert.equal(r.status, 3, r.stderr);   // --offline: printed, but never green
+    assert.equal(JSON.parse(r.stdout).treeEqual, true, 'a verdict was printed through the symlink');
   } finally { rmSync(f.dir, { recursive: true, force: true }); rmSync(holder, { recursive: true, force: true }); }
+});
+
+test('--offline can never read as a verdict: ok false, a problem naming it, exit code 3', () => {
+  const f = fixture();
+  try {
+    const cand = f.cut('X', f.base, [{ pr: 1, head: f.p1 }]);
+    const r = spawnSync('node', [new URL('../scripts/candidate-contents-check.mjs', import.meta.url).pathname, cand, '--base', f.base, '--offline'], { cwd: f.dir, encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
+    assert.equal(r.status, 3);
+    const v = JSON.parse(r.stdout);
+    assert.equal(v.ok, false); assert.equal(v.offline, true); assert.equal(v.treeEqual, true);
+    assert.match(v.problems.join(), /PASS lines were not checked/);
+  } finally { rmSync(f.dir, { recursive: true, force: true }); }
+});
+
+test('commentsOf follows the pages: a PASS on page 2 of a 150-comment thread is found, and a failing page throws', async () => {
+  const mk = (n: number) => Array.from({ length: n }, (_, i) => ({ body: `c${i}`, author_association: 'OWNER' }));
+  const pages: Record<number, unknown[]> = { 1: mk(100), 2: [...mk(49), { body: 'Auditor: PASS @abcdef123', author_association: 'OWNER' }] };
+  const calls: number[] = [];
+  const fakeFetch = (async (url: string) => { const p = Number(/[?&]page=(\d+)/.exec(url)![1]); calls.push(p); return { ok: true, json: async () => pages[p] ?? [] }; }) as unknown as typeof fetch;
+  const all = await commentsOf('o/r', 7, 't', fakeFetch);
+  assert.equal(all.length, 150);
+  assert.equal(all[149].body, 'Auditor: PASS @abcdef123');
+  assert.deepEqual(calls, [1, 2], 'stops after the short page');
+  await assert.rejects(commentsOf('o/r', 7, 't', (async () => ({ ok: false, status: 502 })) as unknown as typeof fetch), /HTTP 502/);
 });

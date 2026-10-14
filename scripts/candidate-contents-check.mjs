@@ -6,7 +6,7 @@
 //   2. every merged head (second parent) carries a canonical "<reviewer>: PASS @<head>" line from a trusted author (the same passAt rule cut-release enforces);
 //   3. re-merging those heads onto the base in the same order, with git merge-tree (no worktree), is conflict-free and yields EXACTLY the candidate's tree (so nothing was
 //      hand-resolved, added or dropped).
-// Usage: `node scripts/candidate-contents-check.mjs <candidate-ref> [--base <ref>]` (env GH_TOKEN, GITHUB_REPOSITORY=owner/repo; --offline skips the PASS lookup). Exit 0 = ok.
+// Usage: `node scripts/candidate-contents-check.mjs <candidate-ref> [--base <ref>]` (env GH_TOKEN, GITHUB_REPOSITORY=owner/repo). Exit 0 = ok. --offline checks chain + tree only and exits 3 with ok:false: PASS lines unchecked is never a verdict.
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -79,10 +79,17 @@ export function verifyCandidate({ git, candidate, base, passes }) {
   return verdict;
 }
 
-async function commentsOf(repo, pr, token) {
-  const r = await fetch(`https://api.github.com/repos/${repo}/issues/${pr}/comments?per_page=100`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(20_000) });
-  if (!r.ok) throw new Error(`comments of #${pr}: HTTP ${r.status}`);
-  return (await r.json()).map(c => ({ body: c.body, authorAssociation: c.author_association }));
+/** All comments of a PR, following the pages (a busy thread has more than 100: a PASS on page 2 must not read as missing). */
+export async function commentsOf(repo, pr, token, fetchImpl = fetch) {
+  const out = [];
+  for (let page = 1; page <= 30; page++) {
+    const r = await fetchImpl(`https://api.github.com/repos/${repo}/issues/${pr}/comments?per_page=100&page=${page}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) throw new Error(`comments of #${pr}: HTTP ${r.status}`);
+    const batch = await r.json();
+    out.push(...batch.map(c => ({ body: c.body, authorAssociation: c.author_association })));
+    if (batch.length < 100) return out;
+  }
+  throw new Error(`comments of #${pr}: more than 3000, not read`);
 }
 
 // Compare real paths: on macOS $TMPDIR and many checkouts sit behind a symlink (/var -> /private/var), where a literal file:// comparison is false and the script would print nothing.
@@ -104,6 +111,8 @@ if (isMain) {
     }
   }
   const verdict = verifyCandidate({ git, candidate, base, passes: (pr, head) => (offline ? true : table.get(`${pr}@${head}`)) });
-  console.log(JSON.stringify(offline ? { ...verdict, offline: true } : verdict, null, 2));
-  process.exit(verdict.ok ? 0 : 1);
+  // --offline checks the chain and the tree only: PASS lines were NOT looked at, so it can never read as a verdict (ok false, exit 3) (Auditor on #2692).
+  if (offline) { verdict.problems.push('PASS lines were not checked (--offline): tree check only, not a verdict'); verdict.ok = false; verdict.offline = true; }
+  console.log(JSON.stringify(verdict, null, 2));
+  process.exit(verdict.ok ? 0 : offline ? 3 : 1);
 }
