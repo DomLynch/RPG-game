@@ -8,8 +8,8 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import DATA from './shops.json' with { type: 'json' };
 import MANIFEST from './shops.manifest.json' with { type: 'json' };
 
-// Taken from trunk b416d5c6d, where the list was built in shops.ts: the move to shops.json must change no value.
-const TRUNK_SHA = '842d1df2647b55378b9f99afca4cd86d51760bd0eb8649891fa73953c499145e';
+// Taken from trunk a379108ed (after Backend's #2586 added zone and class), where the list was built in shops.ts: the move to shops.json must change no value.
+const TRUNK_SHA = '4ae46a4b06d9fa44e8bffb253ea988ffe20fc53fa98af4ceb14c4aee3ef59a18';
 
 test('the shop rows read back byte-identical to the list shops.ts built in code', () => {
   assert.equal(createHash('sha256').update(JSON.stringify([...REGION1_SHOPS])).digest('hex'), TRUNK_SHA);
