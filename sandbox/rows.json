@@ -14,6 +14,7 @@
 "2026-10-13 Dom: heavy armour slows casting: a special's windup is +20% in plate, +10% in leathers, 0 in robes (sandbox-mech castPenalty, read off the sheet dials; same numbers as #2577).",
 "2026-10-13 Dom: the arm wound only forms once the defender is at 10% health or lower (wound row column below).",
 "2026-10-13 Dom: execution via posture break: the critical heavy that lands after a posture break hits 1.5x, and finishes a foe at or under 25% health (sandbox-mech execution).",
+"2026-10-14 Dom: no posture effects: the base animation only, no tired hunch, no open-stagger arm lift, no charge lean, no stance silhouette (sandbox-mech plainPosture). Guard-side tilt and finishers stay.",
 "2026-10-13 Lead: armour weights now match #2577 (src/fight/armour-weights.json, castPenalty heavy 20 / medium 10 / light 0): heavy = plate, medium = leathers, light = robes, no mail set. The line above is superseded. The cast hook is Combat's, built on #2577.",
 "2026-10-13 Dom: boss phase: at 50% health a boss's special hits 1.5x as hard and is ready after 30% of its cooldown (attack change, no colour change), with an on-screen message. A cast cut early now locks the caster out up to twice as long."
 ],"files":{
@@ -57,6 +58,7 @@
 {"id":"executeMult","value":1500},
 {"id":"executeBelow","value":25},
 {"id":"oneButton","value":1},
+{"id":"plainPosture","value":1},
 {"id":"heavyHold","value":220},
 {"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18}

@@ -82,3 +82,7 @@ export const HURT_STYLES: readonly HurtStyle[] = ((DEFS as unknown as { hurtStyl
 // lower, middle and upper spine and the neck while the fighter stands armed and calm; negative = back/up). Presentation only, characters.ts after the mixer; no row picked = today's stance.
 export type ReadyStyle = { id: number; s1: number; s2: number; s3: number; neck: number };
 export const READY_STYLES: readonly ReadyStyle[] = ((DEFS as unknown as { readyStyles?: ReadyStyle[] }).readyStyles ?? []);
+
+// plainPosture (Dom 2026-10-14: "remove all of the posture effects ... just use the vanilla base model"): 1 = the character driver adds no procedural posture on top of the recorded clips: no tired-body hunch and sagging sword arm, no
+// open-stagger lift and lean, no charge lean, no stance silhouette. Guard-side tilt (the sides a guard covers) and every finisher stay as they are. 0 = off (trunk).
+export const PLAIN_POSTURE = num('plainPosture', 'value') > 0;

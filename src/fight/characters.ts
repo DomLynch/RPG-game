@@ -1,6 +1,6 @@
 // THE ACTOR DRIVER, in the shared fight core (src/fight/, Dom via Strategy 2026-10-09: the Pit and every zone play one fight, one animation system). Moved from src/characters.ts, which now re-exports it
 // so the Pit's importers are untouched; Zone 1 imports it from src/fight/index.ts. Nothing in this file changed but the relative paths.
-import { HURT_STYLES, READY_STYLES } from './sandbox-rules.ts';
+import { HURT_STYLES, READY_STYLES, PLAIN_POSTURE } from './sandbox-rules.ts';
 import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
@@ -763,16 +763,16 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const k of ['yaw', 'arm', 'spine'] as const) tilt[k] += (guarding[k] - tilt[k]) * ease;
         // Two cascaded eases: the lean starts and stops at zero speed, so neither the hold nor the release pops.
         const follow = 1 - Math.exp(-step * 18);
-        leanDrive += (Number(!!lean && holding) - leanDrive) * follow; leaning += (leanDrive - leaning) * follow;
+        leanDrive += (Number(!PLAIN_POSTURE && !!lean && holding) - leanDrive) * follow; leaning += (leanDrive - leaning) * follow;
         if (leaning < 1e-3 && leanDrive < 1e-3) leaning = leanDrive = 0;
         const l = lean ?? NO_LEAN;
         // The tired body (fatigue.ts): breathing in the chest, a hunch, the sword arm sagging; only while the pose is calm (a swing's contact pose is the sim's blade).
         calmWeight += (Number(!dead && (pose === 'ready' || pose === 'guard' || pose === 'sheathed')) - calmWeight) * ease;
         breath += step * breathe(tired, tune); readBreath += step * readRate(tired, tune);
-        const layer = tired.level > 0 || tired.gassed > 0 || calmWeight > .001 ? fatigueLayer(tired, breath, calmWeight, tune) : null;
+        const layer = !PLAIN_POSTURE && (tired.level > 0 || tired.gassed > 0 || calmWeight > .001) ? fatigueLayer(tired, breath, calmWeight, tune) : null;
         openW += (openWeight(open) - openW) * (1 - Math.exp(-step * 30));   // quick: it follows the sim's own ramp, which is already eased
         if (openW < 1e-3 && !open) openW = 0;
-        const gap = dead || pose === 'attack' ? NO_OPEN : openPose(openW, open?.kind);
+        const gap = PLAIN_POSTURE || dead || pose === 'attack' ? NO_OPEN : openPose(openW, open?.kind);
         hurtDrive += ((hurtStyle && pose === 'hit' ? Math.sin(Math.min(1, progress) * Math.PI) : 0) - hurtDrive) * ease;   // up and back over the hurt, eased
         if (hurtDrive < 1e-3) hurtDrive = 0;
         readyDrive += ((readyStyle && (pose === 'ready' || pose === 'guard') ? 1 : 0) - readyDrive) * ease;
@@ -799,12 +799,12 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
             if (layer) { if (spine1) spine1.rotation.x += layer.hunch; if (spine2) spine2.rotation.x += layer.chest; if (upperArm) upperArm.rotation.x += layer.arm; }
           }
         }
-        uprightW += (Number(!!upright && !dead && (pose === 'ready' || pose === 'guard')) - uprightW) * ease;
+        uprightW += (Number(!PLAIN_POSTURE && !!upright && !dead && (pose === 'ready' || pose === 'guard')) - uprightW) * ease;
         if (upright && uprightW > .001) {   // the counter-pitch on the calm pose (upright-ready.ts); restored at the top of the next update
           const b = uprightBones; b.forEach((bone, i) => bone && uprightSaved[i].copy(bone.quaternion)); uprightApplied = true;
           if (b[0]) b[0].rotation.x += upright.spine2 * uprightW; if (b[1]) b[1].rotation.x += upright.spine3 * uprightW; if (b[2]) b[2].rotation.x += upright.neck * uprightW;
         }
-        stanceW += (Number(stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
+        stanceW += (Number(!PLAIN_POSTURE && stance !== 'neutral' && !dead && (pose === 'ready' || pose === 'guard')) - stanceW) * ease; stanceClock += step;
         if (stanceW > .001) {   // ?look=stances: the stance's bones on top of the calm pose (stance-pose.ts); restored at the top of the next update
           const sp = stancePose(stance, stanceW, stanceClock), b = stanceBones;
           b.forEach((bone, i) => bone && stanceSaved[i].copy(bone.quaternion)); if (b[0]) stancePelvis.copy(b[0].position); stanceApplied = true;
