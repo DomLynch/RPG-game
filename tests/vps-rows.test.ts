@@ -4,11 +4,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const { buildRowsRunner, parseRowsReceipt, vpsRowsTrusted, runRowsOnVps } = await import('../scripts/lib/vps-rows.mjs');
+const { buildRowsRunner, parseRowsReceipt, vpsRowsTrusted, runRowsOnVps, pwSeed } = await import('../scripts/lib/vps-rows.mjs');
 const { NODE_PIN, RELEASE_MARK_DIR } = await import('../scripts/lib/vps-unit.mjs');
 const SHA = 'a'.repeat(40), TREE = 'b'.repeat(40), NONCE = 'c'.repeat(32), RUNID = '1'.repeat(16), CHROME = 'd'.repeat(64);
 const commands: string[][] = JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands;
@@ -142,4 +142,37 @@ test('Auditor #2181: prelaunched_cpu accepts a multi-id spill line and rejects a
   const apply = readSrc('scripts/lib/deploy-vps.sh', 'utf8'), a0 = apply.indexOf('vps_receipts_apply()');
   assert.ok(apply.indexOf('prelaunched_cpu "$receipt_sha"', a0) > apply.indexOf('.rowsvps.running', a0) && apply.indexOf('prelaunched_cpu "$receipt_sha"', a0) < apply.indexOf('for job in', a0), 'the spilled .cpu is read after the .running wait and before the job loop');
   assert.match(sh, /mkdir -p -m 755 '\$\{RELEASE_MARK_DIR\}'/); assert.match(sh, /trap 'rm -rf "\$RUN" "\$MARK"' EXIT/);
+});
+
+// EH (2026-10-13): every rows run re-downloaded ~500 MB of browsers into its own run dir (17 minutes at 0.4 MiB/s) although the box already holds the pinned revisions.
+test('pwSeed copies the finished browsers from the box caches into the run dir, so playwright install has nothing to download; a missing revision is left to the install', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pwseed-'));
+  try {
+    const mk = (cache: string, name: string, done: boolean, body: string) => { const d = join(dir, cache, name); mkdirSync(join(d, 'sub'), { recursive: true }); writeFileSync(join(d, 'sub', 'chrome'), body); if (done) writeFileSync(join(d, 'INSTALLATION_COMPLETE'), ''); return d; };
+    mk('a', 'chromium-1234', true, 'A-chromium'); mk('a', 'chromium_headless_shell-1234', true, 'A-shell'); mk('a', 'ffmpeg-1011', true, 'A-ffmpeg');
+    mk('a', 'chromium-9999', false, 'half-downloaded'); mk('a', 'webkit-2336', true, 'webkit');
+    mk('b', 'ffmpeg-1011', true, 'B-ffmpeg'); mk('b', 'chromium-1300', true, 'B-newer');
+    const run = join(dir, 'run'), caches = [join(dir, 'a'), join(dir, 'b'), join(dir, 'missing')];
+    const r = spawnSync('bash', ['-c', `set -uo pipefail\nRUN='${run}'\nmkdir -p "$RUN"\n${pwSeed(caches)}`], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr); assert.equal(r.stderr, '', 'a missing cache is not an error');
+    assert.deepEqual(readdirSync(join(run, 'pw')).sort(), ['chromium-1234', 'chromium-1300', 'chromium_headless_shell-1234', 'ffmpeg-1011'], 'finished chromium, headless shell and ffmpeg only: no half-downloaded revision, no webkit');
+    assert.equal(readFileSync(join(run, 'pw', 'ffmpeg-1011', 'sub', 'chrome'), 'utf8'), 'A-ffmpeg', 'the first cache wins');
+    assert.ok(existsSync(join(run, 'pw', 'chromium-1234', 'INSTALLATION_COMPLETE')), 'the marker comes along: that is what makes playwright skip the download');
+    const copy = join(run, 'pw', 'chromium-1234', 'sub', 'chrome'), orig = join(dir, 'a', 'chromium-1234', 'sub', 'chrome');
+    assert.ok(!lstatSync(copy).isSymbolicLink() && statSync(copy).ino !== statSync(orig).ino, 'a copy, not a link: a row can never write into the shared cache');
+    assert.equal(spawnSync('bash', ['-c', `set -uo pipefail\nRUN='${join(dir, 'run2')}'\nmkdir -p "$RUN"\n${pwSeed([join(dir, 'nowhere')])}`]).status, 0);
+    assert.deepEqual(readdirSync(join(dir, 'run2', 'pw')), [], 'no cache: an empty pw dir and the install downloads as before');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('the rows runner seeds the run browser dir from the cache after setting it and before the install', () => {
+  const s = buildRowsRunner({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, rows: [31, 33], total: 53 });
+  const at = (needle: string) => s.indexOf(needle);
+  assert.ok(at('export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"') > -1 && at('export PLAYWRIGHT_BROWSERS_PATH="$RUN/pw"') < at(pwSeed()) && at(pwSeed()) < at('npx playwright install chromium'), 'seed sits between the path export and the install');
+  assert.ok(s.includes('/opt/frankendom-shadow/ms-playwright') && s.includes('/root/.cache/ms-playwright'));
+});
+test('the receipt chrome_sha256 is the pinned revision binary, never the first chromium dir the cache seed copied in', () => {
+  const s = buildRowsRunner({ sha: SHA, tree: TREE, nonce: NONCE, runid: RUNID, rows: [31, 33], total: 53 });
+  assert.ok(s.includes('CHROME=$(ls "$RUN"/pw/chromium-"$PWREV"/chrome-linux*/chrome'), 'CHROME comes from the dir of the revision the receipt records');
+  assert.ok(!s.includes('pw/chromium-*/chrome-linux'), 'no glob over every chromium dir: a stale revision in the cache sorts first after a Playwright bump');
+  assert.ok(s.indexOf('PWREV=$(') < s.indexOf('CHROME=$('), 'PWREV is set before CHROME uses it');
 });

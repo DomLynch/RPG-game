@@ -4,9 +4,10 @@
 import * as THREE from 'three';
 import type { Camp } from './frontier-camp.ts';
 import { CAMP_KIT } from './frontier-camp.ts';
+import { previewRule } from './preview-rules.ts';
 
-const SIZE = 1.15;   // the camp's flame vs the brazier's (the quad is 1.3 x .78: this one stands about as tall as a seated member)
-const REACH = 36;    // m: a camp this near the walker borrows a light
+const SIZE = previewRule('campFlameSize');   // the camp's flame vs the brazier's (the quad is 1.3 x .78: this one stands about as tall as a seated member)
+const REACH = previewRule('campLightReach');   // m: a camp this near the walker borrows a light
 export type CampFires = { update(time: number, hero: { x: number; z: number }, lights: readonly THREE.PointLight[]): void };
 
 export function campFires(scene: THREE.Scene, camps: readonly Camp[]): CampFires | null {

@@ -17,6 +17,10 @@ import { orla } from '../talk/fixtures.ts';
 import { choices, loadTalk, newTalkState, pick, type Facts, type Talk } from '../talk/talk.ts';
 import { BANK_STEP_Z, FORGE } from './exchange.ts';
 import { ui, type Cell } from './ui.ts';
+import START_ROWS from './start-rules.json' with { type: 'json' };
+
+// The page's starting career level and the ore handed over are a ROW (start-rules.json; the page imports the JSON, as modes reach the core only through src/core/index.ts, so the shared loader is not reachable here and a test checks the row).
+const START = START_ROWS.startRule[0]!;
 
 // Every new world number in one place (to be swapped for origins/world): Orla's spot, the ore pile and how near you must stand.
 export const WORLD_TUNING = {
@@ -41,7 +45,7 @@ const ORE = (QUEST.stages.flatMap((s) => s.transitions.flatMap((t) => t.when)).f
 export const SMITH_NAME = must(parseCharacterDefinition(smith())).name;
 // The career level the gates read: the Origins career's (origins/pit, the Pit duel settles it through award()), starting a Champion: past
 // the outer gate, and may wear a +1 Gladiator piece. The page moves it with play.standAt after a duel pays.
-export const START_LEVEL = 16;
+export const START_LEVEL = START.startLevel;
 let STANDING: CareerStanding = { source: 'server', careerLevel: START_LEVEL };
 
 // The bank and the smith's link to the one ledger (main.ts supplies it): the sign-in token, the character, where the writer is, and a nudge to redraw the open panel when an answer lands.
@@ -94,7 +98,7 @@ export const play = {
   async load(): Promise<void> { await refresh(); link?.changed(); },
   fresh() { reply = msg = ''; picked = null; ended = false; },
   oreWanted: () => journal.quests.get(QUEST.id)?.stage === 'fetch' && !hasItem(ORE),
-  takeOre() { oreCarried = true; msg = 'You take 5 Exchange ore from the cart.'; },
+  takeOre() { oreCarried = true; msg = `You take ${START.oreQuantity} Exchange ore from the cart.`; },
   lines: (kind: Kind = 'talk') => choices(talkFor(kind), talk, facts()),
   // ?region=1: register the Bounty (a quest record wrapping it, bounty.ts) and the talk of the figure who gives it.
   enableBounty(quest: unknown, giverTalk: unknown, name: string) {
