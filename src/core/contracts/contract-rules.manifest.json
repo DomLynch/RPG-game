@@ -1,0 +1,54 @@
+{
+  "tables": [
+    {
+      "table": "itemLimits",
+      "file": "contract-rules.json",
+      "at": "itemLimits",
+      "key": "id",
+      "required": {
+        "packSlots": "integer",
+        "bankSlots": "integer",
+        "maxStack": "integer",
+        "maxUpgradeLevel": "integer",
+        "maxCurrency": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "economyLimits",
+      "file": "contract-rules.json",
+      "at": "economyLimits",
+      "key": "id",
+      "required": {
+        "maxCoin": "integer",
+        "maxOffer": "integer",
+        "maxMaterialLines": "integer",
+        "maxUpgradeMaterialInputs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "storyLimits",
+      "file": "contract-rules.json",
+      "at": "storyLimits",
+      "key": "id",
+      "required": {
+        "maxDelta": "integer",
+        "maxStages": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "worldLimits",
+      "file": "contract-rules.json",
+      "at": "worldLimits",
+      "key": "id",
+      "required": {
+        "standingMin": "integer",
+        "standingMax": "integer",
+        "maxRanks": "integer",
+        "note": "string"
+      }
+    }
+  ]
+}
