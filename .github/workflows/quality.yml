@@ -114,6 +114,38 @@ jobs:
       - run: npm run typecheck:origins
       - run: npm run lint:origins
       - run: npm run check:as-data -- --gate   # as-data reached 0/0 on 2026-10-13: a new id compare or closed union is red
+  delta:
+    # Merge-up rounds off the runners, quality half (Strategy 2026-10-14; same job as unit-ci.yml, its own status context `quality/delta`): on a feature PR carrying auditor:ready,
+    # `quality-shard` (quality:static: build, audit, budget, the database checks) runs only when the PR's OWN delta (git patch-id --verbatim of merge-base(trunk)..HEAD)
+    # differs from every earlier head whose `quality` went green. `static` (lint, typechecks, as-data gate) ALWAYS runs: it is the check that catches a clean merge-up
+    # breaking against new trunk code (Auditor on #2661), and the `quality` verdict still reports and needs it green. A release-* candidate, a trunk push, an `edited`
+    # event, a missing id, an API error and a failing delta job all run in full.
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-') && github.event.action != 'edited' && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      unchanged: ${{ steps.delta.outputs.unchanged }}
+      patch_id: ${{ steps.delta.outputs.patch_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: delta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TRUNK_REF: origin/codex/01a09a76/task-1
+          HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
+          DELTA_CONTEXT: quality/delta
+        run: node scripts/ci-delta.mjs
   quality-shard:
     # `quality:static` (lint, both typechecks, origins lint, registry gate, test:bot, build, audit, budget) and the database checks. test:all is
     # NOT here: unit-ci.yml owns it (8 shards, the unit receipt deploy.sh trusts; Lead 2026-10-12, so the suite does not run twice per PR on
@@ -122,8 +154,8 @@ jobs:
     # NOT_RETARGET: a title/body `edited` event is not a code change; a label is not either (auditor:ready runs the browser jobs only).
     # RUNNER QUEUE (Strategy 2026-10-12 21:5x): on a feature PR the shard and the `quality` verdict wait for auditor:ready (adding it runs them), like
     # the browser jobs; a push to an unlabelled PR runs static + plan + base only. A trunk push and a release-* candidate are unchanged (deploy.sh reads them).
-    needs: static
-    if: ${{ !cancelled() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready')) && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
+    needs: [delta, static]
+    if: ${{ !cancelled() && needs.delta.outputs.unchanged != 'true' && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready')) && (github.event_name != 'pull_request' || needs.static.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
@@ -163,17 +195,36 @@ jobs:
   quality:
     # The one verdict deploy.sh reads (`quality` == success, scripts/deploy.sh:73): green only when every shard concluded success. A failed,
     # cancelled or skipped shard makes it red, never green. Same NOT_RETARGET skip as the shards, so a title/body edit still skips everything.
-    needs: [quality-shard, plan]
+    needs: [delta, static, quality-shard, plan]
+    permissions:
+      contents: read
+      statuses: write
     if: always() && (github.event.action != 'edited' || contains(toJSON(github.event.changes), '"base"')) && (github.event.action != 'labeled' || github.event.label.name == 'auditor:ready') && (github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-') || github.event.action == 'labeled' || contains(github.event.pull_request.labels.*.name, 'auditor:ready'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - run: '[ "$SHARDS" = success ] || { echo "quality: a shard did not succeed (result: $SHARDS)"; exit 1; }'
+      - name: Delta unchanged
+        if: needs.delta.outputs.unchanged == 'true'
+        env:
+          STATIC: ${{ needs.static.result }}
+        run: |
+          [ "$STATIC" = success ] || { echo "quality - delta unchanged but static did not pass (result: $STATIC)"; exit 1; }
+          echo "quality - this PR's own delta (patch-id ${{ needs.delta.outputs.patch_id }}) already went green; static passed on this head, quality-shard was not re-run (clean merge-up)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - if: needs.delta.outputs.unchanged != 'true'
+        run: '[ "$SHARDS" = success ] || { echo "quality: a shard did not succeed (result: $SHARDS)"; exit 1; }'
         env:
           SHARDS: ${{ needs.quality-shard.result }}
       # Skipped browser jobs read as green: say so here; the `browser-rows` commit status (plan) stays PENDING on such a head (Lead 2026-10-12).
       - if: needs.plan.outputs.game == 'true' && needs.plan.outputs.browser == 'false'
         run: echo "browser jobs NOT run on this head (a feature PR, they run in the release candidate it rides); a skipped browser row is not a pass" | tee -a "$GITHUB_STEP_SUMMARY"
+      # The record a later merge-up looks for: this head's shard went green with this delta id. Only a delta job that computed an id and found no earlier green run writes it.
+      - name: Record the green delta
+        if: needs.delta.outputs.unchanged != 'true' && needs.delta.outputs.patch_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCH_ID: ${{ needs.delta.outputs.patch_id }}
+          HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: gh api "repos/$GITHUB_REPOSITORY/statuses/$HEAD_COMMIT" -f state=success -f context=quality/delta -f description="patch-id $PATCH_ID" > /dev/null
   browser-rows:
     # The browser jobs' verdict as the `browser-rows` commit status, on the head sha this run tested (the plan set it PENDING). Not when the run was
     # cancelled (a newer push owns the status then). Optional gates (continue-on-error) never colour it, as they never colour their job.

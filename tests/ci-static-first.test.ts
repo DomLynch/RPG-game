@@ -265,3 +265,21 @@ test('unit-ci delta (Strategy 2026-10-14): an unchanged delta on a labelled feat
   const ranTrunk = schedule(U, trunk);
   assert.ok(!ranTrunk.has('delta') && ranTrunk.has('shard') && ranTrunk.has('receipt'), 'a trunk push runs the shards and the receipt as before');
 });
+
+test('quality delta (Strategy 2026-10-14): an unchanged delta on a labelled feature PR skips quality-shard only (static runs, the quality verdict reports); changed/unknown delta, a candidate and a trunk push run in full', () => {
+  const labelled = withLabelNames(pr('synchronize', ['auditor:ready']));
+  const noBrowser = { plan: { game: 'true', browser: 'false' } };
+  const unchanged = schedule(Q, labelled, {}, { ...noBrowser, delta: { unchanged: 'true', patch_id: 'abc' } });
+  assert.ok(unchanged.has('delta') && unchanged.has('static') && unchanged.has('quality'), 'delta, static and the verdict run');
+  assert.ok(!unchanged.has('quality-shard'), 'the shard is skipped on a clean merge-up');
+  for (const unchangedValue of ['false', '']) assert.ok(schedule(Q, labelled, {}, { ...noBrowser, delta: { unchanged: unchangedValue } }).has('quality-shard'), `unchanged="${unchangedValue}": the shard runs`);
+  assert.ok(schedule(Q, labelled, { delta: 'failure' }, noBrowser).has('quality-shard'), 'a failing delta job fails open');
+  const cand = { ...withLabelNames(pr('synchronize')), head_ref: 'release-EX' };
+  const ranCand = schedule(Q, cand, {}, { ...game, delta: { unchanged: 'true' } });
+  assert.ok(!ranCand.has('delta') && ranCand.has('quality-shard') && ranCand.has('quality'), 'a release-* candidate never runs delta and always runs the shard');
+  const edited = schedule(Q, withLabelNames(pr('edited', ['auditor:ready'], { changes: { title: { from: 'a' } } })));
+  assert.ok(!edited.has('delta'), 'a title edit does not start the delta job');
+  const trunk: Ctx = { event_name: 'push', ref: 'refs/heads/codex/01a09a76/task-1', event: {} };
+  const ranTrunk = schedule(Q, trunk, {}, game);
+  assert.ok(!ranTrunk.has('delta') && ranTrunk.has('quality-shard') && ranTrunk.has('quality'), 'a trunk push runs the shard and the verdict as before');
+});

@@ -94,3 +94,29 @@ test('unit-ci.yml wiring: delta never runs for a release candidate, every full-r
   assert.ok(receipt.indexOf('Record the green delta') > receipt.indexOf('actions/upload-artifact'), 'recorded last, after the shards and the artifact succeeded');
   assert.equal((receipt.match(/if: needs\.delta\.outputs\.unchanged != 'true'/g) || []).length >= 6, true, 'every artifact step is skipped when nothing ran');
 });
+
+test('each workflow trusts only its own earlier green run: unit-ci/delta never vouches for quality/delta', () => {
+  const unit = { context: CONTEXT, state: 'success', description: DESCRIPTION('abc') };
+  assert.equal(unchangedSince('abc', [{ sha: 'h1', statuses: [unit] }], 'quality/delta'), null);
+  assert.equal(unchangedSince('abc', [{ sha: 'h1', statuses: [{ ...unit, context: 'quality/delta' }] }], 'quality/delta'), 'h1');
+});
+
+test('quality.yml wiring: delta skips only quality-shard; static always runs; the verdict reports, needs static on an unchanged delta, and records quality/delta last', () => {
+  const wf = readFileSync(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
+  const job = (name: string) => { const m = new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|$)`).exec(wf); assert.ok(m, `job ${name} exists`); return m[1]; };
+  assert.match(job('delta'), /if: .*!startsWith\(github\.head_ref, 'release-'\)/, 'a candidate always runs in full');
+  assert.match(job('delta'), /github\.event\.action != 'edited'/, 'a title/body edit is not a code change');
+  assert.match(job('delta'), /DELTA_CONTEXT: quality\/delta/, 'its own status context');
+  assert.match(job('delta'), /fetch-depth: 0/);
+  assert.doesNotMatch(job('static'), /delta/, 'static does not wait for, or skip on, the delta: it always runs');
+  assert.match(job('quality-shard'), /needs: \[delta, static\]/);
+  assert.match(job('quality-shard'), /!cancelled\(\) && needs\.delta\.outputs\.unchanged != 'true'/, 'skipped only on an unchanged delta, and runs if delta failed');
+  const q = job('quality');
+  assert.match(q, /needs: \[delta, static, quality-shard, plan\]/);
+  assert.match(q, /name: Delta unchanged[\s\S]*?STATIC: \$\{\{ needs\.static\.result \}\}[\s\S]*?\[ "\$STATIC" = success \] \|\|[^\n]*exit 1/, 'an unchanged delta still needs static green');
+  assert.match(q, /- if: needs\.delta\.outputs\.unchanged != 'true'\n\s+run: '\[ "\$SHARDS" = success \]/, 'the shard check applies when the shard was meant to run');
+  assert.match(q, /name: Record the green delta\n\s+if: needs\.delta\.outputs\.unchanged != 'true' && needs\.delta\.outputs\.patch_id != ''/);
+  assert.match(q, /context=quality\/delta/);
+  assert.ok(q.indexOf('Record the green delta') > q.indexOf('SHARDS" = success'), 'recorded after the shard check passed');
+  assert.match(q, /statuses: write/);
+});

@@ -44,7 +44,7 @@ test('deploy.sh skips the Mac\'s suite only when quality AND the unit receipt ho
 
 test('`quality` is the one verdict: it needs every shard, runs even when one failed, and is green only on success', () => {
   const block = jobBlock('quality');
-  assert.match(block, /\n {4}needs: \[quality-shard, plan\]\n/, 'every shard (plan only for the browser-jobs summary line)');
+  assert.match(block, /\n {4}needs: \[delta, static, quality-shard, plan\]\n/, 'every shard (plan only for the browser-jobs summary line; delta + static joined 2026-10-14: an unchanged delta skips the shard but the verdict needs static green)');
   assert.match(block, /\n {4}if: always\(\) && \(github\.event\.action != 'edited'/, 'always(): a failed shard still produces a red `quality`, never a skipped one');
   assert.match(block, /\[ "\$SHARDS" = success \] \|\| \{[^}]*exit 1; \}/);
   assert.match(block, /SHARDS: \$\{\{ needs\.quality-shard\.result \}\}/);

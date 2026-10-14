@@ -2,8 +2,9 @@
 // minutes of shards each). The delta id is `git patch-id --verbatim` of `git diff $(git merge-base trunk HEAD) HEAD`: a clean merge of trunk moves the merge-base and
 // leaves the id unchanged. --verbatim, not --stable: --stable ignores whitespace, so a whitespace-only change inside a string or YAML (a real behaviour change) read as unchanged (Auditor on #2661). A full run that went green writes the commit status `unit-ci/delta` = "patch-id <id>" on its head; this script looks for that status
 // on the PR's earlier commits. Anything unknown (no id, an API error, no match) reads as CHANGED: the shards run. Release candidates and trunk pushes never skip.
-// Usage in a workflow job (env GH_TOKEN, GITHUB_REPOSITORY, PR_NUMBER, TRUNK_REF=origin/<trunk>): `node scripts/ci-delta.mjs` appends
-// `unchanged=true|false`, `patch_id=<id>` and `since=<sha>` to $GITHUB_OUTPUT.
+// Usage in a workflow job (env GH_TOKEN, GITHUB_REPOSITORY, PR_NUMBER, TRUNK_REF=origin/<trunk>, HEAD_COMMIT or HEAD_SHA = the PR head, excluded from the history): `node scripts/ci-delta.mjs` appends
+// `unchanged=true|false`, `patch_id=<id>` and `since=<sha>` to $GITHUB_OUTPUT. DELTA_CONTEXT picks the status context (default unit-ci/delta; quality.yml uses quality/delta),
+// so each workflow trusts only its own earlier green run.
 import { spawnSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 
@@ -23,9 +24,9 @@ export function deltaPatchId(cwd, trunkRef) {
 }
 
 /** The sha of the first earlier commit whose green `unit-ci/delta` status carries this id; null otherwise. commits: [{ sha, statuses: [{ context, state, description }] }], newest first. */
-export function unchangedSince(id, commits) {
+export function unchangedSince(id, commits, context = CONTEXT) {
   if (!id) return null;
-  for (const c of commits || []) if ((c.statuses || []).some(s => s.context === CONTEXT && s.state === 'success' && s.description === DESCRIPTION(id))) return c.sha;
+  for (const c of commits || []) if ((c.statuses || []).some(s => s.context === context && s.state === 'success' && s.description === DESCRIPTION(id))) return c.sha;
   return null;
 }
 
@@ -44,14 +45,14 @@ export async function pullCommitsWithStatuses(repo, pr, token, head, get = api) 
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const { GH_TOKEN, GITHUB_REPOSITORY, PR_NUMBER, TRUNK_REF, HEAD_SHA, GITHUB_OUTPUT } = process.env;
+  const { GH_TOKEN, GITHUB_REPOSITORY, PR_NUMBER, TRUNK_REF, HEAD_SHA, HEAD_COMMIT, GITHUB_OUTPUT, DELTA_CONTEXT } = process.env;
   const emit = (unchanged, id, since) => {
     const lines = `unchanged=${unchanged}\npatch_id=${id || ''}\nsince=${since || ''}\n`;
     if (GITHUB_OUTPUT) appendFileSync(GITHUB_OUTPUT, lines); else process.stdout.write(lines);
   };
   const id = deltaPatchId(process.cwd(), TRUNK_REF || 'origin/codex/01a09a76/task-1');
   let since = null;
-  try { since = unchangedSince(id, await pullCommitsWithStatuses(GITHUB_REPOSITORY, PR_NUMBER, GH_TOKEN, HEAD_SHA)); } catch (e) { console.log(`ci-delta: ${e.message}; treating the delta as changed`); }
+  try { since = unchangedSince(id, await pullCommitsWithStatuses(GITHUB_REPOSITORY, PR_NUMBER, GH_TOKEN, HEAD_COMMIT || HEAD_SHA), DELTA_CONTEXT || CONTEXT); } catch (e) { console.log(`ci-delta: ${e.message}; treating the delta as changed`); }
   console.log(since ? `ci-delta: patch-id ${id} already ran green at ${since}: shards skipped` : `ci-delta: patch-id ${id || '(none)'} has no green full run: shards run`);
   emit(Boolean(since), id, since);
 }
