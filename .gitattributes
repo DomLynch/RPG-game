@@ -1,0 +1,2 @@
+# JSON-aware 3-way merge for the as-data allow lists; set the driver up once per clone: see the header of scripts/as-data/merge-allow.mjs
+scripts/as-data/allow/*.json merge=as-data-allow
