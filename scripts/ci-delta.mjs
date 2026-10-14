@@ -14,7 +14,7 @@ const MAX_COMMITS = 40;
 
 /** The patch id of the PR's own delta, or null when it cannot be computed (no merge-base, git failed, empty diff). */
 export function deltaPatchId(cwd, trunkRef) {
-  const git = (args, input) => spawnSync('git', args, { cwd, input, encoding: 'utf8', maxBuffer: 1 << 29 });
+  const git = (args, input) => spawnSync('git', args, { cwd, input, encoding: 'utf8', maxBuffer: 1 << 29, timeout: 120_000 });
   const base = git(['merge-base', trunkRef, 'HEAD']);
   if (base.status !== 0 || !base.stdout.trim()) return null;
   const diff = git(['diff', base.stdout.trim(), 'HEAD']);
