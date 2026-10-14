@@ -52,7 +52,7 @@ async function run(side, special, plan) {
         if (!drawing && tick >= plan.from) { await skipDraws(page, false); await clock.run(48); drawing = true; }
         // Keyed by the offset from this run's own wind-up start (w) or strike (r), not the absolute tick: the start tick drifts a few ticks between runs of identical code (the fight's opening is wall-timed), the wind-up length does not.
         const key = seen.land !== null ? ((tick - seen.land) % EVERY === 0 ? `r${tick - seen.land}` : null) : seen.start !== null ? ((tick - seen.start) % EVERY === 0 ? `w${tick - seen.start}` : null) : null;
-        if (drawing && key && !shots.has(key)) shots.set(key, await page.screenshot({ type: 'png', animations: 'disabled' }));
+        if (drawing && key && !shots.has(key)) shots.set(key, await page.screenshot({ type: 'png', animations: 'disabled', timeout: 120000 }));
         if (seen.land !== null && tick >= seen.land + POST) return { seen, shots };
         if (tick > plan.limit) throw new Error(`pass 2 saw no strike by tick ${plan.limit} (pass 1 saw it earlier): a missed or late cast`);
       }
