@@ -1,0 +1,5 @@
+{
+  "lootTierRule": [
+    { "id": "region1", "tier": "Gladiator" }
+  ]
+}

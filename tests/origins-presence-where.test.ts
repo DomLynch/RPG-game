@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { fakeWhere, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
+import { CENTRE_CM } from '../origins/presence/zones.ts';
 import { inZone, parseWhere, presenceWhere, standsWithin } from '../origins/presence/where.ts';
 
 const acct = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -21,17 +22,17 @@ test('where: the service answers from its own state, offline and in the world, a
   const clock = { t: 1_000_000 };
   const { p, base } = await start(KEY, clock);
   try {
-    const placed = p.world.join(acct(1), clock.t, undefined, { x: 15000, z: 16000 })!;
+    const placed = p.world.join(acct(1), clock.t, undefined, { x: CENTRE_CM, z: CENTRE_CM + 1000 })!;
     p.world.join(acct(2), clock.t)!;   // no known position: it starts at the spawn, the Pit yard centre
     const where = presenceWhere(base, KEY);
     assert.deepEqual(await where(acct(3)), { online: false }, 'an account that is not in presence');
-    assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 15000, zone: 'pit-yard', ageMs: 0 }, 'a fresh join is at the spawn, never at an unknown position');
+    assert.deepEqual(await where(acct(2)), { online: true, layer: placed.layer.id, placed: true, x: CENTRE_CM, z: CENTRE_CM, zone: 'pit-yard', ageMs: 0 }, 'a fresh join is at the spawn, never at an unknown position');
     clock.t += 750;
-    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15000, z: 16000, zone: 'pit-yard', ageMs: 750 }, 'placed: the position, the zone presence computed from it, and the time since its last pose');
-    p.world.move(placed, pose(15100, 16000), clock.t);
+    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: CENTRE_CM, z: CENTRE_CM + 1000, zone: 'pit-yard', ageMs: 750 }, 'placed: the position, the zone presence computed from it, and the time since its last pose');
+    p.world.move(placed, pose(CENTRE_CM + 100, CENTRE_CM + 1000), clock.t);
     clock.t += 40;
-    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: 15100, z: 16000, zone: 'pit-yard', ageMs: 40 }, 'a move updates both');
-    const trader = p.world.join(acct(4), clock.t, undefined, { x: 15000, z: 11000 })!;   // world (0, -40 m): inside the Exchange
+    assert.deepEqual(await where(acct(1)), { online: true, layer: placed.layer.id, placed: true, x: CENTRE_CM + 100, z: CENTRE_CM + 1000, zone: 'pit-yard', ageMs: 40 }, 'a move updates both');
+    const trader = p.world.join(acct(4), clock.t, undefined, { x: CENTRE_CM, z: CENTRE_CM - 4000 })!;   // world (0, -40 m): inside the Exchange
     assert.equal(((await where(acct(4))) as { zone: string | null }).zone, 'exchange', 'the zone comes from the position in the Concord frame');
     p.world.leave(trader, clock.t);
     assert.equal(((await (await get(base, acct(1).toUpperCase(), `Bearer ${KEY}`)).json()) as { online: boolean }).online, true, 'an upper-case account id is the same account');
@@ -75,22 +76,22 @@ test('where: fails closed: an unreachable service, a timeout and a malformed ans
 });
 
 test('standsWithin: only a placed, fresh player inside the radius is at the place; offline, unplaced, stale and outside are all no', () => {
-  const area = { x: 15000, z: 15000, radiusCm: 1000 }, fresh = 5000;
-  assert.equal(standsWithin(standingAt(15000, 15000, 0), area, fresh), true, 'at the centre');
-  assert.equal(standsWithin(standingAt(16000, 15000, 0), area, fresh), true, 'exactly on the radius counts as inside');
-  assert.equal(standsWithin(standingAt(16001, 15000, 0), area, fresh), false, 'one centimetre outside');
-  assert.equal(standsWithin(standingAt(15000, 15000, fresh), area, fresh), true, 'a pose exactly maxAge old is still fresh');
-  assert.equal(standsWithin(standingAt(15000, 15000, fresh + 1), area, fresh), false, 'a stale pose never counts, however close');
+  const area = { x: CENTRE_CM, z: CENTRE_CM, radiusCm: 1000 }, fresh = 5000;
+  assert.equal(standsWithin(standingAt(CENTRE_CM, CENTRE_CM, 0), area, fresh), true, 'at the centre');
+  assert.equal(standsWithin(standingAt(CENTRE_CM + 1000, CENTRE_CM, 0), area, fresh), true, 'exactly on the radius counts as inside');
+  assert.equal(standsWithin(standingAt(CENTRE_CM + 1001, CENTRE_CM, 0), area, fresh), false, 'one centimetre outside');
+  assert.equal(standsWithin(standingAt(CENTRE_CM, CENTRE_CM, fresh), area, fresh), true, 'a pose exactly maxAge old is still fresh');
+  assert.equal(standsWithin(standingAt(CENTRE_CM, CENTRE_CM, fresh + 1), area, fresh), false, 'a stale pose never counts, however close');
   assert.equal(standsWithin(unplaced(), area, fresh), false, 'unplaced: position unknown');
   assert.equal(standsWithin(offline(), area, fresh), false, 'offline');
 });
 
 test('inZone: X1\'s test is zone === the named zone AND fresh; the wrong zone, a null zone, stale, unplaced and offline are all no', () => {
-  const trader = standingAt(15000, 11000, 0), fresh = 8000;   // the Exchange
+  const trader = standingAt(CENTRE_CM, CENTRE_CM - 4000, 0), fresh = 8000;   // the Exchange
   assert.equal(inZone(trader, 'exchange', fresh), true);
-  assert.equal(inZone(standingAt(15000, 11000, fresh), 'exchange', fresh), true, 'exactly maxAge old is fresh');
-  assert.equal(inZone(standingAt(15000, 11000, fresh + 1), 'exchange', fresh), false, 'stale');
-  assert.equal(inZone(standingAt(15000, 15000, 0), 'exchange', fresh), false, 'the Pit yard is not the Exchange');
+  assert.equal(inZone(standingAt(CENTRE_CM, CENTRE_CM - 4000, fresh), 'exchange', fresh), true, 'exactly maxAge old is fresh');
+  assert.equal(inZone(standingAt(CENTRE_CM, CENTRE_CM - 4000, fresh + 1), 'exchange', fresh), false, 'stale');
+  assert.equal(inZone(standingAt(CENTRE_CM, CENTRE_CM, 0), 'exchange', fresh), false, 'the Pit yard is not the Exchange');
   assert.equal(inZone(standingAt(100, 100, 0), 'exchange', fresh), false, 'a null zone (open ground) is not the Exchange');
   assert.equal(inZone(unplaced(), 'exchange', fresh), false);
   assert.equal(inZone(offline(), 'exchange', fresh), false);

@@ -72,9 +72,9 @@ test('save: leaving saves the last accepted place; a zone change saves at once; 
   try {
     const { ws } = await connect(p.port());
     pose(ws, 15500, 15500); await sleep(60);
-    assert.equal(zoneAt(15500, 15500), 'pit-yard'); assert.equal(saves.length, 0, 'still in the Pit yard: no save yet');
+    assert.equal(zoneAt(40500, 40500), 'pit-yard'); assert.equal(saves.length, 0, 'still in the Pit yard: no save yet');
     pose(ws, 18500, 15500); await until(() => saves.length === 1);   // 35 m east of the yard centre: out of the yard (open square)
-    assert.equal(zoneAt(18500, 15500), null);
+    assert.equal(zoneAt(43500, 40500), null);
     assert.deepEqual([saves[0]![0], saves[0]![1].x, saves[0]![1].z], [acct(1), 18500, 15500], 'the zone change saved the new place');
     pose(ws, 18600, 15500); await sleep(60);
     ws.close(); await until(() => saves.length === 2);

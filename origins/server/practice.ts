@@ -3,9 +3,12 @@
 import { falloffPermille, isGrey } from '../../src/core/server.ts';
 import { WEAPON_PRACTICE_SKILL } from '../../src/fight/server.ts';
 import type { Json } from './store.ts';
+import PRACTICE_RULES from './practice-rules.json' with { type: 'json' };
 
-export const PRACTICE_UNIT = 10;     // xp a win at the player's own level pays
-export const XP_PER_POINT = 100;     // each placed point raises the ceiling by this much
+const RULE = PRACTICE_RULES.practiceRule[0]!;
+
+export const PRACTICE_UNIT = RULE.practiceUnit;     // xp a win at the player's own level pays
+export const XP_PER_POINT = RULE.xpPerPoint;     // each placed point raises the ceiling by this much
 
 export type PracticeFight = { token: string; weapon: string; enemyLevel: number; youLevel: number; placed: Readonly<Record<string, number>> };
 
