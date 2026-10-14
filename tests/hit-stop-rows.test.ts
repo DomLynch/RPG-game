@@ -4,7 +4,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { IMPACT, KICK } from '../src/fight/hit-impact.ts';
-import { CONTACTS } from '../src/fight/hit-stop-rows.ts';
 
 test('the rows say what hit-impact.ts held before they were rows', () => {
   assert.deepEqual(IMPACT, { full: { frames: 5, knock: 0.04, push: 0 }, half: { frames: 3, knock: 0.02, push: 0 }, parry: { frames: 11, knock: 0, push: 0.07 }, block: { frames: 2, knock: 0.02, push: 0 } });
