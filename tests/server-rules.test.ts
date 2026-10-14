@@ -20,7 +20,8 @@ test('server rules: the file loads through the registry, one row per table', () 
 });
 
 test('server rules: a token still ends in 32 random characters (24 bytes), and still reads its fight back', () => {
-  const t = tokenFor('goblin-1');
-  assert.equal(t.length - t.lastIndexOf('_') - 1, 32);
+  const t = tokenFor('goblin-1'), prefix = Buffer.from('goblin-1').toString('base64url');   // the random tail is base64url and may itself hold '_', so the split is by the known prefix, not by searching
+  assert.ok(t.startsWith(`${prefix}_`));
+  assert.equal(t.length, prefix.length + 1 + 32);
   assert.equal(fightOfToken(t), 'goblin-1');
 });
