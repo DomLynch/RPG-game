@@ -32,7 +32,6 @@
     { "id": "edgeFade", "value": 6, "unit": "m" },
     { "id": "padMargin", "value": 2.5, "unit": "m" },
     { "id": "landmarkPad", "value": 7, "unit": "m" },
-    { "id": "lookVariants", "value": 8, "unit": "variants" },
     { "id": "levelNear", "value": 30, "unit": "m" },
     { "id": "levelFar", "value": 150, "unit": "m" },
     { "id": "spawnNear", "value": 25, "unit": "m" },

@@ -5,9 +5,9 @@
 //   scale    the body's height multiplier on top of the roster's own (1 = the roster body as it is)
 //   gear     the weapon the figure carries when it is not the body's own (a roster weapon id from src/fight/moves.ts); absent = the body's own
 //   dressing the Ash Frontier on him: soot = dark ash worked into the cloth and low on the body, 0..1; burnt = scorched, ragged cloth edges, 0..1
-import { stageRule } from '../world/stage-rules.ts';
 import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
+import MOB_LOOK_RULES from './mob-looks-rules.json' with { type: 'json' };
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
 const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
@@ -30,7 +30,7 @@ export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => 
 // friendly figures have no spread. Gear is NOT varied here: `MobLook.gear` has no reader yet, and a weapon change belongs to the roster, not to a look.
 export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number };
 export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {};   // empty for the same reason: the spreads are in the zone rows
-export const VARIANTS = stageRule('lookVariants');
+export const VARIANTS = MOB_LOOK_RULES.mobLookRule[0]!.variants;   // the mobLookRule row (mob-looks-rules.json)
 const memo = new Map<string, MobLook>();
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 /** Variant `v` (0..VARIANTS-1) of a kind: the same object every call, so the cloth-clone cache is one entry per (kind, v), at most VARIANTS a kind. */

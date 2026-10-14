@@ -1,0 +1,14 @@
+[Unit]
+Description=Prune stale lane scratch on the VPS when free space is under 60G
+After=local-fs.target mnt-frankendom\x2ddonors.mount
+
+[Service]
+Type=oneshot
+# The bare (scheduled) mode runs only with SWEEP_SCHEDULED=1 (ops/vps-scratch-sweep refuses it otherwise: nobody reaches the blanket /tmp delete by accident).
+Environment=SWEEP_SCHEDULED=1
+# root's gh login lives in $HOME/.config/gh: a systemd service has no HOME, so gh said "gh auth login" and the sweep ABORTed "cannot read open PR list" (journal 17:56:15 2026-10-13). Not a missing credential.
+Environment=HOME=/root
+ExecStart=/usr/local/sbin/vps-scratch-sweep --apply
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=4h
