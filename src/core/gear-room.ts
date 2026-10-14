@@ -4,6 +4,7 @@
 // the canvas, transparent where the stage is; the camera's view offset slides the rig into that window. Nothing here touches loot, the
 // profile or the fight: main.ts dresses the rig (view.wear) and frame() draws it while the sheet is open. Presentation only.
 import * as THREE from 'three';
+import GEAR_ROOM_RULES from './gear-room-rules.json' with { type: 'json' };
 
 export type GearStage = {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera;
@@ -13,9 +14,10 @@ export type GearStage = {
 };
 export type GearRoom = { frame(dt: number): void; fit(): void; leave(): void };
 
-const BODY = 2.15;   // m: head to boots with a little air; the framing keeps this inside the stage window
-const AIM_Y = 0.98, BACKDROP = 0x0d0b09;
-const TURN = 0.012;   // rad per px of a drag across the stage
+const ROOM = GEAR_ROOM_RULES.gearRoomRule[0]!;   // the gearRoomRule row (src/core/gear-room-rules.json)
+const BODY = ROOM.bodyM;   // m: head to boots with a little air; the framing keeps this inside the stage window
+const AIM_Y = ROOM.aimY, BACKDROP = ROOM.backdrop;
+const TURN = ROOM.turnRadPerPx;   // rad per px of a drag across the stage
 
 // The torchlit backdrop (Strategy, concept 01): a warm glow behind the figure fading to the flat BACKDROP at the edges. Null where there is no 2D canvas.
 function warmBackdrop(): THREE.CanvasTexture | null {
