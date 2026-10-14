@@ -10,6 +10,7 @@
 //   3. The challenger starts and repeats `go` (the delay and both kits) until the guest's first duel packet arrives; the guest starts on the
 //      first `go` it hears. Both begin at tick 0 on the same delay: the first `delay` ticks are idle by agreement, so the one-way trip
 //      between the two starts is absorbed like any other late packet.
+import { CAPS_ROW, PING_ROW, SILENCE_ROW } from './net-rules.ts';
 import { initialAi } from '../fight/ai.ts';
 import { project, type Practice } from '../fight/combat.ts';
 import type { Intent, Side } from '../fight/duel.ts';
@@ -40,7 +41,7 @@ export type DuelMessage = Body & { r: string };
 // null, never an exception and never a half-read message. Over MESSAGE_CAP characters, another room, an unknown kind, a number that is
 // not a small whole one, a delay outside the adaptive range, or intents the record columns cannot decode (an unknown action or guard
 // side, a truncated column) are all refused. RollbackSession.accepts then checks the packet's ticks against this duel.
-export const MESSAGE_CAP = 4096, INTENTS_CAP = 1024;   // characters: a whole message, and one packet's intent columns (64 intents ≈ 560)
+export const MESSAGE_CAP = CAPS_ROW.messageCap, INTENTS_CAP = CAPS_ROW.intentsCap;   // characters: a whole message, and one packet's intent columns (64 intents ≈ 560)
 const whole = (v: unknown, max: number): v is number => Number.isSafeInteger(v) && (v as number) >= 0 && (v as number) <= max;
 // `raw`: the transport's text, or a message already parsed (the in-process tests' fake links).
 export function parseMessage(raw: unknown, room: string): DuelMessage | null {
@@ -88,7 +89,7 @@ export function cleanKit(kit: Partial<Kit> | null | undefined): Kit {
 export type PvpRecord = { v: number; build: string; delay: number; kits: [Kit, Kit]; ticks: number; intents: [string, string] };
 
 const SYNC_VERSION = 1;   // settlement requires peer fingerprints and a shared No contest notice
-export const PING = { every: 6, samples: 10, maxFrames: 300, hello: 30 };
+export const PING = PING_ROW;
 export type Stage = 'waiting' | 'measuring' | 'fighting' | 'refused' | 'abandoned' | 'forfeit' | 'left' | 'desynced';
 // How a duel ended, as duel_metrics.result records it: played to a settled finish, the other page left (we win), this page left (we lose),
 // or neither could say (No contest). PVP_REWARDS stays false: none of them touches marks, rank or loot.
@@ -104,7 +105,7 @@ export type DuelResult = 'finished' | 'forfeit-win' | 'forfeit-loss' | 'no-conte
 //  - link unknown (an older relay, a test's bare link): neither page can say who left, so after `abandonMs` the duel is abandoned,
 //    No contest, no result and no reward, and this page stops sending, so the other page abandons too.
 // Either way a finish the peer's intents already decide (nothing left to confirm) settles first.
-export const SILENCE = { waitMs: 3000, rejoinMs: 10000, abandonMs: 15000 };
+export const SILENCE = SILENCE_ROW;
 const AI = initialAi(0);   // project() reads the opponent's AI mode for the HUD; a player has none, so a fixed one
 
 export class PvpDuel {
