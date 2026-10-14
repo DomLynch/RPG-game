@@ -25,7 +25,7 @@ const allowData = loadAllow(allowFile);
 // Rule (e)'s ratchet (clamp.yml): { file: { literal: count } } for the inline Math.max/min numbers that were there when the rule landed. More of a literal in a file than this is NEW (red under
 // --gate); fewer means the baseline is stale and must come down in the same PR (exit 3, like a stale allow entry), so it only ever shrinks. --write-clamp-baseline rewrites it, and refuses
 // to while anything is new: it lowers the backlog, it never blesses a new site.
-const clampFile = arg('--clamp-baseline') ?? join(HERE, 'clamp-baseline.json');
+const clampFile = arg('--clamp-baseline') ?? join(REPO, 'scripts', 'as-data', 'clamp-baseline.json');   // the tree under check's own baseline (a --repo fixture has none: nothing is baselined there)
 type Tally = Record<string, Record<string, number>>;
 const clampBase: Tally = existsSync(clampFile) ? (JSON.parse(readFileSync(clampFile, 'utf8')) as Tally) : {};
 const tunableAllow: TunableAllow[] = allowData.tunables ?? [];

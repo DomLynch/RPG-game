@@ -4,9 +4,7 @@
 # a row or an exempt; a new one is red under --gate. 0 and 1 are not listed (an identity bound, not a tuning). A number inside a wider argument (`Math.max(x, 0.5 * y)`) is not this rule's.
 id: as-data-clamp
 language: typescript
-files:
-  - 'src/**/*.ts'
-  - 'origins/**/*.ts'
+# no `files:` list: check.ts scans only its roots (src and origins, or --root), and a fixture root outside the repo must match too
 ignores:
   - '**/*.test.ts'
   - '**/fixtures.ts'
