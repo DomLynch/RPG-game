@@ -1,0 +1,45 @@
+{
+  "about": "Region 1's spec numbers as data (World, Dom's data-layer day 2026-10-14): the Bounty payout and daily-cap bands the data must sit inside (region1 \u00a73; living-world \u00a73.3, \u00a712; feuds \u00a73.1), the towns a war needs (living-world \u00a74.3 / \u00a712), the clearance a quarter's ring centre keeps from the square's gate (living-world \u00a712), and the prosperity tiers (living-world \u00a73.3: floor, services open, ruler title \u00a74.1).",
+  "bountyMetal": {
+    "min": 30,
+    "max": 50
+  },
+  "bountyDailyCap": {
+    "min": 1,
+    "max": 3
+  },
+  "minTownsForWar": 3,
+  "townSafeClearanceM": 30,
+  "tiers": [
+    {
+      "tier": "ruin",
+      "from": 0,
+      "services": 0,
+      "title": null
+    },
+    {
+      "tier": "hamlet",
+      "from": 50,
+      "services": 1,
+      "title": "reeve"
+    },
+    {
+      "tier": "village",
+      "from": 200,
+      "services": 2,
+      "title": "reeve"
+    },
+    {
+      "tier": "town",
+      "from": 450,
+      "services": 3,
+      "title": "mayor"
+    },
+    {
+      "tier": "city",
+      "from": 750,
+      "services": 4,
+      "title": "lord"
+    }
+  ]
+}
