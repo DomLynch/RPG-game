@@ -24,7 +24,8 @@ import { PROFILES, initialPractice, project, stepPractice } from '/src/fight/com
 import { OPPONENTS } from '/src/fight/moves.ts';
 import { TARGET } from '/src/fight/sim.ts';
 import { mirror, movesOf } from '/src/fight/duel.ts';
-const TICK = 1 / 60, HIT_STOP = { Blocked: 30, Hit: 50, Parried: 70, GuardBroken: 90, PostureBroken: 120, Killed: 220 }, HEAVY = new Set(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
+import { HEAVY_BLOCK, HEAVY_HIT, HIT_STOP } from '/src/hit-stop-rules.ts';   // the game's own hit-stop rows (main.ts stopFor reads the same)
+const TICK = 1 / 60, HEAVY = new Set(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
 const idle = () => ({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }), act = (action, extra = {}) => ({ ...idle(), action, ...extra });
 const guard = s => { const w = s?.duel.fighters[1]; return { ...idle(), guard: true, guardDirection: w && w.phase === 'attack' && w.move ? mirror(movesOf(w)[w.move].direction) : undefined }; },   // the directional guard follows the blow (tests/ai.test.ts hold)
   passive = { ...PROFILES.easy, aggression: 0, parry: 0, dodge: 0, pressure: 0 }, light = { ...PROFILES.normal, pressure: 1 };   // pressure 1: the warden opens with a light cut
@@ -64,7 +65,7 @@ function play(name, captureAt) {
   let frame = 0, stop = 0;
   for (let k = start; k < list.length; k++) {
     const p = list[k], events = p.events; let ms = 0;
-    for (const e of events) { const base = HIT_STOP[e.type] ?? 0; if (!base) continue; const heavy = !!e.charged || HEAVY.has(e.move ?? ''); ms = Math.max(ms, e.type === 'Hit' && heavy ? 90 : e.type === 'Blocked' && heavy ? 50 : base); }
+    for (const e of events) { const base = HIT_STOP[e.type] ?? 0; if (!base) continue; const heavy = !!e.charged || HEAVY.has(e.move ?? ''); ms = Math.max(ms, e.type === 'Hit' && heavy ? HEAVY_HIT : e.type === 'Blocked' && heavy ? HEAVY_BLOCK : base); }
     stop = ms; const frozenFrames = Math.round(stop / (1000 * TICK));
     for (let f = 0; f <= frozenFrames; f++) {   // f = 0 is the contact frame itself (events + frozen when a stop applies)
       view.render(state(p), LOCK, TICK, p, f === 0 ? events : [], f === 0 ? stop > 0 : f < frozenFrames);
