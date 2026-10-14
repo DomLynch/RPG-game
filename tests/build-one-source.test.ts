@@ -6,6 +6,6 @@ import { FREE_RESPREAD_LEVEL, RANK_LEVELS } from '../src/core/build-model.ts';
 test('re-spread numbers: the client model holds them (10 and 10) and the server file keeps no second copy', () => {
   assert.deepEqual([FREE_RESPREAD_LEVEL, RANK_LEVELS], [10, 10]);
   const server = readFileSync(new URL('../origins/server/build.ts', import.meta.url), 'utf8');
-  assert.match(server, /import \{ FREE_RESPREAD_LEVEL, RANK_LEVELS \} from '..\/..\/src\/core\/build-model\.ts'/);
+  assert.match(server, /import \{ FREE_RESPREAD_LEVEL, RANK_LEVELS \} from '..\/..\/src\/core\/server\.ts'/);
   assert.doesNotMatch(server, /(FREE_RESPREAD_LEVEL|RANK_LEVELS)\s*=\s*\d/);
 });
