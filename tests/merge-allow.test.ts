@@ -148,3 +148,10 @@ test('git runs the driver from a checkout whose path has a space', () => {
   git('-c', 'merge.as-data-allow.driver=node scripts/as-data/merge-allow.mjs %O %A %B %P', 'merge', '--no-edit', 'other');   // relative path, as cut-release passes it
   assert.deepEqual(names(readFileSync(file, 'utf8')), ['A', 'B', 'C', 'Z']);
 });
+
+test('sorted lists stay sorted: two PRs adding after the same entry give the same order whichever merged first', () => {
+  const base = doc([entry('a.ts', 'A'), entry('z.ts', 'Z')]);
+  const withB = doc([entry('a.ts', 'A'), entry('b.ts', 'B'), entry('z.ts', 'Z')]), withC = doc([entry('a.ts', 'A'), entry('c.ts', 'C'), entry('z.ts', 'Z')]);
+  assert.deepEqual(names(mergeAllow(base, withB, withC).text), ['A', 'B', 'C', 'Z']);
+  assert.deepEqual(names(mergeAllow(base, withC, withB).text), ['A', 'B', 'C', 'Z']);
+});
