@@ -13,7 +13,7 @@
     { "id": "leaderHold", "value": 240, "unit": "ticks" },
     { "id": "sweepReach", "value": 2.5, "unit": "m" },
     { "id": "sweepDelay", "value": 60, "unit": "ticks" },
-    { "id": "mobsSeed", "value": 1836017779, "unit": "seed" },
+    { "id": "mobsSeed", "value": 1836016243, "unit": "seed" },
     { "id": "kerbInset", "value": 4, "unit": "m" },
     { "id": "stoneRadius", "value": 2.6, "unit": "m" },
     { "id": "cinderSlab", "value": 0.03, "unit": "m" },
