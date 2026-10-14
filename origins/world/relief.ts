@@ -4,10 +4,11 @@
 // engines): every host (browser, the writer, a test) computes the same heights, so the drawn mesh and the ground the hero stands on cannot drift apart.
 // Donor: World of Claudecraft src/.../terrain_relief.ts (MIT: seeded warped fbm, the same heights on client and server); the warp + fbm idea is taken, the code is written for this schema
 // (a ±relief range, pads, no gradient-damped or ridged layers: Zone 1 is gentle hills, not mountains).
+import { layoutRule } from './layout-rules.ts';
 export type ReliefParams = { relief: number; hillScale: number; seed: number };
 export type Pad = { x: number; z: number; r: number };   // a flat disc of radius r metres round (x, z); the ground blends back to the hills over the next 0.6 r
 
-const OCTAVES = 3, GAIN = 0.5, LACUNARITY = 2, WARP = 0.6, PAD_BLEND = 1.6;
+const OCTAVES = layoutRule('terrainOctaves'), GAIN = layoutRule('terrainGain'), LACUNARITY = layoutRule('terrainLacunarity'), WARP = layoutRule('terrainWarp'), PAD_BLEND = layoutRule('padBlend');
 const NORM = (1 - GAIN ** OCTAVES) / (1 - GAIN);   // the fbm's summed amplitude, so it stays in [0, 1)
 
 // A lattice hash to [0, 1): integer mixing only (Math.imul and shifts), so it is exact everywhere.

@@ -22,6 +22,15 @@ test('tiers match gear-defs and the slots are live armour slots', () => {
   for (const s of WEAR_SLOTS.filter((x) => x.share > 0)) assert.ok(loot.includes(`'${s.id}'`), `${s.id} is not an armour slot`);
 });
 
+test('every loot family resolves to a live wear tier (owners row -> set -> weightClass; the read Backend\'s wear writer makes)', () => {
+  const defs = JSON.parse(readFileSync(new URL('../../src/fight/gear-defs.json', import.meta.url), 'utf8')) as { owners: { id: string; set: string }[]; sets: { id: string; weightClass: string }[] };
+  assert.ok(defs.owners.length >= 10);
+  for (const o of defs.owners) {
+    const tier = defs.sets.find((s) => s.id === o.set)?.weightClass;
+    assert.ok(WEAR_TIERS.some((w) => w.id === tier), `${o.id}: ${o.set} has weightClass ${tier}, not a wear tier`);
+  }
+});
+
 test('the metal is a live item', () => {
   const loot = readFileSync(new URL('../region1/loot-tables.json', import.meta.url), 'utf8');
   for (const t of WEAR_TIERS) assert.ok(loot.includes(`"${t.metalItem}"`), `${t.metalItem} is not a live item`);
@@ -30,7 +39,7 @@ test('the metal is a live item', () => {
 test('heavier gear wears slower per event and costs more to mend', () => {
   const [l, m, h] = ['light', 'medium', 'heavy'].map(tier) as [ReturnType<typeof tier>, ReturnType<typeof tier>, ReturnType<typeof tier>];
   assert.ok(l.hitWear > m.hitWear && m.hitWear > h.hitWear);
-  assert.ok(l.goldPerPoint < m.goldPerPoint && m.goldPerPoint < h.goldPerPoint);
+  assert.ok(l.bronzePerPoint < m.bronzePerPoint && m.bronzePerPoint < h.bronzePerPoint);
 });
 
 test('wearAfter: a hit wears only on a roll under the chance, a kill always wears, never past max', () => {

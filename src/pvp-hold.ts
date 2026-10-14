@@ -1,8 +1,9 @@
 // The live duel's drawn hit-stop (Dom via Strategy, always on): the SIM never pauses (every tick still steps and the net cadence is untouched);
 // only the picture held on screen is delayed. Ticks that arrive during a hold queue as snapshots and play out CATCHUP a frame. Presentation only:
 // nothing here is read by the sim, the driver or a record. Pure, so tests/pvp-hold.test.ts can drive it frame by frame.
-export const CATCHUP = 3;
-export const MAX_LAG_TICKS = 6;   // the picture is never more than 6 ticks (100 ms) behind the sim: in a duel the picture is the player's input information (Lead, Backend's CI row saw 15)
+import { present } from './present-rows.ts';
+export const CATCHUP = present('pvp-catchup');
+export const MAX_LAG_TICKS = present('pvp-max-lag-ticks');   // the picture is never more than 6 ticks (100 ms) behind the sim: in a duel the picture is the player's input information (Lead, Backend's CI row saw 15)
 const TICK_MS = 1000 / 60;
 export type Hold<S> = { shown: S | null; holdMs: number; cut: number; queue: S[] };   // shown: the snapshot on screen while behind the sim; cut: events of the contact frame to deliver
 export const newHold = <S>(): Hold<S> => ({ shown: null, holdMs: 0, cut: -1, queue: [] });
