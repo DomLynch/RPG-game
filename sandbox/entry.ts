@@ -70,10 +70,20 @@ function panel(opponents: string[]) {
     sel.onchange = () => { const u = new URL(location.href); if (sel.value) u.searchParams.set(param, sel.value); else u.searchParams.delete(param); location.assign(u.href); };
     return el('div', { style: 'margin:4px 0' }, el('span', { textContent: label + ' ' }), sel);
   };
+  const spellSel = el('select'), cast = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
+  spellSel.append(el('option', { value: '', textContent: '(none: class special)' }));
+  void import('../src/fight/spell-catalogue.ts').then(({ SPELL_INFO }) => {
+    const bySchool = new Map<string, [string, string][]>();
+    for (const [id, i] of Object.entries(SPELL_INFO)) { const l = bySchool.get(i.school) ?? []; l.push([id, `${i.spell || id} - L${i.level} (${i.legend})`]); bySchool.set(i.school, l); }
+    for (const [school, list] of [...bySchool].sort()) { const g = el('optgroup', { label: school }); for (const [id, label] of list.sort((a, b) => a[1].localeCompare(b[1]))) g.append(el('option', { value: id, textContent: label, selected: params.get('spell') === id })); spellSel.append(g); }
+  });
+  const goSpell = () => { const u = new URL(location.href); if (spellSel.value) u.searchParams.set('spell', spellSel.value); else u.searchParams.delete('spell'); if (cast.value) u.searchParams.set('cast', cast.value); else u.searchParams.delete('cast'); location.assign(u.href); };
+  spellSel.onchange = goSpell; cast.onchange = goSpell;
   const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
     el('div', { textContent: 'Loadout (reloads the page)', style: 'color:#c9a227;font-weight:600' }),
+    el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell ' }), spellSel, cast),
     pick('Opponent weapon', 'foeWeapon', WEAPON_IDS), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)),
-    el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and both sides\' spells: Field journal, Sparring tab.', style: 'color:#999;font-size:11px;margin-top:4px' }));
+    el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
   const status = el('div');
   const areas: { file: string; fam: string; ta: HTMLTextAreaElement }[] = [];
@@ -131,6 +141,17 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
 {
   const q = new URLSearchParams(location.search), { OPPONENTS } = await import('../src/fight/moves.ts');
   const fw = q.get('foeWeapon'); if (fw && WEAPON_IDS.includes(fw)) for (const o of Object.values(OPPONENTS)) (o as { weapon: string }).weapon = fw;
+  // ?spell=<legend id> equips a catalogue spell for YOUR fights (the grimoire's own store: owned + equipped), ?cast=<0-100> sets the cast skill of its school (the school's sheet skill base).
+  const spell = q.get('spell');
+  if (spell) {
+    const { isSpellId, BRICKS } = await import('../src/fight/spell-cast.ts'), { setOwnedSpells } = await import('../src/core/spell-equip.ts'), { default: INDEX } = await import('../src/fight/spell-index.json', { with: { type: 'json' } });
+    if (isSpellId(spell)) {
+      setOwnedSpells([spell]);
+      try { localStorage.setItem('frankendom.spell.equipped.v1', spell); } catch { /* storage refused: the pick lasts until reload only */ }
+      const school = BRICKS[(INDEX as unknown as { spells: Record<string, readonly [string, number]> }).spells[spell]![0]]?.school, row = (SHEET.skills as { id: string; base: number; cap: number }[]).find((s) => s.id === school), cast = Number(q.get('cast'));
+      if (row && q.get('cast') !== null && Number.isFinite(cast)) row.base = Math.max(0, Math.min(row.cap, Math.floor(cast)));
+    }
+  } else { try { localStorage.removeItem('frankendom.spell.equipped.v1'); } catch { /* none */ } }
   for (const [param, id] of [['myArmour', 'armourYou'], ['foeArmour', 'armourFoe']] as const) {
     const v = ARMOUR_CLASSES.indexOf(q.get(param) ?? ''); const row = (RULES.rules as { id: string; value?: number }[]).find((r) => r.id === id);
     if (row && v > 0) row.value = v;
