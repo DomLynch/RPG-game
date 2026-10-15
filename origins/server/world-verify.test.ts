@@ -54,7 +54,7 @@ async function honestCast(spell: { id: string; skill: number }, spell2?: { id: s
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, spell, ...(spell2 ? { spell2 } : {}) }) });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
-  for (let i = 0; i < 3000 && !fell.length; i++) { if (i % 8 === 0) wc.cast(); else if (spell2 && i % 8 === 4) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
+  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 8; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted caster kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
