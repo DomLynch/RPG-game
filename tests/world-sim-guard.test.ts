@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { RECORD_VERSION } from '../src/fight/record.ts';
 import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
-import { simDigest } from './lib/sim-digest.ts';
+import { pinProblem, simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/world-rules.ts', 'src/fight/world-rules-defs.json', 'src/fight/world-rules-defs.manifest.json', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
 const WORLD_DIGEST = 'e464d25e6cc441f3c114869e35c6c01f371568d6d3bf942ace2e0d975e1f2b44';   // WSV 38 (Combat, Gothic tactic table PR 1, RV 63: the Pit's RV is hashed in, no world file changed). Before: WSV 37 (Combat sim batch B, RV 62). WSV 36 (World: core world rows)
@@ -17,9 +17,7 @@ const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM
 
 test('a world-sim change without a WORLD_SIM_VERSION bump would refuse every honest world record', () => {
   const digest = simDigest(sources(), { world: true });
-  assert.ok(WORLD_SIM_VERSION >= PINNED_FOR_VERSION, 'WORLD_SIM_VERSION went backwards');
-  assert.ok(digest === WORLD_DIGEST ? WORLD_SIM_VERSION === PINNED_FOR_VERSION : WORLD_SIM_VERSION > PINNED_FOR_VERSION,
-    `The world sim files (or the Pit's RECORD_VERSION ${RECORD_VERSION}) changed (digest ${digest}) but WORLD_SIM_VERSION is still ${WORLD_SIM_VERSION}. Bump WORLD_SIM_VERSION in src/fight/world-record.ts, then set WORLD_DIGEST = '${digest}' and PINNED_FOR_VERSION = ${WORLD_SIM_VERSION + 1} here.`);
+  assert.equal(pinProblem({ digest, pin: WORLD_DIGEST, version: WORLD_SIM_VERSION, pinnedFor: PINNED_FOR_VERSION, name: 'WORLD_SIM_VERSION', versionFile: 'src/fight/world-record.ts', pinName: 'WORLD_DIGEST' }), null);   // the head pin is exact (tests/lib/sim-digest.ts pinProblem); the Pit's RV is hashed in, so a Pit bump moves this digest too
 });
 
 test('the digest sees a number inside a world function, and a Pit RECORD_VERSION bump', () => {
