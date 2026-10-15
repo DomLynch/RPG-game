@@ -364,6 +364,10 @@
     ],
     [
       "node",
+      "scripts/spell-slots-zone-check.mjs"
+    ],
+    [
+      "node",
       "scripts/ground-prompt-check.mjs"
     ]
   ],
@@ -378,6 +382,7 @@
       ],
       "rows": [
         "origins-writer-boot-check",
+        "spell-slots-zone-check",
         "ground-prompt-check"
       ]
     },
@@ -562,6 +567,25 @@
     },
     {
       "paths": [
+        "src/fight/hud.ts",
+        "src/fight/input.ts",
+        "src/core/spell-equip.ts",
+        "src/core/spell-slot-view.ts"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check",
+        "double-tap-browser-check",
+        "clip-send-tour-check",
+        "spell-slots-zone-check"
+      ]
+    },
+    {
+      "paths": [
         "src/**",
         "index.html",
         "public/**",
@@ -668,6 +692,14 @@
       ],
       "rows": [
         "pit-landscape-webkit"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/spell-slots-zone-check.mjs"
+      ],
+      "rows": [
+        "spell-slots-zone-check"
       ]
     }
   ],

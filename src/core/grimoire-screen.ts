@@ -2,7 +2,8 @@
 // spell, and the spell's bricks as chips. Empty book: "Beat a legend to take their spell". A guest or an unanswered writer says so and shows nothing else.
 import { EMPTY, entriesOf, type Entry } from './grimoire-model.ts';
 import type { Spell } from './grimoire-net.ts';
-import { equipSpell, equippedSpell, setOwnedSpells } from './spell-equip.ts';
+import { equipSpell, equippedSpell, equippedSpells, setOwnedSpells } from './spell-equip.ts';
+import { SLOTS as SPELL_SLOTS } from './spell-slot-view.ts';
 
 type Load = () => Promise<Spell[] | null>;
 export function mountGrimoire(dialog: HTMLDialogElement, load: Load) {
@@ -23,11 +24,13 @@ export function mountGrimoire(dialog: HTMLDialogElement, load: Load) {
       const li = el('li', 'grimoire-entry'), name = el('b', 'grimoire-name', e.name), sub = el('span', 'grimoire-sub', [e.family && `${e.family} family`, e.spell, e.school, e.level ? `level ${e.level}` : ''].filter(Boolean).join(' · '));
       if (e.color) li.style.setProperty('--school', e.color);   // the school's row colour (spell-catalogue.ts), never a literal here
       const chips = el('span', 'grimoire-bricks'); chips.append(...e.bricks.map((b) => el('i', 'grimoire-brick', b)));
-      const pick = el('button', 'grimoire-equip', '', { type: 'button' });
-      const mark = () => { const on = equippedSpell() === e.legend; pick.textContent = on ? 'Equipped' : 'Equip'; pick.setAttribute('aria-pressed', String(on)); li.classList.toggle('equipped', on); };
-      pick.addEventListener('click', () => { equipSpell(equippedSpell() === e.legend ? undefined : e.legend); for (const fn of marks) fn(); });
-      marks.push(mark); mark();
-      li.dataset.legend = e.legend; li.append(name, sub, chips, pick); return li;
+      const picks = SPELL_SLOTS.map((slot, i) => {
+        const pick = el('button', 'grimoire-equip', '', { type: 'button' }), label = slot.id.toUpperCase();
+        const mark = () => { const on = equippedSpell(i) === e.legend; pick.textContent = on ? `In slot ${label}` : `Equip ${label}`; pick.setAttribute('aria-pressed', String(on)); pick.dataset.slot = slot.id; li.classList.toggle('equipped', equippedSpells().includes(e.legend)); };
+        pick.addEventListener('click', () => { equipSpell(equippedSpell(i) === e.legend ? undefined : e.legend, i); for (const fn of marks) fn(); });
+        marks.push(mark); mark(); return pick;
+      });
+      li.dataset.legend = e.legend; li.append(name, sub, chips, ...picks); return li;
     }));
   };
   return {
