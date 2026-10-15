@@ -14,7 +14,7 @@ const HOLDS = JSON.parse(process.env.HOLDS || '{}');
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]);
-  const file = u === '/warrior.glb' ? `${root}/src/assets/warrior.glb` : u === '/weapon.glb' ? `${root}/src/assets/source/ranged-weapons/${current}.glb` : path.join(STAGE, u === '/' ? 'index.html' : u);
+  const file = u === '/warrior.glb' ? `${root}/src/assets/warrior.glb` : u === '/weapon.glb' ? `${root}/${process.env.PARTS_DIR || 'src/assets/source/ranged-weapons'}/${current}.glb` : path.join(STAGE, u === '/' ? 'index.html' : u);
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': mime[path.extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' }); fs.createReadStream(file).pipe(res);
 });

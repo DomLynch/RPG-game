@@ -1,0 +1,15 @@
+{
+  "note": "How a TRELLIS.2 reconstruction of a ranged weapon is fitted to the weapon part contract (scripts/ranged-fit.py): which reconstruction axes become the part's axes, the size, where the grip sits, the phone budget and the part's userData. `cFromG` is the 3x3 matrix taking the reconstruction's glTF axes (x right, y up, z toward the viewer in the concept picture) to the part's (x, y along the weapon, z the string side / top of the stock).",
+  "bow-v1": {
+    "cFromG": [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+    "lengthM": 1.5, "gripAlong": 0.5, "tris": 3000, "texture": 512,
+    "extras": { "weapon": "bow-v1", "hand": "hand_l", "contact": [0.1, 0.7] },
+    "nock": "tipZ"
+  },
+  "crossbow-v1": {
+    "cFromG": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    "lengthM": 1.0, "gripAlong": 0.26, "tris": 3200, "texture": 512,
+    "extras": { "weapon": "crossbow-v1", "hand": "hand_r", "contact": [0.3, 0.7] },
+    "muzzle": "top"
+  }
+}
