@@ -33,6 +33,14 @@
 ],
 "wounds":[
 ]},
+"hit-stop-rules":{"stop":[{"id":"SpecialLanded","ms":0,"note":"a Special Move's strike holds like a clean hit"},
+{"id":"Blocked","ms":0,"note":"a blocked contact"},
+{"id":"Hit","ms":0,"note":"a landed blow"},
+{"id":"Parried","ms":0,"note":"a parried blow"},
+{"id":"GuardBroken","ms":0,"note":"a guard break"},
+{"id":"PostureBroken","ms":0,"note":"Strategy's ruling 2026-10-07 (was 120); with the dry thud on the break (audio/cues.ts)"},
+{"id":"Killed","ms":0,"note":"a kill stops longest"}],"heavy":[{"id":"Hit","ms":0,"note":"a heavy-class blow that lands stops longer than the plain hit"},
+{"id":"Blocked","ms":0,"note":"a heavy-class blow that is blocked stops longer than the plain block"}]},
 "hit-stop-defs":{"contacts":[
 {"id":"hitLight","order":1,"ms":0,"frames":0,"knock":0.02,"push":0},
 {"id":"hitHeavy","order":2,"ms":0,"frames":0,"knock":0.04,"push":0},

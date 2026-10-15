@@ -2,10 +2,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import ROWS from '../src/fight/hit-stop-defs.json' with { type: 'json' };
 import type { CombatEvent } from '../src/fight/duel.ts';
 
 const { createImpactFx, contactOf } = await import('../src/fight/impact-fx.ts');
+const { CONTACTS } = await import('../src/fight/hit-stop-rows.ts');   // the loaded rows (trunk copies them out of the JSON at load)
 const fighters = [{ body: { x: 0, z: 0 } }, { body: { x: 0, z: 2 } }] as never;
 const parried = { type: 'Parried', actor: 0, target: 1 } as CombatEvent;
 const shown = (scene: THREE.Scene) => scene.children.filter((o) => o.visible).length;
@@ -19,7 +19,7 @@ test('contacts map onto the hit-stop rows', () => {
 test('no columns, nothing drawn; a parry row with flash + ring draws both, and they fade out', () => {
   const scene = new THREE.Scene(), fx = createImpactFx(scene);
   fx.fire([parried], fighters); assert.equal(shown(scene), 0);
-  Object.assign((ROWS.contacts as Record<string, object>).parry, { flash: 1.5, ring: 2 });
+  Object.assign(CONTACTS.parry, { flash: 1.5, ring: 2 });
   fx.fire([parried], fighters); assert.equal(shown(scene), 2);
   fx.update(1); assert.equal(shown(scene), 0);
 });

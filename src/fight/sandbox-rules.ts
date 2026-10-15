@@ -2,7 +2,7 @@ import DEFS from './sandbox-rules-defs.json' with { type: 'json' };
 import SWARM_DEFS from './swarm-defs.json' with { type: 'json' };
 import type { Sheet } from './sheet-rows.ts';
 import PHASE_DEFS from './boss-phase-defs.json' with { type: 'json' };
-import { weightClassOf } from './gear-weight.ts';
+import GEAR_DEFS from './gear-defs.json' with { type: 'json' };   // the owners and sets rows only (the loader chain behind gear-weight.ts would pull loot and legends into the sim)
 
 // sandbox-mech: the sandbox's own rule rows (sandbox-rules-defs.json), one number each, read once at load. Every rule is 0 / absent as shipped on trunk,
 // so a trunk fight is byte-identical; the Sandbox panel (sandbox/rows.json) turns them on. A sim file: no clock, no Math.random.
@@ -121,6 +121,11 @@ export const ARMOUR_ON = ARMOUR_VS.length > 0;
 export const blowKind = (weapon: string, move: string): string | undefined => {
   const hit = (w: string, m: string) => BLOW_KINDS.find((r) => r.weapon === w && r.move === m)?.kind;
   return hit(weapon, move) ?? hit(weapon, '*') ?? hit('*', move) ?? hit('*', '*');
+};
+const weightClassOf = (id: string): string | null => {
+  const g = GEAR_DEFS as unknown as { owners?: { id: string; set: string }[]; sets?: { id: string; weightClass?: string }[] };
+  const set = g.owners?.find((o) => o.id === id.split('.')[0])?.set;
+  return (set && g.sets?.find((x) => x.id === set)?.weightClass) || null;
 };
 export const armourClassOf = (sheet: Sheet | undefined, oid: string | undefined): string | null =>
   oid ? weightClassOf(oid) : !sheet ? null : (sheet.armour ?? 0) >= 20 ? 'heavy' : (sheet.stamina ?? 0) >= 20 ? 'medium' : (sheet.magicResist ?? 0) >= 20 ? 'light' : null;
