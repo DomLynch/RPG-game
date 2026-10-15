@@ -115,6 +115,7 @@ test('bakeSkinned: a skinned piece becomes plain meshes at its bind pose, the sk
   const meshes: THREE.Mesh[] = []; baked.traverse((o) => { if (o instanceof THREE.Mesh) meshes.push(o); });
   assert.equal(meshes.length, 1); assert.ok(!(meshes[0] instanceof THREE.SkinnedMesh));
   assert.equal(meshes[0]!.geometry.getAttribute('skinIndex'), undefined);
+  const n = meshes[0]!.geometry.getAttribute('normal'); for (let i = 0; i < n.count; i++) assert.ok(Math.abs(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)) - 1) < 1e-5, 'unit normals, never the zeros computeVertexNormals gave on the optimised file');
   const size = new THREE.Box3().setFromObject(baked).getSize(new THREE.Vector3());
   assert.ok(Math.abs(size.x - 0.2) < 1e-6 && Math.abs(size.y - 0.1) < 1e-6, 'the piece keeps its size');
   assert.equal(bakeSkinned(sword()).getObjectByName('WeaponDrawn')?.type, 'Group');

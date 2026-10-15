@@ -33,7 +33,7 @@ const partOf = (model: THREE.Object3D, piece?: string): THREE.Object3D => {
 };
 
 // An armour piece from loot.glb is a SkinnedMesh bound to the big rig, so on its own it draws at the rig's scale and offset or not at all. Lay-down needs a plain mesh: take each skinned vertex as the
-// skeleton poses it (bind pose, bones at rest), keep the geometry's other attributes, drop the skin. The result is a Group of plain Meshes sharing the source materials (finishedAs clones them in lie()).
+// skeleton poses it (bind pose, bones at rest), keep the authored normals (turned with the mesh) and the other attributes, drop the skin. The result is a Group of plain Meshes sharing the source materials (finishedAs clones them in lie()).
 export function bakeSkinned(src: THREE.Object3D): THREE.Object3D {
   src.updateWorldMatrix(true, true);
   const meshes: THREE.SkinnedMesh[] = []; src.traverse((o) => { if (o instanceof THREE.SkinnedMesh) meshes.push(o); });
@@ -41,9 +41,12 @@ export function bakeSkinned(src: THREE.Object3D): THREE.Object3D {
   const out = new THREE.Group(), v = new THREE.Vector3();
   for (const sm of meshes) {
     sm.skeleton.update();
-    const g = sm.geometry.clone(), pos = g.getAttribute('position'), p = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) { sm.getVertexPosition(i, v); v.applyMatrix4(sm.matrixWorld); p.set([v.x, v.y, v.z], i * 3); }
-    g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.deleteAttribute('skinIndex'); g.deleteAttribute('skinWeight'); g.computeVertexNormals(); g.computeBoundingBox();
+    const g = sm.geometry.clone(), pos = g.getAttribute('position'), nor = g.getAttribute('normal'), p = new Float32Array(pos.count * 3), n = new Float32Array(pos.count * 3), nm = new THREE.Matrix3().getNormalMatrix(sm.matrixWorld);
+    for (let i = 0; i < pos.count; i++) {
+      sm.getVertexPosition(i, v); v.applyMatrix4(sm.matrixWorld); p.set([v.x, v.y, v.z], i * 3);
+      v.set(nor.getX(i), nor.getY(i), nor.getZ(i)).applyMatrix3(nm).normalize(); n.set([v.x, v.y, v.z], i * 3);   // the authored normals (the bones sit at the bind pose); computeVertexNormals gives zeros on the build's meshopt-optimised file
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('normal', new THREE.BufferAttribute(n, 3)); g.deleteAttribute('skinIndex'); g.deleteAttribute('skinWeight'); g.computeBoundingBox();
     const m = new THREE.Mesh(g, sm.material); m.name = sm.name; out.add(m);
   }
   return out;
@@ -74,10 +77,18 @@ function disposeOwned(g: THREE.Object3D) {
   g.traverse((o) => { if (o instanceof THREE.Mesh && o.userData.owned) { o.geometry.dispose(); for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose(); } });
 }
 
+// The row's finish on a mesh's material (a cached clone, never the model's own); an armour piece is a thin shell, so its clone draws both faces (it lies at any roll and must not vanish edge-on).
+function finish(m: THREE.Material, look: GroundLook): THREE.Material {
+  if (!(m instanceof THREE.MeshStandardMaterial)) return m;
+  const f = finishedAs(m, look.finish!);
+  if (look.piece && f !== m) f.side = THREE.DoubleSide;
+  return f;
+}
+
 /** The item as it lies: a pivot at the origin whose model's long axis runs along +X, rolled and turned by the look, scaled, with its underside `liftM` above y = 0 and its middle over x = z = 0. */
 export function lie(model: THREE.Object3D, look: GroundLook): THREE.Group {
   const inner = bakeSkinned(partOf(model, look.piece)), holder = new THREE.Group(), pivot = new THREE.Group();
-  inner.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.receiveShadow = false; if (look.finish) o.material = Array.isArray(o.material) ? o.material.map((m) => (m instanceof THREE.MeshStandardMaterial ? finishedAs(m, look.finish!) : m)) : o.material instanceof THREE.MeshStandardMaterial ? finishedAs(o.material, look.finish) : o.material; } });
+  inner.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.receiveShadow = false; if (look.finish) o.material = Array.isArray(o.material) ? o.material.map((m) => finish(m, look)) : finish(o.material, look); } });
   holder.add(inner); holder.updateMatrixWorld(true);
   const size = new THREE.Box3().setFromObject(holder).getSize(new THREE.Vector3());
   const long = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
