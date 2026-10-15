@@ -279,6 +279,11 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
   assert.deepEqual(rowsFor('scripts/end-overlap-check.mjs'), ['end-overlap-check']);   // row 55 (Lead 2026-10-15): nothing under Next fight on the kill screen; joined the page rules above, its own script runs only itself
+  // Row 56 (spell slots 3b, Lead 2026-10-15): the open-world page under a dev server with two picks must show SPELL 2. It rides the four files that decide it (the HUD, the input, the equip, the slot view) by a narrow rule placed BEFORE src/**, which keeps every row src/** gave them, and origins/preview/main.ts by a rule before origins/**; a bare src or origins change does not run it.
+  for (const f of ['src/fight/hud.ts', 'src/fight/input.ts', 'src/core/spell-equip.ts', 'src/core/spell-slot-view.ts']) assert.ok(rowsFor(f).includes('spell-slots-zone-check') && rowsFor(f).includes('double-tap-browser-check'), `${f}: its earlier rows plus spell-slots-zone-check`);
+  assert.deepEqual(rowsFor('origins/preview/main.ts'), ['origins-writer-boot-check', 'spell-slots-zone-check']);
+  assert.deepEqual(rowsFor('scripts/spell-slots-zone-check.mjs'), ['spell-slots-zone-check'], 'its own script runs only itself');
+  for (const f of ['src/fight/ai.ts', 'src/main.ts', 'origins/server/server.ts']) assert.ok(!rowsFor(f).includes('spell-slots-zone-check'), `${f} does not run the spell-slots row`);
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
   assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);
