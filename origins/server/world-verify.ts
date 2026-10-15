@@ -29,6 +29,7 @@ export async function verifyWorldRecord(text: string, spawn: Pick<Spawn, 'spec'>
   if (limit && 'sheet' in limit && !sameSheet(rec.hero.sheet, limit.sheet)) return { ok: false, reason: 'sheet' };
   if (limit?.weapon !== undefined && rec.hero.weapon !== limit.weapon && rec.hero.weapon !== DEFAULT_WEAPON) return { ok: false, reason: 'weapon' };   // the weapon is the character's held one (the ledger's main hand) or the default (the world replay fights DEFAULT_WEAPON only until series PR 5 lifts that), never the record's say-so
   if (rec.hero.spell && limit && !(limit.spells && checkSpell(rec.hero.spell, limit.spells).ok)) return { ok: false, reason: 'spell' };   // the record's spell is a claim: it must be in the account's grimoire and no higher a skill than the character holds (spell-check.ts, the Pit's rule); no ledger read = nothing to vouch for it
+  if (rec.hero.spell2 && limit && !(limit.spells && checkSpell(rec.hero.spell2, limit.spells).ok)) return { ok: false, reason: 'spell' };   // slot b is held to the same grimoire and skill ceiling; the structural rules (a slot-a spell beside it, no duplicate) are the replay's
   if (limit && limit.level !== undefined && rec.hero.level > limit.level) return { ok: false, reason: 'hero beyond ledger' };
   let r;
   try { r = replayWorldRecord(rec); } catch { return { ok: false, reason: 'replay threw' }; }
