@@ -215,21 +215,27 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
       }; }
     if (q.get('quiver') === '0') for (const r of RULES.rules as { id: string; value?: number }[]) if (r.id === 'quiver') r.value = 0;   // ?quiver=0: an unlimited quiver for the A/B
   }
+  // Specials and spells are off below fight level 16 on trunk (match.ts CLASS_B_FROM), so at level 1 the SKILL and SPELL buttons did nothing. The sandbox switches them on from level 1 (?specialsFrom=N to change, 99 = trunk behaviour).
+  (globalThis as { __SANDBOX_SPECIALS_FROM__?: number }).__SANDBOX_SPECIALS_FROM__ = Number(q.get('specialsFrom') ?? 1);
+  // Trunk has a 20 s wait before the first special and 20 s between casts (rules special.first / special.cooldown, in ticks at 60/s): too slow to test. The sandbox uses 2 s and 6 s (?spellFirst= ?spellCooldown= in ticks).
+  { const { RULES: R } = await import('../src/fight/moves.ts'); R.special.first = Number(q.get('spellFirst') ?? 120); R.special.cooldown = Number(q.get('spellCooldown') ?? 360); }
   // ?spell=<legend id> equips a catalogue spell for YOUR fights (the grimoire's own store: owned + equipped), ?cast=<0-100> sets the cast skill of its school (the school's sheet skill base).
+  (globalThis as { __SANDBOX_OWNED__?: string[] }).__SANDBOX_OWNED__ = [q.get('spell'), q.get('spell2')].filter((x): x is string => !!x);   // see src/core/spell-equip.ts setOwnedSpells
   const spell = q.get('spell');
   if (spell) {
-    const { isSpellId, BRICKS } = await import('../src/fight/spell-cast.ts'), { setOwnedSpells } = await import('../src/core/spell-equip.ts'), { default: INDEX } = await import('../src/fight/spell-index.json', { with: { type: 'json' } });
+    const { isSpellId, BRICKS } = await import('../src/fight/spell-cast.ts'), { setOwnedSpells, useSpellStore } = await import('../src/core/spell-equip.ts'), { default: INDEX } = await import('../src/fight/spell-index.json', { with: { type: 'json' } });
     if (isSpellId(spell)) {
+      try { useSpellStore(localStorage); } catch { /* none */ }   // the fight is created at boot, before main.ts hands the store over: give it now or the pick reads as none
       setOwnedSpells([spell]);
       try { localStorage.setItem('frankendom.spell.equipped.v1', spell); } catch { /* storage refused: the pick lasts until reload only */ }
-      const school = BRICKS[(INDEX as unknown as { spells: Record<string, readonly [string, number]> }).spells[spell]![0]]?.school, row = (SHEET.skills as { id: string; base: number; cap: number }[]).find((s) => s.id === school), cast = Number(q.get('cast'));
-      if (row && q.get('cast') !== null && Number.isFinite(cast)) row.base = Math.max(0, Math.min(row.cap, Math.floor(cast)));
+      const school = BRICKS[(INDEX as unknown as { spells: Record<string, readonly [string, number]> }).spells[spell]![0]]?.school, row = (SHEET.skills as { id: string; base: number; cap: number }[]).find((s) => s.id === school), cast = Number(q.get('cast') ?? 100);
+      if (row && Number.isFinite(cast)) row.base = Math.max(0, Math.min(row.cap, Math.floor(cast)));
     }
   } else { try { localStorage.removeItem('frankendom.spell.equipped.v1'); } catch { /* none */ } }
   // ?spell2=<legend id>&cast2=<0-100>: the SECOND spell (SPELL 2), read at fight start through src/fight/spell-slot2.ts.
   const spell2 = q.get('spell2');
   if (spell2) {
-    const { isSpellId } = await import('../src/fight/spell-cast.ts'); const skill = Number(q.get('cast2'));
+    const { isSpellId } = await import('../src/fight/spell-cast.ts'); const skill = Number(q.get('cast2') ?? 100);
     if (isSpellId(spell2)) (globalThis as { __SANDBOX_SPELL2__?: { id: string; skill: number } }).__SANDBOX_SPELL2__ = { id: spell2, skill: Number.isFinite(skill) ? Math.max(0, Math.min(100, Math.floor(skill))) : 0 };
   }
   for (const [param, id] of [['myArmour', 'armourYou'], ['foeArmour', 'armourFoe']] as const) {

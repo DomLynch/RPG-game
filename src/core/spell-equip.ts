@@ -7,7 +7,7 @@ let store: Store | undefined;
 /** The page gives it localStorage once; a viewer without storage simply never keeps a pick. */
 export const useSpellStore = (s: Store | undefined): void => { store = s; };
 /** The grimoire's spell ids, as the last read of the book left them (a guest, an offline writer or no read yet: none). */
-export const setOwnedSpells = (ids: readonly string[]): void => { owned = [...new Set(ids)]; };
+export const setOwnedSpells = (ids: readonly string[]): void => { owned = [...new Set([...ids, ...((globalThis as { __SANDBOX_OWNED__?: readonly string[] }).__SANDBOX_OWNED__ ?? [])])]; };   // sandbox: the picked spells stay owned when the grimoire read (a guest's empty book) arrives after the page boots
 export const ownedSpells = (): readonly string[] => owned;
 /** The equipped spell id, or undefined when none is picked or the pick is not in the book (a book that shrank, another account). */
 export function equippedSpell(): string | undefined {

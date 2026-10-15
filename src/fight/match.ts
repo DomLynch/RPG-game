@@ -143,7 +143,7 @@ export class Match {
     this.epoch++;
     const pose = (mode === 'career' || mode === 'practice' || mode === 'sparring' || mode === 'replay') && this.startPose ? roundPose(this.startPose) : undefined; this.startPose = undefined; this.fightPose = pose;
     const test = mode === 'sparring' ? this.sparSpecials : null;
-    const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= CLASS_B_FROM && this.level <= LEVELS;
+    const live = LIVE_SPECIALS && !this.dummy && Number.isInteger(this.level) && this.level >= ((globalThis as { __SANDBOX_SPECIALS_FROM__?: number }).__SANDBOX_SPECIALS_FROM__ ?? CLASS_B_FROM) && this.level <= LEVELS;   // sandbox: ?specialsFrom= (entry.ts, default 1) switches specials and spells on at any level; absent = rank 4 as ever
     if (mode !== 'replay') { this.gambit = false; this.stances = mode === 'career' || mode === 'practice' ? this.stancePref : undefined; this.sheet = mode === 'career' || mode === 'practice' ? (this.ports.sheet?.() ?? this.sheetPref) : undefined;   // read at each begin(): what is worn NOW, not what was worn when the page booted
     }   // only a replay carries the Gambit until a live flag exists
     const look = mode === 'sparring' ? this.ports.lookSpell?.() : undefined;   // the ?spell look test (boss-telegraph.ts spellLook): read in sparring ONLY, which sends no record and pays nothing; career, practice, pvp and the ladder never see it

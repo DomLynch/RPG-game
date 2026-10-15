@@ -432,6 +432,7 @@ if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
 const kitTested = () => (kit.level !== undefined && kit.level !== rankLevel()) || (!!kit.weapon && kit.weapon !== fightWeapon(profile.loot, CARRIED_WEAPONS)) || (!!kit.skill && kit.skill !== equippedSkill(profile.loot));
 match.tested = kitTested();
+if ((globalThis as { __SANDBOX_SPECIALS_FROM__?: number }).__SANDBOX_SPECIALS_FROM__ !== undefined) { (globalThis as { __sandboxMatch?: unknown }).__sandboxMatch = match; (globalThis as { __sandboxSpellDbg?: unknown }).__sandboxSpellDbg = () => ({ eq: equippedSpell(), owned: ownedSpells(), pick: pickSpell(equippedSpell(), ownedSpells(), skills.values()), ls: (() => { try { return localStorage.getItem('frankendom.spell.equipped.v1'); } catch { return 'err'; } })() }); }   // sandbox debug handle
 // The name this fight's opponent fights under (legends.ts, Dom via Strategy 2026-09-27): read through the fight's own level, so a
 // dial-down fight and a re-play each show the legend of the level they are fought at. Text only; null off the legend roster.
 const legendNow = () => (isLegendOpponent(opponent.id) ? legendForLevel(opponent.id, match.level) : null);
