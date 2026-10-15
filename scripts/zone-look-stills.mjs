@@ -36,7 +36,8 @@ try {
       await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
       await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadLeft() === 0 && (window.originsPreview.uploadItems() > 0 || performance.now() > 20000), null, { timeout: 180000 });   // the walk's world is all on the GPU (a zone with nothing to upload: 20 s after load)
       const camp = await page.evaluate(() => window.originsPreview.goblinCentre?.() ?? null); r.camp = camp;
-      if (camp) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 9, Math.PI), [camp.x, camp.z]);   // 9 m south of the camp, facing it (forward is (sin h, cos h))
+      const pit = name.includes('-pit');   // a name containing -pit: stand at the camp facing east, back towards the Pit (where the fog-proof Pit scenery showed)
+      if (camp) await page.evaluate(([x, z, back]) => window.originsPreview.place(back ? x : x, back ? z : z + 9, back ? Math.PI / 2 : Math.PI), [camp.x, camp.z, pit]);   // else 9 m south of the camp, facing it (forward is (sin h, cos h))
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
       if (process.env.STILLS_PROBE) {   // debugging the dome: its own texture (does it hold the picture?) and a frame with it painted flat magenta (where is it on screen?)
