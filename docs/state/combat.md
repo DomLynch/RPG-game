@@ -1,3 +1,17 @@
+## 2026-10-15 — HANDOFF: spells (cast wire-up, cost cap, list brief), bows sandbox, as-data tables
+
+**Now (what the next session picks up):**
+1. **GH lands (#2798 carrying #2778, RV 63 / WSV 39 @6b18c5d74), then rebase #2785** (cost cap, combat/spell-cost-cap @db18b8897, RV 64 / WSV 40): re-pin the WORLD digest on the combined tree (the sim digest fa37d0fa… moves only if a Pit file changed), send the Auditor the new head; the Auditor re-prints digests and PASSes on green. A passing guard at the head pin proves the digest (Lead, corrected); clean VPS clone: `npm ci --ignore-scripts`, node 22 prints `# pass N`, not `ℹ pass`.
+2. **Bows step 2** (spec #2784, sandbox #2791 @6e1b82465, Deploy publishing /preview/bows/): ammo, crossbow, lock-on, a moving dummy; stuck-arrow visibility and the hip scabbard strap are known rough bits. No RV/WSV until Dom picks bows.
+3. **As-data tables** (Auditor triage #2783/#2793): #2786 class specials, #2788 weapon shapes, #2789 Pitborn templates are open; whichever of #2783 and these lands second rebases and lowers scripts/as-data/map-baseline.json (`--write-map-baseline`). My remaining #2793 share is not read yet.
+4. **Held:** the frost `slow` (needs Characters' frost spell ids, then one PR: cc kind + hashed Fighter field + speed hook + frost brick, with an RV bump). The engine never applies cc-defs `root` (legWound only slows x0.85, duel.ts:380).
+
+**Done today (2026-10-15):** #2778 CI fixed and renumbered (pickSpell through src/fight/index.ts, world-record test pins the cast-gated special); #2781 spell list brief (15 spells, Lead rulings: cost cap, frost out, two universal slots = Lead's reading of Dom); #2784 bows spec with file:line donor cites; #2785 cost cap with an ERA GATE (cast-rules costCapFrom 64; v63 records keep dagan/cronus at 103; capped fights stamp >= 64); #2791 bows sandbox with stills on HF CPU.
+
+**Open:** Auditor: #2785 after GH; #2786/#2788/#2789. Lead/Deploy: /preview/bows/ publish. Strategy: the two-slot reading.
+
+**Gotchas:** Mac builds are blocked while a deploy is in flight and the VPS capture gate waits for 5-min load < 12, so use HF CPU (`hf jobs run --flavor cpu-upgrade --timeout 25m -d mcr.microsoft.com/playwright:v1.62.1-noble bash -c "$(cat script)"`; return stills as chunked base64 in the log, `base64 -w 8000`; the repo's vite plugin needs `apt-get install libjpeg-turbo-progs`; the built warrior.glb needs the meshopt decoder). Never `git stash` (shared). A numeric literal in a row-validated file must be > 0 (store a negative as its own positive row). RV pins live in record.ts, record-version-guard (PINNED, READABLE, REACH, probe asserts = RV+1), world-record.ts and world-sim-guard, plus three tests asserting RECORD_VERSION (player-weapons, v40-pit-replay, interruptible-casts). Peer messages from "picoclaw-claude-*" are supervisor advice; the work they ask for was already in my orders.
+
 ## 2026-10-14 — HANDOFF at 602k context: the B chain, sim batch A and the view-layer debt PRs are all with the Auditor or Lead
 
 **Now (what the next session picks up):**
