@@ -4,7 +4,7 @@ import { INTRO, cardAlpha, cardAt, introEnd, shouldShowIntro } from './intro.ts'
 
 export type IntroTour = { start(): void; stop(): void };
 type Doc = Pick<Document, 'createElement' | 'addEventListener' | 'removeEventListener'>;
-export type IntroDeps = { doc: Doc; parent: HTMLElement; storage: { getItem(k: string): string | null; setItem(k: string, v: string): void }; returning: boolean; link: boolean; tour?: IntroTour; ticksPerSecond?: number };
+export type IntroDeps = { doc: Doc; parent: HTMLElement; storage: { getItem(k: string): string | null; setItem(k: string, v: string): void }; returning: boolean; link: boolean; tour?: IntroTour; ticksPerSecond?: number; controlsTop?: () => number | null };   // controlsTop: the top edge (px from the viewport top) of the touch control cluster, so the strip never covers a button; null when there is none (desktop)
 
 export function createIntro(d: IntroDeps) {
   const flag = () => { try { return d.storage.getItem(INTRO.seenKey) === '1'; } catch { return false; } };
@@ -26,6 +26,7 @@ export function createIntro(d: IntroDeps) {
     /** Advance by wall-clock seconds (the intro is presentation: its clock is not the fight tick) and paint the card showing. */
     update(dt: number) {
       if (!strip) return;
+      const top = d.controlsTop?.() ?? null; if (top !== null) strip.style.bottom = `${Math.max(0, d.parent.ownerDocument.documentElement.clientHeight - top + INTRO.stripGap)}px`;   // its bottom edge sits stripGap above the controls
       ticks += dt * tps;
       if (ticks >= introEnd()) return end();
       const card = cardAt(ticks); strip.textContent = card?.text ?? ''; strip.style.opacity = card ? String(cardAlpha(card, ticks)) : '0';

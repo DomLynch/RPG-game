@@ -30,6 +30,7 @@ try {
     const { ctx, page, t0 } = await fresh('?intro=1'); await ready(page); result.loadToReadyMs = Date.now() - t0;
     await page.waitForFunction(() => { const c = document.querySelector('.intro-caption'); return c && c.textContent && Number(c.style.opacity) > 0.95; }, null, { timeout: 60000 });
     const c1 = await caption(page); result.card1 = { text: c1.text, bottomFrac: Number((c1.rect.bottom / 812).toFixed(2)), topFrac: Number((c1.rect.top / 812).toFixed(2)) };
+    result.clearsControls = await page.evaluate(() => { const s = document.querySelector('.intro-caption').getBoundingClientRect(); const btns = [...document.querySelectorAll('#actions button, #joystick')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0); return { overlapping: btns.filter((r) => !(r.right <= s.left || r.left >= s.right || r.bottom <= s.top || r.top >= s.bottom)).length, buttons: btns.length, stripBottom: Math.round(s.bottom), controlsTop: Math.round(Math.min(...btns.map((r) => r.top))) }; }); console.log('2b strip vs controls:', JSON.stringify(result.clearsControls));
     await page.screenshot({ path: path.join(OUT, 'intro-card-1.jpg'), type: 'jpeg', quality: 72, timeout: 240000 });
     console.log('2 card 1 shown:', JSON.stringify(result.card1));
     await page.waitForFunction(() => document.querySelector('.intro-caption')?.textContent?.startsWith('This is Frankendom') && Number(document.querySelector('.intro-caption').style.opacity) > 0.95, null, { timeout: 60000 });

@@ -38,13 +38,14 @@ class Strip { className = ''; textContent = ''; style: Record<string, string> = 
 const world = (over: { seen?: boolean; returning?: boolean; link?: boolean } = {}) => {
   const strips: Strip[] = [], listeners = new Map<string, () => void>(), calls: string[] = [], mem = new Map<string, string>(); if (over.seen) mem.set(INTRO.seenKey, '1');
   const doc = { createElement: () => { const s = new Strip(); strips.push(s); return s; }, addEventListener: (t: string, f: () => void) => listeners.set(t, f), removeEventListener: (t: string) => listeners.delete(t) };
-  const parent = { ownerDocument: doc, append() {} };
-  const intro = createIntro({ doc: doc as never, parent: parent as never, storage: { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => { mem.set(k, v); } }, returning: !!over.returning, link: !!over.link, tour: { start: () => calls.push('start'), stop: () => calls.push('stop') } });
+  const parent = { ownerDocument: { ...doc, documentElement: { clientHeight: 812 } }, append() {} };
+  const intro = createIntro({ doc: doc as never, parent: parent as never, storage: { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => { mem.set(k, v); } }, controlsTop: () => 600, returning: !!over.returning, link: !!over.link, tour: { start: () => calls.push('start'), stop: () => calls.push('stop') } });
   return { intro, strips, listeners, calls, mem };
 };
 test('a fresh guest: the tour starts, the flag is set at once, the strip paints each card and a tap ends it (stop once)', () => {
   const w = world(); assert.equal(w.intro.active, true); assert.deepEqual(w.calls, ['start']); assert.equal(w.mem.get(INTRO.seenKey), '1');
   w.intro.update(INTRO.cards[0]!.start / 60 + 0.6); assert.equal(w.strips[0]!.textContent, INTRO.cards[0]!.text); assert.equal(w.strips[0]!.style.opacity, '1');
+  assert.equal(w.strips[0]!.style.bottom, `${812 - 600 + INTRO.stripGap}px`, 'the strip bottom sits stripGap above the top of the controls (row, from the cluster rect)');
   w.listeners.get('pointerdown')!(); assert.equal(w.intro.active, false); assert.equal(w.strips[0]!.removed, true); assert.equal(w.listeners.has('pointerdown'), false);
   w.intro.skip(); assert.deepEqual(w.calls, ['start', 'stop'], 'ending twice stops the tour once');
 });

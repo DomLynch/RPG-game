@@ -5,11 +5,11 @@ import DEFS from './intro-defs.json' with { type: 'json' };
 import MANIFEST from './intro-defs.manifest.json' with { type: 'json' };
 
 export type IntroCard = { readonly id: string; readonly text: string; readonly start: number; readonly hold: number; readonly fade: number };
-type IntroDefs = { cards?: readonly unknown[]; rules?: readonly { id: string; value: string }[] };
+type IntroDefs = { cards?: readonly unknown[]; rules?: readonly { id: string; value: string }[]; layout?: readonly { id: string; value: number }[] };
 /** The one loader: cards keyed by id, every field present and typed, ticks whole and the cards in time order without overlap, text non-empty. */
-export function loadIntro(raw: IntroDefs): { cards: readonly IntroCard[]; seenKey: string } {
-  const [cards, rules] = MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, raw as Record<string, unknown>, 'intro-defs.json'));
-  loadRegistry([cards, rules]);
+export function loadIntro(raw: IntroDefs): { cards: readonly IntroCard[]; seenKey: string; stripGap: number } {
+  const tables = MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, raw as Record<string, unknown>, 'intro-defs.json'));
+  loadRegistry(tables);
   const list = (raw.cards ?? []) as readonly IntroCard[];
   let end = 0;
   for (const c of list) {
@@ -19,8 +19,9 @@ export function loadIntro(raw: IntroDefs): { cards: readonly IntroCard[]; seenKe
     end = c.start + c.fade + c.hold + c.fade;
   }
   const seenKey = (raw.rules ?? []).find((r) => r.id === 'seenKey')?.value;
-  if (!list.length || !seenKey) throw Error('intro: needs at least one card and the seenKey rule');
-  return { cards: list, seenKey };
+  const stripGap = (raw.layout ?? []).find((r) => r.id === 'stripGap')?.value;
+  if (!list.length || !seenKey || stripGap === undefined || !(stripGap >= 0)) throw Error('intro: needs at least one card, the seenKey rule and the stripGap layout row (>= 0)');
+  return { cards: list, seenKey, stripGap };
 }
 export const INTRO = loadIntro(DEFS);
 /** Opacity 0..1 of a card at a tick: fade in, hold, fade out. */
