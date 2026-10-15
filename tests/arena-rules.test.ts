@@ -11,7 +11,8 @@ test('the pit geometry equals the literals it replaced', () => {
   assert.deepEqual([PLAY_RADIUS, CAMERA_CLAMP, SAND_TILE], [8.55, 11.5, 3]);
   assert.deepEqual(LAYOUT, { wall: { inner: 11.7, outer: 12.5, top: 2.6 }, tiers: [3.4, 4.2, 5.0, 5.8, 6.6], tierDepth: 1.6, gate: Math.PI, gateWidth: 3.2, colonnade: 21.4, parapet: { inner: 22.4, outer: 23.2, top: 8.6 }, segments: 96 });
   assert.deepEqual([arenaRule('propTextureFull'), arenaRule('propTexturePhone')], [512, 256]);
-  assert.equal(ARENA_RULES.length, 20);
+  assert.equal(arenaRule('rungsPerArena'), 2, 'two ladder rungs per arena band (arenaBand)');
+  assert.equal(ARENA_RULES.length, 21);
 });
 test('the fifteen themes are byte-identical to the ones the code had before they became rows', () => {
   assert.deepEqual(Object.keys(ARENA_THEMES), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd']);
@@ -24,5 +25,5 @@ test('the loader refuses a missing named rule, a non-positive value and a duplic
   assert.throws(() => loadArenaRules({ rules: rows.filter((r) => r.id !== 'playRadius') }), /"playRadius" rule by name/);
   assert.throws(() => loadArenaRules({ rules: rows.map((r) => (r.id === 'segments' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadArenaRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadArenaRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 21);
+  assert.equal(loadArenaRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 22);
 });

@@ -3,6 +3,11 @@
     { "id": "hit", "chancePct": 25, "note": "a hit taken: one in four wears one piece, picked by the slot weights" },
     { "id": "kill", "chancePct": 100, "note": "a kill: always wears one piece, picked by the slot weights" }
   ],
+  "wearHitTypes": [
+    { "id": "Hit", "note": "a plain blow that reached the hero" },
+    { "id": "GuardBroken", "note": "a blow that broke the hero's guard" },
+    { "id": "SpecialLanded", "note": "a special that landed on the hero; a block, parry, dodge or whiff is not a hit taken" }
+  ],
   "wearSlots": [
     { "id": "Body", "share": 35, "note": "the sheet's chest" },
     { "id": "Greaves", "share": 22, "note": "the sheet's legs" },
