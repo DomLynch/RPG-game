@@ -1,18 +1,17 @@
 // The goblin field's rows (origins/world/goblin-field-defs.json): the loader refuses a broken table, and the look's defaults are pinned.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { goblinBackdrop, goblinPalette, goblinPalettes, goblinRule, goblinTint, goblinZone, loadGoblinField } from '../origins/world/goblin-field-rules.ts';
+import { goblinBackdrop, goblinPalette, goblinPalettes, goblinRule, goblinZone, loadGoblinField } from '../origins/world/goblin-field-rules.ts';
 import DEFS from '../origins/world/goblin-field-defs.json' with { type: 'json' };
 
-type Defs = { rules: { id: string; value: number; unit: string }[]; tints: { id: string; r: number; g: number; b: number }[]; palettes: Record<string, unknown>[]; backdrops: Record<string, unknown>[]; harmonics: { id: string; k: number; a: number }[]; names: { id: string; text: string }[] };
+type Defs = { rules: { id: string; value: number; unit: string }[]; palettes: Record<string, unknown>[]; backdrops: Record<string, unknown>[]; harmonics: { id: string; k: number; a: number }[]; names: { id: string; text: string }[] };
 const d = DEFS as unknown as Defs;
 
 test('the defaults are the look Dom is shown: pinned; the default palette is the fortress', () => {
   assert.equal(goblinZone(), 'cinder-fields');
-  assert.deepEqual([goblinRule('palisadeSegments'), goblinRule('palisadeStakes'), goblinRule('totemCount'), goblinRule('fireCount'), goblinRule('bonePiles'), goblinRule('treeClumps')], [3, 9, 2, 2, 9, 1]);
-  assert.deepEqual(goblinTint('bone'), [1.25, 1.18, 1]);
+  assert.deepEqual([goblinRule('smokeCount'), goblinRule('campView'), goblinRule('pitHideM')], [9, 9, 60]);
   const f = goblinPalette();
-  assert.deepEqual([f.id, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['fortress', 'goblin-fortress', '#3a6090', '#7d93b4', '#b8946a', '#ffd890', '#4c3c36', '#74604f', '#5c4c44', 6, 'fortress-portrait', 'fortress-landscape']);
+  assert.deepEqual([f.id, f.kit, f.dress, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['fortress', 'goblin-camp', 'fortress', 'goblin-fortress', '#3a6090', '#7d93b4', '#b8946a', '#ffd890', '#4c3c36', '#74604f', '#5c4c44', 6, 'fortress-portrait', 'fortress-landscape']);
   assert.equal(goblinPalette('nope').id, 'fortress', 'an unknown ?goblin= id is the default row');
 });
 test('the loader refuses a missing named row, a non-positive value, a bad colour, a duplicate id, a dangling backdrop and a bad crop; a new row is one entry', () => {
@@ -28,7 +27,6 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, repeat: 3 })) }), /even whole number/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, file: '/abs.webp' })) }), /no leading slash/);
   assert.throws(() => loadGoblinField({ ...d, harmonics: d.harmonics.map((h) => ({ ...h, k: 2.5 })) }), /whole number of periods/);
-  assert.throws(() => loadGoblinField({ ...d, tints: d.tints.filter((t) => t.id !== 'bone') }), /"bone" tint/);
   assert.throws(() => loadGoblinField({ ...d, names: d.names.map((n) => (n.id === 'palette' ? { ...n, text: 'gone' } : n)) }), /names a palette row/);
   assert.throws(() => loadGoblinField({ ...d, rules: [...d.rules, d.rules[0]!] }), /duplicate|twice|unique/i);
   assert.equal(loadGoblinField({ ...d, rules: [...d.rules, { id: 'extra', value: 2, unit: 'm' }] }).rules.length, d.rules.length + 1);

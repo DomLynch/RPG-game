@@ -29,7 +29,7 @@ export const FIELDS: readonly Field[] = [
   look('look.sun.colour', 'color', '#ffb46a'), look('look.sun.intensity', 'number', 5.2, { min: 0, max: 30 }), look('look.sun.pos', 'list', [-24, 12, -15]),
   look('look.ambient.sky', 'color', '#9fb2d4'), look('look.ambient.ground', 'color', '#4a3426'), look('look.ambient.intensity', 'number', 1.25, { min: 0, max: 10 }),
   look('look.exposure', 'number', 1.3, { min: 0.1, max: 4 }), look('look.grade', 'string', 'none'),
-  look('look.ground.tint', 'list', [1, 1, 1]), look('look.ground.material', 'string', ''), look('look.terrain', 'terrain', { kind: 'generated', seed: 0, params: {} }),
+  look('look.ground.tint', 'list', [1, 1, 1]), look('look.ground.material', 'string', '', { wired: true }), look('look.dress', 'string', '', { wired: true, donor: 'Veloren scatter density' }), look('look.creatures.alert', 'boolean', true, { wired: true }), look('look.creatures.name', 'boolean', true, { wired: true }), look('look.terrain', 'terrain', { kind: 'generated', seed: 0, params: {} }),
   look('look.water.level', 'number', null, { nullable: true }), look('look.props.kit', 'string', '', { wired: true }), look('look.props.camp', 'string', '', { wired: true }), look('look.props.density', 'number', 1, { min: 0, max: 4 }), look('look.landmarks', 'list', [], { donor: 'EQEmu object' }),
   look('look.weather.preset', 'string', 'clear', { donor: 'EQEmu zone.rain_*/snow_* (by reference)' }), look('look.weather.intensity', 'number', 1, { min: 0, max: 2 }), look('look.weather.probability', 'number', 1, { min: 0, max: 1 }),
   look('look.post', 'list', []),
@@ -37,7 +37,7 @@ export const FIELDS: readonly Field[] = [
   look('camera.passage', 'map', null, { nullable: true, wired: true }),
   look('camera.presets', 'map', { a: { back: 3.6, up: 2.1, side: 0.8, ahead: 4, lookY: 1.5 }, b: { back: 6.4, up: 3.5, side: 0, ahead: 2, lookY: 1.1 } }, { wired: true }), look('camera.preset', 'string', 'b', { wired: true }),   // named open-walk framings {back, up, side?, ahead?, lookY?} (a = over the shoulder, b = the fight frame) and which one the zone walks with (DEFAULT 'b', Dom's pick: every zone walks the fight frame unless its row names another preset or its own presets map; '' = the generic framing); ?camera=a|b picks one on a page
   // SOUND (World, sound)
-  sound('sound.ambience', 'string', ''), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
+  sound('sound.ambience', 'string', '', { wired: true }), sound('sound.music.explore', 'string', ''), sound('sound.music.combat', 'string', ''), sound('sound.music.boss', 'string', ''),
   sound('sound.footsteps', 'string', 'dirt'), sound('sound.cries', 'string', 'default'), sound('sound.reverb', 'string', 'open'),
   // WHAT LIVES THERE. Camps are the spawns rows + place.ts spawn groups today (wired through them); these lists are the zone-level rows for the rest.
   population('camps', 'list', [], { wired: true, donor: 'EQEmu spawn2/spawngroup/spawnentry' }), population('rares', 'list', [], { wired: true }), population('bosses', 'list', []),

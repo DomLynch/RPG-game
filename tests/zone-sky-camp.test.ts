@@ -5,7 +5,7 @@ import test from 'node:test';
 import { FIELDS } from '../origins/zones/schema.ts';
 import { zoneFromRow } from '../origins/zones/from-row.ts';
 import { listedIds, loadZone } from '../origins/zones/loader.ts';
-import { goblinPalette, zoneCamp, zoneSky } from '../origins/world/goblin-field-rules.ts';
+import { goblinPalette, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky } from '../origins/world/goblin-field-rules.ts';
 
 const field = (path: string) => FIELDS.find((f) => f.path === path);
 const zf = (fields: Record<string, unknown>, world = ['a', 'b']) => ({ fields, set: Object.keys(fields), world });
@@ -31,12 +31,17 @@ test('look.sky set to a palette id is that dome; unset, "default" or unknown is 
   for (const v of ['default', 'nope']) assert.equal(zoneSky(zf({ 'look.sky': v })), null, v);
   assert.equal(zoneSky({ fields: { 'look.sky': 'fortress' }, set: [], world: [] }), null, 'a value nobody SET (a default) does nothing');
 });
-test('look.props.kit = the camp kit puts the camp in look.props.camp, else the first world zone; another kit or none is no camp', () => {
-  assert.equal(zoneCamp(zf({ 'look.props.kit': 'goblin-camp' })), 'a');
-  assert.equal(zoneCamp(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'b' })), 'b');
-  assert.equal(zoneCamp(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'elsewhere' })), 'a', 'a camp outside the zone falls back to its first world zone');
-  assert.equal(zoneCamp(zf({ 'look.props.kit': 'other' })), null); assert.equal(zoneCamp(zf({})), null);
+test('look.props.kit = a kit id puts the kit in look.props.camp, else the first world zone; an unknown kit or none is no kit', () => {
+  assert.deepEqual(zonePropKit(zf({ 'look.props.kit': 'goblin-camp' })), { kit: 'goblin-camp', at: 'a' });
+  assert.deepEqual(zonePropKit(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'b' })), { kit: 'goblin-camp', at: 'b' });
+  assert.equal(zonePropKit(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'elsewhere' }))?.at, 'a', 'a camp outside the zone falls back to its first world zone');
+  assert.equal(zonePropKit(zf({ 'look.props.kit': 'other' })), null); assert.equal(zonePropKit(zf({})), null);
 });
 test('flag off is unchanged: Zones 1-4 set no sky, no camp kit and are listed', () => {
-  for (const id of ['1', '2', '3', '4']) { const z = loadZone(id); assert.equal(zoneSky(z), null, id); assert.equal(zoneCamp(z), null, id); assert.notEqual(z.unlisted, true, id); }
+  for (const id of ['1', '2', '3', '4']) { const z = loadZone(id); assert.equal(zoneSky(z), null, id); assert.equal(zonePropKit(z), null, id); assert.equal(zoneGround(z), null, `${id}: the biome's old material "ash" has no ground row`); assert.equal(zoneAmbience(z), null, `${id}: the biome's old "wind" has no ambience row`); assert.deepEqual(zoneMarkers(z), { alert: true, name: true }, id); assert.deepEqual(Object.values(zoneDress(z)).slice(1), [1, 1, 1, 1, 1, 1], id); assert.notEqual(z.unlisted, true, id); }
+});
+test('the markers, dress, ground and ambience a zone sets are read; set off, the creature markers go', () => {
+  assert.deepEqual(zoneMarkers(zf({ 'look.creatures.alert': false })), { alert: false, name: true }); assert.deepEqual(zoneMarkers(zf({ 'look.creatures.name': false })), { alert: true, name: false });
+  assert.equal(zoneDress(zf({ 'look.dress': 'fortress' })).trees, 0.15); assert.equal(zoneGround(zf({ 'look.ground.material': 'fortress-ground' }))?.id, 'fortress-ground'); assert.equal(zoneGround(zf({ 'look.ground.material': 'ash' })), null);
+  assert.equal(zoneAmbience(zf({ 'sound.ambience': 'fortress-wind' }))?.id, 'fortress-wind'); assert.equal(zoneAmbience(zf({ 'sound.ambience': 'wind' })), null);
 });

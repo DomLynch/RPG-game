@@ -11,17 +11,6 @@
       }
     },
     {
-      "table": "goblin-tint",
-      "file": "goblin-field-defs.json",
-      "at": "tints",
-      "key": "id",
-      "required": {
-        "r": "number",
-        "g": "number",
-        "b": "number"
-      }
-    },
-    {
       "table": "goblin-palette",
       "file": "goblin-field-defs.json",
       "at": "palettes",
@@ -40,7 +29,9 @@
         "torchPower": "number",
         "backdropPortrait": "string",
         "backdropLandscape": "string",
-        "ground": "string"
+        "ground": "string",
+        "kit": "string",
+        "dress": "string"
       },
       "refs": {
         "haze": "goblin-look"

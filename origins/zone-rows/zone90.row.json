@@ -2,42 +2,9 @@
   "name": "Test Zone",
   "unlisted": true,
   "defaultKind": "goblin",
+  "biome": "goblin-fortress",
   "camera": {
     "preset": "a"
-  },
-  "look": {
-    "arena": "3",
-    "sky": "fortress",
-    "props": {
-      "kit": "goblin-camp",
-      "density": 1
-    },
-    "fog": {
-      "colour": "#b8946a",
-      "density": 0.011
-    },
-    "sun": {
-      "colour": "#ffc070",
-      "intensity": 5.0,
-      "pos": [
-        -24,
-        7,
-        -15
-      ]
-    },
-    "ambient": {
-      "sky": "#8fa8cc",
-      "ground": "#4a3a2c",
-      "intensity": 1.35
-    },
-    "exposure": 1.3,
-    "ground": {
-      "tint": [
-        0.95,
-        0.92,
-        0.9
-      ]
-    }
   },
   "names": {
     "test-field": "The Test Field"
@@ -291,6 +258,6 @@
     "spawns": []
   },
   "notes": {
-    "zone": "TEST ZONE (zone 90; zone sandbox, 2026-10-15, Strategy OK): rows only, outside the 1-50 ladder, props only, NO spawns, unlisted; delete with tests/test-zone.test.ts when Zone 1's look graduates. Not Zone 3: Zone N means level N creatures. Not 99: the loader tests use 99 as their 'no such zone'."
+    "zone": "TEST ZONE (zone 90; zone sandbox, 2026-10-15, Strategy OK): rows only. The biome `goblin-fortress` carries the whole mood (sky, kit, clutter, ground, ambience, no creature markers). Outside the 1-50 ladder, NO spawns, unlisted; delete with tests/test-zone.test.ts when Zone 1's look graduates. Not Zone 3: Zone N means level N creatures. Not 99: the loader tests use 99 as 'no such zone'."
   }
 }

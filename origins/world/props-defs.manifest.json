@@ -1,0 +1,93 @@
+{
+  "tables": [
+    {
+      "table": "props-tint",
+      "file": "props-defs.json",
+      "at": "tints",
+      "key": "id",
+      "required": {
+        "r": "number",
+        "g": "number",
+        "b": "number"
+      }
+    },
+    {
+      "table": "props-kit",
+      "file": "props-defs.json",
+      "at": "kits",
+      "key": "id",
+      "required": {
+        "centreDepth": "number",
+        "radius": "number",
+        "tries": "number",
+        "clearRoad": "number",
+        "clearLandmark": "number",
+        "clearProp": "number",
+        "edge": "number"
+      }
+    },
+    {
+      "table": "props-prop",
+      "file": "props-defs.json",
+      "at": "props",
+      "key": "id",
+      "required": {
+        "kit": "string",
+        "r": "number",
+        "scaleMin": "number",
+        "scaleMax": "number",
+        "parts": "array"
+      },
+      "refs": {
+        "kit": "props-kit"
+      }
+    },
+    {
+      "table": "props-recipe",
+      "file": "props-defs.json",
+      "at": "recipes",
+      "key": "id",
+      "required": {
+        "kit": "string",
+        "kind": "string",
+        "props": "array",
+        "count": "number"
+      },
+      "refs": {
+        "kit": "props-kit"
+      }
+    },
+    {
+      "table": "props-dress",
+      "file": "props-defs.json",
+      "at": "dress",
+      "key": "id",
+      "required": {
+        "drifts": "number",
+        "rings": "number",
+        "cracks": "number",
+        "scrub": "number",
+        "trees": "number",
+        "skyline": "number"
+      }
+    },
+    {
+      "table": "props-ambience",
+      "file": "props-defs.json",
+      "at": "ambience",
+      "key": "id",
+      "required": {
+        "windGain": "number",
+        "windFreq": "number",
+        "windQ": "number",
+        "windSweepHz": "number",
+        "windSweepDepth": "number",
+        "crackleGain": "number",
+        "crackleRate": "number",
+        "crackleFreq": "number",
+        "fireRange": "number",
+        "crackleMs": "number"
+      }
+    }
+  ]
+}

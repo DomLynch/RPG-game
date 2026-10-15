@@ -14,7 +14,7 @@ export const footprintOf = (p: Piece): Solid => {
   return { x: p.x, z: p.z, r };
 };
 
-export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
+export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[]; strips?: { x: number; z: number }[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
 export const rng = (seed: string) => {   // mulberry32 over a string hash
   let h = 1779033703 ^ seed.length;
@@ -29,7 +29,7 @@ const ASHPALE: Tint = [1.45, 1.42, 1.38], SCORCH: Tint = [0.38, 0.34, 0.32], ROA
 const BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.88, 0.8, 0.7], [0.56, 0.54, 0.54]], WALL: Tint = [0.95, 0.84, 0.7];
 
 export function frontierDress(f: Frontier, b: Build): Dress {
-  const pieces: Piece[] = [], ground: Piece[] = [], solids: Solid[] = [];
+  const pieces: Piece[] = [], ground: Piece[] = [], solids: Solid[] = [], roadStrips: { x: number; z: number }[] = [];
   const put = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = 0) => { pieces.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot }); };
   const lay = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0) => { ground.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot: -1 }); };
   const decal = (r: number, top: number, x: number, z: number, tint: Tint, rotY = 0) => lay(['cylinder', r, r, top, 14], x, top / 2, z, tint, rotY);
@@ -52,7 +52,7 @@ export function frontierDress(f: Frontier, b: Build): Dress {
         for (const side of [-0.75, 0.75]) lay(['box', 0.2, TOP.rut, len / n + 0.8], x - uz * side, TOP.rut / 2, zz + ux * side, RUT, rot);
       }
     }
-    lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub);
+    lay(['cylinder', 4.6, 4.6, TOP.road, 18], hub.x, TOP.road / 2, hub.z, ROAD, 0); strips.push(hub); roadStrips.push(...strips);
     // Is this spot free for a prop of radius r: inside the zone, off the road and every landmark, clear of the buildings and each other.
     const placed: Solid[] = [];
     const rd = f.road;
@@ -119,5 +119,5 @@ export function frontierDress(f: Frontier, b: Build): Dress {
       else { for (let i = 0; i < 3; i++) { const x = o.x + between(-0.9, 0.9), zz = o.z + between(-0.9, 0.9); put(['cylinder', 0.38, 0.4, 0.9, 8], x, 0.45, zz, BURNT, 0, 0); } solid(o.x, o.z, 1.1); }
     }
   }
-  return { ground, pieces, solids };
+  return { ground, pieces, solids, strips: roadStrips };   // strips: where the worn roads and hubs are (read by the Cinder pass and the prop kits, so they never guess at shape sizes)
 }
