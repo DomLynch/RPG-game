@@ -6,7 +6,7 @@ import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
 import { worldSpawnOps, defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
-import { openInventory } from '../inventory/inventory.ts';
+import { openInventory } from '../../src/core/server.ts';
 import { ACCOUNT, PC } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
 import { Refused } from './errors.ts';

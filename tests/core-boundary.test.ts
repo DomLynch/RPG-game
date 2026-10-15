@@ -129,8 +129,8 @@ test('C1 mutation: a deep core import from the Pit, the zone page or a server mo
   assert.equal(c1(withFile('src/main.ts', "import { loadProfile } from './core/profile.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/preview/save.ts', "import { call } from '../../src/core/writer-call.ts';"), FILES).length, 1);
   assert.equal(c1(withFile('origins/mobs/populate.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1, 'any origins/ dir, not only the server ones');
-  assert.equal(c1(withFile('origins/inventory/inventory.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
-  assert.equal(c1(withFile('origins/inventory/inventory.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
+  assert.equal(c1(withFile('origins/server/holdings.ts', "import { LOOT } from '../../src/core/loot.ts';"), FILES).length, 1);
+  assert.equal(c1(withFile('origins/server/holdings.ts', "import { LOOT } from '../../src/core/index.ts';"), FILES).length, 1, 'a server module may not take the page door');
   assert.equal(c1(withFile('src/main.ts', "import { x } from './core/server.ts';"), FILES).length, 1, 'a page may not take the server door');
   assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/index.ts';"), FILES).length, 1, 'a page file the box loads must take the server door (the AA crash)');
   assert.equal(c1(withFile('origins/preview/mobs.ts', "import { x } from '../../src/core/server.ts';"), FILES).length, 0);
@@ -172,6 +172,7 @@ test('C5 mutation: page-memory values and direct save-server calls are flagged; 
   assert.equal(c5(withFile(play, 'let coin = 400;'), FILES).length, 1);
   assert.equal(c5(withFile(play, 'const receipts = new Map();'), FILES).length, 1);
   assert.equal(c5(withFile(play, "import { deposit } from '../inventory/inventory.ts';"), FILES).length, 1);
+  assert.equal(c5(withFile(play, "import { deposit } from '../../src/core/items/inventory.ts';"), FILES).length, 1, 'the rule still sees the inventory at its new home');
   assert.equal(c5(withFile(play, "import { performUpgrade } from '../contracts/economy.ts';"), FILES).length, 1);
   assert.equal(c5(withFile(play, "void fetch(url, { method: 'POST' });"), FILES).length, 1);
   assert.equal(c5(withFile('origins/preview/main.ts', "await client.rpc('origins_save', {});"), FILES).length, 1);

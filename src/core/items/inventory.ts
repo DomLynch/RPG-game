@@ -26,18 +26,18 @@
 // Pure: no DOM, network, timers or randomness. Every function takes an Inventory and returns a new one (or a refusal, with the input
 // untouched). Ids from the wire are compared with ===, kept in Maps and never used to index a plain object, so 'constructor',
 // '__proto__' or 'toString' are just strings that name nothing.
-import { levelOf as tierLevel, type Tier } from '../../src/core/server.ts';
-import { paperdollOf, type Paperdoll } from '../../src/core/server.ts';
-import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../../src/core/server.ts';
-import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../../src/core/server.ts';
-import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../../src/core/server.ts';
+import { levelOf as tierLevel, type Tier } from '../grades.ts';
+import { paperdollOf, type Paperdoll } from '../loot.ts';
+import { MINT_KEY_PATTERN, fail, ok, type Issue, type Result } from '../contracts/core.ts';
+import { CONCORD_EXCHANGE, settleTrade, type Trade, type UpgradeOutcome, type UpgradeReceipt } from '../contracts/economy.ts';
+import { parseId, type AccountId, type CharacterInstanceId, type ItemId, type ItemInstanceId, type RegionId } from '../contracts/ids.ts';
 import {
   BANK_SLOTS, PACK_SLOTS, checkCustody, checkHistoryKept, checkInstance, checkOneOfEach, effectiveTier, equipItem, moveItem, sameData,
   type ItemDefinition, type ItemInstance, type Location,
-} from '../../src/core/server.ts';
-import { verifiedTier, type CareerStanding } from '../../src/core/server.ts';
-import { storyOf } from '../../src/core/server.ts';
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+} from '../contracts/items.ts';
+import { verifiedTier, type CareerStanding } from '../contracts/world.ts';
+import { storyOf } from '../contracts/definitions.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../registry.ts';
 import BURN_DEFS from './burn-reasons.json' with { type: 'json' };
 import BURN_MANIFEST from './burn-reasons.manifest.json' with { type: 'json' };
 
@@ -394,7 +394,7 @@ export function merge(inv: Inventory, fromId: unknown, intoId: unknown, lookup: 
 // ledger is the server's append-only table; `op` is the operation's idempotency key (Strategy, 2026-10-06): the same key with the same
 // request returns the ORIGINAL burn and changes nothing (a retry after a client timeout), the same key with a different request is
 // refused. Either way a key spends once.
-// The reasons are ROWS (origins/inventory/burn-reasons.json, loaded and checked by the shared registry loader): a new reason is one row. `consumesStoryItem` lets a reason spend a
+// The reasons are ROWS (src/core/items/burn-reasons.json, loaded and checked by the shared registry loader): a new reason is one row. `consumesStoryItem` lets a reason spend a
 // story-critical piece (only a quest hand-in does today). applyUpgrade emits 'upgrade-cost' itself, so loadBurnReasons refuses a table without that row.
 const UPGRADE_COST = 'upgrade-cost';
 export type BurnReasonRow = { readonly id: string; readonly consumesStoryItem: boolean };
