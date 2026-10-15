@@ -10,8 +10,8 @@ import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/world-rules.ts', 'src/fight/world-rules-defs.json', 'src/fight/world-rules-defs.manifest.json', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
-const WORLD_DIGEST = '3d2d5495c0cfc4a949911466f3538f4c7623039645e2bc64b41155383ad2eadb';   // WSV 40 (spell cost cap, RV 64, standalone on GF; the GH cut re-pins with #2778's WSV 39); was WSV 38 (Combat, Gothic tactic table PR 1, RV 63: the Pit's RV is hashed in, no world file changed). Before: WSV 37 (Combat sim batch B, RV 62). WSV 36 (World: core world rows)
-const PINNED_FOR_VERSION = 40;
+const WORLD_DIGEST = '2757dd0a3200ef75ab7f6b50c4bf0a354b3902699fad663b497e6eb3bbf5d63d';   // WSV 41 (positioning bands, RV 65, on GJ); was WSV 40 (spell cost cap, RV 64) -- WSV 39 (positioning bands, RV 64, provisional); was WSV 38 --    // WSV 38 (Combat, Gothic tactic table PR 1, RV 63: the Pit's RV is hashed in, no world file changed). Before: WSV 37 (Combat sim batch B, RV 62). WSV 36 (World: core world rows)
+const PINNED_FOR_VERSION = 43;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 

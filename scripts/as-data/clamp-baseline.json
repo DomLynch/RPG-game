@@ -42,9 +42,7 @@
   "0.5": 1
  },
  "src/arena.ts": {
-  "3": 1,
-  "255": 1,
-  "0.15": 1
+  "255": 1
  },
  "src/core/career-client.ts": {
   "50": 1
@@ -125,9 +123,6 @@
  "src/fight/opened.ts": {
   "119": 1
  },
- "src/fight/play-radius.ts": {
-  "0.5": 1
- },
  "src/fight/rank-tint.ts": {
   "1e-4": 2,
   "0.2": 1,
@@ -138,9 +133,7 @@
   "-127": 1
  },
  "src/fight/scene.ts": {
-  "9": 1,
-  "0.8": 1,
-  "1.1": 1
+  "9": 1
  },
  "src/fight/signature-goblin.ts": {
   "4": 1
@@ -161,9 +154,6 @@
  },
  "src/fight/skill-impact.ts": {
   "0.1": 1
- },
- "src/fight/sound/cues.ts": {
-  "5": 1
  },
  "src/fight/special-fx-boss.ts": {
   "255": 3

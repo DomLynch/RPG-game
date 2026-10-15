@@ -10,7 +10,7 @@ import { mobLayer } from '../../src/core/server.ts';
 import { isOpponentId } from '../../src/fight/server.ts';
 import type { MobStyle } from '../../src/core/server.ts';
 import { withBar } from '../shared/with-bar.ts';
-import { liveSpecials, MAX_FIGHT_TICKS, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
+import { liveSpecials, MAX_FIGHT_TICKS, tallyHeroEvents, verifyEncounter, type EncounterParams } from './encounter-verify.ts';
 import { kitBuild } from '../../src/core/server.ts';
 import { PICKS, type PickedStance } from '../../src/fight/stance.ts';
 
@@ -152,4 +152,14 @@ test('the verifier reports, per event type, what was aimed at the hero, counted 
     aimed += Object.values(v.heroHits).reduce((a, b) => a + b, 0);
   }
   assert.ok(aimed > 0, 'at least one of the fixtures has something aimed at the hero');
+});
+
+test('a cone breath is one bite: only pulse 0 of a breath counts toward the hero hits, a plain special still counts once', () => {
+  const into: Record<string, number> = {};
+  tallyHeroEvents(into, [
+    { type: 'SpecialLanded', target: 0, pulse: 0 }, { type: 'SpecialLanded', target: 0, pulse: 1 }, { type: 'SpecialLanded', target: 0, pulse: 2 },   // one breath, three pulses
+    { type: 'SpecialLanded', target: 0 },   // a one-strike special: no pulse field
+    { type: 'Hit', target: 0 }, { type: 'Hit', target: 1 }, { type: 'SpecialLanded', target: 1, pulse: 0 },   // aimed at the foe: never the hero's
+  ]);
+  assert.deepEqual(into, { SpecialLanded: 2, Hit: 1 });
 });
