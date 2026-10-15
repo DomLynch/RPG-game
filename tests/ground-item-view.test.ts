@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createGroundItemView, lie } from '../origins/preview/ground-item-view.ts';
 import { groundLook } from '../origins/preview/ground-looks.ts';
+import { finishedAs } from '../src/fight/rank-tint.ts';
 
 const sword = () => {   // a blade along +Y like the equip file's WeaponDrawn, with the metal material the longsword carries
   const root = new THREE.Group(), part = new THREE.Group(); part.name = 'WeaponDrawn';
