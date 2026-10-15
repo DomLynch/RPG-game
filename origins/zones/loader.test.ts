@@ -7,7 +7,7 @@ import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
 import { JOIN_M } from '../../src/fight/index.ts';
 import { AGGRO_M } from '../../src/fight/world.ts';
-import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
+import { allZoneIds, loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
@@ -35,8 +35,10 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
 });
 
-test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; zoneIds lists every package', () => {
-  assert.deepEqual(zoneIds(), readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b)));   // every row, and no more (a new zone row adds no line here)
+test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; allZoneIds lists every package, zoneIds every listed one', () => {
+  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
+  assert.deepEqual(allZoneIds(), rows);   // every row, and no more (a new zone row adds no line here)
+  assert.deepEqual(zoneIds(), rows.filter((id) => !loadZone(id).unlisted), 'no page: every row but the unlisted ones');
   assert.equal(zoneFromAddress('/zone1/', ''), '1');
   assert.equal(zoneFromAddress('/preview/origins/', '?region=1'), '1');
   assert.equal(zoneFromAddress('/zone/2/', ''), '2');
