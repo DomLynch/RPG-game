@@ -12,8 +12,8 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color('#9b7a56'); 
 scene.add(new THREE.HemisphereLight('#fff0dd', '#4a3a2a', 1.15));
 const sun = new THREE.DirectionalLight('#ffe6c0', 2.2); sun.position.set(-3, 5, 3); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 }); scene.add(sun);
 const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#8f6c47', roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
-const camera = new THREE.PerspectiveCamera(cam === 'fight' ? 51 : 40, innerWidth / innerHeight, 0.1, 80);
-const view = { fight: [[1.2, 1.7, 3.1], [0, 1.0, 0]], side: [[2.6, 1.2, 0.2], [0, 1.05, 0]], front: [[0.6, 1.3, 2.7], [0, 1.0, 0]] }[cam] ?? [[1.2, 1.7, 3.1], [0, 1.0, 0]];
+const camera = new THREE.PerspectiveCamera(cam === 'fight' || cam === 'wide' ? 51 : 40, innerWidth / innerHeight, 0.1, 80);
+const view = { fight: [[1.2, 1.7, 3.1], [0, 1.0, 0]], wide: [[1.1, 1.5, 4.6], [-0.3, 1.0, 0]], side: [[2.6, 1.2, 0.2], [0, 1.05, 0]], front: [[0.6, 1.3, 2.7], [0, 1.0, 0]] }[cam] ?? [[1.2, 1.7, 3.1], [0, 1.0, 0]];
 camera.position.set(...(view[0] as [number, number, number])); camera.lookAt(...(view[1] as [number, number, number]));
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -25,6 +25,7 @@ if (!bone) throw new Error(`no ${hand}`);
 part.rotation.set(Math.PI / 2, 0, 0); part.position.set(0, 0.08, 0.015);   // SwordDrawn's transform under the hand
 part.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
 bone.add(part); scene.add(rig);
+if (q.get('hold') === 'upright') { rig.updateMatrixWorld(true); const inv = bone.getWorldQuaternion(new THREE.Quaternion()).invert(); part.quaternion.copy(inv); part.position.set(0, 0, 0); }   // the part stands world-upright (+Y up, +Z to the camera): a staff planted, a bow held vertical
 rig.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.frustumCulled = false; } });
 const mixer = new THREE.AnimationMixer(rig), clip = hero.animations.find((c) => c.name === (q.get('clip') ?? 'Armed'));
 if (clip) { mixer.clipAction(clip).play(); mixer.setTime(clipAt); }
