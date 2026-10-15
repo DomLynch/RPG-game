@@ -99,7 +99,7 @@ const MUTANTS: Array<[string, string, string]> = [
   ['gate 1 never reports a missing PR', 'if (missing.length) return', 'if (false) return'],
   ['gate 1 ignores the exempt list inverted', "!exempt.some(e => s.startsWith(e))", 'exempt.some(e => s.startsWith(e))'],
   ['gate 1 passes without --live', 'if (!live) return { ok: false', 'if (false) return { ok: false'],
-  ['gate 1 treats a failed lookup as a pass', 'catch (e) { return { ok: false', 'catch (e) { continue; return { ok: false'],
+  ['gate 1 treats a failed lookup as a pass', 'catch (e) { return { ok: false, reason: `gate 1: cannot ask', 'catch (e) { continue; return { ok: false, reason: `gate 1: cannot ask'],
   ['gate 2 never reports a changed path', 'if (files.length) return', 'if (false) return'],
   ['gate 2 watches nothing', "const watched = gates.watchedPaths || [];", 'const watched = [];'],
 ];
@@ -124,7 +124,7 @@ test('mutation check: the scenarios hold on the real script and fail on every mu
   const load = async (name: string, text: string) => { const p = join(dir, `${name}.mjs`); writeFileSync(p, text); return import(`${pathToFileURL(p).href}?${name}`); };
   assert.equal(await scenariosHold(await load('real', src)), true, 'the scenarios must hold on an unmutated copy');
   for (const [label, from, to] of MUTANTS) {
-    assert.ok(src.includes(from), `mutation target not found (the gate code changed): ${label}`);
+    assert.equal(src.split(from).length - 1, 1, `mutation target must appear exactly once in the script (the gate code changed?): ${label}`);
     assert.equal(await scenariosHold(await load(label.replace(/\W+/g, '-'), src.replace(from, to))), false, `mutant survived: ${label}`);
   }
 });
