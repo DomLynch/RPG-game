@@ -221,7 +221,7 @@ test('the world keeps living during a fight: Zone 1\'s fight is the engine loop 
   assert.doesNotMatch(main, /duelDrawing|worldMount|startMobFight|WORLDFIGHT|WORLDCOMBAT/, 'no second fight path: nothing takes the drawing from the walk');
   assert.match(main, /mobs\.update\(dt, state, cardId\)/, 'every walk frame steps the creatures');
   assert.match(main, /wc\.update\(dt,/, 'and the engine loop with them');
-  assert.match(view, /v\.group\.visible = v\.ring\.visible = !hiddenInFight\(s\.id, engaged\);/);
+  assert.match(view, /v\.group\.visible = !hiddenInFight\(s\.id, engaged\); v\.ring\.visible = v\.group\.visible && /);
 });
 
 test('"Back to the fields" takes a tap in a world fight: #leave is in the world layer\'s pointer-events:auto list (Web, 2026-10-08: the canvas got the hit)', () => {
