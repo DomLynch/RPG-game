@@ -34,6 +34,11 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.equal(loadGoblinField({ ...d, rules: [...d.rules, { id: 'extra', value: 2, unit: 'm' }] }).rules.length, d.rules.length + 1);
   assert.equal(loadGoblinField({ ...d, palettes: [...d.palettes, { ...d.palettes[0]!, id: 'sixth' }] }).palettes.length, d.palettes.length + 1, 'a new mood is one palette row');
 });
+test('the Pit parts a zone dome hides are named by rows (the fog-proof meshes of src/arena.ts)', async () => {
+  const { goblinPitParts } = await import('../origins/world/goblin-field-rules.ts'), { readFileSync } = await import('node:fs'), arena = readFileSync('src/arena.ts', 'utf8');
+  assert.deepEqual([...goblinPitParts()].sort(), ['abyss', 'backdrop', 'plain', 'sky']);
+  for (const n of goblinPitParts()) assert.match(arena, new RegExp(`'${n}', false\\)`), `src/arena.ts still builds a mesh named ${n}`);
+});
 test('every palette\'s haze is a look row whose fog is the dome horizon colour (the ground fades into the painting with no line)', async () => {
   const { lookOf, PRESETS } = await import('../origins/preview/look.ts');
   for (const p of goblinPalettes()) { assert.ok(PRESETS[p.haze], `${p.id}: look row ${p.haze} exists`); assert.equal(lookOf(p.haze).fog, p.horizon, `${p.id}: fog = horizon`); }

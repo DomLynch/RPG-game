@@ -59,7 +59,7 @@ import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { goblinFieldKit, withGoblinField } from './goblin-field.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinGround, goblinPalette, goblinRule, goblinZone, zoneCamp, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinGround, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneCamp, zoneSky } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -125,11 +125,13 @@ const groundY = (x: number, z: number): number => (relief.length ? groundAt(reli
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
+const pitFar: THREE.Object3D[] = [];
 let frontierGroup: THREE.Group | null = null, goblinDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 if (frontier && frontierParts) {
   const groundRow = ZONE_SKY ? goblinGround(ZONE_SKY) : null;
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (ZONE_SKY) goblinDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL);   // the painted horizon (and Dom's picture, when the palette names one)
+  if (ZONE_SKY) arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); });   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walkLoop)
   if (goblinDome) { const pitSky = arena.group.getObjectByName(goblinDome.covers); if (pitSky) pitSky.renderOrder = goblinDome.mesh.renderOrder - 1; }   // the Pit's sky dome (same 150 m, depth on) draws just before ours, so ours paints over it and every real object still draws in front
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
@@ -422,6 +424,7 @@ const walkLoop = () => {
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight);
+  if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }
   goblinDome?.follow(camera); goblinSmoke?.update(dt);
   renderer.render(scene, camera);
 };
