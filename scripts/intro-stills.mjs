@@ -22,7 +22,7 @@ await fs.mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ready = (page) => page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') !== 'true' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 280000, polling: 300 });
 const caption = (page) => page.evaluate(() => { const c = document.querySelector('.intro-caption'); return c ? { text: c.textContent, opacity: Number(c.style.opacity), rect: c.getBoundingClientRect().toJSON() } : null; });
-const fresh = async (query) => { const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }); const page = await ctx.newPage(); page.on('pageerror', (e) => console.log('pageerror:', e.message)); const t0 = Date.now(); await page.goto(`${origin}/${query}`); return { ctx, page, t0 }; };
+const fresh = async (query) => { const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }); const page = await ctx.newPage(); page.on('pageerror', (e) => console.log('pageerror:', e.message)); const t0 = Date.now(); await page.goto(`${origin}/${query}`, { waitUntil: 'domcontentloaded', timeout: 180000 }); return { ctx, page, t0 }; };
 const result = {};
 try {
   { const { ctx, page } = await fresh(''); await ready(page); await page.waitForTimeout(2500); result.automationSkips = (await caption(page)) === null; console.log('1 automation without ?intro=1 shows no caption:', result.automationSkips); await ctx.close(); }
@@ -38,7 +38,7 @@ try {
     result.skipped = (await caption(page)) === null; console.log('3 a tap anywhere skips:', result.skipped); result.tapToGoneMs = Date.now() - tap;
     await page.screenshot({ path: path.join(OUT, 'intro-after-skip.jpg'), type: 'jpeg', quality: 72, timeout: 240000 });
     const storedFlag = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('frankendom.intro'))); result.flag = storedFlag;
-    const page2 = await ctx.newPage(); page2.on('pageerror', (e) => console.log('pageerror:', e.message)); await page2.goto(`${origin}/?intro=1`); await ready(page2); await page2.waitForTimeout(3000);
+    const page2 = await ctx.newPage(); page2.on('pageerror', (e) => console.log('pageerror:', e.message)); await page2.goto(`${origin}/?intro=1`, { waitUntil: 'domcontentloaded', timeout: 180000 }); await ready(page2); await page2.waitForTimeout(3000);
     result.onceOnly = (await caption(page2)) === null; console.log('4 same device, reload: no intro:', result.onceOnly, 'flag', JSON.stringify(storedFlag)); await ctx.close();
   }
   { const { ctx, page } = await fresh('?intro=1&replay=x'); await ready(page); await page.waitForTimeout(2500); result.linkVisitSkips = (await caption(page)) === null; console.log('5 replay/kill-link style visit: no intro:', result.linkVisitSkips); await ctx.close(); }
