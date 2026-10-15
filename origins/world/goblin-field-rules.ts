@@ -11,7 +11,7 @@ type Raw = { rules?: readonly unknown[]; tints?: readonly unknown[]; palettes?: 
 export type GoblinPalette = { readonly id: string; readonly haze: string; readonly zenith: string; readonly mid: string; readonly horizon: string; readonly glow: string; readonly ridge: string; readonly ridgeFar: string; readonly smoke: string; readonly puff: string; readonly torch: string; readonly torchPower: number; readonly backdropPortrait: string; readonly backdropLandscape: string };
 /** A painted backdrop for the dome (Dom's pictures): the file (under the page base), the crop as fractions of the picture (y1 = its horizon line), how many mirrored copies go round the dome, the dome texture's size while it shows, and the head and foot fades as fractions of the crop. */
 export type GoblinBackdrop = { readonly id: string; readonly file: string; readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number; readonly repeat: number; readonly texW: number; readonly texH: number; readonly fadeTop: number; readonly fadeFoot: number };
-const RULES = ['palisadeSegments', 'palisadeStakes', 'stakeSpacing', 'stakeHMin', 'stakeHMax', 'stakeR', 'railLow', 'railHigh', 'totemCount', 'totemHMin', 'totemHMax', 'bonePiles', 'boneRibs', 'fireCount', 'fireStones', 'fireRing', 'emberR', 'fireLogs', 'treeClumps', 'treesPerClump', 'treeHMin', 'treeHMax', 'clusterRadius', 'clusterDepth', 'clearOfRoad', 'smokeCount', 'smokeRise', 'smokeSpeed', 'smokeSize0', 'smokeSize1', 'smokeOpacity', 'domeRadius', 'domeHalf', 'ridgeAmp', 'ridgeSeed', 'ridgeFarShift', 'smokeColumns', 'texW', 'texH', 'glowX', 'glowR', 'columnW', 'columnAlpha', 'torchY', 'torchRange', 'torchDecay', 'flickerFast', 'flickerSlow', 'flickerDepth', 'smokeBase', 'smokeDrift', 'smokeFadeIn', 'puffCore'] as const;
+const RULES = ['palisadeSegments', 'palisadeStakes', 'stakeSpacing', 'stakeHMin', 'stakeHMax', 'stakeR', 'railLow', 'railHigh', 'totemCount', 'totemHMin', 'totemHMax', 'bonePiles', 'boneRibs', 'fireCount', 'fireStones', 'fireRing', 'emberR', 'fireLogs', 'treeClumps', 'treesPerClump', 'treeHMin', 'treeHMax', 'clusterRadius', 'clusterDepth', 'clearOfRoad', 'smokeCount', 'smokeRise', 'smokeSpeed', 'smokeSize0', 'smokeSize1', 'smokeOpacity', 'domeRadius', 'domeHalf', 'ridgeAmp', 'ridgeSeed', 'ridgeFarShift', 'smokeColumns', 'texW', 'texH', 'glowX', 'glowR', 'columnW', 'columnAlpha', 'torchY', 'torchRange', 'torchDecay', 'flickerFast', 'flickerSlow', 'flickerDepth', 'smokeBase', 'smokeDrift', 'smokeFadeIn', 'puffCore', 'campView'] as const;
 const TINTS = ['wood', 'woodDark', 'bone', 'ochre', 'hide', 'ring', 'ember', 'dead', 'rope'] as const, HEX = ['zenith', 'mid', 'horizon', 'glow', 'ridge', 'ridgeFar', 'smoke', 'puff', 'torch'] as const;
 /** The one loader: every table keyed by id (a duplicate id or a missing or mistyped field is refused), every named row must exist, numbers positive, colours #rrggbb. */
 export function loadGoblinField(raw: Raw) {
@@ -31,7 +31,7 @@ export function loadGoblinField(raw: Raw) {
   for (const p of palettes) for (const k of ['backdropPortrait', 'backdropLandscape'] as const) if (p[k] && !backdrops.some((b) => b.id === p[k])) throw Error(`goblin-field palette "${p.id}" ${k}: "${p[k]}" names no backdrop row`);
   for (const h of harmonics) if (!(h.k > 0 && Number.isInteger(h.k) && h.a > 0)) throw Error(`goblin-field harmonic "${h.id}": k is a whole number of periods > 0 (the ridge closes at the seam), a > 0`);
   if (!harmonics.length) throw Error('goblin-field: the dome ridge needs at least one harmonic row');
-  for (const must of ['zone', 'palette']) if (!names.some((n) => n.id === must)) throw Error(`goblin-field: the look needs its "${must}" name row`);
+  for (const must of ['zone', 'palette', 'kit']) if (!names.some((n) => n.id === must)) throw Error(`goblin-field: the look needs its "${must}" name row`);
   if (!palettes.some((p) => p.id === names.find((n) => n.id === 'palette')!.text)) throw Error('goblin-field: the "palette" name row names a palette row');
   return { rules, tints, palettes, backdrops, harmonics, names };
 }
@@ -43,5 +43,16 @@ export const goblinPalette = (id?: string | null): GoblinPalette => LOADED.palet
 export const goblinPalettes = (): readonly GoblinPalette[] => LOADED.palettes;
 /** The backdrop row a palette shows on a portrait or a landscape screen, or null (no picture: the painted sky alone). */
 export const goblinBackdrop = (p: GoblinPalette, portrait: boolean): GoblinBackdrop | null => { const id = portrait ? p.backdropPortrait : p.backdropLandscape; return id ? LOADED.backdrops.find((b) => b.id === id)! : null; };
+/** A zone's fields as loadZone gives them (only what a biome or the zone SET counts). */
+export type ZoneLookFields = { readonly fields?: Readonly<Record<string, unknown>>; readonly set?: readonly string[]; readonly world: readonly string[] };
+const zoneSet = (z: ZoneLookFields, path: string): unknown => (z.set?.includes(path) ? z.fields?.[path] : undefined);
+/** The dome a zone row asks for: `look.sky` set to a palette id (EQEmu zone.sky), else null (no dome: every zone that does not set it is unchanged). */
+export const zoneSky = (z: ZoneLookFields): GoblinPalette | null => { const id = zoneSet(z, 'look.sky'); return LOADED.palettes.find((p) => p.id === id) ?? null; };
+/** The world zone a zone row puts the camp kit in: `look.props.kit` set to this kit's name row, in `look.props.camp` (a world zone of this zone) or else its first world zone; null = no camp. */
+export function zoneCamp(z: ZoneLookFields): string | null {
+  if (zoneSet(z, 'look.props.kit') !== LOADED.names.find((n) => n.id === 'kit')!.text) return null;
+  const at = zoneSet(z, 'look.props.camp');
+  return typeof at === 'string' && at && z.world.includes(at) ? at : (z.world[0] ?? null);
+}
 export const goblinHarmonics = (): readonly { k: number; a: number }[] => LOADED.harmonics;
 export const goblinZone = (): string => LOADED.names.find((n) => n.id === 'zone')!.text;

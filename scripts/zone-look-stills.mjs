@@ -31,7 +31,7 @@ try {
     page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     try {
       await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
-      await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadItems() > 0 && window.originsPreview.uploadLeft() === 0, null, { timeout: 180000 });   // the walk's world is all on the GPU
+      await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadLeft() === 0 && (window.originsPreview.uploadItems() > 0 || performance.now() > 20000), null, { timeout: 180000 });   // the walk's world is all on the GPU (a zone with nothing to upload: 20 s after load)
       const camp = await page.evaluate(() => window.originsPreview.goblinCentre?.() ?? null); r.camp = camp;
       if (camp) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 9, Math.PI), [camp.x, camp.z]);   // 9 m south of the camp, facing it (forward is (sin h, cos h))
       await page.waitForTimeout(4000);

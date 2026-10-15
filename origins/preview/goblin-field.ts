@@ -10,9 +10,10 @@ import { inZone, onRoad, type Build, type Frontier, type Solid } from './frontie
 
 export type GoblinKit = { dress: Dress; fires: { x: number; z: number }[]; centre: { x: number; z: number } | null };
 
-export function goblinFieldKit(f: Frontier, b: Build, base: Dress): GoblinKit {
+/** The camp in world zone `zone` (default: the ?look=goblin zone row; a zone row names its own through look.props.camp, goblin-field-rules zoneCamp). */
+export function goblinFieldKit(f: Frontier, b: Build, base: Dress, zone: string = goblinZone()): GoblinKit {
   const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [], fires: { x: number; z: number }[] = [];
-  const z0 = f.zones.find((q) => q.zone === goblinZone());
+  const z0 = f.zones.find((q) => q.zone === zone);
   if (!z0) return { dress: { ground, pieces, solids }, fires, centre: null };
   const z = z0, Rn = rng(`goblin:${z.zone}`), between = (lo: number, hi: number) => lo + (hi - lo) * Rn();
   const world = (x: number, d: number) => toWorld({ x, d }, z.mount);

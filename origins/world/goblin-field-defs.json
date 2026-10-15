@@ -52,7 +52,8 @@
     { "id": "smokeBase", "value": 0.4, "unit": "m" },
     { "id": "smokeDrift", "value": 1.6, "unit": "m" },
     { "id": "smokeFadeIn", "value": 1.15, "unit": "ratio" },
-    { "id": "puffCore", "value": 0.95, "unit": "ratio" }
+    { "id": "puffCore", "value": 0.95, "unit": "ratio" },
+    { "id": "campView", "value": 9, "unit": "m" }
   ],
   "tints": [
     { "id": "wood", "r": 0.46, "g": 0.36, "b": 0.26 },
@@ -67,7 +68,8 @@
   ],
   "names": [
     { "id": "zone", "text": "cinder-fields" },
-    { "id": "palette", "text": "field" }
+    { "id": "palette", "text": "field" },
+    { "id": "kit", "text": "goblin-camp" }
   ],
   "harmonics": [
     { "id": "h1", "k": 2, "a": 0.5 },

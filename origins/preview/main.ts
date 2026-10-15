@@ -59,7 +59,7 @@ import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { goblinFieldKit, withGoblinField } from './goblin-field.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinPalette } from '../world/goblin-field-rules.ts';
+import { goblinPalette, goblinRule, goblinZone, zoneCamp, zoneSky } from '../world/goblin-field-rules.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -111,7 +111,8 @@ const GOBLIN = /[?&]look=(?:[^&]*,)?goblin\b/.test(location.search);   // ?look=
 const GOBLIN_PALETTE = goblinPalette(new URLSearchParams(location.search).get('goblin'));   // ?goblin=<palette id> (with ?look=goblin): one palette row of goblin-field-defs.json (field, ash, marsh, dusk); absent or unknown = the default row
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
 const cinderDressed = frontier && frontierParts ? (CINDER || GOBLIN ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;
-const goblinKit = GOBLIN && frontier && frontierParts && cinderDressed ? goblinFieldKit(frontier, frontierParts, cinderDressed) : null, dress = goblinKit && cinderDressed ? withGoblinField(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const ZONE_SKY = GOBLIN ? GOBLIN_PALETTE : frontier ? zoneSky(loadZone()) : null, CAMP_ZONE = GOBLIN ? goblinZone() : frontier ? zoneCamp(loadZone()) : null;   // the dome and the camp a zone row asks for (look.sky; look.props.kit + look.props.camp); ?look=goblin is Zone 1's override; a row that sets neither is unchanged
+const goblinKit = CAMP_ZONE && frontier && frontierParts && cinderDressed ? goblinFieldKit(frontier, frontierParts, cinderDressed, CAMP_ZONE) : null, dress = goblinKit && cinderDressed ? withGoblinField(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
 const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!) : null;
@@ -126,7 +127,8 @@ const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.ma
 let frontierGroup: THREE.Group | null = null, goblinDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (goblinKit) { goblinDome = createHorizonDome(scene, GOBLIN_PALETTE, import.meta.env.BASE_URL); goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, GOBLIN_PALETTE); }   // ?look=goblin: the painted horizon and the fires' smoke
+  if (ZONE_SKY) goblinDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL);   // the painted horizon (and Dom's picture, when the palette names one)
+  if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
@@ -179,7 +181,7 @@ loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); h
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = (frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null) ?? (goblinKit?.centre ? { x: goblinKit.centre.x, z: goblinKit.centre.z + goblinRule('campView'), facing: Math.PI } : null);   // a zone with no creatures starts him off its camp, facing it
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
