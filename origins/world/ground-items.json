@@ -1,0 +1,11 @@
+{
+  "starterItems": {
+    "item:starter.rusty-sword": {"maxQty": 1}
+  },
+  "groundLimits": {
+    "ground": {"minRespawnSec": 60, "maxRespawnSec": 86400, "minRadiusM": 0.25, "maxRadiusM": 5}
+  },
+  "groundItems": {
+    "ground:zone1.rusty-sword-1": {"zone": "zone1", "place": "cinder-fields", "item": "item:starter.rusty-sword", "qty": 1, "respawnSec": 3600, "scope": "account"}
+  }
+}
