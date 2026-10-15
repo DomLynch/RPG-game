@@ -171,6 +171,9 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
   // ?staff=<weapon> makes that existing weapon fire bolts instead of striking (the missile rows, kind staff; a stand-in until the weapons lane bakes a staff): the sim, the AI and the sandbox bands follow the weapon id.
   {
     const rows = RULES as unknown as { missile?: { kind?: string; weapon: string }[]; bandBest?: { weapon: string; band: string }[] };
+    // ?me=staff|bow|crossbow: one tappable link for the whole setup (the stand-in weapon you carry, set as the Dev kit weapon and as that kind's missile weapon).
+    const STAND: Record<string, string> = { staff: 'trident', bow: 'knife', crossbow: 'warhammer' }, me = q.get('me');
+    if (me && STAND[me]) { try { sessionStorage.setItem('frankendom.dev-kit', JSON.stringify({ ...JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}'), weapon: STAND[me] })); } catch { /* none */ } q.set(me, STAND[me]!); }
     for (const kind of ['staff', 'bow', 'crossbow']) {
       const w = q.get(kind);
       if (w && WEAPON_IDS.includes(w)) { for (const r of rows.missile ?? []) if (r.kind === kind) r.weapon = w; (rows.bandBest ??= []).push({ weapon: w, band: 'outer' }); }
