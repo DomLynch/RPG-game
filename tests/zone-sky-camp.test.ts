@@ -24,7 +24,8 @@ test('an unlisted zone is seen only by its own page: never by the server or anot
   const pk = { 1: {}, 2: {}, 9: { unlisted: true } };
   assert.deepEqual(listedIds(pk, null), ['1', '2'], 'no page (server, tests)');
   assert.deepEqual(listedIds(pk, '2'), ['1', '2'], 'another zone\'s page');
-  assert.deepEqual(listedIds(pk, '9'), ['1', '2', '9'], 'its own page');
+  assert.deepEqual(listedIds(pk, '9', true), ['1', '2', '9'], 'its own page, on a build with the VITE_UNLISTED_ZONES opt-in');
+  assert.deepEqual(listedIds(pk, '9', false), ['1', '2'], 'its own page on any other build');
 });
 test('look.sky set to a palette id is that dome; unset, "default" or unknown is no dome', () => {
   assert.equal(zoneSky(zf({ 'look.sky': 'dusk' }))?.id, 'dusk');
