@@ -1,5 +1,11 @@
 # Combat Sandbox (Dom's lane) — state
 
+## 2026-10-15 midday: merged onto trunk 70b707aac (read first)
+- sandbox/page is now MERGED with trunk 70b707aac (not rebased: 76 commits made a rebase a conflict per commit; backup branch sandbox/page-pre-EQ). Preview https://frankendom.com/preview/sandbox/ at 0aed9674c, loads clean (Sparring tab, overlay off, no console errors).
+- Conflict calls: trunk's hit-stop files and the stopFor refactor taken whole (my cherry-picked #2515 is on trunk); the pause `ms` now lives in src/hit-stop-rules.json, so the sandbox's zero-pause rows moved to a `hit-stop-rules` family in sandbox/rows.json (entry.ts patches it); the glance tier re-added to trunk's hit-impact.ts; sandbox-rules.ts reads gear owners/sets from gear-defs.json directly (importing gear-weight.ts dragged loot and legends into the sim file list); gear-defs.json added to SIM_FILES / SIM_DATA. Trunk's `?spell=<id>&spellskill=N` look flag (Sparring only) and the sandbox's `?spell=&cast=` (grimoire store, normal fights) both read `spell`; they do not clash.
+- Tests (VPS): 302 run, 301 pass; the one red is record-version-guard "a sim change without a RECORD_VERSION bump", expected and ruled.
+- Still not verified: a spell casting in a fight, an opponent-weapon swap in a fight, a live match against the whole table.
+
 ## 2026-10-15 morning: loadout and spell menu (read this first, after the 2026-10-14 table entry below)
 - Preview https://frankendom.com/preview/sandbox/ at d13a932d7 (branch sandbox/page, still on trunk 25bc53809; trunk is now ~492 commits ahead and a rebase is owed).
 - Sandbox panel -> Loadout: opponent weapon (?foeWeapon=, patches every warden's weapon in memory; sim, AI and the rig's grafted equip follow), opponent armour and your armour (?foeArmour= / ?myArmour=, force the class the blow-type table reads; they do NOT change the sheet armour dial or the cast penalty), your spell (?spell=<legend id>, 700 catalogue spells grouped by school, equips it through the grimoire store) and cast skill (?cast=0-100, the school's sheet skill base). The sandbox counts as a local build (globalThis.__SANDBOX__, one line in src/main.ts), so the journal's admin Sparring tab shows (opponent, level 1-50, your weapon, move, the opponent's class special); it lists the 6 class specials, NOT the school spells.
