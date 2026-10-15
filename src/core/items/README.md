@@ -75,6 +75,6 @@ These run on the VPS, never on the shared Mac:
 ```sh
 node --test tests/origins-inventory.test.ts   # inventory, property and consume tests
 node --test tests/origins-contracts.test.ts
-npx tsc -p <temp tsconfig extending ./tsconfig.json, types [vite/client, node], include origins/inventory, origins/contracts, src/vite-env.d.ts>
-npx eslint origins/inventory origins/contracts
+npx tsc -p <temp tsconfig extending ./tsconfig.json, types [vite/client, node], include src/core/items, src/core/contracts, src/vite-env.d.ts>
+npx eslint src/core/items src/core/contracts
 ```

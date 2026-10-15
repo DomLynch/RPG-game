@@ -5,7 +5,7 @@
 import { createHash } from 'node:crypto';
 import type { EncounterContent } from '../encounters/encounters.ts';
 import { lookupOf } from '../encounters/encounters.ts';
-import type { Inventory } from '../inventory/inventory.ts';
+import type { Inventory } from '../../src/core/server.ts';
 import { GEAR } from '../../src/fight/server.ts';
 import { freshPiece, wearAfter, wearKindOf, wornSlot, type WearTier } from '../gear/wear-repair.ts';
 import { DbError, type Db } from './db.ts';
