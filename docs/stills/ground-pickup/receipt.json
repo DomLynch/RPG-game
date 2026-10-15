@@ -1,0 +1,33 @@
+{
+  "errors": [],
+  "frames": {
+    "near-375": {
+      "rowsSeen": 0,
+      "prompt": {
+        "hidden": true,
+        "text": ""
+      }
+    },
+    "several-375": {
+      "rowsSeen": 0,
+      "prompt": {
+        "hidden": true,
+        "text": ""
+      }
+    },
+    "near-320": {
+      "rowsSeen": 0,
+      "prompt": {
+        "hidden": true,
+        "text": ""
+      }
+    },
+    "several-320": {
+      "rowsSeen": 0,
+      "prompt": {
+        "hidden": true,
+        "text": ""
+      }
+    }
+  }
+}
