@@ -5,6 +5,7 @@
 //   node scripts/ground-prompt-check.mjs [--dist <built origins preview>] [--out artifacts/ground-prompt]     (no --dist: builds origins/preview)
 /* global process, console, document, window */
 import fs from 'node:fs/promises';
+import net from 'node:net';
 import path from 'node:path';
 import { build } from 'vite';
 import { chromium } from 'playwright';
@@ -18,6 +19,7 @@ const OUT = path.resolve(arg('out', 'artifacts/ground-prompt')), WIDTHS = [375, 
 const DIST = arg('dist') ? path.resolve(arg('dist')) : path.join(OUT, 'build');
 await fs.mkdir(OUT, { recursive: true });
 if (!arg('dist')) await build({ configFile: path.resolve('origins/preview/vite.config.mjs'), logLevel: 'error', build: { outDir: DIST, emptyOutDir: true } });
+const STARTED = Date.now();
 const { origin, close } = await serveOriginsPreview(DIST);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const failures = [], receipt = { widths: WIDTHS, steps: [] };
@@ -74,7 +76,13 @@ async function run(take) {
 const ceiling = new Promise((_, reject) => setTimeout(() => reject(new Error(`the check ran past its ${CEILING_MS / 1000} s ceiling`)), CEILING_MS).unref());
 try { await Promise.race([(async () => { await run('taken'); await run('race'); })(), ceiling]); }
 catch (e) { failures.push(`check crashed: ${String(e).slice(0, 300)}`); }
-finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); close(); }
+finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); await close(); }
 receipt.failures = failures; await fs.writeFile(path.join(OUT, 'receipt.json'), JSON.stringify(receipt, null, 2));
 console.log('RESULT', JSON.stringify({ ok: !failures.length, failures, steps: receipt.steps.map((s) => [s.step, s.width, s.shown, s.overlapping?.length ?? 0, s.topmost]) }));
+// The static server's port must be closed now: nothing may be left listening that could hold the job.
+const port = Number(new URL(origin).port);
+const portClosed = await new Promise((r) => { const c = net.connect(port, '127.0.0.1'); c.once('connect', () => { c.destroy(); r(false); }); c.once('error', () => r(true)); });
+if (!portClosed) failures.push(`port ${port} is still listening after the check`);
+if (!failures.length) console.log(`ground-prompt-check passed in ${Math.round((Date.now() - STARTED) / 1000)}s (exit 0, port ${port} closed)`);
+else console.log(`ground-prompt-check FAILED in ${Math.round((Date.now() - STARTED) / 1000)}s: ${failures.length} failure(s)`);
 process.exit(failures.length ? 1 : 0);   // exit on the result: nothing left open (the static server, a browser child) may hold the job

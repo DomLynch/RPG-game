@@ -22,7 +22,7 @@ export async function serveOriginsPreview(dist, root = process.cwd()) {
     res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return { origin: `http://127.0.0.1:${server.address().port}`, close: () => server.close() };
+  return { origin: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((r) => { server.closeAllConnections?.(); server.close(() => r()); }) };
 }
 
 const json = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
