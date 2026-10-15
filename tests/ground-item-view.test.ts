@@ -19,13 +19,27 @@ test('the rusty sword has a look row, and an item without one throws', () => {
   assert.throws(() => groundLook('item:no-such'), /no row/);
 });
 
-test('lie: the long axis runs along the ground, the underside sits liftM above it, centred on the origin', () => {
-  const look = groundLook(ITEM), box = new THREE.Box3().setFromObject(lie(sword(), look));
-  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-  assert.ok(size.y < 0.1, `flat (height ${size.y})`);
-  assert.ok(Math.hypot(size.x, size.z) > 0.9 * look.scale, 'the blade lies along the ground');
+const withoutRings = (g: THREE.Object3D) => { for (const r of g.children.filter((c) => c.children.some((k) => k.name === 'ground-ring'))) r.removeFromParent(); return g; };
+
+test('lie: the long axis runs along the ground, tilted up by its row, the underside liftM above it, centred on the origin', () => {
+  const look = groundLook(ITEM), box = new THREE.Box3().setFromObject(withoutRings(lie(sword(), look)));
+  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3()), blade = 0.95 * look.scale;
+  assert.ok(Math.hypot(size.x, size.z) > 0.9 * blade * Math.cos(THREE.MathUtils.degToRad(look.tiltDeg)) - 0.05, 'the blade lies along the ground');
+  assert.ok(size.y < blade * Math.sin(THREE.MathUtils.degToRad(look.tiltDeg)) + 0.1, `tilted by its row only (height ${size.y})`);
   assert.ok(Math.abs(box.min.y - look.liftM) < 1e-6, 'underside at the lift');
   assert.ok(Math.hypot(mid.x, mid.z) < 1e-6, 'middle over the origin');
+  const flat = new THREE.Box3().setFromObject(withoutRings(lie(sword(), { ...look, tiltDeg: 0 }))).getSize(new THREE.Vector3());
+  assert.ok(flat.y < size.y && flat.y < 0.1, 'with no tilt it lies flat, and the row tilt lifts it');
+});
+
+test('lie: the pickup ring sits on the ground under the item from its row, additive and shadowless; no ring row, no ring', () => {
+  const look = groundLook(ITEM), g = lie(sword(), look), rings = g.getObjectByName('ground-ring') as THREE.Mesh;
+  assert.ok(look.ring && rings, 'the rusty sword has a ring row');
+  const m = rings.material as THREE.MeshBasicMaterial;
+  assert.equal(m.blending, THREE.AdditiveBlending); assert.equal(m.depthWrite, false); assert.ok(m.opacity > 0 && m.opacity <= look.ring.opacity);
+  const b = new THREE.Box3().setFromObject(rings.parent!), size = b.getSize(new THREE.Vector3());
+  assert.ok(Math.abs(size.x - 2 * look.ring.radiusM) < 0.02 && size.y < 0.01, 'a flat ring of the row radius');
+  assert.equal(lie(sword(), { ...look, ring: undefined }).getObjectByName('ground-ring'), undefined);
 });
 
 test('lie: the finish row rusts the blade and leaves the source material alone', () => {

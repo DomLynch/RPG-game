@@ -3,7 +3,7 @@
 // draws and answers where. Same seam as mobs-view: the scene, a ground height function, and a model loader the page hands in.
 import * as THREE from 'three';
 import { finishedAs } from '../../src/fight/index.ts';
-import { groundLook, type GroundLook } from './ground-looks.ts';
+import { groundLook, type GroundLook, type GroundRing } from './ground-looks.ts';
 
 export type GroundItemViewOptions = {
   scene: THREE.Scene;
@@ -26,6 +26,16 @@ export type GroundItemView = {
 // The weapon part of a model file: its `WeaponDrawn` node (a player weapon's equip file, scripts/build-player-weapon.mjs), else the whole scene (a one-mesh shape file).
 const partOf = (model: THREE.Object3D): THREE.Object3D => model.getObjectByName('WeaponDrawn') ?? model;
 
+// The pickup ring: two flat additive rings on the ground under the item (a bright thin one and a faint wide one), so a thin object reads from the walk camera. Never casts or receives shadow.
+function ring(r: GroundRing): THREE.Group {
+  const g = new THREE.Group(), color = new THREE.Color(r.color);
+  for (const [inner, outer, k] of [[0.9, 1, 1], [0.55, 0.9, 0.35]] as const) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.y = 0.03; m.renderOrder = 2; m.name = 'ground-ring'; g.add(m);
+  }
+  return g;
+}
+
 /** The item as it lies: a pivot at the origin whose model's long axis runs along +X, rolled and turned by the look, scaled, with its underside `liftM` above y = 0 and its middle over x = z = 0. */
 export function lie(model: THREE.Object3D, look: GroundLook): THREE.Group {
   const inner = partOf(model).clone(true), holder = new THREE.Group(), pivot = new THREE.Group();
@@ -37,11 +47,13 @@ export function lie(model: THREE.Object3D, look: GroundLook): THREE.Group {
   holder.updateMatrixWorld(true);
   pivot.add(holder);
   pivot.rotation.x = THREE.MathUtils.degToRad(look.rollDeg);   // about the long axis (now +X)
+  pivot.rotation.z = THREE.MathUtils.degToRad(look.tiltDeg);   // the long axis rises off the ground
   const yawed = new THREE.Group(); yawed.add(pivot); yawed.rotation.y = THREE.MathUtils.degToRad(look.yawDeg); yawed.scale.setScalar(look.scale); yawed.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(yawed), middle = box.getCenter(new THREE.Vector3());
   pivot.position.set(-middle.x, look.liftM - box.min.y, -middle.z).applyQuaternion(yawed.quaternion.clone().invert()).divideScalar(look.scale);   // the world shift, taken into the turned and scaled frame
   yawed.updateMatrixWorld(true);
   const root = new THREE.Group(); root.add(yawed);
+  if (look.ring) root.add(ring(look.ring));
   return root;
 }
 
