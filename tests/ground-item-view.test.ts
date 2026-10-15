@@ -79,3 +79,21 @@ test('lie: the beam stands on the item from its row, additive, fading to black a
   assert.ok(top === 0 && bottom > 0.5, `fades from the foot (${bottom}) to nothing (${top})`);
   assert.equal(lie(sword(), { ...look, beam: undefined }).getObjectByName('ground-beam'), undefined);
 });
+
+// GPU hygiene (the Auditor on #2824): what a drawn item OWNS (its ring bands and beam) is disposed on hide and clear; what it shares (the loaded model's geometry and materials, the cached finish clones) never is.
+test('hide and clear dispose the ring and beam each show made, once, and never the shared model geometry or the cached finish materials', async () => {
+  const geoms: unknown[] = [], mats: unknown[] = [], gp = THREE.BufferGeometry.prototype.dispose, mp = THREE.Material.prototype.dispose;
+  THREE.BufferGeometry.prototype.dispose = function (this: unknown) { geoms.push(this); return (gp as () => void).call(this); } as typeof gp;
+  THREE.Material.prototype.dispose = function (this: unknown) { mats.push(this); return (mp as () => void).call(this); } as typeof mp;
+  try {
+    const model = sword(), mesh = model.children[0]!.children[0] as THREE.Mesh, source = mesh.material as THREE.MeshStandardMaterial, shared = mesh.geometry, finished = finishedAs(source, groundLook(ITEM).finish!);
+    const scene = new THREE.Scene(), v = createGroundItemView({ scene, loadModel: async () => model, assetOf: () => URL }), look = groundLook(ITEM), per = look.ring!.bands.length + 1;
+    v.show('ground:a', ITEM, { x: 0, z: 0 }); await settle(); assert.equal(geoms.length, 0, 'nothing is disposed while it is drawn');
+    v.hide('ground:a'); assert.equal(geoms.length, per, 'the ring bands and the beam geometry'); assert.equal(mats.length, per, 'and their materials');
+    v.show('ground:a', ITEM, { x: 0, z: 0 }); await settle(); v.hide('ground:a');
+    assert.equal(geoms.length, 2 * per); assert.equal(new Set(geoms).size, 2 * per, 'a second show made new objects, each disposed once'); assert.equal(new Set(mats).size, 2 * per);
+    v.show('ground:b', ITEM, { x: 1, z: 0 }); v.show('ground:c', ITEM, { x: 2, z: 0 }); await settle(); v.clear(); assert.equal(geoms.length, 4 * per, 'clear disposes every drawn item');
+    assert.ok(!geoms.includes(shared) && !mats.includes(source) && !mats.includes(finished), 'the shared model geometry and the cached materials are not disposed');
+    const kept = finishedAs(source, look.finish!); assert.equal(kept, finished, 'the finish clone is still the cached one');
+  } finally { THREE.BufferGeometry.prototype.dispose = gp; THREE.Material.prototype.dispose = mp; }
+});

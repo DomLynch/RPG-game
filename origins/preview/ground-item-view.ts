@@ -26,23 +26,29 @@ export type GroundItemView = {
 // The weapon part of a model file: its `WeaponDrawn` node (a player weapon's equip file, scripts/build-player-weapon.mjs), else the whole scene (a one-mesh shape file).
 const partOf = (model: THREE.Object3D): THREE.Object3D => model.getObjectByName('WeaponDrawn') ?? model;
 
-// The pickup ring: two flat additive rings on the ground under the item (a bright thin one and a faint wide one), so a thin object reads from the walk camera. Never casts or receives shadow.
+// The pickup ring: flat additive rings on the ground under the item (the bands of its row: a bright thin one and a faint wide one), so a thin object reads from the walk camera. Never casts or receives shadow.
+// Everything made here is OWNED by the drawn item (`userData.owned`): hide() disposes it. The item's own meshes are not: their geometry is the loaded model's and their materials are the cached finish clones.
 function ring(r: GroundRing): THREE.Group {
   const g = new THREE.Group(), color = new THREE.Color(r.color);
-  for (const [inner, outer, k] of [[0.9, 1, 1], [0.55, 0.9, 0.35]] as const) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-    m.position.y = 0.03; m.renderOrder = 2; m.name = 'ground-ring'; g.add(m);
+  for (const [inner, outer, k] of r.bands) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, r.segments).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+    m.position.y = r.liftM; m.renderOrder = 2; m.name = 'ground-ring'; m.userData.owned = true; g.add(m);
   }
   return g;
 }
 
-// The beam: a thin open cone of additive light standing on the item, bright at the foot and fading to nothing at the top (additive, so the fade is the vertex colour going to black).
+// The beam: a thin open cone of additive light standing on the item, bright at the foot and fading to nothing at the top (additive, so the fade is the vertex colour going to black). Owned like the ring.
 function beam(b: GroundBeam): THREE.Mesh {
-  const g = new THREE.CylinderGeometry(b.radiusM * 0.35, b.radiusM, b.heightM, 14, 1, true).translate(0, b.heightM / 2, 0), c = new THREE.Color(b.color), pos = g.getAttribute('position'), cols: number[] = [];
+  const g = new THREE.CylinderGeometry(b.radiusM * b.topRatio, b.radiusM, b.heightM, b.segments, 1, true).translate(0, b.heightM / 2, 0), c = new THREE.Color(b.color), pos = g.getAttribute('position'), cols: number[] = [];
   for (let i = 0; i < pos.count; i++) { const k = Math.max(0, 1 - pos.getY(i) / b.heightM); cols.push(c.r * k, c.g * k, c.b * k); }
   g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: b.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-  m.name = 'ground-beam'; m.renderOrder = 3; return m;
+  m.name = 'ground-beam'; m.renderOrder = 3; m.userData.owned = true; return m;
+}
+
+// Free what a drawn item owns on the GPU (its ring and beam); never the shared model geometry or the cached finish materials its item meshes use.
+function disposeOwned(g: THREE.Object3D) {
+  g.traverse((o) => { if (o instanceof THREE.Mesh && o.userData.owned) { o.geometry.dispose(); for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose(); } });
 }
 
 /** The item as it lies: a pivot at the origin whose model's long axis runs along +X, rolled and turned by the look, scaled, with its underside `liftM` above y = 0 and its middle over x = z = 0. */
@@ -72,7 +78,7 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
   let serial = 0;
   const modelOf = (url: string) => { let m = models.get(url); if (!m) models.set(url, (m = opts.loadModel(url))); return m; };
   const place = (g: THREE.Group, at: { x: number; z: number }) => g.position.set(at.x, groundAt(at.x, at.z), at.z);
-  const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); drawn.delete(id); } };   // free functions: the page hands them around unbound
+  const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); disposeOwned(g); drawn.delete(id); } };   // free functions: the page hands them around unbound
   return {
     show(id, itemId, at) {
       const look = groundLook(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
