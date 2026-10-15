@@ -27,7 +27,7 @@ test('every kind of the kit is there, driven by the rows: stakes, totems, fires 
   assert.ok(K.fires.length >= 1 && K.fires.length <= goblinRule('fireCount'), `${K.fires.length} fires`);
   assert.equal(p.filter((q) => q.layer === 'coal').length, K.fires.length, 'one ember disc per fire, on the coal layer');
   assert.ok(p.some((q) => tint(goblinTint('bone'), q) && q.shape[0] === 'sphere'), 'a skull');
-  assert.ok(p.filter((q) => tint(goblinTint('dead'), q) && q.shape[0] === 'cylinder' && q.shape[1] === 0.09).length >= 3, 'dead trees');
+  const trees = p.filter((q) => tint(goblinTint('dead'), q) && q.shape[0] === 'cylinder' && q.shape[1] === 0.09).length; assert.ok(trees >= 1 && trees <= goblinRule('treeClumps') * goblinRule('treesPerClump'), `${trees} dead trees`);
   assert.ok(p.filter((q) => tint(goblinTint('bone'), q) && q.shape[0] === 'box').length >= 10, 'bones');
 });
 test('it adds NO walk blocker, adds only stone and coal pieces, and everything stands inside the goblin zone, off the roads and landmarks', () => {
