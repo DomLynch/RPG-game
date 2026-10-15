@@ -11,6 +11,6 @@
     {"file": "origins/region1/load.ts", "name": "LOCAL_NAMESPACES", "dispatch": "localId", "sunset": "deleted when the region1 tables move onto the shared loader (the namespace becomes the manifest's table key)"},
     {"file": "origins/world/town.ts", "name": "TOWN_NODES", "dispatch": "building()", "sunset": null},
     {"file": "origins/zones/from-row.ts", "name": "ROW_KEYS", "dispatch": "zoneFromRow", "sunset": "becomes the zone manifest's field list when zones adopt the shared loader"},
-    {"file": "origins/inventory/inventory.ts", "name": "GRIDS", "dispatch": "sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)", "sunset": "provisional, like LOCATION_KINDS: when a third storage grid lands (guild bank, house chest), GRIDS and LOCATION_KINDS become one storage row (place, size cap, trade flag) together"}
+    {"file": "src/core/items/inventory.ts", "name": "GRIDS", "dispatch": "sizeOf and the bank custody branches (move, take, trade at 219, 259, 280, 323, 495)", "sunset": "provisional, like LOCATION_KINDS: when a third storage grid lands (guild bank, house chest), GRIDS and LOCATION_KINDS become one storage row (place, size cap, trade flag) together"}
   ]
 }

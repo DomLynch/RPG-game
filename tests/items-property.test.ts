@@ -8,14 +8,14 @@
 // The RNG is a seeded mulberry32 in the test, so every run is the same run; the module itself draws no randomness.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkHistoryKept, type ItemInstance } from '../../src/core/server.ts';
-import type { Result } from '../../src/core/server.ts';
+import { checkHistoryKept, type ItemInstance } from '../src/core/server.ts';
+import type { Result } from '../src/core/server.ts';
 import {
   checkConservation, checkInventory, deposit, equip, merge, mintRoot, mintTotals, move, receive, remove, settle, split, unequip, withdraw, type Inventory,
-} from './inventory.ts';
+} from '../src/core/items/inventory.ts';
 import {
   EXCHANGE, FRONTIER, LATER, RIVAL, RIVAL_ACCOUNT, body, empty, escrowed, gift, helm, helmCopy, hood, ironStack, lookup, record, server,
-} from './testkit.ts';
+} from './items-testkit.ts';
 
 const SEQUENCES = 1000, STEPS = 24;
 

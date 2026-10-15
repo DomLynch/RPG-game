@@ -10,8 +10,8 @@ import { WORLD_SIM_VERSION } from '../src/fight/world-record.ts';
 import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/world-rules.ts', 'src/fight/world-rules-defs.json', 'src/fight/world-rules-defs.manifest.json', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
-const WORLD_DIGEST = '66d6299e205bb51e68580f8e7509900bec921280aa99cffb2ee397ea3fd13c24';   // WSV 37 (Combat sim batch B, RV 62). Before: WSV 36 (World: core world rows)
-const PINNED_FOR_VERSION = 37;
+const WORLD_DIGEST = 'e033c1221d7479207e03568addcaa390ea1c53781bc2f1ce4da2ecfe56ea8b2b';   // WSV 39 (renumbered after #2765's 38, RV 63); was WSV 38 (Combat, the open-world cast: the hero's spell and the cast press in the world input, bout and record; the Pit is untouched, RV 62). Before: WSV 37 (Combat sim batch B, RV 62). WSV 36 (World: core world rows)
+const PINNED_FOR_VERSION = 39;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 

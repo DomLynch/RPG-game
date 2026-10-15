@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import type { CharacterInstanceId, EncounterId } from '../../src/core/server.ts';
 import type { ItemInstance } from '../../src/core/server.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
-import type { Inventory } from '../inventory/inventory.ts';
+import type { Inventory } from '../../src/core/server.ts';
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import { WILDLIFE_ROWS } from '../../src/core/server.ts';
 import { award } from '../../src/core/server.ts';

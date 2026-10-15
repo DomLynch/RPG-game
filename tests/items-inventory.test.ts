@@ -2,14 +2,14 @@
 // wearing needs rank, and hostile ids.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PACK_SLOTS, checkHistoryKept, sameData, type ItemInstance } from '../../src/core/server.ts';
+import { PACK_SLOTS, checkHistoryKept, sameData, type ItemInstance } from '../src/core/server.ts';
 import {
   canWear, checkConservation, checkInventory, deposit, equip, find, gridView, merge, mintRoot, mintTotals, move, openInventory, receive, remove, settle, split, unequip,
   withdraw, type Inventory,
-} from './inventory.ts';
+} from '../src/core/items/inventory.ts';
 import {
   ACCOUNT, EXCHANGE, FRONTIER, LATER, PC, RIVAL, RIVAL_ACCOUNT, body, deepFreeze, empty, escrowed, gift, helm, helmCopy, hood, ironStack, lookup, record, refused, server, value,
-} from './testkit.ts';
+} from './items-testkit.ts';
 
 const snap = (inv: Inventory): string => JSON.stringify(inv);
 // Run a refused operation on a frozen state and prove it changed nothing, byte for byte.
