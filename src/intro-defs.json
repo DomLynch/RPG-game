@@ -16,7 +16,7 @@
     },
     {
       "id": "win",
-      "text": "Win, and you take what the fallen carried. Win enough, and the gate opens to the world beyond the Pit.",
+      "text": "Win, and you take what the fallen carried. Win enough, and the gate opens.",
       "start": 780,
       "hold": 300,
       "fade": 30
@@ -46,6 +46,11 @@
       "id": "maxLines",
       "value": 2,
       "unit": "lines"
+    },
+    {
+      "id": "maxChars",
+      "value": 90,
+      "unit": "characters"
     }
   ]
 }

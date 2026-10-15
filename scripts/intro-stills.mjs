@@ -39,7 +39,13 @@ try {
     const defs = JSON.parse(await fs.readFile('src/intro-defs.json', 'utf8')), maxLines = defs.layout.find((r) => r.id === 'maxLines').value; result.lines = {};
     for (const w of [375, 320]) { await page.setViewportSize({ width: w, height: 812 }); await page.waitForTimeout(300);
       result.lines[w] = await page.evaluate((cards) => cards.map((c) => { const e = document.createElement('p'); e.className = 'intro-caption'; e.style.cssText = 'opacity:0;bottom:-2000px'; e.textContent = c.text; document.body.append(e); const h = e.getBoundingClientRect().height, cs = getComputedStyle(e), lh = parseFloat(cs.lineHeight), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom); e.remove(); return { id: c.id, lines: Math.round((h - pad) / lh) }; }), defs.cards); }
-    result.tooLong = Object.entries(result.lines).flatMap(([w, l]) => l.filter((c) => c.lines > maxLines).map((c) => `${c.id}@${w}=${c.lines}`)); console.log('2c cards over', maxLines, 'lines:', JSON.stringify(result.tooLong), JSON.stringify(result.lines));
+    result.tooLong = Object.entries(result.lines).flatMap(([w, l]) => l.filter((c) => c.lines > maxLines).map((c) => `${c.id}@${w}=${c.lines}`)); console.log('2c cards over', maxLines, 'lines (375 and 320):', JSON.stringify(result.tooLong), JSON.stringify(result.lines));
+    // The character budget at a 320 phone: the longest prefix N of real prose such that every prefix up to N fits maxLines (monotone-safe), the minimum over four starting points. The per-card lines above stay authoritative; maxChars (the row) must not exceed this.
+    result.budget320 = await page.evaluate(([cards, maxLines]) => { const prose = cards.map((c) => c.text); const e = document.createElement('p'); e.className = 'intro-caption'; e.style.cssText = 'opacity:0;bottom:-2000px'; document.body.append(e); const cs = getComputedStyle(e), lh = parseFloat(cs.lineHeight), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      const fits = (s) => { e.textContent = s; return Math.round((e.getBoundingClientRect().height - pad) / lh) <= maxLines; };
+      const budgets = prose.map((_, k) => { const text = prose.slice(k).join(' ') + ' ' + prose.slice(0, k).join(' '); let n = 1; while (n < text.length && fits(text.slice(0, n + 1))) n++; return n; }); e.remove(); return Math.min(...budgets); }, [defs.cards, maxLines]);
+    const maxChars = defs.layout.find((r) => r.id === 'maxChars').value; console.log('2d character budget at 320 (two lines):', result.budget320, 'row maxChars:', maxChars);
+    result.budgetOk = maxChars <= result.budget320 && !result.tooLong.length; if (!result.budgetOk) process.exitCode = 1;
     await page.setViewportSize({ width: 375, height: 812 });
     const tap = Date.now(); await page.touchscreen.tap(190, 300); await page.waitForTimeout(400);
     result.skipped = (await caption(page)) === null; console.log('3 a tap anywhere skips:', result.skipped); result.tapToGoneMs = Date.now() - tap;

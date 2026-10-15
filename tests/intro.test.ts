@@ -18,6 +18,11 @@ test('a card fades in, holds, fades out, and is 0 outside', () => {
   assert.equal(cardAt(c.start + c.fade)!.id, 'wake'); assert.equal(cardAt(0), null);
   assert.ok(introEnd() > INTRO.cards.at(-1)!.start);
 });
+test('every caption fits the character budget measured for two lines at a 320 phone (so Dom\'s final copy is checked by CI, not by eye)', () => {
+  for (const c of INTRO.cards) assert.ok(c.text.length <= INTRO.maxChars, `${c.id}: ${c.text.length} > ${INTRO.maxChars}`);
+  const over = JSON.parse(JSON.stringify(DEFS)); over.cards[0].text = 'x'.repeat(INTRO.maxChars + 1);
+  assert.throws(() => loadIntro(over), /characters, over the/);
+});
 test('the loader refuses a bad row', () => {
   const ok = JSON.parse(JSON.stringify(DEFS));
   const bad = (f: (d: typeof ok) => void) => { const d = JSON.parse(JSON.stringify(ok)); f(d); return d; };
