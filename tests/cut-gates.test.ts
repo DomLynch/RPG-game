@@ -36,7 +36,7 @@ test('gate 1 stops on a commit with no PR and names its sha', () => {
   const r = checkRangeHasPrs({ git: f.git, pullsOf: prsFor({ [f.reviewed]: [1] }), live: f.live, base: f.base, gates: { noPrExempt: [] } });
   assert.equal(r.ok, false);
   assert.deepEqual(r.missing, [f.unreviewed]);
-  assert.match(r.reason, new RegExp(f.unreviewed.slice(0, 9)));
+  assert.match(String(r.reason), new RegExp(f.unreviewed.slice(0, 9)));
 });
 
 test('gate 1 passes when every commit in live..base has a PR', () => {
@@ -56,11 +56,11 @@ test('gate 1 fails closed: no --live, a bad range, or a failed GitHub lookup is 
   const f = fixture();
   const gates = { noPrExempt: [] };
   const noLive = checkRangeHasPrs({ git: f.git, pullsOf: prsFor({}), live: undefined, base: f.base, gates });
-  assert.equal(noLive.ok, false); assert.match(noLive.reason, /--live/);
+  assert.equal(noLive.ok, false); assert.match(String(noLive.reason), /--live/);
   const badRange = checkRangeHasPrs({ git: f.git, pullsOf: prsFor({}), live: '0'.repeat(40), base: f.base, gates });
-  assert.equal(badRange.ok, false); assert.match(badRange.reason, /cannot list/);
+  assert.equal(badRange.ok, false); assert.match(String(badRange.reason), /cannot list/);
   const down = checkRangeHasPrs({ git: f.git, pullsOf: () => { throw new Error('HTTP 502'); }, live: f.live, base: f.base, gates });
-  assert.equal(down.ok, false); assert.match(down.reason, /HTTP 502/);
+  assert.equal(down.ok, false); assert.match(String(down.reason), /HTTP 502/);
 });
 
 test('the real data file exempts exactly the four 2026-10-15 shas and watches the three paths', () => {
@@ -76,7 +76,7 @@ test('gate 2 stops on a change under each watched path and names the file', () =
     const r = checkWatchedPaths({ git: f.git, base: f.base, cut: f.cut });
     assert.equal(r.ok, false, path);
     assert.deepEqual(r.files, [path]);
-    assert.match(r.reason, /watched paths/);
+    assert.match(String(r.reason), /watched paths/);
   }
 });
 
@@ -90,7 +90,7 @@ test('gate 2 passes a cut that changes other paths, including look-alikes of a w
 test('gate 2 fails closed on a diff git cannot run', () => {
   const f = fixture();
   const r = checkWatchedPaths({ git: f.git, base: f.base, cut: '0'.repeat(40) });
-  assert.equal(r.ok, false); assert.match(r.reason, /cannot diff/);
+  assert.equal(r.ok, false); assert.match(String(r.reason), /cannot diff/);
 });
 
 // ---- mutation check ----
