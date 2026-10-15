@@ -163,6 +163,18 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
 if (!/[?&]debug\b/.test(location.search)) { const u = new URL(location.href); u.searchParams.set('debug', '1'); history.replaceState(null, '', u.href); }
 
 await import('../src/main.ts');
+// Mana bar (sandbox-mech mana): under the stamina bar, same size, blue, only while the manaMax row is on. src/fight/hud.ts fills it from the player's fighter.
+if ((RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'manaMax' && r.value)) {
+  const st = document.getElementById('stamina');
+  if (st && !document.getElementById('mana')) {
+    const css = document.createElement('style');
+    css.textContent = '#mana{--bar-color:#3f78d4}#mana::-webkit-meter-optimum-value{background:#3f78d4}#mana::-moz-meter-bar{background:#3f78d4}';
+    document.head.append(css);
+    const label = el('span', {}, el('span', { className: 'meter-label', id: 'mana-label', textContent: 'MANA' }), ' ', el('span', { id: 'mana-value', textContent: '100 / 100' }));
+    const bar = el('meter', { id: 'mana', min: 0, max: 100, value: 100 } as Partial<HTMLMeterElement>); bar.setAttribute('aria-label', 'Your mana');
+    st.insertAdjacentElement('afterend', bar); st.insertAdjacentElement('afterend', label);
+  }
+}
 // The admin tools stay on (Sparring tab, test tools) but the black combat-debug overlay starts OFF (Dom: not needed); the journal's Options > Combat debug turns it on, or ?overlay=1.
 if (new URLSearchParams(location.search).get('overlay') !== '1') document.getElementById('debug-mode')?.click();
 // The stance picker, restyled (Dom's pick of the icon stack: Neutral first, down the right edge, muted): the game's own #stance-panel buttons keep their handlers and aria-pressed; only the look changes.

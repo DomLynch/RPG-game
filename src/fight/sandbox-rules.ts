@@ -182,3 +182,14 @@ export const OID_ON = ARMOUR_ON || WARD_ON || BRACE.length > 0 || POISON_ON;   /
 type BindRow = { weapon: string; window: number; hold: number; react: number };
 const BIND = ((DEFS as unknown as { bind?: BindRow[] }).bind ?? []);
 export const bindOf = (weapon: string): BindRow | undefined => (BIND.length ? BIND.find((r) => r.weapon === weapon) : undefined);
+
+// mana (Dom 2026-10-15: spells usable any time like melee, with a bar like stamina; Strategy ruling: a separate third pool, SPENT PER CAST, regenerating when idle, never a drain over time; stamina stays the melee
+// cost; the armour casting penalty slows the regen, not the cost; donors Diablo 2 mana pool + regen, EverQuest mana as the caster's clock): `manaMax` (0 = off, the spell costs stamina as on trunk), `manaRegen` (tenths of a
+// point per second), `manaDelay` (ticks after a cast before regen resumes), `manaCostMult` (per-mille of the spell's stamina cost, so the spell rows' own costs still order the spells). Sandbox-only fighter state
+// (mana, maxMana, manaRest) that exists only while `manaMax` > 0, so a trunk fight carries nothing new.
+export const MANA_MAX = num('manaMax', 'value'), MANA_REGEN = num('manaRegen', 'value'), MANA_DELAY = num('manaDelay', 'value'), MANA_COST_MULT = num('manaCostMult', 'value') || 1000;
+export const manaCost = (staminaCost: number): number => Math.round((staminaCost * MANA_COST_MULT) / 1000);
+export const manaRegenPerTick = (sheet: Sheet | undefined): number => {
+  let pct = 0; for (const r of CAST_PENALTY) if ((sheet?.[r.dial] ?? 0) >= r.atLeast && r.percent > pct) pct = r.percent;
+  return (MANA_REGEN / 10 / 60) * (100 / (100 + pct));   // a +20% casting penalty is a 17% slower regen
+};

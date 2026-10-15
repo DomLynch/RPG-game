@@ -8,6 +8,7 @@
 "2026-10-14 Dom: shield wall vs flank: a side blow on a raised guard (outside its arc, not from behind) deals 120% and 140% posture; the Shieldmaiden cannot step while her guard is up, so the answer is the shove or the flank.",
 "2026-10-14 Dom: clock fighter: a landed Plague Doctor special poisons you: 2 health a second for 10 s, refreshed by a new landing, never to death; no marker, the health bar is the signal.",
 "2026-10-14 Dom: bind and disarm: a block with a trident or estoc binds the attacker's blade for 0.75 s (no swings, kick is legal); kick to break it or be disarmed for 5 s (kick and guard only). Disarmed has no fists animation yet: the weapon stays in hand, it simply cannot swing.",
+"2026-10-15 Dom + Strategy: mana: a third bar of 100, spells cost mana (1.5x the spell's stamina cost) and no stamina, regen 6 a second after 1.5 s without casting, slowed by heavy armour (the casting penalty rows); stamina stays the melee cost.",
 "2026-10-13 Dom: arm wound: the first blade wound to the torso scars the sword arm for the fight: blocks cost 30% more stamina, damage dealt 20% less (sandbox-mech wounds; the sim has no arm site, torso stands in).",
 "2026-10-14 Dom + Strategy: the arm wound row is OFF (a wound that forms only at 10% health is a penalty on the loser, no decision, a PvP snowball). Idea kept in docs/state/combat-new-ideas-2026-10-13.md with the test for any return.",
 "2026-10-13 Dom: crowd roars on big moments: a loud reaction on parry, guard break and heavy hits with no cooldown, and a roar on the kill (sandbox-mech crowd).",
@@ -82,7 +83,11 @@
 {"id":"glanceGain","value":450},
 {"id":"glanceRate","value":820},
 {"id":"flankDamage","value":1200},
-{"id":"flankPosture","value":1400}
+{"id":"flankPosture","value":1400},
+{"id":"manaMax","value":100},
+{"id":"manaRegen","value":60},
+{"id":"manaDelay","value":90},
+{"id":"manaCostMult","value":1500}
 ],"bands":[
 {"id":"inner","upTo":135},
 {"id":"mid","upTo":180},

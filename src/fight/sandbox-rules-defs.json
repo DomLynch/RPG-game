@@ -17,7 +17,11 @@
     { "id": "flankDamage", "value": 0 },
     { "id": "flankPosture", "value": 0 },
     { "id": "armourYou", "value": 0 },
-    { "id": "armourFoe", "value": 0 }
+    { "id": "armourFoe", "value": 0 },
+    { "id": "manaMax", "value": 0 },
+    { "id": "manaRegen", "value": 0 },
+    { "id": "manaDelay", "value": 0 },
+    { "id": "manaCostMult", "value": 1000 }
   ],
   "bands": [],
   "bandBest": [],

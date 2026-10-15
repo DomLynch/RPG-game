@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -45,6 +45,7 @@ export type Fighter = {
   scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
+  mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
   bound?: number; boundHold?: number; boundReact?: number; disarmed?: number;   // sandbox-mech bindAndDisarm: ticks left bound / the disarm it turns into / the AI's reaction / ticks left disarmed
   poisonEnemy?: string;   // the poisoner's id, whose row ticks the poison
   poisonUntil?: number;   // sandbox-mech clockFighter: poisoned until this tick
@@ -134,7 +135,7 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.at
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, ...(MANA_MAX ? { mana: MANA_MAX, maxMana: MANA_MAX } : {}), wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => ({ ...createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools), ...(OID_ON ? { oid: o.id } : {}) });
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
@@ -249,7 +250,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
-  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || f.stamina >= f.spell.cost);   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
+  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || (MANA_MAX ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -326,7 +327,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       if (distance(me.body, foe.body) <= R.special.reach) {
         next.special = castWindup(me.sheet, R.special.windup); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        if (me.spell) spend(i, me.spell.cost);   // the stamina is gone at the commit, whatever the outcome
+        if (me.spell && MANA_MAX) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(me.spell.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
+        else if (me.spell) spend(i, me.spell.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(me.spell ? { spell: me.spell.id } : {}) });
       }
     } else if (action === 'kick') {
@@ -408,6 +410,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     }
     // Regeneration: full while standing ready; a raised guard regenerates at half rate (it used to stop it, which made blocking a stamina trap).
     if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(next.maxStamina, next.stamina + R.regen * next.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
+    if (MANA_MAX && next.maxMana) { if (next.manaRest) next.manaRest--; else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') next.mana = Math.min(next.maxMana, (next.mana ?? 0) + manaRegenPerTick(next.sheet)); }   // sandbox-mech mana: regen when idle, slowed by armour
     if (next.exhausted && next.stamina >= R.exhaustRecover) next.exhausted = false;
   }
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.
