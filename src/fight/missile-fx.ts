@@ -31,7 +31,7 @@ export function createMissileFx(scene: THREE.Scene) {
       fighters.forEach((f, i) => {
         const b = bolts[i]!, m = f.missile, live = !!m && tick < m.arrives;
         const kind = missileOf(f.weapon)?.kind, arrow = kind === 'bow' || kind === 'crossbow' ? kind : undefined, sh = shafts[i]!;
-        b.core.visible = live && !arrow; b.halo.visible = live && !arrow; for (const t of b.trail) t.visible = live && !arrow;   // an arrow or bolt is plain wood and iron: no glow, no trail (the staff keeps its white orb) sh.g.visible = live && !!arrow;
+        b.core.visible = live && !arrow; b.halo.visible = live && !arrow; for (const t of b.trail) t.visible = live && !arrow; sh.g.visible = live && !!arrow;   // an arrow or bolt is plain wood and iron: no glow, no trail (the staff keeps its white orb)
         if (!m || !live) return;
         if (arrow && dressed[i] !== arrow) { dress(sh, arrow); dressed[i] = arrow; }
         const tint = missileOf(f.weapon)?.tint;   // the row's colour for this weapon's bolt (staff blue, arrow tan, crossbow bolt amber)
