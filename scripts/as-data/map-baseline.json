@@ -1,16 +1,4 @@
 {
- "src/core/loot.ts": {
-  "veteran": 1,
-  "executioner": 2,
-  "nightborn": 1,
-  "pitborn": 1,
-  "dwarf": 2,
-  "goblin": 1,
-  "knight": 2,
-  "shieldmaiden": 1,
-  "plaguedoctor": 1,
-  "witch": 1
- },
  "src/fight/characters.ts": {
   "dwarf": 1,
   "executioner": 1,
