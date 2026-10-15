@@ -201,7 +201,7 @@ const q8 = (v: number) => Math.max(-127, Math.min(127, Math.round(v * 127)));
 const yawToByte = (yaw: number) => (((Math.round(yaw / YAW_UNIT) % YAW_STEPS) + YAW_STEPS) % YAW_STEPS);
 const byteToYaw = (b: number) => { const s = b >= 128 ? b - 256 : b; return s * YAW_UNIT; };   // centred on 0: −π..π
 
-const ACTIONS: (Action | null)[] = [null, 'light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry', 'skill'];   // append only: a code never changes meaning
+const ACTIONS: (Action | null)[] = [null, 'light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'dodge', 'backstep', 'parry', 'skill', 'skill2'];   // append only: a code never changes meaning
 const SKILLS: readonly (SkillId | null)[] = SKILL_BY_CODE;   // the skill rows' `code`, append only, as ACTIONS (skill-defs.json)
 const DIRECTIONS: (Direction | undefined)[] = [undefined, 'right', 'left', 'overhead', 'thrust', 'low'];
 const OUTCOMES: Outcome[] = ['killed', 'died', 'draw', 'abandoned'];

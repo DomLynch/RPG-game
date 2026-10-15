@@ -22,7 +22,7 @@ import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBAC
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
 export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead';
-export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry' | 'skill';   // skill: the equipped skill's move (Fighter.skill), the fourth button
+export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry' | 'skill' | 'skill2';   // skill2 (sandbox-mech spell slot 2): the second spell, cast like skill with its own cooldown; skill: the equipped skill's move (Fighter.skill), the fourth button
 export type Intent = {
   move: Input;                  // camera-relative stick/keys
   action: Action | null;        // edge-triggered request for this tick; one is buffered late in a committed action
@@ -46,6 +46,7 @@ export type Fighter = {
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
   missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number };   // sandbox-mech missiles: the one bolt this fighter has in flight
+  spell2?: Spell; skillCooldown2?: number; spellHome?: Spell; slot2Active?: boolean;   // sandbox-mech spell slot 2: the second spell, its own cooldown, and the slot-1 spell parked while the second is cast
   ammo?: number;   // sandbox-mech missiles: arrows or bolts left in the quiver (absent = infinite)
   mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
   bound?: number; boundHold?: number; boundReact?: number; disarmed?: number;   // sandbox-mech bindAndDisarm: ticks left bound / the disarm it turns into / the AI's reaction / ticks left disarmed
@@ -186,6 +187,11 @@ export const withPerks = (duel: Duel, perks: readonly [Perk | undefined, Perk | 
 // A fight with Special Moves: both fighters carry the rule's share (the opponent's is the boss share from RULES.special.bossFrom) and the first
 // cast waits `first` ticks. `aiSkill`: the opponent's own class skill, which names his special in events and the finish. The one door, so a
 // replay builds exactly what the live fight built.
+// sandbox-mech spell slot 2: the second spell on one fighter (the first goes through withSpell); the fighter must already carry the special.
+export const withSpell2 = (duel: Duel, side: Side, spell: Spell): Duel => {
+  if (duel.fighters[side].specialShare === undefined) throw Error('A spell is cast through the special: the fight needs Special Moves');
+  const fighters = [...duel.fighters] as [Fighter, Fighter]; fighters[side] = { ...fighters[side], spell2: spell }; return { ...duel, fighters };
+};
 export const withSpecials = (duel: Duel, level: number, aiSkill: SkillId | null, R: typeof RULES = RULES, name?: SpecialName | null): Duel => ({ ...duel, fighters: [
   { ...duel.fighters[0], specialShare: R.special.damage, skillCooldown: R.special.first },
   { ...duel.fighters[1], specialShare: level >= R.special.bossFrom ? R.special.bossDamage : R.special.damage, skillCooldown: R.special.first, skill: duel.fighters[1].skill ?? aiSkill, ...(name ? { specialName: name } : {}) },
@@ -231,7 +237,7 @@ export function inBufferWindow(f: Fighter): boolean {
   return length !== null && f.age >= length - RULES.bufferWindow;
 }
 function chooseMove(f: Fighter, action: Action): MoveId {
-  if (action === 'skill') return SKILL_MOVE[f.skill ?? DAY_ONE_SKILL]!;   // the equipped skill's move (legal() refuses SKILL with none); never a riposte or a counter, whatever window is open
+  if (action === 'skill' || action === 'skill2') return SKILL_MOVE[f.skill ?? DAY_ONE_SKILL]!;   // the equipped skill's move (legal() refuses SKILL with none); never a riposte or a counter, whatever window is open
   if (action === 'heavy') return f.critical > 0 ? 'critical' : f.punish > 0 ? 'heavy_riposte' : f.counterWindow > 0 ? 'heavy_counter' : 'heavy_overhead';
   if (action === 'kick') return 'kick';
   if (f.punish > 0) return action === 'thrust' ? 'riposte' : 'slash_riposte';
@@ -242,7 +248,7 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
-  if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill')) return false;
+  if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill' || action === 'skill2')) return false;
   { const mr = missileOf(f.weapon); if (mr && (isLight(action) || action === 'heavy' || action === 'thrust') && ((MANA_MAX && (f.mana ?? 0) < mr.mana) || (f.ammo !== undefined && f.ammo <= 0))) return false; }   // sandbox-mech missiles: a bolt is paid in mana, refused short of it
   if ((f.bound || f.disarmed) && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'skill')) return false;   // sandbox-mech bindAndDisarm: a bound blade or an empty hand has no swing   // the special's recovery: no attack until it ends
   // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
@@ -253,6 +259,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
+  if (action === 'skill2') return f.spell2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail) && (MANA_MAX ? (f.mana ?? 0) >= manaCost(f.spell2.cost) : f.stamina >= f.spell2.cost);   // sandbox-mech spell slot 2: its own cooldown, its own cost
   if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || (MANA_MAX ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
@@ -273,7 +280,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   const stunned = (f: Fighter, source: CcSource, ticks: number): number => { if (!f.cc) return ticks; const r = ccApply(f.cc, source, tick + (duel.ccBase ?? 0), ticks, CC_LADDER, f.ccGuard); f.cc = r.ladder; return r.ticks; };
   // A committed special windup: the caster stands and tracks the target, whatever the thumb does (no guard, roll, parry or step).
   if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
-  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), ...(f.skillCooldown2 ? { skillCooldown2: f.skillCooldown2 - 1 } : {}), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  for (const f of fighters) if (f.slot2Active && !f.special) { f.spell = f.spellHome; delete f.spellHome; delete f.slot2Active; }   // sandbox-mech spell slot 2: the cast is over, the slot-1 spell is back
   for (const f of fighters) if (f.poiseRest) { if (f.poiseRest > 1) f.poiseRest--; else delete f.poiseRest; }
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
   for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }
@@ -326,13 +334,15 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
-    } else if (action === 'skill' && me.specialShare !== undefined) {
+    } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && (action === 'skill' || me.spell2)) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       if (distance(me.body, foe.body) <= R.special.reach) {
+        const chosen = action === 'skill2' ? me.spell2 : me.spell;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
+        if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; }
         next.special = castWindup(me.sheet, R.special.windup); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        if (me.spell && MANA_MAX) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(me.spell.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
-        else if (me.spell) spend(i, me.spell.cost);   // the stamina is gone at the commit, whatever the outcome
-        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(me.spell ? { spell: me.spell.id } : {}) });
+        if (chosen && MANA_MAX) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
+        else if (chosen) spend(i, chosen.cost);   // the stamina is gone at the commit, whatever the outcome
+        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(chosen ? { spell: chosen.id } : {}) });
       }
     } else if (action === 'kick') {
       beginAttack(next, 'kick', false, foe.body); spend(i, perked(me, 'thrift', movesOf(next).kick.stamina));
@@ -603,7 +613,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const i of [0, 1] as const) {
     const j = (1 - i) as Side, A = fighters[i], D = fighters[j];
     if (!releasing[i]) continue;
-    A.special = 0; delete A.castHurt; delete A.castPush; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
+    A.special = 0; delete A.castHurt; delete A.castPush; if (A.slot2Active) A.skillCooldown2 = R.special.cooldown; else A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
     // v55 (cone-rules.ts): a special with a cone row breathes instead of striking once: the heading is fixed on the target now, the pulses follow, and the caster is held back until the last of them is done.
     const cone = CONE_ON && !A.spell ? coneOf(A.specialName) : undefined;
@@ -659,7 +669,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (hurt && isInterruptible(A.specialName)) {
       const taken = (A.castHurt ?? 0) + hurt;
       if (taken >= R.special.interruptAt * A.maxHealth) {
-        A.skillCooldown = interruptLockout(R.special.interruptCooldown, A.special, R.special.windup); A.special = 0; delete A.castHurt; delete A.castPush;   // sandbox-mech: an earlier cut can lock the caster out longer
+        if (A.slot2Active) A.skillCooldown2 = interruptLockout(R.special.interruptCooldown, A.special, R.special.windup); else A.skillCooldown = interruptLockout(R.special.interruptCooldown, A.special, R.special.windup); A.special = 0; delete A.castHurt; delete A.castPush;   // sandbox-mech: an earlier cut can lock the caster out longer
         events.push({ tick, type: 'SpecialInterrupted', actor: i, damage: taken });
         continue;
       }

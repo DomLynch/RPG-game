@@ -314,6 +314,10 @@ export function createInput(env: InputEnv) {
       requestSkill();
     }
   });
+  // sandbox-mech spell slot 2: the sandbox's SPELL 2 button (#sbx-spell2, built by sandbox/entry.ts after the page boots) presses the second spell; delegated so the button may appear any time, and absent on every other build.
+  skillButton.ownerDocument?.addEventListener?.('pointerdown', (event) => {
+    if ((event as PointerEvent).button === 0 && (event.target as HTMLElement | null)?.closest?.('#sbx-spell2')) { event.preventDefault(); request('skill2'); }
+  });
   kickButton.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
       event.preventDefault();

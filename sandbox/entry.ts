@@ -77,12 +77,19 @@ function panel(opponents: string[]) {
     const bySchool = new Map<string, [string, string][]>();
     for (const [id, i] of Object.entries(SPELL_INFO)) { const l = bySchool.get(i.school) ?? []; l.push([id, `${i.spell || id} - L${i.level} (${i.legend})`]); bySchool.set(i.school, l); }
     for (const [school, list] of [...bySchool].sort()) { const g = el('optgroup', { label: school }); for (const [id, label] of list.sort((a, b) => a[1].localeCompare(b[1]))) g.append(el('option', { value: id, textContent: label, selected: params.get('spell') === id })); spellSel.append(g); }
+    fill2();
   });
+  const spell2Sel = el('select'), cast2 = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast2') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
+  spell2Sel.append(el('option', { value: '', textContent: '(none)' }));
+  const fill2 = () => { for (const g of spellSel.querySelectorAll('optgroup')) { const c = g.cloneNode(true) as HTMLOptGroupElement; for (const o of c.querySelectorAll('option')) (o as HTMLOptionElement).selected = params.get('spell2') === (o as HTMLOptionElement).value; spell2Sel.append(c); } };
+  const goSpell2 = () => { const u = new URL(location.href); if (spell2Sel.value) u.searchParams.set('spell2', spell2Sel.value); else u.searchParams.delete('spell2'); if (cast2.value) u.searchParams.set('cast2', cast2.value); else u.searchParams.delete('cast2'); location.assign(u.href); };
+  spell2Sel.onchange = goSpell2; cast2.onchange = goSpell2;
   const goSpell = () => { const u = new URL(location.href); if (spellSel.value) u.searchParams.set('spell', spellSel.value); else u.searchParams.delete('spell'); if (cast.value) u.searchParams.set('cast', cast.value); else u.searchParams.delete('cast'); location.assign(u.href); };
   spellSel.onchange = goSpell; cast.onchange = goSpell;
   const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
     el('div', { textContent: 'Loadout (reloads the page)', style: 'color:#c9a227;font-weight:600' }),
-    el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell ' }), spellSel, cast),
+    el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell (SPELL 1) ' }), spellSel, cast),
+    el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell 2 (SPELL 2) ' }), spell2Sel, cast2),
     pick('Staff (this weapon fires bolts)', 'staff', WEAPON_IDS), pick('Bow (this weapon shoots arrows)', 'bow', WEAPON_IDS), pick('Crossbow (this weapon shoots bolts)', 'crossbow', WEAPON_IDS),
     pick('Opponent weapon', 'foeWeapon', WEAPON_IDS), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)),
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
@@ -163,6 +170,12 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
       if (row && q.get('cast') !== null && Number.isFinite(cast)) row.base = Math.max(0, Math.min(row.cap, Math.floor(cast)));
     }
   } else { try { localStorage.removeItem('frankendom.spell.equipped.v1'); } catch { /* none */ } }
+  // ?spell2=<legend id>&cast2=<0-100>: the SECOND spell (SPELL 2), read at fight start through src/fight/spell-slot2.ts.
+  const spell2 = q.get('spell2');
+  if (spell2) {
+    const { isSpellId } = await import('../src/fight/spell-cast.ts'); const skill = Number(q.get('cast2'));
+    if (isSpellId(spell2)) (globalThis as { __SANDBOX_SPELL2__?: { id: string; skill: number } }).__SANDBOX_SPELL2__ = { id: spell2, skill: Number.isFinite(skill) ? Math.max(0, Math.min(100, Math.floor(skill))) : 0 };
+  }
   for (const [param, id] of [['myArmour', 'armourYou'], ['foeArmour', 'armourFoe']] as const) {
     const v = ARMOUR_CLASSES.indexOf(q.get(param) ?? ''); const row = (RULES.rules as { id: string; value?: number }[]).find((r) => r.id === id);
     if (row && v > 0) row.value = v;
@@ -229,13 +242,13 @@ const layoutA = (): void => {
     ...Object.entries(label).map(([id, t]) => `.actions #${id}::after{content:"${t}"!important}`),
     '.actions #attack-button::after{font-size:13px!important;letter-spacing:.05em}',
     
-    '.actions #sbx-spell2{opacity:.45}',
+    '.actions #sbx-spell2{opacity:.45}.actions #sbx-spell2[data-live]{opacity:1}',
     '#joystick{bottom:max(56px,env(safe-area-inset-bottom))!important}',
     `#sbx-zones{position:fixed;z-index:4;pointer-events:none;right:${CX - V.R / 2}px;bottom:${CY - V.R / 2}px;width:${V.R}px;height:${V.R}px;border-radius:50%;border:1px dashed rgba(190,120,80,.7);background:conic-gradient(from -50deg,rgba(150,70,40,.34) 0 100deg,rgba(150,70,40,.16) 100deg 360deg)}`,
     '#sbx-zones i{position:absolute;font:600 10px sans-serif;color:rgba(255,235,215,.85);font-style:normal;letter-spacing:.04em}',
   ].join('\n');
   document.head.append(css);
-  const two = document.createElement('button'); two.id = 'sbx-spell2'; two.type = 'button'; two.title = 'Second spell slot: not wired yet'; two.setAttribute('aria-disabled', 'true'); document.getElementById('actions')?.append(two);   // a placeholder: the game has one spell slot
+  const two = document.createElement('button'); two.id = 'sbx-spell2'; two.type = 'button'; if ((globalThis as { __SANDBOX_SPELL2__?: unknown }).__SANDBOX_SPELL2__) { two.dataset.live = ''; two.title = 'Second spell'; } else { two.title = 'Second spell slot: pick a spell in the Sandbox menu'; two.setAttribute('aria-disabled', 'true'); } document.getElementById('actions')?.append(two);   // a placeholder: the game has one spell slot
   const zones = document.createElement('div'); zones.id = 'sbx-zones';
   zones.innerHTML = '<i style="left:50%;top:5px;transform:translateX(-50%)">stab</i><i style="left:6px;top:50%;transform:translateY(-50%)">sl</i><i style="right:6px;top:50%;transform:translateY(-50%)">sh</i>';
   document.body.append(zones);

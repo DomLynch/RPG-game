@@ -20,6 +20,7 @@ import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flush
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
 import { pickSpell } from './fight/spell-pick.ts';
+import { slot2Pick } from './fight/spell-slot2.ts';
 import './monitoring.ts';
 import './chunk-recover.ts';
 import { captureException } from '@sentry/browser';
@@ -425,7 +426,7 @@ const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.lev
 // The character's skill values (skills_get, the server's own base + banked-xp-up-to-placed figure), read once at load; a guest or an offline writer has none, so every cast is claimed at its school's base.
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), spell2: slot2Pick, ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
