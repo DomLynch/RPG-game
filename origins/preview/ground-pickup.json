@@ -1,0 +1,21 @@
+{
+  "groundPickup": [
+    {
+      "id": "ground",
+      "fields": {
+        "pollSec": 20,
+        "labels": { "take": "Take the {item}", "signedOut": "Sign in to take the {item}", "taken": "You take the {item}" },
+        "outcomes": {
+          "taken": { "line": "Someone got there first.", "cue": "refuse" },
+          "off": { "line": "Not now.", "cue": null },
+          "offline": { "line": "Not now.", "cue": null },
+          "have-it": { "line": "You already hold one.", "cue": null },
+          "full": { "line": "Your pack is full.", "cue": null },
+          "away": { "line": "Too far from it.", "cue": null },
+          "unchecked": { "line": "Not now.", "cue": null },
+          "stale": { "line": "Try again.", "cue": null }
+        }
+      }
+    }
+  ]
+}
