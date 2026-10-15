@@ -2,6 +2,9 @@
   "name": "Test Zone",
   "unlisted": true,
   "defaultKind": "goblin",
+  "camera": {
+    "preset": "a"
+  },
   "look": {
     "arena": "3",
     "sky": "dusk",

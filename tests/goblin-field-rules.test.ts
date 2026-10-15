@@ -42,4 +42,6 @@ test('a palette with pictures shows the portrait row on a tall screen and the la
   assert.equal(goblinBackdrop(f, true)?.id, 'fortress-portrait'); assert.equal(goblinBackdrop(f, false)?.id, 'fortress-landscape');
   assert.equal(goblinBackdrop(goblinPalette('field'), true), null, 'no picture: the painted sky alone');
   for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(existsSync(`public/${b.file}`), `public/${b.file}`);
+  const turn = 360 / (180 * goblinRule('domeHalf'));   // the dome texture spans 360 degrees across and domeHalf x 180 down: a picture keeps its shape only when texW:texH is that ratio
+  for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(Math.abs(b.texW / b.texH / turn - 1) < 0.05, `${b.id}: texW/texH ${(b.texW / b.texH).toFixed(2)} is within 5 % of ${turn.toFixed(2)} (else the picture stretches)`);
 });

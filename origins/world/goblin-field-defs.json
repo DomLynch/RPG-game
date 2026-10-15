@@ -85,8 +85,8 @@
     { "id": "fortress", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-portrait", "backdropLandscape": "fortress-landscape" }
   ],
   "backdrops": [
-    { "id": "fortress-portrait", "file": "zones/goblin-fortress-portrait.webp", "x0": 0, "x1": 1, "y0": 0.18, "y1": 0.705, "repeat": 6, "texW": 2560, "texH": 1024, "fadeTop": 0.12, "fadeFoot": 0.06 },
-    { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 2, "texW": 3072, "texH": 768, "fadeTop": 0.1, "fadeFoot": 0.06 }
+    { "id": "fortress-portrait", "file": "zones/goblin-fortress-portrait.webp", "x0": 0, "x1": 1, "y0": 0.18, "y1": 0.705, "repeat": 8, "texW": 2560, "texH": 800, "fadeTop": 0.12, "fadeFoot": 0.06 },
+    { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 4, "texW": 3072, "texH": 960, "fadeTop": 0.1, "fadeFoot": 0.06 }
   ],
   "looks": [
     { "id": "goblin-haze", "fog": "#d8b48c", "fogDensity": 0.011, "hemiSky": "#9aa4c0", "hemiGround": "#4a3a2c", "hemiIntensity": 1.3, "sunColor": "#ffb878", "sunIntensity": 5.2, "sunPos": [-24, 9, -15], "exposure": 1.3, "ground": [0.95, 0.88, 0.78] },
