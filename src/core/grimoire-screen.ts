@@ -3,7 +3,7 @@
 import { EMPTY, entriesOf, type Entry } from './grimoire-model.ts';
 import type { Spell } from './grimoire-net.ts';
 import { equipSpell, equippedSpell, equippedSpells, setOwnedSpells } from './spell-equip.ts';
-import { SPELL_SLOTS } from '../fight/spell-slot-rows.ts';
+import { SLOTS as SPELL_SLOTS } from './spell-slot-view.ts';
 
 type Load = () => Promise<Spell[] | null>;
 export function mountGrimoire(dialog: HTMLDialogElement, load: Load) {

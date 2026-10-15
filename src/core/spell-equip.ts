@@ -1,6 +1,6 @@
 // The spells the player takes into a fight (Web, programme 2b; two universal slots, spell-slot-defs.json): which spells the account owns (the grimoire's ids, filled by the spell book's read) and which one sits in each slot.
 // Pure and synchronous, because the Match's `spell` port is read at begin(). Data only: an id is whatever the grimoire holds, so nothing here names a spell. The server stays the authority (it re-checks grimoire and skill).
-import { ALLOW_DUPLICATE, SPELL_SLOTS } from '../fight/spell-slot-rows.ts';   // the light slot rows, never the 700-row catalogue (tests/spell-rows.test.ts walks this chunk's imports)
+import { ALLOW_DUPLICATE_SLOTS as ALLOW_DUPLICATE, SLOTS as SPELL_SLOTS } from './spell-slot-view.ts';   // the light slot view, never the 700-row catalogue (tests/spell-rows.test.ts walks this chunk's imports)
 export type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const KEY = 'frankendom.spell.slots.v1', ONE_SLOT_KEY = 'frankendom.spell.equipped.v1';   // the old one-spell key reads into slot a until the first pick writes the new key
 let owned: readonly string[] = [];
