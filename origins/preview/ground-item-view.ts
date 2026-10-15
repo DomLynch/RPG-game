@@ -3,7 +3,7 @@
 // draws and answers where. Same seam as mobs-view: the scene, a ground height function, and a model loader the page hands in.
 import * as THREE from 'three';
 import { finishedAs } from '../../src/fight/index.ts';
-import { groundLook, type GroundLook, type GroundRing } from './ground-looks.ts';
+import { groundLook, type GroundBeam, type GroundLook, type GroundRing } from './ground-looks.ts';
 
 export type GroundItemViewOptions = {
   scene: THREE.Scene;
@@ -30,10 +30,19 @@ const partOf = (model: THREE.Object3D): THREE.Object3D => model.getObjectByName(
 function ring(r: GroundRing): THREE.Group {
   const g = new THREE.Group(), color = new THREE.Color(r.color);
   for (const [inner, outer, k] of [[0.9, 1, 1], [0.55, 0.9, 0.35]] as const) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(new THREE.RingGeometry(r.radiusM * inner, r.radiusM * outer, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: r.opacity * k, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
     m.position.y = 0.03; m.renderOrder = 2; m.name = 'ground-ring'; g.add(m);
   }
   return g;
+}
+
+// The beam: a thin open cone of additive light standing on the item, bright at the foot and fading to nothing at the top (additive, so the fade is the vertex colour going to black).
+function beam(b: GroundBeam): THREE.Mesh {
+  const g = new THREE.CylinderGeometry(b.radiusM * 0.35, b.radiusM, b.heightM, 14, 1, true).translate(0, b.heightM / 2, 0), c = new THREE.Color(b.color), pos = g.getAttribute('position'), cols: number[] = [];
+  for (let i = 0; i < pos.count; i++) { const k = 1 - pos.getY(i) / b.heightM; cols.push(c.r * k, c.g * k, c.b * k); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: b.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  m.name = 'ground-beam'; m.renderOrder = 3; return m;
 }
 
 /** The item as it lies: a pivot at the origin whose model's long axis runs along +X, rolled and turned by the look, scaled, with its underside `liftM` above y = 0 and its middle over x = z = 0. */
@@ -54,6 +63,7 @@ export function lie(model: THREE.Object3D, look: GroundLook): THREE.Group {
   yawed.updateMatrixWorld(true);
   const root = new THREE.Group(); root.add(yawed);
   if (look.ring) root.add(ring(look.ring));
+  if (look.beam) root.add(beam(look.beam));
   return root;
 }
 

@@ -19,7 +19,7 @@ test('the rusty sword has a look row, and an item without one throws', () => {
   assert.throws(() => groundLook('item:no-such'), /no row/);
 });
 
-const withoutRings = (g: THREE.Object3D) => { for (const r of g.children.filter((c) => c.children.some((k) => k.name === 'ground-ring'))) r.removeFromParent(); return g; };
+const withoutRings = (g: THREE.Object3D) => { for (const r of g.children.filter((c) => c.name === 'ground-beam' || c.children.some((k) => k.name === 'ground-ring'))) r.removeFromParent(); return g; };
 
 test('lie: the long axis runs along the ground, tilted up by its row, the underside liftM above it, centred on the origin', () => {
   const look = groundLook(ITEM), box = new THREE.Box3().setFromObject(withoutRings(lie(sword(), look)));
@@ -66,4 +66,16 @@ test('hidden or cleared while the model loads draws nothing; an item with no ass
   v.show('ground:a', ITEM, { x: 0, z: 0 }); v.hide('ground:a'); await settle(); assert.equal(scene.children.length, 0);
   v.show('ground:b', ITEM, { x: 0, z: 0 }); v.clear(); await settle(); assert.equal(scene.children.length, 0);
   createGroundItemView({ scene, loadModel: async () => sword(), assetOf: () => undefined }).show('ground:c', ITEM, { x: 0, z: 0 }); await settle(); assert.equal(scene.children.length, 0);
+});
+
+test('lie: the beam stands on the item from its row, additive, fading to black at the top; no beam row, no beam', () => {
+  const look = groundLook(ITEM), beam = lie(sword(), look).getObjectByName('ground-beam') as THREE.Mesh;
+  assert.ok(look.beam && beam, 'the rusty sword has a beam row');
+  const m = beam.material as THREE.MeshBasicMaterial, size = new THREE.Box3().setFromObject(beam).getSize(new THREE.Vector3());
+  assert.equal(m.blending, THREE.AdditiveBlending); assert.equal(m.depthWrite, false); assert.ok(m.vertexColors);
+  assert.ok(Math.abs(size.y - look.beam.heightM) < 1e-6 && Math.abs(size.x - 2 * look.beam.radiusM) < 0.02, 'the row height and radius');
+  const pos = beam.geometry.getAttribute('position'), col = beam.geometry.getAttribute('color');
+  let top = -1, bottom = -1; for (let i = 0; i < pos.count; i++) { if (Math.abs(pos.getY(i) - look.beam.heightM) < 1e-6) top = col.getX(i); if (pos.getY(i) < 1e-6) bottom = col.getX(i); }
+  assert.ok(top === 0 && bottom > 0.5, `fades from the foot (${bottom}) to nothing (${top})`);
+  assert.equal(lie(sword(), { ...look, beam: undefined }).getObjectByName('ground-beam'), undefined);
 });

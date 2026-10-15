@@ -4,9 +4,10 @@ import LOOKS from './ground-looks.json' with { type: 'json' };
 
 // How a ground item lies (ground loot slice 3; donors 2004Scape ObjType, where each object type is one row carrying its model's recolour pairs, angles and offsets, and Ultima Online's item Hue over the same art):
 // one row per item id, nothing literal in the view. `asset` is the model's equip-file stem (src/assets/weapons/player/<asset>.glb: this item has no appearance.asset of its own yet), `yawDeg` turns it about the vertical, `rollDeg` rolls it about its long axis (0 = as the model's own face-up side lies), `tiltDeg` lifts the long axis off the ground (so it reads from the walk camera and clears the grass), `scale` multiplies the model,
-// `liftM` is the clearance between its underside and the ground, `ring` an optional pale pickup ring on the ground under it (colour, radius in metres, opacity: the glint that makes it read at a glance at 375), `finish` an optional finish row (src/core/finish-rows.json, e.g. `rust`) written onto its metal and trim by rank-tint's finishedAs.
+// `liftM` is the clearance between its underside and the ground, `ring` an optional pale pickup ring on the ground under it (colour, radius in metres, opacity: the glint that makes it read at a glance at 375), `beam` an optional thin light column rising from it (colour, height and radius in metres, opacity; fades to nothing at the top: it clears the grass and reads from across the road), `finish` an optional finish row (src/core/finish-rows.json, e.g. `rust`) written onto its metal and trim by rank-tint's finishedAs.
 export type GroundRing = { readonly color: string; readonly radiusM: number; readonly opacity: number };
-export type GroundLook = { readonly asset: string; readonly yawDeg: number; readonly rollDeg: number; readonly tiltDeg: number; readonly scale: number; readonly liftM: number; readonly finish?: string; readonly ring?: GroundRing };
+export type GroundBeam = { readonly color: string; readonly heightM: number; readonly radiusM: number; readonly opacity: number };
+export type GroundLook = { readonly asset: string; readonly yawDeg: number; readonly rollDeg: number; readonly tiltDeg: number; readonly scale: number; readonly liftM: number; readonly finish?: string; readonly ring?: GroundRing; readonly beam?: GroundBeam };
 
 const TABLE = tableFromFile(MANIFEST.tables[0] as Manifest, LOOKS, 'ground-looks.json');
 loadRegistry([TABLE]);
