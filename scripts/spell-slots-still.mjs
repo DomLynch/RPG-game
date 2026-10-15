@@ -43,6 +43,8 @@ try {
     const off = boxes.filter((b) => b.l < 0 || b.t < 0 || b.l + b.w > vp.w || b.t + b.h > vp.h).map((b) => b.id), small = boxes.filter((b) => b.w < 44 || b.h < 44).map((b) => b.id);
     receipt.push({ run: run.label, viewport: `${vp.w}x${vp.h}`, buttons: boxes.map((b) => b.id), hasSkill2: boxes.some((b) => b.id === 'skill2-button'), overlaps, off, small, boxes });
     await page.screenshot({ path: `${OUT}/${run.label}-${vp.w}.jpg`, type: 'jpeg', quality: 88, animations: 'disabled' });
+    receipt.push({ run: run.label, viewport: `${vp.w}x${vp.h}`, buttons: boxes.map((b) => b.id), hasSkill2: boxes.some((b) => b.id === 'skill2-button'), overlaps, off, small, boxes });
+    await page.screenshot({ path: `${OUT}/${run.label}-${vp.w}.jpg`, type: 'jpeg', quality: 88, animations: 'disabled' });
     if (run.slotB) {   // both slots cooling: the cluster's own dim (aria-disabled), forced here with the same opacity because the live HUD owns that attribute
       await page.addStyleTag({ content: '#skill-button,#skill2-button{opacity:.5!important}' });
       await page.screenshot({ path: `${OUT}/after-cooldown-${vp.w}.jpg`, type: 'jpeg', quality: 88, animations: 'disabled' });
