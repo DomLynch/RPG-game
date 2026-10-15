@@ -30,7 +30,8 @@ try {
   const page = await ctx.newPage(); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 200)));
   await page.goto(`http://127.0.0.1:5199/preview/origins/?region=1&worldfight&writer=${encodeURIComponent(wurl)}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 280000 }).catch((e) => console.log('mobs wait:', String(e).slice(0, 80)));
-  await page.waitForTimeout(5000);
+  await page.waitForFunction(() => { const b = document.getElementById('skill2-button'); return !!b && !b.hidden; }, null, { timeout: 90000 }).catch(() => {});   // poll for the condition (a slow or shared runner is not a failure); on a miss the state below says why
+  await page.waitForTimeout(500);
   const st = await page.evaluate(async () => {
     const urls = performance.getEntriesByType('resource').map((r) => r.name);
     const find = (re) => urls.find((n) => re.test(n));
