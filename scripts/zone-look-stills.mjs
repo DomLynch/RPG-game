@@ -14,15 +14,17 @@ fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${built}/` };
 for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
-const server = http.createServer((req, res) => {
+const PROXY = process.env.STILLS_PROXY;   // a checkout without public/ (the VPS sparse clone): files missing here are fetched from this site (e.g. https://frankendom.com) and piped back
+const server = http.createServer(async (req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
   for (const [p, r] of Object.entries(roots)) if (u.startsWith(p)) hit = path.join(r, u.slice(p.length) || 'index.html');
   if (hit && fs.existsSync(hit) && fs.statSync(hit).isDirectory()) hit = path.join(hit, 'index.html');
+  if ((!hit || !fs.existsSync(hit)) && PROXY && hit && !u.startsWith('/preview/origins/')) { try { const up = await fetch(PROXY + u); if (up.ok) { res.writeHead(200, { 'content-type': up.headers.get('content-type') ?? 'application/octet-stream' }); return res.end(Buffer.from(await up.arrayBuffer())); } } catch { /* falls through to the 404 */ } }
   if (!hit || !fs.existsSync(hit)) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const origin = `http://127.0.0.1:${server.address().port}`, browser = await chromium.launch();
+const origin = `http://127.0.0.1:${server.address().port}`, browser = await chromium.launch(process.env.STILLS_SOFTWARE ? { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } : {});   // STILLS_SOFTWARE=1: no GPU (the VPS)
 const shots = process.argv.slice(2).map((a) => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }), receipts = [];
 try {
   for (const [name, query] of shots) {
