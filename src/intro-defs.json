@@ -41,6 +41,11 @@
       "id": "stripGap",
       "value": 8,
       "unit": "px"
+    },
+    {
+      "id": "maxLines",
+      "value": 2,
+      "unit": "lines"
     }
   ]
 }

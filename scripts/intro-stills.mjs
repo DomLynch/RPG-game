@@ -35,6 +35,12 @@ try {
     console.log('2 card 1 shown:', JSON.stringify(result.card1));
     await page.waitForFunction(() => document.querySelector('.intro-caption')?.textContent?.startsWith('This is Frankendom') && Number(document.querySelector('.intro-caption').style.opacity) > 0.95, null, { timeout: 60000 });
     await page.screenshot({ path: path.join(OUT, 'intro-card-2.jpg'), type: 'jpeg', quality: 72, timeout: 240000 });
+    // Every card at two phone widths must fit maxLines (src/intro-defs.json layout row): measured on a clone of the live strip, so the CSS is the real one.
+    const defs = JSON.parse(await fs.readFile('src/intro-defs.json', 'utf8')), maxLines = defs.layout.find((r) => r.id === 'maxLines').value; result.lines = {};
+    for (const w of [375, 320]) { await page.setViewportSize({ width: w, height: 812 }); await page.waitForTimeout(300);
+      result.lines[w] = await page.evaluate((cards) => cards.map((c) => { const e = document.createElement('p'); e.className = 'intro-caption'; e.style.cssText = 'opacity:0;bottom:-2000px'; e.textContent = c.text; document.body.append(e); const h = e.getBoundingClientRect().height, cs = getComputedStyle(e), lh = parseFloat(cs.lineHeight), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom); e.remove(); return { id: c.id, lines: Math.round((h - pad) / lh) }; }), defs.cards); }
+    result.tooLong = Object.entries(result.lines).flatMap(([w, l]) => l.filter((c) => c.lines > maxLines).map((c) => `${c.id}@${w}=${c.lines}`)); console.log('2c cards over', maxLines, 'lines:', JSON.stringify(result.tooLong), JSON.stringify(result.lines));
+    await page.setViewportSize({ width: 375, height: 812 });
     const tap = Date.now(); await page.touchscreen.tap(190, 300); await page.waitForTimeout(400);
     result.skipped = (await caption(page)) === null; console.log('3 a tap anywhere skips:', result.skipped); result.tapToGoneMs = Date.now() - tap;
     await page.screenshot({ path: path.join(OUT, 'intro-after-skip.jpg'), type: 'jpeg', quality: 72, timeout: 240000 });
