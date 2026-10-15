@@ -228,7 +228,7 @@ export function shapeMeshOf(scene: Object3D): Mesh {
 // The hero rig with the equip file's weapon in place of the sword pair (a WeaponDrawn is always in hand: no sheath), and the file's clips
 // played over warrior.glb's same-named ones. A copy: the loaded rig stays whole for the longsword fallback.
 export function equipWeapon(hero: FighterAsset, part: FighterAsset): FighterAsset {
-  const scene = clone(hero.scene) as Group, hand = scene.getObjectByName('hand_r'), weapon = part.scene.getObjectByName('WeaponDrawn');
+  const scene = clone(hero.scene) as Group, weapon = part.scene.getObjectByName('WeaponDrawn'), hand = scene.getObjectByName((weapon?.userData.hand as string | undefined) ?? 'hand_r');   // a part may name its hand (the sandbox bow: hand_l)
   if (!hand || !weapon) throw new Error('Equip file has no WeaponDrawn, or the rig no hand_r');
   // Whatever the rig carries goes: warrior.glb's sword pair, or an opponent's baked weapon (the Centurion's trident is WeaponDrawn, _1, _2).
   const carriedNodes: Object3D[] = []; scene.traverse(o => { if (/^(SwordSheathed|SwordDrawn|WeaponDrawn|WeaponSheathed)(_\d+)?$/.test(o.name)) carriedNodes.push(o); });
