@@ -84,7 +84,7 @@ test('gate 2 stops on a change under each watched path and names the file', () =
 test('gate 2 passes a cut that changes other paths, including look-alikes of a watched path', () => {
   for (const path of ['src/x.ts', '.github/CODEOWNERS', 'public/fonts-extra/a.txt', '.vscodex/a.json']) {
     const f = fixture(path);
-    assert.deepEqual(checkWatchedPaths({ git: f.git, base: f.base, cut: f.cut }), { ok: true }, path);
+    assert.deepEqual(checkWatchedPaths({ git: f.git, base: f.base, cut: f.cut }), { ok: true, allowed: [] }, path);
   }
 });
 
@@ -120,12 +120,14 @@ test('gate 2 stops an unlisted path, and a listed blob does not cover a differen
   assert.equal(r.ok, false); assert.deepEqual(r.files, ['.github/workflows/y.yml']);
 });
 
-test('gate 2 never allows a deleted watched file (it has no blob)', () => {
-  const f = fixture('.github/workflows/x.yml');
-  f.git(['rm', '-q', '.github/workflows/x.yml']); f.git(['commit', '-q', '-m', 'delete it']);
+test('gate 2 never allows a deleted watched file (it has no blob), even one that is on the list', () => {
+  const f = fixture();
+  const present = f.commit('.github/workflows/z.yml', 'present in the base');
+  f.git(['rm', '-q', '.github/workflows/z.yml']); f.git(['commit', '-q', '-m', 'delete it']);
   const cut = f.git(['rev-parse', 'HEAD']).stdout.trim();
-  const gates = { watchedPaths: ['.github/workflows'], watchedAllow: [{ path: '.github/workflows/x.yml', blob: blobAt(f, f.bad, '.github/workflows/x.yml'), pr: 1, note: 'reviewed' }] };
-  assert.equal(checkWatchedPaths({ git: f.git, base: f.base, cut, gates }).ok, false);
+  const gates = { watchedPaths: ['.github/workflows'], watchedAllow: [{ path: '.github/workflows/z.yml', blob: blobAt(f, present, '.github/workflows/z.yml'), pr: 1, note: 'reviewed' }] };
+  const r = checkWatchedPaths({ git: f.git, base: present, cut, gates });
+  assert.equal(r.ok, false); assert.deepEqual(r.files, ['.github/workflows/z.yml']);
 });
 
 test('the real data file starts with an empty reviewed list', () => {
