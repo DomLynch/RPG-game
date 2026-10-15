@@ -208,7 +208,7 @@ test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized
   assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
   const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<\/button>/)!;
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
-  assert.match(css, /#thrust-button,\n#skill-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row');
+  assert.match(css, /#thrust-button,\n#skill-button,\n#skill2-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row (SPELL 2 joins the list)');
   assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
 });
 
