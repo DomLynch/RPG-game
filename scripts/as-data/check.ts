@@ -4,6 +4,7 @@
 // (b) UNIONS: a closed TypeScript union of content ids.
 // (c) MAPS: an object-literal pair keyed by a content id whose value is a string or an array of strings (a label, colour, blurb or part list kept in code); one site per pair,
 //     held to a ratchet like rule (e) (map-baseline.json, per file and id key).
+// (f) NUMERIC: a number in a comparison, a multiply or a divide (numeric.yml), ratcheted (numeric-baseline.json) over the rules/sim/server scope of numeric-scope.json; the rest is counted, report-only.
 // Runs ast-grep through npx at a pinned version (no global install); the rule files beside this script are templates the runner fills with today's id lists.
 // Excluded: src/fight/catalogue-data.ts (the data itself) and src/assets. A site is listed as file:line [kind/category] text.
 import { spawnSync } from 'node:child_process';
@@ -47,6 +48,19 @@ const unionOf = (file: string, type: string) => { const m = new RegExp(`export t
 const rowIds = (file: string, key: string) => { try { return ((JSON.parse(read(file)) as Record<string, { id: string }[]>)[key] ?? []).map((r) => r.id); } catch { return []; } };
 // A measuring stick must never read a broken tree as progress: a failed import or an empty id list stops the run (exit 2) and names what is missing.
 function fail(message: string): never { console.error(`as-data: ${message}`); process.exit(2); }
+// Rule (f)'s scope: the sim's import closure (relative imports followed from simRoots, read in the tree under check), whole folders by prefix, minus the format files named with a reason.
+type NumericScope = { simRoots: string[]; prefixes: string[]; format: { file: string; reason: string }[] };
+const numericScope = JSON.parse(readFileSync(arg('--numeric-scope') ?? join(HERE, 'numeric-scope.json'), 'utf8')) as NumericScope;
+for (const f of numericScope.format) if (!f.reason?.trim() || f.reason.trim().length < 12) fail(`numeric-scope.json format entry ${f.file} needs a real reason (12+ characters)`);
+const simClosure = new Set<string>();
+for (const todo = [...numericScope.simRoots]; todo.length; ) {
+  const f = todo.pop()!;
+  if (simClosure.has(f) || !existsSync(join(REPO, f))) continue;
+  simClosure.add(f);
+  for (const m of read(f).matchAll(/(?:import|export)[^;]*?from\s+['"](\.[^'"]+\.ts)['"]/g)) todo.push(relative(REPO, resolve(REPO, dirname(f), m[1]!)));
+}
+const formatOf = (f: string) => numericScope.format.find((x) => x.file === f);
+const inNumericScope = (f: string) => !formatOf(f) && (simClosure.has(f) || numericScope.prefixes.some((p) => f.startsWith(p)));
 async function ids(): Promise<Record<Category, string[]>> {
   const imp = async (f: string) => { try { return (await import(pathToFileURL(join(REPO, f)).href)) as Record<string, any>; } catch (e) { fail(`cannot import ${f}: ${(e as Error).message.split('\n')[0]}`); } };
   const roster = await imp('src/roster.ts'), fin = await imp('src/fight/finishers.ts');
@@ -114,12 +128,15 @@ try {
   const bySite = (a: Site, b: Site) => a.file.localeCompare(b.file) || a.line - b.line;
   const clamps = run('clamp.yml').map((m) => ({ file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, '') })).sort(bySite);
   const { fresh: newClamps, lowered } = ratchet('clamp', clamps, (c) => c.text);
+  const numerics = run('numeric.yml').map((m) => ({ file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, '') })).sort(bySite);
+  const scopedNumerics = numerics.filter((n) => inNumericScope(n.file));
+  const { fresh: newNumerics, lowered: loweredNumerics } = ratchet('numeric', scopedNumerics, (n) => n.text);
   const maps = sites.filter((s) => s.kind === 'map');
   const mapKey = (s: Site) => /^['"]?([\w-]+)/.exec(s.text)![1]!;
   const { fresh: newMaps, lowered: loweredMaps } = ratchet('map', maps, mapKey);
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
-  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map'), newMaps: newMaps.length, clamps: clamps.length, newClamps: newClamps.length };
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered, newMapSites: newMaps, loweredMaps }));
+  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map'), newMaps: newMaps.length, clamps: clamps.length, newClamps: newClamps.length, numerics: scopedNumerics.length, newNumerics: newNumerics.length, numericsOutOfScope: numerics.length - scopedNumerics.length };
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered, newMapSites: newMaps, loweredMaps, numericSites: scopedNumerics, newNumericSites: newNumerics, loweredNumerics, numericFormat: numericScope.format }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}${s.kind === 'map' && newMaps.includes(s) ? '  NEW: this text belongs in the id\'s data row' : ''}`);
     for (const s of allowedTunables) console.log(`allowed-tunable ${s.file}:${s.line} ${s.text}  (${s.reason})`);
@@ -132,9 +149,11 @@ try {
     for (const a of stale) console.log(`STALE allow entry ${a.file} ${a.literal}: no such site any more, delete it (${a.reason})`);
     for (const c of newClamps) console.log(`NEW inline clamp ${c.file}:${c.line} ${c.text}: a number in Math.max/min is a tuning in code; make it a row (or a named exempt) instead`);
     for (const l of lowered) console.log(`STALE clamp baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-clamp-baseline)`);
+    for (const n of newNumerics) console.log(`NEW inline number ${n.file}:${n.line} ${n.text}: a number in a comparison or a multiply in rules/sim/server code is a tuning; make it a row (or a named exempt) instead`);
+    for (const l of loweredNumerics) console.log(`STALE numeric baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-numeric-baseline)`);
     for (const l of loweredMaps) console.log(`STALE map baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-map-baseline)`);
-    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps} (new ${summary.newMaps}; the rest are the known backlog in map-baseline.json), inline clamps ${summary.clamps} (new ${summary.newClamps}; the rest are the known backlog in clamp-baseline.json)`);
+    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps} (new ${summary.newMaps}; the rest are the known backlog in map-baseline.json), inline clamps ${summary.clamps} (new ${summary.newClamps}; the rest are the known backlog in clamp-baseline.json), inline numbers ${summary.numerics} in rules/sim/server (new ${summary.newNumerics}; backlog in numeric-baseline.json) + ${summary.numericsOutOfScope} elsewhere (report-only)`);
   }
-  if (stale.length || staleVerbs.length || staleTunables.length || lowered.length || loweredMaps.length) process.exitCode = 3;   // a rotted allow-list or a clamp baseline above the tree is a list-integrity failure, not a count
-  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length || newMaps.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable, label map or inline clamp literal in code, or a debt past its sunset, is red
+  if (stale.length || staleVerbs.length || staleTunables.length || lowered.length || loweredMaps.length || loweredNumerics.length) process.exitCode = 3;   // a rotted allow-list or a clamp baseline above the tree is a list-integrity failure, not a count
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length || newMaps.length || newNumerics.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable, label map or inline clamp literal in code, or a debt past its sunset, is red
 } finally { rmSync(dir, { recursive: true, force: true }); }

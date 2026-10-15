@@ -1,0 +1,10 @@
+{
+ "_doc": "Rule (f)'s scope (Lead 2026-10-15): the files a number in a comparison or a multiply is held to the numeric-baseline.json ratchet in. simRoots: the sim's entry files; check.ts follows their relative imports, so a file the sim starts to import joins the scope by itself. prefixes: whole folders in scope. format: files whose numbers are a wire or file format (byte markers, varints, version gates), exempt by name with the reason. Everything else is counted, report-only.",
+ "simRoots": ["src/fight/sim.ts", "src/fight/replay.ts", "src/fight/world-combat.ts", "src/fight/world-record.ts", "src/fight/record.ts", "src/fight/open-fight.ts"],
+ "prefixes": ["src/core/", "origins/server/", "src/net/"],
+ "format": [
+  { "file": "src/fight/record.ts", "reason": "the duel record's byte format: version gates, quantisation (q8 at 127), header and group lengths; the group size bound 2-7 at the RecordGroup check is a validation limit, flagged to Combat to move to a row" },
+  { "file": "src/fight/world-record.ts", "reason": "the world record's byte format: varint packing (128), byte and u32 ranges, the step flag bits, the header length cap" },
+  { "file": "src/record-header.ts", "reason": "the record header's magic bytes (0x46 0x4b) and the version gates that step its byte offsets" }
+ ]
+}

@@ -1,0 +1,20 @@
+# as-data check (f): a number written straight into a comparison, a multiply or a divide (Lead 2026-10-15, after #2787's `if (r > 11.5) { x *= 11.5 / r }`): rule (e) only sees a bare
+# Math.max / Math.min argument, so a cap or a scale written as `x > 11.5`, `v * 0.85` or `t /= 60` was invisible. check.ts holds it to a RATCHET (numeric-baseline.json, per file and
+# literal) over the rules/sim/server scope in numeric-scope.json; the sites outside that scope (presentation: effects, arena dressing, camera) are counted, report-only.
+# 0 and 1 are not listed (an identity, not a tuning), as in rule (e). A number in a + or - is not this rule's.
+id: as-data-numeric
+language: typescript
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
+rule:
+  any:
+    - { kind: number, not: { regex: "^[01]$" } }
+    - { kind: unary_expression, regex: "^-\\s*[0-9]" }
+  not: { inside: { kind: unary_expression, stopBy: neighbor } }
+  inside:
+    stopBy: neighbor
+    any:
+      - { kind: binary_expression, has: { field: operator, regex: "^(<|>|<=|>=|\\*|/)$" } }
+      - { kind: augmented_assignment_expression, has: { field: operator, regex: "^(\\*=|/=)$" } }

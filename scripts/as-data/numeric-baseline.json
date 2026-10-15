@@ -1,0 +1,340 @@
+{
+ "origins/server/consume.ts": {
+  "120": 1
+ },
+ "origins/server/encounter-fixtures.ts": {
+  "2": 1,
+  "60": 1,
+  "1500": 1,
+  "0.5": 1,
+  "0.1": 1
+ },
+ "origins/server/encounter-pose.ts": {
+  "2": 8,
+  "4": 2,
+  "1e3": 2,
+  "1e-6": 1
+ },
+ "origins/server/encounter-verify.ts": {
+  "15": 1,
+  "60": 1
+ },
+ "origins/server/encounter.ts": {
+  "3": 1,
+  "4": 1,
+  "8": 1,
+  "1e9": 1,
+  "60_000": 1
+ },
+ "origins/server/gear-import.ts": {
+  "40": 1,
+  "80": 1
+ },
+ "origins/server/gear-repair.ts": {
+  "80": 1,
+  "120": 1
+ },
+ "origins/server/gear-wear.ts": {
+  "80": 1
+ },
+ "origins/server/gear.ts": {
+  "80": 2
+ },
+ "origins/server/handlers.ts": {
+  "32": 1
+ },
+ "origins/server/mob-rewards.ts": {
+  "1000": 4
+ },
+ "origins/server/practice.ts": {
+  "1000": 1
+ },
+ "origins/server/server.ts": {
+  "64": 1,
+  "1024": 1
+ },
+ "origins/server/shop-buy.ts": {
+  "80": 1,
+  "1000": 1
+ },
+ "origins/server/spell-check.ts": {
+  "100": 1
+ },
+ "origins/server/story.ts": {
+  "1000": 1
+ },
+ "origins/server/upgrade.ts": {
+  "120": 1
+ },
+ "origins/server/world-spawns.ts": {
+  "60": 1,
+  "100": 1,
+  "1000": 3,
+  "10_000": 1
+ },
+ "origins/server/world-verify.ts": {
+  "60": 1,
+  "100": 2
+ },
+ "src/arena-themes.ts": {
+  "2": 1
+ },
+ "src/core/build-screen.ts": {
+  "10": 1,
+  "100": 1
+ },
+ "src/core/career-client.ts": {
+  "64": 1
+ },
+ "src/core/career-ladder.ts": {
+  "2": 1,
+  "3": 1
+ },
+ "src/core/career-model.ts": {
+  "2": 2,
+  "3": 1,
+  "200": 1,
+  "1000": 8,
+  "-2": 1,
+  "-4": 1,
+  "1e6": 1
+ },
+ "src/core/contracts/core.ts": {
+  "32": 1
+ },
+ "src/core/contracts/economy.ts": {
+  "7": 1,
+  "14": 1,
+  "24": 1,
+  "30": 1,
+  "72": 1,
+  "1000": 1
+ },
+ "src/core/contracts/world.ts": {
+  "60": 3
+ },
+ "src/core/gear-room.ts": {
+  "2": 6
+ },
+ "src/core/gear-sheet.ts": {
+  "5": 1,
+  "11": 1,
+  "13": 1
+ },
+ "src/core/grimoire-net.ts": {
+  "64": 1
+ },
+ "src/core/live-ops.ts": {
+  "5": 1,
+  "7": 1,
+  "24": 1,
+  "60": 1,
+  "60_000": 3
+ },
+ "src/core/loot-claims.ts": {
+  "1000": 1
+ },
+ "src/core/loot.ts": {
+  "5": 1,
+  "1000": 1
+ },
+ "src/core/profile.ts": {
+  "32": 1,
+  "64": 1
+ },
+ "src/core/rename.ts": {
+  "2": 1
+ },
+ "src/core/world-sim.ts": {
+  "2": 3,
+  "4294967296": 1,
+  "0.6": 1
+ },
+ "src/core/world/kit-version.ts": {
+  "4294967296": 1
+ },
+ "src/core/world/row.ts": {
+  "3": 1,
+  "1928": 1,
+  "1955": 1
+ },
+ "src/core/writer-call.ts": {
+  "1000": 1
+ },
+ "src/fight/ai.ts": {
+  "2": 2,
+  "3": 2,
+  "4": 1,
+  "8": 2,
+  "45": 2,
+  "60": 3,
+  "100": 2,
+  ".5": 8,
+  "4294967296": 1,
+  ".75": 2,
+  ".7": 1,
+  "1.7": 1,
+  "1.4": 1,
+  ".33": 1,
+  "2.5": 1,
+  "1.9": 2,
+  "1.2": 1,
+  ".6": 1,
+  ".25": 2
+ },
+ "src/fight/armfeel.ts": {
+  "0.001": 1
+ },
+ "src/fight/blade.ts": {
+  ".7": 2,
+  ".44": 1,
+  ".56": 1,
+  "1e-12": 6,
+  ".02": 1,
+  ".55": 2,
+  "1.45": 3,
+  ".31": 1,
+  ".85": 1,
+  "1.3": 1
+ },
+ "src/fight/blood-style.ts": {
+  "2": 1,
+  "0.7": 1,
+  "0.65": 2,
+  "0.9": 2,
+  "1.2": 2,
+  "4294967296": 1,
+  "0.6": 2
+ },
+ "src/fight/catalogue.ts": {
+  "2": 1,
+  "4": 3,
+  "10": 2,
+  "1e-9": 1
+ },
+ "src/fight/cc-ladder.ts": {
+  "5": 1,
+  "10": 1,
+  "100": 3,
+  "10000": 1
+ },
+ "src/fight/combat.ts": {
+  "18": 1,
+  "40": 1,
+  "100": 1,
+  "120": 1,
+  ".7": 1
+ },
+ "src/fight/cone-rules.ts": {
+  "2": 1,
+  "180": 1,
+  "360": 1
+ },
+ "src/fight/detmath.ts": {
+  "2": 2,
+  "3": 1,
+  "4": 1,
+  "0.5": 2,
+  "0.785398163397448279": 1,
+  "7.450580596923828e-9": 2,
+  "7.378697629483821e19": 1,
+  "0.4375": 1,
+  "1.1875": 1,
+  "0.6875": 1,
+  "2.4375": 1,
+  "1.5": 1,
+  "-1": 1,
+  "-3": 1
+ },
+ "src/fight/duel.ts": {
+  "2": 6,
+  "3": 1,
+  "1000": 4,
+  ".85": 1,
+  ".1": 1,
+  "1e-8": 2
+ },
+ "src/fight/fatigue.ts": {
+  ".5": 4,
+  ".3": 1
+ },
+ "src/fight/finishers.ts": {
+  "31": 1
+ },
+ "src/fight/gambit.ts": {
+  "2": 1
+ },
+ "src/fight/hit-stop-rows.ts": {
+  "60": 1,
+  "1000": 1
+ },
+ "src/fight/moves.ts": {
+  "500": 1,
+  "1000": 3,
+  ".25": 1
+ },
+ "src/fight/open-fight.ts": {
+  "60": 1,
+  "1000": 5
+ },
+ "src/fight/pack.ts": {
+  "2": 1,
+  "1e-6": 2
+ },
+ "src/fight/roll.ts": {
+  "2": 1,
+  "100": 1,
+  "4294967296": 1
+ },
+ "src/fight/sheet-rows.ts": {
+  "100": 2
+ },
+ "src/fight/sim.ts": {
+  "4": 1,
+  "60": 1,
+  "0.85": 3,
+  "0.00001": 1
+ },
+ "src/fight/spell-cast.ts": {
+  "2": 2,
+  "10": 7
+ },
+ "src/fight/stance.ts": {
+  "2": 1,
+  "1000": 2,
+  "-1000": 1,
+  "0.5": 1
+ },
+ "src/fight/world-combat.ts": {
+  "1000": 3,
+  "1.6": 1
+ },
+ "src/fight/world.ts": {
+  "2": 1,
+  "60": 3,
+  "4294967296": 1,
+  "1e-6": 2
+ },
+ "src/net/duel-antifarm.ts": {
+  "100": 2,
+  "400": 1
+ },
+ "src/net/fixture.ts": {
+  "2": 2
+ },
+ "src/net/lobby.ts": {
+  "32": 2
+ },
+ "src/net/pvp.ts": {
+  "60": 1,
+  "1000": 1
+ },
+ "src/net/rollback.ts": {
+  "2": 1,
+  "8": 1,
+  "60": 2,
+  "120": 1,
+  "1000": 2,
+  "3600": 1
+ }
+}
