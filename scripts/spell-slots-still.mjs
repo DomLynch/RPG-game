@@ -2,7 +2,7 @@
 //   ZONE (open world): the built origins preview (?region=1&worldfight) signed in to a stub writer whose book holds two spells, slot a and slot b picked in localStorage (the key the grimoire's Equip A / Equip B writes);
 //   the page reads the book, and SPELL 2 appears by itself. PIT: the built Pit page with the SAME picks and book, which must NOT show SPELL 2 (the ladder never fills slot b).
 // 375x812 and 320x568 each. Each frame comes with a receipt of the visible action boxes (no two overlap, all inside the viewport, each >= 44 px) and the page text is checked for a fallback toast.
-//   node scripts/spell-slots-still.mjs --dist dist [--out artifacts/spell-slots] [--dpr 2]      (the origins preview is built here when artifacts/origins-preview is missing)
+//   node scripts/spell-slots-still.mjs --dist dist [--out artifacts/spell-slots] [--dpr 2]      (the origins preview is always rebuilt here and checked for this tree's code)
 /* global process, console, document, localStorage */
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -16,7 +16,9 @@ const VIEWPORTS = [{ w: 375, h: 812 }, { w: 320, h: 568 }], TOKEN = 'stub-access
 const BOOK = { alvis: { root: 'longShadow', modifiers: [], suffix: null }, andvari: { root: 'crack', modifiers: [], suffix: null } };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.woff2': 'font/woff2' };
 
-if (!(await fs.stat(path.join(PREVIEW, 'index.html')).catch(() => null))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 900_000 });
+execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs', '--emptyOutDir'], { stdio: 'inherit', timeout: 900_000 });   // always fresh: a stale artifacts/origins-preview once made the fix look broken
+const bundle = (await fs.readdir(path.join(PREVIEW, 'assets'))).filter((f) => f.endsWith('.js'));
+if (!(await Promise.all(bundle.map(async (f) => (await fs.readFile(path.join(PREVIEW, 'assets', f), 'utf8')).includes('setWorldSlotB')))).some(Boolean)) throw new Error('the origins preview build does not contain setWorldSlotB: it is not this tree');
 const roots = { '/preview/origins/': `${PREVIEW}/` };
 for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${ROOT}/public/${d}/`;
 const site = http.createServer(async (req, res) => {   // the preview under /preview/origins/, the Pit build at the root (SPA fallback)
