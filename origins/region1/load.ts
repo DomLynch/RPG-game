@@ -4,7 +4,7 @@
 // path, never a throw. Nothing in src/ imports this module.
 import hazards from './hazards.json' with { type: 'json' };
 import { LOOT_ITEM_IDS } from '../../src/core/server.ts';
-import { GROUND_ITEMS, STARTER_ITEMS } from '../world/ground-items.ts';
+import { GROUND_ITEMS, STARTER_ITEMS, type GroundItems, type StarterItems } from '../world/ground-items.ts';
 import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoolean, readEnum, readInt, readObject, readString, readText, type Obj, type Result } from '../../src/core/server.ts';
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../../src/core/server.ts';
 import { loadContent, type ContractRegistry } from '../../src/core/server.ts';
@@ -84,7 +84,7 @@ export type Region1 = {
 export type Local = typeof LOCAL;
 
 // Load and cross-check Region 1. Defaults are the shipped data; tests pass broken copies.
-export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BUNDLE, local: Local = LOCAL): Result<Region1> {
+export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BUNDLE, local: Local = LOCAL, ground: { items: GroundItems; starters: StarterItems } = { items: GROUND_ITEMS, starters: STARTER_ITEMS }): Result<Region1> {
   const issues = new Issues();
   // 1. World data: every zone of both regions resolves, every connection is answered.
   const zones = new Map<RegionId, ReadonlyMap<string, Params>>();
@@ -129,7 +129,17 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
 
   // 5. No weapon drops in Region 1 (ruled, amended by Lead 2026-10-15 for starter ground items): no item a table can award, and no item defined here, is a weapon. The one exception is the legacy loot catalogue (the generated `item:loot.<LootId>` ids, src/core/items/loot-catalogue.ts LOOT_ITEM_IDS: an id that merely starts with the prefix is NOT exempt): the engine's ledger owns weapon pieces, so the server must be able to hold them; no table can award one (the next loop).
   // The amendment, in its narrowest form: an item may be DEFINED as a weapon only if a ground-item row names it AND it is a starter item (origins/world/ground-items.json: a groundItem's item must be a starterItem row). It is never allowed in a loot table: no weapon ever drops from killing anything in Region 1.
-  const groundWeapons = new Set(Object.values(GROUND_ITEMS).map((g) => g.item).filter((id) => id in STARTER_ITEMS));
+  const groundWeapons = new Set(Object.values(ground.items).map((g) => g.item).filter((id) => id in ground.starters));
+  // A starter item (the rows a ground item may name) must be defined here, common, bound on acquire, and NOT a legacy loot id: the weapon exemption above must never reach the engine's own loot pieces (Lead 2026-10-15).
+  for (const id of Object.keys(ground.starters)) {
+    const def = registry.items.get(id as ItemId);
+    if (!def) issues.add('unknown-id', `starterItem.${id}`, `${id} is not an item defined in Region 1`);
+    else {
+      if (LOOT_ITEM_IDS.has(id)) issues.add('content-rule', `starterItem.${id}`, `${id} is a legacy loot id: a starter item may not be one`);
+      if (def.rarity !== 'common') issues.add('content-rule', `starterItem.${id}.rarity`, `a starter item is common, not ${def.rarity}`);
+      if (def.binding !== 'on-acquire') issues.add('content-rule', `starterItem.${id}.binding`, `a starter item binds on-acquire, not ${def.binding}`);
+    }
+  }
   const weapon = (item: ItemId) => (WEAPON_SLOTS as readonly string[]).includes(registry.items.get(item)?.slot ?? '');
   for (const def of registry.items.values()) if (weapon(def.id) && !LOOT_ITEM_IDS.has(def.id) && !groundWeapons.has(def.id)) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1 (a starter ground item is the one exemption)`);
   for (const t of registry.lootTables.values()) t.rolls.forEach((roll, i) => roll.entries.forEach((e, j) => {

@@ -156,3 +156,21 @@ test('the starter ground weapon is the one exemption (Lead 2026-10-15): it is de
   // a weapon that no ground row names stays refused: the exemption is by row, not by slot
   refused(withBundle((b) => { b.push({ ...clone(rec(b, 'item:starter.rusty-sword')), id: 'item:starter.other-sword' }); }), 'content-rule', 'item:starter.other-sword.slot');
 });
+
+test('a starter item must be defined, common, bound on-acquire and NOT a legacy loot id: a starterItem row for item:loot.knight.Maul (a loot weapon) is refused, and so are an undefined, a fine and an unbound one', () => {
+  const grounds = (starters: Record<string, { maxQty: number }>) => ({ items: GROUND_ITEMS, starters });
+  const base = { 'item:starter.rusty-sword': { maxQty: 1 } };
+  assert.ok(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds(base)).ok, 'the shipped starter item passes');
+  assert.ok(LOOT_ITEM_IDS.has('item:loot.knight.Maul'), 'the case is a real loot weapon');
+  refused(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds({ ...base, 'item:loot.knight.Maul': { maxQty: 1 } })), 'content-rule', 'starterItem.item:loot.knight.Maul');
+  refused(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds({ ...base, 'item:starter.nope': { maxQty: 1 } })), 'unknown-id', 'starterItem.item:starter.nope');
+  const edited = (edit: (r: Record<string, any>) => void) => { const b = clone(BUNDLE); edit(rec(b, 'item:starter.rusty-sword')); return loadRegion1(REGION1_WORLD, b, LOCAL, grounds(base)); };   // eslint-disable-line @typescript-eslint/no-explicit-any
+  refused(edited((r) => { r.rarity = 'fine'; }), 'content-rule', 'starterItem.item:starter.rusty-sword.rarity');
+  refused(edited((r) => { r.binding = 'none'; }), 'content-rule', 'starterItem.item:starter.rusty-sword.binding');
+});
+
+test('ground-items.json stays OFF the data-only path until the starter check is in force and reviewed: a data-only PR cannot place a ground item without the Auditor', async () => {
+  const { onDataPath } = await import('../../scripts/lib/data-only.mjs');
+  assert.equal(onDataPath('origins/world/ground-items.json'), false);
+  assert.equal(onDataPath('origins/world/ground-items.manifest.json'), false);
+});

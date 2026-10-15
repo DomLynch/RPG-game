@@ -20,7 +20,6 @@ export const DATA_PATHS = [
   /^origins\/world\/clock(\.manifest)?\.json$/,   // time of day as rows: day parts, the lawful/chaotic clock bonus, night spawns, seeded weather picks (World 2026-10-13); origins/world/clock.test.ts checks it
   /^origins\/npcs\/cloth(\.manifest)?\.json$/,   // the townspeople's worn pieces and slots as rows (a piece is one row plus a glb node)
   /^origins\/boss\/legend-spawns(\.manifest)?\.json$/,   // where a legend boss stands: one row per placement (legend, zone, landmark); origins/boss/legend-boss.test.ts checks it
-  /^origins\/world\/ground-items(\.manifest)?\.json$/,   // ground items as rows (Backend 2026-10-15, brief #2775): where a starter item stands, once per account per respawn window; origins/world/ground-items.test.ts checks it
   /^origins\/world\/instances(\.manifest)?\.json$/,   // private instance kinds as rows (World 2026-10-13): slots, stride, grace/max seconds, headcount spawn; origins/world/instances.test.ts checks it
   /^origins\/world\/variants(\.manifest)?\.json$/,   // creature variants as rows (World 2026-10-13): weight, health/damage/scale multipliers, tint, glyph, drop prefix, eligible creatures; origins/world/variants.test.ts checks it
   /^origins\/region1\/towns\.(manifest\.)?json$/,   // the towns as rows: a definitions table (trades, temperaments, ruler titles) and the town rows; loadRegion1 + tests/town-rows.test.ts check it
