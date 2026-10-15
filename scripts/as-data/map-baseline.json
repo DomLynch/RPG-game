@@ -1,0 +1,55 @@
+{
+ "src/core/loot.ts": {
+  "veteran": 1,
+  "executioner": 2,
+  "nightborn": 1,
+  "pitborn": 1,
+  "dwarf": 2,
+  "goblin": 1,
+  "knight": 2,
+  "shieldmaiden": 1,
+  "plaguedoctor": 1,
+  "witch": 1
+ },
+ "src/fight/characters.ts": {
+  "dwarf": 1,
+  "executioner": 1,
+  "goblin": 1,
+  "knight": 1,
+  "nightborn": 1,
+  "pitborn": 1,
+  "shieldmaiden": 1,
+  "veteran": 1
+ },
+ "src/fight/class-special-identity.ts": {
+  "witch": 1,
+  "plaguedoctor": 1,
+  "knight": 1,
+  "nightborn": 1,
+  "veteran": 1,
+  "goblin": 1,
+  "executioner": 1,
+  "pitborn": 1,
+  "dwarf": 1,
+  "shieldmaiden": 1
+ },
+ "src/fight/power-words.ts": {
+  "witch": 1,
+  "plaguedoctor": 1
+ },
+ "src/fight/special-fx-pitborn.ts": {
+  "ashfall": 1
+ },
+ "src/fight/weapon-shapes.ts": {
+  "maul": 1,
+  "longsword": 1,
+  "gladius": 1,
+  "knife": 1,
+  "estoc": 1,
+  "cleaver": 1,
+  "scythe": 1,
+  "trident": 1,
+  "warhammer": 1,
+  "reaper": 1
+ }
+}
