@@ -37,6 +37,7 @@ const measure = (page) => page.evaluate(() => {
 const expectClear = async (page, step, text, tapTarget) => {
   for (const w of WIDTHS) {
     await settled(page, w);
+    if (!tapTarget) await page.evaluate((t) => window.originsPreview.ground.say(t), text);   // a line holds the slot for lineSec only and a loaded box can spend that on the resize: put the same line in the same slot again at this width, then measure at once
     const m = await measure(page); receipt.steps.push({ step, width: w, ...m });
     if (!m.shown) failures.push(`${step} @${w}: the prompt is not shown`);
     else {
