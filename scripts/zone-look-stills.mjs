@@ -1,4 +1,4 @@
-// Zone look stills (zone sandbox, look-test route): the built origins page at 375 x 812 for each shot `name=query` given as arguments, two stills per shot: `<name>-camp.png`
+// Zone look stills (zone sandbox, look-test route): the built origins page at 375 x 812 (812 x 375 for a name ending -land) for each shot `name=query` given as arguments, two stills per shot: `<name>-camp.png`
 // (the hero a few metres off the zone's camp, idle, looking at it; the spawn view when the page has no camp) and `<name>-fight.png` (the nearest creature engaged, mid-fight; skipped
 // when the zone has no creatures). Server and page setup are the zone smoke's (scripts/origins-zone1-smoke.mjs). Writes artifacts/zone-stills/ and a receipt.json beside them.
 // Usage (draws, so on the T4: node scripts/gpu-run.mjs <sha> -- node scripts/zone-look-stills.mjs off=?region=1 dusk='?region=1&look=goblin&goblin=dusk' test='?zone=99&region=1')
@@ -27,7 +27,7 @@ const shots = process.argv.slice(2).map((a) => { const i = a.indexOf('='); retur
 try {
   for (const [name, query] of shots) {
     const r = { name, query, errors: [], stills: [] }; receipts.push(r);
-    const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+    const land = name.endsWith('-land'), page = await (await browser.newContext({ viewport: land ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();   // a name ending -land: the phone turned (landscape backdrop rows)
     page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     try {
       await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
