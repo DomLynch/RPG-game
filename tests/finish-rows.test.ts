@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MeshStandardMaterial } from 'three';
 import { finishRow } from '../src/core/finish-rows.ts';
-import { finishedAs } from '../src/fight/rank-tint.ts';
+import { finishedAs, finishedBy, tinted } from '../src/fight/rank-tint.ts';
 
 test('rust is brown-orange with low sheen', () => {
   const rust = finishRow('rust');
@@ -23,4 +23,13 @@ test('finishedAs rusts metal and trim only, shared per (source, id), and leaves 
   assert.equal(finishedAs(steel, 'rust'), a, 'one clone per source and row');
   assert.ok(a.metalness < steel.metalness && a.roughness > steel.roughness, 'duller than the steel it came from');
   assert.equal(finishedAs(grip, 'rust'), grip, 'leather keeps its own look');
+});
+
+test('a finish id equal to a rung title still gets the finish material, never the rung one', () => {
+  const steel = new MeshStandardMaterial({ name: 'Steel', metalness: 0.9, roughness: 0.3 });
+  const rung = tinted(steel, 'Recruit');
+  const finish = finishedBy(steel, 'Recruit', () => ({ color: '#00ff00', metalness: 0.1, roughness: 0.95 }));
+  assert.notEqual(finish, rung, 'the rung clone is not the finish clone');
+  assert.equal(finish.userData.rankTier, 'finish:Recruit');
+  assert.equal(tinted(steel, 'Recruit'), rung, 'the rung keeps its own cache entry');
 });
