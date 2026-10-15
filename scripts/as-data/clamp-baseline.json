@@ -60,11 +60,6 @@
  "src/fight/boss-telegraph.ts": {
   "0.02": 1
  },
- "src/fight/camera.ts": {
-  "4.2": 1,
-  "3.2": 1,
-  "0.8": 1
- },
  "src/fight/cc-ladder.ts": {
   "10": 1
  },
