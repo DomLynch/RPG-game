@@ -111,7 +111,7 @@ test('sweep_safe_path: a symlink in /tmp that points out of /tmp is refused, wit
 test('the only roots in the file are the ones sweep_kind lists (a new root has to be added there, with a test)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
-  const named = src.slice(src.indexOf('if [ -n "$PATHS" ]; then'), src.indexOf('# work/: lane scratch'));
+  const named = src.slice(src.indexOf('if [ "${#PATHS[@]}" -gt 0 ]; then'), src.indexOf('# work/: lane scratch'));
   assert.ok(!/\/opt\/frankendom-shadow\/work\/\*\|/.test(named) && /sweep_kind "\$p"/.test(named), 'the named-path loop decides through sweep_kind, not a second inline list');
 });
 
@@ -259,7 +259,7 @@ test('the guard sits before the log, the lock and the disk, and the scheduled fo
   const guard = src.indexOf('the bare mode is the scheduled sweep only');
   assert.ok(guard > 0 && guard < src.indexOf('LOGDIR='), 'refusal happens before LOGDIR is created');
   assert.ok(guard < src.indexOf('flock -n 9'), 'and before the lock');
-  assert.match(src, /\[ -z "\$PATHS" \] && \{ \[ "\$APPLY" != 1 \] \|\| \[ "\$\{SWEEP_SCHEDULED:-\}" != 1 \]; \}/, 'bare = no --path; allowed only with --apply AND SWEEP_SCHEDULED=1');
+  assert.match(src, /\[ "\$\{#PATHS\[@\]\}" = 0 \] && \{ \[ "\$APPLY" != 1 \] \|\| \[ "\$\{SWEEP_SCHEDULED:-\}" != 1 \]; \}/, 'bare = no --path; allowed only with --apply AND SWEEP_SCHEDULED=1');
 });
 
 // The Auditor's HOLD on #2626: the live unit ran `--apply` WITHOUT SWEEP_SCHEDULED=1, so installing the guard alone would have made every 6-hourly run exit 2. The unit ships in the repo now.
