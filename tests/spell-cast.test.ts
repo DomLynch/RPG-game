@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stepDuel, withSpecials, withSpell, type CombatEvent, type Duel } from '../src/fight/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
-import { BRICKS, COST_CAP, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
+import { BRICKS, CAST, COST_CAP, spellUsesCap, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
 import { indexOf } from '../scripts/spell-index.mjs';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { packRecord, unpackRecord } from '../src/fight/record.ts';
@@ -104,4 +104,31 @@ test('a spell fight is recorded at v53, packed, and replays to the very same sta
   const forged = verifyRecord({ ...record, spell: { id: ID, skill: 0 } });
   assert.ok(!forged.ok || hashDuel(forged.practice.duel) !== hashDuel(p.duel) || castOutcome(resolveSpell(ID, 0)!, 0.5) === castOutcome(resolveSpell(ID, 80)!, 0.5));
   assert.ok(!verifyRecord({ ...record, specials: undefined }).ok, 'a spell without Special Moves is refused');
+});
+
+test('the cost cap is era-gated: a record below costCapFrom resolves dagan and cronus (harvest L8) at their old 103, a v64+ record or a live fight at the bar, and only those two are affected', () => {
+  const affected = SPELL_IDS.filter(spellUsesCap);
+  assert.deepEqual(affected, ['dagan', 'cronus']);
+  for (const id of affected) {
+    const old = resolveSpell(id, 50, 0, CAST.costCapFrom - 1)!, live = resolveSpell(id, 50)!, v = resolveSpell(id, 50, 0, CAST.costCapFrom)!;
+    assert.equal(old.cost, 103, `${id}: a v${CAST.costCapFrom - 1} record keeps the uncapped cost`);
+    assert.equal(live.cost, COST_CAP); assert.equal(v.cost, COST_CAP);
+    assert.notEqual(old.cost, live.cost);
+  }
+  for (const id of SPELL_IDS.filter((i) => !spellUsesCap(i))) assert.deepEqual(resolveSpell(id, 50, 0, 53), resolveSpell(id, 50), `${id}: the cap changes nothing for it, whatever the record version`);
+});
+
+test('a v63 record with a capped spell and a special press replays as it always did (the pre-cap spell, a different fight from the capped one); a fight with such a spell is stamped at the cap era', () => {
+  const id = 'dagan', spell = resolveSpell(id, 50, 0, 63)!;
+  assert.equal(spell.cost, 103, 'the v63 spell is the pre-cap spell');
+  const build = (sp: typeof spell) => {
+    let d = withSpell(withSpecials(arena(OPPONENTS.veteran), 0, 'shove'), 0, sp, SEED);
+    for (let t = 0; t < 400; t++) d = stepDuel(d, [t === 5 ? act('skill') : idle(), idle()]);
+    return hashDuel(d);
+  };
+  assert.equal(build(resolveSpell(id, 50, 0, 63)!), build({ ...spell }), 'same spell, same fight');
+  assert.ok(build(resolveSpell(id, 50, 0, 63)!) !== build(resolveSpell(id, 50)!), 'and the capped spell would have been a different fight (why the gate exists)');
+  const stamp = (spellId: string) => liveRecorder({ build: 'test', opponent: 'veteran', weapon: 'longsword', level: 1, seed: 7, specials: true, spell: { id: spellId, skill: 80 } }).finish('abandoned').v;
+  assert.ok((stamp('dagan') as number) >= CAST.costCapFrom, 'a fight with a spell the cap changes is stamped at the cap era, so its replay resolves the capped cost');
+  assert.ok((stamp(ID) as number) < CAST.costCapFrom || !spellUsesCap(ID), 'a fight with a spell the cap leaves alone keeps its own lower version');
 });
