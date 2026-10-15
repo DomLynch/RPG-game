@@ -2,7 +2,7 @@
 //
 // Two parts:
 //   1. BUNDLE: records in the contracts' own shapes (item, loot table, character, faction, region, encounter), loaded by
-//      origins/contracts/registry.ts loadContent with no new fields.
+//      src/core/contracts/registry.ts loadContent with no new fields.
 //   2. LOCAL: the kinds the contracts do not have yet, in the shapes the specs propose: `town-definition` (living-world §3.1),
 //      `bounty-definition` (region1 §3, Bounties), the encounter twist flags (region1 §7, open question 1a), the rift records
 //      (living-world §8.1) and the boss loot rules (region1 §4–§5: first win only). Each moves into the contracts when its kind,
@@ -42,6 +42,12 @@ export const ITEMS = [
   gear('item:frontier.ferryman-boots', "Ferryman's boots", 'Boots', 'fine', 'leather'),
   gear('item:frontier.mere-arms', 'Drowned vambraces', 'Arms', 'fine', 'bronze'),
   gear('item:frontier.mere-shield', "The Mere-Mother's shield", 'Shield', 'relic', 'bone'),
+  // The starter ground item (Backend brief #2775; Lead 2026-10-15): the one weapon Region 1 may define, because a ground row names it (origins/world/ground-items.json). Longsword is
+  // DEFAULT_WEAPON, so a new player already fights with its moves: wearing it changes nothing about the fight. Bound on acquire: not tradable. The rust tint is owed by Characters & Art.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.rusty-sword', name: 'Rusty sword', category: 'gear', rarity: 'common', slot: 'Longsword',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/longsword.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
     power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,

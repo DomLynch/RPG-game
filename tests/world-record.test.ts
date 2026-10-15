@@ -92,10 +92,13 @@ test('a hero who is not at rest and clean opens no window (the header cannot car
   assert.ok(!heroClean({ ...w, streams: { [ME]: { duel } } } as unknown as typeof w), 'a blade wound');
 });
 
-test('the world loop never feeds a special or a skill: the live input is {attack, guard, roll}', async () => {
+test('the world loop feeds a special only when the step carries a cast, and never a skill: the live input is {attack, guard, roll} plus the gated cast', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../src/fight/world-record.ts', import.meta.url), 'utf8');
-  assert.ok(!/special\s*:|skill\s*:/.test(src.split('export function stepHero')[1]!.split('export const joinFighter')[0]!), 'stepHero passes no special or skill');
+  const body = src.split('export function stepHero')[1]!.split('export const joinFighter')[0]!;
+  assert.ok(!/skill\s*:/.test(body), 'stepHero passes no skill');
+  assert.equal([...body.matchAll(/special\s*:/g)].length, 1, 'one special feed');
+  assert.ok(/step\.cast\s*\?\s*\{\s*special:\s*true\s*\}/.test(body), 'and it is gated on step.cast');
 });
 
 test('a hero whose CC marks have all expired is clean (the ladder is never pruned); one with a mark still counting is not', () => {
