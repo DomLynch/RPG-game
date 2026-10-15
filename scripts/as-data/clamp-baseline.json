@@ -41,9 +41,6 @@
  "origins/server/encounter-pose.ts": {
   "0.5": 1
  },
- "src/arena-themes.ts": {
-  "5": 1
- },
  "src/arena.ts": {
   "3": 1,
   "255": 1,
@@ -128,9 +125,6 @@
  "src/fight/opened.ts": {
   "119": 1
  },
- "src/fight/play-radius.ts": {
-  "0.5": 1
- },
  "src/fight/rank-tint.ts": {
   "1e-4": 2,
   "0.2": 1,
@@ -164,9 +158,6 @@
  },
  "src/fight/skill-impact.ts": {
   "0.1": 1
- },
- "src/fight/sound/cues.ts": {
-  "5": 1
  },
  "src/fight/special-fx-boss.ts": {
   "255": 3

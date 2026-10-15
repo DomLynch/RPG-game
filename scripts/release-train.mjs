@@ -13,7 +13,7 @@
 // Prints one JSON line: { action, name?, sha?, pr?, base, merged, skipped }. Never merges to trunk and never deploys.
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { TRUNK, mergeAll, passAt, pushWithRetry } from './cut-release.mjs';
+import { TRUNK, checkRangeHasPrs, checkWatchedPaths, mergeAll, passAt, pullsOfViaGh, pushWithRetry } from './cut-release.mjs';
 import { RECEIPT_WORKFLOWS, receiptState } from './lib/receipt-rule.mjs';
 
 export const GO = 'release:go';
@@ -140,6 +140,20 @@ const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', t
 const gh = args => { const r = run('gh', args); if (r.status !== 0) throw new Error(`gh ${args.slice(0, 3).join(' ')}: ${String(r.stderr).trim().slice(0, 300)}`); return r.stdout; };
 const ghJson = args => JSON.parse(gh(args) || 'null');
 
+/** The two cut gates (scripts/cut-gates.json) as the train runs them, the same functions the manual cut uses. A stop is a thrown Error carrying the reason: main prints it as
+ *  "release-train: STOP gate N: ..." in the workflow log and exits 1, so a candidate is never cut past a gate. Both fail closed (no live revision, an unreadable range, a failed
+ *  GitHub lookup). gateRange runs before any branch exists; gatePaths runs on the merged tip, before the push. */
+export function gateRange(args) {
+  const r = checkRangeHasPrs(args);
+  if (!r.ok) throw new Error(`STOP ${r.reason}; no candidate was cut`);
+  return r;
+}
+export function gatePaths(args) {
+  const r = checkWatchedPaths(args);
+  if (!r.ok) throw new Error(`STOP ${r.reason}; nothing was pushed`);
+  return r;
+}
+
 function cut({ dryRun }) {
   const git = args => run('git', args);
   git(['fetch', '-q', 'origin', '+refs/heads/*:refs/remotes/origin/*']);
@@ -166,6 +180,7 @@ function cut({ dryRun }) {
   const plan = planTrain({ prs, order, inBase });
   const base = top ? `${top.headRefName} @${baseSha.slice(0, 9)} (#${top.number})` : `${TRUNK} @${baseSha.slice(0, 9)}`;
   if (!plan.pick.length) return { action: 'idle', base, merged: [], skipped: plan.skipped };
+  gateRange({ git, pullsOf: pullsOfViaGh(run), live, base: baseSha });   // gate 1, before any branch exists (a dry run reports the stop too)
   const name = trainName();
   if (dryRun) return { action: 'dry-run', name, base, merged: plan.pick.map(p => p.pr), skipped: plan.skipped };
   if (git(['switch', '-q', '-C', `release-${name}`, baseSha]).status !== 0) throw new Error(`cannot create release-${name}`);
@@ -176,6 +191,8 @@ function cut({ dryRun }) {
   }
   if (!merged.length) return { action: 'nothing-merged', name, base, merged, skipped: [...plan.skipped, ...skipped] };
   const sha = git(['rev-parse', 'HEAD']).stdout.trim();
+  try { gatePaths({ git, base: baseSha, cut: sha }); }   // gate 2, before the push
+  catch (e) { git(['switch', '-q', '--detach', baseSha]); git(['branch', '-q', '-D', `release-${name}`]); throw e; }
   // Lease on "absent": the push creates release-<name> or fails, never fast-forwards an open candidate's branch (Lead on #2336).
   const pushed = pushWithRetry(git, `release-${name}`, { extra: [`--force-with-lease=refs/heads/release-${name}:`] });
   if (!pushed.ok) throw new Error(`git push failed after ${pushed.tries} tries: ${pushed.err}`);

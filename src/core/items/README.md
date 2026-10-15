@@ -1,6 +1,6 @@
 # Origins O2: backpack + bank
 
-A pure TypeScript module for a character's backpack and bank. It covers items 2 and 3 of "What we build first" in `docs/specs/origins/item-loot-storage-summary.md`. It builds on the O1 contracts (`origins/contracts/`) and reuses their `ItemInstance`, ids, `Result`/`Issue`, `moveItem`, `equipItem`, `checkCustody`, `checkOneOfEach` and `CONCORD_EXCHANGE`. It does not redefine them.
+A pure TypeScript module for a character's backpack and bank. It covers items 2 and 3 of "What we build first" in `docs/specs/origins/item-loot-storage-summary.md`. It builds on the O1 contracts (`src/core/contracts/`) and reuses their `ItemInstance`, ids, `Result`/`Issue`, `moveItem`, `equipItem`, `checkCustody`, `checkOneOfEach` and `CONCORD_EXCHANGE`. It does not redefine them.
 
 **Status:** prototype only. Nothing in `src/` imports this folder, and the live game is unchanged. There are no new dependencies.
 
