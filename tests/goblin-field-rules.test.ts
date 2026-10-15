@@ -36,12 +36,10 @@ test('every palette\'s haze is a look row whose fog is the dome horizon colour (
   const { lookOf, PRESETS } = await import('../origins/preview/look.ts');
   for (const p of goblinPalettes()) { assert.ok(PRESETS[p.haze], `${p.id}: look row ${p.haze} exists`); assert.equal(lookOf(p.haze).fog, p.horizon, `${p.id}: fog = horizon`); }
 });
-test('a palette with pictures shows the portrait row on a tall screen and the landscape row on a wide one; the files are in public/', async () => {
-  const { existsSync } = await import('node:fs');
+test('a palette with pictures shows the portrait row on a tall screen and the landscape row on a wide one (the picture files and their existence check ship with the backdrop PR)', async () => {
   const f = goblinPalette('fortress');
   assert.equal(goblinBackdrop(f, true)?.id, 'fortress-portrait'); assert.equal(goblinBackdrop(f, false)?.id, 'fortress-landscape');
   assert.equal(goblinBackdrop(goblinPalette('field'), true), null, 'no picture: the painted sky alone');
-  for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(existsSync(`public/${b.file}`), `public/${b.file}`);
   const turn = 360 / (180 * goblinRule('domeHalf'));   // the dome texture spans 360 degrees across and domeHalf x 180 down: a picture keeps its shape only when texW:texH is that ratio
   for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(Math.abs(b.texW / b.texH / turn - 1) < 0.05, `${b.id}: texW/texH ${(b.texW / b.texH).toFixed(2)} is within 5 % of ${turn.toFixed(2)} (else the picture stretches)`);
 });
