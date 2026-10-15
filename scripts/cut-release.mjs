@@ -141,7 +141,7 @@ export const loadGates = (file = new URL('./cut-gates.json', import.meta.url)) =
  *  A commit whose sha starts with an exempt entry is skipped. Fails closed: no live sha, an unreadable range or a failed lookup is a stop with the reason, not a pass.
  *  Returns { ok: true, checked } or { ok: false, reason, missing }. */
 export function checkRangeHasPrs({ git, pullsOf, live, base, gates = loadGates() }) {
-  if (!live) return { ok: false, reason: 'gate 1 needs --live <sha> (the commits in live..base are what it checks)', missing: [] };
+  if (typeof live !== 'string' || !/^[0-9a-f]{7,40}$/i.test(live)) return { ok: false, reason: 'gate 1 needs a live revision: pass --live <sha> (a bare or non-hex --live is refused); the commits in live..base are what it checks', missing: [] };
   const range = git(['rev-list', `${live}..${base}`]);
   if (range.status !== 0) return { ok: false, reason: `gate 1: cannot list ${live.slice(0, 9)}..${base.slice(0, 9)}: ${String(range.stderr || '').trim().slice(0, 120)}`, missing: [] };
   const exempt = (gates.noPrExempt || []).map(e => e.sha);
@@ -156,15 +156,28 @@ export function checkRangeHasPrs({ git, pullsOf, live, base, gates = loadGates()
   return { ok: true, checked: shas.length };
 }
 
-/** Gate 2: the cut (base..cut) may not change any watched path (a path equal to, or under, one of gates.watchedPaths). Returns { ok: true } or { ok: false, reason, files }. */
+/** Gate 2: the cut (base..cut) may not change any watched path (a path equal to, or under, one of gates.watchedPaths). The one way through is gates.watchedAllow, a list of
+ *  { path, blob, pr, note }: a changed watched file passes only when its blob in the cut equals the listed, reviewed blob, so any later edit to it stops the cut again. A deleted
+ *  file has no blob and is never allowed. Returns { ok: true, allowed: [files that passed on the list] } or { ok: false, reason, files: [the files that did not] }. */
 export function checkWatchedPaths({ git, base, cut, gates = loadGates() }) {
   const watched = gates.watchedPaths || [];
   const diff = git(['diff', '--name-only', base, cut, '--', ...watched]);
   if (diff.status !== 0) return { ok: false, reason: `gate 2: cannot diff ${base.slice(0, 9)}..${cut.slice(0, 9)}: ${String(diff.stderr || '').trim().slice(0, 120)}`, files: [] };
-  const files = diff.stdout.split('\n').filter(Boolean);
-  if (files.length) return { ok: false, reason: `gate 2: the cut changes watched paths (${watched.join(', ')}): ${files.slice(0, 5).join(', ')}${files.length > 5 ? ` and ${files.length - 5} more` : ''}`, files };
-  return { ok: true };
+  const changed = diff.stdout.split('\n').filter(Boolean);
+  const allow = gates.watchedAllow || [];
+  const blobOf = f => { const r = git(['rev-parse', `${cut}:${f}`]); return r.status === 0 ? r.stdout.trim() : null; };
+  const listed = f => { const b = blobOf(f); return !!b && allow.some(a => a.path === f && a.blob === b); };
+  const files = changed.filter(f => !listed(f));
+  if (files.length) return { ok: false, reason: `gate 2: the cut changes watched paths (${watched.join(', ')}) that are not on the reviewed list at their blob: ${files.slice(0, 5).join(', ')}${files.length > 5 ? ` and ${files.length - 5} more` : ''}`, files };
+  return { ok: true, allowed: changed };
 }
+
+/** Gate 1's lookup through gh: the PR numbers GitHub lists for a commit. Throws when gh cannot answer. */
+export const pullsOfViaGh = (runCmd = run) => sha => {
+  const r = runCmd('gh', ['api', `repos/{owner}/{repo}/commits/${sha}/pulls`, '--jq', '[.[].number]'], { timeout: 60_000 });
+  if (r.status !== 0) throw new Error(String(r.stderr || r.error?.message || 'gh api failed').trim());
+  return JSON.parse(r.stdout || '[]');
+};
 
 /** The argv for `gh pr create`. No --label: ensureLabels is the only labeller (gh's own --label and our POST landed 1 s apart on FS #2742 and cancelled a CI run). */
 export const ghCreateArgs = ({ name, title, body }) => ['pr', 'create', '--draft', '--base', TRUNK, '--head', `release-${name}`, '--title', title, '--body', body];
@@ -199,11 +212,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }
-  const pullsOf = sha => {   // gate 1's lookup: the PRs GitHub lists for a commit
-    const r = run('gh', ['api', `repos/{owner}/{repo}/commits/${sha}/pulls`, '--jq', '[.[].number]'], { timeout: 60_000 });
-    if (r.status !== 0) throw new Error(String(r.stderr || r.error?.message || 'gh api failed').trim());
-    return JSON.parse(r.stdout || '[]');
-  };
+  const pullsOf = pullsOfViaGh();
   const range = checkRangeHasPrs({ git, pullsOf, live, base: trunk });   // hard stop, before any branch exists
   if (!range.ok) { console.error(`cut-release: STOP, ${range.reason}. Send it to Lead and Strategy; do not cut.`); process.exit(1); }
   console.error(`cut-release: gate 1 ok: ${range.checked} commit(s) in live..base, each with a PR`);
