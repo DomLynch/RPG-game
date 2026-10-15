@@ -24,3 +24,6 @@ Reach bands (+AI holds band, glance feel and sound), armour vs blow type, commit
 - sandbox-rules.ts is in the sim file lists: do not import loot/legends chains into it (read JSON rows directly).
 - The browser pane often does not run the game loop: verify DOM, console and served-bundle strings, not a fight.
 - Strategy session "Project Strategy - Fable 5.1" answers design questions in one message; the Auditor and Lead route lane triage; the Characters owner is "Frankendom - Characters & Art".
+
+## Ranged donor notes (2026-10-15, Dom: "take best practice")
+Sources: bows spec (combat/bows-spec, file:line), and DomLynch/Games-Analysis deep notes (combat-sim/openmw, rathena, OpenRA). Rule across donors: the HIT is decided when the shot is fired (AzerothCore `SpellHitResult` Spell.cpp:2463, 2004Scape pvp_ranged.rs2:50-58, UO `CheckHit`, OpenMW `projectileHit` combat.cpp:224-314 calls the same `getHitChance` as melee); the flying projectile is travel time and show. Lock-on, no free aim. Ammo per shot; mana for spells; crossbow slower/heavier than bow (UO ranges 10 vs 8). OpenRA: min range + reload delay on the weapon. Not yet built: auto-aim homing + optional hit-chance roll (Dom to pick always-hit vs roll).
