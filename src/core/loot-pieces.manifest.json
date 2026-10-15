@@ -1,0 +1,31 @@
+{
+  "tables": [
+    {
+      "table": "lootPiece",
+      "file": "loot-pieces.json",
+      "at": "lootPiece",
+      "key": "id",
+      "required": {
+        "slots": "array",
+        "slots[]": "string"
+      },
+      "optional": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "lootNotWorn",
+      "file": "loot-pieces.json",
+      "at": "lootNotWorn",
+      "key": "id",
+      "required": {
+        "opponent": "string",
+        "slots": "array",
+        "slots[]": "string"
+      },
+      "optional": {
+        "tier": "string"
+      }
+    }
+  ]
+}

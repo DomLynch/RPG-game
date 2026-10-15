@@ -12,8 +12,8 @@ import { hashDuel } from '../src/net/rollback.ts';
 import { act, arena, idle, W } from './strategies.ts';
 
 // The Gambit (RV33, docs/specs/origins/combat-study.md): a second heavy press after the chamber arms the swing; an open body draws once (about 1 in 2 lands for 2x), else the thrower staggers.
-// Defined once in src/fight/gambit.ts; origins/luck re-exports it, so this is an identity test.
-test('origins/luck and the duel share the one Gambit definition', () => {
+// Defined once in src/fight/gambit.ts; src/core/luck.ts re-exports it, so this is an identity test.
+test('src/core/luck and the duel share the one Gambit definition', () => {
   assert.equal(luck.resolveGambit, resolveGambit); assert.equal(luck.GAMBIT_ODDS, GAMBIT_ODDS); assert.equal(luck.GAMBIT_KILL_FLOOR, GAMBIT_KILL_FLOOR); assert.equal(luck.gambitMean, gambitMean);
 });
 
