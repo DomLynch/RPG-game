@@ -54,14 +54,17 @@ async function frame(width, scenario) {
   receipt.frames[`${scenario}-${width}`] = { rowsSeen, prompt };
   await shoot(page, `${LABEL}-${scenario}-${width}.jpg`);
   if (!BEFORE && scenario !== 'several') {
-    await page.locator('#prompt').tap(); await page.waitForTimeout(1200);
+    // A thumb taps the middle of the prompt: record what is on top there (the fight buttons share the bottom band), then tap that point.
+    const hit = await page.evaluate(() => { const r = document.getElementById('prompt').getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, e = document.elementFromPoint(x, y); return { x, y, top: e?.id || e?.className || e?.tagName, box: [r.left, r.top, r.right, r.bottom].map(Math.round) }; });
+    receipt.frames[`${scenario}-${width}`].hit = hit;
+    await page.touchscreen.tap(hit.x, hit.y); await page.waitForTimeout(1200);
     receipt.frames[`${scenario}-${width}`].after = await page.evaluate(() => ({ toast: document.getElementById('world-toast')?.textContent ?? null, drawn: window.originsPreview.ground.anchor('ground:still-0') !== undefined }));
     await shoot(page, `${LABEL}-${scenario}-${width}-tap.jpg`);
   }
   await page.context().close();
 }
 try {
-  for (const width of WIDTHS) for (const scenario of BEFORE ? ['near', 'several'] : ['near', 'several', 'race']) await frame(width, scenario);
+  for (const width of WIDTHS) for (const scenario of (process.env.SCENARIOS ? process.env.SCENARIOS.split(',') : BEFORE ? ['near', 'several'] : ['near', 'several', 'race'])) await frame(width, scenario);
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 2)); console.log('stills', JSON.stringify(receipt));
 } catch (error) { console.error('stills FAILED', JSON.stringify(receipt), error); process.exitCode = 1; }
 finally { await browser.close(); server.close(); }

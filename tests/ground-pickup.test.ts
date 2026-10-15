@@ -98,3 +98,10 @@ test('the net half: ids only in the body, the writer\'s refusal code comes back,
   assert.equal(stateOf({ items: [{ ...good, radiusM: 0 }] }), null); assert.equal(stateOf({ items: [{ ...good, offsetX: 2 }] }), null); assert.equal(stateOf({}), null);
   assert.deepEqual(await readGround('tok', { fetch: answer(200, { ok: true, result: { now: 'x', items: [good] } }) }), { items: [good] });
 });
+
+test('the prompt sits above the live fight kit: its tap must not land on #actions (the stills probe: at 375 the kit covered the prompt\'s middle)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../origins/preview/index.html', import.meta.url), 'utf8');
+  const z = Number(/#prompt \{[^}]*?z-index:\s*(\d+)/.exec(html)?.[1]);
+  assert.ok(Number.isInteger(z) && z >= 6, `#prompt z-index is ${z}: it must sit above the fight kit (z-index 5 in src/style.css)`);
+});
