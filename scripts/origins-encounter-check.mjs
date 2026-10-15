@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 import { fightSetup, loadEncounterContent, lookupOf, rollLoot } from '../origins/encounters/encounters.ts';
-import { openInventory } from '../origins/inventory/inventory.ts';
+import { openInventory } from '../src/core/server.ts';
 import { mobBatch } from '../origins/server/mob-rewards.ts';
 import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 

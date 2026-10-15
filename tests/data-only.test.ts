@@ -143,8 +143,8 @@ test('the patron venue rows are data; the module that reads them (patrons.ts) is
 });
 
 test('the burn reason rows are data; the inventory code that reads them is not', () => {
-  for (const f of ['origins/inventory/burn-reasons.json', 'origins/inventory/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
-  for (const f of ['origins/inventory/inventory.ts', 'origins/inventory/burn-reasons.test.ts', 'origins/inventory/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
+  for (const f of ['src/core/items/burn-reasons.json', 'src/core/items/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['src/core/items/inventory.ts', 'tests/items-burn-reasons.test.ts', 'src/core/items/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
 });
 
 test('the contract vocabulary rows are data at their moved home src/core/contracts/, not at the old origins/contracts/ path; the loader beside them stays code', () => {

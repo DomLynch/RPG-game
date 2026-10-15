@@ -11,7 +11,7 @@ import { withContent } from '../origins/server/handlers.ts';
 import { createWriter } from '../origins/server/server.ts';
 import type { Json } from '../origins/server/store.ts';
 import { PRESENCE_FRESH_MS, smithContent, upgradeHandler } from '../origins/server/upgrade.ts';
-import { lookup } from '../origins/inventory/testkit.ts';
+import { lookup } from './items-testkit.ts';
 import { fakeWhere, landmarkAt, offline, standingAt, unplaced } from '../origins/presence/fixtures.ts';
 import type { Where, WhereFn } from '../origins/presence/where.ts';
 

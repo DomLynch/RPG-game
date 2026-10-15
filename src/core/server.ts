@@ -23,6 +23,7 @@ export * from './contracts/economy.ts';
 export * from './contracts/world.ts';
 export * from './contracts/story.ts';
 export * from './items/loot-catalogue.ts';
+export * from './items/inventory.ts';
 export * from './contracts/registry.ts';
 export * from './contracts/fixtures.ts';
 export { powerOf, categoryOf, storyOf, provenanceOf } from './contracts/definitions.ts';   // the data-defined item vocabularies' readers (rows in contracts/definitions.json)

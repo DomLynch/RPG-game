@@ -10,7 +10,7 @@ import { fakeWhere } from '../origins/presence/fixtures.ts';
 import { withContent } from '../origins/server/handlers.ts';
 import { instanceOf } from '../origins/server/holdings.ts';
 import type { Json } from '../origins/server/store.ts';
-import { lookup } from '../origins/inventory/testkit.ts';
+import { lookup } from './items-testkit.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const PC = 'pc:dom-1', SIBLING = 'pc:dom-2', OTHER = 'pc:bran-1', ORE = 'item:exchange-ore', RECORD = 'item:stolen-name-record';
