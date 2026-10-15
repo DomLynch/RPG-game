@@ -76,12 +76,13 @@ test('a take: hides the item, plays the pickup cue, says what was taken and read
   assert.deepEqual(log.said, ['You take the Rusty Sword']); assert.equal(g.nearest(at.x, at.z), null, 'it is not prompted again while it is gone');
 });
 test('a lost race: the refuse cue and the short line, and the item is gone at once: hidden, no prompt, nothing waits on the state read', async () => {
-  const { g, log } = rig({ take: async () => ({ offline: 'http-409', code: 'taken' }), read: async () => ({ offline: 'timeout' }) }); await g.refresh();
+  let asked = 0;
+  const { g, log } = rig({ take: async () => { asked++; return { offline: 'http-409', code: 'taken' }; }, read: async () => ({ offline: 'timeout' }) }); await g.refresh();
   assert.equal(await g.tap(ID), 'refused');
   assert.deepEqual(log.cues, ['refuse']); assert.deepEqual(log.said, ['Someone got there first.']); assert.equal(log.packReads, 0);
   assert.deepEqual(log.hidden, [ID], 'hidden at once, with the state read failing');
   assert.equal(g.nearest(at.x, at.z), null, 'dropped from local state: no Take prompt for it');
-  assert.equal(await g.tap(ID), 'refused'); assert.deepEqual(log.taken, [ID], 'a second tap on the gone item asks nothing');
+  assert.equal(await g.tap(ID), 'refused'); assert.equal(asked, 1, 'a second tap on the gone item asks nothing');
 });
 test('ORIGINS_GROUND off: a quiet "not now", no cue, nothing hidden; any other refusal is its own line, and the cue stays for the race only', async () => {
   for (const [answer, line] of [[{ offline: 'http-503', code: 'off' }, 'Not now.'], [{ offline: 'http-409', code: 'have-it' }, 'You already hold one.'], [{ offline: 'http-409', code: 'full' }, 'Your pack is full.'], [{ offline: 'http-422', code: 'away' }, 'Too far from it.'], [{ offline: 'network' }, 'Not now.']] as const) {

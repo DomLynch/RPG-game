@@ -41,7 +41,7 @@ const expectClear = async (page, step, text, tapTarget) => {
       if (!m.inView) failures.push(`${step} @${w}: the prompt is outside the viewport ${JSON.stringify(m.box)}`);
       if (tapTarget && m.topmost !== 'prompt') failures.push(`${step} @${w}: the topmost element at the prompt's centre is ${m.topmost}, a tap would not land on it`);
     }
-    await shot(page, `${step}-${w}.jpg`);
+    if (tapTarget) await shot(page, `${step}-${w}.jpg`);   // a line is on screen for lineSec only: no slow screenshot between the two widths
   }
 };
 async function run(take) {
