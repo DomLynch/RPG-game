@@ -6,7 +6,7 @@ import DEFS from './arena-rules-defs.json' with { type: 'json' };
 import MANIFEST from './arena-rules-defs.manifest.json' with { type: 'json' };
 
 export type ArenaRule = { readonly id: string; readonly value: number; readonly unit: string };
-const NAMED = ['playRadius', 'cameraClamp', 'sandTile', 'wallInner', 'wallOuter', 'wallTop', 'tier1', 'tier2', 'tier3', 'tier4', 'tier5', 'tierDepth', 'gateWidth', 'colonnade', 'parapetInner', 'parapetOuter', 'rungsPerArena', 'parapetTop', 'segments', 'propTextureFull', 'propTexturePhone'] as const;
+const NAMED = ['playRadius', 'cameraClamp', 'sandTile', 'wallInner', 'wallOuter', 'wallTop', 'tier1', 'tier2', 'tier3', 'tier4', 'tier5', 'tierDepth', 'gateWidth', 'colonnade', 'parapetInner', 'parapetOuter', 'rungsPerArena', 'rubbleTiers', 'moteFloor', 'parapetTop', 'segments', 'propTextureFull', 'propTexturePhone'] as const;
 /** The one loader: rows keyed by id (a duplicate id or a missing or mistyped field is refused), every rule the pit reads by name must exist, with a positive value. */
 export function loadArenaRules(raw: { rules?: readonly unknown[] }): readonly ArenaRule[] {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'arena-rules-defs.json')]);
