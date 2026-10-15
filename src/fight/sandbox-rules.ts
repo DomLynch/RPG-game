@@ -198,7 +198,7 @@ export const manaRegenPerTick = (sheet: Sheet | undefined): number => {
 // miss inside the inner band, resolved deterministically in the sim tick, answered by a dodge, a same-side guard or a sidestep; donors Magicka lane bolts, Mordhau and Chivalry 2 archery, Skyrim bow feel, ModernUO/2004Scape: damage is delivered
 // after a projectile delay): `missile` rows { weapon, speed (cm/s), share (per-mille of the move's damage), mana } name a weapon whose moves throw a bolt instead of striking; `missileLanes` rows { move, lane (-1 left, 0 forward, 1 right), mult }
 // say which move throws which lane; `missileRadius` (cm) is how near the line a body must be when the bolt arrives, `missileFan` (degrees) the angle of the side lanes, `missileStun` the ticks a hit staggers. No rows (trunk) = nothing.
-type MissileRow = { weapon: string; speed: number; share: number; mana: number };
+type MissileRow = { kind?: string; weapon: string; speed: number; share: number; mana: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; tint?: string };   // windup / recovery: percent added to every move's timing (a bow draws, a crossbow reloads); ammo: the quiver (0 = infinite); pierce: per-mille of a blocked bolt that goes through; tint: the bolt's colour
 type LaneRow = { move: string; lane: number; mult?: number };
 const MISSILES = ((DEFS as unknown as { missile?: MissileRow[] }).missile ?? []);
 const LANES = ((DEFS as unknown as { missileLanes?: LaneRow[] }).missileLanes ?? []);
@@ -209,3 +209,8 @@ export const MISSILE_RADIUS = num('missileRadius', 'value'), MISSILE_FAN = num('
 export const missileMinGap = (): number => (BANDS.length > 1 ? BANDS[BANDS.length - 2]!.upTo / 100 : 0);
 /** Travel time in whole ticks over `range` metres at the row's cm/s speed. */
 export const missileTicks = (row: MissileRow, range: number): number => Math.max(1, Math.ceil((range * 100 * 60) / row.speed));
+
+// quiver + weapon timing for missile weapons (Strategy: bows and crossbows carry a finite quiver, a row flag `quiver` on/off for the A/B; the staff is infinite, mana is its cost).
+export const QUIVER = num('quiver', 'value');
+export const ammoOf = (weapon: string): number => { const r = missileOf(weapon); return QUIVER && r?.ammo ? r.ammo : 0; };
+export const missileTiming = (weapon: string): { windup: number; recovery: number } | undefined => { const r = missileOf(weapon); return r && (r.windup || r.recovery) ? { windup: r.windup ?? 0, recovery: r.recovery ?? 0 } : undefined; };

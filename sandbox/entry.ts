@@ -83,7 +83,7 @@ function panel(opponents: string[]) {
   const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
     el('div', { textContent: 'Loadout (reloads the page)', style: 'color:#c9a227;font-weight:600' }),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell ' }), spellSel, cast),
-    pick('Staff (this weapon fires bolts)', 'staff', WEAPON_IDS),
+    pick('Staff (this weapon fires bolts)', 'staff', WEAPON_IDS), pick('Bow (this weapon shoots arrows)', 'bow', WEAPON_IDS), pick('Crossbow (this weapon shoots bolts)', 'crossbow', WEAPON_IDS),
     pick('Opponent weapon', 'foeWeapon', WEAPON_IDS), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)),
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
@@ -144,11 +144,13 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
   const q = new URLSearchParams(location.search), { OPPONENTS } = await import('../src/fight/moves.ts');
   const fw = q.get('foeWeapon'); if (fw && WEAPON_IDS.includes(fw)) for (const o of Object.values(OPPONENTS)) (o as { weapon: string }).weapon = fw;
   // ?staff=<weapon> makes that existing weapon fire bolts instead of striking (the missile rows, kind staff; a stand-in until the weapons lane bakes a staff): the sim, the AI and the sandbox bands follow the weapon id.
-  const staff = q.get('staff');
-  if (staff && WEAPON_IDS.includes(staff)) {
+  {
     const rows = RULES as unknown as { missile?: { kind?: string; weapon: string }[]; bandBest?: { weapon: string; band: string }[] };
-    for (const r of rows.missile ?? []) if (r.kind === 'staff') r.weapon = staff;
-    (rows.bandBest ??= []).push({ weapon: staff, band: 'outer' });
+    for (const kind of ['staff', 'bow', 'crossbow']) {
+      const w = q.get(kind);
+      if (w && WEAPON_IDS.includes(w)) { for (const r of rows.missile ?? []) if (r.kind === kind) r.weapon = w; (rows.bandBest ??= []).push({ weapon: w, band: 'outer' }); }
+    }
+    if (q.get('quiver') === '0') for (const r of RULES.rules as { id: string; value?: number }[]) if (r.id === 'quiver') r.value = 0;   // ?quiver=0: an unlimited quiver for the A/B
   }
   // ?spell=<legend id> equips a catalogue spell for YOUR fights (the grimoire's own store: owned + equipped), ?cast=<0-100> sets the cast skill of its school (the school's sheet skill base).
   const spell = q.get('spell');
@@ -182,6 +184,10 @@ if ((RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'mana
     const bar = el('meter', { id: 'mana', min: 0, max: 100, value: 100 } as Partial<HTMLMeterElement>); bar.setAttribute('aria-label', 'Your mana');
     st.insertAdjacentElement('afterend', bar); st.insertAdjacentElement('afterend', label);
   }
+}
+if ((RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'quiver' && r.value) && !document.getElementById('ammo-value')) {   // the quiver counter, under the mana bar
+  const anchor = document.getElementById('mana') ?? document.getElementById('stamina');
+  if (anchor) anchor.insertAdjacentElement('afterend', el('span', {}, el('span', { className: 'meter-label', textContent: 'QUIVER' }), ' ', el('span', { id: 'ammo-value', textContent: 'unlimited' })));
 }
 // The admin tools stay on (Sparring tab, test tools) but the black combat-debug overlay starts OFF (Dom: not needed); the journal's Options > Combat debug turns it on, or ?overlay=1.
 if (new URLSearchParams(location.search).get('overlay') !== '1') document.getElementById('debug-mode')?.click();

@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_STUN, missileMinGap, missileTicks } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -46,6 +46,7 @@ export type Fighter = {
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
   missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number };   // sandbox-mech missiles: the one bolt this fighter has in flight
+  ammo?: number;   // sandbox-mech missiles: arrows or bolts left in the quiver (absent = infinite)
   mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
   bound?: number; boundHold?: number; boundReact?: number; disarmed?: number;   // sandbox-mech bindAndDisarm: ticks left bound / the disarm it turns into / the AI's reaction / ticks left disarmed
   poisonEnemy?: string;   // the poisoner's id, whose row ticks the poison
@@ -136,7 +137,7 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.at
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, ...(MANA_MAX ? { mana: MANA_MAX, maxMana: MANA_MAX } : {}), wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, ...(MANA_MAX ? { mana: MANA_MAX, maxMana: MANA_MAX } : {}), ...(ammoOf(weapon) ? { ammo: ammoOf(weapon) } : {}), wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => ({ ...createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools), ...(OID_ON ? { oid: o.id } : {}) });
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
@@ -197,7 +198,7 @@ export const walled = (body: State, dx: number, dz: number, radius: number = RAD
 // so age + charge is monotonic elapsed time — what perception and reaction delays must read.
 export const elapsed = (f: Fighter): number => f.age + f.charge;
 const baseTiming = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
-export const timing = (f: Fighter): Timing => { const t = baseTiming(f), c = commitOf(f.weapon, f.move); return c ? { ...t, windup: t.windup + Math.round((t.windup * c.windup) / 100) } : t; };   // sandbox-mech commitVsBait: a committed swing's longer tell
+export const timing = (f: Fighter): Timing => { let t = baseTiming(f); const c = commitOf(f.weapon, f.move), mt = missileTiming(f.weapon); if (c) t = { ...t, windup: t.windup + Math.round((t.windup * c.windup) / 100) }; if (mt) t = { ...t, windup: t.windup + Math.round((t.windup * mt.windup) / 100), recovery: t.recovery + Math.round((t.recovery * mt.recovery) / 100) }; return t; };   // sandbox-mech commitVsBait: a committed swing's longer tell
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
 const baseGuard = (f: Fighter, R: typeof RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
 // A stance never moves the parry window (v52, stance-era.ts: timing is sacred). Only while a record BELOW v52 replays does the old Defensive window (a quarter longer, stance.ts LEGACY) apply.
@@ -242,7 +243,7 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
   if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill')) return false;
-  { const mr = missileOf(f.weapon); if (mr && MANA_MAX && (isLight(action) || action === 'heavy' || action === 'thrust') && (f.mana ?? 0) < mr.mana) return false; }   // sandbox-mech missiles: a bolt is paid in mana, refused short of it
+  { const mr = missileOf(f.weapon); if (mr && (isLight(action) || action === 'heavy' || action === 'thrust') && ((MANA_MAX && (f.mana ?? 0) < mr.mana) || (f.ammo !== undefined && f.ammo <= 0))) return false; }   // sandbox-mech missiles: a bolt is paid in mana, refused short of it
   if ((f.bound || f.disarmed) && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'skill')) return false;   // sandbox-mech bindAndDisarm: a bound blade or an empty hand has no swing   // the special's recovery: no attack until it ends
   // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
   // the blade is out of line — so no swing comes out of either. A man's parry yields to any action and his exposure only bares his guard.
@@ -475,9 +476,10 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const lane = laneOf(a.move);
       if (a.age === t.windup && lane) {
         const gap = a.attackFrom?.gap ?? distance(a.body, d.body);
-        if (MANA_MAX && (A.mana ?? 0) < mrow.mana) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
+        if ((MANA_MAX && (A.mana ?? 0) < mrow.mana) || (A.ammo !== undefined && A.ammo <= 0)) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
         else {
           if (MANA_MAX) { A.mana = (A.mana ?? 0) - mrow.mana; A.manaRest = MANA_DELAY; }
+          if (A.ammo !== undefined) A.ammo--;
           if (gap >= missileMinGap() && !A.missile) {
             const ang = a.body.heading + (lane.lane * MISSILE_FAN * Math.PI) / 180, range = distance(a.body, d.body);
             A.missile = { launched: tick, arrives: tick + missileTicks(mrow, range), x: a.body.x, z: a.body.z, dx: M.sin(ang), dz: M.cos(ang), range, damage: Math.round((def.damage * mrow.share * (lane.mult ?? 1000)) / 1000000), move: a.move, lane: lane.lane };
@@ -679,7 +681,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const g = guardOf(D, R), facing = Math.abs(wrapAngle(aim(D.body, A.body) - D.body.heading)) <= g.arc;
     if (D.phase === 'guard' && facing && covers(D, m.lane === 0 ? 'thrust' : m.lane > 0 ? 'right' : 'left', R)) {
       const cost = Math.max(1, Math.round(m.damage / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
-      events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material });
+      const through = Math.round((m.damage * (missileOf(A.weapon)?.pierce ?? 0)) / 1000); if (through) D.health = Math.max(1, D.health - through);   // a crossbow bolt is hard to guard: part of it goes through
+      events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material, ...(through ? { damage: through } : {}) });
       continue;
     }
     D.health = Math.max(0, D.health - m.damage);
