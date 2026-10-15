@@ -201,7 +201,11 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
         // Holds from Characters & Art (scripts/weapon-stage/holds.json, 2026-10-15): ABSOLUTE local transforms under the hand bone (the part names its hand), Euler XYZ degrees, metres; they replace SwordDrawn's.
         const HOLD: Record<string, [number, number, number]> = { staff: [90, 0, 0], bow: [-1.9, 34.6, 114.3], crossbow: [92.8, 60.3, 96.2] };
         const paintedPart = painted[kind]?.clone(true) as { userData: Record<string, unknown>; rotation: { set(x: number, y: number, z: number): void }; position: { set(x: number, y: number, z: number): void } } | undefined;
-        if (paintedPart) paintedPart.userData.hand = kind === 'bow' ? 'hand_l' : 'hand_r';
+        if (paintedPart) {
+          paintedPart.userData.hand = kind === 'bow' ? 'hand_l' : 'hand_r';
+          // TRELLIS exports metalness 1 / roughness 1: with no environment map the scene draws that black. Matte it (the painted colour map carries the look).
+          (paintedPart as unknown as { traverse(f: (o: { isMesh?: boolean; material?: { clone(): { metalness: number; roughness: number }; metalness: number; roughness: number } }) => void): void }).traverse((o) => { if (o.isMesh && o.material) { const m = o.material.clone(); m.metalness = 0.08; m.roughness = 0.85; (o as { material: unknown }).material = m; } });
+        }
         const part = paintedPart ?? (RANGED_BUILDS as Record<string, () => { rotation: { set(x: number, y: number, z: number): void }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(), d = Math.PI / 180, h = HOLD[kind]!;
         const tune = (q.get('hold') ?? '').split(',').map(Number);   // ?hold=rx,ry,rz[,px,py,pz]: degrees and metres ADDED to the hold, for nudging on the live page
         part.rotation.set((h[0] + (tune[0] || 0)) * d, (h[1] + (tune[1] || 0)) * d, (h[2] + (tune[2] || 0)) * d); part.position.set(tune[3] || 0, tune[4] || 0, tune[5] || 0);
