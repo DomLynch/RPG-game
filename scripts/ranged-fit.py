@@ -45,6 +45,10 @@ near = np.abs(c[:, 1] - y0) < 0.04
 z0 = float(np.median(c[near, 2])) if near.any() else float(np.median(c[:, 2]))
 x0 = float((c[:, 0].max() + c[:, 0].min()) / 2)
 c -= np.array([x0, y0, z0])
+if spec.get("autoFlipZ"):                                    # the tips (the ears) sit on the archer's side, +Z, of the grip
+    ends = np.abs(c[:, 1]) > 0.9 * np.abs(c[:, 1]).max()
+    if np.median(c[ends, 2]) < 0:
+        c[:, 0] *= -1; c[:, 2] *= -1
 extras = dict(spec["extras"])
 if spec.get("nock") == "tipZ":                               # the string plane: the z of the two tips
     tips = c[np.abs(np.abs(c[:, 1]) - c[:, 1].max()) < 0.05, 2]
@@ -64,6 +68,20 @@ for p in obj.data.polygons:
 for img in bpy.data.images:
     if img.size[0] > spec["texture"]:
         img.scale(spec["texture"], spec["texture"])
+base_images = set()   # the colour map: the image wired into each material's Base Color
+for mat in bpy.data.materials:
+    if mat.use_nodes:
+        for node in mat.node_tree.nodes:
+            if node.type == "BSDF_PRINCIPLED" and node.inputs["Base Color"].is_linked:
+                src = node.inputs["Base Color"].links[0].from_node
+                if src.type == "TEX_IMAGE" and src.image:
+                    base_images.add(src.image)
+if spec.get("brighten"):
+    for img in base_images:
+        px = np.array(img.pixels[:], dtype=np.float32)
+        for ch in (0, 1, 2):
+            px[ch::4] = np.clip(px[ch::4] * spec["brighten"] + 0.03, 0, 1)
+        img.pixels.foreach_set(px); img.pack()
 for k, v in extras.items():
     obj[k] = v
 bpy.context.view_layer.objects.active = obj
