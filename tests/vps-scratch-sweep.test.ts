@@ -229,6 +229,24 @@ test('bare mode: --apply without SWEEP_SCHEDULED=1 is refused (a hand-typed --ap
   assert.equal(run(['--apply'], { SWEEP_SCHEDULED: '0' }).status, 2);
 });
 
+// Found probing #2832 on the VPS: `--path=/tmp/*` was expanded by the shell (the unquoted `for p in $PATHS`) into every child of /tmp before sweep_kind could refuse the glob character. With the
+// /tmp lane kind one --apply would have archived and deleted every ordinary /tmp child. The named-path loop now runs with pathname expansion off.
+test('named-path mode turns pathname expansion off before it splits $PATHS (a glob is one literal, refused path, never a list of real /tmp children)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  const block = src.slice(src.indexOf('if [ -n "$PATHS" ]; then'));
+  const setF = block.indexOf('\n  set -f\n'), loop = block.indexOf('for p in $PATHS; do');
+  assert.ok(setF > 0 && loop > 0 && setF < loop, '`set -f` must come before `for p in $PATHS`');
+  // and the semantics it relies on, in the bash the tool runs under: with set -f an unquoted glob stays one word; without it, it expands to the matching files
+  const dir = mkdtempSync(join(tmpdir(), 'noglob-'));
+  try {
+    for (const n of ['a', 'b']) writeFileSync(join(dir, `x-${n}`), '');
+    const words = (f: string) => spawnSync('bash', ['-c', `${f}PATHS=" ${dir}/x-*"; n=0; for p in $PATHS; do n=$((n+1)); done; echo $n`], { encoding: 'utf8' }).stdout.trim();
+    assert.equal(words('set -f; '), '1', 'with set -f the glob is one word');
+    assert.equal(words(''), '2', 'without it the shell expands it to the two files');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('the guard sits before the log, the lock and the disk, and the scheduled form is exactly SWEEP_SCHEDULED=1 with --apply and no --path', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');

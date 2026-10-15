@@ -122,6 +122,9 @@ delete_only(){
 
 # Named-path mode (Lead 2026-10-13): --path=/abs/dir removes exactly that dir, through the same archive-first, manifest-writing route; nothing else is touched. Dry run unless --apply.
 if [ -n "$PATHS" ]; then
+  # No pathname expansion: the loop below splits an unquoted $PATHS, and `--path=/tmp/*` would otherwise be expanded by the shell into every child of /tmp BEFORE sweep_kind sees a glob
+  # character, so with the /tmp lane kind one --apply would archive+delete every ordinary /tmp child (found probing #2832 on the VPS, 2026-10-15). A path is exact or it is refused.
+  set -f
   for p in $PATHS; do
     case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
     kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots, or not spelled canonically) $p"; continue; }
