@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stepDuel, withSpecials, withSpell, type CombatEvent, type Duel } from '../src/fight/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
-import { BRICKS, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
+import { BRICKS, COST_CAP, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
 import { indexOf } from '../scripts/spell-index.mjs';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { packRecord, unpackRecord } from '../src/fight/record.ts';
@@ -22,6 +22,16 @@ test('spell-index.json equals the spell catalogue (run node scripts/spell-index.
   for (const id of SPELL_IDS) assert.ok(isSpellId(id) && resolveSpell(id, 50) !== undefined);
   assert.equal(resolveSpell('not-a-spell', 50), undefined);
   assert.equal(isSpellId('toString'), false);
+});
+
+test('no spell costs more than the stamina bar: every catalogue id resolves at or under the cap, and the cap is the pool-defs stamina default', () => {
+  const bar = (JSON.parse(readFileSync(new URL('../src/fight/pool-defs.json', import.meta.url), 'utf8')) as { pools: { id: string; default: number }[] }).pools.find((p) => p.id === 'stamina')!.default;
+  assert.equal(COST_CAP, bar);
+  for (const id of SPELL_IDS) assert.ok(resolveSpell(id, 50)!.cost <= bar, `${id} costs at most the bar`);
+  const raw = Math.max(...Object.values(BRICKS).map((b) => b.cost + b.costPerLevel * 10));
+  assert.ok(raw > bar, 'the catalogue has a root whose uncapped cost passes the bar (the cap is doing work)');
+  const harvest8 = SPELL_IDS.find((id) => resolveSpell(id, 50)!.cost === bar);
+  assert.ok(harvest8 !== undefined, 'a spell sits exactly at the bar');
 });
 
 test('outcome rises with skill: a novice mostly fails, a master mostly succeeds, the seeded draw is the only variable', () => {
