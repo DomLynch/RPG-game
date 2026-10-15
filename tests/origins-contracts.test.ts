@@ -1,4 +1,4 @@
-// Origins O1 contracts (origins/contracts/, docs only until the beta): pure, no DOM or network; Lead's option A CI entry.
+// Origins O1 contracts (src/core/contracts/, docs only until the beta): pure, no DOM or network; Lead's option A CI entry.
 import './contracts-economy.test.ts';
 import './contracts-ids.test.ts';
 import './contracts-items.test.ts';

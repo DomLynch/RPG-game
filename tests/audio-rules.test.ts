@@ -17,7 +17,8 @@ test('every audio rule equals the literal it replaced', () => {
   assert.deepEqual([COMBAT_LEVEL, FINISH_LEVEL], [0.375 * 0.4, 1.5 * 0.4]);
   assert.deepEqual(['arenaLevel', 'bellDrive', 'wardenHealth', 'breathAhead', 'breathDuck', 'breathDuckBack', 'breathRelease', 'whipRaise', 'baseSeed', 'mix', 'rise', 'riseFloor', 'cut'].map((id) => audioRule(id as never)), [0.4, 2, 80, 0.3, 0.3, 0.45, 1.4, 0.4, 731, 0.4, 1.6, 0.35, 0.035]);
   assert.deepEqual(bloomRules(), { above: 300, seconds: 0.4 });
-  assert.equal(AUDIO_RULES.length, 24);
+  assert.deepEqual(['whipRateBase', 'whipGuardCap', 'whipGuardStep'].map((id) => audioRule(id as 'whipRaise')), [0.94, 5, 0.024], 'the whip rate: base, guard cap, step');
+  assert.equal(AUDIO_RULES.length, 27);
 });
 test('the creature throats and the power-word casters equal the tables they replaced', () => {
   assert.deepEqual(THROATS, THROAT_ROWS);
@@ -31,5 +32,5 @@ test('the loader refuses a missing named rule, a non-positive value and a duplic
   assert.throws(() => loadAudioRules({ ...DEFS, rules: rows.filter((r) => r.id !== 'mix') }), /"mix" rule by name/);
   assert.throws(() => loadAudioRules({ ...DEFS, rules: rows.map((r) => (r.id === 'cut' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadAudioRules({ ...DEFS, rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadAudioRules({ ...DEFS, rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).rules.length, 25);
+  assert.equal(loadAudioRules({ ...DEFS, rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).rules.length, 28);
 });
