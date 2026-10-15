@@ -68,6 +68,28 @@ test('sweep_safe_path: an idle systemd-private dir (a real directory, nothing ru
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+// Lead 2026-10-15: three regular files get an exact one-off arm (kind "file": archive first, then delete); nothing else is taught files.
+test('sweep_kind: exactly /tmp/rev2354-dist.tgz, /tmp/wk.tgz and /tmp/wk2.tgz are kind file; a neighbour, a child, a lookalike and another parent are not', () => {
+  for (const p of ['/tmp/rev2354-dist.tgz', '/tmp/wk.tgz', '/tmp/wk2.tgz']) assert.equal(kind(p), 'file', p);
+  for (const p of ['/tmp/wk3.tgz', '/tmp/wk.tgz.bak', '/tmp/rev2355-dist.tgz', '/tmp/wk.tar']) assert.equal(kind(p), 'lane', `${p} is an ordinary /tmp child (a directory-only kind)`);
+  for (const p of ['/tmp/x/wk.tgz', '/tmp/wk.tgz/', '/var/tmp/wk.tgz', '/root/wk.tgz', '/tmp/wk.tgz/sub']) assert.equal(kind(p), '', `${p} is refused`);
+});
+
+test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour file is refused because its kind needs a directory', { skip: process.platform !== 'linux' }, () => {
+  const dir = mkdtempSync(join('/tmp', 'sweep-file-'));
+  const file = join(dir, 'a.tgz'), link = join(dir, 'l.tgz'), sub = join(dir, 'd.tgz');
+  const neighbour = join('/tmp', `wk3-test-${process.pid}.tgz`);
+  try {
+    writeFileSync(file, 'x'); symlinkSync(file, link); mkdirSync(sub); writeFileSync(neighbour, 'x');
+    const asFile = (p: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_kind() { echo file; }; sweep_safe_path "$1"', 'x', p], { encoding: 'utf8' });
+    assert.equal(asFile(file).status, 0, 'a real regular file passes as kind file');
+    assert.equal(asFile(link).status, 1); assert.match(asFile(link).stdout, /symlink/);
+    assert.equal(asFile(sub).status, 1); assert.match(asFile(sub).stdout, /not a regular file/);
+    const real = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', neighbour], { encoding: 'utf8' });
+    assert.equal(real.status, 1, 'a neighbour file (kind lane) is refused'); assert.match(real.stdout, /not a real directory/);
+  } finally { rmSync(neighbour, { force: true }); rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('sweep_kind: the specific /tmp roots keep their own kind; the new /tmp lane arm is last and never overrides them', () => {
   for (const [p, k] of [['/tmp/hooks-ci', 'aged'], ['/tmp/cq-2430wt', 'aged'], ['/tmp/rank-job', 'aged'], ['/tmp/node-compile-cache', 'tmp'], ['/tmp/lead-env-tab4', 'tmp']]) assert.equal(kind(p), k, p);
 });
