@@ -12,7 +12,7 @@ export function createMissileFx(scene: THREE.Scene) {
   const sprite = (size: number, color: string, opacity: number) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color, opacity, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); s.scale.setScalar(size); s.visible = false; s.frustumCulled = false; scene.add(s); return s; };
   const bolts = [0, 1].map(() => ({ core: sprite(0.2, '#e8f3ff', 1), halo: sprite(0.65, '#6aa8ff', 0.55), trail: Array.from({ length: TRAIL }, (_, k) => sprite(0.4 - k * 0.08, '#6aa8ff', 0.4 - k * 0.1)) }));
   // Bow arrow / crossbow bolt: a simple shaft + head + fins mesh (staff keeps the white orb). One per fighter, pointing along the flight line; shapes are rows-free presentation only.
-  const SHAPE = { bow: { len: 0.95, r: 0.013, shaft: '#c9a46a', head: '#b8bcc4', fin: '#e8e2d0' }, crossbow: { len: 0.48, r: 0.024, shaft: '#4a4038', head: '#9aa0a8', fin: '#2a2420' } } as const;
+  const SHAPE = { bow: { len: 0.95, r: 0.011, shaft: '#8a6a43', head: '#8d9399', fin: '#c9c0a8' }, crossbow: { len: 0.42, r: 0.014, shaft: '#4a3a2c', head: '#8d9399', fin: '#3a2e24' } } as const;
   const shafts = [0, 1].map(() => {
     const g = new THREE.Group(), mat = (c: string) => new THREE.MeshBasicMaterial({ color: c });
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6), mat('#fff')), head = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 6), mat('#fff')), fins = [0, 1].map(() => new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', side: THREE.DoubleSide })));
@@ -31,7 +31,7 @@ export function createMissileFx(scene: THREE.Scene) {
       fighters.forEach((f, i) => {
         const b = bolts[i]!, m = f.missile, live = !!m && tick < m.arrives;
         const kind = missileOf(f.weapon)?.kind, arrow = kind === 'bow' || kind === 'crossbow' ? kind : undefined, sh = shafts[i]!;
-        b.core.visible = live && !arrow; b.halo.visible = live; for (const t of b.trail) t.visible = live; sh.g.visible = live && !!arrow;
+        b.core.visible = live && !arrow; b.halo.visible = live && !arrow; for (const t of b.trail) t.visible = live && !arrow;   // an arrow or bolt is plain wood and iron: no glow, no trail (the staff keeps its white orb) sh.g.visible = live && !!arrow;
         if (!m || !live) return;
         if (arrow && dressed[i] !== arrow) { dress(sh, arrow); dressed[i] = arrow; }
         const tint = missileOf(f.weapon)?.tint;   // the row's colour for this weapon's bolt (staff blue, arrow tan, crossbow bolt amber)

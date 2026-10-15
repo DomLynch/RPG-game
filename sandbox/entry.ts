@@ -16,6 +16,15 @@ import PHASES from '../src/fight/boss-phase-defs.json' with { type: 'json' };
 import SAVED from './rows.json' with { type: 'json' };
 
 declare const __SANDBOX_INFO__: string;
+// The spell picks survive a link or a reload that does not name them (a ?me= link used to drop them): remembered per browser, the URL wins, an empty Apply clears.
+const LOADOUT_KEY = 'frankendom.sandbox.loadout', SPELL_KEYS = ['spell', 'spell2', 'cast', 'cast2'];
+{
+  const u = new URL(location.href); let saved: Record<string, string> = {}; let changed = false;
+  try { saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; } catch { /* none */ }
+  for (const k of SPELL_KEYS) { const v = u.searchParams.get(k); if (v) saved[k] = v; else if (saved[k]) { u.searchParams.set(k, saved[k]!); changed = true; } }
+  try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(saved)); } catch { /* none */ }
+  if (changed) history.replaceState(null, '', u.href);
+}
 type Rows = Record<string, unknown[]>;
 type Overrides = { notes?: string[]; files?: Record<string, Rows> };
 // Panel order = the brief's order. bosses.json is a bare array; it is edited as one family named "bosses".
@@ -100,6 +109,7 @@ function panel(opponents: string[]) {
   applyLoadout.onclick = () => {
     const u = new URL(location.href);
     for (const [k, v] of staged) {
+      if (SPELL_KEYS.includes(k)) { try { const sv = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; if (v) sv[k] = v; else delete sv[k]; localStorage.setItem(LOADOUT_KEY, JSON.stringify(sv)); } catch { /* none */ } }
       if (k === '#myWeapon') { try { const kit = JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}') ?? {}; if (v) kit.weapon = v; else delete kit.weapon; sessionStorage.setItem('frankendom.dev-kit', JSON.stringify(kit)); } catch { /* none */ } }
       else if (v) u.searchParams.set(k, v); else u.searchParams.delete(k);
     }
