@@ -36,6 +36,12 @@ try {
       if (camp) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 9, Math.PI), [camp.x, camp.z]);   // 9 m south of the camp, facing it (forward is (sin h, cos h))
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
+      if (process.env.STILLS_PROBE) {   // debugging the dome: its own texture (does it hold the picture?) and a frame with it painted flat magenta (where is it on screen?)
+        const img = await page.evaluate(() => window.originsPreview.goblinDomeImage?.() ?? null);
+        if (img) { fs.writeFileSync(path.join(out, `${name}-dome.png`), Buffer.from(img.split(',')[1], 'base64')); r.stills.push(`${name}-dome.png`); }
+        r.probe = await page.evaluate(() => window.originsPreview.goblinDomeProbe?.(true) ?? null); await page.waitForTimeout(500);
+        await page.screenshot({ path: path.join(out, `${name}-magenta.png`) }); r.stills.push(`${name}-magenta.png`);
+      }
       const mob = await page.evaluate(() => { const p = window.originsPreview.pos, ms = window.originsPreview.mobs()?.mobs?.filter((m) => m.drawn && m.body) ?? []; return ms.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] ?? null; });
       if (mob) {
         await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [mob.x, mob.z]); await page.waitForTimeout(1500);
