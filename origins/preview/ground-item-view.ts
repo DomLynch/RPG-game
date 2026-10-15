@@ -39,7 +39,7 @@ function ring(r: GroundRing): THREE.Group {
 // The beam: a thin open cone of additive light standing on the item, bright at the foot and fading to nothing at the top (additive, so the fade is the vertex colour going to black).
 function beam(b: GroundBeam): THREE.Mesh {
   const g = new THREE.CylinderGeometry(b.radiusM * 0.35, b.radiusM, b.heightM, 14, 1, true).translate(0, b.heightM / 2, 0), c = new THREE.Color(b.color), pos = g.getAttribute('position'), cols: number[] = [];
-  for (let i = 0; i < pos.count; i++) { const k = 1 - pos.getY(i) / b.heightM; cols.push(c.r * k, c.g * k, c.b * k); }
+  for (let i = 0; i < pos.count; i++) { const k = Math.max(0, 1 - pos.getY(i) / b.heightM); cols.push(c.r * k, c.g * k, c.b * k); }
   g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: b.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   m.name = 'ground-beam'; m.renderOrder = 3; return m;
