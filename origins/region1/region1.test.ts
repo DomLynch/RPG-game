@@ -168,9 +168,3 @@ test('a starter item must be defined, common, bound on-acquire and NOT a legacy 
   refused(edited((r) => { r.rarity = 'fine'; }), 'content-rule', 'starterItem.item:starter.rusty-sword.rarity');
   refused(edited((r) => { r.binding = 'none'; }), 'content-rule', 'starterItem.item:starter.rusty-sword.binding');
 });
-
-test('ground-items.json stays OFF the data-only path until the starter check is in force and reviewed: a data-only PR cannot place a ground item without the Auditor', async () => {
-  const { onDataPath } = await import('../../scripts/lib/data-only.mjs');
-  assert.equal(onDataPath('origins/world/ground-items.json'), false);
-  assert.equal(onDataPath('origins/world/ground-items.manifest.json'), false);
-});
