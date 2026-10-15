@@ -33,6 +33,7 @@ if (q.get('solo')) {   // the model alone for a design sheet: no hero; a staff a
   const box = new THREE.Box3().setFromObject(solo), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
   solo.position.sub(mid); solo.position.y += size.y / 2 + 0.05; ground.position.y = 0.02;
   const fit = Math.max(size.y, size.x / (innerWidth / innerHeight)) * 0.78 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  console.log('solo', JSON.stringify({ size: size.toArray(), mid: mid.toArray(), fit, meshes: (() => { let n = 0; solo.traverse((o) => { if (o instanceof THREE.Mesh) n++; }); return n; })() }));
   camera.position.set(fit * 0.35, size.y / 2 + 0.2, fit); camera.lookAt(0, size.y / 2 + 0.05, 0);
   renderer.render(scene, camera); requestAnimationFrame(() => { renderer.render(scene, camera); (window as unknown as { stageReady: boolean }).stageReady = true; });
 } else {
