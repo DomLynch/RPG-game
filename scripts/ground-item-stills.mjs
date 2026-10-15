@@ -11,6 +11,7 @@ import { GROUND_ITEMS } from '../origins/world/ground-items.ts';
 import { groundPointOf } from '../origins/server/ground-take.ts';
 
 const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-item-stills', ITEM = process.env.ITEM || 'item:starter.rusty-sword', root = process.cwd();
+const BACK_M = Number(process.env.BACK_M || 6);
 const LABEL = process.env.LABEL || 'run', WIDTHS = (process.env.WIDTHS || '375').split(',').map(Number), AHEAD = Number(process.env.AHEAD || 2.2), SIDE = Number(process.env.SIDE || 0.15);   // metres in front of and beside the walker
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.svg': 'image/svg+xml' };
