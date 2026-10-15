@@ -4,6 +4,7 @@
 // path, never a throw. Nothing in src/ imports this module.
 import hazards from './hazards.json' with { type: 'json' };
 import { LOOT_ITEM_IDS } from '../../src/core/server.ts';
+import { GROUND_ITEMS, STARTER_ITEMS } from '../world/ground-items.ts';
 import { Issues, LOCAL_KEY, checkString, isPlainObject, join, readArray, readBoolean, readEnum, readInt, readObject, readString, readText, type Obj, type Result } from '../../src/core/server.ts';
 import { parseId, type CharacterId, type EncounterId, type ItemId, type LootTableId, type RegionId } from '../../src/core/server.ts';
 import { loadContent, type ContractRegistry } from '../../src/core/server.ts';
@@ -126,9 +127,11 @@ export function loadRegion1(world: unknown = REGION1_WORLD, bundle: unknown = BU
   // A region-definition spawn may stand only in a zone where creatures may fight: never a town's foe inside a town.
   const townZones = new Set(local.towns.map((t) => `${t.region}/${t.zone}`));
 
-  // 5. No weapon drops in Region 1 (ruled): no item a table can award, and no item defined here, is a weapon. The one exception is the legacy loot catalogue (the generated `item:loot.<LootId>` ids, src/core/items/loot-catalogue.ts LOOT_ITEM_IDS: an id that merely starts with the prefix is NOT exempt): the engine's ledger owns weapon pieces, so the server must be able to hold them; no table can award one (the next loop).
+  // 5. No weapon drops in Region 1 (ruled, amended by Lead 2026-10-15 for starter ground items): no item a table can award, and no item defined here, is a weapon. The one exception is the legacy loot catalogue (the generated `item:loot.<LootId>` ids, src/core/items/loot-catalogue.ts LOOT_ITEM_IDS: an id that merely starts with the prefix is NOT exempt): the engine's ledger owns weapon pieces, so the server must be able to hold them; no table can award one (the next loop).
+  // The amendment, in its narrowest form: an item may be DEFINED as a weapon only if a ground-item row names it AND it is a starter item (origins/world/ground-items.json: a groundItem's item must be a starterItem row). It is never allowed in a loot table: no weapon ever drops from killing anything in Region 1.
+  const groundWeapons = new Set(Object.values(GROUND_ITEMS).map((g) => g.item).filter((id) => id in STARTER_ITEMS));
   const weapon = (item: ItemId) => (WEAPON_SLOTS as readonly string[]).includes(registry.items.get(item)?.slot ?? '');
-  for (const def of registry.items.values()) if (weapon(def.id) && !LOOT_ITEM_IDS.has(def.id)) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1`);
+  for (const def of registry.items.values()) if (weapon(def.id) && !LOOT_ITEM_IDS.has(def.id) && !groundWeapons.has(def.id)) issues.add('content-rule', `${def.id}.slot`, `${def.slot} is a weapon: no weapon drops in Region 1 (a starter ground item is the one exemption)`);
   for (const t of registry.lootTables.values()) t.rolls.forEach((roll, i) => roll.entries.forEach((e, j) => {
     if (weapon(e.item)) issues.add('content-rule', `${t.id}.rolls[${i}].entries[${j}].item`, `${e.item} is a weapon: no weapon drops in Region 1`);
   }));

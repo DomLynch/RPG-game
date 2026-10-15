@@ -1,0 +1,8 @@
+{
+  "starterItems": {
+    "item:starter.rusty-sword": {"maxQty": 1}
+  },
+  "groundItems": {
+    "ground:zone1.rusty-sword-1": {"zone": "zone1", "place": "cinder-fields", "item": "item:starter.rusty-sword", "qty": 1, "respawnSec": 3600, "scope": "account"}
+  }
+}
