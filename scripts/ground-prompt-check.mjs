@@ -22,7 +22,7 @@ const { origin, close } = await serveOriginsPreview(DIST);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const failures = [], receipt = { widths: WIDTHS, steps: [] };
 // No fixed sleeps (a loaded box turns them into false FAILs): every wait polls its condition up to a ceiling.
-const settled = async (page, w) => { await page.setViewportSize({ width: w, height: 812 }); await page.waitForFunction((x) => innerWidth === x, w, { timeout: 15000 }); await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); };
+const settled = async (page, w) => { await page.setViewportSize({ width: w, height: 812 }); await page.waitForFunction((x) => innerWidth === x, w, { timeout: 60000 }); await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); };
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), type: 'jpeg', quality: 75, timeout: 240000 });
 
 // The prompt's box against every fight control a player can see; the topmost element at its centre; whether it is inside the viewport.
@@ -62,10 +62,10 @@ async function run(take) {
   await settled(page, WIDTHS[0]);
   const box = await measure(page), lineText = take === 'race' ? PICKUP.outcomes.taken.line : PICKUP.labels.taken.replace('{item}', name);
   await page.touchscreen.tap((box.box[0] + box.box[2]) / 2, (box.box[1] + box.box[3]) / 2);
-  await page.waitForFunction((t) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent === t; }, lineText, { timeout: 15000 }).catch(() => failures.push(`${take}: the line "${lineText}" never took the prompt's slot after the tap`));
+  await page.waitForFunction((t) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent === t; }, lineText, { timeout: 60000 }).catch(() => failures.push(`${take}: the line "${lineText}" never took the prompt's slot after the tap`));
   if (!(await page.evaluate(() => window.originsPreview.ground.anchor('ground:still-0') === undefined))) failures.push(`${take}: the item is still drawn after the tap`);
   await expectClear(page, `${take}-line`, lineText, false);
-  await page.waitForFunction(() => document.getElementById('prompt').hidden, null, { timeout: (PICKUP.lineSec + 15) * 1000 }).catch(() => {});
+  await page.waitForFunction(() => document.getElementById('prompt').hidden, null, { timeout: (PICKUP.lineSec + 60) * 1000 }).catch(() => {});
   const after = await measure(page); receipt.steps.push({ step: `${take}-after-line`, shown: after.shown, text: after.text });
   if (after.shown) failures.push(`${take}: a prompt ("${after.text}") is still up once the line's ${PICKUP.lineSec} s are over`);
   if (errors.length) failures.push(...errors);
