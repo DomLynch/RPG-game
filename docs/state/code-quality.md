@@ -1,5 +1,13 @@
 # Code quality lane (Auditor)
 
+## 2026-10-15 ~09:1x (+04) — HANDOFF before /clear (Dom). LIVE GD 80d3316a8 (my curl). READ FIRST, then memory `frankendom_handoff_2026-10-15`
+
+**Now, in order.** (1) **GE #2777 @8283c60b6** (GD + #2765 alone): PASS + candidate:pass posted by hand (rebuild 5ded0eab4 = candidate, CI 27/0); it publishes next. (2) **GF** = #2769 @a61263cf5 (Dom's sound fix, PASSED) + #2766 @faabeb7b7 (inventory slice 2, PASSED): contents read when Lead cuts it, after World's Mac WebKit row for #2769. (3) **Owed to Lead:** `src/fight/class-special-identity.ts` CLASS_SPECIALS is a ROW (Combat). The checker missed it because map.yml matches only string-valued content-id pairs, not array-valued ones; measured 33 such sites in 4 files (loot.ts 13, class-special-identity 10, characters 8, power-words 2). Proposal: widen map.yml, ratcheted like rule (e).
+
+**Done (2026-10-14/15):** FK→GD all contents-confirmed and PASSED; rule (e) #2770 merged (143 inline Math.max/min literals baselined, new ones red under --gate); #2765 tactic PR 1 byte-identical (fingerprint + replay); #2769 with both follow-ups; #2760 merged-on-trunk LIMIT 1000; #2745 single labeller (doubled labels came from `gh pr create --label` itself).
+
+**Gotchas:** macOS has no `timeout`; zsh `$x:s` is a modifier (write `${x}:path`); VPS watcher polls 60 s, post by hand if a green candidate has no PASS within ~2 min; run node suites on the VPS.
+
 ## 2026-10-14 ~18:5x (+04) — HANDOFF before /clear (Dom). LIVE FJ 2b0ca8887 (my curl). READ FIRST, then memory `frankendom_handoff_2026-10-14b`
 
 **Now, in order.** (1) **FM**: World's #2724 @f605f95c3, #2662 @2e4dd8594 (WSV 35) and #2698 @1598787f7 (WSV 36) are PASSED; do the candidate contents read when Lead cuts it (#2662 before #2698). (2) **#2725 @ac1040159** (allow-list merge driver): re-read OK, armed; **#2728 @623ea2ea7** (cut-release `-c` wiring, draft) read OK, goes after it. Once #2725 lands, every candidate rebuild must pass `-c merge.as-data-allow.driver=...` to `git merge-tree` (verified: with it, merge-tree equals a real driver merge; without it, a driver-resolved candidate is not treeEqual). #2692's checker needs the same change. (3) #2671 (World d8 stage rows) when pushed. (4) #2699 after #2515 lands.
