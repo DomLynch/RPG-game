@@ -55,9 +55,9 @@ test('the loader refuses: a scope other than account, qty 0 or above the starter
 });
 
 test('the bounds are a ROW (groundLimit), not literals in the loader: tightening the row refuses the shipped respawn, and a broken row is refused', () => {
-  assert.deepEqual(GROUND_LIMITS, { minRespawnSec: 60, maxRespawnSec: 86_400, minRadiusM: 0.25, maxRadiusM: 5, defaultRadiusM: 1.5 });
+  assert.deepEqual(GROUND_LIMITS, { minRespawnSec: 60, maxRespawnSec: 86_400, defaultRespawnSec: 3600, minRadiusM: 0.25, maxRadiusM: 5, defaultRadiusM: 1.5 });
   assert.throws(() => loadGroundItems(raw({}, STARTER_ITEMS, { ...GROUND_LIMITS, defaultRadiusM: 9 })), /limits/);
-  assert.throws(() => loadGroundItems(raw({}, STARTER_ITEMS, { ...GROUND_LIMITS, maxRespawnSec: 3599 })), /respawnSec/);
+  assert.throws(() => loadGroundItems(raw({}, STARTER_ITEMS, { ...GROUND_LIMITS, maxRespawnSec: 3599 })), /respawnSec/i);
   assert.throws(() => loadGroundItems(raw({}, STARTER_ITEMS, { ...GROUND_LIMITS, maxRespawnSec: 59 })), /limits/);
   assert.throws(() => loadGroundItems(raw({}, STARTER_ITEMS, { ...GROUND_LIMITS, minRadiusM: 0 })), /limits/);
 });
