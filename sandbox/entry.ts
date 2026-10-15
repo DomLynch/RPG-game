@@ -179,9 +179,11 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
     { const { RANGED_BUILDS } = await import('./ranged-weapons.mjs'), id = { staff: 'staff-v1', bow: 'bow-v1', crossbow: 'crossbow-v1' } as const;
       (globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__ = (weapon: string) => {
         const kind = (['staff', 'bow', 'crossbow'] as const).find((k) => q.get(k) === weapon); if (!kind) return undefined;
-        const part = (RANGED_BUILDS as Record<string, () => { rotation: { x: number }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(); part.rotation.x = Math.PI / 2; part.position.set(0, .08, .015); (part as unknown as { scale: { set(x: number, y: number, z: number): void } }).scale.set(1.9, 1, 1.9);   // chunkier across the weapon (not along it) so it reads at the fight camera
-        const tune = q.get('hold');   // ?hold=rx,ry,rz[,px,py,pz]: degrees and metres added to the SwordDrawn hold, for tuning how a model sits in the hand
-        if (tune) { const v = tune.split(',').map(Number); const r = part as unknown as { rotation: { x: number; y: number; z: number } }; r.rotation.x += (v[0] ?? 0) * Math.PI / 180; r.rotation.y += (v[1] ?? 0) * Math.PI / 180; r.rotation.z += (v[2] ?? 0) * Math.PI / 180; part.position.set(.0 + (v[3] ?? 0), .08 + (v[4] ?? 0), .015 + (v[5] ?? 0)); }
+        // Holds from Characters & Art (scripts/weapon-stage/holds.json, 2026-10-15): ABSOLUTE local transforms under the hand bone (the part names its hand), Euler XYZ degrees, metres; they replace SwordDrawn's.
+        const HOLD: Record<string, [number, number, number]> = { staff: [22.7, -55.8, -115.7], bow: [-1.9, 34.6, 114.3], crossbow: [92.8, 60.3, 96.2] };
+        const part = (RANGED_BUILDS as Record<string, () => { rotation: { set(x: number, y: number, z: number): void }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(), d = Math.PI / 180, h = HOLD[kind]!;
+        const tune = (q.get('hold') ?? '').split(',').map(Number);   // ?hold=rx,ry,rz[,px,py,pz]: degrees and metres ADDED to the hold, for nudging on the live page
+        part.rotation.set((h[0] + (tune[0] || 0)) * d, (h[1] + (tune[1] || 0)) * d, (h[2] + (tune[2] || 0)) * d); part.position.set(tune[3] || 0, tune[4] || 0, tune[5] || 0);
         return part;
       }; }
     if (q.get('quiver') === '0') for (const r of RULES.rules as { id: string; value?: number }[]) if (r.id === 'quiver') r.value = 0;   // ?quiver=0: an unlimited quiver for the A/B
