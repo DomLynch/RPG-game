@@ -4,7 +4,9 @@
     "item:starter.knife": {"maxQty": 1},
     "item:starter.cleaver": {"maxQty": 1},
     "item:starter.gladius": {"maxQty": 1},
-    "item:starter.estoc": {"maxQty": 1}
+    "item:starter.estoc": {"maxQty": 1},
+    "item:starter.goblin-scrap-cap": {"maxQty": 1},
+    "item:starter.goblin-shin-plates": {"maxQty": 1}
   },
   "groundLimits": {
     "ground": {"minRespawnSec": 60, "maxRespawnSec": 86400, "defaultRespawnSec": 3600, "minRadiusM": 0.25, "maxRadiusM": 5, "defaultRadiusM": 1.5}
