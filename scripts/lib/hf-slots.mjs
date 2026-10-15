@@ -12,7 +12,7 @@ import { mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { record, t4Refusal } from './hf-ledger.mjs';
+import { record, t4Refusal, taggedReason } from './hf-ledger.mjs';
 
 export const CAPS = { 'cpu-upgrade': { total: 4, generic: 3, tier: 'hf-cpu' }, 't4-medium': { total: 4, generic: 4, tier: 'hf-t4' } };
 const LIVE = /^(RUNNING|STARTING|PENDING|SCHEDULING|QUEUED)$/;
@@ -71,7 +71,7 @@ export function withSlot({ hf = 'hf', flavor, generic = true, maxWaitS = 600, po
       const jobs = ps(hf), d = jobs === null ? { ok: true, used: 0, limit: 0, slot: 1 } : slotDecision(flavor, jobs, generic);
       if (d.ok) {
         const value = launch(), id = idOf ? idOf(value) : null, launched = jobId(value);
-        if (cost && launched) record({ id: launched, flavor, timeout: cost.timeout, reason: cost.reason });   // before the rank check: a job cancelled below still ran
+        if (cost && launched) record({ id: launched, flavor, timeout: cost.timeout, reason: taggedReason(cost.reason) });   // before the rank check: a job cancelled below still ran
         const after = id && cancel ? ps(hf) : null, rank = after ? rankOf(flavor, after, id) : 0;
         if (!rank || rank <= d.limit || d.limit === 0) return { ok: true, slot: rank || d.slot, queuedS: (now() - t0) / 1000, value };
         cancel(id);   // another host took the slot first: this job is the youngest beyond the cap, so it backs off and queues again
