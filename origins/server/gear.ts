@@ -1,11 +1,11 @@
-// POST /origins/gear_open | gear_equip | gear_unequip {character, ...}: the ONE item ledger's read and write API for owned and worn gear (Lead's plan, 2026-10-09). origins/inventory is the
+// POST /origins/gear_open | gear_equip | gear_unequip {character, ...}: the ONE item ledger's read and write API for owned and worn gear (Lead's plan, 2026-10-09). src/core/items is the
 // authority (the pure module's receive / equip / unequip), these ops only open the character's holdings, run it and commit the moved piece as a versioned `put` (a stale read aborts the
 // batch, O0002). No new rule lives here: the rank check, the empty-slot rule ("take it off first", no silent swap) and the on-equip binding are inventory.equip's and items.ts equipItem's.
 // The wearer's rank is the SERVER's (the career row's credit), never the request's. The body names a character and a piece id; it never carries a slot, a tier, a level or a version.
 import type { ItemInstance, Location } from '../../src/core/server.ts';
 import { legacyLootOfItemId } from '../../src/core/server.ts';
 import { categoryOf } from '../../src/core/server.ts';
-import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { deposit, equip, unequip, withdraw, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { standingLevel } from '../../src/core/server.ts';
 import { DbError } from './db.ts';
 import { exchangePlace } from './upgrade.ts';

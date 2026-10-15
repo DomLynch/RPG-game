@@ -399,3 +399,40 @@ test('a tall foe is framed from further back and higher; an orbit camera and a m
   const low = cameraPose(state, 0, 0.45, true, foe, 1, 0, framingLow('wolf'));
   assert.ok(low.y > man.y && Math.abs(low.x - man.x) > 0.5, 'a low foe: the lock steps over the shoulder and lifts');
 });
+
+// The first-visit intro orbit (Web's overlay): a camera-only mode around the idle hero. start() blends in, a 52 s lap, stop() blends back to exactly the fight camera.
+import { INTRO } from '../src/fight/camera.ts';
+const runFor = (rig: ReturnType<typeof createCameraRig>, state: object, enemy: object, seconds: number) => { for (let i = 0; i < Math.round(seconds * 60); i++) rig.update(1 / 60, state as never, enemy as never, false, null); };
+const bearing = (camera: PerspectiveCamera, state: { x: number; z: number }) => Math.atan2(camera.position.x - state.x, camera.position.z - state.z);
+test('introTour: orbits the hero at the row radius and height, a quarter lap in a quarter of INTRO.lap', () => {
+  const a = rigAt(0, 3, false, 16 / 9); runFor(a.rig, a.state, a.enemy, 2); const b0 = bearing(a.camera, a.state);
+  assert.equal(a.rig.introTour.active, false);
+  a.rig.introTour.start(); runFor(a.rig, a.state, a.enemy, INTRO.blendIn); assert.equal(a.rig.introTour.active, true);
+  runFor(a.rig, a.state, a.enemy, INTRO.lap / 4);
+  const swept = (((bearing(a.camera, a.state) - b0) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;   // wrapped to -pi..pi
+  assert.ok(Math.abs(Math.abs(swept) - Math.PI / 2) < 0.35, `a quarter lap sweeps ~90 degrees, got ${(swept * 180 / Math.PI).toFixed(0)}`);
+  const d = Math.hypot(a.camera.position.x - a.state.x, a.camera.position.z - a.state.z);
+  assert.ok(Math.abs(d - INTRO.radius) <= INTRO.breath + 0.4, `the orbit stays at the row radius (${d.toFixed(2)} m)`);
+  assert.ok(a.camera.position.y >= INTRO.height - 0.2 && a.camera.position.y <= INTRO.height + INTRO.rise + 0.2, `at the row height (${a.camera.position.y.toFixed(2)} m)`);
+  assert.ok(Math.hypot(a.camera.position.x, a.camera.position.z) <= 11.5 + 1e-9, 'inside the scenery');
+});
+test('introTour: stop() blends back to the fight camera exactly, start/stop are idempotent', () => {
+  const a = rigAt(0, 3, false, 16 / 9), c = rigAt(0, 3, false, 16 / 9);
+  runFor(a.rig, a.state, a.enemy, 1); runFor(c.rig, c.state, c.enemy, 1);
+  a.rig.introTour.start(); a.rig.introTour.start(); runFor(a.rig, a.state, a.enemy, 12); runFor(c.rig, c.state, c.enemy, 12);
+  assert.ok(a.camera.position.distanceTo(c.camera.position) > 2, 'during the intro the camera is somewhere else');
+  a.rig.introTour.stop(); a.rig.introTour.stop(); runFor(a.rig, a.state, a.enemy, INTRO.blendOut + 4); runFor(c.rig, c.state, c.enemy, INTRO.blendOut + 4);
+  assert.equal(a.rig.introTour.active, false);
+  assert.ok(a.camera.position.distanceTo(c.camera.position) < 0.05, `back on the fight camera (${a.camera.position.distanceTo(c.camera.position).toFixed(3)} m off)`);
+});
+test('introTour: reduced motion keeps the frame still, and a finish wins over the intro', () => {
+  const still = rigAt(0, 3, true, 16 / 9), ctl = rigAt(0, 3, true, 16 / 9);
+  still.rig.introTour.start(); runFor(still.rig, still.state, still.enemy, 8); runFor(ctl.rig, ctl.state, ctl.enemy, 8);
+  assert.ok(still.camera.position.distanceTo(ctl.camera.position) < 1e-9, 'reduced motion keeps the frame still');
+  assert.equal(still.rig.introTour.active, false);
+});
+test('introTour: during a finish the finisher camera is untouched', () => {
+  const a = rigAt(0, 3, false, 16 / 9), c = rigAt(0, 3, false, 16 / 9); a.rig.introTour.start();
+  for (let i = 0; i < 240; i++) { a.rig.update(1 / 60, a.state, a.enemy, false, finish()); c.rig.update(1 / 60, c.state, c.enemy, false, finish()); }
+  assert.ok(a.camera.position.distanceTo(c.camera.position) < 1e-9, 'a finish frames itself, the intro waits');
+});

@@ -4,7 +4,7 @@
 // Valuables are ONE transaction (Dom 2026-10-08): the `repair:<character>:<op>` event (carrying the receipt and the piece's wear after), the bronze spend (versioned: a stale
 // balance aborts the batch) and the burned iron commit in ONE origins_apply batch. The op id is the one-time token: an identical retry is answered from the stored receipt
 // (replayed: true), a different request under the same op id is a 409, and a racing retry (O0001) answers from what committed. The player must stand at the Exchange smith.
-import { find } from '../inventory/inventory.ts';
+import { find } from '../../src/core/server.ts';
 import { repairCost, repairedPiece, wearKindOf, type Piece } from '../gear/wear-repair.ts';
 import { DbError } from './db.ts';
 import { Refused } from './errors.ts';
