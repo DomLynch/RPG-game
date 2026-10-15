@@ -2,6 +2,10 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-15 09:2x Dubai — security incident on trunk (details in the Strategy lane memory, not here)
+
+Trunk carried four direct-pushed commits (00:11Z) until the revert #2779 (trunk ffdc0aaa1, tree-identical to GD). Containment, root cause and the owner list live in the Strategy and Lead lane memories; this repo is public, so nothing about what was or was not rotated is written here. Rule from the incident: every branch rebases onto ffdc0aaa1 or later before it is pushed; Deploy's cut gates (empty diff on .github/workflows, .vscode, public/fonts; no PR-less commit between the last live sha and the base) stay until branch protection is on.
+
 ## 2026-10-14 23:1x Dubai — Dom asleep; overnight order; the launch picture and tonight's briefs
 
 **Now (morning pickup).** Dom opens the laptop in the morning; discuss with him: (a) the launch read: duel game at /game is about a week from a public mobile-web open beta, Origins MMO is 4–6 weeks, Steam = store page for wishlists now (his $100), Playtest (no reviews) when an Electron build exists, Early Access only after a month of Origins data; (b) the three things only he can do: 30 min on his phone + the five-friend playtest (SCOPE item 2, open since 10-02), one real Android run (item 3), the two-device duel test (item 10 gate 4); (c) the first-five-minutes copy (four draft lines in docs/briefs/first-five-minutes.md) for approval; (d) the goblin-field preview URL when World publishes it. Lead reports to me at 08:3x: live sha, landed, READY, blockers.
