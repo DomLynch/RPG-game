@@ -39,7 +39,8 @@
         "torch": "string",
         "torchPower": "number",
         "backdropPortrait": "string",
-        "backdropLandscape": "string"
+        "backdropLandscape": "string",
+        "ground": "string"
       },
       "refs": {
         "haze": "goblin-look"
@@ -100,6 +101,39 @@
         "exposure": "number",
         "ground": "array",
         "ground[]": "number"
+      }
+    },
+    {
+      "table": "goblin-ground",
+      "file": "goblin-field-defs.json",
+      "at": "grounds",
+      "key": "id",
+      "required": {
+        "texN": "number",
+        "tileM": "number",
+        "seed": "number",
+        "blotches": "number",
+        "blotchMin": "number",
+        "blotchMax": "number",
+        "wetPatches": "number",
+        "wetMin": "number",
+        "wetMax": "number",
+        "speckles": "number",
+        "speckleMin": "number",
+        "speckleMax": "number",
+        "pebbles": "number",
+        "pebbleMin": "number",
+        "pebbleMax": "number",
+        "cracks": "number",
+        "crackSteps": "number",
+        "crackStep": "number",
+        "noise": "number",
+        "bump": "number",
+        "roughness": "number",
+        "base": "string",
+        "light": "string",
+        "dark": "string",
+        "wet": "string"
       }
     }
   ]

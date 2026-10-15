@@ -22,6 +22,9 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => (p.id === 'fortress' ? { ...p, torchPower: -1 } : p)) }), /torchPower/);
   assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => (p.id === 'fortress' ? { ...p, backdropPortrait: 'missing' } : p)) }), /names no backdrop row/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, y0: 0.9, y1: 0.5 })) }), /the crop is fractions/);
+  assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => ({ ...p, ground: 'missing' })) }), /names no ground row/);
+  assert.throws(() => loadGoblinField({ ...d, grounds: (d as unknown as { grounds: Record<string, unknown>[] }).grounds.map((g) => ({ ...g, base: 'brown' })) }), /hex is #rrggbb/);
+  assert.throws(() => loadGoblinField({ ...d, grounds: (d as unknown as { grounds: Record<string, unknown>[] }).grounds.map((g) => ({ ...g, texN: 4096 })) }), /texN is a whole number up to 2048/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, repeat: 3 })) }), /even whole number/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, file: '/abs.webp' })) }), /no leading slash/);
   assert.throws(() => loadGoblinField({ ...d, harmonics: d.harmonics.map((h) => ({ ...h, k: 2.5 })) }), /whole number of periods/);

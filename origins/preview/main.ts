@@ -59,7 +59,8 @@ import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { goblinFieldKit, withGoblinField } from './goblin-field.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinPalette, goblinRule, goblinZone, zoneCamp, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinGround, goblinPalette, goblinRule, goblinZone, zoneCamp, zoneSky } from '../world/goblin-field-rules.ts';
+import { goblinDirtMaterial } from './goblin-ground.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -126,7 +127,8 @@ const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), fr
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
 let frontierGroup: THREE.Group | null = null, goblinDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 if (frontier && frontierParts) {
-  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
+  const groundRow = ZONE_SKY ? goblinGround(ZONE_SKY) : null;
+  frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (ZONE_SKY) goblinDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL);   // the painted horizon (and Dom's picture, when the palette names one)
   if (goblinDome) { const pitSky = arena.group.getObjectByName(goblinDome.covers); if (pitSky) pitSky.renderOrder = goblinDome.mesh.renderOrder - 1; }   // the Pit's sky dome (same 150 m, depth on) draws just before ours, so ours paints over it and every real object still draws in front
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
