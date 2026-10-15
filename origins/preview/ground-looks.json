@@ -1,0 +1,8 @@
+{
+  "groundLooks": [
+    {
+      "id": "item:starter.rusty-sword",
+      "fields": { "yawDeg": 28, "rollDeg": 0, "scale": 1, "liftM": 0.015, "finish": "rust" }
+    }
+  ]
+}
