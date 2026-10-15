@@ -40,6 +40,7 @@ async function frame(width, scenario) {
   page.on('pageerror', (e) => receipt.errors.push(`pageerror ${scenario}@${width}: ${String(e).slice(0, 200)}`));
   await page.addInitScript(([key, exp]) => { localStorage.setItem(key, JSON.stringify({ access_token: 'stub.token.value', expires_at: exp })); }, [AUTH_KEY, Math.floor(Date.now() / 1000) + 3600]);
   let rowsSeen = 0;
+  await page.route('**/origins/open', (route) => json(route, 200, { ok: true, result: { characters: [{ id: 'pc:still', name: 'Still' }] } }));   // the one door: gives the take its character
   await page.route('**/origins/ground_state', async (route) => {
     let pos; for (let i = 0; i < 600 && !pos; i++) { pos = await page.evaluate(() => window.originsPreview?.pos && { x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }).catch(() => undefined); if (!pos) await new Promise((r) => setTimeout(r, 250)); }
     const items = OFFSETS[scenario].map(([dx, dz], i) => ({ instance: `ground:still-${i}`, item: ITEM, zone: 'zone1', place: 'cinder-fields', offsetX: pos.x + dx - centre.x, offsetZ: pos.z + dz - centre.z, radiusM: 1.5, available: true, visible: true }));
