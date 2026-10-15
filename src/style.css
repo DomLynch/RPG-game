@@ -2253,6 +2253,9 @@ dialog .rank-seg { --rank-fill: var(--js); }
      be tapped: release rows 16, 21 and 25, Lead 2026-10-07). The rest of the column waits (visibility: nothing reflows) and returns with the offer's close. */
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; left: auto; top: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 56px); width: var(--end-width); }
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
+  /* Once the fight is over and Next fight is up, the fight buttons have nothing to do: ROLL and GUARD sat under it and showed through at 375
+     (Lead 2026-10-15, scripts/end-overlap-check.mjs). Hidden and inert, nothing reflows; they return with the next fight (Next fight hides again). */
+  :root:has(#reset-button:not([hidden], [data-play='1'])) .actions[data-gestures=cluster] :is(#attack-button, #heavy-button, #skill-button, #thrust-button, #kick-button, #dodge-button, #guard-button, #run-button) { visibility: hidden; pointer-events: none; }
 }
 /* ===== The gear sheet: Fitting rail (Strategy 2026-10-01, concept 03). Grey box: the painted pieces (docs: gear-fitting-painted-pieces) replace these plain plates.
    The sheet is the whole phone, dark in the /game Golden Order palette. While the live mannequin is up (#journal[data-gear=live]) the Gear tab leaves

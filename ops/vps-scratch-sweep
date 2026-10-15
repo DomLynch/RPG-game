@@ -21,11 +21,14 @@ PATHS=""
 #          once nothing inside changed for AGED_MIN minutes
 #   home   the six retired VPS lane homes (0 unpushed commits, only an untracked node_modules): archive first, then delete
 #   tmp    two exact one-off /tmp dirs (a regenerable compile cache, an old Lead env): deleted
+#   lane   (also) an exact direct child of /tmp (Strategy 2026-10-15, finished build output): archive first, then delete; a bare /tmp, /tmp/, a glob character, anything deeper and the system/session families (dotfiles, claude*, systemd-private-*, snap-private-tmp, pulse-*, tmux-*, ssh-*) are refused
+#   file   three exact one-off regular files in /tmp (rev2354-dist.tgz, wk.tgz, wk2.tgz; Lead 2026-10-15): archive first, then delete. The tool is NOT taught files in general: any other file is refused (a lane kind needs a directory)
 # Anything else is refused: this list is the only place a root is added, and it needs a ruling by Lead.
 AGED_MIN=${AGED_MIN:-120}
 sweep_kind() {
   local p=$1
   case "$p" in *..*|*" "*) return 0;; esac
+  case "$p" in *'*'*|*'?'*|*'['*) return 0;; esac   # a glob character is never part of an exact path (Strategy 2026-10-15)
   case "$p" in */|*//*|*/./*|*/.) return 0;; esac   # a trailing slash makes `[ -L x/ ]` follow the link and `rm -rf x/` empty its TARGET (Auditor, #2624, reproduced on the VPS)
   case "$p" in
     /opt/frankendom-shadow/scratch-retirement-*|/opt/frankendom-shadow/work/*|/srv/dev-jobs/*) echo lane;;
@@ -33,8 +36,11 @@ sweep_kind() {
     /tmp/hooks-*|/tmp/cq-*) [ "$(dirname "$p")" = /tmp ] && echo aged;;   # hooks-* review trees, cq-* the Auditor's worktrees (Lead 2026-10-13: standing root)
     /home/lanes/frankendom-char-cd|/home/lanes/frankendom-deploy-b|/home/lanes/frankendom-char-20b|/home/lanes/frankendom-char-boss|/home/lanes/frankendom-char-lg|/home/lanes/frankendom-combat-b) echo home;;
     /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
+    /tmp/rev2354-dist.tgz|/tmp/wk.tgz|/tmp/wk2.tgz) echo file;;   # the only regular files the tool will take, exact (Lead 2026-10-15)
     /tmp/rank-job) echo aged;;   # Web's rank-job tree (Lead 2026-10-14): exact, aged, and refused while anything runs inside (the sweep_in_use checks)
     /root/cn[0-9]*) [ "$(dirname "$p")" = /root ] && [[ "$(basename "$p")" =~ ^cn[0-9]+$ ]] && echo aged;;   # the preflight full clones /root/cnNN (Lead 2026-10-14): digits only, direct children of /root
+    /tmp/.*|/tmp/claude*|/tmp/systemd-private-*|/tmp/snap-private-tmp|/tmp/pulse-*|/tmp/tmux-*|/tmp/ssh-*) ;;   # refused outright, even by exact path: dotfiles (.X11-unix, .ICE-unix ...), a Claude session's scratch (idle between turns), a live service's PrivateTmp, other session/OS dirs (Lead + Auditor 2026-10-15)
+    /tmp/*) [ "$(dirname "$p")" = /tmp ] && echo lane;;   # Strategy 2026-10-15: an exact direct child of /tmp, archive first; the hooks-*, cq-*, rank-job and one-off arms above win first
   esac
   return 0
 }
@@ -46,7 +52,8 @@ sweep_safe_path() {
   case "$p" in /*) ;; *) echo "not an absolute path"; return 1;; esac
   case "$p" in */|*//*|*/./*|*/.|*/..|*/../*) echo "not canonical: trailing slash, // or . or .."; return 1;; esac
   [ ! -L "$p" ] || { echo "is a symlink"; return 1; }
-  [ -d "$p" ] || { echo "not a real directory"; return 1; }
+  if [ "$(sweep_kind "$p")" = file ]; then [ -f "$p" ] || { echo "not a regular file"; return 1; }   # only the three exact one-off files have this kind
+  else [ -d "$p" ] || { echo "not a real directory"; return 1; }; fi
   real=$(realpath -e -- "$p" 2>/dev/null) || { echo "cannot be resolved"; return 1; }
   [ "$real" = "$p" ] || { echo "a path component is a symlink ($p resolves to $real)"; return 1; }
   [ -n "$(sweep_kind "$real")" ] || { echo "resolves outside the allowed roots"; return 1; }
@@ -58,7 +65,8 @@ sweep_safe_path() {
 sweep_in_use() {
   local p=$1 q rc
   for q in /proc/[0-9]*; do case "$(readlink "$q/cwd" 2>/dev/null)" in "$p"|"$p"/*) return 0;; esac; done
-  timeout "${LSOF_TIMEOUT:-120}" lsof +D "$p" >/dev/null 2>&1; rc=$?
+  if [ -f "$p" ]; then timeout "${LSOF_TIMEOUT:-120}" lsof -- "$p" >/dev/null 2>&1; rc=$?   # lsof +D on a regular file exits 1 even while it is open (Auditor, #2832, probed on the VPS); a file needs plain lsof
+  else timeout "${LSOF_TIMEOUT:-120}" lsof +D "$p" >/dev/null 2>&1; rc=$?; fi
   [ "$rc" = 1 ] && return 1
   return 0
 }
