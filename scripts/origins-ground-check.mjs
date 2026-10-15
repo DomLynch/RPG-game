@@ -54,7 +54,7 @@ try {
   const keyOf = (inst, acct, n) => psql(`select 'loot:ground.' || substr(encode(sha256(convert_to('${inst}|${acct}|${n}', 'UTF8')), 'hex'), 1, 32) || ':0'`);
   const batch = (acct, pc, inst, n, slot = 0, key = keyOf(inst, acct, n)) => JSON.stringify([
     { op: 'event', event_id: `ground:${key}`, kind: 'mint', account: acct, character: pc, payload: { ground: { instance: inst, n } } },
-    { op: 'mint', item: { id: `inst:ground-${acct.slice(0, 4)}-${n}`, item: 'item:ash-pelt', quantity: 1, tier: 0, upgrade_level: 0, loc: { kind: 'pack', owner: pc, index: slot }, bound_to: pc, mint_key: key, provenance: { kind: 'loot', mintKey: key, at: '2026-10-15T00:00:00Z' }, history: [], single_copy: false } },
+    { op: 'mint', item: { id: `inst:${key.replace(/[^a-z0-9]/g, '-')}`, item: 'item:ash-pelt', quantity: 1, tier: 0, upgrade_level: 0, loc: { kind: 'pack', owner: pc, index: slot }, bound_to: pc, mint_key: key, provenance: { kind: 'loot', mintKey: key, at: '2026-10-15T00:00:00Z' }, history: [], single_copy: false } },
   ]);
   const TAKE = (acct, inst, n, respawnS, b) => `select public.origins_ground_take('${acct}', '${inst}', ${n}, ${respawnS}, '${b}'::jsonb)::text;`;
   const STATE = (acct, insts) => `select public.origins_ground_state('${acct}', array[${insts.map(i => `'${i}'`).join(',')}])::text;`;
@@ -97,7 +97,7 @@ try {
   eq([minted(pcA), keyOf(INST, A, 1) === keyOf(INST, A, 2)], ['2', false], 'respawn: a second item under a different key');
   // concurrency: two takes with the same expected n for a fresh instance, exactly one wins
   const I2 = 'ground:zone1.race-1', [r1, r2] = await Promise.all([as(O, TAKE(A, I2, 1, 3600, batch(A, pcA, I2, 1, 2))), as(O, TAKE(A, I2, 1, 3600, batch(A, pcA, I2, 1, 3)))]);
-  eq([r1.code, r2.code].sort(), [0, 1], 'race: exactly one of two concurrent takes wins');
+  eq([r1, r2].map(r => r.code === 0 ? 'won' : /O0002/.test(r.err) ? 'stale' : r.err.trim().slice(0, 120)).sort(), ['stale', 'won'], 'race: exactly one of two concurrent takes wins, the other is stale');
   eq(psql(`select count(*) from public.origins_items where mint_key = '${keyOf(I2, A, 1)}'`), '1', 'race: the key was minted once');
 
   // down: the new objects go, nothing else

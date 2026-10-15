@@ -57,7 +57,7 @@ test('one of each and pack room: a second sword is refused as have-it, a full pa
   const held = (first.batch[1] as { item: Record<string, unknown> }).item;
   const inst = { kind: 'item-instance', schemaVersion: 1, id: held.id, item: held.item, version: 1, quantity: 1, tier: REGION1_LOOT_TIER, location: { kind: 'pack', owner: PC, index: 0 }, boundTo: PC, provenance: held.provenance, history: [] } as never;
   assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([inst]) }), { refused: 'have-it' });
-  const other = { ...inst, id: 'inst:other-1', item: 'item:frontier.ash-helm', tier: REGION1_LOOT_TIER, boundTo: null } as never;
+  const other = { ...(inst as object), id: 'inst:other-1', item: 'item:frontier.ash-helm', tier: REGION1_LOOT_TIER, boundTo: null } as never;
   assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([other], 1) }), { refused: 'full' });
 });
 
