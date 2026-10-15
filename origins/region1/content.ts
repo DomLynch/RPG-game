@@ -42,6 +42,12 @@ export const ITEMS = [
   gear('item:frontier.ferryman-boots', "Ferryman's boots", 'Boots', 'fine', 'leather'),
   gear('item:frontier.mere-arms', 'Drowned vambraces', 'Arms', 'fine', 'bronze'),
   gear('item:frontier.mere-shield', "The Mere-Mother's shield", 'Shield', 'relic', 'bone'),
+  // The starter ground item (Backend brief #2775; Lead 2026-10-15): the one weapon Region 1 may define, because a ground row names it (origins/world/ground-items.json). Longsword is
+  // DEFAULT_WEAPON, so a new player already fights with its moves: wearing it changes nothing about the fight. Bound on acquire: not tradable. The rust tint is owed by Characters & Art.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.rusty-sword', name: 'Rusty sword', category: 'gear', rarity: 'common', slot: 'Longsword',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/longsword.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
     power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,
