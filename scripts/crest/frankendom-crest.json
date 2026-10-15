@@ -1,0 +1,19 @@
+{
+  "crest": {
+    "id": "frankendom-stitch",
+    "note": "Frankendom's own banner mark: a stitched diamond, a seam down the middle crossed by stitches, a bolt at each side. Unit coordinates, x right and y down, the mark fits the square -1..1. Original; it imitates no game's, brand's or organisation's emblem.",
+    "ink": "#160b07",
+    "edge": "#d8a24a",
+    "edgeWidth": 0.07,
+    "shapes": [
+      { "kind": "polygon", "fill": true, "edge": true, "points": [[0, -1], [0.72, 0], [0, 1], [-0.72, 0]] },
+      { "kind": "line", "from": [0, -0.62], "to": [0, 0.62], "width": 0.09, "color": "edge" },
+      { "kind": "line", "from": [-0.2, -0.42], "to": [0.2, -0.28], "width": 0.07, "color": "edge" },
+      { "kind": "line", "from": [-0.2, -0.14], "to": [0.2, 0.0], "width": 0.07, "color": "edge" },
+      { "kind": "line", "from": [-0.2, 0.14], "to": [0.2, 0.28], "width": 0.07, "color": "edge" },
+      { "kind": "line", "from": [-0.2, 0.42], "to": [0.2, 0.56], "width": 0.07, "color": "edge" },
+      { "kind": "circle", "center": [-0.5, 0], "radius": 0.09, "color": "edge" },
+      { "kind": "circle", "center": [0.5, 0], "radius": 0.09, "color": "edge" }
+    ]
+  }
+}
