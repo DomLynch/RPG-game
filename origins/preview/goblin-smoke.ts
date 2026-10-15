@@ -11,7 +11,7 @@ export function smokePuff(t: number, slot: number) {
 
 export function createGoblinSmoke(scene: THREE.Scene, fires: readonly { x: number; z: number }[]) {
   const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!, grad = g.createRadialGradient(32, 32, 2, 32, 32, 32);
-  grad.addColorStop(0, 'rgba(120,108,100,0.9)'); grad.addColorStop(1, 'rgba(120,108,100,0)'); g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  grad.addColorStop(0, 'rgba(64,54,50,0.95)'); grad.addColorStop(1, 'rgba(64,54,50,0)'); g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
   const tex = new THREE.CanvasTexture(c), group = new THREE.Group(); group.name = 'goblin-smoke'; scene.add(group);
   const puffs = fires.flatMap((f, fi) => Array.from({ length: R('smokeCount') }, (_, i) => { const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }), s = new THREE.Sprite(m); group.add(s); return { s, m, f, slot: (i + fi * 0.37) / R('smokeCount') }; }));
   let t = 0;

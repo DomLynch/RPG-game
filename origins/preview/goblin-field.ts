@@ -47,8 +47,8 @@ export function goblinFieldKit(f: Frontier, b: Build, base: Dress): GoblinKit {
   for (let k = 0; k < R('fireCount'); k++) {
     const o = k === 0 ? (free(centre.x, centre.z, R('fireRing') + 1) ? centre : spot(R('fireRing') + 1, 0.5)) : spot(R('fireRing') + 1, 0.7); if (!o) continue;
     for (let i = 0; i < R('fireStones'); i++) { const a = (i / R('fireStones')) * Math.PI * 2, r = between(0.2, 0.34); put(['cylinder', r * 0.7, r, r * 1.2, 6], o.x + Math.sin(a) * R('fireRing') * 0.55, r * 0.5, o.z + Math.cos(a) * R('fireRing') * 0.55, T('ring'), between(0, 6)); }
-    for (let i = 0; i < R('fireLogs'); i++) put(['box', 0.95, 0.12, 0.12], o.x, 0.12 + (i % 2) * 0.12, o.z, T('dead'), (i / R('fireLogs')) * Math.PI);
-    put(['cylinder', 0.42, 0.46, 0.05, 10], o.x, 0.03, o.z, T('ember'), 0, 'coal');
+    for (let i = 0; i < R('fireLogs'); i++) put(['box', R('fireRing') * 1.1, 0.14, 0.14], o.x, 0.12 + (i % 2) * 0.14, o.z, T('dead'), (i / R('fireLogs')) * Math.PI);
+    put(['cylinder', R('emberR'), R('emberR') * 1.1, 0.05, 10], o.x, 0.03, o.z, T('ember'), 0, 'coal');
     fires.push({ x: o.x, z: o.z }); placed.push({ x: o.x, z: o.z, r: R('fireRing') + 0.4 });
   }
   // Dead trees in clumps: a thin trunk and three bare branches (the Cinder pass's tree), no solid.

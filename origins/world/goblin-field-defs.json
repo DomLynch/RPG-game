@@ -14,8 +14,8 @@
     { "id": "bonePiles", "value": 9, "unit": "count" },
     { "id": "boneRibs", "value": 5, "unit": "count" },
     { "id": "fireCount", "value": 2, "unit": "count" },
-    { "id": "fireStones", "value": 9, "unit": "count" },
-    { "id": "fireRing", "value": 1, "unit": "m" },
+    { "id": "fireStones", "value": 11, "unit": "count" },
+    { "id": "fireRing", "value": 1.5, "unit": "m" },
     { "id": "fireLogs", "value": 4, "unit": "count" },
     { "id": "treeClumps", "value": 3, "unit": "count" },
     { "id": "treesPerClump", "value": 3, "unit": "count" },
@@ -27,9 +27,9 @@
     { "id": "smokeCount", "value": 9, "unit": "count" },
     { "id": "smokeRise", "value": 6.5, "unit": "m" },
     { "id": "smokeSpeed", "value": 0.7, "unit": "m/s" },
-    { "id": "smokeSize0", "value": 0.5, "unit": "m" },
-    { "id": "smokeSize1", "value": 2.4, "unit": "m" },
-    { "id": "smokeOpacity", "value": 0.32, "unit": "ratio" },
+    { "id": "smokeSize0", "value": 0.7, "unit": "m" },
+    { "id": "smokeSize1", "value": 3.4, "unit": "m" },
+    { "id": "smokeOpacity", "value": 0.55, "unit": "ratio" },
     { "id": "domeRadius", "value": 150, "unit": "m" },
     { "id": "domeHalf", "value": 0.62, "unit": "ratio" },
     { "id": "ridgeAmp", "value": 0.06, "unit": "ratio" },
@@ -37,7 +37,8 @@
     { "id": "ridgeFarShift", "value": 0.45, "unit": "ratio" },
     { "id": "smokeColumns", "value": 3, "unit": "count" },
     { "id": "texW", "value": 2048, "unit": "px" },
-    { "id": "texH", "value": 512, "unit": "px" }
+    { "id": "texH", "value": 512, "unit": "px" },
+    { "id": "emberR", "value": 0.65, "unit": "m" }
   ],
   "tints": [
     { "id": "wood", "r": 0.46, "g": 0.36, "b": 0.26 },
