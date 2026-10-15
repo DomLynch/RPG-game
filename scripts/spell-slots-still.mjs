@@ -30,7 +30,7 @@ const writer = http.createServer((req, res) => {   // grimoire_get / open / buil
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': '*' };
   if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
   let raw = ''; req.on('data', (c) => (raw += c)); req.on('end', () => {
-    const op = req.url.split('?')[0].split('/').pop(), send = (result) => { res.writeHead(200, { ...cors, 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, result })); };
+    const op = req.url.split('?')[0].split('/').pop(); ops.push(`${op}:${req.headers.authorization === `Bearer ${TOKEN}` ? 'auth' : 'noauth'}`); const send = (result) => { res.writeHead(200, { ...cors, 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, result })); };
     if (req.headers.authorization !== `Bearer ${TOKEN}`) { res.writeHead(401, cors); return res.end(); }
     if (op === 'grimoire_get') return send({ spells: Object.keys(BOOK).sort().map((legend) => ({ legend, bricks: BOOK[legend] })) });
     if (op === 'build_get') return send({ level: 0, placed: {}, respreadRank: 0, version: 0 });
@@ -40,7 +40,7 @@ const writer = http.createServer((req, res) => {   // grimoire_get / open / buil
 await Promise.all([new Promise((r) => site.listen(0, '127.0.0.1', r)), new Promise((r) => writer.listen(0, '127.0.0.1', r))]);
 const origin = `http://127.0.0.1:${site.address().port}`, writerUrl = `http://127.0.0.1:${writer.address().port}/origins`;
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const receipt = [], fails = [];
+const receipt = [], fails = [], ops = [];
 
 async function boxesOf(page) {
   return page.evaluate(() => [...document.querySelectorAll('.actions button')].filter((b) => { const r = b.getBoundingClientRect(), s = getComputedStyle(b); return !b.hidden && s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0; }).map((b) => { const r = b.getBoundingClientRect(); return { id: b.id, l: Math.round(r.left * 10) / 10, t: Math.round(r.top * 10) / 10, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 }; }));
@@ -50,7 +50,8 @@ async function frame(label, vp, page, expectSkill2) {
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = circle(boxes[i]), b = circle(boxes[j]); if (Math.hypot(a.cx - b.cx, a.cy - b.cy) < a.r + b.r - 0.5) overlaps.push([boxes[i].id, boxes[j].id]); }
   const off = boxes.filter((b) => b.l < 0 || b.t < 0 || b.l + b.w > vp.w || b.t + b.h > vp.h).map((b) => b.id), small = boxes.filter((b) => b.w < 44 || b.h < 44).map((b) => b.id);
   const toast = await page.evaluate(() => /isn't valid|normal fight/i.test(document.body.innerText)), hasSkill2 = boxes.some((b) => b.id === 'skill2-button');
-  receipt.push({ frame: label, viewport: `${vp.w}x${vp.h}`, buttons: boxes.map((b) => b.id), hasSkill2, toast, overlaps, off, small, boxes });
+  const diag = await page.evaluate(() => ({ slots: localStorage.getItem('frankendom.spell.slots.v1'), auth: !!localStorage.getItem('frankendom.auth.v1'), skill2: document.getElementById('skill2-button')?.outerHTML.slice(0, 160) ?? null }));
+  receipt.push({ frame: label, diag, writerOps: [...ops], viewport: `${vp.w}x${vp.h}`, buttons: boxes.map((b) => b.id), hasSkill2, toast, overlaps, off, small, boxes });
   await page.screenshot({ path: `${OUT}/${label}-${vp.w}.jpg`, type: 'jpeg', quality: 88, animations: 'disabled' });
   if (hasSkill2 !== expectSkill2) fails.push(`${label} ${vp.w}: SPELL 2 ${hasSkill2 ? 'shown' : 'absent'}, expected ${expectSkill2 ? 'shown' : 'absent'}`);
   if (toast) fails.push(`${label} ${vp.w}: a fallback toast is on screen`);
@@ -59,7 +60,7 @@ async function frame(label, vp, page, expectSkill2) {
 const open = async (vp) => {
   const context = await browser.newContext({ viewport: { width: vp.w, height: vp.h }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR });
   await context.addInitScript(([t, slots]) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer' })); localStorage.setItem('frankendom.spell.slots.v1', JSON.stringify(slots)); } catch { /* storage refused */ } }, [TOKEN, ['alvis', 'andvari']]);
-  const page = await context.newPage(); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 160))); await page.route('**/*sentry.io/**', (r) => r.abort());
+  const page = await context.newPage(); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 160))); page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`console.${m.type()}:`, m.text().slice(0, 200)); }); await page.route('**/*sentry.io/**', (r) => r.abort());
   return { context, page };
 };
 try {
@@ -80,6 +81,7 @@ try {
     await page.locator('#attack-button').tap().catch(() => {}); await page.waitForTimeout(2000); await frame('pit', vp, page, false); await context.close();
   }
   await fs.writeFile(`${OUT}/receipt.json`, JSON.stringify(receipt, null, 2));
+  for (const r of receipt) console.log(`DIAG ${r.frame} ${r.viewport}: ${JSON.stringify(r.diag)} ops=${JSON.stringify(r.writerOps)}`);
   for (const r of receipt) console.log(`${r.frame} ${r.viewport}: ${r.buttons.length} buttons${r.hasSkill2 ? ' (SPELL 2 shown)' : ' (no SPELL 2)'}, toast ${r.toast}, overlaps ${JSON.stringify(r.overlaps)}, off-screen ${JSON.stringify(r.off)}, under 44px ${JSON.stringify(r.small)}`);
   if (fails.length) { console.log(`FAIL: ${fails.join('; ')}`); process.exitCode = 1; }
 } finally { await browser.close(); site.close(); writer.close(); }
