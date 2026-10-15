@@ -38,10 +38,10 @@ test('look.props.kit = a kit id puts the kit in look.props.camp, else the first 
   assert.equal(zonePropKit(zf({ 'look.props.kit': 'other' })), null); assert.equal(zonePropKit(zf({})), null);
 });
 test('flag off is unchanged: Zones 1-4 set no sky, no camp kit and are listed', () => {
-  for (const id of ['1', '2', '3', '4']) { const z = loadZone(id); assert.equal(zoneSky(z), null, id); assert.equal(zonePropKit(z), null, id); assert.equal(zoneGround(z), null, `${id}: the biome's old material "ash" has no ground row`); assert.equal(zoneAmbience(z), null, `${id}: the biome's old "wind" has no ambience row`); assert.deepEqual(zoneMarkers(z), { alert: true, name: true, card: 'full', growl: false }, id); assert.deepEqual(Object.values(zoneDress(z)).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], id); assert.notEqual(z.unlisted, true, id); }
+  for (const id of ['1', '2', '3', '4']) { const z = loadZone(id); assert.equal(zoneSky(z), null, id); assert.equal(zonePropKit(z), null, id); assert.equal(zoneGround(z), null, `${id}: the biome's old material "ash" has no ground row`); assert.equal(zoneAmbience(z), null, `${id}: the biome's old "wind" has no ambience row`); assert.deepEqual(zoneMarkers(z), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, id); assert.deepEqual(Object.values(zoneDress(z)).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], id); assert.notEqual(z.unlisted, true, id); }
 });
 test('the markers, dress, ground and ambience a zone sets are read; set off, the creature markers go', () => {
-  assert.deepEqual(zoneMarkers(zf({ 'look.creatures.alert': false })), { alert: false, name: true, card: 'full', growl: false }); assert.deepEqual(zoneMarkers(zf({ 'look.creatures.name': false })), { alert: true, name: false, card: 'full', growl: false }); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'target' })).card, 'target'); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'nonsense' })).card, 'full', 'only target changes the card');
+  assert.deepEqual(zoneMarkers(zf({ 'look.creatures.alert': false })), { alert: false, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }); assert.deepEqual(zoneMarkers(zf({ 'look.creatures.name': false })), { alert: true, name: false, card: 'full', growl: false, ring: true, lock: 'hard' }); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'target' })).card, 'target'); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'nonsense' })).card, 'full', 'only target changes the card');
   assert.equal(zoneDress(zf({ 'look.dress': 'fortress' })).trees, 0.1); assert.equal(zoneGround(zf({ 'look.ground.material': 'fortress-ground' }))?.id, 'fortress-ground'); assert.equal(zoneGround(zf({ 'look.ground.material': 'ash' })), null);
   assert.equal(zoneAmbience(zf({ 'sound.ambience': 'fortress-wind' }))?.id, 'fortress-wind'); assert.equal(zoneAmbience(zf({ 'sound.ambience': 'wind' })), null);
 });
@@ -49,6 +49,6 @@ test('?look=goblin is Zone 1 seen as the goblin-fortress biome: it gets the whol
   const { zoneAsBiome } = await import('../origins/zones/loader.ts'), { goblinBiome, goblinZone } = await import('../origins/world/goblin-field-rules.ts');
   const z = zoneAsBiome('1', goblinBiome(), { 'look.props.camp': goblinZone() }), base = loadZone('1');
   assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: goblinZone() }, 'the camp stands in the goblin zone only if that is a world zone of Zone 1');
-  assert.ok(zoneDress(z).trees < 1); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind'); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true });
-  assert.equal(zoneSky(base), null); assert.deepEqual(zoneMarkers(base), { alert: true, name: true, card: 'full', growl: false }, 'the zone row itself did not change');
+  assert.ok(zoneDress(z).trees < 1); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind'); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'soft' });
+  assert.equal(zoneSky(base), null); assert.deepEqual(zoneMarkers(base), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, 'the zone row itself did not change');
 });

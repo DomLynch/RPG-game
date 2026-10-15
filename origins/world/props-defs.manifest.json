@@ -72,7 +72,8 @@
         "rocks": "number",
         "ruins": "number",
         "fill": "number",
-        "posts": "number"
+        "posts": "number",
+        "reach": "number"
       }
     },
     {

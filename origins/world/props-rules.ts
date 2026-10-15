@@ -12,7 +12,7 @@ export type Prop = { readonly id: string; readonly kit: string; readonly r: numb
 export type Kit = { readonly id: string; readonly centreDepth: number; readonly radius: number; readonly tries: number; readonly clearRoad: number; readonly clearLandmark: number; readonly clearProp: number; readonly edge: number };
 export type RecipeKind = 'scatter' | 'ring' | 'cluster';
 export type Recipe = { readonly id: string; readonly kit: string; readonly kind: RecipeKind; readonly props: readonly { readonly prop: string; readonly weight: number }[]; readonly count: number; readonly near?: number; readonly first?: 'centre'; readonly ringRadius?: number; readonly per?: number; readonly spread?: number; readonly chance?: number };
-export type Dress = { readonly id: string; readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number };
+export type Dress = { readonly id: string; readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number };
 export type Ambience = { readonly id: string; readonly windGain: number; readonly windFreq: number; readonly windQ: number; readonly windSweepHz: number; readonly windSweepDepth: number; readonly crackleGain: number; readonly crackleRate: number; readonly crackleFreq: number; readonly fireRange: number; readonly crackleMs: number };
 type Raw = { tints?: readonly unknown[]; props?: readonly unknown[]; kits?: readonly unknown[]; recipes?: readonly unknown[]; dress?: readonly unknown[]; ambience?: readonly unknown[] };
 const SHAPE_ARGS: Record<PartShape, number> = { box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
@@ -44,7 +44,7 @@ export function loadProps(raw: Raw) {
     if (r.chance !== undefined && !(r.chance > 0 && r.chance <= 1)) throw Error(`props recipe "${r.id}": chance is in (0, 1]`);
     if (r.near !== undefined && !(r.near > 0 && r.near <= 1)) throw Error(`props recipe "${r.id}": near is in (0, 1]`);
   }
-  for (const d of dress) for (const [f, v] of Object.entries(d)) if (typeof v === 'number' && !(v >= 0 && v <= 2)) throw Error(`props dress "${d.id}" ${f}: a multiplier from 0 to 2`);
+  for (const d of dress) for (const [f, v] of Object.entries(d)) if (typeof v === 'number' && !(v >= 0 && v <= 8)) throw Error(`props dress "${d.id}" ${f}: a multiplier from 0 to 8`);
   if (!dress.some((d) => d.id === 'default' && Object.entries(d).every(([f, v]) => f === 'id' || v === 1))) throw Error('props: the "default" dress set is all 1s (the base clutter as it was)');
   for (const a of ambience) for (const [f, v] of Object.entries(a)) if (typeof v === 'number' && !(Number.isFinite(v) && v > 0)) throw Error(`props ambience "${a.id}" ${f}: a number > 0`);
   return { tints, props, kits, recipes, dress, ambience };

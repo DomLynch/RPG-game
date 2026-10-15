@@ -14,9 +14,9 @@ export const footprintOf = (p: Piece): Solid => {
   return { x: p.x, z: p.z, r };
 };
 
-/** How much of each kind of clutter to keep: 1 = as it always was; a look's dress set (props-defs.json dress) thins it (0 = none). drifts/rings/cracks/scrub/trees/skyline are the Cinder pass's; rocks, ruins, fill (the mid-distance heaps, wall stubs, spires) and posts (burnt posts, fences, carts) are this base dressing's. */
-export type Thin = { readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number };
-export const WHOLE: Thin = { drifts: 1, rings: 1, cracks: 1, scrub: 1, trees: 1, skyline: 1, rocks: 1, ruins: 1, fill: 1, posts: 1 };
+/** How much of each kind of clutter to keep: 1 = as it always was; a look's dress set (props-defs.json dress) thins it (0 = none). drifts/rings/cracks/scrub/trees/skyline are the Cinder pass's; rocks, ruins, fill (the mid-distance heaps, wall stubs, spires) and posts (burnt posts, fences, carts) are this base dressing's; `reach` scales how far the Cinder ground is carried past the zone's edges (a wide reach hides the ground's edge from a low camera). */
+export type Thin = { readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number };
+export const WHOLE: Thin = { drifts: 1, rings: 1, cracks: 1, scrub: 1, trees: 1, skyline: 1, rocks: 1, ruins: 1, fill: 1, posts: 1, reach: 1 };
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[]; strips?: { x: number; z: number }[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
 export const rng = (seed: string) => {   // mulberry32 over a string hash

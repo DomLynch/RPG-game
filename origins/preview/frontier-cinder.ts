@@ -30,8 +30,8 @@ export function cinderDress(f: Frontier, b: Build, base: Dress, thin: Thin = WHO
     const marks = [...Object.values(z.landmarks), f.giver.at];
 
     // The ground, carried past the far and side edges (never behind the zone's mouth, where the Exchange or a neighbour's road is), a hair under the zone slab.
-    const mid = world(0, (z.depth + CINDER.beyond) / 2);
-    lay(['box', z.width + CINDER.beyond * 2, SLAB, z.depth + CINDER.beyond], mid.x, SLAB / 2, mid.z, [1, 1, 1], z.mount.heading);
+    const beyond = CINDER.beyond * thin.reach, mid = world(0, (z.depth + beyond) / 2);
+    lay(['box', z.width + beyond * 2, SLAB, z.depth + beyond], mid.x, SLAB / 2, mid.z, [1, 1, 1], z.mount.heading);
 
     // Ash drifts: a pale, soft run of overlapping discs along a wobbling line, wind-laid.
     for (let i = 0; i < Math.round(area / 480 * thin.drifts); i++) {
