@@ -1484,7 +1484,7 @@ function frame(now: number) {
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
   const dt = Math.min(elapsed, 0.1);
-  intro.update(dt);   // the caption strip's own wall-clock (presentation only; the fight tick is untouched)
+  if (assetsReady) { intro ??= createIntro(introDeps()); intro.update(dt); }   // the caption strip's own wall-clock (presentation only; the fight tick is untouched)
   const room = gearRoom(); if (room) { room.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
   if (!paused()) {
     controls.promoteDodge(now);
@@ -1740,5 +1740,6 @@ function frame(now: number) {
 }
 // The first-visit intro (brief #2772): a layer over the live arena, never a gate. Automation (a webdriver browser) skips it unless `?intro=1`, so no release row or still changes; special visits (a kill-link or replay, a sparring or lesson or tutorial page, ?debug) never show it.
 const introParams = new URLSearchParams(window.location?.search ?? '');
-const intro = createIntro({ doc: document, parent: document.body, storage, returning: returningVisit, link: !!(sharedId || replayText || sparKit || invalidSparringPreview || lessonAsked || introParams.get('tutorial') === '1' || debug || (typeof navigator !== 'undefined' && navigator.webdriver && introParams.get('intro') !== '1')), tour: view?.introTour });
+let intro: ReturnType<typeof createIntro> | null = null;   // made the first frame the art is ready (frame()), so the cards and the tour start with the arena on screen, not behind the loading card
+const introDeps = () => ({ doc: document, parent: document.body, storage, returning: returningVisit, link: !!(sharedId || replayText || sparKit || invalidSparringPreview || lessonAsked || introParams.get('tutorial') === '1' || debug || (typeof navigator !== 'undefined' && navigator.webdriver && introParams.get('intro') !== '1')), tour: view?.introTour });
 frameId = requestAnimationFrame(frame);
