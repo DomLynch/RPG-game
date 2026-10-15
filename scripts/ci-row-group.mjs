@@ -6,7 +6,7 @@
 //   - artifacts/release-check-N.json per row (what the summary and the full artifact carry) and artifacts/release-check-<group>.json, an array of those
 //     receipts (the tiny `release-check-<group>-receipt` artifact scripts/ci-trusted-checks.mjs downloads);
 //   - exit 1 when any row's final attempt failed, and every failed row is named in the log and in the receipt; the receipts are written whether or not rows pass.
-//   - a row has a hard CEILING (ROW_TIMEOUT_S, default 600 s = the ci-trust-run row cap): at the ceiling the whole row process GROUP is killed (GNU timeout -s KILL signals the group, so an
+//   - a row has a hard CEILING (ROW_TIMEOUT_S, default 600 s = the ci-trust-run row cap): at the ceiling the whole row process GROUP is killed (GNU timeout -s TERM -k 5 signals the group, so an
 //     npx-spawned vite grandchild dies too), that row alone is FAILED with its name (status 124, timed_out:true), it is NOT retried (a hang does not heal; deploy.sh does the same:
 //     "Not retrying release check N: it hit the 600s ceiling"), and the rest of the group still runs. Before this a hung row (GS row 56, 2026-10-15) held the job to the 30-minute
 //     job timeout and the cancel failed the WHOLE group.
@@ -16,6 +16,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const TIMED_OUT = 124;   // GNU timeout's exit status for a command that hit its limit
+export const KILLED = 137;       // ... and 128+9 when it then had to KILL a child that ignored TERM (-k)
 export const rowCeilingS = () => { const n = Number(process.env.ROW_TIMEOUT_S); return Number.isFinite(n) && n > 0 ? n : 600; };
 
 export function runGroup({ id, rows, event, retries = 1, dir = 'artifacts', run = defaultRun, rev = defaultRev, log = console.log, now = Date.now }) {
@@ -30,7 +31,8 @@ export function runGroup({ id, rows, event, retries = 1, dir = 'artifacts', run 
       status = run(argv);
       seconds = Math.round((now() - t0) / 100) / 10;
       if (firstStatus === null) firstStatus = status;
-      if (status === TIMED_OUT) {   // a hang is not retried: the group goes on to the next row
+      if (status === TIMED_OUT || (status === KILLED && seconds >= rowCeilingS() - 1)) {   // a hang is not retried: the group goes on to the next row (137 = timeout had to KILL a child that ignored TERM)
+        status = TIMED_OUT;
         log(`check ${row.index} (${row.name}) hit the ${rowCeilingS()}s ceiling after ${seconds}s: the row process group was killed, FAILED, not retried`);
         timedOut = true; break;
       }
@@ -48,11 +50,15 @@ export function runGroup({ id, rows, event, retries = 1, dir = 'artifacts', run 
   return { receipts, failed };
 }
 
-// GNU timeout puts the row in its own process group and sends -s KILL to the GROUP at the ceiling, so a grandchild (npx -> vite) dies with the row and cannot keep the job's pipes open
-// (the GS row-56 hang). It exits 124 on a timeout. Without `timeout` (not on the ubuntu runners' path, never seen) the plain spawnSync timeout still kills the row itself.
+// GNU timeout runs the row in its own process group and, at the ceiling, sends TERM to the GROUP (timeout itself survives), then KILL 5 s later (-k) to a child that ignored it, so a grandchild
+// (npx -> vite) dies with the row and cannot keep the job's pipes open (the GS row-56 hang). Exit 124 on a timeout, 137 when the KILL was needed. `-s KILL` from the start would kill timeout
+// ITSELF with the group from the start; the -k KILL does the same when a child ignored TERM (spawnSync then sees signal SIGKILL, status null: mapped to a timeout below). The spawnSync timeout is only a backstop for timeout.
+// Without `timeout` (not on the ubuntu runners' path, never seen) the plain spawnSync timeout still kills the row itself.
 const defaultRun = argv => {
   const env = { ...process.env, PG_BIN: process.env.PG_BIN }, secs = rowCeilingS();
-  const r = spawnSync('timeout', ['-s', 'KILL', String(secs), ...argv], { stdio: 'inherit', env });
+  const r = spawnSync('timeout', ['-s', 'TERM', '-k', '5', String(secs), ...argv], { stdio: 'inherit', env, timeout: (secs + 30) * 1000, killSignal: 'SIGKILL' });
+  if (r.error?.code === 'ETIMEDOUT') return TIMED_OUT;
+  if (r.signal === 'SIGKILL') return TIMED_OUT;   // timeout had to send the final KILL to the group and died with it (a child ignored TERM): that is the ceiling
   if (r.error?.code !== 'ENOENT') return r.status ?? 1;
   const f = spawnSync(argv[0], argv.slice(1), { stdio: 'inherit', env, timeout: secs * 1000, killSignal: 'SIGKILL' });
   return f.error?.code === 'ETIMEDOUT' ? TIMED_OUT : f.status ?? 1;

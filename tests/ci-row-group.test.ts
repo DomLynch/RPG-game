@@ -53,20 +53,39 @@ test('runGroup: a row that hangs fails BY NAME at its own ceiling, is not retrie
   const before = process.env.ROW_TIMEOUT_S; process.env.ROW_TIMEOUT_S = '2';
   try {
     const hang = { index: 7, name: 'hang', argv: JSON.stringify(['sh', '-c', 'sleep 31337 & wait']) };   // a grandchild that outlives its parent, like npx -> vite
-    const ok = { index: 8, name: 'ok', argv: JSON.stringify(['true']) };
+    const stubborn = { index: 8, name: 'stubborn', argv: JSON.stringify(['sh', '-c', 'trap "" TERM; sleep 31338 & wait']) };   // ignores TERM: timeout has to KILL the group after -k 5
+    const ok = { index: 9, name: 'ok', argv: JSON.stringify(['true']) };
     const t0 = Date.now();
-    const { failed, receipts } = runGroup({ id: 'g9', rows: [hang, ok], event: 'pull_request', dir, log: (l: string) => lines.push(l) });
-    assert.ok(Date.now() - t0 < 20_000, `the hang was killed at its 2 s ceiling, not the job timeout (${Date.now() - t0} ms)`);
-    assert.deepEqual(failed.map(r => [r.index, r.name, r.status, r.timed_out]), [[7, 'hang', 124, true]], 'only the hung row failed, by name');
-    assert.equal(receipts.find(r => r.index === 8)?.status, 0, 'the next row still ran and passed');
+    const { failed, receipts } = runGroup({ id: 'g9', rows: [hang, stubborn, ok], event: 'pull_request', dir, log: (l: string) => lines.push(l) });
+    assert.ok(Date.now() - t0 < 40_000, `both hangs were killed at their 2 s ceiling (+5 s KILL grace), not the job timeout (${Date.now() - t0} ms)`);
+    assert.deepEqual(failed.map(r => [r.index, r.name, r.status, r.timed_out]), [[7, 'hang', 124, true], [8, 'stubborn', 124, true]], 'only the hung rows failed, by name');
+    assert.equal(receipts.find(r => r.index === 9)?.status, 0, 'the next row still ran and passed');
     assert.ok(!lines.some(l => /Retrying/.test(l)), 'a hang is not retried');
     assert.ok(lines.some(l => /check 7 \(hang\) hit the 2s ceiling/.test(l)), lines.join('\n'));
-    assert.ok(lines.some(l => /::error::release rows FAILED.*7 \(hang, exit 124, timed out at the 2s ceiling\)/.test(l)), lines.join('\n'));
-    assert.equal(spawnSync('pgrep', ['-f', 'sleep 31337'], { encoding: 'utf8' }).status, 1, 'the stray grandchild was killed with the row group');
+    assert.ok(lines.some(l => /::error::release rows FAILED.*7 \(hang, exit 124, timed out at the 2s ceiling\), 8 \(stubborn, exit 124, timed out at the 2s ceiling\)/.test(l)), lines.join('\n'));
+    for (const marker of ['^sleep 31337', '^sleep 31338']) assert.equal(spawnSync('pgrep', ['-f', marker], { encoding: 'utf8' }).status, 1, `the stray grandchild (${marker}) was killed with the row group`);
     const one = JSON.parse(readFileSync(join(dir, 'release-check-7.json'), 'utf8'));
     assert.equal(one.timed_out, true);
-    assert.equal(JSON.parse(readFileSync(join(dir, 'release-check-8.json'), 'utf8')).timed_out, undefined, 'an ordinary row has no timed_out field');
+    assert.equal(JSON.parse(readFileSync(join(dir, 'release-check-9.json'), 'utf8')).timed_out, undefined, 'an ordinary row has no timed_out field');
   } finally { if (before === undefined) delete process.env.ROW_TIMEOUT_S; else process.env.ROW_TIMEOUT_S = before; rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('runGroup: exit 137 (timeout had to KILL a child that ignored TERM) at the ceiling is a timeout too (not retried); a 137 well before the ceiling is an ordinary failure (retried)', () => {
+  const before = process.env.ROW_TIMEOUT_S;
+  try {
+    process.env.ROW_TIMEOUT_S = '1';   // the harness clock advances 1 s per call, so a 137 here is "at the ceiling"
+    const a = harness({ 'r7.mjs': [137] });
+    const ra = runGroup({ id: 'g1', rows: [row(7, 'r7')], event: 'pull_request', ...a.args });
+    assert.deepEqual(a.calls, ['r7.mjs'], 'not retried');
+    assert.deepEqual(ra.failed.map(r => [r.status, r.timed_out]), [[124, true]]);
+    rmSync(a.dir, { recursive: true, force: true });
+    process.env.ROW_TIMEOUT_S = '600';
+    const b = harness({ 'r7.mjs': [137, 137] });
+    const rb = runGroup({ id: 'g1', rows: [row(7, 'r7')], event: 'pull_request', ...b.args });
+    assert.deepEqual(b.calls, ['r7.mjs', 'r7.mjs'], 'an early 137 is an ordinary failure: retried once');
+    assert.deepEqual(rb.failed.map(r => [r.status, r.timed_out]), [[137, undefined]]);
+    rmSync(b.dir, { recursive: true, force: true });
+  } finally { if (before === undefined) delete process.env.ROW_TIMEOUT_S; else process.env.ROW_TIMEOUT_S = before; }
 });
 
 test('rowCeilingS: 600 s by default, ROW_TIMEOUT_S overrides it, and a bad value falls back to 600', () => {
