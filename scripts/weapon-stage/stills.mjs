@@ -22,10 +22,10 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 try {
   for (const id of ids) {
     current = id; const hand = id.startsWith('bow') ? 'l' : 'r';
-    for (const [name, cam, hold, size] of [['wide', 'wide', 'carry', [375, 812]], ['upright', 'wide', 'upright', [375, 812]], ['side', 'side', 'upright', [375, 600]]]) {
+    for (const [name, cam, hold, size] of [['wide', 'wide', 'carry', [375, 812]], ['upright', 'wide', 'upright', [375, 812]], ['solo', 'wide', id.startsWith('crossbow') ? 'lie' : 'stand', [375, 600]]]) {
       const page = await (await browser.newContext({ viewport: { width: size[0], height: size[1] } })).newPage();
       page.on('pageerror', (e) => console.log('pageerror', id, String(e).slice(0, 200)));
-      await page.goto(`${origin}/?cam=${cam}&hand=${hand}&hold=${hold}`, { waitUntil: 'load' });
+      await page.goto(`${origin}/?cam=${cam}&hand=${hand}&hold=${hold}${name === 'solo' ? `&solo=${hold}` : ''}`, { waitUntil: 'load' });
       await page.waitForFunction(() => window.stageReady === true, null, { timeout: 120000 });
       await page.screenshot({ path: path.join(OUT, `${id}-${name}.jpg`), type: 'jpeg', quality: 85, timeout: 120000 });
       await page.context().close();

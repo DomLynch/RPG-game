@@ -27,8 +27,19 @@ part.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
 bone.add(part); scene.add(rig);
 if (q.get('hold') === 'upright') { rig.updateMatrixWorld(true); const inv = bone.getWorldQuaternion(new THREE.Quaternion()).invert(); part.quaternion.copy(inv); part.position.set(0, 0, 0); }   // the part stands world-upright (+Y up, +Z to the camera): a staff planted, a bow held vertical
 rig.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.frustumCulled = false; } });
-const mixer = new THREE.AnimationMixer(rig), clip = hero.animations.find((c) => c.name === (q.get('clip') ?? 'Armed'));
-if (clip) { mixer.clipAction(clip).play(); mixer.setTime(clipAt); }
-rig.updateMatrixWorld(true);
-renderer.render(scene, camera);
-requestAnimationFrame(() => { renderer.render(scene, camera); (window as unknown as { stageReady: boolean }).stageReady = true; });
+if (q.get('solo')) {   // the model alone for a design sheet: no hero; a staff and a bow stand upright, a crossbow lies with its muzzle to the right and its top up
+  scene.remove(rig); const solo = new THREE.Group(), model = weapon.scene.getObjectByName('WeaponDrawn') ?? weapon.scene; solo.add(model); model.quaternion.identity(); model.position.set(0, 0, 0);
+  if (q.get('solo') === 'lie') model.rotation.z = -Math.PI / 2; solo.rotation.y = -0.6; scene.add(solo); solo.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(solo), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+  solo.position.sub(mid); solo.position.y += size.y / 2 + 0.05; ground.position.y = 0.02;
+  const fit = Math.max(size.y, size.x / (innerWidth / innerHeight)) * 0.78 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  camera.position.set(fit * 0.35, size.y / 2 + 0.2, fit); camera.lookAt(0, size.y / 2 + 0.05, 0);
+  renderer.render(scene, camera); requestAnimationFrame(() => { renderer.render(scene, camera); (window as unknown as { stageReady: boolean }).stageReady = true; });
+} else {
+  const mixer = new THREE.AnimationMixer(rig), clip = hero.animations.find((c) => c.name === (q.get('clip') ?? 'Armed'));
+  if (clip) { mixer.clipAction(clip).play(); mixer.setTime(clipAt); }
+  rig.updateMatrixWorld(true);
+  renderer.render(scene, camera);
+  requestAnimationFrame(() => { renderer.render(scene, camera); (window as unknown as { stageReady: boolean }).stageReady = true; });
+  
+}
