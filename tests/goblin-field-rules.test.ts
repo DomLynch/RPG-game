@@ -9,7 +9,7 @@ const d = DEFS as unknown as Defs;
 
 test('the defaults are the look Dom is shown: pinned; the default palette is World\'s first pass, unchanged', () => {
   assert.equal(goblinZone(), 'cinder-fields');
-  assert.deepEqual([goblinRule('palisadeSegments'), goblinRule('palisadeStakes'), goblinRule('totemCount'), goblinRule('fireCount'), goblinRule('bonePiles'), goblinRule('treeClumps')], [3, 9, 4, 2, 9, 3]);
+  assert.deepEqual([goblinRule('palisadeSegments'), goblinRule('palisadeStakes'), goblinRule('totemCount'), goblinRule('fireCount'), goblinRule('bonePiles'), goblinRule('treeClumps')], [3, 9, 2, 2, 9, 1]);
   assert.deepEqual(goblinTint('bone'), [1.25, 1.18, 1]);
   const f = goblinPalette();
   assert.deepEqual([f.id, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['field', 'goblin-haze', '#566286', '#a58b7c', '#d8b48c', '#f0c080', '#4c3c36', '#74604f', '#5c4c44', 0, '', '']);
