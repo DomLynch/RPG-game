@@ -10,7 +10,8 @@ class El {
   tag: string; ownerDocument: { createElement(tag: string): El };
   constructor(tag: string, ownerDocument: { createElement(tag: string): El }) { this.tag = tag; this.ownerDocument = ownerDocument; }   // no parameter properties: node's strip-only TypeScript refuses them
   setAttribute(k: string, v: string) { this.attrs[k] = v; }
-  append(...kids: El[]) { this.children.push(...kids); }
+  append(...kids: (El | string)[]) { for (const k of kids) { if (typeof k === 'string') this.textContent += k; else this.children.push(k); } }
+  replaceChildren(text: string) { this.children = []; this.textContent = text; }
 }
 const doc = { createElement(tag: string) { return new El(tag, doc); } };
 const IDS = ['opponent-name', 'target-health', 'player-health', 'stamina', 'health-value', 'player-health-value', 'stamina-value'];
@@ -34,6 +35,12 @@ test('createZoneBars: hidden until shown (body.zone-bars), then the Pit\'s own b
   m.update({ hp: 60, maxHp: 120, stamina: 30, maxStamina: 120, foe: { name: 'Goblin', hp: 10, max: 40 } }, true);
   assert.equal(body.classes.has('zone-bars'), true);
   assert.equal(pit['opponent-name']!.textContent, 'GOBLIN'); assert.equal(pit['opponent-name']!.dataset.mobile, 'Goblin', 'the phone draws data-mobile');
+  assert.equal(pit['opponent-name']!.children.length, 0, 'no level given: no level slot');
+  m.update({ hp: 60, maxHp: 120, stamina: 30, maxStamina: 120, foe: { name: 'Goblin', level: 3, hp: 10, max: 40 } }, true);
+  assert.equal(pit['opponent-name']!.children.length, 1, 'the level fills the Pit\'s own small opponent-class slot (pit-duel.ts nameOpponent), replaced not stacked');
+  assert.equal(pit['opponent-name']!.children[0]!.className, 'opponent-class'); assert.equal(pit['opponent-name']!.children[0]!.textContent, 'Lv 3'); assert.equal(pit['opponent-name']!.textContent, 'GOBLIN ');
+  m.update({ hp: 60, maxHp: 120, stamina: 30, maxStamina: 120, foe: { name: 'Goblin', level: 4, hp: 10, max: 40 } }, true);
+  assert.equal(pit['opponent-name']!.children.length, 1); assert.equal(pit['opponent-name']!.children[0]!.textContent, 'Lv 4');
   assert.equal(pit['player-health']!.props.get('--fill'), '50%'); assert.equal(pit['stamina']!.props.get('--fill'), '25%'); assert.equal(pit['target-health']!.props.get('--fill'), '25%');
   assert.equal(pit['player-health']!.value, 60); assert.equal(pit['player-health']!.max, 120);
   assert.equal(pit['player-health-value']!.textContent, '60 / 120'); assert.equal(pit['stamina-value']!.textContent, '30 / 120'); assert.equal(pit['health-value']!.textContent, '10 / 40');
