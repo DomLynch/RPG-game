@@ -10,7 +10,7 @@ import type { CharacterInstanceId, EncounterId } from '../../src/core/server.ts'
 import type { ItemInstance } from '../../src/core/server.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
 import type { Inventory } from '../../src/core/server.ts';
-import { loadZone, zoneIds } from '../zones/loader.ts';
+import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import { WILDLIFE_ROWS } from '../../src/core/server.ts';
 import { award } from '../../src/core/server.ts';
 import { worldRule, type TwistOutcome } from '../../src/fight/server.ts';
@@ -106,7 +106,7 @@ export function mintOp(inst: ItemInstance, singleCopy: boolean): Json {
 // retry of the same token is never blocked (its own event does not exist until it commits). Database missing the function: pays nothing, still recorded.
 export const RESPAWN_MS = worldRule('respawnDefault') * 1000;   // the respawnDefault row (src/fight/world-rules-defs.json, 300 s)
 type RespawnRow = { id: string; respawnSeconds?: number };
-export const respawnRows = (zoneRows: () => readonly RespawnRow[] = () => zoneIds(false).flatMap((id) => loadZone(id, false).spawns.rows)): Map<string, number> => new Map([...zoneRows(), ...WILDLIFE_ROWS].flatMap((r: RespawnRow) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
+export const respawnRows = (zoneRows: () => readonly RespawnRow[] = () => listedZoneIds().flatMap((id) => listedZone(id).spawns.rows)): Map<string, number> => new Map([...zoneRows(), ...WILDLIFE_ROWS].flatMap((r: RespawnRow) => (r.respawnSeconds !== undefined ? [[r.id, r.respawnSeconds * 1000] as const] : [])));
 const ROW_RESPAWN = respawnRows();
 export function respawnMsOf(fight: string, content: EncounterContent, rows: ReadonlyMap<string, number> = ROW_RESPAWN): number {
   const setup = fightSetup(fight, content);
