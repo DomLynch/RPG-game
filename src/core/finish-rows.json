@@ -11,7 +11,7 @@
     {
       "id": "dull-iron",
       "fields": {
-        "color": "#5c5750",
+        "color": "#8e887e",
         "metalness": 0.3,
         "roughness": 0.85
       }

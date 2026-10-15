@@ -19,13 +19,17 @@ test('the shipped rows: a rusty sword (cinder-fields) and a knife, gladius, clea
   assert.deepEqual(Object.keys(loadGroundItems({ starterItems: STARTER_ITEMS, groundLimits: { ground: GROUND_LIMITS }, groundItems: GROUND_ITEMS }).items), Object.keys(GROUND_ITEMS), 'the loader accepts the five rows');
 });
 
-test('each item sits inside its place\'s bounds, no two places share a weapon, and east-road and black-mere hold nothing (Strategy 2026-10-15)', () => {
+test('each item sits inside its own place\'s bounds and in no other place (the HUD names the first place that contains the walker), no two places share a weapon, and east-road and black-mere hold nothing (Strategy 2026-10-15)', () => {
   const plan = frontierPlan(true, '1');
-  for (const [gid, g] of Object.entries(GROUND_ITEMS)) {
-    const z = plan.zones.find((q) => q.zone === g.place)!, p = groundPointOf(g)!;
+  const inside = (z: (typeof plan.zones)[number], p: { x: number; z: number }) => {
     const quad = [[-z.width / 2, 0], [z.width / 2, 0], [z.width / 2, z.depth], [-z.width / 2, z.depth]].map(([x, d]) => toWorld({ x: x!, d: d! }, z.mount));
     const side = quad.map((a, i) => { const b = quad[(i + 1) % 4]!; return (b.x - a.x) * (p.z - a.z) - (b.z - a.z) * (p.x - a.x); });
-    assert.ok(side.every((v) => v >= 0) || side.every((v) => v <= 0), `${gid} is inside ${g.place}`);
+    return side.every((v) => v >= 0) || side.every((v) => v <= 0);
+  };
+  for (const [gid, g] of Object.entries(GROUND_ITEMS)) {
+    const p = groundPointOf(g)!, containing = plan.zones.filter((z) => inside(z, p)).map((z) => z.zone);
+    assert.ok(containing.includes(g.place), `${gid} is inside ${g.place}`);
+    assert.deepEqual(containing, [g.place], `${gid} is in no other place (the Black Mere / Mere's End overlap is why the estoc stands past z -180)`);
   }
   const items = Object.values(GROUND_ITEMS).map((g) => g.item), places = Object.values(GROUND_ITEMS).map((g) => g.place);
   assert.equal(new Set(items).size, items.length, 'no weapon is placed twice'); assert.equal(new Set(places).size, places.length, 'no two ground items share a place');
