@@ -1,7 +1,7 @@
 // The pickup prompt for ground loot (ground loot slice 3, Backend's #2775 plan; donors EQEmu ground_spawns and 2004Scape Obj). The page asks ground_state, draws the rows the server says are visible with Characters' view
 // (ground-item-view.ts), prompts "Take the <item>" inside a row's pickup radius and posts ground_take on the tap. The server decides reach and the race; this keeps no number and no label of its own:
 // the poll period, the labels and each refusal's line and cue are the ground-pickup.json row, read ONCE here; the radius is the row ground_state sends (the ground-items.json row's).
-// The poll (page.ts's timer) asks `poll(x, z, hidden)`: a hidden page or a hero farther than pollRangeM from every known item reads nothing, so an idle phone does not hammer the writer.
+// The poll (main.ts's timer) asks `poll(x, z, hidden)`: a hidden page or a hero farther than pollRangeM from every known item reads nothing, so an idle phone does not hammer the writer.
 // Signed out: ground_state needs a session, so the static rows draw as the brief says ("signed out = shown, cannot take") with "Sign in to take".
 import { loadRegistry, tableFromFile, type Manifest, type Offline } from '../../src/core/index.ts';
 import { GROUND_ITEMS, GROUND_LIMITS } from '../world/ground-items.ts';
