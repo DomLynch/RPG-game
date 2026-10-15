@@ -57,7 +57,7 @@ import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, ownedSpells, setOwnedSpells, useSpellStore } from '../../src/core/index.ts';
-import { pickSpell } from '../../src/fight/spell-pick.ts';
+import { pickSpell } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
