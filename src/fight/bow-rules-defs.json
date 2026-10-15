@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {"id":"minDraw","value":18,"unit":"ticks"},
+    {"id":"fullDraw","value":36,"unit":"ticks"},
+    {"id":"minMult","value":0.7,"unit":"x heavy"},
+    {"id":"fullMult","value":1.2,"unit":"x heavy"},
+    {"id":"arrowSpeed","value":14,"unit":"m/s"},
+    {"id":"maxRange","value":12,"unit":"m"},
+    {"id":"recovery","value":40,"unit":"ticks"},
+    {"id":"hitRadius","value":0.6,"unit":"m"},
+    {"id":"heavyShare","value":0.3,"unit":"of max health"},
+    {"id":"dummyHealth","value":150,"unit":"hp"},
+    {"id":"dummyDistance","value":9,"unit":"m"},
+    {"id":"tickRate","value":60,"unit":"ticks/s"}
+  ]
+}
