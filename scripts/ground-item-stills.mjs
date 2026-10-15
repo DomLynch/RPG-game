@@ -8,7 +8,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-item-stills', ITEM = process.env.ITEM || 'item:starter.rusty-sword', root = process.cwd();
-const AHEAD = Number(process.env.AHEAD || 2.2), SIDE = Number(process.env.SIDE || 0.15);   // metres in front of and beside the walker
+const LABEL = process.env.LABEL || 'run', WIDTHS = (process.env.WIDTHS || '375').split(',').map(Number), AHEAD = Number(process.env.AHEAD || 2.2), SIDE = Number(process.env.SIDE || 0.15);   // metres in front of and beside the walker
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.svg': 'image/svg+xml' };
 const roots = { '/preview/origins/': `${path.resolve(ZONE)}/` };
@@ -26,18 +26,21 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const receipt = { errors: [] };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 80, timeout: 240000 });
 try {
-  const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
-  page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
-  await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
-  await page.waitForTimeout(4000);
-  const at = await page.evaluate(() => { const p = window.originsPreview.pos; return { x: p.x, z: p.z }; });
-  receipt.walker = at;
-  await shoot(page, 'ground-before-375.jpg');
-  await page.evaluate(([x, z, item]) => window.originsPreview.ground.show('ground:still', item, x, z), [at.x + SIDE, at.z + AHEAD, ITEM]);
-  await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still') !== undefined, null, { timeout: 60000 });
-  receipt.anchor = await page.evaluate(() => window.originsPreview.ground.anchor('ground:still'));
-  await page.waitForTimeout(2500); await shoot(page, 'ground-after-375.jpg');
+  for (const width of WIDTHS) {
+    const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+    page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
+    await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+    await page.waitForTimeout(4000);
+    const at = await page.evaluate(() => { const p = window.originsPreview.pos; return { x: p.x, z: p.z }; });
+    receipt.walker = at;
+    await shoot(page, `${LABEL}-none-${width}.jpg`);
+    await page.evaluate(([x, z, item]) => window.originsPreview.ground.show('ground:still', item, x, z), [at.x + SIDE, at.z + AHEAD, ITEM]);
+    await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still') !== undefined, null, { timeout: 60000 });
+    receipt.anchor = await page.evaluate(() => window.originsPreview.ground.anchor('ground:still'));
+    await page.waitForTimeout(2500); await shoot(page, `${LABEL}-item-${width}.jpg`);
+    await page.context().close();
+  }
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 2)); console.log('stills', JSON.stringify(receipt));
 } catch (error) { console.error('stills FAILED', JSON.stringify(receipt), error); process.exitCode = 1; }
 finally { await browser.close(); server.close(); }
