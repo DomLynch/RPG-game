@@ -369,6 +369,26 @@
         0.88
       ]
     },
+    "goblin-haze": {
+      "fog": "#d8b48c",
+      "fogDensity": 0.011,
+      "hemiSky": "#9aa4c0",
+      "hemiGround": "#4a3a2c",
+      "hemiIntensity": 1.3,
+      "sunColor": "#ffb878",
+      "sunIntensity": 5.2,
+      "sunPos": [
+        -24,
+        9,
+        -15
+      ],
+      "exposure": 1.3,
+      "ground": [
+        0.95,
+        0.88,
+        0.78
+      ]
+    },
     "frontier-duel": {
       "fog": "#d6bf9a",
       "fogDensity": 0.0095,
