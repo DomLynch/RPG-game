@@ -2683,3 +2683,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
 #journal [data-weight]::after { content: attr(data-weight); display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 8px; font: 600 10px/16px "Instrument Sans", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .75; vertical-align: middle; }
 #journal #fitting-name[data-weight], #journal .pack li strong[data-weight] { white-space: normal; overflow: visible; text-overflow: clip; }   /* a badged name wraps instead of truncating: Safari's ellipsis swallowed the pill (the WebKit row, 2026-10-13) */
 #journal #fitting-name[data-weight]::after, #journal .pack li strong[data-weight]::after { white-space: nowrap; }
+
+/* The first-visit intro caption (src/intro-ui.ts, brief #2772): lower third, light ink on a dark strip, never over a fighter's face, taps pass through. */
+.intro-caption { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 24%); margin: 0 auto; max-width: min(34rem, 92vw); padding: 0.7rem 1rem; box-sizing: border-box; background: rgba(8, 6, 4, 0.82); color: #f2e6cc; font: 600 0.95rem/1.35 Georgia, serif; text-align: center; text-shadow: 0 1px 2px #000; border-radius: 4px; pointer-events: none; z-index: 20; transition: opacity 0.1s linear; }
+.intro-caption:empty { display: none; }

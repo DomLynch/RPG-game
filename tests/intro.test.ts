@@ -31,3 +31,24 @@ test('the intro shows once, only to a fresh guest', () => {
   assert.equal(shouldShowIntro({ seen: false, returning: false, link: false }), true);
   for (const v of [{ seen: true, returning: false, link: false }, { seen: false, returning: true, link: false }, { seen: false, returning: false, link: true }]) assert.equal(shouldShowIntro(v), false);
 });
+
+// The page layer, against tiny fakes (no jsdom in this repo).
+import { createIntro } from '../src/intro-ui.ts';
+class Strip { className = ''; textContent = ''; style: Record<string, string> = {}; attrs: Record<string, string> = {}; removed = false; setAttribute(k: string, v: string) { this.attrs[k] = v; } remove() { this.removed = true; } }
+const world = (over: { seen?: boolean; returning?: boolean; link?: boolean } = {}) => {
+  const strips: Strip[] = [], listeners = new Map<string, () => void>(), calls: string[] = [], mem = new Map<string, string>(); if (over.seen) mem.set(INTRO.seenKey, '1');
+  const doc = { createElement: () => { const s = new Strip(); strips.push(s); return s; }, addEventListener: (t: string, f: () => void) => listeners.set(t, f), removeEventListener: (t: string) => listeners.delete(t) };
+  const parent = { ownerDocument: doc, append() {} };
+  const intro = createIntro({ doc: doc as never, parent: parent as never, storage: { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => { mem.set(k, v); } }, returning: !!over.returning, link: !!over.link, tour: { start: () => calls.push('start'), stop: () => calls.push('stop') } });
+  return { intro, strips, listeners, calls, mem };
+};
+test('a fresh guest: the tour starts, the flag is set at once, the strip paints each card and a tap ends it (stop once)', () => {
+  const w = world(); assert.equal(w.intro.active, true); assert.deepEqual(w.calls, ['start']); assert.equal(w.mem.get(INTRO.seenKey), '1');
+  w.intro.update(INTRO.cards[0]!.start / 60 + 0.6); assert.equal(w.strips[0]!.textContent, INTRO.cards[0]!.text); assert.equal(w.strips[0]!.style.opacity, '1');
+  w.listeners.get('pointerdown')!(); assert.equal(w.intro.active, false); assert.equal(w.strips[0]!.removed, true); assert.equal(w.listeners.has('pointerdown'), false);
+  w.intro.skip(); assert.deepEqual(w.calls, ['start', 'stop'], 'ending twice stops the tour once');
+});
+test('it ends itself after the last card and never shows to a seen, returning or kill-link visit', () => {
+  const w = world(); w.intro.update(introEnd() / 60 + 1); assert.equal(w.intro.active, false); assert.deepEqual(w.calls, ['start', 'stop']);
+  for (const over of [{ seen: true }, { returning: true }, { link: true }]) { const x = world(over); assert.equal(x.intro.active, false); assert.equal(x.strips.length, 0); assert.deepEqual(x.calls, []); }
+});
