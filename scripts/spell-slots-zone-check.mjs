@@ -5,6 +5,7 @@
 import { chromium } from 'playwright';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
+import path from 'node:path';
 const TOKEN = 'stub-access', BOOK = { alvis: { root: 'longShadow', modifiers: [], suffix: null }, andvari: { root: 'crack', modifiers: [], suffix: null } }, ops = [];
 const writer = http.createServer((req, res) => {
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': '*' };
@@ -19,7 +20,10 @@ const writer = http.createServer((req, res) => {
 });
 await new Promise((r) => writer.listen(0, '127.0.0.1', r));
 const wurl = `http://127.0.0.1:${writer.address().port}/origins`;
-const vite = spawn('npx', ['vite', '--config', 'origins/preview/vite.config.mjs', '--port', '5199', '--host', '127.0.0.1', '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
+// vite is run by node directly, in its own process group: `npx vite` leaves the real server (and its open pipes) alive after kill(), which kept this process from ever exiting in CI
+const vite = spawn(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), '--config', 'origins/preview/vite.config.mjs', '--port', '5199', '--host', '127.0.0.1', '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+const stopVite = () => { try { process.kill(-vite.pid, 'SIGTERM'); } catch { /* already gone */ } vite.stdout.destroy(); vite.stderr.destroy(); };
+const WATCHDOG_S = 420, watchdog = setTimeout(() => { console.log(`FAIL: the check did not finish in ${WATCHDOG_S} s`); stopVite(); process.exit(1); }, WATCHDOG_S * 1000);   // the row's own timeout: a hang fails fast
 let log = ''; vite.stdout.on('data', (d) => (log += d)); vite.stderr.on('data', (d) => (log += d));
 for (let i = 0; i < 120 && !/Local:/.test(log); i++) await new Promise((r) => setTimeout(r, 500));
 console.log('vite:', log.replace(/\u001b\[[0-9;]*m/g, '').split('\n').filter((l) => /Local|error/i.test(l)).join(' | ').slice(0, 200));
@@ -48,4 +52,5 @@ try {
   console.log('STATE', JSON.stringify(st)); console.log('OPS', JSON.stringify(ops));
   const ok = st.button && st.button.hidden === false && st.equipped?.[0] && st.equipped?.[1];
   console.log(ok ? 'PASS: SPELL 2 is shown with both slots picked' : 'FAIL: SPELL 2 stays hidden (state above)'); if (!ok) process.exitCode = 1;
-} finally { await browser.close(); vite.kill(); writer.close(); }
+} finally { clearTimeout(watchdog); await browser.close(); stopVite(); writer.close(); }
+process.exit(process.exitCode ?? 0);   // nothing may keep the row alive after its verdict
