@@ -55,7 +55,7 @@ test('a one-spell fight never grows a slot-b key (byte for byte as before)', () 
 });
 
 const hero = { level: 1, weapon: 'longsword' as const, health: RULES.health, stamina: 100, posture: 0, exhausted: false };
-const rec = (h: Partial<WorldRecord['hero']>, step: Partial<WorldRecord['steps'][0]>): WorldRecord => ({ rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { ...hero, ...h }, joins: [], releases: [], steps: [{ pose: null, guard: false, gd: null, attack: null, roll: null, ...step }] });
+const rec = (h: Partial<WorldRecord['hero']>, step: Partial<WorldRecord['steps'][0]>): WorldRecord => ({ rv: RECORD_VERSION, wv: WORLD_SIM_VERSION, hero: { ...hero, ...h }, joins: [], releases: [], steps: [{ pose: { x: 0, z: 0, f: 0 }, guard: false, gd: null, attack: null, roll: null, ...step }] });
 
 test('the open-world record carries cast2 and spell2 through pack and unpack', () => {
   const r = rec({ spell: { id: A, skill: 50 }, spell2: { id: B, skill: 50 } }, { cast2: true });
