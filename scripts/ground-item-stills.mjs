@@ -32,7 +32,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const receipt = { errors: [] };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 80, timeout: 240000 });
 try {
-  if (process.env.ROWS) for (const [gid, row] of Object.entries(GROUND_ITEMS)) for (const width of WIDTHS) {
+  if (process.env.ROWS) for (const [gid, row] of Object.entries(GROUND_ITEMS).filter(([, r]) => !process.env.ONLY || process.env.ONLY.split(',').includes(r.item.replace('item:starter.', '')))) for (const width of WIDTHS) {
     const at = groundPointOf(row), centre = groundPointOf({ ...row, offsetX: 0, offsetZ: 0 }), stem = row.item.replace('item:starter.', '');
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
