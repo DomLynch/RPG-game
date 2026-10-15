@@ -25,5 +25,5 @@ test('the loader refuses a missing named rule, a non-positive value and a duplic
   assert.throws(() => loadArenaRules({ rules: rows.filter((r) => r.id !== 'playRadius') }), /"playRadius" rule by name/);
   assert.throws(() => loadArenaRules({ rules: rows.map((r) => (r.id === 'segments' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadArenaRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadArenaRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 21);
+  assert.equal(loadArenaRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 22);
 });
