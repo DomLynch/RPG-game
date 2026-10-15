@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -354,7 +354,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const id = chooseMove(me, action!), def = movesOf(me)[id];
         // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
         const follows = me.chain > 0 && me.lastMove !== null && !!movesOf(me)[me.lastMove].chain?.follow.includes(id);
-        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, perked(me, 'thrift', def.stamina));
+        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, missilePaysNoStamina(me.weapon) ? 0 : perked(me, 'thrift', def.stamina));
         if (action === 'skill') next.skillCooldown = R.skillCooldown;   // spent at commitment, with the stamina: a whiff, a block or a parry all spend it
         events.push({ tick, type: 'AttackStarted', actor: i, move: id, direction: def.direction });   // the side the blow comes from: what a guard must mirror (directional guard; the browser gate reads it)
       }
@@ -491,7 +491,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
           if (MANA_MAX) { A.mana = (A.mana ?? 0) - mrow.mana; A.manaRest = MANA_DELAY; }
           if (A.ammo !== undefined) A.ammo--;
           if (gap >= missileMinGap() && !A.missile) {
-            const ang = a.body.heading + (lane.lane * MISSILE_FAN * Math.PI) / 180, range = distance(a.body, d.body);
+            const ang = MISSILE_HOMING ? aim(a.body, d.body) : a.body.heading + (lane.lane * MISSILE_FAN * Math.PI) / 180, range = distance(a.body, d.body);
             A.missile = { launched: tick, arrives: tick + missileTicks(mrow, range), x: a.body.x, z: a.body.z, dx: M.sin(ang), dz: M.cos(ang), range, damage: Math.round((def.damage * mrow.share * (lane.mult ?? 1000)) / 1000000), move: a.move, lane: lane.lane };
             events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move: a.move, lane: lane.lane });
           } else events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });   // inside the inner band (a hard miss) or a bolt already in flight
@@ -687,7 +687,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!D.health) continue;
     if (D.phase === 'roll' && D.age >= R.safeStart && D.age <= R.safeEnd) { events.push({ tick, type: 'Dodged', actor: j, target: i, move: m.move }); if (DODGE_COUNTER > 0) D.counterWindow = DODGE_COUNTER; continue; }
     const rx = D.body.x - m.x, rz = D.body.z - m.z, along = rx * m.dx + rz * m.dz, lateral = rx * m.dz - rz * m.dx;
-    if (along < m.range / 2 || Math.abs(lateral) * 100 > MISSILE_RADIUS) { events.push({ tick, type: 'AttackMissed', actor: i, move: m.move }); continue; }
+    if (!MISSILE_HOMING && (along < m.range / 2 || Math.abs(lateral) * 100 > MISSILE_RADIUS)) { events.push({ tick, type: 'AttackMissed', actor: i, move: m.move }); continue; }
     const g = guardOf(D, R), facing = Math.abs(wrapAngle(aim(D.body, A.body) - D.body.heading)) <= g.arc;
     if (D.phase === 'guard' && facing && covers(D, m.lane === 0 ? 'thrust' : m.lane > 0 ? 'right' : 'left', R)) {
       const cost = Math.max(1, Math.round(m.damage / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;

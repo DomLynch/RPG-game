@@ -204,6 +204,9 @@ const MISSILES = ((DEFS as unknown as { missile?: MissileRow[] }).missile ?? [])
 const LANES = ((DEFS as unknown as { missileLanes?: LaneRow[] }).missileLanes ?? []);
 export const missileOf = (weapon: string): MissileRow | undefined => (MISSILES.length ? MISSILES.find((r) => r.weapon === weapon) : undefined);
 export const laneOf = (move: string | null): LaneRow | undefined => (move ? LANES.find((r) => r.move === move) : undefined);
+export const MISSILE_HOMING = num('missileHoming', 'value');   // 1 = auto-aim (Dom 2026-10-15; donors decide the hit when the shot is fired): the shot flies at the foe and only a roll or a guard answers it
+// A staff shot is paid in mana alone (Dom 2026-10-15); the stand-in weapon's melee stamina is waived while mana is on. Bow and crossbow shots cost stamina like any attack.
+export const missilePaysNoStamina = (weapon: string): boolean => MANA_MAX > 0 && missileOf(weapon)?.kind === 'staff';
 export const MISSILE_RADIUS = num('missileRadius', 'value'), MISSILE_FAN = num('missileFan', 'value'), MISSILE_STUN = num('missileStun', 'value');
 /** The nearest a missile can be thrown from: the inner edge of the outer band (Strategy: the bow is helpless up close). */
 export const missileMinGap = (): number => (BANDS.length > 1 ? BANDS[BANDS.length - 2]!.upTo / 100 : 0);

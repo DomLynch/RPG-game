@@ -91,9 +91,10 @@
 {"id":"manaDelay","value":90},
 {"id":"manaCostMult","value":600},
 {"id":"missileRadius","value":70},
+{"id":"missileHoming","value":1},
 {"id":"missileFan","value":22},
 {"id":"missileStun","value":16},
-{"id":"quiver","value":1}
+{"id":"quiver","value":0}
 ],"bands":[
 {"id":"inner","upTo":135},
 {"id":"mid","upTo":180},

@@ -23,6 +23,7 @@
     { "id": "manaDelay", "value": 0 },
     { "id": "manaCostMult", "value": 1000 },
     { "id": "missileRadius", "value": 0 },
+    { "id": "missileHoming", "value": 0 },
     { "id": "missileFan", "value": 0 },
     { "id": "missileStun", "value": 0 },
     { "id": "quiver", "value": 0 }
