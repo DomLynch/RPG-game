@@ -3,7 +3,8 @@
 // a rank move over --rank-tol or a share move over --share-tol; those tolerances are Strategy's tier band (defaults are placeholders until it names the numbers). Exit 1 on a flag.
 //   node scripts/bands-batch.mjs [--seeds 40] [--level normal] [--ticks 7200] [--rank-tol 1] [--share-tol 0.08] [--weapons knife,gladius,...]
 /* global process, console */
-import { decide, initialAi } from '../src/fight/ai.ts';
+import { initialAi } from '../src/fight/ai.ts';
+import { decideBanded as decide } from '../src/fight/band-ai.ts';
 import { stepDuel } from '../src/fight/duel.ts';
 import { OPPONENTS, PROFILES } from '../src/fight/moves.ts';
 import { BEST_BAND } from '../src/fight/bands.ts';

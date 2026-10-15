@@ -56,7 +56,8 @@ test('the holdBand row exists, names only holdBand, and no shipped profile names
 });
 
 test('holdBand: with bands on and the row named, a longsword warden steps out from inside its best band and in from outside it; without the flag or the row it does not follow the band', async () => {
-  const { decide, initialAi } = await import('../src/fight/ai.ts');
+  const { initialAi } = await import('../src/fight/ai.ts');
+  const { decideBanded: decide } = await import('../src/fight/band-ai.ts');
   const { PROFILES, OPPONENTS } = await import('../src/fight/moves.ts');
   const r = bestRange('longsword')!;
   const along = (gap: number, bands: boolean, tactic?: string): number => {
