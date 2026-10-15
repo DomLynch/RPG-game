@@ -436,7 +436,7 @@ if (frontier) {
   duelLayer.classList.add('world'); duelLayer.hidden = false;
   void import('./pit-duel.ts').then(async (m) => {
     await m.sceneReady;
-    duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit');
+    duel = m; m.enterWorld(leaveFight, zoneExit()); kit = true; releaseSticks(); document.body.classList.add('kit'); syncSpell2Button();   // the Pit's buttons exist now: show SPELL 2 if slot b is already filled
     hint.textContent = 'Left stick walks. Push to the edge to run. Walk up to a creature and press STAB, SLASH or HEAVY to fight it. Drag empty screen to look round when the camera lock is off.';
     // Dom's UI rule: the main screen is the combat HUD and the ☰ only, so the walk's Journal lives in the ☰'s Settings row (index.html hides the corner button).
     const menu = document.getElementById('journal') as HTMLDialogElement | null, chips = document.getElementById('mobile-sound')?.parentElement;
@@ -480,8 +480,8 @@ const spellSkills = createServerSkills({ storage, search: location.search, now: 
 void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend)); syncSpell2Button(); } }, () => {});
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
-const spell2Button = document.getElementById('skill2-button');
-function syncSpell2Button() { if (spell2Button) spell2Button.hidden = !slotShown([equippedCast(), equippedCast(1)], 1); }   // the record needs a slot-a spell beside slot b
+// The button lives in the Pit's markup, which pit-duel.ts mounts on the first fight chunk (after this module runs), so it is looked up on each sync, not once at load.
+function syncSpell2Button() { const button = document.getElementById('skill2-button'); if (button) button.hidden = !slotShown([equippedCast(), equippedCast(1)], 1); }   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
