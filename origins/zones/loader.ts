@@ -32,10 +32,11 @@ const PACKAGES: Record<string, Zone> = REGISTRY;
 /** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
 // A listed zone, or the unlisted zone this page itself opens (a page names its zone by address; the server and the tests have no page, so they never see an unlisted zone).
 /** The ids a page (`here` = the zone its address opens; null = no page: the server, the tests) may see: every listed zone, plus `here` itself when it is unlisted. Pure. */
-/** Whether a build may open an unlisted zone: a /preview/ build (its base starts /preview/) or any non-production build (dev server, tests). On the live site (production, base /) an unlisted zone does not exist: its address is the normal "no such place". Pure on its argument. */
-export const unlistedOpens = (env: { PROD?: boolean; BASE_URL?: string } | undefined): boolean => !env?.PROD || String(env.BASE_URL ?? '').startsWith('/preview/');
-const UNLISTED_OPENS = unlistedOpens((import.meta as unknown as { env?: { PROD?: boolean; BASE_URL?: string } }).env);
-export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = UNLISTED_OPENS): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
+/** Whether a build may open an unlisted zone: ONLY when it was built or run with the explicit opt-in VITE_UNLISTED_ZONES=1. Default off. The live game is the /preview/origins/ bundle (also published at /zone1/), so a base path says nothing about live; only Deploy's sandbox previews for Dom set the flag, never the /zone1/ + /preview/origins/ publish (tests/unlisted-zones-guard.test.ts fails if a publish or deploy script or a .env.production* sets it). Pure on its argument. */
+export const unlistedOpens = (env: { VITE_UNLISTED_ZONES?: string } | undefined): boolean => env?.VITE_UNLISTED_ZONES === '1';
+const buildEnv = (): { VITE_UNLISTED_ZONES?: string } | undefined => (import.meta as unknown as { env?: { VITE_UNLISTED_ZONES?: string } }).env ?? (typeof process === 'undefined' ? undefined : process.env);
+const opensNow = (): boolean => unlistedOpens(buildEnv());   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
+export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
 const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
 export const zonePlaces = (): Place[] => { const ids = new Set(listedIds(PACKAGES, here())); return placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id)))); };
 
@@ -81,7 +82,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   return bad;
 }
 
-export const zoneIds = (): string[] => listedIds(PACKAGES, here());
+export const zoneIds = (opens: boolean = opensNow()): string[] => listedIds(PACKAGES, here(), opens);
 /** Every zone row, listed or not: for checks that must validate an unlisted row too (scripts/data-only-check.mjs), never for what a player or the server sees. */
 export const allZoneIds = (): string[] => Object.keys(PACKAGES);
 /** The zone a page or request names none of (every old link) and the one whose instance ids stay bare: Zone 1, PINNED. The live database keys are bare for Zone 1 specifically, not for "the lowest row" (the keys were written before there were rows), so this is not derived from the registry; a registry without Zone 1 throws at load. The one place a zone id is a value, not a name; callers read this and never write `'1'`. */
@@ -99,8 +100,8 @@ export function zoneFromAddress(pathname: string, search: string): string {
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
 
 const loaded = new Map<string, Zone>();
-export function loadZone(id: string = pageZoneId(), opens: boolean = UNLISTED_OPENS): Zone {
-  const z = PACKAGES[id]; if (!z || (z.unlisted && !opens)) throw new Error(`no zone ${id}`);   // an unlisted zone on the live site is the same "no such place" as an id that is no zone
+export function loadZone(id: string = pageZoneId(), opens: boolean = opensNow()): Zone {
+  const z = PACKAGES[id]; if (!z || (z.unlisted && !opens)) throw new Error(`no zone ${id}`);   // an unlisted zone without the VITE_UNLISTED_ZONES opt-in is the same "no such place" as an id that is no zone
   const hit = loaded.get(id); if (hit) return hit;
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
   const r = resolveZone(id, z as unknown as Spec), full = { ...z, resolved: r.tree, fields: r.values, set: r.explicit };   // z is a package straight from the registry: it has no `resolved` yet
