@@ -197,10 +197,10 @@ export const SHIELD_CARRIERS: ReadonlySet<string> = new Set(['shieldmaiden', 've
 // The opponent with his rung kit grafted on (loadWarriors): the equip file in his hand, and the carry his scutum arm needs.
 export const armOpponent = (opponent: FighterAsset, kit: FighterAsset): FighterAsset => withShieldCarry(equipWeapon(opponent, kit));
 export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined, weapons: [WeaponId, WeaponId], part?: FighterAsset | Error, equipFailed: (error: unknown) => void = () => {}, carry = false) {
-  { const ranged = (globalThis as { __SANDBOX_RANGED__?: (weapon: WeaponId) => Object3D | undefined }).__SANDBOX_RANGED__?.(weapons[0]); if (ranged) part = { scene: new Group().add(ranged) as Group, animations: [] }; }   // sandbox-mech: a stand-in weapon shown as the staff / bow / crossbow model (sandbox/entry.ts); absent everywhere else
+  { const ranged = (globalThis as { __SANDBOX_RANGED__?: (weapon: WeaponId) => Object3D | undefined }).__SANDBOX_RANGED__?.(weapons[0]); if (ranged) part = { scene: new Group().add(ranged) as Group, animations: part && !(part instanceof Error) ? part.animations : [] }; }   // sandbox-mech: a stand-in weapon shown as the staff / bow / crossbow model, keeping the stand-in's own clip family (the trident's Trident_Idle...) (sandbox/entry.ts); absent everywhere else
   if (carry && enemy) withShieldCarry(enemy);
   if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
-  if (part) equipFailed(part);
+  if (part) { (globalThis as { __SANDBOX_RANGED__?: unknown; __SANDBOX_ERR__?: string }).__SANDBOX_RANGED__ && ((globalThis as { __SANDBOX_ERR__?: string }).__SANDBOX_ERR__ = String((part as Error).stack ?? part)); equipFailed(part); }   // sandbox: keep why a ranged model fell back to the longsword
   const playerWeapon: WeaponId = part ? DEFAULT_WEAPON : weapons[0];
   return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon };
 }
