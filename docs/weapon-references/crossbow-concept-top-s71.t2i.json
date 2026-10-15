@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "A single isolated ancient crossbow lying flat, photographed from directly above on a plain light grey background, museum artefact photograph. A straight heavy dark wooden stock runs vertically down the middle of the image with a rounded wooden butt at the bottom, a narrow groove along the top for the bolt, a worn bronze lock plate with a small trigger lever, and at the top end a wide curved bow (the prod) mounted crosswise at a right angle to the stock, spanning the full width of the image, made of dark wood sheathed in worn bronze bands, with a plain cord bowstring stretched straight across its two tips, and a small bronze stirrup ring at the top. This is a bow-powered crossbow with a drawn bow across the front, not a gun, no barrel, no muzzle, no firearm parts. Battered and weathered, gritty Roman gladiator-arena tone, matte, no shine, no ornament, soft even studio light, sharp focus, realistic.",
+  "seed": 71,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 51.1,
+  "sha256": "9d6b004c0d28d402df18c564e7b12d87e64f1b974c1204f09e18c32ee3399fb8"
+}
