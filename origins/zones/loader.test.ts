@@ -7,7 +7,7 @@ import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
 import { JOIN_M } from '../../src/fight/index.ts';
 import { AGGRO_M } from '../../src/fight/world.ts';
-import { allZoneIds, loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
+import { allZoneIds, listedIds, loadZone, pageZoneId, unlistedOpens, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
@@ -120,4 +120,19 @@ test('a mob look for a character nothing names is a problem once the known ids a
   const typo = { ...z, mobLooks: { looks: { ...z.mobLooks!.looks, 'character:cinder-scavanger': z.mobLooks!.looks[id]! }, spread: z.mobLooks!.spread } } as unknown as Zone;
   assert.match(zoneProblems(typo, known).join('; '), /character:cinder-scavanger: no such character/);
   assert.deepEqual(zoneProblems(typo), [], 'without a known set the old check is unchanged');
+});
+
+test('an unlisted zone opens only on a /preview/ build or a non-production build; on the live site its address is the normal "no such place"', () => {
+  assert.equal(unlistedOpens({ PROD: true, BASE_URL: '/' }), false, 'live: production, base /');
+  assert.equal(unlistedOpens({ PROD: true, BASE_URL: '/preview/origins/' }), true, 'a preview build');
+  assert.equal(unlistedOpens({ PROD: false, BASE_URL: '/' }), true, 'the dev server');
+  assert.equal(unlistedOpens(undefined), true, 'no vite env (the tests)');
+  const pk = { '1': {}, '90': { unlisted: true } };
+  assert.deepEqual(listedIds(pk, '90', false), ['1'], 'live: the page that names it still does not see it');
+  assert.deepEqual(listedIds(pk, '90', true), ['1', '90'], 'preview: its own page sees it');
+  assert.deepEqual(listedIds(pk, '1', true), ['1'], 'a preview page of another zone does not see it');
+  assert.throws(() => loadZone('90', false), /no zone 90/, 'live: refused, the same error as an id that is no zone');
+  assert.throws(() => loadZone('99', false), /no zone 99/);
+  assert.equal(loadZone('90', true).unlisted, true, 'preview: opens');
+  assert.equal(loadZone('1', false).name, loadZone('1').name, 'a listed zone is the same either way');
 });

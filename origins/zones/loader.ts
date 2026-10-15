@@ -32,7 +32,10 @@ const PACKAGES: Record<string, Zone> = REGISTRY;
 /** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
 // A listed zone, or the unlisted zone this page itself opens (a page names its zone by address; the server and the tests have no page, so they never see an unlisted zone).
 /** The ids a page (`here` = the zone its address opens; null = no page: the server, the tests) may see: every listed zone, plus `here` itself when it is unlisted. Pure. */
-export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || id === here);
+/** Whether a build may open an unlisted zone: a /preview/ build (its base starts /preview/) or any non-production build (dev server, tests). On the live site (production, base /) an unlisted zone does not exist: its address is the normal "no such place". Pure on its argument. */
+export const unlistedOpens = (env: { PROD?: boolean; BASE_URL?: string } | undefined): boolean => !env?.PROD || String(env.BASE_URL ?? '').startsWith('/preview/');
+const UNLISTED_OPENS = unlistedOpens((import.meta as unknown as { env?: { PROD?: boolean; BASE_URL?: string } }).env);
+export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = UNLISTED_OPENS): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
 const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
 export const zonePlaces = (): Place[] => { const ids = new Set(listedIds(PACKAGES, here())); return placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id)))); };
 
@@ -96,9 +99,9 @@ export function zoneFromAddress(pathname: string, search: string): string {
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
 
 const loaded = new Map<string, Zone>();
-export function loadZone(id: string = pageZoneId()): Zone {
+export function loadZone(id: string = pageZoneId(), opens: boolean = UNLISTED_OPENS): Zone {
+  const z = PACKAGES[id]; if (!z || (z.unlisted && !opens)) throw new Error(`no zone ${id}`);   // an unlisted zone on the live site is the same "no such place" as an id that is no zone
   const hit = loaded.get(id); if (hit) return hit;
-  const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
   const r = resolveZone(id, z as unknown as Spec), full = { ...z, resolved: r.tree, fields: r.values, set: r.explicit };   // z is a package straight from the registry: it has no `resolved` yet
   loaded.set(id, full); return full;
