@@ -215,11 +215,19 @@ if ((RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'mana
   const st = document.getElementById('stamina');
   if (st && !document.getElementById('mana')) {
     const css = document.createElement('style');
-    css.textContent = '#mana{--bar-color:#3f78d4}#mana::-webkit-meter-optimum-value{background:#3f78d4}#mana::-moz-meter-bar{background:#3f78d4}';
+    // Dom's pick (option B, 2026-10-15): on the phone HUD health runs full width, and stamina and mana share the row below at 50% each (rows shift down one pair; the style.css phone grid is otherwise untouched).
+    css.textContent = '#mana{--bar-color:#3f78d4}#mana::-webkit-meter-optimum-value{background:#3f78d4}#mana::-moz-meter-bar{background:#3f78d4}' +
+      '@media (max-width:900px),(pointer:coarse){.combat-hud>span:nth-of-type(2){grid-column:1/-1;grid-row:4}#player-health{grid-column:1/-1;grid-row:5}#posture{grid-column:1/-1;grid-row:6}' +
+      '.combat-hud>span:nth-of-type(3){grid-column:1;grid-row:7}.combat-hud>span:nth-of-type(4){grid-column:2;grid-row:7;margin:5px 0 0!important;letter-spacing:1px;line-height:12px}#stamina{grid-column:1;grid-row:8}' +
+      '#mana{grid-column:2;grid-row:8}#mana::-webkit-meter-bar{background:transparent;border:0;height:4px}#mana::-webkit-meter-optimum-value{background:transparent}#mana::-moz-meter-bar{background:transparent}' +
+      '#fight-rank{grid-row:9}#combat-status{grid-row:10}#loot-panel{grid-row:11}#mana-value{display:none}}';
     document.head.append(css);
     const label = el('span', {}, el('span', { className: 'meter-label', id: 'mana-label', textContent: 'MANA' }), ' ', el('span', { id: 'mana-value', textContent: '100 / 100' }));
     const bar = el('meter', { id: 'mana', min: 0, max: 100, value: 100 } as Partial<HTMLMeterElement>); bar.setAttribute('aria-label', 'Your mana');
+    label.firstElementChild?.setAttribute('data-mobile', 'Mana');   // the phone HUD draws the caption from data-mobile
     st.insertAdjacentElement('afterend', bar); st.insertAdjacentElement('afterend', label);
+    const fillMana = () => { bar.style.setProperty('--fill', `${Math.round((bar.value / (bar.max || 100)) * 100)}%`); requestAnimationFrame(fillMana); };   // the phone bar paints from --fill like the health and stamina bars
+    requestAnimationFrame(fillMana);
   }
 }
 if ((RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'quiver' && r.value) && !document.getElementById('ammo-value')) {   // the quiver counter, under the mana bar
