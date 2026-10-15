@@ -47,14 +47,14 @@ async function honest(): Promise<{ rec: WorldRecord; text: string }> {
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
 /** The same honest kill, with the equipped spell on the hero and a cast every four seconds between the cuts. */
-async function honestCast(spell: { id: string; skill: number }): Promise<{ rec: WorldRecord; text: string }> {
+async function honestCast(spell: { id: string; skill: number }, spell2?: { id: string; skill: number }): Promise<{ rec: WorldRecord; text: string }> {
   const fell: string[] = []; let rec: WorldRecord | null = null;
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z };
   const spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
-  const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, spell }) });
+  const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, spell, ...(spell2 ? { spell2 } : {}) }) });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
-  for (let i = 0; i < 3000 && !fell.length; i++) { if (i % 8 === 0) wc.cast(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
+  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 8; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted caster kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }
@@ -200,6 +200,17 @@ test('the soak counters are wired in the production entry and answer GET /intern
     const body = await (await fetch(base, { headers: { authorization: 'Bearer k' } })).json() as { total: number; rate: number; outcomes: object };
     assert.deepEqual([body.total, body.rate, body.outcomes], [2, 0.5, { verified: 1, timeout: 1 }]);
   } finally { srv.close(); }
+});
+
+test('verifyWorldRecord: a two-slot cast record verifies only when the ledger vouches for BOTH spells', async () => {
+  const a = { id: SPELL_IDS[0]!, skill: 0 }, b = { id: SPELL_IDS.find((id) => id !== a.id)!, skill: 0 };
+  const { rec, text } = await honestCast(a, b);
+  assert.deepEqual(rec.hero.spell2, b); assert.ok(rec.steps.some((st) => st.cast2), 'the record carries slot-b presses');
+  const held = { grimoire: { [a.id]: {}, [b.id]: {} }, xp: {}, placed: {} };
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { spells: held }), { ok: true, ticks: rec.steps.length });
+  const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
+  await no({ spells: { ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
+  await no({ spells: { ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
 });
 
 test('verifyWorldRecord: a cast record verifies only when the ledger vouches for its spell (grimoire and skill)', async () => {
