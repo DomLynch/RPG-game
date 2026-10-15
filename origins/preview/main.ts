@@ -673,7 +673,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
-  goblinCentre: () => goblinKit?.centre ?? null, goblinFires: () => goblinKit?.fires ?? [],   // ?look=goblin: where the kit's camp stands, for the look stills
+  goblinCentre: () => goblinKit?.centre ?? null, goblinFires: () => goblinKit?.fires ?? [], goblinDomeImage: () => { const t = (goblinDome?.mesh.material as THREE.MeshBasicMaterial | undefined)?.map?.image as HTMLCanvasElement | undefined; return t ? t.toDataURL('image/png') : null; },   // ?look=goblin: where the kit's camp stands, for the look stills
   // tap a creature by id as the page would (same reach rule).
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
