@@ -28,7 +28,7 @@ try {
       const page = await (await browser.newContext({ viewport: { width: 375, height: 812 } })).newPage();
       page.on('console', (m) => { if (m.text().startsWith('solo-hold')) console.log(id, name, m.text()); });
       page.on('pageerror', (e) => console.log('pageerror', id, String(e).slice(0, 200)));
-      await page.goto(`${origin}/?cam=back&hand=${hand}&world=${world}`, { waitUntil: 'load' });
+      await page.goto(world.startsWith('solo:') ? `${origin}/?cam=wide&hand=${hand}&solo=${world.slice(5)}` : `${origin}/?cam=back&hand=${hand}&world=${world}`, { waitUntil: 'load' });
       await page.waitForFunction(() => window.stageReady === true, null, { timeout: 120000 });
       await page.screenshot({ path: path.join(OUT, `${id}-${name}.jpg`), type: 'jpeg', quality: 85, timeout: 120000 });
       await page.context().close();
