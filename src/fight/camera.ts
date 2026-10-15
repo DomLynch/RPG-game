@@ -1,6 +1,7 @@
 // The duel camera: the pure pose functions (orbit/lock framing and the finisher side view), and the rig that owns the camera's
 // state across frames — yaw/pitch, the settle lerp, the camera kick, the authorized finisher push-in and the side-view reveal.
 // The rig reads simulation positions and the scene's finisher facts as plain data; it never reaches into rigs, blood or wounds.
+import { cameraRule, introRules, tourRules } from './camera-rules.ts';
 import * as THREE from 'three';
 import { PLAY_SCALE, TARGET, wrapAngle, type State } from './sim.ts';
 import type { Shove } from './camera-kick.ts';
@@ -8,7 +9,7 @@ import { finisherRow, type FinisherId } from './finishers.ts';
 
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 
-const AIM_PER_SHRINK = 1.4;   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36)
+const AIM_PER_SHRINK = cameraRule('aimPerShrink');   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36)
 // How tall each foe LOOKS against a man's, for the camera only. The sim's `scale` (moves.ts OPPONENTS[id].scale) is a hitbox/rate number and stays put (it is in the record's
 // SIM_FILES); a foe whose body is not a man's by that number says so here. The Ash Wolf is ~.8 m at the back (the sim says .8 for its rates): behind the hero's head at bite range
 // without this. The Wraith is a tall rig whose head and scythe tip left the top of the lock frame. Every other foe is absent: the sim scale it always had.
@@ -16,13 +17,14 @@ export const FRAMING_LOW: Readonly<Record<string, number>> = { wolf: 1 };   // a
 export const FRAMING_TALL: Readonly<Record<string, number>> = { wraith: 0.35 };   // looks taller (a man's height 1 + this) and carries a long weapon: the lock backs off and up (the sim scale of foes above a man, 1.03-1.36, frames as a man and stays so)
 export const framingLow = (id: string): number => FRAMING_LOW[id] ?? 0;
 export const framingTall = (id: string): number => FRAMING_TALL[id] ?? 0;
-const LOW_SIDE = 0.5,   // metres beside the hero's spine that the lock camera's line to a low foe passes, per unit of FRAMING_LOW (the hero's shoulders are ~.25 either side)
-  LOW_LIFT = 0.8,   // metres the lock camera rises for it
-  TALL_BACK = 2.4,   // metres the lock camera backs off, per unit of foe height above a man's, so his head and weapon tip stay in the frame
-  TALL_LIFT = 1.6;   // ...and rises
-const SHOULDER = 1.5,   // the player's shoulder height (m): what hides the opponent in the lock frame
-  SIDE_CLEAR = 1.2,   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
-  SHORT_FADE = 1;   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
+const LOW_SIDE = cameraRule('lowSide'),   // metres beside the hero's spine that the lock camera's line to a low foe passes, per unit of FRAMING_LOW (the hero's shoulders are ~.25 either side)
+  LOW_LIFT = cameraRule('lowLift'),   // metres the lock camera rises for it
+  TALL_BACK = cameraRule('tallBack'),   // metres the lock camera backs off, per unit of foe height above a man's, so his head and weapon tip stay in the frame
+  TALL_LIFT = cameraRule('tallLift');   // ...and rises
+const SHOULDER = cameraRule('shoulder'),   // the player's shoulder height (m): what hides the opponent in the lock frame
+  SIDE_CLEAR = cameraRule('sideClear'),   // metres beside the player's spine, per unit of opponent scale below 1, that the lock camera's line to him passes
+  SHORT_FADE = cameraRule('shortFade'),   // seconds for those short-opponent terms to ease out once a finish begins (inside SETTLE.min)
+  ARENA_CLAMP = cameraRule('arenaClamp');   // the camera never leaves this radius (the colonnade / scenery ring): one row for every clamp below
 export function cameraPose(
   state: State,
   yaw: number,
@@ -57,9 +59,9 @@ export function cameraPose(
   }
   // Camera stays inside the colonnade even when the fighter reaches the arena edge.
   const radius = Math.hypot(x, z);
-  if (radius > 11.5) {
-    x *= 11.5 / radius;
-    z *= 11.5 / radius;
+  if (radius > ARENA_CLAMP) {
+    x *= ARENA_CLAMP / radius;
+    z *= ARENA_CLAMP / radius;
   }
   y += low * LOW_LIFT;
   // ...and lift it until the same share of him clears the shoulders as would of a man at this gap.
@@ -128,9 +130,9 @@ export function finisherSidePose(
       : [side(1), side(-1)];
   const pose = candidates.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
   const radius = Math.hypot(pose.x, pose.z);
-  if (radius > 11.5) {
-    pose.x *= 11.5 / radius;
-    pose.z *= 11.5 / radius;
+  if (radius > ARENA_CLAMP) {
+    pose.x *= ARENA_CLAMP / radius;
+    pose.z *= ARENA_CLAMP / radius;
   }
   return pose;
 }
@@ -164,7 +166,9 @@ const prefersStillCamera = (): boolean =>
 // starts from wherever the camera stands, so there is no jump. Any touch on the arena stops it for that finish (the player
 // wants to look for themselves). On the player's own death it runs lower. A draw has no fallen to circle; reduced motion keeps
 // the frame still. TOUR.delay is now only the fallback start time for the rare case `settled` never latches this finish.
-export const TOUR = { delay: 5, afterSettle: 3, blendIn: 3, lap: 40, breathe: 25, rise: 30, radius: 5.2, breath: 1.3, lookY: 0.7, lookYPortrait: 1.3 } as const;   // seconds and metres
+export const TOUR = tourRules();   // seconds and metres
+// The first-visit intro (Web's overlay): a slow orbit of the hero for a 52 s lap, idle in view, that blends in and back out. Independent of any finish; a camera-only mode (no fight state, sim or record).
+export const INTRO = introRules();   // seconds and metres, rows in camera-rules-defs.json
 // lookYPortrait (Lead ruling 2026-09-26, E2 kill-cam option 2): on a portrait screen the E2 loot card fills the top band down to
 // y 455 of 812, and a look at 0.7 m put the fallen at screen centre (~y 406), under the card: the Goblin decap stump from 6 s. Looking
 // at 1.3 m drops him ~90 px, below the card. Landscape keeps 0.7.
@@ -181,6 +185,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
   let finishPush = 0; // the authorized slow dolly over the death window (0 = off; respects prefers-reduced-motion)
   let shortFade = 1; // share of the short-opponent lock terms (cameraPose targetScale) in use: 1 in the fight, easing to 0 once a finish begins
   let finishAge = 0, tourStopped = false, tourAngle: number | null = null, tourBegan: number | null = null;   // the stop-on-touch, the orbit angle it started from, and the finish age it started at (captured once — settledAt can still move after the tour is already running, on a slow reveal past TOUR.delay, and must not restart it)
+  let introOn = false, introShare = 0, introT = 0, introAngle: number | null = null;   // the intro orbit: wanted, its blend 0..1, seconds into the lap, the angle it started from
   let stillFor = 0, settled = false, settledAt: number | null = null;   // how long the drawn camera has been (nearly) motionless, the settle latch, and the finish age it latched at
   const lastDrawn = new THREE.Vector3();
   const desired = new THREE.Vector3(),
@@ -228,6 +233,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
     },
     get touring() {
       return tourAngle !== null;
+    },
+    // The first-visit intro orbit: start() blends in over INTRO.blendIn, stop() blends back to the fight camera over INTRO.blendOut. Idempotent; a finish or reduced motion wins.
+    introTour: {
+      start() { introOn = true; },
+      stop() { introOn = false; },
+      get active() { return introShare > 0; },
     },
     // Seconds since the finish began (0 outside a finish) and whether the finisher camera has settled (see SETTLE).
     get finishAge() {
@@ -314,9 +325,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         desired.lerp(eyeTarget.set(side.x, side.y, side.z), reveal);
         look.lerp(lookTarget.set(side.lookX, side.lookY, side.lookZ), reveal);
         const radius = Math.hypot(desired.x, desired.z);
-        if (radius > 11.5) {
-          desired.x *= 11.5 / radius;
-          desired.z *= 11.5 / radius;
+        if (radius > ARENA_CLAMP) {
+          desired.x *= ARENA_CLAMP / radius;
+          desired.z *= ARENA_CLAMP / radius;
         }
       }
       // The arena cam, on top of whatever the finisher's own moves settled on: TOUR.afterSettle seconds after the settle
@@ -334,11 +345,21 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, still = prefers
         const angle = tourAngle + (t * 2 * Math.PI) / TOUR.lap, radius = TOUR.radius + TOUR.breath * Math.sin((t * 2 * Math.PI) / TOUR.breathe);
         const height = (low ? 1.2 : 1.6) + (low ? 1 : 1.6) * (1 - Math.cos((t * 2 * Math.PI) / TOUR.rise)) / 2;
         const tour = eyeTarget.set(focusX + Math.sin(angle) * radius, height, focusZ + Math.cos(angle) * radius), r = Math.hypot(tour.x, tour.z);
-        if (r > 11.5) { tour.x *= 11.5 / r; tour.z *= 11.5 / r; }
+        if (r > ARENA_CLAMP) { tour.x *= ARENA_CLAMP / r; tour.z *= ARENA_CLAMP / r; }
         const s = Math.min(1, t / TOUR.blendIn), blendIn = s * s * (3 - 2 * s);
         desired.lerp(tour, blendIn);
         look.lerp(lookTarget.set(focusX, camera.aspect < 1 ? TOUR.lookYPortrait : TOUR.lookY, focusZ), blendIn);
       } else { tourAngle = null; tourBegan = null; }
+      introShare = Math.min(1, Math.max(0, introShare + (introOn && !still ? dt / INTRO.blendIn : -dt / INTRO.blendOut)));
+      if (introShare > 0 && !finish) {
+        introT += dt; introAngle ??= Math.atan2(camera.position.x - state.x, camera.position.z - state.z);
+        const angle = introAngle + (introT * 2 * Math.PI) / INTRO.lap, radius = INTRO.radius + INTRO.breath * Math.sin((introT * 2 * Math.PI) / INTRO.breathe);
+        const orbit = eyeTarget.set(state.x + Math.sin(angle) * radius, INTRO.height + (INTRO.rise * (1 - Math.cos((introT * 2 * Math.PI) / INTRO.riseEvery))) / 2, state.z + Math.cos(angle) * radius), r = Math.hypot(orbit.x, orbit.z);
+        if (r > ARENA_CLAMP) { orbit.x *= ARENA_CLAMP / r; orbit.z *= ARENA_CLAMP / r; }
+        const k = introShare * introShare * (3 - 2 * introShare);
+        desired.lerp(orbit, k);
+        look.lerp(lookTarget.set(state.x, camera.aspect < 1 ? INTRO.lookYPortrait : INTRO.lookY, state.z), k);
+      } else if (introShare === 0) { introAngle = null; introT = 0; }
       if (LOOK_FOE) {   // stills only (?look=foe, like ?tier=): the opponent from the front, 50° off the line to the player so the player never blocks him
         const facing = Math.atan2(state.x - enemy.x, state.z - enemy.z) + 0.87;
         desired.set(enemy.x + Math.sin(facing) * 4.4, 1.6, enemy.z + Math.cos(facing) * 4.4); look.set(enemy.x, 0.95, enemy.z);

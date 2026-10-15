@@ -118,17 +118,17 @@ test('runBounded kills the whole process group at the deadline: a hung gh (and a
   assert.match(ok.stdout, /\/pull\/7/);
 });
 
-test('openPrViaRest reuses a PR gh already opened for the head, else opens a draft; either way it labels it', async () => {
+test('openPrViaRest reuses a PR gh already opened for the head, else opens a draft; it does not label (the cut labels once, in applyLabels)', async () => {
   const calls: string[] = [];
   const mk = (existing: unknown[]) => (async (url: string, init: { method?: string } = {}) => {
     calls.push(`${init.method || 'GET'} ${url.replace('https://api.github.com/repos/o/r', '')}`);
     const body = url.includes('/pulls?') ? existing : url.endsWith('/pulls') ? { number: 99 } : [];
-    return { json: async () => body };
+    return { ok: true, status: 200, json: async () => body };
   }) as unknown as typeof fetch;
-  const args = { repo: 'o/r', token: 't', head: 'release-ZZ', base: 'trunk', title: 'x', body: 'y', labels: LABELS };
-  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([{ number: 42 }]) }), 42);
-  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open', 'POST /issues/42/labels']);
+  const args = { repo: 'o/r', token: 't', head: 'release-ZZ', base: 'trunk', title: 'x', body: 'y' };
+  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([{ number: 42 }]), log: () => {} }), 42);
+  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open']);
   calls.length = 0;
-  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([]) }), 99);
-  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open', 'POST /pulls', 'POST /issues/99/labels']);
+  assert.equal(await openPrViaRest({ ...args, fetchImpl: mk([]), log: () => {} }), 99);
+  assert.deepEqual(calls, ['GET /pulls?head=o:release-ZZ&state=open', 'POST /pulls']);
 });

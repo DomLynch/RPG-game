@@ -20,8 +20,12 @@ export function storedToken(storage: { getItem(key: string): string | null } | n
   } catch { return null; }
 }
 
-export type Offline = { offline: string };   // 'no-session' | 'http-<status>' | 'timeout' | 'network' | 'bad-reply'
+export type Offline = { offline: string; code?: string };   // 'no-session' | 'http-<status>' | 'timeout' | 'network' | 'bad-reply'; `code` is the writer's own refusal code when its answer carried one (a 409 / 422 body { ok: false, error, code }, origins/server/server.ts)
 export type Opts = { base?: string; fetch?: typeof fetch; timeoutMs?: number };
+// The writer's refusal code, if its error body carries one: a short kebab id, never free text. A body that is not that shape is no code.
+async function refusalCode(res: Response): Promise<{ code?: string }> {
+  try { const code = ((await res.json()) as { code?: unknown } | null)?.code; return typeof code === 'string' && /^[a-z0-9-]{1,40}$/.test(code) ? { code } : {}; } catch { return {}; }
+}
 // One op. Never rejects: whatever goes wrong comes back as { offline: reason } within `timeoutMs`, even if the fetch ignores its signal.
 export async function call<T>(op: string, body: object, token: string | null, read: (result: unknown) => T | null, opts: Opts): Promise<T | Offline> {
   if (!token) return { offline: 'no-session' };
@@ -32,7 +36,7 @@ export async function call<T>(op: string, body: object, token: string | null, re
   const ask = (async (): Promise<T | Offline> => {
     try {
       const res = await doFetch(`${base}/${op}`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: abort.signal, credentials: 'omit' });
-      if (res.status !== 200) return { offline: `http-${res.status}` };
+      if (res.status !== 200) return { offline: `http-${res.status}`, ...(await refusalCode(res)) };
       const json = (await res.json()) as { ok?: unknown; result?: unknown };
       return (json?.ok === true && read(json.result)) || { offline: 'bad-reply' };
     } catch (e) {

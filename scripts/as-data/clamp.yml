@@ -1,0 +1,22 @@
+# as-data check (e): a number written straight into a Math.max / Math.min call (Strategy's review at FZ, Lead 2026-10-14: play-radius.ts `Math.max(PLAY_SCALE, 0.5)`). Rules (c) and (d)
+# only see a top-level `const NAME = <number>`, so a literal inline in an expression was invisible to them. This rule sees the commonest shape, a floor or a cap given as a bare
+# argument, and check.ts holds it to a RATCHET (clamp-baseline.json, per file and literal): the sites that were there when the rule landed are a known backlog, triaged by owner into
+# a row or an exempt; a new one is red under --gate. 0 and 1 are not listed (an identity bound, not a tuning). A number inside a wider argument (`Math.max(x, 0.5 * y)`) is not this rule's.
+id: as-data-clamp
+language: typescript
+# no `files:` list: check.ts scans only its roots (src and origins, or --root), and a fixture root outside the repo must match too
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
+rule:
+  any:
+    - { kind: number, not: { regex: "^[01]$" } }
+    - { kind: unary_expression, regex: "^-\\s*[0-9]" }
+  inside:
+    kind: arguments
+    stopBy: neighbor
+    inside:
+      kind: call_expression
+      stopBy: neighbor
+      has: { field: function, regex: "^Math\\.(max|min)$" }

@@ -1,0 +1,87 @@
+{
+ "about": "Mob kits and chains as data (World, Dom's data-layer day 2026-10-14; Combat top-10 #5): per MobStyle, a KIT is one to three rows of throw THIS existing attack when THIS holds at most once per COOLDOWN ticks (brute opens with the maul and breaks a turtle's guard; skirmisher pokes again right after a hit; caster opens with the witchfire; beast pounces to open and mauls a winded hero), and CHAINS are the authored follow-ups on the engine's 16-18 tick chain window (src/fight/mobkit.ts validateChains refuses a row that reaches past its weapon's window). kits.ts only loads them; the kit tag hashes this data.",
+ "kits": {
+  "brute": [
+   {
+    "move": "heavy",
+    "trigger": "opener",
+    "cooldown": 1000000000
+   },
+   {
+    "move": "heavy",
+    "trigger": "heroGuarding",
+    "cooldown": 420
+   }
+  ],
+  "skirmisher": [
+   {
+    "move": "thrust",
+    "trigger": "afterHit",
+    "cooldown": 240
+   }
+  ],
+  "caster": [
+   {
+    "move": "skill",
+    "trigger": "opener",
+    "cooldown": 1000000000
+   }
+  ],
+  "beast": [
+   {
+    "move": "thrust",
+    "trigger": "opener",
+    "cooldown": 1000000000
+   },
+   {
+    "move": "heavy",
+    "trigger": "heroExhausted",
+    "cooldown": 600
+   }
+  ]
+ },
+ "chains": {
+  "brute": [
+   {
+    "from": "light_right",
+    "to": "heavy",
+    "chance": 0.5,
+    "startsAfter": 3,
+    "endsBefore": 12
+   },
+   {
+    "from": "light_left",
+    "to": "heavy",
+    "chance": 0.5,
+    "startsAfter": 3,
+    "endsBefore": 12
+   }
+  ],
+  "skirmisher": [
+   {
+    "from": "thrust",
+    "to": "thrust",
+    "chance": 0.45,
+    "startsAfter": 3,
+    "endsBefore": 13
+   }
+  ],
+  "caster": [],
+  "beast": [
+   {
+    "from": "light_right",
+    "to": "light",
+    "chance": 0.6,
+    "startsAfter": 2,
+    "endsBefore": 12
+   },
+   {
+    "from": "light_left",
+    "to": "light",
+    "chance": 0.6,
+    "startsAfter": 2,
+    "endsBefore": 12
+   }
+  ]
+ }
+}

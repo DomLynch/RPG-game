@@ -30,7 +30,7 @@ Nothing that changes fight numbers through gear or parts ships before Origin.
 | 11 | **The Pit** (hub between fights: gate, chests, props, blood edge, skull wall) | LIVE, polishing | Pit lane: skull wall #1160 |
 | 12 | **Menu + gear screen** (Fitting rail live; top tabs, Gear + Your Record from GPT concepts 01/04) | IN PROGRESS | Web #1265 next run; the perf readout never shows to players |
 | 13 | **Boss specials** ranks 8–10, 30 moves (rules FINAL 10-01: unblockable, not interruptible, 25 % ranks 8–10 / 20 % ranks 1–7, every 20 s, can kill) | 30 / 30 day PASS; night batch running | Strategy judges (Dom delegated); Combat wires one registry seam after Sat 10-03 |
-| 14 | **Class specials** ranks 1–7 | PICKING | Each opponent's skill move covers ranks 1–3; one new move per opponent for ranks 4–7 (Dom's question 10-02 00:1x, Strategy recommends yes). Picked: Nightborn Seven Cuts; Witch / Plague Doctor / Knight (#1271). Six to pick. |
+| 14 | **Class specials** ranks 1–7 | DONE in code (Strategy re-read 2026-10-14 23:3x): 11 skill moves (ranks 1–3, the take) + 20 class specials, two per opponent (levels 1–15 and 16–35) in src/fight/class-special-identity.ts, presentations merged (#1343, #1346), timing numbers as rows (#2712, #2707); with the 30 boss specials that is 61 moves | Auditor: classify the CLASS_SPECIALS identity table (ids per opponent per level band) as a content row or an exempt verb; it is not in the allow list |
 
 ## Beta facts that stand (unchanged)
 

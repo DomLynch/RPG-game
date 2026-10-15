@@ -119,7 +119,7 @@ export function encounterOps(deps: EncounterDeps | null): Record<string, Handler
       weapon = record.weapon;
       // A record's sheet is the client's claim: the build version it names (this character's, from the writer's own store) is the only thing that can vouch for it.
       const want = record.sheet && record.characterId !== undefined && `pc:${record.characterId}` !== run.character ? { ok: false as const, reason: 'the record names another character\'s build' }
-        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character) : {});
+        : await expectedSheet(record, async (character, version) => { const b = await store.buildGet(db, account, character, version); return b === null || b === 'absent' ? null : { level: b.level, placed: b.placed }; }, record.sheet ? await wornGearOf(db, account, run.character, record.v) : {});
       const spell = (record as { spell?: SpellClaim }).spell, held = want.ok && spell ? await expectedSpell(db, account, run.character, spell) : null;   // the spell block is a claim too: owned, and no more skill than is stored
       verdict = held && !held.ok ? { ok: false, reason: held.reason } : want.ok ? verify(record, { seed: run.seed, enemy: run.enemy, level: run.level, bar: run.bar, flags: run.flags as unknown as TwistFlag[], layer: run.layer, pose: poseOfToken(token), ...(want.sheet ? { sheet: want.sheet } : {}) }) : { ok: false, reason: want.reason };
     }

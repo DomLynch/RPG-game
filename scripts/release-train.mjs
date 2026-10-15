@@ -24,8 +24,13 @@ export const SKIP_MARK = 'release-train: skipped';
 /** docs/release-order.txt -> [PR numbers]; blank lines and # comments ignored. */
 export const readOrder = text => String(text || '').split('\n').map(l => l.replace(/#.*/, '').trim()).filter(l => /^\d+$/.test(l)).map(Number);
 
+/** A check run is finished when GitHub says COMPLETED, or when the rollup still lists it IN_PROGRESS but it already carries a conclusion and a real
+ * completedAt after its startedAt (FV #2750, 2026-10-14: `quality / plan` read IN_PROGRESS + SUCCESS for 4 h and the train waited on it). A running job has
+ * no conclusion and a 0001-01-01 completedAt, so it is never finished by this rule. */
+const finished = c => c.status === 'COMPLETED' || (String(c.conclusion || '') !== '' && Date.parse(c.completedAt || '') > Date.parse('2000-01-01') && Date.parse(c.completedAt) >= (Date.parse(c.startedAt || '') || 0));
+
 /** One check finished SUCCESS / SKIPPED / NEUTRAL; anything pending or red is not. */
-export const checkGreen = c => ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(String(c.__typename === 'StatusContext' ? c.state : (c.status === 'COMPLETED' ? c.conclusion : 'PENDING')).toUpperCase());
+export const checkGreen = c => ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(String(c.__typename === 'StatusContext' ? c.state : (finished(c) ? c.conclusion : 'PENDING')).toUpperCase());
 
 /** Skipped browser jobs read as green (#2359, Lead + Auditor 2026-10-12): on a feature head the quality.yml with the `browser-rows (status)` job ran on,
  * the plan always sets the `browser-rows` commit status, so a head without it at SUCCESS has not passed its browser jobs. A release-* head is exempt (it

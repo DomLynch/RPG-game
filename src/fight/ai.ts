@@ -4,6 +4,8 @@ import { LATE_NOTICE } from './play-radius.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
 import { bandStop } from './sandbox-rules.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { READ_ROWS } from './ai-read-rows.ts';   // rows: ai-read-defs.json
+import { TACTIC_ROWS, pickWeighted } from './tactic-rows.ts';   // rows: tactic-defs.json
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
@@ -20,10 +22,7 @@ export type Habits = {
   run?: number;   // consecutive lights: reset by any other blow that starts and by a defence that meets a blow (RV31, profile.spamRun's early gate)
 };
 export type Reads = { parryHappy: boolean; turtle: boolean; roller: boolean; stepper: boolean; spammer: boolean; parker: boolean; poker: boolean; kicker: boolean };
-export const READ = {
-  feint: 1 / 6, after: 2, parry: .5, guardTicks: 180, guardShare: .45, roll: .4, swings: 11, lightShare: .7, baitHold: 12,
-  parryBoost: 2, parryCap: .85, chargeBoost: .4, kickBoost: .3, anticipate: 8, baitShare: .7, parkShare: .5, lateNotice: 6, holdTicks: 6, latch: 600, plus: 2, decay: 0,
-} as const;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
+export const READ = READ_ROWS;   // swings 11 / anticipate 8 (re-swept after the slice-P stamina economy): a cut-only player at normal still wins about a quarter of duels (owner: 5–8 of 24)
 // The tells a profile's tellReaction answers (RV19): the thrust and the pommel strike, the two blows a short weapon must meet early.
 const TELLS = new Set<string>(['thrust', ...Object.values(SKILL_ROWS).filter((r) => r.tell).map((r) => r.move)]);   // the skill rows flagged `tell` (the pommel strike)
 export const readOpponent = (h: Habits, profile?: AiProfile): Reads => {
@@ -186,6 +185,15 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
         : r < parryChance + profile.dodge && self.stamina >= RULES.rollCost ? 'dodge'
         : unblockable ? (self.stamina >= RULES.rollCost && !(profile.step && clears && roll() < profile.step) ? 'dodge' : !self.parryCooldown && guardShare > 0 ? 'parry' : 'evade')
         : affordable && (guardShare >= 1 || roll() < guardShare) ? 'block' : 'evade';
+      // The tactic table's reaction slot (spec gothic-tactic-table): a profile that names a row draws its answer to this noticed swing from the row's weights, over the
+      // plans above (a swing already left unanswered stays unanswered, and an answer that is not available now keeps the plan chosen above). A profile without `tactic` draws nothing.
+      const reactions = profile.tactic ? TACTIC_ROWS[profile.tactic]?.heroWinding : undefined;
+      if (reactions && next.plan !== 'ignore') {
+        const pick = pickWeighted(reactions, roll());
+        if (pick === 'backstep') next.plan = 'evade';
+        else if (guardShare > 0 && pick === 'parry' && !self.parryCooldown) next.plan = 'parry';
+        else if (guardShare > 0 && pick === 'brace' && affordable) next.plan = 'block';
+      }
       // Late notice (COMBAT-001), every blow but a tell (the thrust and the pommel strike keep their honest answer: a ranged thrust is the opener a warden must meet): `spare` is the ticks between noticing the blow and its contact. A swing noticed on the contact tick or later is never answered
       // in time; one noticed with a tick to spare is answered only (spare - 1) / (lateNotice - 1) of the time, so the step from "never in time" to "always in
       // time" spreads over lateNotice - 1 levels of reaction instead of one. No draw is made at spare <= 0, so a warden slower than the cut keeps its stream.

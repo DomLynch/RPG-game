@@ -1,5 +1,5 @@
 {
   "tunables": [
-    {"file": "origins/shops/shop.ts", "name": "SHOP_LIST_VERSION", "kind": "exempt", "reason": "format / era version stamp: a record, wire or table version guarded by its own version test, not a tuning number"}
+    {"file": "origins/shops/shop.ts", "name": "SHOP_LIST_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Duels & Backend"}
   ]
 }
