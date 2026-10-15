@@ -12,8 +12,8 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color('#9b7a56'); 
 scene.add(new THREE.HemisphereLight('#fff0dd', '#4a3a2a', 1.15));
 const sun = new THREE.DirectionalLight('#ffe6c0', 2.2); sun.position.set(-3, 5, 3); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 }); scene.add(sun);
 const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#8f6c47', roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
-const camera = new THREE.PerspectiveCamera(cam === 'fight' || cam === 'wide' ? 51 : 40, innerWidth / innerHeight, 0.1, 80);
-const view = { fight: [[1.2, 1.7, 3.1], [0, 1.0, 0]], wide: [[1.1, 1.5, 4.6], [-0.3, 1.0, 0]], side: [[2.6, 1.2, 0.2], [0, 1.05, 0]], front: [[0.6, 1.3, 2.7], [0, 1.0, 0]] }[cam] ?? [[1.2, 1.7, 3.1], [0, 1.0, 0]];
+const camera = new THREE.PerspectiveCamera(cam === 'fight' || cam === 'wide' || cam === 'back' ? 51 : 40, innerWidth / innerHeight, 0.1, 80);
+const view = { fight: [[1.2, 1.7, 3.1], [0, 1.0, 0]], wide: [[1.1, 1.5, 4.6], [-0.3, 1.0, 0]], back: [[0.5, 1.75, -3.2], [0, 1.0, 0]], side: [[2.6, 1.2, 0.2], [0, 1.05, 0]], front: [[0.6, 1.3, 2.7], [0, 1.0, 0]] }[cam] ?? [[1.2, 1.7, 3.1], [0, 1.0, 0]];
 camera.position.set(...(view[0] as [number, number, number])); camera.lookAt(...(view[1] as [number, number, number]));
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -26,6 +26,13 @@ part.rotation.set(Math.PI / 2, 0, 0); part.position.set(0, 0.08, 0.015);   // Sw
 part.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
 bone.add(part); scene.add(rig);
 if (q.get('hold') === 'upright') { rig.updateMatrixWorld(true); const inv = bone.getWorldQuaternion(new THREE.Quaternion()).invert(); part.quaternion.copy(inv); part.position.set(0, 0, 0); }   // the part stands world-upright (+Y up, +Z to the camera): a staff planted, a bow held vertical
+if (q.get('world')) {   // ?world=rx,ry,rz[,px,py,pz]: the part's WORLD orientation (deg, XYZ, +Y up, hero faces +Z) and an optional offset from the hand (m, world); logs the part's local transform under the hand for the sandbox's ?hold
+  const v = q.get('world')!.split(',').map(Number); rig.updateMatrixWorld(true);
+  const want = new THREE.Quaternion().setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(v[0] ?? 0), THREE.MathUtils.degToRad(v[1] ?? 0), THREE.MathUtils.degToRad(v[2] ?? 0), 'XYZ'));
+  const inv = bone.getWorldQuaternion(new THREE.Quaternion()).invert(); part.quaternion.copy(inv.multiply(want));
+  const off = new THREE.Vector3(v[3] ?? 0, v[4] ?? 0, v[5] ?? 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert()); part.position.copy(off);
+  const e = new THREE.Euler().setFromQuaternion(part.quaternion, 'XYZ'); console.log('solo-hold', JSON.stringify({ hand, localEulerDeg: [e.x, e.y, e.z].map((r) => +THREE.MathUtils.radToDeg(r).toFixed(1)), localPos: part.position.toArray().map((n) => +n.toFixed(3)) }));
+}
 rig.traverse((o) => { if (o instanceof THREE.Mesh) { o.castShadow = true; o.frustumCulled = false; } });
 if (q.get('solo')) {   // the model alone for a design sheet: no hero; a staff and a bow stand upright, a crossbow lies with its muzzle to the right and its top up
   scene.remove(rig); const solo = new THREE.Group(), model = part; solo.add(model); model.quaternion.identity(); model.position.set(0, 0, 0);

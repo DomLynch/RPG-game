@@ -9,6 +9,8 @@ import { chromium } from 'playwright';
 const root = process.cwd(), STAGE = path.resolve(process.env.STAGE || 'artifacts/weapon-stage'), OUT = process.env.OUT || 'artifacts/ranged-stills', ids = process.argv.slice(2).length ? process.argv.slice(2) : ['staff-v1', 'bow-v1', 'crossbow-v1'];
 fs.mkdirSync(OUT, { recursive: true });
 let current = ids[0];
+// candidate world holds per weapon (rx,ry,rz deg; hero faces +Z, +Y up; the camera is behind him), name -> value
+const HOLDS = JSON.parse(process.env.HOLDS || '{}');
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]);
@@ -22,11 +24,11 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 try {
   for (const id of ids) {
     current = id; const hand = id.startsWith('bow') ? 'l' : 'r';
-    for (const [name, cam, hold, size] of [['wide', 'wide', 'carry', [375, 812]], ['upright', 'wide', 'upright', [375, 812]], ['solo', 'wide', id.startsWith('crossbow') ? 'lie' : 'stand', [375, 600]]]) {
-      const page = await (await browser.newContext({ viewport: { width: size[0], height: size[1] } })).newPage();
-      page.on('console', (m) => { if (m.text().startsWith('solo')) console.log(id, m.text()); });
+    for (const [name, world] of HOLDS[id]) {
+      const page = await (await browser.newContext({ viewport: { width: 375, height: 812 } })).newPage();
+      page.on('console', (m) => { if (m.text().startsWith('solo-hold')) console.log(id, name, m.text()); });
       page.on('pageerror', (e) => console.log('pageerror', id, String(e).slice(0, 200)));
-      await page.goto(`${origin}/?cam=${cam}&hand=${hand}&hold=${hold}${name === 'solo' ? `&solo=${hold}` : ''}`, { waitUntil: 'load' });
+      await page.goto(`${origin}/?cam=back&hand=${hand}&world=${world}`, { waitUntil: 'load' });
       await page.waitForFunction(() => window.stageReady === true, null, { timeout: 120000 });
       await page.screenshot({ path: path.join(OUT, `${id}-${name}.jpg`), type: 'jpeg', quality: 85, timeout: 120000 });
       await page.context().close();
