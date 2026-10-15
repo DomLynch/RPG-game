@@ -14,6 +14,6 @@
     "ground:zone1.knife-1": {"zone": "zone1", "place": "ferry-landing", "item": "item:starter.knife", "qty": 1, "scope": "account", "hiddenWhileTaken": true, "offsetX": 22, "offsetZ": 3},
     "ground:zone1.gladius-1": {"zone": "zone1", "place": "blood-ruin", "item": "item:starter.gladius", "qty": 1, "scope": "account", "hiddenWhileTaken": true, "offsetX": 32, "offsetZ": 3},
     "ground:zone1.cleaver-1": {"zone": "zone1", "place": "cinder-hold", "item": "item:starter.cleaver", "qty": 1, "scope": "account", "hiddenWhileTaken": true, "offsetX": 10, "offsetZ": -24},
-    "ground:zone1.estoc-1": {"zone": "zone1", "place": "mere-end", "item": "item:starter.estoc", "qty": 1, "scope": "account", "hiddenWhileTaken": true, "offsetX": 4, "offsetZ": 20}
+    "ground:zone1.estoc-1": {"zone": "zone1", "place": "mere-end", "item": "item:starter.estoc", "qty": 1, "scope": "account", "hiddenWhileTaken": true, "offsetX": 7, "offsetZ": 8}
   }
 }

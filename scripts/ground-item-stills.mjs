@@ -32,13 +32,19 @@ const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type
 try {
   if (process.env.ROWS) for (const [gid, row] of Object.entries(GROUND_ITEMS)) for (const width of WIDTHS) {
     const at = groundPointOf(row), centre = groundPointOf({ ...row, offsetX: 0, offsetZ: 0 }), stem = row.item.replace('item:starter.', '');
-    // the walker stands BACK_M inside the place on the line from the item toward the place's centre (from the gate side when the item is the centre), facing the item
-    let ux = centre.x - at.x, uz = centre.z - at.z; const len = Math.hypot(ux, uz); if (len < 1) { ux = 0; uz = -1; } else { ux /= len; uz /= len; }
-    const hero = { x: at.x + ux * BACK_M, z: at.z + uz * BACK_M }, heading = Math.atan2(at.x - hero.x, at.z - hero.z);
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+    // the walker stands BACK_M from the item, facing it, on the side of the 8 compass points that is farthest from any creature (a creature in aggro range engages him and turns the camera), the side toward the place's centre winning ties
+    const mobs = await page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => [m.x, m.z]));
+    const towardCentre = Math.atan2(centre.x - at.x, centre.z - at.z) || Math.PI;
+    let best = null; for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4, c = { x: at.x + Math.sin(a) * BACK_M, z: at.z + Math.cos(a) * BACK_M };
+      const clear = Math.min(...mobs.map(([x, z]) => Math.hypot(x - c.x, z - c.z)), 99), tie = Math.cos(a - towardCentre);
+      if (!best || clear > best.clear + 4 || (Math.abs(clear - best.clear) <= 4 && tie > best.tie)) best = { c, clear, tie };
+    }
+    const hero = best.c, heading = Math.atan2(at.x - hero.x, at.z - hero.z);
     await page.evaluate(([x, z, h]) => window.originsPreview.place(x, z, h), [hero.x, hero.z, heading]);
     await page.evaluate(([id, item, x, z]) => window.originsPreview.ground.show(id, item, x, z), [gid, row.item, at.x, at.z]);
     await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, gid, { timeout: 60000 });
