@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "intro-card", "file": "intro-defs.json", "at": "cards", "key": "id", "required": { "text": "string", "start": "number", "hold": "number", "fade": "number" } },
+    { "table": "intro-rule", "file": "intro-defs.json", "at": "rules", "key": "id", "required": { "value": "string", "unit": "string" } }
+  ]
+}

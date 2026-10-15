@@ -1,0 +1,11 @@
+{
+  "cards": [
+    { "id": "wake", "text": "You wake on the sand. Iron on your wrists. A crowd above you that has already bet on your death.", "start": 60, "hold": 240, "fade": 30 },
+    { "id": "frankendom", "text": "This is Frankendom. The dead fight here, and the living pay to watch.", "start": 420, "hold": 240, "fade": 30 },
+    { "id": "win", "text": "Win, and you take what the fallen carried. Win enough, and the gate opens to the world beyond the Pit.", "start": 780, "hold": 300, "fade": 30 },
+    { "id": "centurion", "text": "The Centurion is first. He always is. Tap to strike.", "start": 1200, "hold": 300, "fade": 30 }
+  ],
+  "rules": [
+    { "id": "seenKey", "value": "frankendom.intro.v1", "unit": "storage key" }
+  ]
+}
