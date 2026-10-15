@@ -16,7 +16,7 @@ const rows = (): Record<string, any>[] => JSON.parse(readFileSync(ROWS_FILE, 'ut
 
 test('the rows file is on the data path, and BUNDLE is byte-identical to what the code built (key order included)', () => {
   assert.ok(onDataPath(ROWS_FILE));
-  assert.equal(createHash('sha256').update(JSON.stringify(BUNDLE)).digest('hex'), '37812f688d80fc18b2947082f7ff9783825adff08d8a868637126d14f8efe207');
+  assert.equal(createHash('sha256').update(JSON.stringify(BUNDLE)).digest('hex'), '085baf4d40d4db76ad0eddbf95180a7df1d36af45529d58193da9e30332ecda7');   // re-pinned 2026-10-15: BUNDLE gained exactly one item, item:starter.rusty-sword (ground loot slice 1). The old pin 37812f68... is what the bundle hashes to WITHOUT that item (checked on the VPS).
   assert.equal(LOOT_TABLES.length, 12);
 });
 
