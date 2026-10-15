@@ -42,7 +42,7 @@ try {
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = circle(boxes[i]), b = circle(boxes[j]); if (Math.hypot(a.cx - b.cx, a.cy - b.cy) < a.r + b.r - 0.5) overlaps.push([boxes[i].id, boxes[j].id]); }
     const off = boxes.filter((b) => b.l < 0 || b.t < 0 || b.l + b.w > vp.w || b.t + b.h > vp.h).map((b) => b.id), small = boxes.filter((b) => b.w < 44 || b.h < 44).map((b) => b.id);
     receipt.push({ run: run.label, viewport: `${vp.w}x${vp.h}`, buttons: boxes.map((b) => b.id), hasSkill2: boxes.some((b) => b.id === 'skill2-button'), overlaps, off, small, boxes });
-    await page.screenshot({ path: `${OUT}/${run.label}-${vp.w}.png`, animations: 'disabled' });
+    await page.screenshot({ path: `${OUT}/${run.label}-${vp.w}.jpg`, type: 'jpeg', quality: 88, animations: 'disabled' });
     await context.close();
   }
   await fs.writeFile(`${OUT}/receipt.json`, JSON.stringify(receipt, null, 2));
