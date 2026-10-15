@@ -22,6 +22,12 @@ type Category = (typeof CATEGORIES)[number];
 const roots = arg('--root') ? [arg('--root')!] : ['src', 'origins'];
 const allowFile = arg('--allow') ?? join(HERE, 'allow');   // a directory of per-root files (allow/<root>.json, one lane's rows PRs touch only its own root) or one file
 const allowData = loadAllow(allowFile);
+// Rule (e)'s ratchet (clamp.yml): { file: { literal: count } } for the inline Math.max/min numbers that were there when the rule landed. More of a literal in a file than this is NEW (red under
+// --gate); fewer means the baseline is stale and must come down in the same PR (exit 3, like a stale allow entry), so it only ever shrinks. --write-clamp-baseline rewrites it, and refuses
+// to while anything is new: it lowers the backlog, it never blesses a new site.
+const clampFile = arg('--clamp-baseline') ?? join(REPO, 'scripts', 'as-data', 'clamp-baseline.json');   // the tree under check's own baseline (a --repo fixture has none: nothing is baselined there)
+type Tally = Record<string, Record<string, number>>;
+const clampBase: Tally = existsSync(clampFile) ? (JSON.parse(readFileSync(clampFile, 'utf8')) as Tally) : {};
 const tunableAllow: TunableAllow[] = allowData.tunables ?? [];
 const today = arg('--today') ?? new Date().toISOString().slice(0, 10);
 const dayNo = (d: string) => Math.floor(Date.parse(`${d}T00:00:00Z`) / 86_400_000);
@@ -86,9 +92,22 @@ try {
   const overdue = debts.filter((a) => dayNo(a.sunset!) < dayNo(today)), soon = debts.filter((a) => dayNo(a.sunset!) >= dayNo(today) && dayNo(a.sunset!) - dayNo(today) <= 14);
   const verbLine = (v: Verb) => { const at = read(v.file).split('\n').findIndex((l) => new RegExp(`\\bconst ${v.name}\\b`).test(l)); return at < 0 ? 0 : at + 1; };
   const verbSites = verbs.map((v) => ({ ...v, line: verbLine(v) })), staleVerbs = verbSites.filter((v) => !v.line);
+  const clamps = run('clamp.yml').map((m) => ({ file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text: m.text.replace(/\s+/g, '') }))
+    .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  const tally: Tally = {};
+  for (const c of clamps) (tally[c.file] ??= {})[c.text] = (tally[c.file]![c.text] ?? 0) + 1;
+  const newClamps = clamps.filter((c) => { const seen = clamps.filter((o) => o.file === c.file && o.text === c.text); return seen.indexOf(c) >= (clampBase[c.file]?.[c.text] ?? 0); });   // per file and literal, the occurrences past the baseline's count (a second 0.5 where one was is new)
+  const underRoot = (f: string) => roots.some((r) => { const R = resolve(REPO, r), F = resolve(REPO, f); return F === R || F.startsWith(`${R}/`); });   // baseline keys are repo-relative; a --root may be absolute
+  let lowered = Object.entries(clampBase).filter(([f]) => underRoot(f)).flatMap(([f, lits]) => Object.entries(lits).filter(([lit, n]) => (tally[f]?.[lit] ?? 0) < n).map(([lit, n]) => ({ file: f, literal: lit, baseline: n, now: tally[f]?.[lit] ?? 0 })));
+  if (process.argv.includes('--write-clamp-baseline')) {
+    if (newClamps.length && existsSync(clampFile)) fail(`not writing ${relative(REPO, clampFile)}: ${newClamps.length} inline clamp literal(s) are new (${newClamps.slice(0, 3).map((c) => `${c.file}:${c.line} ${c.text}`).join(', ')}); the baseline only shrinks`);
+    writeFileSync(clampFile, `${JSON.stringify(Object.fromEntries(Object.entries(tally).sort(([a], [b]) => a.localeCompare(b))), null, 1)}\n`);
+    console.log(`as-data: wrote ${relative(REPO, clampFile)} (${clamps.length} inline clamp literals in ${Object.keys(tally).length} files)`);
+    lowered = [];   // the file now matches the tree
+  }
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
-  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map') };
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon }));
+  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map'), clamps: clamps.length, newClamps: newClamps.length };
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}`);
     for (const s of allowedTunables) console.log(`allowed-tunable ${s.file}:${s.line} ${s.text}  (${s.reason})`);
@@ -99,8 +118,10 @@ try {
     for (const v of verbSites.filter((x) => x.line)) console.log(`verb ${v.file}:${v.line} ${v.name}  (dispatch ${v.dispatch}; sunset ${v.sunset ?? 'none'})`);
     for (const v of staleVerbs) console.log(`STALE verb ${v.file} ${v.name}: no such declaration any more, delete it (${v.dispatch})`);
     for (const a of stale) console.log(`STALE allow entry ${a.file} ${a.literal}: no such site any more, delete it (${a.reason})`);
-    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps}`);
+    for (const c of newClamps) console.log(`NEW inline clamp ${c.file}:${c.line} ${c.text}: a number in Math.max/min is a tuning in code; make it a row (or a named exempt) instead`);
+    for (const l of lowered) console.log(`STALE clamp baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-clamp-baseline)`);
+    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps}, inline clamps ${summary.clamps} (new ${summary.newClamps}; the rest are the known backlog in clamp-baseline.json)`);
   }
-  if (stale.length || staleVerbs.length || staleTunables.length) process.exitCode = 3;   // a rotted allow-list is a list-integrity failure, not a count
-  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row or tunable in code, or a debt past its sunset, is red
+  if (stale.length || staleVerbs.length || staleTunables.length || lowered.length) process.exitCode = 3;   // a rotted allow-list or a clamp baseline above the tree is a list-integrity failure, not a count
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable or inline clamp literal in code, or a debt past its sunset, is red
 } finally { rmSync(dir, { recursive: true, force: true }); }

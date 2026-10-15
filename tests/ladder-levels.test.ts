@@ -12,8 +12,8 @@ const kitted = (o: Opponent, l: number): Opponent => { const k = LOADOUT_FROM[o.
 // Identity where nothing is re-kitted (an accidental clone of an unkitted opponent is still caught); structural equality only for a re-kit (Auditer, #942).
 const same = (got: Opponent, o: Opponent, l: number, msg: string) => { const want = kitted(o, l); if (want === o) assert.equal(got, o, msg); else assert.deepEqual(got, want, msg); };
 
-const SKILL: (keyof AiProfile)[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
-const IDENTITY: (keyof AiProfile)[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
+const SKILL: Exclude<keyof AiProfile, 'tactic'>[] = ['reaction', 'accuracy', 'parry', 'dodge', 'aggression', 'lapse', 'read'];
+const IDENTITY: Exclude<keyof AiProfile, 'tactic'>[] = ['pressure', 'feint', 'guard', 'disengage', 'circle', 'step', 'interrupt', 'kick', 'dash'];
 const ladder = LADDER.map(o => OPPONENTS[o.id]);
 
 test('levels 6 / 18 / 46 ARE the easy / normal / hard tables (same object: the same fight, the same RNG draws)', () => {
