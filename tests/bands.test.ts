@@ -55,20 +55,35 @@ test('the holdBand row exists, names only holdBand, and no shipped profile names
   for (const [name, p] of Object.entries(PROFILES)) assert.notEqual((p as { tactic?: string }).tactic, 'bands', name);
 });
 
-test('holdBand: with bands on and the row named, a longsword warden steps out from inside its best band and in from outside it; without the flag or the row it does not follow the band', async () => {
-  const { initialAi } = await import('../src/fight/ai.ts');
-  const { decideBanded: decide } = await import('../src/fight/band-ai.ts');
+test('holdBand (Strategy\'s tamed form): with bands on and the row named, the warden steps IN toward its best band only in a window it already reads as an opening, never steps back, never moves in the dead zone, and without an opening or the flag it is decide()\'s answer untouched', async () => {
+  const { initialAi, decide } = await import('../src/fight/ai.ts');
+  const { decideBanded } = await import('../src/fight/band-ai.ts');
   const { PROFILES, OPPONENTS } = await import('../src/fight/moves.ts');
-  const r = bestRange('longsword')!;
-  const along = (gap: number, bands: boolean, tactic?: string): number => {
+  const r = bestRange('longsword')!, profile = { ...PROFILES.normal, tactic: 'bands' };
+  const make = (gap: number, bands: boolean, foeHurt: boolean): Duel => {
     const d: Duel = { ...arena(OPPONENTS.veteran, 'longsword'), ...(bands ? { bands: true } : {}) };
     d.fighters[0].body = { ...d.fighters[0].body, x: 0, z: 0 }; d.fighters[1].body = { ...d.fighters[1].body, x: 0, z: -gap };
     d.fighters[1] = { ...d.fighters[1], weapon: 'longsword' };
-    const profile = { ...PROFILES.normal, ...(tactic ? { tactic } : {}) }, out = decide(d, 1, { ...initialAi(7), mode: 'approach' }, profile);
-    const m = out.intent.move; const dx = d.fighters[0].body.x - d.fighters[1].body.x, dz = d.fighters[0].body.z - d.fighters[1].body.z, n = Math.hypot(dx, dz);
-    return (m.x * dx + m.z * dz) / n;   // + toward the hero, - away
+    if (foeHurt) d.fighters[0] = { ...d.fighters[0], phase: 'hurt', age: profile.reaction + 5 };
+    return d;
   };
-  assert.ok(along(r[1] + 0.3, true, 'bands') > 0, 'outside the band: steps in');
-  assert.ok(along(r[0] - 0.2, true, 'bands') < 0, 'inside the band: steps back');
-  assert.equal(along((r[0] + r[1]) / 2, true, 'bands'), 0, 'in band: holds');
+  const toward = (d: Duel, out: { intent: { move: { x: number; z: number } } }): number => {
+    const dx = d.fighters[0].body.x - d.fighters[1].body.x, dz = d.fighters[0].body.z - d.fighters[1].body.z, n = Math.hypot(dx, dz);
+    return (out.intent.move.x * dx + out.intent.move.z * dz) / n;   // + toward the foe, - away
+  };
+  const ai = { ...initialAi(7), mode: 'approach' as const };
+  const out = make(r[1] + 0.5, true, true), stepIn = decideBanded(out, 1, ai, profile);
+  assert.ok(toward(out, stepIn) > 0, 'outside the band, in an opening: steps in');
+  const inside = make(r[0] - 0.3, true, true);
+  assert.deepEqual(decideBanded(inside, 1, ai, profile).intent, decide(inside, 1, ai, profile).intent, 'inside the band edge: never steps back to hold it (holdBackOn 0), decide() untouched');
+  assert.deepEqual(decideBanded(make(r[1] + 0.5, true, false), 1, ai, profile).intent, decide(make(r[1] + 0.5, true, false), 1, ai, profile).intent, 'no opening: decide()\'s answer untouched');
+  assert.deepEqual(decideBanded(make(r[1] + 0.5, false, true), 1, ai, profile).intent, decide(make(r[1] + 0.5, false, true), 1, ai, profile).intent, 'no bands flag: untouched');
+  const edge = make(r[1] + 0.05, true, true);
+  assert.deepEqual(decideBanded(edge, 1, ai, profile).intent, decide(edge, 1, ai, profile).intent, 'inside the dead zone (holdMargin past the edge): untouched');
+});
+
+test('the holdBand row exists, names only holdBand, and no shipped profile names it (so nothing in the game moves)', async () => {
+  assert.equal(TACTIC_ROWS.bands?.holdBand, true);
+  const { PROFILES } = await import('../src/fight/moves.ts');
+  for (const [name, p] of Object.entries(PROFILES)) assert.notEqual((p as { tactic?: string }).tactic, 'bands', name);
 });
