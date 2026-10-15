@@ -260,11 +260,11 @@ export function worldStep(dt: number, heading: number, i: ControlIntent): WorldM
   }
   return { dx, dz, phase: wsim.phase, stamina: wsim.duel.fighters[0].stamina, facing: wsim.duel.fighters[0].body.heading };
 }
-let worldSlotB = false;
+let worldSlotB = false, worldSlotBSpell: string | undefined;
 /** The page's slot-b pick (the open world's idle practice carries no spells, so the HUD is told): SPELL 2 shows while it is true. Set on a pick or a book read, never per frame. */
-export const setWorldSlotB = (shown: boolean): void => { worldSlotB = shown; };
+export const setWorldSlotB = (shown: boolean, spell?: string): void => { worldSlotB = shown; worldSlotBSpell = spell; };
 export function worldIntent(): ControlIntent {
-  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB, slotBSpell: worldSlotBSpell });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
   const i = controls!.intent(); controls!.consumed([]); return i;
 }
 

@@ -6,6 +6,7 @@ import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Pr
 import { idleIntent, inBufferWindow, stepDuel, withSpell, type Intent } from '../src/fight/duel.ts';
 import { recordSpecials } from '../src/fight/replay.ts';
 import { SPELL_IDS, resolveSpell } from '../src/fight/spell-cast.ts';
+import { SPELL_ROWS, legendOf } from '../src/fight/spell-legends.ts';
 
 // A minimal DOM: what the HUD writes to (properties, attributes, dataset, style props) is what the assertions read.
 class FakeElement {
@@ -171,6 +172,19 @@ test('update: SPELL 2 is absent in the Pit and with slot b empty, present and li
   worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: false }); assert.equal(worldDom.get('skill2-button').hidden, true, 'and hides it again when slot b is emptied (the page tells the HUD, not the element)');
   assert.deepEqual(show(true), { hidden: false, disabled: 'false' }, 'a slot-b spell: the button is there and lit');
   assert.deepEqual(show(true, true), { hidden: false, disabled: 'true' }, 'slot b cooling: the button stays, dim');
+});
+
+// Lead's ruling (2026-10-16): SPELL 2 names its spell from the catalogue row; an empty or unknown slot keeps "Spell 2"; the full name is in aria-label and the tooltip.
+test('update: SPELL 2 carries the slot-b spell\'s own catalogue name, and falls back to "Spell 2"', () => {
+  const row = SPELL_ROWS.find((r) => r.name && r.name.length > 12)!, pit = initialPractice(731, OPPONENTS.veteran), { element, get } = dom(), button = () => get('skill2-button');
+  element<FakeElement>('skill2-button').dataset.mobile = 'Spell 2';   // the page's markup
+  const hud = createHud(element as never);
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true, slotBSpell: legendOf(row) });
+  assert.deepEqual([button().dataset.mobile, button().attributes.get('aria-label'), button().textContent], [row.name, row.name, row.name], 'the catalogue name, in the cluster label, the accessible name and the text');
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true, slotBSpell: 'no-such-spell' });
+  assert.equal(button().dataset.mobile, 'Spell 2', 'an unknown id falls back');
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true });
+  assert.equal(button().attributes.get('aria-label'), 'Spell 2', 'no spell named: the generic words');
 });
 
 // Combat 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed (live tick log). SKILL now says when the equipped cone
