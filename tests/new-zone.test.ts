@@ -155,6 +155,7 @@ test('--like takes --set overrides (a JSON value, or a bare word as a string) an
 
 test('register() regenerates the registry from the rows, so a new zone needs no manual gen-zones step', () => {
   const dir = withNinety('reg');
+  const realBefore = readFileSync(`${ROWS_DIR}../zones/registry.ts`, 'utf8');
   try {
     newZone({ like: 90, name: 'Marsh Reach', dir: `${dir}/` });
     const file = register({ dir: `${dir}/`, file: `${dir}/registry.ts` });
@@ -162,5 +163,5 @@ test('register() regenerates the registry from the rows, so a new zone needs no 
     assert.match(text, /'90': zoneFromRow\(90, row90\)/); assert.match(text, /'91': zoneFromRow\(91, row91\)/);
     assert.equal(text, registrySource(`${dir}/`), 'byte-identical to what gen-zones.mjs writes');
   } finally { rmSync(dir, { recursive: true, force: true }); }
-  assert.ok(!zoneIds().includes('91') && !readFileSync(`${ROWS_DIR}../zones/registry.ts`, 'utf8').includes("'91'"), 'the real registry was not touched');
+  assert.equal(readFileSync(`${ROWS_DIR}../zones/registry.ts`, 'utf8'), realBefore, 'the real registry was not touched');
 });

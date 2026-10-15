@@ -43,7 +43,7 @@ const setPath = (obj, path, value) => { const ks = path.split('.'); let o = obj;
 const slug = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 /** The row for a new zone copied from zone `like` in `dir`: ids with the source stem renamed to `stem`, `set` overrides applied (['look.sky=marsh', ...]), clashes with every other zone's ids refused. Pure: returns { n, row }. */
-export function likeRow({ like, n, name, stem, set = [], dir = ROWS_DIR }) {
+export function likeRow({ like, n = /** @type {number | undefined} */ (undefined), name = /** @type {string | undefined} */ (undefined), stem = /** @type {string | undefined} */ (undefined), set = /** @type {string[]} */ ([]), dir = ROWS_DIR }) {
   const src = `${dir}zone${like}.row.json`; if (!existsSync(src)) throw new Error(`--like ${like}: no ${src}`);
   const base = JSON.parse(readFileSync(src, 'utf8')), srcStem = base.place?.joins?.[0]?.link;
   if (!srcStem) throw new Error(`--like ${like}: the row has no place.joins[0].link to name its stem`);
@@ -64,7 +64,7 @@ export function likeRow({ like, n, name, stem, set = [], dir = ROWS_DIR }) {
 /** Regenerates the registry from the rows in `dir` (what `npm run zones` does), so a new zone needs no manual step. */
 export const register = ({ dir = ROWS_DIR, file = `${ZONES_DIR}registry.ts` } = {}) => { writeFileSync(file, registrySource(dir)); return file; };
 
-export function newZone({ n, biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ROWS_DIR, row = /** @type {Record<string, any> | undefined} */ (undefined), like = undefined, stem = undefined, set = [] }) {
+export function newZone({ n = /** @type {number | undefined} */ (undefined), biome = DEFAULT_BIOME, name = `Zone ${n}`, dir = ROWS_DIR, row = /** @type {Record<string, any> | undefined} */ (undefined), like = /** @type {number | undefined} */ (undefined), stem = /** @type {string | undefined} */ (undefined), set = /** @type {string[]} */ ([]) }) {
   if (like !== undefined) { const made = likeRow({ like, n, name: name === `Zone ${n}` ? undefined : name, stem, set, dir }); n = made.n; row = made.row; }
   if (!Number.isInteger(n) || n < 1) throw new Error(`zone number must be a positive integer, got ${n}`);
   if (row) { biome = row.biome ?? DEFAULT_BIOME; name = row.name ?? ''; }
