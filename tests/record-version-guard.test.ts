@@ -80,7 +80,7 @@ test('moving a function between sim files byte for byte (or a file split) keeps 
 test('any real change still moves the digest (a constant, a number in a body, an aliased import, a data file); a comment does not', () => {
   const real = simSources(), before = simDigest(real), edit = (path: string, from: RegExp, to: string) => { const src = real[path]!.replace(from, to); assert.notEqual(src, real[path], `the probe edit applies to ${path}`); return simDigest({ ...real, [path]: src }); };
   assert.notEqual(edit('src/fight/play-radius.ts', /FIRST_SCALED_VERSION = 23/, 'FIRST_SCALED_VERSION = 24'), before, 'a sim constant changed and the digest did not');
-  assert.notEqual(edit('src/fight/duel.ts', /\.85 - 1e-8/, '.86 - 1e-8'), before, 'a number inside a function body changed and the digest did not');
+  assert.notEqual(edit('src/fight/duel.ts', /stall: Math\.max\(0, f\.stall - 1\)/, 'stall: Math.max(0, f.stall - 2)'), before, 'a number inside a function body changed and the digest did not');
   assert.notEqual(simDigest({ ...real, 'src/fight/ai.ts': real['src/fight/ai.ts']!.replace(/import \{ aim,/, 'import { aim as aimOther, aim,') }), before, 'an aliased import is a rebinding: it must count');
   assert.notEqual(simDigest({ ...real, 'src/blade-table.json': '{"a":1}' }), simDigest({ ...real, 'src/blade-table.json': '{"a":2}' }), 'a data file is hashed by its bytes');
   assert.equal(edit('src/fight/sim.ts', /\/\/ World coordinates only\./, '// World coordinates only, reworded.'), before, 'a comment is not the fight');
