@@ -207,6 +207,7 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
           (paintedPart as unknown as { traverse(f: (o: { isMesh?: boolean; material?: { clone(): { metalness: number; roughness: number }; metalness: number; roughness: number } }) => void): void }).traverse((o) => { if (o.isMesh && o.material) { const m = o.material.clone(); m.metalness = 0.08; m.roughness = 0.85; (o as { material: unknown }).material = m; } });
         }
         const part = paintedPart ?? (RANGED_BUILDS as Record<string, () => { rotation: { set(x: number, y: number, z: number): void }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(), d = Math.PI / 180, h = HOLD[kind]!;
+        (part as unknown as { userData: Record<string, unknown> }).userData.sandboxRanged = true;   // characters.ts reshape leaves this node alone
         const tune = (q.get('hold') ?? '').split(',').map(Number);   // ?hold=rx,ry,rz[,px,py,pz]: degrees and metres ADDED to the hold, for nudging on the live page
         part.rotation.set((h[0] + (tune[0] || 0)) * d, (h[1] + (tune[1] || 0)) * d, (h[2] + (tune[2] || 0)) * d); part.position.set(tune[3] || 0, tune[4] || 0, tune[5] || 0);
         if (kind === 'staff') part.position.set(tune[3] || 0, .08 + (tune[4] || 0), .015 + (tune[5] || 0));   // Dom: the staff points OUT from the fist like the maul and trident (SwordDrawn's hold), not upright

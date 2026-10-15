@@ -575,6 +575,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // contact extras and the sim's blade tables stay: reach and contact never move. Its finish is GPT's painted one, never the rung's tint
       // (Strategy 2026-09-28: painted per band, no runtime tint on shaped weapons), so `grade` leaves it be. None = his own.
       reshape(shape: Mesh | undefined) {
+        if (weaponNode?.userData.sandboxRanged) return;   // sandbox: a ranged model stands in for the weapon; the rank's painted shape must not hide it
         if (!shape && !shaped.length) return;   // never shaped: nothing to give back, and his own draws' visibility stays the rig's
         for (const draw of shaped) draw.removeFromParent();
         shaped = [];
