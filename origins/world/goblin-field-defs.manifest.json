@@ -1,0 +1,43 @@
+{
+  "tables": [
+    {
+      "table": "goblin-rule",
+      "file": "goblin-field-defs.json",
+      "at": "rules",
+      "key": "id",
+      "required": {
+        "value": "number",
+        "unit": "string"
+      }
+    },
+    {
+      "table": "goblin-tint",
+      "file": "goblin-field-defs.json",
+      "at": "tints",
+      "key": "id",
+      "required": {
+        "r": "number",
+        "g": "number",
+        "b": "number"
+      }
+    },
+    {
+      "table": "goblin-sky",
+      "file": "goblin-field-defs.json",
+      "at": "sky",
+      "key": "id",
+      "required": {
+        "hex": "string"
+      }
+    },
+    {
+      "table": "goblin-name",
+      "file": "goblin-field-defs.json",
+      "at": "names",
+      "key": "id",
+      "required": {
+        "text": "string"
+      }
+    }
+  ]
+}
