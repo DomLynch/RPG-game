@@ -7,6 +7,8 @@ import { TITLES, rankFor } from './career-ladder.ts';
 import { loadRegistry, tableFromFile, type Manifest } from './registry.ts';
 import LOOT_RULES from './loot-rules.json' with { type: 'json' };
 import LOOT_RULES_MANIFEST from './loot-rules.manifest.json' with { type: 'json' };
+import LOOT_PIECES from './loot-pieces.json' with { type: 'json' };
+import LOOT_PIECES_MANIFEST from './loot-pieces.manifest.json' with { type: 'json' };
 import type { Tier } from './grades.ts';
 import { PLAYER_WEAPONS, DEFAULT_WEAPON, DAY_ONE_SKILL, SKILL_ROWS, isSkillId, type SkillId, type WeaponId } from '../fight/moves.ts';
 export { DAY_ONE_SKILL, isSkillId };
@@ -69,6 +71,12 @@ export function checkLootRules(rows: readonly { keepaliveBytes: number; claimsCa
   if (bad.length) throw new Error(`loot-rules relations: ${bad.join('; ')}`);
 }
 checkLootRules(LOOT_RULES.lootRule);
+loadRegistry(LOOT_PIECES_MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, LOOT_PIECES, 'loot-pieces.json')));
+// The pieces' relations the manifest cannot say: every row is an opponent, every slot a loot slot. A bad row refuses at load.
+for (const r of [...LOOT_PIECES.lootPiece, ...LOOT_PIECES.lootNotWorn.map((n) => ({ id: n.opponent, slots: n.slots }))]) {
+  if (!isOpponentId(r.id)) throw new Error(`loot-pieces: ${r.id} is not an opponent`);
+  for (const slot of r.slots) if (!(LOOT_SLOTS as readonly string[]).includes(slot)) throw new Error(`loot-pieces: ${r.id} has unknown slot ${slot}`);
+}
 export const DECLINED_KEPT = LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
@@ -82,22 +90,7 @@ export const PACK = { open: 2, total: 5 } as const;
 // never about what a player owns.
 // Body is the tunic and what hangs on it (baldric, belt, buckle, studs, collar) in the opponent's own linen; kilts are leg cloth with no
 // paperdoll slot and stay the player's. The Goblin's Body carries his trophy necklace, the Pitborn's Arms his bone plates.
-export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = {
-  veteran: ['veteran.Helmet', 'veteran.Crest', 'veteran.Body', 'veteran.Arms', 'veteran.Greaves', 'veteran.Boots', 'veteran.Gloves', 'veteran.Shield', 'veteran.Trident'],
-  executioner: ['executioner.Helmet', 'executioner.Crest', 'executioner.Body', 'executioner.Arms', 'executioner.Greaves', 'executioner.Boots', 'executioner.Gloves', 'executioner.Scythe'],
-  nightborn: ['nightborn.Helmet', 'nightborn.Body', 'nightborn.Arms', 'nightborn.Greaves', 'nightborn.Boots', 'nightborn.Gloves', 'nightborn.Estoc'],
-  // His Body is the rag sash and belt worn `over` the player's tunic: a sash covers 26 % of a tunic, so as a `replace` it would undress him (#434, tests/loot.test.ts).
-  pitborn: ['pitborn.Helmet', 'pitborn.Body', 'pitborn.Arms', 'pitborn.Greaves', 'pitborn.Boots', 'pitborn.Gloves', 'pitborn.Cleaver'],
-  // Phase R six: the iron helm, war-belt and apron, shoulder plates and greaves built in build-warrior.mjs (@build:dwarf-*), the boots
-  // (loot/dwarf_boots.glb, heel to toe) cut by loot_dwarf.py, and the shared gloves.
-  dwarf: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Arms', 'dwarf.Greaves', 'dwarf.Boots', 'dwarf.Gloves', 'dwarf.Warhammer'],
-  goblin: ['goblin.Helmet', 'goblin.Body', 'goblin.Arms', 'goblin.Greaves', 'goblin.Boots', 'goblin.Gloves', 'goblin.Knife'],   // Phase R: the scrap cap, iron shin plates and rag foot bindings
-  knight: ['knight.Helmet', 'knight.Body', 'knight.Arms', 'knight.Gloves', 'knight.Greaves', 'knight.Boots', 'knight.Maul'],   // Phase R: his six, cut from his own welded TRELLIS body, re-posed onto the hero rest, on his baked KnightIron maps (#603)
-  shieldmaiden: ['shieldmaiden.Helmet', 'shieldmaiden.Body', 'shieldmaiden.Arms', 'shieldmaiden.Greaves', 'shieldmaiden.Boots', 'shieldmaiden.Gloves', 'shieldmaiden.Shield', 'shieldmaiden.Gladius'],   // Phase R: her six (reference A) and her own board shield (@build:shieldmaiden-shield); the gladius is an equip file, not a draw
-  // The Plague Doctor's six (Phase R): cut from his TRELLIS surface on his own baked maps, welded, ratio .5 (PR #590's recipe): loot_dwarf.py --family plaguedoctor --all --boots --slots Helmet,Body,Arms,Gloves,Greaves,Boots --ratio .5 --slot-ratio Boots=1 --material PlaguedoctorCloth --color-size 512 --repose warrior; Helmet and Boots `conform` out over the player's crown and toes (loot.json). Greaves carries his coat skirt with the legs (bone-dominant) and stays at .5: .35 and .2 shatter it (docs/character-references/loot-weld/).
-  plaguedoctor: ['plaguedoctor.Helmet', 'plaguedoctor.Body', 'plaguedoctor.Arms', 'plaguedoctor.Gloves', 'plaguedoctor.Greaves', 'plaguedoctor.Boots', 'plaguedoctor.Estoc'],   // Strategy 2026-09-23: every rung offers its weapon. His is the estoc since bump 20 (2026-09-28); his longsword piece is RETIRED_LOOT below
-  witch: ['witch.Helmet', 'witch.Body', 'witch.Arms', 'witch.Gloves', 'witch.Greaves', 'witch.Boots', 'witch.Trident'],   // all six built shells (build-warrior.mjs): hood, a laced bodice and cross-gartered wraps worn under the robe, bracers, boots; Gloves the shared pair
-};
+export const LOOT: Partial<Record<OpponentId, readonly LootId[]>> = Object.fromEntries(LOOT_PIECES.lootPiece.map((r) => [r.id, r.slots.map((slot) => `${r.id}.${slot}` as LootId)]));   // the lootPiece rows (src/core/loot-pieces.json): new pieces are rows, not code
 // The rung each piece is first worn from (the kit floor; server awards read it through src/awards.ts kitAt). Data, not a parameter:
 // filling it is a data change, no schema or code change. Empty = every piece worn from Recruit (beta ruling 2026-09-23); the values
 // are Multi Chars' to set, post-beta.
@@ -129,8 +122,9 @@ export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
 // plates and foot wraps, so no one slot tag fits them), and his carried Helmet is his one `replace` piece: it hides only draws tagged Helmet, so it
 // sat over his own helm (the #1129 sweep, 2026-09-30). His Arms/Greaves/Boots are `over` pieces built for his rig and stay. At Recruit only
 // (NOT_WORN_AT; Lead 2026-09-30: an L1 PR does not change what he wears at the live ranks L2–L10).
-const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = { dwarf: ['Greaves', 'Boots'], knight: ['Helmet'], executioner: ['Greaves', 'Boots'] };
-const NOT_WORN_AT: Partial<Record<OpponentId, Partial<Record<Tier, readonly LootSlot[]>>>> = { pitborn: { Recruit: ['Helmet'] } };
+const NOT_WORN: Partial<Record<OpponentId, readonly LootSlot[]>> = Object.fromEntries(LOOT_PIECES.lootNotWorn.filter((r) => !('tier' in r)).map((r) => [r.opponent, r.slots as LootSlot[]]));   // the lootNotWorn rows without a tier (loot-pieces.json)
+const NOT_WORN_AT: Partial<Record<OpponentId, Partial<Record<Tier, readonly LootSlot[]>>>> = {};   // the lootNotWorn rows with a tier, filled below
+for (const r of LOOT_PIECES.lootNotWorn) if ('tier' in r) { const at = (NOT_WORN_AT[r.opponent as OpponentId] ??= {}); at[(r as { tier: Tier }).tier] = r.slots as LootSlot[]; }
 export const kitWorn = (opponent: OpponentId, twoHanded: boolean, tier?: Tier): LootId[] => (LOOT[opponent] ?? []).filter(id => !isWeaponLoot(id) && !(twoHanded && slotOf(id) === 'Shield') && !(tier === 'Recruit' && slotOf(id) === 'Crest') && !NOT_WORN[opponent]?.includes(slotOf(id)) && !(tier && NOT_WORN_AT[opponent]?.[tier]?.includes(slotOf(id))));
 // The weapon a weapon piece is fought with: the slot, lower-cased, is the moves.ts id ('Trident' → 'trident').
 export const weaponOf = (id: LootId): WeaponId => { const slot = slotOf(id); if (!isWeaponSlot(slot)) throw new Error(`${id} is not a weapon piece`); return slot.toLowerCase() as WeaponId; };
