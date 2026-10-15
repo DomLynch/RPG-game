@@ -2,7 +2,7 @@
   "finishRows": [
     {
       "id": "rust",
-      "fields": { "color": "#8a4a22", "metalness": 0.18, "roughness": 0.9 }
+      "fields": { "color": "#74462a", "metalness": 0.18, "roughness": 0.9 }
     }
   ]
 }

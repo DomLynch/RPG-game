@@ -2,7 +2,7 @@
   "groundLooks": [
     {
       "id": "item:starter.rusty-sword",
-      "fields": { "asset": "longsword", "yawDeg": 18, "rollDeg": 90, "scale": 1.3, "liftM": 0.015, "finish": "rust" }
+      "fields": { "asset": "longsword", "yawDeg": 18, "rollDeg": 0, "scale": 1.3, "liftM": 0.015, "finish": "rust" }
     }
   ]
 }
