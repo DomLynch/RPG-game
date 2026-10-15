@@ -68,7 +68,7 @@
   ],
   "names": [
     { "id": "zone", "text": "cinder-fields" },
-    { "id": "palette", "text": "field" },
+    { "id": "palette", "text": "fortress" },
     { "id": "kit", "text": "goblin-camp" }
   ],
   "harmonics": [
@@ -78,10 +78,6 @@
     { "id": "h4", "k": 23, "a": 0.07 }
   ],
   "palettes": [
-    { "id": "field", "haze": "goblin-haze", "zenith": "#566286", "mid": "#a58b7c", "horizon": "#d8b48c", "glow": "#f0c080", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#403632", "torch": "#ff8a3a", "torchPower": 0, "backdropPortrait": "", "backdropLandscape": "" },
-    { "id": "ash", "haze": "goblin-ash", "zenith": "#1a1216", "mid": "#4a201c", "horizon": "#7a3a28", "glow": "#ff5226", "ridge": "#160e10", "ridgeFar": "#3a1e1a", "smoke": "#241a1a", "puff": "#2a2020", "torch": "#ff6a2a", "torchPower": 8, "backdropPortrait": "", "backdropLandscape": "" },
-    { "id": "marsh", "haze": "goblin-marsh", "zenith": "#566062", "mid": "#7a8484", "horizon": "#8c9492", "glow": "#c4c8bc", "ridge": "#38403e", "ridgeFar": "#5e6866", "smoke": "#646a66", "puff": "#767c78", "torch": "#ffb070", "torchPower": 4, "backdropPortrait": "", "backdropLandscape": "" },
-    { "id": "dusk", "haze": "goblin-dusk", "zenith": "#10142e", "mid": "#3e2c50", "horizon": "#6a4044", "glow": "#ff8a3c", "ridge": "#100c12", "ridgeFar": "#281e2c", "smoke": "#241e24", "puff": "#30282c", "torch": "#ff8a3a", "torchPower": 16, "backdropPortrait": "", "backdropLandscape": "" },
     { "id": "fortress", "haze": "goblin-fortress", "zenith": "#3a6090", "mid": "#7d93b4", "horizon": "#b8946a", "glow": "#ffd890", "ridge": "#4c3c36", "ridgeFar": "#74604f", "smoke": "#5c4c44", "puff": "#4a3c34", "torch": "#ffa040", "torchPower": 6, "backdropPortrait": "fortress-portrait", "backdropLandscape": "fortress-landscape" }
   ],
   "backdrops": [
@@ -89,10 +85,6 @@
     { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 4, "texW": 3072, "texH": 960, "fadeTop": 0.1, "fadeFoot": 0.06 }
   ],
   "looks": [
-    { "id": "goblin-haze", "fog": "#d8b48c", "fogDensity": 0.011, "hemiSky": "#9aa4c0", "hemiGround": "#4a3a2c", "hemiIntensity": 1.3, "sunColor": "#ffb878", "sunIntensity": 5.2, "sunPos": [-24, 9, -15], "exposure": 1.3, "ground": [0.95, 0.88, 0.78] },
-    { "id": "goblin-ash", "fog": "#7a3a28", "fogDensity": 0.016, "hemiSky": "#6c4a46", "hemiGround": "#24181a", "hemiIntensity": 1.0, "sunColor": "#ff6a3a", "sunIntensity": 3.6, "sunPos": [-24, 6, -15], "exposure": 1.2, "ground": [0.52, 0.48, 0.47] },
-    { "id": "goblin-marsh", "fog": "#8c9492", "fogDensity": 0.03, "hemiSky": "#a8b4b4", "hemiGround": "#363c34", "hemiIntensity": 1.25, "sunColor": "#d8dcd0", "sunIntensity": 2.0, "sunPos": [-20, 18, -10], "exposure": 1.15, "ground": [0.6, 0.68, 0.6] },
-    { "id": "goblin-dusk", "fog": "#6a4044", "fogDensity": 0.02, "hemiSky": "#4a4c7c", "hemiGround": "#1c1414", "hemiIntensity": 0.75, "sunColor": "#ff7a40", "sunIntensity": 1.8, "sunPos": [-24, 3, -15], "exposure": 1.1, "ground": [0.72, 0.62, 0.58] },
     { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [1.0, 0.86, 0.66] }
   ]
 }

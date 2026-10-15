@@ -27,10 +27,9 @@ test('an unlisted zone is seen only by its own page: never by the server or anot
   assert.deepEqual(listedIds(pk, '9'), ['1', '2', '9'], 'its own page');
 });
 test('look.sky set to a palette id is that dome; unset, "default" or unknown is no dome', () => {
-  assert.equal(zoneSky(zf({ 'look.sky': 'dusk' }))?.id, 'dusk');
   assert.equal(zoneSky(zf({ 'look.sky': 'fortress' })), goblinPalette('fortress'));
   for (const v of ['default', 'nope']) assert.equal(zoneSky(zf({ 'look.sky': v })), null, v);
-  assert.equal(zoneSky({ fields: { 'look.sky': 'dusk' }, set: [], world: [] }), null, 'a value nobody SET (a default) does nothing');
+  assert.equal(zoneSky({ fields: { 'look.sky': 'fortress' }, set: [], world: [] }), null, 'a value nobody SET (a default) does nothing');
 });
 test('look.props.kit = the camp kit puts the camp in look.props.camp, else the first world zone; another kit or none is no camp', () => {
   assert.equal(zoneCamp(zf({ 'look.props.kit': 'goblin-camp' })), 'a');

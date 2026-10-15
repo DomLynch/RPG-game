@@ -14,7 +14,7 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const { loadZone, zoneIds } = await import('../origins/zones/loader.ts'), { zoneSky, zoneCamp } = await import('../origins/world/goblin-field-rules.ts');
     const { frontierPlan, frontierBuild, FRONTIER } = await import('../origins/preview/frontier-plan.ts'), { frontierDress } = await import('../origins/preview/frontier-dress.ts'), { goblinFieldKit } = await import('../origins/preview/goblin-field.ts');
     assert.ok(zoneIds().includes('90'));
-    const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'dusk'); assert.equal(zoneCamp(z), 'test-field');
+    const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'fortress'); assert.equal(zoneCamp(z), 'test-field');
     const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     const K = goblinFieldKit(F, B, frontierDress(F, B), 'test-field'); assert.ok(K.centre && K.fires.length >= 1 && K.dress.pieces.length > 50, `${K.dress.pieces.length} camp pieces`);
     assert.equal(z.spawns.rows.length, 0, 'no creatures: nothing at level 90 exists');

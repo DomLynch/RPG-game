@@ -1,6 +1,6 @@
 // The painted horizon dome (?look=goblin, World lane): the Pit's 2D-sky trick for a zone: one canvas painting (a gradient sky, a glow on the horizon, two ridge silhouettes and a few far smoke columns)
 // on the inside of a big dome that follows the camera, drawn first with no depth, so the ground's fog meets the painting's horizon colour without a line. Every colour and number is a row
-// (origins/world/goblin-field-defs.json); the colours are one palette row (field, ash, marsh, dusk: ?goblin=<id>). `ridgeProfile` and `smokeColumns` are pure and tested; the painting and the mesh are browser-only (stills check them).
+// (origins/world/goblin-field-defs.json); the colours are one palette row (fortress: ?goblin=<id>). `ridgeProfile` and `smokeColumns` are pure and tested; the painting and the mesh are browser-only (stills check them).
 import * as THREE from 'three';
 import { goblinBackdrop, goblinHarmonics, goblinRule as R, type GoblinBackdrop, type GoblinPalette } from '../world/goblin-field-rules.ts';
 
