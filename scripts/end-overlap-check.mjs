@@ -82,7 +82,15 @@ try {
   await page.touchscreen.tap(stop.x, stop.y);
   await until(() => !document.documentElement.classList.contains('endgame-fade'), 10000);
   await run(400);   // the 250 ms fade back plus the panel's 300 ms tap guard
-  await run(400); await page.locator('#loot-take').tap(); await run(600);
+  await run(400);
+  // Take must be on screen and the topmost thing at its centre when the player reaches for it (Lead 2026-10-15: the fix hides fight buttons on this very screen).
+  result.take = await page.evaluate(() => {
+    const t = document.getElementById('loot-take'); if (!t) return { error: 'no #loot-take' };
+    const r = t.getBoundingClientRect(), cs = getComputedStyle(t), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { box: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], viewport: [innerWidth, innerHeight], hidden: t.hidden, disabled: t.disabled || t.getAttribute('aria-disabled'), visibility: cs.visibility, pe: cs.pointerEvents, opacity: cs.opacity, topmost: top?.id || top?.tagName };
+  });
+  console.log('TAKE', JSON.stringify(result.take)); await shot(page, `take-${WIDTH}.jpg`);
+  await page.locator('#loot-take').tap(); await run(600);
   // Every control a player can see (display, visibility and opacity all on, a real box) against the Next fight button.
   result.overlaps = await page.evaluate(() => {
     const next = document.getElementById('reset-button'); if (!next || next.hidden) return { error: 'Next fight is not shown' };
