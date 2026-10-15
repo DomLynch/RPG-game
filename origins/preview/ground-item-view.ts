@@ -24,7 +24,13 @@ export type GroundItemView = {
 };
 
 // The weapon part of a model file: its `WeaponDrawn` node (a player weapon's equip file, scripts/build-player-weapon.mjs), else the whole scene (a one-mesh shape file).
-const partOf = (model: THREE.Object3D, piece?: string): THREE.Object3D => (piece ? model.getObjectByName(piece) : model.getObjectByName('WeaponDrawn')) ?? model;
+// A row's `piece` is the node's name in the glb file; GLTFLoader strips the dots, brackets and slashes from node names (PropertyBinding.sanitizeNodeName), so it is looked up that way. A named piece the file lacks throws: drawing the whole file instead is a wall of armour.
+const partOf = (model: THREE.Object3D, piece?: string): THREE.Object3D => {
+  if (!piece) return model.getObjectByName('WeaponDrawn') ?? model;
+  const found = model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(piece));
+  if (!found) throw new Error(`ground look: no piece "${piece}" in the model`);
+  return found;
+};
 
 // An armour piece from loot.glb is a SkinnedMesh bound to the big rig, so on its own it draws at the rig's scale and offset or not at all. Lay-down needs a plain mesh: take each skinned vertex as the
 // skeleton poses it (bind pose, bones at rest), keep the geometry's other attributes, drop the skin. The result is a Group of plain Meshes sharing the source materials (finishedAs clones them in lie()).

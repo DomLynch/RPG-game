@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createGroundItemView, lie } from '../origins/preview/ground-item-view.ts';
+import { bakeSkinned, createGroundItemView, lie } from '../origins/preview/ground-item-view.ts';
 import { groundLook } from '../origins/preview/ground-looks.ts';
 import { finishedAs } from '../src/fight/rank-tint.ts';
 
@@ -97,4 +97,35 @@ test('hide and clear dispose the ring and beam each show made, once, and never t
     assert.ok(!geoms.includes(shared) && !mats.includes(source) && !mats.includes(finished), 'the shared model geometry and the cached materials are not disposed');
     const kept = finishedAs(source, look.finish!); assert.equal(kept, finished, 'the finish clone is still the cached one');
   } finally { THREE.BufferGeometry.prototype.dispose = gp; THREE.Material.prototype.dispose = mp; }
+});
+
+// An armour piece from loot.glb: a SkinnedMesh on a bone that sits 2 m up, found by its node name (`piece`) among others.
+const skinnedPiece = () => {
+  const root = new THREE.Group(), bone = new THREE.Bone(); bone.position.set(0, 2, 0); root.add(bone);
+  const g = new THREE.BoxGeometry(0.2, 0.1, 0.2), n = g.getAttribute('position').count;
+  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Array(n * 4).fill(0), 4)); g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: n }, () => [1, 0, 0, 0]).flat(), 4));
+  const sm = new THREE.SkinnedMesh(g, new THREE.MeshStandardMaterial({ name: 'Steel', metalness: 0.9 })); sm.name = THREE.PropertyBinding.sanitizeNodeName('goblin.Helmet.Steel'); root.add(sm);   // GLTFLoader's node name: the dots are gone
+  root.updateMatrixWorld(true); sm.bind(new THREE.Skeleton([bone]));   // bound while the bone is at 2 m: the bind pose
+  const other = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 5), new THREE.MeshStandardMaterial()); other.name = THREE.PropertyBinding.sanitizeNodeName('goblin.Body.Leather'); root.add(other);
+  return root;
+};
+
+test('bakeSkinned: a skinned piece becomes plain meshes at its bind pose, the skin attributes dropped; a plain model comes back as it was', () => {
+  const baked = bakeSkinned(skinnedPiece().getObjectByName('goblinHelmetSteel')!);
+  const meshes: THREE.Mesh[] = []; baked.traverse((o) => { if (o instanceof THREE.Mesh) meshes.push(o); });
+  assert.equal(meshes.length, 1); assert.ok(!(meshes[0] instanceof THREE.SkinnedMesh));
+  assert.equal(meshes[0]!.geometry.getAttribute('skinIndex'), undefined);
+  const size = new THREE.Box3().setFromObject(baked).getSize(new THREE.Vector3());
+  assert.ok(Math.abs(size.x - 0.2) < 1e-6 && Math.abs(size.y - 0.1) < 1e-6, 'the piece keeps its size');
+  assert.equal(bakeSkinned(sword()).getObjectByName('WeaponDrawn')?.type, 'Group');
+});
+
+test('lie: a row with a piece draws only that node of the model, and not the rest of the file', () => {
+  const look = { ...groundLook(ITEM), piece: 'goblin.Helmet.Steel', tiltDeg: 0 }, g = lie(skinnedPiece(), look);
+  const size = new THREE.Box3().setFromObject(withoutRings(g)).getSize(new THREE.Vector3());
+  assert.ok(Math.max(size.x, size.y, size.z) < 0.2 * Math.SQRT2 * look.scale + 1e-6, `only the cap (not the 5 m body; a turned 0.2 m box spans its diagonal) (size ${size.toArray()})`);
+});
+
+test('lie: a piece the model lacks throws instead of drawing the whole file', () => {
+  assert.throws(() => lie(skinnedPiece(), { ...groundLook(ITEM), piece: 'goblin.Nope.Steel' }), /no piece/);
 });
