@@ -12,3 +12,5 @@ export type SlotView = { readonly id: string; readonly action: string; readonly 
 export const SLOTS: readonly SlotView[] = (SLOT_T.rows as unknown as SlotView[]).map((r) => ({ id: r.id, action: r.action, order: r.order })).sort((a, b) => a.order - b.order);
 /** 1 = the same spell may sit in both slots (the sim's replay refuses it otherwise). */
 export const ALLOW_DUPLICATE_SLOTS: boolean = (RULE_T.rows as unknown as { id: string; value: number }[]).find((r) => r.id === 'allowDuplicate')?.value === 1;
+/** Whether slot `slot`'s button is shown given each slot's resolved pick (undefined = empty): an empty slot shows none, and slot b needs a slot-a spell beside it (the record refuses one without). The open-world page calls it on a pick, never per frame; the Pit HUD uses the fighter's own slot instead and the Pit never fills slot b. */
+export const slotShown = (picks: readonly unknown[], slot: number): boolean => picks[slot] !== undefined && (slot === 0 || picks[0] !== undefined);

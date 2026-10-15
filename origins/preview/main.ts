@@ -58,6 +58,7 @@ import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fi
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, useSpellStore } from '../../src/core/index.ts';
 import { pickSpell } from '../../src/fight/index.ts';
+import { slotShown } from '../../src/core/spell-slot-view.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -278,7 +279,7 @@ function step(dt: number) {
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
     if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
     const a = i.action;
-    if (a === 'skill2' && equippedCast() && equippedCast(1)) wc.cast2();   // the SPELL 2 button: slot b's own spell, cooldown and cost; an empty slot shows no button and the press does nothing
+    if (a === 'skill2' && slotShown([equippedCast(), equippedCast(1)], 1)) wc.cast2();   // the SPELL 2 button: slot b's own spell, cooldown and cost; an empty slot shows no button and the press does nothing
     else if (a === 'skill' && equippedCast()) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
     else if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
     if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
@@ -480,7 +481,7 @@ void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.s
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
 const spell2Button = document.getElementById('skill2-button');
-function syncSpell2Button() { if (spell2Button) spell2Button.hidden = !(equippedCast() && equippedCast(1)); }   // the record needs a slot-a spell beside slot b
+function syncSpell2Button() { if (spell2Button) spell2Button.hidden = !slotShown([equippedCast(), equippedCast(1)], 1); }   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { equipSpell, equippedSpell, equippedSpells, onSpellsChanged, ownedSpells, setOwnedSpells, useSpellStore } from '../src/core/spell-equip.ts';
+import { slotShown } from '../src/core/spell-slot-view.ts';
 import { entriesOf } from '../src/core/grimoire-model.ts';
 import { SPELL_INFO } from '../src/fight/spell-catalogue.ts';
 import { isSpellId } from '../src/fight/spell-cast.ts';
@@ -62,4 +63,11 @@ test('player saves: an old one-spell save loads as A = X, B = empty; the next sa
     fresh({ [k]: v }); setOwnedSpells(['alvis', 'andvari']);
     assert.doesNotThrow(() => equippedSpells(), `${k}=${v}`); assert.deepEqual(equippedSpells(), [undefined, undefined], `${k}=${v}`);
   }
+});
+
+test('the SPELL 2 button follows the picks: open world with slot b filled shows it, slot b empty hides it, slot b without slot a hides it', () => {
+  assert.equal(slotShown([{ id: 'alvis' }, { id: 'andvari' }], 1), true, 'slot b filled beside slot a: shown');
+  assert.equal(slotShown([{ id: 'alvis' }, undefined], 1), false, 'slot b empty: no button');
+  assert.equal(slotShown([undefined, { id: 'andvari' }], 1), false, 'slot b without slot a: no button (the record needs a slot-a spell)');
+  assert.equal(slotShown([undefined, undefined], 0), false); assert.equal(slotShown([{ id: 'alvis' }, undefined], 0), true, 'slot a is shown by its own pick');
 });
