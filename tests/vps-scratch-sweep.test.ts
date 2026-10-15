@@ -21,7 +21,7 @@ test('sweep_kind: the lane roots keep the archive-first rule', () => {
 
 test('sweep_kind: be-*, hooks-* and cq-* are aged roots, direct children of /var/tmp or /tmp only', () => {
   for (const p of ['/var/tmp/be-eb5eba4c', '/tmp/hooks-review-2546', '/tmp/hooks-ci', '/tmp/cq-2430wt']) assert.equal(kind(p), 'aged', p);
-  for (const p of ['/var/tmp/be-eb5eba4c/sub', '/tmp/hooks-x/sub', '/tmp/cq-x/y', '/tmp/be-eb5eba4c', '/var/tmp/hooks-x', '/var/tmp/cq-x']) assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/var/tmp/be-eb5eba4c/sub', '/tmp/hooks-x/sub', '/tmp/cq-x/y', '/var/tmp/hooks-x', '/var/tmp/cq-x']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 // /tmp/rank-job left this refused list on 2026-10-14: Lead ruled it a standing aged root (see the test below), so it is pinned there now.
@@ -29,17 +29,43 @@ test('sweep_kind: the six retired lane homes and the two /tmp one-offs, exactly;
   for (const n of ['char-cd', 'deploy-b', 'char-20b', 'char-boss', 'char-lg', 'combat-b']) assert.equal(kind(`/home/lanes/frankendom-${n}`), 'home', n);
   for (const p of ['/tmp/node-compile-cache', '/tmp/lead-env-tab4']) assert.equal(kind(p), 'tmp', p);
   for (const p of ['/home/lanes/frankendom-backend', '/home/lanes/frankendom-char', '/home/lanes', '/home/lanes/.claude', '/home/lanes/.spill-tools', '/home/lanes/frankendom-char-cd/node_modules',
-    '/tmp/lm', '/tmp/claude-1003', '/tmp', '/var/tmp', '/root', '/etc', '/', '/opt/frankendom-shadow', '/opt/frankendom-shadow/work', '/srv/dev-jobs'])
+    '/tmp', '/var/tmp', '/root', '/etc', '/', '/opt/frankendom-shadow', '/opt/frankendom-shadow/work', '/srv/dev-jobs'])
     assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: /tmp/rank-job and /root/cnNN are aged roots, exact (Lead 2026-10-14); lookalikes, children and other parents are refused', () => {
   for (const p of ['/tmp/rank-job', '/root/cn1', '/root/cn20', '/root/cn007']) assert.equal(kind(p), 'aged', p);
-  for (const p of ['/tmp/rank-job/sub', '/tmp/rank-job2', '/tmp/rank-jobs', '/var/tmp/rank-job', '/rank-job', '/root/cn', '/root/cnx1', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/tmp/cn1', '/home/lanes/cn1', '/root/xcn1']) assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/tmp/rank-job/sub', '/var/tmp/rank-job', '/rank-job', '/root/cn', '/root/cnx1', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/home/lanes/cn1', '/root/xcn1']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: odd paths are refused', () => {
   for (const p of ['/tmp/hooks-x/../etc', '/var/tmp/be-a b', '/srv/dev-jobs/../../etc', '/tmp/hooks-..']) assert.equal(kind(p), '', p);
+});
+
+// Strategy 2026-10-15: finished build output in /tmp (about 20 GB) is swept by exact path as a "lane" kind (archive first, then delete). /tmp/lm and /tmp/claude-1003 were pinned as refused
+// before this; they are lane scratch now, still only by an exact path and still refused while anything runs inside (sweep_in_use).
+test('sweep_kind: an exact direct child of /tmp is a lane (archive first); a bare /tmp, a trailing slash, a glob, a child of a child and other parents are refused', () => {
+  for (const p of ['/tmp/lm', '/tmp/claude-1003', '/tmp/finished-build-2026', '/tmp/a.b_c-1', '/tmp/be-eb5eba4c', '/tmp/rank-job2', '/tmp/rank-jobs', '/tmp/cn1']) assert.equal(kind(p), 'lane', p);   // lookalikes of the older /tmp roots are plain exact children now
+  for (const p of ['/tmp', '/tmp/', '/tmp//', '/tmp/*', '/tmp/a*', '/tmp/*/x', '/tmp/a?', '/tmp/[ab]', '/tmp/x/y', '/tmp/x/', '/tmp/./x', '/tmp/../etc', '/tmp/a b', '/var/tmp/x', '/private/tmp/x', '/x/tmp/y'])
+    assert.equal(kind(p), '', `${p} is refused`);
+});
+
+test('sweep_kind: the specific /tmp roots keep their own kind; the new /tmp lane arm is last and never overrides them', () => {
+  for (const [p, k] of [['/tmp/hooks-ci', 'aged'], ['/tmp/cq-2430wt', 'aged'], ['/tmp/rank-job', 'aged'], ['/tmp/node-compile-cache', 'tmp'], ['/tmp/lead-env-tab4', 'tmp']]) assert.equal(kind(p), k, p);
+});
+
+// A symlink in /tmp pointing out of it is refused by sweep_safe_path with the real sweep_kind (a Linux /tmp; the live tool runs on the VPS).
+test('sweep_safe_path: a symlink in /tmp that points out of /tmp is refused, with and without a trailing slash', { skip: process.platform !== 'linux' }, () => {
+  const inside = mkdtempSync(join('/tmp', 'sweep-lane-')), outside = mkdtempSync(join(process.cwd(), '.sweep-outside-'));
+  const link = join('/tmp', `sweep-link-${process.pid}`);
+  try {
+    writeFileSync(join(outside, 'keep.txt'), 'must survive');
+    symlinkSync(outside, link);
+    const run = (p: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', p], { encoding: 'utf8' });
+    assert.equal(run(link).status, 1); assert.match(run(link).stdout, /symlink/);
+    assert.equal(run(`${link}/`).status, 1);
+    assert.equal(run(inside).status, 0, 'a real exact child of /tmp passes');
+  } finally { rmSync(link, { force: true }); rmSync(inside, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true }); }
 });
 
 test('the only roots in the file are the ones sweep_kind lists (a new root has to be added there, with a test)', async () => {
