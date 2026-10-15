@@ -113,7 +113,9 @@ async function scenariosHold(mod: { checkRangeHasPrs: typeof checkRangeHasPrs; c
     const noLive = mod.checkRangeHasPrs({ git: f.git, pullsOf: prsFor({}), live: undefined as unknown as string, base: f.base, gates: none });
     const down = mod.checkRangeHasPrs({ git: f.git, pullsOf: () => { throw new Error('HTTP 502'); }, live: f.live, base: f.base, gates: none });
     const watched = mod.checkWatchedPaths({ git: f.git, base: f.base, cut: f.cut, gates: { watchedPaths: ['.github/workflows'] } });
-    return !stops.ok && exempt.ok === true && !noLive.ok && !down.ok && !watched.ok;
+    const f2 = fixture('src/x.ts');   // a cut that touches no watched path must pass: a gate that watches nothing filters nothing and would stop it
+    const clean = mod.checkWatchedPaths({ git: f2.git, base: f2.base, cut: f2.cut, gates: { watchedPaths: ['.github/workflows'] } });
+    return !stops.ok && exempt.ok === true && !noLive.ok && !down.ok && !watched.ok && clean.ok === true;
   } catch { return false; }
 }
 
