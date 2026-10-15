@@ -8,7 +8,7 @@ test('the server never sees the test zone: not listed, and its road is not on Zo
   assert.ok(!zoneIds().includes('90')); assert.ok(!zonePlaces().some((p) => p.joins.some((j) => j.to === 'test-field')));
   assert.equal(loadZone('90').unlisted, true, 'still loadable by its own id (its page)');
 });
-test('its own page: the rows give it a dome, a camp in its field and a start off the camp, with no code of its own (the kit build is the preview PR's)', async () => {
+test('its own page: the rows give it a dome, a camp in its field and a start off the camp, with no code of its own (the kit build belongs to the preview PR)', async () => {
   (globalThis as { location?: unknown }).location = { pathname: '/zone/90/', search: '' };   // the page /zone/90/ (world.ts reads the places at import, so this file imports after setting it)
   try {
     const { loadZone, zoneIds } = await import('../origins/zones/loader.ts'), { zoneSky, zoneCamp } = await import('../origins/world/goblin-field-rules.ts');
