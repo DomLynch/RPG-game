@@ -1,0 +1,8 @@
+{
+  "note": "The chosen fight holds for the sandbox ranged weapons (v1), measured on the hero rig under the 'Armed' stance, seen from behind at 375 wide. localEulerDeg is the part's ABSOLUTE local rotation under the hand bone (three.js Euler order XYZ, degrees), replacing SwordDrawn's rotation (x +90); localPos is its absolute position under the hand (metres), replacing SwordDrawn's (0, .08, .015). The sandbox's ?hold=rx,ry,rz,px,py,pz takes the same numbers.",
+  "holds": {
+    "staff-v1": { "hand": "hand_r", "localEulerDeg": [22.7, -55.8, -115.7], "localPos": [0, 0, 0], "worldEulerDeg": [10, 0, 10], "look": "held upright at the right hand, leaning a little forward and out; the orb cradle stands above the shoulder" },
+    "bow-v1": { "hand": "hand_l", "localEulerDeg": [-1.9, 34.6, 114.3], "localPos": [0, 0, 0], "worldEulerDeg": [8, -90, 0], "look": "held upright in the left hand with its curve facing the camera (string toward the body)" },
+    "crossbow-v1": { "hand": "hand_r", "localEulerDeg": [92.8, 60.3, 96.2], "localPos": [0, 0, 0], "worldEulerDeg": [60, 180, 50], "look": "carried diagonally across the body, muzzle up and forward, the stock and the prod both show from behind" }
+  }
+}
