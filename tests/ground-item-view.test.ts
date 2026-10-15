@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createGroundItemView, lie } from '../origins/preview/ground-item-view.ts';
 import { groundLook } from '../origins/preview/ground-looks.ts';
+import { finishedAs } from '../src/fight/rank-tint.ts';
 
 const sword = () => {   // a blade along +Y like the equip file's WeaponDrawn, with the metal material the longsword carries
   const root = new THREE.Group(), part = new THREE.Group(); part.name = 'WeaponDrawn';
@@ -19,13 +20,27 @@ test('the rusty sword has a look row, and an item without one throws', () => {
   assert.throws(() => groundLook('item:no-such'), /no row/);
 });
 
-test('lie: the long axis runs along the ground, the underside sits liftM above it, centred on the origin', () => {
-  const look = groundLook(ITEM), box = new THREE.Box3().setFromObject(lie(sword(), look));
-  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-  assert.ok(size.y < 0.1, `flat (height ${size.y})`);
-  assert.ok(Math.hypot(size.x, size.z) > 0.9 * look.scale, 'the blade lies along the ground');
+const withoutRings = (g: THREE.Object3D) => { for (const r of g.children.filter((c) => c.name === 'ground-beam' || c.children.some((k) => k.name === 'ground-ring'))) r.removeFromParent(); return g; };
+
+test('lie: the long axis runs along the ground, tilted up by its row, the underside liftM above it, centred on the origin', () => {
+  const look = groundLook(ITEM), box = new THREE.Box3().setFromObject(withoutRings(lie(sword(), look)));
+  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3()), blade = 0.95 * look.scale;
+  assert.ok(Math.hypot(size.x, size.z) > 0.9 * blade * Math.cos(THREE.MathUtils.degToRad(look.tiltDeg)) - 0.05, 'the blade lies along the ground');
+  assert.ok(size.y < blade * Math.sin(THREE.MathUtils.degToRad(look.tiltDeg)) + 0.1, `tilted by its row only (height ${size.y})`);
   assert.ok(Math.abs(box.min.y - look.liftM) < 1e-6, 'underside at the lift');
   assert.ok(Math.hypot(mid.x, mid.z) < 1e-6, 'middle over the origin');
+  const flat = new THREE.Box3().setFromObject(withoutRings(lie(sword(), { ...look, tiltDeg: 0 }))).getSize(new THREE.Vector3());
+  assert.ok(flat.y < size.y && flat.y < 0.1, 'with no tilt it lies flat, and the row tilt lifts it');
+});
+
+test('lie: the pickup ring sits on the ground under the item from its row, additive and shadowless; no ring row, no ring', () => {
+  const look = groundLook(ITEM), g = lie(sword(), look), rings = g.getObjectByName('ground-ring') as THREE.Mesh;
+  assert.ok(look.ring && rings, 'the rusty sword has a ring row');
+  const m = rings.material as THREE.MeshBasicMaterial;
+  assert.equal(m.blending, THREE.AdditiveBlending); assert.equal(m.depthWrite, false); assert.ok(m.opacity > 0 && m.opacity <= look.ring.opacity);
+  const b = new THREE.Box3().setFromObject(rings.parent!), size = b.getSize(new THREE.Vector3());
+  assert.ok(Math.abs(size.x - 2 * look.ring.radiusM) < 0.02 && size.y < 0.01, 'a flat ring of the row radius');
+  assert.equal(lie(sword(), { ...look, ring: undefined }).getObjectByName('ground-ring'), undefined);
 });
 
 test('lie: the finish row rusts the blade and leaves the source material alone', () => {
@@ -52,4 +67,34 @@ test('hidden or cleared while the model loads draws nothing; an item with no ass
   v.show('ground:a', ITEM, { x: 0, z: 0 }); v.hide('ground:a'); await settle(); assert.equal(scene.children.length, 0);
   v.show('ground:b', ITEM, { x: 0, z: 0 }); v.clear(); await settle(); assert.equal(scene.children.length, 0);
   createGroundItemView({ scene, loadModel: async () => sword(), assetOf: () => undefined }).show('ground:c', ITEM, { x: 0, z: 0 }); await settle(); assert.equal(scene.children.length, 0);
+});
+
+test('lie: the beam stands on the item from its row, additive, fading to black at the top; no beam row, no beam', () => {
+  const look = groundLook(ITEM), beam = lie(sword(), look).getObjectByName('ground-beam') as THREE.Mesh;
+  assert.ok(look.beam && beam, 'the rusty sword has a beam row');
+  const m = beam.material as THREE.MeshBasicMaterial, size = new THREE.Box3().setFromObject(beam).getSize(new THREE.Vector3());
+  assert.equal(m.blending, THREE.AdditiveBlending); assert.equal(m.depthWrite, false); assert.ok(m.vertexColors);
+  assert.ok(Math.abs(size.y - look.beam.heightM) < 1e-6 && Math.abs(size.x - 2 * look.beam.radiusM) < 0.02, 'the row height and radius');
+  const pos = beam.geometry.getAttribute('position'), col = beam.geometry.getAttribute('color');
+  let top = -1, bottom = -1; for (let i = 0; i < pos.count; i++) { if (Math.abs(pos.getY(i) - look.beam.heightM) < 1e-6) top = col.getX(i); if (pos.getY(i) < 1e-6) bottom = col.getX(i); }
+  assert.ok(top === 0 && bottom > 0.5, `fades from the foot (${bottom}) to nothing (${top})`);
+  assert.equal(lie(sword(), { ...look, beam: undefined }).getObjectByName('ground-beam'), undefined);
+});
+
+// GPU hygiene (the Auditor on #2824): what a drawn item OWNS (its ring bands and beam) is disposed on hide and clear; what it shares (the loaded model's geometry and materials, the cached finish clones) never is.
+test('hide and clear dispose the ring and beam each show made, once, and never the shared model geometry or the cached finish materials', async () => {
+  const geoms: unknown[] = [], mats: unknown[] = [], gp = THREE.BufferGeometry.prototype.dispose, mp = THREE.Material.prototype.dispose;
+  THREE.BufferGeometry.prototype.dispose = function (this: unknown) { geoms.push(this); return (gp as () => void).call(this); } as typeof gp;
+  THREE.Material.prototype.dispose = function (this: unknown) { mats.push(this); return (mp as () => void).call(this); } as typeof mp;
+  try {
+    const model = sword(), mesh = model.children[0]!.children[0] as THREE.Mesh, source = mesh.material as THREE.MeshStandardMaterial, shared = mesh.geometry, finished = finishedAs(source, groundLook(ITEM).finish!);
+    const scene = new THREE.Scene(), v = createGroundItemView({ scene, loadModel: async () => model, assetOf: () => URL }), look = groundLook(ITEM), per = look.ring!.bands.length + 1;
+    v.show('ground:a', ITEM, { x: 0, z: 0 }); await settle(); assert.equal(geoms.length, 0, 'nothing is disposed while it is drawn');
+    v.hide('ground:a'); assert.equal(geoms.length, per, 'the ring bands and the beam geometry'); assert.equal(mats.length, per, 'and their materials');
+    v.show('ground:a', ITEM, { x: 0, z: 0 }); await settle(); v.hide('ground:a');
+    assert.equal(geoms.length, 2 * per); assert.equal(new Set(geoms).size, 2 * per, 'a second show made new objects, each disposed once'); assert.equal(new Set(mats).size, 2 * per);
+    v.show('ground:b', ITEM, { x: 1, z: 0 }); v.show('ground:c', ITEM, { x: 2, z: 0 }); await settle(); v.clear(); assert.equal(geoms.length, 4 * per, 'clear disposes every drawn item');
+    assert.ok(!geoms.includes(shared) && !mats.includes(source) && !mats.includes(finished), 'the shared model geometry and the cached materials are not disposed');
+    const kept = finishedAs(source, look.finish!); assert.equal(kept, finished, 'the finish clone is still the cached one');
+  } finally { THREE.BufferGeometry.prototype.dispose = gp; THREE.Material.prototype.dispose = mp; }
 });
