@@ -52,6 +52,9 @@ try {
   const V = 'frankendom_verifier', O = 'frankendom_origins', INST = 'ground:zone1.rusty-sword-1';
 
   const keyOf = (inst, acct, n) => psql(`select 'loot:ground.' || substr(encode(sha256(convert_to('${inst}|${acct}|${n}', 'UTF8')), 'hex'), 1, 32) || ':0'`);
+  // the key the writer sends (origins/server/ground-take.ts) must equal the key the function derives, or every take after the apply answers O0002
+  const { groundKillId } = await import('../origins/server/ground-take.ts');
+  for (const [inst, acct, n] of [['ground:zone1.rusty-sword-1', A, 1], ['ground:zone1.rusty-sword-1', B, 7], ['ground:x.y-2', A, 120]]) eq(keyOf(inst, acct, n), `loot:${groundKillId(inst, acct, n)}:0`, `key parity: SQL and the writer derive the same mint key for ${inst} n=${n}`);
   const batch = (acct, pc, inst, n, slot = 0, key = keyOf(inst, acct, n)) => JSON.stringify([
     { op: 'event', event_id: `ground:${key}`, kind: 'mint', account: acct, character: pc, payload: { ground: { instance: inst, n } } },
     { op: 'mint', item: { id: `inst:${key.replace(/[^a-z0-9]/g, '-')}`, item: 'item:ash-pelt', quantity: 1, tier: 0, upgrade_level: 0, loc: { kind: 'pack', owner: pc, index: slot }, bound_to: pc, mint_key: key, provenance: { kind: 'loot', mintKey: key, at: '2026-10-15T00:00:00Z' }, history: [], single_copy: false } },
