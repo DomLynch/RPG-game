@@ -162,6 +162,8 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
 if (!/[?&]debug\b/.test(location.search)) { const u = new URL(location.href); u.searchParams.set('debug', '1'); history.replaceState(null, '', u.href); }
 
 await import('../src/main.ts');
+// The admin tools stay on (Sparring tab, test tools) but the black combat-debug overlay starts OFF (Dom: not needed); the journal's Options > Combat debug turns it on, or ?overlay=1.
+if (new URLSearchParams(location.search).get('overlay') !== '1') document.getElementById('debug-mode')?.click();
 // The stance picker, restyled (Dom's pick of the icon stack: Neutral first, down the right edge, muted): the game's own #stance-panel buttons keep their handlers and aria-pressed; only the look changes.
 const GLYPH: Record<string, string> = { neutral: '\u25CB', aggressive: '\u2694', defensive: '\u26E8', trickster: '\u263D' };
 const restyleStances = (tries = 0): void => {
