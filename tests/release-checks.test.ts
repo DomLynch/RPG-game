@@ -278,7 +278,10 @@ test('release_triggers: a new row joins the rules its paths already hit, never a
   assert.deepEqual(rowsFor('scripts/double-tap-browser-check.mjs'), ['double-tap-browser-check']);
   assert.deepEqual(rowsFor('scripts/desktop-intro-check.mjs'), ['desktop-intro-check']);
   assert.deepEqual(rowsFor('scripts/arena-audio-check.mjs'), ['arena-audio-check']);
-  assert.deepEqual(rowsFor('scripts/end-overlap-check.mjs'), ['end-overlap-check']);   // row 55 (Lead 2026-10-15): nothing under Next fight on the kill screen; joined the page rules above, its own script runs only itself
+  assert.deepEqual(rowsFor('scripts/end-overlap-check.mjs'), ['end-overlap-check']);
+  // Row 56 (Lead 2026-10-15): the ground-loot prompt clear of the fight buttons. The walk page's files carry the writer boot row they already had (origins/**), plus it; its own scripts run only it.
+  assert.deepEqual(rowsFor('scripts/ground-prompt-check.mjs'), ['ground-prompt-check']); assert.deepEqual(rowsFor('scripts/lib/origins-preview-harness.mjs'), ['ground-prompt-check']);
+  for (const file of ['origins/preview/main.ts', 'origins/preview/index.html', 'origins/preview/ground-pickup.ts', 'origins/preview/zone-sound.ts']) assert.ok(rowsFor(file).includes('ground-prompt-check') && rowsFor(file).includes('origins-writer-boot-check'), file);   // row 55 (Lead 2026-10-15): nothing under Next fight on the kill screen; joined the page rules above, its own script runs only itself
   // The CLIP SEND row (2026-09-27) joined the same rules (main.ts's, style.css's and src/** for src/clip.ts), plus its own rule last.
   assert.deepEqual(rowsFor('src/clip.ts'), [...boot, 'double-tap-browser-check', 'clip-send-tour-check'].sort());
   assert.deepEqual(rowsFor('scripts/clip-send-tour-check.mjs'), ['clip-send-tour-check']);

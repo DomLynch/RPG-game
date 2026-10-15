@@ -8,54 +8,32 @@
 //   ZONE_DIST=<built origins preview> OUT=<dir> LABEL=<before|after> WIDTHS=375,320 node scripts/ground-pickup-stills.mjs
 /* global process, console, window, document */
 import fs from 'node:fs';
-import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { groundPointOf } from '../origins/world/ground-point.ts';
+import { centre, serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness.mjs';
 
-const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-pickup-stills', LABEL = process.env.LABEL || 'after', BEFORE = process.env.BEFORE === '1', root = process.cwd();
-const WIDTHS = (process.env.WIDTHS || '375,320').split(',').map(Number), ITEM = 'item:starter.rusty-sword', AUTH_KEY = 'frankendom.auth.v1';
-const centre = groundPointOf({ zone: 'zone1', place: 'cinder-fields' });
+const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-pickup-stills', LABEL = process.env.LABEL || 'after', BEFORE = process.env.BEFORE === '1';
+const WIDTHS = (process.env.WIDTHS || '375,320').split(',').map(Number);
 // Offsets from the walker, metres: near = one inside the 1.5 m radius; several = six about the walker, the nearest inside the radius (x across, z ahead).
 const SIGNED_OUT = 'ground:zone1.rusty-sword-1';
 const OFFSETS = { near: [[0.3, 1.0]], several: [[0.3, 1.0], [-2.2, 2.6], [2.4, 3.4], [-0.8, 4.4], [3.4, 5.6], [-3.6, 6.4]], race: [[0.3, 1.0]], signedout: [] };
 fs.mkdirSync(out, { recursive: true });
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
-const roots = { '/preview/origins/': `${path.resolve(ZONE)}/` };
-for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
-const server = http.createServer((req, res) => {
-  const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
-  for (const [p, r] of Object.entries(roots)) if (u.startsWith(p)) hit = path.join(r, u.slice(p.length) || 'index.html');
-  if (hit && fs.existsSync(hit) && fs.statSync(hit).isDirectory()) hit = path.join(hit, 'index.html');
-  if (!hit || !fs.existsSync(hit)) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const origin = `http://127.0.0.1:${server.address().port}`;
+const { origin, close } = await serveOriginsPreview(ZONE);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const receipt = { errors: [], frames: {} };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 80, timeout: 240000 });
-const json = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
 async function frame(width, scenario) {
   const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.on('pageerror', (e) => receipt.errors.push(`pageerror ${scenario}@${width}: ${String(e).slice(0, 200)}`));
-  if (scenario !== 'signedout') await page.addInitScript(([key, exp]) => { localStorage.setItem(key, JSON.stringify({ access_token: 'stub.token.value', expires_at: exp })); }, [AUTH_KEY, Math.floor(Date.now() / 1000) + 3600]);
-  let rowsSeen = 0;
-  await page.route('**/origins/open', (route) => json(route, 200, { ok: true, result: { characters: [{ id: 'pc:still', name: 'Still' }] } }));   // the one door: gives the take its character
-  await page.route('**/origins/ground_state', async (route) => {
-    let pos; for (let i = 0; i < 600 && !pos; i++) { pos = await page.evaluate(() => window.originsPreview?.pos && { x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }).catch(() => undefined); if (!pos) await new Promise((r) => setTimeout(r, 250)); }
-    const items = OFFSETS[scenario].map(([dx, dz], i) => ({ instance: `ground:still-${i}`, item: ITEM, zone: 'zone1', place: 'cinder-fields', offsetX: pos.x + dx - centre.x, offsetZ: pos.z + dz - centre.z, radiusM: 1.5, available: true, visible: true }));
-    rowsSeen = items.length; json(route, 200, { ok: true, result: { now: new Date().toISOString(), items } });
-  });
-  await page.route('**/origins/ground_take', (route) => (scenario === 'race' ? json(route, 409, { ok: false, error: 'already taken', code: 'taken' }) : json(route, 200, { ok: true, result: { result: 'taken', instance: 'ground:still-0', item: ITEM, qty: 1, availableAt: new Date(Date.now() + 3.6e6).toISOString() } })));
+  if (scenario !== 'signedout') await stubSignedIn(page, { offsets: OFFSETS[scenario], take: scenario === 'race' ? 'race' : 'taken' });
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
   if (scenario === 'signedout') { await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, SIGNED_OUT, { timeout: 90000 }); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [centre.x, centre.z - 1.3]); await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 }); }
   else if (!BEFORE) await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still-0') !== undefined, null, { timeout: 90000 });
   await page.waitForTimeout(3000);
   const prompt = await page.evaluate(() => { const p = document.getElementById('prompt'); return { hidden: p.hidden, text: p.textContent }; });
-  receipt.frames[`${scenario}-${width}`] = { rowsSeen, prompt };
+  receipt.frames[`${scenario}-${width}`] = { rowsSeen: OFFSETS[scenario].length, prompt };
   await shoot(page, `${LABEL}-${scenario}-${width}.jpg`);
   if (!BEFORE && scenario !== 'several') {
     // A thumb taps the middle of the prompt: record what is on top there (the fight buttons share the bottom band), then tap that point.
@@ -71,4 +49,4 @@ try {
   for (const width of WIDTHS) for (const scenario of (process.env.SCENARIOS ? process.env.SCENARIOS.split(',') : BEFORE ? ['near', 'several'] : ['near', 'several', 'race', 'signedout'])) await frame(width, scenario);
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 2)); console.log('stills', JSON.stringify(receipt));
 } catch (error) { console.error('stills FAILED', JSON.stringify(receipt), error); process.exitCode = 1; }
-finally { await browser.close(); server.close(); }
+finally { await browser.close(); close(); }

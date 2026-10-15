@@ -361,9 +361,35 @@
     [
       "node",
       "scripts/end-overlap-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/ground-prompt-check.mjs"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "origins/preview/ground-*",
+        "origins/preview/main.ts",
+        "origins/preview/index.html",
+        "origins/preview/zone-sound.ts",
+        "origins/world/ground-point.ts"
+      ],
+      "rows": [
+        "origins-writer-boot-check",
+        "ground-prompt-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/ground-prompt-check.mjs",
+        "scripts/lib/origins-preview-harness.mjs"
+      ],
+      "rows": [
+        "ground-prompt-check"
+      ]
+    },
     {
       "paths": [
         "scripts/origins-writer.mjs",

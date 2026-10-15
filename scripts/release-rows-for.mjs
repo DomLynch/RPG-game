@@ -67,6 +67,7 @@ const AREAS = [
   // The fight boot (the first-frame warm-up, run from scene.ts): the two rows that boot to a fight. #1420 fixed row 51 in these
   // files and the picker left 50 and 51 out (release a2cf3529, 2026-10-06).
   { paths: ['src/main.ts', 'index.html', 'src/style.css'], rows: ['next-fight-black-check'] },   // the page the Next-fight reload loads (the deleted Pit guard covered these; Auditor 2026-10-08)
+  { paths: ['origins/preview/ground-*', 'origins/preview/main.ts', 'origins/preview/index.html', 'origins/preview/zone-sound.ts'], rows: ['ground-prompt-check'] },   // the ground-loot prompt's place on the walk page (row 56, Lead 2026-10-15)
   { paths: ['src/first-frame.ts', 'src/fight/scene.ts'], rows: ['first-loss-browser-check', 'next-fight-black-check'] },   // the second: the reload's black time (Dom's 2 s report 2026-09-30) rides the first frame
   { paths: ['scripts/origins-writer.mjs', 'scripts/origins-writer-boot-check.sh', 'origins/**', 'src/fight/index.ts'], rows: ['origins-writer-boot-check'] },   // the writer boots on a box with no `three` (AA crash-looped on src/fight/index.ts, 2026-10-10); the rest of its src files come from the closure walk below
 ];

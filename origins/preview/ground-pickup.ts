@@ -11,7 +11,7 @@ import RULES from './ground-pickup.json' with { type: 'json' };
 import type { GroundRow, GroundState, GroundTaken } from './ground-net.ts';
 
 export type Outcome = { line: string; cue: 'refuse' | null };
-export type PickupRules = { readonly pollSec: number; readonly pollRangeM: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
+export type PickupRules = { readonly pollSec: number; readonly pollRangeM: number; readonly lineSec: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
 
 const text = (what: string, v: unknown): string => { if (typeof v !== 'string' || !v.trim()) throw new Error(`ground-pickup: ${what} is a line of text`); return v; };
 /** The one loader: the registry's duplicate / missing / mistyped checks, then the rules the manifest cannot say (a poll period above 0, labels that name the {item}, every outcome a line and a cue of refuse or null, and the two the page falls back on: offline and taken). */
@@ -22,6 +22,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
   if (!f) throw new Error('ground-pickup: the "ground" row is missing');
   if (typeof f.pollSec !== 'number' || !(f.pollSec >= 1)) throw new Error('ground-pickup: pollSec is at least 1');
   if (typeof f.pollRangeM !== 'number' || !(f.pollRangeM > 0)) throw new Error('ground-pickup: pollRangeM is above 0');
+  if (typeof f.lineSec !== 'number' || !(f.lineSec > 0)) throw new Error('ground-pickup: lineSec is above 0');
   const l = f.labels as Record<string, unknown> | undefined;
   if (!l) throw new Error('ground-pickup: labels is missing');
   const labels = { take: text('labels.take', l.take), signedOut: text('labels.signedOut', l.signedOut), taken: text('labels.taken', l.taken) };
@@ -32,7 +33,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
     outcomes[k] = { line: text(`outcomes.${k}.line`, v.line), cue: v.cue };
   }
   for (const need of ['offline', 'taken']) if (!outcomes[need]) throw new Error(`ground-pickup: outcomes.${need} is missing`);
-  return { pollSec: f.pollSec, pollRangeM: f.pollRangeM, labels, outcomes };
+  return { pollSec: f.pollSec, pollRangeM: f.pollRangeM, lineSec: f.lineSec, labels, outcomes };
 }
 export const PICKUP: PickupRules = loadPickupRules(RULES);
 
@@ -81,6 +82,8 @@ export function createGroundPickup(deps: GroundDeps) {
   };
   return {
     pollSec: rules.pollSec,
+    /** How long a result line holds the prompt's slot. */
+    lineSec: rules.lineSec,
     refresh,
     /** The timer's tick: read only while the page is visible and the hero is within pollRangeM of an item (or nothing is known yet, the first read). */
     async poll(x: number, z: number, hidden: boolean): Promise<void> {
@@ -89,7 +92,7 @@ export function createGroundPickup(deps: GroundDeps) {
     },
     /** The row to prompt for at this point, within its radius: the nearest one that is visible and available. */
     nearest,
-    /** The tap. Signed out: the line only. One take at a time. Success: hide it, refresh the pack, play the cue. A refusal: its row's line and cue; a lost race hides nothing until the next state read. */
+    /** The tap. Signed out: the line only. One take at a time. Success: hide it, refresh the pack, play the cue. A refusal: its row's line and cue; a lost race drops the item at once (the next state read confirms it). */
     async tap(instance: string): Promise<'taken' | 'refused' | 'signed-out' | 'busy'> {
       const row = rows.find((r) => r.instance === instance);
       if (!row) return 'refused';
@@ -105,7 +108,7 @@ export function createGroundPickup(deps: GroundDeps) {
         }
         const out = refuse(got.code ?? got.offline);
         deps.say(out.line); if (out.cue) deps.cue(out.cue);
-        if (got.code === 'taken') void refresh();   // the race is lost: the state read hides it
+        if (got.code === 'taken') { deps.view.hide(instance); rows = rows.filter((r) => r.instance !== instance); void refresh(); }   // the race is lost: gone from the screen and from here at once; the state read follows and keeps it gone while the server says so
         return 'refused';
       } finally { busy = false; }
     },
