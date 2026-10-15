@@ -152,7 +152,7 @@ test('every zone row loads through the loader and passes its rules', () => {
     assert.deepEqual(zoneProblems(z), [], id);
   }
   assert.deepEqual(allZoneIds(), rows.map((r) => r.id), 'the registry holds every row and nothing else');
-  assert.deepEqual(zoneIds(), rows.filter((r) => !loadZone(r.id).unlisted).map((r) => r.id), 'the list holds every row but the unlisted');
+  assert.deepEqual(zoneIds(), rows.filter((r) => !loadZone(r.id, true).unlisted).map((r) => r.id), 'the list holds every row but the unlisted');
   assert.deepEqual(packagesIn(repo), [], 'no zone is a TypeScript folder any more: origins/zones holds the loader and its helpers only');
 });
 
