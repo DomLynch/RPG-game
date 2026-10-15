@@ -288,6 +288,6 @@
     "spawns": []
   },
   "notes": {
-    "zone": "TEST ZONE (zone sandbox, 2026-10-15, Strategy OK): rows only, outside the 1-50 ladder, props only, NO spawns, unlisted; delete when Zone 1's look graduates. Not Zone 3: Zone N means level N creatures."
+    "zone": "TEST ZONE (zone 90; zone sandbox, 2026-10-15, Strategy OK): rows only, outside the 1-50 ladder, props only, NO spawns, unlisted; delete with tests/test-zone.test.ts when Zone 1's look graduates. Not Zone 3: Zone N means level N creatures. Not 99: the loader tests use 99 as their 'no such zone'."
   }
 }
