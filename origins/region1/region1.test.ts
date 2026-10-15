@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { WEAPON_SLOTS } from '../../src/core/loot.ts';
 import type { Issue } from '../../src/core/server.ts';
 import { zonePlaces } from '../zones/loader.ts';
+import { GROUND_ITEMS } from '../world/ground-items.ts';
 import { CONCORD } from '../world/concord.ts';
 import { resolveRegion, type WorldData } from '../world/resolve.ts';
 import { BOSS_LOOT, BOUNTIES, BUNDLE, ENCOUNTER_FLAGS, KILL_ROWS, LOCAL, RIFTS, TOWNS } from './content.ts';
@@ -15,6 +16,7 @@ import { BOUNTY_DAILY_CAP, BOUNTY_METAL, TWISTS, loadRegion1, type Local } from 
 import { EXCHANGE_REGION, FRONTIER_REGION, REGION1_WORLD } from './world.ts';
 
 const clone = <T>(v: T): T => structuredClone(v);
+const GROUND_WEAPONS = new Set(Object.values(GROUND_ITEMS).map((g) => g.item));
 const issuesOf = (r: ReturnType<typeof loadRegion1>): Issue[] => (r.ok ? [] : r.issues);
 const refused = (r: ReturnType<typeof loadRegion1>, code: string, pathPart: string) => {
   const list = issuesOf(r);
@@ -109,7 +111,7 @@ test('twists are Origins encounter flags only, and a Bounty shows exactly its en
 });
 
 test('no weapon drops in Region 1', () => {
-  for (const r of BUNDLE) if (r.kind === 'item-definition' && !LOOT_ITEM_IDS.has(String(r.id))) assert.ok(!(WEAPON_SLOTS as readonly string[]).includes(r.slot as string), String(r.id));   // the legacy loot catalogue holds the engine's weapon pieces; no table awards one (below)
+  for (const r of BUNDLE) if (r.kind === 'item-definition' && !LOOT_ITEM_IDS.has(String(r.id)) && !GROUND_WEAPONS.has(String(r.id))) assert.ok(!(WEAPON_SLOTS as readonly string[]).includes(r.slot as string), String(r.id));   // the legacy loot catalogue holds the engine's weapon pieces; no table awards one (below)
   refused(withBundle((b) => { rec(b, 'item:frontier.ash-helm').slot = 'Gladius'; }), 'content-rule', 'item:frontier.ash-helm.slot');
 });
 
@@ -143,4 +145,26 @@ test('the weapon exemption is the generated id set, not the item:loot. prefix: a
   refused(withBundle((b) => { b.push({ ...(clone(rec(b, 'item:frontier.ash-helm'))), id: 'item:loot.fake.Gladius', slot: 'Gladius', appearance: { asset: 'loot.glb/fake.Gladius' } }); }), 'legacy-unknown', '].id');   // the contracts already refuse an item:loot.* id that is no LootId; the exemption set below is the second wall
   assert.ok(!LOOT_ITEM_IDS.has('item:loot.fake.Gladius'));
   assert.ok(LOOT_ITEM_IDS.has('item:loot.goblin.Knife'), 'the engine\'s own weapon pieces stay exempt');
+});
+
+test('the starter ground weapon is the one exemption (Lead 2026-10-15): it is defined and loads, but a weapon in a loot table is still refused, and so is a weapon no ground row names', () => {
+  const rusty = rec(BUNDLE as Record<string, unknown>[], 'item:starter.rusty-sword');
+  assert.ok((WEAPON_SLOTS as readonly string[]).includes(rusty.slot) && rusty.binding === 'on-acquire' && rusty.rarity === 'common', 'a bound common weapon');
+  assert.ok(loadRegion1().ok, 'the shipped bundle, with the rusty sword defined, loads clean');
+  // never in a loot table, even though it is defined and a starter item
+  refused(withBundle((b) => { rec(b, 'loottable:court-thrall').rolls[0].entries[0].item = 'item:starter.rusty-sword'; }), 'content-rule', 'loottable:court-thrall.rolls[0].entries[0].item');
+  // a weapon that no ground row names stays refused: the exemption is by row, not by slot
+  refused(withBundle((b) => { b.push({ ...clone(rec(b, 'item:starter.rusty-sword')), id: 'item:starter.other-sword' }); }), 'content-rule', 'item:starter.other-sword.slot');
+});
+
+test('a starter item must be defined, common, bound on-acquire and NOT a legacy loot id: a starterItem row for item:loot.knight.Maul (a loot weapon) is refused, and so are an undefined, a fine and an unbound one', () => {
+  const grounds = (starters: Record<string, { maxQty: number }>) => ({ items: GROUND_ITEMS, starters });
+  const base = { 'item:starter.rusty-sword': { maxQty: 1 } };
+  assert.ok(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds(base)).ok, 'the shipped starter item passes');
+  assert.ok(LOOT_ITEM_IDS.has('item:loot.knight.Maul'), 'the case is a real loot weapon');
+  refused(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds({ ...base, 'item:loot.knight.Maul': { maxQty: 1 } })), 'content-rule', 'starterItem.item:loot.knight.Maul');
+  refused(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds({ ...base, 'item:starter.nope': { maxQty: 1 } })), 'unknown-id', 'starterItem.item:starter.nope');
+  const edited = (edit: (r: Record<string, any>) => void) => { const b = clone(BUNDLE); edit(rec(b, 'item:starter.rusty-sword')); return loadRegion1(REGION1_WORLD, b, LOCAL, grounds(base)); };   // eslint-disable-line @typescript-eslint/no-explicit-any
+  refused(edited((r) => { r.rarity = 'fine'; }), 'content-rule', 'starterItem.item:starter.rusty-sword.rarity');
+  refused(edited((r) => { r.binding = 'none'; }), 'content-rule', 'starterItem.item:starter.rusty-sword.binding');
 });

@@ -152,3 +152,8 @@ test('the contract vocabulary rows are data at their moved home src/core/contrac
   for (const f of ['origins/contracts/definitions.json', 'origins/contracts/definitions.manifest.json', 'src/core/contracts/definitions.ts', 'src/core/contracts/world.ts',
     'src/core/contracts/definitions.json.bak']) assert.equal(onDataPath(f), false, f);
 });
+
+test('ground-items.json stays OFF the data-only path until the starter check is in force and reviewed: a data-only PR cannot place a ground item without the Auditor', () => {
+  assert.equal(onDataPath('origins/world/ground-items.json'), false);
+  assert.equal(onDataPath('origins/world/ground-items.manifest.json'), false);
+});

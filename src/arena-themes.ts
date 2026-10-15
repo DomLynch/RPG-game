@@ -5,6 +5,7 @@
 // Pure data, no three.js: the texture worker imports the texture half of it.
 import type { OpponentId } from './fight/moves.ts';
 import { LADDER } from './ladder.ts';
+import { arenaRule } from './arena-rules.ts';
 import THEME_DATA from './arena-themes.json' with { type: 'json' };
 export { WEATHER_ROWS, weatherRow, FLOOR_ROWS, DUST_TONES, type WeatherRow, type FloorRow, type DustToneRow } from './arena-rows.ts';
 
@@ -71,7 +72,7 @@ export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2',
 // Arena 1 (no stored arena); after that a shuffle-bag, no arena twice in a row (ladder.ts nextArena). 'a'-'d' are the older generated looks and stay out.
 export const ARENA_ROTATION: readonly ArenaKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 export const isRotationArena = (k: unknown): k is ArenaKey => ARENA_ROTATION.includes(k as ArenaKey);
-export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(5, Math.ceil(rung / 2))) as 1 | 2 | 3 | 4 | 5;
+export const arenaBand = (rung: number): 1 | 2 | 3 | 4 | 5 => (rung <= 0 ? 1 : Math.min(Object.keys(ARENA_PICK).length, Math.ceil(rung / arenaRule('rungsPerArena')))) as 1 | 2 | 3 | 4 | 5;   // rungsPerArena is an arena-rules row
 export function arenaFor(opponent: OpponentId, override?: string): ArenaTheme {
   if (override && override in ARENA_THEMES) return ARENA_THEMES[override as ArenaKey];
   const rung = LADDER.findIndex(o => o.id === opponent) + 1;   // 0 for a held or unknown id: Arena 1
