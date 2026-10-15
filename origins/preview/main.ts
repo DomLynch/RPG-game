@@ -333,11 +333,12 @@ function step(dt: number) {
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
+  groundNear = groundPickup.nearest(state.x, state.z);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
     : sign && Math.hypot(state.x - sign.at.x, state.z - sign.at.z) < 6 ? 'back'
     : Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
-    : (groundNear = groundPickup.nearest(state.x, state.z)) ? 'ground'
+    : groundNear ? 'ground'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
     : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
   prompt.hidden = !near || !!open; if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
