@@ -128,6 +128,7 @@ let frontierGroup: THREE.Group | null = null, goblinDome: ReturnType<typeof crea
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
   if (ZONE_SKY) goblinDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL);   // the painted horizon (and Dom's picture, when the palette names one)
+  if (goblinDome) { const pitSky = arena.group.getObjectByName(goblinDome.covers); if (pitSky) pitSky.renderOrder = goblinDome.mesh.renderOrder - 1; }   // the Pit's sky dome (same 150 m, depth on) draws just before ours, so ours paints over it and every real object still draws in front
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);

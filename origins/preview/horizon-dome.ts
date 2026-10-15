@@ -56,5 +56,5 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
   const load = (file: string) => { let p = images.get(file); if (!p) { p = new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = `${base}${file}`; }); images.set(file, p); } return p; };
   const show = () => { const b = goblinBackdrop(palette, shape?.matches ?? true); if (!b) return; void load(b.file).then((img) => { if (!alive || goblinBackdrop(palette, shape?.matches ?? true) !== b) return; const old = tex; tex = texOf(paint(b.texW, b.texH, palette, { img, b }), true); mat.map = tex; mat.needsUpdate = true; old.dispose(); }).catch(() => {}); };   // a missing picture leaves the painted sky
   show(); shape?.addEventListener('change', show);
-  return { mesh, follow(camera: THREE.Camera) { mesh.position.set(camera.position.x, 0, camera.position.z); }, dispose() { alive = false; shape?.removeEventListener('change', show); scene.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); } };
+  return { mesh, covers: 'sky' /* the Pit's sky mesh name (src/arena.ts): the zone dome replaces it */, follow(camera: THREE.Camera) { mesh.position.set(camera.position.x, 0, camera.position.z); }, dispose() { alive = false; shape?.removeEventListener('change', show); scene.remove(mesh); geo.dispose(); mat.dispose(); tex.dispose(); } };
 }
