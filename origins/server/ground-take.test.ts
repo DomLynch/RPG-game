@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ACCOUNT, PC, openInventory } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
-import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
+import { REGION1_LOOT_TIER, loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { GROUND_ITEMS, GROUND_LIMITS } from '../world/ground-items.ts';
 import type { WhereFn } from '../presence/where.ts';
 import { CENTRE_CM } from '../presence/zones.ts';
@@ -55,9 +55,10 @@ test('the take is pure and deterministic: the batch is the event then ONE mint, 
 test('one of each and pack room: a second sword is refused as have-it, a full pack as full, and nothing is minted in either case', () => {
   const first = groundTakeBatch({ ...at, inventory: pack() }) as { batch: Json[] };
   const held = (first.batch[1] as { item: Record<string, unknown> }).item;
-  const inst = { kind: 'item-instance', schemaVersion: 1, id: held.id, item: held.item, version: 1, quantity: 1, tier: null, location: { kind: 'pack', owner: PC, index: 0 }, boundTo: PC, provenance: held.provenance, history: [] } as never;
+  const inst = { kind: 'item-instance', schemaVersion: 1, id: held.id, item: held.item, version: 1, quantity: 1, tier: REGION1_LOOT_TIER, location: { kind: 'pack', owner: PC, index: 0 }, boundTo: PC, provenance: held.provenance, history: [] } as never;
   assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([inst]) }), { refused: 'have-it' });
-  assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([], 0) }), { refused: 'full' });
+  const other = { ...inst, id: 'inst:other-1', item: 'item:frontier.ash-helm', tier: REGION1_LOOT_TIER, boundTo: null } as never;
+  assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([other], 1) }), { refused: 'full' });
 });
 
 test('the point and the radius come from rows: the place\'s centre plus the offset, and the row\'s radius or the default row plus the slack', () => {
@@ -114,11 +115,11 @@ test('ground_take refusals write nothing: a bad body is a 400, an unknown instan
   await assert.rejects(() => ops().ground_take!(ctx(s.db), { character: PC, instance: 'ground:zone1.not-a-row' }), BadRequest);
   await assert.rejects(() => ops().ground_take!(ctx(s.db), { character: PC, instance: 'x' }), BadRequest);
   assert.equal(s.takes.length, 0);
-  const stale = stub({ take: new DbError('stale', 'O0002') });
+  const stale = stub({ take: new DbError('O0002', 'stale') });
   await assert.rejects(() => ops().ground_take!(ctx(stale.db), { character: PC, instance: INSTANCE }), status(503, 'stale'));
   await assert.rejects(() => ops().ground_take!(ctx(stub({ absent: true }).db), { character: PC, instance: INSTANCE }), (e: unknown) => e instanceof Refused && e.status === 503);
   await assert.rejects(() => ops().ground_state!(ctx(stub({ absent: true }).db), {}), (e: unknown) => e instanceof Refused && e.status === 503);
-  for (const name of ['ground_state', 'ground_take']) await assert.rejects(() => groundOps(null)[name]!(ctx(s.db), { character: PC, instance: INSTANCE }), status(503, 'off'));
+  for (const name of ['ground_state', 'ground_take']) await assert.rejects(async () => groundOps(null)[name]!(ctx(s.db), { character: PC, instance: INSTANCE }), status(503, 'off'));
 });
 
 test('the database refuses a take it already holds as taken: the writer returns the 409 and does not retry', async () => {
