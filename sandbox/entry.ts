@@ -63,12 +63,24 @@ function panel(opponents: string[]) {
   const opp = el('select');
   for (const id of opponents) opp.append(el('option', { value: id, textContent: id, selected: params.get('opponent') === id }));
   if (!params.get('opponent')) opp.prepend(el('option', { value: '', textContent: '(game default)', selected: true }));
-  opp.onchange = () => { const u = new URL(location.href); if (opp.value) u.searchParams.set('opponent', opp.value); else u.searchParams.delete('opponent'); location.assign(u.href); };
+  const staged = new Map<string, string>();   // loadout picks wait here; ONE Apply button reloads once
+  const stage = (param: string, value: string) => { staged.set(param, value); applyLoadout.textContent = 'Apply loadout + reload (changes waiting)'; };
+  opp.onchange = () => stage('opponent', opp.value);
 
   const pick = (label: string, param: string, values: string[]) => {
     const sel = el('select'); sel.append(el('option', { value: '', textContent: '(auto)' }));
     for (const v of values) sel.append(el('option', { value: v, textContent: v, selected: params.get(param) === v }));
-    sel.onchange = () => { const u = new URL(location.href); if (sel.value) u.searchParams.set(param, sel.value); else u.searchParams.delete(param); location.assign(u.href); };
+    sel.onchange = () => stage(param, sel.value);
+    return el('div', { style: 'margin:4px 0' }, el('span', { textContent: label + ' ' }), sel);
+  };
+  // Weapon lists: the real weapons plus Staff / Bow / Crossbow (stand-ins: an existing weapon fires instead of striking, see the missile rows).
+  const MISSILES: Record<string, string> = { staff: 'trident', bow: 'knife', crossbow: 'warhammer' };
+  const weaponPick = (label: string, mine: boolean) => {
+    const sel = el('select'), mineNow = mine ? (() => { try { return JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}').weapon as string | undefined; } catch { return undefined; } })() : params.get('foeWeapon');
+    const asKind = Object.keys(MISSILES).find((k) => params.get(k) === mineNow && mineNow);
+    sel.append(el('option', { value: '', textContent: '(auto)' }));
+    for (const v of [...WEAPON_IDS, ...Object.keys(MISSILES).map((k) => k.toUpperCase())]) { const id = v.toLowerCase(), isKind = id in MISSILES; sel.append(el('option', { value: id, textContent: isKind ? `${v[0]}${v.slice(1).toLowerCase()} (ranged)` : v, selected: isKind ? asKind === id : !asKind && mineNow === id })); }
+    sel.onchange = () => { const v = sel.value, w = MISSILES[v] ?? v; stage(mine ? '#myWeapon' : 'foeWeapon', w); if (MISSILES[v]) stage(v, w); };
     return el('div', { style: 'margin:4px 0' }, el('span', { textContent: label + ' ' }), sel);
   };
   const spellSel = el('select'), cast = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
@@ -82,16 +94,22 @@ function panel(opponents: string[]) {
   const spell2Sel = el('select'), cast2 = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast2') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
   spell2Sel.append(el('option', { value: '', textContent: '(none)' }));
   const fill2 = () => { for (const g of spellSel.querySelectorAll('optgroup')) { const c = g.cloneNode(true) as HTMLOptGroupElement; for (const o of c.querySelectorAll('option')) (o as HTMLOptionElement).selected = params.get('spell2') === (o as HTMLOptionElement).value; spell2Sel.append(c); } };
-  const goSpell2 = () => { const u = new URL(location.href); if (spell2Sel.value) u.searchParams.set('spell2', spell2Sel.value); else u.searchParams.delete('spell2'); if (cast2.value) u.searchParams.set('cast2', cast2.value); else u.searchParams.delete('cast2'); location.assign(u.href); };
-  spell2Sel.onchange = goSpell2; cast2.onchange = goSpell2;
-  const goSpell = () => { const u = new URL(location.href); if (spellSel.value) u.searchParams.set('spell', spellSel.value); else u.searchParams.delete('spell'); if (cast.value) u.searchParams.set('cast', cast.value); else u.searchParams.delete('cast'); location.assign(u.href); };
-  spellSel.onchange = goSpell; cast.onchange = goSpell;
+  spell2Sel.onchange = () => stage('spell2', spell2Sel.value); cast2.onchange = () => stage('cast2', cast2.value);
+  spellSel.onchange = () => stage('spell', spellSel.value); cast.onchange = () => stage('cast', cast.value);
+  const applyLoadout = el('button', { textContent: 'Apply loadout + reload', style: 'background:#c9a227;color:#111;font-weight:600' });
+  applyLoadout.onclick = () => {
+    const u = new URL(location.href);
+    for (const [k, v] of staged) {
+      if (k === '#myWeapon') { try { const kit = JSON.parse(sessionStorage.getItem('frankendom.dev-kit') ?? '{}') ?? {}; if (v) kit.weapon = v; else delete kit.weapon; sessionStorage.setItem('frankendom.dev-kit', JSON.stringify(kit)); } catch { /* none */ } }
+      else if (v) u.searchParams.set(k, v); else u.searchParams.delete(k);
+    }
+    location.assign(u.href);
+  };
   const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
-    el('div', { textContent: 'Loadout (reloads the page)', style: 'color:#c9a227;font-weight:600' }),
+    el('div', { textContent: 'Loadout (pick everything, then Apply once)', style: 'color:#c9a227;font-weight:600' }),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell (SPELL 1) ' }), spellSel, cast),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell 2 (SPELL 2) ' }), spell2Sel, cast2),
-    pick('Staff (this weapon fires bolts)', 'staff', WEAPON_IDS), pick('Bow (this weapon shoots arrows)', 'bow', WEAPON_IDS), pick('Crossbow (this weapon shoots bolts)', 'crossbow', WEAPON_IDS),
-    pick('Opponent weapon', 'foeWeapon', WEAPON_IDS), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)),
+    weaponPick('Your weapon', true), weaponPick('Opponent weapon', false), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)), applyLoadout,
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
   const status = el('div');
