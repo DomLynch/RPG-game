@@ -278,7 +278,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   }
   for (let i = 0; i < (tiers.length && !theme.flatStands ? 40 : 0); i++) {   // rubble sits on the stepped treads: none on flat ground
     const a = i / 40 * TAU + 0.04, r = ruin(a); if (r < 0.5) continue;
-    const tier = 1 + (i % Math.min(3, tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop, wall.top), s = 0.5 + hash(i, 6, 13) * 0.6;
+    const tier = 1 + (i % Math.min(arenaRule('rubbleTiers'), tiers.length)), rr = wall.outer + tier * tierDepth + 0.6, [x, z] = polar(rr, a), foot = tierTop(tier - 1, a, Math.floor(a / TAU * LAYOUT.segments), drop, wall.top), s = 0.5 + hash(i, 6, 13) * 0.6;
     if (tier >= tiers.length) continue;   // its tread is the top one, and open stands end there: no block out past the edge
     const rubble = prop(box(s * 1.4, s * 0.7, s), x, foot + s * 0.32, z, new THREE.Euler(hash(i, 7, 13) * 0.3, a + hash(i, 8, 13), 0), 1, 2, DARK, foot - 0.3);
     rubble.computeBoundingBox(); crowdObstacles.push(rubble.boundingBox!.clone().expandByScalar(0.4)); stones.push(rubble);
@@ -584,7 +584,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
         const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], g = 1 + flare * 3.2;
         p.setXYZ(i,
           moteBase[i * 3] + (0.55 * Math.sin(time * 0.19 * sp + ph) + 0.14 * Math.sin(time * 0.9 * sp + ph * 2.3)) * g,
-          Math.max(0.15, moteBase[i * 3 + 1] + 0.3 * Math.sin(time * 0.13 * sp + ph * 1.7) - 0.1 * flare * Math.sin(ph)),
+          Math.max(arenaRule('moteFloor'), moteBase[i * 3 + 1] + 0.3 * Math.sin(time * 0.13 * sp + ph * 1.7) - 0.1 * flare * Math.sin(ph)),
           moteBase[i * 3 + 2] + (0.55 * Math.cos(time * 0.16 * sp + ph * 1.3) + 0.14 * Math.cos(time * 0.8 * sp + ph)) * g);
       }
       p.needsUpdate = true; }
