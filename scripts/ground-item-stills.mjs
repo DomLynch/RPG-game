@@ -1,11 +1,14 @@
 // Stills of a ground item on the Zone 1 path at a phone (visual-pr-stills): the built origins preview, the walk camera at 375 wide, once with nothing on the ground (before) and once with the item lying a few
 // steps ahead (after), drawn by the ground-item view through the `originsPreview.ground` hook. Chromium on software GL (VPS `capture`).
+//   ROWS=1: one still per shipped ground row (origins/world/ground-items.json), the walker 3 m short of the item at its place, labels on; named <item stem>-<width>.jpg.
 //   ZONE_DIST=<built origins preview> OUT=<dir> ITEM=item:starter.rusty-sword node scripts/ground-item-stills.mjs
 /* global process, console, window */
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { GROUND_ITEMS } from '../origins/world/ground-items.ts';
+import { groundPointOf } from '../origins/server/ground-take.ts';
 
 const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-item-stills', ITEM = process.env.ITEM || 'item:starter.rusty-sword', root = process.cwd();
 const LABEL = process.env.LABEL || 'run', WIDTHS = (process.env.WIDTHS || '375').split(',').map(Number), AHEAD = Number(process.env.AHEAD || 2.2), SIDE = Number(process.env.SIDE || 0.15);   // metres in front of and beside the walker
@@ -26,7 +29,21 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const receipt = { errors: [] };
 const shoot = (page, name) => page.screenshot({ path: path.join(out, name), type: 'jpeg', quality: 80, timeout: 240000 });
 try {
-  for (const width of WIDTHS) {
+  if (process.env.ROWS) for (const [gid, row] of Object.entries(GROUND_ITEMS)) for (const width of WIDTHS) {
+    const at = groundPointOf(row), stem = row.item.replace('item:starter.', '');
+    const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+    page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
+    await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+    await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 3.2, 0), [at.x, at.z]);
+    await page.evaluate(([id, item, x, z]) => window.originsPreview.ground.show(id, item, x, z), [gid, row.item, at.x, at.z]);
+    await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, gid, { timeout: 60000 });
+    await page.waitForTimeout(5000);
+    (receipt.rows ??= {})[`${stem}-${width}`] = { place: row.place, at, anchor: await page.evaluate((id) => window.originsPreview.ground.anchor(id), gid) };
+    await shoot(page, `${stem}-${width}.jpg`);
+    await page.context().close();
+  }
+  else for (const width of WIDTHS) {
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
