@@ -357,6 +357,10 @@
       "scripts/pit-landscape-webkit.mjs",
       "--engine",
       "webkit"
+    ],
+    [
+      "node",
+      "scripts/end-overlap-check.mjs"
     ]
   ],
   "release_triggers": [
@@ -472,7 +476,8 @@
         "desktop-intro-check",
         "clip-send-tour-check",
         "first-loss-browser-check",
-        "next-fight-black-check"
+        "next-fight-black-check",
+        "end-overlap-check"
       ]
     },
     {
@@ -508,6 +513,7 @@
         "desktop-intro-check",
         "clip-send-tour-check",
         "next-fight-black-check",
+        "end-overlap-check",
         "pit-landscape-webkit"
       ]
     },
@@ -619,6 +625,14 @@
       ],
       "rows": [
         "next-fight-black-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/end-overlap-check.mjs"
+      ],
+      "rows": [
+        "end-overlap-check"
       ]
     },
     {

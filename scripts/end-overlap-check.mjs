@@ -1,7 +1,8 @@
 /* global process, console, document, window, localStorage */
 // Release-style check: after the first win and the take, no visible control sits under the "Next fight" button (Lead 2026-10-15, found in the intro receipt frames: ROLL and GUARD showed through behind it at 375).
 // A fresh guest at a phone width, headless Chromium on software GL, the fight driver of scripts/loot-smoke-check.mjs on the harness clock. Prints the controls that intersect Next fight; exits non-zero if any.
-//   node scripts/end-overlap-check.mjs --dist dist --out artifacts/end-overlap [--width 375]
+// One duel, then the same kill screen is measured at 375 and again after a resize to 320 (the layout is pure CSS, so a resize is the same page at the narrower phone). Release row 55.
+//   node scripts/end-overlap-check.mjs [--dist dist] [--out artifacts/end-overlap] [--width 375]     (no --dist: builds this tree; no --width: 375 then 320)
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';
 import { harnessClock } from './lib/harness-clock.mjs';
@@ -9,9 +10,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import http from 'node:http';
+import { build } from 'vite';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
-const DIST = path.resolve(arg('dist', 'dist')), OUT = path.resolve(arg('out', 'artifacts/end-overlap')), WIDTH = Number(arg('width', '375'));
+const OUT = path.resolve(arg('out', 'artifacts/end-overlap')), WIDTHS = arg('width') ? [Number(arg('width'))] : [375, 320];
+const DIST = arg('dist') ? path.resolve(arg('dist')) : path.join(OUT, 'build');
+if (!arg('dist')) await build({ logLevel: 'error', build: { outDir: DIST, emptyOutDir: true } });
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.glb': 'model/gltf-binary', '.json': 'application/json', '.wasm': 'application/wasm', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg' };
 const srv = http.createServer(async (req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p.endsWith('/')) p += 'index.html';
@@ -23,9 +27,9 @@ const origin = `http://127.0.0.1:${srv.address().port}`;
 await fs.mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, name), type: 'jpeg', quality: 72, timeout: 240000 });
-const result = { width: WIDTH };
+const result = { widths: WIDTHS, take: {}, overlaps: {} };
 try {
-  const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }); const page = await ctx.newPage(); await quietDebug(page); page.setDefaultTimeout(15000);
+  const ctx = await browser.newContext({ viewport: { width: WIDTHS[0], height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }); const page = await ctx.newPage(); await quietDebug(page); page.setDefaultTimeout(15000);
   const errors = []; page.on('pageerror', (e) => errors.push(String(e))); await page.route('**/*sentry.io/**', (route) => route.abort());
   await page.goto(`${origin}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   await page.waitForFunction(() => document.querySelector('#attack-button')?.getAttribute('aria-disabled') !== 'true' && document.querySelector('#art-status')?.textContent === '', null, { timeout: 280000, polling: 300 });
@@ -83,21 +87,30 @@ try {
   await until(() => !document.documentElement.classList.contains('endgame-fade'), 10000);
   await run(400);   // the 250 ms fade back plus the panel's 300 ms tap guard
   await run(400);
+  const at = async (w) => { await page.setViewportSize({ width: w, height: 812 }); await run(300); };
   // Take must be on screen and the topmost thing at its centre when the player reaches for it (Lead 2026-10-15: the fix hides fight buttons on this very screen).
-  result.take = await page.evaluate(() => {
-    const t = document.getElementById('loot-take'); if (!t) return { error: 'no #loot-take' };
-    const r = t.getBoundingClientRect(), cs = getComputedStyle(t), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return { box: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], viewport: [innerWidth, innerHeight], hidden: t.hidden, disabled: t.disabled || t.getAttribute('aria-disabled'), visibility: cs.visibility, pe: cs.pointerEvents, opacity: cs.opacity, topmost: top?.id || top?.tagName };
-  });
-  console.log('TAKE', JSON.stringify(result.take)); await shot(page, `take-${WIDTH}.jpg`);
+  for (const w of WIDTHS) {
+    await at(w);
+    result.take[w] = await page.evaluate(() => {
+      const t = document.getElementById('loot-take'); if (!t) return { error: 'no #loot-take' };
+      const r = t.getBoundingClientRect(), cs = getComputedStyle(t), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { box: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], viewport: [innerWidth, innerHeight], hidden: t.hidden, disabled: t.disabled || t.getAttribute('aria-disabled'), visibility: cs.visibility, pe: cs.pointerEvents, opacity: cs.opacity, topmost: top?.id || top?.tagName };
+    });
+    await shot(page, `take-${w}.jpg`);
+  }
   await page.locator('#loot-take').tap(); await run(600);
   // Every control a player can see (display, visibility and opacity all on, a real box) against the Next fight button.
-  result.overlaps = await page.evaluate(() => {
-    const next = document.getElementById('reset-button'); if (!next || next.hidden) return { error: 'Next fight is not shown' };
-    const nr = next.getBoundingClientRect(), hit = (r) => !(r.right <= nr.left || r.left >= nr.right || r.bottom <= nr.top || r.top >= nr.bottom);
-    const seen = (e) => { const cs = getComputedStyle(e), r = e.getBoundingClientRect(); return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05 && r.width > 0 && r.height > 0; };
-    const out = []; for (const e of document.querySelectorAll('.actions button, #joystick, .clip-pick button, #share-link, #duel-button, #clip-button')) if (e !== next && seen(e) && hit(e.getBoundingClientRect())) out.push(e.id || e.className || e.tagName); return { next: [Math.round(nr.left), Math.round(nr.top), Math.round(nr.right), Math.round(nr.bottom)], overlapping: out };
-  });
-  await shot(page, `next-fight-${WIDTH}.jpg`); result.errors = errors; await ctx.close();
-  console.log('RESULT', JSON.stringify(result)); if (errors.length || result.overlaps.error || result.overlaps.overlapping.length) process.exitCode = 1;
+  for (const w of WIDTHS) {
+    await at(w);
+    result.overlaps[w] = await page.evaluate(() => {
+      const next = document.getElementById('reset-button'); if (!next || next.hidden) return { error: 'Next fight is not shown' };
+      const nr = next.getBoundingClientRect(), hit = (r) => !(r.right <= nr.left || r.left >= nr.right || r.bottom <= nr.top || r.top >= nr.bottom);
+      const seen = (e) => { const cs = getComputedStyle(e), r = e.getBoundingClientRect(); return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05 && r.width > 0 && r.height > 0; };
+      const out = []; for (const e of document.querySelectorAll('.actions button, #joystick, .clip-pick button, #share-link, #duel-button, #clip-button')) if (e !== next && seen(e) && hit(e.getBoundingClientRect())) out.push(e.id || e.className || e.tagName); return { next: [Math.round(nr.left), Math.round(nr.top), Math.round(nr.right), Math.round(nr.bottom)], overlapping: out };
+    });
+    await shot(page, `next-fight-${w}.jpg`);
+  }
+  result.errors = errors; await ctx.close();
+  const bad = WIDTHS.some((w) => result.overlaps[w].error || result.overlaps[w].overlapping.length || result.take[w].error || result.take[w].hidden || result.take[w].pe === 'none' || result.take[w].topmost !== 'loot-take');
+  console.log('RESULT', JSON.stringify(result)); if (errors.length || bad) process.exitCode = 1;
 } finally { await browser.close(); srv.close(); }
