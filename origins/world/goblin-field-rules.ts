@@ -69,8 +69,8 @@ export const zoneDress = (z: ZoneLookFields) => dressSet(zoneSet(z, 'look.dress'
 export const zoneGround = (z: ZoneLookFields): GoblinGround | null => LOADED.grounds.find((g) => g.id === zoneSet(z, 'look.ground.material')) ?? null;
 /** The ambience row a zone asks for (`sound.ambience`); an id with no row stays silent. */
 export const zoneAmbience = (z: ZoneLookFields) => ambienceRow(zoneSet(z, 'sound.ambience') as string | undefined);
-/** The creature markers a zone shows over wandering creatures: the "!" when one notices you and the name tag; both on unless the zone SETS them off. */
-export const zoneMarkers = (z: ZoneLookFields): { alert: boolean; name: boolean } => ({ alert: zoneSet(z, 'look.creatures.alert') !== false, name: zoneSet(z, 'look.creatures.name') !== false });
+/** The creature markers a zone shows: the "!" over a creature that noticed you, the floating name tag, and the info card ('full' = today's three lines for the nearest creature that noticed you; 'target' = one line, name and level, for the creature you are targeting). All as today unless the zone SETS them. */
+export const zoneMarkers = (z: ZoneLookFields): { alert: boolean; name: boolean; card: 'full' | 'target' } => ({ alert: zoneSet(z, 'look.creatures.alert') !== false, name: zoneSet(z, 'look.creatures.name') !== false, card: zoneSet(z, 'look.creatures.card') === 'target' ? 'target' : 'full' });
 /** Every mood look by id (look.ts adds them to its presets). */
 export const goblinLooks = (): Readonly<Record<string, Omit<GoblinLook, 'id'>>> => Object.fromEntries(LOADED.looks.map(({ id, ...l }) => [id, l]));
 /** The Pit's scenery meshes that ignore fog (names in src/arena.ts: sky, painted backdrop ring, abyss bowl and ground, far ground): drawn at any distance, so a zone dome hides them once the walker is pitHideM from the Pit. */
