@@ -179,7 +179,7 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
     { const { RANGED_BUILDS } = await import('./ranged-weapons.mjs'), id = { staff: 'staff-v1', bow: 'bow-v1', crossbow: 'crossbow-v1' } as const;
       (globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__ = (weapon: string) => {
         const kind = (['staff', 'bow', 'crossbow'] as const).find((k) => q.get(k) === weapon); if (!kind) return undefined;
-        const part = (RANGED_BUILDS as Record<string, () => { rotation: { x: number }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(); part.rotation.x = Math.PI / 2; part.position.set(0, .08, .015);
+        const part = (RANGED_BUILDS as Record<string, () => { rotation: { x: number }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(); part.rotation.x = Math.PI / 2; part.position.set(0, .08, .015); (part as unknown as { scale: { set(x: number, y: number, z: number): void } }).scale.set(1.9, 1, 1.9);   // chunkier across the weapon (not along it) so it reads at the fight camera
         const tune = q.get('hold');   // ?hold=rx,ry,rz[,px,py,pz]: degrees and metres added to the SwordDrawn hold, for tuning how a model sits in the hand
         if (tune) { const v = tune.split(',').map(Number); const r = part as unknown as { rotation: { x: number; y: number; z: number } }; r.rotation.x += (v[0] ?? 0) * Math.PI / 180; r.rotation.y += (v[1] ?? 0) * Math.PI / 180; r.rotation.z += (v[2] ?? 0) * Math.PI / 180; part.position.set(.0 + (v[3] ?? 0), .08 + (v[4] ?? 0), .015 + (v[5] ?? 0)); }
         return part;
