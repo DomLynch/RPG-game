@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HF_COST, SHARED_LEDGER, ledgerPath, ledgerStore, localStore, record, spentOn, sshStore, t4Refusal, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
+import { HF_COST, SHARED_LEDGER, callerOf, ledgerPath, ledgerStore, localStore, record, spentOn, sshStore, t4Refusal, taggedReason, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
+import { execFileSync } from 'node:child_process';
 import { withSlot } from '../scripts/lib/hf-slots.mjs';
 import { USD_PER_HOUR } from '../scripts/hf-cleanup.mjs';
 
@@ -66,7 +67,7 @@ test('withSlot({ cost }) is the one place: a T4 over the stop is refused before 
     let t = 0; const clock = { now: () => t, sleep: (ms: number) => { t += ms; } }, ps = () => [];
     const ok = withSlot({ flavor: 't4-medium', generic: true, launch: () => ({ stdout: `Job started with ID: ${job(9)}\n` }), ps, cost: { timeout: '20m', reason: 'gpu-only' }, ...clock });
     assert.equal(ok.ok, true);
-    assert.match(readFileSync(path, 'utf8'), new RegExp(`\\t${job(9)}\\tt4-medium\\t20\\t0\\.2000\\tgpu-only\\n$`));
+    assert.match(readFileSync(path, 'utf8'), new RegExp(`\\t${job(9)}\\tt4-medium\\t20\\t0\\.2000\\tgpu-only;lane=[^;\\t]+;branch=[^;\\t]+\\n$`), 'the launcher\'s reason, then who launched it, in the one reason field');
     withSlot({ flavor: 't4-medium', generic: true, launch: () => ({ stdout: `Job started with ID: ${job(10)}\n` }), ps, ...clock });
     assert.doesNotMatch(readFileSync(path, 'utf8'), new RegExp(job(10)), 'a caller without cost is not counted');
     writeFileSync(path, `${new Date().toISOString()}\t${job(1)}\tt4-medium\t600\t6.0000\tgpu-only\n`);
@@ -138,4 +139,47 @@ test('the T4 job cap the gpu-only leg launches with (and the ledger books) is 15
   const booked = 0.6 * seconds / 3600;
   assert.ok(Math.abs(booked - 0.15) < 1e-9 && T4_JOBS * booked * 8 <= HF_COST.t4StopUsdPerDay, 'eight candidates a day stay under the stop');
   assert.match(readFileSync('scripts/hf-wall-rows.mjs', 'utf8'), /HF_WALL_ROWS_TIMEOUT \|\| T4_JOB_TIMEOUT/, 'the launcher uses it by default');
+});
+
+// WHO launched it (2026-10-15: $5.29 of T4 spend could not be traced, every reason was just "gpu-run"): the lane and the branch ride inside the reason field; the tab format is unchanged.
+const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
+const checkout = (branch: string, lane: string | null) => {
+  const dir = mkdtempSync(join(tmpdir(), 'hf-caller-')); git(dir, 'init', '-q', '-b', branch); git(dir, 'commit', '-q', '--allow-empty', '-m', 'x');
+  if (lane) writeFileSync(join(dir, 'CLAUDE.local.md'), `# Lane identity\n\nThis checkout is the Frankendom **${lane}** lane; your session name is **Frankendom - X**.\n`);
+  return dir;
+};
+
+test('the reason carries the lane (CLAUDE.local.md, or FRANKENDOM_LANE over it) and the git branch', () => {
+  const dir = checkout('char/ledger-reason', 'char');
+  assert.deepEqual(callerOf({ cwd: dir, env: {} }), { lane: 'char', branch: 'char/ledger-reason' });
+  assert.equal(taggedReason('gpu run', { cwd: dir, env: {} }), 'gpu-run;lane=char;branch=char/ledger-reason', 'whitespace in the launcher\'s reason still becomes a dash');
+  assert.deepEqual(callerOf({ cwd: dir, env: { FRANKENDOM_LANE: 'web' } }), { lane: 'web', branch: 'char/ledger-reason' }, 'the env var wins');
+  git(dir, 'checkout', '-q', '--detach'); assert.match(callerOf({ cwd: dir, env: {} }).branch, /^detached-[0-9a-f]+$/, 'a detached head names its commit');
+});
+
+test('a missing CLAUDE.local.md (or no git at all) still launches, with unknown-lane in the ledger row, and the row keeps its six tab fields', () => {
+  const { path } = box(), prev = process.env.HF_COST_LEDGER, prevLane = process.env.FRANKENDOM_LANE, home = process.cwd();
+  process.env.HF_COST_LEDGER = path; delete process.env.FRANKENDOM_LANE;
+  try {
+    let t = 0; const clock = { now: () => t, sleep: (ms: number) => { t += ms; } }, ps = () => [];
+    process.chdir(checkout('some-branch', null));
+    const a = withSlot({ flavor: 'cpu-upgrade', generic: true, launch: () => ({ stdout: `Job started with ID: ${job(21)}\n` }), ps, cost: { timeout: '10m', reason: 'unit' }, ...clock });
+    assert.equal(a.ok, true, 'launches without CLAUDE.local.md');
+    process.chdir(mkdtempSync(join(tmpdir(), 'hf-nogit-')));
+    const b = withSlot({ flavor: 'cpu-upgrade', generic: true, launch: () => ({ stdout: `Job started with ID: ${job(22)}\n` }), ps, cost: { timeout: '10m', reason: 'unit' }, ...clock });
+    assert.equal(b.ok, true, 'launches outside any git repo');
+    const rows = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
+    assert.ok(rows.every((r) => r.length === 6), 'still one tab-separated row of six fields');
+    assert.equal(rows[0]![5], 'unit;lane=unknown-lane;branch=some-branch'); assert.equal(rows[1]![5], 'unit;lane=unknown-lane;branch=unknown-branch');
+  } finally { process.chdir(home); if (prev === undefined) delete process.env.HF_COST_LEDGER; else process.env.HF_COST_LEDGER = prev; if (prevLane !== undefined) process.env.FRANKENDOM_LANE = prevLane; }
+});
+
+test('with no CLAUDE.local.md and no env var (a VPS clone) the lane comes from the branch prefix, and CLAUDE.local.md or the env var still win', () => {
+  for (const [branch, lane] of [['combat/x', 'combat'], ['web/y', 'web'], ['world/z', 'world'], ['char/state-1015', 'char'], ['backend/ground-loot-rows', 'backend'], ['deploy/sweep', 'deploy'], ['release-GK', 'deploy'], ['lead/pit-ship', 'lead']] as const) {
+    assert.deepEqual(callerOf({ cwd: checkout(branch, null), env: {} }), { lane, branch }, branch);
+  }
+  assert.equal(taggedReason('gpu-run', { cwd: checkout('combat/x', null), env: {} }), 'gpu-run;lane=combat;branch=combat/x');
+  assert.equal(callerOf({ cwd: checkout('some-branch', null), env: {} }).lane, 'unknown-lane', 'an unprefixed branch is still unknown-lane');
+  assert.equal(callerOf({ cwd: checkout('combat/x', 'web'), env: {} }).lane, 'web', 'CLAUDE.local.md beats the prefix');
+  assert.equal(callerOf({ cwd: checkout('combat/x', 'web'), env: { FRANKENDOM_LANE: 'lead' } }).lane, 'lead', 'the env var beats both');
 });
