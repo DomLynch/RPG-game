@@ -2,7 +2,7 @@
 // The live tool runs on the VPS (bash 5); the file is parsed by that bash, so this test needs a Linux bash.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -230,21 +230,27 @@ test('bare mode: --apply without SWEEP_SCHEDULED=1 is refused (a hand-typed --ap
 });
 
 // Found probing #2832 on the VPS: `--path=/tmp/*` was expanded by the shell (the unquoted `for p in $PATHS`) into every child of /tmp before sweep_kind could refuse the glob character. With the
-// /tmp lane kind one --apply would have archived and deleted every ordinary /tmp child. The named-path loop now runs with pathname expansion off.
-test('named-path mode turns pathname expansion off before it splits $PATHS (a glob is one literal, refused path, never a list of real /tmp children)', async () => {
+// /tmp lane kind one --apply would have archived and deleted every ordinary /tmp child. Now: the --path values are a bash ARRAY (no splitting, no globbing, and no `set -f`, which would also have
+// turned the /proc/[0-9]* cwd scan inside sweep_in_use into one literal word), and a glob character in a --path, as received, aborts the whole run before anything else happens (Lead + Auditor 2026-10-15).
+test('a glob character in --path is refused as received (exit 2, nothing touched), even with --apply and a tree of real /tmp-style children', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'glob-refuse-'));
+  try {
+    for (const n of ['a', 'b']) mkdirSync(join(dir, `x-${n}`));
+    for (const arg of [`--path=${dir}/x-*`, '--path=/tmp/*', '--path=/tmp/?', '--path=/tmp/[ab]', `--path=${dir}/x-a*`]) {
+      const r = spawnSync('bash', ['ops/vps-scratch-sweep', arg, '--apply'], { encoding: 'utf8', timeout: 20_000 });
+      assert.equal(r.status, 2, `${arg}: ${r.stdout}${r.stderr}`); assert.match(r.stderr, /REFUSE\(a glob character in --path/);
+    }
+    assert.deepEqual(readdirSync(dir).sort(), ['x-a', 'x-b'], 'nothing was touched');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the --path values are a bash array walked with "${PATHS[@]}": no unquoted $PATHS, no set -f anywhere (it would break the /proc/[0-9]* scan in sweep_in_use)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
-  const block = src.slice(src.indexOf('if [ -n "$PATHS" ]; then'));
-  const setF = block.indexOf('\n  set -f\n'), loop = block.indexOf('for p in $PATHS; do');
-  assert.ok(setF > 0 && loop > 0 && setF < loop, '`set -f` must come before `for p in $PATHS`');
-  // and the semantics it relies on, in the bash the tool runs under: with set -f an unquoted glob stays one word; without it, it expands to the matching files
-  const dir = mkdtempSync(join(tmpdir(), 'noglob-'));
-  try {
-    for (const n of ['a', 'b']) writeFileSync(join(dir, `x-${n}`), '');
-    const words = (f: string) => spawnSync('bash', ['-c', `${f}PATHS=" ${dir}/x-*"; n=0; for p in $PATHS; do n=$((n+1)); done; echo $n`], { encoding: 'utf8' }).stdout.trim();
-    assert.equal(words('set -f; '), '1', 'with set -f the glob is one word');
-    assert.equal(words(''), '2', 'without it the shell expands it to the two files');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  assert.ok(!/\$PATHS\b(?!\[)/.test(src.replace(/\$\{#?PATHS\[[@]\]\}/g, '')), 'no bare $PATHS is left');
+  assert.ok(src.includes('PATHS=()') && src.includes('PATHS+=("${a#--path=}")') && src.includes('for p in "${PATHS[@]}"; do'));
+  assert.ok(!/\bset -f\b/.test(src.replace(/#[^\n]*/g, '')), 'no set -f in the code');
+  assert.ok(src.indexOf('REFUSE(a glob character in --path') < src.indexOf('PATHS+=("${a#--path=}")'), 'the glob refusal comes before the value is stored');
 });
 
 test('the guard sits before the log, the lock and the disk, and the scheduled form is exactly SWEEP_SCHEDULED=1 with --apply and no --path', async () => {

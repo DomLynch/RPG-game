@@ -14,7 +14,7 @@ TRIGGER_GIB=${TRIGGER_GIB:-60}
 MIN_AGE_H=${MIN_AGE_H:-48}
 EXCLUDE=${EXCLUDE:-"bn-trunk combat-t4 gambit expansion"}
 APPLY=0; FORCE=0; BAD_ARG=""
-PATHS=""
+PATHS=()   # the --path values, one array element each: never split or glob-expanded (a glob in a path was once expanded by the shell into every child of /tmp)
 # What --path may remove (Lead 2026-10-13). Prints the kind of an allowed path, nothing for a refused one:
 #   lane   scratch under the lane roots: archive first, then delete (the original rule)
 #   aged   a direct child of /var/tmp (be-*: Backend's per-head PG checkout, ~1.1 GB each, leaked ~16 an hour until Backend adds an EXIT trap) or /tmp (hooks-*, cq-*): regenerable, deleted only
@@ -71,7 +71,7 @@ sweep_in_use() {
   return 0
 }
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
-for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) PATHS="$PATHS ${a#--path=}"; FORCE=1;; *) BAD_ARG="$a";; esac; done
+for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
 # Nobody should reach it by accident (Lead 2026-10-13): a mistyped `--help` ran the whole dry run and held the lock for 6+ minutes. Unknown arguments, and any bare run
 # that is not the scheduled `--apply`, print this and exit before the lock, the log or the disk are touched.
@@ -81,7 +81,7 @@ vps-scratch-sweep --path=<exact dir> [--path=...] [--apply]    remove exactly th
 USAGE
 }
 [ -z "${BAD_ARG:-}" ] || { echo "vps-scratch-sweep: unknown argument '$BAD_ARG'" >&2; usage; exit 2; }
-if [ -z "$PATHS" ] && { [ "$APPLY" != 1 ] || [ "${SWEEP_SCHEDULED:-}" != 1 ]; }; then echo "vps-scratch-sweep: the bare mode is the scheduled sweep only" >&2; usage; exit 2; fi
+if [ "${#PATHS[@]}" = 0 ] && { [ "$APPLY" != 1 ] || [ "${SWEEP_SCHEDULED:-}" != 1 ]; }; then echo "vps-scratch-sweep: the bare mode is the scheduled sweep only" >&2; usage; exit 2; fi
 LOGDIR=/var/log/vps-scratch-sweep; mkdir -p "$LOGDIR"
 RUN=$(date +%Y%m%d-%H%M); MAN=$LOGDIR/$RUN.removed.txt; LOG=$LOGDIR/$RUN.log
 say(){ echo "$(date +%T) $*" | tee -a "$LOG"; }
@@ -121,11 +121,8 @@ delete_only(){
 }
 
 # Named-path mode (Lead 2026-10-13): --path=/abs/dir removes exactly that dir, through the same archive-first, manifest-writing route; nothing else is touched. Dry run unless --apply.
-if [ -n "$PATHS" ]; then
-  # No pathname expansion: the loop below splits an unquoted $PATHS, and `--path=/tmp/*` would otherwise be expanded by the shell into every child of /tmp BEFORE sweep_kind sees a glob
-  # character, so with the /tmp lane kind one --apply would archive+delete every ordinary /tmp child (found probing #2832 on the VPS, 2026-10-15). A path is exact or it is refused.
-  set -f
-  for p in $PATHS; do
+if [ "${#PATHS[@]}" -gt 0 ]; then
+  for p in "${PATHS[@]}"; do
     case "$p" in *..*|*" "*) say "REFUSE(odd path) $p"; continue;; esac
     kind=$(sweep_kind "$p"); [ -n "$kind" ] || { say "REFUSE(outside the allowed roots, or not spelled canonically) $p"; continue; }
     why=$(sweep_safe_path "$p") || { say "REFUSE($why) $p"; continue; }
