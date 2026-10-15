@@ -41,7 +41,7 @@ test('flag off is unchanged: Zones 1-4 set no sky, no camp kit and are listed', 
   for (const id of ['1', '2', '3', '4']) { const z = loadZone(id); assert.equal(zoneSky(z), null, id); assert.equal(zonePropKit(z), null, id); assert.equal(zoneGround(z), null, `${id}: the biome's old material "ash" has no ground row`); assert.equal(zoneAmbience(z), null, `${id}: the biome's old "wind" has no ambience row`); assert.deepEqual(zoneMarkers(z), { alert: true, name: true, card: 'full' }, id); assert.deepEqual(Object.values(zoneDress(z)).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], id); assert.notEqual(z.unlisted, true, id); }
 });
 test('the markers, dress, ground and ambience a zone sets are read; set off, the creature markers go', () => {
-  assert.deepEqual(zoneMarkers(zf({ 'look.creatures.alert': false })), { alert: false, name: true }); assert.deepEqual(zoneMarkers(zf({ 'look.creatures.name': false })), { alert: true, name: false });
+  assert.deepEqual(zoneMarkers(zf({ 'look.creatures.alert': false })), { alert: false, name: true, card: 'full' }); assert.deepEqual(zoneMarkers(zf({ 'look.creatures.name': false })), { alert: true, name: false, card: 'full' }); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'target' })).card, 'target'); assert.equal(zoneMarkers(zf({ 'look.creatures.card': 'nonsense' })).card, 'full', 'only target changes the card');
   assert.equal(zoneDress(zf({ 'look.dress': 'fortress' })).trees, 0.1); assert.equal(zoneGround(zf({ 'look.ground.material': 'fortress-ground' }))?.id, 'fortress-ground'); assert.equal(zoneGround(zf({ 'look.ground.material': 'ash' })), null);
   assert.equal(zoneAmbience(zf({ 'sound.ambience': 'fortress-wind' }))?.id, 'fortress-wind'); assert.equal(zoneAmbience(zf({ 'sound.ambience': 'wind' })), null);
 });
