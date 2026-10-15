@@ -29,6 +29,7 @@ try {
     const r = { name, query, errors: [], stills: [] }; receipts.push(r);
     const land = name.endsWith('-land'), page = await (await browser.newContext({ viewport: land ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();   // a name ending -land: the phone turned (landscape backdrop rows)
     page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
+    if (process.env.STILLS_PROBE) { r.console = []; r.assets = []; page.on('console', (m) => { if (m.type() !== 'log') r.console.push(`${m.type()}: ${m.text().slice(0, 200)}`); }); page.on('response', (q) => { if (/\/zones\//.test(q.url())) r.assets.push(`${q.status()} ${q.url().replace(origin, '')}`); }); page.on('requestfailed', (q) => r.assets.push(`FAILED ${q.url().replace(origin, '')}`)); }
     try {
       await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
       await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadLeft() === 0 && (window.originsPreview.uploadItems() > 0 || performance.now() > 20000), null, { timeout: 180000 });   // the walk's world is all on the GPU (a zone with nothing to upload: 20 s after load)
@@ -37,8 +38,8 @@ try {
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
       if (process.env.STILLS_PROBE) {   // debugging the dome: its own texture (does it hold the picture?) and a frame with it painted flat magenta (where is it on screen?)
-        const img = await page.evaluate(() => window.originsPreview.goblinDomeImage?.() ?? null);
-        if (img) { fs.writeFileSync(path.join(out, `${name}-dome.png`), Buffer.from(img.split(',')[1], 'base64')); r.stills.push(`${name}-dome.png`); }
+        const img = await page.evaluate(async () => { const u = window.originsPreview.goblinDomeImage?.(); if (!u) return null; const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = 1024; c.height = Math.round(1024 * i.height / i.width); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.8); });   // 1024 wide: the runner brings back small files
+        if (img) { fs.writeFileSync(path.join(out, `${name}-dome.jpg`), Buffer.from(img.split(',')[1], 'base64')); r.stills.push(`${name}-dome.jpg`); }
         r.probe = await page.evaluate(() => window.originsPreview.goblinDomeProbe?.(true) ?? null); await page.waitForTimeout(500);
         await page.screenshot({ path: path.join(out, `${name}-magenta.png`) }); r.stills.push(`${name}-magenta.png`);
       }
