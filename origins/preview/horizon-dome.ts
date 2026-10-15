@@ -40,7 +40,7 @@ function paintBackdrop(g: CanvasRenderingContext2D, w: number, yh: number, S: Go
   const scale = cw / sw, ch = Math.min(yh, (sy1 - b.y0 * img.naturalHeight) * scale), sh = ch / scale;   // drawn height; the source rows it covers end at the horizon line
   const one = document.createElement('canvas'); one.width = cw; one.height = Math.ceil(ch); const o = one.getContext('2d')!;
   o.drawImage(img, sx, sy1 - sh, sw, sh, 0, 0, cw, ch);
-  o.globalCompositeOperation = 'destination-in'; const head = o.createLinearGradient(0, 0, 0, ch * b.fadeTop); head.addColorStop(0, 'rgba(0,0,0,0)'); head.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = head; o.fillRect(0, 0, cw, ch * b.fadeTop);
+  o.globalCompositeOperation = 'destination-in'; const head = o.createLinearGradient(0, 0, 0, ch); head.addColorStop(0, 'rgba(0,0,0,0)'); head.addColorStop(b.fadeTop, 'rgba(0,0,0,1)'); head.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = head; o.fillRect(0, 0, cw, ch);   // over the WHOLE crop: destination-in clears whatever the fill does not cover
   o.globalCompositeOperation = 'source-over'; const foot = o.createLinearGradient(0, ch * (1 - b.fadeFoot), 0, ch); foot.addColorStop(0, clear(S.horizon)); foot.addColorStop(1, S.horizon); o.fillStyle = foot; o.fillRect(0, ch * (1 - b.fadeFoot), cw, ch * b.fadeFoot);
   for (let i = 0; i < b.repeat; i++) { g.save(); if (i % 2) { g.translate((i + 1) * cw, 0); g.scale(-1, 1); } else g.translate(i * cw, 0); g.drawImage(one, 0, yh - ch); g.restore(); }   // odd copies mirrored: every seam meets its own edge
 }
