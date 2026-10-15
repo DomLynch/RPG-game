@@ -1,0 +1,26 @@
+# Combat Sandbox lane: handoff (2026-10-15)
+
+READ FIRST. Longer history and the receipts live in `docs/state/combat-sandbox.md` (top entries are the newest). This file is the short restart card. The lane never merges to trunk: sandbox/page is a preview-only branch, Combat promotes what Dom likes (so this file is on sandbox/page, not on trunk, by design).
+
+## Now
+- Branch `sandbox/page` (worktree `~/Developer/frankendom-sandbox`), merged with trunk 70b707aac (a merge, not a rebase; backups `sandbox/page-pre-EQ`, `sandbox/page-pre-EP`). Preview https://frankendom.com/preview/sandbox/ is published at the last "docs/sandbox-mech" commit before slot 2; SLOT 2 IS COMMITTED AND TESTED BUT NOT YET PUBLISHED (run `sandbox/publish.sh`, then check the served bundle for `skill2` and that the page loads with `?spell2=<id>`).
+- Dom tests on his phone and answers in chat. His standing rules: no markers or on-screen labels, no posture effects, every number a data row, match approved pictures, plain concise English, build the whole table then let him test.
+
+## Done (the table, all rows in `src/fight/sandbox-rules-defs.json` + `sandbox/rows.json`, tests `tests/sandbox-*.test.ts`)
+Reach bands (+AI holds band, glance feel and sound), armour vs blow type, commit vs bait, clock fighter (poison), ward, bind and disarm, flank + shield wall, stance picker hidden, arm wound removed, loadout menu (opponent weapon, both armour classes, your spell + cast skill, staff/bow/crossbow stand-ins), admin Sparring tab on, combat-debug overlay off, mana bar (spells paid in mana), missile model (staff / bow / crossbow: lanes, travel time, outer band only, quiver, bolt FX), spell slot 2 (SPELL 2, own cooldown and cost, `?spell2=&cast2=`).
+
+## Open
+1. Publish slot 2 and have Dom try it; opponent casting catalogue spells (only class specials today); a spell-2 for the foe.
+2. Nothing here has been fought in a live match by Claude: stepped-duel tests only. Unverified on screen: bolt in flight, quiver counter, glance sound, spells casting, slot 2.
+3. Real staff / bow / crossbow weapons: new weapon ids trip 11 weapon-lane pins (bake manifest, equip glb, flip fairness, loader sha, real reach...), so they stay stand-ins (`?staff= ?bow= ?crossbow=`) until the Weapons lane bakes them. Bow visuals: Combat's origin/combat/bows-sandbox mesh was NOT reused (Dom disliked it); the bolt is a tinted orb.
+4. Win-rate gate (AI-vs-AI batch, bands must not re-rank weapon classes) is owed to Strategy before any promotion. Held by Dom: initiative (3), beasts (10). No: rampage (7).
+5. Promotion later (Combat): RECORD_VERSION bump; Fighter fields mana/missile/ammo/poison/bound/ward/spell2 are sandbox-only; record code `skill2` appended; spell2 is not in a record, so a slot-2 fight does not replay.
+
+## Gotchas
+- Run tests only on the VPS: `sandbox/vps-run.sh true` (rsync) then `ssh ... 'cd /root/frankendom-worktrees/sandbox && nice node --test <files>'`; the capture queue jams. Never `sh -c` wrappers (hook blocks them).
+- `record-version-guard` "a sim change without a RECORD_VERSION bump" is red by Strategy's ruling; everything else must be green.
+- After merging trunk, grep for conflict markers and run graphics.test.ts: sandbox rows can miss trunk's new required columns (weightClass crashed the page once), trunk moved hit-stop pauses to `src/hit-stop-rules.json` (the sandbox zeroes them via the `hit-stop-rules` family), and `hit-stop-rows.test` pins the IMPACT table (no new keys).
+- A new import in `src/main.ts` must be registered in `tests/graphics.test.ts`' module map.
+- sandbox-rules.ts is in the sim file lists: do not import loot/legends chains into it (read JSON rows directly).
+- The browser pane often does not run the game loop: verify DOM, console and served-bundle strings, not a fight.
+- Strategy session "Project Strategy - Fable 5.1" answers design questions in one message; the Auditor and Lead route lane triage; the Characters owner is "Frankendom - Characters & Art".
