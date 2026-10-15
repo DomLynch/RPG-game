@@ -8,10 +8,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { build } from 'vite';
 import { chromium } from 'playwright';
-import { PICKUP } from '../origins/preview/ground-pickup.ts';
+import RULES from '../origins/preview/ground-pickup.json' with { type: 'json' };   // the row itself, not ground-pickup.ts: this script's import chain stops at data (the row-placement test keeps it off the Mac list)
 import { serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness.mjs';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
+const PICKUP = RULES.groundPickup[0].fields;
+const CEILING_MS = 8 * 60_000;   // the whole check, under the 10-minute row cap: a hang is a FAIL with a line, never a cancelled job
 const OUT = path.resolve(arg('out', 'artifacts/ground-prompt')), WIDTHS = [375, 320];
 const DIST = arg('dist') ? path.resolve(arg('dist')) : path.join(OUT, 'build');
 await fs.mkdir(OUT, { recursive: true });
@@ -68,9 +70,10 @@ async function run(take) {
   if (errors.length) failures.push(...errors);
   await page.context().close();
 }
-try { await run('taken'); await run('race'); }
+const ceiling = new Promise((_, reject) => setTimeout(() => reject(new Error(`the check ran past its ${CEILING_MS / 1000} s ceiling`)), CEILING_MS).unref());
+try { await Promise.race([(async () => { await run('taken'); await run('race'); })(), ceiling]); }
 catch (e) { failures.push(`check crashed: ${String(e).slice(0, 300)}`); }
-finally { await browser.close(); close(); }
+finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); close(); }
 receipt.failures = failures; await fs.writeFile(path.join(OUT, 'receipt.json'), JSON.stringify(receipt, null, 2));
 console.log('RESULT', JSON.stringify({ ok: !failures.length, failures, steps: receipt.steps.map((s) => [s.step, s.width, s.shown, s.overlapping?.length ?? 0, s.topmost]) }));
-if (failures.length) process.exitCode = 1;
+process.exit(failures.length ? 1 : 0);   // exit on the result: nothing left open (the static server, a browser child) may hold the job
