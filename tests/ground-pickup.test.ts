@@ -76,8 +76,8 @@ test('a take: hides the item, plays the pickup cue, says what was taken and read
   assert.deepEqual(log.said, ['You take the Rusty Sword']); assert.equal(g.nearest(at.x, at.z), null, 'it is not prompted again while it is gone');
 });
 test('a lost race: the refuse cue and the short line, and the item is gone at once: hidden, no prompt, nothing waits on the state read', async () => {
-  let asked = 0;
-  const { g, log } = rig({ take: async () => { asked++; return { offline: 'http-409', code: 'taken' }; }, read: async () => ({ offline: 'timeout' }) }); await g.refresh();
+  let asked = 0, reads = 0;   // the first state read answers, the follow-up read after the lost race fails: the item must be gone without it
+  const { g, log } = rig({ take: async () => { asked++; return { offline: 'http-409', code: 'taken' }; }, read: async () => (reads++ ? { offline: 'timeout' } : { items: [row()] }) }); await g.refresh();
   assert.equal(await g.tap(ID), 'refused');
   assert.deepEqual(log.cues, ['refuse']); assert.deepEqual(log.said, ['Someone got there first.']); assert.equal(log.packReads, 0);
   assert.deepEqual(log.hidden, [ID], 'hidden at once, with the state read failing');
