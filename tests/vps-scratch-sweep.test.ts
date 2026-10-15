@@ -2,7 +2,7 @@
 // The live tool runs on the VPS (bash 5); the file is parsed by that bash, so this test needs a Linux bash.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -174,6 +174,30 @@ test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means
     assert.equal(inUse(real, 0), 0, 'lsof found an open file = in use');
     assert.equal(inUse(real, 1, 5), 0, 'lsof timed out (killed after 1 s) = could not tell = in use');
     assert.equal(inUse(real, 2), 0, 'an unexpected lsof exit = could not tell = in use');
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+// Auditor on #2832 (probed on the VPS): `lsof +D <regular file>` exits 1 (clean) even while the file is open, so the new file kind would pass the in-use check under a reader.
+// A file is probed with plain `lsof -- file` (0 = open, 1 = clean, anything else = could not tell = in use); a directory keeps +D.
+test('sweep_in_use: a regular file is probed with `lsof -- file`, a directory with `lsof +D dir`, and both fail closed', () => {
+  const base = mkdtempSync(join(tmpdir(), 'inuse-args-')), file = join(base, 'a.tgz'), dir = join(base, 'd'), argsFile = join(base, 'args.txt'), bin = join(base, 'bin');
+  mkdirSync(dir); mkdirSync(bin); writeFileSync(file, 'x'); writeFileSync(join(bin, 'lsof'), `#!/bin/sh\necho "$@" > "${argsFile}"\nexit \${FAKE_EXIT:-1}\n`); chmodSync(join(bin, 'lsof'), 0o755);
+  const probe = (p: string, exit: number) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_in_use "$1"', 'x', p], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_EXIT: String(exit), LSOF_TIMEOUT: '5' } }).status;
+  try {
+    assert.equal(probe(file, 1), 1, 'a clean file is not in use'); assert.equal(readFileSync(argsFile, 'utf8').trim(), `-- ${file}`);
+    assert.equal(probe(file, 0), 0, 'lsof found the file open = in use'); assert.equal(probe(file, 2), 0, 'an unexpected exit = in use');
+    assert.equal(probe(dir, 1), 1); assert.equal(readFileSync(argsFile, 'utf8').trim(), `+D ${dir}`);
+    assert.equal(probe(dir, 0), 0);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('sweep_in_use: a regular file with a held descriptor is in use, and not in use once it is closed (real lsof)', { skip: process.platform !== 'linux' || spawnSync('sh', ['-c', 'command -v lsof']).status !== 0 }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'inuse-held-')), file = join(base, 'held.tgz');
+  writeFileSync(file, 'x');
+  try {
+    const run = (script: string) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; ${script}`, 'x', file], { encoding: 'utf8' }).stdout.trim();
+    assert.equal(run('exec 3<"$1"; sweep_in_use "$1"; echo $?'), '0', 'a file held open by a descriptor is in use');
+    assert.equal(run('sweep_in_use "$1"; echo $?'), '1', 'a closed file is not in use');
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
