@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { registrySource, ROWS_DIR, ZONES_DIR, zoneRows } from '../scripts/gen-zones.mjs';
-import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix, zoneProblems, type Zone } from '../origins/zones/loader.ts';
+import { allZoneIds, DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 
 test('the committed registry is what the zone rows generate (npm run zones writes it)', () => {
   assert.equal(readFileSync(`${ZONES_DIR}registry.ts`, 'utf8'), registrySource(), 'stale registry: run `npm run zones`');
-  assert.deepEqual(zoneIds(), (zoneRows() as { id: string }[]).map((z) => z.id));
+  assert.deepEqual(allZoneIds(), (zoneRows() as { id: string }[]).map((z) => z.id));   // every row (zoneIds() is the listed ones: an unlisted row is off the list, still in the registry)
 });
 
 test('every zone names itself and its world zones (the tab title and the HUD read them)', () => {
