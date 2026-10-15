@@ -6,6 +6,7 @@ import DATA from './wear-repair.json' with { type: 'json' };
 import MANIFEST from './wear-repair.manifest.json' with { type: 'json' };
 
 export type WearEvent = { id: string; chancePct: number };
+export type WearHitType = { id: string };
 export type WearSlot = { id: string; share: number };
 export type WearTier = { id: string; hitWear: number; killWear: number; bronzePerPoint: number; metalPerTenPoints: number; metalItem: string };
 export type WearFamily = { id: string; tier: string };
@@ -37,6 +38,9 @@ loadWearRepair();
 
 export const WEAR_EVENTS: readonly WearEvent[] = DATA.wearEvents;
 export const WEAR_SLOTS: readonly WearSlot[] = DATA.wearSlots;
+export const WEAR_HIT_TYPES: readonly WearHitType[] = DATA.wearHitTypes;
+// Blows taken over a verified fight: the verifier's per-event-type tally of what targeted the hero, summed over the event types the wearHitTypes rows name.
+export const hitsTaken = (heroHits: Readonly<Record<string, number>>, types: readonly WearHitType[] = WEAR_HIT_TYPES): number => types.reduce((n, t) => n + (heroHits[t.id] ?? 0), 0);
 export const WEAR_TIERS: readonly WearTier[] = DATA.wearTiers;
 export const WEAR_FAMILIES: readonly WearFamily[] = DATA.wearFamilies;
 export const REPAIR_RULES: readonly RepairRule[] = DATA.repairRules;
