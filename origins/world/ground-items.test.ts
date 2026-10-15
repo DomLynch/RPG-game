@@ -13,8 +13,8 @@ const raw = (patch: object = {}, starters: object = STARTER_ITEMS, limits: objec
 test('the shipped rows: a rusty sword (cinder-fields) and a knife, gladius, cleaver and estoc, one each, per account, hidden while taken, at places that exist in their zone', () => {
   assert.deepEqual(Object.keys(GROUND_ITEMS), [id, 'ground:zone1.knife-1', 'ground:zone1.gladius-1', 'ground:zone1.cleaver-1', 'ground:zone1.estoc-1']);
   assert.deepEqual([row.item, row.qty, row.scope, row.respawnSec], ['item:starter.rusty-sword', 1, 'account', 3600]);
-  const placed = Object.fromEntries(Object.values(GROUND_ITEMS).map((g) => [g.item.replace('item:starter.', ''), g.place]));
-  assert.deepEqual(placed, { 'rusty-sword': 'cinder-fields', knife: 'ferry-landing', gladius: 'blood-ruin', cleaver: 'cinder-hold', estoc: 'mere-end' });
+  assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.item.replace('item:starter.', '')), ['rusty-sword', 'knife', 'gladius', 'cleaver', 'estoc']);
+  assert.deepEqual(Object.values(GROUND_ITEMS).map((g) => g.place), ['cinder-fields', 'ferry-landing', 'blood-ruin', 'cinder-hold', 'mere-end'], 'one weapon per place, in the same order');
   for (const g of Object.values(GROUND_ITEMS)) assert.ok(g.zone === 'zone1' && zonePlaces().flatMap((pl) => Object.keys(pl.zones)).includes(g.place) && g.qty === 1 && g.scope === 'account' && g.hiddenWhileTaken === true, g.item);
   assert.deepEqual(Object.keys(loadGroundItems({ starterItems: STARTER_ITEMS, groundLimits: { ground: GROUND_LIMITS }, groundItems: GROUND_ITEMS }).items), Object.keys(GROUND_ITEMS), 'the loader accepts the five rows');
 });
