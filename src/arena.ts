@@ -380,6 +380,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // 8 m, embers rise, dust hangs low. Rain covers the camera's view, so it spreads to the wall; the rest keep the ash's spread.
   // The phone tier draws a third of the rain (2026-09-25, Dom's iPhone slower on the rain arena): 1,500 double-sided transparent
   // streaks never culled is fill the phone GPU pays every frame; the look survives at 500, the fog and the streak itself are unchanged.
+  const MOTE_FLOOR = arenaRule('moteFloor');   // read once: the per-frame loop below must not search the rule rows
   const moteCount = phone && row.phoneCount !== undefined ? row.phoneCount : weather.count, moteBase = new Float32Array(moteCount * 3), motePhase = new Float32Array(moteCount * 2), falls = !!row.falls;
   for (let i = 0; i < moteCount; i++) {
     const a = hash(i, 0, 61) * TAU, near = hash(i, 5, 61) < 0.62, r = Math.sqrt(hash(i, 1, 61)) * (row.radius ?? (near ? 7.2 : 10.6)), y = falls ? hash(i, 2, 61) * 8 : row.low ? 0.2 + Math.pow(hash(i, 2, 61), 2) * 2.4 : 0.5 + Math.pow(hash(i, 2, 61), 1.3) * 4.9;
@@ -584,7 +585,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
         const ph = motePhase[i * 2], sp = motePhase[i * 2 + 1], g = 1 + flare * 3.2;
         p.setXYZ(i,
           moteBase[i * 3] + (0.55 * Math.sin(time * 0.19 * sp + ph) + 0.14 * Math.sin(time * 0.9 * sp + ph * 2.3)) * g,
-          Math.max(arenaRule('moteFloor'), moteBase[i * 3 + 1] + 0.3 * Math.sin(time * 0.13 * sp + ph * 1.7) - 0.1 * flare * Math.sin(ph)),
+          Math.max(MOTE_FLOOR, moteBase[i * 3 + 1] + 0.3 * Math.sin(time * 0.13 * sp + ph * 1.7) - 0.1 * flare * Math.sin(ph)),
           moteBase[i * 3 + 2] + (0.55 * Math.cos(time * 0.16 * sp + ph * 1.3) + 0.14 * Math.cos(time * 0.8 * sp + ph)) * g);
       }
       p.needsUpdate = true; }
