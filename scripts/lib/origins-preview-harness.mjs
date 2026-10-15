@@ -4,10 +4,10 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { groundPointOf } from '../../origins/world/ground-point.ts';
 
 export const ITEM = 'item:starter.rusty-sword', AUTH_KEY = 'frankendom.auth.v1';
-export const centre = groundPointOf({ zone: 'zone1', place: 'cinder-fields' });
+// The centre of the Cinder Fields' place, read from the page's own groundPointOf (the same function the writer uses): no game module is imported here, so a release row's import chain stops at data.
+export const centreOf = (page) => page.evaluate(() => window.originsPreview.ground.pointOf({ zone: 'zone1', place: 'cinder-fields' }));
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.svg': 'image/svg+xml' };
 
 /** Serve `dist` at /preview/origins/ and the repo's public folders beside it. */
@@ -34,6 +34,7 @@ export async function stubSignedIn(page, { offsets, take }) {
   await page.route('**/origins/open', (route) => json(route, 200, { ok: true, result: { characters: [{ id: 'pc:still', name: 'Still' }] } }));
   await page.route('**/origins/ground_state', async (route) => {
     let pos; for (let i = 0; i < 600 && !pos; i++) { pos = await page.evaluate(() => window.originsPreview?.pos && { x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }).catch(() => undefined); if (!pos) await new Promise((r) => setTimeout(r, 250)); }
+    const centre = await centreOf(page);
     const items = offsets.map(([dx, dz], i) => ({ instance: `ground:still-${i}`, item: ITEM, zone: 'zone1', place: 'cinder-fields', offsetX: pos.x + dx - centre.x, offsetZ: pos.z + dz - centre.z, radiusM: 1.5, available: !taken, visible: !taken }));
     json(route, 200, { ok: true, result: { now: new Date().toISOString(), items } });
   });

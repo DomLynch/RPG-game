@@ -17,6 +17,7 @@ import { loadKit } from './frontier-kit-view.ts';
 import { createGroundItemView } from './ground-item-view.ts';
 import { groundLook } from './ground-looks.ts';
 import { createGroundPickup } from './ground-pickup.ts';
+import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
@@ -695,7 +696,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule).
-  ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor },   // for a capture and slice 3's page
+  ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf },   // for a capture and slice 3's page
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
