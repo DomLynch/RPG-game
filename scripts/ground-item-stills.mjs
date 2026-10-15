@@ -1,17 +1,17 @@
 // Stills of a ground item on the Zone 1 path at a phone (visual-pr-stills): the built origins preview, the walk camera at 375 wide, once with nothing on the ground (before) and once with the item lying a few
-// steps ahead (after), drawn by the ground-item view through the `originsPreview.ground` hook. Chromium on software GL (VPS `capture`). The item's model is served from src/assets/weapons/player.
-//   ZONE_DIST=<built origins preview> OUT=<dir> ITEM=item:starter.rusty-sword MODEL=longsword.glb node scripts/ground-item-stills.mjs
+// steps ahead (after), drawn by the ground-item view through the `originsPreview.ground` hook. Chromium on software GL (VPS `capture`).
+//   ZONE_DIST=<built origins preview> OUT=<dir> ITEM=item:starter.rusty-sword node scripts/ground-item-stills.mjs
 /* global process, console, window */
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-item-stills', ITEM = process.env.ITEM || 'item:starter.rusty-sword', MODEL = process.env.MODEL || 'longsword.glb', root = process.cwd();
+const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-item-stills', ITEM = process.env.ITEM || 'item:starter.rusty-sword', root = process.cwd();
 const AHEAD = Number(process.env.AHEAD || 2.2), SIDE = Number(process.env.SIDE || 0.15);   // metres in front of and beside the walker
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.svg': 'image/svg+xml' };
-const roots = { '/preview/origins/': `${path.resolve(ZONE)}/`, '/item-models/': `${root}/src/assets/weapons/player/` };
+const roots = { '/preview/origins/': `${path.resolve(ZONE)}/` };
 for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
@@ -34,7 +34,7 @@ try {
   const at = await page.evaluate(() => { const p = window.originsPreview.pos; return { x: p.x, z: p.z }; });
   receipt.walker = at;
   await shoot(page, 'ground-before-375.jpg');
-  await page.evaluate(([x, z, item, url]) => window.originsPreview.ground.show('ground:still', item, x, z, url), [at.x + SIDE, at.z + AHEAD, ITEM, `/item-models/${MODEL}`]);
+  await page.evaluate(([x, z, item]) => window.originsPreview.ground.show('ground:still', item, x, z), [at.x + SIDE, at.z + AHEAD, ITEM]);
   await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still') !== undefined, null, { timeout: 60000 });
   receipt.anchor = await page.evaluate(() => window.originsPreview.ground.anchor('ground:still'));
   await page.waitForTimeout(2500); await shoot(page, 'ground-after-375.jpg');
