@@ -12,7 +12,7 @@ test('the shipped row loads, with ring and beam rows carrying every number the v
   assert.deepEqual([look.asset, look.finish], ['longsword', 'rust']);
   assert.ok(look.ring && look.ring.bands.length >= 1 && look.ring.segments >= 3 && look.ring.liftM >= 0);
   assert.ok(look.beam && look.beam.topRatio > 0 && look.beam.segments >= 3);
-  assert.deepEqual([...loadGroundLooks(LOOKS).keys()], [ITEM]);
+  assert.ok([...loadGroundLooks(LOOKS).keys()].includes(ITEM));
 });
 
 test('the loader refuses a bad colour, a radius or height at or below 0, an opacity outside (0, 1], and a missing tilt', () => {
@@ -28,6 +28,12 @@ test('the loader refuses a bad colour, a radius or height at or below 0, an opac
     ['scale 0', (f) => { f.scale = 0; }, /scale/],
   ];
   for (const [why, edit, rule] of bad) assert.throws(() => loadGroundLooks(raw(edit)), rule, why);
-  assert.deepEqual([...loadGroundLooks(raw((f) => { f.ring.opacity = 1; f.beam.opacity = 1; f.tiltDeg = 0; })).keys()], [ITEM], 'opacity 1 and a tilt of 0 are fine');
-  assert.deepEqual([...loadGroundLooks(raw((f) => { delete f.ring; delete f.beam; })).keys()], [ITEM], 'ring and beam are optional');
+  assert.ok(loadGroundLooks(raw((f) => { f.ring.opacity = 1; f.beam.opacity = 1; f.tiltDeg = 0; })).has(ITEM), 'opacity 1 and a tilt of 0 are fine');
+  assert.ok(loadGroundLooks(raw((f) => { delete f.ring; delete f.beam; })).has(ITEM), 'ring and beam are optional');
+});
+
+test('every starter item has a ground look and every look is a starter item (the ids live in ground-items.json and ground-looks.json only)', async () => {
+  const { STARTER_ITEMS } = await import('../origins/world/ground-items.ts');
+  assert.deepEqual([...loadGroundLooks(LOOKS).keys()].sort(), Object.keys(STARTER_ITEMS).sort());
+  for (const [id, look] of loadGroundLooks(LOOKS)) assert.ok(id.startsWith('item:starter.') && look.scale > 0, id);
 });
