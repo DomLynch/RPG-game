@@ -11,6 +11,8 @@ const events = (states: BowState[]) => states.flatMap((s) => s.events);
 test('the rows load and the minimum range is the world engage ring, not a second literal', () => {
   assert.equal(BOW.minRange, worldRule('engage'));
   assert.ok(BOW_RULES.length >= 12);
+  for (const [k, v] of Object.entries(BOW)) assert.ok(Number.isFinite(v), `BOW.${k} is a finite number (the preview camera reads the framing rows: a missing one aims it at NaN)`);
+  for (const k of ['camX', 'camY', 'camZ', 'lookLeft', 'lookY', 'lookDepth']) assert.ok(k in BOW, `BOW.${k}`);
   assert.throws(() => loadBowRules({ rules: BOW_RULES.filter((r) => r.id !== 'arrowSpeed') }), /arrowSpeed/);
   assert.throws(() => loadBowRules({ rules: BOW_RULES.map((r) => (r.id === 'fullDraw' ? { ...r, value: BOW.minDraw } : r)) }), /fullDraw/);
 });

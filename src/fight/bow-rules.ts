@@ -23,7 +23,7 @@ const of = (id: (typeof NAMED)[number]): number => BOW_RULES.find((r) => r.id ==
 export const BOW = Object.freeze({
   minDraw: of('minDraw'), fullDraw: of('fullDraw'), minMult: of('minMult'), fullMult: of('fullMult'), arrowSpeed: of('arrowSpeed'), maxRange: of('maxRange'), minRange: worldRule('engage'),
   recovery: of('recovery'), hitRadius: of('hitRadius'), heavyShare: of('heavyShare'), dummyHealth: of('dummyHealth'), dummyDistance: of('dummyDistance'), tickRate: of('tickRate'),
-  camX: of('camX'), camY: of('camY'), camZ: of('camZ'), lookX: of('lookLeft'), lookY: of('lookY'), lookDepth: of('lookDepth'),   // the preview camera framing (the page only reads it)
+  camX: of('camX'), camY: of('camY'), camZ: of('camZ'), lookLeft: of('lookLeft'), lookY: of('lookY'), lookDepth: of('lookDepth'),   // the preview camera framing (the page only reads it)
 });
 
 export type Arrow = { readonly launched: number; readonly arrives: number; readonly distance: number; readonly lateral: number; readonly charge: number; readonly damage: number };
