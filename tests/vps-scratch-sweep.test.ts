@@ -45,9 +45,27 @@ test('sweep_kind: odd paths are refused', () => {
 // Strategy 2026-10-15: finished build output in /tmp (about 20 GB) is swept by exact path as a "lane" kind (archive first, then delete). /tmp/lm and /tmp/claude-1003 were pinned as refused
 // before this; they are lane scratch now, still only by an exact path and still refused while anything runs inside (sweep_in_use).
 test('sweep_kind: an exact direct child of /tmp is a lane (archive first); a bare /tmp, a trailing slash, a glob, a child of a child and other parents are refused', () => {
-  for (const p of ['/tmp/lm', '/tmp/claude-1003', '/tmp/finished-build-2026', '/tmp/a.b_c-1', '/tmp/be-eb5eba4c', '/tmp/rank-job2', '/tmp/rank-jobs', '/tmp/cn1']) assert.equal(kind(p), 'lane', p);   // lookalikes of the older /tmp roots are plain exact children now
+  for (const p of ['/tmp/lm', '/tmp/finished-build-2026', '/tmp/a.b_c-1', '/tmp/be-eb5eba4c', '/tmp/rank-job2', '/tmp/rank-jobs', '/tmp/cn1']) assert.equal(kind(p), 'lane', p);   // lookalikes of the older /tmp roots are plain exact children now
   for (const p of ['/tmp', '/tmp/', '/tmp//', '/tmp/*', '/tmp/a*', '/tmp/*/x', '/tmp/a?', '/tmp/[ab]', '/tmp/x/y', '/tmp/x/', '/tmp/./x', '/tmp/../etc', '/tmp/a b', '/var/tmp/x', '/private/tmp/x', '/x/tmp/y'])
     assert.equal(kind(p), '', `${p} is refused`);
+});
+
+// Lead + Auditor 2026-10-15: refuse by default for what no lane created. A Claude session's scratch is lost if it is swept between turns, and a live service's PrivateTmp is not a mount point
+// from root, so neither the cwd check nor lsof +D reliably sees it in use. One wrong --path must not archive+delete the live writer's /tmp.
+test('sweep_kind: system and session families under /tmp are refused outright, even by exact path (one case per family)', () => {
+  for (const p of ['/tmp/claude-1003', '/tmp/claude', '/tmp/claude_x', '/tmp/claudecode-1', '/tmp/.X11-unix', '/tmp/.ICE-unix', '/tmp/.font-unix', '/tmp/.hidden',
+    '/tmp/systemd-private-0f3a-frankendom-origins-writer.service-9xYz', '/tmp/systemd-private-0f3a-frankendom-duel-relay.service-1aB', '/tmp/systemd-private-0f3a-frankendom-presence.service-2cD', '/tmp/systemd-private-x',
+    '/tmp/snap-private-tmp', '/tmp/pulse-PKdhtXMmr18n', '/tmp/tmux-0', '/tmp/ssh-XXXXabc123'])
+    assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/tmp/lm', '/tmp/finished-build-2026', '/tmp/systemd', '/tmp/ssh', '/tmp/pulse', '/tmp/tmux', '/tmp/cla']) assert.equal(kind(p), 'lane', `${p} is an ordinary lane child`);
+});
+
+test('sweep_safe_path: an idle systemd-private dir (a real directory, nothing running in it) is refused by the real sweep_kind', { skip: process.platform !== 'linux' }, () => {
+  const dir = mkdtempSync(join('/tmp', 'systemd-private-test-'));
+  try {
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', dir], { encoding: 'utf8' });
+    assert.equal(r.status, 1); assert.match(r.stdout, /outside the allowed roots/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('sweep_kind: the specific /tmp roots keep their own kind; the new /tmp lane arm is last and never overrides them', () => {

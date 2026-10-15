@@ -21,7 +21,7 @@ PATHS=""
 #          once nothing inside changed for AGED_MIN minutes
 #   home   the six retired VPS lane homes (0 unpushed commits, only an untracked node_modules): archive first, then delete
 #   tmp    two exact one-off /tmp dirs (a regenerable compile cache, an old Lead env): deleted
-#   lane   (also) an exact direct child of /tmp (Strategy 2026-10-15, finished build output): archive first, then delete; a bare /tmp, /tmp/, a glob character and anything deeper are refused
+#   lane   (also) an exact direct child of /tmp (Strategy 2026-10-15, finished build output): archive first, then delete; a bare /tmp, /tmp/, a glob character, anything deeper and the system/session families (dotfiles, claude*, systemd-private-*, snap-private-tmp, pulse-*, tmux-*, ssh-*) are refused
 # Anything else is refused: this list is the only place a root is added, and it needs a ruling by Lead.
 AGED_MIN=${AGED_MIN:-120}
 sweep_kind() {
@@ -37,6 +37,7 @@ sweep_kind() {
     /tmp/node-compile-cache|/tmp/lead-env-tab4) echo tmp;;
     /tmp/rank-job) echo aged;;   # Web's rank-job tree (Lead 2026-10-14): exact, aged, and refused while anything runs inside (the sweep_in_use checks)
     /root/cn[0-9]*) [ "$(dirname "$p")" = /root ] && [[ "$(basename "$p")" =~ ^cn[0-9]+$ ]] && echo aged;;   # the preflight full clones /root/cnNN (Lead 2026-10-14): digits only, direct children of /root
+    /tmp/.*|/tmp/claude*|/tmp/systemd-private-*|/tmp/snap-private-tmp|/tmp/pulse-*|/tmp/tmux-*|/tmp/ssh-*) ;;   # refused outright, even by exact path: dotfiles (.X11-unix, .ICE-unix ...), a Claude session's scratch (idle between turns), a live service's PrivateTmp, other session/OS dirs (Lead + Auditor 2026-10-15)
     /tmp/*) [ "$(dirname "$p")" = /tmp ] && echo lane;;   # Strategy 2026-10-15: an exact direct child of /tmp, archive first; the hooks-*, cq-*, rank-job and one-off arms above win first
   esac
   return 0
