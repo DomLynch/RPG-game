@@ -175,6 +175,12 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
       const w = q.get(kind);
       if (w && WEAPON_IDS.includes(w)) { for (const r of rows.missile ?? []) if (r.kind === kind) r.weapon = w; (rows.bandBest ??= []).push({ weapon: w, band: 'outer' }); }
     }
+    // The ranged models (Characters & Art, sandbox/ranged-weapons.mjs): the stand-in weapon YOU carry is drawn as the staff / bow / crossbow, placed like SwordDrawn (rotation x +90 deg, offset 0, .08, .015) under the right hand so it follows the stand-in's swing clips.
+    { const { RANGED_BUILDS } = await import('./ranged-weapons.mjs'), id = { staff: 'staff-v1', bow: 'bow-v1', crossbow: 'crossbow-v1' } as const;
+      (globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__ = (weapon: string) => {
+        const kind = (['staff', 'bow', 'crossbow'] as const).find((k) => q.get(k) === weapon); if (!kind) return undefined;
+        const part = (RANGED_BUILDS as Record<string, () => { rotation: { x: number }; position: { set(x: number, y: number, z: number): void } }>)[id[kind]]!(); part.rotation.x = Math.PI / 2; part.position.set(0, .08, .015); return part;
+      }; }
     if (q.get('quiver') === '0') for (const r of RULES.rules as { id: string; value?: number }[]) if (r.id === 'quiver') r.value = 0;   // ?quiver=0: an unlimited quiver for the A/B
   }
   // ?spell=<legend id> equips a catalogue spell for YOUR fights (the grimoire's own store: owned + equipped), ?cast=<0-100> sets the cast skill of its school (the school's sheet skill base).
