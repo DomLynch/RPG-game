@@ -668,6 +668,9 @@ export function createScene(
     get yaw() {
       return rig.yaw;
     },
+    get introTour() {
+      return rig.introTour;
+    }, // the first-visit intro's camera orbit (World's camera.ts introTour), for src/intro-ui.ts
     orbit(dx: number, dy: number) {
       rig.orbit(dx, dy);
     },
