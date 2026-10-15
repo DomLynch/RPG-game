@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { registrySource, ROWS_DIR } from '../scripts/gen-zones.mjs';
-import { newZone } from '../scripts/new-zone.mjs';
+import { newZone, register, rowIds } from '../scripts/new-zone.mjs';
 import { loadZone, zoneIds, zoneProblems, type Zone } from '../origins/zones/loader.ts';
 import { zoneFromRow } from '../origins/zones/from-row.ts';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
@@ -101,4 +101,66 @@ test('the biome presets are the literal data file, and the default biome is one 
 
 test('every biome preset resolves clean (a biome no zone names is never validated by a zone, so it is checked here)', () => {
   for (const b of Object.keys(BIOMES)) assert.deepEqual(resolveSpec({ biome: b }).problems, [], b);
+});
+
+// --- `--like <M>`: a new zone from a copy of zone M (zone 91 by hand took 3 min 55 s: it repeated the place ids and named the wrong camp) ---
+const withNinety = (tag: string) => { const dir = scratchDir(tag); writeFileSync(`${dir}/zone90.row.json`, readFileSync(`${ROWS_DIR}zone90.row.json`, 'utf8')); return dir; };
+
+test('--like 90 makes the next free zone: every own place id renamed to the new stem, the camp in its own world zone, the shared road end untouched, and it passes the loader\'s checks', () => {
+  const dir = withNinety('like');
+  try {
+    const file = newZone({ like: 90, name: 'Marsh Reach', dir: `${dir}/` });
+    assert.equal(file, `${dir}/zone91.row.json`, 'the next free number above 90');
+    const row = JSON.parse(readFileSync(file, 'utf8')), src = rowOf('90');
+    assert.equal(row.name, 'Marsh Reach'); assert.deepEqual(row.world, ['marsh-reach-field']); assert.deepEqual(row.names, { 'marsh-reach-field': 'Marsh Reach' });
+    assert.equal(row.look.props.camp, 'marsh-reach-field', 'the camp names its own world zone');
+    assert.deepEqual(Object.keys(row.place.zones), ['marsh-reach-field']);
+    assert.deepEqual(Object.keys(row.place.zones['marsh-reach-field'].layout), ['marsh-reach-gate', 'marsh-reach-camp']);
+    const j = row.place.joins[0]; assert.deepEqual([j.link, j.to, j.here, j.there, j.landmark, j.zone], ['marsh-reach', 'marsh-reach-field', 'marsh-marsh-reach', 'marsh-reach-gate', 'marsh-marsh-reach', 'drowned-marsh']);
+    assert.deepEqual(row.place.waypoints, ['marsh-marsh-reach', 'marsh-reach-gate', 'marsh-reach-camp']);
+    assert.equal(row.place.zones['marsh-reach-field'].connections.road.to, 'drowned-marsh', 'the real place on the other side is not renamed');
+    assert.equal(row.unlisted, true, 'a sandbox copy stays unlisted');
+    const mine = rowIds(row), theirs = rowIds(src);
+    assert.deepEqual([...mine].filter((id) => theirs.has(id)), ['drowned-marsh'], 'the only id the two zones share is the real place the road leads to');
+    assert.deepEqual(zoneProblems(zoneFromRow(91, row)), []);
+    assert.deepEqual(readdirSync(dir).sort(), ['zone90.row.json', 'zone91.row.json'], 'one new row file');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('--like refuses ids another zone already uses, a stem equal to the source\'s, a missing source and a bad --set, and leaves nothing behind', () => {
+  const dir = withNinety('likebad'), d = `${dir}/`;
+  try {
+    newZone({ like: 90, name: 'Marsh Reach', dir: d });
+    assert.throws(() => newZone({ like: 90, name: 'Marsh Reach', dir: d }), /ids already used by another zone: .*marsh-reach-field \(zone 91\)/);
+    assert.throws(() => newZone({ like: 90, name: 'Marsh Test', dir: d }), /ids already used by another zone: marsh-test \(zone 90\)/, 'a stem that makes an id the source already has (its road landmark marsh-test) is refused');
+    assert.throws(() => newZone({ like: 90, name: 'Other', stem: 'test', dir: d }), /source zone's own stem/);
+    assert.throws(() => newZone({ like: 77, dir: d }), /no .*zone77\.row\.json/);
+    assert.throws(() => newZone({ like: 90, name: 'Dusk Two', set: ['look.nope.x=1'], dir: d }), /--set look\.nope\.x: nope is not an object/);
+    assert.throws(() => newZone({ like: 90, name: 'Dusk Two', set: ['novalue'], dir: d }), /expected path=value/);
+    assert.throws(() => newZone({ like: 90, name: 'Bad Stem', stem: 'Bad Stem', dir: d }), /lower-case hyphen token/);
+    assert.deepEqual(readdirSync(dir).sort(), ['zone90.row.json', 'zone91.row.json'], 'refused zones wrote nothing');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('--like takes --set overrides (a JSON value, or a bare word as a string) and an explicit number', () => {
+  const dir = withNinety('likeset');
+  try {
+    const file = newZone({ n: 95, like: 90, name: 'Dusk Two', set: ['look.sky=marsh', 'look.props.density=1.5', 'look.fog.density=0.03'], dir: `${dir}/` });
+    assert.equal(file, `${dir}/zone95.row.json`);
+    const row = JSON.parse(readFileSync(file, 'utf8'));
+    assert.deepEqual([row.look.sky, row.look.props.density, row.look.fog.density], ['marsh', 1.5, 0.03]);
+    assert.equal(row.look.props.camp, 'dusk-two-field');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('register() regenerates the registry from the rows, so a new zone needs no manual gen-zones step', () => {
+  const dir = withNinety('reg');
+  try {
+    newZone({ like: 90, name: 'Marsh Reach', dir: `${dir}/` });
+    const file = register({ dir: `${dir}/`, file: `${dir}/registry.ts` });
+    const text = readFileSync(file, 'utf8');
+    assert.match(text, /'90': zoneFromRow\(90, row90\)/); assert.match(text, /'91': zoneFromRow\(91, row91\)/);
+    assert.equal(text, registrySource(`${dir}/`), 'byte-identical to what gen-zones.mjs writes');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  assert.ok(!zoneIds().includes('91') && !readFileSync(`${ROWS_DIR}../zones/registry.ts`, 'utf8').includes("'91'"), 'the real registry was not touched');
 });
