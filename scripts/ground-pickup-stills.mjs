@@ -62,7 +62,7 @@ async function frame(width, scenario) {
     const hit = await page.evaluate(() => { const r = document.getElementById('prompt').getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, e = document.elementFromPoint(x, y); return { x, y, top: e?.id || e?.className || e?.tagName, box: [r.left, r.top, r.right, r.bottom].map(Math.round) }; });
     receipt.frames[`${scenario}-${width}`].hit = hit;
     await page.touchscreen.tap(hit.x, hit.y); await page.waitForTimeout(1200);
-    receipt.frames[`${scenario}-${width}`].after = await page.evaluate(() => ({ toast: document.getElementById('world-toast')?.textContent ?? null, drawn: window.originsPreview.ground.anchor(scenario === 'signedout' ? 'ground:zone1.rusty-sword-1' : 'ground:still-0') !== undefined }));
+    receipt.frames[`${scenario}-${width}`].after = await page.evaluate((id) => ({ toast: document.getElementById('world-toast')?.textContent ?? null, drawn: window.originsPreview.ground.anchor(id) !== undefined }), scenario === 'signedout' ? SIGNED_OUT : 'ground:still-0');
     await shoot(page, `${LABEL}-${scenario}-${width}-tap.jpg`);
   }
   await page.context().close();
