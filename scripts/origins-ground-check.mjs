@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
-const UP = '20261015120000_origins_ground_takes.sql';
+const UP = '20261015151218_origins_ground_takes.sql';
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-ground-'));
 const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
@@ -104,7 +104,7 @@ try {
   eq(psql(`select count(*) from public.origins_items where mint_key = '${keyOf(I2, A, 1)}'`), '1', 'race: the key was minted once');
 
   // down: the new objects go, nothing else
-  psql(readFileSync(join(dir, '..', 'down', '20261015120000_origins_ground_takes_down.sql'), 'utf8'));
+  psql(readFileSync(join(dir, '..', 'down', '20261015151218_origins_ground_takes_down.sql'), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_ground_take(uuid,text,integer,integer,jsonb)') is null and to_regprocedure('public.origins_ground_state(uuid,text[])') is null and to_regclass('public.origins_ground_takes') is null)::text`), 'true', 'down: the functions and the table are gone');
   eq(psql(`select (to_regprocedure('public.origins_apply(jsonb,uuid[])') is not null)::text`), 'true', 'down: origins_apply is untouched');
   console.log(`origins-ground-check: ${checks} checks passed`);
