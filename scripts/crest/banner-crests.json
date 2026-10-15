@@ -1,0 +1,5 @@
+{
+  "note": "Where the old crest sits on each banner of the baked fortress panoramas: [centreX, centreY, width, height] in px, measured on the image. repaint-banners.py wipes the box with the cloth's own colour and draws Frankendom's mark (frankendom-crest.json) in its place.",
+  "goblin-fortress-landscape": [[127.5, 528, 29, 43], [1644.4, 521.4, 43, 49], [1436.2, 574.3, 29, 27], [1221.4, 394.9, 19, 22], [1263.1, 396.9, 15, 18]],
+  "goblin-fortress-portrait": [[68.6, 1019.4, 38, 44], [775.1, 1069, 23, 27], [814.8, 793, 24, 27], [859, 790.5, 16, 28], [943, 1018, 26, 24]]
+}
