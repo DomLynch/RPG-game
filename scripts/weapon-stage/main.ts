@@ -26,6 +26,10 @@ part.rotation.set(Math.PI / 2, 0, 0); part.position.set(0, 0.08, 0.015);   // Sw
 part.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
 bone.add(part); scene.add(rig);
 if (q.get('hold') === 'upright') { rig.updateMatrixWorld(true); const inv = bone.getWorldQuaternion(new THREE.Quaternion()).invert(); part.quaternion.copy(inv); part.position.set(0, 0, 0); }   // the part stands world-upright (+Y up, +Z to the camera): a staff planted, a bow held vertical
+// the stance first: the hand's orientation under the 'Armed' pose is what a hold is measured against
+const poseClip = hero.animations.find((c) => c.name === (q.get('clip') ?? 'Armed')), poseMixer = new THREE.AnimationMixer(rig);
+if (poseClip) { poseMixer.clipAction(poseClip).play(); poseMixer.setTime(clipAt); }
+rig.updateMatrixWorld(true);
 if (q.get('world')) {   // ?world=rx,ry,rz[,px,py,pz]: the part's WORLD orientation (deg, XYZ, +Y up, hero faces +Z) and an optional offset from the hand (m, world); logs the part's local transform under the hand for the sandbox's ?hold
   const v = q.get('world')!.split(',').map(Number); rig.updateMatrixWorld(true);
   const want = new THREE.Quaternion().setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(v[0] ?? 0), THREE.MathUtils.degToRad(v[1] ?? 0), THREE.MathUtils.degToRad(v[2] ?? 0), 'XYZ'));
