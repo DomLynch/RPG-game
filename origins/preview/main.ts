@@ -118,7 +118,7 @@ const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ?
 const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.search) ? reliefZones(frontier, frontierParts, dress, camps.flatMap((c) => c.pieces)) : [];
 const groundY = (x: number, z: number): number => (relief.length ? groundAt(relief, x, z) : 0);
 // Ground items (ground loot slice 3): the view draws what the page's ground_state says is there (show on `visible`, hide on a take). Each item's model is the equip file its ground-looks.json row names; the glob lists only the files rows use (add a line when a row names another).
-const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/longsword.glb', { eager: true, query: '?url', import: 'default' });
+const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc}.glb', { eager: true, query: '?url', import: 'default' });
 const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => GROUND_MODELS[`../../src/assets/weapons/player/${groundLook(item).asset}.glb`], loadModel: async (url) => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; } });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
