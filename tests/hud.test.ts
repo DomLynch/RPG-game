@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHud, HEAVY_MOVES, type HudView } from '../src/fight/hud.ts';
 import { OPPONENTS, accepts, initialPractice, project, type CombatEvent, type Practice } from '../src/fight/combat.ts';
-import { idleIntent, inBufferWindow, stepDuel, type Intent } from '../src/fight/duel.ts';
+import { idleIntent, inBufferWindow, stepDuel, withSpell, type Intent } from '../src/fight/duel.ts';
 import { recordSpecials } from '../src/fight/replay.ts';
 import { SPELL_IDS, resolveSpell } from '../src/fight/spell-cast.ts';
 
@@ -148,6 +148,29 @@ test('update: SKILL lights for an equipped spell with no skill, and stays dim wi
   };
   assert.equal(lit(true), 'false', 'a spell lights SKILL');
   assert.equal(lit(false), 'true', 'no skill and no spell: dim');
+});
+
+// Spell slots (Strategy's ruling on #2834): SPELL 2 must not show anywhere skill2 is refused, and an empty slot b shows no button. The Pit never fills slot b, so it never shows; a fighter that carries a slot-b
+// spell shows it and lights it from the simulation's own test (legal(skill2)).
+test('update: SPELL 2 is absent in the Pit and with slot b empty, present and lit with a slot-b spell, dim while it cools', () => {
+  const ids = SPELL_IDS.filter((id) => resolveSpell(id, 0)!.cost > 0), a = resolveSpell(ids[0]!, 100)!, b = resolveSpell(ids[1]!, 100)!;
+  const readyDuel = (slotB: boolean, cooling = false) => {
+    const start = initialPractice(731, OPPONENTS.veteran, 'longsword', null, recordSpecials({ specials: true, level: 20, opponent: 'veteran' }), undefined, undefined, undefined, undefined, a);
+    let duel = slotB ? withSpell(start.duel, 0, b, 731, 1) : start.duel;
+    duel = stepDuel(duel, [{ ...idleIntent(), action: 'light' }, idleIntent()]);
+    while (duel.fighters[0].phase !== 'ready') duel = stepDuel(duel, [idleIntent(), idleIntent()]);
+    const me = { ...duel.fighters[0], skillCooldown: 0, stamina: 100, ...(slotB ? { skillCooldown2: cooling ? 600 : 0 } : {}) };
+    return { start, duel: { ...duel, fighters: [me, duel.fighters[1]] as typeof duel.fighters } };
+  };
+  const show = (slotB: boolean, cooling = false) => { const { element, get } = dom(), hud = createHud(element as never), { start, duel } = readyDuel(slotB, cooling); hud.update(project(duel, start.ai), view()); const button = get('skill2-button'); return { hidden: button.hidden, disabled: button.attributes.get('aria-disabled') }; };
+  const pit = initialPractice(731, OPPONENTS.veteran), pitDom = dom(), pitHud = createHud(pitDom.element as never);
+  pitHud.update(project(pit.duel, pit.ai), view()); assert.equal(pitDom.get('skill2-button').hidden, true, 'the Pit (no slot b ever): no button');
+  assert.equal(show(false).hidden, true, 'slot a filled, slot b empty: no button');
+  const worldDom = dom(), worldHud = createHud(worldDom.element as never);
+  worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: true }); assert.deepEqual({ hidden: worldDom.get('skill2-button').hidden, disabled: worldDom.get('skill2-button').attributes.get('aria-disabled') }, { hidden: false, disabled: 'false' }, 'the open world (an idle practice with no spells) shows SPELL 2 when the page says slot b is filled');
+  worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: false }); assert.equal(worldDom.get('skill2-button').hidden, true, 'and hides it again when slot b is emptied (the page tells the HUD, not the element)');
+  assert.deepEqual(show(true), { hidden: false, disabled: 'false' }, 'a slot-b spell: the button is there and lit');
+  assert.deepEqual(show(true, true), { hidden: false, disabled: 'true' }, 'slot b cooling: the button stays, dim');
 });
 
 // Combat 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed (live tick log). SKILL now says when the equipped cone
