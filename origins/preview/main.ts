@@ -480,8 +480,8 @@ const spellSkills = createServerSkills({ storage, search: location.search, now: 
 void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend)); syncSpell2Button(); } }, () => {});
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
-// The button lives in the Pit's markup, which pit-duel.ts mounts on the first fight chunk (after this module runs), so it is looked up on each sync, not once at load.
-function syncSpell2Button() { const button = document.getElementById('skill2-button'); if (button) button.hidden = !slotShown([equippedCast(), equippedCast(1)], 1); }   // the record needs a slot-a spell beside slot b
+// The Pit's HUD (pit-duel.ts) draws the button and runs every frame, so the page tells it whether slot b is filled instead of touching the element (which the HUD would re-hide).
+function syncSpell2Button() { duel?.setWorldSlotB(slotShown([equippedCast(), equippedCast(1)], 1)); }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.

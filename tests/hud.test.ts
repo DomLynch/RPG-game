@@ -166,6 +166,9 @@ test('update: SPELL 2 is absent in the Pit and with slot b empty, present and li
   const pit = initialPractice(731, OPPONENTS.veteran), pitDom = dom(), pitHud = createHud(pitDom.element as never);
   pitHud.update(project(pit.duel, pit.ai), view()); assert.equal(pitDom.get('skill2-button').hidden, true, 'the Pit (no slot b ever): no button');
   assert.equal(show(false).hidden, true, 'slot a filled, slot b empty: no button');
+  const worldDom = dom(), worldHud = createHud(worldDom.element as never);
+  worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: true }); assert.deepEqual({ hidden: worldDom.get('skill2-button').hidden, disabled: worldDom.get('skill2-button').attributes.get('aria-disabled') }, { hidden: false, disabled: 'false' }, 'the open world (an idle practice with no spells) shows SPELL 2 when the page says slot b is filled');
+  worldHud.update(project(pit.duel, pit.ai), { ...view(), slotB: false }); assert.equal(worldDom.get('skill2-button').hidden, true, 'and hides it again when slot b is emptied (the page tells the HUD, not the element)');
   assert.deepEqual(show(true), { hidden: false, disabled: 'false' }, 'a slot-b spell: the button is there and lit');
   assert.deepEqual(show(true, true), { hidden: false, disabled: 'true' }, 'slot b cooling: the button stays, dim');
 });
