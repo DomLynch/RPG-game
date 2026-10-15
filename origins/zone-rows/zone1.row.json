@@ -369,26 +369,6 @@
         0.88
       ]
     },
-    "goblin-haze": {
-      "fog": "#d8b48c",
-      "fogDensity": 0.011,
-      "hemiSky": "#9aa4c0",
-      "hemiGround": "#4a3a2c",
-      "hemiIntensity": 1.3,
-      "sunColor": "#ffb878",
-      "sunIntensity": 5.2,
-      "sunPos": [
-        -24,
-        9,
-        -15
-      ],
-      "exposure": 1.3,
-      "ground": [
-        0.95,
-        0.88,
-        0.78
-      ]
-    },
     "frontier-duel": {
       "fog": "#d6bf9a",
       "fogDensity": 0.0095,
@@ -427,86 +407,6 @@
         0.8,
         0.8,
         0.9
-      ]
-    },
-    "goblin-ash": {
-      "fog": "#7a3a28",
-      "fogDensity": 0.016,
-      "hemiSky": "#6c4a46",
-      "hemiGround": "#24181a",
-      "hemiIntensity": 1.0,
-      "sunColor": "#ff6a3a",
-      "sunIntensity": 3.6,
-      "sunPos": [
-        -24,
-        6,
-        -15
-      ],
-      "exposure": 1.2,
-      "ground": [
-        0.52,
-        0.48,
-        0.47
-      ]
-    },
-    "goblin-marsh": {
-      "fog": "#8c9492",
-      "fogDensity": 0.03,
-      "hemiSky": "#a8b4b4",
-      "hemiGround": "#363c34",
-      "hemiIntensity": 1.25,
-      "sunColor": "#d8dcd0",
-      "sunIntensity": 2.0,
-      "sunPos": [
-        -20,
-        18,
-        -10
-      ],
-      "exposure": 1.15,
-      "ground": [
-        0.6,
-        0.68,
-        0.6
-      ]
-    },
-    "goblin-dusk": {
-      "fog": "#6a4044",
-      "fogDensity": 0.02,
-      "hemiSky": "#4a4c7c",
-      "hemiGround": "#1c1414",
-      "hemiIntensity": 0.75,
-      "sunColor": "#ff7a40",
-      "sunIntensity": 1.8,
-      "sunPos": [
-        -24,
-        3,
-        -15
-      ],
-      "exposure": 1.1,
-      "ground": [
-        0.72,
-        0.62,
-        0.58
-      ]
-    },
-    "goblin-fortress": {
-      "fog": "#b8946a",
-      "fogDensity": 0.011,
-      "hemiSky": "#8fa8cc",
-      "hemiGround": "#4a3a2c",
-      "hemiIntensity": 1.35,
-      "sunColor": "#ffc070",
-      "sunIntensity": 5.0,
-      "sunPos": [
-        -24,
-        7,
-        -15
-      ],
-      "exposure": 1.3,
-      "ground": [
-        1.0,
-        0.86,
-        0.66
       ]
     }
   },

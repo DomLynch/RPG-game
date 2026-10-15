@@ -7,16 +7,18 @@ import DEFS from './goblin-field-defs.json' with { type: 'json' };
 import MANIFEST from './goblin-field-defs.manifest.json' with { type: 'json' };
 
 export type GoblinRule = { readonly id: string; readonly value: number; readonly unit: string };
-type Raw = { rules?: readonly unknown[]; tints?: readonly unknown[]; palettes?: readonly unknown[]; backdrops?: readonly unknown[]; harmonics?: readonly unknown[]; names?: readonly unknown[] };
+type Raw = { rules?: readonly unknown[]; tints?: readonly unknown[]; palettes?: readonly unknown[]; backdrops?: readonly unknown[]; looks?: readonly unknown[]; harmonics?: readonly unknown[]; names?: readonly unknown[] };
 export type GoblinPalette = { readonly id: string; readonly haze: string; readonly zenith: string; readonly mid: string; readonly horizon: string; readonly glow: string; readonly ridge: string; readonly ridgeFar: string; readonly smoke: string; readonly puff: string; readonly torch: string; readonly torchPower: number; readonly backdropPortrait: string; readonly backdropLandscape: string };
 /** A painted backdrop for the dome (Dom's pictures): the file (under the page base), the crop as fractions of the picture (y1 = its horizon line), how many mirrored copies go round the dome, the dome texture's size while it shows, and the head and foot fades as fractions of the crop. */
+/** A mood's fog, light and ground tint (the shape of look.ts Look): what a palette's `haze` names. Here, not in a zone row, so every zone row keeps the same preset names. */
+export type GoblinLook = { readonly id: string; readonly fog: string; readonly fogDensity: number; readonly hemiSky: string; readonly hemiGround: string; readonly hemiIntensity: number; readonly sunColor: string; readonly sunIntensity: number; readonly sunPos: readonly [number, number, number]; readonly exposure: number; readonly ground: readonly [number, number, number] };
 export type GoblinBackdrop = { readonly id: string; readonly file: string; readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number; readonly repeat: number; readonly texW: number; readonly texH: number; readonly fadeTop: number; readonly fadeFoot: number };
 const RULES = ['palisadeSegments', 'palisadeStakes', 'stakeSpacing', 'stakeHMin', 'stakeHMax', 'stakeR', 'railLow', 'railHigh', 'totemCount', 'totemHMin', 'totemHMax', 'bonePiles', 'boneRibs', 'fireCount', 'fireStones', 'fireRing', 'emberR', 'fireLogs', 'treeClumps', 'treesPerClump', 'treeHMin', 'treeHMax', 'clusterRadius', 'clusterDepth', 'clearOfRoad', 'smokeCount', 'smokeRise', 'smokeSpeed', 'smokeSize0', 'smokeSize1', 'smokeOpacity', 'domeRadius', 'domeHalf', 'ridgeAmp', 'ridgeSeed', 'ridgeFarShift', 'smokeColumns', 'texW', 'texH', 'glowX', 'glowR', 'columnW', 'columnAlpha', 'torchY', 'torchRange', 'torchDecay', 'flickerFast', 'flickerSlow', 'flickerDepth', 'smokeBase', 'smokeDrift', 'smokeFadeIn', 'puffCore', 'campView'] as const;
 const TINTS = ['wood', 'woodDark', 'bone', 'ochre', 'hide', 'ring', 'ember', 'dead', 'rope'] as const, HEX = ['zenith', 'mid', 'horizon', 'glow', 'ridge', 'ridgeFar', 'smoke', 'puff', 'torch'] as const;
 /** The one loader: every table keyed by id (a duplicate id or a missing or mistyped field is refused), every named row must exist, numbers positive, colours #rrggbb. */
 export function loadGoblinField(raw: Raw) {
   loadRegistry((MANIFEST.tables as unknown as Manifest[]).map((m) => tableFromFile(m, raw, 'goblin-field-defs.json')));
-  const rules = (raw.rules ?? []) as readonly GoblinRule[], tints = (raw.tints ?? []) as readonly { id: string; r: number; g: number; b: number }[], palettes = (raw.palettes ?? []) as readonly GoblinPalette[], backdrops = (raw.backdrops ?? []) as readonly GoblinBackdrop[], harmonics = (raw.harmonics ?? []) as readonly { id: string; k: number; a: number }[], names = (raw.names ?? []) as readonly { id: string; text: string }[];
+  const rules = (raw.rules ?? []) as readonly GoblinRule[], tints = (raw.tints ?? []) as readonly { id: string; r: number; g: number; b: number }[], palettes = (raw.palettes ?? []) as readonly GoblinPalette[], backdrops = (raw.backdrops ?? []) as readonly GoblinBackdrop[], looks = (raw.looks ?? []) as readonly GoblinLook[], harmonics = (raw.harmonics ?? []) as readonly { id: string; k: number; a: number }[], names = (raw.names ?? []) as readonly { id: string; text: string }[];
   for (const r of rules) if (!(Number.isFinite(r.value) && r.value > 0)) throw Error(`goblin-field "${r.id}": value is a number > 0`);
   for (const must of RULES) if (!rules.some((r) => r.id === must)) throw Error(`goblin-field: the look reads the "${must}" rule by name, so it needs a row`);
   for (const must of TINTS) if (!tints.some((t) => t.id === must)) throw Error(`goblin-field: the look reads the "${must}" tint by name, so it needs a row`);
@@ -28,12 +30,13 @@ export function loadGoblinField(raw: Raw) {
     if (!(b.texW > 0 && b.texH > 0 && frac(b.fadeTop) && frac(b.fadeFoot) && b.fadeTop + b.fadeFoot < 1)) throw Error(`goblin-field backdrop "${b.id}": texW/texH > 0, fadeTop + fadeFoot < 1`);
     if (!/^[a-z0-9/_.-]+\.(webp|png|jpg)$/.test(b.file) || b.file.startsWith('/')) throw Error(`goblin-field backdrop "${b.id}": file is a picture path under the page base, no leading slash`);
   }
+  for (const l of looks) { for (const k of ['fog', 'hemiSky', 'hemiGround', 'sunColor'] as const) if (!/^#[0-9a-f]{6}$/i.test(l[k])) throw Error(`goblin-field look "${l.id}" ${k}: hex is #rrggbb`); if (l.sunPos.length !== 3 || l.ground.length !== 3) throw Error(`goblin-field look "${l.id}": sunPos and ground are three numbers`); }
   for (const p of palettes) for (const k of ['backdropPortrait', 'backdropLandscape'] as const) if (p[k] && !backdrops.some((b) => b.id === p[k])) throw Error(`goblin-field palette "${p.id}" ${k}: "${p[k]}" names no backdrop row`);
   for (const h of harmonics) if (!(h.k > 0 && Number.isInteger(h.k) && h.a > 0)) throw Error(`goblin-field harmonic "${h.id}": k is a whole number of periods > 0 (the ridge closes at the seam), a > 0`);
   if (!harmonics.length) throw Error('goblin-field: the dome ridge needs at least one harmonic row');
   for (const must of ['zone', 'palette', 'kit']) if (!names.some((n) => n.id === must)) throw Error(`goblin-field: the look needs its "${must}" name row`);
   if (!palettes.some((p) => p.id === names.find((n) => n.id === 'palette')!.text)) throw Error('goblin-field: the "palette" name row names a palette row');
-  return { rules, tints, palettes, backdrops, harmonics, names };
+  return { rules, tints, palettes, backdrops, looks, harmonics, names };
 }
 const LOADED = loadGoblinField(DEFS);
 export const goblinRule = (id: (typeof RULES)[number]): number => LOADED.rules.find((r) => r.id === id)!.value;
@@ -54,5 +57,7 @@ export function zoneCamp(z: ZoneLookFields): string | null {
   const at = zoneSet(z, 'look.props.camp');
   return typeof at === 'string' && at && z.world.includes(at) ? at : (z.world[0] ?? null);
 }
+/** Every mood look by id (look.ts adds them to its presets). */
+export const goblinLooks = (): Readonly<Record<string, Omit<GoblinLook, 'id'>>> => Object.fromEntries(LOADED.looks.map(({ id, ...l }) => [id, l]));
 export const goblinHarmonics = (): readonly { k: number; a: number }[] => LOADED.harmonics;
 export const goblinZone = (): string => LOADED.names.find((n) => n.id === 'zone')!.text;

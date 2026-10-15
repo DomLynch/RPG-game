@@ -40,6 +40,9 @@
         "torchPower": "number",
         "backdropPortrait": "string",
         "backdropLandscape": "string"
+      },
+      "refs": {
+        "haze": "goblin-look"
       }
     },
     {
@@ -77,6 +80,26 @@
       "key": "id",
       "required": {
         "text": "string"
+      }
+    },
+    {
+      "table": "goblin-look",
+      "file": "goblin-field-defs.json",
+      "at": "looks",
+      "key": "id",
+      "required": {
+        "fog": "string",
+        "fogDensity": "number",
+        "hemiSky": "string",
+        "hemiGround": "string",
+        "hemiIntensity": "number",
+        "sunColor": "string",
+        "sunIntensity": "number",
+        "sunPos": "array",
+        "sunPos[]": "number",
+        "exposure": "number",
+        "ground": "array",
+        "ground[]": "number"
       }
     }
   ]
