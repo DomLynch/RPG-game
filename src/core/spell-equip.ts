@@ -14,12 +14,13 @@ export const ownedSpells = (): readonly string[] => owned;
 /** Called after a pick changes (the HUD shows or hides a slot's button on it, never per frame). */
 export const onSpellsChanged = (fn: () => void): void => { listeners.push(fn); };
 const stored = (): (string | undefined)[] => {
-  try {
-    const raw = store?.getItem(KEY);
-    if (raw) { const a = JSON.parse(raw) as unknown; if (Array.isArray(a)) return SPELL_SLOTS.map((_, i) => (typeof a[i] === 'string' ? (a[i] as string) : undefined)); }
-    const old = store?.getItem(ONE_SLOT_KEY);
-    return SPELL_SLOTS.map((_, i) => (i === 0 && old ? old : undefined));
-  } catch { return SPELL_SLOTS.map(() => undefined); }
+  const empty = SPELL_SLOTS.map(() => undefined as string | undefined);
+  let raw: string | null | undefined, old: string | null | undefined;
+  try { raw = store?.getItem(KEY); old = store?.getItem(ONE_SLOT_KEY); } catch { return empty; }
+  if (raw) {
+    try { const a = JSON.parse(raw) as unknown; if (Array.isArray(a)) return SPELL_SLOTS.map((_, i) => (typeof a[i] === 'string' ? (a[i] as string) : undefined)); } catch { /* a corrupt new-form value: fall back to the old key, never drop a pick that is still there */ }
+  }
+  return SPELL_SLOTS.map((_, i) => (i === 0 && typeof old === 'string' && old ? old : undefined));
 };
 /** The equipped id per slot, in slot order; a slot is undefined when empty or when its pick is not in the book (a book that shrank, another account). */
 export const equippedSpells = (): (string | undefined)[] => stored().map((id) => (id && owned.includes(id) ? id : undefined));
