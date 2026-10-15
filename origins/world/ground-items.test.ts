@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { GROUND_ITEMS, STARTER_ITEMS, loadGroundItems } from './ground-items.ts';
-import ZONE1 from '../zone-rows/zone1.row.json' with { type: 'json' };
+import { zonePlaces } from '../zones/loader.ts';
 
 const id = 'ground:zone1.rusty-sword-1', row = GROUND_ITEMS[id]!;
 const raw = (patch: object = {}, starters: object = STARTER_ITEMS) => ({ starterItems: starters, groundItems: { [id]: { ...row, ...patch } } });
@@ -10,7 +10,7 @@ const raw = (patch: object = {}, starters: object = STARTER_ITEMS) => ({ starter
 test('the shipped row: a rusty sword, one, per account, an hour to respawn, at a place that exists in its zone', () => {
   assert.deepEqual(Object.keys(GROUND_ITEMS), [id]);
   assert.deepEqual([row.item, row.qty, row.scope, row.respawnSec], ['item:starter.rusty-sword', 1, 'account', 3600]);
-  assert.ok(row.zone === 'zone1' && (ZONE1 as { world: string[] }).world.includes(row.place), 'the place is one of zone 1\'s places');
+  assert.ok(row.zone === 'zone1' && zonePlaces().flatMap((pl) => Object.keys(pl.zones)).includes(row.place), 'the place is one of the zones\' places (through the loader)');
   assert.deepEqual(Object.keys(loadGroundItems(raw()).items), [id]);
 });
 
