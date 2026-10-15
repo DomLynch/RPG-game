@@ -13,10 +13,10 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
   (globalThis as { location?: unknown }).location = { pathname: '/zone/90/', search: '' };   // the page /zone/90/ (world.ts reads the places at import, so this file imports after setting it)
   try {
     const { loadZone, zoneIds } = await import('../origins/zones/loader.ts'), { zoneSky, zoneCamp } = await import('../origins/world/goblin-field-rules.ts');
-    const { frontierPlan, frontierBuild, FRONTIER } = await import('../origins/preview/frontier-plan.ts');
+    const { frontierPlan, FRONTIER } = await import('../origins/preview/frontier-plan.ts');
     assert.ok(zoneIds().includes('90'));
     const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'dusk'); assert.equal(zoneCamp(z), 'test-field');
-    const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
+    const F = frontierPlan(true, '90'); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     // the camp's pieces (goblinFieldKit) are built by the preview page's kit PR, which carries its own check
     assert.equal(z.spawns.rows.length, 0, 'no creatures: nothing at level 90 exists');
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
