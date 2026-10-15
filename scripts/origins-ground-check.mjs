@@ -1,4 +1,4 @@
-// Migration 20261015120000 (ground loot takes): the functions on a disposable PostgreSQL cluster with every migration applied, driven as BOTH writer roles.
+// Migration 20261015151218 (ground loot takes): the functions on a disposable PostgreSQL cluster with every migration applied, driven as BOTH writer roles.
 // Proves: grants (writer roles only, no table reachable directly); a first take claims, mints once and commits in ONE transaction; a second take inside the window answers 'taken' WITHOUT writing;
 // a stale claim number, a wrong mint key, two mints, a non-event/mint op and a bad instance are refused (O0002) and write nothing; after the window a take with the next claim number works and mints
 // under a new key; two concurrent takes with the same claim number: exactly one wins; a retried take (same key) mints nothing twice; the down script removes exactly the new objects.
