@@ -1,4 +1,4 @@
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/registry.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/index.ts';
 import MANIFEST from './ground-looks.manifest.json' with { type: 'json' };
 import LOOKS from './ground-looks.json' with { type: 'json' };
 

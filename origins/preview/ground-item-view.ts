@@ -2,7 +2,7 @@
 // Presentation only: the page's ground_state read decides WHICH rows are there (it calls show for those the server says are available, hide on a take or when the respawn window closes); this
 // draws and answers where. Same seam as mobs-view: the scene, a ground height function, and a model loader the page hands in.
 import * as THREE from 'three';
-import { finishedAs } from '../../src/fight/rank-tint.ts';
+import { finishedAs } from '../../src/fight/index.ts';
 import { groundLook, type GroundLook } from './ground-looks.ts';
 
 export type GroundItemViewOptions = {
