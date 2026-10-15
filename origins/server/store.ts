@@ -188,6 +188,21 @@ export const spawnKill = async (db: Db, account: string, token: string, minMs: n
   const out = await spawnCall(db, `public.origins_spawn_kill(:'a'::uuid, :'t', :'m'::int, :'r'::int, :'b'::jsonb, :'g'::jsonb)`, { a: acct(account), t: token, m: String(minMs), r: String(respawnS), b: JSON.stringify(batch), g: JSON.stringify(ledger) });
   return out === null ? null : JSON.parse(out);
 };
+// Ground loot (migration 20261015120000): a ground item is taken once per account per respawn window; the claim, the mint and the event commit in one transaction. `null` = the migration is not applied.
+const HAS_GROUND = `select to_regprocedure('public.origins_ground_take(uuid,text,integer,integer,jsonb)') is not null as ground \\gset\n`;
+const groundCall = async (db: Db, call: string, vars: Record<string, string>): Promise<string | null> => {
+  const out = await gated(db, 'ground', HAS_GROUND, 'ground', `select ${call}::text;`, vars);
+  return out === 'absent' ? null : out;
+};
+export type GroundClaim = { instance: string; n: number; takenAt: string };
+export const groundState = async (db: Db, account: string, instances: readonly string[]): Promise<{ now: string; takes: GroundClaim[] } | null> => {
+  const out = await groundCall(db, `public.origins_ground_state(:'a'::uuid, array(select jsonb_array_elements_text(:'i'::jsonb)))`, { a: acct(account), i: JSON.stringify(instances) });
+  return out === null ? null : JSON.parse(out);
+};
+export const groundTake = async (db: Db, account: string, instance: string, expectedN: number, respawnS: number, batch: readonly Json[]): Promise<({ result?: string; instance?: string; n?: number; refused?: string; availableAt?: string } & Record<string, unknown>) | null> => {
+  const out = await groundCall(db, `public.origins_ground_take(:'a'::uuid, :'i', :'n'::int, :'r'::int, :'b'::jsonb)`, { a: acct(account), i: instance, n: String(expectedN), r: String(respawnS), b: JSON.stringify(batch) });
+  return out === null ? null : JSON.parse(out);
+};
 // A character's fame (0..15000) and karma (-15000..15000), migration 202610130030: storage and read only for now. null = not this account's; 'absent' = the migration is not applied.
 export type Renown = { fame: number; karma: number };
 const HAS_RENOWN = `select to_regprocedure('public.origins_get_renown(uuid,text)') is not null as renown \\gset\n`;

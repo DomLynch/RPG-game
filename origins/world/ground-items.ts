@@ -5,18 +5,18 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import DEFS from './ground-items.json' with { type: 'json' };
 import MANIFEST from './ground-items.manifest.json' with { type: 'json' };
 
-export type GroundItem = { readonly zone: string; readonly place: string; readonly item: string; readonly qty: number; readonly respawnSec: number; readonly scope: string; readonly radiusM?: number; readonly offsetX?: number; readonly offsetZ?: number };
+export type GroundItem = { readonly zone: string; readonly place: string; readonly item: string; readonly qty: number; readonly respawnSec: number; readonly scope: string; readonly hiddenWhileTaken: boolean; readonly radiusM?: number; readonly offsetX?: number; readonly offsetZ?: number };
 export type GroundItems = Readonly<Record<string, GroundItem>>;
 export type StarterItems = Readonly<Record<string, { readonly maxQty: number }>>;
-export type GroundLimits = { readonly minRespawnSec: number; readonly maxRespawnSec: number; readonly minRadiusM: number; readonly maxRadiusM: number };
+export type GroundLimits = { readonly minRespawnSec: number; readonly maxRespawnSec: number; readonly minRadiusM: number; readonly maxRadiusM: number; readonly defaultRadiusM: number };
 
 /** The one loader: the registry's duplicate / missing / mistyped / unknown-ref checks (an item that is not a starterItem row is refused there), then the row rules the manifest cannot say. */
 export function loadGroundItems(raw: { starterItems?: unknown; groundLimits?: unknown; groundItems?: unknown }): { items: GroundItems; starters: StarterItems; limits: GroundLimits } {
   loadRegistry(MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, raw, 'ground-items.json')));
   const items = raw.groundItems as GroundItems, starters = raw.starterItems as StarterItems, limits = (raw.groundLimits as Record<string, GroundLimits>).ground!;   // the bounds are the groundLimit row (ground-items.json), not literals here
-  if (!(limits.minRespawnSec >= 1 && limits.maxRespawnSec >= limits.minRespawnSec && limits.minRadiusM > 0 && limits.maxRadiusM >= limits.minRadiusM)) throw Error('ground-items limits: 1 <= minRespawnSec <= maxRespawnSec and 0 < minRadiusM <= maxRadiusM');
+  if (!(limits.minRespawnSec >= 1 && limits.maxRespawnSec >= limits.minRespawnSec && limits.minRadiusM > 0 && limits.maxRadiusM >= limits.minRadiusM && limits.defaultRadiusM >= limits.minRadiusM && limits.defaultRadiusM <= limits.maxRadiusM)) throw Error('ground-items limits: 1 <= minRespawnSec <= maxRespawnSec and 0 < minRadiusM <= defaultRadiusM <= maxRadiusM');
   for (const [id, r] of Object.entries(items)) {
-    if (!/^ground:[a-z0-9._-]{1,80}$/.test(id)) throw Error(`ground-items "${id}": the id is ground:<zone>.<name>`);
+    if (!/^ground:[a-z0-9._-]{1,60}$/.test(id)) throw Error(`ground-items "${id}": the id is ground:<zone>.<name>`);
     if (r.scope !== 'account') throw Error(`ground-items "${id}": scope is "account" (one take per account per respawn window)`);
     if (!(r.qty >= 1 && r.qty <= starters[r.item]!.maxQty)) throw Error(`ground-items "${id}": qty is 1 to the starter item's maxQty (${starters[r.item]!.maxQty})`);
     if (!(r.respawnSec >= limits.minRespawnSec && r.respawnSec <= limits.maxRespawnSec)) throw Error(`ground-items "${id}": respawnSec is ${limits.minRespawnSec} to ${limits.maxRespawnSec}`);
