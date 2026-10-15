@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { USD_PER_HOUR } from '../hf-cleanup.mjs';
 import { vpsHost } from './waterfall.mjs';
+import LANE_PREFIXES from './lane-prefixes.json' with { type: 'json' };
 
 export const HF_COST = Object.freeze({ alarmUsdPerDay: 3, t4StopUsdPerDay: 5 });
 // Under `node --test` (NODE_TEST_CONTEXT, inherited by every child a test spawns) without an explicit HF_COST_LEDGER the ledger is a throwaway file:
@@ -53,7 +54,7 @@ export function ledgerStore(env = process.env, { onVps = existsSync('/opt/franke
 const storeOf = ({ store, path }) => store || (path ? localStore(path) : ledgerStore());
 
 // WHO is spending (the ledger could not say: every row's reason was just "gpu-run", so the $5.29 of 2026-10-15 was untraceable). The caller's lane and branch go INSIDE the reason field (the tab format
-// is unchanged): `<reason>;lane=<lane>;branch=<branch>`. Lane: FRANKENDOM_LANE, else the "Frankendom **<lane>** lane" line of CLAUDE.local.md in the repo the caller runs in; branch: git. Anything missing is
+// is unchanged): `<reason>;lane=<lane>;branch=<branch>`. Lane: FRANKENDOM_LANE, else the "Frankendom **<lane>** lane" line of CLAUDE.local.md in the repo the caller runs in, else the branch's prefix (scripts/lib/lane-prefixes.json: combat/ -> combat, release- -> deploy...); branch: git. Anything missing is
 // "unknown-lane" / "unknown-branch", never an error: a ledger tag is never a reason to lose a job.
 const slug = v => String(v).replace(/[^A-Za-z0-9._/-]+/g, '-').replace(/^-+|-+$/g, '') || null;
 /** @param {{ env?: NodeJS.ProcessEnv, cwd?: string, run?: typeof spawnSync }} [o] @returns {{ lane: string, branch: string }} */
@@ -63,6 +64,7 @@ export function callerOf({ env = process.env, cwd = process.cwd(), run = spawnSy
   if (!lane) { try { lane = slug(/Frankendom \*\*([^*]+)\*\* lane/i.exec(readFileSync(join(git(['rev-parse', '--show-toplevel']) || cwd, 'CLAUDE.local.md'), 'utf8'))?.[1] ?? ''); } catch { /* no CLAUDE.local.md here */ } }
   let branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
   if (branch === 'HEAD') branch = `detached-${git(['rev-parse', '--short', 'HEAD'])}`;
+  lane ||= LANE_PREFIXES.lanePrefixes.find((r) => branch.startsWith(r.prefix))?.lane ?? null;   // a VPS clone has neither CLAUDE.local.md nor the env var: its branch prefix says whose it is
   return { lane: lane || 'unknown-lane', branch: slug(branch) || 'unknown-branch' };
 }
 /** The reason column for a job: the launcher's own reason plus who launched it. */

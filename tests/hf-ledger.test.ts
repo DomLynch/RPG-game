@@ -173,3 +173,13 @@ test('a missing CLAUDE.local.md (or no git at all) still launches, with unknown-
     assert.equal(rows[0]![5], 'unit;lane=unknown-lane;branch=some-branch'); assert.equal(rows[1]![5], 'unit;lane=unknown-lane;branch=unknown-branch');
   } finally { process.chdir(home); if (prev === undefined) delete process.env.HF_COST_LEDGER; else process.env.HF_COST_LEDGER = prev; if (prevLane !== undefined) process.env.FRANKENDOM_LANE = prevLane; }
 });
+
+test('with no CLAUDE.local.md and no env var (a VPS clone) the lane comes from the branch prefix, and CLAUDE.local.md or the env var still win', () => {
+  for (const [branch, lane] of [['combat/x', 'combat'], ['web/y', 'web'], ['world/z', 'world'], ['char/state-1015', 'char'], ['backend/ground-loot-rows', 'backend'], ['deploy/sweep', 'deploy'], ['release-GK', 'deploy'], ['lead/pit-ship', 'lead']] as const) {
+    assert.deepEqual(callerOf({ cwd: checkout(branch, null), env: {} }), { lane, branch }, branch);
+  }
+  assert.equal(taggedReason('gpu-run', { cwd: checkout('combat/x', null), env: {} }), 'gpu-run;lane=combat;branch=combat/x');
+  assert.equal(callerOf({ cwd: checkout('some-branch', null), env: {} }).lane, 'unknown-lane', 'an unprefixed branch is still unknown-lane');
+  assert.equal(callerOf({ cwd: checkout('combat/x', 'web'), env: {} }).lane, 'web', 'CLAUDE.local.md beats the prefix');
+  assert.equal(callerOf({ cwd: checkout('combat/x', 'web'), env: { FRANKENDOM_LANE: 'lead' } }).lane, 'lead', 'the env var beats both');
+});
