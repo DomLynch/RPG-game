@@ -90,7 +90,7 @@
     { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 4, "texW": 3072, "texH": 960, "fadeTop": 0.1, "fadeFoot": 0.06 }
   ],
   "looks": [
-    { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [1.0, 0.86, 0.66] }
+    { "id": "goblin-fortress", "fog": "#b8946a", "fogDensity": 0.011, "hemiSky": "#8fa8cc", "hemiGround": "#4a3a2c", "hemiIntensity": 1.35, "sunColor": "#ffc070", "sunIntensity": 5.0, "sunPos": [-24, 7, -15], "exposure": 1.3, "ground": [0.95, 0.92, 0.9] }
   ],
   "grounds": [
     { "id": "fortress-ground", "texN": 1024, "tileM": 6, "seed": 7, "base": "#6b4a2e", "light": "#9a6e44", "dark": "#3c2a1b", "wet": "#2a1d14", "blotches": 90, "blotchMin": 40, "blotchMax": 160, "wetPatches": 12, "wetMin": 60, "wetMax": 200, "speckles": 26000, "speckleMin": 1, "speckleMax": 3, "pebbles": 260, "pebbleMin": 2, "pebbleMax": 7, "cracks": 40, "crackSteps": 8, "crackStep": 50, "noise": 14, "bump": 1.6, "roughness": 0.95 }
