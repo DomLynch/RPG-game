@@ -20,7 +20,7 @@ import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { legendSpecs } from './legend-mobs.ts';
-import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { loadZone, pageZoneId, zoneAsBiome } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
@@ -60,8 +60,7 @@ import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinGround, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky } from '../world/goblin-field-rules.ts';
-import { dressSet } from '../world/props-rules.ts';
+import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -111,12 +110,10 @@ const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(lo
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const GOBLIN = /[?&]look=(?:[^&]*,)?goblin\b/.test(location.search);   // ?look=goblin (with ?region=1): the goblin field's look test: the Cinder ground plus a near-ground kit (stakes, totems, smoking fires, dead trees, bones), a painted horizon dome and look.ts 'goblin-haze' (goblin-field.ts, horizon-dome.ts, goblin-smoke.ts); a look test, absent = today's Frontier
-const GOBLIN_PALETTE = goblinPalette(new URLSearchParams(location.search).get('goblin'));   // ?goblin=<palette id> (with ?look=goblin): one palette row of goblin-field-defs.json (fortress); absent or unknown = the default row
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
-const zoneRow = frontier ? loadZone() : null;   // the page's zone row: its look, props, ground, clutter and ambience fields (a biome row can set them all; Zones 1-4 set none of them, so they are unchanged)
-const ZONE_SKY = GOBLIN ? GOBLIN_PALETTE : zoneRow ? zoneSky(zoneRow) : null;   // the dome a zone row asks for (look.sky); ?look=goblin is Zone 1's override
-const PROPS = GOBLIN ? { kit: GOBLIN_PALETTE.kit, at: goblinZone() } : zoneRow ? zonePropKit(zoneRow) : null, THIN = GOBLIN ? dressSet(GOBLIN_PALETTE.dress) : zoneRow ? zoneDress(zoneRow) : undefined;   // the kit and where it stands, and how much of the base clutter stays (look.props.kit + look.props.camp, look.dress)
-const cinderDressed = frontier && frontierParts ? (CINDER || GOBLIN || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts), THIN) : frontierDress(frontier, frontierParts)) : undefined;
+const zoneRow = frontier ? (GOBLIN ? zoneAsBiome(pageZoneId(), goblinBiome(), { 'look.props.camp': goblinZone() }) : loadZone()) : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields. A biome row can set them all (goblin-fortress); ?look=goblin is Zone 1 seen as that biome. Zones 1-4 set none of them, so they are unchanged
+const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
+const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;
 const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
@@ -132,7 +129,7 @@ const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.ma
 const pitFar: THREE.Object3D[] = [];
 let frontierGroup: THREE.Group | null = null, goblinDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 if (frontier && frontierParts) {
-  const groundRow = (GOBLIN ? goblinGround(GOBLIN_PALETTE) : zoneRow ? zoneGround(zoneRow) : null) ?? (ZONE_SKY ? goblinGround(ZONE_SKY) : null);   // a zone's own ground (look.ground.material), else its dome's palette ground
+  const groundRow = zoneRow ? zoneGround(zoneRow) : null;   // a zone's own ground (look.ground.material)
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief, groundRow ? () => goblinDirtMaterial(groundRow) : undefined);   // the look's own ground when its palette names one
   if (ZONE_SKY) goblinDome = createHorizonDome(scene, ZONE_SKY, import.meta.env.BASE_URL);   // the painted horizon (and Dom's picture, when the palette names one)
   if (ZONE_SKY) arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); });   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walkLoop)

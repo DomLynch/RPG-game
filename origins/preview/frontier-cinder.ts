@@ -6,7 +6,7 @@
 import { cinderRules, stageRule } from '../world/stage-rules.ts';
 import { toWorld } from '../world/derive.ts';
 import type { Piece, Shape, Tint } from './exchange-plan.ts';
-import { footprintOf, rng, type Dress } from './frontier-dress.ts';
+import { footprintOf, rng, WHOLE, type Dress, type Thin } from './frontier-dress.ts';
 import { inFirstView, inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
 
 const SLAB = stageRule('cinderSlab'), DRIFT = stageRule('cinderDrift'), RING = [stageRule('cinderRingA'), stageRule('cinderRingB')], LIP = stageRule('cinderLip'), CORE = stageRule('cinderCore');   // decal heights; the base uses .04 slab, .06 ash, .075 road, .085 ruts, .1 scorch (frontier-dress.ts)
@@ -14,9 +14,6 @@ const PALE: Tint[] = [[1.3, 1.26, 1.2], [1.5, 1.45, 1.38], [1.2, 1.15, 1.1]], RI
 const DARK: Tint = [0.4, 0.37, 0.35], DARKER: Tint = [0.3, 0.28, 0.27], BURNT: Tint = [0.16, 0.14, 0.13], ROCK: Tint[] = [[0.78, 0.72, 0.66], [0.66, 0.62, 0.6], [0.56, 0.54, 0.54]];
 export const CINDER = cinderRules();   // metres the ground is carried out; how far outside the edge the skyline stands; the spacing along it
 
-/** How much of each kind of clutter to keep: 1 = the Cinder pass as it was; a look's dress set (props-defs.json dress) thins it (0 = none). */
-export type Thin = { readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number };
-const WHOLE: Thin = { drifts: 1, rings: 1, cracks: 1, scrub: 1, trees: 1, skyline: 1 };
 export function cinderDress(f: Frontier, b: Build, base: Dress, thin: Thin = WHOLE): Dress {
   const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [];   // solids stays empty: see the note above the inside dressing
   const lay = (shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0) => { ground.push({ layer: 'stone', shape, x, y, z, tint, rotY, foot: -1 }); };

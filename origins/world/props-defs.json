@@ -41,8 +41,8 @@
     {"id": "cairn", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "cairn", "weight": 1}], "count": 1, "near": 1, "chance": 0.5}
   ],
   "dress": [
-    {"id": "default", "drifts": 1, "rings": 1, "cracks": 1, "scrub": 1, "trees": 1, "skyline": 1},
-    {"id": "fortress", "drifts": 0.5, "rings": 0.5, "cracks": 0.7, "scrub": 0.5, "trees": 0.15, "skyline": 0.4}
+    {"id": "default", "drifts": 1, "rings": 1, "cracks": 1, "scrub": 1, "trees": 1, "skyline": 1, "rocks": 1, "ruins": 1, "fill": 1, "posts": 1},
+    {"id": "fortress", "drifts": 0.3, "rings": 0.3, "cracks": 0.5, "scrub": 0.25, "trees": 0.1, "skyline": 0.25, "rocks": 0.25, "ruins": 0.3, "fill": 0.2, "posts": 0.2}
   ],
   "ambience": [
     {"id": "fortress-wind", "windGain": 0.05, "windFreq": 420, "windQ": 0.7, "windSweepHz": 0.12, "windSweepDepth": 260, "crackleGain": 0.09, "crackleRate": 9, "crackleFreq": 1800, "fireRange": 22, "crackleMs": 28}

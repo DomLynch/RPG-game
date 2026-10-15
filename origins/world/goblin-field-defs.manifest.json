@@ -28,10 +28,7 @@
         "torch": "string",
         "torchPower": "number",
         "backdropPortrait": "string",
-        "backdropLandscape": "string",
-        "ground": "string",
-        "kit": "string",
-        "dress": "string"
+        "backdropLandscape": "string"
       },
       "refs": {
         "haze": "goblin-look"
@@ -62,7 +59,8 @@
         "texW": "number",
         "texH": "number",
         "fadeTop": "number",
-        "fadeFoot": "number"
+        "fadeFoot": "number",
+        "drop": "number"
       }
     },
     {

@@ -9,13 +9,13 @@ import { ambienceRow, dressSet, kitIds } from './props-rules.ts';
 
 export type GoblinRule = { readonly id: string; readonly value: number; readonly unit: string };
 type Raw = { rules?: readonly unknown[]; palettes?: readonly unknown[]; backdrops?: readonly unknown[]; grounds?: readonly unknown[]; looks?: readonly unknown[]; harmonics?: readonly unknown[]; names?: readonly unknown[] };
-export type GoblinPalette = { readonly id: string; readonly haze: string; readonly zenith: string; readonly mid: string; readonly horizon: string; readonly glow: string; readonly ridge: string; readonly ridgeFar: string; readonly smoke: string; readonly puff: string; readonly torch: string; readonly torchPower: number; readonly backdropPortrait: string; readonly backdropLandscape: string; readonly ground: string; readonly kit: string; readonly dress: string };
+export type GoblinPalette = { readonly id: string; readonly haze: string; readonly zenith: string; readonly mid: string; readonly horizon: string; readonly glow: string; readonly ridge: string; readonly ridgeFar: string; readonly smoke: string; readonly puff: string; readonly torch: string; readonly torchPower: number; readonly backdropPortrait: string; readonly backdropLandscape: string; };
 /** A ground recipe: the dirt tile's size and seed, its colours, how many blotches, wet patches, speckles, pebbles and cracks, and the bump the low sun picks it out with. Counts and sizes are in tile pixels at texN. */
 export type GoblinGround = { readonly id: string; readonly texN: number; readonly tileM: number; readonly seed: number; readonly base: string; readonly light: string; readonly dark: string; readonly wet: string; readonly blotches: number; readonly blotchMin: number; readonly blotchMax: number; readonly wetPatches: number; readonly wetMin: number; readonly wetMax: number; readonly speckles: number; readonly speckleMin: number; readonly speckleMax: number; readonly pebbles: number; readonly pebbleMin: number; readonly pebbleMax: number; readonly cracks: number; readonly crackSteps: number; readonly crackStep: number; readonly noise: number; readonly bump: number; readonly roughness: number };
-/** A painted backdrop for the dome (Dom's pictures): the file (under the page base), the crop as fractions of the picture (y1 = its horizon line), how many mirrored copies go round the dome, the dome texture's size while it shows, and the head and foot fades as fractions of the crop. */
+/** A painted backdrop for the dome (Dom's pictures): the file (under the page base), the crop as fractions of the picture (y1 = its horizon line), how many mirrored copies go round the dome, the dome texture's size while it shows, the head and foot fades as fractions of the crop, and `drop`: how far the picture is lowered below the horizon, as a fraction of its height (its foot then hides behind the ground and more of its top shows). */
 /** A mood's fog, light and ground tint (the shape of look.ts Look): what a palette's `haze` names. Here, not in a zone row, so every zone row keeps the same preset names. */
 export type GoblinLook = { readonly id: string; readonly fog: string; readonly fogDensity: number; readonly hemiSky: string; readonly hemiGround: string; readonly hemiIntensity: number; readonly sunColor: string; readonly sunIntensity: number; readonly sunPos: readonly [number, number, number]; readonly exposure: number; readonly ground: readonly [number, number, number] };
-export type GoblinBackdrop = { readonly id: string; readonly file: string; readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number; readonly repeat: number; readonly texW: number; readonly texH: number; readonly fadeTop: number; readonly fadeFoot: number };
+export type GoblinBackdrop = { readonly id: string; readonly file: string; readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number; readonly repeat: number; readonly texW: number; readonly texH: number; readonly fadeTop: number; readonly fadeFoot: number; readonly drop: number };
 const RULES = ['smokeCount', 'smokeRise', 'smokeSpeed', 'smokeSize0', 'smokeSize1', 'smokeOpacity', 'domeRadius', 'domeHalf', 'ridgeAmp', 'ridgeSeed', 'ridgeFarShift', 'smokeColumns', 'texW', 'texH', 'glowX', 'glowR', 'columnW', 'columnAlpha', 'torchY', 'torchRange', 'torchDecay', 'flickerFast', 'flickerSlow', 'flickerDepth', 'smokeBase', 'smokeDrift', 'smokeFadeIn', 'puffCore', 'campView', 'pitHideM'] as const;
 const HEX = ['zenith', 'mid', 'horizon', 'glow', 'ridge', 'ridgeFar', 'smoke', 'puff', 'torch'] as const;
 /** The one loader: every table keyed by id (a duplicate id or a missing or mistyped field is refused), every named row must exist, numbers positive, colours #rrggbb. */
@@ -29,7 +29,7 @@ export function loadGoblinField(raw: Raw) {
     const frac = (v: number) => Number.isFinite(v) && v >= 0 && v <= 1;
     if (!(frac(b.x0) && frac(b.x1) && frac(b.y0) && frac(b.y1) && b.x0 < b.x1 && b.y0 < b.y1)) throw Error(`goblin-field backdrop "${b.id}": the crop is fractions of the picture, 0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1`);
     if (!(Number.isInteger(b.repeat) && b.repeat >= 2 && b.repeat % 2 === 0)) throw Error(`goblin-field backdrop "${b.id}": repeat is an even whole number (mirrored copies meet round the dome)`);
-    if (!(b.texW > 0 && b.texH > 0 && frac(b.fadeTop) && frac(b.fadeFoot) && b.fadeTop + b.fadeFoot < 1)) throw Error(`goblin-field backdrop "${b.id}": texW/texH > 0, fadeTop + fadeFoot < 1`);
+    if (!(b.texW > 0 && b.texH > 0 && frac(b.fadeTop) && frac(b.fadeFoot) && b.fadeTop + b.fadeFoot < 1 && frac(b.drop) && b.drop < 0.5)) throw Error(`goblin-field backdrop "${b.id}": texW/texH > 0, fadeTop + fadeFoot < 1, 0 <= drop < 0.5`);
     if (!/^[a-z0-9/_.-]+\.(webp|png|jpg)$/.test(b.file) || b.file.startsWith('/')) throw Error(`goblin-field backdrop "${b.id}": file is a picture path under the page base, no leading slash`);
   }
   for (const g of grounds) {
@@ -37,12 +37,11 @@ export function loadGoblinField(raw: Raw) {
     for (const [k, v] of Object.entries(g)) if (typeof v === 'number' && !(Number.isFinite(v) && v > 0)) throw Error(`goblin-field ground "${g.id}" ${k}: a number > 0`);
     if (!Number.isInteger(g.texN) || g.texN > 2048) throw Error(`goblin-field ground "${g.id}": texN is a whole number up to 2048`);
   }
-  for (const p of palettes) if (p.ground && !grounds.some((g) => g.id === p.ground)) throw Error(`goblin-field palette "${p.id}" ground: "${p.ground}" names no ground row`);
   for (const l of looks) { for (const k of ['fog', 'hemiSky', 'hemiGround', 'sunColor'] as const) if (!/^#[0-9a-f]{6}$/i.test(l[k])) throw Error(`goblin-field look "${l.id}" ${k}: hex is #rrggbb`); if (l.sunPos.length !== 3 || l.ground.length !== 3) throw Error(`goblin-field look "${l.id}": sunPos and ground are three numbers`); }
   for (const p of palettes) for (const k of ['backdropPortrait', 'backdropLandscape'] as const) if (p[k] && !backdrops.some((b) => b.id === p[k])) throw Error(`goblin-field palette "${p.id}" ${k}: "${p[k]}" names no backdrop row`);
   for (const h of harmonics) if (!(h.k > 0 && Number.isInteger(h.k) && h.a > 0)) throw Error(`goblin-field harmonic "${h.id}": k is a whole number of periods > 0 (the ridge closes at the seam), a > 0`);
   if (!harmonics.length) throw Error('goblin-field: the dome ridge needs at least one harmonic row');
-  for (const must of ['zone', 'palette']) if (!names.some((n) => n.id === must)) throw Error(`goblin-field: the look needs its "${must}" name row`);
+  for (const must of ['zone', 'palette', 'biome']) if (!names.some((n) => n.id === must)) throw Error(`goblin-field: the look needs its "${must}" name row`);
   if (!palettes.some((p) => p.id === names.find((n) => n.id === 'palette')!.text)) throw Error('goblin-field: the "palette" name row names a palette row');
   return { rules, palettes, backdrops, grounds, looks, harmonics, names };
 }
@@ -72,11 +71,11 @@ export const zoneGround = (z: ZoneLookFields): GoblinGround | null => LOADED.gro
 export const zoneAmbience = (z: ZoneLookFields) => ambienceRow(zoneSet(z, 'sound.ambience') as string | undefined);
 /** The creature markers a zone shows over wandering creatures: the "!" when one notices you and the name tag; both on unless the zone SETS them off. */
 export const zoneMarkers = (z: ZoneLookFields): { alert: boolean; name: boolean } => ({ alert: zoneSet(z, 'look.creatures.alert') !== false, name: zoneSet(z, 'look.creatures.name') !== false });
-/** The ground recipe a palette names, or null (the Frontier's own dirt stays). */
-export const goblinGround = (p: GoblinPalette): GoblinGround | null => (p.ground ? LOADED.grounds.find((g) => g.id === p.ground)! : null);
 /** Every mood look by id (look.ts adds them to its presets). */
 export const goblinLooks = (): Readonly<Record<string, Omit<GoblinLook, 'id'>>> => Object.fromEntries(LOADED.looks.map(({ id, ...l }) => [id, l]));
 /** The Pit's scenery meshes that ignore fog (names in src/arena.ts: sky, painted backdrop ring, abyss bowl and ground, far ground): drawn at any distance, so a zone dome hides them once the walker is pitHideM from the Pit. */
 export const goblinPitParts = (): readonly string[] => LOADED.names.filter((n) => n.id.startsWith('pit:')).map((n) => n.text);
 export const goblinHarmonics = (): readonly { k: number; a: number }[] => LOADED.harmonics;
+/** The biome row `?look=goblin` puts Zone 1 in (a zone row with that biome gets the same look: sky, kit, clutter, ground, ambience, markers). */
+export const goblinBiome = (): string => LOADED.names.find((n) => n.id === 'biome')!.text;
 export const goblinZone = (): string => LOADED.names.find((n) => n.id === 'zone')!.text;

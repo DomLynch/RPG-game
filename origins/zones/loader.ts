@@ -78,6 +78,12 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   return bad;
 }
 
+/** A zone seen as if it were in another biome (`?look=goblin` on Zone 1): its own package resolved with `biome` swapped, plus any `extra` fields set outright. Only look readers use it; the zone itself is untouched. */
+export function zoneAsBiome(id: string, biome: string, extra: Record<string, unknown> = {}): Zone {
+  const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
+  const r = resolveZone(id, { ...z, biome } as unknown as Spec);
+  return { ...z, fields: { ...r.values, ...extra }, set: [...r.explicit, ...Object.keys(extra)] };
+}
 export const zoneIds = (): string[] => listedIds(PACKAGES, here());
 /** Every zone row, listed or not: for checks that must validate an unlisted row too (scripts/data-only-check.mjs), never for what a player or the server sees. */
 export const allZoneIds = (): string[] => Object.keys(PACKAGES);

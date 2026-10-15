@@ -68,7 +68,11 @@
         "cracks": "number",
         "scrub": "number",
         "trees": "number",
-        "skyline": "number"
+        "skyline": "number",
+        "rocks": "number",
+        "ruins": "number",
+        "fill": "number",
+        "posts": "number"
       }
     },
     {

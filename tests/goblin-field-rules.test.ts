@@ -11,7 +11,7 @@ test('the defaults are the look Dom is shown: pinned; the default palette is the
   assert.equal(goblinZone(), 'cinder-fields');
   assert.deepEqual([goblinRule('smokeCount'), goblinRule('campView'), goblinRule('pitHideM')], [9, 9, 60]);
   const f = goblinPalette();
-  assert.deepEqual([f.id, f.kit, f.dress, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['fortress', 'goblin-camp', 'fortress', 'goblin-fortress', '#3a6090', '#7d93b4', '#b8946a', '#ffd890', '#4c3c36', '#74604f', '#5c4c44', 6, 'fortress-portrait', 'fortress-landscape']);
+  assert.deepEqual([f.id, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['fortress', 'goblin-fortress', '#3a6090', '#7d93b4', '#b8946a', '#ffd890', '#4c3c36', '#74604f', '#5c4c44', 6, 'fortress-portrait', 'fortress-landscape']);
   assert.equal(goblinPalette('nope').id, 'fortress', 'an unknown ?goblin= id is the default row');
 });
 test('the loader refuses a missing named row, a non-positive value, a bad colour, a duplicate id, a dangling backdrop and a bad crop; a new row is one entry', () => {
@@ -21,10 +21,10 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => (p.id === 'fortress' ? { ...p, torchPower: -1 } : p)) }), /torchPower/);
   assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => (p.id === 'fortress' ? { ...p, backdropPortrait: 'missing' } : p)) }), /names no backdrop row/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, y0: 0.9, y1: 0.5 })) }), /the crop is fractions/);
-  assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => ({ ...p, ground: 'missing' })) }), /names no ground row/);
   assert.throws(() => loadGoblinField({ ...d, grounds: (d as unknown as { grounds: Record<string, unknown>[] }).grounds.map((g) => ({ ...g, base: 'brown' })) }), /hex is #rrggbb/);
   assert.throws(() => loadGoblinField({ ...d, grounds: (d as unknown as { grounds: Record<string, unknown>[] }).grounds.map((g) => ({ ...g, texN: 4096 })) }), /texN is a whole number up to 2048/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, repeat: 3 })) }), /even whole number/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, drop: 0.9 })) }), /0 <= drop < 0\.5/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, file: '/abs.webp' })) }), /no leading slash/);
   assert.throws(() => loadGoblinField({ ...d, harmonics: d.harmonics.map((h) => ({ ...h, k: 2.5 })) }), /whole number of periods/);
   assert.throws(() => loadGoblinField({ ...d, names: d.names.map((n) => (n.id === 'palette' ? { ...n, text: 'gone' } : n)) }), /names a palette row/);
