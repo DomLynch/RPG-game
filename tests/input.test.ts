@@ -208,8 +208,27 @@ test('SKILL sits top-right of STAB at STAB\'s own neighbour spacing, HEAVY-sized
   assert.ok(skill.right <= width, `SKILL (right edge ${skill.right}) within the ${width} px cluster's width: the six do not move and the button stays on-screen`);
   const button = html.match(/<button\b[^>]*id="skill-button"[^>]*>([^<]*)<\/button>/)!;
   assert.match(button[0], /data-mobile="Skill"/, 'text only: SKILL, the same label rule as the six');
-  assert.match(css, /#thrust-button,\n#skill-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row');
+  assert.match(css, /#thrust-button,\n#skill-button,\n#skill2-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row (SPELL 2 joins the list)');
   assert.doesNotMatch(css, /#skill-button\[data-cooling\]/, 'cooling is the cluster\'s own dim only: no ring, no countdown, no style of its own');
+});
+
+// SPELL 2 (spell slots 3b): SKILL's twin, left of it on the same row: it overlaps none of the other seven, sits inside the cluster box, is cluster-only, and is hidden until slot b holds a spell.
+test('SPELL 2 sits left of SKILL, SKILL-sized, overlapping none of the seven, inside the cluster, hidden until slot b is filled', () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8'), html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const box = (sel: string) => {
+    const r = css.match(new RegExp(`\\.actions\\[data-gestures=cluster\\] ${sel} \\{([^}]*)\\}`))![1];
+    const n = (k: string) => Number(r.match(new RegExp(`(?:^|\\s)${k}: (-?[\\d.]+)(?:px)?;`))![1]);
+    return { r: n('width') / 2, cx: n('left') + n('width') / 2, cy: n('top') + n('height') / 2, left: n('left'), right: n('left') + n('width') };
+  };
+  const others = { stab: box('#thrust-button:not\\(\\[hidden\\]\\)'), slash: box('#attack-button'), heavy: box('#heavy-button'), kick: box('#kick-button'), step: box('#dodge-button'), guard: box('#guard-button'), skill: box('#skill-button') };
+  const two = box('#skill2-button:not\\(\\[hidden\\]\\)'), gap = (a: typeof two, b: typeof two) => Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r;
+  assert.equal(two.r, others.skill.r, 'SKILL\'s diameter');
+  for (const [name, o] of Object.entries(others)) assert.ok(gap(two, o) > 0, `SPELL 2 overlaps ${name}`);
+  assert.ok(two.cx < others.skill.cx && Math.abs(two.cy - others.skill.cy) < 1, 'left of SKILL, same row');
+  const width = Number(css.match(/\.actions\[data-gestures=cluster\] \{[^}]*width: (\d+)px/)![1]);
+  assert.ok(two.left >= 0 && two.right <= width, `inside the ${width} px cluster (${two.left}..${two.right})`);
+  assert.match(html.match(/<button\b[^>]*id="skill2-button"[^>]*>/)![0], /\bhidden\b/, 'no button for an empty slot');
+  assert.match(css, /#thrust-button,\n#skill-button,\n#skill2-button \{\n {2}display: none;/, 'cluster-only: hidden in the desktop row');
 });
 
 // Strategy's follow-up (2026-09-29, the #1073 stills): at 375 the journal's rank row (nowrap) widened the fighter card's 1fr column and pushed

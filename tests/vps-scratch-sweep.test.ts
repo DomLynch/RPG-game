@@ -2,7 +2,7 @@
 // The live tool runs on the VPS (bash 5); the file is parsed by that bash, so this test needs a Linux bash.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -21,7 +21,7 @@ test('sweep_kind: the lane roots keep the archive-first rule', () => {
 
 test('sweep_kind: be-*, hooks-* and cq-* are aged roots, direct children of /var/tmp or /tmp only', () => {
   for (const p of ['/var/tmp/be-eb5eba4c', '/tmp/hooks-review-2546', '/tmp/hooks-ci', '/tmp/cq-2430wt']) assert.equal(kind(p), 'aged', p);
-  for (const p of ['/var/tmp/be-eb5eba4c/sub', '/tmp/hooks-x/sub', '/tmp/cq-x/y', '/tmp/be-eb5eba4c', '/var/tmp/hooks-x', '/var/tmp/cq-x']) assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/var/tmp/be-eb5eba4c/sub', '/tmp/hooks-x/sub', '/tmp/cq-x/y', '/var/tmp/hooks-x', '/var/tmp/cq-x']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 // /tmp/rank-job left this refused list on 2026-10-14: Lead ruled it a standing aged root (see the test below), so it is pinned there now.
@@ -29,23 +29,89 @@ test('sweep_kind: the six retired lane homes and the two /tmp one-offs, exactly;
   for (const n of ['char-cd', 'deploy-b', 'char-20b', 'char-boss', 'char-lg', 'combat-b']) assert.equal(kind(`/home/lanes/frankendom-${n}`), 'home', n);
   for (const p of ['/tmp/node-compile-cache', '/tmp/lead-env-tab4']) assert.equal(kind(p), 'tmp', p);
   for (const p of ['/home/lanes/frankendom-backend', '/home/lanes/frankendom-char', '/home/lanes', '/home/lanes/.claude', '/home/lanes/.spill-tools', '/home/lanes/frankendom-char-cd/node_modules',
-    '/tmp/lm', '/tmp/claude-1003', '/tmp', '/var/tmp', '/root', '/etc', '/', '/opt/frankendom-shadow', '/opt/frankendom-shadow/work', '/srv/dev-jobs'])
+    '/tmp', '/var/tmp', '/root', '/etc', '/', '/opt/frankendom-shadow', '/opt/frankendom-shadow/work', '/srv/dev-jobs'])
     assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: /tmp/rank-job and /root/cnNN are aged roots, exact (Lead 2026-10-14); lookalikes, children and other parents are refused', () => {
   for (const p of ['/tmp/rank-job', '/root/cn1', '/root/cn20', '/root/cn007']) assert.equal(kind(p), 'aged', p);
-  for (const p of ['/tmp/rank-job/sub', '/tmp/rank-job2', '/tmp/rank-jobs', '/var/tmp/rank-job', '/rank-job', '/root/cn', '/root/cnx1', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/tmp/cn1', '/home/lanes/cn1', '/root/xcn1']) assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/tmp/rank-job/sub', '/var/tmp/rank-job', '/rank-job', '/root/cn', '/root/cnx1', '/root/cn1a', '/root/cn1x', '/root/cn1/sub', '/root/cn1/', '/root/.claude', '/root', '/home/lanes/cn1', '/root/xcn1']) assert.equal(kind(p), '', `${p} is refused`);
 });
 
 test('sweep_kind: odd paths are refused', () => {
   for (const p of ['/tmp/hooks-x/../etc', '/var/tmp/be-a b', '/srv/dev-jobs/../../etc', '/tmp/hooks-..']) assert.equal(kind(p), '', p);
 });
 
+// Strategy 2026-10-15: finished build output in /tmp (about 20 GB) is swept by exact path as a "lane" kind (archive first, then delete). /tmp/lm and /tmp/claude-1003 were pinned as refused
+// before this; they are lane scratch now, still only by an exact path and still refused while anything runs inside (sweep_in_use).
+test('sweep_kind: an exact direct child of /tmp is a lane (archive first); a bare /tmp, a trailing slash, a glob, a child of a child and other parents are refused', () => {
+  for (const p of ['/tmp/lm', '/tmp/finished-build-2026', '/tmp/a.b_c-1', '/tmp/be-eb5eba4c', '/tmp/rank-job2', '/tmp/rank-jobs', '/tmp/cn1']) assert.equal(kind(p), 'lane', p);   // lookalikes of the older /tmp roots are plain exact children now
+  for (const p of ['/tmp', '/tmp/', '/tmp//', '/tmp/*', '/tmp/a*', '/tmp/*/x', '/tmp/a?', '/tmp/[ab]', '/tmp/x/y', '/tmp/x/', '/tmp/./x', '/tmp/../etc', '/tmp/a b', '/var/tmp/x', '/private/tmp/x', '/x/tmp/y'])
+    assert.equal(kind(p), '', `${p} is refused`);
+});
+
+// Lead + Auditor 2026-10-15: refuse by default for what no lane created. A Claude session's scratch is lost if it is swept between turns, and a live service's PrivateTmp is not a mount point
+// from root, so neither the cwd check nor lsof +D reliably sees it in use. One wrong --path must not archive+delete the live writer's /tmp.
+test('sweep_kind: system and session families under /tmp are refused outright, even by exact path (one case per family)', () => {
+  for (const p of ['/tmp/claude-1003', '/tmp/claude', '/tmp/claude_x', '/tmp/claudecode-1', '/tmp/.X11-unix', '/tmp/.ICE-unix', '/tmp/.font-unix', '/tmp/.hidden',
+    '/tmp/systemd-private-0f3a-frankendom-origins-writer.service-9xYz', '/tmp/systemd-private-0f3a-frankendom-duel-relay.service-1aB', '/tmp/systemd-private-0f3a-frankendom-presence.service-2cD', '/tmp/systemd-private-x',
+    '/tmp/snap-private-tmp', '/tmp/pulse-PKdhtXMmr18n', '/tmp/tmux-0', '/tmp/ssh-XXXXabc123'])
+    assert.equal(kind(p), '', `${p} is refused`);
+  for (const p of ['/tmp/lm', '/tmp/finished-build-2026', '/tmp/systemd', '/tmp/ssh', '/tmp/pulse', '/tmp/tmux', '/tmp/cla']) assert.equal(kind(p), 'lane', `${p} is an ordinary lane child`);
+});
+
+test('sweep_safe_path: an idle systemd-private dir (a real directory, nothing running in it) is refused by the real sweep_kind', { skip: process.platform !== 'linux' }, () => {
+  const dir = mkdtempSync(join('/tmp', 'systemd-private-test-'));
+  try {
+    const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', dir], { encoding: 'utf8' });
+    assert.equal(r.status, 1); assert.match(r.stdout, /outside the allowed roots/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+// Lead 2026-10-15: three regular files get an exact one-off arm (kind "file": archive first, then delete); nothing else is taught files.
+test('sweep_kind: exactly /tmp/rev2354-dist.tgz, /tmp/wk.tgz and /tmp/wk2.tgz are kind file; a neighbour, a child, a lookalike and another parent are not', () => {
+  for (const p of ['/tmp/rev2354-dist.tgz', '/tmp/wk.tgz', '/tmp/wk2.tgz']) assert.equal(kind(p), 'file', p);
+  for (const p of ['/tmp/wk3.tgz', '/tmp/wk.tgz.bak', '/tmp/rev2355-dist.tgz', '/tmp/wk.tar']) assert.equal(kind(p), 'lane', `${p} is an ordinary /tmp child (a directory-only kind)`);
+  for (const p of ['/tmp/x/wk.tgz', '/tmp/wk.tgz/', '/var/tmp/wk.tgz', '/root/wk.tgz', '/tmp/wk.tgz/sub']) assert.equal(kind(p), '', `${p} is refused`);
+});
+
+test('sweep_safe_path: a kind-file path must be a regular file (never a directory or a link); a neighbour file is refused because its kind needs a directory', { skip: process.platform !== 'linux' }, () => {
+  const dir = mkdtempSync(join('/tmp', 'sweep-file-'));
+  const file = join(dir, 'a.tgz'), link = join(dir, 'l.tgz'), sub = join(dir, 'd.tgz');
+  const neighbour = join('/tmp', `wk3-test-${process.pid}.tgz`);
+  try {
+    writeFileSync(file, 'x'); symlinkSync(file, link); mkdirSync(sub); writeFileSync(neighbour, 'x');
+    const asFile = (p: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_kind() { echo file; }; sweep_safe_path "$1"', 'x', p], { encoding: 'utf8' });
+    assert.equal(asFile(file).status, 0, 'a real regular file passes as kind file');
+    assert.equal(asFile(link).status, 1); assert.match(asFile(link).stdout, /symlink/);
+    assert.equal(asFile(sub).status, 1); assert.match(asFile(sub).stdout, /not a regular file/);
+    const real = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', neighbour], { encoding: 'utf8' });
+    assert.equal(real.status, 1, 'a neighbour file (kind lane) is refused'); assert.match(real.stdout, /not a real directory/);
+  } finally { rmSync(neighbour, { force: true }); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('sweep_kind: the specific /tmp roots keep their own kind; the new /tmp lane arm is last and never overrides them', () => {
+  for (const [p, k] of [['/tmp/hooks-ci', 'aged'], ['/tmp/cq-2430wt', 'aged'], ['/tmp/rank-job', 'aged'], ['/tmp/node-compile-cache', 'tmp'], ['/tmp/lead-env-tab4', 'tmp']]) assert.equal(kind(p), k, p);
+});
+
+// A symlink in /tmp pointing out of it is refused by sweep_safe_path with the real sweep_kind (a Linux /tmp; the live tool runs on the VPS).
+test('sweep_safe_path: a symlink in /tmp that points out of /tmp is refused, with and without a trailing slash', { skip: process.platform !== 'linux' }, () => {
+  const inside = mkdtempSync(join('/tmp', 'sweep-lane-')), outside = mkdtempSync(join(process.cwd(), '.sweep-outside-'));
+  const link = join('/tmp', `sweep-link-${process.pid}`);
+  try {
+    writeFileSync(join(outside, 'keep.txt'), 'must survive');
+    symlinkSync(outside, link);
+    const run = (p: string) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', p], { encoding: 'utf8' });
+    assert.equal(run(link).status, 1); assert.match(run(link).stdout, /symlink/);
+    assert.equal(run(`${link}/`).status, 1);
+    assert.equal(run(inside).status, 0, 'a real exact child of /tmp passes');
+  } finally { rmSync(link, { force: true }); rmSync(inside, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true }); }
+});
+
 test('the only roots in the file are the ones sweep_kind lists (a new root has to be added there, with a test)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
-  const named = src.slice(src.indexOf('if [ -n "$PATHS" ]; then'), src.indexOf('# work/: lane scratch'));
+  const named = src.slice(src.indexOf('if [ "${#PATHS[@]}" -gt 0 ]; then'), src.indexOf('# work/: lane scratch'));
   assert.ok(!/\/opt\/frankendom-shadow\/work\/\*\|/.test(named) && /sweep_kind "\$p"/.test(named), 'the named-path loop decides through sweep_kind, not a second inline list');
 });
 
@@ -111,6 +177,30 @@ test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
+// Auditor on #2832 (probed on the VPS): `lsof +D <regular file>` exits 1 (clean) even while the file is open, so the new file kind would pass the in-use check under a reader.
+// A file is probed with plain `lsof -- file` (0 = open, 1 = clean, anything else = could not tell = in use); a directory keeps +D.
+test('sweep_in_use: a regular file is probed with `lsof -- file`, a directory with `lsof +D dir`, and both fail closed', () => {
+  const base = mkdtempSync(join(tmpdir(), 'inuse-args-')), file = join(base, 'a.tgz'), dir = join(base, 'd'), argsFile = join(base, 'args.txt'), bin = join(base, 'bin');
+  mkdirSync(dir); mkdirSync(bin); writeFileSync(file, 'x'); writeFileSync(join(bin, 'lsof'), `#!/bin/sh\necho "$@" > "${argsFile}"\nexit \${FAKE_EXIT:-1}\n`); chmodSync(join(bin, 'lsof'), 0o755);
+  const probe = (p: string, exit: number) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_in_use "$1"', 'x', p], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_EXIT: String(exit), LSOF_TIMEOUT: '5' } }).status;
+  try {
+    assert.equal(probe(file, 1), 1, 'a clean file is not in use'); assert.equal(readFileSync(argsFile, 'utf8').trim(), `-- ${file}`);
+    assert.equal(probe(file, 0), 0, 'lsof found the file open = in use'); assert.equal(probe(file, 2), 0, 'an unexpected exit = in use');
+    assert.equal(probe(dir, 1), 1); assert.equal(readFileSync(argsFile, 'utf8').trim(), `+D ${dir}`);
+    assert.equal(probe(dir, 0), 0);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('sweep_in_use: a regular file with a held descriptor is in use, and not in use once it is closed (real lsof)', { skip: process.platform !== 'linux' || spawnSync('sh', ['-c', 'command -v lsof']).status !== 0 }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'inuse-held-')), file = join(base, 'held.tgz');
+  writeFileSync(file, 'x');
+  try {
+    const run = (script: string) => spawnSync('bash', ['-c', `SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; ${script}`, 'x', file], { encoding: 'utf8' }).stdout.trim();
+    assert.equal(run('exec 3<"$1"; sweep_in_use "$1"; echo $?'), '0', 'a file held open by a descriptor is in use');
+    assert.equal(run('sweep_in_use "$1"; echo $?'), '1', 'a closed file is not in use');
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
 test('sweep_in_use: a process whose cwd is inside the dir (or below it) makes it in use', () => {
   const { base, real } = sandbox();
   const child = spawn('sleep', ['30'], { cwd: real });
@@ -139,13 +229,37 @@ test('bare mode: --apply without SWEEP_SCHEDULED=1 is refused (a hand-typed --ap
   assert.equal(run(['--apply'], { SWEEP_SCHEDULED: '0' }).status, 2);
 });
 
+// Found probing #2832 on the VPS: `--path=/tmp/*` was expanded by the shell (the unquoted `for p in $PATHS`) into every child of /tmp before sweep_kind could refuse the glob character. With the
+// /tmp lane kind one --apply would have archived and deleted every ordinary /tmp child. Now: the --path values are a bash ARRAY (no splitting, no globbing, and no `set -f`, which would also have
+// turned the /proc/[0-9]* cwd scan inside sweep_in_use into one literal word), and a glob character in a --path, as received, aborts the whole run before anything else happens (Lead + Auditor 2026-10-15).
+test('a glob character in --path is refused as received (exit 2, nothing touched), even with --apply and a tree of real /tmp-style children', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'glob-refuse-'));
+  try {
+    for (const n of ['a', 'b']) mkdirSync(join(dir, `x-${n}`));
+    for (const arg of [`--path=${dir}/x-*`, '--path=/tmp/*', '--path=/tmp/?', '--path=/tmp/[ab]', `--path=${dir}/x-a*`]) {
+      const r = spawnSync('bash', ['ops/vps-scratch-sweep', arg, '--apply'], { encoding: 'utf8', timeout: 20_000 });
+      assert.equal(r.status, 2, `${arg}: ${r.stdout}${r.stderr}`); assert.match(r.stderr, /REFUSE\(a glob character in --path/);
+    }
+    assert.deepEqual(readdirSync(dir).sort(), ['x-a', 'x-b'], 'nothing was touched');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the --path values are a bash array walked with "${PATHS[@]}": no unquoted $PATHS, no set -f anywhere (it would break the /proc/[0-9]* scan in sweep_in_use)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  assert.ok(!/\$PATHS\b(?!\[)/.test(src.replace(/\$\{#?PATHS\[[@]\]\}/g, '')), 'no bare $PATHS is left');
+  assert.ok(src.includes('PATHS=()') && src.includes('PATHS+=("${a#--path=}")') && src.includes('for p in "${PATHS[@]}"; do'));
+  assert.ok(!/\bset -f\b/.test(src.replace(/#[^\n]*/g, '')), 'no set -f in the code');
+  assert.ok(src.indexOf('REFUSE(a glob character in --path') < src.indexOf('PATHS+=("${a#--path=}")'), 'the glob refusal comes before the value is stored');
+});
+
 test('the guard sits before the log, the lock and the disk, and the scheduled form is exactly SWEEP_SCHEDULED=1 with --apply and no --path', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
   const guard = src.indexOf('the bare mode is the scheduled sweep only');
   assert.ok(guard > 0 && guard < src.indexOf('LOGDIR='), 'refusal happens before LOGDIR is created');
   assert.ok(guard < src.indexOf('flock -n 9'), 'and before the lock');
-  assert.match(src, /\[ -z "\$PATHS" \] && \{ \[ "\$APPLY" != 1 \] \|\| \[ "\$\{SWEEP_SCHEDULED:-\}" != 1 \]; \}/, 'bare = no --path; allowed only with --apply AND SWEEP_SCHEDULED=1');
+  assert.match(src, /\[ "\$\{#PATHS\[@\]\}" = 0 \] && \{ \[ "\$APPLY" != 1 \] \|\| \[ "\$\{SWEEP_SCHEDULED:-\}" != 1 \]; \}/, 'bare = no --path; allowed only with --apply AND SWEEP_SCHEDULED=1');
 });
 
 // The Auditor's HOLD on #2626: the live unit ran `--apply` WITHOUT SWEEP_SCHEDULED=1, so installing the guard alone would have made every 6-hourly run exit 2. The unit ships in the repo now.

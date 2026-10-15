@@ -13,15 +13,17 @@ import { poolsOf, type PoolValues } from './pools.ts';
 import { percentOf, rolledDamage, rollUnit, swarmBand } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
+import { bandFactor } from './bands.ts';
+import { SHARED_COOLDOWN } from './spell-rows.ts';
 import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
-import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
+import { ARC_HALF, BODY_SPACING, FULL_TURN, GAP_EPSILON, LORARIUS_SECTORS, MAX_PERK_TEMPLATES, MOVE_EPSILON, PERK_MAX, PER_MILLE, PUSH_SPLIT, ROLL_HALF } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
 export type Phase = 'sheathed' | 'draw' | 'ready' | 'attack' | 'roll' | 'backstep' | 'guard' | 'hurt' | 'dead';
-export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry' | 'skill';   // skill: the equipped skill's move (Fighter.skill), the fourth button
+export type Action = 'light' | 'light_left' | 'light_right' | 'heavy' | 'thrust' | 'kick' | 'dodge' | 'backstep' | 'parry' | 'skill' | 'skill2';   // skill: the equipped skill's move (Fighter.skill), the fourth button
 export type Intent = {
   move: Input;                  // camera-relative stick/keys
   action: Action | null;        // edge-triggered request for this tick; one is buffered late in a committed action
@@ -62,6 +64,7 @@ export type Fighter = {
   specialName?: SpecialName;   // which named special this fighter casts (moves.ts specialOf); absent = named by `skill`
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
+  spell2?: Spell; skillCooldown2?: number; castSlot?: 1;   // slot b (spell-slot-defs.json): its spell and its OWN cooldown (absent = 0); castSlot = the slot of the cast in its windup (absent = slot a). All absent = a one-spell fight byte for byte
   spell?: Spell;   // the spell this fighter's special casts (spell-cast.ts, RV53): a stamina cost at the commit and an outcome by skill at the release; the windup, interrupt, cooldown and reach are the special's own. Absent = the plain special, byte for byte
   specialRecover?: number;   // ticks left after a release in which the caster starts no attack (RULES.special.recovery); guard, roll and steps stay legal
   feintEdge?: number;   // a TRICKSTER's feint opens a beat: ticks left in which the next swing he starts is a beating one (RULES.feintBeat, src/fight/stance.ts); absent without that stance
@@ -78,18 +81,18 @@ export type PerkKey = 'vitality' | 'wind' | 'thrift' | 'guard' | 'poise' | 'stri
 export type Perk = Readonly<Partial<Record<PerkKey, number>>>;   // vitality: max health; wind: stamina regen; thrift: attack stamina cost; guard: block and guard-break stamina cost; poise: posture taken; stride: pace
 export const PERK_KEYS: readonly PerkKey[] = ['vitality', 'wind', 'thrift', 'guard', 'poise', 'stride'];
 // `perk ? scaled : plain`, never `x * 1`: a fighter with no perk (or a zero on this key) takes the unscaled value untouched, so no float drift.
-const perked = (f: Pick<Fighter, 'perk'>, key: PerkKey, x: number): number => { const d = f.perk?.[key]; return d ? (x * (1000 + d)) / 1000 : x; };
+const perked = (f: Pick<Fighter, 'perk'>, key: PerkKey, x: number): number => { const d = f.perk?.[key]; return d ? (x * (PER_MILLE + d)) / PER_MILLE : x; };
 // Validates and applies a perk at duel start: max health (integer), regen and pace scale once; thrift, guard and poise are read at their sites in stepDuel.
 export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
   if (!perk) return f;
   const set = PERK_KEYS.filter(k => perk[k]);
   if (Object.keys(perk).some(k => !(PERK_KEYS as readonly string[]).includes(k))) throw Error('Perk: unknown template');
-  if (set.length > 2 || set.some(k => !Number.isInteger(perk[k]) || Math.abs(perk[k]!) > PERK_MAX)) throw Error(`Perk: at most two templates, whole per-mille, within ±${PERK_MAX}`);
+  if (set.length > MAX_PERK_TEMPLATES || set.some(k => !Number.isInteger(perk[k]) || Math.abs(perk[k]!) > PERK_MAX)) throw Error(`Perk: at most two templates, whole per-mille, within ±${PERK_MAX}`);
   if (!set.length) return f;
   const out: Fighter = { ...f, perk: Object.fromEntries(set.map(k => [k, perk[k]!])) };
-  if (perk.vitality) { out.maxHealth = Math.round((f.maxHealth * (1000 + perk.vitality)) / 1000); out.health = out.maxHealth; }
-  if (perk.wind) out.regen = (f.regen * (1000 + perk.wind)) / 1000;
-  if (perk.stride) out.speed = (f.speed * (1000 + perk.stride)) / 1000;
+  if (perk.vitality) { out.maxHealth = Math.round((f.maxHealth * (PER_MILLE + perk.vitality)) / PER_MILLE); out.health = out.maxHealth; }
+  if (perk.wind) out.regen = (f.regen * (PER_MILLE + perk.wind)) / PER_MILLE;
+  if (perk.stride) out.speed = (f.speed * (PER_MILLE + perk.stride)) / PER_MILLE;
   return out;
 };
 
@@ -104,14 +107,14 @@ export type CombatEvent = { pulse?: number; cone?: boolean; damageKind?: string;
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
 // `roll`: the world-mob damage roll (Origins luck ruling, Dom 2026-10-07: +/-10% on every blow in both directions, in a world-mob fight only). Absent = the Pit, PvP and the
 // ladder: today's fight byte for byte. `hits` numbers the fight's blows in the order they resolve, so the draw is a pure function of (seed, hit) and a replay reproduces it.
-export type Duel = { tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number; swarm?: number; rank?: number }; gambit?: { seed: number; draws: number }; cast?: { seed: number; n: number }; radius?: number; ccBase?: number };   // ccBase: ticks added to this duel's tick to give the world's clock, the ladder's window (open world only)   // radius: the wall this fight is fought inside (RV40); absent = the Pit's live circle (play-radius.ts RADIUS), so a Pit duel is byte for byte what it was
-export { ROLL_BAND, rollPercent, rolledDamage } from './roll.ts';   // the one definition (src/fight/roll.ts), shared with origins/luck/luck.ts
+export type Duel = { bands?: boolean; tick: number; fighters: [Fighter, Fighter]; finish: Finish | null; events: CombatEvent[]; incoming?: number; roll?: { seed: number; hits: number; swarm?: number; rank?: number }; gambit?: { seed: number; draws: number }; cast?: { seed: number; n: number }; radius?: number; ccBase?: number };   // ccBase: ticks added to this duel's tick to give the world's clock, the ladder's window (open world only)   // radius: the wall this fight is fought inside (RV40); absent = the Pit's live circle (play-radius.ts RADIUS), so a Pit duel is byte for byte what it was
+export { ROLL_BAND, rollPercent, rolledDamage } from './roll.ts';   // the one definition (src/fight/roll.ts), shared with src/core/luck.ts
 export const withRoll = (duel: Duel, seed: number): Duel => ({ ...duel, roll: { seed, hits: 0 } });
 // A spell on one fighter (RV53): the one door, so a replay builds exactly what the live fight built. The fighter must already carry the special (withSpecials). `cast.seed` is the fight's seed, salted so the cast draws never repeat the gambit's or the roll's.
-export const withSpell = (duel: Duel, side: Side, spell: Spell, seed: number): Duel => {
+export const withSpell = (duel: Duel, side: Side, spell: Spell, seed: number, slot: 0 | 1 = 0): Duel => {
   if (duel.fighters[side].specialShare === undefined) throw Error('A spell is cast through the special: the fight needs Special Moves');
   const fighters = [duel.fighters[0], duel.fighters[1]] as [Fighter, Fighter];
-  fighters[side] = { ...fighters[side], spell };
+  fighters[side] = slot ? { ...fighters[side], spell2: spell, skillCooldown2: fighters[side].skillCooldown2 ?? fighters[side].skillCooldown } : { ...fighters[side], spell };   // slot b starts on the same first-cast delay as slot a
   return { ...duel, fighters, cast: { seed: (seed ^ 0x5bd1e995) >>> 0, n: 0 } };
 };
 // A fight with the Gambit (src/fight/gambit.ts, RV33): the player's side may arm it, and its draws are a pure function of (seed, draw number). Absent = today's fight byte for byte.
@@ -121,7 +124,7 @@ export const withGambit = (duel: Duel, seed: number): Duel => ({ ...duel, gambit
 
 // Which sixth of the ring wall a lorarius stands in, from the position of the man he is whipping: the six guards are drawn at 60-degree
 // intervals, so the sim and the world lane agree on which one moved without either reaching into the other.
-export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.atan2(body.z, body.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 3));
+export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.atan2(body.z, body.x) + Math.PI * FULL_TURN) % (Math.PI * FULL_TURN)) / (Math.PI / LORARIUS_SECTORS));
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
@@ -140,7 +143,7 @@ export const validatePose = (pose: DuelPose, wall = true): void => {
   const { hero, foe, heroFacing } = pose;
   for (const p of [hero, foe]) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || (wall && M.hypot(p.x, p.z) > RADIUS)) throw RangeError('Duel pose: a fighter must start inside the wall');
   if (!Number.isFinite(heroFacing)) throw RangeError('Duel pose: heroFacing must be a finite angle');
-  if (M.hypot(hero.x - foe.x, hero.z - foe.z) <= .85) throw RangeError('Duel pose: the fighters start inside each other');
+  if (M.hypot(hero.x - foe.x, hero.z - foe.z) <= BODY_SPACING) throw RangeError('Duel pose: the fighters start inside each other');
 };
 // The record stores a pose as float32: a live fight and its replay must start from the SAME bits, so poseBodies (below) and the recorder both round with this. Float32 rounding is plain IEEE-754 (not a per-device
 // value); it goes through a DataView because net-determinism bans the usual single-precision spellings inside the sim files as a blanket rule.
@@ -226,10 +229,18 @@ function chooseMove(f: Fighter, action: Action): MoveId {
   if (action === 'light_left' || action === 'light_right') return action;
   return f.lastMove === 'light_right' ? 'light_left' : 'light_right';
 }
+// Spend a cast's cooldown on the slot that cast (spell-slot-defs sharedCooldown 1 = a cast from either slot starts both). Slot a is skillCooldown: a one-spell fight never touches the b field.
+const coolSlot = (f: Fighter, ticks: number): void => {
+  if (!f.castSlot || SHARED_COOLDOWN) f.skillCooldown = ticks;
+  if (f.castSlot || (SHARED_COOLDOWN && f.skillCooldown2 !== undefined)) f.skillCooldown2 = ticks;
+  delete f.castSlot;
+};
+// The spell of the cast in its windup (slot b when castSlot is set).
+const castOf = (f: Fighter): Spell | undefined => f.castSlot ? f.spell2 : f.spell;
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
-  if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill')) return false;   // the special's recovery: no attack until it ends
+  if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill' || action === 'skill2')) return false;   // the special's recovery: no attack until it ends
   // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
   // the blade is out of line — so no swing comes out of either. A man's parry yields to any action and his exposure only bares his guard.
   const g = guardOf(f), committed = g.commits && ((f.phase === 'guard' && f.parrying && !f.punish && f.age < g.window) || (f.phase === 'ready' && f.exposed > 0));
@@ -239,6 +250,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
   if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || f.stamina >= f.spell.cost);   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
+  if (action === 'skill2') return f.specialShare !== undefined && !!f.spell2 && !f.skillCooldown2 && (standing || stepTail) && f.stamina >= f.spell2.cost;   // slot b: its own cooldown, the shared stamina bar; an empty slot is inert
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -258,11 +270,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   const stunned = (f: Fighter, source: CcSource, ticks: number): number => { if (!f.cc) return ticks; const r = ccApply(f.cc, source, tick + (duel.ccBase ?? 0), ticks, CC_LADDER, f.ccGuard); f.cc = r.ladder; return r.ticks; };
   // A committed special windup: the caster stands and tracks the target, whatever the thumb does (no guard, roll, parry or step).
   if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
-  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
+  const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), ...(f.skillCooldown2 !== undefined ? { skillCooldown2: Math.max(0, f.skillCooldown2 - 1) } : {}), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
   for (const f of fighters) if (f.poiseRest) { if (f.poiseRest > 1) f.poiseRest--; else delete f.poiseRest; }
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
   for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }   // a trickster's feint beat runs down (RULES.feintBeat)
-  if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}), ...(duel.cast ? { cast: duel.cast } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}), ...(duel.ccBase !== undefined ? { ccBase: duel.ccBase } : {}) };
+  if (!before[0].health || !before[1].health) return { tick, fighters, finish: duel.finish, events, ...(duel.bands ? { bands: true } : {}), ...(duel.roll ? { roll: duel.roll } : {}), ...(duel.gambit ? { gambit: duel.gambit } : {}), ...(duel.cast ? { cast: duel.cast } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}), ...(duel.ccBase !== undefined ? { ccBase: duel.ccBase } : {}) };
   let gdraws = duel.gambit?.draws ?? 0, casts = duel.cast?.n ?? 0;   // casts: the seeded draws spells have taken so far (RV53)
   let hits = duel.roll?.hits ?? 0, lastRoll: number | undefined;   // the world-mob roll: a blow's health loss goes through rolled(); absent roll = the plain number
   // The sheet (RV48): the attacker's attack dial scales a blow up and the target's armour dial scales it down (an armour of 100 takes half) before the world roll; a blow is never scaled to nothing. No sheet on either side = the plain number.
@@ -297,19 +309,21 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const face = (limit: number) => { if (intent.lock) next.body = { ...next.body, heading: next.body.heading + Math.max(-limit, Math.min(limit, wrapAngle(aim(next.body, foe.body) - next.body.heading))) }; };
     if (action === 'dodge') {
       // Direction locks at the press; without movement, roll away from the opponent. A roll grown out of a backstep pays the difference.
-      const moving = M.hypot(intent.move.x, intent.move.z) > .1;
+      const moving = M.hypot(intent.move.x, intent.move.z) > MOVE_EPSILON;
       next.body = { ...me.body, heading: moving ? advance(me.body, intent.move, foe.body, 1, wall).heading : aim(me.body, foe.body) + Math.PI };
       next.phase = 'roll'; next.age = 0; spend(i, me.phase === 'backstep' ? R.rollCost - R.backstep.cost : R.rollCost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'roll' });
     } else if (action === 'backstep' && walled(me.body, -M.sin(me.body.heading), -M.cos(me.body.heading), wall)) {
       // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
-    } else if (action === 'skill' && me.specialShare !== undefined) {
+    } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       if (distance(me.body, foe.body) <= R.special.reach) {
+        const cast = action === 'skill2' ? me.spell2 : me.spell;
+        if (action === 'skill2') next.castSlot = 1; else delete next.castSlot;
         next.special = R.special.windup; delete next.castHurt; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        if (me.spell) spend(i, me.spell.cost);   // the stamina is gone at the commit, whatever the outcome
-        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(me.spell ? { spell: me.spell.id } : {}) });
+        if (cast) spend(i, cast.cost);   // the stamina is gone at the commit, whatever the outcome
+        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(cast ? { spell: cast.id } : {}) });
       }
     } else if (action === 'kick') {
       beginAttack(next, 'kick', false, foe.body); spend(i, perked(me, 'thrift', movesOf(next).kick.stamina));
@@ -395,8 +409,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.
   {
     const [p, q] = [fighters[0].body, fighters[1].body], dx = q.x - p.x, dz = q.z - p.z, gap = M.hypot(dx, dz);
-    if (gap < .85 - 1e-8) {
-      const push = (.85 - gap) / 2, ux = gap > 1e-8 ? dx / gap : M.sin(p.heading), uz = gap > 1e-8 ? dz / gap : M.cos(p.heading);
+    if (gap < BODY_SPACING - GAP_EPSILON) {
+      const push = (BODY_SPACING - gap) / PUSH_SPLIT, ux = gap > GAP_EPSILON ? dx / gap : M.sin(p.heading), uz = gap > GAP_EPSILON ? dz / gap : M.cos(p.heading);
       const clamp = (x: number, z: number) => { const r = M.hypot(x, z); return r > wall ? { x: x * wall / r, z: z * wall / r } : { x, z }; };
       fighters[0].body = { ...p, ...clamp(p.x - ux * push, p.z - uz * push) }; fighters[1].body = { ...q, ...clamp(q.x + ux * push, q.z + uz * push) };
     }
@@ -493,7 +507,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (!D.health) { finish = finish ? { ...finish, draw: true } : { victim: j, location: location!, move: a.move!, heading: a.body.heading }; events.push({ tick, type: 'Killed', actor: i, target: j, move: a.move!, location: location!, heading: a.body.heading }); }
     };
     // A low blade (the sweep) trips a roll in its first half: the roller is going down into it. The kick has no blade and is rolled as before.
-    const trip = d.phase === 'roll' && def.direction === 'low' && def.path !== null && d.age < R.roll / 2;
+    const trip = d.phase === 'roll' && def.direction === 'low' && def.path !== null && d.age < R.roll / ROLL_HALF;
     if (d.phase === 'roll' && d.age >= R.safeStart && d.age <= R.safeEnd && !trip) events.push({ tick, type: 'Dodged', actor: j, target: i, move: a.move });
     else if (guarding && d.age < g.window && def.parryable) {
       const parried = Math.max(1, stunned(A, 'parryStun', R.parryStun));   // never under 1 tick: the parried cut still ends
@@ -511,7 +525,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (chip) { wound(taken, 0, false); if (!D.health) stagger(0); }   // chip never marks a wound, but it can still kill
       shake(j, dealtPosture(def.posture * (perfect ? R.posture.perfect : 1)));
     } else {
-      const damage = Math.round(stanced(a, 'damage', def.charges ? stanced(a, 'heavyDamage', def.damage) : def.damage) * R.location[location] * (charged ? R.charge.damage : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
+      const damage = Math.round(stanced(a, 'damage', def.charges ? stanced(a, 'heavyDamage', def.damage) : def.damage) * R.location[location] * (charged ? R.charge.damage : 1) * (duel.bands && a.attackFrom ? bandFactor(a.weapon, a.attackFrom.gap) : 1)), baseStun = Math.round(def.stagger * (charged ? R.charge.stagger : 1));
       if (guarding && !beaten) { const hit = rolled(damage, i, j, pen); spend(j, perked(d, 'guard', R.breakCost)); wound(hit, def.knockback); events.push({ tick, type: 'GuardBroken', actor: i, target: j, move: a.move, damage: hit, ...rollTag(), location, heading: a.body.heading, charged, weapon: weapon.id, material: weapon.material }); stagger(baseStun); D.posture = 0; }
       else {
         // Hyper-armour: a heavy parked at its chamber, a charged heavy, or any move past its poise point. A short hold that was released
@@ -523,7 +537,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         // Walking onto the point: since the thrust started, the target has come at least stopHit.walk closer to where it started from (its own steps; the lunge does not count).
         const advancing = (d.phase === 'ready' || d.phase === 'guard') && a.attackFrom !== null && distance(d.body, { ...d.body, x: a.attackFrom.x, z: a.attackFrom.z }) < a.attackFrom.gap - R.stopHit.walk;
         const stop = a.move === 'thrust' && (counter || advancing);
-        const rear = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) > Math.PI - R.rear.arc / 2;
+        const rear = Math.abs(wrapAngle(aim(d.body, a.body) - d.body.heading)) > Math.PI - R.rear.arc / ARC_HALF;
         const plain = Math.round(damage * (stop ? R.stopHit.damage : counter ? R.counter.damage : 1) * (rear ? (d.phase === 'hurt' ? R.rear.downed : R.rear.damage) : 1)), stun = Math.round(baseStun * (stop ? R.stopHit.stagger : counter ? R.counter.stagger : 1) * (rear ? R.rear.stagger : 1));
         // The Gambit (src/fight/gambit.ts): an armed swing that meets an open body draws once. Landed: the heavy's number times the odds' multiplier (capped from above 40% health), no shrug, the posture
         // times the same; failed: nobody is hurt and the thrower staggers. A guard, a parry or an evade settles it as the plain heavy (the draw is never taken).
@@ -554,18 +568,19 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   for (const i of [0, 1] as const) {
     const j = (1 - i) as Side, A = fighters[i], D = fighters[j];
     if (!releasing[i]) continue;
-    A.special = 0; delete A.castHurt; A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
+    const spell = castOf(A);   // slot a or b: the cooldown below is that slot's own (spell-slot-defs sharedCooldown 1 = both)
+    A.special = 0; delete A.castHurt; coolSlot(A, R.special.cooldown); A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
     // v55 (cone-rules.ts): a special with a cone row breathes instead of striking once: the heading is fixed on the target now, the pulses follow, and the caster is held back until the last of them is done.
-    const cone = CONE_ON && !A.spell ? coneOf(A.specialName) : undefined;
+    const cone = CONE_ON && !spell ? coneOf(A.specialName) : undefined;
     if (cone) { A.breath = { k: 0, wait: 0, heading: aim(A.body, D.body) }; A.specialRecover = R.special.recovery + breathTicks(cone); breathed[i] = true; continue; }
     const move: MoveId = SKILL_MOVE[A.skill ?? DAY_ONE_SKILL]!;
     // A spell resolves its outcome from the seeded stream (one draw per cast that lands on a standing target); a fizzle spent its stamina and re-armed the full cooldown above, and deals nothing.
-    const outcome = A.spell && duel.cast ? castOutcome(A.spell, rollUnit(duel.cast.seed, casts++)) : undefined, mult = A.spell && outcome ? outcomeMult(A.spell, outcome) : 1;
-    if (A.spell && outcome && !mult) { events.push({ tick, type: 'SpecialFizzled', actor: i, spell: A.spell.id, outcome }); continue; }
-    const damage = Math.round((A.spell && outcome ? A.spell.share * mult : A.specialShare!) * D.maxHealth);
+    const outcome = spell && duel.cast ? castOutcome(spell, rollUnit(duel.cast.seed, casts++)) : undefined, mult = spell && outcome ? outcomeMult(spell, outcome) : 1;
+    if (spell && outcome && !mult) { events.push({ tick, type: 'SpecialFizzled', actor: i, spell: spell.id, outcome }); continue; }
+    const damage = Math.round((spell && outcome ? spell.share * mult : A.specialShare!) * D.maxHealth);
     D.health = Math.max(0, D.health - damage);
-    events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}), ...(A.spell && outcome ? { spell: A.spell.id, outcome } : {}) });
+    events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}), ...(spell && outcome ? { spell: spell.id, outcome } : {}) });
     if (D.health) continue;
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
     finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move, heading: A.body.heading };
@@ -598,7 +613,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (hurt && isInterruptible(A.specialName)) {
       const taken = (A.castHurt ?? 0) + hurt;
       if (taken >= R.special.interruptAt * A.maxHealth) {
-        A.special = 0; delete A.castHurt; A.skillCooldown = R.special.interruptCooldown;
+        A.special = 0; delete A.castHurt; coolSlot(A, R.special.interruptCooldown);
         events.push({ tick, type: 'SpecialInterrupted', actor: i, damage: taken });
         continue;
       }
@@ -618,6 +633,6 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       events.push({ tick, type: 'Killed', actor: 0, target: 1, move, location: 'torso', heading: A.body.heading });
     }
   }
-  return { tick, fighters, finish, events, ...(duel.roll ? { roll: { ...duel.roll, hits } } : {}), ...(duel.gambit ? { gambit: { seed: duel.gambit.seed, draws: gdraws } } : {}), ...(duel.cast ? { cast: { seed: duel.cast.seed, n: casts } } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}), ...(duel.ccBase !== undefined ? { ccBase: duel.ccBase } : {}) };
+  return { tick, fighters, finish, events, ...(duel.bands ? { bands: true } : {}), ...(duel.roll ? { roll: { ...duel.roll, hits } } : {}), ...(duel.gambit ? { gambit: { seed: duel.gambit.seed, draws: gdraws } } : {}), ...(duel.cast ? { cast: { seed: duel.cast.seed, n: casts } } : {}), ...(duel.radius !== undefined ? { radius: duel.radius } : {}), ...(duel.ccBase !== undefined ? { ccBase: duel.ccBase } : {}) };
 }
 
