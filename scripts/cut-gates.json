@@ -1,0 +1,14 @@
+{
+  "note": "Data for the cut's two pre-launch hard stops (scripts/cut-release.mjs, Strategy 2026-10-15 after the four unreviewed commits on trunk). Gate 1: every commit in <live>..<candidate base> must belong to a PR (GitHub commits/<sha>/pulls non-empty) unless it is listed in noPrExempt. Gate 2: the cut may not change any path under watchedPaths.",
+  "watchedPaths": [
+    ".github/workflows",
+    ".vscode",
+    "public/fonts"
+  ],
+  "noPrExempt": [
+    { "sha": "d531a0f1d", "note": "2026-10-15 malicious commit 'Add repo health workflow', neutralised by revert PR #2779" },
+    { "sha": "7f19a0842", "note": "2026-10-15 malicious commit 'Add cache cleanup', neutralised by revert PR #2779" },
+    { "sha": "e5410d2c4", "note": "2026-10-15 malicious commit 'Add font assets', neutralised by revert PR #2779" },
+    { "sha": "e35b9b16d", "note": "2026-10-15 malicious commit 'Add editor task', neutralised by revert PR #2779" }
+  ]
+}

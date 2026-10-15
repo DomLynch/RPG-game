@@ -3,8 +3,9 @@
 // still merge), ONE push, a draft PR labelled ci:release-checks (the rows run on GitHub's 40 runners) and auditor:ready, then the pre-launch jobs (T4/CPU rows)
 // in the background. No unit job: unit-ci.yml on the candidate is the unit receipt (Lead 2026-10-12; HF unit jobs only with reason=unit-ci-down). Prints one JSON line: { name, sha, pr, merged, skipped, driverResolved, driver, logs }. Never launches the deploy: that stays Deploy's call (deploy-run skill).
 // Run it in the release worktree, which must be clean. The Auditor's PASS at each head is checked from the PR thread unless --no-verify.
+// Two hard stops that print their reason (Strategy 2026-10-15; data in scripts/cut-gates.json): gate 1, a commit in <live>..<base> that belongs to no PR (needs --live); gate 2, the cut changes .github/workflows, .vscode or public/fonts.
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, openSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 
@@ -133,6 +134,38 @@ export async function applyLabels({ repo, token, number, labels, fetchImpl = fet
   } catch (e) { return { ok: false, failed: `labels on #${number}: ${String(e?.message ?? e).slice(0, 160)}` }; }
 }
 
+/** The two pre-launch hard stops (Strategy 2026-10-15, after four unreviewed commits reached trunk). Their data (watched paths, the exempt shas) lives in scripts/cut-gates.json. */
+export const loadGates = (file = new URL('./cut-gates.json', import.meta.url)) => JSON.parse(readFileSync(file, 'utf8'));
+
+/** Gate 1: every commit in live..base must belong to a PR. git(args) -> { status, stdout }; pullsOf(sha) -> the PR numbers GitHub lists for the commit (throws if it cannot ask).
+ *  A commit whose sha starts with an exempt entry is skipped. Fails closed: no live sha, an unreadable range or a failed lookup is a stop with the reason, not a pass.
+ *  Returns { ok: true, checked } or { ok: false, reason, missing }. */
+export function checkRangeHasPrs({ git, pullsOf, live, base, gates = loadGates() }) {
+  if (!live) return { ok: false, reason: 'gate 1 needs --live <sha> (the commits in live..base are what it checks)', missing: [] };
+  const range = git(['rev-list', `${live}..${base}`]);
+  if (range.status !== 0) return { ok: false, reason: `gate 1: cannot list ${live.slice(0, 9)}..${base.slice(0, 9)}: ${String(range.stderr || '').trim().slice(0, 120)}`, missing: [] };
+  const exempt = (gates.noPrExempt || []).map(e => e.sha);
+  const shas = range.stdout.split('\n').filter(Boolean).filter(s => !exempt.some(e => s.startsWith(e)));
+  const missing = [];
+  for (const sha of shas) {
+    let prs;
+    try { prs = pullsOf(sha); } catch (e) { return { ok: false, reason: `gate 1: cannot ask GitHub for the PRs of ${sha.slice(0, 9)}: ${String(e?.message ?? e).slice(0, 120)}`, missing }; }
+    if (!prs?.length) missing.push(sha);
+  }
+  if (missing.length) return { ok: false, reason: `gate 1: ${missing.length} commit(s) in ${live.slice(0, 9)}..${base.slice(0, 9)} belong to no PR: ${missing.map(s => s.slice(0, 9)).join(', ')}`, missing };
+  return { ok: true, checked: shas.length };
+}
+
+/** Gate 2: the cut (base..cut) may not change any watched path (a path equal to, or under, one of gates.watchedPaths). Returns { ok: true } or { ok: false, reason, files }. */
+export function checkWatchedPaths({ git, base, cut, gates = loadGates() }) {
+  const watched = gates.watchedPaths || [];
+  const diff = git(['diff', '--name-only', base, cut, '--', ...watched]);
+  if (diff.status !== 0) return { ok: false, reason: `gate 2: cannot diff ${base.slice(0, 9)}..${cut.slice(0, 9)}: ${String(diff.stderr || '').trim().slice(0, 120)}`, files: [] };
+  const files = diff.stdout.split('\n').filter(Boolean);
+  if (files.length) return { ok: false, reason: `gate 2: the cut changes watched paths (${watched.join(', ')}): ${files.slice(0, 5).join(', ')}${files.length > 5 ? ` and ${files.length - 5} more` : ''}`, files };
+  return { ok: true };
+}
+
 /** The argv for `gh pr create`. No --label: ensureLabels is the only labeller (gh's own --label and our POST landed 1 s apart on FS #2742 and cancelled a CI run). */
 export const ghCreateArgs = ({ name, title, body }) => ['pr', 'create', '--draft', '--base', TRUNK, '--head', `release-${name}`, '--title', title, '--body', body];
 
@@ -152,7 +185,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const flag = f => { const i = argv.indexOf(f); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, f === '--no-verify' ? 1 : 2); return v ?? true; };
   const live = flag('--live'), base = flag('--base'), noVerify = flag('--no-verify');   // --base release-CN: N+1 built on N's tip (default trunk)
   const [name, ...rest] = argv;
-  if (!/^[A-Za-z0-9]+$/.test(name || '') || !rest.length) { console.error('usage: node scripts/cut-release.mjs <name> <PR>@<head sha>... [--base <release branch>] [--live <sha>] [--no-verify]'); process.exit(2); }
+  if (!/^[A-Za-z0-9]+$/.test(name || '') || !rest.length) { console.error('usage: node scripts/cut-release.mjs <name> <PR>@<head sha>... [--base <release branch>] --live <sha> [--no-verify]'); process.exit(2); }
   const specs = rest.map(parseSpec);
   const git = args => run('git', args);
   if (git(['status', '--porcelain']).stdout.trim()) { console.error('cut-release: the worktree is dirty'); process.exit(2); }
@@ -166,11 +199,25 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const from = `origin/${base || TRUNK}`, trunk = git(['rev-parse', from]).stdout.trim();
   if (!trunk) { console.error(`cut-release: no ${from}`); process.exit(2); }
+  const pullsOf = sha => {   // gate 1's lookup: the PRs GitHub lists for a commit
+    const r = run('gh', ['api', `repos/{owner}/{repo}/commits/${sha}/pulls`, '--jq', '[.[].number]'], { timeout: 60_000 });
+    if (r.status !== 0) throw new Error(String(r.stderr || r.error?.message || 'gh api failed').trim());
+    return JSON.parse(r.stdout || '[]');
+  };
+  const range = checkRangeHasPrs({ git, pullsOf, live, base: trunk });   // hard stop, before any branch exists
+  if (!range.ok) { console.error(`cut-release: STOP, ${range.reason}. Send it to Lead and Strategy; do not cut.`); process.exit(1); }
+  console.error(`cut-release: gate 1 ok: ${range.checked} commit(s) in live..base, each with a PR`);
   if (git(['switch', '-q', '-c', `release-${name}`, from]).status !== 0) { console.error(`cut-release: cannot create release-${name} (exists?)`); process.exit(2); }
   const { merged, skipped, driverResolved, driver } = mergeAll(git, name, specs);
   console.error(`cut-release: driver: ${driver}`);
   if (!merged.length) { console.error(`cut-release: nothing merged: ${JSON.stringify(skipped)}`); process.exit(1); }
   const sha = git(['rev-parse', 'HEAD']).stdout.trim();
+  const paths = checkWatchedPaths({ git, base: trunk, cut: sha });   // hard stop, before the push
+  if (!paths.ok) {
+    git(['switch', '-q', '-']); git(['branch', '-q', '-D', `release-${name}`]);   // nothing was pushed: drop the local branch
+    console.error(`cut-release: STOP, ${paths.reason}. Nothing pushed, local release-${name} deleted. Send it to Lead and Strategy.`); process.exit(1);
+  }
+  console.error('cut-release: gate 2 ok: the cut changes no watched path');
   const pushed = pushWithRetry(git, `release-${name}`);
   if (!pushed.ok) { console.error(`cut-release: git push failed after ${pushed.tries} tries: ${pushed.err}`); process.exit(1); }
   const body = `Release candidate ${name} = ${base || 'trunk'} ${trunk.slice(0, 9)} + ${merged.map(pr => `#${pr} @${specs.find(s => s.pr === pr).head}`).join(' + ')}, each with Auditor PASS at head.${skipped.length ? ` Not included: ${skipped.map(s => `#${s.pr} (${s.why})`).join('; ')}.` : ''}\n\nDonor: n/a (release merge)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
