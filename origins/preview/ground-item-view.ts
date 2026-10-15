@@ -50,6 +50,7 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
   let serial = 0;
   const modelOf = (url: string) => { let m = models.get(url); if (!m) models.set(url, (m = opts.loadModel(url))); return m; };
   const place = (g: THREE.Group, at: { x: number; z: number }) => g.position.set(at.x, groundAt(at.x, at.z), at.z);
+  const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); drawn.delete(id); } };   // free functions: the page hands them around unbound
   return {
     show(id, itemId, at) {
       const look = groundLook(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
@@ -61,8 +62,8 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
         const g = lie(model, look); place(g, at); g.name = id; opts.scene.add(g); drawn.set(id, g);
       }).catch(() => { models.delete(url); asked.delete(id); });   // a failed file draws nothing and may be asked again
     },
-    hide(id) { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); drawn.delete(id); } },
-    clear() { for (const id of [...drawn.keys(), ...asked.keys()]) this.hide(id); },
+    hide,
+    clear: () => { for (const id of [...drawn.keys(), ...asked.keys()]) hide(id); },
     anchor(id) { const g = drawn.get(id); if (!g) return undefined; const b = new THREE.Box3().setFromObject(g).getCenter(new THREE.Vector3()); return { x: b.x, y: b.y, z: b.z }; },
   };
 }
