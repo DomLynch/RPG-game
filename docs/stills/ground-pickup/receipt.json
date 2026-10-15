@@ -2,31 +2,149 @@
   "errors": [],
   "frames": {
     "near-375": {
-      "rowsSeen": 0,
+      "rowsSeen": 1,
       "prompt": {
-        "hidden": true,
-        "text": ""
+        "hidden": false,
+        "text": "Take the Rusty sword"
+      },
+      "hit": {
+        "x": 187.5,
+        "y": 468,
+        "top": "prompt",
+        "box": [
+          95,
+          444,
+          280,
+          492
+        ]
+      },
+      "after": {
+        "toast": null,
+        "drawn": false
       }
     },
     "several-375": {
+      "rowsSeen": 6,
+      "prompt": {
+        "hidden": false,
+        "text": "Take the Rusty sword"
+      }
+    },
+    "race-375": {
+      "rowsSeen": 1,
+      "prompt": {
+        "hidden": false,
+        "text": "Take the Rusty sword"
+      },
+      "hit": {
+        "x": 187.5,
+        "y": 468,
+        "top": "prompt",
+        "box": [
+          95,
+          444,
+          280,
+          492
+        ]
+      },
+      "after": {
+        "toast": null,
+        "drawn": false
+      }
+    },
+    "signedout-375": {
       "rowsSeen": 0,
       "prompt": {
-        "hidden": true,
-        "text": ""
+        "hidden": false,
+        "text": "Sign in to take the Rusty sword"
+      },
+      "hit": {
+        "x": 187.5,
+        "y": 468,
+        "top": "prompt",
+        "box": [
+          64,
+          444,
+          311,
+          492
+        ]
+      },
+      "after": {
+        "toast": null,
+        "drawn": true
       }
     },
     "near-320": {
-      "rowsSeen": 0,
+      "rowsSeen": 1,
       "prompt": {
-        "hidden": true,
-        "text": ""
+        "hidden": false,
+        "text": "Take the Rusty sword"
+      },
+      "hit": {
+        "x": 160,
+        "y": 468,
+        "top": "prompt",
+        "box": [
+          67,
+          444,
+          253,
+          492
+        ]
+      },
+      "after": {
+        "toast": null,
+        "drawn": false
       }
     },
     "several-320": {
+      "rowsSeen": 6,
+      "prompt": {
+        "hidden": false,
+        "text": "Take the Rusty sword"
+      }
+    },
+    "race-320": {
+      "rowsSeen": 1,
+      "prompt": {
+        "hidden": false,
+        "text": "Take the Rusty sword"
+      },
+      "hit": {
+        "x": 160,
+        "y": 468,
+        "top": "prompt",
+        "box": [
+          67,
+          444,
+          253,
+          492
+        ]
+      },
+      "after": {
+        "toast": null,
+        "drawn": false
+      }
+    },
+    "signedout-320": {
       "rowsSeen": 0,
       "prompt": {
-        "hidden": true,
-        "text": ""
+        "hidden": false,
+        "text": "Sign in to take the Rusty sword"
+      },
+      "hit": {
+        "x": 160,
+        "y": 468,
+        "top": "prompt",
+        "box": [
+          37,
+          444,
+          283,
+          492
+        ]
+      },
+      "after": {
+        "toast": null,
+        "drawn": true
       }
     }
   }
