@@ -52,5 +52,5 @@ try {
   console.log('STATE', JSON.stringify(st)); console.log('OPS', JSON.stringify(ops));
   const ok = st.button && st.button.hidden === false && st.equipped?.[0] && st.equipped?.[1];
   console.log(ok ? 'PASS: SPELL 2 is shown with both slots picked' : 'FAIL: SPELL 2 stays hidden (state above)'); if (!ok) process.exitCode = 1;
-} finally { clearTimeout(watchdog); await browser.close(); stopVite(); writer.closeAllConnections?.(); writer.close(); }
-process.exit(process.exitCode ?? 0);   // nothing may keep the row alive after its verdict
+} finally { await browser.close(); stopVite(); writer.closeAllConnections?.(); writer.close(); }   // the watchdog stays armed through the teardown: a browser close that hangs still fails fast
+clearTimeout(watchdog); process.exit(process.exitCode ?? 0);   // nothing may keep the row alive after its verdict
