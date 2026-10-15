@@ -15,7 +15,7 @@ test('the defaults are the look Dom is shown: pinned; the default palette is the
   assert.equal(goblinPalette('nope').id, 'fortress', 'an unknown ?goblin= id is the default row');
 });
 test('the loader refuses a missing named row, a non-positive value, a bad colour, a duplicate id, a dangling backdrop and a bad crop; a new row is one entry', () => {
-  assert.throws(() => loadGoblinField({ ...d, rules: d.rules.filter((r) => r.id !== 'totemCount') }), /"totemCount" rule by name/);
+  assert.throws(() => loadGoblinField({ ...d, rules: d.rules.filter((r) => r.id !== 'smokeCount') }), /"smokeCount" rule by name/);
   assert.throws(() => loadGoblinField({ ...d, rules: d.rules.map((r) => (r.id === 'smokeRise' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => (p.id === 'fortress' ? { ...p, glow: 'orange' } : p)) }), /#rrggbb/);
   assert.throws(() => loadGoblinField({ ...d, palettes: d.palettes.map((p) => (p.id === 'fortress' ? { ...p, torchPower: -1 } : p)) }), /torchPower/);

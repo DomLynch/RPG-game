@@ -78,8 +78,9 @@ export function cinderDress(f: Frontier, b: Build, base: Dress, thin: Thin = WHO
 
     // The skyline: tall dark shapes in a ring just outside the far and side edges, thinned wherever a neighbouring zone, the first view or a landmark is. They sit outside the zone, so they never block a step.
     const edge = (side: 'far' | 'left' | 'right') => {
+      if (thin.skyline <= 0) return;   // a dress set with no skyline: none stands
       const len = side === 'far' ? z.width : z.depth;
-      for (let t = between(0, CINDER.skylineStep[1]); t < len; t += between(CINDER.skylineStep[0], CINDER.skylineStep[1]) / Math.max(thin.skyline, 0.05)) {
+      for (let t = between(0, CINDER.skylineStep[1]); t < len; t += between(CINDER.skylineStep[0], CINDER.skylineStep[1]) / thin.skyline) {
         const out = between(CINDER.skylineGap[0], CINDER.skylineGap[1]), p = side === 'far' ? world(t - z.width / 2, z.depth + out) : world((side === 'left' ? -1 : 1) * (z.width / 2 + out), t);
         if (zones.some((q) => q !== z && inZone(q, p.x, p.z, -8)) || inFirstView(f, p.x, p.z, 4) || marks.some((k) => Math.hypot(k.x - p.x, k.z - p.z) < 10)) continue;
         const kind = R(), rot = R() * 3.14;
