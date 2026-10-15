@@ -48,6 +48,14 @@ test('the prompt is the nearest visible, available item inside its own radius, a
   set([row({ available: false })]); await g.refresh(); assert.equal(g.nearest(at.x, at.z), null, 'taken, inside its respawn window: no prompt');
   set([row({ radiusM: 0.5 })]); await g.refresh(); assert.equal(g.nearest(at.x + 0.6, at.z), null, 'the server\'s per-row radius, not a client number');
 });
+test('the poll reads nothing while the page is hidden or the hero is far from every item, and reads again when near', async () => {
+  const { g, log } = rig();
+  await g.poll(at.x, at.z, false); assert.equal(log.reads, 1, 'nothing known yet: the first read');
+  await g.poll(at.x, at.z, true); assert.equal(log.reads, 1, 'hidden page');
+  await g.poll(at.x + PICKUP.pollRangeM + 1, at.z, false); assert.equal(log.reads, 1, 'farther than pollRangeM from every item');
+  await g.poll(at.x + PICKUP.pollRangeM - 1, at.z, false); assert.equal(log.reads, 2, 'within range');
+  assert.throws(() => loadPickupRules(edited((f) => { f.pollRangeM = 0; })), /pollRangeM/);
+});
 test('what is drawn follows the state: visible rows shown, a row that goes invisible hidden, a failed read changes nothing', async () => {
   const { g, set, log, deps } = rig(); await g.refresh(); assert.deepEqual(log.shown, [ID]);
   set([row({ visible: false, available: false })]); await g.refresh(); assert.deepEqual(log.hidden, [ID]);

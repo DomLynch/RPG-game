@@ -1,6 +1,7 @@
 // The pickup prompt for ground loot (ground loot slice 3, Backend's #2775 plan; donors EQEmu ground_spawns and 2004Scape Obj). The page asks ground_state, draws the rows the server says are visible with Characters' view
 // (ground-item-view.ts), prompts "Take the <item>" inside a row's pickup radius and posts ground_take on the tap. The server decides reach and the race; this keeps no number and no label of its own:
 // the poll period, the labels and each refusal's line and cue are the ground-pickup.json row, read ONCE here; the radius is the row ground_state sends (the ground-items.json row's).
+// The poll (page.ts's timer) asks `poll(x, z, hidden)`: a hidden page or a hero farther than pollRangeM from every known item reads nothing, so an idle phone does not hammer the writer.
 // Signed out: ground_state needs a session, so the static rows draw as the brief says ("signed out = shown, cannot take") with "Sign in to take".
 import { loadRegistry, tableFromFile, type Manifest, type Offline } from '../../src/core/index.ts';
 import { GROUND_ITEMS, GROUND_LIMITS } from '../world/ground-items.ts';
@@ -10,7 +11,7 @@ import RULES from './ground-pickup.json' with { type: 'json' };
 import type { GroundRow, GroundState, GroundTaken } from './ground-net.ts';
 
 export type Outcome = { line: string; cue: 'refuse' | null };
-export type PickupRules = { readonly pollSec: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
+export type PickupRules = { readonly pollSec: number; readonly pollRangeM: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
 
 const text = (what: string, v: unknown): string => { if (typeof v !== 'string' || !v.trim()) throw new Error(`ground-pickup: ${what} is a line of text`); return v; };
 /** The one loader: the registry's duplicate / missing / mistyped checks, then the rules the manifest cannot say (a poll period above 0, labels that name the {item}, every outcome a line and a cue of refuse or null, and the two the page falls back on: offline and taken). */
@@ -20,6 +21,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
   const f = (table.rows as unknown as { id: string; fields: Record<string, unknown> }[]).find((r) => r.id === 'ground')?.fields;
   if (!f) throw new Error('ground-pickup: the "ground" row is missing');
   if (typeof f.pollSec !== 'number' || !(f.pollSec >= 1)) throw new Error('ground-pickup: pollSec is at least 1');
+  if (typeof f.pollRangeM !== 'number' || !(f.pollRangeM > 0)) throw new Error('ground-pickup: pollRangeM is above 0');
   const l = f.labels as Record<string, unknown> | undefined;
   if (!l) throw new Error('ground-pickup: labels is missing');
   const labels = { take: text('labels.take', l.take), signedOut: text('labels.signedOut', l.signedOut), taken: text('labels.taken', l.taken) };
@@ -30,7 +32,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
     outcomes[k] = { line: text(`outcomes.${k}.line`, v.line), cue: v.cue };
   }
   for (const need of ['offline', 'taken']) if (!outcomes[need]) throw new Error(`ground-pickup: outcomes.${need} is missing`);
-  return { pollSec: f.pollSec, labels, outcomes };
+  return { pollSec: f.pollSec, pollRangeM: f.pollRangeM, labels, outcomes };
 }
 export const PICKUP: PickupRules = loadPickupRules(RULES);
 
@@ -80,6 +82,11 @@ export function createGroundPickup(deps: GroundDeps) {
   return {
     pollSec: rules.pollSec,
     refresh,
+    /** The timer's tick: read only while the page is visible and the hero is within pollRangeM of an item (or nothing is known yet, the first read). */
+    async poll(x: number, z: number, hidden: boolean): Promise<void> {
+      if (hidden || (rows.length && !rows.some((r) => Math.hypot(x - r.at.x, z - r.at.z) <= rules.pollRangeM))) return;
+      await refresh();
+    },
     /** The row to prompt for at this point, within its radius: the nearest one that is visible and available. */
     nearest,
     /** The tap. Signed out: the line only. One take at a time. Success: hide it, refresh the pack, play the cue. A refusal: its row's line and cue; a lost race hides nothing until the next state read. */

@@ -664,7 +664,8 @@ const groundPickup = createGroundPickup({
   read: () => readGround(storedToken(storage, Date.now()), repairBase),
   take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
 });
-void AUTH_READY.then(() => groundPickup.refresh()); setInterval(() => void groundPickup.refresh(), groundPickup.pollSec * 1000);
+void AUTH_READY.then(() => groundPickup.refresh()); setInterval(() => void groundPickup.poll(state.x, state.z, document.hidden), groundPickup.pollSec * 1000);   // not while the tab is hidden or the walker is far from every item
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void groundPickup.poll(state.x, state.z, false); });
 (typeof requestIdleCallback === 'function' ? (f: () => void) => requestIdleCallback(f, { timeout: 3000 }) : (f: () => void) => setTimeout(f, 1000))(() => zoneSound.preload());   // the feedback chunk loads at idle, so the first gesture's unlock is synchronous (iOS resumes audio only inside the gesture)
 const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
