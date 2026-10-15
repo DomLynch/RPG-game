@@ -11,6 +11,12 @@
     {"id":"heavyShare","value":0.3,"unit":"of max health"},
     {"id":"dummyHealth","value":150,"unit":"hp"},
     {"id":"dummyDistance","value":9,"unit":"m"},
-    {"id":"tickRate","value":60,"unit":"ticks/s"}
+    {"id":"tickRate","value":60,"unit":"ticks/s"},
+    {"id":"camX","value":0.9,"unit":"m"},
+    {"id":"camY","value":2.3,"unit":"m"},
+    {"id":"camZ","value":4.6,"unit":"m"},
+    {"id":"lookLeft","value":0.1,"unit":"m left of the line"},
+    {"id":"lookY","value":1.0,"unit":"m"},
+    {"id":"lookDepth","value":0.5,"unit":"of dummy distance"}
   ]
 }

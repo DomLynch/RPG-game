@@ -7,7 +7,7 @@ import MANIFEST from './bow-rules-defs.manifest.json' with { type: 'json' };
 // Every number is a row (bow-rules-defs.json); the minimum range is the world's engage ring (world-rules `engage`), not a second literal. Pure: ticks in, state out, no clock and no randomness, so a still and a test
 // reproduce the same shot. Left for step 2: ammo, the crossbow, lock-on, a moving target.
 export type BowRule = { readonly id: string; readonly value: number; readonly unit: string };
-const NAMED = ['minDraw', 'fullDraw', 'minMult', 'fullMult', 'arrowSpeed', 'maxRange', 'recovery', 'hitRadius', 'heavyShare', 'dummyHealth', 'dummyDistance', 'tickRate'] as const;
+const NAMED = ['minDraw', 'fullDraw', 'minMult', 'fullMult', 'arrowSpeed', 'maxRange', 'recovery', 'hitRadius', 'heavyShare', 'dummyHealth', 'dummyDistance', 'tickRate', 'camX', 'camY', 'camZ', 'lookLeft', 'lookY', 'lookDepth'] as const;
 export function loadBowRules(raw: { rules?: readonly unknown[] }): readonly BowRule[] {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'bow-rules-defs.json')]);
   const rows = (raw.rules ?? []) as readonly BowRule[];
@@ -23,6 +23,7 @@ const of = (id: (typeof NAMED)[number]): number => BOW_RULES.find((r) => r.id ==
 export const BOW = Object.freeze({
   minDraw: of('minDraw'), fullDraw: of('fullDraw'), minMult: of('minMult'), fullMult: of('fullMult'), arrowSpeed: of('arrowSpeed'), maxRange: of('maxRange'), minRange: worldRule('engage'),
   recovery: of('recovery'), hitRadius: of('hitRadius'), heavyShare: of('heavyShare'), dummyHealth: of('dummyHealth'), dummyDistance: of('dummyDistance'), tickRate: of('tickRate'),
+  camX: of('camX'), camY: of('camY'), camZ: of('camZ'), lookX: of('lookLeft'), lookY: of('lookY'), lookDepth: of('lookDepth'),   // the preview camera framing (the page only reads it)
 });
 
 export type Arrow = { readonly launched: number; readonly arrives: number; readonly distance: number; readonly lateral: number; readonly charge: number; readonly damage: number };
