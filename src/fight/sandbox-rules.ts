@@ -193,3 +193,19 @@ export const manaRegenPerTick = (sheet: Sheet | undefined): number => {
   let pct = 0; for (const r of CAST_PENALTY) if ((sheet?.[r.dial] ?? 0) >= r.atLeast && r.percent > pct) pct = r.percent;
   return (MANA_REGEN / 10 / 60) * (100 / (100 + pct));   // a +20% casting penalty is a 17% slower regen
 };
+
+// missiles (Dom 2026-10-15: staffs fire a bolt instead of melee, stab = forward, left slash = left bolt, right slash = right bolt; bows and crossbows follow; Strategy: ONE shared missile model, the missile lives in the OUTER band and is a hard
+// miss inside the inner band, resolved deterministically in the sim tick, answered by a dodge, a same-side guard or a sidestep; donors Magicka lane bolts, Mordhau and Chivalry 2 archery, Skyrim bow feel, ModernUO/2004Scape: damage is delivered
+// after a projectile delay): `missile` rows { weapon, speed (cm/s), share (per-mille of the move's damage), mana } name a weapon whose moves throw a bolt instead of striking; `missileLanes` rows { move, lane (-1 left, 0 forward, 1 right), mult }
+// say which move throws which lane; `missileRadius` (cm) is how near the line a body must be when the bolt arrives, `missileFan` (degrees) the angle of the side lanes, `missileStun` the ticks a hit staggers. No rows (trunk) = nothing.
+type MissileRow = { weapon: string; speed: number; share: number; mana: number };
+type LaneRow = { move: string; lane: number; mult?: number };
+const MISSILES = ((DEFS as unknown as { missile?: MissileRow[] }).missile ?? []);
+const LANES = ((DEFS as unknown as { missileLanes?: LaneRow[] }).missileLanes ?? []);
+export const missileOf = (weapon: string): MissileRow | undefined => (MISSILES.length ? MISSILES.find((r) => r.weapon === weapon) : undefined);
+export const laneOf = (move: string | null): LaneRow | undefined => (move ? LANES.find((r) => r.move === move) : undefined);
+export const MISSILE_RADIUS = num('missileRadius', 'value'), MISSILE_FAN = num('missileFan', 'value'), MISSILE_STUN = num('missileStun', 'value');
+/** The nearest a missile can be thrown from: the inner edge of the outer band (Strategy: the bow is helpless up close). */
+export const missileMinGap = (): number => (BANDS.length > 1 ? BANDS[BANDS.length - 2]!.upTo / 100 : 0);
+/** Travel time in whole ticks over `range` metres at the row's cm/s speed. */
+export const missileTicks = (row: MissileRow, range: number): number => Math.max(1, Math.ceil((range * 100 * 60) / row.speed));

@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_STUN, missileMinGap, missileTicks } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -45,6 +45,7 @@ export type Fighter = {
   scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
+  missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number };   // sandbox-mech missiles: the one bolt this fighter has in flight
   mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
   bound?: number; boundHold?: number; boundReact?: number; disarmed?: number;   // sandbox-mech bindAndDisarm: ticks left bound / the disarm it turns into / the AI's reaction / ticks left disarmed
   poisonEnemy?: string;   // the poisoner's id, whose row ticks the poison
@@ -105,10 +106,10 @@ export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
 
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'PhaseChanged' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
+type EventType = 'MissileLaunched' | 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'PhaseChanged' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { glance?: boolean; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { missile?: boolean; lane?: number; glance?: boolean; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
@@ -241,6 +242,7 @@ function chooseMove(f: Fighter, action: Action): MoveId {
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
   if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill')) return false;
+  { const mr = missileOf(f.weapon); if (mr && MANA_MAX && (isLight(action) || action === 'heavy' || action === 'thrust') && (f.mana ?? 0) < mr.mana) return false; }   // sandbox-mech missiles: a bolt is paid in mana, refused short of it
   if ((f.bound || f.disarmed) && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'skill')) return false;   // sandbox-mech bindAndDisarm: a bound blade or an empty hand has no swing   // the special's recovery: no attack until it ends
   // A committing parry (the Nightborn's, guard.commits) runs its window, and the exposure it ends in when it met nothing is a real recovery —
   // the blade is out of line — so no swing comes out of either. A man's parry yields to any action and his exposure only bares his guard.
@@ -468,6 +470,23 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (a.phase !== 'attack' || a.landed || !a.move) continue;
     const def = movesOf(a)[a.move], t = timing(a), pathId = a.chained ? def.chainPath : def.path, charged = a.charged, weapon = weaponOf(a.weapon);
     if (a.age === t.windup) events.push({ tick, type: 'AttackActive', actor: i, move: a.move });
+    const mrow = missileOf(a.weapon);
+    if (mrow) {   // sandbox-mech missiles: the swing throws a bolt instead of striking; nothing is struck in melee
+      const lane = laneOf(a.move);
+      if (a.age === t.windup && lane) {
+        const gap = a.attackFrom?.gap ?? distance(a.body, d.body);
+        if (MANA_MAX && (A.mana ?? 0) < mrow.mana) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
+        else {
+          if (MANA_MAX) { A.mana = (A.mana ?? 0) - mrow.mana; A.manaRest = MANA_DELAY; }
+          if (gap >= missileMinGap() && !A.missile) {
+            const ang = a.body.heading + (lane.lane * MISSILE_FAN * Math.PI) / 180, range = distance(a.body, d.body);
+            A.missile = { launched: tick, arrives: tick + missileTicks(mrow, range), x: a.body.x, z: a.body.z, dx: M.sin(ang), dz: M.cos(ang), range, damage: Math.round((def.damage * mrow.share * (lane.mult ?? 1000)) / 1000000), move: a.move, lane: lane.lane };
+            events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move: a.move, lane: lane.lane });
+          } else events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });   // inside the inner band (a hard miss) or a bolt already in flight
+        }
+      }
+      continue;
+    }
     let location: HitLocation | null = null;
     if (pathId) {
       if (a.age < t.windup || a.age >= t.windup + t.active) continue;
@@ -646,6 +665,29 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (CAST_PUSHBACK && (A.castPush ?? 0) < CAST_PUSHBACK_MAX) { A.special += CAST_PUSHBACK; A.castPush = (A.castPush ?? 0) + 1; }   // sandbox-mech: a hit that does not cut the cast delays its release (WoW pushback)
     }
     A.special--;
+  }
+  // 4c. Missiles (sandbox-mech): a bolt arrives `missileTicks` after it was thrown and is judged against where the body stands NOW, so a sidestep dodges it: a roll in its window dodges, a same-side raised guard blocks (a chip), a body within
+  // `missileRadius` of the line is hit. Deterministic: detmath only, integer rows.
+  for (const i of [0, 1] as const) {
+    const A = fighters[i]!, m = A.missile;
+    if (!m || tick < m.arrives) continue;
+    const j = (1 - i) as Side, D = fighters[j]!, weapon = weaponOf(A.weapon); delete A.missile;
+    if (!D.health) continue;
+    if (D.phase === 'roll' && D.age >= R.safeStart && D.age <= R.safeEnd) { events.push({ tick, type: 'Dodged', actor: j, target: i, move: m.move }); if (DODGE_COUNTER > 0) D.counterWindow = DODGE_COUNTER; continue; }
+    const rx = D.body.x - m.x, rz = D.body.z - m.z, along = rx * m.dx + rz * m.dz, lateral = rx * m.dz - rz * m.dx;
+    if (along < m.range / 2 || Math.abs(lateral) * 100 > MISSILE_RADIUS) { events.push({ tick, type: 'AttackMissed', actor: i, move: m.move }); continue; }
+    const g = guardOf(D, R), facing = Math.abs(wrapAngle(aim(D.body, A.body) - D.body.heading)) <= g.arc;
+    if (D.phase === 'guard' && facing && covers(D, m.lane === 0 ? 'thrust' : m.lane > 0 ? 'right' : 'left', R)) {
+      const cost = Math.max(1, Math.round(m.damage / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
+      events.push({ tick, type: 'Blocked', actor: j, target: i, move: m.move, stamina: cost, perfect: false, weapon: weapon.id, material: weapon.material });
+      continue;
+    }
+    D.health = Math.max(0, D.health - m.damage);
+    events.push({ tick, type: 'Hit', actor: i, target: j, move: m.move, damage: m.damage, location: 'torso', heading: A.body.heading, weapon: weapon.id, material: weapon.material, missile: true, lane: m.lane });
+    if (D.health) { D.phase = 'hurt'; D.age = 0; D.stun = Math.max(1, MISSILE_STUN); D.buffer = null; events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun }); continue; }
+    D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
+    finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move: m.move, heading: A.body.heading };
+    events.push({ tick, type: 'Killed', actor: i, target: j, move: m.move, location: 'torso', heading: A.body.heading });
   }
   // Shared creature health (RV39, N attackers on one creature, src/fight/pack.ts): each attacker fights their own ordinary duel against their own copy of the creature, and `incoming` is the damage the OTHER streams dealt to it on the
   // previous tick, summed by the lockstep layer. It lands after this tick's blows and specials, once (the returned duel does not carry it), and kills through the same door a blow does. Absent or 0 = today's fight byte for byte.

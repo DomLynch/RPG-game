@@ -83,6 +83,7 @@ function panel(opponents: string[]) {
   const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
     el('div', { textContent: 'Loadout (reloads the page)', style: 'color:#c9a227;font-weight:600' }),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell ' }), spellSel, cast),
+    pick('Staff (this weapon fires bolts)', 'staff', WEAPON_IDS),
     pick('Opponent weapon', 'foeWeapon', WEAPON_IDS), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)),
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
@@ -142,6 +143,13 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
 {
   const q = new URLSearchParams(location.search), { OPPONENTS } = await import('../src/fight/moves.ts');
   const fw = q.get('foeWeapon'); if (fw && WEAPON_IDS.includes(fw)) for (const o of Object.values(OPPONENTS)) (o as { weapon: string }).weapon = fw;
+  // ?staff=<weapon> makes that existing weapon fire bolts instead of striking (the missile rows, kind staff; a stand-in until the weapons lane bakes a staff): the sim, the AI and the sandbox bands follow the weapon id.
+  const staff = q.get('staff');
+  if (staff && WEAPON_IDS.includes(staff)) {
+    const rows = RULES as unknown as { missile?: { kind?: string; weapon: string }[]; bandBest?: { weapon: string; band: string }[] };
+    for (const r of rows.missile ?? []) if (r.kind === 'staff') r.weapon = staff;
+    (rows.bandBest ??= []).push({ weapon: staff, band: 'outer' });
+  }
   // ?spell=<legend id> equips a catalogue spell for YOUR fights (the grimoire's own store: owned + equipped), ?cast=<0-100> sets the cast skill of its school (the school's sheet skill base).
   const spell = q.get('spell');
   if (spell) {

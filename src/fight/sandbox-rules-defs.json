@@ -21,7 +21,10 @@
     { "id": "manaMax", "value": 0 },
     { "id": "manaRegen", "value": 0 },
     { "id": "manaDelay", "value": 0 },
-    { "id": "manaCostMult", "value": 1000 }
+    { "id": "manaCostMult", "value": 1000 },
+    { "id": "missileRadius", "value": 0 },
+    { "id": "missileFan", "value": 0 },
+    { "id": "missileStun", "value": 0 }
   ],
   "bands": [],
   "bandBest": [],
@@ -32,6 +35,8 @@
   "brace": [],
   "poison": [],
   "bind": [],
+  "missile": [],
+  "missileLanes": [],
   "castPenalty": [],
   "hurtStyles": [],
   "readyStyles": []
