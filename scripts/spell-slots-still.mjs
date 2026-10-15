@@ -35,7 +35,7 @@ try {
     await page.addStyleTag({ content: '#debug{display:none!important}' });
     await page.locator('#attack-button').tap().catch(() => {});   // draw: the cluster is up
     await page.waitForTimeout(1500);
-    if (run.slotB) await page.evaluate(() => { const b = document.getElementById('skill2-button'); if (b) { b.hidden = false; b.removeAttribute('aria-disabled'); } });   // slot b filled: what the pick does
+    if (run.slotB) await page.evaluate(() => { const b = document.getElementById('skill2-button'); if (b) { b.removeAttribute('hidden'); b.removeAttribute('aria-disabled'); Object.defineProperty(b, 'hidden', { get: () => false, set: () => {} }); } });   // slot b filled: what the pick does; the Pit HUD re-hides it every update (its fighter has no slot b), so pin it visible
     await page.waitForTimeout(300);
     const boxes = await page.evaluate(() => [...document.querySelectorAll('.actions button')].filter((b) => { const r = b.getBoundingClientRect(), s = getComputedStyle(b); return !b.hidden && s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0; }).map((b) => { const r = b.getBoundingClientRect(); return { id: b.id, l: Math.round(r.left * 10) / 10, t: Math.round(r.top * 10) / 10, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 }; }));
     const overlaps = [], circle = (b) => ({ cx: b.l + b.w / 2, cy: b.t + b.h / 2, r: b.w / 2 });
