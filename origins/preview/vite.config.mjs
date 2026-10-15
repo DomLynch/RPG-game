@@ -36,7 +36,7 @@ export default defineConfig({
   }, {
     name: 'pit-arena-public', apply: 'build',
     async generateBundle() {
-      for (const name of await readdir(`${repo}public/arena`)) this.emitFile({ type: 'asset', fileName: `arena/${name}`, source: await readFile(`${repo}public/arena/${name}`) });
+      for (const dir of ['arena', 'zones']) for (const name of await readdir(`${repo}public/${dir}`)) this.emitFile({ type: 'asset', fileName: `${dir}/${name}`, source: await readFile(`${repo}public/${dir}/${name}`) });   // zones/: the zone domes' painted backdrops (goblin-field-defs.json backdrops rows)
     },
   }],
 });

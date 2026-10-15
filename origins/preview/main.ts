@@ -59,6 +59,7 @@ import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { goblinFieldKit, withGoblinField } from './goblin-field.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
+import { goblinPalette } from '../world/goblin-field-rules.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -107,6 +108,7 @@ const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(lo
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const GOBLIN = /[?&]look=(?:[^&]*,)?goblin\b/.test(location.search);   // ?look=goblin (with ?region=1): the goblin field's look test: the Cinder ground plus a near-ground kit (stakes, totems, smoking fires, dead trees, bones), a painted horizon dome and look.ts 'goblin-haze' (goblin-field.ts, horizon-dome.ts, goblin-smoke.ts); a look test, absent = today's Frontier
+const GOBLIN_PALETTE = goblinPalette(new URLSearchParams(location.search).get('goblin'));   // ?goblin=<palette id> (with ?look=goblin): one palette row of goblin-field-defs.json (field, ash, marsh, dusk); absent or unknown = the default row
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
 const cinderDressed = frontier && frontierParts ? (CINDER || GOBLIN ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts)) : frontierDress(frontier, frontierParts)) : undefined;
 const goblinKit = GOBLIN && frontier && frontierParts && cinderDressed ? goblinFieldKit(frontier, frontierParts, cinderDressed) : null, dress = goblinKit && cinderDressed ? withGoblinField(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
@@ -124,7 +126,7 @@ const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.ma
 let frontierGroup: THREE.Group | null = null, goblinDome: ReturnType<typeof createHorizonDome> | null = null, goblinSmoke: ReturnType<typeof createGoblinSmoke> | null = null;
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (goblinKit) { goblinDome = createHorizonDome(scene); goblinSmoke = createGoblinSmoke(scene, goblinKit.fires); }   // ?look=goblin: the painted horizon and the fires' smoke
+  if (goblinKit) { goblinDome = createHorizonDome(scene, GOBLIN_PALETTE, import.meta.env.BASE_URL); goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, GOBLIN_PALETTE); }   // ?look=goblin: the painted horizon and the fires' smoke
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
@@ -263,10 +265,10 @@ addEventListener('keydown', (e) => {
 // Zone look (look.ts, World lane): the Pit's own light to the gate, a lamp-lit dusk in the Exchange, blended along the passage. Behind ?look=zones until the region flag carries it (a look test; absent = today's light).
 const ZONE1 = /[?&]look=zone1\b/.test(location.search), ZONE_LOOK = ZONE1 || REGION || /[?&]look=zones\b/.test(location.search),
   HAZE = REGION && !ZONE1 && !/[?&]look=zones\b/.test(location.search),
-  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : DUEL ? 'frontier-duel' : GOBLIN ? 'goblin-haze' : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
+  LOOK_STOPS = ZONE1 ? [{ at: 0, preset: 'zone1' }] : HAZE ? [{ at: -60, preset: /[?&]look=night\b/.test(location.search) ? 'frontier-night' : DUEL ? 'frontier-duel' : GOBLIN ? GOBLIN_PALETTE.haze : CINDER ? 'cinder-haze' : 'frontier-haze' }, { at: -20, preset: 'ash-pit' }] : [{ at: -10, preset: 'ash-pit' }, { at: -30, preset: 'exchange-dusk' }];   // ?region=1: the Pit's light to the west gate, the Frontier's haze by x -60 (the walk is along -x)
 const ZONE_FIELDS = loadZone(), FIXED_HOUR = zoneHour(ZONE_FIELDS);   // the zone's own look/time fields (schema.ts): only what the zone or its biome SET changes anything
 const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search) && zoneDayNight(ZONE_FIELDS), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
-const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
+const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || GOBLIN || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, ?look=goblin (its palette's haze row carries the ground tint), or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
 const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
 let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = previewRule('lockRange'), CAMLOCK_KEY = 'origins-preview.camera-lock.v1';

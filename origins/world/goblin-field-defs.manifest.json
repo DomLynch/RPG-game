@@ -22,12 +22,52 @@
       }
     },
     {
-      "table": "goblin-sky",
+      "table": "goblin-palette",
       "file": "goblin-field-defs.json",
-      "at": "sky",
+      "at": "palettes",
       "key": "id",
       "required": {
-        "hex": "string"
+        "haze": "string",
+        "zenith": "string",
+        "mid": "string",
+        "horizon": "string",
+        "glow": "string",
+        "ridge": "string",
+        "ridgeFar": "string",
+        "smoke": "string",
+        "puff": "string",
+        "torch": "string",
+        "torchPower": "number",
+        "backdropPortrait": "string",
+        "backdropLandscape": "string"
+      }
+    },
+    {
+      "table": "goblin-harmonic",
+      "file": "goblin-field-defs.json",
+      "at": "harmonics",
+      "key": "id",
+      "required": {
+        "k": "number",
+        "a": "number"
+      }
+    },
+    {
+      "table": "goblin-backdrop",
+      "file": "goblin-field-defs.json",
+      "at": "backdrops",
+      "key": "id",
+      "required": {
+        "file": "string",
+        "x0": "number",
+        "x1": "number",
+        "y0": "number",
+        "y1": "number",
+        "repeat": "number",
+        "texW": "number",
+        "texH": "number",
+        "fadeTop": "number",
+        "fadeFoot": "number"
       }
     },
     {
