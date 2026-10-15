@@ -1,0 +1,49 @@
+// Zone look stills (zone sandbox, look-test route): the built origins page at 375 x 812 for each shot `name=query` given as arguments, two stills per shot: `<name>-camp.png`
+// (the hero a few metres off the zone's camp, idle, looking at it; the spawn view when the page has no camp) and `<name>-fight.png` (the nearest creature engaged, mid-fight; skipped
+// when the zone has no creatures). Server and page setup are the zone smoke's (scripts/origins-zone1-smoke.mjs). Writes artifacts/zone-stills/ and a receipt.json beside them.
+// Usage (draws, so on the T4: node scripts/gpu-run.mjs <sha> -- node scripts/zone-look-stills.mjs off=?region=1 dusk='?region=1&look=goblin&goblin=dusk' test='?zone=99&region=1')
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { chromium } from 'playwright';
+
+const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview'), out = path.join(root, 'artifacts/zone-stills');
+if (!fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 600_000 });
+fs.mkdirSync(out, { recursive: true });
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm' };
+const roots = { '/preview/origins/': `${built}/` };
+for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
+const server = http.createServer((req, res) => {
+  const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
+  for (const [p, r] of Object.entries(roots)) if (u.startsWith(p)) hit = path.join(r, u.slice(p.length) || 'index.html');
+  if (hit && fs.existsSync(hit) && fs.statSync(hit).isDirectory()) hit = path.join(hit, 'index.html');
+  if (!hit || !fs.existsSync(hit)) { res.writeHead(404); return res.end(); }
+  res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
+});
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const origin = `http://127.0.0.1:${server.address().port}`, browser = await chromium.launch();
+const shots = process.argv.slice(2).map((a) => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }), receipts = [];
+try {
+  for (const [name, query] of shots) {
+    const r = { name, query, errors: [], stills: [] }; receipts.push(r);
+    const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
+    page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
+    try {
+      await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
+      await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadItems() > 0 && window.originsPreview.uploadLeft() === 0, null, { timeout: 180000 });   // the walk's world is all on the GPU
+      const camp = await page.evaluate(() => window.originsPreview.goblinCentre?.() ?? null); r.camp = camp;
+      if (camp) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 9, Math.PI), [camp.x, camp.z]);   // 9 m south of the camp, facing it (forward is (sin h, cos h))
+      await page.waitForTimeout(4000);
+      await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
+      const mob = await page.evaluate(() => { const p = window.originsPreview.pos, ms = window.originsPreview.mobs()?.mobs?.filter((m) => m.drawn && m.body) ?? []; return ms.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] ?? null; });
+      if (mob) {
+        await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [mob.x, mob.z]); await page.waitForTimeout(1500);
+        await page.evaluate((id) => window.originsPreview.tapMob(id), mob.id); await page.waitForTimeout(3500);
+        await page.screenshot({ path: path.join(out, `${name}-fight.png`) }); r.stills.push(`${name}-fight.png`);
+      } else r.fight = 'no creature in this zone';
+    } catch (e) { r.errors.push(String(e).slice(0, 300)); await page.screenshot({ path: path.join(out, `${name}-error.png`) }).catch(() => {}); }
+    await page.close();
+  }
+} finally { fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipts, null, 2)); await browser.close(); server.close(); }
+console.log(JSON.stringify(receipts.map((r) => ({ name: r.name, stills: r.stills, errors: r.errors.length, camp: !!r.camp, fight: r.fight ?? 'yes' }))));
