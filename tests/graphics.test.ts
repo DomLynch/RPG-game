@@ -71,6 +71,7 @@ import * as lessons from '../src/lessons.ts';
 import * as breathAudio from '../src/fight/sound/breath.ts';
 import * as powerWords from '../src/fight/power-words.ts';
 import * as spellPick from '../src/fight/spell-pick.ts';
+import * as bossTelegraph from '../src/fight/boss-telegraph.ts';
 import * as powerWordSynth from '../src/fight/sound/power-word.ts';
 import * as touchRouter from '../src/fight/touch-router.ts';
 import * as layoutTierModule from '../src/layout-tier.ts';
@@ -152,6 +153,7 @@ function boot(profileExtras: Record<string, unknown> = {}, initializationError?:
   modules['./fight/sound/power-word.ts'] = powerWordSynth;
   modules['./fight/sound/breath.ts'] = breathAudio;   // ?look=fatigue-preview's switch (main.ts reads breathLook)
   modules['./fight/spell-pick.ts'] = spellPick;   // main.ts imports pickSpell (the grimoire pick on the Match's spell port)
+  modules['./fight/boss-telegraph.ts'] = bossTelegraph;   // main.ts imports spellLook (?spell=<id>, the caster-tell look test)
   modules['./fight/power-words.ts'] = powerWords;   // the Witch's and the Plague Doctor's wind-up word (main.ts imports powerWordFor)
   modules['./fight/tutorial-ui.ts'] = tutorialUi;
   modules['./fight/touch-router.ts'] = touchRouter; modules['./layout-tier.ts'] = layoutTierModule; modules['./ui-rows.ts'] = uiRowsModule; modules['./first-loss.ts'] = firstLossModule; modules['./zoom-guard.ts'] = zoomGuard;   // pure cores main.ts imports

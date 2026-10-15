@@ -1,6 +1,6 @@
 # Origins O2: backpack + bank
 
-A pure TypeScript module for a character's backpack and bank. It covers items 2 and 3 of "What we build first" in `docs/specs/origins/item-loot-storage-summary.md`. It builds on the O1 contracts (`origins/contracts/`) and reuses their `ItemInstance`, ids, `Result`/`Issue`, `moveItem`, `equipItem`, `checkCustody`, `checkOneOfEach` and `CONCORD_EXCHANGE`. It does not redefine them.
+A pure TypeScript module for a character's backpack and bank. It covers items 2 and 3 of "What we build first" in `docs/specs/origins/item-loot-storage-summary.md`. It builds on the O1 contracts (`src/core/contracts/`) and reuses their `ItemInstance`, ids, `Result`/`Issue`, `moveItem`, `equipItem`, `checkCustody`, `checkOneOfEach` and `CONCORD_EXCHANGE`. It does not redefine them.
 
 **Status:** prototype only. Nothing in `src/` imports this folder, and the live game is unchanged. There are no new dependencies.
 
@@ -75,6 +75,6 @@ These run on the VPS, never on the shared Mac:
 ```sh
 node --test tests/origins-inventory.test.ts   # inventory, property and consume tests
 node --test tests/origins-contracts.test.ts
-npx tsc -p <temp tsconfig extending ./tsconfig.json, types [vite/client, node], include origins/inventory, origins/contracts, src/vite-env.d.ts>
-npx eslint origins/inventory origins/contracts
+npx tsc -p <temp tsconfig extending ./tsconfig.json, types [vite/client, node], include src/core/items, src/core/contracts, src/vite-env.d.ts>
+npx eslint src/core/items src/core/contracts
 ```

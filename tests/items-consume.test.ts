@@ -3,15 +3,15 @@
 // Story-critical pieces burn only on a quest step that names them.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Result } from '../../src/core/server.ts';
-import { parseServiceDefinition, parseUpgradeCostTable, parseUpgradeRequest, performUpgrade, type UpgradeOutcome } from '../../src/core/server.ts';
-import * as F from '../../src/core/server.ts';
-import type { ItemId } from '../../src/core/server.ts';
-import { checkHistoryKept, type ItemInstance } from '../../src/core/server.ts';
+import type { Result } from '../src/core/server.ts';
+import { parseServiceDefinition, parseUpgradeCostTable, parseUpgradeRequest, performUpgrade, type UpgradeOutcome } from '../src/core/server.ts';
+import * as F from '../src/core/server.ts';
+import type { ItemId } from '../src/core/server.ts';
+import { checkHistoryKept, type ItemInstance } from '../src/core/server.ts';
 import {
   applyUpgrade, checkConservation, consume, deposit, find, merge, mintTotals, move, receive, split, type Burn, type ConsumeOp, type Holdings, type Inventory,
-} from './inventory.ts';
-import { EXCHANGE, FRONTIER, LATER, PC, RIVAL, deepFreeze, empty, gauntlets, helm, ironStack, lookup, oreStack, record, refused, value } from './testkit.ts';
+} from '../src/core/items/inventory.ts';
+import { EXCHANGE, FRONTIER, LATER, PC, RIVAL, deepFreeze, empty, gauntlets, helm, ironStack, lookup, oreStack, record, refused, value } from './items-testkit.ts';
 
 const ORE = 'item:exchange-ore' as ItemId;
 const holdings = (inv: Inventory, ledger: readonly Burn[] = []): Holdings => ({ inventory: inv, ledger });

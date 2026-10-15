@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { legacyLootOfItemId, itemIdFromLegacyLoot } from '../../src/core/server.ts';
-import { parseItemDefinition } from '../../src/core/server.ts';
-import { LOOT_IDS, slotOf } from '../../src/core/loot.ts';
-import { BUNDLE } from '../region1/content.ts';
-import { loadRegion1 } from '../region1/load.ts';
-import { LOOT_ITEMS } from './loot-catalogue.ts';
+import { legacyLootOfItemId, itemIdFromLegacyLoot } from '../src/core/server.ts';
+import { parseItemDefinition } from '../src/core/server.ts';
+import { LOOT_IDS, slotOf } from '../src/core/loot.ts';
+import { BUNDLE } from '../origins/region1/content.ts';
+import { loadRegion1 } from '../origins/region1/load.ts';
+import { LOOT_ITEMS } from '../src/core/items/loot-catalogue.ts';
 
 test('the catalogue has exactly one parsed item definition for every LootId (LOOT plus RETIRED_LOOT), on the legacy embedding, with loot.glb as its asset', () => {
   assert.equal(LOOT_ITEMS.length, LOOT_IDS.size);

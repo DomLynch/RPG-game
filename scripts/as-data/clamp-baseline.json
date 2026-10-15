@@ -1,0 +1,247 @@
+{
+ "origins/presence/interest.ts": {
+  "100": 1,
+  "1000": 1
+ },
+ "origins/presence/server.ts": {
+  "5": 1
+ },
+ "origins/presence/wire.ts": {
+  "255": 1
+ },
+ "origins/preview/frontier-plan.ts": {
+  "1.6": 1,
+  "2.4": 1,
+  "1.2": 1
+ },
+ "origins/preview/frontier-relief.ts": {
+  "0.5": 1
+ },
+ "origins/preview/main.ts": {
+  "-0.6": 1,
+  "-1": 1,
+  "1e-3": 1,
+  "0.05": 1
+ },
+ "origins/preview/mob-dress.ts": {
+  ".2": 1,
+  ".7": 1
+ },
+ "origins/preview/mobs-view.ts": {
+  "8": 1,
+  "1.9": 1,
+  "1e-3": 1
+ },
+ "origins/preview/pit-duel.ts": {
+  "0.1": 1
+ },
+ "origins/preview/presence-client.ts": {
+  "30000": 1
+ },
+ "origins/server/encounter-pose.ts": {
+  "0.5": 1
+ },
+ "src/arena-themes.ts": {
+  "5": 1
+ },
+ "src/arena.ts": {
+  "3": 1,
+  "255": 1,
+  "0.15": 1
+ },
+ "src/core/career-client.ts": {
+  "50": 1
+ },
+ "src/core/career-model.ts": {
+  "5": 1,
+  "10": 1
+ },
+ "src/core/gear-sheet.ts": {
+  "10": 1
+ },
+ "src/fight/blood-style.ts": {
+  "3": 1
+ },
+ "src/fight/boss-telegraph.ts": {
+  "0.02": 1
+ },
+ "src/fight/camera.ts": {
+  "4.2": 1,
+  "3.2": 1,
+  "0.8": 1
+ },
+ "src/fight/cc-ladder.ts": {
+  "10": 1
+ },
+ "src/fight/characters.ts": {
+  "0.1": 1,
+  ".25": 2,
+  ".5": 1,
+  ".999999": 1,
+  ".07": 1,
+  ".24": 1,
+  ".03": 1
+ },
+ "src/fight/charge-fx.ts": {
+  "0.5": 1
+ },
+ "src/fight/clash-sparks.ts": {
+  "0.1": 1,
+  "0.05": 1
+ },
+ "src/fight/combat.ts": {
+  "120": 1
+ },
+ "src/fight/dropped-weapon.ts": {
+  "119": 1
+ },
+ "src/fight/fatigue-read.ts": {
+  ".6": 1,
+  "1.1": 1
+ },
+ "src/fight/finisher-blood.ts": {
+  ".5": 1,
+  "1.6": 1,
+  ".85": 1,
+  ".1": 1,
+  "1.2": 2
+ },
+ "src/fight/foot-dust.ts": {
+  "0.1": 1
+ },
+ "src/fight/fx.ts": {
+  "0.25": 1,
+  "0.4": 1
+ },
+ "src/fight/gore.ts": {
+  "0.3": 1,
+  "0.7": 1
+ },
+ "src/fight/moves.ts": {
+  "5": 1,
+  ".98": 2,
+  ".9": 1
+ },
+ "src/fight/nightfall-fx.ts": {
+  "0.5": 1
+ },
+ "src/fight/opened.ts": {
+  "119": 1
+ },
+ "src/fight/play-radius.ts": {
+  "0.5": 1
+ },
+ "src/fight/rank-tint.ts": {
+  "1e-4": 2,
+  "0.2": 1,
+  "1.5": 1
+ },
+ "src/fight/record.ts": {
+  "127": 1,
+  "-127": 1
+ },
+ "src/fight/scene.ts": {
+  "9": 1,
+  "0.8": 1,
+  "1.1": 1
+ },
+ "src/fight/signature-goblin.ts": {
+  "4": 1
+ },
+ "src/fight/signature-nightborn.ts": {
+  "4": 1
+ },
+ "src/fight/signature-pitborn.ts": {
+  "0.12": 1,
+  "1.5": 1
+ },
+ "src/fight/signature-plaguedoctor.ts": {
+  "0.12": 1
+ },
+ "src/fight/signature.ts": {
+  "0.12": 1,
+  "1e-3": 1
+ },
+ "src/fight/skill-impact.ts": {
+  "0.1": 1
+ },
+ "src/fight/sound/cues.ts": {
+  "5": 1
+ },
+ "src/fight/special-fx-boss.ts": {
+  "255": 3
+ },
+ "src/fight/special-fx-class.ts": {
+  "0.02": 1,
+  "0.3": 1,
+  "1.2": 1
+ },
+ "src/fight/special-fx-dwarf-shield.ts": {
+  "255": 1,
+  "1.55": 1,
+  "-0.5": 1
+ },
+ "src/fight/special-fx-executioner.ts": {
+  "255": 4,
+  "0.9": 1,
+  "0.05": 1,
+  "0.01": 3
+ },
+ "src/fight/special-fx-goblin.ts": {
+  "0.95": 1
+ },
+ "src/fight/special-fx-legion.ts": {
+  "255": 1,
+  "0.9": 1
+ },
+ "src/fight/special-fx-nightborn.ts": {
+  "0.001": 2
+ },
+ "src/fight/special-fx-pitborn.ts": {
+  "255": 6
+ },
+ "src/fight/special-fx-quake.ts": {
+  "255": 3,
+  "0.9": 1,
+  "0.01": 2,
+  "0.2": 1,
+  "0.02": 2
+ },
+ "src/fight/special-fx-wind.ts": {
+  "2": 1,
+  "255": 3
+ },
+ "src/fight/special-tithe.ts": {
+  "-1.6": 1,
+  "1.6": 1
+ },
+ "src/fight/spell-legends.ts": {
+  "10": 1
+ },
+ "src/fight/spell-school.ts": {
+  "255": 3
+ },
+ "src/fight/witchfire.ts": {
+  "0.1": 1
+ },
+ "src/fight/world.ts": {
+  "0.1": 1
+ },
+ "src/legends.ts": {
+  "10": 1
+ },
+ "src/lorarii.ts": {
+  "2.5": 1,
+  "0.4": 1,
+  "0.05": 1
+ },
+ "src/main.ts": {
+  "0.1": 1
+ },
+ "src/net/lobby.ts": {
+  "1_000_000": 1
+ },
+ "src/perf-beacon.ts": {
+  "1_000_000": 2
+ }
+}
