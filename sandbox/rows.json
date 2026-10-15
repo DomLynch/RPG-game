@@ -89,7 +89,7 @@
 {"id":"manaMax","value":100},
 {"id":"manaRegen","value":60},
 {"id":"manaDelay","value":90},
-{"id":"manaCostMult","value":1500},
+{"id":"manaCostMult","value":600},
 {"id":"missileRadius","value":70},
 {"id":"missileFan","value":22},
 {"id":"missileStun","value":16},
