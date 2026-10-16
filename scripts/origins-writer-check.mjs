@@ -624,6 +624,17 @@ try {
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
+    // the rank cap on real Postgres: G's career is the fresh snapshot (seed 0, level 1), so a body claiming rungs above the first imports only what it claims at rank 1 (plus the unclaimed, minted at Recruit)
+    // and skips the rest 'above your rank'; nothing is spent for the skipped ones, and they import once the career reaches the rank (a forged full roster at the top rung mints nothing)
+    {
+      const gid = psql(`select id from public.origins_characters where account = '${G}' limit 1`), few = [...LOOT_IDS].sort().slice(0, 6), top = [...LOOT_IDS].sort();
+      const gg = body => call('gear_import', 'tf', { character: gid, ...body });
+      const forged = await gg({ owned: top, equipped: {}, tiers: Object.fromEntries(top.map(id => [id, 10])) });
+      eq([forged.status, forged.json.result?.imported.length, forged.json.result?.skipped.length, forged.json.result?.skipped.every(s => s.reason === 'above your rank')], [200, 0, top.length, true], 'gear_import: a forged full roster at the top rung on a level-1 career mints nothing');
+      eq(psql(`select count(*) from public.origins_items where loc_owner = '${gid}' and provenance ->> 'kind' = 'legacy-unlock'`), '0', 'gear_import: nothing was written for the skipped pieces');
+      const low = await gg({ owned: few, equipped: {}, tiers: { [few[0]]: 1, [few[1]]: 2, [few[2]]: 10 } });
+      eq([low.status, [...(low.json.result?.imported ?? [])].sort(), low.json.result?.skipped.map(s => s.reason)], [200, [few[0], few[3], few[4], few[5]].sort(), ['above your rank', 'above your rank']], 'gear_import: a level-1 career imports the rank-1 and unclaimed pieces and skips the rest above its rank');
+    }
     // one rule for every door (src/core/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
     psql(`insert into public.origins_access(account) values ('${H}');`);
     const pitId = await openCharacter({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
@@ -645,6 +656,8 @@ try {
     const made2 = await call('create_character', 'tb', { name: 'Gearer' });
     const gc = made2.json.result.id;
     const gi = body => call('gear_import', 'tb', { character: gc, ...body });
+    // The rung each piece claims is bounded by the server-verified career tier (#2919), so this account holds a career that reaches the top tier: the whole legacy roster still imports at the rungs it claims.
+    psql(`update public.origins_career set world_credit = ${cumulative(50)}, version = version + 1 where account = '${B}';`);
     const count = where => psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and item like 'item:loot.%' and retired_at is null ${where}`);
     const imp = await gi({ owned: ids, equipped: worn, tiers: Object.fromEntries(ids.map((id, i) => [id, (i % 10) + 1])) });
     eq([imp.status, imp.json.result?.imported.length, imp.json.result?.skipped.length], [200, ids.length, 0], 'gear_import: the whole roster is imported, nothing skipped');
