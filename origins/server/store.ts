@@ -96,7 +96,7 @@ export const active = async (db: Db, account: string): Promise<string | null> =>
 // missing, nothing else changes). JSON in and out, so a character named "absent" cannot be mistaken for the sentinel.
 const HAS_ACTIVE_NAME = `select to_regprocedure('public.origins_active_name(uuid)') is not null as actname \\gset\n`;
 export const activeName = async (db: Db, account: string): Promise<string | null | 'absent'> => {
-  const out = await gated(db, 'active_name', HAS_ACTIVE_NAME, 'actname', `select to_jsonb(public.origins_active_name(:'a'::uuid))::text;`, { a: acct(account) });
+  const out = await gated(db, 'active_name', HAS_ACTIVE_NAME, 'actname', `select coalesce(to_jsonb(public.origins_active_name(:'a'::uuid))::text, 'null');`, { a: acct(account) });
   return out === 'absent' ? 'absent' : (JSON.parse(out) as string | null);
 };
 export type SavedRow = { character: string; zone: string | null; x: number; z: number; updated_at: string };
