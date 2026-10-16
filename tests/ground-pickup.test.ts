@@ -58,6 +58,18 @@ test('the poll reads nothing while the page is hidden or the hero is far from ev
   await g.poll(at.x + PICKUP.pollRangeM - 1, at.z, false); assert.equal(log.reads, 2, 'within range');
   assert.throws(() => loadPickupRules(edited((f) => { f.pollRangeM = 0; })), /pollRangeM/);
 });
+test('with no row known the poll retries no faster than emptyPollSec, so the short poll never hammers the writer', async () => {
+  const { g, log, set } = rig(); set([]);
+  const t0 = 1_000_000, step = PICKUP.pollSec * 1000;
+  await g.poll(at.x, at.z, false, t0); assert.equal(log.reads, 1, 'nothing known yet: the first read');
+  for (let t = t0 + step; t < t0 + PICKUP.emptyPollSec * 1000; t += step) await g.poll(at.x, at.z, false, t);
+  assert.equal(log.reads, 1, 'still nothing known: no read before emptyPollSec has passed');
+  await g.poll(at.x, at.z, false, t0 + PICKUP.emptyPollSec * 1000); assert.equal(log.reads, 2, 'then one read');
+  set([row()]); await g.poll(at.x, at.z, false, t0 + 2 * PICKUP.emptyPollSec * 1000); assert.equal(log.reads, 3, 'a row now known: the range gate, not the empty gate');
+  await g.poll(at.x, at.z, false, t0 + 2 * PICKUP.emptyPollSec * 1000 + step); assert.equal(log.reads, 4, 'and it polls at pollSec');
+  assert.ok(PICKUP.emptyPollSec >= PICKUP.pollSec);
+  assert.throws(() => loadPickupRules(edited((f) => { f.emptyPollSec = f.pollSec - 1; })), /emptyPollSec/);
+});
 test('what is drawn follows the state: visible rows shown, a row that goes invisible hidden, a failed read changes nothing', async () => {
   const { g, set, log, deps } = rig(); await g.refresh(); assert.deepEqual(log.shown, [ID]);
   set([row({ visible: false, available: false })]); await g.refresh(); assert.deepEqual(log.hidden, [ID]);
