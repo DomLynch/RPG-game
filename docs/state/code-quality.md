@@ -1,5 +1,15 @@
 # Code quality lane (Auditor)
 
+## 2026-10-16 ~21:2x (+04) — HANDOFF before /clear (new Claude account). HA #2899 PASSED + candidate:pass (Deploy publishing). READ FIRST, then memory `frankendom_handoff_2026-10-16b`
+
+**Now, in order.** (1) **#2900 @6db93d686** (Combat, sheet-in-world gate; #2903 folded in; `origins/preview/loadout-gate.ts` re-asks the gear view until it answers, even after the latch): code read OK. Finish the VPS run in `/srv/dev-jobs/cq-2900d` (loadout-gate + preview-rules + world-combat + origins-world-combat + guards, `check:as-data --gate`, both tscs), then post "Auditor: PASS @6db93d686" (supersedes my PASS @0fdc26423). (2) **#2887** when Combat moves its head for GB: re-run the version guards (stacked, so no CI) and check Strategy's ruling: no player-visible "boss" wording in rows, HUD, card or captions.
+
+**Done today (10-16 afternoon).** PASSED on their threads: #2875, #2877 @8acdbdd45, #2879, #2878 (citation follow-up is issue #2901), #2887 @d35213c18, #2888, #2895 (my VPS suite 4849/0), #2897, #2893, #2898, #2903, #2902 @24e8b93a2 (QA script: presence=0 enforced), candidate HA #2899 @aa0fd5872 + the migration POST (prod constraint + versions 125200/125209 read back), Codex-Hooks #153 (merged and live).
+
+**Open.** #2901 (salamander citation locator, data only). Codex-Hooks CI is refused by GitHub billing (Dom's). VPS scratch to sweep: `cq-2903`, `cq-2900d`.
+
+**Gotchas.** (a) Bash may not write files: use Write plus scp. (b) VPS deletes only via `vps-scratch-sweep --path=<exact> --apply` (directories only). (c) Stacked PRs get no real CI: run the version guards yourself (#2887's un-repinned SIM_DIGEST hid there). (d) A red `quality` with cancelled shards is not a test result. (e) Presence is opt-out (`presence-client.ts:15`). (f) "Byte-identical Zone 1" claims: diff the built plan as sorted sets.
+
 ## 2026-10-16 ~12:2x (+04) — HANDOFF before /clear (context ~730k). LIVE GW 9b3792f11 (my curl 08:20Z); GX #2876 PASSED, publishing. READ FIRST, then memory `frankendom_handoff_2026-10-15` (its 10-16 lines)
 
 **Now, in order.** (1) **#2881** (HF_COST alarm $3 -> $6, T4 stop $5 -> $10, Dom's word) PASSED @ed3929fe6; Deploy merges it FIRST. (2) **#2882** (mine: the HF cost ledger settles a T4 job to its runtime; `zone/` -> zone-sandbox) @4b16d1920: after #2881 lands, merge trunk into it, re-run `tests/hf-ledger.test.ts` on the VPS (16/0 both alone and merged with #2881 already), then ask Lead to re-PASS (Lead's PASS was @c4095f965). (3) Cuts after GX, in Deploy's order: **#2865** alone (spell pulses RV69/WSV45, PASSED @ea41daf55): on its cut re-print the digests (SIM `0bea934a…`, WORLD `c225f9f4…`) and re-run `scripts/sim-ab-spell-hits.mjs --era 68 --power 100` on trunk vs the cut; then **#2847** (row ceilings by check name, PASSED @56c7988cb); then **#2866** (capture `--prefix`/`-C`, Lead PASS) + the capture reinstall: check `/opt/frankendom-shadow/bin/capture` matches trunk's `scripts/vps-shadow/capture.sh` (sha) after.
