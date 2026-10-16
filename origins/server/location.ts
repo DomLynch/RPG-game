@@ -113,7 +113,7 @@ export function parseServed(v: unknown): Served {
 const SLOT = /^[a-z][a-z0-9_-]{0,23}$/, LOOT_ID = /^[A-Za-z0-9._:-]{1,64}$/;
 export function parseWorn(v: unknown): Worn {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
-  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([s, id]) => SLOT.test(s) && typeof id === 'string' && LOOT_ID.test(id)).sort(([a], [b]) => (a < b ? -1 : 1)));
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, string] => SLOT.test(e[0]) && typeof e[1] === 'string' && LOOT_ID.test(e[1])).sort(([a], [b]) => (a < b ? -1 : 1)));
 }
 // presence's refresh: only the worn set (GET /internal/location?worn=1). Any error is thrown; the caller keeps the last set.
 export function writerWorn(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): (account: string) => Promise<Worn> {
