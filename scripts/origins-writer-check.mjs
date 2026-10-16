@@ -667,11 +667,13 @@ try {
     const packN = Number(count(`and loc_kind = 'pack'`)), bankN = Number(count(`and loc_kind = 'bank'`)), wornN = Number(count(`and loc_kind = 'equipped'`));
     eq([wornN, packN + bankN + wornN, packN, bankN], [dolls.length, ids.length, 64, ids.length - dolls.length - 64], 'gear_import: worn on the paperdoll (counting toward neither grid), the pack full at 64, the overflow in the bank');
     // origins_active_worn (migration 20261016200000): what other players see, a plain read of the ACTIVE character's equipped rows (the paperdoll only: nothing from the pack or the bank).
+    psql(up); psql(`select public.origins_set_active('${B}'::uuid, '${gc}');`);   // this section runs with the 0009 tables dropped (the down above): put them back for these reads, then drop them again below
     const wornRows = JSON.parse(psql(`select public.origins_active_worn('${B}'::uuid)`));
     eq([wornRows.length, wornRows.map(r => r.slot).sort().join(',')], [dolls.length, [...dolls].sort().join(',')], 'origins_active_worn: one equipped piece per paperdoll slot, none from the pack or the bank');
     eq(wornRows.every(r => r.item.startsWith('item:loot.') && typeof r.slot === 'string'), true, 'origins_active_worn: each row names the item and its slot');
     eq(psql(`select public.origins_active_worn('00000000-0000-4000-8000-00000000dead'::uuid)`), '[]', 'origins_active_worn: an unknown account wears nothing');
     eq(psql(`select public.origins_active_worn('${C}'::uuid)`), '[]', 'origins_active_worn: an account with no character wears nothing');
+    psql(down);   // as it was for the rest of the section; the single psql(up) further down restores it for good
     eq(psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and provenance ->> 'kind' = 'legacy-unlock' and mint_key like 'legacy:%'`), String(ids.length), 'gear_import: every piece carries the derived legacy mint key and the legacy-unlock provenance');
     eq(psql(`select count(*) from public.origins_events where account = '${B}' and kind = 'mint' and character = '${gc}'`), '1', 'gear_import: one audit event');
     const before = psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`);
