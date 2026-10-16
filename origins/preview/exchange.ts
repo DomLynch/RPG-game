@@ -67,7 +67,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   add(layers.stone!, own.stone ?? m.stone, 'stone'); add(layers.paving!, own.paving ?? m.stone, 'paving'); add(layers.iron!, m.iron, 'iron');
   add(layers.soot!, new THREE.MeshStandardMaterial({ color: '#0d0b0a', roughness: 1 }), 'dark');
   add(layers.coal!, m.coal, 'coal');
-  add(layers.plain!, new THREE.MeshStandardMaterial({ roughness: 1, vertexColors: true }), 'plain');   // untextured matte (the prop kits' wood, hide, cloth and bone): no stone pattern on a tent
+  add(layers.plain!, new THREE.MeshStandardMaterial({ color: m.stone.color, roughness: 1, vertexColors: true }), 'plain');   // untextured matte in the stone's own base colour, so a prop is as bright as it was (the prop kits' wood, hide, cloth and bone): no stone pattern on a tent
 }
 
 export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };
