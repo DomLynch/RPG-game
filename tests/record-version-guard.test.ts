@@ -135,15 +135,15 @@ test('an older record decodes only where no later bump reached its fight', () =>
 // at the real src/ and src/fight/, so the one sim and the one set of era flags). Today the ceiling is 33 (RV33/RV34 stamp only a Gambit / stances fight; a patron-less fight writes 31, a patron fight 32); at 35 every
 // live fight stamps the ceiling again (a patron byte of 0 for a patron-less one), the build must read its own fresh links, and only v32 refuses a zero patron.
 test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips; a patron fight too; a v32 record with no patron is still refused', async () => {
-  assert.equal(NO_PATRON_VERSION, RECORD_VERSION <= 68 ? 31 : RECORD_VERSION); assert.equal(PATRON_VERSION, RECORD_VERSION <= 68 ? 32 : RECORD_VERSION);
+  assert.equal(NO_PATRON_VERSION, RECORD_VERSION <= 69 ? 31 : RECORD_VERSION); assert.equal(PATRON_VERSION, RECORD_VERSION <= 69 ? 32 : RECORD_VERSION);
   const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\.\//g, `from '${new URL('../src/', import.meta.url).href}`).replace(/from '\.\//g, `from '${new URL('../src/fight/', import.meta.url).href}`);
-  const bumped = src.replace('export const RECORD_VERSION = 68;', 'export const RECORD_VERSION = 69;').replace('67, 68] as const', '67, 68, 69] as const').replace('  68: [],', '  68: [],\n  69: [],');
-  assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 69') && bumped.includes('68, 69] as const') && bumped.includes('69: [],'), 'the probe edits applied');
+  const bumped = src.replace('export const RECORD_VERSION = 69;', 'export const RECORD_VERSION = 70;').replace('68, 69] as const', '68, 69, 70] as const').replace('  69: [],', '  69: [],\n  70: [],');
+  assert.notEqual(bumped, src); assert.ok(bumped.includes('RECORD_VERSION = 70') && bumped.includes('69, 70] as const') && bumped.includes('70: [],'), 'the probe edits applied');
   const dir = mkdtempSync(join(tmpdir(), 'rv33-'));
   try {
     const file = join(dir, 'record33.ts'); writeFileSync(file, bumped);
     const m = await import(pathToFileURL(file).href) as typeof import('../src/fight/record.ts');
-    assert.equal(m.RECORD_VERSION, 69); assert.equal(m.NO_PATRON_VERSION, 69); assert.equal(m.PATRON_VERSION, 69);
+    assert.equal(m.RECORD_VERSION, 70); assert.equal(m.NO_PATRON_VERSION, 70); assert.equal(m.PATRON_VERSION, 70);
     setPlayScale(playScaleFor('goblin', 43)); setLateNotice(true); setStab(true);
     const fightOf = (patron?: number) => {
       const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}) });
@@ -151,10 +151,10 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
       return rec.finish('draw');
     };
     const none = fightOf(), withPatron = fightOf(5);
-    assert.equal(none.v, 69, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
-    assert.equal(m.packRecord(none)[2], 69);
+    assert.equal(none.v, 70, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
+    assert.equal(m.packRecord(none)[2], 70);
     assert.deepEqual(m.unpackRecord(m.packRecord(none)), none, 'a v38 record with patron byte 0 round-trips with no patron');
-    assert.equal(withPatron.v, 69); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
+    assert.equal(withPatron.v, 70); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
     const v32 = m.packRecord(withPatron).slice(); v32[2] = 32;
     const at = v32.length - 6 * 20 - 4 - 4 - 1 - 1 - 1 - 1; assert.equal(v32[at], 5); v32[at] = 0;   // v53 adds the second flag byte, one more from the end
     assert.throws(() => m.unpackRecord(v32), /names a patron/, 'a v32 record with no patron is refused: it was always written as v31');
