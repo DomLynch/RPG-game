@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, spellRoot, type CastOutcome, type Spell } fro
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -259,8 +259,8 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
-  if (action === 'skill2') return f.spell2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail) && (MANA_MAX ? (f.mana ?? 0) >= manaCost(f.spell2.cost) : f.stamina >= f.spell2.cost);   // sandbox-mech spell slot 2: its own cooldown, its own cost
-  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || (MANA_MAX ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
+  if (action === 'skill2') return f.spell2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail) && (paysMana(spellRoot(f.spell2.id)) ? (f.mana ?? 0) >= manaCost(f.spell2.cost) : f.stamina >= f.spell2.cost);   // sandbox-mech spell slot 2: its own cooldown, its own cost
+  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || (paysMana(spellRoot(f.spell.id)) ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -343,7 +343,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const chosen = picked;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
         if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; }
         next.special = castWindup(me.sheet, R.special.windup); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        if (chosen && MANA_MAX) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
+        if (chosen && paysMana(root)) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
         else if (chosen) spend(i, chosen.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(chosen ? { spell: chosen.id } : {}) });
       }

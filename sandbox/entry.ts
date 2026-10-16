@@ -98,20 +98,22 @@ function panel(opponents: string[]) {
   };
   const spellSel = el('select'), cast = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
   spellSel.append(el('option', { value: '', textContent: '(none: class special)' }));
-  void import('../src/fight/spell-catalogue.ts').then(({ SPELL_INFO }) => {
-    const bySchool = new Map<string, [string, string][]>();
-    for (const [id, i] of Object.entries(SPELL_INFO)) { const l = bySchool.get(i.school) ?? []; l.push([id, `${i.spell || id} - L${i.level} (${i.legend})`]); bySchool.set(i.school, l); }
-    for (const [school, list] of [...bySchool].sort()) { const g = el('optgroup', { label: school }); for (const [id, label] of list.sort((a, b) => a[1].localeCompare(b[1]))) g.append(el('option', { value: id, textContent: label, selected: params.get('spell') === id })); spellSel.append(g); }
-    fill2();
+  // Every spell is MELEE (close range, paid in stamina) or MAGIC (medium / long range, paid in mana): the kind comes from the spell root's `spellRange` row. The three spell pickers group by kind, then school.
+  const KIND_NAME: Record<string, string> = { melee: 'Melee (close, stamina)', magic: 'Magic (medium / long, mana)' };
+  const spellBook = Promise.all([import('../src/fight/spell-catalogue.ts'), import('../src/fight/spell-cast.ts'), import('../src/fight/sandbox-rules.ts')]).then(([{ SPELL_INFO }, { spellRoot }, { spellRangeOf }]) => Object.entries(SPELL_INFO).map(([id, i]) => {
+    const root = spellRoot(id), kind = (root && spellRangeOf(root)?.kind) || '';
+    return { id, group: `${KIND_NAME[kind] ?? 'No kind row'} - ${i.school}`, label: `${i.spell || id} - L${i.level} (${i.legend})` };
+  }));
+  const fillSpells = (sel: HTMLSelectElement, param: string) => spellBook.then((book) => {
+    const groups = new Map<string, { id: string; label: string }[]>();
+    for (const s of book) { const l = groups.get(s.group) ?? []; l.push(s); groups.set(s.group, l); }
+    for (const [name, list] of [...groups].sort(([a], [b]) => a.localeCompare(b))) { const g = el('optgroup', { label: name }); for (const s of list.sort((a, b) => a.label.localeCompare(b.label))) g.append(el('option', { value: s.id, textContent: s.label, selected: params.get(param) === s.id })); sel.append(g); }
   });
-  // The OPPONENT's spell (?foespell= ?foecast=), grouped by the range band its root casts from, so Short / Medium / Long is one pick.
+  void fillSpells(spellSel, 'spell').then(() => fill2());
+  // The OPPONENT's spell (?foespell= ?foecast=): same book, same grouping.
   const foeSel = el('select'), foeCast = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('foecast') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
   foeSel.append(el('option', { value: '', textContent: '(none: class special)' }));
-  void Promise.all([import('../src/fight/spell-catalogue.ts'), import('../src/fight/spell-cast.ts'), import('../src/fight/sandbox-rules.ts')]).then(([{ SPELL_INFO }, { spellRoot }, { spellRangeOf }]) => {
-    const BAND_NAME: Record<string, string> = { inner: 'Short range', mid: 'Medium range', outer: 'Long range' }, byBand = new Map<string, [string, string][]>();
-    for (const [id, i] of Object.entries(SPELL_INFO)) { const root = spellRoot(id), band = (root && spellRangeOf(root)?.band) || ''; const l = byBand.get(band) ?? []; l.push([id, `${i.spell || id} - L${i.level} (${i.legend})`]); byBand.set(band, l); }
-    for (const band of ['inner', 'mid', 'outer', '']) { const list = byBand.get(band); if (!list) continue; const g = el('optgroup', { label: BAND_NAME[band] ?? 'No range row' }); for (const [id, label] of list.sort((a, b) => a[1].localeCompare(b[1]))) g.append(el('option', { value: id, textContent: label, selected: params.get('foespell') === id })); foeSel.append(g); }
-  });
+  void fillSpells(foeSel, 'foespell');
   foeSel.onchange = () => stage('foespell', foeSel.value); foeCast.onchange = () => stage('foecast', foeCast.value);
   const spell2Sel = el('select'), cast2 = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast2') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
   spell2Sel.append(el('option', { value: '', textContent: '(none)' }));

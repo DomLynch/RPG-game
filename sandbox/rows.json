@@ -103,9 +103,9 @@
 {"id":"mid","upTo":180},
 {"id":"outer","upTo":100000}
 ],"spellRange":[
-{"root":"theWord","band":"inner"},{"root":"threeBlows","band":"inner"},{"root":"theRing","band":"inner"},{"root":"harvest","band":"inner"},
-{"root":"crack","band":"mid"},{"root":"longShadow","band":"mid"},{"root":"baying","band":"mid"},
-{"root":"gale","band":"outer","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","speed":700,"tint":"#ff8a3a"}
+{"root":"theWord","band":"inner","kind":"melee"},{"root":"threeBlows","band":"inner","kind":"melee"},{"root":"theRing","band":"inner","kind":"melee"},{"root":"harvest","band":"inner","kind":"melee"},
+{"root":"crack","band":"mid","kind":"magic"},{"root":"longShadow","band":"mid","kind":"magic"},{"root":"baying","band":"mid","kind":"magic"},
+{"root":"gale","band":"outer","kind":"magic","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","kind":"magic","speed":700,"tint":"#ff8a3a"}
 ],"spellCue":[
 {"id":"far","text":"too far"}
 ],"bandBest":[

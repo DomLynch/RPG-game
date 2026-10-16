@@ -215,10 +215,13 @@ export const missileMinGap = (): number => (BANDS.length > 1 ? BANDS[BANDS.lengt
 // spellRange (Dom 2026-10-16, Strategy's table stands; Dom later: a band is the FARTHEST a spell reaches, never a minimum, so any spell may be cast as close as you like, at your own risk): one `spellRange` row per spell root { root, band (a `bands` id), speed (cm/s) and tint when the spell travels }. A cast is legal while the gap between the fighters
 // is no farther than the root's band (the band edges are the live `bands` rows, no new distance); beyond it the press is refused and nothing is spent, with the `spellCue` row's short text ("far"). A row with a speed goes through the
 // one missile model (travel time, answered by roll or guard); the rest land on the foe at the release. No rows (trunk) = a spell has no range, as before.
-type SpellRangeRow = { root: string; band: string; speed?: number; tint?: string }; type CueRow = { id: string; text: string };
+type SpellRangeRow = { root: string; band: string; kind?: 'melee' | 'magic'; speed?: number; tint?: string }; type CueRow = { id: string; text: string };
 const SPELL_RANGES = ((DEFS as unknown as { spellRange?: SpellRangeRow[] }).spellRange ?? []);
 const CUES = ((DEFS as unknown as { spellCue?: CueRow[] }).spellCue ?? []);
 export const spellRangeOf = (root: string): SpellRangeRow | undefined => (BANDS.length ? SPELL_RANGES.find((r) => r.root === root) : undefined);
+// kind (Dom 2026-10-16: melee or magic, nothing else): a `melee` root is cast up close and paid in STAMINA; a `magic` root (medium / long band) is paid in MANA. A root with no kind (trunk, no rows) pays as before: mana while mana is on.
+/** True when the spell's cast is paid in mana (magic, or a root with no kind while mana is on); false for a melee spell, which pays stamina. */
+export const paysMana = (root: string | undefined): boolean => MANA_MAX > 0 && (!root || spellRangeOf(root)?.kind !== 'melee');
 /** 'far' when `distance` metres is beyond the root's band (its farthest reach), undefined when the cast may go (any distance inside it, however close; or the root has no row). */
 export const spellRangeCue = (root: string, distance: number): 'far' | undefined => {
   const row = spellRangeOf(root); if (!row) return undefined;
