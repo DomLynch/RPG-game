@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of one straight section of a barbarian timber palisade wall, front view, centred, isolated on a plain neutral grey background with soft even light. About five metres wide: heavy split oak logs side by side of uneven heights with axe-hewn points, deeply weathered grey-brown wood, cracks, stripped bark, two crossbars lashed with frayed hemp rope, a diagonal timber brace leaning against the back; one taller stake in the middle carries a real ram skull with ribbed curled horns wired to it with rope, yellowed cracked bone; dark pitted iron nails, dried mud and soot at the base. Historical Roman-era frontier fort trophy wall, realistic proportions and materials, matte, no glow, not cartoon, not stylised, no text.",
+  "seed": 191101,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1216x832",
+  "seconds": 55.5,
+  "sha256": "efe24b98ebf9567a0858b9e8f231dd3bc32e5295d553c943894a5ec45a579aff"
+}

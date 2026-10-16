@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of one straight section of a barbarian timber palisade wall, front view, centred, isolated on a plain neutral grey background with soft even light. About five metres wide and under three metres tall: heavy split oak logs standing side by side, of uneven heights, each top roughly hewn to a point with axe marks, bark partly stripped, deeply weathered grey-brown wood with cracks and moss stains, two horizontal crossbars lashed on with coarse frayed hemp rope, dark pitted hand-forged iron nails and a rusted iron strap, dried mud and soot at the base. Historical Roman-era frontier fort, realistic proportions and materials, matte surfaces, no glow, not cartoon, not stylised, no text, no ground clutter.",
+  "seed": 191101,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1216x832",
+  "seconds": 52.5,
+  "sha256": "0ee8a54d2168ec91151d5979dae2a85978f1d7a971ec19d1783b141e1409bc3f"
+}

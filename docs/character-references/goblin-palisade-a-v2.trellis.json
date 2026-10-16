@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": ".scratch-stills/fort/ref/palisade-a-191101.png",
+  "preprocess_s": 13.6,
+  "image_to_3d_s": 34.3,
+  "extract_glb_s": 27.5,
+  "glb": "src/assets/source/creatures/goblin-palisade-a-v2.glb",
+  "bytes": 6514348,
+  "sha256": "cd930f64e7bdf6d7032b0c22b179f65650ff041b26fc4d16dece2d7edd7bc52b",
+  "attempts": 1
+}
