@@ -47,8 +47,9 @@ test('which pieces a remote would compile on first sight: those whose material i
   player.anchor.traverse((o) => { const m = (o as Mesh).material as MeshStandardMaterial | undefined; if (m?.name && textured.has(m.name)) m.map = new Texture(); });
   const cold = coldPieces(player, pieces);
   console.log(`cold (${cold.length}/${pieces.length}):`, cold.join(' '));
-  assert.ok(cold.includes('knight.Body.KnightIron'), 'the Knight\'s iron is its own material');
-  assert.ok(!cold.includes('goblin.Body.Steel'), 'the Goblin\'s Steel is the hero\'s mapped Steel (warm)');
+  // GLTFLoader strips the dots from a node's name (`knight.Body.KnightIron` is `knightBodyKnightIron`)
+  assert.ok(cold.includes('knightBodyKnightIron'), 'the Knight\'s iron is its own material');
+  assert.ok(!cold.includes('goblinBodySteel'), 'the Goblin\'s Steel is the hero\'s mapped Steel (warm)');
 });
 
 test('a re-dress undresses what is no longer worn, and an id the build does not know is handed back', async () => {
