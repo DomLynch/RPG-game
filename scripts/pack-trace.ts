@@ -3,9 +3,11 @@
 //   node scripts/pack-trace.ts   env: KIND (cave-troll), LEVEL (3), ESCORT (goblin), ESCORT_LEVEL (2), ESCORTS (1), RUNG (4), SEED (1), HERO_LEVEL (LEVEL)
 import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
+import { SLOT_ROWS } from '../src/fight/roll.ts';
 
 const env = (k: string, d: string) => process.env[k] ?? d, DT = 1 / 60;
 const kind = env('KIND', 'cave-troll'), level = +env('LEVEL', '3'), escort = env('ESCORT', 'goblin'), escortLevel = +env('ESCORT_LEVEL', '2'), escorts = +env('ESCORTS', '1'), rung = +env('RUNG', '4'), seed = +env('SEED', '1'), heroLevel = +env('HERO_LEVEL', String(level));
+for (const kv of (process.env.SLOTS ?? '').split(',').filter(Boolean)) { const [id, pct] = kv.split('='); const row = SLOT_ROWS.find((r) => r.id === id); if (!row) throw Error(`SLOTS: no swarm-defs slot row "${id}"`); (row as { percent: number }).percent = +pct!; }   // SLOTS=mob2=1: an experiment's override of the crowd-cut rows
 const nearest = (w: World): Fighter | undefined => { const h = w.fighters[0]!; return w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead' && f.hunting).sort((a, b) => Math.hypot(a.x - h.x, a.z - h.z) - Math.hypot(b.x - h.x, b.z - h.z))[0]; };
 const guard = (w: World, k: number): Input => { const f = nearest(w); return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }; };
 const sheet = rungSheet(rung, heroLevel), total = 1 + escorts;
