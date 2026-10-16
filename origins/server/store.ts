@@ -92,7 +92,7 @@ export const setActive = async (db: Db, account: string, character: string): Pro
 };
 export const active = async (db: Db, account: string): Promise<string | null> =>
   (await db.run(`select coalesce(public.origins_active(:'a'::uuid), '');`, { a: acct(account) })) || null;
-// The ACTIVE character's display name (migration 20261016170000), for presence's name tags: null when there is none, and also null on a database without the function (a name tag is then
+// The ACTIVE character's display name (migration 20261016161137), for presence's name tags: null when there is none, and also null on a database without the function (a name tag is then
 // simply missing, nothing else changes). The answer is JSON (a string is quoted), so a character named "absent" cannot be mistaken for the gate's 'absent' sentinel.
 const HAS_ACTIVE_NAME = `select to_regprocedure('public.origins_active_name(uuid)') is not null as actname \\gset\n`;
 export const activeName = async (db: Db, account: string): Promise<string | null> => {
