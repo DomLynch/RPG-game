@@ -104,3 +104,13 @@ export function duplicateNames(files: Readonly<Record<string, string>>): string[
   for (const [path, source] of Object.entries(files)) if (isCode(path)) for (const n of parse(path, source).names) where.set(n, [...(where.get(n) ?? []), path]);
   return [...where].filter(([, paths]) => new Set(paths).size > 1).map(([n, paths]) => `${n}: ${[...new Set(paths)].join(', ')}`);
 }
+
+// The pin rule both guards share (record-version-guard, world-sim-guard; Lead 2026-10-15, hardening): the HEAD pin must be exact, so the digest equals the pin AND the version equals
+// the version it was pinned for. The older rule (`digest === pin ? v === pinnedFor : v > pinnedFor`) let a bump that left the pin stale pass on any digest, so nothing pinned the new
+// code (never hit on trunk: 0 of 97 commits had v != pinnedFor). Returns null when the pin holds, else what to do.
+export function pinProblem(p: { digest: string; pin: string; version: number; pinnedFor: number; name: string; versionFile: string; pinName: string }): string | null {
+  if (p.version < p.pinnedFor) return `${p.name} went backwards (${p.version} < pinned ${p.pinnedFor})`;
+  if (p.digest === p.pin && p.version === p.pinnedFor) return null;
+  if (p.version === p.pinnedFor) return `The sim files changed (digest ${p.digest}) but ${p.name} is still ${p.version}. Bump ${p.name} in ${p.versionFile}, then set ${p.pinName} = '${p.digest}' and PINNED_FOR_VERSION = ${p.version + 1} here.`;
+  return `${p.name} is ${p.version} but the pin is for ${p.pinnedFor}: re-pin at the head (set ${p.pinName} = '${p.digest}' and PINNED_FOR_VERSION = ${p.version}), so the new version's code is pinned, not left open.`;
+}

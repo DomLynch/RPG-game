@@ -18,7 +18,7 @@ import { DEFAULT_WEAPON, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, SKILL_BY_CODE, 
 import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
-import { duplicateNames, simDigest } from './lib/sim-digest.ts';
+import { duplicateNames, pinProblem, simDigest } from './lib/sim-digest.ts';
 import { DIALS, POINTS, SHEET_SKILLS } from '../src/fight/sheet-rows.ts';
 import { RULES } from '../src/fight/rules.ts';
 import { MOVES, PATHS } from '../src/fight/move-rows.ts';
@@ -56,9 +56,7 @@ const simSources = (): Record<string, string> => ({ ...Object.fromEntries(SIM_FI
 
 test('a sim change without a RECORD_VERSION bump would break every live kill link', () => {
   const digest = simDigest(simSources());
-  assert.ok(RECORD_VERSION >= PINNED_FOR_VERSION, 'RECORD_VERSION went backwards');
-  assert.ok(digest === SIM_DIGEST ? RECORD_VERSION === PINNED_FOR_VERSION : RECORD_VERSION > PINNED_FOR_VERSION,
-    `The sim files changed (digest ${digest}) but RECORD_VERSION is still ${RECORD_VERSION}. Bump RECORD_VERSION in src/fight/record.ts so older links are refused at decode instead of replaying a different fight, then set SIM_DIGEST = '${digest}' and PINNED_FOR_VERSION = ${RECORD_VERSION + 1} here.`);
+  assert.equal(pinProblem({ digest, pin: SIM_DIGEST, version: RECORD_VERSION, pinnedFor: PINNED_FOR_VERSION, name: 'RECORD_VERSION', versionFile: 'src/fight/record.ts', pinName: 'SIM_DIGEST' }), null);   // the head pin is exact (tests/lib/sim-digest.ts pinProblem): a bump re-pins, so older links are refused at decode instead of replaying a different fight
 });
 
 // The digest follows the code, not where it lives (Lead, 2026-10-09: Release K moves sim code into src/fight/ unchanged). Each case below starts
