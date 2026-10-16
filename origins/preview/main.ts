@@ -240,7 +240,7 @@ const NEAR: Partial<Record<Kind | 'fight' | 'back' | 'ground', string>> = { talk
 type Panel = Kind | 'allegiance';
 let near: Kind | 'fight' | 'back' | 'ground' | null = null, open: Panel | null = null, groundNear: { instance: string; label: string } | null = null, groundLine = '', groundLineUntil = 0;   // groundNear: the ground item the prompt is for (ground-pickup.ts)
 // ?region=1: the way back, from the Frontier's signpost to the Exchange's west gate, facing into the plaza.
-const goBack = () => { if (!frontier) return; const r = frontier.road; state.x = r.from.x + Math.sin(r.inward) * 2; state.z = r.from.z + Math.cos(r.inward) * 2; heading = r.inward; };
+const goBack = () => { if (!frontier) return; const r = frontier.road; state.x = r.from.x + Math.sin(r.inward) * 2; state.z = r.from.z + Math.cos(r.inward) * 2; heading = r.inward; presence?.warp('zone1-road-end'); };   // presence moves the player itself: a client jump is a teleport it would strike
 const tapNear = () => { if (near === 'fight') void startFight(); else if (near === 'back') goBack(); else if (near === 'ground') { if (groundNear) void groundPickup.tap(groundNear.instance); } else openPanel(near); };
 const show = (kind: Panel | null) => { const was = open; open = kind; if (kind === 'journal') hint.hidden = true; else if (was === 'journal' && !hintMoved) hint.hidden = false; shade.hidden = !kind; if (kind) card.innerHTML = kind === 'allegiance' ? picker.render(allegiance, playerName) : play.render(kind); };
 function openPanel(kind: Panel | null) {
@@ -502,12 +502,16 @@ function syncSpell2Button() {
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
-// Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
+// Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
+let startWarped = false;   // the first hello of a Zone 1 page is answered with a warp to the start landmark
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
   token: storedToken(storage, Date.now()), url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,
-  pose: () => (!frontier && Math.abs(state.x) < 149 && Math.abs(state.z) < 149 ? { x: state.x, z: state.z, heading } : null),
-  onHello: (at) => { if (!frontier && Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); } },   // where the server placed us (a rejoin lands where it was left)
+  pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
+  onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
+    if (frontier && !startWarped) { startWarped = true; presence?.warp('zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
+    if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
+  },
   onOthers: (list) => { others = list; },
 }); });
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
@@ -636,7 +640,7 @@ function heroDeathSequence() {
   const veil = document.createElement('div'); veil.id = 'world-death'; veil.textContent = 'You died';
   veil.style.cssText = 'position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#e8dcc8;font:600 26px/1 Georgia,serif;pointer-events:none';
   document.body.append(veil);
-  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
+  setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); presence?.warp('town-respawn'); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
 function creatureFell(spec: MobSpec) {
   mobs?.fell(spec.id);

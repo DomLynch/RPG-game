@@ -35,9 +35,6 @@
  "origins/preview/pit-duel.ts": {
   "0.1": 1
  },
- "origins/preview/presence-client.ts": {
-  "30000": 1
- },
  "origins/server/encounter-pose.ts": {
   "0.5": 1
  },
