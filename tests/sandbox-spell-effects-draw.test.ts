@@ -10,10 +10,9 @@ import { createSpecialPresentation } from '../src/fight/special-presentation.ts'
 import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
 import { LAND_AT } from '../src/fight/special-timing.ts';
-
 const IDS = Object.keys(SPECIAL_TESTS).filter((id) => SPECIAL_MODES[id as SpecialTest]) as SpecialTest[];
 // Draw nothing here and are not checked yet: they read the fighters' rig (bones, anchors, a canvas) that this headless test does not build. None is a rank 1-2 (beta) effect; to be checked in a rig test.
-const NEEDS_RIG = ['ratrun', 'price', 'reynard', 'hermes', 'loki'];
+const NEEDS_RIG =['ratrun', 'price', 'reynard', 'hermes', 'loki'];
 const bones =[new THREE.Vector3(-1, 1.5, 0.5), new THREE.Vector3(1, 1.5, -0.5)] as const;
 const flush = async () => { for (let i = 0; i < 40; i++) await new Promise((r) => setImmediate(r)); };
 const fighters = (): [Fighter, Fighter] => {
@@ -52,8 +51,7 @@ test('every designed spell effect draws something when the player casts it', asy
         if (v > peak) { peak = v; peakAt = t; }
       }
     } catch (e) { ok = false; report.push(`${id}: THREW ${String(e).slice(0, 80)}`); }
-    report.push(`${id.padEnd(13)} peak=${peak} at tick ${peakAt}`);
-    if (ok && peak === 0) blank.push(id);
+    report.push(`${id.padEnd(13)} peak=${peak} at tick ${peakAt}`);    if (ok && peak === 0) blank.push(id);
     p.clear();
   }
   console.log(report.join('\n'));

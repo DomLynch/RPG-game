@@ -225,11 +225,12 @@ export const SPELL_FX = num('spellFx', 'value');
 // spellEffect: one row per catalogue spell { id, fx } naming the designed special effect it plays (sandbox/spell-fx.json, authored by sandbox/spell-fx-gen.mjs from the ladder rule: rank 1-3 = class special A, 4-7 = B, 8 / 9 / 10 = the family's boss special). A spell with no row falls back to its root template's special (special-presentation.ts).
 type SpellEffectRow = { id: string; fx: string };
 const SPELL_EFFECTS = ((DEFS as unknown as { spellEffect?: SpellEffectRow[] }).spellEffect ?? []);
-export const spellEffectOf = (spell: string): string | undefined => SPELL_EFFECTS.find((r) => r.id === spell)?.fx;
+// A spellPick row may name its own `fx` (Dom 2026-10-16: the alpha's 20 spells must each look different and strong); it wins over the generated band rule above.
+export const spellEffectOf = (spell: string): string | undefined => ((DEFS as unknown as { spellPick?: { id: string; fx?: string }[] }).spellPick ?? []).find((r) => r.id === spell)?.fx ?? SPELL_EFFECTS.find((r) => r.id === spell)?.fx;
 // spellBuffer (Dom 2026-10-16: "sometimes a first tap does nothing"): milliseconds a SPELL press the game cannot take yet (a stagger, a swing's recovery) is held and fired the moment it can. 0 = off (trunk): a refused press is simply lost.
 export const SPELL_BUFFER_MS = num('spellBuffer', 'value');
-// spellPick (Dom 2026-10-16: the alpha / pre-beta ladder is levels 1-2, so 20 hand-picked spells, 10 a level, the most interesting): one row { id, level } per offered spell. The spell pickers list only these; every other spell stays in the rows, hidden. No rows (trunk) = every spell.
-type SpellPickRow = { id: string; level: number };
+// spellPick (Dom 2026-10-16: the alpha / pre-beta ladder reaches level 3, so30 hand-picked spells for levels 1-3, 10 a level, each playing one of the 30 designed boss specials of ranks 8, 9, 10): one row { id, level } per offered spell. The spell pickers list only these; every other spell stays in the rows, hidden. No rows (trunk) = every spell.
+type SpellPickRow = { id: string; level: number; fx?: string };
 export const spellPick = (): readonly string[] => ((DEFS as unknown as { spellPick?: SpellPickRow[] }).spellPick ?? []).map((r) => r.id);
 // windup (Dom 2026-10-16: a melee cast must be quicker than a magic one, or the caster is a sitting duck next to a plain slash): ticks of cast for this root, at 60 a second. No row field = the global special windup (120, two seconds).
 /** Ticks this root's cast takes before it lands, or `base` (the global special windup) when its row names none. */

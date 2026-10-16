@@ -111,10 +111,12 @@
 ],"spellCue":[
 {"id":"far","text":"too far"}
 ],"spellPick":[
-{"id":"brokkr","level":1},{"id":"banshee","level":1},{"id":"redcap","level":1},{"id":"scarab-khepri","level":1},{"id":"shedu","level":1},
-{"id":"jaguar-warrior","level":1},{"id":"eagle-warrior","level":1},{"id":"rumpelstiltskin","level":1},{"id":"kappa","level":1},{"id":"bake-danuki","level":1},
-{"id":"nian","level":2},{"id":"rubezahl","level":2},{"id":"baobhan-sith","level":2},{"id":"dullahan","level":2},{"id":"kelpie","level":2},
-{"id":"eitri","level":2},{"id":"jorogumo","level":2},{"id":"sphinx","level":2},{"id":"diomedes-mares","level":2},{"id":"taweret","level":2}
+{"id":"brokkr","level":1,"fx":"dwarf8"},{"id":"banshee","level":1,"fx":"arawn"},{"id":"redcap","level":1,"fx":"set"},{"id":"scarab-khepri","level":1,"fx":"antaeus"},{"id":"shedu","level":1,"fx":"shield8"},
+{"id":"jaguar-warrior","level":1,"fx":"shield"},{"id":"eagle-warrior","level":1,"fx":"sling"},{"id":"rumpelstiltskin","level":1,"fx":"reynard"},{"id":"kappa","level":1,"fx":"mist"},{"id":"bake-danuki","level":1,"fx":"flies"},
+{"id":"nian","level":2,"fx":"surtr"},{"id":"rubezahl","level":2,"fx":"haze"},{"id":"baobhan-sith","level":2,"fx":"hades"},{"id":"dullahan","level":2,"fx":"thanatos"},{"id":"kelpie","level":2,"fx":"hermes"},
+{"id":"eitri","level":2,"fx":"dwarf9"},{"id":"jorogumo","level":2,"fx":"stain"},{"id":"sphinx","level":2,"fx":"echo"},{"id":"diomedes-mares","level":2,"fx":"centurion"},{"id":"taweret","level":2,"fx":"shield9"},
+{"id":"wayland","level":3,"fx":"dwarf10"},{"id":"ankou","level":3,"fx":"reaper"},{"id":"neti","level":3,"fx":"nyx"},{"id":"impundulu","level":3,"fx":"storm"},{"id":"sciron","level":3,"fx":"typhon"},
+{"id":"namtar","level":3,"fx":"breath"},{"id":"bai-gu-jing","level":3,"fx":"loki"},{"id":"shamash","level":3,"fx":"shield10"},{"id":"grimhild","level":3,"fx":"price"},{"id":"blood-gatherer","level":3,"fx":"tithe"}
 ],"bandBest":[
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
 {"weapon":"longsword","band":"mid"},{"weapon":"cleaver","band":"mid"},{"weapon":"maul","band":"mid"},{"weapon":"warhammer","band":"mid"},
