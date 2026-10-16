@@ -63,13 +63,15 @@ try {
     return { trace: t ?? null, max: c?.hero?.max ?? null, career: p?.career?.() ?? null };
   });
   const settle = async (done) => { let got = await read(); for (let i = 0; i < 40 && !done(got); i++) { await page.waitForTimeout(1500); got = await read(); } return got; };
-  const shaped = (g) => !!g.trace && typeof g.trace === 'object' && g.trace.sheet && typeof g.trace.maxHealth === 'number';
+  const exists = (g) => !!g.trace && typeof g.trace === 'object' && typeof g.trace.maxHealth === 'number';   // all the preflight needs: before the writes the QA hero is level 0 with no build, so its sheet may be null (bare)
+  const shaped = (g) => exists(g) && !!g.trace.sheet && typeof g.trace.sheet === 'object';   // asserted only AFTER the writes and the reload
 
   // ---- preflight, part 2: the page (still no write) -----------------------------------------------------------------------------------------------------------------------------------------
   await page.goto(PAGE, { waitUntil: 'load', timeout: 60_000 });
-  const pre = await settle(shaped);
-  step('PREFLIGHT: originsPreview.combat().trace exists with a sheet and maxHealth', shaped(pre), pre.trace ? 'trace has no sheet/maxHealth' : 'no trace handle: the release does not carry #2900 as expected');
-  console.log(`preflight: before any write the QA hero's maxHealth is ${pre.trace.maxHealth} (bare 150), sheet armour ${pre.trace.sheet.armour ?? '?'}`);
+  const pre = await settle(exists);
+  step('PREFLIGHT: originsPreview.combat().trace exists and has a numeric maxHealth (the sheet is not required yet)', exists(pre), pre.trace ? 'trace has no numeric maxHealth' : 'no trace handle: the release does not carry #2900 as expected');
+  const preArmour = pre.trace.sheet?.armour ?? 0;
+  console.log(`preflight: before any write the QA hero's maxHealth is ${pre.trace.maxHealth} (150 = bare on a first run), sheet ${pre.trace.sheet ? `armour ${preArmour}` : 'none (bare)'}`);
 
   // ---- the writes (all on the QA account's one character) ------------------------------------------------------------------------------------------------------------------------------------
   const open = await op('open', {});
@@ -98,7 +100,7 @@ try {
 
   // ---- the read-back: a fresh page load with the new build and gear ---------------------------------------------------------------------------------------------------------------------------
   await page.reload({ waitUntil: 'load', timeout: 60_000 });
-  const got = await settle((g) => shaped(g) && g.trace.ready === true && g.trace.sheet.armour > (pre.trace.sheet.armour ?? 0));
+  const got = await settle((g) => shaped(g) && g.trace.ready === true && g.trace.sheet.armour === WANT.armour);   // a re-run (build already in place) passes too; a mismatch times out and the lines below print the actual numbers
   step('the reloaded page answers its trace (ready, with the new sheet)', shaped(got) && got.trace.ready === true, 'trace never showed the new build');
   const s = got.trace.sheet, maxHealth = got.trace.maxHealth;
   console.log(`HUD career level ${got.career?.level ?? '?'}; trace level ${got.trace.level ?? '?'}; sheet attack ${s.attack} armour ${s.armour} health ${s.health} poise ${s.poise}; maxHealth ${maxHealth} (bare 150)`);
