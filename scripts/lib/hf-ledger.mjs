@@ -21,6 +21,9 @@ import { vpsHost } from './waterfall.mjs';
 import LANE_PREFIXES from './lane-prefixes.json' with { type: 'json' };
 
 export const HF_COST = Object.freeze({ alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });   // Dom 2026-10-16 (topped up the account): "unlock it, within reason, don't waste"
+// One-day raises of the T4 stop, keyed by UTC day; every other day uses HF_COST.t4StopUsdPerDay. Dom 2026-10-16 ~21:05 +04, in the Lead chat: "ok yes" to $15 for that day only.
+export const T4_STOP_BY_DAY = Object.freeze({ '2026-10-16': 15 });
+export const t4StopOn = (ms) => T4_STOP_BY_DAY[day(ms)] ?? HF_COST.t4StopUsdPerDay;
 // Under `node --test` (NODE_TEST_CONTEXT, inherited by every child a test spawns) without an explicit HF_COST_LEDGER the ledger is a throwaway file:
 // a test that launches through a stub hf must never write the real ledger (AGENTS.md: tests never read or write live box state).
 export const ledgerPath = (env = process.env) => env.HF_COST_LEDGER
@@ -104,7 +107,8 @@ export function t4Refusal(flavor, { store, path, now = Date.now() } = {}) {
   const ledger = storeOf({ store, path }), text = ledger.read();
   if (text === null) return `hf-cost: the HF cost ledger (${ledger.where}) cannot be read: no new T4 job until it can (CPU jobs continue). One-time setup on the VPS as root: install -d -m 2775 -g lanes ${dirname(SHARED_LEDGER)} && install -m 664 -g lanes /dev/null ${SHARED_LEDGER}`;
   const spent = spentOn(text, now);
-  return spent >= HF_COST.t4StopUsdPerDay ? `hf-cost: $${spent.toFixed(2)} spent on HF today (UTC ${day(now)}), at or over the $${HF_COST.t4StopUsdPerDay} T4 stop: no new T4 job (CPU jobs continue)` : null;
+  const stop = t4StopOn(now);
+  return spent >= stop ? `hf-cost: $${spent.toFixed(2)} spent on HF today (UTC ${day(now)}), at or over the $${stop} T4 stop: no new T4 job (CPU jobs continue)` : null;
 }
 
 /** Appends one job line; on the first crossing of the alarm that day, the ALARM line, a stderr line and the flag file. Returns { usd, total, alarm }.
