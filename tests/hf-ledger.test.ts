@@ -188,12 +188,13 @@ test('with no CLAUDE.local.md and no env var (a VPS clone) the lane comes from t
 // The launch line stays a reservation at the --timeout bound; a SETTLE line, once the runtime is known, makes the day count the job at what it really cost.
 test('settle: a reserved job counts at its settled runtime, an unsettled one keeps its bound, and phantom spend no longer trips the T4 stop', () => {
   const { path } = box(), quiet = { path, now: NOON, say: () => {} };
-  for (let i = 0; i < 21; i++) record({ id: job(i), flavor: 't4-medium', timeout: '25m', reason: 'zone-still' }, quiet);   // 21 x $0.25 = $5.25 reserved
-  assert.equal(spentOn(readFileSync(path, 'utf8'), NOON).toFixed(2), '5.25');
-  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, /at or over the \$5 T4 stop/, 'reserved only: the stop trips');
-  for (let i = 0; i < 20; i++) assert.equal(settle({ id: job(i), flavor: 't4-medium', seconds: 240 }, quiet)!.usd, 0.04);
+  const n = Math.floor(HF_COST.t4StopUsdPerDay / 0.25) + 1;   // enough 25-min reservations ($0.25 each) to pass the stop, whatever the stop is set to
+  for (let i = 0; i < n; i++) record({ id: job(i), flavor: 't4-medium', timeout: '25m', reason: 'zone-still' }, quiet);
+  assert.equal(spentOn(readFileSync(path, 'utf8'), NOON).toFixed(2), (n * 0.25).toFixed(2));
+  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, new RegExp(`at or over the \\$${HF_COST.t4StopUsdPerDay} T4 stop`), 'reserved only: the stop trips');
+  for (let i = 0; i < n - 1; i++) assert.equal(settle({ id: job(i), flavor: 't4-medium', seconds: 240 }, quiet)!.usd, 0.04);
   const text = readFileSync(path, 'utf8');
-  assert.equal(spentOn(text, NOON).toFixed(2), '1.05', '20 settled at $0.04 + the one never settled at its $0.25 bound');
+  assert.equal(spentOn(text, NOON).toFixed(2), ((n - 1) * 0.04 + 0.25).toFixed(2), 'every job but one settled at $0.04 (240 s) + the one never settled at its $0.25 bound');
   assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, 'settled: the T4 runs again');
   assert.match(text, new RegExp(`^SETTLE\\t2026-10-12T12:00:00.000Z\\t${job(0)}\\tt4-medium\\t240\\t0.0400$`, 'm'), 'six tab fields, so an older reader skips it (its first field is no date)');
 });
