@@ -2,7 +2,8 @@
 // players) saw "Bob left and is still drawn" 8 s after bob.close() on a tree with worn gear in the enter record; this pins the server half of that for every way a player can be standing when he goes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPresence } from './server.ts';
+import { connect } from 'node:net';
+import { LIMITS, createPresence } from './server.ts';
 import { joinBot, type Bot } from './test-client.ts';
 
 const A = '00000000-0000-4000-8000-0000000000a1', B = '00000000-0000-4000-8000-0000000000b2';
@@ -28,7 +29,7 @@ async function assertGone(p: Awaited<ReturnType<typeof start>>, alice: Bot, bobI
 
 for (const how of ['standing still', 'after walking', 'after a warp', 'with a worn set and the refresh running', 'as a guest']) {
   test(`a player who closes his socket ${how} is gone from the world, the cells and every watcher's packets`, async () => {
-    const worn = how.startsWith('with a worn') ? { head: 'veteran.Helmet' } : {};
+    const worn: Record<string, string> = how.startsWith('with a worn') ? { head: 'veteran.Helmet' } : {};
     const p = await start({ wornOf: () => worn, readWorn: async () => worn, wornEveryMs: 60, nameOf: () => 'N' });
     try {
       const alice = await joinBot(p.port(), 'a'), bob = await joinBot(p.port(), how === 'as a guest' ? null : 'b');
@@ -44,6 +45,54 @@ for (const how of ['standing still', 'after walking', 'after a warp', 'with a wo
     } finally { await p.close(); }
   });
 }
+
+// The ghost: presence ran the leave only when the TCP socket reported 'close', which needs the PEER's FIN as well. A client that sends a close frame and then dawdles (a loaded runner, a browser
+// that waits on the close handshake) kept its player in the world, and in every watcher's packets, until the FIN came. The leave must run when the close FRAME arrives, and the socket is
+// destroyed after a grace if the peer never finishes (closeGraceMs, a row).
+const CLOSE_FRAME = Buffer.from([0x88, 0x82, 0, 0, 0, 0, 0x03, 0xe8]);   // masked (zero key) close, code 1000
+function rawJoin(port: number, token: string): Promise<{ socket: import('node:net').Socket; closed: () => boolean }> {
+  return new Promise((resolve, reject) => {
+    const s = connect({ port, host: '127.0.0.1', allowHalfOpen: true });   // never ends its own side unless told: the half-open peer
+    let done = false, closed = false;
+    s.once('error', reject); s.on('close', () => { closed = true; });
+    s.write(`GET /origins/presence HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: frankendom.presence.v2, token.${token}\r\n\r\n`);
+    s.on('data', (d) => { if (!done && /^HTTP\/1\.1 101/.test(d.toString('latin1'))) { done = true; resolve({ socket: s, closed: () => closed }); } });
+  });
+}
+test('a close frame removes the player at once even when the peer never finishes the TCP close; the socket is destroyed after the grace', async () => {
+  const p = await start();
+  try {
+    const alice = await joinBot(p.port(), 'a'), ghost = await rawJoin(p.port(), 'b');
+    await until(() => p.world.byAccount.has(B) && alice.seen().length === 1, 3000);
+    const bobId = p.world.byAccount.get(B)!.id;
+    ghost.socket.write(CLOSE_FRAME);   // ...and nothing more: no FIN, no end()
+    const t0 = Date.now();
+    await until(() => !p.world.byAccount.has(B), 1500);
+    assert.equal(p.world.byAccount.has(B), false, 'the world forgot him on the close frame, without waiting for the peer\'s FIN');
+    assert.ok(Date.now() - t0 < 600, `and quickly (${Date.now() - t0} ms)`);
+    const leftAt = Date.now(); for (let i = 0; i < 8; i++) { alice.pose(1 + (i % 2), 0); await wait(50); }
+    assert.equal(alice.packets().some((q) => q.at > leftAt + 150 && q.ids.includes(bobId)), false, 'no packet after that carries his id');
+    await until(() => ghost.closed(), 3000);
+    assert.equal(ghost.closed(), true, 'the server destroyed the socket after the grace, the peer\'s FIN or not');
+    alice.close();
+  } finally { await p.close(); }
+});
+test('the server\'s own close paths (idle timeout, a malformed frame) remove the player at once as well', async () => {
+  const p = await start({ limits: { ...LIMITS, idleMs: 300 } });
+  try {
+    const idle = await rawJoin(p.port(), 'a');   // says nothing: the idle timer closes it, and the peer never answers
+    await until(() => p.world.byAccount.has(A), 2000);
+    await until(() => !p.world.byAccount.has(A), 1500);
+    assert.equal(p.world.byAccount.has(A), false, 'idle: gone at the timeout, not at the peer\'s FIN');
+    idle.socket.destroy();
+    const bad = await rawJoin(p.port(), 'b');
+    await until(() => p.world.byAccount.has(B), 2000);
+    bad.socket.write(Buffer.from([0x82, 0x81, 0, 0, 0, 0, 0x01]));   // a binary frame that is not a pose
+    await until(() => !p.world.byAccount.has(B), 1500);
+    assert.equal(p.world.byAccount.has(B), false, 'malformed: gone at once');
+    bad.socket.destroy();
+  } finally { await p.close(); }
+});
 
 test('a player who closes while the writer refresh read is in flight is not brought back by it', async () => {
   let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
