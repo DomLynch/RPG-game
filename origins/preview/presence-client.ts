@@ -39,6 +39,7 @@ export type Presence = { stop(): void; flush(): void; warp(landmark: string): bo
 const OPEN = 1;
 export function joinPresence(d: Deps): Presence | null {
   if (!d.token && !d.guest) return null;   // signed out and not a guest: nothing is opened
+  if (typeof d.open !== 'function') throw new Error('joinPresence: the socket opener (open) is required');   // loud, never a silent "presence never connects" (a missing opener once hid behind a // comment)
   const setTimer = d.setTimer ?? ((fn, ms) => setTimeout(fn, ms)), clearTimer = d.clearTimer ?? ((id) => clearTimeout(id as never));
   const every = d.every ?? ((fn, ms) => setInterval(fn, ms)), clearEvery = d.clearEvery ?? ((id) => clearInterval(id as never)), rng = d.rng ?? Math.random;
   let isGuest = false, frame: Frame = LEGACY_FRAME, socket: Socket | null = null, poseTimer: unknown, retryTimer: unknown, stopped = false, failures = 0, welcomed = false, status: ReturnType<Presence['state']> = 'connecting';

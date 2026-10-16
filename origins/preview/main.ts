@@ -507,7 +507,7 @@ let allegiance = loadAllegiance(storage), playerName = 'You', characterId: strin
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
 let startWarped = false;   // the first hello of a Zone 1 page is answered with a warp to the start landmark
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
-  token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin),   // signed out = a guest in the shared world (the server mints its identity; nothing is saved) open: (url, protocols) => new WebSocket(url, protocols) as never,
+  token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
   pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
   onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
     if (frontier && !startWarped) { startWarped = true; presence?.warp('zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
