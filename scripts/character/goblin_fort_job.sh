@@ -6,7 +6,7 @@ set -euo pipefail
 REF="${REF:-char/goblin-fort-kit}"
 apt-get update -qq >/dev/null && apt-get install -y -qq curl xz-utils libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libsm6 libxkbcommon0 >/dev/null
 mkdir -p /work && cd /work
-curl -fSL --retry 3 -o blender.tar.xz https://download.blender.org/release/Blender5.2/blender-5.2.2-linux-x64.tar.xz
+curl -fSL --retry 3 -o blender.tar.xz https://mirrors.ocf.berkeley.edu/blender/release/Blender5.2/blender-5.2.2-linux-x64.tar.xz
 ls -l blender.tar.xz; file blender.tar.xz 2>/dev/null || head -c 200 blender.tar.xz
 tar xf blender.tar.xz
 curl -sSL -o kit.py "https://raw.githubusercontent.com/DomLynch/RPG-game/${REF}/scripts/character/goblin_fort_kit.py"
