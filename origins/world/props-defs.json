@@ -35,7 +35,7 @@
     {"id": "tents", "kit": "goblin-camp", "kind": "ring", "props": [{"prop": "tent", "weight": 1}], "count": 2, "ringRadius": 6},
     {"id": "palisade", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "palisade-a", "weight": 1}, {"prop": "palisade-b", "weight": 1}, {"prop": "palisade-c", "weight": 1}], "count": 3, "near": 1},
     {"id": "totems", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "totem", "weight": 1}], "count": 2, "near": 1},
-    {"id": "banners", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "banner", "weight": 1}], "count": 2, "near": 0.8},
+    {"id": "banners", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "banner", "weight": 1}], "count": 0, "near": 0.8},
     {"id": "bones", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "bones-a", "weight": 3}, {"prop": "bones-b", "weight": 2}, {"prop": "bones-c", "weight": 1}], "count": 5, "near": 1},
     {"id": "ribs", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "ribcage", "weight": 1}], "count": 1, "near": 1},
     {"id": "trees", "kit": "goblin-camp", "kind": "cluster", "props": [{"prop": "tree", "weight": 1}], "count": 1, "per": 2, "spread": 2.2, "near": 1},
