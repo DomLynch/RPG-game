@@ -8,7 +8,7 @@ import DEFS from '../origins/world/props-defs.json' with { type: 'json' };
 type Defs = { tints: Record<string, unknown>[]; props: Record<string, any>[]; kits: Record<string, unknown>[]; recipes: Record<string, any>[]; dress: Record<string, unknown>[]; ambience: Record<string, unknown>[] };
 const d = DEFS as unknown as Defs, bad = (patch: Partial<Defs>, re: RegExp) => assert.throws(() => loadProps({ ...d, ...patch }), re);
 
-test('the goblin camp kit: small (a tent, a totem, a banner, a fire, palisade, bones, a tree), every prop in a recipe, every recipe prop in the kit', () => {
+test('the goblin camp kit: small (a tent, a totem, a fire, palisade, bones, a tree), every prop in a recipe, every recipe prop in the kit', () => {
   assert.deepEqual(kitIds(), ['goblin-camp']); const ids = d.props.map((p) => p.id), used = new Set(recipesOf('goblin-camp').flatMap((r) => r.props.map((w) => w.prop)));
   assert.deepEqual([...used].sort(), [...ids].sort(), 'no prop is unused and none is missing'); assert.ok(ids.length <= 14, `${ids.length} props: keep the kit small`);
   assert.equal(propKitRow('goblin-camp')!.tries, 30); assert.equal(propRow('fire').emits, 'fire');
