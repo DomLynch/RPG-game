@@ -697,7 +697,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     if (!D.health) continue;
     if (D.phase === 'roll' && D.age >= R.safeStart && D.age <= R.safeEnd) { events.push({ tick, type: 'Dodged', actor: j, target: i, move: m.move }); if (DODGE_COUNTER > 0) D.counterWindow = DODGE_COUNTER; continue; }
     const rx = D.body.x - m.x, rz = D.body.z - m.z, along = rx * m.dx + rz * m.dz, lateral = rx * m.dz - rz * m.dx;
-    if (!MISSILE_HOMING && (along < m.range / 2 || Math.abs(lateral) * 100 > MISSILE_RADIUS)) { events.push({ tick, type: 'AttackMissed', actor: i, move: m.move }); continue; }
+    if (!m.spell && !MISSILE_HOMING && (along < m.range / 2 || Math.abs(lateral) * 100 > MISSILE_RADIUS)) { events.push({ tick, type: 'AttackMissed', actor: i, move: m.move }); continue; }
     const g = guardOf(D, R), facing = Math.abs(wrapAngle(aim(D.body, A.body) - D.body.heading)) <= g.arc;
     if (D.phase === 'guard' && facing && covers(D, m.lane === 0 ? 'thrust' : m.lane > 0 ? 'right' : 'left', R)) {
       const cost = Math.max(1, Math.round(m.damage / 2)); D.stamina = Math.max(0, D.stamina - cost); D.rest = R.regenDelay;
