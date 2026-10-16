@@ -29,7 +29,7 @@ test('every world rule equals the literal it replaced', () => {
   assert.equal(MAX_ATTACKERS, 3);   // the attacker cap reads its row
   assert.equal(worldRule('farM'), 1000);   // the far-off dummy foe's distance reads its row
   
-  assert.equal(WORLD_RULES.length, 56);
+  assert.equal(WORLD_RULES.length, 58);   // 56 + retargetCone, retargetGap (many-on-one, WSV49)
 });
 test('the loader refuses a missing named rule, a non-positive value, a duplicate id, an engageOut below engage, a holdFactor above 1; a new row is one entry', () => {
   const rows = DEFS.rules;
