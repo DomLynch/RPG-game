@@ -765,3 +765,13 @@ the server, never from the client, and nothing competitive may hang off it (Stra
   guard reads as broken. The daily/loot block now opens with `set time zone 'UTC';`. Reproduced independently: the pre-fix check run
   under `TZ=Asia/Dubai` failed with "Authenticated cannot fetch today's daily seed"; the fixed check (lead/loot-data `d5b0a89`) passes
   under the same `TZ`.
+- **Apply keeps the file's version (Lead's order 2026-10-16, after the 2nd rename PR in a day: #2906 for HA, #2936 for HF).** The Supabase
+  MCP `apply_migration` ALWAYS assigns its own timestamp, so applying with it makes the remote version differ from the file name. Recipe
+  from now on: at the cut, check the blob equals the Auditor's APPLY-READY blob, then run ONE `execute_sql` that holds the file's
+  statements (no begin/commit) followed by
+  `insert into supabase_migrations.schema_migrations (version, name, statements) values ('<the file's own stamp>', '<name after the stamp>', array[$$<statement 1>$$, ...]);`
+  (the columns are version, statements, name, created_by, idempotency_key, rollback; this is what `supabase db push` records). Read back
+  `select version from supabase_migrations.schema_migrations where name = '<name>'` and post "applied (remote version = <file stamp>)"
+  with the object read-back. The stamp must sort after the latest remote version (`list_migrations`). NOT YET PROVEN on prod: the
+  first use must be read back; if the insert is refused or the version differs, fall back to `apply_migration` and open the rename PR in
+  the same turn, and correct this paragraph. Never edit the history table of an already-applied migration to fake a stamp.
