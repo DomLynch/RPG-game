@@ -97,14 +97,13 @@ try {
   assert.ok(await until(async () => (await page.evaluate(() => window.originsPreview.remote().shown.length)) >= 9, 30000), `the crowd is not drawn: ${JSON.stringify(await page.evaluate(() => window.originsPreview.remote()))}`);
   await wait(3000);
   const after = await snap(); receipt.programsAfterBots = after.names.length; receipt.shown = await page.evaluate(() => window.originsPreview.remote().shown.length);
-  // A program a figure in the scene compiles has an owner (programOwners names the scene objects using it): that is what a remote could add, and it is the gate. On software GL one UNOWNED MeshBasic program ("basic", no scene object uses it) also links in some runs with the crowd
-  // (8 remotes: 1 of 4 runs, 11: about half; the same page with 3 bots and no crowd: 0 of 9 added one; World's T4 run adds none). It is not explained yet, so exactly that observed case is allowed (UNOWNED_ALLOWED programs, of kind UNOWNED_KIND) and reported
-  // in the receipt (programsAddedUnowned); any owned new program, any second unowned one, or an unowned one of another kind fails the row (the Auditor's narrowing: no other unexplained compile may go green).
-  const UNOWNED_ALLOWED = 1, UNOWNED_KIND = 'basic';
+  // Strict again: NO program may link after zone ready, owned or not. A program a figure in the scene compiles has an owner (programOwners names the scene objects using it). Before the shared warm proxy linked at zone ready
+  // (warm-proxy.ts, in trunk since HL2) one UNOWNED MeshBasic program ("basic") linked in about half the crowd runs on software GL; with it, 0 of 14 runs added one (4 hunt runs and these 10), so the allowance is gone.
+  // The receipt still lists programsAddedUnowned.
   const added = after.names.filter((n) => !before.names.includes(n)), owned = added.filter((n) => (after.owners[n] ?? []).length > 0), unowned = added.filter((n) => !owned.includes(n));
   receipt.programsAddedOwned = owned.map((n) => [n, after.owners[n]]); receipt.programsAddedUnowned = unowned.map((n) => [n, String(after.keys[n] ?? '').split(',')[0]]);
   assert.equal(owned.length, 0, `a remote's material linked a render program after zone ready: ${JSON.stringify(receipt.programsAddedOwned)}`);
-  assert.ok(unowned.length <= UNOWNED_ALLOWED && unowned.every((n) => String(after.keys[n] ?? '').split(',')[0] === UNOWNED_KIND), `unowned programs beyond the one observed ${UNOWNED_KIND} program linked after zone ready: ${JSON.stringify(receipt.programsAddedUnowned)}`);
+  assert.equal(unowned.length, 0, `a render program linked after zone ready that no scene object owns: ${JSON.stringify(receipt.programsAddedUnowned)}`);
 
   // tags: a bot that leaves is gone within the expiry, and its slot is reused with no stale name
   const closedAt = Date.now() - t0; bob.close();
