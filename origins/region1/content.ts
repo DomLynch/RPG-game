@@ -17,7 +17,7 @@
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
 import { LOOT_ITEMS } from '../../src/core/server.ts';
-import { placedSpawns, placedWaypoints } from '../zones/place.ts';
+import { placedSpawns, placedWaypoints, spawnIds } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import lootTableRows from './loot-tables.json' with { type: 'json' };
 import townRows from './towns.json' with { type: 'json' };
@@ -146,7 +146,7 @@ export const REGIONS = [
       spawn('bounty-toll', 'milestone', 'encounter:bounty-toll'),
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
-      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
+      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, spawnIds(g))),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },
