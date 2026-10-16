@@ -14,7 +14,7 @@ type Dressable = { wear(pieces: readonly SkinnedMesh[], failed?: (id: string, er
  */
 export function coldPieces(actor: { anchor: Object3D; worn(): readonly SkinnedMesh[] }, pieces: readonly SkinnedMesh[]): string[] {
   const own = rigMaterials(actor.anchor, new Set(actor.worn())), warm = new Set<unknown>(own.values());
-  return pieces.filter((piece) => !warm.has(sourceMaterial(piece, own))).map((piece) => lootIds(piece)[0]!);
+  return pieces.filter((piece) => !warm.has(sourceMaterial(piece, own))).map((piece) => piece.name);   // the draw's node name (`goblin.Arms.Steel`): one loot id is several draws, one per material
 }
 
 /** The worn set's ids: the slot key only labels the entry (the id says which piece it is), and an empty id is nothing worn. */

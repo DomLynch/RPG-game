@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { Texture, type Mesh, type MeshStandardMaterial } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootIds, lootPiecesOf, lootWorn } from '../../src/fight/characters.ts';
 import { coldPieces, dressRemote, wornIds } from './dress-remote.ts';
@@ -39,7 +40,12 @@ test('a remote actor dressed with a worn set wears exactly what the player\'s ow
 });
 
 test('which pieces a remote would compile on first sight: those whose material is not the warmed hero palette', async () => {
-  const { player, pieces } = await rig(), cold = coldPieces(player, pieces);
+  const { player, pieces } = await rig();
+  // The images are dropped in Node, so mark the hero's textured materials (warrior.glb's own JSON) the way the browser build has them: rigMaterials reads the mapped ones.
+  const bytes = readFileSync(new URL('../../src/assets/warrior.glb', import.meta.url)), json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString()) as { materials: { name: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[] };
+  const textured = new Set(json.materials.filter((m) => m.pbrMetallicRoughness?.baseColorTexture).map((m) => m.name));
+  player.anchor.traverse((o) => { const m = (o as Mesh).material as MeshStandardMaterial | undefined; if (m?.name && textured.has(m.name)) m.map = new Texture(); });
+  const cold = coldPieces(player, pieces);
   console.log(`cold (${cold.length}/${pieces.length}):`, cold.join(' '));
   assert.ok(cold.includes('knight.Body.KnightIron'), 'the Knight\'s iron is its own material');
   assert.ok(!cold.includes('goblin.Body.Steel'), 'the Goblin\'s Steel is the hero\'s mapped Steel (warm)');
