@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { connect } from 'node:net';
-import { createPresence } from './server.ts';
+import { LIMITS, createPresence } from './server.ts';
+import { RULES } from './interest.ts';
 import { presenceRule } from './presence-rules.ts';
 import { joinBot } from './test-client.ts';
 
@@ -67,6 +68,48 @@ test('a socket that outlives the 60 s join window still frees its place when it 
     await until(() => p.world.byAccount.size === 0, 4000);
     for (let i = 0; i < perIp; i++) assert.equal((await upgrade(p.port(), '10.5.5.5', 'frankendom.presence.v2, guest')).status, 101, `guest ${i + 1} after both closed: the address is empty again`);
   } finally { await p.close(); }
+});
+
+// Every way a socket's place can end must give the per-address count back. A leak shows as a refusal that the cap alone could not cause: repeated attempts beyond the cap keep their own status (503/403), never turn into 429.
+const G = 'frankendom.presence.v2, guest', TOKEN_A = 'frankendom.presence.v2, token.a', BAD = 'frankendom.presence.v2, token.bad', BOOM = 'frankendom.presence.v2, token.boom';
+const joinAndDrop = async (p: Awaited<ReturnType<typeof start>>, ip: string, proto: string, n: number, drop: (s: import('node:net').Socket) => void): Promise<void> => {
+  const open: import('node:net').Socket[] = [];
+  for (let i = 0; i < n; i++) { const r = await upgrade(p.port(), ip, proto); assert.equal(r.status, 101, `join ${i + 1} of ${n} from ${ip}`); open.push(r.socket); }
+  for (const s of open) drop(s);
+  await until(() => p.world.byAccount.size === 0, 4000);
+};
+test('a guest socket gives its place back on every exit: a clean close, a reset (socket error), the idle timeout, and a refusal after the identity is minted (world-full)', async () => {
+  const cap = presenceRule('guestIpSockets');
+  const p = await start({ ipHeader: true, limits: { ...LIMITS, idleMs: 300 } });
+  try {
+    await joinAndDrop(p, '10.4.0.1', G, cap, (s) => s.destroy());
+    await joinAndDrop(p, '10.4.0.1', G, cap, (s) => s.resetAndDestroy());   // ECONNRESET on the server's socket
+    await joinAndDrop(p, '10.4.0.1', G, cap, () => {});                      // the client says nothing: the server's idle timer ends it
+    await joinAndDrop(p, '10.4.0.1', G, cap, (s) => s.destroy());            // and the address still holds the full cap afterwards
+  } finally { await p.close(); }
+  const full = await start({ ipHeader: true, rules: { ...RULES, softCap: 1, hardCap: 1 } });
+  try {
+    const first = await upgrade(full.port(), '10.4.1.1', G); assert.equal(first.status, 101);   // fills the one place
+    for (let i = 0; i < cap + 2; i++) assert.equal((await upgrade(full.port(), '10.4.2.2', G)).status, 503, `attempt ${i + 1}: world-full every time, never a guest-ip 429 (the refusal gave its place back)`);
+    first.socket.destroy();
+  } finally { await full.close(); }
+});
+test('a signed-in socket gives its place back on every exit: a bad token, a verify that throws, already-in, world-full, a clean close (ipSockets counted the same way)', async () => {
+  const p = await start({ ipHeader: true, limits: { ...LIMITS, ipSockets: 2 }, verify: async (t) => { if (t === 'boom') throw new Error('verify down'); return t === 'a' ? A : null; } });
+  try {
+    for (let i = 0; i < 4; i++) assert.equal((await upgrade(p.port(), '10.4.3.3', BAD)).status, 403, `bad token ${i + 1}`);
+    for (let i = 0; i < 4; i++) assert.equal((await upgrade(p.port(), '10.4.3.3', BOOM)).status, 403, `verify throws ${i + 1}`);
+    const held = await upgrade(p.port(), '10.4.3.3', TOKEN_A); assert.equal(held.status, 101);
+    for (let i = 0; i < 4; i++) assert.equal((await upgrade(p.port(), '10.4.3.3', TOKEN_A)).status, 503, `already-in ${i + 1}`);   // 4 refusals after verify, ipSockets is 2
+    held.socket.destroy(); await until(() => p.world.byAccount.size === 0, 4000);
+    await joinAndDrop(p, '10.4.3.3', TOKEN_A, 1, (s) => s.destroy());
+  } finally { await p.close(); }
+  const full = await start({ ipHeader: true, limits: { ...LIMITS, ipSockets: 2 }, rules: { ...RULES, softCap: 1, hardCap: 1 }, verify: async (t) => (t === 'a' ? A : t === 'b' ? '00000000-0000-4000-8000-0000000000b2' : null) });
+  try {
+    const first = await upgrade(full.port(), '10.4.4.4', TOKEN_A); assert.equal(first.status, 101);
+    for (let i = 0; i < 4; i++) assert.equal((await upgrade(full.port(), '10.4.5.5', 'frankendom.presence.v2, token.b')).status, 503, `world-full ${i + 1}`);
+    first.socket.destroy();
+  } finally { await full.close(); }
 });
 
 test('the caps: the per-address guest cap is lower than a signed-in player\'s; the global ceiling refuses with 503; the kill switch refuses guests; a guest cannot ride v1; a token beats `guest`', async () => {
