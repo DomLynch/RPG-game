@@ -30,7 +30,7 @@ try {
   const sample = await page.evaluate(() => window.originsPreview.mobs()); report.mobKeys = Object.keys(sample.mobs[0] ?? {}); report.mobCount = sample.mobs.length;
   const snap = (label) => page.evaluate((l) => {
     const p = document.getElementById('prompt'), o = window.originsPreview, ms = o.mobs()?.mobs ?? [];
-    return { label: l, prompt: p.hidden ? null : p.textContent, near: o.region()?.near ?? null, pos: [Math.round(o.pos.x * 10) / 10, Math.round(o.pos.z * 10) / 10], mobs: ms.filter((m) => m.drawn).slice(0, 8).map((m) => ({ id: m.id, d: Math.round(Math.hypot(m.x - o.pos.x, m.z - o.pos.z) * 10) / 10, ...Object.fromEntries(Object.entries(m).filter(([k, v]) => ['state', 'engaged', 'aggro', 'hp', 'dead', 'fighting'].includes(k) && typeof v !== 'object')) })) };
+    return { label: l, prompt: p.hidden ? null : p.textContent, near: o.region()?.near ?? null, pos: [Math.round(o.pos.x * 10) / 10, Math.round(o.pos.z * 10) / 10], mobs: ms.filter((m) => m.drawn).slice(0, 8).map((m) => ({ id: m.id, d: Math.round(Math.hypot(m.x - o.pos.x, m.z - o.pos.z) * 10) / 10, ...Object.fromEntries(Object.entries(m).filter(([k, v]) => ['mode', 'state', 'engaged', 'aggro', 'hp', 'dead', 'fighting'].includes(k) && typeof v !== 'object')) })) };
   }, label);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [report.capAt.x, report.capAt.z]);
   const placedAt = Date.now();
