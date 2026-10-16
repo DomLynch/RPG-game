@@ -16,7 +16,7 @@ export const FIELDS: readonly Field[] = [
   // The facts every zone folder already states (zone.ts, spawns.ts, kit.ts, look.ts, mob-looks.ts, place.ts): wired.
   legacy('id', 'string', ''), legacy('name', 'string', ''), legacy('names', 'map', {}), legacy('world', 'list', []), legacy('level', 'number', 1, { min: 1 }),
   legacy('spawns', 'map', { openers: {}, rows: [] }), legacy('kit', 'map', { url: '', nodes: [], landmarks: [], kinds: [] }), legacy('looks', 'map', {}), legacy('mobLooks', 'map', null as never, { nullable: true }), legacy('place', 'map', null as never, { nullable: true }),
-  legacy('biome', 'string', 'ash-wastes'), legacy('defaultKind', 'string', 'goblin'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
+  legacy('biome', 'string', 'ash-wastes'), legacy('unlisted', 'boolean', false, { donor: 'EQEmu zone.min_status (a zone only some can enter)' }), legacy('defaultKind', 'string', 'goblin'), legacy('schemaVersion', 'number', SCHEMA_VERSION, { min: 1 }),
   // DESCRIPTION (map, hint card, legend)
   description('region', 'string', '', { donor: 'EQEmu zone.long_name / expansion' }), description('blurb', 'string', ''), description('legend', 'list', []), description('icon', 'string', ''), description('minimap', 'string', ''),
   // WORLD POSITION. `exits` and `entry` are carried today by place.ts joins and spawns.openers; these rows are the zone-level overrides.
@@ -24,13 +24,13 @@ export const FIELDS: readonly Field[] = [
   position('fastTravel', 'list', []), position('instance.mode', 'enum', 'shared', { values: ['shared', 'instanced'], owner: 'Backend', donor: 'EQEmu zone.insttype' }),
   position('instance.cap', 'number', 0, { min: 0, owner: 'Backend', donor: 'EQEmu zone.maxclients' }), position('instance.seeding', 'boolean', false, { owner: 'Backend' }),
   // LOOK. Wire first (Strategy): sky/time, fog, grade, ground, prop density.
-  look('look.sky', 'string', 'default', { donor: 'EQEmu zone.sky' }), look('look.arena', 'string', '1', { donor: 'the Pit\'s arena themes (src/arena-themes.ts): the walk-out\'s Pit, Exchange and base light' }), look('look.timeOfDay.follow', 'boolean', true), look('look.timeOfDay.hour', 'number', 12, { min: 0, max: 24 }),
+  look('look.sky', 'string', 'default', { donor: 'EQEmu zone.sky', wired: true }), look('look.arena', 'string', '1', { donor: 'the Pit\'s arena themes (src/arena-themes.ts): the walk-out\'s Pit, Exchange and base light' }), look('look.timeOfDay.follow', 'boolean', true), look('look.timeOfDay.hour', 'number', 12, { min: 0, max: 24 }),
   look('look.fog.colour', 'color', '#c9a47a', { donor: 'EQEmu zone.fog_*' }), look('look.fog.density', 'number', 0.02, { min: 0, max: 1 }), look('look.fog.far', 'number', 107, { min: 10, max: 2000 }),
   look('look.sun.colour', 'color', '#ffb46a'), look('look.sun.intensity', 'number', 5.2, { min: 0, max: 30 }), look('look.sun.pos', 'list', [-24, 12, -15]),
   look('look.ambient.sky', 'color', '#9fb2d4'), look('look.ambient.ground', 'color', '#4a3426'), look('look.ambient.intensity', 'number', 1.25, { min: 0, max: 10 }),
   look('look.exposure', 'number', 1.3, { min: 0.1, max: 4 }), look('look.grade', 'string', 'none'),
   look('look.ground.tint', 'list', [1, 1, 1]), look('look.ground.material', 'string', ''), look('look.terrain', 'terrain', { kind: 'generated', seed: 0, params: {} }),
-  look('look.water.level', 'number', null, { nullable: true }), look('look.props.kit', 'string', ''), look('look.props.density', 'number', 1, { min: 0, max: 4 }), look('look.landmarks', 'list', [], { donor: 'EQEmu object' }),
+  look('look.water.level', 'number', null, { nullable: true }), look('look.props.kit', 'string', '', { wired: true }), look('look.props.camp', 'string', '', { wired: true }), look('look.props.density', 'number', 1, { min: 0, max: 4 }), look('look.landmarks', 'list', [], { donor: 'EQEmu object' }),
   look('look.weather.preset', 'string', 'clear', { donor: 'EQEmu zone.rain_*/snow_* (by reference)' }), look('look.weather.intensity', 'number', 1, { min: 0, max: 2 }), look('look.weather.probability', 'number', 1, { min: 0, max: 1 }),
   look('look.post', 'list', []),
   // The walk camera's limits (src/fight/follow-camera.ts): where it tightens under a vault. null = none (Zone 2). {zMax, zMin, halfWidth?, back, up}; the page passes this and holds no camera number itself.

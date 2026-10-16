@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stepDuel, withSpecials, withSpell, type CombatEvent, type Duel } from '../src/fight/duel.ts';
 import { OPPONENTS, RULES, opponentAt, profileAt } from '../src/fight/moves.ts';
-import { BRICKS, CAST, COST_CAP, spellUsesCap, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
+import { BRICKS, CAST, COST_CAP, spellUsesCap, spellUsesHits, castOutcome, isSpellId, outcomeMult, resolveSpell, SPELL_IDS } from '../src/fight/spell-cast.ts';
 import { indexOf } from '../scripts/spell-index.mjs';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { packRecord, unpackRecord } from '../src/fight/record.ts';
@@ -115,7 +115,8 @@ test('the cost cap is era-gated: a record below costCapFrom resolves dagan and c
     assert.equal(live.cost, COST_CAP); assert.equal(v.cost, COST_CAP);
     assert.notEqual(old.cost, live.cost);
   }
-  for (const id of SPELL_IDS.filter((i) => !spellUsesCap(i))) assert.deepEqual(resolveSpell(id, 50, 0, 53), resolveSpell(id, 50), `${id}: the cap changes nothing for it, whatever the record version`);
+  for (const id of SPELL_IDS.filter((i) => !spellUsesCap(i) && !spellUsesHits(i))) assert.deepEqual(resolveSpell(id, 50, 0, 53), resolveSpell(id, 50), `${id}: the cap changes nothing for it, whatever the record version`);
+  for (const id of SPELL_IDS.filter((i) => !spellUsesCap(i) && spellUsesHits(i))) assert.deepEqual({ ...resolveSpell(id, 50, 0, 53), hits: [1], hitEvery: 0, hitHolds: false }, { ...resolveSpell(id, 50), hits: [1], hitEvery: 0, hitHolds: false }, `${id}: a pulse root differs by record version ONLY in its hits (the era), nothing else`);
 });
 
 test('a v63 record with a capped spell and a special press replays as it always did (the pre-cap spell, a different fight from the capped one); a fight with such a spell is stamped at the cap era', () => {
