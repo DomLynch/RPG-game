@@ -52,6 +52,15 @@ export async function wornGearOf(db: Db, account: string, character: string, ver
   return wornGearOfSnapshot(await store.open(db, account), character, version);
 }
 
+/** What other players SEE on a character: {slot: lootId} of the equipped loot pieces, from the same wornOf the sheet check uses. Presence sends it with the `enter` record; a ledger that cannot be read as one worn set (two pieces in a slot) shows nothing rather than failing the join. */
+export function wornIdsOfSnapshot(snap: { items: readonly unknown[] }, character: string): Readonly<Record<string, string>> {
+  const rows = (snap.items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
+  try { return wornOf(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } }))).equipped; } catch { return {}; }
+}
+export async function wornIdsOf(db: Db, account: string, character: string): Promise<Readonly<Record<string, string>>> {
+  return wornIdsOfSnapshot(await store.open(db, account), character);
+}
+
 // The copy frozen on a claim or daily row when it was posted (migration 202610130025): { "<character>": [{ item, tier, slot }] }. Null or a character without pieces: no gear held.
 export function wornGearOfFrozen(frozen: unknown, character: string, version?: number): Readonly<Record<string, number>> {
   const pieces = frozen && typeof frozen === 'object' ? (frozen as Record<string, unknown>)[character] : undefined;

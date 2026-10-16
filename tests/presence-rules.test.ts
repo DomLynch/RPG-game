@@ -14,7 +14,7 @@ test('every presence rule equals the literal it replaced', () => {
   assert.deepEqual([SAVE_QUEUE_MAX, presenceRule('tickRing'), TOWN_CM, presenceRule('rejoinPastGateCm')], [10_000, 40_000, 30_000, 50]);
   assert.ok(REJOIN_EDGE.x > 0 && CENTRE_CM === 40_000);
   assert.equal(PRESENCE_RULES.length, 31);
-  assert.deepEqual([presenceRule('warpPerMin'), presenceRule('guestIpSockets'), presenceRule('guestCeiling')], [6, 2, 64]);
+  assert.deepEqual([presenceRule('warpPerMin'), presenceRule('guestIpSockets'), presenceRule('guestCeiling'), presenceRule('wornEveryMs')], [6, 2, 64, 30_000]);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
