@@ -87,6 +87,11 @@ async function runPrompts() {
   const spots = await page.evaluate(() => window.originsPreview.promptSpots());
   let prev = '';
   for (const [kind, [x, z]] of Object.entries(spots)) {
+    if (kind === 'ore') {   // the ore prompt shows only once Orla has given the job: take it in her talk, close the panel
+      await page.evaluate(([px, pz]) => window.originsPreview.place(px, pz, 0), spots.talk);
+      const refused = await page.evaluate(() => { const o = window.originsPreview; for (const id of ['offer', 'take-job']) { const i = o.talkIds().indexOf(id); if (i < 0) return `Orla did not offer "${id}" (on offer: ${o.talkIds().join(', ')})`; o.talk(i); } return ''; });
+      if (refused) failures.push(`ore: ${refused}`); await page.keyboard.press('Escape');
+    }
     await page.evaluate(([px, pz]) => window.originsPreview.place(px, pz, 0), [x, z]);
     await page.waitForFunction((was) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent !== was; }, prev, { timeout: 30000 }).catch(() => failures.push(`${kind}: no prompt shown at its spot ${x},${z}`));
     const label = await page.evaluate(() => document.getElementById('prompt').textContent);
