@@ -64,7 +64,7 @@ test('what is drawn follows the state: visible rows shown, a row that goes invis
 });
 test('signed out: the static rows draw, the prompt says to sign in, and a tap says so without calling the writer', async () => {
   const { g, log } = rig({ signedIn: () => false }); await g.refresh();
-  assert.deepEqual(log.shown, [ID]); assert.equal(log.reads, 0);
+  assert.deepEqual(log.shown, staticRows().map((r) => r.instance), 'every static row draws, whatever Zone 1 holds'); assert.ok(log.shown.includes(ID)); assert.equal(log.reads, 0);
   assert.deepEqual(g.nearest(at.x, at.z), { instance: ID, label: 'Sign in to take the Rusty Sword' });
   assert.equal(await g.tap(ID), 'signed-out'); assert.deepEqual(log.said, ['Sign in to take the Rusty Sword']); assert.deepEqual(log.taken, []);
 });
