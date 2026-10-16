@@ -170,6 +170,35 @@
         }
       },
       {
+        "id": "character:cave-troll",
+        "source": {
+          "kind": "folklore",
+          "work": "Norske Folkeeventyr (the mountain trolls of the Askeladden tales)",
+          "author": "Peter Christen Asbjørnsen and Jørgen Moe",
+          "year": 1841,
+          "authorDied": 1885,
+          "locator": "the first collection, 1841-44 (the troll in the mountain and the lad who outwits him)"
+        },
+        "role": "beast",
+        "loot": "loottable:cave-troll",
+        "level": [
+          3,
+          3
+        ],
+        "named": true,
+        "respawnSeconds": 300,
+        "behaviour": {
+          "aggro": 8,
+          "roam": 2,
+          "spread": 4,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
+      },
+      {
         "id": "character:ash-wolf",
         "source": {
           "kind": "folklore",
@@ -506,6 +535,15 @@
         "tint": 8021330,
         "dressing": {
           "soot": 0.35,
+          "burnt": 0
+        }
+      },
+      "character:cave-troll": {
+        "opponent": "cave-troll",
+        "tint": 10132090,
+        "scale": 1.9,
+        "dressing": {
+          "soot": 0.15,
           "burnt": 0
         }
       },
@@ -1099,6 +1137,13 @@
         "at": "watchtower",
         "characters": [
           "character:pit-goblin"
+        ]
+      },
+      {
+        "id": "cave-troll",
+        "at": "ash-pits",
+        "characters": [
+          "character:cave-troll"
         ]
       }
     ]
