@@ -41,6 +41,7 @@ try {
       const pit = name.includes('-pit');   // a name containing -pit: stand at the camp facing east, back towards the Pit (where the fog-proof Pit scenery showed)
       const hm = /-h(\d+)/.exec(name), turn = hm ? (Number(hm[1]) * Math.PI) / 180 : null;   // a name with -h<degrees> (e.g. -h45): stand at the camp centre facing that world bearing (0 = +z, 90 = +x), to check the whole horizon round
       if (camp) await page.evaluate(([x, z, back, h]) => window.originsPreview.place(h === null ? x : x, h === null ? (back ? z : z + 9) : z, h ?? (back ? Math.PI / 2 : Math.PI)), [camp.x, camp.z, pit, turn]);   // else 9 m south of the camp, facing it (forward is (sin h, cos h))
+      if (process.env.STILLS_MOB) await page.evaluate(() => { const t0 = performance.now(), op = window.originsPreview; window.__trace = []; const snap = () => { const c = op.combat(); window.__trace.push({ s: +((performance.now() - t0) / 1000).toFixed(1), hero: JSON.stringify(c.hero).slice(0, 700), fighters: JSON.stringify(c.fighters).slice(0, 900), at: { x: +op.pos.x.toFixed(1), z: +op.pos.z.toFixed(1) } }); }; snap(); window.__traceTimer = setInterval(snap, 500); });   // STILLS_MOB: from here, the hero's sheet and every fighter's state twice a second (Combat's replay of a death): r.trace
       if (process.env.STILLS_MOB) {   // a named creature: the world view stands the hero 9 m from him, facing him (forward is (sin h, cos h))
         const at = await page.evaluate((want) => (window.originsPreview.mobs()?.mobs ?? []).find((m) => String(m.id).includes(want)) ?? null, process.env.STILLS_MOB);
         r.target = at; if (at) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 5, Math.PI), [at.x, at.z]);   // 5 m: nearer to him than to any wandering goblin, so the lock-on turns the camera to HIM
@@ -61,6 +62,7 @@ try {
         await page.screenshot({ path: path.join(out, `${name}-fight.png`) }); r.stills.push(`${name}-fight.png`);
         if (process.env.STILLS_MOB) for (const k of [2, 3]) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(out, `${name}-fight${k}.png`) }); r.stills.push(`${name}-fight${k}.png`); }   // a named creature: three frames 0.7 s apart, to see him move
       } else r.fight = 'no creature in this zone';
+      if (process.env.STILLS_MOB) r.trace = await page.evaluate(() => { clearInterval(window.__traceTimer); return window.__trace; });
     } catch (e) { r.errors.push(String(e).slice(0, 300)); await page.screenshot({ path: path.join(out, `${name}-error.png`) }).catch(() => {}); }
     await page.close();
   }
