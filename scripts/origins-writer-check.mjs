@@ -463,7 +463,7 @@ try {
     eq(locRow(pc), before, '...and nothing a client sent moved the saved spot');
     const asClient = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message); } };
     for (const sql of [`select * from public.origins_character_location;`, `insert into public.origins_character_location values ('${pc}', 'exchange', 1, 1, now());`, `select * from public.origins_active_character;`,
-      `select public.origins_save_location('${A}', 1, 1, null, 0);`, `select public.origins_set_active('${A}', '${pc}');`, `select public.origins_saved_location('${A}');`])
+      `select public.origins_save_location('${A}', 1, 1, null, 0);`, `select public.origins_set_active('${A}', '${pc}');`, `select public.origins_saved_location('${A}');`, `select public.origins_active_name('${A}'::uuid);`])
       eq(asClient(sql), 'permission denied', `a client may not: ${sql.slice(0, 60)}`);
     eq((() => { try { return psql(`set role frankendom_origins; insert into public.origins_character_location values ('${pc}', 'exchange', 1, 1, now());`); } catch (e) { return /permission denied/.test(String(e.stderr)) ? 'permission denied' : String(e.stderr); } })(), 'permission denied', 'even the writer role only writes through the functions');
     eq(psql(`select count(*) from pg_policies where tablename in ('origins_character_location', 'origins_active_character')`) + '|' + psql(`select string_agg(relname || '=' || relrowsecurity, ',' order by relname) from pg_class where relname in ('origins_character_location', 'origins_active_character')`), '0|origins_active_character=true,origins_character_location=true', 'RLS on, no policies');
@@ -618,7 +618,6 @@ try {
   // The first open makes the account's first character (Lead's ruling 2026-10-09; runs while 0009 is applied, before its down-script below): no page code creates one, so a signed-in player had none and nothing could persist.
   {
     psql(`insert into public.origins_access(account) values ('${E}'),('${G}');`);
-    eq(asClient(`select public.origins_active_name('${A}'::uuid);`), 'permission denied', 'a client cannot call origins_active_name (only the writer role)');
     const chars = acct => psql(`select coalesce(string_agg(id || '=' || name, ',' order by created_at), '') from public.origins_characters where account = '${acct}'`);
     const first = await call('open', 'te');
     const id1 = first.json.result.characters[0]?.id;
