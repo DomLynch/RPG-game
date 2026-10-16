@@ -30,8 +30,6 @@ export type HeldFn = (db: Db, account: string, character: string) => Promise<Hel
 export const noServerHeldState: HeldFn = async () => null;
 
 export type Served = { saved: false; name?: string | null } | { saved: true; zone: string | null; x: number; z: number; source: 'saved' | 'trade-edge' | HeldPlace['reason']; name?: string | null };
-const MAX_NAME = 32;   // origins_characters.name check (1..32 characters)
-
 // What presence should start this account at. Pure given the saved row and the held state.
 export function serve(saved: store.SavedRow | null, held: HeldPlace | null): Served {
   if (held) return { saved: true, zone: held.zone, x: held.x, z: held.z, source: held.reason };
@@ -102,7 +100,7 @@ export function parseServed(v: unknown): Served {
   const o = v as Record<string, unknown> | null;
   if (!o || typeof o !== 'object') throw new Error('writer: malformed answer');
   // `name` is additive: an older writer sends none (undefined = no name tag); a malformed one is dropped, never trusted
-  const name = typeof o.name === 'string' && o.name.length >= 1 && o.name.length <= MAX_NAME ? o.name : null;
+  const name = typeof o.name === 'string' && o.name !== '' ? o.name : null;   // the database holds the length (origins_characters.name check)
   if (o.saved === false) return { saved: false, name };
   if (o.saved !== true || !cm(o.x) || !cm(o.z) || (o.zone !== null && typeof o.zone !== 'string') || typeof o.source !== 'string') throw new Error('writer: malformed answer');
   return { saved: true, zone: o.zone, x: o.x as number, z: o.z as number, source: o.source as Extract<Served, { saved: true }>['source'], name };
