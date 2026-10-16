@@ -81,7 +81,7 @@ test('stripComments leaves division after a postfix ++/-- and after an identifie
 
 test('the writer walk reaches every origins/zones file the loader, registry and resolve import (the walker once lost 15 of them)', () => {
   const { files } = writerClosure(disk, existsSync);
-  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes-data.ts', 'origins/zones/from-row.ts', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone2.row.json']) assert.ok(files.includes(must), `the walk lost ${must}`);
-  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 8, 'origins/zones/* files in the writer closure');
+  for (const must of ['origins/zones/registry.ts', 'origins/zones/resolve.ts', 'origins/zones/schema.ts', 'origins/zones/biomes.ts', 'origins/zones/biomes-data.ts', 'origins/zones/from-row.ts', 'origins/zones/listed.ts', 'origins/zone-rows/zone1.row.json', 'origins/zone-rows/zone2.row.json']) assert.ok(files.includes(must), `the walk lost ${must}`);
+  assert.equal(files.filter((f) => f.startsWith('origins/zones/')).length, 9, 'origins/zones/* files in the writer closure');
   assert.deepEqual(files.filter((f) => f.startsWith('origins/zone-rows/')), zoneRows().map((r: { file: string }) => `origins/zone-rows/${r.file}`), 'one row file per zone, and nothing else, rides with the writer (a new zone row adds a file here: update nothing, it is derived)');
 });
