@@ -2,7 +2,7 @@
 
 Append new entries at the TOP. Lane started 2026-10-15; this file written 2026-10-16 09:30 +04. The longer 2026-10-15 handoff and the "UPDATE 2" entry are in docs/state/world.md ("Zone sandbox handoff 2026-10-15").
 
-## HANDOFF 2026-10-17 (after 00:4x): LIVE `815c6a1` = https://frankendom.com/preview/zone-look/?zone=90&region=1&v=815c6a1 (branch zone/goblin-field-dome, Mac = GitHub = live)
+## HANDOFF 2026-10-17 (after 00:4x): LIVE `7403b43` = https://frankendom.com/preview/zone-look/?zone=90&region=1&v=7403b43 (branch zone/goblin-field-dome, Mac = GitHub = live). UPDATE: Characters & Art's PR 2968 (gate slivers cropped, dark thatch hut roof, stake row) is swapped in and live at 7403b43, so C&A owes nothing now; the kit is COMPLETE except the unused banner. Pending (3) below is done.
 
 **NO yes/no pop-ups and no AskUserQuestion / wrap_up questions (Dom's order via Strategy, 00:4x): pick the conservative default, say it in one line, keep going.**
 
