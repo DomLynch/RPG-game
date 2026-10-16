@@ -47,6 +47,15 @@
       }
     },
     {
+      "table": "wornPoke",
+      "file": "server-rules.json",
+      "at": "wornPoke",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
       "table": "serverLimits",
       "file": "server-rules.json",
       "at": "serverLimits",

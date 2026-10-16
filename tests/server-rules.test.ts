@@ -16,7 +16,8 @@ test('server rules: the exports keep the numbers they had in code', () => {
 test('server rules: the file loads through the registry, one row per table', () => {
   const reg = loadRegistry(manifest.tables.map((t) => tableFromFile(t as unknown as Manifest, rules, 'server-rules.json')));
   assert.ok(reg);
-  for (const rows of Object.values(rules)) assert.equal(rows.length, 1);
+  for (const [name, rows] of Object.entries(rules)) if (name !== 'wornPoke') assert.equal(rows.length, 1, name);
+  assert.deepEqual(rules.wornPoke.map((r) => r.id), ['gear_equip', 'gear_unequip', 'gear_import'], 'wornPoke is one row per op that can change what a character wears');
 });
 
 test('server rules: a token still ends in 32 random characters (24 bytes), and still reads its fight back', () => {

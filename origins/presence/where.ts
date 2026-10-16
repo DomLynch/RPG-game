@@ -27,6 +27,16 @@ export function presenceWhere(baseUrl: string, key: string, timeoutMs = 1500, fe
   };
 }
 
+// The writer tells presence "this account's worn set may have changed" after a gear op succeeded (POST /internal/worn, the server's wornRoute). Fire and forget: the caller ignores any failure, because
+// presence also re-reads every account's worn set on its own timer, so a lost poke only delays what other players see.
+export type WornPokeFn = (account: string) => Promise<void>;
+export function presenceWornPoke(baseUrl: string, key: string, timeoutMs = 1000, fetchImpl: typeof fetch = fetch): WornPokeFn {
+  return async account => {
+    const res = await fetchImpl(`${baseUrl}/internal/worn`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ account }), signal: AbortSignal.timeout(timeoutMs) });
+    if (res.status !== 200) throw new Error(`presence: HTTP ${res.status}`);
+  };
+}
+
 // X1's test in one place: true only for a placed player whose last pose is at most `maxAgeMs` old and whose zone presence computed as `zone` (x and z alone are never enough).
 export const inZone = (w: Where, zone: string, maxAgeMs: number): boolean => w.online && w.placed && w.zone === zone && w.ageMs <= maxAgeMs;
 
