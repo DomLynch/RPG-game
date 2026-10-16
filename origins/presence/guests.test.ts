@@ -87,7 +87,7 @@ test('a guest socket gives its place back on every exit: a clean close, a reset 
     await joinAndDrop(p, '10.4.0.1', G, cap, () => {});                      // the client says nothing: the server's idle timer ends it
     await joinAndDrop(p, '10.4.0.1', G, cap, (s) => s.destroy());            // and the address still holds the full cap afterwards
   } finally { await p.close(); }
-  const full = await start({ ipHeader: true, rules: { ...RULES, softCap: 1, hardCap: 1 } });
+  const full = await start({ ipHeader: true, maxLayers: 1, rules: { ...RULES, softCap: 1, hardCap: 1 } });
   try {
     const first = await upgrade(full.port(), '10.4.1.1', G); assert.equal(first.status, 101);   // fills the one place
     for (let i = 0; i < cap + 2; i++) assert.equal((await upgrade(full.port(), '10.4.2.2', G)).status, 503, `attempt ${i + 1}: world-full every time, never a guest-ip 429 (the refusal gave its place back)`);
@@ -104,7 +104,7 @@ test('a signed-in socket gives its place back on every exit: a bad token, a veri
     held.socket.destroy(); await until(() => p.world.byAccount.size === 0, 4000);
     await joinAndDrop(p, '10.4.3.3', TOKEN_A, 1, (s) => s.destroy());
   } finally { await p.close(); }
-  const full = await start({ ipHeader: true, limits: { ...LIMITS, ipSockets: 2 }, rules: { ...RULES, softCap: 1, hardCap: 1 }, verify: async (t) => (t === 'a' ? A : t === 'b' ? '00000000-0000-4000-8000-0000000000b2' : null) });
+  const full = await start({ ipHeader: true, maxLayers: 1, limits: { ...LIMITS, ipSockets: 2 }, rules: { ...RULES, softCap: 1, hardCap: 1 }, verify: async (t) => (t === 'a' ? A : t === 'b' ? '00000000-0000-4000-8000-0000000000b2' : null) });
   try {
     const first = await upgrade(full.port(), '10.4.4.4', TOKEN_A); assert.equal(first.status, 101);
     for (let i = 0; i < 4; i++) assert.equal((await upgrade(full.port(), '10.4.5.5', 'frankendom.presence.v2, token.b')).status, 503, `world-full ${i + 1}`);
