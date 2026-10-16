@@ -16,7 +16,7 @@ const { OPPONENTS } = await import('../src/fight/moves.ts');
 const idle = () => ({ ...idleIntent(), lock: false });
 function firstHit(opponent: keyof typeof OPPONENTS, gap: number) {
   const foe = opponentFighter(OPPONENTS[opponent], { x: 0, z: 0, heading: 0, distance: 0 }, 'ready');
-  let duel = { tick: 0, fighters: [createFighter({ x: 0, z: gap, heading: Math.PI, distance: 0 }, 'ready', 'longsword'), foe], finish: null, events: [] } as never;
+  let duel = { tick: 0, fighters: [createFighter({ x: 0, z: gap, heading: Math.PI, distance: 0 }, 'ready', 'longsword'), foe], finish: null, events: [] } as never as ReturnType<typeof stepDuel>;
   for (let i = 0; i < 80; i++) {
     duel = stepDuel(duel, [{ ...idle(), action: i === 0 ? 'light' : null }, idle()]);
     const hit = (duel as { events: { type: string; actor: number; damage?: number; glance?: boolean }[] }).events.find((e) => e.type === 'Hit' && e.actor === 0);
