@@ -16,7 +16,7 @@ const run = (runs: Record<string, string>, list: string[]) => {
     mkdirSync(join(dir, 'bin'));
     const gh = `#!/bin/sh\nif [ "$2" = list ]; then printf '%s\\n' ${list.map((l) => `'${l}'`).join(' ')}; exit 0; fi\ncase "$3" in ${Object.entries(runs).map(([id, v]) => `${id}) echo ${v};;`).join(' ')} esac\n`;
     writeFileSync(join(dir, 'bin/gh'), gh); chmodSync(join(dir, 'bin/gh'), 0o755);
-    const r = spawnSync('bash', ['-c', `${fn}\nquality_green deadbeef`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
+    const r = spawnSync('bash', ['-c', `source scripts/lib/net-bound.sh\n${fn}\nquality_green deadbeef`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
     assert.equal(r.status, 0, r.stderr);
     return r.stdout.trim();
   } finally { rmSync(dir, { recursive: true, force: true }); }
