@@ -361,9 +361,40 @@
     [
       "node",
       "scripts/end-overlap-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/spell-slots-zone-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/ground-prompt-check.mjs"
     ]
   ],
   "release_triggers": [
+    {
+      "paths": [
+        "origins/preview/ground-*",
+        "origins/preview/main.ts",
+        "origins/preview/index.html",
+        "origins/preview/zone-sound.ts",
+        "origins/world/ground-point.ts"
+      ],
+      "rows": [
+        "origins-writer-boot-check",
+        "spell-slots-zone-check",
+        "ground-prompt-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/ground-prompt-check.mjs",
+        "scripts/lib/origins-preview-harness.mjs"
+      ],
+      "rows": [
+        "ground-prompt-check"
+      ]
+    },
     {
       "paths": [
         "scripts/origins-writer.mjs",
@@ -536,6 +567,25 @@
     },
     {
       "paths": [
+        "src/fight/hud.ts",
+        "src/fight/input.ts",
+        "src/core/spell-equip.ts",
+        "src/core/spell-slot-view.ts"
+      ],
+      "rows": [
+        "roster-browser-check",
+        "record-replay-check",
+        "kill-link-check",
+        "finisher-preview:first",
+        "account-database-check",
+        "account-browser-check",
+        "double-tap-browser-check",
+        "clip-send-tour-check",
+        "spell-slots-zone-check"
+      ]
+    },
+    {
+      "paths": [
         "src/**",
         "index.html",
         "public/**",
@@ -642,6 +692,14 @@
       ],
       "rows": [
         "pit-landscape-webkit"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/spell-slots-zone-check.mjs"
+      ],
+      "rows": [
+        "spell-slots-zone-check"
       ]
     }
   ],

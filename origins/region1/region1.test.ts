@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { WEAPON_SLOTS } from '../../src/core/loot.ts';
 import type { Issue } from '../../src/core/server.ts';
 import { zonePlaces } from '../zones/loader.ts';
-import { GROUND_ITEMS } from '../world/ground-items.ts';
+import { GROUND_ITEMS, STARTER_ITEMS } from '../world/ground-items.ts';
 import { CONCORD } from '../world/concord.ts';
 import { resolveRegion, type WorldData } from '../world/resolve.ts';
 import { BOSS_LOOT, BOUNTIES, BUNDLE, ENCOUNTER_FLAGS, KILL_ROWS, LOCAL, RIFTS, TOWNS } from './content.ts';
@@ -159,7 +159,7 @@ test('the starter ground weapon is the one exemption (Lead 2026-10-15): it is de
 
 test('a starter item must be defined, common, bound on-acquire and NOT a legacy loot id: a starterItem row for item:loot.knight.Maul (a loot weapon) is refused, and so are an undefined, a fine and an unbound one', () => {
   const grounds = (starters: Record<string, { maxQty: number }>) => ({ items: GROUND_ITEMS, starters });
-  const base = { 'item:starter.rusty-sword': { maxQty: 1 } };
+  const base: Record<string, { maxQty: number }> = { ...STARTER_ITEMS };   // all five starter items (Strategy 2026-10-15)
   assert.ok(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds(base)).ok, 'the shipped starter item passes');
   assert.ok(LOOT_ITEM_IDS.has('item:loot.knight.Maul'), 'the case is a real loot weapon');
   refused(loadRegion1(REGION1_WORLD, BUNDLE, LOCAL, grounds({ ...base, 'item:loot.knight.Maul': { maxQty: 1 } })), 'content-rule', 'starterItem.item:loot.knight.Maul');

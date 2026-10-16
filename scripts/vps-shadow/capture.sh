@@ -40,6 +40,10 @@
 #   a stage=HANDED line and exits 76 after printing `CAPTURE_SPILL log=<spill log> sha=<full sha> args=<base64 of the NUL-separated command>`.
 #   The wrapper runs it on HF (the v7 runner, moved there) and appends the result line to the same log. --hf-ok without --spill-to-caller is refused
 #   (nobody here could launch it): the job stays VPS-only. The allow-list (spill_refusal) is unchanged and still decided HERE.
+# v9 (Lead 2026-10-16, bn-trunk emptied twice): `npm ci` / `npm install` in a checkout whose node_modules is a SYMLINK empties the link's TARGET (the shared
+#   /opt/frankendom-shadow/work/bn-trunk/node_modules that linked clones use) and then replaces the link with a real dir (proven on the box 2026-10-16).
+#   A job whose command line runs an npm subcommand that rewrites node_modules, while $PWD/node_modules is a symlink, is refused (exit 2) before it queues:
+#   a job installs its own node_modules in its own clone. The whole command line is read, so `bash -c "… && npm ci"` is caught too; npm test, npm run and npx are not.
 set -euo pipefail
 home="${SHADOW_HOME:-/opt/frankendom-shadow}"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$home/ms-playwright}"   # a non-interactive `ssh frankvps capture …` reads no .bashrc
@@ -97,6 +101,11 @@ done
 [[ "$prio" =~ ^[1-4]$ ]] || { echo "capture: priority must be 1..4 (1 a live bug Dom reported, 2 release-gating, 3 default, 4 cleanup), got '$prio'"; exit 2; }
 lane="${1:?usage: capture [--prio 1..4] [--hf-ok] <lane> <command…> | --status | --queue}"; shift
 [[ $# -gt 0 ]] || { echo "capture: nothing to run"; exit 2; }
+npm_rewrites='(^|[^[:alnum:]_./-])npm[[:space:]]+(-[^[:space:]]+[[:space:]]+)*(ci|clean-install|install-clean|install|i|in|add|it|install-test|uninstall|un|remove|rm|r|update|up|upgrade|prune|dedupe|ddp)([[:space:];&|)]|$)'
+if [[ -L node_modules && " $* " =~ $npm_rewrites ]]; then
+  echo "capture: refused: '$*' rewrites node_modules, and $PWD/node_modules is a symlink to $(readlink -f node_modules): npm would empty that SHARED folder. Give this checkout its own node_modules (remove the link, then npm ci) and run it again."
+  exit 2
+fi
 
 # --hf-ok is a claim; this checks it. Prints the reason a job may NOT spill (nothing = it may). Only unit tests and typechecks of a clean,
 # committed checkout qualify: the HF box gets the sha and nothing else, so a job that needs the server, Postgres, nginx, the deploy lock,

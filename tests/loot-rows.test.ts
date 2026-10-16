@@ -16,7 +16,7 @@ const rows = (): Record<string, any>[] => JSON.parse(readFileSync(ROWS_FILE, 'ut
 
 test('the rows file is on the data path, and BUNDLE is byte-identical to what the code built (key order included)', () => {
   assert.ok(onDataPath(ROWS_FILE));
-  assert.equal(createHash('sha256').update(JSON.stringify(BUNDLE)).digest('hex'), '085baf4d40d4db76ad0eddbf95180a7df1d36af45529d58193da9e30332ecda7');   // re-pinned 2026-10-15: BUNDLE gained exactly one item, item:starter.rusty-sword (ground loot slice 1). The old pin 37812f68... is what the bundle hashes to WITHOUT that item (checked on the VPS).
+  assert.equal(createHash('sha256').update(JSON.stringify(BUNDLE)).digest('hex'), 'dca296315736308700aa4f32bbf611ada78c281115a1e9615a38c552df4dd2d0');   // re-pinned 2026-10-15 (three times; the third gain is the goblin scrap cap and shin plates, the sha before it ff73583edfed91007d8a5e8d9955449ef3f196885a2a0e1c03023a27c69bb73a; earlier: the second gain is the knife, cleaver, gladius and estoc starter items, the sha before it 085baf4d40d4db76ad0eddbf95180a7df1d36af45529d58193da9e30332ecda7): BUNDLE gained exactly one item, item:starter.rusty-sword (ground loot slice 1). The old pin 37812f68... is what the bundle hashes to WITHOUT that item (checked on the VPS).
   assert.equal(LOOT_TABLES.length, 12);
 });
 

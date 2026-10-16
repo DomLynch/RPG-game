@@ -4,6 +4,7 @@
 import { SCHEMA } from '../world/schema.ts';
 import type * as THREE from 'three';
 import { loadZone } from '../zones/loader.ts';
+import { goblinLooks } from '../world/goblin-field-rules.ts';
 
 export type Look = {
   fog: string; fogDensity: number;   // FogExp2 colour (also the scene background) and its density at the DEFAULT fogFar
@@ -23,6 +24,7 @@ export const PRESETS: Record<string, Look> = {
   'ash-pit': { fog: t1.fog, fogDensity: t1.fogDensity, hemiSky: t1.hemisphere[0], hemiGround: t1.hemisphere[1], hemiIntensity: t1.hemisphere[2], sunColor: t1.sun[0], sunIntensity: t1.sun[1], sunPos: t1.light?.sun ?? [-15, 26, -18], exposure: t1.exposure, ground: [1, 1, 1] },
   // The Concord Exchange: a lamp-lit dusk. The sun is low and deep amber, the fog a warmer, darker haze, the shade cooler so the braziers and the forge read as the light.
   'exchange-dusk': { fog: '#8f5f3f', fogDensity: 0.024, hemiSky: '#7d86ad', hemiGround: '#3a2418', hemiIntensity: 0.95, sunColor: '#ff9a52', sunIntensity: 3.4, sunPos: [-24, 7, -15], exposure: 1.25, ground: [0.92, 0.88, 0.84] },
+  ...(goblinLooks() as unknown as Record<string, Look>),   // the goblin field's moods (origins/world/goblin-field-defs.json looks): read only through a palette's haze (?look=goblin)
   ...loadZone().looks,   // Zone 1's presets (zone1, frontier-haze, cinder-haze, frontier-duel, frontier-night): data in origins/zone-rows/zone1.row.json (looks), through the loader
 };
 export const lookOf = (preset: string): Look => PRESETS[preset] ?? PRESETS['ash-pit']!;
