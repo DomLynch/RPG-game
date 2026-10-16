@@ -97,6 +97,40 @@ test('rowCeilingS: 600 s by default, ROW_TIMEOUT_S overrides it, and a bad value
   } finally { if (before === undefined) delete process.env.ROW_TIMEOUT_S; else process.env.ROW_TIMEOUT_S = before; }
 });
 
+// GT 2026-10-16: a flat 600 s ceiling killed row 55 (end-overlap-check), which passes in 868-1024 s (GS2 868, GR 1024, GQ 999); row 14 runs 503-525 s. A slow row now names its own ceiling as DATA
+// (scripts/lib/row-ceilings.json) and that entry wins over the default.
+test('rowCeilingS: a row\'s own entry wins over the default; ROW_TIMEOUT_S overrides the DEFAULT only; the real table has rows 14 and 55', () => {
+  const table = { default: 600, rows: { '14': 900, '55': 1500 } };
+  assert.equal(rowCeilingS(55, table, undefined), 1500);
+  assert.equal(rowCeilingS(14, table, undefined), 900);
+  assert.equal(rowCeilingS(12, table, undefined), 600, 'a row with no entry gets the default');
+  assert.equal(rowCeilingS(12, table, '45'), 45, 'the env overrides the default');
+  assert.equal(rowCeilingS(55, table, '45'), 1500, 'but never a row\'s own ceiling');
+  assert.equal(rowCeilingS(12, { default: 'x', rows: { '12': -5 } }, undefined), 600, 'bad data falls back to 600, never to "no limit"');
+  assert.equal(rowCeilingS(undefined, table, undefined), 600);
+  const real = JSON.parse(readFileSync(new URL('../scripts/lib/row-ceilings.json', import.meta.url), 'utf8'));
+  assert.equal(real.default, 600);
+  assert.deepEqual([real.rows['14'], real.rows['55']], [900, 1500]);
+});
+test('row-ceilings.json vs row-seconds.json: every measured row time fits under 90% of its own ceiling, and a row longer than the packing target is alone in its job', () => {
+  const real = JSON.parse(readFileSync(new URL('../scripts/lib/row-ceilings.json', import.meta.url), 'utf8')), seconds = rowSeconds();
+  for (const [index, s] of Object.entries(seconds)) assert.ok(Number(s) <= 0.9 * rowCeilingS(Number(index), real, undefined), `row ${index}: measured ${s} s needs a ceiling of at least ${Math.ceil(Number(s) / 0.9)} s (name it in row-ceilings.json)`);
+  for (const index of Object.keys(real.rows)) assert.ok(Number(index) in seconds || Number(real.rows[index]) <= 900, `row ${index} has its own ceiling, so its measured time belongs in row-seconds.json (packing)`);
+  const groups = packRows([14, 55, 3, 6, 8].map(i => ({ index: i, name: `r${i}` })));
+  assert.deepEqual(groups.find(g => g.rows.some(r => r.index === 55))?.rows.map(r => r.index), [55], 'row 55 (1024 s measured) gets a job to itself, so its 1500 s ceiling cannot eat the job timeout with other rows');
+});
+test('runGroup: a row over the default but under its OWN ceiling passes; the same duration on a row without one is killed', { skip: spawnSync('sh', ['-c', 'command -v timeout']).status !== 0 }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rowceil-')), lines: string[] = [];
+  try {
+    const slow = (index: number, name: string) => ({ index, name, argv: JSON.stringify(['sleep', '3']) });
+    const { receipts, failed } = runGroup({ id: 'g5', rows: [slow(4, 'own-ceiling'), slow(5, 'default-only')], event: 'pull_request', dir, log: (l: string) => lines.push(l), ceilings: { default: 1, rows: { '4': 8 } } });
+    assert.deepEqual(receipts.map(r => [r.index, r.status]), [[4, 0], [5, 124]], lines.join('\n'));
+    assert.deepEqual(failed.map(r => [r.index, r.name, r.timed_out]), [[5, 'default-only', true]]);
+    assert.ok(lines.some(l => /check 5 \(default-only\) hit the 1s ceiling/.test(l)), 'the kill names the default it hit');
+    assert.ok(lines.some(l => /timed out at the 1s ceiling/.test(l)) && !lines.some(l => /hit the 8s ceiling/.test(l)), 'row 4 (own ceiling 8 s) was not killed at 3 s');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('packRows: every row exactly once, groups near the target, the longest row alone, deterministic', () => {
   const sec = rowSeconds(), rows = Object.keys(sec).map(i => row(Number(i)));
   const groups = packRows(rows);
