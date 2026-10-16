@@ -8,10 +8,17 @@ import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
 import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from './spell-school.ts';
 import { SPECIAL_MODES, type Pose, type SpecialFx, type SpecialMode } from './special-modes.ts';
 import { SPECIALS } from './special-rows.ts';
+import { SKILL_MOVE, type SkillId } from './moves.ts';
+import { SKILLS } from '../core/loot.ts';
+import { BOSSES } from './boss-rows.ts';
 import { spellRoot } from './spell-cast.ts';
 import { SPELL_FX, spellEffectOf } from './sandbox-rules.ts';
 // sandbox spellFx: a catalogue spell's root IS a special template (spell-rows.ts), so a cast plays that special's designed effect (crack = Antaeus' earth, longShadow = Thanatos' fog ...). Off (trunk) = no effect id: a spell cast draws nothing here.
 const spellFxId = (spell: string | undefined): string | null => { if (!SPELL_FX || !spell) return null; const root = spellRoot(spell); return spellEffectOf(spell) || (root && SPECIALS.find((s) => s.template === root)?.id) || null; };   // the spell's own effect row, else its root template's special
+
+// A spell's SpecialStarted carries the CASTER's own move, but each designed effect answers only to its own opponent's skill move (skillCast, isBossCast): so a spell cast offers
+// every move that opponent's effects answer to (the first the effect accepts starts it; the rest are ignored). Found by tests/sandbox-spell-effects-draw.test.ts: 29 of 50 effects never drew.
+const effectMoves = (opponent: string): readonly string[] => [...new Set([...(Object.keys(SKILLS) as SkillId[]).filter((id) => SKILLS[id].opponent === opponent).map((id) => SKILL_MOVE[id]), ...BOSSES.filter((r) => r.opponent === opponent).map((r) => r.classSkill)])];
 
 type Pair<T> = readonly [T, T];
 type Warriors = Parameters<NonNullable<SpecialMode['extra']>>[0];
@@ -88,7 +95,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
           // special is a different effect and is built (select). Re-creating a landed effect cost 200-700 ms at 4x CPU throttle on the cast's first frame.
           if (slot.id !== id || (slot.ended && !slot.fx)) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);   // (a load that failed or never landed is tried again)
           else if (slot.ended) slot.fx!.clear();
-          slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];
+          slot.start = event.tick; slot.ended = false; slot.events = (event.spell ? [event, ...effectMoves(slot.opponent).map((move) => ({ ...event, move }) as CombatEvent)] : [event]).map((e) => casterEvent(e, side));
         } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended && !(event.spell && !fight?.presets && !SPELL_FX)) {
           slot.ended = true;
           if (event.type !== 'SpecialLanded' && !slot.fx) { discard(slot); slot.events = []; }
