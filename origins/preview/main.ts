@@ -32,6 +32,8 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
+import { guestBag, guestKillLoot } from './guest-loot.ts';
+import { loadEncounterContent } from '../encounters/encounters.ts';
 import { mountRepair } from './repair-screen.ts';
 import { readWear, repairPiece, repairOp } from './repair-net.ts';
 import { chromeText as repairText } from './repair-view.ts';
@@ -180,7 +182,7 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 let remote: ReturnType<typeof createRemoteHeroes> | undefined, shownOthers: Other[] | null = null;   // the zone's other players (remote-heroes.ts), made with the hero's own rig once it has loaded
 let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
 const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
+loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -355,6 +357,7 @@ function step(dt: number) {
 
 // ?region=1: the zone you stand in and its ambience.preset, for the look (the World lane's look.ts listens for `origins:zone`; this page
 // sets no light, fog or sky). Off the Frontier the Exchange's own data names the preset (exchange-dusk; the Pit's ash-pit).
+const otherNames = new Map<number, { name: string | null; guest: boolean }>();   // id -> name tag, from presence's `enter` records (Web's remote-hero view reads it)
 let presence: Presence | null = null, others: Other[] = [];   // the Zone 1 page joined to presence (assigned once storage is read, below)
 let zoneNow: { region: string; zone: string; name: string; preset: string } | null = null;
 function showZone(id: string | null) {
@@ -371,6 +374,7 @@ function resize() {
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 let compileChain: Promise<unknown> = Promise.resolve(), programsInFlight = 0, uploadMs = -1, uploadQueue: (() => void)[] = [], uploadTotal = 0, uploadNext = 0;
+let cleanPlan = false;   // the last look at the scene (planUpload), taken once every kind and the hero were warmed, found nothing left to compile or upload: a zone is ready only after such a look, never between two looks (the 3 s re-plan), or a material that streamed in after the last plan links at the engage (seamless #87, 71 vs 73 programs on the same tree)
 const uploaded = new WeakSet<object>();   // textures and geometries already on the GPU through this path
 // The first duel frame used to upload ~9 textures and ~45 geometries the walk camera had never drawn (objects off its frustum): 29-79 ms of JS, and 175 ms once (WebKit, Mac, 2026-10-08). Put them on the GPU DURING the walk, a few per
 // frame under a time budget (UPLOAD_BUDGET_MS of work a frame, so no frame is long): textures through initTexture, geometries by drawing a proxy mesh of each (cheap basic material, culling off) into a 4x4 target. Same path in every browser.
@@ -399,7 +403,7 @@ function planUpload() {
 }
 function warmUpload(time: number) {   // each walk frame: a slice of the plan under the budget (at least one item); when the plan is done, look again every 3 s for what has streamed in since (new bodies, props)
   if (!mobs || !skyReady) return;
-  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); if (!uploadQueue.length) return; }
+  if (!uploadQueue.length) { if (time < uploadNext) return; uploadNext = time + 3; uploadQueue = planUpload(); cleanPlan = !uploadQueue.length && allWarmed(); if (!uploadQueue.length) return; }
   const t0 = performance.now();
   while (uploadQueue.length && (performance.now() - t0 < UPLOAD_BUDGET_MS)) uploadQueue.shift()!();
   uploadMs = Math.round(performance.now() - t0);   // the latest slice's cost, for ?perf and the A/B
@@ -411,11 +415,15 @@ async function warmHero(anchor: THREE.Object3D) {   // the player's own programs
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), () => new Promise<void>((r) => requestAnimationFrame(() => r()))), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
   warmedHero.done = true;
 }
+function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
+  const w = mobs?.warmState();
+  return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
+}
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
-  if (!w.kinds.length || !warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]) || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
+  if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
@@ -509,13 +517,14 @@ let allegiance = loadAllegiance(storage), playerName = 'You', characterId: strin
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
 let startWarped = false;   // the first hello of a Zone 1 page is answered with a warp to the start landmark
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
-  token: storedToken(storage, Date.now()), url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,
+  token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
   pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
   onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
     if (frontier && !startWarped) { startWarped = true; presence?.warp('zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
     if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
   },
   onOthers: (list) => { others = list; },
+  onEnter: (who) => { otherNames.set(who.id, { name: who.name, guest: who.guest }); },
 }); });
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
 function showCareer() {
@@ -600,7 +609,7 @@ if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) 
 // is Combat's (pit-duel.ts). A win clears the creature for a while; the server's kill_report pays (kill-apply.ts) and the page holds no loot.
 const REACH = previewRule('tapRange'), TAP_MS = previewRule('tapMs'), TAP_PX = previewRule('tapPx');   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
-const itemName = itemNamer();
+const itemName = itemNamer(), guestContent = loadEncounterContent(), guestHeld = guestBag();   // a signed-out player's session loot: in memory only
 let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
@@ -650,7 +659,11 @@ function creatureFell(spec: MobSpec) {
   const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
-  void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
+  void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
+    const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0) : null;
+    if (guest) guestHeld.add(guest);
+    worldToast(killToast(k, itemName, spec.name, bountyTaken, guest));
+  });
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
@@ -694,13 +707,13 @@ const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
 let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get), the other half of the sheet the writer holds a world record equal to
 let buildInflight = false;   // a build_get is on its way (each call times out on its own: the offline fallback below never fires while one is still pending)
-const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
+const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) { ownBuild = b; wc.heroChanged(); } else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
 // No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
 // The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
 // The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
-const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? false, askGear: () => { if (!gearMount) return false; void gearMount.refresh(); return true; },   // no gear screen yet is NOT "answered": the gate keeps asking until it exists and has answered (a signed-in player never fights on the bare body because the screen mounted late)
+const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? false, askGear: () => { if (!gearMount) return false; void gearMount.refresh().then(() => wc.heroChanged()); return true; },   // no gear screen yet is NOT "answered": the gate keeps asking until it exists and has answered (a signed-in player never fights on the bare body because the screen mounted late)
  wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
 const wc = createWorldCombat({
   loadoutReady,
@@ -713,15 +726,28 @@ const wc = createWorldCombat({
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
+// Which scene objects use each linked program (material type:name @ the object's parent chain), for a seamless receipt: a program that links at the engage is named by its owner, so a red row says what it was.
+function programOwners(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  scene.traverse((o) => {
+    const mats = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (!mats) return;
+    for (const m of Array.isArray(mats) ? mats : [mats]) {
+      const p = (renderer.properties.get(m) as { currentProgram?: { id: number; name: string } }).currentProgram; if (!p) continue;
+      const chain: string[] = []; for (let n: THREE.Object3D | null = o; n && chain.length < 4; n = n.parent) chain.push(n.name || n.type);
+      const list = out[`${p.name}#${p.id}`] ??= []; if (list.length < 4) list.push(`${m.type}${m.name ? `:${m.name}` : ''} @ ${chain.join('<')}`);
+    }
+  });
+  return out;
+}
 (window as unknown as { originsPreview: unknown }).originsPreview = {
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
-  presence: () => ({ state: presence?.state() ?? 'off', others }),
+  presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }),   // the last frame's cost (perf checks)
-  remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
+  renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
+  remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule).

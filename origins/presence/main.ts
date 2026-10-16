@@ -26,7 +26,9 @@ const limits = testAuth === '1' ? { ...LIMITS, ipSockets: 1000, ipJoinsPerMinute
 const writerUrl = process.env.WRITER_URL, writerKey = process.env.ORIGINS_WRITER_INTERNAL_KEY || undefined;
 if (!writerUrl !== !writerKey) throw new Error('set WRITER_URL and ORIGINS_WRITER_INTERNAL_KEY together (or neither: no position save)');
 const served = writerUrl && writerKey ? writerSavedLocation(writerUrl, writerKey) : null, save = writerUrl && writerKey ? writerSaveLocation(writerUrl, writerKey) : undefined;
-const locate = served ? async (account: string) => { const s = await served(account); return s.saved ? { x: s.x, z: s.z } : null; } : undefined;
+const names = new Map<string, string | null>();   // the active character's name from the same writer answer as the saved spot: read once by `nameOf` right after the join (or rejoin), then forgotten
+const locate = served ? async (account: string) => { const s = await served(account); names.set(account, s.name ?? null); return s.saved ? { x: s.x, z: s.z } : null; } : undefined;
+const nameOf = (account: string): string | null => { const n = names.get(account) ?? null; names.delete(account); return n; };
 console.log(save ? `presence: position save ON (writer ${writerUrl}, every ${num('PRESENCE_SAVE_MS', 300_000) / 1000} s, on leave and zone change)` : 'presence: position save OFF (no WRITER_URL)');
-const presence = createPresence({ locate, save, saveEveryMs: num('PRESENCE_SAVE_MS', 300_000), verify, rules, limits, internalKey: process.env.PRESENCE_INTERNAL_KEY || undefined, logEveryMs: num('PRESENCE_LOG_MS', 60_000), maxLayers: num('PRESENCE_MAX_LAYERS', 8), ipHeader: host === '127.0.0.1' && testAuth !== '1' });
+const presence = createPresence({ locate, nameOf: served ? nameOf : undefined, guests: process.env.ORIGINS_PRESENCE_GUESTS !== '0', save, saveEveryMs: num('PRESENCE_SAVE_MS', 300_000), verify, rules, limits, internalKey: process.env.PRESENCE_INTERNAL_KEY || undefined, logEveryMs: num('PRESENCE_LOG_MS', 60_000), maxLayers: num('PRESENCE_MAX_LAYERS', 8), ipHeader: host === '127.0.0.1' && testAuth !== '1' });
 presence.server.listen(port, host, () => console.log(`presence listening on ${host}:${presence.port()} (layers: soft ${rules.softCap}, hard ${rules.hardCap})`));

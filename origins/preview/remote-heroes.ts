@@ -17,13 +17,14 @@ import { previewRule } from './preview-rules.ts';
 import { createTrack, type Remote } from './remote-track.ts';
 
 type Actor = ReturnType<typeof buildWarriors>['player'];
-export type Who = { name: string; guest: boolean };
+export type Who = { name: string | null; guest: boolean };
 /** The tag: "Guest" for a guest (Dom: guests are in the world), the name otherwise, and nothing at all until the name has arrived (the server sends { id, name, guest } once, on entering interest). */
-export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name.trim() || null);
+export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name?.trim() || null);
 
 type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean };
 
-export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number }) {
+/** `who`: the page's record of an id's { name, guest } (presence's `enter`, kept by main.ts), read each frame for the ids drawn; `forget`: called when a slot expires, so a reused id never wears the last player's name before its own `enter` arrives. */
+export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
@@ -77,9 +78,9 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
           if (slot.frozen) slot.group.updateMatrixWorld(true);   // frozen groups are not in the scene's walk: bring this one's bones and root current once, for this frame's skeleton update
         }
         slot.hidden = !seen_;
-        retag(slot, tagText(names.get(s.id)));
+        retag(slot, tagText(d.who?.(s.id) ?? names.get(s.id)));
       });
-      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); freeze(slot, false); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
+      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); freeze(slot, false); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
     },
     /** Before the draw: a tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). */
     clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void {

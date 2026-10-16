@@ -75,7 +75,7 @@ try {
   receipt.fightMoved = await moved(10000);   // also the program window: the engage plus the first 10 s of the fight (a first hit's sparks compile then), the same on every run
   const namesAfter = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
   receipt.programsAfterEngage = namesAfter.length; receipt.newPrograms = namesAfter.filter((n) => !namesBefore.includes(n));
-  { const keys = await page.evaluate(() => window.originsPreview.renderInfo().programKeys); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, keys[n]])); }   // WHICH programs compile at the engage (each one is a stall)
+  { const info = await page.evaluate(() => window.originsPreview.renderInfo()); receipt.newProgramKeys = Object.fromEntries(receipt.newPrograms.map((n) => [n, info.programKeys[n]])); receipt.newProgramOwners = Object.fromEntries(receipt.newPrograms.map((n) => [n, info.programOwners?.[n] ?? ['(no scene material uses it)']])); }   // WHICH programs compile at the engage (each one is a stall), and which scene material (type:name @ the object's parent chain) owns each: a red names its owner
   const after = { ...engaged, gaps: await page.evaluate(() => window.__gaps.slice()) };
   const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0;
   let clock = 0; const engageGaps = after.gaps.slice(0, -1).filter((g) => (clock += g) <= 5000), worst = Math.max(...engageGaps, 0);   // the engage is the first 5 s after the tap; later long frames are the fight, not the engage

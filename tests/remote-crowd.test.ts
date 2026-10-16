@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Bone, Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera, Skeleton, SkinnedMesh } from 'three';
-import { createRemoteHeroes } from '../origins/preview/remote-heroes.ts';
+import { createRemoteHeroes, tagText } from '../origins/preview/remote-heroes.ts';
 import { previewRule } from '../origins/preview/preview-rules.ts';
 
 const FULL = previewRule('remoteFullCount'), EVERY = previewRule('remoteCheapEvery');
@@ -87,6 +87,17 @@ test('a frozen figure (cheap on a skip frame, or hidden) triggers no skeleton up
     assert.equal(b.heroes.debug().shown.filter((s) => s.visible).length, 1);
     assert.equal(b.scene.children.filter((g) => !g.matrixWorldAutoUpdate).length, 1, 'the hidden one is out of the matrix walk too');
   } finally { Skeleton.prototype.update = real; }
+});
+
+test('the page\'s enter records feed the tag (name, "Guest", or none: a null name is no tag), and an expired id is forgotten so a reused id never wears the old name', () => {
+  assert.deepEqual([{ name: 'Crixus', guest: false }, { name: null, guest: true }, { name: null, guest: false }, { name: '  ', guest: false }, undefined].map(tagText), ['Crixus', 'Guest', null, null, null]);
+  const asked: number[] = [], forgotten: number[] = [], spawn = () => ({ anchor: new Group(), update: () => {} }) as never;   // (a drawn tag needs a canvas: the browser rows check the sprite itself)
+  const heroes = createRemoteHeroes({ scene: new Group(), spawn, groundAt: () => 0, who: (id) => { asked.push(id); return { name: null, guest: false }; }, forget: (id) => { forgotten.push(id); } });
+  heroes.warm(); heroes.push([1, 2].map((id) => ({ id, x: id, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
+  heroes.update(1 / 60, 0, { x: 0, z: 0 });
+  assert.deepEqual(asked.sort(), [1, 2], 'asked for each drawn id');
+  heroes.update(1 / 60, 2000, { x: 0, z: 0 });   // past remoteExpire with no packet: both gone
+  assert.deepEqual(forgotten.sort(), [1, 2]); assert.equal(heroes.debug().shown.length, 0);
 });
 
 test('a figure that comes back near gets its shadow back as it was', () => {
