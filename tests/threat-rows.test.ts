@@ -27,7 +27,7 @@ export function playOut(make: () => ReturnType<typeof newWorld>, seed: number, t
   for (const f of world.fighters) h.update(JSON.stringify([f.id, Object.entries(f.threat ?? {}).map(([k, v]) => [k, Math.round(v.threat * 1e3), Math.round(v.damage * 1e3)])]));
   return h.digest('hex').slice(0, 16);
 }
-const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['b28747fbd82099c1', '8a4f5bf80ad9b99e', '556b1f7d7c5bf3ef'], 'one player, goblin and wolf': ['6a4b7f5ffbd6ca92', 'ddee928773af6d76', 'c16314fd82ee80c1'] };   // first taken on unchanged trunk ff15ed478, before the rows; RE-PINNED with world-hero (Dom 2026-10-13: directionalGuard is on in the world, so a held guard with no side no longer covers every blow): the same hashes come from trunk b3b5613ab with only directionalGuard switched on
+const EXPECTED: Record<string, string[]> = { 'two players, three wolves': ['4070932c0daa9040', 'ab88672898c939d3', '7207b37d1ed5aff4'], 'one player, goblin and wolf': ['6ffe317fea713e91', '1afec105f07fe568', 'e70eb9e737c2052f'] };   // RE-PINNED at RV73 / WSV49 (many-on-one): the hero now retargets at ready to the creature he faces, so a scripted fight's foe choice moves ON PURPOSE; read with PRINT_THREAT_HASHES=1 on a clean VPS clone. Was b28747fb.. / 6a4b7f5f.. before.   // first taken on unchanged trunk ff15ed478, before the rows; RE-PINNED with world-hero (Dom 2026-10-13: directionalGuard is on in the world, so a held guard with no side no longer covers every blow): the same hashes come from trunk b3b5613ab with only directionalGuard switched on
 const SEEDS = [11, 222, 3333];
 for (const [name, make] of Object.entries(SCENARIOS)) {
   test(`existing fights pick the same foe tick for tick: ${name}`, () => {

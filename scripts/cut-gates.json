@@ -5,7 +5,14 @@
     ".vscode",
     "public/fonts"
   ],
-  "watchedAllow": [],
+  "watchedAllow": [
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "6e8ea0fb9eef82df1a6f0442372ec8e94268d06e",
+      "pr": 2929,
+      "note": "Lead OK 2026-10-16: GAME_RE adds scripts/lib/json-dup-keys, scripts/lib/origins-preview-harness and scripts/origins-remote-heroes-check; one optional browser matrix row remote-heroes. No new actions, secrets, permissions or triggers."
+    }
+  ],
   "noPrExempt": [
     {
       "sha": "d531a0f1d",
