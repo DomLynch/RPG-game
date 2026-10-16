@@ -48,6 +48,9 @@ test('a damage over time does not hold the caster, and stops when the target fal
   const start = fight(DOT), { d } = run(start, RULES.special.windup + 1);
   assert.ok(d.fighters[0].volley, 'the volley runs');
   assert.ok((d.fighters[0].specialRecover ?? 0) <= RULES.special.recovery, 'a DoT adds nothing to the recovery hold');
-  const dying = { ...d, fighters: [d.fighters[0], { ...d.fighters[1], health: 0, phase: 'dead' as const }] as typeof d.fighters };
-  assert.equal(stepDuel(dying, [idle(), idle()]).fighters[0].volley, undefined, 'a fallen target ends it');
+  let dying: Duel = { ...d, fighters: [d.fighters[0], { ...d.fighters[1], health: 1 }] as typeof d.fighters };   // one health left: the next pulse kills, then the volley must end
+  for (let t = 0; t < HITS.baying!.every * 2 && dying.fighters[1].health > 0; t++) dying = stepDuel(dying, [idle(), idle()]);
+  assert.equal(dying.fighters[1].health, 0, 'a pulse killed the target');
+  dying = stepDuel(dying, [idle(), idle()]);
+  assert.equal(dying.fighters[0].volley, undefined, 'a fallen target ends it');
 });
