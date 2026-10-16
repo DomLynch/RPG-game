@@ -55,6 +55,20 @@ test('nothing a guest does reaches a saved or resolvable place: no position save
   } finally { await p.close(); }
 });
 
+test('a socket that outlives the 60 s join window still frees its place when it closes (the per-address count must not leak, or an address is locked out until a restart)', async () => {
+  let t = 1_000_000;
+  const p = await start({ ipHeader: true, now: () => t });
+  try {
+    const perIp = presenceRule('guestIpSockets'), open: import('node:net').Socket[] = [];
+    for (let i = 0; i < perIp; i++) { const r = await upgrade(p.port(), '10.5.5.5', 'frankendom.presence.v2, guest'); assert.equal(r.status, 101); open.push(r.socket); }
+    t += 61_000;   // the address's window rolls while both sockets are still open
+    assert.equal((await upgrade(p.port(), '10.5.5.5', 'frankendom.presence.v2, guest')).status, 429, 'still full after the roll: the two open guests count');
+    for (const s of open) s.destroy();
+    await until(() => p.world.byAccount.size === 0, 4000);
+    for (let i = 0; i < perIp; i++) assert.equal((await upgrade(p.port(), '10.5.5.5', 'frankendom.presence.v2, guest')).status, 101, `guest ${i + 1} after both closed: the address is empty again`);
+  } finally { await p.close(); }
+});
+
 test('the caps: the per-address guest cap is lower than a signed-in player\'s; the global ceiling refuses with 503; the kill switch refuses guests; a guest cannot ride v1; a token beats `guest`', async () => {
   const p = await start({ ipHeader: true });
   try {
