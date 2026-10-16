@@ -420,7 +420,9 @@ async function warmHero(anchor: THREE.Object3D) {   // the player's own programs
 async function warmRemoteKits(frame: () => Promise<void>) {
   const kits = warmKits(); if (!kits.length) return;
   const pieces = await loadLoot(lootUrl), remote = (await loadWarriors(ASSETS.hero!)).player;
-  for (const kit of kits) { dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), frame); }
+  // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
+  remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor);
+  try { for (const kit of kits) { dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), frame); await frame(); await frame(); } } finally { scene.remove(remote.anchor); }
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
