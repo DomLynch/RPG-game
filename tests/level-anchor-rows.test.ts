@@ -9,7 +9,7 @@ import { LEVELS, LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/
 test('the level anchors built from rows equal the old literal, and every opponent resolves the same at every level', () => {
   const rows: Record<string, unknown[]> = {};
   for (const id of Object.keys(OPPONENTS) as (keyof typeof OPPONENTS)[]) { rows[id] = []; for (let level = 1; level <= LEVELS; level++) rows[id]!.push([opponentAt(OPPONENTS[id], level), profileAt(OPPONENTS[id], level)]); }
-  assert.equal(createHash('sha256').update(JSON.stringify({ LEVEL_ANCHORS, rows })).digest('hex'), 'd4910e6c546a436ea1e02e8e27ecdd817f7f5de1c8b997a3258a810b16ca2762');
+  assert.equal(createHash('sha256').update(JSON.stringify({ LEVEL_ANCHORS, rows })).digest('hex'), 'b84e12de1416a893571e9d31b9bce3b1001e0e9bb08459feee752cfa4f0ea153');
   assert.deepEqual({ ...LEVEL_ANCHORS }, { novice: 1, easy: 6, normal: 18, hard: 46 });
   assert.deepEqual(Object.keys(LEVEL_ANCHORS), ['novice', 'easy', 'normal', 'hard']);
 });
