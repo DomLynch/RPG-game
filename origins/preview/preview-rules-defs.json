@@ -36,6 +36,16 @@
     { "id": "tapMs", "value": 4000, "unit": "ms" },
     { "id": "tapPx", "value": 12, "unit": "px" },
     { "id": "loadoutWait", "value": 15000, "unit": "ms" },
-    { "id": "gearRetry", "value": 10000, "unit": "ms" }
+    { "id": "gearRetry", "value": 10000, "unit": "ms" },
+    { "id": "remoteWarm", "value": 8, "unit": "slots" },
+    { "id": "remoteSnap", "value": 6, "unit": "m" },
+    { "id": "remoteIdle", "value": 0.05, "unit": "m/s" },
+    { "id": "remoteTagY", "value": 2.25, "unit": "m" },
+    { "id": "remoteExpire", "value": 1500, "unit": "ms" },
+    { "id": "remoteFullCount", "value": 16, "unit": "figures" },
+    { "id": "remoteCheapEvery", "value": 4, "unit": "frames" },
+    { "id": "remoteAnimRange", "value": 80, "unit": "m" },
+    { "id": "remoteBoundR", "value": 1.6, "unit": "m" },
+    { "id": "remoteOwedCap", "value": 0.25, "unit": "s" }
   ]
 }
