@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>dressRemote still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// Two spawned hero actors, each dressed through dressRemote with a different worn set, side by side. Driven by scripts/dress-remote-still.mjs (window.ready flips true once both are dressed).
+import * as THREE from 'three';
+import { loadWarriors, loadLoot, lootIds } from '/src/fight/index.ts';
+import { dressRemote, coldPieces } from '/origins/preview/dress-remote.ts';
+import heroUrl from '/src/assets/warrior.glb?url';
+import lootUrl from '/src/assets/loot.glb?url';
+
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.2)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(2, 4, 3); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 50); camera.position.set(0, 1.25, 6.2); camera.lookAt(0, 0.95, 0);
+const pieces = await loadLoot(lootUrl);
+// A worn set from one source kit: every non-weapon piece of that opponent, keyed by slot as the server sends it.
+const kit = (opponent) => Object.fromEntries(pieces.filter((p) => p.userData.opponent === opponent && p.userData.slot !== 'Weapon').map((p) => [String(p.userData.slot), lootIds(p)[0]]));
+const sets = [kit('goblin'), kit('shieldmaiden')], out = {};
+for (const [i, worn] of sets.entries()) {
+  const actor = (await loadWarriors(heroUrl)).player;
+  actor.anchor.position.set(i === 0 ? -0.85 : 0.85, 0, 0); actor.anchor.rotation.y = i === 0 ? 0.35 : -0.35;
+  scene.add(actor.anchor); actor.update(0, 0.016, 'sheathed', 0);
+  out[i] = { worn, missing: dressRemote(actor, pieces, worn), cold: coldPieces(actor, pieces).length };
+}
+window.result = out;
+for (let i = 0; i < 6; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); }
+window.ready = true;
+</script>
