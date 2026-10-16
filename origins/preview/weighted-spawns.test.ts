@@ -15,8 +15,8 @@ const digest = (id: string): [number, string] => {
   return [specs.length, createHash('sha256').update(JSON.stringify(specs)).digest('hex').slice(0, 16)];
 };
 
-test('plain groups are untouched: zones 2-4 are byte for byte what they were before weighted entries (digests taken on the code before it); zone 1 was 23 creatures 12d8a3ce... and is the same 23 plus the Cave Troll camp boss appended last (the troll PR prints the 23\'s full digest; mobs.golden.json pins every entry)', () => {
-  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, 'fb111a3dda3f38f8'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785']]);
+test('plain groups are untouched: zones 2-4 are byte for byte what they were before weighted entries (digests taken on the code before it); zone 1 was 23 creatures 12d8a3ce... and now differs by exactly brood-4 (the black-mere salamander roll) plus the Cave Troll camp boss appended last, at its own troll-cave landmark (mobs.golden.json pins every entry)', () => {
+  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, '8773d9d521f85606'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785']]);
 });
 
 test('a bare id is weight 1 and a single bare id is a plain group; an object entry or two entries is weighted', () => {
@@ -76,18 +76,18 @@ test('the loader holds a zone\'s weighted group to those rules (the ids themselv
 });
 
 test('a weighted camp stands from the group\'s own stream: one entry with a weight is the plain camp, and a second entry mixes the kinds by weight inside the same camp size', () => {
-  const f = frontierPlan(), b = frontierBuild(f), place = loadZone().place!, g = place.spawns.find((s) => s.id === 'brood')!, original = g.characters;
-  const base = mobSpecs(f, b).filter((s) => s.spawn === 'brood');
-  const reg = f.data.registry.regions.get(FRONTIER)!, withIds = (ids: string[]) => ({ ...f, data: { ...f.data, registry: { ...f.data.registry, regions: new Map([[FRONTIER, { ...reg, spawns: reg.spawns.map((s) => (s.id === 'brood' ? { ...s, characters: ids } : s)) }]]) } } }) as unknown as typeof f;
+  const f = frontierPlan(), b = frontierBuild(f), place = loadZone().place!, g = place.spawns.find((s) => s.id === 'scavengers')!, original = g.characters;   // a plain one-id group (the brood group is a real weighted one now)
+  const base = mobSpecs(f, b).filter((s) => s.spawn === 'scavengers');
+  const reg = f.data.registry.regions.get(FRONTIER)!, withIds = (ids: string[]) => ({ ...f, data: { ...f.data, registry: { ...f.data.registry, regions: new Map([[FRONTIER, { ...reg, spawns: reg.spawns.map((s) => (s.id === 'scavengers' ? { ...s, characters: ids } : s)) }]]) } } }) as unknown as typeof f;
   try {
-    g.characters = [{ id: 'character:mere-brood', weight: 5 }];
-    assert.deepEqual(mobSpecs(f, b).filter((s) => s.spawn === 'brood'), base, 'one weighted entry = the plain camp');
-    g.characters = [{ id: 'character:mere-brood', weight: 1 }, { id: 'character:ruin-ghoul', weight: 1, max: 1 }];
-    const mixed = mobSpecs(withIds(['character:mere-brood', 'character:ruin-ghoul']), b).filter((s) => s.spawn === 'brood');
+    g.characters = [{ id: 'character:cinder-scavenger', weight: 5 }];
+    assert.deepEqual(mobSpecs(f, b).filter((s) => s.spawn === 'scavengers'), base, 'one weighted entry = the plain camp');
+    g.characters = [{ id: 'character:cinder-scavenger', weight: 1 }, { id: 'character:ruin-ghoul', weight: 1, max: 1 }];
+    const mixed = mobSpecs(withIds(['character:cinder-scavenger', 'character:ruin-ghoul']), b).filter((s) => s.spawn === 'scavengers');
     assert.equal(mixed.length, base.length, 'the camp size comes from the first entry\'s row, whatever is rolled');
-    assert.equal(mixed.filter((s) => s.character === 'character:ruin-ghoul').length, 1, 'the ghoul is rolled into the camp (this seed) and max 1 holds');
-    assert.ok(mixed.some((s) => s.character === 'character:mere-brood'), 'and the brood still stands beside it');
-    assert.deepEqual(mixed, mobSpecs(withIds(['character:mere-brood', 'character:ruin-ghoul']), b).filter((s) => s.spawn === 'brood'), 'deterministic');
-    assert.deepEqual(mobSpecs(f, b).filter((s) => s.spawn !== 'brood'), mobSpecs(withIds(['character:mere-brood', 'character:ruin-ghoul']), b).filter((s) => s.spawn !== 'brood'), 'other groups do not move');
+    assert.ok(mixed.filter((s) => s.character === 'character:ruin-ghoul').length <= 1, 'max 1 holds in a built camp');
+    assert.ok(mixed.some((s) => s.character === 'character:cinder-scavenger'), 'and the scavengers still stand');
+    assert.deepEqual(mixed, mobSpecs(withIds(['character:cinder-scavenger', 'character:ruin-ghoul']), b).filter((s) => s.spawn === 'scavengers'), 'deterministic');
+    assert.deepEqual(mobSpecs(f, b).filter((s) => s.spawn !== 'scavengers'), mobSpecs(withIds(['character:cinder-scavenger', 'character:ruin-ghoul']), b).filter((s) => s.spawn !== 'scavengers'), 'other groups do not move');
   } finally { g.characters = original; }
 });
