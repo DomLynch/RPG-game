@@ -19,14 +19,16 @@ const duelAt = (id: string, gap: number) => {
 };
 const press = (d: ReturnType<typeof duelAt>) => stepDuel(d as never, [{ ...idle(), action: 'skill' }, idle()]) as never as ReturnType<typeof duelAt>;
 
-test('a cast inside its band starts and is paid; outside it the press is refused with a cue and costs nothing', () => {
+test('a band is a spell\'s farthest reach: beyond it the press is refused with "far" and costs nothing; any closer distance casts', () => {
   const ok = press(duelAt(MEDIUM, 1.5));
   assert.ok(ok.fighters[0]!.mana < 100 && ok.events.some((e) => e.type === 'SpecialStarted'), 'mid spell at 1.5 m casts');
   const far = press(duelAt(SHORT, 1.5));
   assert.equal(far.fighters[0]!.mana, 100, 'no mana spent'); assert.equal(far.events.find((e) => e.type === 'SpellRefused')?.cue, 'far'); assert.equal(far.fighters[0]!.special, undefined);
-  const close = press(duelAt(MEDIUM, 1.0));
-  assert.equal(close.events.find((e) => e.type === 'SpellRefused')?.cue, 'close'); assert.equal(close.fighters[0]!.mana, 100);
-  assert.equal(press(duelAt(LONG, 1.5)).events.find((e) => e.type === 'SpellRefused')?.cue, 'close', 'a long spell is refused inside the outer band');
+  assert.equal(press(duelAt(MEDIUM, 2.4)).events.find((e) => e.type === 'SpellRefused')?.cue, 'far', 'a mid spell stops at the mid band');
+  for (const [id, gap] of [[SHORT, 0.8], [MEDIUM, 0.8], [LONG, 0.8], [LONG, 1.5]] as const) {
+    const d = press(duelAt(id, gap));
+    assert.ok(!d.events.some((e) => e.type === 'SpellRefused') && d.fighters[0]!.mana < 100, `${id} casts at ${gap} m (no "too close")`);
+  }
 });
 test('a long spell launches a missile at the release and lands on arrival, not at once', () => {
   let d = duelAt(LONG, 2.4); d = press(d);
