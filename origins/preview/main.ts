@@ -500,11 +500,11 @@ function syncSpell2Button() {
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
-// Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
+// Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
 if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joinPresence({
   token: storedToken(storage, Date.now()), url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,
-  pose: () => (!frontier && Math.abs(state.x) < 149 && Math.abs(state.z) < 149 ? { x: state.x, z: state.z, heading } : null),
+  pose: () => (!frontier ? { x: state.x, z: state.z, heading } : null),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); a v2 frame holds the whole town and road
   onHello: (at) => { if (!frontier && Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); } },   // where the server placed us (a rejoin lands where it was left)
   onOthers: (list) => { others = list; },
 }); });

@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeUp, encodeDown } from '../presence/wire.ts';
-import { CENTRE_CM, GIVE_UP_AFTER, headingByte, joinPresence, PROTOCOL, presenceUrl, presenceWanted, type Socket } from './presence-client.ts';
+import { CENTRE_CM as V2_CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM as CENTRE_CM } from '../presence/frame.ts';
+import { GIVE_UP_AFTER, headingByte, joinPresence, PROTOCOL, PROTOCOL_V2, presenceUrl, presenceWanted, type Socket } from './presence-client.ts';
 
 type Fake = Socket & { sent: Uint8Array[]; closed: number | null; calls: { url: string; protocols: string[] } };
 function rig(over: { token?: string | null } = {}) {
@@ -34,7 +35,7 @@ test('no token (signed out): nothing is opened at all', () => {
 
 test('the token rides the subprotocol, never the URL', () => {
   const r = rig();
-  assert.deepEqual(r.sockets[0]!.calls.protocols, [PROTOCOL, 'token.jwt-abc']);
+  assert.deepEqual(r.sockets[0]!.calls.protocols, [PROTOCOL_V2, PROTOCOL, 'token.jwt-abc']);
   assert.ok(!r.sockets[0]!.calls.url.includes('jwt-abc') && !r.sockets[0]!.calls.url.includes('token'));
   assert.equal(r.sockets[0]!.binaryType, 'arraybuffer');
 });
@@ -48,6 +49,26 @@ test('no pose before the hello; then 8-byte poses in presence centimetres, hero 
   assert.deepEqual(decodeUp(s.sent[0]!), { x: CENTRE_CM + 300, z: CENTRE_CM - 400, heading: 128, anim: 0, flags: 0 });
   r.move(1000, -1000); r.p!.flush();
   assert.deepEqual([decodeUp(s.sent[1]!)!.x, decodeUp(s.sent[1]!)!.z], [30000, 0], 'clamped inside the 300 m square');
+});
+
+test('a v1 hello (no frame): a pose outside the square is withheld, not clamped onto the edge', () => {
+  const r = rig(); const s = r.sockets[0]!; r.open(s); r.say(s, { t: 'hello', id: 1, layer: 1, x: CENTRE_CM, z: CENTRE_CM });
+  r.move(-200, 0); r.p!.flush(); assert.equal(s.sent.length, 0);
+  r.move(-148, 0); r.p!.flush(); assert.equal(s.sent.length, 1);
+});
+
+test('a v2 hello names the whole-world frame: Zone 1 poses go out, and others come down in the same frame', () => {
+  const r = rig(); const s = r.sockets[0]!; r.open(s);
+  r.say(s, { t: 'hello', id: 3, layer: 1, x: V2_CENTRE_CM, z: V2_CENTRE_CM, frame: { centreCm: V2_CENTRE_CM, sizeCm: FRAME_CM } });
+  assert.deepEqual(r.hello, [{ x: 0, z: 0, layer: 1 }]);
+  r.move(-290, -150); r.p!.flush();   // the troll-cave side of the Frontier: far outside the 300 m square
+  assert.deepEqual(decodeUp(s.sent[0]!), { x: V2_CENTRE_CM - 29000, z: V2_CENTRE_CM - 15000, heading: 128, anim: 0, flags: 0 });
+  r.move(-1000, 0); r.p!.flush();   // past the u16 frame: clamped to its edge, never wrapped
+  assert.equal(decodeUp(s.sent[1]!)!.x, 0);
+  const b = encodeDown(9, [{ id: 4, x: V2_CENTRE_CM - 28000, z: V2_CENTRE_CM - 14000, heading: 0, anim: 0, flags: 0, tick: 9 }]);
+  s.onmessage?.({ data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) });
+  const o = r.others[0]![0] as { x: number; z: number };
+  assert.equal(o.x, -280); assert.equal(o.z, -140);
 });
 
 test('other players come down as metres in the same frame', () => {

@@ -8,13 +8,13 @@ import type { Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
+import { PROTOCOL, PROTOCOL_V2 } from './frame.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, ZONE_ROWS, fromLegacy, toLegacy, zoneAt } from './zones.ts';
 import { SAVE_EVERY_MS, saveQueue, type SaveFn } from './saves.ts';
 import { presenceRule } from './presence-rules.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
-export const PROTOCOL = 'frankendom.presence.v1';   // the old town-only client (centre 15000, the 300 m square): served through the shim
-export const PROTOCOL_V2 = 'frankendom.presence.v2';   // the whole-world frame (CENTRE_CM, FRAME_CM); the client offers one of them next to `token.<jwt>`, the server echoes it, never the token
+export { PROTOCOL, PROTOCOL_V2 };   // defined in ./frame.ts (the page shares them)
 const UUID = /^[0-9a-f-]{36}$/;
 export const LIMITS = { maxMessage: presenceRule('maxMessage'), perSecond: presenceRule('perSecond'), idleMs: presenceRule('idleMs'), ipSockets: presenceRule('ipSockets'), ipJoinsPerMinute: presenceRule('ipJoinsPerMinute'), beatMs: presenceRule('beatMs') };
 export type Limits = typeof LIMITS;
