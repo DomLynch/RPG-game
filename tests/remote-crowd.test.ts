@@ -1,7 +1,7 @@
 // A crowd of other players: the nearest `remoteFullCount` are full figures, the rest CHEAP (no trail, no shadow cast, a pose update every `remoteCheapEvery` frames), all still drawn, and none adds a program.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Group, Mesh, BufferGeometry, MeshBasicMaterial } from 'three';
+import { Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera } from 'three';
 import { createRemoteHeroes } from '../origins/preview/remote-heroes.ts';
 import { previewRule } from '../origins/preview/preview-rules.ts';
 
@@ -42,6 +42,22 @@ test('a cheap figure poses every Nth frame with the time it was owed; a full one
   assert.equal(fullFig.updates.length, EVERY * 2);
   assert.equal(cheapFig.updates.length, 2);
   assert.ok(Math.abs(cheapFig.updates[0]! - 0.01 * EVERY) < 1e-9, 'it is owed the frames it skipped');
+});
+
+test('a remote outside the camera frustum, or past remoteAnimRange, makes no pose update (mixer and bones) but still moves its root; it is owed the time, capped', () => {
+  const { heroes, made } = crowd(0);
+  const camera = new PerspectiveCamera(50, 0.5, 0.1, 500); camera.position.set(0, 1, 10); camera.updateMatrixWorld();   // looks down -z from z = 10
+  heroes.push([{ id: 1, x: 0, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 2, x: 0, z: 50, heading: 0, anim: 0, flags: 0 }, { id: 3, x: 0, z: -(previewRule('remoteAnimRange') + 20), heading: 0, anim: 0, flags: 0 }], 0);
+  for (let f = 0; f < 10; f++) heroes.update(0.1, 0, { x: 0, z: 10 }, camera);
+  const [inView, behind, far] = made.slice(0, 3);   // slots are claimed in the nearest-first order: id 1 (10 m), id 2 (40 m, behind the camera), id 3 (far, ahead)
+  assert.equal(inView!.updates.length, 10, 'in view: every frame');
+  assert.equal(behind!.updates.length, 0, 'behind the camera: no mixer.update at all');
+  assert.equal(far!.updates.length, 0, 'beyond the range: none');
+  assert.ok(heroes.debug().shown.every((s) => s.visible), 'all still drawn');
+  camera.position.set(0, 1, 60); camera.updateMatrixWorld();   // now id 2 (z = 50) is ahead of the camera
+  heroes.update(0.1, 0, { x: 0, z: 10 }, camera);
+  assert.equal(behind!.updates.length, 1, 'in view again: posed');
+  assert.ok(Math.abs(behind!.updates[0]! - previewRule('remoteOwedCap')) < 1e-9, 'paid back the skipped time, capped at remoteOwedCap');
 });
 
 test('a figure that comes back near gets its shadow back as it was', () => {

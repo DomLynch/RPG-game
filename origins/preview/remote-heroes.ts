@@ -3,7 +3,8 @@
 // from the speed it covers and a plain name tag. v1 look = the base hero figure (a player's own gear on the figure is a later item). No gameplay: no collider, no tap target, nothing in the world fight.
 // The slots are made at zone entry (`warm`, remoteWarm rows) and reused as players come and go; more are added only when the zone has more players than that, from the same asset.
 // A crowd costs frames (the T4 harness: 8 and 16 remotes hold 60 fps, 40 sit at 30): the nearest `remoteFullCount` are full figures, the rest CHEAP: the same mesh and materials (no new program),
-// but no weapon trail, no shadow cast, and a pose update only every `remoteCheapEvery` frames. Still drawn, still named, still moved every frame.
+// but no weapon trail, no shadow cast, and a pose update only every `remoteCheapEvery` frames (the actor's update is the mixer AND the bone matrices, so both run at that rate; the pose holds between).
+// Out of the camera frustum or beyond `remoteAnimRange` the pose is skipped altogether (mixer and bones), full or cheap. Still drawn, still named, still moved every frame.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
@@ -20,6 +21,7 @@ type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number
 
 export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
+  const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
     const slot: Slot = { group, actor, id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0 }; pool.push(slot); return slot;
@@ -45,8 +47,10 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
     push: (list: readonly Remote[], now: number): void => track.push(list, now),
     /** Who an id is: the server sends { id, name, guest } once when an id enters the interest (Backend's next PR); until it has, no tag. Forgotten with the slot, so a reused id never wears the last player's name. */
     know: (id: number, who: Who): void => { names.set(id, who); },
-    update(dt: number, now: number, hero: { x: number; z: number }): void {
-      const seen = new Set<number>(), full = previewRule('remoteFullCount'), every = previewRule('remoteCheapEvery');
+    /** `camera` (the last frame's matrices are enough): a remote outside its frustum, or past `remoteAnimRange` metres, still moves its root but skips the mixer and the bones; the time it skipped is paid (capped) when it is next posed. */
+    update(dt: number, now: number, hero: { x: number; z: number }, camera?: THREE.Camera): void {
+      const seen = new Set<number>(), full = previewRule('remoteFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap');
+      if (camera) frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       track.shown(now, hero).forEach((s, rank) => {   // nearest first: rank < remoteFullCount is a full figure
         seen.add(s.id);
         let slot = live.get(s.id);
@@ -54,8 +58,9 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         if ((rank >= full) !== slot.cheap) setCheap(slot, rank >= full);
         slot.group.visible = true; slot.group.position.set(s.x, d.groundAt(s.x, s.z), s.z); slot.group.rotation.y = s.heading;
         slot.speed += ((s.speed < idle ? 0 : s.speed) - slot.speed) * (1 - Math.exp(-dt * 14)); if (slot.speed < idle) slot.speed = 0;
-        slot.owed += dt; slot.frames++;
-        if (!slot.cheap || slot.frames % every === 0) { slot.actor.update(slot.speed, slot.owed, 'ready', 0, 'light', 0.35, 0); slot.owed = 0; }   // a cheap figure poses every Nth frame with the time it has been owed
+        slot.owed = Math.min(owedCap, slot.owed + dt); slot.frames++;
+        const seeable = !camera || (Math.hypot(s.x - hero.x, s.z - hero.z) <= range && frustum.intersectsSphere(ball.set(slot.group.position, radius).translate(up)));
+        if (seeable && (!slot.cheap || slot.frames % every === 0)) { slot.actor.update(slot.speed, slot.owed, 'ready', 0, 'light', 0.35, 0); slot.owed = 0; }   // a cheap figure poses every Nth frame with the time it has been owed
         retag(slot, tagText(names.get(s.id)));
       });
       for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole

@@ -43,6 +43,9 @@
     { "id": "remoteTagY", "value": 2.25, "unit": "m" },
     { "id": "remoteExpire", "value": 1500, "unit": "ms" },
     { "id": "remoteFullCount", "value": 16, "unit": "figures" },
-    { "id": "remoteCheapEvery", "value": 4, "unit": "frames" }
+    { "id": "remoteCheapEvery", "value": 4, "unit": "frames" },
+    { "id": "remoteAnimRange", "value": 80, "unit": "m" },
+    { "id": "remoteBoundR", "value": 1.6, "unit": "m" },
+    { "id": "remoteOwedCap", "value": 0.25, "unit": "s" }
   ]
 }
