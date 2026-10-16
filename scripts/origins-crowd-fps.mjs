@@ -3,7 +3,7 @@
 // (WALK, a circle at ~2.5 m/s), all inside the camera's view ahead of the hero; measures WINDOW ms of rAF gaps and writes OUT/receipt.json: median fps, p95 frame time, worst gap,
 // drawn count (remote().shown.length, must equal N up to nearCap), programs added since zone ready (must be 0), renderer. Software GL (swiftshader/llvmpipe) numbers are marked and mean nothing.
 // Usage: SERVE=1 OUT=/tmp/crowd node scripts/origins-crowd-fps.mjs   (SERVE=1 serves artifacts/origins-preview, built with `npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview`)
-//   COUNTS=0,8,16,40 (0 = the empty-zone baseline)  MODES=idle,walk  THROTTLE=1,4  WINDOW=10000  URL=<page>  GL=swiftshader  PASS_FPS=30 (S2 bar on a real GPU run)  QS=&x=y appended to the served URL
+//   COUNTS=0,8,16,40 (0 = the empty-zone baseline)  MODES=idle,walk  THROTTLE=1,4  PROFILE=1 (top self-time functions per case)  WINDOW=10000  URL=<page>  GL=swiftshader  PASS_FPS=30 (S2 bar on a real GPU run)  QS=&x=y appended to the served URL
 // Needs #2929 (originsPreview.setOthers / remote) in the build; dressing the crowd (#2926 dressRemote) will be a DRESS=1 case once it is wired in main.ts.
 import fs from 'node:fs'; import http from 'node:http'; import path from 'node:path'; import { chromium } from 'playwright';
 const OUT = process.env.OUT || '/tmp/crowd-fps', COUNTS = (process.env.COUNTS || '0,8,16,40').split(',').map(Number), MODES = (process.env.MODES || 'idle,walk').split(','), WINDOW = +(process.env.WINDOW || 10000), BAR = +(process.env.PASS_FPS || 30), THROTTLES = (process.env.THROTTLE || '1').split(',').map(Number);   // THROTTLE=1,4: also a 4x CPU-throttled case (CDP Emulation.setCPUThrottlingRate, applied after [zone ready]): a phone-like trend, not a phone
@@ -56,8 +56,15 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     res.built = await page.evaluate(() => window.__crowd.built);
     await page.waitForTimeout(2500);   // the figures appear, grow slots and ease in before the window opens
     await page.evaluate(() => { window.__gaps = []; let last = performance.now(); const tick = (t) => { window.__gaps.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+    const cdp = process.env.PROFILE ? await page.context().newCDPSession(page) : null;   // PROFILE=1: a CPU profile over the window; the top self-time functions go in the receipt (the .cpuprofile itself is not brought back)
+    if (cdp) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
     await page.waitForTimeout(WINDOW);
-    const gaps = (await page.evaluate(() => window.__gaps.slice())).slice(1, -1).sort((a, b) => a - b);
+    if (cdp) {
+      const { profile } = await cdp.send('Profiler.stop'), nodes = new Map(profile.nodes.map((nd) => [nd.id, nd])), self = new Map();
+      profile.samples.forEach((id, i) => { const cf = nodes.get(id).callFrame, k = `${cf.functionName || '(anon)'} ${cf.url.split('/').slice(-2).join('/')}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0) / 1000); });
+      res.topSelfMs = [...self.entries()].sort((a, b) => b[1] - a[1]).filter(([k]) => !/^\((idle)\)/.test(k)).slice(0, 15).map(([k, v]) => [k, Math.round(v)]);
+    }
+    const gaps =(await page.evaluate(() => window.__gaps.slice())).slice(1, -1).sort((a, b) => a - b);
     const q = (p) => gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * p))];
     res.frames = gaps.length; res.medianMs = +q(0.5).toFixed(2); res.medianFps = +(1000 / q(0.5)).toFixed(1); res.p95Ms = +q(0.95).toFixed(2); res.worstMs = +gaps[gaps.length - 1].toFixed(1);
     const dbg = await page.evaluate(() => window.originsPreview.remote()); res.slots = dbg?.slots ?? null; res.drawn = dbg?.shown?.length ?? 0;
