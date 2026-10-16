@@ -24,6 +24,7 @@ export type Limits = typeof LIMITS;
 // GET /origins/presence/zones: the zone table the v2 client walks by (hello carries its hash). Corners in world metres.
 const ZONE_TABLE = JSON.stringify({ frame: { centreCm: CENTRE_CM, sizeCm: FRAME_CM }, zones: ZONE_ROWS.map(z => ({ id: z.id, corners: z.corners, speed: z.speed, quiet: z.quiet })), portals: PORTALS });
 export const ZONE_TABLE_HASH = createHash('sha1').update(ZONE_TABLE).digest('hex').slice(0, 8);
+const closeGraceMs = presenceRule('closeGraceMs');   // after our close frame, how long a peer that has not finished the TCP close is waited for before the socket is destroyed
 const TICK_RING = presenceRule('tickRing');   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
 
 function frame(opcode: number, payload: Uint8Array): Buffer {
@@ -198,7 +199,14 @@ export function createPresence(opts: PresenceOptions): Presence {
       socket.write(hello(player));
       let warpWindow = 0, warpCount = 0;   // a minute's count of warps on this socket (warpPerMin)
       let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout, zone = zoneAt(player.x, player.z);
-      const close = (code: number, why?: string): void => { if (why) refused(why); if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); } };
+      // Every way this socket is closed (the peer's close frame, our idle/rate/teleport/malformed closes) removes the player NOW: `gone` used to run only on the TCP 'close' event, which needs the peer's
+      // FIN too, so a peer that sent a close frame and then dawdled stayed in the world, and in every watcher's packets, until it finished (the HL "Bob left and is still drawn" ghost). The socket is
+      // destroyed after closeGraceMs if the peer still has not finished. `gone` is idempotent (the sockets.get check), so the later 'close' event is a no-op.
+      const close = (code: number, why?: string): void => {
+        if (why) refused(why);
+        if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); setTimeout(() => socket.destroy(), closeGraceMs).unref(); }
+        gone();
+      };
       const touch = (): void => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), limits.idleMs); };
       touch();
       if (!isGuest) rejoiners.set(me, async () => {   // a guest has no active character to switch
