@@ -23,9 +23,9 @@ test('a signed-in character is not ready until BOTH the build and the gear view 
 
 test('the gear view is re-asked every retry window until it answers, and a build_get still in flight holds the fallback', () => {
   const { s, gate, at } = rig();
-  gate(); at(RETRY + 1); gate(); at(RETRY + 1); gate();
+  s.inflight = true;   // the first build_get is on its way the whole time
+  gate(); at(RETRY + 1); gate(); at(RETRY + 1); assert.equal(gate(), false, 'past the wait, but no bare fight while a build_get is on its way');
   assert.equal(s.asks, 3, 'asked again each window');
-  s.inflight = true; at(WAIT * 2); assert.equal(gate(), false, 'no bare fight while a build_get is on its way');
   s.inflight = false; at(1); assert.equal(gate(), true, 'then the writer is judged unanswered');
 });
 
