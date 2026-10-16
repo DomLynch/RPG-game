@@ -7,7 +7,9 @@ REF="${REF:-char/goblin-fort-kit}"
 apt-get update -qq >/dev/null && apt-get install -y -qq curl xz-utils libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libsm6 libxkbcommon0 >/dev/null
 mkdir -p /work && cd /work
 curl -fSL --retry 3 -o blender.tar.xz https://mirrors.ocf.berkeley.edu/blender/release/Blender5.2/blender-5.2.2-linux-x64.tar.xz
-ls -l blender.tar.xz; file blender.tar.xz 2>/dev/null || head -c 200 blender.tar.xz
+ls -l blender.tar.xz
+# the sha256 download.blender.org publishes for this archive (blender-5.2.2.sha256): the mirror is not trusted, the hash is
+echo "84098912789dc450e95697c4184fb8a90acbe5111c2ba4aede3fecb57806a168  blender.tar.xz" | sha256sum -c -
 tar xf blender.tar.xz
 curl -sSL -o kit.py "https://raw.githubusercontent.com/DomLynch/RPG-game/${REF}/scripts/character/goblin_fort_kit.py"
 ./blender-5.2.2-linux-x64/blender --background --factory-startup --python-exit-code 1 --python kit.py -- /work/goblin-fort-kit.glb /work/goblin-fort-kit-atlas.png 2>&1 | grep -E "FORT|Error|Traceback|rror:" || true
