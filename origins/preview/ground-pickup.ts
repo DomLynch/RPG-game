@@ -61,7 +61,7 @@ type Placed = GroundRow & { at: { x: number; z: number } };
 
 export function createGroundPickup(deps: GroundDeps) {
   const rules = deps.rules ?? PICKUP;
-  let rows: Placed[] = [], busy = false, lastRead = -Infinity;
+  let rows: Placed[] = [], busy = false, reading = false, lastRead = -Infinity;
   const placed = (list: GroundRow[]): Placed[] => list.flatMap((r) => { const at = groundPointOf(r); return at ? [{ ...r, at }] : []; });   // a row this build cannot place is not drawn
   const apply = (list: GroundRow[]): void => {
     const next = placed(list), keep = new Set(next.filter((r) => r.visible).map((r) => r.instance));
@@ -92,7 +92,8 @@ export function createGroundPickup(deps: GroundDeps) {
       if (hidden) return;
       if (!rows.length) { if (nowMs - lastRead < rules.emptyPollSec * 1000) return; }
       else if (!rows.some((r) => Math.hypot(x - r.at.x, z - r.at.z) <= rules.pollRangeM)) return;
-      await refresh(nowMs);
+      if (reading) return;   // a slow read (the writer call is bounded at 4 s) still in flight at the next 3 s tick: its answer must not be overtaken by an older one
+      reading = true; try { await refresh(nowMs); } finally { reading = false; }
     },
     /** The row to prompt for at this point, within its radius: the nearest one that is visible and available. */
     nearest,
