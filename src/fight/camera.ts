@@ -10,7 +10,7 @@ import { finisherRow, type FinisherId } from './finishers.ts';
 const LOOK_FOE = /[?&]look=foe(?:&|$)/.test(typeof location === 'undefined' ? '' : location.search);
 
 const LOCK_BACK_FLOOR = cameraRule('lockBackFloor'), LOCK_LIFT_FLOOR = cameraRule('lockLiftFloor'), LOCK_GAP_FLOOR = cameraRule('lockGapFloor');   // the lock camera never backs closer than 4.2 m, never sits lower than 3.2 m, and treats a foe nearer than 0.8 m as 0.8 m away
-let FIGHT_BACK = 1;   // how much further back and up the lock camera stands (a zone's `camera.fightBack`, set once by the page; 1 = the duel as it always was)
+let FIGHT_BACK = cameraRule('fightBackDefault');   // how much further back and up the lock camera stands (a zone's `camera.fightBack`, set once by the page; the row's 1 = the duel as it always was)
 export const setFightBack = (scale: number): void => { FIGHT_BACK = scale; };
 const AIM_PER_SHRINK =cameraRule('aimPerShrink');   // metres of look-point shift toward the camera per unit the play circle shrinks (0.9 m at 0.36)
 // How tall each foe LOOKS against a man's, for the camera only. The sim's `scale` (moves.ts OPPONENTS[id].scale) is a hitbox/rate number and stays put (it is in the record's
