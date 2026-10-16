@@ -8,13 +8,13 @@ git show "$HEAD:scripts/remote-programs-check.mjs" > /tmp/check.mjs || exit 12
 for pair in "base:$BASE" "head:$HEAD"; do
   label=${pair%%:*}; sha=${pair#*:}
   git checkout -q "$sha" || exit 12
-  rm -rf "artifacts/dist-$label"; npx vite build --config origins/preview/vite.config.mjs --outDir "artifacts/dist-$label" > "/tmp/build-$label.log" 2>&1; echo "BUILD-$label=$? $(git rev-parse --short HEAD)"
+  rm -rf "$PWD/artifacts/dist-$label"; npx vite build --config origins/preview/vite.config.mjs --outDir "$PWD/artifacts/dist-$label"   # absolute: vite resolves a relative --outDir against the config's root, not the cwd > "/tmp/build-$label.log" 2>&1; echo "BUILD-$label=$? $(git rev-parse --short HEAD)"
 done
 git checkout -q "$HEAD"; cp /tmp/check.mjs scripts/remote-programs-check.mjs
 for i in $(seq 1 "${RUNS:-3}"); do
   if (( i % 2 )); then order="base head"; else order="head base"; fi
   for label in $order; do
-    out=$(KITS=none GATE= timeout 300 node scripts/remote-programs-check.mjs "artifacts/dist-$label" "artifacts/out-$label-$i" 2>&1); code=$?
+    out=$(KITS=none GATE= timeout 300 node scripts/remote-programs-check.mjs "$PWD/artifacts/dist-$label" "$PWD/artifacts/out-$label-$i" 2>&1); code=$?
     line=$(printf '%s\n' "$out" | grep -E "^zoneReady:" | head -1)
     if [ -n "$line" ]; then echo "$label#$i $line" | cut -c1-300; else echo "$label#$i NO zoneReady (exit $code); tail:"; printf '%s\n' "$out" | tail -6 | cut -c1-240; fi
   done
