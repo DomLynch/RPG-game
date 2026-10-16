@@ -25,15 +25,17 @@ const programsZone1 = renderer.info.programs.length; scene.remove(z1probe);
 const fort = await load('/public/world/kit/goblin-fort-kit.glb');
 const nodes = []; fort.scene.traverse((o) => { if (o.isMesh) nodes.push(o); });
 const info = nodes.map((m) => { const b = new THREE.Box3().setFromObject(m), s = b.getSize(new THREE.Vector3()); const g = m.geometry; return { name: m.name, size: [s.x, s.y, s.z].map((v) => +v.toFixed(2)), tris: (g.index ? g.index.count : g.attributes.position.count) / 3, centre: b.getCenter(new THREE.Vector3()) }; });
-const rows = [info.filter((i) => /palisade|gate|spikes/.test(i.name)), info.filter((i) => !/palisade|gate|spikes/.test(i.name))];
-const group = new THREE.Group(); scene.add(group);
-for (const [r, list] of rows.entries()) { let x = 0; for (const it of list) { const m = nodes.find((n) => n.name === it.name).clone(); const w = Math.max(it.size[0], it.size[2], 0.6) + 0.5; m.position.set(x + w / 2 - it.centre.x, -(it.centre.y - it.size[1] / 2) + 0, -r * 7 - it.centre.z); group.add(m); x += w; } }
-const bb = new THREE.Box3().setFromObject(group), c = bb.getCenter(new THREE.Vector3()), s = bb.getSize(new THREE.Vector3());
-group.position.x = -c.x;
+// A grid, three pieces to a row, each cell as wide as its widest piece (portrait 375 wide: a wide single row would be cropped by the narrow horizontal field of view).
+const COLS = 3, group = new THREE.Group(); scene.add(group);
+const cell = Math.max(...info.map((i) => Math.max(i.size[0], i.size[2]))) + 1.5;
+for (const [k, it] of info.entries()) { const m = nodes.find((n) => n.name === it.name).clone(); const col = k % COLS, row = Math.floor(k / COLS); m.position.set(col * cell - it.centre.x, -(it.centre.y - it.size[1] / 2), -row * cell - it.centre.z); group.add(m); }
+const bb = new THREE.Box3().setFromObject(group), c = bb.getCenter(new THREE.Vector3()), radius = bb.getSize(new THREE.Vector3()).length() / 2;
 const result = { programsZone1, programsAfterFort: 0, info: info.map(({ centre, ...i }) => i) };
-// two views: all pieces, front-on; then a three-quarter view of the back row
-camera.position.set(0, s.y * 1.4 + 2, Math.max(s.x * 1.6, 18)); camera.lookAt(0, s.y * 0.35, -3.5); await frame(); result.programsAfterFort = renderer.info.programs.length;
+// fit the whole grid in the narrower of the two fields of view; 'front' looks down 30 degrees, 'quarter' is the same from the left corner
+const fit = radius / Math.sin(Math.min(THREE.MathUtils.degToRad(camera.fov / 2), Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect)));
+const look = (yaw) => { camera.position.set(c.x + Math.sin(yaw) * Math.cos(0.5) * fit, c.y + Math.sin(0.5) * fit, c.z + Math.cos(yaw) * Math.cos(0.5) * fit); camera.lookAt(c); };
+look(0); await frame(); result.programsAfterFort = renderer.info.programs.length;
 window.result = result;
-window.view = async (name) => { if (name === 'quarter') { camera.position.set(-s.x * 0.15, 5, -3); camera.lookAt(0, 1.5, -7); } await frame(); };
+window.view = async (name) => { if (name === 'quarter') look(-0.7); await frame(); };
 window.ready = true;
 </script>
