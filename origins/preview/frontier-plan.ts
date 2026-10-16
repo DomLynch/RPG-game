@@ -137,6 +137,10 @@ export const inZone = (z: ZonePlan, x: number, wz: number, margin = 0) => {
   const p = toZone(z, x, wz);
   return Math.abs(p.x) <= z.width / 2 - margin && p.d >= margin && p.d <= z.depth - margin;
 };
+/** Metres from a world point to the nearest edge of the zone (negative = outside it). */
+export const edgeDistance = (z: ZonePlan, x: number, wz: number): number => { const p = toZone(z, x, wz); return Math.min(z.width / 2 - Math.abs(p.x), p.d, z.depth - p.d); };
+/** The speed scale of the soft rim: 1 beyond `margin` m of the edge, easing linearly down to `slow` at the edge itself. */
+export const rimScale = (distance: number, margin: number, slow: number): number => (margin > 0 && distance < margin ? slow + (1 - slow) * Math.max(0, distance) / margin : 1);
 // The Frontier zone you stand in (the Exchange's own two are the greybox's, so they are not looked up here).
 export const frontierZoneAt = (f: Frontier, x: number, z: number) => f.zones.find((q) => q.region === FRONTIER && inZone(q, x, z)) ?? null;
 // A point in the west road's frame: `along` the road from its start (metres, + = on out the way it faces) and `across` its centreline (absolute).

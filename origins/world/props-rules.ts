@@ -10,13 +10,13 @@ export type PartShape = 'box' | 'cylinder' | 'cone' | 'sphere';
 export type Part = { readonly shape: PartShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'coal' | 'plain'; readonly ring?: { readonly n: number; readonly radius: number } };
 export type Prop = { readonly id: string; readonly kit: string; readonly r: number; readonly scaleMin: number; readonly scaleMax: number; readonly emits?: 'fire'; readonly glb?: string; readonly parts: readonly Part[] };   // glb: the node name a Characters & Art model of this prop will carry (names only today: nothing draws it; `parts` is what is drawn, and stays the fallback when the model is absent)
 export type Kit = { readonly id: string; readonly centreDepth: number; readonly radius: number; readonly tries: number; readonly clearRoad: number; readonly clearLandmark: number; readonly clearProp: number; readonly edge: number };
-export type RecipeKind = 'scatter' | 'ring' | 'cluster';
-export type Recipe = { readonly id: string; readonly kit: string; readonly kind: RecipeKind; readonly props: readonly { readonly prop: string; readonly weight: number }[]; readonly count: number; readonly near?: number; readonly first?: 'centre'; readonly ringRadius?: number; readonly per?: number; readonly spread?: number; readonly chance?: number };
+export type RecipeKind = 'scatter' | 'ring' | 'cluster' | 'rim';
+export type Recipe = { readonly id: string; readonly kit: string; readonly kind: RecipeKind; readonly props: readonly { readonly prop: string; readonly weight: number }[]; readonly count: number; readonly near?: number; readonly first?: 'centre'; readonly ringRadius?: number; readonly per?: number; readonly spread?: number; readonly chance?: number; readonly every?: number; readonly inset?: number; readonly gap?: number };   // rim: a piece every `every` m along the zone's edge, `inset` m inside it, a share `gap` of the spots left empty
 export type Dress = { readonly id: string; readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number; readonly walls: number };
 export type Ambience = { readonly id: string; readonly windGain: number; readonly windFreq: number; readonly windQ: number; readonly windSweepHz: number; readonly windSweepDepth: number; readonly crackleGain: number; readonly crackleRate: number; readonly crackleFreq: number; readonly fireRange: number; readonly crackleMs: number };
 type Raw = { tints?: readonly unknown[]; props?: readonly unknown[]; kits?: readonly unknown[]; recipes?: readonly unknown[]; dress?: readonly unknown[]; ambience?: readonly unknown[] };
 const SHAPE_ARGS: Record<PartShape, number> = { box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
-const KINDS = ['scatter', 'ring', 'cluster'];
+const KINDS = ['scatter', 'ring', 'cluster', 'rim'];
 
 /** The one loader: the shared registry checks ids, required fields and refs; this adds what a type cannot say (part shapes, tints named, weights, kinds, a kit's recipes name its own props). */
 export function loadProps(raw: Raw) {
@@ -40,7 +40,8 @@ export function loadProps(raw: Raw) {
   const glbs = props.flatMap((p) => (p.glb ? [p.glb] : [])); if (new Set(glbs).size !== glbs.length) throw Error('props: two props name the same glb node');
   for (const r of recipes) {
     if (!KINDS.includes(r.kind)) throw Error(`props recipe "${r.id}": kind is ${KINDS.join(', ')}`);
-    if (!(Number.isInteger(r.count) && r.count >= 1) || !r.props.length) throw Error(`props recipe "${r.id}": count is a whole number >= 1 and it lists props`);
+    if (r.kind === 'rim' && !(r.every! > 0 && r.inset! >= 0 && r.gap! >= 0 && r.gap! < 1)) throw Error(`props recipe "${r.id}": a rim needs every > 0, inset >= 0 and gap in [0, 1)`);
+    if (!(r.kind === 'rim' || (Number.isInteger(r.count) && r.count >= 1)) || !r.props.length) throw Error(`props recipe "${r.id}": count is a whole number >= 1 and it lists props`);
     for (const w of r.props) { const p = props.find((x) => x.id === w.prop); if (!p || p.kit !== r.kit) throw Error(`props recipe "${r.id}": prop "${w.prop}" is not in kit ${r.kit}`); if (!(w.weight > 0)) throw Error(`props recipe "${r.id}": weights are > 0`); }
     if (r.kind === 'ring' && !(r.ringRadius! > 0)) throw Error(`props recipe "${r.id}": a ring needs ringRadius > 0`);
     if (r.kind === 'cluster' && !(r.per! >= 1 && r.spread! > 0)) throw Error(`props recipe "${r.id}": a cluster needs per >= 1 and spread > 0`);

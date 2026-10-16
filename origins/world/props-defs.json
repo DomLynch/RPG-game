@@ -30,6 +30,7 @@
     {"id": "goblin-camp", "centreDepth": 0.35, "radius": 16, "tries": 30, "clearRoad": 3, "clearLandmark": 8, "clearProp": 1, "edge": 2}
   ],
   "recipes": [
+    {"id": "rim", "kit": "goblin-camp", "kind": "rim", "props": [{"prop": "palisade-a", "weight": 2}, {"prop": "palisade-b", "weight": 2}, {"prop": "palisade-c", "weight": 2}, {"prop": "totem", "weight": 1}], "count": 1, "every": 6, "inset": 3, "gap": 0.35},
     {"id": "fires", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "fire", "weight": 1}], "count": 2, "near": 0.7, "first": "centre"},
     {"id": "tents", "kit": "goblin-camp", "kind": "ring", "props": [{"prop": "tent", "weight": 1}], "count": 2, "ringRadius": 6},
     {"id": "palisade", "kit": "goblin-camp", "kind": "scatter", "props": [{"prop": "palisade-a", "weight": 1}, {"prop": "palisade-b", "weight": 1}, {"prop": "palisade-c", "weight": 1}], "count": 3, "near": 1},

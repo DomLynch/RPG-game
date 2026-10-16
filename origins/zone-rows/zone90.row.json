@@ -32,7 +32,7 @@
           "burnt": 0
         }
       },
-      "character:ash-wolf": { "opponent": "wolf", "tint": 9077624, "dressing": { "soot": 0.4, "burnt": 0 } },
+      "character:ash-wolf": { "opponent": "wolf", "tint": 9077624, "scale": 2, "dressing": { "soot": 0.4, "burnt": 0 } },
       "character:ash-boar": { "opponent": "boar", "tint": 8021330, "dressing": { "soot": 0.35, "burnt": 0 } },
       "character:pit-goblin": {
         "opponent": "goblin",
@@ -362,7 +362,7 @@
         },
         "layout": {
           "test-gate": {
-            "u": 0,
+            "u": 0.08,
             "v": 0.5,
             "facing": 90
           },

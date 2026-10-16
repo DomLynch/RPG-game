@@ -5,8 +5,9 @@ import test from 'node:test';
 import { FIELDS } from '../origins/zones/schema.ts';
 import { zoneFromRow } from '../origins/zones/from-row.ts';
 import { cameraPose, setFightBack } from '../src/fight/camera.ts';
-import { listedIds, loadZone } from '../origins/zones/loader.ts';
-import { goblinPalette, zoneAmbience, zoneDress, zoneFightBack, zoneGround, zoneLandscapeZoom, zoneMarkers, zonePropKit, zoneSky } from '../origins/world/goblin-field-rules.ts';
+import { listedIds, loadZone, zoneAsBiome } from '../origins/zones/loader.ts';
+import { rimScale } from '../origins/preview/frontier-plan.ts';
+import { goblinPalette, zoneAmbience, zoneDress, zoneFightBack, zoneGround, zoneLandscapeZoom, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../origins/world/goblin-field-rules.ts';
 
 const field = (path: string) => FIELDS.find((f) => f.path === path);
 const zf = (fields: Record<string, unknown>, world = ['a', 'b']) => ({ fields, set: Object.keys(fields), world });
@@ -34,8 +35,8 @@ test('look.sky set to a palette id is that dome; unset, "default" or unknown is 
   assert.equal(zoneSky({ fields: { 'look.sky': 'fortress' }, set: [], world: [] }), null, 'a value nobody SET (a default) does nothing');
 });
 test('look.props.kit = a kit id puts the kit in look.props.camp, else the first world zone; an unknown kit or none is no kit', () => {
-  assert.deepEqual(zonePropKit(zf({ 'look.props.kit': 'goblin-camp' })), { kit: 'goblin-camp', at: 'a' });
-  assert.deepEqual(zonePropKit(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'b' })), { kit: 'goblin-camp', at: 'b' });
+  assert.deepEqual(zonePropKit(zf({ 'look.props.kit': 'goblin-camp' })), { kit: 'goblin-camp', at: 'a', rim: false });
+  assert.deepEqual(zonePropKit(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'b' })), { kit: 'goblin-camp', at: 'b', rim: false });
   assert.equal(zonePropKit(zf({ 'look.props.kit': 'goblin-camp', 'look.props.camp': 'elsewhere' }))?.at, 'a', 'a camp outside the zone falls back to its first world zone');
   assert.equal(zonePropKit(zf({ 'look.props.kit': 'other' })), null); assert.equal(zonePropKit(zf({})), null);
 });
@@ -50,9 +51,16 @@ test('the markers, dress, ground and ambience a zone sets are read; set off, the
 test('?look=goblin is Zone 1 seen as the goblin-fortress biome: it gets the whole mood (sky, kit at its goblin zone, thinned clutter, mud, ambience, no creature markers); Zone 1 itself is untouched', async () => {
   const { zoneAsBiome } = await import('../origins/zones/loader.ts'), { goblinBiome, goblinZone } = await import('../origins/world/goblin-field-rules.ts');
   const z = zoneAsBiome('1', goblinBiome(), { 'look.props.camp': goblinZone() }), base = loadZone('1');
-  assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: goblinZone() }, 'the camp stands in the goblin zone only if that is a world zone of Zone 1');
+  assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: goblinZone(), rim: true }, 'the camp stands in the goblin zone only if that is a world zone of Zone 1');
   assert.ok(zoneDress(z).trees < 1); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind'); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'soft' });
   assert.equal(zoneSky(base), null); assert.deepEqual(zoneMarkers(base), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, 'the zone row itself did not change');
+});
+test('the soft rim: boundary.* rows say margin, slowest speed and the line; the speed eases from 1 at the margin to `slow` at the edge; Zones 1-4 have none', () => {
+  assert.deepEqual(zoneRim(zf({ 'boundary.margin': 8, 'boundary.slow': 0.3, 'boundary.line': 'x' })), { margin: 8, slow: 0.3, line: 'x' }); assert.deepEqual(zoneRim(zf({})), { margin: 0, slow: 1, line: '' });
+  assert.equal(rimScale(20, 8, 0.3), 1); assert.equal(rimScale(8, 8, 0.3), 1); assert.ok(Math.abs(rimScale(4, 8, 0.3) - 0.65) < 1e-9); assert.equal(rimScale(0, 8, 0.3), 0.3); assert.equal(rimScale(-2, 8, 0.3), 0.3); assert.equal(rimScale(0, 0, 0.3), 1, 'margin 0 = no rim');
+  for (const id of ['1', '2', '3', '4']) assert.equal(zoneRim(loadZone(id)).margin, 0, `${id}: the real zones have no rim`);
+  assert.deepEqual(zoneRim(zoneAsBiome('1', 'goblin-fortress')).margin, 8, 'the fortress biome asks for an 8 m rim');
+  assert.equal(field('boundary.margin')?.default, 0); assert.equal(field('look.props.rim')?.default, false);
 });
 test('setFightBack scales the LOCKED camera back and up (same angle); 1 and the free orbit are untouched', () => {
   const s = { x: 0, z: 0, heading: 0, distance: 0 }, foe = { x: 0, z: -3 };

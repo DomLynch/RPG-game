@@ -22,21 +22,22 @@ export function propPieces(p: Prop, x: number, z: number, yaw: number, s: number
   return out;
 }
 
-export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, kitId: string, recipes: readonly Recipe[] = recipesOf(kitId)): KitResult {   // recipes: the kit's own list unless a test passes a subset
+export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, kitId: string, recipes: readonly Recipe[] = recipesOf(kitId), rim = false): KitResult {   // recipes: the kit's own list unless a test passes a subset
   const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [], fires: { x: number; z: number }[] = [], none = { dress: { ground, pieces, solids }, fires, centre: null };
   const kit = propKitRow(kitId), z0 = f.zones.find((q) => q.zone === zoneName);
   if (!kit || !z0) return none;
   const z = z0, world = (x: number, d: number) => toWorld({ x, d }, z.mount), centre = world(0, z.depth * kit.centreDepth);
   const placed: Solid[] = [], baseFoot = base.pieces.map(footprintOf), marks = [...Object.values(z.landmarks), f.giver.at], strips = base.strips ?? [];
-  const free = (x: number, zz: number, r: number) => inZone(z, x, zz, r + kit.edge) && !onRoad(f, x, zz) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + kit.clearRoad)
+  const free = (x: number, zz: number, r: number, edge = kit.edge) => inZone(z, x, zz, r + edge) && !onRoad(f, x, zz) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + kit.clearRoad)
     && !marks.some((k) => Math.hypot(k.x - x, k.z - zz) < r + kit.clearLandmark) && ![...b.solids, ...base.solids, ...placed, ...baseFoot].some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + kit.clearProp);
 
   for (const rc of recipes) {
+    if (rc.kind === 'rim' && !rim) continue;   // the stake ring is only for a zone that asks for it (look.props.rim)
     const R = rng(`kit:${kitId}:${z.zone}:${rc.id}`), between = (lo: number, hi: number) => lo + (hi - lo) * R();   // this recipe's own stream
     if (rc.chance !== undefined && R() >= rc.chance) continue;   // a rare place: some zones have it, most do not (seeded by the zone)
     const total = rc.props.reduce((n, w) => n + w.weight, 0), pick = (): Prop => { let t = R() * total; for (const w of rc.props) { t -= w.weight; if (t <= 0) return propRow(w.prop); } return propRow(rc.props[rc.props.length - 1]!.prop); };
-    const put = (p: Prop, x: number, zz: number) => {
-      const s = between(p.scaleMin, p.scaleMax), yaw = between(0, 6.28);
+    const put = (p: Prop, x: number, zz: number, along?: number) => {
+      const s = between(p.scaleMin, p.scaleMax), yaw = along ?? between(0, 6.28);
       pieces.push(...propPieces(p, x, zz, yaw, s)); placed.push({ x, z: zz, r: p.r * s });
       if (p.emits === 'fire') fires.push({ x, z: zz });
     };
@@ -45,6 +46,12 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
       for (let k = 0; k < rc.count; k++) {
         const p = pick(), o = k === 0 && rc.first === 'centre' && free(centre.x, centre.z, p.r) ? centre : spot(p.r, rc.near ?? 1); if (o) put(p, o.x, o.z);
       }
+    } else if (rc.kind === 'rim') {   // a thin, see-through line just inside the zone's edge: a piece every `every` m, lying along the edge, a share `gap` of the spots empty (and none on a road or by a landmark: the gate stays open)
+      const hw = z.width / 2 - rc.inset!, d0 = rc.inset!, d1 = z.depth - rc.inset!, side = (ax: number, ad: number, bx: number, bd: number) => {
+        const n = Math.max(1, Math.round(Math.hypot(bx - ax, bd - ad) / rc.every!)), a = world(ax, ad), c = world(bx, bd), yaw = Math.atan2(-(c.z - a.z), c.x - a.x);   // the piece's own x axis along this edge
+        for (let k = 0; k < n; k++) { const t = (k + 0.5) / n, o = world(ax + (bx - ax) * t, ad + (bd - ad) * t), skip = R() < rc.gap!, p = pick(); if (!skip && free(o.x, o.z, p.r, -p.r)) put(p, o.x, o.z, yaw); }
+      };
+      side(-hw, d0, hw, d0); side(hw, d0, hw, d1); side(hw, d1, -hw, d1); side(-hw, d1, -hw, d0);
     } else if (rc.kind === 'ring') {
       const a0 = between(0, Math.PI * 2);
       for (let k = 0; k < rc.count; k++) { const p = pick(), a = a0 + (k / rc.count) * Math.PI * 2, x = centre.x + Math.sin(a) * rc.ringRadius!, zz = centre.z + Math.cos(a) * rc.ringRadius!; if (free(x, zz, p.r)) put(p, x, zz); }

@@ -10,7 +10,7 @@ import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Fin
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
 import { exchangeAnchors, exchangePlan, openWest } from './exchange-plan.ts';
-import { frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, type Frontier } from './frontier-plan.ts';
+import { edgeDistance, frontierBuild, frontierPlan, frontierWalkable, frontierZoneAt, onRoad, rimScale, type Frontier } from './frontier-plan.ts';
 import { buildFrontier } from './frontier.ts';
 import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
@@ -66,7 +66,7 @@ import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack } from '../world/goblin-field-rules.ts';
+import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneRim } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
@@ -122,7 +122,7 @@ const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel
 const zoneRow = frontier ? (GOBLIN ? zoneAsBiome(pageZoneId(), goblinBiome(), { 'look.props.camp': goblinZone(), ...(new URLSearchParams(location.search).get('goblin') ? { 'look.sky': new URLSearchParams(location.search).get('goblin') } : {}) }) : loadZone()) : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields. A biome row can set them all (goblin-fortress); ?look=goblin is Zone 1 seen as that biome. Zones 1-4 set none of them, so they are unchanged
 const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
 const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;
-const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
+const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
 const KIT = !/[?&]kit=(?:0|off)\b/.test(location.search);   // the Characters kit (zone1-kit.glb) drawn where frontier-kit.ts places it; ON, ?kit=0|off is the kill switch
 const zoneKit = frontier && frontierParts && KIT ? frontierKit(frontier, frontierParts, dress!, zoneRow?.set?.includes('look.props.density') ? Number(zoneRow.fields?.['look.props.density']) : undefined) : null;
@@ -326,7 +326,9 @@ function step(dt: number) {
   pitchNow = THREE.MathUtils.damp(pitchNow, pitch, 8, dt);   // the right stick's up/down tilts the camera and eases back when released
   // Forward is (sin h, cos h); right is (-cos h, sin h): heading grows to the LEFT, as in the keys' A.
   // A push up to a full walk is 2.3 m/s at the rim; a run (the move stick pushed past SPRINT_PUSH, or Shift) is the gait table's Run knot, 5.2 m/s.
-  const px = state.x, pz = state.z, ground = running ? RUN / 2 : WALK;   // Intent.running, not a guess from the stick size
+  const rimZone = RIM.margin && frontier ? frontierZoneAt(frontier, state.x, state.z) : null, rim = rimZone ? rimScale(edgeDistance(rimZone, state.x, state.z), RIM.margin, RIM.slow) : 1;   // the soft rim (boundary.* on the zone): slower near the edge, with one line
+  if (rim < 1 && forward) { rimUntil = performance.now() + 3000; hint.textContent = RIM.line; hint.hidden = !RIM.line; } else if (rimUntil && performance.now() > rimUntil) { rimUntil = 0; hint.hidden = true; }
+  const px = state.x, pz = state.z, ground = (running ? RUN / 2 : WALK) * rim;   // Intent.running, not a guess from the stick size
   const nx = state.x + (Math.sin(heading) * forward - Math.cos(heading) * strafe) * ground * dt, nz = state.z + (Math.cos(heading) * forward + Math.sin(heading) * strafe) * ground * dt;
   if (canStand(nx, nz)) { state.x = nx; state.z = nz; } else if (canStand(nx, state.z)) state.x = nx; else if (canStand(state.x, nz)) state.z = nz;
   if (state.z < -5) arena.raiseGate(true);
@@ -384,6 +386,7 @@ function showZone(id: string | null) {
   document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
+const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none
 setFightBack(zoneFightBack(zoneRow ?? loadZone()));   // the combat camera stands this much further back (camera.fightBack; 1 = the duel as it was)
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.zoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
