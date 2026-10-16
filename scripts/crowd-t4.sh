@@ -13,7 +13,7 @@ git fetch -q origin
 if [[ "$REF" =~ ^[0-9]+$ ]]; then SHA=$(gh pr view "$REF" --json headRefOid --jq .headRefOid); else SHA=$(git rev-parse --verify -q "origin/$REF" || git rev-parse --verify "$REF"); fi
 SHORT=${SHA:0:9}; BR="world/crowd-fps-on-$SHORT"; OUT="${OUT:-/tmp/crowd-t4-$SHORT.md}"
 HARNESS=(scripts/origins-crowd-fps.mjs scripts/gpu-run/crowd-fps.sh)
-HREF="${HARNESS_REF:-origin/world/crowd-t4}"   # where the harness files come from (the branch with the dressed guard; origin/world/crowd-fps is #2931 without it)
+HREF="${HARNESS_REF:-origin/world/crowd-fps}"   # where the harness files come from (#2931's branch; after it merges, set HARNESS_REF=origin/codex/01a09a76/task-1)
 echo "ref $REF -> $SHA; test branch $BR; harness from $HREF; mode ${DRESSED:-undressed}"
 WT=$(mktemp -d); trap 'git worktree remove --force "$WT" >/dev/null 2>&1 || true' EXIT
 git worktree add -q --detach "$WT" "$SHA"
