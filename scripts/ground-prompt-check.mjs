@@ -81,10 +81,12 @@ async function runPrompts() {
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
   const spots = await page.evaluate(() => window.originsPreview.promptSpots());
+  let prev = '';
   for (const [kind, [x, z]] of Object.entries(spots)) {
     await page.evaluate(([px, pz]) => window.originsPreview.place(px, pz, 0), [x, z]);
-    await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 }).catch(() => failures.push(`${kind}: no prompt shown at its spot ${x},${z}`));
+    await page.waitForFunction((was) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent !== was; }, prev, { timeout: 30000 }).catch(() => failures.push(`${kind}: no prompt shown at its spot ${x},${z}`));
     const label = await page.evaluate(() => document.getElementById('prompt').textContent);
+    prev = label;
     await expectClear(page, `prompt-${kind}`, label, true);
   }
   if (errors.length) failures.push(...errors);
