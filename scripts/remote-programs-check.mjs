@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 
 const [dist, out] = process.argv.slice(2), root = process.cwd();
 fs.mkdirSync(out, { recursive: true });
-const KITS = (process.env.KITS ?? 'goblin,shieldmaiden,pitborn,nightborn,dwarf,executioner,knight,veteran,witch,plaguedoctor,~kit').split(',');
+const KITS = (process.env.KITS ?? 'none,goblin,shieldmaiden,pitborn,nightborn,dwarf,executioner,knight,veteran,witch,plaguedoctor,~kit').split(',');
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${path.resolve(dist)}/` };
 for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
