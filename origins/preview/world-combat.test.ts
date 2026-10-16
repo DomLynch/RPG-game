@@ -190,6 +190,20 @@ test('sheet-in-world gate: while the loadout is not ready no creature joins (no 
   assert.equal(t.ready, true); assert.ok(t.maxHealth > bareMax, 'and the hero it fights has the sheet\'s health, not the bare 150'); assert.equal(t.sheet?.armour, sheet.armour, 'the armour dial is in the trace');
 });
 
+test('idle hero sheet: with no creature near, the bar is the sheet\'s the moment the loadout gate opens (159-style max at ready idle), and stays the bare body while the gate is closed', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10, armour: 10 } })!;
+  const state: { ready: boolean; sheet?: Sheet } = { ready: false };
+  const f = fakeMobs([]);   // nobody to fight: the hero only stands there
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => ({ gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  const bare = wc.hero().max;
+  state.sheet = sheet; run(wc, hero, 1);
+  assert.equal(wc.hero().max, bare, 'the sheet has arrived but the gate is closed: he stays the bare body (no half-built hero)');
+  state.ready = true; run(wc, hero, 1);
+  assert.ok(wc.hero().max > bare, 'gate open, idle: the bar is the sheet\'s before any fight'); assert.equal(wc.hero().health, wc.hero().max, 'and full');
+  assert.equal(wc.trace().maxHealth, wc.hero().max); assert.equal(wc.trace().sheet?.armour, sheet.armour);
+});
+
 // Backend's disposable-Postgres repro (real writer handlers on trunk 2941e7a88, no prod write): build_get {"level":12,"placed":{"armour":4,"attack":4,"health":4},"version":2} and the worn set head Helmet, chest Body, legs Greaves, main Warhammer,
 // all dwarf pieces at Legionary (tier 2). The page's own derivation (gear-numbers sheetFor, the path main.ts hero() takes) feeds the loop; the trace line is the receipt for the PR body.
 test('sheet-in-world, the real build row: a level-12 build with 4/4/4 placed and a worn dwarf set fights with the sheet\'s hp, armour and attack, not the bare body', () => {
