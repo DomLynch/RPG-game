@@ -411,11 +411,15 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
-  const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
-  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), frame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
-  // The programs another player's gear brings (warm-kits.json, drawn through dressRemote): linked here, so a remote's first sight compiles nothing. A failure here only costs that first-sight compile: it never fails the hero's own warm-up.
-  try { await settleWithin('remote-kits', warmRemoteKits(frame), KINDS_WAIT_MS); } catch (error) { console.warn('remote-kit warm-up failed', error); }
+  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
   warmedHero.done = true;
+}
+const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+// The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked in idle time AFTER [zone ready]: nothing is added to the zone's entry (the hero rig and loot.glb are fetched once at entry already; this is their second parse), and
+// `__remoteKitsWarm` flips when done (failed: true on a miss; that only costs a first-sight compile). The page draws a remote in the base figure until it is set, then dresses it (dressRemote).
+function warmRemoteKitsInIdle() {
+  const run = () => { const t0 = performance.now(); settleWithin('remote-kits', warmRemoteKits(nextFrame), KINDS_WAIT_MS).then(() => ({ failed: false }), (error: unknown) => { console.warn('remote-kit warm-up failed', error); return { failed: true }; }).then((r) => { (window as unknown as { __remoteKitsWarm?: unknown }).__remoteKitsWarm = { ...r, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 }; }); };
+  if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 2000);
 }
 async function warmRemoteKits(frame: () => Promise<void>) {
   const kits = warmKits(); if (!kits.length) return;
@@ -436,6 +440,7 @@ function zoneReadyCheck() {
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
+  warmRemoteKitsInIdle();
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {

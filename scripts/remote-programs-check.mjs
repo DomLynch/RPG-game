@@ -26,6 +26,9 @@ try {
   const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&zone=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 240000 });
+  const atReady = await page.evaluate(() => window.__zoneReady);
+  // The remote kits warm in idle time after [zone ready] (main.ts warmRemoteKitsInIdle). On a head without it the flag never comes: do not wait (the baseline run).
+  const kitsWarm = await page.waitForFunction(() => window.__remoteKitsWarm, null, { timeout: 90000 }).then((h) => h.jsonValue(), () => null);
   await page.waitForTimeout(3000);
   const info = () => page.evaluate(() => window.originsPreview.renderInfo());
   const first = await info(), seen = new Set(first.programNames), receipt = { programsAtReady: first.programs, kits: {}, uniqueNew: {} };
@@ -40,6 +43,7 @@ try {
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 1));
   console.log('receipt:', JSON.stringify({ atReady: receipt.programsAtReady, perKit: Object.fromEntries(Object.entries(receipt.kits).map(([k, v]) => [k, v.added.length])), totalNew: receipt.totalNew, errors: errors.length }));
   console.log('uniqueNew:', JSON.stringify(receipt.uniqueNew).slice(0, 4000));
-  console.log('zoneReady:', JSON.stringify(await page.evaluate(() => window.__zoneReady)));
+  console.log('zoneReady:', JSON.stringify(atReady), 'remoteKitsWarm:', JSON.stringify(kitsWarm));
+  if (process.env.GATE && (!kitsWarm || kitsWarm.failed)) { console.log(`GATE FAIL: the remote kits never finished warming (${JSON.stringify(kitsWarm)})`); process.exitCode = 1; }
   if (process.env.GATE && receipt.totalNew > 0) { console.log(`GATE FAIL: ${receipt.totalNew} programs link at a remote's first sight`); process.exitCode = 1; }
 } finally { await browser.close(); server.close(); }
