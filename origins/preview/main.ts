@@ -745,3 +745,4 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   leave: leaveFight,
   reset: (level: number) => { session = newSession(level); source = { offline: 'reset' }; last = null; play.standAt(careerLine(session.career).level); showCareer(); return careerLine(session.career); },
 };
+if (new URLSearchParams(location.search).has('crowd')) void import('./crowd-demo.ts').then((m) => m.crowdFromUrl((window as unknown as { originsPreview: Parameters<typeof m.crowdFromUrl>[0] }).originsPreview));   // ?crowd=N: fake remote heroes and the fps on screen, for a real phone (dev tooling)
