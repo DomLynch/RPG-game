@@ -24,7 +24,8 @@ const away = (h: Fighter, c: Fighter, turn = 0): Input => { const a = Math.atan2
 const toward = (h: Fighter, c: Fighter): Input => { const d = dist(h, c) || 1; return { x: (c.x - h.x) / d, z: (c.z - h.z) / d, run: true }; };
 // PAUSE: when the evade clock runs. act: only while the creature is free to act (phase ready: not winding up, swinging, recovering or staggered); contact: only while it is outside its prey's engage-out ring (it is chasing, not fighting); both: both at once.
 const inContact = (w: World, c: Fighter) => Math.min(...w.fighters.filter((f) => f.side === 'player').map((f) => dist(f, c))) <= 6;
-const clockRuns = (w: World, c: Fighter) => pause === 'none' || (pause === 'act' && c.phase === 'ready') || (pause === 'contact' && !inContact(w, c)) || (pause === 'both' && c.phase === 'ready' && !inContact(w, c));
+const reachM = +(process.env.REACH_M ?? '2.5');   // reach: the clock runs only while the creature is further than its weapon reach from every player (AzerothCore's cannot-reach-target)
+const clockRuns = (w: World, c: Fighter) => pause === 'none' || (pause === 'reach' && Math.min(...w.fighters.filter((f) => f.side === 'player').map((f) => dist(f, c))) > reachM) || (pause === 'act' && c.phase === 'ready') || (pause === 'contact' && !inContact(w, c)) || (pause === 'both' && c.phase === 'ready' && !inContact(w, c));
 const swing = (c: Fighter) => c.phase === 'windup' || c.phase === 'active';
 type Ctx = { w: World; k: number; h: Fighter; c: Fighter; s: { gone?: boolean } };
 const trade = ({ h, c, k }: Ctx): Input => (swing(c) && dist(h, c) < 5 ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null });
