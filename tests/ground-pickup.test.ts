@@ -27,6 +27,7 @@ function rig(over: Partial<GroundDeps> = {}) {
 
 test('the shipped row loads: a poll period, labels that name the item, and a line for every refusal the writer sends', () => {
   assert.ok(PICKUP.pollSec >= 1 && PICKUP.lineSec > 0);
+  assert.ok(PICKUP.pollSec <= 3, 'the prompt shows within about 3 s of arriving at a drop (Lead 2026-10-16: 20 s left a walker waiting 8-12 s at the cinder-fields camp); the range gate keeps idle reads down');
   for (const l of Object.values(PICKUP.labels)) assert.ok(l.includes('{item}'));
   for (const code of ['taken', 'off', 'have-it', 'full', 'away', 'unchecked', 'stale', 'offline']) assert.ok(PICKUP.outcomes[code]!.line.length > 0, code);
   assert.equal(PICKUP.outcomes.taken!.cue, 'refuse'); assert.equal(PICKUP.outcomes.off!.cue, null);
@@ -56,6 +57,18 @@ test('the poll reads nothing while the page is hidden or the hero is far from ev
   await g.poll(at.x + PICKUP.pollRangeM + 1, at.z, false); assert.equal(log.reads, 1, 'farther than pollRangeM from every item');
   await g.poll(at.x + PICKUP.pollRangeM - 1, at.z, false); assert.equal(log.reads, 2, 'within range');
   assert.throws(() => loadPickupRules(edited((f) => { f.pollRangeM = 0; })), /pollRangeM/);
+});
+test('with no row known the poll retries no faster than emptyPollSec, so the short poll never hammers the writer', async () => {
+  const { g, log, set } = rig(); set([]);
+  const t0 = 1_000_000, step = PICKUP.pollSec * 1000;
+  await g.poll(at.x, at.z, false, t0); assert.equal(log.reads, 1, 'nothing known yet: the first read');
+  for (let t = t0 + step; t < t0 + PICKUP.emptyPollSec * 1000; t += step) await g.poll(at.x, at.z, false, t);
+  assert.equal(log.reads, 1, 'still nothing known: no read before emptyPollSec has passed');
+  await g.poll(at.x, at.z, false, t0 + PICKUP.emptyPollSec * 1000); assert.equal(log.reads, 2, 'then one read');
+  set([row()]); await g.poll(at.x, at.z, false, t0 + 2 * PICKUP.emptyPollSec * 1000); assert.equal(log.reads, 3, 'a row now known: the range gate, not the empty gate');
+  await g.poll(at.x, at.z, false, t0 + 2 * PICKUP.emptyPollSec * 1000 + step); assert.equal(log.reads, 4, 'and it polls at pollSec');
+  assert.ok(PICKUP.emptyPollSec >= PICKUP.pollSec);
+  assert.throws(() => loadPickupRules(edited((f) => { f.emptyPollSec = f.pollSec - 1; })), /emptyPollSec/);
 });
 test('what is drawn follows the state: visible rows shown, a row that goes invisible hidden, a failed read changes nothing', async () => {
   const { g, set, log, deps } = rig(); await g.refresh(); assert.deepEqual(log.shown, [ID]);
