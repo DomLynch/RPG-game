@@ -14,6 +14,12 @@ export type Bot = {
   pose(x: number, z: number, heading?: number): void;
   /** Where the server holds this bot now, in metres, from the newest hello. */
   at(): { x: number; z: number };
+  /** Ask presence to move this bot to a landmark of the warp table (never a coordinate); `raw` sends any text frame, for the refusal tests. */
+  warp(landmark: string): void;
+  raw(text: string): void;
+  /** How many hellos have arrived (the first join plus one per warp), and the close code once the socket is closed (null while open). */
+  hellos(): number;
+  closeCode(): number | null;
   close(): void;
 };
 
@@ -21,13 +27,13 @@ export function joinBot(port: number, token: string, opts: { v1?: boolean } = {}
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence`, opts.v1 ? [PROTOCOL, `token.${token}`] : [PROTOCOL_V2, PROTOCOL, `token.${token}`]);
     ws.binaryType = 'arraybuffer';
-    let latest: Entity[] = [], hello: Hello | null = null, frame: Frame = { centreCm: LEGACY_CENTRE_CM, sizeCm: LEGACY_SPAN_CM };
+    let closed: number | null = null, helloCount = 0, latest: Entity[] = [], hello: Hello | null = null, frame: Frame = { centreCm: LEGACY_CENTRE_CM, sizeCm: LEGACY_SPAN_CM };
     const toM = (cm: number): number => (cm - frame.centreCm) / 100;
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data) as { t?: string };
         if (m.t !== 'hello') return;
-        hello = m as Hello; frame = hello.frame ?? frame;
+        hello = m as Hello; frame = hello.frame ?? frame; helloCount++;
         if (!settled) { settled = true; resolve(bot); }
         return;
       }
@@ -36,12 +42,16 @@ export function joinBot(port: number, token: string, opts: { v1?: boolean } = {}
     };
     let settled = false;
     ws.onerror = () => { if (!settled) { settled = true; reject(new Error('refused')); } };
-    ws.onclose = () => { if (!settled) { settled = true; reject(new Error('closed before hello')); } };
+    ws.onclose = (ev) => { closed = ev.code; if (!settled) { settled = true; reject(new Error('closed before hello')); } };
     const bot: Bot = {
       get hello() { return hello!; }, get frame() { return frame; },
       seen: () => latest.map((e) => ({ id: e.id, x: toM(e.x), z: toM(e.z), heading: e.heading, anim: e.anim, flags: e.flags })),
       pose: (x, z, heading = 0) => ws.send(encodeUp({ x: Math.round(frame.centreCm + x * 100), z: Math.round(frame.centreCm + z * 100), heading, anim: 0, flags: 0 })),
       at: () => ({ x: toM(hello!.x), z: toM(hello!.z) }),
+      warp: (landmark) => ws.send(JSON.stringify({ t: 'warp', to: landmark })),
+      raw: (text) => ws.send(text),
+      hellos: () => helloCount,
+      closeCode: () => closed,
       close: () => ws.close(),
     };
   });

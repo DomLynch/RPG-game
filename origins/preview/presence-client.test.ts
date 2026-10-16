@@ -16,7 +16,7 @@ function rig(over: { token?: string | null } = {}) {
   const p = joinPresence({
     token: over.token === undefined ? 'jwt-abc' : over.token, url: 'wss://example.test/origins/presence',
     open: (url, protocols) => {
-      const s: Fake = { binaryType: '', readyState: 0, sent: [], closed: null, calls: { url, protocols }, send(b) { this.sent.push(b); }, close(c) { this.closed = c ?? 0; }, onopen: null, onmessage: null, onclose: null, onerror: null };
+      const s: Fake = { binaryType: '', readyState: 0, sent: [], closed: null, calls: { url, protocols }, send(b) { this.sent.push(b as Uint8Array); }, close(c) { this.closed = c ?? 0; }, onopen: null, onmessage: null, onclose: null, onerror: null };
       sockets.push(s); return s;
     },
     pose: () => at, onHello: (h) => hello.push(h), onOthers: (o) => others.push(o), rng: () => 0.5,
@@ -69,6 +69,16 @@ test('a v2 hello names the whole-world frame: Zone 1 poses go out, and others co
   s.onmessage?.({ data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) });
   const o = r.others[0]![0] as { x: number; z: number };
   assert.equal(o.x, -280); assert.equal(o.z, -140);
+});
+
+test('warp names a landmark, never a place; it needs a live v2 socket', () => {
+  const r = rig(); const s = r.sockets[0]!; r.open(s);
+  assert.equal(r.p!.warp('town-respawn'), false, 'before the hello: nothing is sent');
+  r.say(s, { t: 'hello', id: 1, layer: 1, x: CENTRE_CM, z: CENTRE_CM });
+  assert.equal(r.p!.warp('town-respawn'), false, 'a v1 hello has no frame to warp in');
+  r.say(s, { t: 'hello', id: 1, layer: 1, x: V2_CENTRE_CM, z: V2_CENTRE_CM, frame: { centreCm: V2_CENTRE_CM, sizeCm: FRAME_CM } });
+  assert.equal(r.p!.warp('zone1-start'), true);
+  assert.deepEqual(s.sent.map((m) => (typeof m === 'string' ? JSON.parse(m) : null)).filter(Boolean), [{ t: 'warp', to: 'zone1-start' }]);
 });
 
 test('other players come down as metres in the same frame', () => {

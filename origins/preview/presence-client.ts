@@ -22,7 +22,7 @@ export const headingByte = (radians: number): number => Math.round((((radians % 
 
 export type Pose = { x: number; z: number; heading: number; anim?: number; flags?: number };   // metres in the Concord frame, heading in radians
 export type Other = { id: number; x: number; z: number; heading: number; anim: number; flags: number };
-export type Socket = { binaryType: string; readyState: number; send(data: Uint8Array): void; close(code?: number): void; onopen: (() => void) | null; onmessage: ((e: { data: unknown }) => void) | null; onclose: (() => void) | null; onerror: (() => void) | null };
+export type Socket = { binaryType: string; readyState: number; send(data: Uint8Array | string): void; close(code?: number): void; onopen: (() => void) | null; onmessage: ((e: { data: unknown }) => void) | null; onclose: (() => void) | null; onerror: (() => void) | null };
 export type Deps = {
   token: string | null; url: string; open: (url: string, protocols: string[]) => Socket;
   pose: () => Pose | null;                              // where the hero stands now; null while the page has no hero to show
@@ -31,7 +31,7 @@ export type Deps = {
   setTimer?: (fn: () => void, ms: number) => unknown; clearTimer?: (id: unknown) => void; every?: (fn: () => void, ms: number) => unknown; clearEvery?: (id: unknown) => void;
   rng?: () => number;
 };
-export type Presence = { stop(): void; flush(): void; state(): 'connecting' | 'live' | 'retrying' | 'off' };   // flush: a pose now (a zone change, so the saved place is fresh)
+export type Presence = { stop(): void; flush(): void; warp(landmark: string): boolean; state(): 'connecting' | 'live' | 'retrying' | 'off' };   // flush: a pose now (a zone change, so the saved place is fresh)
 
 const OPEN = 1;
 export function joinPresence(d: Deps): Presence | null {
@@ -84,6 +84,11 @@ export function joinPresence(d: Deps): Presence | null {
   return {
     stop() { stopped = true; status = 'off'; if (poseTimer !== undefined) clearEvery(poseTimer); if (retryTimer !== undefined) clearTimer(retryTimer); poseTimer = retryTimer = undefined; const s = socket; socket = null; try { s?.close(1000); } catch { /* already closed */ } },
     flush: send,
+    // The page teleports the hero (death respawn, the way back, the Zone 1 start): presence must be told WHICH landmark, never where (origins/presence/warps.ts). Needs a v2 server; false when not live.
+    warp(landmark) {
+      if (!socket || socket.readyState !== OPEN || !welcomed || frame === LEGACY_FRAME) return false;
+      socket.send(JSON.stringify({ t: 'warp', to: landmark })); return true;
+    },
     state: () => status,
   };
 }
