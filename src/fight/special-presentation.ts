@@ -9,9 +9,9 @@ import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from './spell-s
 import { SPECIAL_MODES, type Pose, type SpecialFx, type SpecialMode } from './special-modes.ts';
 import { SPECIALS } from './special-rows.ts';
 import { spellRoot } from './spell-cast.ts';
-import { SPELL_FX } from './sandbox-rules.ts';
+import { SPELL_FX, spellEffectOf } from './sandbox-rules.ts';
 // sandbox spellFx: a catalogue spell's root IS a special template (spell-rows.ts), so a cast plays that special's designed effect (crack = Antaeus' earth, longShadow = Thanatos' fog ...). Off (trunk) = no effect id: a spell cast draws nothing here.
-const spellFxId = (spell: string | undefined): string | null => { if (!SPELL_FX || !spell) return null; const root = spellRoot(spell); return (root && SPECIALS.find((s) => s.template === root)?.id) || null; };
+const spellFxId = (spell: string | undefined): string | null => { if (!SPELL_FX || !spell) return null; const root = spellRoot(spell); return spellEffectOf(spell) || (root && SPECIALS.find((s) => s.template === root)?.id) || null; };   // the spell's own effect row, else its root template's special
 
 type Pair<T> = readonly [T, T];
 type Warriors = Parameters<NonNullable<SpecialMode['extra']>>[0];
