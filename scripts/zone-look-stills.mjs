@@ -45,7 +45,7 @@ try {
         const at = await page.evaluate((want) => (window.originsPreview.mobs()?.mobs ?? []).find((m) => String(m.id).includes(want)) ?? null, process.env.STILLS_MOB);
         r.target = at; if (at) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 5, Math.PI), [at.x, at.z]);   // 5 m: nearer to him than to any wandering goblin, so the lock-on turns the camera to HIM
       }
-      await page.waitForTimeout(4000);
+      await page.waitForTimeout(Number(process.env.STILLS_WAIT ?? 4000));   // STILLS_WAIT=30000: a longer settle before the first picture
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
       if (process.env.STILLS_PROBE) {   // debugging the dome: its own texture (does it hold the picture?) and a frame with it painted flat magenta (where is it on screen?)
         const img = await page.evaluate(async () => { const u = window.originsPreview.goblinDomeImage?.(); if (!u) return null; const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = 1024; c.height = Math.round(1024 * i.height / i.width); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.8); });   // 1024 wide: the runner brings back small files
