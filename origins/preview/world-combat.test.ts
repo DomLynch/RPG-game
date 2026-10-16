@@ -172,3 +172,18 @@ test('the hero is rebuilt from hero() at the next clean window open: a sheet tha
   assert.equal(late.hero().max, born.hero().max, 'the late hero is the one a sheeted-at-load hero is');
   assert.notEqual(late.hero().max, bare.hero().max, 'and not the bare one');
 });
+
+test('sheet-in-world gate: while the loadout is not ready no creature joins (no fight on the bare body), and when it is the fight starts on the sheet with its armour in the trace', () => {
+  const sheet = sheetOf({ level: 10, placed: { health: 10, armour: 10 } })!; assert.ok(sheet.armour, 'armour is on the sheet');
+  const state: { ready: boolean; sheet?: Sheet } = { ready: false };
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 2 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => ({ gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  run(wc, hero, 1);   // the wolf is on top of him but the loadout has not answered
+  assert.equal(wc.debug().length, 1, 'no creature joined while the loadout was late'); assert.equal(wc.trace().ready, false); assert.equal(f.driven.size, 0, 'and none was driven');
+  const bareMax = wc.trace().maxHealth;
+  state.sheet = sheet; state.ready = true;   // the build and the worn-gear view answer
+  run(wc, hero, 1);
+  assert.equal(wc.debug().length, 2, 'now the wolf joins'); const t = wc.trace();
+  assert.equal(t.ready, true); assert.ok(t.maxHealth > bareMax, 'and the hero it fights has the sheet\'s health, not the bare 150'); assert.equal(t.sheet?.armour, sheet.armour, 'the armour dial is in the trace');
+});
