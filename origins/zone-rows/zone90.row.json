@@ -27,6 +27,7 @@
       "character:cave-troll": {
         "opponent": "cave-troll",
         "tint": 16777215,
+        "scale": 0.8,
         "dressing": {
           "soot": 0.15,
           "burnt": 0
