@@ -2289,253 +2289,253 @@
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "eddfbfa337da5a51"
+   "state": "91851962f3e1e5a2"
   },
   "cave-troll:1:731:walkin": {
    "ticks": 600,
    "draws": 476,
    "rng": "98e6db7529ed2287",
-   "state": "afc352a3197efac1"
+   "state": "d3ac471d2ed01443"
   },
   "cave-troll:1:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "eddfbfa337da5a51"
+   "state": "91851962f3e1e5a2"
   },
   "cave-troll:1:20260922:walkin": {
    "ticks": 600,
    "draws": 476,
    "rng": "808701ead6f12288",
-   "state": "f99c1ee272be7060"
+   "state": "40653b50745143ca"
   },
   "cave-troll:1:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "eddfbfa337da5a51"
+   "state": "91851962f3e1e5a2"
   },
   "cave-troll:1:4242424242:walkin": {
    "ticks": 600,
    "draws": 476,
    "rng": "44a14a552ece530a",
-   "state": "afc352a3197efac1"
+   "state": "d3ac471d2ed01443"
   },
   "cave-troll:6:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:6:731:walkin": {
    "ticks": 600,
-   "draws": 483,
-   "rng": "93e2fcb3f21e93e2",
-   "state": "757d01af002bc96b"
+   "draws": 338,
+   "rng": "01f45c70722e606b",
+   "state": "a7f7b133c934db99"
   },
   "cave-troll:6:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:6:20260922:walkin": {
    "ticks": 600,
-   "draws": 407,
-   "rng": "6c7dc79728329039",
-   "state": "3275b1198b778a55"
+   "draws": 386,
+   "rng": "779f7e2fc6f941da",
+   "state": "59b0b8a238e4d3fa"
   },
   "cave-troll:6:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:6:4242424242:walkin": {
    "ticks": 600,
-   "draws": 357,
-   "rng": "fbccf2afdd24af85",
-   "state": "b73efb0b3e3055db"
+   "draws": 322,
+   "rng": "a2abffafd8655e06",
+   "state": "bf2c15aa40bb0fc4"
   },
   "cave-troll:11:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:11:731:walkin": {
    "ticks": 600,
-   "draws": 393,
-   "rng": "2374cf333f03b154",
-   "state": "795db459d68f7c27"
+   "draws": 408,
+   "rng": "759dfbb4412f4e0a",
+   "state": "ad115a58cd832e6e"
   },
   "cave-troll:11:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:11:20260922:walkin": {
    "ticks": 600,
-   "draws": 359,
-   "rng": "e67856945e36ade1",
-   "state": "443ebe820c5a63a8"
+   "draws": 337,
+   "rng": "9222a970790ad8eb",
+   "state": "4dbee684709b8c9c"
   },
   "cave-troll:11:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:11:4242424242:walkin": {
    "ticks": 600,
-   "draws": 355,
-   "rng": "1b2aac9ee4072529",
-   "state": "24a0147f00dc24fb"
+   "draws": 387,
+   "rng": "3914849776aa9bbf",
+   "state": "6c0e2bae56eb3646"
   },
   "cave-troll:12:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:12:731:walkin": {
    "ticks": 600,
-   "draws": 366,
-   "rng": "7efbd18c3fab13a9",
-   "state": "9f11176e4d395560"
+   "draws": 363,
+   "rng": "355edaff988e4c5d",
+   "state": "a3a727a7f4ba5af9"
   },
   "cave-troll:12:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:12:20260922:walkin": {
    "ticks": 600,
-   "draws": 359,
-   "rng": "e67856945e36ade1",
-   "state": "443ebe820c5a63a8"
+   "draws": 348,
+   "rng": "296eb156970c136c",
+   "state": "4771dcb3413509bd"
   },
   "cave-troll:12:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:12:4242424242:walkin": {
    "ticks": 600,
-   "draws": 355,
-   "rng": "1b2aac9ee4072529",
-   "state": "24a0147f00dc24fb"
+   "draws": 357,
+   "rng": "fbccf2afdd24af85",
+   "state": "4df8e40c92fe3822"
   },
   "cave-troll:18:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:18:731:walkin": {
    "ticks": 600,
-   "draws": 366,
-   "rng": "7efbd18c3fab13a9",
-   "state": "cc843c2a1909f2ce"
+   "draws": 407,
+   "rng": "be874e2f9f52cce6",
+   "state": "3613f8e00a4a48ea"
   },
   "cave-troll:18:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:18:20260922:walkin": {
    "ticks": 600,
-   "draws": 325,
-   "rng": "d03cb26d0649bf69",
-   "state": "73f13d289bed7d3a"
+   "draws": 347,
+   "rng": "ffae79179b24e038",
+   "state": "1907b748bb47d5d6"
   },
   "cave-troll:18:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:18:4242424242:walkin": {
    "ticks": 600,
-   "draws": 354,
-   "rng": "65972195f35e7c96",
-   "state": "18641f3893aa3ef4"
+   "draws": 373,
+   "rng": "e314a6d2d04677ce",
+   "state": "6e85ec8ce46d0c2e"
   },
   "cave-troll:30:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:30:731:walkin": {
    "ticks": 600,
-   "draws": 329,
-   "rng": "e8210415d79d883d",
-   "state": "81f9b09a63c8aeb4"
+   "draws": 387,
+   "rng": "f5dd8427b8abed3c",
+   "state": "8592dfbfbc29e4dd"
   },
   "cave-troll:30:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:30:20260922:walkin": {
-   "ticks": 600,
-   "draws": 355,
-   "rng": "8cbe804531a6d86f",
-   "state": "3a0cd7555c4b4d93"
+   "ticks": 490,
+   "draws": 245,
+   "rng": "33345ed6f96fb3e3",
+   "state": "cf9718c01cdc946a"
   },
   "cave-troll:30:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:30:4242424242:walkin": {
    "ticks": 600,
-   "draws": 366,
-   "rng": "875e89e63833c0aa",
-   "state": "7971853d673fa9b5"
+   "draws": 398,
+   "rng": "c4fb398ddbd91f52",
+   "state": "03715bb662204bca"
   },
   "cave-troll:46:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:46:731:walkin": {
    "ticks": 600,
-   "draws": 376,
-   "rng": "930eb70c9db16820",
-   "state": "1ad7633a4d6e8bc2"
+   "draws": 406,
+   "rng": "2ecbc0a92e18e68e",
+   "state": "8d4a3c2c6e78e92a"
   },
   "cave-troll:46:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:46:20260922:walkin": {
    "ticks": 600,
-   "draws": 361,
-   "rng": "3fde05afa834c1a2",
-   "state": "e30e5800779347fa"
+   "draws": 413,
+   "rng": "5227d2df23a5b588",
+   "state": "eb2918e0be76aada"
   },
   "cave-troll:46:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "77b59f5a3ee0941a"
+   "state": "237f1eb39d2bb941"
   },
   "cave-troll:46:4242424242:walkin": {
    "ticks": 600,
-   "draws": 296,
-   "rng": "91d6536c5c1ca986",
-   "state": "95b6cdaec090b69c"
+   "draws": 344,
+   "rng": "b36843fd297f140c",
+   "state": "66ea29d2423cc218"
   },
   "wraith:1:731:idle": {
    "ticks": 600,
