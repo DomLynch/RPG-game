@@ -317,6 +317,39 @@
   {
     "kind": "loot-table",
     "schemaVersion": 1,
+    "id": "loottable:giant-salamander",
+    "presentation": "collect",
+    "distribution": "personal",
+    "rolls": [
+      {
+        "probability": 60,
+        "repeat": 1,
+        "mode": "independent",
+        "dropLimit": 0,
+        "minDrop": 0,
+        "entries": [
+          {
+            "item": "item:grave-iron",
+            "chance": 40,
+            "quantity": 2,
+            "levelMin": null,
+            "levelMax": null
+          }
+        ]
+      }
+    ],
+    "currency": {
+      "min": 8,
+      "max": 20
+    },
+    "fallback": null,
+    "rolledBy": [
+      "character:giant-salamander"
+    ]
+  },
+  {
+    "kind": "loot-table",
+    "schemaVersion": 1,
     "id": "loottable:ash-boar",
     "presentation": "collect",
     "distribution": "personal",
