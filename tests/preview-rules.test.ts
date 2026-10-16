@@ -16,12 +16,13 @@ test('every preview rule equals the literal it replaced', () => {
   assert.deepEqual([GIVE_UP_AFTER, GAME_DAY_MINUTES, DUSK, DAWN, DUSK_SPAN, previewRule('campFlameSize'), previewRule('campLightReach')], [6, 100, 19, 5, 1.5, 1.15, 36]);   // the day clock, the camp fire and the presence give-up
   assert.deepEqual(['gateGap', 'heroWait', 'kindsWait', 'materialBound', 'uploadBudget', 'legendReach', 'lockRange', 'turnRate', 'tapRange', 'tapMs', 'tapPx'].map((id) => previewRule(id as never)), [0.62, 45000, 20000, 4000, 6, 6, 9, 1.9, 14, 4000, 12]);   // main.ts's own numbers
   assert.deepEqual(['askBudget', 'engageTtl', 'releaseFactor', 'engageRetry'].map((id) => previewRule(id as never)), [4, 120_000, 1.5, 5000]);   // engage-ahead.ts's literals
-  assert.equal(PREVIEW_RULES.length, 35);
+  assert.deepEqual(['loadoutWait', 'gearRetry'].map((id) => previewRule(id as never)), [15_000, 10_000]);   // main.ts's loadout gate (sheet-in-world, #2900)
+  assert.equal(PREVIEW_RULES.length, 37);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadPreviewRules({ rules: rows.filter((r) => r.id !== 'lookGain') }), /"lookGain" rule by name/);
   assert.throws(() => loadPreviewRules({ rules: rows.map((r) => (r.id === 'nearTick' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPreviewRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPreviewRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 36);
+  assert.equal(loadPreviewRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 38);
 });

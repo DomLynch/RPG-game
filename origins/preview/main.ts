@@ -23,6 +23,7 @@ import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
+import { createLoadoutGate } from './loadout-gate.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { legendSpecs } from './legend-mobs.ts';
@@ -685,9 +686,16 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) void
 const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
 let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get), the other half of the sheet the writer holds a world record equal to
-const loadOwnBuild = (tries: number): void => void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); });   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
+let buildInflight = false;   // a build_get is on its way (each call times out on its own: the offline fallback below never fires while one is still pending)
+const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
+// No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
+// on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
+// The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
+// The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
+const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? true, askGear: () => void gearMount?.refresh(), wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
 const wc = createWorldCombat({
+  loadoutReady,
   canPlay: canPlayFinisher,
   onCreatureHit: (spec, hit) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().hit(spec.id, w, hit); },
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
@@ -698,7 +706,7 @@ const wc = createWorldCombat({
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
-  combat: () => ({ hero: wc.hero(), target: wc.target(), fighters: wc.debug(), fx: zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
+  combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
