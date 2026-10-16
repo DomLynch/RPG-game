@@ -21,7 +21,7 @@ test('steady 60 fps never drops; the rule values are the ruled ones (33 ms to dr
 test('a frame time that stays above the slow threshold for a window drops to LOW, and not before the window is full', () => {
   const g = createGovernor(rules); let t = 0;
   t = run(g, t, 2, 60); assert.equal(g.low(), false, 'two seconds of 60 ms frames: the window (3 s) is not full yet');
-  t = run(g, t, 2, 60); assert.equal(g.low(), true, 'past the window it drops');
+  run(g, t, 2, 60); assert.equal(g.low(), true, 'past the window it drops');
 });
 
 test('a short spike does not flip it, and it returns only after a full window under the ok threshold (no flapping at the edge)', () => {
