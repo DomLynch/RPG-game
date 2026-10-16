@@ -39,7 +39,7 @@ test('wood, hide, cloth and bone are untextured (layer plain) so a tent never we
 });
 test('the default dress set is the base clutter as it was (all 1); an unknown or empty id is the default; the fortress set thins trees most', () => {
   assert.deepEqual(dressSet(), dressSet('')); assert.deepEqual(dressSet('nope'), dressSet('default')); assert.deepEqual(Object.values(dressSet('default')).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
-  const f = dressSet('fortress'); assert.ok(f.trees <= f.skyline && f.trees <= f.scrub && f.trees <= 0.2 && f.rocks < 1 && f.ruins < 1 && f.fill < 1 && f.posts < 1, 'every kind of base clutter is thinned'); assert.equal(f.ruins, 0, 'no brick ruins in the fortress'); assert.equal(f.walls, 0, 'and no brick wall stubs');
+  const f = dressSet('fortress'); assert.ok(f.trees <= f.scrub && f.trees <= 0.2 && f.skyline < 1 && f.rocks < 1 && f.ruins < 1 && f.fill < 1 && f.posts < 1, 'every kind of base clutter is thinned (Dom 2026-10-16: no skyline ring, no rocks, fill or posts: they drew as brick or pale slabs)'); assert.equal(f.ruins, 0, 'no brick ruins in the fortress'); assert.equal(f.walls, 0, 'and no brick wall stubs');
 });
 test('the wind drifts around its centre and the crackle falls off squared to zero at fireRange; an id with no row stays silent', () => {
   const a = ambienceRow('fortress-wind')!; assert.equal(ambienceRow('wind'), null); assert.equal(ambienceRow(undefined), null);
