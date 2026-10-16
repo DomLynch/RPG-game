@@ -3,6 +3,7 @@
 //   size  per-mille of the burst's base size (1000 = as before): grows with level
 //   pulse ticks the burst swells and fades over (the old fixed length was 42)
 // Re-run to re-author from the catalogue (node sandbox/spell-looks-gen.mjs); hand edits to a row survive in the Sandbox panel (rows.json overrides) and are never overwritten by hand.
+/* global URL, console */
 import { writeFileSync } from 'node:fs';
 import { SPELL_INFO } from '../src/fight/spell-catalogue.ts';
 
