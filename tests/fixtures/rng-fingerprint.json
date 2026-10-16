@@ -2285,6 +2285,258 @@
    "rng": "eed3789424f7adfd",
    "state": "b4e8bebd1ecd5f93"
   },
+  "cave-troll:1:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "91851962f3e1e5a2"
+  },
+  "cave-troll:1:731:walkin": {
+   "ticks": 600,
+   "draws": 476,
+   "rng": "98e6db7529ed2287",
+   "state": "d3ac471d2ed01443"
+  },
+  "cave-troll:1:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "91851962f3e1e5a2"
+  },
+  "cave-troll:1:20260922:walkin": {
+   "ticks": 600,
+   "draws": 476,
+   "rng": "808701ead6f12288",
+   "state": "40653b50745143ca"
+  },
+  "cave-troll:1:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "91851962f3e1e5a2"
+  },
+  "cave-troll:1:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 476,
+   "rng": "44a14a552ece530a",
+   "state": "d3ac471d2ed01443"
+  },
+  "cave-troll:6:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:6:731:walkin": {
+   "ticks": 600,
+   "draws": 338,
+   "rng": "01f45c70722e606b",
+   "state": "a7f7b133c934db99"
+  },
+  "cave-troll:6:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:6:20260922:walkin": {
+   "ticks": 600,
+   "draws": 386,
+   "rng": "779f7e2fc6f941da",
+   "state": "59b0b8a238e4d3fa"
+  },
+  "cave-troll:6:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:6:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 322,
+   "rng": "a2abffafd8655e06",
+   "state": "bf2c15aa40bb0fc4"
+  },
+  "cave-troll:11:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:11:731:walkin": {
+   "ticks": 600,
+   "draws": 408,
+   "rng": "759dfbb4412f4e0a",
+   "state": "ad115a58cd832e6e"
+  },
+  "cave-troll:11:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:11:20260922:walkin": {
+   "ticks": 600,
+   "draws": 337,
+   "rng": "9222a970790ad8eb",
+   "state": "4dbee684709b8c9c"
+  },
+  "cave-troll:11:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:11:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 387,
+   "rng": "3914849776aa9bbf",
+   "state": "6c0e2bae56eb3646"
+  },
+  "cave-troll:12:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:12:731:walkin": {
+   "ticks": 600,
+   "draws": 363,
+   "rng": "355edaff988e4c5d",
+   "state": "a3a727a7f4ba5af9"
+  },
+  "cave-troll:12:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:12:20260922:walkin": {
+   "ticks": 600,
+   "draws": 348,
+   "rng": "296eb156970c136c",
+   "state": "4771dcb3413509bd"
+  },
+  "cave-troll:12:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:12:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 357,
+   "rng": "fbccf2afdd24af85",
+   "state": "4df8e40c92fe3822"
+  },
+  "cave-troll:18:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:18:731:walkin": {
+   "ticks": 600,
+   "draws": 407,
+   "rng": "be874e2f9f52cce6",
+   "state": "3613f8e00a4a48ea"
+  },
+  "cave-troll:18:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:18:20260922:walkin": {
+   "ticks": 600,
+   "draws": 347,
+   "rng": "ffae79179b24e038",
+   "state": "1907b748bb47d5d6"
+  },
+  "cave-troll:18:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:18:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 373,
+   "rng": "e314a6d2d04677ce",
+   "state": "6e85ec8ce46d0c2e"
+  },
+  "cave-troll:30:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:30:731:walkin": {
+   "ticks": 600,
+   "draws": 387,
+   "rng": "f5dd8427b8abed3c",
+   "state": "8592dfbfbc29e4dd"
+  },
+  "cave-troll:30:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:30:20260922:walkin": {
+   "ticks": 490,
+   "draws": 245,
+   "rng": "33345ed6f96fb3e3",
+   "state": "cf9718c01cdc946a"
+  },
+  "cave-troll:30:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:30:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 398,
+   "rng": "c4fb398ddbd91f52",
+   "state": "03715bb662204bca"
+  },
+  "cave-troll:46:731:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:46:731:walkin": {
+   "ticks": 600,
+   "draws": 406,
+   "rng": "2ecbc0a92e18e68e",
+   "state": "8d4a3c2c6e78e92a"
+  },
+  "cave-troll:46:20260922:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:46:20260922:walkin": {
+   "ticks": 600,
+   "draws": 413,
+   "rng": "5227d2df23a5b588",
+   "state": "eb2918e0be76aada"
+  },
+  "cave-troll:46:4242424242:idle": {
+   "ticks": 600,
+   "draws": 0,
+   "rng": "e3b0c44298fc1c14",
+   "state": "237f1eb39d2bb941"
+  },
+  "cave-troll:46:4242424242:walkin": {
+   "ticks": 600,
+   "draws": 344,
+   "rng": "b36843fd297f140c",
+   "state": "66ea29d2423cc218"
+  },
   "wraith:1:731:idle": {
    "ticks": 600,
    "draws": 0,

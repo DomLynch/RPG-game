@@ -1021,7 +1021,7 @@ test('K6: a beast loses its head at its own row\'s bones (Actor.sever(bones)), o
 
 test('each beast is drawn the same size in the duel as in the world: one scale per body, the rig times it', async () => {
   assert.equal(mobLook('character:ash-wolf')!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale (the wolf; a boar or bear look must use its constant too)');
-  assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');
+  assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'cave-troll', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');
   const hero = await readWarrior('warrior.glb');
   for (const [id, file, k, height] of [['wolf', 'wolf.glb', WOLF_RENDER_SCALE, 1.29], ['boar', 'boar.glb', BOAR_RENDER_SCALE, 1.14], ['bear', 'bear.glb', BEAR_RENDER_SCALE, 1.40]] as const) {
     const rig = await readWarrior(file);
