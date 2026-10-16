@@ -1,4 +1,5 @@
 {"notes":[
+"2026-10-16 Dom: Arena 1 play circle +30% (it was too small): ARENA_ONE_SCALE 0.36 -> 0.468 (play-radius-defs row, 0.36 x 1.3).",
 "2026-10-13 Dom: stances 2x bigger, they were too small to feel. Trickster feint held at -75% (2x would be -100% = free feints).",
 "2026-10-13 Dom: no time change in a live zone: every hit-stop pause set to 0 (ms, frames); flash + ground ring added per contact (sandbox-mech impact).",
 "2026-10-14 Dom: reach bands (positioning gates): a landed blow outside its weapon's best distance band deals 40% (bandOff 400); inner <1.35 m, mid 1.35-1.8 m, outer beyond; NO on-screen marker (Dom: cheap). Strategy: never soften a hard miss.",
@@ -152,4 +153,11 @@
 ]},
 "boss-phase-defs":{"phases":[
 {"id":"enrage","special":"*","below":50,"share":1500,"cooldown":30,"label":"ENRAGED","note":"its special hits harder and comes sooner"}
+]},
+"play-radius-defs":{"dials":[
+{"id":"OPEN_RADIUS","value":1000000000.0},
+{"id":"WALL_INNER","value":11.7},
+{"id":"BODY_RADIUS","value":0.425},
+{"id":"BASE_RADIUS","value":8.55},
+{"id":"ARENA_ONE_SCALE","value":0.468}
 ]}}}
