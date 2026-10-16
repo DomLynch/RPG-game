@@ -10,6 +10,7 @@ import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
+import { labelSprite } from './label-sprite.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
@@ -31,17 +32,6 @@ type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | '
 type Actor = ReturnType<typeof buildWarriors>['player'];
 type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number };
 
-function labelSprite(text: string, named: boolean): THREE.Sprite {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
-  const g = c.getContext('2d')!;
-  g.font = '600 40px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  let size = 40; while (size > 20 && g.measureText(text).width > c.width - 24) { size -= 2; g.font = `600 ${size}px Georgia, serif`; }
-  g.lineWidth = 7; g.strokeStyle = 'rgba(10,8,6,0.85)'; g.strokeText(text, c.width / 2, c.height / 2);
-  g.fillStyle = named ? '#f2c66d' : '#ece0c8'; g.fillText(text, c.width / 2, c.height / 2);
-  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
-  s.scale.set(0.2, 0.0375, 1); return s;   // sizeAttenuation off: the same size on screen at any distance (a creature next to the camera no longer fills it)
-}
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const g = c.getContext('2d')!;

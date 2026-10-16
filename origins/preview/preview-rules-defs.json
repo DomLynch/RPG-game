@@ -34,6 +34,10 @@
     { "id": "turnRate", "value": 1.9, "unit": "rad/s" },
     { "id": "tapRange", "value": 14, "unit": "m" },
     { "id": "tapMs", "value": 4000, "unit": "ms" },
-    { "id": "tapPx", "value": 12, "unit": "px" }
+    { "id": "tapPx", "value": 12, "unit": "px" },
+    { "id": "remoteWarm", "value": 8, "unit": "slots" },
+    { "id": "remoteSnap", "value": 6, "unit": "m" },
+    { "id": "remoteIdle", "value": 0.05, "unit": "m/s" },
+    { "id": "remoteTagY", "value": 2.25, "unit": "m" }
   ]
 }
