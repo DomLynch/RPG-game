@@ -14,9 +14,9 @@ export const footprintOf = (p: Piece): Solid => {
   return { x: p.x, z: p.z, r };
 };
 
-/** How much of each kind of clutter to keep: 1 = as it always was; a look's dress set (props-defs.json dress) thins it (0 = none). drifts/rings/cracks/scrub/trees/skyline are the Cinder pass's; rocks, ruins, fill (the mid-distance heaps, wall stubs, spires) and posts (burnt posts, fences, carts) are this base dressing's; `reach` scales how far the Cinder ground is carried past the zone's edges (a wide reach hides the ground's edge from a low camera). */
-export type Thin = { readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number };
-export const WHOLE: Thin = { drifts: 1, rings: 1, cracks: 1, scrub: 1, trees: 1, skyline: 1, rocks: 1, ruins: 1, fill: 1, posts: 1, reach: 1 };
+/** How much of each kind of clutter to keep: 1 = as it always was; a look's dress set (props-defs.json dress) thins it (0 = none). drifts/rings/cracks/scrub/trees/skyline are the Cinder pass's; rocks, ruins, fill (the mid-distance heaps, wall stubs, spires) posts (burnt posts, fences, carts) and walls (the brick wall stubs among the fill: 0 = none, anything else = as before) are this base dressing's; `reach` scales how far the Cinder ground is carried past the zone's edges (a wide reach hides the ground's edge from a low camera). */
+export type Thin = { readonly drifts: number; readonly rings: number; readonly cracks: number; readonly scrub: number; readonly trees: number; readonly skyline: number; readonly rocks: number; readonly ruins: number; readonly fill: number; readonly posts: number; readonly reach: number; readonly walls: number };
+export const WHOLE: Thin = { drifts: 1, rings: 1, cracks: 1, scrub: 1, trees: 1, skyline: 1, rocks: 1, ruins: 1, fill: 1, posts: 1, reach: 1, walls: 1 };
 export type Dress = { ground: Piece[]; pieces: Piece[]; solids: Solid[]; strips?: { x: number; z: number }[] };   // ground: the slabs, patches and roads on frontier.ts's own dirt material; pieces: props on the arena's stone
 
 export const rng = (seed: string) => {   // mulberry32 over a string hash
@@ -107,7 +107,7 @@ export function frontierDress(f: Frontier, b: Build, thin: Thin = WHOLE): Dress 
       const kind = R(), rot = R() * 3.14, low = kind < 0.5 || kind > 0.85, o = low ? spot(1.6, nearOff, true) : spot(2, farOff);
       if (!o) continue;
       if (kind < 0.5) { for (let i = 0; i < 5 + Math.floor(R() * 4); i++) { const r = between(0.4, 1.0); put(['cylinder', r * 0.6, r, r * between(0.7, 1.3), 5], o.x + between(-2, 2), r * 0.35, o.z + between(-2, 2), ROCK[Math.floor(R() * ROCK.length)]!, R() * 6, 0); } }
-      else if (kind < 0.7) { const len = between(3, 6), h = between(0.8, 2.2); put(['box', len, h, 0.7], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); }
+      else if (kind < 0.7) { if (thin.walls > 0) { const len = between(3, 6), h = between(0.8, 2.2); put(['box', len, h, 0.7], o.x, h / 2, o.z, WALL, rot, 0); solid(o.x, o.z, len / 2); } }
       else if (kind < 0.85) { const h = between(4, 8); put(['cone', between(0.9, 1.6), h, 5], o.x, h / 2, o.z, ROCK[3]!, R() * 6, 0); solid(o.x, o.z, 1.1); }
       else { for (let i = 0; i < 6; i++) { const h = between(0.7, 1.4); put(['box', 0.09, h, 0.09], o.x + between(-0.8, 0.8), h / 2, o.z + between(-0.8, 0.8), BURNT, R() * 6, 0); } }
     }
