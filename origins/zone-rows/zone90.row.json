@@ -31,7 +31,8 @@
           "burnt": 0
         }
       }
-    }
+    },
+    "spread": {}
   },
   "spawns": {
     "openers": {},
