@@ -34,6 +34,7 @@
     { "id": "landmarkPad", "value": 7, "unit": "m" },
     { "id": "levelNear", "value": 30, "unit": "m" },
     { "id": "levelFar", "value": 150, "unit": "m" },
+    { "id": "namedLevelLift", "value": 2, "unit": "levels" },
     { "id": "spawnNear", "value": 25, "unit": "m" },
     { "id": "spawnFar", "value": 35, "unit": "m" }
   ]

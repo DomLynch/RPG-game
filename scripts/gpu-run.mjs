@@ -6,6 +6,7 @@
 // renderer, 12 = a setup blocker, 124 = the job did not finish in its timeout. The artifacts the command wrote land in artifacts/gpu-run/<job id>/.
 // The HF token is the hf CLI's own login: never read or printed here. Env: GPU_RUN_HF (the hf binary; tests stub it), HF_LEDGER_DIR (the ledger folder), GPU_RUN_OUT, GPU_RUN_POLL_S.
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
+import { settle } from './lib/hf-ledger.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,7 +46,7 @@ export async function main(argv) {
       if (pairs.length) { secrets = join(mkdtempSync(join(tmpdir(), 'gpu-run-')), 'secrets.env'); writeFileSync(secrets, pairs.join('\n') + '\n', { mode: 0o600 }); launchArgs.push('--secrets-file', secrets); }
     }
     launchArgs.push('mcr.microsoft.com/playwright:v1.62.1-noble', 'bash', '-c', 'echo "$JOB_B64" | base64 -d > /tmp/job.sh; bash /tmp/job.sh');
-    let logs = '', now = 'UNKNOWN', timedOut = false;
+    let logs = '', now = 'UNKNOWN', timedOut = false, wallS = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       // Work waterfall: a T4 slot under the shared cap (scripts/lib/hf-slots.mjs); a lane's graphics job waits for one instead of piling onto the card.
       const slot = withSlot({ hf, flavor, generic: true, maxWaitS: Number(process.env.GPU_RUN_MAX_WAIT_S || 600), launch: () => run(launchArgs), cost: { timeout: args.timeout, reason: process.env.HF_REASON || 'gpu-run' } });
@@ -63,6 +64,7 @@ export async function main(argv) {
         if ((Date.now() - t0) / 1000 > budgetS) { say(`still ${now} after ${Math.round((Date.now() - t0) / 1000)} s: cancelling`); run(['jobs', 'cancel', jobId]); timedOut = true; break; }
         await sleep(pollS); now = stage(jobId);
       }
+      wallS = (Date.now() - t0) / 1000;   // launch until the job left the live stages: what HF bills, plus at most one poll
       logs = run(['jobs', 'logs', jobId], { maxBuffer: 1 << 28, timeout: 300_000 }).stdout || '';
       if (timedOut || /^=== COST /m.test(logs) || attempt === 2) break;
       say(`job ${jobId} finished but HF gave no usable log (one job in six did, 2026-10-10): one automatic retry`);
@@ -73,6 +75,10 @@ export async function main(argv) {
     say(`renderer: ${parsed.renderer ?? 'none printed'}${parsed.blender ? ` | ${parsed.blender}` : ''}`);
     if (parsed.sha && parsed.sha !== sha) say(`WARNING the job built ${parsed.sha.slice(0, 8)}, not ${sha.slice(0, 8)}`);
     if (parsed.seconds !== null) say(`job ${jobId} ran ${parsed.seconds} s on ${flavor} ≈ $${costOfSeconds(parsed.seconds).toFixed(2)} at $0.60/h`);
+    // The cost ledger booked this job at its --timeout when it launched (a reservation); settle it to what it really cost. The wall time from launch to the end is
+    // used, not the log's COST seconds: that clock starts inside the container, after the image pull HF also bills. Capped at the timeout; a job cancelled at its
+    // timeout, or one with no wall time, keeps its bound (the safe side of a money stop).
+    if (jobId && !timedOut && wallS !== null) { const s = Math.min(wallS, args.timeoutS); settle({ id: jobId, flavor, seconds: s }); say(`job ${jobId} settled in the cost ledger at ${Math.round(s)} s (booked at its ${args.timeout} timeout)`); }
     if (parsed.artifactsB64) {
       const out = join(process.env.GPU_RUN_OUT || join(root, 'artifacts', 'gpu-run'), jobId); mkdirSync(out, { recursive: true });
       const tgz = join(out, 'artifacts.tgz'); writeFileSync(tgz, Buffer.from(parsed.artifactsB64, 'base64'));
