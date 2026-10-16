@@ -38,7 +38,7 @@ test('the loader refuses a missing named rule, a non-positive value, a duplicate
   assert.throws(() => loadWorldRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'engageOut' ? { ...r, value: 3 } : r)) }), /hysteresis/);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'holdFactor' ? { ...r, value: 1.2 } : r)) }), /holdFactor/);
-  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 57);
+  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 59);
   assert.equal(worldRule('engage'), 4);
 });
 test('the Pit sim keeps its own run literal (a Pit sim file: editing it would force a RECORD_VERSION bump); it must equal the playerRun row', () => {
