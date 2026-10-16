@@ -290,6 +290,8 @@ jobs:
           - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
           # The same gate with no fight before [zone ready] (SEAMLESS_QUIET), a forced first hit (SEAMLESS_STRIKE) and the program rule on any renderer (SEAMLESS_PROGRAMS): the first-contact particle programs must be warmed by the zone, not by luck of timing (#2289/#2299). Fails on trunk before the planUpload Points warm-up.
           - { name: seamless-quiet, script: scripts/origins-seamless-check.mjs, required: false, seamless: '1' }
+          # Other players in Zone 1 (Web, #2929): a real presence server on loopback, the built preview as a signed-in client, headless bots from origins/presence/test-client.ts. Optional until it has a sample on this runner.
+          - { name: remote-heroes, script: scripts/origins-remote-heroes-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}
