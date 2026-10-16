@@ -200,7 +200,7 @@ export function armWarriors(hero: FighterAsset, enemy: FighterAsset | undefined,
   { const ranged = (globalThis as { __SANDBOX_RANGED__?: (weapon: WeaponId) => Object3D | undefined }).__SANDBOX_RANGED__?.(weapons[0]); if (ranged) part = { scene: new Group().add(ranged) as Group, animations: part && !(part instanceof Error) ? part.animations : [] }; }   // sandbox-mech: a stand-in weapon shown as the staff / bow / crossbow model, keeping the stand-in's own clip family (the trident's Trident_Idle...) (sandbox/entry.ts); absent everywhere else
   if (carry && enemy) withShieldCarry(enemy);
   if (part && !(part instanceof Error)) try { return { ...buildWarriors(equipWeapon(hero, part), enemy, weapons), playerWeapon: weapons[0] }; } catch (error) { part = error instanceof Error ? error : Error(String(error)); }
-  if (part) { (globalThis as { __SANDBOX_RANGED__?: unknown; __SANDBOX_ERR__?: string }).__SANDBOX_RANGED__ && ((globalThis as { __SANDBOX_ERR__?: string }).__SANDBOX_ERR__ = String((part as Error).stack ?? part)); equipFailed(part); }   // sandbox: keep why a ranged model fell back to the longsword
+  if (part) { if ((globalThis as { __SANDBOX_RANGED__?: unknown }).__SANDBOX_RANGED__) (globalThis as { __SANDBOX_ERR__?: string }).__SANDBOX_ERR__ = String((part as Error).stack ?? part); equipFailed(part); }   // sandbox: keep why a ranged model fell back to the longsword
   const playerWeapon: WeaponId = part ? DEFAULT_WEAPON : weapons[0];
   return { ...buildWarriors(hero, enemy, [playerWeapon, weapons[1]]), playerWeapon };
 }
