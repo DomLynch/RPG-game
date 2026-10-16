@@ -8,7 +8,7 @@ import MANIFEST from './props-defs.manifest.json' with { type: 'json' };
 
 export type PartShape = 'box' | 'cylinder' | 'cone' | 'sphere';
 export type Part = { readonly shape: PartShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'coal'; readonly ring?: { readonly n: number; readonly radius: number } };
-export type Prop = { readonly id: string; readonly kit: string; readonly r: number; readonly scaleMin: number; readonly scaleMax: number; readonly emits?: 'fire'; readonly parts: readonly Part[] };
+export type Prop = { readonly id: string; readonly kit: string; readonly r: number; readonly scaleMin: number; readonly scaleMax: number; readonly emits?: 'fire'; readonly glb?: string; readonly parts: readonly Part[] };   // glb: the node name a Characters & Art model of this prop will carry (names only today: nothing draws it; `parts` is what is drawn, and stays the fallback when the model is absent)
 export type Kit = { readonly id: string; readonly centreDepth: number; readonly radius: number; readonly tries: number; readonly clearRoad: number; readonly clearLandmark: number; readonly clearProp: number; readonly edge: number };
 export type RecipeKind = 'scatter' | 'ring' | 'cluster';
 export type Recipe = { readonly id: string; readonly kit: string; readonly kind: RecipeKind; readonly props: readonly { readonly prop: string; readonly weight: number }[]; readonly count: number; readonly near?: number; readonly first?: 'centre'; readonly ringRadius?: number; readonly per?: number; readonly spread?: number; readonly chance?: number };
@@ -27,6 +27,7 @@ export function loadProps(raw: Raw) {
   for (const p of props) {
     if (!(p.r > 0 && p.scaleMin > 0 && p.scaleMax >= p.scaleMin)) throw Error(`props prop "${p.id}": r > 0 and 0 < scaleMin <= scaleMax`);
     if (!p.parts.length) throw Error(`props prop "${p.id}": a prop has at least one part`);
+    if (p.glb !== undefined && !/^[a-z][a-z0-9_]*$/.test(p.glb)) throw Error(`props prop "${p.id}": glb is a node name (lower-case letters, digits, underscore)`);
     for (const [i, q] of p.parts.entries()) {
       if (!(q.shape in SHAPE_ARGS)) throw Error(`props prop "${p.id}" part ${i}: shape is box, cylinder, cone or sphere`);
       if (q.size.length !== SHAPE_ARGS[q.shape] || !q.size.every((n) => Number.isFinite(n) && n > 0)) throw Error(`props prop "${p.id}" part ${i}: a ${q.shape} takes ${SHAPE_ARGS[q.shape]} sizes, all > 0`);
@@ -35,6 +36,7 @@ export function loadProps(raw: Raw) {
       if (q.ring && !(Number.isInteger(q.ring.n) && q.ring.n >= 2 && q.ring.radius > 0)) throw Error(`props prop "${p.id}" part ${i}: ring is n >= 2 (whole) and radius > 0`);
     }
   }
+  const glbs = props.flatMap((p) => (p.glb ? [p.glb] : [])); if (new Set(glbs).size !== glbs.length) throw Error('props: two props name the same glb node');
   for (const r of recipes) {
     if (!KINDS.includes(r.kind)) throw Error(`props recipe "${r.id}": kind is ${KINDS.join(', ')}`);
     if (!(Number.isInteger(r.count) && r.count >= 1) || !r.props.length) throw Error(`props recipe "${r.id}": count is a whole number >= 1 and it lists props`);

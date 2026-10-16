@@ -28,6 +28,10 @@ test('the loader refuses a bad part, an unknown tint, a prop outside its kit, a 
   bad({ props: [...d.props, p0] }, /duplicate|twice|unique/i);
   assert.equal(loadProps({ ...d, props: [...d.props, { ...p0, id: 'extra' }] }).props.length, d.props.length + 1);
 });
+test('every goblin-camp prop names the model node Characters & Art will give it (goblin_<prop>), unique, and the loader refuses a bad or duplicate name', () => {
+  assert.ok(d.props.every((p) => typeof p.glb === 'string' && p.glb.startsWith('goblin_')), 'every prop has a goblin_ node name'); assert.equal(new Set(d.props.map((p) => p.glb)).size, d.props.length);
+  bad({ props: d.props.map((p, i) => (i ? p : { ...p, glb: 'Goblin Tent' })) }, /glb is a node name/); bad({ props: d.props.map((p, i) => (i < 2 ? { ...p, glb: 'same_node' } : p)) }, /same glb node/);
+});
 test('the default dress set is the base clutter as it was (all 1); an unknown or empty id is the default; the fortress set thins trees most', () => {
   assert.deepEqual(dressSet(), dressSet('')); assert.deepEqual(dressSet('nope'), dressSet('default')); assert.deepEqual(Object.values(dressSet('default')).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
   const f = dressSet('fortress'); assert.ok(f.trees <= f.skyline && f.trees <= f.scrub && f.trees <= 0.2 && f.rocks < 1 && f.ruins < 1 && f.fill < 1 && f.posts < 1, 'every kind of base clutter is thinned'); assert.equal(f.ruins, 0, 'no brick ruins in the fortress'); assert.equal(f.walls, 0, 'and no brick wall stubs');
