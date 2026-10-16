@@ -190,6 +190,37 @@ test('sheet-in-world gate: while the loadout is not ready no creature joins (no 
   assert.equal(t.ready, true); assert.ok(t.maxHealth > bareMax, 'and the hero it fights has the sheet\'s health, not the bare 150'); assert.equal(t.sheet?.armour, sheet.armour, 'the armour dial is in the trace');
 });
 
+test('idle hero sheet: with no creature near, the bar is the sheet\'s the moment the loadout gate opens (159-style max at ready idle), and stays the bare body while the gate is closed', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10, armour: 10 } })!;
+  const state: { ready: boolean; sheet?: Sheet } = { ready: false };
+  const f = fakeMobs([]);   // nobody to fight: the hero only stands there
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => ({ gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  const bare = wc.hero().max;
+  state.sheet = sheet; run(wc, hero, 1);
+  assert.equal(wc.hero().max, bare, 'the sheet has arrived but the gate is closed: he stays the bare body (no half-built hero)');
+  state.ready = true; run(wc, hero, 1);
+  assert.ok(wc.hero().max > bare, 'gate open, idle: the bar is the sheet\'s before any fight'); assert.equal(wc.hero().health, wc.hero().max, 'and full');
+  assert.equal(wc.trace().maxHealth, wc.hero().max); assert.equal(wc.trace().sheet?.armour, sheet.armour);
+});
+
+test('idle hero sheet costs nothing per frame: hero() is read at the gate\'s ready edge and when the page says the build or gear answered, and not once over hundreds of idle frames', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10 } })!, sheet2 = sheetOf({ level: 20, placed: { health: 20 } })!;
+  const state: { ready: boolean; sheet?: Sheet; reads: number } = { ready: false, reads: 0 };
+  const f = fakeMobs([]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => { state.reads++; return { gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 }, bare = wc.hero().max;
+  // The sim step already reads hero().level once per step (gearOf for stepHero): that is the baseline per second, with the gate closed and nothing to rebuild. The rebuild adds NOTHING to it.
+  const r0 = state.reads; run(wc, hero, 5); const baseline = state.reads - r0;
+  state.sheet = sheet; state.ready = true; run(wc, hero, 1);
+  const edge = wc.hero().max; assert.ok(edge > bare, 'the ready edge rebuilt him on the sheet');
+  const r1 = state.reads; run(wc, hero, 5);   // ~150 idle frames after the edge
+  assert.equal(state.reads - r1, baseline, 'idle frames after the edge read hero() exactly as often as before it: no sheet build per frame');
+  state.sheet = sheet2; run(wc, hero, 1); assert.equal(wc.hero().max, edge, 'a change nobody announced is not polled for (it is picked up at the next join)');
+  wc.heroChanged(); run(wc, hero, 1); assert.ok(wc.hero().max > edge, 'heroChanged() rebuilds him once on the new sheet');
+  const r2 = state.reads; run(wc, hero, 5); assert.equal(state.reads - r2, baseline, 'and then back to the baseline');
+});
+
 // Backend's disposable-Postgres repro (real writer handlers on trunk 2941e7a88, no prod write): build_get {"level":12,"placed":{"armour":4,"attack":4,"health":4},"version":2} and the worn set head Helmet, chest Body, legs Greaves, main Warhammer,
 // all dwarf pieces at Legionary (tier 2). The page's own derivation (gear-numbers sheetFor, the path main.ts hero() takes) feeds the loop; the trace line is the receipt for the PR body.
 test('sheet-in-world, the real build row: a level-12 build with 4/4/4 placed and a worn dwarf set fights with the sheet\'s hp, armour and attack, not the bare body', () => {
