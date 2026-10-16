@@ -26,7 +26,7 @@ test('the loader refuses a bad part, an unknown tint, a prop outside its kit, a 
   bad({ dress: d.dress.map((x) => (x.id === 'fortress' ? { ...x, trees: 9 } : x)) }, /multiplier from 0 to 8/);
   bad({ dress: d.dress.map((x) => (x.id === 'default' ? { ...x, trees: 0.9 } : x)) }, /default" dress set is all 1s/);
   bad({ props: [...d.props, p0] }, /duplicate|twice|unique/i);
-  assert.equal(loadProps({ ...d, props: [...d.props, { ...p0, id: 'extra' }] }).props.length, d.props.length + 1);
+  assert.equal(loadProps({ ...d, props: [...d.props, { ...p0, id: 'extra', glb: 'goblin_extra' }] }).props.length, d.props.length + 1);
 });
 test('every goblin-camp prop names the model node Characters & Art will give it (goblin_<prop>), unique, and the loader refuses a bad or duplicate name', () => {
   assert.ok(d.props.every((p) => typeof p.glb === 'string' && p.glb.startsWith('goblin_')), 'every prop has a goblin_ node name'); assert.equal(new Set(d.props.map((p) => p.glb)).size, d.props.length);
