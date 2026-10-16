@@ -115,6 +115,7 @@ test('location: the served answer carries the active character\'s name (none bef
     const read = writerSavedLocation(base, KEY);
     activeNameAnswer = 'absent'; assert.equal((await read(A)).name, null, 'a database without the function: no name tag, nothing else changes');
     activeNameAnswer = '"Ash Walker"'; assert.equal((await read(A)).name, 'Ash Walker');
+    activeNameAnswer = '"absent"'; assert.equal((await read(A)).name, 'absent', 'a character named absent is a name, not the gate\'s sentinel');
     activeNameAnswer = 'null'; assert.equal((await read(A)).name, null);
   } finally { server.close(); activeNameAnswer = 'absent'; }
 });

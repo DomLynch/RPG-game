@@ -69,7 +69,7 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
         const saved = await store.savedLocation(db, account);
         const character = saved?.character ?? await store.active(db, account);
         const name = await store.activeName(db, account);   // presence's name tag for this account's active character; null when none, or before the migration
-        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name: typeof name === 'string' ? name : null });
+        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name });
       }
       const text = await new Promise<string>((resolve, reject) => {
         let size = 0; const parts: Buffer[] = [];
