@@ -441,7 +441,7 @@ try {
     const rawPost = (body, auth) => globalThis.fetch(`${lbase}/internal/location`, { method: 'POST', headers: auth ? { authorization: auth } : {}, body: JSON.stringify(body) });
     const locRow = character => psql(`select coalesce((select coalesce(zone, '-') || ':' || x || ':' || z from public.origins_character_location where character = '${character}'), 'none')`);
     const activeOf = account => psql(`select coalesce(public.origins_active('${account}'), 'none')`);
-    const nameOfActive = account => psql(`select coalesce(public.origins_active_name('${account}'::uuid), '')`) || null;   // the name tag the writer serves beside the saved spot (migration 20261016170000)
+    const nameOfActive = account => psql(`select coalesce(public.origins_active_name('${account}'::uuid), '')`) || null;   // the name tag the writer serves beside the saved spot (migration 20261016161137)
     const PIT = { x: 15000, z: 16000 }, EXCH = { x: 15000, z: 11000 }, t0 = Date.now() - 60_000;
     const daraTwo = psql(`select id from public.origins_characters where account = '${D}' and name = 'Dara Two'`);
     // the active character: create_character made each new character active
