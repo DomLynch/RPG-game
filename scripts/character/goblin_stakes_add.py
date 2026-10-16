@@ -40,7 +40,7 @@ for f in bm.faces:
             i = (iy * w + ix) * 4
             cands.append((px[i] + px[i + 1] + px[i + 2], u.copy()))
 cands.sort(key=lambda c: c[0])
-UV0 = cands[len(cands) // 2][1] if cands else Vector((0.5, 0.5))
+UV0 = cands[len(cands) * 4 // 5][1] if cands else Vector((0.5, 0.5))   # the 80th percentile, not the median: the median texel was near-black and the stakes rendered black
 
 first_new = len(bm.faces)
 for row, lean in ((0, 0.45), (1, -0.45)):
