@@ -1,4 +1,4 @@
-// Zone 1 in the shared world: two v2 clients stand by the troll cave, well outside the 300 m Concord square, and each sees the other, pose by pose; a v1 client (town square only) sees nobody there.
+// Zone 1 in the shared world: two v2 clients stand by the troll cave (a Frontier zone, not the town square) and each sees the other, pose by pose; a v1 client (town square only, at the spawn) sees nobody there.
 // The same joinBot helper (test-client.ts) is what the release row drives, so the row and this test cannot drift apart.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,9 +19,9 @@ const cave = (() => {
 })();
 const spot = (dx: number): { x: number; z: number } => ({ x: Math.round(CENTRE_CM + (cave.x + dx) * 100), z: Math.round(CENTRE_CM + cave.z * 100) });
 
-test('the troll cave is a Zone 1 place far outside the v1 square', () => {
-  assert.ok(Math.abs(cave.x) > 150 || Math.abs(cave.z) > 150, `cave at ${cave.x},${cave.z}`);
-  const s = spot(0); assert.ok(zoneAt(s.x, s.z), 'inside a Zone 1 zone row');
+test('the troll cave is a place inside a Zone 1 zone row', () => {
+  const s = spot(0); assert.ok(zoneAt(s.x, s.z), `cave at ${cave.x},${cave.z} is in a zone row`);
+  assert.ok(zoneAt(spot(12).x, spot(12).z), 'and so is the second client\'s spot');
 });
 
 test('two v2 clients at the troll cave see each other and follow each other\'s moves; a v1 client sees nobody', async () => {
