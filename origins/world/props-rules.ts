@@ -7,7 +7,7 @@ import DEFS from './props-defs.json' with { type: 'json' };
 import MANIFEST from './props-defs.manifest.json' with { type: 'json' };
 
 export type PartShape = 'box' | 'cylinder' | 'cone' | 'sphere';
-export type Part = { readonly shape: PartShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'coal'; readonly ring?: { readonly n: number; readonly radius: number } };
+export type Part = { readonly shape: PartShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'coal' | 'plain'; readonly ring?: { readonly n: number; readonly radius: number } };
 export type Prop = { readonly id: string; readonly kit: string; readonly r: number; readonly scaleMin: number; readonly scaleMax: number; readonly emits?: 'fire'; readonly glb?: string; readonly parts: readonly Part[] };   // glb: the node name a Characters & Art model of this prop will carry (names only today: nothing draws it; `parts` is what is drawn, and stays the fallback when the model is absent)
 export type Kit = { readonly id: string; readonly centreDepth: number; readonly radius: number; readonly tries: number; readonly clearRoad: number; readonly clearLandmark: number; readonly clearProp: number; readonly edge: number };
 export type RecipeKind = 'scatter' | 'ring' | 'cluster';
@@ -32,6 +32,7 @@ export function loadProps(raw: Raw) {
       if (!(q.shape in SHAPE_ARGS)) throw Error(`props prop "${p.id}" part ${i}: shape is box, cylinder, cone or sphere`);
       if (q.size.length !== SHAPE_ARGS[q.shape] || !q.size.every((n) => Number.isFinite(n) && n > 0)) throw Error(`props prop "${p.id}" part ${i}: a ${q.shape} takes ${SHAPE_ARGS[q.shape]} sizes, all > 0`);
       if (q.at.length !== 3 || !q.at.every(Number.isFinite)) throw Error(`props prop "${p.id}" part ${i}: at is x, y, z`);
+      if (q.layer !== undefined && !['stone', 'coal', 'plain'].includes(q.layer)) throw Error(`props prop "${p.id}" part ${i}: layer is stone, coal or plain`);
       if (!tints.some((t) => t.id === q.tint)) throw Error(`props prop "${p.id}" part ${i}: tint "${q.tint}" has no row`);
       if (q.ring && !(Number.isInteger(q.ring.n) && q.ring.n >= 2 && q.ring.radius > 0)) throw Error(`props prop "${p.id}" part ${i}: ring is n >= 2 (whole) and radius > 0`);
     }

@@ -43,7 +43,7 @@ test('each recipe has its OWN random stream: removing one recipe leaves the dead
 });
 test('it adds NO walk blocker, adds only stone and coal pieces, and everything stands inside the goblin zone, off the roads and landmarks', () => {
   assert.equal(K.dress.solids.length, 0); assert.equal(K.dress.ground.length, 0);
-  assert.deepEqual([...new Set(K.dress.pieces.map((q) => q.layer))].sort(), ['coal', 'stone']);
+  assert.deepEqual([...new Set(K.dress.pieces.map((q) => q.layer))].sort(), ['coal', 'plain', 'stone']);
   const marks = [...Object.values(Z.landmarks), F.giver.at], kit = propKitRow(KIT)!;
   for (const q of K.dress.pieces) {
     assert.ok(inZone(Z, q.x, q.z, 0) || Math.hypot(q.x - K.centre!.x, q.z - K.centre!.z) < kit.radius + 6, `a piece at ${q.x.toFixed(1)}, ${q.z.toFixed(1)} is in the zone`);

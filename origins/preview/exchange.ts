@@ -58,7 +58,7 @@ function inscription(text: string): THREE.MeshStandardMaterial {
 // Every piece of a plan, merged into one mesh per layer (stone, iron, dark, coal) named `<prefix>-<layer>`, added to the group.
 // `own` gives the stone and paving layers materials of their own (the Exchange's clones, so a look can tint them without touching the arena's).
 export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: ZoneMaterials, prefix: string, own: { stone?: THREE.Material; paving?: THREE.Material } = {}): void {
-  const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], paving: [], iron: [], soot: [], coal: [] };
+  const layers: Record<string, THREE.BufferGeometry[]> = { stone: [], paving: [], iron: [], soot: [], coal: [], plain: [] };
   for (const p of pieces) layers[p.layer]!.push(piece(geometryOf(p.shape), p.x, p.y, p.z, p.tint, p.rotY, p.foot));
   const add = (parts: THREE.BufferGeometry[], material: THREE.Material, name: string) => {
     if (!parts.length) return;
@@ -67,6 +67,7 @@ export function meshPieces(group: THREE.Group, pieces: readonly Piece[], m: Zone
   add(layers.stone!, own.stone ?? m.stone, 'stone'); add(layers.paving!, own.paving ?? m.stone, 'paving'); add(layers.iron!, m.iron, 'iron');
   add(layers.soot!, new THREE.MeshStandardMaterial({ color: '#0d0b0a', roughness: 1 }), 'dark');
   add(layers.coal!, m.coal, 'coal');
+  add(layers.plain!, new THREE.MeshStandardMaterial({ roughness: 1, vertexColors: true }), 'plain');   // untextured matte (the prop kits' wood, hide, cloth and bone): no stone pattern on a tent
 }
 
 export type Exchange = { group: THREE.Group; braziers: THREE.Vector3[]; hearth: THREE.Vector3; ground: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial; update(time: number): void };

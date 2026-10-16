@@ -32,6 +32,11 @@ test('every goblin-camp prop names the model node Characters & Art will give it 
   assert.ok(d.props.every((p) => typeof p.glb === 'string' && p.glb.startsWith('goblin_')), 'every prop has a goblin_ node name'); assert.equal(new Set(d.props.map((p) => p.glb)).size, d.props.length);
   bad({ props: d.props.map((p, i) => (i ? p : { ...p, glb: 'Goblin Tent' })) }, /glb is a node name/); bad({ props: d.props.map((p, i) => (i < 2 ? { ...p, glb: 'same_node' } : p)) }, /same glb node/);
 });
+test('wood, hide, cloth and bone are untextured (layer plain) so a tent never wears the stone pattern; only stones and the cairn stay stone', () => {
+  const organic = new Set(['wood', 'woodDark', 'bone', 'hide', 'rope', 'banner', 'dead', 'ochre']);
+  for (const p of d.props) for (const q of p.parts) if (organic.has(q.tint)) assert.equal(q.layer, 'plain', `${p.id}: a ${q.tint} part is plain`);
+  bad({ props: d.props.map((p, i) => (i ? p : { ...p, parts: [{ ...p.parts[0], layer: 'metal' }] })) }, /layer is stone, coal or plain/);
+});
 test('the default dress set is the base clutter as it was (all 1); an unknown or empty id is the default; the fortress set thins trees most', () => {
   assert.deepEqual(dressSet(), dressSet('')); assert.deepEqual(dressSet('nope'), dressSet('default')); assert.deepEqual(Object.values(dressSet('default')).slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
   const f = dressSet('fortress'); assert.ok(f.trees <= f.skyline && f.trees <= f.scrub && f.trees <= 0.2 && f.rocks < 1 && f.ruins < 1 && f.fill < 1 && f.posts < 1, 'every kind of base clutter is thinned'); assert.equal(f.ruins, 0, 'no brick ruins in the fortress'); assert.equal(f.walls, 0, 'and no brick wall stubs');

@@ -17,7 +17,7 @@ export type Shape =
   | ['cone', number, number, number] // radius, height, radial segments
   | ['sphere', number, number, number] // radius, width segments, height segments
   | ['pediment', number, number, number]; // base width, height, depth: a triangle extruded and centred on its depth
-export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
+export type Layer = 'stone' | 'paving' | 'iron' | 'soot' | 'coal' | 'plain';   // 'paving' = the plaza deck and its joint slabs: stone to the eye, its own mesh so a look can grade ground and masonry apart
 // One placed piece: world position, a turn about y, a tint darkened toward `foot` (exchange.ts piece()).
 export type Piece = { layer: Layer; shape: Shape; x: number; y: number; z: number; tint: Tint; rotY: number; foot: number };
 export type Figure = { x: number; z: number; color: string };
