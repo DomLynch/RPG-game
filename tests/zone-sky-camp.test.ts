@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FIELDS } from '../origins/zones/schema.ts';
 import { zoneFromRow } from '../origins/zones/from-row.ts';
+import { cameraPose, setFightBack } from '../src/fight/camera.ts';
 import { listedIds, loadZone } from '../origins/zones/loader.ts';
-import { goblinPalette, zoneAmbience, zoneDress, zoneGround, zoneLandscapeZoom, zoneMarkers, zonePropKit, zoneSky } from '../origins/world/goblin-field-rules.ts';
+import { goblinPalette, zoneAmbience, zoneDress, zoneFightBack, zoneGround, zoneLandscapeZoom, zoneMarkers, zonePropKit, zoneSky } from '../origins/world/goblin-field-rules.ts';
 
 const field = (path: string) => FIELDS.find((f) => f.path === path);
 const zf = (fields: Record<string, unknown>, world = ['a', 'b']) => ({ fields, set: Object.keys(fields), world });
@@ -53,8 +54,18 @@ test('?look=goblin is Zone 1 seen as the goblin-fortress biome: it gets the whol
   assert.ok(zoneDress(z).trees < 1); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind'); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'soft' });
   assert.equal(zoneSky(base), null); assert.deepEqual(zoneMarkers(base), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, 'the zone row itself did not change');
 });
+test('setFightBack scales the LOCKED camera back and up (same angle); 1 and the free orbit are untouched', () => {
+  const s = { x: 0, z: 0, heading: 0, distance: 0 }, foe = { x: 0, z: -3 };
+  setFightBack(1); const a = cameraPose(s, 0, 0, true, foe), free = cameraPose(s, 0, 0.3, false, foe);
+  setFightBack(1.2); const b = cameraPose(s, 0, 0, true, foe), free2 = cameraPose(s, 0, 0.3, false, foe); setFightBack(1);
+  assert.ok(Math.abs(b.z / a.z - 1.2) < 1e-9 && Math.abs(b.y / a.y - 1.2) < 1e-9, `back ${a.z} -> ${b.z}, up ${a.y} -> ${b.y}`);
+  assert.deepEqual(free2, free, 'the free orbit is not the combat camera');
+});
 test('camera.landscapeZoom: a wide screen can look closer; unset, below 1 or above 3 is no zoom; the goblin-fortress biome asks for 1.3 and Zones 1-4 for nothing', () => {
   assert.equal(zoneLandscapeZoom(zf({ 'camera.landscapeZoom': 1.3 })), 1.3); assert.equal(zoneLandscapeZoom(zf({})), 1); assert.equal(zoneLandscapeZoom(zf({ 'camera.landscapeZoom': 0.5 })), 1); assert.equal(zoneLandscapeZoom(zf({ 'camera.landscapeZoom': 9 })), 1);
   assert.equal(field('camera.landscapeZoom')?.default, 1); assert.equal(field('camera.landscapeZoom')?.wired, true);
+  assert.equal(zoneFightBack(zf({ 'camera.fightBack': 1.2 })), 1.2); assert.equal(zoneFightBack(zf({})), 1); assert.equal(zoneFightBack(zf({ 'camera.fightBack': 0.5 })), 1); assert.equal(zoneFightBack(zf({ 'camera.fightBack': 9 })), 1);
+  assert.equal(field('camera.fightBack')?.default, 1); assert.equal(field('camera.fightBack')?.wired, true);
+  for (const id of ['1', '2', '3', '4']) assert.equal(zoneFightBack(loadZone(id)), 1, `${id}: the real zones' combat camera is untouched`);
   for (const id of ['1', '2', '3', '4']) assert.equal(zoneLandscapeZoom(loadZone(id)), 1, id);
 });

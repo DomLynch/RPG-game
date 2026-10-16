@@ -26,6 +26,7 @@ import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId, zoneAsBiome } from '../zones/loader.ts';
+import { setFightBack } from '../../src/fight/camera.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
@@ -65,7 +66,7 @@ import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom } from '../world/goblin-field-rules.ts';
+import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
@@ -383,6 +384,7 @@ function showZone(id: string | null) {
   document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
+setFightBack(zoneFightBack(zoneRow ?? loadZone()));   // the combat camera stands this much further back (camera.fightBack; 1 = the duel as it was)
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.zoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
 }
