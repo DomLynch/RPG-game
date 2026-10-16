@@ -730,7 +730,8 @@ async function remoteProbe(opponent: string): Promise<{ worn: string[]; missing:
   if (!probeActor || !probePieces) { probePieces = await loadLoot(lootUrl); probeActor = (await loadWarriors(ASSETS.hero!)).player; scene.add(probeActor.anchor); }
   const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(4);   // in the camera's view, so the frame draws it and links its programs
   probeActor.anchor.position.set(camera.position.x + ahead.x, hero.position.y, camera.position.z + ahead.z);
-  const worn = Object.fromEntries(probePieces.filter((p) => p.userData.opponent === opponent && p.userData.slot !== 'Weapon').map((p) => [String(p.userData.slot), lootIds(p)[0]!]));
+  const [kit, only] = opponent.split(':');   // 'goblin' = the whole kit, 'goblin:Helmet' = one slot of it
+  const worn = Object.fromEntries(probePieces.filter((p) => p.userData.opponent === kit && p.userData.slot !== 'Weapon' && (!only || p.userData.slot === only)).map((p) => [String(p.userData.slot), lootIds(p)[0]!]));
   return { worn: Object.values(worn), missing: dressRemote(probeActor, probePieces, worn) };
 }
 // Which scene objects use each linked program (material type:name @ the object's parent chain), for a seamless receipt: a program that links at the engage is named by its owner, so a red row says what it was.
