@@ -18,9 +18,10 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'test-field' }); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'soft' }, 'the biome turns the creature markers off'); assert.equal(z.fields?.['look.sky'], 'fortress', 'the biome row, not the zone row, sets the sky'); assert.equal(z.fields?.['look.props.density'], 0.25, 'and thins the game\'s own rock and scrub kit');
     const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     const K = propKit(F, B, frontierDress(F, B), 'test-field', 'goblin-camp'); assert.ok(K.centre && K.fires.length >= 1 && K.dress.pieces.length > 50, `${K.dress.pieces.length} camp pieces`);
-    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll'], 'Dom 2026-10-16: the salamander and the troll stand here, at the level-1 band its row asks for');
+    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll', 'character:pit-goblin'], 'Dom 2026-10-16: the salamander (3 of them, drawn at scale 3), the troll (3) and 6 pit goblins stand here, at the level-1 band its row asks for');
+    assert.deepEqual(z.spawns.rows.map((r) => r.behaviour.campSize), [[3, 3], [3, 3], [6, 6]]); assert.equal(z.mobLooks?.looks['character:giant-salamander']?.scale, 3);
     const { variantLook } = await import('../origins/preview/mob-looks.ts');   // the per-frame reader that threw on a row with no mobLooks.spread (2026-10-16: the page froze, the hero stayed a capsule)
     for (const id of ['character:giant-salamander', 'character:cave-troll']) for (let v = 0; v < 4; v++) assert.doesNotThrow(() => variantLook(id, v, z), `${id} variant ${v}`);
-    assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['test-troll-cave', 'test-mere-bank']);
+    assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['test-troll-cave', 'test-camp', 'test-mere-bank']);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });
