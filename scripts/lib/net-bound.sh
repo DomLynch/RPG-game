@@ -5,7 +5,7 @@
 #   net_bound SECONDS LABEL cmd...   run cmd in its own process group; at SECONDS kill the whole group, print
 #                                    "net-bound: LABEL timed out after SECONDS s" to stderr, set NET_WHY to the same text, return 124.
 #                                    The callee's own exit code passes through, except its own 124, which becomes 123 (124 = timed out, only).
-#   net_git SECONDS op args...       git with http.lowSpeedLimit/Time (a stalled transfer aborts itself) under net_bound, label "git <op>".
+#   net_git SECONDS op args...       git with http.lowSpeedLimit/Time via GIT_CONFIG_* (a stalled transfer aborts itself) under net_bound, label "git <op>".
 #   net_gh  SECONDS cmd sub args...  gh under net_bound, label "gh <cmd> <sub>".
 # Prompts are off (GIT_TERMINAL_PROMPT, GH_PROMPT_DISABLED): nobody can answer one in a launchd job. stdin is /dev/null for the call.
 NET_WHY=
@@ -25,5 +25,11 @@ net_bound() {
   if [ "$rc" = 124 ]; then NET_WHY="$label timed out after ${secs}s"; echo "net-bound: $NET_WHY" >&2; fi
   return $rc
 }
-net_git() { local secs=$1 op=$2; shift 2; net_bound "$secs" "git $op" git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 "$op" "$@"; }
+# The low-speed limits ride in git's environment, not in -c arguments: the command line stays exactly `git <op> args` (the train's tests,
+# and anyone reading ps, match it).
+net_git() {
+  local secs=$1 op=$2; shift 2
+  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=http.lowSpeedLimit GIT_CONFIG_VALUE_0=1000 GIT_CONFIG_KEY_1=http.lowSpeedTime GIT_CONFIG_VALUE_1=60 \
+    net_bound "$secs" "git $op" git "$op" "$@"
+}
 net_gh() { local secs=$1 a=$2 b=${3:-}; shift 1; net_bound "$secs" "gh $a $b" gh "$@"; }

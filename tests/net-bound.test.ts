@@ -18,7 +18,7 @@ const stub = (tool: 'git' | 'gh', mode: 'hang' | 'ok') => {
   mkdirSync(bin);
   const body = mode === 'hang'
     ? `sh -c "'${process.execPath}' -e 'setTimeout(() => require(\\"node:fs\\").writeFileSync(\\"${marker}\\", \\"\\"), 30_000)'; exit"`
-    : 'echo "ARGS:$*"';
+    : 'echo "ARGS:$* LS:$GIT_CONFIG_VALUE_0/$GIT_CONFIG_VALUE_1 N:$GIT_CONFIG_COUNT"';
   writeFileSync(join(bin, tool), `#!/bin/sh\n${body}\n`); chmodSync(join(bin, tool), 0o755);
   return { marker, run: (script: string) => spawnSync('bash', ['-c', `source '${lib}'\n${script}`], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } }) };
 };
@@ -40,10 +40,10 @@ test('a hung gh call is killed at its limit and named with its two-word op', () 
 });
 test('a call that finishes in time passes its output and exit through; git carries the low-speed limits and no prompts', () => {
   const g = stub('git', 'ok').run('net_git 30 ls-remote origin refs/heads/x; echo "rc=$? why=[$NET_WHY]"');
-  assert.match(g.stdout, /ARGS:-c http\.lowSpeedLimit=1000 -c http\.lowSpeedTime=60 ls-remote origin refs\/heads\/x/);
+  assert.match(g.stdout, /ARGS:ls-remote origin refs\/heads\/x LS:1000\/60 N:2/, 'the command line stays `git <op> args`; the limits ride in the environment');
   assert.match(g.stdout, /rc=0 why=\[\]/);
   const h = stub('gh', 'ok').run('net_gh 30 pr view 7; echo "rc=$?"');
-  assert.match(h.stdout, /ARGS:pr view 7\nrc=0/);
+  assert.match(h.stdout, /ARGS:pr view 7 LS:\/ N:\nrc=0/);
 });
 test('the callee\'s own failure code survives; its own 124 is not mistaken for a timeout', () => {
   const s = stub('git', 'ok');
