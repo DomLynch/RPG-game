@@ -39,8 +39,13 @@ BODIES = {
         "front": [(.22, .58), (.243, .276), (.229, .079), (.211, .02)],
         "hind": [(.52, .53), (.53, .276), (.523, .09), (.51, .02)],
         "legx": .72,
+        # A squat body with short legs: the wolf's gait folds the hind leg into the belly and drags the flank (Lead's review of #2879: Walk/Run/Flee frames 1 and 3).
+        # `stride` scales every leg swing, `lift` scales the fold of a leg in the air on top of it, `wexp` sharpens the skin falloff so a leg owns less of the belly, `tint` is a glTF base colour factor
+        # (deeper red: less green and blue; the same device as the Cave Troll's moss green).
+        "stride": .45, "lift": .5, "wexp": 5.0, "tint": (.85, .62, .62),
     },
 }[BODY]
+STRIDE, LIFT, WEXP, TINT = BODIES.get("stride", 1.0), BODIES.get("lift", 1.0), BODIES.get("wexp", 3.0), BODIES.get("tint")
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SRC)
@@ -132,7 +137,7 @@ def seg_dist(p, a, b):
 
 for v in mesh.data.vertices:
     d = sorted((seg_dist(v.co, a, b), n) for n, a, b in segs)[:3]
-    w = [1.0 / (x + .004 * H) ** 3 for x, _ in d]
+    w = [1.0 / (x + .004 * H) ** WEXP for x, _ in d]
     tot = sum(w)
     for (x, n), wi in zip(d, w):
         mesh.vertex_groups[n].add([v.index], wi / tot, "REPLACE")
@@ -210,6 +215,7 @@ def s(t, ph=0.0, k=1):
 
 def leg(pair, side, t, ph, swing, lift):
     """One leg: the upper swings about x (positive = forward), the lower folds when the foot is in the air."""
+    swing, lift = swing * STRIDE, lift * STRIDE * LIFT
     a = s(t, ph)
     fold = max(0.0, math.cos(TAU * (t + ph))) * lift
     sgn = 1 if pair == "front" else -1
@@ -338,6 +344,20 @@ os.makedirs(os.path.dirname(os.path.abspath(DST)), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format="JPEG", export_animations=True,
                           export_animation_mode="NLA_TRACKS", export_force_sampling=True, use_selection=False, export_extras=True)
 print("exported", DST, {n: (int(a.frame_range[0]), int(a.frame_range[1])) for n, a in actions.items()}, flush=True)
+
+if TINT:   # a glTF base colour factor on every material: it multiplies the baked map, so the exported file carries the deeper colour and the world body bakes it
+    import json
+    import struct
+    raw = open(DST, "rb").read()
+    jlen = struct.unpack_from("<I", raw, 12)[0]
+    doc = json.loads(raw[20:20 + jlen])
+    for m in doc["materials"]:
+        m.setdefault("pbrMetallicRoughness", {})["baseColorFactor"] = [*TINT, 1.0]
+    js = json.dumps(doc, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    rest = raw[20 + jlen:]
+    open(DST, "wb").write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + len(rest)) + struct.pack("<II", len(js), 0x4E4F534A) + js + rest)
+    print("tinted", DST, TINT, flush=True)
 
 if SHEET:
     os.makedirs(SHEET, exist_ok=True)
