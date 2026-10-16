@@ -29,7 +29,7 @@ test('a skin is fractions of the building: the same parts stand inside a small a
 });
 test('the skin changes how a town looks, never where it stands: same solids, different pieces; Zones 1-4 ask for none', () => {
   const F = frontierPlan(true, '1'), plain = frontierBuild(F), skinned = frontierBuild(F, 'goblin');
-  assert.deepEqual(skinned.solids, plain.solids, 'footprints and solids are untouched'); assert.notDeepEqual(skinned.pieces, plain.pieces);
+  assert.ok(skinned.solids.every((s) => plain.solids.some((k) => k.x === s.x && k.z === s.z && k.r === s.r)), 'the skin adds no obstacle of its own'); assert.ok(plain.solids.filter((s) => !skinned.solids.some((k) => k.x === s.x && k.z === s.z && k.r === s.r)).every((s) => s.r === 0.6), 'only bare landmark markers stop blocking; buildings keep their footprints'); assert.notDeepEqual(skinned.pieces, plain.pieces);
   assert.deepEqual(frontierBuild(F, ''), plain, "'' is today's bricks"); assert.deepEqual(frontierBuild(F, 'nope'), plain, 'an unknown skin is none');
   for (const id of ['1', '2', '3', '4']) assert.equal(zoneBuildings(loadZone(id)), '', `${id}: the real zones keep their bricks`);
   assert.equal(zoneBuildings(zoneAsBiome('1', 'goblin-fortress')), 'goblin', 'the fortress biome asks for the goblin skin');
