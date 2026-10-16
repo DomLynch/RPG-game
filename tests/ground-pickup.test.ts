@@ -27,6 +27,7 @@ function rig(over: Partial<GroundDeps> = {}) {
 
 test('the shipped row loads: a poll period, labels that name the item, and a line for every refusal the writer sends', () => {
   assert.ok(PICKUP.pollSec >= 1 && PICKUP.lineSec > 0);
+  assert.ok(PICKUP.pollSec <= 3, 'the prompt shows within about 3 s of arriving at a drop (Lead 2026-10-16: 20 s left a walker waiting 8-12 s at the cinder-fields camp); the range gate keeps idle reads down');
   for (const l of Object.values(PICKUP.labels)) assert.ok(l.includes('{item}'));
   for (const code of ['taken', 'off', 'have-it', 'full', 'away', 'unchecked', 'stale', 'offline']) assert.ok(PICKUP.outcomes[code]!.line.length > 0, code);
   assert.equal(PICKUP.outcomes.taken!.cue, 'refuse'); assert.equal(PICKUP.outcomes.off!.cue, null);
