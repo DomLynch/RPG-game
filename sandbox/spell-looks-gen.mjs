@@ -20,8 +20,9 @@ const toHex = (h, s, l) => {
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 const rows = Object.entries(SPELL_INFO).sort(([a], [b]) => a.localeCompare(b)).map(([id, i]) => {
-  const h = hash(id), [bh, bs, bl] = toHsl(i.color || '#b070ff');
-  const hue = (bh + ((h % 61) - 30) + 360) % 360, sat = clamp(bs * 0.85 + ((h >>> 8) % 20) / 100, 0.35, 1), light = clamp(0.5 + i.level * 0.02 + (((h >>> 16) % 15) - 7) / 100 + (bl - 0.5) * 0.3, 0.45, 0.78);
+  const h = hash(id), [bh] = toHsl(i.color || '#b070ff');
+  // A wide hue spread round the school's colour and a floor on saturation: on the additive halo a pale tint reads as white, so same-school spells must still be told apart on a phone.
+  const hue = (bh + ((h % 121) - 60) + 360) % 360, sat = clamp(0.6 + ((h >>> 8) % 40) / 100, 0.6, 1), light = clamp(0.5 + i.level * 0.012 + (((h >>> 16) % 13) - 6) / 100, 0.46, 0.68);
   return { id, tint: toHex(hue, sat, light), size: 750 + i.level * 55 + ((h >>> 4) % 150), pulse: 30 + ((h >>> 12) % 28) };
 });
 writeFileSync(new URL('./spell-looks.json', import.meta.url), '{"spellLook":[\n' + rows.map((r) => JSON.stringify(r)).join(',\n') + '\n]}\n');
