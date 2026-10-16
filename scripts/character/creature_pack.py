@@ -102,7 +102,8 @@ base = {"minotaur": "pitborn", "wraith": "nightborn", "werewolf": "pitborn", "sk
 # Surface material factors per family: the retained maps stay byte-identical; a factor only scales them (glTF spec).
 # The Dwarf's TRELLIS metallic map reads his dented iron as polished steel under the arena lighting; 0.6 keeps the plate iron, not chrome.
 # The Knight's plate (metallicFactor 1, ~4.9k flipped normal corners) threw white glints mid-swing; the Dwarf's cap, a touch higher for plate.
-SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}, "knight": {"metallicFactor": 0.4}}
+# The Cave Troll's baked skin reads teal, not Dom's grey-green stone: the base colour factor multiplies the map (less blue and green, a touch more red).
+SURFACE_FACTORS = {"dwarf": {"metallicFactor": 0.35}, "knight": {"metallicFactor": 0.4}, "cave-troll": {"baseColorFactor": [1.1, 0.92, 0.7, 1.0]}}
 # Surface material extensions per family, same rule (maps untouched). A reconstruction ships no normal map, so its smooth
 # surface takes the full dielectric specular as a wet-plastic sheen on skin, cloth and leather alike; the Executioner uses
 # the skin-strength specular the hand-built heads use (build-warrior.mjs: Face 0.5, Photo 0.35).
