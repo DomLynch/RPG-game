@@ -31,7 +31,7 @@ const shots = process.argv.slice(2).map((a) => { const i = a.indexOf('='); retur
 try {
   for (const [name, query] of shots) {
     const r = { name, query, errors: [], stills: [] }; receipts.push(r);
-    const land = name.endsWith('-land'), page = await (await browser.newContext({ viewport: land ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: IPHONE_UA })).newPage();   // an iPhone browser identity, a 375 x 812 viewport at 2x with touch: Dom's phone check. A name ending -land: the phone turned (landscape backdrop rows)
+    const land = name.endsWith('-land'), page = await (await browser.newContext({ viewport: land ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: Number(process.env.STILLS_DSF ?? 1), userAgent: IPHONE_UA })).newPage();   // an iPhone browser identity, a 375 x 812 viewport with touch (STILLS_DSF=2 for a retina render: four times the bytes): Dom's phone check. A name ending -land: the phone turned (landscape backdrop rows)
     page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     if (process.env.STILLS_PROBE) { r.console = []; r.assets = []; page.on('console', (m) => { if (m.type() !== 'log') r.console.push(`${m.type()}: ${m.text().slice(0, 200)}`); }); page.on('response', (q) => { if (/\/zones\//.test(q.url())) r.assets.push(`${q.status()} ${q.url().replace(origin, '')}`); }); page.on('requestfailed', (q) => r.assets.push(`FAILED ${q.url().replace(origin, '')}`)); }
     try {
