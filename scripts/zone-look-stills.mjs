@@ -15,6 +15,7 @@ fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${built}/` };
 for (const d of ['game', 'weapons', 'arena', 'pit', 'looks', 'legends', 'shields', 'herolook', 'gear-ui', 'world', 'beasts']) roots[`/${d}/`] = `${root}/public/${d}/`;
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 const PROXY = process.env.STILLS_PROXY;   // a checkout without public/ (the VPS sparse clone): files missing here are fetched from this site (e.g. https://frankendom.com) and piped back
 const server = http.createServer(async (req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]); let hit = null;
@@ -30,7 +31,7 @@ const shots = process.argv.slice(2).map((a) => { const i = a.indexOf('='); retur
 try {
   for (const [name, query] of shots) {
     const r = { name, query, errors: [], stills: [] }; receipts.push(r);
-    const land = name.endsWith('-land'), page = await (await browser.newContext({ viewport: land ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();   // a name ending -land: the phone turned (landscape backdrop rows)
+    const land = name.endsWith('-land'), page = await (await browser.newContext({ viewport: land ? { width: 812, height: 375 } : { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: IPHONE_UA })).newPage();   // an iPhone browser identity, a 375 x 812 viewport at 2x with touch: Dom's phone check. A name ending -land: the phone turned (landscape backdrop rows)
     page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     if (process.env.STILLS_PROBE) { r.console = []; r.assets = []; page.on('console', (m) => { if (m.type() !== 'log') r.console.push(`${m.type()}: ${m.text().slice(0, 200)}`); }); page.on('response', (q) => { if (/\/zones\//.test(q.url())) r.assets.push(`${q.status()} ${q.url().replace(origin, '')}`); }); page.on('requestfailed', (q) => r.assets.push(`FAILED ${q.url().replace(origin, '')}`)); }
     try {
