@@ -94,7 +94,7 @@ export function createHud(element: Lookup) {
       // A cone skill (path null: reach × the kick's arc) lands only inside its reach, so SKILL says so the way Kick does (Combat,
       // 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed). The reach is the equipped move's own; null = not a cone.
       const me = practice.duel.fighters[0], skillMove = me.skill ? weaponOf(me.weapon).moves[SKILL_MOVE[me.skill]!] : null;
-      const inSkillReach = skillMove?.path === null ? gap <= skillMove.reach : null;
+      const inSkillReach = skillMove?.path === null && !me.spell ? gap <= skillMove.reach : null;   // an equipped spell casts through this slot and has its own range rows: the pommel's cone must not dim it (Dom 2026-10-16: SPELL 1 always dim)
       const manaEl = typeof document === 'undefined' ? null : document.getElementById('mana') as HTMLMeterElement | null;   // sandbox-mech mana: entry.ts adds the bar while the mana rows are on
       const ammoEl = typeof document === 'undefined' ? null : document.getElementById('ammo-value');   // sandbox-mech quiver counter (entry.ts adds it while a quiver row is on)
       if (ammoEl) ammoEl.textContent = me.ammo === undefined ? 'unlimited' : String(me.ammo);
