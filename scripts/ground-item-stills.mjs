@@ -1,5 +1,6 @@
 // Stills of a ground item on the Zone 1 path at a phone (visual-pr-stills): the built origins preview, the walk camera at 375 wide, once with nothing on the ground (before) and once with the item lying a few
 // steps ahead (after), drawn by the ground-item view through the `originsPreview.ground` hook. Chromium on software GL (VPS `capture`).
+//   FAST=<ms> (with ROWS): load the item with the walker far off, step in and shoot within <ms> (a camp at the item engages a walker that stands in it).
 //   BEFORE=1 (with ROWS): a `<stem>-none-<width>.jpg` of the empty spot first.
 //   ROWS=1: one still per shipped ground row (origins/world/ground-items.json), the walker 3 m short of the item at its place, labels on; named <item stem>-<width>.jpg.
 //   ZONE_DIST=<built origins preview> OUT=<dir> ITEM=item:starter.rusty-sword node scripts/ground-item-stills.mjs
@@ -51,11 +52,15 @@ try {
       if (!best || clear > best.clear + 4 || (Math.abs(clear - best.clear) <= 4 && tie > best.tie)) best = { c, clear, tie };
     }
     const hero = best.c, heading = Math.atan2(at.x - hero.x, at.z - hero.z);
-    await page.evaluate(([x, z, h]) => window.originsPreview.place(x, z, h), [hero.x, hero.z, heading]);
-    if (process.env.BEFORE) { await page.waitForTimeout(5000); await shoot(page, `${stem}-none-${width}.jpg`); }   // BEFORE=1: the same spot, same camera, nothing on the ground yet
+    const put = (c) => page.evaluate(([x, z, h]) => window.originsPreview.place(x, z, h), [c.x, c.z, heading]);
+    // FAST=<ms>: a camp at the item engages a walker standing in its aggro for seconds (the camera turns to the fight). Load the item with the walker far off (4x BACK_M, outside any aggro), then step in and shoot within <ms>.
+    const FAST = Number(process.env.FAST || 0), far = { x: at.x + (hero.x - at.x) * 4, z: at.z + (hero.z - at.z) * 4 };
+    if (process.env.BEFORE) { await put(hero); await page.waitForTimeout(FAST || 5000); await shoot(page, `${stem}-none-${width}.jpg`); }   // BEFORE=1: the same spot, same camera, nothing on the ground yet
+    await put(FAST ? far : hero);
     await page.evaluate(([id, item, x, z]) => window.originsPreview.ground.show(id, item, x, z), [gid, row.item, at.x, at.z]);
     await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, gid, { timeout: 60000 });
     await page.waitForTimeout(5000);
+    if (FAST) { await put(hero); await page.waitForTimeout(FAST); }
     (receipt.rows ??= {})[`${stem}-${width}`] = { place: row.place, at, anchor: await page.evaluate((id) => window.originsPreview.ground.anchor(id), gid) };
     await shoot(page, `${stem}-${width}.jpg`);
     await page.context().close();
