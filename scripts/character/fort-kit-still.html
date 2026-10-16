@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>goblin fort kit still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// Lays the goblin fort kit's pieces in two rows on a ground plane and reports, per node: name, size (m), tris. Also counts the WebGL programs after the zone 1 kit
+// alone and after the fort kit is added (should add 0: the same material features). Driven by scripts/character/fort-kit-still.mjs (window.ready flips true).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(3, 5, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
+const frame = async (n = 3) => { for (let i = 0; i < n; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
+const load = (url) => new GLTFLoader().loadAsync(url);
+
+const z1 = await load('/public/world/kit/zone1-kit.glb'); const z1probe = z1.scene.clone(true); z1probe.position.set(40, 0, 0); scene.add(z1probe);
+camera.position.set(40, 6, 14); camera.lookAt(40, 1, 0); await frame();
+const programsZone1 = renderer.info.programs.length; scene.remove(z1probe);
+
+const fort = await load('/public/world/kit/goblin-fort-kit.glb');
+const nodes = []; fort.scene.traverse((o) => { if (o.isMesh) nodes.push(o); });
+const info = nodes.map((m) => { const b = new THREE.Box3().setFromObject(m), s = b.getSize(new THREE.Vector3()); const g = m.geometry; return { name: m.name, size: [s.x, s.y, s.z].map((v) => +v.toFixed(2)), tris: (g.index ? g.index.count : g.attributes.position.count) / 3, centre: b.getCenter(new THREE.Vector3()) }; });
+const rows = [info.filter((i) => /palisade|gate|spikes/.test(i.name)), info.filter((i) => !/palisade|gate|spikes/.test(i.name))];
+const group = new THREE.Group(); scene.add(group);
+for (const [r, list] of rows.entries()) { let x = 0; for (const it of list) { const m = nodes.find((n) => n.name === it.name).clone(); const w = Math.max(it.size[0], it.size[2], 0.6) + 0.5; m.position.set(x + w / 2 - it.centre.x, -(it.centre.y - it.size[1] / 2) + 0, -r * 7 - it.centre.z); group.add(m); x += w; } }
+const bb = new THREE.Box3().setFromObject(group), c = bb.getCenter(new THREE.Vector3()), s = bb.getSize(new THREE.Vector3());
+group.position.x = -c.x;
+const result = { programsZone1, programsAfterFort: 0, info: info.map(({ centre, ...i }) => i) };
+// two views: all pieces, front-on; then a three-quarter view of the back row
+camera.position.set(0, s.y * 1.4 + 2, Math.max(s.x * 1.6, 18)); camera.lookAt(0, s.y * 0.35, -3.5); await frame(); result.programsAfterFort = renderer.info.programs.length;
+window.result = result;
+window.view = async (name) => { if (name === 'quarter') { camera.position.set(-s.x * 0.15, 5, -3); camera.lookAt(0, 1.5, -7); } await frame(); };
+window.ready = true;
+</script>
