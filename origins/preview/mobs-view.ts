@@ -9,6 +9,8 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
+import { fxNum } from '../../src/fight/fx-rows.ts';
+const STAND_OFF = fxNum('stand-off.per-scale');   // metres a drawn body stands back per unit of look scale above 1 (src/fight/fx-rows.json), read once
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
@@ -184,7 +186,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.group.visible = !hiddenInFight(s.id, engaged); v.ring.visible = v.group.visible && (opts.markers?.ring ?? true);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
-        v.group.position.set(m.x, gy, m.z); v.group.rotation.y = m.facing;
+        const look = mobVariant(s.character, s.id), off = look && look.scale > 1 ? STAND_OFF * (look.scale - 1) : 0, ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;   // a bigger drawn body (a zone look's scale) stands back along the line to the hero by STAND_OFF m per unit of extra scale, so its mouth reaches his edge and not inside him; presentation only, the sim's contact distance is untouched
+        v.group.position.set(m.x + (ux / dh) * off, gy, m.z + (uz / dh) * off); v.group.rotation.y = m.facing;
         v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
