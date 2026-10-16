@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Fighter } from './duel.ts';
-import { missileOf, spellRangeOf } from './sandbox-rules.ts';
+import { missileOf, spellLookOf, spellRangeOf } from './sandbox-rules.ts';
 import { spellRoot } from './spell-cast.ts';
 
 // sandbox-mech: missiles, the bolt in flight. A small cold core with a soft halo and a short fading trail, drawn from the fighter's `missile` state (position by tick along its line), so it always matches the sim's arrival. Presentation only:
@@ -28,7 +28,7 @@ export function createMissileFx(scene: THREE.Scene) {
   };
   const dressed = [undefined, undefined] as (string | undefined)[];
   // Spell bursts (Dom 2026-10-16: a cast must be clearly visible): a flash + swelling halo on the foe where a spell lands (colour from its range row, else violet) and a small flash on the caster when the cast starts. Fed from the tick's events.
-  const bursts = Array.from({ length: 6 }, () => ({ core: sprite(1, '#ffffff', 1), halo: sprite(1, '#b070ff', 0.8), at: -1, x: 0, z: 0, big: 1 })); let next = 0;
+  const bursts = Array.from({ length: 6 }, () => ({ core: sprite(1, '#ffffff', 1), halo: sprite(1, '#b070ff', 0.8), at: -1, x: 0, z: 0, big: 1, life: 42 })); let next = 0;   // life: ticks the burst lasts (a spellLook row's pulse; 42 without one)
   const BURST_TICKS = 42;
   return {
     burst(events: readonly { type: string; actor: number; target?: number; spell?: string; tick: number }[], fighters: readonly Pick<Fighter, 'body'>[]): void {
@@ -36,13 +36,13 @@ export function createMissileFx(scene: THREE.Scene) {
         const land = e.type === 'SpecialLanded' && e.spell && e.target !== undefined, start = e.type === 'SpecialStarted' && e.spell;
         if (!land && !start) continue;
         const who = fighters[land ? e.target! : e.actor]; if (!who) continue;
-        const b = bursts[next++ % bursts.length]!, root = e.spell ? spellRoot(e.spell) : undefined, tint = (root && spellRangeOf(root)?.tint) || '#b070ff';
-        (b.halo.material as THREE.SpriteMaterial).color.set(tint); b.at = e.tick; b.x = who.body.x; b.z = who.body.z; b.big = land ? 1 : 0.4;
+        const b = bursts[next++ % bursts.length]!, root = e.spell ? spellRoot(e.spell) : undefined, look = e.spell ? spellLookOf(e.spell) : undefined, tint = look?.tint || (root && spellRangeOf(root)?.tint) || '#b070ff';   // the spell's own look row first, then its root's range tint
+        (b.halo.material as THREE.SpriteMaterial).color.set(tint); b.at = e.tick; b.x = who.body.x; b.z = who.body.z; b.big = (land ? 1 : 0.4) * (look?.size ?? 1000) / 1000; b.life = look?.pulse ?? BURST_TICKS;
       }
     },
     update(tick: number, fighters: readonly Pick<Fighter, 'missile' | 'weapon'>[]): void {
       for (const b of bursts) {
-        const age = tick - b.at, live = b.at >= 0 && age >= 0 && age < BURST_TICKS, k = live ? age / BURST_TICKS : 1;
+        const age = tick - b.at, live = b.at >= 0 && age >= 0 && age < b.life, k = live ? age / b.life : 1;
         b.core.visible = b.halo.visible = live; if (!live) continue;
         b.core.position.set(b.x, HEIGHT, b.z); b.halo.position.copy(b.core.position);
         b.core.scale.setScalar(b.big * (1.1 - k * 0.6)); b.halo.scale.setScalar(b.big * (0.8 + k * 2.6));

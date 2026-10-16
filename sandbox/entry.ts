@@ -15,6 +15,7 @@ import RULES from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 import PHASES from '../src/fight/boss-phase-defs.json' with { type: 'json' };
 import PLAY_RADIUS from '../src/fight/play-radius-defs.json' with { type: 'json' };
 import SAVED from './rows.json' with { type: 'json' };
+import SPELL_LOOKS from './spell-looks.json' with { type: 'json' };
 
 declare const __SANDBOX_INFO__: string;
 // The spell picks survive a link or a reload that does not name them (a ?me= link used to drop them): remembered per browser, the URL wins, an empty Apply clears.
@@ -34,6 +35,8 @@ const FILES: Record<string, Record<string, unknown>> = {
   bosses: { bosses: BOSSES } as Record<string, unknown>,
 };
 const KEY = 'frankendom.sandbox.rows';
+// The 700 spell looks (sandbox/spell-looks.json, authored by spell-looks-gen.mjs) join the rules' `spellLook` family before the panel snapshots LIVE, so they show and edit like any family.
+(RULES as unknown as { spellLook: unknown[] }).spellLook.splice(0, 0, ...(SPELL_LOOKS as { spellLook: unknown[] }).spellLook);
 const LIVE: Record<string, Rows> = JSON.parse(JSON.stringify(FILES));
 const read = (): Overrides => { try { return JSON.parse(localStorage.getItem(KEY) ?? 'null') ?? (SAVED as Overrides); } catch { return SAVED as Overrides; } };
 const write = (o: Overrides | null) => { try { if (o) localStorage.setItem(KEY, JSON.stringify(o)); else localStorage.removeItem(KEY); } catch { /* private window: edits last this page only */ } };

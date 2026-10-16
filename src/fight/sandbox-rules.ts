@@ -225,7 +225,11 @@ export const spellRangeCue = (root: string, distance: number): 'far' | undefined
   const have = BANDS.findIndex((b) => b.id === bandOf(distance)), want = BANDS.findIndex((b) => b.id === row.band);
   return want >= 0 && have > want ? 'far' : undefined;
 };
-export const spellCueText = (id: string): string => CUES.find((c) => c.id === id)?.text ?? id;
+// spellLook (Dom 2026-10-16: every spell its own look, in the data layer): one row per catalogue spell { id, tint, size (per-mille of the burst's base size), pulse (ticks the burst lasts) }. sandbox/spell-looks.json authors all 700 (sandbox/spell-looks-gen.mjs); a spell with no row, or no rows (trunk), looks as before.
+type SpellLookRow = { id: string; tint?: string; size?: number; pulse?: number };
+const SPELL_LOOKS = ((DEFS as unknown as { spellLook?: SpellLookRow[] }).spellLook ?? []);
+export const spellLookOf = (spell: string): SpellLookRow | undefined => SPELL_LOOKS.find((r) => r.id === spell);
+export const spellCueText =(id: string): string => CUES.find((c) => c.id === id)?.text ?? id;
 /** Travel time in whole ticks over `range` metres at the row's cm/s speed. */
 export const missileTicks = (row: { speed: number }, range: number): number => Math.max(1, Math.ceil((range * 100 * 60) / row.speed));
 
