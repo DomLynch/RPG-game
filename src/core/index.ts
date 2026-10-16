@@ -9,6 +9,7 @@ export { ROWS as SHEET_ROWS, spent as pointsSpent, pointsBudget, type Row as She
 export * from './grimoire-screen.ts';   // the spell book dialog and its op, for the Pit page
 export * from './grimoire-net.ts';
 export * from './spell-equip.ts';
+export * from './spell-slot-view.ts';
 export * from './skills-net.ts';   // skills_get: the skill values a cast is claimed at (Match's spell port)
 export * from './skills-server.ts';   // the equipped spell and the owned ids, read by the Match's spell port
 export * from './session.ts';

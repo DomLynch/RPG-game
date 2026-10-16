@@ -3,10 +3,10 @@
     {"table": "starterItem", "file": "ground-items.json", "at": "starterItems", "keyed": true, "key": "id",
      "required": {"maxQty": "integer"}},
     {"table": "groundLimit", "file": "ground-items.json", "at": "groundLimits", "keyed": true, "key": "id",
-     "required": {"minRespawnSec": "integer", "maxRespawnSec": "integer", "minRadiusM": "number", "maxRadiusM": "number"}},
+     "required": {"minRespawnSec": "integer", "maxRespawnSec": "integer", "defaultRespawnSec": "integer", "minRadiusM": "number", "maxRadiusM": "number", "defaultRadiusM": "number"}},
     {"table": "groundItem", "file": "ground-items.json", "at": "groundItems", "keyed": true, "key": "id",
-     "required": {"zone": "string", "place": "string", "item": "string", "qty": "integer", "respawnSec": "integer", "scope": "string"},
-     "optional": {"radiusM": "number", "offsetX": "number", "offsetZ": "number"},
+     "required": {"zone": "string", "place": "string", "item": "string", "qty": "integer", "scope": "string", "hiddenWhileTaken": "boolean"},
+     "optional": {"respawnSec": "integer", "radiusM": "number", "offsetX": "number", "offsetZ": "number"},
      "refs": {"item": "starterItem"}}
   ]
 }

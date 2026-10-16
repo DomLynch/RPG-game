@@ -2,6 +2,24 @@
 
 Strategy sets the bar, briefs Lead Dev and judges results; it does not direct lanes (owner, 2026-09-22). Lanes report to Lead; Lead sends Strategy milestones only. Append new entries at the TOP. Memory for this lane lives under `~/.claude/projects/-Users-domininclynch-Developer-frankendom-strategy/memory/` (65+ files; `MEMORY.md` is the index).
 
+## 2026-10-15 17:3x Dubai — restart; branch protection ON for both trunks (set from the Mac)
+
+**Now.** Session restarted from the 17:2x handoff. Branch protection set by Strategy via the API on RPG-game `codex/01a09a76/task-1` and Codex-Hooks `main`: PRs required (0 approvals, so the merge driver still works), enforce_admins on, force-push and delete off, no required checks yet (GET confirms). The earlier "404" was the API saying "Branch not protected", not a permissions failure. cut-release pushes only candidate branches, so cutting is unaffected; Deploy reports any protection error to Strategy. Watchers and cut gates STAY until Dom's ruling. Live afc77c7df = trunk head (my curl 17:29). Order to Lead unchanged.
+
+**Open.** Dom: his evening list, 4 captions, phone walks. Lead: HF overspend figure, row-10 Mac override, #147 hooks CI. Required status checks on trunk: add once Deploy names the one check that every candidate carries.
+
+## 2026-10-15 17:2x Dubai — handoff before /clear (incident contained, sandboxes opened, spells and loot driving)
+
+**READ FIRST:** memory `session-handoff-2026-10-15-evening` in the Strategy lane key; incident detail is in memory only (public repo).
+
+**Now.** Dom works his own evening list tonight; until his ruling Lead's 5-min trunk watcher + 30 s crontab watcher run and Deploy's two cut gates stand (empty diff on .github/workflows, .vscode, public/fonts; no PR-less commit between last live and base). Lanes: Combat drives spells end to end (#2810 slots spec ruled, #2811 15-spell rows OK'd, sim PR next from a fresh session; #2807 positioning gates rerunning the AI-vs-AI gate at offBand 0.8 + tamed holdBand, tolerance share ±0.06 / rank ±2); Backend drives loot and economy (#2800 ground loot slice 1, slice 2 building, inventory slices 3–4, then the versions registry); Web owns the first-five-minutes intro #2792 (owed: clip, Dom's phone walk, Dom's 4 captions); World ships only (goblin-field #2797 publishes as a preview tonight; the generic look.sky / look.props.kit change from the zone sandbox comes to World to carry). Dom-driven sandboxes DESIGN, main lanes SHIP: combat sandbox owns bows/weapons (mana pool → staff bolt → slot 2 → bow → crossbow, rulings sent), zone sandbox (worktree frankendom-zone-sandbox, branch zone/goblin-field-dome off #2797) builds zone 99 "Test Zone" rows-only with an unlisted flag, then three dome directions for Dom; a characters sandbox is Dom's to open (Characters & Art parked).
+
+**Done today.** Live afc77c7df at 17:26 (my curl); releases GE2, GF, GG, GH published per Lead; debt 0 at live (my count at 70b707aac). Incident: contained (detail in lane memory only), watchers and cut gates on; VPS disk recovered from 16G to 20G+ free (Backend's per-run clones swept by exact path; one reusable checkout from now). Rulings: PvP strict duel holds; two universal special slots with separate cooldowns; mana as a third pool spent per cast; one missile model for staff/bow/crossbow in the outer band; tactic blocks may shape identity (4 conditions); no incident detail in the public repo; PicoClaw SUPERSEDED + PAUSED_UNREACHABLE rules.
+
+**Open.** Dom: his evening list, 4 captions, phone walks (Pit, goblin field, bows preview). Lead: row-10 Mac override result, Hooks Dev's allow-list for Mac-only release rows, #147 hooks CI on ubuntu. Combat: gate rerun result on #2807. HF overspend figure still owed by Lead.
+
+**Gotchas.** In zsh, `git show $REF:path` and any `?` in a URL need quoting. send_message by session id wakes a stopped lane (Backend did), but a held session stays queued. `vps-scratch-sweep` holds a flock: "another sweep running" means wait, not retry.
+
 ## 2026-10-15 09:2x Dubai — security incident on trunk (details in the Strategy lane memory, not here)
 
 Trunk carried four direct-pushed commits (00:11Z) until the revert #2779 (trunk ffdc0aaa1, tree-identical to GD). Containment, root cause and the owner list live in the Strategy and Lead lane memories; this repo is public, so nothing about what was or was not rotated is written here. Rule from the incident: every branch rebases onto ffdc0aaa1 or later before it is pushed; Deploy's cut gates (empty diff on .github/workflows, .vscode, public/fonts; no PR-less commit between the last live sha and the base) stay until branch protection is on.

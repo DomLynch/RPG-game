@@ -38,7 +38,13 @@ export { legendForLevel, LEGEND_OPPONENTS, type LegendOpponent } from '../legend
 export { bareName } from '../roster.ts';   // a roster name without its article (K12)
 export { createZoneFx } from './zone-fx.ts';   // the zones' contact effects: one createFightFx per active pair
 export { createFeedback } from './sound/feedback.ts';   // the Pit's combat cue player (K8 row 12: the zone page reaches it through here)
-export { creaturesLook, type CreatureCue } from './sound/creature.ts';   // ?look=creatures and the creature cue names
+export { creaturesLook, type CreatureCue } from './sound/creature.ts';
+export { groundLootCue, GROUND_LOOT_KINDS, type GroundLootKind } from './sound/ground-loot.ts';   // the ground-loot cue rows (drop, pickup, refuse); a page plays one with feedback.groundLoot(kind)   // ?look=creatures and the creature cue names
 export const loadFeedback = () => import('./sound/feedback.ts').then((m) => m.createFeedback());   // K8 slice 2: the Pit's cue player as a lazy chunk (the zone builds it at its first gesture, not with the page)
+// The 700-row spell catalogue as a lazy chunk (the SPELL 2 button's name; never in the entry bundle). The import( sits on its own line behind .then so tests/bundle-no-spells.test.ts's line-start
+// scan reads it as the dynamic edge it is, not a static re-export.
+export const loadSpellInfo = () => Promise.resolve()
+  .then(() => import('./spell-catalogue.ts')).then((m) => m.SPELL_INFO);
 export { createFollowCamera, inPassage, type Framing, type FollowState, type Passage, type Presets, pickFraming } from './follow-camera.ts';   // the walk's follow camera (zone-supplied passage, none for Zone 2)
 export { MAX_ATTACKERS } from './attackers.ts';
+export { finishedAs } from './rank-tint.ts';   // a finish row on a piece's metal (the ground-item view, origins/preview)
