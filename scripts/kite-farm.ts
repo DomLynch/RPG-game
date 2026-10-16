@@ -22,6 +22,9 @@ const kind = env('KIND', 'goblin'), level = +env('LEVEL', '2'), seeds = +env('SE
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
 const away = (h: Fighter, c: Fighter, turn = 0): Input => { const a = Math.atan2(h.x - c.x, h.z - c.z) + turn; return { x: Math.sin(a), z: Math.cos(a), run: true }; };
 const toward = (h: Fighter, c: Fighter): Input => { const d = dist(h, c) || 1; return { x: (c.x - h.x) / d, z: (c.z - h.z) / d, run: true }; };
+// PAUSE: when the evade clock runs. act: only while the creature is free to act (phase ready: not winding up, swinging, recovering or staggered); contact: only while it is outside its prey's engage-out ring (it is chasing, not fighting); both: both at once.
+const inContact = (w: World, c: Fighter) => Math.min(...w.fighters.filter((f) => f.side === 'player').map((f) => dist(f, c))) <= 6;
+const clockRuns = (w: World, c: Fighter) => pause === 'none' || (pause === 'act' && c.phase === 'ready') || (pause === 'contact' && !inContact(w, c)) || (pause === 'both' && c.phase === 'ready' && !inContact(w, c));
 const swing = (c: Fighter) => c.phase === 'windup' || c.phase === 'active';
 type Ctx = { w: World; k: number; h: Fighter; c: Fighter; s: { gone?: boolean } };
 const trade = ({ h, c, k }: Ctx): Input => (swing(c) && dist(h, c) < 5 ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null });
@@ -53,7 +56,7 @@ function run(name: string, seed: number) {
     for (const e of res.events) if (e.attacker === 'c0' && (e.type === 'Hit' || (landed === 'swing' && (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')))) idleT = 0;
     if (c2 && c2.health > 0 && c2.hunting && !c2.returning) {
       if (!hunted) idleT = 0;
-      else if (pause === 'none' || (pause === 'act' && c2.phase === 'ready') || (pause === 'contact' && Math.min(...w.fighters.filter((f) => f.side === 'player').map((f) => dist(f, c2))) > 6)) idleT += DT;   // PAUSE: when the clock runs. act: only while the creature is free to act (not winding up, swinging, recovering or staggered); contact: only while it is out of its prey's engage ring (it is chasing, not fighting)
+      else if (clockRuns(w, c2)) idleT += DT;   // PAUSE: when the clock runs. act: only while the creature is free to act (not winding up, swinging, recovering or staggered); contact: only while it is out of its prey's engage ring (it is chasing, not fighting)
       if ((rule === 'noblow' && idleT > noblowS) || (rule === 'spawn' && Math.hypot(c2.x - c2.homeX, c2.z - c2.homeZ) > leashOf(c2.kind))) { c2.hunting = false; c2.returning = true; c2.phase = 'ready'; r.ruleEvades++; if (process.env.DEBUG_EVADE && r.ruleEvades <= 2) console.log(`evade t=${(k * DT).toFixed(1)} hp=${Math.round(c2.health)}/${Math.round(c2.maxHealth)} dist=${dist(c2, w.fighters[0]!).toFixed(1)} hero=${Math.round(w.fighters[0]!.health)} last c0 events: ${recent.slice(-8).map((q) => `${q.t.toFixed(1)}:${q.type}`).join(' ')}`); }
     }
     hunted = !!c2?.hunting;
