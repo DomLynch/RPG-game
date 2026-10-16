@@ -45,7 +45,9 @@
         }
       }
     },
-    "spread": {}
+    "spread": {
+      "character:pit-goblin": { "tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "gear": ["cleaver", "gladius", "estoc"] }
+    }
   },
   "spawns": {
     "openers": {},

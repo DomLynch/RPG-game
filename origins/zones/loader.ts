@@ -84,6 +84,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
+    if (sp.gear && !(Array.isArray(sp.gear) && sp.gear.every((g) => typeof g === 'string' && g))) bad.push(`mob spread ${id}: gear is a list of weapon ids`);
   }
   return bad;
 }

@@ -28,7 +28,7 @@ export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => 
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
 // swap the tint from a small pool, step the height within +-`scale` of the kind's, and nudge the soot and scorch within +-`soot` / `burnt`. Named foes and
 // friendly figures have no spread. Gear is NOT varied here: `MobLook.gear` has no reader yet, and a weapon change belongs to the roster, not to a look.
-export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number };
+export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number; gear?: readonly WeaponId[] };   // gear: the weapons a camp's variants carry (variant v takes gear[v % length]; the first variant keeps the look's own)
 export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {};   // empty for the same reason: the spreads are in the zone rows
 export const VARIANTS = MOB_LOOK_RULES.mobLookRule[0]!.variants;   // the mobLookRule row (mob-looks-rules.json)
 const memo = new Map<string, MobLook>();
@@ -40,7 +40,8 @@ export function variantLook(id: string, v: number, zone: Zone = loadZone()): Mob
   v = ((v % VARIANTS) + VARIANTS) % VARIANTS;
   const key = `${zone.id}:${id}#${v}`, known = memo.get(key); if (known) return known;
   const pool = [base.tint, ...spread.tints], unit = (n: number) => ((v * n) % VARIANTS) / (VARIANTS - 1) * 2 - 1;   // -1..1, a different walk per field
-  const look: MobLook = { ...base, tint: pool[v % pool.length]!, scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
+  const gear = spread.gear?.length ? [base.gear, ...spread.gear][v % (spread.gear.length + 1)] : base.gear;   // undefined = the body's own weapon
+  const look: MobLook = { ...base, tint: pool[v % pool.length]!, ...(gear ? { gear } : {}), scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
     dressing: { soot: clamp01(base.dressing.soot + unit(5) * spread.soot), burnt: clamp01(base.dressing.burnt + unit(7) * spread.burnt) } };
   memo.set(key, look); return look;
 }
