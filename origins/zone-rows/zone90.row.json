@@ -371,6 +371,7 @@
             "v": 0.5,
             "facing": 0
           },
+          "test-entry-gate": { "u": 0.02, "v": 0.5, "facing": 90 },
           "test-hut-1-house": { "u": 0.3, "v": 0.36, "facing": 90 },
           "test-hut-2-house": { "u": 0.17, "v": 0.8, "facing": 90 },
           "test-tower-watchtower": { "u": 0.26, "v": 0.66, "facing": 90 },
@@ -426,7 +427,7 @@
       "marsh-test",
       "test-gate",
       "test-camp",
-      "test-hut-1-house", "test-hut-2-house", "test-tower-watchtower",
+      "test-entry-gate", "test-hut-1-house", "test-hut-2-house", "test-tower-watchtower",
       "test-t-01", "test-t-02", "test-t-03", "test-t-04", "test-t-05", "test-t-06", "test-t-07", "test-t-08",
       "test-t-09", "test-t-10", "test-t-11", "test-t-12", "test-t-13", "test-t-14", "test-t-15", "test-t-16"
     ],

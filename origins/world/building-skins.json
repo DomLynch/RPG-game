@@ -6,10 +6,10 @@
     { "id": "goblin-fort", "url": "world/kit/goblin-fort-kit.glb", "nodes": ["goblin_palisade_a", "goblin_palisade_b", "goblin_palisade_c", "goblin_gate", "goblin_totem", "goblin_spikes", "goblin_banner", "goblin_lantern", "goblin_hut", "goblin_tower"] }
   ],
   "fits": [
-    { "id": "goblin.default", "skin": "goblin", "kind": "default", "model": "goblin-fort", "node": "goblin_hut", "w": 5.24, "d": 3.3 },
-    { "id": "goblin.watchtower", "skin": "goblin", "kind": "watchtower", "model": "goblin-fort", "node": "goblin_tower", "w": 3.64, "d": 3.65 },
-    { "id": "goblin.fence", "skin": "goblin", "kind": "fence", "model": "goblin-fort", "node": "goblin_spikes", "w": 1.32, "d": 1.31 },
-    { "id": "goblin.gate", "skin": "goblin", "kind": "gate", "model": "goblin-fort", "node": "goblin_gate", "w": 7.4, "d": 1.02 }
+    { "id": "goblin.default", "skin": "goblin", "kind": "default", "model": "goblin-fort", "node": "goblin_hut", "w": 5.24, "d": 3.3, "min": 0.6, "max": 2.5 },
+    { "id": "goblin.watchtower", "skin": "goblin", "kind": "watchtower", "model": "goblin-fort", "node": "goblin_tower", "w": 3.64, "d": 3.65, "min": 0.6, "max": 2.5 },
+    { "id": "goblin.fence", "skin": "goblin", "kind": "fence", "model": "goblin-fort", "node": "goblin_spikes", "w": 1.32, "d": 1.31, "min": 0.6, "max": 2.5 },
+    { "id": "goblin.gate", "skin": "goblin", "kind": "gate", "model": "goblin-fort", "node": "goblin_gate", "w": 7.4, "d": 1.02, "min": 0.6, "max": 2.5 }
   ],
   "parts": [
     { "id": "goblin.default.1", "skin": "goblin", "kind": "default", "shape": "box", "size": [1.0, 0.62, 1.0], "at": [0, 0.31, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },

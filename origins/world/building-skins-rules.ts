@@ -10,7 +10,7 @@ import { propTint } from './props-rules.ts';
 export type SkinShape = 'box' | 'cylinder' | 'cone' | 'sphere';
 export type SkinPart = { readonly id: string; readonly skin: string; readonly kind: string; readonly shape: SkinShape; readonly size: readonly number[]; readonly at: readonly [number, number, number]; readonly tint: string; readonly yaw: number; readonly layer?: 'stone' | 'plain' };
 export type SkinModel = { readonly id: string; readonly url: string; readonly nodes: readonly string[] };   // a model file (served by URL, one material) and the nodes it holds
-export type SkinFit = { readonly id: string; readonly skin: string; readonly kind: string; readonly model: string; readonly node: string; readonly w: number; readonly d: number };   // a building kind stands as this node, scaled so its natural w x d (m) fills the block's footprint
+export type SkinFit = { readonly id: string; readonly skin: string; readonly kind: string; readonly model: string; readonly node: string; readonly w: number; readonly d: number; readonly min: number; readonly max: number };   // a building kind stands as this node, scaled so its natural w x d (m) fills the block's footprint
 type Raw = { skins?: readonly unknown[]; parts?: readonly unknown[]; models?: readonly unknown[]; fits?: readonly unknown[] };
 const SHAPE_ARGS: Record<SkinShape, number> = { box: 3, cylinder: 4, cone: 3, sphere: 3 };   // numbers after the shape name (exchange-plan.ts Shape)
 
@@ -21,7 +21,7 @@ export function loadSkins(raw: Raw) {
   for (const m of models) if (!/^world\/[\w/.-]+\.glb$/.test(m.url) || !m.nodes.length || !m.nodes.every((n) => /^[a-z][a-z0-9_]*$/.test(n))) throw Error(`building skin model "${m.id}": url is world/....glb and nodes are lower-case names`);
   for (const f of fits) {
     if (!models.find((m) => m.id === f.model)!.nodes.includes(f.node)) throw Error(`building skin fit "${f.id}": node "${f.node}" is not in model ${f.model}`);
-    if (!(f.w > 0 && f.d > 0)) throw Error(`building skin fit "${f.id}": w and d are natural metres > 0`);
+    if (!(f.w > 0 && f.d > 0 && f.min > 0 && f.max >= f.min)) throw Error(`building skin fit "${f.id}": w and d are natural metres > 0 and 0 < min <= max`);
   }
   for (const p of parts) {
     if (!(p.shape in SHAPE_ARGS)) throw Error(`building skin part "${p.id}": shape is box, cylinder, cone or sphere`);
@@ -38,7 +38,7 @@ export const skinIds = (): readonly string[] => LOADED.skins.map((s) => s.id);
 /** The model a building kind of this skin stands as (its own kind, else the skin's default), or null: then the kind is drawn from its parts. */
 export const skinFit = (skin: string, kind: string): SkinFit | null => LOADED.fits.find((f) => f.skin === skin && f.kind === kind) ?? null;
 /** The scale that fits a node's natural footprint into a w x d block, kept sane (a hall is not a giant hut). */
-export const fitScale = (f: SkinFit, w: number, d: number): number => Math.min(2.5, Math.max(0.6, Math.min(w / f.w, d / f.d)));
+export const fitScale = (f: SkinFit, w: number, d: number): number => Math.min(f.max, Math.max(f.min, Math.min(w / f.w, d / f.d)));   // the row's own min and max
 /** The model file(s) every node name belongs to (a prop row's `glb` name or a fit's node): null = no model holds it. */
 export const modelOfNode = (node: string): SkinModel | null => LOADED.models.find((m) => m.nodes.includes(node)) ?? null;
 export const skinModels = (): readonly SkinModel[] => LOADED.models;
