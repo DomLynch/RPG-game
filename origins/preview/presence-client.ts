@@ -28,6 +28,7 @@ export type Deps = {
   pose: () => Pose | null;                              // where the hero stands now; null while the page has no hero to show
   onHello?: (at: { x: number; z: number; layer: number }) => void;   // where the server placed us (metres): fires on every (re)connect, before the first pose
   onOthers?: (others: Other[]) => void;
+  onEnter?: (who: { id: number; name: string | null; guest: boolean }) => void;   // an id came into range: its name tag (null name + guest = "Guest"); sent again each time it re-enters range
   setTimer?: (fn: () => void, ms: number) => unknown; clearTimer?: (id: unknown) => void; every?: (fn: () => void, ms: number) => unknown; clearEvery?: (id: unknown) => void;
   rng?: () => number;
 };
@@ -55,8 +56,12 @@ export function joinPresence(d: Deps): Presence | null {
     s.onmessage = (e) => {
       if (s !== socket) return;
       if (typeof e.data === 'string') {
-        let hello: { t?: unknown; x?: unknown; z?: unknown; layer?: unknown; frame?: { centreCm?: unknown; sizeCm?: unknown } } | null;
+        let hello: { t?: unknown; x?: unknown; z?: unknown; layer?: unknown; id?: unknown; name?: unknown; guest?: unknown; frame?: { centreCm?: unknown; sizeCm?: unknown } } | null;
         try { hello = JSON.parse(e.data); } catch { hello = null; }
+        if (hello?.t === 'enter') {   // who an id is, sent once when it comes into range (before its first packet)
+          if (typeof hello.id === 'number') d.onEnter?.({ id: hello.id, name: typeof hello.name === 'string' ? hello.name : null, guest: hello.guest === true });
+          return;
+        }
         if (hello?.t !== 'hello' || typeof hello.x !== 'number' || typeof hello.z !== 'number') return;
         const f = hello.frame;   // a v2 hello names its frame; a v1 hello has none
         frame = typeof f?.centreCm === 'number' && typeof f.sizeCm === 'number' ? { centreCm: f.centreCm, sizeCm: f.sizeCm } : LEGACY_FRAME;

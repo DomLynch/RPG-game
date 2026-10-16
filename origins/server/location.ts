@@ -29,8 +29,7 @@ export type HeldPlace = { zone: string | null; x: number; z: number; reason: 'ja
 export type HeldFn = (db: Db, account: string, character: string) => Promise<HeldPlace | null>;
 export const noServerHeldState: HeldFn = async () => null;
 
-export type Served = { saved: false } | { saved: true; zone: string | null; x: number; z: number; source: 'saved' | 'trade-edge' | HeldPlace['reason'] };
-
+export type Served = { saved: false; name?: string | null } | { saved: true; zone: string | null; x: number; z: number; source: 'saved' | 'trade-edge' | HeldPlace['reason']; name?: string | null };
 // What presence should start this account at. Pure given the saved row and the held state.
 export function serve(saved: store.SavedRow | null, held: HeldPlace | null): Served {
   if (held) return { saved: true, zone: held.zone, x: held.x, z: held.z, source: held.reason };
@@ -69,7 +68,8 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
         if (flusher?.has(account)) await flusher.flush();   // read your own write: presence rejoining right after a leave sees the spot it just posted
         const saved = await store.savedLocation(db, account);
         const character = saved?.character ?? await store.active(db, account);
-        return reply(200, serve(saved, character ? await held(db, account, character) : null));
+        const name = await store.activeName(db, account);   // presence's name tag for this account's active character; null when none, or before the migration
+        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name });
       }
       const text = await new Promise<string>((resolve, reject) => {
         let size = 0; const parts: Buffer[] = [];
@@ -99,9 +99,11 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
 export function parseServed(v: unknown): Served {
   const o = v as Record<string, unknown> | null;
   if (!o || typeof o !== 'object') throw new Error('writer: malformed answer');
-  if (o.saved === false) return { saved: false };
+  // `name` is additive: an older writer sends none (undefined = no name tag); a malformed one is dropped, never trusted
+  const name = typeof o.name === 'string' && o.name !== '' ? o.name : null;   // the database holds the length (origins_characters.name check)
+  if (o.saved === false) return { saved: false, name };
   if (o.saved !== true || !cm(o.x) || !cm(o.z) || (o.zone !== null && typeof o.zone !== 'string') || typeof o.source !== 'string') throw new Error('writer: malformed answer');
-  return { saved: true, zone: o.zone, x: o.x as number, z: o.z as number, source: o.source as Extract<Served, { saved: true }>['source'] };
+  return { saved: true, zone: o.zone, x: o.x as number, z: o.z as number, source: o.source as Extract<Served, { saved: true }>['source'], name };
 }
 // The join's ask. Any error (no answer in time, a refusal, a malformed body) is thrown: presence turns it into the default spawn, never a client pose.
 export function writerSavedLocation(baseUrl: string, key: string, timeoutMs = 500, fetchImpl: typeof fetch = fetch): (account: string) => Promise<Served> {
