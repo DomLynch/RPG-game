@@ -5,7 +5,7 @@
 //   node scripts/end-overlap-check.mjs [--dist dist] [--out artifacts/end-overlap] [--width 375]     (no --dist: builds this tree; no --width: 375 then 320)
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';
-import { harnessClock } from './lib/harness-clock.mjs';
+import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -13,6 +13,7 @@ import http from 'node:http';
 import { build } from 'vite';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
+const STARTED = Date.now(), DUEL_BOUND_MS = 90000;   // each duel gets 90 s of page time; past it the attempt fails (a rematch, then a FAIL after the third)
 const OUT = path.resolve(arg('out', 'artifacts/end-overlap')), WIDTHS = arg('width') ? [Number(arg('width'))] : [375, 320];
 const DIST = arg('dist') ? path.resolve(arg('dist')) : path.join(OUT, 'build');
 if (!arg('dist')) await build({ logLevel: 'error', build: { outDir: DIST, emptyOutDir: true } });
@@ -36,7 +37,8 @@ try {
   await page.evaluate(() => new Promise((d) => requestAnimationFrame(() => requestAnimationFrame(d))));
   if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).tap();
   await page.waitForFunction(() => document.querySelector('#welcome').hidden);
-  const { run, until } = await harnessClock(page); await run(200);
+  const { run, until } = await harnessClock(page); await skipDraws(page, true); await run(200);   // the duel needs the simulation, not the picture: on software GL every stepped frame is a ~0.5 s draw (rows 37/38), so no draws until the kill screen
+  console.log(`phase boot ${Math.round((Date.now() - STARTED) / 1000)}s`);
   // ---- the goblin win (quiet-one-browser-check.mjs fight(), goblin branch) -------------------------------------------------------
   let killed = false;
   for (let attempt = 1; attempt <= 3 && !killed; attempt++) {
@@ -45,7 +47,7 @@ try {
     let elapsed = 0;
     const step = async ms => { await run(ms); elapsed += ms; };
     const enabled = async id => (await page.locator('#' + id).getAttribute('aria-disabled')) === 'false';
-    while (elapsed < 90000) {
+    while (elapsed < DUEL_BOUND_MS) {
       const state = await page.evaluate(() => ({ text: document.querySelector('#debug').textContent, hp: document.querySelector('#player-health').value, enemy: document.querySelector('#target-health').value, light: document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', thrust: document.querySelector('#thrust-button').getAttribute('aria-disabled') === 'false' }));
       if (!state.hp || !state.enemy) break;
       const distance = +(state.text.match(/gap ([\d.]+)/)?.[1] ?? Infinity);
@@ -68,15 +70,17 @@ try {
     }
     killed = await page.locator('#target-health').evaluate(e => +e.value === 0);
     if (killed || attempt === 3) break;
-    console.log(`duel ${attempt} did not kill (page time ${elapsed} ms) — rematch`);
+    console.log(`duel ${attempt} did not kill within its ${DUEL_BOUND_MS / 1000} s of page time (reached ${elapsed} ms) — rematch`);
     // #546: Rematch is inert under the endgame fade; tap it only once it is shown and the fade has lifted.
     await until(() => !document.querySelector('#reset-button').hidden && !document.documentElement.classList.contains('endgame-fade'), 20000);
     await page.locator('#reset-button').tap();
     await until(() => document.querySelector('#target-health').value > 0 && document.querySelector('#player-health').value > 0 && document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', 20000);
   }
-  assert.ok(killed, 'a real UI duel must kill the first opponent');
+  console.log(`phase duel ${Math.round((Date.now() - STARTED) / 1000)}s`);
+  assert.ok(killed, `FAIL: no duel killed the first opponent within ${DUEL_BOUND_MS / 1000} s of page time (3 attempts)`);
   // ---- the kill screen: panel opens on the finisher-complete latch; the first touch stops the tour (tiles are inert under the fade)
   await until(() => document.getElementById('loot-panel')?.getAttribute('data-on') === '1', 15000);
+  await skipDraws(page, false); await run(100);   // painting back on, a few frames before the first screenshot
   // The touch lands on bare canvas just above the panel: stopTour is a document-level pointerdown (main.ts), and a fixed point was covered
   // by a tile once the panel grew a skill row (RV15, the Goblin's Dirty Jab), so the tap is placed from the panel's own box and checked.
   const panelBox = await page.locator('#loot-panel').boundingBox();
@@ -112,5 +116,6 @@ try {
   }
   result.errors = errors; await ctx.close();
   const bad = WIDTHS.some((w) => result.overlaps[w].error || result.overlaps[w].overlapping.length || result.take[w].error || result.take[w].hidden || result.take[w].pe === 'none' || result.take[w].topmost !== 'loot-take');
-  console.log('RESULT', JSON.stringify(result)); if (errors.length || bad) process.exitCode = 1;
-} finally { await browser.close(); srv.close(); }
+  console.log('RESULT', JSON.stringify(result)); console.log(`phase end ${Math.round((Date.now() - STARTED) / 1000)}s`); if (errors.length || bad) process.exitCode = 1;
+} catch (e) { console.error(`end-overlap-check FAILED: ${String(e?.message ?? e).slice(0, 400)}`); process.exitCode = 1;
+} finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); srv.closeAllConnections(); srv.close(); process.exit(process.exitCode ?? 0); }   // nothing left open (a browser child, a keep-alive socket) may hold the row
