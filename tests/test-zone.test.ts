@@ -18,6 +18,7 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'test-field' }); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'soft' }, 'the biome turns the creature markers off'); assert.equal(z.fields?.['look.sky'], 'fortress', 'the biome row, not the zone row, sets the sky'); assert.equal(z.fields?.['look.props.density'], 0.25, 'and thins the game\'s own rock and scrub kit');
     const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     const K = propKit(F, B, frontierDress(F, B), 'test-field', 'goblin-camp'); assert.ok(K.centre && K.fires.length >= 1 && K.dress.pieces.length > 50, `${K.dress.pieces.length} camp pieces`);
-    assert.equal(z.spawns.rows.length, 0, 'no creatures: nothing at level 90 exists');
+    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll'], 'Dom 2026-10-16: the salamander and the troll stand here, at the level-1 band its row asks for');
+    assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['troll-cave', 'mere-bank']);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });
