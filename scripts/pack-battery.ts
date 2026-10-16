@@ -13,9 +13,9 @@ const BOTS: Record<string, Bot> = {
   guard: (w, k) => { const f = nearest(w); return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }; },
 };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot) {
-  const sheet = rungSheet(rung);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
+  const sheet = rungSheet(rung, heroLevel ?? level);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
   const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, level); });
-  let w = newWorld([player('hero', 0, 0, 0, level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
+  let w = newWorld([player('hero', 0, 0, 0, heroLevel ?? level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
   for (let k = 0; k < MAX_S / DT; k++) {
     w = stepCombat(w, { hero: bot(w, k) }, DT).world;
     const biting = w.fighters.filter((f) => f.side === 'creature' && (f.phase === 'windup' || f.phase === 'active')).length; peak = Math.max(peak, biting); ticks++; if (biting >= 3) three++;
@@ -25,6 +25,7 @@ function fight(kind: string, level: number, size: number, rung: number, seed: nu
   }
   return { win: false, died: false, hp: w.fighters[0]!.health / w.fighters[0]!.maxHealth, t: MAX_S, left: -1, peak, three: three / ticks };
 }
+const heroLevel = process.env.HERO_LEVEL ? +process.env.HERO_LEVEL : undefined;   // HERO_LEVEL: the hero's level (build points placed and his level argument); default the creature's level
 const kind = env('KIND', 'wolf')[0]!, seeds = +env('SEEDS', '16')[0]!, escort = env('ESCORT', 'goblin')[0]!, escorts = +env('ESCORTS', '0')[0]!;   // ESCORTS=n adds n creatures of ESCORT (default goblin, the scavenger's body) beside the SIZES of KIND
 for (const botName of env('BOTS', 'masher,guard')) for (const rung of env('RUNGS', '0,2,4').map(Number)) for (const level of env('LEVELS', '2,3').map(Number)) {
   const row = env('SIZES', '1,2,3,4').map(Number).map((size) => {
