@@ -14,12 +14,13 @@ let w = newWorld([player('hero', 0, 0, 0, heroLevel, null, { weapon: 'longsword'
 const dealt: Record<string, number> = {}, hits: Record<string, number> = {};
 console.log(`hero L${heroLevel} rung ${rung} maxHp ${w.fighters[0]!.maxHealth} vs ${kind} L${level} + ${escorts} ${escort} L${escortLevel}`);
 for (let k = 0; k < 120 * 60; k++) {
+  if (env('FOCUS', '0') === '1') { const t = w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead' && f.hunting).sort((a, b) => a.health - b.health)[0], hh = w.fighters[0]!; if (t) w = { ...w, fighters: w.fighters.map((f, i) => (i === 0 ? { ...f, facing: Math.atan2(t.x - hh.x, t.z - hh.z) } : f)) }; }   // FOCUS=1: he turns to the weakest living creature (the retarget bot)
   const r = stepCombat(w, { hero: guard(w, k) }, DT); w = r.world;
   for (const e of r.events) if (e.type === 'Hit') { if (e.victim === 'hero') { dealt[e.attacker] = (dealt[e.attacker] ?? 0) + e.damage; hits[e.attacker] = (hits[e.attacker] ?? 0) + 1; } }
   const h = w.fighters[0]!;
   if (k % 60 === 0 || h.phase === 'dead') {
     const cs = w.fighters.filter((f) => f.side === 'creature').map((f) => `${f.id}:${f.phase}${f.hunting ? '' : '(idle)'} hp${Math.round(f.health)}/${Math.round(f.maxHealth)} dealt${Math.round(dealt[f.id] ?? 0)}/${hits[f.id] ?? 0}hits`).join('  ');
-    console.log(`t${(k * DT).toFixed(0).padStart(3)}s hero ${Math.round(h.health)}/${Math.round(h.maxHealth)} ${h.phase.padEnd(8)} | ${cs}`);
+    console.log(`t${(k * DT).toFixed(0).padStart(3)}s hero ${Math.round(h.health)}/${Math.round(h.maxHealth)} ${h.phase.padEnd(8)} foe:${(w.streams.hero?.foe ?? '-').padEnd(5)}| ${cs}`);
   }
   if (h.phase === 'dead') { console.log('HERO DEAD'); break; }
   if (w.fighters.every((f) => f.side !== 'creature' || f.phase === 'dead')) { console.log('ALL CREATURES DEAD'); break; }
