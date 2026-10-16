@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of a single grim tribal bone totem pole, full height, front view, centred, isolated on a plain neutral grey background with soft even light and no shadows on the background. A tall weathered oak post, split and cracked, wrapped and lashed with coarse frayed hemp rope and strips of dried, stiff animal hide. Stacked up the post: three real ram skulls, large and heavy, with massive tightly curled horns, yellowed bone with cracks, stains, missing teeth and chipped edges, the biggest at the top with its horns sweeping out to the sides; below them a bighorn sheep skull, a jawbone, a row of lashed rib bones, and a vertebral spine column hanging down the front. Dark pitted hand-forged iron nails, a rusted iron band and a hanging iron hook. Dirt, dried blood stains, grey ash and old weathering on everything. Historical barbarian war trophy from the Roman era, scary and sombre, realistic proportions and materials, matte surfaces, no glow, not cartoon, not stylised, not fantasy-toy, no text.",
+  "seed": 191001,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 61.1,
+  "sha256": "22b81b6e84bb87a7019c8eb2eb256cbb7a78ca1cf1c6e8a8c02fb7339c46e30b"
+}
