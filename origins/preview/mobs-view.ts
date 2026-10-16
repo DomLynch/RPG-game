@@ -9,6 +9,7 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
+import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
@@ -101,9 +102,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
     probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry); for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
     for (const t of textures) { renderer.initTexture(t); await frame(); }
-    const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4);
-    try { for (const g of geometries) { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } await frame(); } }
-    finally { target.dispose(); proxy.dispose(); }
+    linkProxy(renderer, camera);
+    for (const g of geometries) { drawProxy(renderer, camera, g); await frame(); }
   }
   const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
   let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate
