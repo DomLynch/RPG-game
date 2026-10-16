@@ -421,15 +421,18 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  await warmRemoteKitsInPlan();   // the same plan entry: [zone ready] waits for the player's warm-up, so it waits for this (bounded)
   warmedHero.done = true;
 }
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
-// The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked in idle time AFTER [zone ready]: nothing is fetched or parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's
-// parsed asset, which buildWarriors clones), and `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs } (failed: only costs a first-sight compile). The page draws a remote in the base figure until it answers, then dresses it (dressRemote).
+// The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked BEFORE [zone ready], inside the player's warm-up (Lead's ruling on #2938: an idle warm-up after ready stalls an early engage and reddens the seamless row). Nothing is fetched or
+// parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
+// the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
 let remoteKitsWarm: { failed: boolean; ms: number; programs: number } | null = null;
-function warmRemoteKitsInIdle() {
-  const run = () => { const t0 = performance.now(); settleWithin('remote-kits', warmRemoteKits(nextFrame), KINDS_WAIT_MS).then(() => false, (error: unknown) => { console.warn('remote-kit warm-up failed', error); return true; }).then((failed) => { remoteKitsWarm = { failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 }; }); };
-  if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 2000);
+async function warmRemoteKitsInPlan() {
+  const t0 = performance.now();
+  const failed = await settleWithin('remote-kits', warmRemoteKits(nextFrame), KINDS_WAIT_MS).then(() => false, (error: unknown) => { console.warn('remote-kit warm-up failed', error); return true; });
+  remoteKitsWarm = { failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 };
 }
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
@@ -452,7 +455,6 @@ function zoneReadyCheck() {
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
   (window as unknown as { __zoneReady?: unknown }).__zoneReady = detail; console.info('[zone ready]', detail);
-  warmRemoteKitsInIdle();
 }
 let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (gear-mount.ts), mounted with the Pit's kit
 const walkLoop = () => {

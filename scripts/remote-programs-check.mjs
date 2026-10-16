@@ -29,11 +29,12 @@ try {
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 240000 });
   const atReady = await page.evaluate(() => window.__zoneReady);
   // The remote kits warm in idle time after [zone ready] (main.ts warmRemoteKitsInIdle). On a head without it the flag never comes: do not wait (the baseline run).
-  const kitsWarm = await page.waitForFunction(() => window.originsPreview.remoteKitsWarm?.(), null, { timeout: 90000 }).then((h) => h.jsonValue(), () => null);
+  const hasAccessor = await page.evaluate(() => typeof window.originsPreview.remoteKitsWarm === 'function');   // a head without the warm-up (the baseline run) has none: do not wait
+  const kitsWarm = hasAccessor ? await page.waitForFunction(() => window.originsPreview.remoteKitsWarm?.(), null, { timeout: 90000 }).then((h) => h.jsonValue(), () => null) : null;
   await page.waitForTimeout(3000);
   const info = () => page.evaluate(() => window.originsPreview.renderInfo());
   const first = await info(), seen = new Set(first.programNames), receipt = { programsAtReady: first.programs, kits: {}, uniqueNew: {} };
-  for (const kit of KITS) {
+  for (const kit of hasAccessor ? KITS : []) {   // a head without the warm-up has no remoteProbe either: it only reports the zone-ready record
     const probe = await page.evaluate((k) => window.originsPreview.remoteProbe(k), kit);
     await page.waitForTimeout(4000);   // frames: the page draws the dressed remote and links what it needs
     const now = await info(), added = now.programNames.filter((n) => !seen.has(n));
