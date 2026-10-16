@@ -54,10 +54,10 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
+import { PLAYER, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
-import { warmKits } from './warm-kits.ts';
+import { warmKits, type WarmKit } from './warm-kits.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
@@ -429,19 +429,20 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 // parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
 // the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
 let remoteKitsWarm: { failed: boolean; ms: number; programs: number } | null = null;
-async function warmRemoteKitsInPlan() {
-  const t0 = performance.now();
-  const failed = await settleWithin('remote-kits', warmRemoteKits(nextFrame), KINDS_WAIT_MS).then(() => false, (error: unknown) => { console.warn('remote-kit warm-up failed', error); return true; });
-  remoteKitsWarm = { failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 };
-}
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
-async function warmRemoteKits(frame: () => Promise<void>) {
-  const kits = warmKits(); if (!kits.length) return;
-  const pieces = await sharedLoot(), remote = secondActor();
+async function warmRemoteKitsInPlan() {
+  const t0 = performance.now();
+  let pieces: Awaited<ReturnType<typeof sharedLoot>> | undefined, remote: ReturnType<typeof secondActor> | undefined;
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
-  remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor);
-  try { for (const kit of kits) { dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), frame); await frame(); await frame(); } } finally { scene.remove(remote.anchor); }
+  const warmOne = async (kit: WarmKit) => {
+    if (!pieces || !remote) { pieces = await sharedLoot(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); }
+    dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), nextFrame); await nextFrame(); await nextFrame();
+  };
+  // Bounded by KINDS_WAIT_MS: at the cap the loop stops before its next kit and reports failed (Web keeps base figures), so nothing keeps compiling behind a zone that has gone ready.
+  const r = await warmKitsWithin(warmKits(), warmOne, KINDS_WAIT_MS, settleWithin, () => { if (remote) scene.remove(remote.anchor); });
+  if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
+  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
