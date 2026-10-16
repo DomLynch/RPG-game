@@ -1,0 +1,4 @@
+{
+  "default": 600,
+  "rows": { "account-browser-check": 900, "end-overlap-check": 1500 }
+}

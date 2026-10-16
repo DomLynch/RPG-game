@@ -11,7 +11,7 @@ import RULES from './ground-pickup.json' with { type: 'json' };
 import type { GroundRow, GroundState, GroundTaken } from './ground-net.ts';
 
 export type Outcome = { line: string; cue: 'refuse' | null };
-export type PickupRules = { readonly pollSec: number; readonly pollRangeM: number; readonly lineSec: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
+export type PickupRules = { readonly pollSec: number; readonly emptyPollSec: number; readonly pollRangeM: number; readonly lineSec: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
 
 const text = (what: string, v: unknown): string => { if (typeof v !== 'string' || !v.trim()) throw new Error(`ground-pickup: ${what} is a line of text`); return v; };
 /** The one loader: the registry's duplicate / missing / mistyped checks, then the rules the manifest cannot say (a poll period above 0, labels that name the {item}, every outcome a line and a cue of refuse or null, and the two the page falls back on: offline and taken). */
@@ -21,6 +21,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
   const f = (table.rows as unknown as { id: string; fields: Record<string, unknown> }[]).find((r) => r.id === 'ground')?.fields;
   if (!f) throw new Error('ground-pickup: the "ground" row is missing');
   if (typeof f.pollSec !== 'number' || !(f.pollSec >= 1)) throw new Error('ground-pickup: pollSec is at least 1');
+  if (typeof f.emptyPollSec !== 'number' || !(f.emptyPollSec >= f.pollSec)) throw new Error('ground-pickup: emptyPollSec is at least pollSec');
   if (typeof f.pollRangeM !== 'number' || !(f.pollRangeM > 0)) throw new Error('ground-pickup: pollRangeM is above 0');
   if (typeof f.lineSec !== 'number' || !(f.lineSec > 0)) throw new Error('ground-pickup: lineSec is above 0');
   const l = f.labels as Record<string, unknown> | undefined;
@@ -33,7 +34,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
     outcomes[k] = { line: text(`outcomes.${k}.line`, v.line), cue: v.cue };
   }
   for (const need of ['offline', 'taken']) if (!outcomes[need]) throw new Error(`ground-pickup: outcomes.${need} is missing`);
-  return { pollSec: f.pollSec, pollRangeM: f.pollRangeM, lineSec: f.lineSec, labels, outcomes };
+  return { pollSec: f.pollSec, emptyPollSec: f.emptyPollSec, pollRangeM: f.pollRangeM, lineSec: f.lineSec, labels, outcomes };
 }
 export const PICKUP: PickupRules = loadPickupRules(RULES);
 
@@ -60,7 +61,7 @@ type Placed = GroundRow & { at: { x: number; z: number } };
 
 export function createGroundPickup(deps: GroundDeps) {
   const rules = deps.rules ?? PICKUP;
-  let rows: Placed[] = [], busy = false;
+  let rows: Placed[] = [], busy = false, reading = false, lastRead = -Infinity;
   const placed = (list: GroundRow[]): Placed[] => list.flatMap((r) => { const at = groundPointOf(r); return at ? [{ ...r, at }] : []; });   // a row this build cannot place is not drawn
   const apply = (list: GroundRow[]): void => {
     const next = placed(list), keep = new Set(next.filter((r) => r.visible).map((r) => r.instance));
@@ -75,7 +76,8 @@ export function createGroundPickup(deps: GroundDeps) {
     return best && { instance: best.instance, label: (deps.signedIn() ? rules.labels.take : rules.labels.signedOut).replace('{item}', deps.nameOf(best.item)) };
   };
   /** Read the state (signed in) or take the static rows (signed out), then show and hide to match. A failed read leaves what is drawn. */
-  const refresh = async (): Promise<void> => {
+  const refresh = async (nowMs = Date.now()): Promise<void> => {
+    lastRead = nowMs;
     if (!deps.signedIn()) { apply(staticRows()); return; }
     const got = await deps.read();
     if ('items' in got) apply(got.items);
@@ -85,10 +87,13 @@ export function createGroundPickup(deps: GroundDeps) {
     /** How long a result line holds the prompt's slot. */
     lineSec: rules.lineSec,
     refresh,
-    /** The timer's tick: read only while the page is visible and the hero is within pollRangeM of an item (or nothing is known yet, the first read). */
-    async poll(x: number, z: number, hidden: boolean): Promise<void> {
-      if (hidden || (rows.length && !rows.some((r) => Math.hypot(x - r.at.x, z - r.at.z) <= rules.pollRangeM))) return;
-      await refresh();
+    /** The timer's tick: read only while the page is visible and the hero is within pollRangeM of an item. With no row known (nothing read yet, a failed read, a build that places none) it retries no faster than emptyPollSec, so the short poll never hammers the writer. */
+    async poll(x: number, z: number, hidden: boolean, nowMs = Date.now()): Promise<void> {
+      if (hidden) return;
+      if (!rows.length) { if (nowMs - lastRead < rules.emptyPollSec * 1000) return; }
+      else if (!rows.some((r) => Math.hypot(x - r.at.x, z - r.at.z) <= rules.pollRangeM)) return;
+      if (reading) return;   // a slow read (the writer call is bounded at 4 s) still in flight at the next 3 s tick: its answer must not be overtaken by an older one
+      reading = true; try { await refresh(nowMs); } finally { reading = false; }
     },
     /** The row to prompt for at this point, within its radius: the nearest one that is visible and available. */
     nearest,
