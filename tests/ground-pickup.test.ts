@@ -58,6 +58,15 @@ test('the poll reads nothing while the page is hidden or the hero is far from ev
   await g.poll(at.x + PICKUP.pollRangeM - 1, at.z, false); assert.equal(log.reads, 2, 'within range');
   assert.throws(() => loadPickupRules(edited((f) => { f.pollRangeM = 0; })), /pollRangeM/);
 });
+test('a poll tick while a read is still in flight starts no second read (an older answer must not overtake a newer one)', async () => {
+  let n = 0, release: () => void = () => {}; const slow = new Promise<void>((r) => { release = r; });
+  const { g } = rig({ read: async () => { n++; if (n > 1) await slow; return { items: [row()] }; } });
+  await g.refresh(); assert.equal(n, 1, 'a row is known now');
+  const first = g.poll(at.x, at.z, false); assert.equal(n, 2, 'the tick reads, and the read is slow');
+  await g.poll(at.x, at.z, false); await g.poll(at.x, at.z, false); assert.equal(n, 2, 'the next ticks, with that read still in flight, start none');
+  release(); await first;
+  await g.poll(at.x, at.z, false); assert.equal(n, 3, 'once it has landed the next tick reads again');
+});
 test('with no row known the poll retries no faster than emptyPollSec, so the short poll never hammers the writer', async () => {
   const { g, log, set } = rig(); set([]);
   const t0 = 1_000_000, step = PICKUP.pollSec * 1000;
