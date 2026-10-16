@@ -694,7 +694,7 @@ for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventList
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({
-  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
+  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }), nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
   read: () => readGround(storedToken(storage, Date.now()), repairBase),
   take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
 });
