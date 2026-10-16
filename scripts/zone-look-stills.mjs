@@ -43,7 +43,7 @@ try {
       if (camp) await page.evaluate(([x, z, back, h]) => window.originsPreview.place(h === null ? x : x, h === null ? (back ? z : z + 9) : z, h ?? (back ? Math.PI / 2 : Math.PI)), [camp.x, camp.z, pit, turn]);   // else 9 m south of the camp, facing it (forward is (sin h, cos h))
       if (process.env.STILLS_MOB) {   // a named creature: the world view stands the hero 9 m from him, facing him (forward is (sin h, cos h))
         const at = await page.evaluate((want) => (window.originsPreview.mobs()?.mobs ?? []).find((m) => String(m.id).includes(want)) ?? null, process.env.STILLS_MOB);
-        r.target = at; if (at) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 9, Math.PI), [at.x, at.z]);
+        r.target = at; if (at) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 5, Math.PI), [at.x, at.z]);   // 5 m: nearer to him than to any wandering goblin, so the lock-on turns the camera to HIM
       }
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
@@ -59,6 +59,7 @@ try {
         await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [mob.x, mob.z]); await page.waitForTimeout(1500);
         await page.evaluate((id) => window.originsPreview.tapMob(id), mob.id); await page.waitForTimeout(3500);
         await page.screenshot({ path: path.join(out, `${name}-fight.png`) }); r.stills.push(`${name}-fight.png`);
+        if (process.env.STILLS_MOB) for (const k of [2, 3]) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(out, `${name}-fight${k}.png`) }); r.stills.push(`${name}-fight${k}.png`); }   // a named creature: three frames 0.7 s apart, to see him move
       } else r.fight = 'no creature in this zone';
     } catch (e) { r.errors.push(String(e).slice(0, 300)); await page.screenshot({ path: path.join(out, `${name}-error.png`) }).catch(() => {}); }
     await page.close();
