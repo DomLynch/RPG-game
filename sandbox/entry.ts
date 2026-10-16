@@ -233,6 +233,12 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
       if (row && Number.isFinite(cast)) row.base = Math.max(0, Math.min(row.cap, Math.floor(cast)));
     }
   } else { try { localStorage.removeItem('frankendom.spell.equipped.v1'); } catch { /* none */ } }
+  // ?foespell=<legend id>&foecast=<0-100>: the OPPONENT's spell (it casts it under the same range rows as you), read at fight start through src/fight/spell-slot2.ts foeSpellPick.
+  const foeSpell = q.get('foespell');
+  if (foeSpell) {
+    const { isSpellId } = await import('../src/fight/spell-cast.ts'); const skill = Number(q.get('foecast') ?? 100);
+    if (isSpellId(foeSpell)) (globalThis as { __SANDBOX_FOE_SPELL__?: { id: string; skill: number } }).__SANDBOX_FOE_SPELL__ = { id: foeSpell, skill: Number.isFinite(skill) ? Math.max(0, Math.min(100, Math.floor(skill))) : 0 };
+  }
   // ?spell2=<legend id>&cast2=<0-100>: the SECOND spell (SPELL 2), read at fight start through src/fight/spell-slot2.ts.
   const spell2 = q.get('spell2');
   if (spell2) {

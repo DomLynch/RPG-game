@@ -151,14 +151,15 @@ export function project(duel: Duel, ai: AiState, previous?: Practice, intent?: I
   };
 }
 // `specials`: the fight has Special Moves (duel.ts withSpecials: the ladder level picks the opponent's share, `aiSkill` names his special).
-export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = DEFAULT_WEAPON, skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance, pose?: DuelPose, sheet?: Sheet, spell?: Spell, spell2?: Spell): Practice => {   // spell: the player's spell (RV53, spell-cast.ts): needs the specials; the record's flag, the draw seeded by this fight's seed
+export const initialPractice = (seed = 731, opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = DEFAULT_WEAPON, skill: SkillId | null = null, specials?: { level: number; aiSkill: SkillId | null; name?: SpecialName | null }, gambit?: number, stance?: PickedStance, pose?: DuelPose, sheet?: Sheet, spell?: Spell, spell2?: Spell, foeSpell?: Spell): Practice => {   // foeSpell (sandbox opponent spells): the opponent's spell, slot 1   // spell: the player's spell (RV53, spell-cast.ts): needs the specials; the record's flag, the draw seeded by this fight's seed
    // stance: the fight has stances (RV34, the record's flag): the player's pick, and the opponent's mood drawn from the seed   // sheet: the player's sheet (RV48, sheet-rows.ts)   // gambit: the fight has the Gambit (RV33, the record's flag); its draws are seeded by this number, the fight's own seed
   const duel = specials ? withSpecials(initialDuel(opponent, weapon, skill, pose), specials.level, specials.aiSkill, undefined, specials.name) : initialDuel(opponent, weapon, skill, pose);
   const armed = gambit === undefined ? duel : withGambit(duel, gambit);
   const staged = stance === undefined ? armed : withStances(armed, asStance(stance), asStance(moodOf(seed, opponent.id)));
   const sheeted = sheet ? withSheet(staged, [sheet, undefined]) : staged;
   const armedSpell = spell ? withSpell(sheeted, 0, spell, seed) : sheeted;
-  return project(spell2 ? withSpell2(armedSpell, 0, spell2) : armedSpell, initialAi(seed));   // sheet (RV48): the player's sheet, slot 0; the record's flag, never a number a client sent
+  const armedTwo = spell2 ? withSpell2(armedSpell, 0, spell2) : armedSpell, armedFoe = foeSpell ? withSpell(armedTwo, 1, foeSpell, seed) : armedTwo;
+  return project(armedFoe, initialAi(seed));   // sheet (RV48): the player's sheet, slot 0; the record's flag, never a number a client sent
 };
 // `layer`: a world layer that rewrites the warden's intent AFTER decide() (src/fight/mobkit.ts: signature moves; sparring.ts does the same for the dummy). Absent = today's fight, the same intent object.
 export function stepPractice(current: Practice, intent: Intent, profile: AiProfile = PROFILES.normal, layer?: (duel: Duel, warden: Intent) => Intent): Practice {

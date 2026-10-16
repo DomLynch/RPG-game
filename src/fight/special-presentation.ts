@@ -76,7 +76,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
         let slot = slots[side];
         if (!slot) continue;
         if (event.type === 'SpecialStarted') {
-          if (yielding || event.tick <= slot.start) continue;
+          if (yielding || event.tick <= slot.start || (event.spell && !fight?.presets)) continue;   // outside the spell look test (presets), a SPELL cast has its own flash and bolt (missile-fx.ts), not the class special's visuals
           const id = fight?.presets ? fight.presets[side] : bossSpecialId(event.name ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
           if (!id) continue;
           // The same effect again (a repeat cast): its textures, meshes and materials are built once per fight and kept; only its cast state is reset. A different
@@ -84,7 +84,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
           if (slot.id !== id || (slot.ended && !slot.fx)) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);   // (a load that failed or never landed is tried again)
           else if (slot.ended) slot.fx!.clear();
           slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];
-        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended) {
+        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended && !(event.spell && !fight?.presets)) {
           slot.ended = true;
           if (event.type !== 'SpecialLanded' && !slot.fx) { discard(slot); slot.events = []; }
           else slot.events.push(casterEvent(event.type === 'SpecialInterrupted' ? { ...event, type: 'SpecialFizzled' } : event, side));   // a cut cast ends like a fizzled one: charge FX dropped, no payoff
