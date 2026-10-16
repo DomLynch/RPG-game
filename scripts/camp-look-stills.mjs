@@ -26,7 +26,7 @@ try {
     await page.evaluate(([x, z, h]) => window.originsPreview.place(x, z, h), [SX + aside, SZ - back, dh]);
     await page.waitForTimeout(2500);
     await page.screenshot({ path: `${OUT}/camp-${name}.png` });
-    out.views.push({ name, hero: await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })), mobs: await page.evaluate(() => window.originsPreview.mobs().mobs.filter((m) => m.drawn).map((m) => ({ id: m.id, x: +m.x.toFixed(1), z: +m.z.toFixed(1) })).filter((m) => Math.hypot(m.x - -102, m.z - 30) < 25)) });
+    out.views.push({ name, hero: await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })), mobs: await page.evaluate(([sx, sz]) => window.originsPreview.mobs().mobs.filter((m) => m.drawn).map((m) => ({ id: m.id, x: +m.x.toFixed(1), z: +m.z.toFixed(1) })).filter((m) => Math.hypot(m.x - sx, m.z - sz) < 25), [SX, SZ]) });
   }
 } catch (e) { out.fail = String(e).slice(0, 300); }
 fs.writeFileSync(`${OUT}/camp-look.json`, JSON.stringify(out, null, 2)); console.log(JSON.stringify(out).slice(0, 800));
