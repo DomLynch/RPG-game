@@ -40,7 +40,7 @@ for (const botName of env('BOTS', 'masher,guard')) for (const rung of env('RUNGS
   const row = env('SIZES', '1,2,3,4').map(Number).map((size) => {
     const rs = Array.from({ length: seeds }, (_, s) => fight(kind, level, size, rung, s + 1, BOTS[botName]!, botName));
     const read = process.env.READOUT ? ` [peak ${Math.max(...rs.map((r) => r.peak))}, 3+ biting ${(rs.reduce((a, r) => a + r.three, 0) / seeds * 100).toFixed(0)}%]` : '';
-    return `${size}:${rs.filter((r) => r.win).length}/${seeds} hp${(rs.filter((r) => r.win).reduce((a, r) => a + r.hp, 0) / Math.max(1, rs.filter((r) => r.win).length) * 100).toFixed(0)}%${read}`;
+    return `${size}:${rs.filter((r) => r.win).length}/${seeds} (survived ${rs.filter((r) => !r.died).length}) hp${(rs.filter((r) => r.win).reduce((a, r) => a + r.hp, 0) / Math.max(1, rs.filter((r) => r.win).length) * 100).toFixed(0)}%${read}`;
   });
   console.log(`${botName.padEnd(6)} hero-rung ${rung} (${rung === 0 ? 'naked' : TIERS[rung]}) vs ${kind} L${level}  wins by pack size  ${row.join('  ')}`);
 }
