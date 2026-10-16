@@ -2,6 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createZoneBars, fillMeter, paintMeter } from '../src/fight/hud.ts';
+import { createWorldCombat } from '../src/fight/index.ts';
+import { NAKED } from '../src/fight/gear-stats.ts';
+import { sheetOf } from '../src/fight/sheet-rows.ts';
 
 class El {
   children: El[] = []; hidden = false; className = ''; textContent = ''; dataset: Record<string, string> = {}; value = 0; max = 1; attrs: Record<string, string> = {}; props = new Map<string, string>(); classes = new Set<string>();
@@ -48,6 +51,26 @@ test('createZoneBars: hidden until shown (body.zone-bars), then the Pit\'s own b
   assert.equal(pit['opponent-name']!.textContent, ''); assert.equal(pit['target-health']!.props.get('--fill'), '0%'); assert.equal(pit['health-value']!.textContent, '');
   m.update({ hp: 120, maxHp: 120, stamina: 120, maxStamina: 120, foe: null }, false);
   assert.equal(body.classes.has('zone-bars'), false);
+});
+
+test('createZoneBars: the hidden idle bars still carry the hero\'s real numbers (a DOM reader never sees the static "150 / 150" once the sheet\'s max is known)', () => {
+  const { m, body, pit } = mount(), whole = (max: number) => () => ({ health: max, max, stamina: 100, maxStamina: 100 });
+  pit['player-health-value']!.textContent = '150 / 150'; pit['player-health']!.max = 150;   // index.html's static markup
+  m.feed({ hero: whole(159), target: () => null, inCombat: () => false });
+  assert.equal(body.classes.has('zone-bars'), false, 'whole and alone: the bars stay hidden');
+  assert.equal(pit['player-health-value']!.textContent, '159 / 159'); assert.equal(pit['player-health']!.max, 159); assert.equal(pit['stamina-value']!.textContent, '100 / 100');
+  assert.equal(pit['health-value']!.textContent, '', 'the foe half stays untouched while hidden');
+});
+
+test('idle text node == the sheet\'s max once the loadout gate opens (world loop + bars, no creature near)', () => {
+  const { m: bars, pit } = mount(), sheet = sheetOf({ level: 20, placed: { health: 10 } })!, st: { ready: boolean } = { ready: false };
+  pit['player-health-value']!.textContent = '150 / 150';   // index.html's static markup
+  const wc = createWorldCombat({ mobs: () => ({ within: () => [], drive: () => {}, fell: () => {}, play: () => {} }) as never, loadoutReady: () => st.ready, hero: () => ({ gear: NAKED, level: 1, sheet }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const frame = () => { for (let i = 0; i < 30; i++) { wc.update(1 / 30, { x: 0, z: 0, facing: 0 }); bars.feed(wc); } };
+  frame(); const bare = wc.hero().max; assert.equal(pit['player-health-value']!.textContent, `${bare} / ${bare}`, 'gate closed: the bare body');
+  st.ready = true; frame();
+  const max = wc.hero().max; assert.ok(max > bare);
+  assert.equal(pit['player-health-value']!.textContent, `${max} / ${max}`, 'gate open: the hidden text node reads the sheet\'s max');
 });
 
 test('createZoneBars.feed: shown while the hero is hurt, a foe is in reach or a fight is on; hidden when whole and alone', () => {
