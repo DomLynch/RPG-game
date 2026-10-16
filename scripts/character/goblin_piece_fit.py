@@ -1,5 +1,5 @@
 # Swap one TRELLIS.2 mesh into the goblin fort kit glb as the node NODE: same node name, same box (the Sandbox's rows key on it), ground-centre origin, +Y up in glTF.
-#   blender -b -P scripts/character/goblin_piece_fit.py -- <kit.glb in> <trellis.glb in> <kit.glb out> <node> <height|width> <w> <d> <h> [target tris] [texture px] [ground crop 0..1]
+#   blender -b -P scripts/character/goblin_piece_fit.py -- <kit.glb in> <trellis.glb in> <kit.glb out> <node> <height|width> <w> <d> <h> [target tris] [texture px] [ground crop 0..1] [darken above 0..1] [darken factor 0..1]
 # <w> <d> <h> is the old node's box in metres (width, depth, height). Mode `height` scales the mesh to <h> (a pole, a tower); `width` scales it to <w> (a wall run); then any axis still over
 # its box is squashed to it, and a wall's depth is squashed to <d>. The material keeps the kit's feature set (base colour map x vertex colour, rough, not metal, double sided) so the draw
 # compiles no new render program. Run on the VPS (blender-cpu).
@@ -15,6 +15,8 @@ BOX = Vector((float(argv[5]), float(argv[6]), float(argv[7])))   # x width, y de
 TARGET_TRIS = int(argv[8]) if len(argv) > 8 else 2500
 TEX_PX = int(argv[9]) if len(argv) > 9 else 1024
 GROUND_CROP = float(argv[10]) if len(argv) > 10 else 0.0
+DARKEN_ABOVE = float(argv[11]) if len(argv) > 11 else 0.0   # fraction of the height above which the vertex colour is toned down
+DARKEN = float(argv[12]) if len(argv) > 12 else 0.0   # the multiplier for the red channel (0 = off); green and blue are lifted a little so the tan goes brown-grey, not just dark
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=KIT_IN)
@@ -96,6 +98,12 @@ if "Col" not in ob.data.color_attributes:
     ob.data.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
     for d in ob.data.color_attributes["Col"].data:
         d.color = (1, 1, 1, 1)
+if DARKEN > 0:   # the kit material multiplies the texture by this colour: tone a too-bright part (a tower's tan hide roof) down toward a brown-grey without a new texture
+    top = max(v.co.z for v in ob.data.vertices)
+    col = ob.data.color_attributes["Col"].data
+    for loop in ob.data.loops:
+        if ob.data.vertices[loop.vertex_index].co.z > DARKEN_ABOVE * top:
+            col[loop.index].color = (DARKEN, min(1.0, DARKEN * 1.12), min(1.0, DARKEN * 1.35), 1)
 ob.data.materials.clear()
 mat = bpy.data.materials.new(f"{NODE}-v2")
 mat.use_nodes = True

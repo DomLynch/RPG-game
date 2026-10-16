@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": ".scratch-stills/fort/ref/spikes-191301.png",
+  "preprocess_s": 11.5,
+  "image_to_3d_s": 51.0,
+  "extract_glb_s": 49.5,
+  "glb": "src/assets/source/creatures/goblin-spikes-v2.glb",
+  "bytes": 7590628,
+  "sha256": "7ddd3e0890ca5ed6b49e57c4ccf82737c42574e7b739f46e5554e88890e4270f",
+  "attempts": 1
+}
