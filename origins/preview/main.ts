@@ -22,6 +22,7 @@ import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
+import { createLoadoutGate } from './loadout-gate.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
 import { createCreatureCard } from './creature-card.ts';
 import { legendSpecs } from './legend-mobs.ts';
@@ -690,15 +691,8 @@ loadOwnBuild(10);
 // No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
 // The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
-const LOADOUT_WAIT_MS = previewRule('loadoutWait'), GEAR_RETRY_MS = previewRule('gearRetry'), loadoutSince = Date.now();   // both are preview-rules rows
-let gearAsked = 0, loadoutLatched = false;   // latched: once ready it stays ready (the check reads storage, so it is not repeated every frame)
-const loadoutReady = (): boolean => {
-  if (loadoutLatched) return true;
-  if (!storedToken(storage, Date.now())) return (loadoutLatched = true);
-  const g = gearMount;
-  if (g && !g.ready() && Date.now() - gearAsked > GEAR_RETRY_MS) { gearAsked = Date.now(); void g.refresh(); }
-  return (loadoutLatched = (ownBuild !== undefined && (g?.ready() ?? true)) || (!buildInflight && Date.now() - loadoutSince > LOADOUT_WAIT_MS));
-};
+// The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
+const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? true, askGear: () => void gearMount?.refresh(), wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
 const wc = createWorldCombat({
   loadoutReady,
   canPlay: canPlayFinisher,
