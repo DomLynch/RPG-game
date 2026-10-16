@@ -28,7 +28,9 @@ const info = nodes.map((m) => { const b = new THREE.Box3().setFromObject(m), s =
 // A grid, three pieces to a row, each cell as wide as its widest piece (portrait 375 wide: a wide single row would be cropped by the narrow horizontal field of view).
 const COLS = 3, group = new THREE.Group(); scene.add(group);
 const cell = Math.max(...info.map((i) => Math.max(i.size[0], i.size[2]))) + 1.5;
-for (const [k, it] of info.entries()) { const m = nodes.find((n) => n.name === it.name).clone(); const col = k % COLS, row = Math.floor(k / COLS); m.position.set(col * cell - it.centre.x, -(it.centre.y - it.size[1] / 2), -row * cell - it.centre.z); group.add(m); }
+for (const [k, it] of info.entries()) { const src = nodes.find((n) => n.name === it.name), m = src.clone(); const col = k % COLS, row = Math.floor(k / COLS);
+  // the node keeps whatever offset it has in the glb: move its box centre to the cell centre, standing on the ground
+  m.position.copy(src.position).add(new THREE.Vector3(col * cell, it.size[1] / 2, -row * cell)).sub(it.centre); group.add(m); }
 const bb = new THREE.Box3().setFromObject(group), c = bb.getCenter(new THREE.Vector3()), radius = bb.getSize(new THREE.Vector3()).length() / 2;
 const result = { programsZone1, programsAfterFort: 0, info: info.map(({ centre, ...i }) => i) };
 // fit the whole grid in the narrower of the two fields of view; 'front' looks down 30 degrees, 'quarter' is the same from the left corner
