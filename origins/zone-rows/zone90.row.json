@@ -371,9 +371,9 @@
             "v": 0.5,
             "facing": 0
           },
-          "test-hut-1-house": { "u": 0.17, "v": 0.2, "facing": 90 },
+          "test-hut-1-house": { "u": 0.3, "v": 0.36, "facing": 90 },
           "test-hut-2-house": { "u": 0.17, "v": 0.8, "facing": 90 },
-          "test-tower-watchtower": { "u": 0.3, "v": 0.9, "facing": 90 },
+          "test-tower-watchtower": { "u": 0.26, "v": 0.66, "facing": 90 },
           "test-t-01": { "u": 0.679, "v": 0.5, "facing": -90 },
           "test-t-02": { "u": 0.347, "v": 0.64, "facing": 132 },
           "test-t-03": { "u": 0.52, "v": 0.274, "facing": -5 },
