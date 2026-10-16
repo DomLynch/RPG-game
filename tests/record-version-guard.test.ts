@@ -94,7 +94,7 @@ test('any real change still moves the digest (a constant, a number in a body, an
 // src/fight/record.ts and deploy.sh rsyncs src/**/*.ts to the verifier host — so widening it here widens it there, in one deploy, and a
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
-  assert.deepEqual([...READABLE_VERSIONS], [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
+  assert.deepEqual([...READABLE_VERSIONS], [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
   assert.deepEqual(REACH, { 19: [{ opponent: 'veteran', from: 6 }], 20: [{ opponent: 'plaguedoctor', from: 1 }], 21: [], 22: [], 23: [], 24: [], 25: [], 26: [], 27: [], 28: [], 29: ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'].map((opponent) => ({ opponent, from: 1 })), 30: ['shieldmaiden', 'knight', 'plaguedoctor'].map((opponent) => ({ opponent, from: 1 })), 31: ['veteran', 'pitborn', 'dwarf', 'knight', 'shieldmaiden'].map((opponent) => ({ opponent, from: 1 })), 32: [], 33: [], 34: [], 35: [], 36: [], 37: [], 38: [], 40: [], 39: [], 41: [], 42: [], 43: [], 44: [], 45: [], 46: [], 47: [], 48: [], 49: [], 50: [], 51: [], 52: [], 53: [], 54: [], 55: [], 56: [], 57: [], 58: [], 59: [], 60: [], 61: [], 62: [], 63: [], 64: [], 65: [], 66: [], 67: [], 68: [] }, 'REACH is what each bump changed (19: the Centurion from level 6; 20: the Plague Doctor; 21: nothing, Special Moves ride the record\'s own flag; 24: nothing, late notice is keyed on the record\'s version): history, not tuning. A new bump appends its own line.');
   for (let v = READABLE_VERSIONS[0] + 1; v <= RECORD_VERSION; v++) assert.ok(REACH[v], `bump ${v} is read across but declares no reach`);
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
@@ -151,10 +151,10 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
       return rec.finish('draw');
     };
     const none = fightOf(), withPatron = fightOf(5);
-    assert.equal(none.v, 69, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
-    assert.equal(m.packRecord(none)[2], 69);
+    assert.equal(none.v, 70, 'a live patron-less fight stamps this build, so the build reads its own fresh link');
+    assert.equal(m.packRecord(none)[2], 70);
     assert.deepEqual(m.unpackRecord(m.packRecord(none)), none, 'a v38 record with patron byte 0 round-trips with no patron');
-    assert.equal(withPatron.v, 69); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
+    assert.equal(withPatron.v, 70); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
     const v32 = m.packRecord(withPatron).slice(); v32[2] = 32;
     const at = v32.length - 6 * 20 - 4 - 4 - 1 - 1 - 1 - 1; assert.equal(v32[at], 5); v32[at] = 0;   // v53 adds the second flag byte, one more from the end
     assert.throws(() => m.unpackRecord(v32), /names a patron/, 'a v32 record with no patron is refused: it was always written as v31');
