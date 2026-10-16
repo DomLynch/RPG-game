@@ -25,7 +25,8 @@ export type Other = { id: number; x: number; z: number; heading: number; anim: n
 export type Socket = { binaryType: string; readyState: number; send(data: Uint8Array | string): void; close(code?: number): void; onopen: (() => void) | null; onmessage: ((e: { data: unknown }) => void) | null; onclose: (() => void) | null; onerror: (() => void) | null };
 export type Deps = {
   token: string | null; url: string;
-  guest?: boolean;   // signed out and still in the shared world: with no token, offer `guest` (v2 only; nothing is saved, the server mints the identity) open: (url: string, protocols: string[]) => Socket;
+  open: (url: string, protocols: string[]) => Socket;
+  guest?: boolean;   // signed out and still in the shared world: with no token, offer `guest` (v2 only; nothing is saved, the server mints the identity)
   pose: () => Pose | null;                              // where the hero stands now; null while the page has no hero to show
   onHello?: (at: { x: number; z: number; layer: number }) => void;   // where the server placed us (metres): fires on every (re)connect, before the first pose
   onOthers?: (others: Other[]) => void;
