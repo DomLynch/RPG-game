@@ -2,8 +2,8 @@
 //   READOUT=1 adds the many-on-one reading per cell: the most creatures in windup/active at once (turn-taking: MAX_ATTACKERS 3, the 4th holds at the ring) and the share of the fight with 3 or more biting.
 //   node scripts/pack-battery.ts   env: KIND (wolf), LEVELS (2,3), SIZES (1,2,3,4), RUNGS (0,2,4 = Recruit, 3rd, 5th tier), SEEDS (16), BOTS (masher,guard), ESCORT (goblin), ESCORTS (0)
 import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
-import { fullSet, loadoutFor, NAKED } from '../src/fight/gear-stats.ts';
 import { TIERS } from '../src/core/server.ts';
+import { rungSheet } from './lib/rung-sheet.ts';
 
 const DT = 1 / 60, MAX_S = 120, env = (k: string, d: string) => (process.env[k] ?? d).split(',');
 type Bot = (w: World, k: number) => Input;
@@ -13,9 +13,9 @@ const BOTS: Record<string, Bot> = {
   guard: (w, k) => { const f = nearest(w); return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }; },
 };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot) {
-  const gear = rung === 0 ? NAKED : loadoutFor(fullSet(TIERS[rung]!, 'Longsword'));
+  const sheet = rungSheet(rung);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
   const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, level); });
-  let w = newWorld([player('hero', 0, 0, 0, gear, 1), ...foes]), peak = 0, three = 0, ticks = 0;
+  let w = newWorld([player('hero', 0, 0, 0, level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
   for (let k = 0; k < MAX_S / DT; k++) {
     w = stepCombat(w, { hero: bot(w, k) }, DT).world;
     const biting = w.fighters.filter((f) => f.side === 'creature' && (f.phase === 'windup' || f.phase === 'active')).length; peak = Math.max(peak, biting); ticks++; if (biting >= 3) three++;
