@@ -33,6 +33,7 @@ export type PresenceOptions = {
   verify: (token: string) => Promise<string | null>;   // the client's access token -> its account id (origins/server/auth.ts supabaseVerify)
   rules?: Rules; limits?: Limits; maxLayers?: number;
   now?: () => number; log?: (line: string) => void; logEveryMs?: number; sweepEveryMs?: number; ipHeader?: boolean;   // ipHeader: trust nginx's X-Real-IP (only behind nginx on 127.0.0.1)
+  nameOf?: (account: string) => string | null;   // the display name of the active character the `locate` answer just carried (read once at join and at a rejoin); unset or null: no name tag
   locate?: (account: string) => Promise<{ x: number; z: number } | null>;   // where a rejoining account should stand (the writer's saved spot of its now-active character); any error or null: the default placement
   save?: SaveFn; saveEveryMs?: number;   // the position save (origins/presence/saves.ts): presence's observation goes to the writer on leave, zone change and every saveEveryMs; unset, nothing is saved
   internalKey?: string;   // the shared secret of GET /internal/where (the writer asks where an account stands); unset: that route does not exist
@@ -60,6 +61,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     for (const [p, packet] of world.tick(tickNo)) {
       const sock = sockets.get(p);
       if (!sock || sock.destroyed) continue;
+      for (const who of world.intros.get(p) ?? []) sock.write(frame(1, Buffer.from(JSON.stringify({ t: 'enter', id: who.id, name: who.name, guest: who.guest }))));   // who an id is, once per sighting, before the packet that first carries it
       sock.write(frame(2, packet));
       counts.packets++; counts.bytes += packet.length;
       const l = perLayerOut.get(p.layer.id) ?? { packets: 0, bytes: 0 }; l.packets++; l.bytes += packet.length; perLayerOut.set(p.layer.id, l);
@@ -166,6 +168,7 @@ export function createPresence(opts: PresenceOptions): Presence {
       const placed = world.byAccount.has(account) ? undefined : await (opts.locate?.(account) ?? Promise.resolve(null)).catch(() => null) ?? undefined, saved = placed && fromLegacy(placed);   // locate answers in the saved (old) frame
       if (socket.destroyed) { bucket.sockets--; return refused('gone'); }   // closed while the saved place was read
       const first = world.join(account, now(), friend, saved, legacy);
+      if (first) first.name = opts.nameOf?.(account) ?? null;
       if (!first) { bucket.sockets--; return refuse(503, world.byAccount.has(account) ? 'already-in' : 'world-full'); }
       let player: Player = first;   // re-pointed by a rejoin
       sockets.set(player, socket); counts.joined++;
@@ -185,6 +188,7 @@ export function createPresence(opts: PresenceOptions): Presence {
         const old = player; sockets.delete(old); world.leave(old, now()); saves?.drop(me);   // the old character's queued place must not land on the new one (Auditor M1)
         world.memory.delete(me);   // a rejoin is a different character: with no saved spot it starts at the spawn, never where the old one left
         const fresh = world.join(me, now(), friend, at, legacy);
+        if (fresh) fresh.name = opts.nameOf?.(me) ?? null;   // the new active character's name (the locate above asked the writer again)
         if (!fresh) { bucket.sockets--; rejoiners.delete(me); close(1013, 'world-full'); return false; }
         player = fresh; sockets.set(fresh, socket); zone = zoneAt(fresh.x, fresh.z);   // the old character's place is NOT saved here: the writer's active character is already the new one
         socket.write(hello(fresh));

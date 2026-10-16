@@ -92,6 +92,13 @@ export const setActive = async (db: Db, account: string, character: string): Pro
 };
 export const active = async (db: Db, account: string): Promise<string | null> =>
   (await db.run(`select coalesce(public.origins_active(:'a'::uuid), '');`, { a: acct(account) })) || null;
+// The ACTIVE character's display name (migration 20261016170000), for presence's name tags: null when there is none, 'absent' on a database without the function (a name tag is then simply
+// missing, nothing else changes). JSON in and out, so a character named "absent" cannot be mistaken for the sentinel.
+const HAS_ACTIVE_NAME = `select to_regprocedure('public.origins_active_name(uuid)') is not null as actname \\gset\n`;
+export const activeName = async (db: Db, account: string): Promise<string | null | 'absent'> => {
+  const out = await gated(db, 'active_name', HAS_ACTIVE_NAME, 'actname', `select to_jsonb(public.origins_active_name(:'a'::uuid))::text;`, { a: acct(account) });
+  return out === 'absent' ? 'absent' : (JSON.parse(out) as string | null);
+};
 export type SavedRow = { character: string; zone: string | null; x: number; z: number; updated_at: string };
 export const saveLocation = async (db: Db, account: string, at: { x: number; z: number; zone: string | null; atMs: number }): Promise<{ character: string | null; stored: boolean }> =>
   JSON.parse(await db.run(`select public.origins_save_location(:'a'::uuid, :'x'::int, :'z'::int, nullif(:'zone', ''), :'t'::bigint)::text;`,

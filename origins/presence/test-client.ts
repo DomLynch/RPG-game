@@ -19,6 +19,9 @@ export type Bot = {
   raw(text: string): void;
   /** How many hellos have arrived (the first join plus one per warp), and the close code once the socket is closed (null while open). */
   hellos(): number;
+  /** The `enter` records received so far (who an id is: name, guest), and whether any arrived after a packet already carried that id. */
+  entered(): { id: number; name: string | null; guest: boolean }[];
+  enteredLate(): boolean;
   closeCode(): number | null;
   close(): void;
 };
@@ -27,18 +30,21 @@ export function joinBot(port: number, token: string, opts: { v1?: boolean } = {}
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence`, opts.v1 ? [PROTOCOL, `token.${token}`] : [PROTOCOL_V2, PROTOCOL, `token.${token}`]);
     ws.binaryType = 'arraybuffer';
+    const entered: { id: number; name: string | null; guest: boolean; afterEntities: boolean }[] = [];
+    const announced = new Set<number>(), unannounced = new Set<number>();
     let closed: number | null = null, helloCount = 0, latest: Entity[] = [], hello: Hello | null = null, frame: Frame = { centreCm: LEGACY_CENTRE_CM, sizeCm: LEGACY_SPAN_CM };
     const toM = (cm: number): number => (cm - frame.centreCm) / 100;
     ws.onmessage = (ev) => {
       if (typeof ev.data === 'string') {
-        const m = JSON.parse(ev.data) as { t?: string };
+        const m = JSON.parse(ev.data) as { t?: string; id?: number; name?: string | null; guest?: boolean };
+        if (m.t === 'enter') { entered.push({ id: m.id!, name: m.name ?? null, guest: m.guest === true, afterEntities: unannounced.has(m.id!) }); announced.add(m.id!); unannounced.delete(m.id!); return; }
         if (m.t !== 'hello') return;
         hello = m as Hello; frame = hello.frame ?? frame; helloCount++;
         if (!settled) { settled = true; resolve(bot); }
         return;
       }
       const down = decodeDown(new Uint8Array(ev.data as ArrayBuffer));
-      if (down) latest = down.entities;
+      if (down) { latest = down.entities; for (const e of down.entities) if (!announced.has(e.id)) unannounced.add(e.id); }
     };
     let settled = false;
     ws.onerror = () => { if (!settled) { settled = true; reject(new Error('refused')); } };
@@ -51,6 +57,8 @@ export function joinBot(port: number, token: string, opts: { v1?: boolean } = {}
       warp: (landmark) => ws.send(JSON.stringify({ t: 'warp', to: landmark })),
       raw: (text) => ws.send(text),
       hellos: () => helloCount,
+      entered: () => entered.map(({ id, name, guest }) => ({ id, name, guest })),
+      enteredLate: () => entered.some((n) => n.afterEntities),   // true if an entity of an id arrived before its `enter` (the order contract is broken)
       closeCode: () => closed,
       close: () => ws.close(),
     };
