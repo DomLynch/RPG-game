@@ -38,8 +38,10 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     const programs0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     // The crowd stands in the camera's view: find which way the hero walks (hold W 400 ms), then lay N figures in a cone 4-14 m ahead on ground the engine says is standable.
     const a0 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
-    await page.keyboard.down('KeyW'); await page.waitForTimeout(500); await page.keyboard.up('KeyW');
-    const a1 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })), moved = Math.hypot(a1.x - a0.x, a1.z - a0.z);
+    await page.keyboard.down('KeyW');
+    let a1 = a0, moved = 0;
+    for (let i = 0; i < 40 && moved < 1; i++) { await page.waitForTimeout(250); a1 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z })); moved = Math.hypot(a1.x - a0.x, a1.z - a0.z); }   // a software-GL run walks slowly: hold W until he has moved a metre (10 s at most)
+    await page.keyboard.up('KeyW');
     if (moved < 0.3) throw new Error(`hero did not walk forward (moved ${moved.toFixed(2)} m): cannot aim the crowd`);
     const fwd = { x: (a1.x - a0.x) / moved, z: (a1.z - a0.z) / moved };
     res.forward = fwd;
