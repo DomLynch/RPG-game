@@ -26,6 +26,13 @@
       "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, and the oldest presence pose (ms) that still counts"
     }
   ],
+  "gearImport": [
+    {
+      "id": "cutoff",
+      "closesAt": "2026-10-30T00:00:00Z",
+      "note": "PROVISIONAL (Strategy ruling 2026-10-16, relayed by Lead): gear_import, the one-time migration of the old local loot ledger, closes at this instant and refuses everything after it. 2026-10-30 stands until Dom names the beta-open date and may move it; change this one row, nothing else."
+    }
+  ],
   "serverLimits": [
     {
       "id": "limits",

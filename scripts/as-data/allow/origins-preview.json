@@ -1,6 +1,5 @@
 {
   "tunables": [
-    {"file": "origins/preview/presence-client.ts", "name": "CENTRE_CM", "kind": "exempt", "reason": "presence v1 wire frame origin (= zones.ts LEGACY_CENTRE_CM 15000, the frame v1 clients speak): keep; fix its comment, which names CENTRE_CM (40000)", "owner": "World & Audio"},
     {"file": "origins/preview/presence-client.ts", "name": "OPEN", "kind": "exempt", "reason": "browser API constant WebSocket.OPEN (1): not a number we choose", "owner": "World & Audio"}
   ]
 }

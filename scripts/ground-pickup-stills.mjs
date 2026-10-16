@@ -28,7 +28,7 @@ async function frame(width, scenario) {
   page.on('pageerror', (e) => receipt.errors.push(`pageerror ${scenario}@${width}: ${String(e).slice(0, 200)}`));
   if (scenario !== 'signedout') await stubSignedIn(page, { offsets: OFFSETS[scenario], take: scenario === 'race' ? 'race' : 'taken' });
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 150000 });
   if (scenario === 'signedout') { await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, SIGNED_OUT, { timeout: 90000 }); { const centre = await centreOf(page); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [centre.x, centre.z - 1.3]); } await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 }); }
   else if (!BEFORE) await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still-0') !== undefined, null, { timeout: 90000 });
   await page.waitForTimeout(3000);

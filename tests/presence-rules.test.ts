@@ -13,12 +13,13 @@ test('every presence rule equals the literal it replaced', () => {
   assert.deepEqual(LIMITS, { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 });
   assert.deepEqual([SAVE_QUEUE_MAX, presenceRule('tickRing'), TOWN_CM, presenceRule('rejoinPastGateCm')], [10_000, 40_000, 30_000, 50]);
   assert.ok(REJOIN_EDGE.x > 0 && CENTRE_CM === 40_000);
-  assert.equal(PRESENCE_RULES.length, 28);
+  assert.equal(PRESENCE_RULES.length, 31);
+  assert.deepEqual([presenceRule('warpPerMin'), presenceRule('guestIpSockets'), presenceRule('guestCeiling')], [6, 2, 64]);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadPresenceRules({ rules: rows.filter((r) => r.id !== 'cellCm') }), /"cellCm" rule by name/);
   assert.throws(() => loadPresenceRules({ rules: rows.map((r) => (r.id === 'tickMs' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPresenceRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 29);
+  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 32);
 });
