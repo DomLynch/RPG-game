@@ -5,12 +5,15 @@
 // A crowd costs frames (the T4 harness: 8 and 16 remotes hold 60 fps, 40 sit at 30): the nearest `remoteFullCount` are full figures, the rest CHEAP: the same mesh and materials (no new program),
 // but no weapon trail, no shadow cast, and a pose update only every `remoteCheapEvery` frames (the actor's update is the mixer AND the bone matrices, so both run at that rate; the pose holds between).
 // Out of the camera frustum or beyond `remoteAnimRange` the figure is HIDDEN (visible = false, so the render's traverseVisible never enters it) and its pose skipped altogether, full or cheap.
+// ADAPTIVE: when the frames' p95 stays above `remoteAdaptSlowMs` for `remoteAdaptWindowMs` (World's 4x-throttled T4: 40 players give 15/12 fps, about 8 full figures is the 30 fps point), the full count drops from
+// `remoteFullCount` to `remoteAdaptFullCount`; it returns once the p95 has stayed under `remoteAdaptOkMs` for a window (frame-governor.ts, pure; every number a row).
 // The T4 profile of 40 walking (4x) said the cost is the scene graph, not the mixer: the bone-hierarchy matrix walk, then the bone-texture re-upload every Skeleton.update. So a FROZEN figure (cheap, or hidden)
 // is cut out of both on its skipped frames: its group's matrixWorldAutoUpdate is off (scene.updateMatrixWorld stops at the group, the bones are not walked) and its skeletons' `update` does nothing (no
 // bone-matrix recompute, no boneTexture.needsUpdate). A skinned mesh draws from the bone matrices of its LAST update, so a frozen figure stands where it was posed: a cheap one moves on its pose frames
 // (every remoteCheapEvery-th), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
+import { createGovernor } from './frame-governor.ts';
 import { labelSprite } from './label-sprite.ts';
 import { labelCeilingNdc } from './mobs.ts';
 import { previewRule } from './preview-rules.ts';
@@ -26,6 +29,7 @@ type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number
 /** `who`: the page's record of an id's { name, guest } (presence's `enter`, kept by main.ts), read each frame for the ids drawn; `forget`: called when a slot expires, so a reused id never wears the last player's name before its own `enter` arrives. */
 export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
+  const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs') });
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
@@ -59,7 +63,8 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
     know: (id: number, who: Who): void => { names.set(id, who); },
     /** `camera` (the last frame's matrices are enough): a remote outside its frustum, or past `remoteAnimRange` metres, is hidden and frozen (root still moved); the time it skipped is paid (capped) when it is next posed. */
     update(dt: number, now: number, hero: { x: number; z: number }, camera?: THREE.Camera): void {
-      const seen = new Set<number>(), full = previewRule('remoteFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap');
+      const low = governor.push(dt * 1000, now);   // the frames' p95 stays high: the smaller full count applies until it has stayed low again
+      const seen = new Set<number>(), full = previewRule(low ? 'remoteAdaptFullCount' : 'remoteFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap');
       if (camera) frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       track.shown(now, hero).forEach((s, rank) => {   // nearest first: rank < remoteFullCount is a full figure
         seen.add(s.id);
@@ -94,6 +99,6 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
       }
     },
     /** For the browser checks and the release row: who is drawn, where, with what tag and gait speed. */
-    debug: () => ({ slots: pool.length, shown: [...live.entries()].map(([id, s]) => ({ id, x: +s.group.position.x.toFixed(2), z: +s.group.position.z.toFixed(2), heading: +s.group.rotation.y.toFixed(2), speed: +s.speed.toFixed(2), tag: s.text, visible: s.group.visible, cheap: s.cheap, frozen: s.frozen })) }),
+    debug: () => ({ slots: pool.length, adaptive: { low: governor.low(), p95Ms: +governor.p95().toFixed(1) }, shown: [...live.entries()].map(([id, s]) => ({ id, x: +s.group.position.x.toFixed(2), z: +s.group.position.z.toFixed(2), heading: +s.group.rotation.y.toFixed(2), speed: +s.speed.toFixed(2), tag: s.text, visible: s.group.visible, cheap: s.cheap, frozen: s.frozen })) }),
   };
 }

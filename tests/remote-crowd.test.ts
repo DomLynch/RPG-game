@@ -100,6 +100,16 @@ test('the page\'s enter records feed the tag (name, "Guest", or none: a null nam
   assert.deepEqual(forgotten.sort(), [1, 2]); assert.equal(heroes.debug().shown.length, 0);
 });
 
+test('adaptive: a frame time that stays high drops the full count from remoteFullCount to remoteAdaptFullCount, and a clean window brings it back', () => {
+  const n = FULL + 5, list = Array.from({ length: n }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), { heroes } = crowd(n);
+  let now = 0;
+  const frames = (seconds: number, ms: number) => { for (const end = now + seconds * 1000; now < end; now += ms) { heroes.push(list, now); heroes.update(ms / 1000, now, { x: 0, z: 0 }); } };
+  const fulls = () => heroes.debug().shown.filter((s) => !s.cheap).length;
+  frames(5, 16.7); assert.equal(fulls(), FULL, 'at 60 fps: the ruled full count');
+  frames(5, 45); assert.equal(heroes.debug().adaptive.low, true); assert.equal(fulls(), previewRule('remoteAdaptFullCount'), 'slow frames: the smaller full count');
+  frames(7, 16.7); assert.equal(fulls(), FULL, 'a clean window: back to the ruled count');
+});
+
 test('a figure that comes back near gets its shadow back as it was', () => {
   const { heroes, made } = crowd(FULL + 1);
   heroes.update(1 / 60, 0, { x: 0, z: 0 });
