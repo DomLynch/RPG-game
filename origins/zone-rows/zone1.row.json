@@ -741,6 +741,11 @@
             "u": 0,
             "v": 0.3,
             "facing": 90
+          },
+          "troll-cave": {
+            "u": 0.75,
+            "v": 0.85,
+            "facing": 90
           }
         },
         "connections": {
@@ -1018,6 +1023,7 @@
       "ash-pits",
       "shrine",
       "hold-road",
+      "troll-cave",
       "landing-shore",
       "reed-bank",
       "mere-hollow",
@@ -1140,7 +1146,7 @@
       },
       {
         "id": "cave-troll",
-        "at": "ash-pits",
+        "at": "troll-cave",
         "characters": [
           "character:cave-troll"
         ]

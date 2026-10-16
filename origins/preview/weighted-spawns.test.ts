@@ -16,7 +16,7 @@ const digest = (id: string): [number, string] => {
 };
 
 test('plain groups are untouched: zones 2-4 are byte for byte what they were before weighted entries (digests taken on the code before it); zone 1 was 23 creatures 12d8a3ce... and is the same 23 plus the Cave Troll camp boss appended last (the troll PR prints the 23\'s full digest; mobs.golden.json pins every entry)', () => {
-  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, 'c568bedde2369fa1'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785']]);
+  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, '2c83ed0dc04bc990'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785']]);
 });
 
 test('a bare id is weight 1 and a single bare id is a plain group; an object entry or two entries is weighted', () => {
