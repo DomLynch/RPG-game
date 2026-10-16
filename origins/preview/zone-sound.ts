@@ -4,7 +4,7 @@
 // No arena frame is passed, so no crowd, bell or breath: those are slices that follow.
 import type { CombatEvent } from '../../src/fight/index.ts';
 
-export type ZoneFeedback = { unlock(): void; update(events: CombatEvent[]): void; quiet(): void };
+export type ZoneFeedback = { unlock(): void; update(events: CombatEvent[]): void; quiet(): void; groundLoot?(kind: 'pickup' | 'refuse'): void };
 export const soundWanted = (search: string): boolean => new URLSearchParams(search).get('sound') !== '0';
 
 export function createZoneSound(load: () => Promise<ZoneFeedback>, on = true) {
@@ -19,6 +19,8 @@ export function createZoneSound(load: () => Promise<ZoneFeedback>, on = true) {
     event(ev: { pit?: CombatEvent }): void { if (on && fb && ev.pit) batch.push(ev.pit); },
     /** Once per frame, after the loop stepped: play what the frame's steps produced. */
     flush(): void { if (!batch.length) return; const events = batch; batch = []; fb?.update(events); },
+    /** A ground-loot cue (World's rows, feedback.groundLoot): a take or a lost race. Dropped until the feedback has loaded, like a blow. */
+    groundLoot(kind: 'pickup' | 'refuse'): void { if (on) fb?.groundLoot?.(kind); },
     /** Leaving the page's fight (a panel, the Pit): silence. */
     quiet(): void { batch = []; fb?.quiet(); },
   };
