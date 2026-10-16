@@ -53,6 +53,9 @@ import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
+import { loadLoot, lootIds } from '../../src/fight/index.ts';
+import { dressRemote } from './dress-remote.ts';
+import lootUrl from '../../src/assets/loot.glb?url';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
@@ -711,6 +714,16 @@ const wc = createWorldCombat({
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
+// Debug (the dressRemote warm-up proof, scripts/remote-programs-check.mjs): a second hero actor beside the walker, re-dressed with one source kit at a time through dressRemote. The page's own renderer links what that kit needs,
+// so renderInfo() before and after names the programs a remote wearing it would compile after zone ready.
+let probeActor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, probePieces: Awaited<ReturnType<typeof loadLoot>> | undefined;
+async function remoteProbe(opponent: string): Promise<{ worn: string[]; missing: string[] }> {
+  if (!probeActor || !probePieces) { probePieces = await loadLoot(lootUrl); probeActor = (await loadWarriors(ASSETS.hero!)).player; scene.add(probeActor.anchor); }
+  const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(4);   // in the camera's view, so the frame draws it and links its programs
+  probeActor.anchor.position.set(camera.position.x + ahead.x, hero.position.y, camera.position.z + ahead.z);
+  const worn = Object.fromEntries(probePieces.filter((p) => p.userData.opponent === opponent && p.userData.slot !== 'Weapon').map((p) => [String(p.userData.slot), lootIds(p)[0]!]));
+  return { worn: Object.values(worn), missing: dressRemote(probeActor, probePieces, worn) };
+}
 // Which scene objects use each linked program (material type:name @ the object's parent chain), for a seamless receipt: a program that links at the engage is named by its owner, so a red row says what it was.
 function programOwners(): Record<string, string[]> {
   const out: Record<string, string[]> = {};
@@ -731,6 +744,7 @@ function programOwners(): Record<string, string[]> {
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
+  remoteProbe,
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
