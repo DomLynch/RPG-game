@@ -2,6 +2,7 @@
 // testable and the load test can drive them. All numbers are the note's *est.* planning figures until the load test replaces them.
 import { ENTITY_BYTES, HEAD_BYTES, encodeDown, type Entity, type Pose } from './wire.ts';
 import { interestRules } from './presence-rules.ts';
+import type { Worn } from '../server/location.ts';
 import { LEGACY_SHIFT_CM, SPAWN, TOWN_CM, clearOfTradeAreas, inTownSquare, walkable, zoneRowAt, type ZoneRow } from './zones.ts';
 
 export const RULES = interestRules();
@@ -10,10 +11,11 @@ export type Rules = ReturnType<typeof interestRules>;
 // legacy: a v1 client (town square only, old frame): clamped to the square, sees only the square, and is sent the old frame (the shim; docs/specs/origins/frontier-presence.md §5). zone: its zone row, kept current by every accepted pose.
 export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
   name: string | null; guest: boolean;   // the name tag the page draws (null: none known; guests carry no name)
+  worn: Worn;   // {slot: lootId} the writer reads from the ledger for the active character, what others see on it (a guest wears nothing: {})
   told: Map<number, string>; sees: Set<number>;   // viewer state: the id -> identity this viewer has been introduced to (so an `enter` goes out once per sighting), and the ids in range this tick
 };
 /** One `enter` record: who an id is, sent to a viewer before the first packet that carries that id. */
-export type Intro = { id: number; name: string | null; guest: boolean };
+export type Intro = { id: number; name: string | null; guest: boolean; worn: Worn };
 export class Layer {
   readonly players = new Map<number, Player>();
   readonly cells = new Map<number, Set<Player>>();
@@ -53,7 +55,7 @@ export class World {
     const wanted = at ?? this.recall(account, now) ?? SPAWN, fits = legacy ? inTownSquare : walkable;
     const from = fits(Math.round(wanted.x), Math.round(wanted.z)) ? wanted : SPAWN;   // a remembered or saved spot the clamp would refuse (or a v1 client cannot see) starts at the spawn
     const x = Math.round(from.x), z = Math.round(from.z);
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, told: new Map(), sees: new Set() };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -146,10 +148,10 @@ export class World {
       for (const e of seen) {
         const o = layer.players.get(e.id);
         if (!o) continue;
-        const who = `${o.account}|${o.name ?? ''}|${o.guest}`;
+        const who = `${o.account}|${o.name ?? ''}|${o.guest}|${JSON.stringify(o.worn)}`;   // a changed worn set is a new identity: the viewer is introduced again with the new set
         if (p.told.get(e.id) === who) continue;
         p.told.set(e.id, who);
-        const list = this.intros.get(p); const intro: Intro = { id: e.id, name: o.guest ? null : o.name, guest: o.guest };
+        const list = this.intros.get(p); const intro: Intro = { id: e.id, name: o.guest ? null : o.name, guest: o.guest, worn: o.guest ? {} : o.worn };
         if (list) list.push(intro); else this.intros.set(p, [intro]);
       }
     }

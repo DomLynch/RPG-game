@@ -48,7 +48,7 @@ try {
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 170000 });
   assert.ok(await page.waitForFunction(() => window.originsPreview.remote() !== null, null, { timeout: 120000 }).then(() => true).catch(() => false), 'the remote view never came up (the hero rig did not load)');
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
-  const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners }; });   // one atomic read: the linked programs, and which scene objects use each
+  const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });   // one atomic read: the linked programs, and which scene objects use each
   const before = await snap(); receipt.programsBeforeBots = before.names.length;
   assert.ok(await until(async () => (await page.evaluate(() => window.originsPreview.presence().state)) === 'live', 60000), 'the page never reached presence (state is not live)');
 
@@ -81,10 +81,13 @@ try {
   await wait(3000);
   const after = await snap(); receipt.programsAfterBots = after.names.length; receipt.shown = await page.evaluate(() => window.originsPreview.remote().shown.length);
   // A program a figure in the scene compiles has an owner (programOwners names the scene objects using it): that is what a remote could add, and it is the gate. On software GL one UNOWNED MeshBasic program ("basic", no scene object uses it) also links in some runs with the crowd
-  // (8 remotes: 1 of 4 runs, 11: about half; the same page with 3 bots and no crowd: 0 of 9 added one; World's T4 run adds none). It is not explained yet, so it is reported in the receipt (programsAddedUnowned) and does not fail the row; the owned check is what holds.
-  const added = after.names.filter((n) => !before.names.includes(n)), owned = added.filter((n) => (after.owners[n] ?? []).length > 0);
-  receipt.programsAddedOwned = owned.map((n) => [n, after.owners[n]]); receipt.programsAddedUnowned = added.filter((n) => !owned.includes(n));
+  // (8 remotes: 1 of 4 runs, 11: about half; the same page with 3 bots and no crowd: 0 of 9 added one; World's T4 run adds none). It is not explained yet, so exactly that observed case is allowed (UNOWNED_ALLOWED programs, of kind UNOWNED_KIND) and reported
+  // in the receipt (programsAddedUnowned); any owned new program, any second unowned one, or an unowned one of another kind fails the row (the Auditor's narrowing: no other unexplained compile may go green).
+  const UNOWNED_ALLOWED = 1, UNOWNED_KIND = 'basic';
+  const added = after.names.filter((n) => !before.names.includes(n)), owned = added.filter((n) => (after.owners[n] ?? []).length > 0), unowned = added.filter((n) => !owned.includes(n));
+  receipt.programsAddedOwned = owned.map((n) => [n, after.owners[n]]); receipt.programsAddedUnowned = unowned.map((n) => [n, String(after.keys[n] ?? '').split(',')[0]]);
   assert.equal(owned.length, 0, `a remote's material linked a render program after zone ready: ${JSON.stringify(receipt.programsAddedOwned)}`);
+  assert.ok(unowned.length <= UNOWNED_ALLOWED && unowned.every((n) => String(after.keys[n] ?? '').split(',')[0] === UNOWNED_KIND), `unowned programs beyond the one observed ${UNOWNED_KIND} program linked after zone ready: ${JSON.stringify(receipt.programsAddedUnowned)}`);
 
   // tags: a bot that leaves is gone within the expiry, and its slot is reused with no stale name
   bob.close();

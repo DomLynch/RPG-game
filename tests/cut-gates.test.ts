@@ -130,8 +130,12 @@ test('gate 2 never allows a deleted watched file (it has no blob), even one that
   assert.equal(r.ok, false); assert.deepEqual(r.files, ['.github/workflows/z.yml']);
 });
 
-test('the real data file starts with an empty reviewed list', () => {
-  assert.deepEqual(loadGates().watchedAllow, []);
+test('every reviewed-list entry in the real data file names a full blob, its PR and a note', () => {
+  for (const a of loadGates().watchedAllow) {
+    assert.match(a.blob, /^[0-9a-f]{40}$/, a.path);
+    assert.ok(Number.isInteger(a.pr) && a.pr > 0, a.path);
+    assert.ok(a.note.length > 0, a.path);
+  }
 });
 
 // ---- a bare --live ----

@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import type { Db } from '../origins/server/db.ts';
 import { createWriter } from '../origins/server/server.ts';
 import { fakeWhere } from '../origins/presence/fixtures.ts';
-import { REJOIN_EDGE, inTradeArea, zoneAt, noServerHeldState, parseServed, serve, writerSaveLocation, writerSavedLocation, type HeldFn } from '../origins/server/location.ts';
+import { REJOIN_EDGE, inTradeArea, zoneAt, noServerHeldState, parseServed, parseWorn, serve, writerSaveLocation, writerSavedLocation, writerWorn, type HeldFn } from '../origins/server/location.ts';
 
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const KEY = 'test-writer-internal-key-0123456789';
@@ -39,7 +39,7 @@ test('location: no logout escape is a seam today: the default held-state lookup 
   assert.equal(await noServerHeldState(db, A, 'pc:a1'), null);
 });
 
-let activeNameAnswer = 'absent';
+let activeNameAnswer = 'absent', activeWornAnswer = 'absent';   // 'absent' = a database without that migration
 // A fake Db for the route: records the saved-location calls.
 function fakeDb() {
   const saved = new Map<string, ReturnType<typeof row>>(), calls: { sql: string; vars: Readonly<Record<string, string>> }[] = [];
@@ -48,7 +48,8 @@ function fakeDb() {
       calls.push({ sql, vars });
       if (sql.includes('origins_save_location')) { saved.set(vars.a, { character: 'pc:a1', zone: vars.zone || null, x: Number(vars.x), z: Number(vars.z), updated_at: vars.t }); return JSON.stringify({ character: 'pc:a1', stored: true }); }
       if (sql.includes('origins_saved_location')) return JSON.stringify(saved.get(vars.a) ?? null);
-      if (sql.includes('origins_active_name')) return activeNameAnswer;   // 'absent' = a database without migration 20261016170000; else the JSON the function returns
+      if (sql.includes('origins_active_worn')) return activeWornAnswer;   // the JSON array of equipped rows the function returns
+      if (sql.includes('origins_active_name')) return activeNameAnswer;   // 'absent' = a database without migration 20261016161137; else the JSON the function returns
       if (sql.includes('origins_active(')) return saved.has(vars.a) ? 'pc:a1' : '';
       throw Error(`unscripted ${sql}`);
     },
@@ -74,16 +75,16 @@ test('location: the internal route needs the key, stores what presence saw, and 
     for (const bad of [{ account: 'x', ...PIT }, { account: A, x: 1.5, z: 0 }, { account: A, x: -1, z: 0 }, { account: A, x: 0, z: 30001 }, { account: A, x: 0 }, { account: A, ...PIT, at: 'now' }])
       assert.equal((await post(bad, `Bearer ${KEY}`)).status, 400, JSON.stringify(bad));
     const save = writerSaveLocation(base, KEY), read = writerSavedLocation(base, KEY);
-    assert.deepEqual(await read(A), { saved: false, name: null }, 'nothing saved yet (and no name tag: the harness has no active_name function)');
+    assert.deepEqual(await read(A), { saved: false, name: null, worn: {} }, 'nothing saved yet (and no name tag, nothing worn: the harness has neither function)');
     assert.deepEqual(await save(A, { ...EXCHANGE, atMs: 1_790_000_000_000 }), { character: 'pc:a1', stored: true });
     const stored = f.calls.find(c => c.sql.includes('origins_save_location'))!.vars;
     assert.deepEqual([stored.zone, stored.x, stored.z, stored.t], ['exchange', String(EXCHANGE.x), String(EXCHANGE.z), '1790000000000'], 'the zone is the writer\'s own computation from x, z');
     await post({ account: A, ...PIT, zone: 'exchange' }, `Bearer ${KEY}`);
     assert.equal(f.calls.filter(c => c.sql.includes('origins_save_location')).at(-1)!.vars.zone, 'pit-yard', 'a zone field in the post is ignored');
     assert.equal(f.calls.filter(c => c.sql.includes('origins_save_location')).at(-1)!.vars.t, '1791000000000', 'no `at`: the writer\'s clock');
-    assert.deepEqual(await read(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: null });
+    assert.deepEqual(await read(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: null, worn: {} });
     await save(A, { ...EXCHANGE, atMs: 1_791_000_000_001 });
-    assert.deepEqual(await read(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge', name: null }, 'an Exchange spot is served at the edge');
+    assert.deepEqual(await read(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge', name: null, worn: {} }, 'an Exchange spot is served at the edge');
     await assert.rejects(writerSavedLocation(base, 'wrong')(A), /HTTP 401/, 'the client turns a refusal into an error (presence then uses its default spawn)');
     assert.equal((await fetch(`${base}/internal/where?account=${A}`, { headers: { authorization: `Bearer ${KEY}` } })).status, 404, 'only /internal/location exists');
     assert.equal((await fetch(`${base}/internal/location?account=${A}`, { method: 'PUT', headers: { authorization: `Bearer ${KEY}` } })).status, 404, 'GET and POST only');
@@ -95,7 +96,7 @@ test('location: a held state from the seam overrides what is saved', async () =>
   const { server, base } = await start(f.db, { key: KEY, held });
   try {
     await writerSaveLocation(base, KEY)(A, { ...PIT, atMs: 1 });
-    assert.deepEqual(await writerSavedLocation(base, KEY)(A), { saved: true, zone: 'pit-yard', x: 100, z: 200, source: 'duel', name: null });
+    assert.deepEqual(await writerSavedLocation(base, KEY)(A), { saved: true, zone: 'pit-yard', x: 100, z: 200, source: 'duel', name: null, worn: {} });
   } finally { server.close(); }
 });
 
@@ -120,11 +121,36 @@ test('location: the served answer carries the active character\'s name (none bef
   } finally { server.close(); activeNameAnswer = 'absent'; }
 });
 
+test('location: the answer carries the gear the active character wears, read server-side from the ledger; the refresh asks for it alone; an old database or an unreadable ledger shows nothing', async () => {
+  const f = fakeDb(), { server, base } = await start(f.db, { key: KEY });
+  const sword = { item: 'item:loot.veteran.Body', tier: 'veteran', slot: 'body' }, helm = { item: 'item:loot.veteran.Helmet', tier: 'veteran', slot: 'head' };   // (named for the slot they stand in below: 'sword' is the second piece)
+  try {
+    const read = writerSavedLocation(base, KEY), refresh = writerWorn(base, KEY);
+    await writerSaveLocation(base, KEY)(A, { ...PIT, atMs: 1 });   // an active character now exists
+    assert.deepEqual((await read(A)).worn, {}, 'a database without the function: nothing worn is shown, the join still works');
+    activeWornAnswer = JSON.stringify([sword, helm]);
+    const lootOf = (await read(A)).worn!;
+    assert.deepEqual(Object.keys(lootOf), ['body', 'head'], 'one entry per worn slot, keys sorted');
+    assert.ok(Object.values(lootOf).every((id) => typeof id === 'string' && id.length > 0), 'each value is the piece\'s loot id, mapped by the writer');
+    assert.deepEqual(await refresh(A), lootOf, 'the 30 s refresh returns the same set from the same read');
+    const asked = f.calls.filter((c) => c.sql.includes('origins_active_worn')).length, opened = f.calls.filter((c) => c.sql.includes('origins_open')).length;
+    assert.equal(opened, 0, 'never origins_open: it locks the career row and returns the whole snapshot');
+    assert.ok(asked >= 3);
+    activeWornAnswer = JSON.stringify([sword, { ...helm, slot: 'body' }]);
+    assert.deepEqual(await refresh(A), {}, 'two pieces in one slot cannot be one worn set: nothing is shown, the join does not fail');
+    activeWornAnswer = '[]'; assert.deepEqual(await refresh(A), {}, 'nothing equipped');
+    await assert.rejects(writerWorn(base, 'wrong')(A), /HTTP 401/, 'the refresh needs the key too');
+  } finally { server.close(); activeWornAnswer = 'absent'; }
+});
+
 test('location: the presence-side parser fails closed', () => {
   for (const bad of [null, 7, {}, { saved: 'yes' }, { saved: true, x: 1, z: 1, zone: 3, source: 'saved' }, { saved: true, x: -1, z: 1, zone: null, source: 'saved' }, { saved: true, x: 1, z: 1, zone: null }])
     assert.throws(() => parseServed(bad), /malformed/, JSON.stringify(bad));
-  assert.deepEqual(parseServed({ saved: false }), { saved: false, name: null });
-  assert.deepEqual(parseServed({ saved: false, name: 'Ash' }), { saved: false, name: 'Ash' }, 'the name rides beside the saved spot');
-  assert.deepEqual(parseServed({ saved: false, name: '' }), { saved: false, name: null }, 'an empty name is no name');
-  assert.deepEqual(parseServed({ saved: false, name: 7 }), { saved: false, name: null }, 'a malformed name is dropped, never trusted');
+  assert.deepEqual(parseServed({ saved: false }), { saved: false, name: null, worn: {} });
+  assert.deepEqual(parseServed({ saved: false, name: 'Ash' }), { saved: false, name: 'Ash', worn: {} }, 'the name rides beside the saved spot');
+  assert.deepEqual(parseServed({ saved: false, name: '' }), { saved: false, name: null, worn: {} }, 'an empty name is no name');
+  assert.deepEqual(parseServed({ saved: false, name: 7 }), { saved: false, name: null, worn: {} }, 'a malformed name is dropped, never trusted');
+  assert.deepEqual(parseServed({ saved: false, worn: { head: 'veteran.Helmet', 'mainhand': 'veteran.Sword' } }).worn, { head: 'veteran.Helmet', mainhand: 'veteran.Sword' }, 'the worn set rides beside the name');
+  assert.deepEqual(parseWorn({ b: 'x1', a: 'x2', 'Bad Slot': 'x', c: 7, d: 'has space', e: '' }), { a: 'x2', b: 'x1' }, 'malformed entries are dropped, never trusted; keys come back sorted');
+  for (const junk of [null, 7, 'x', ['a'], undefined]) assert.deepEqual(parseWorn(junk), {}, JSON.stringify(junk));
 });

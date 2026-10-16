@@ -12,6 +12,7 @@ import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_ED
 import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
+const wornIdsOf = async (db: Db, account: string) => (await import('./worn-gear.ts')).wornIdsOf(db, account);   // lazy: presence imports this file for its client half and must not load the fight code
 
 export const ZONE_CM = 30000;   // the saved x/z columns' bound, check (between 0 and 30000) in migration 202610070009 (old town frame): a storage contract, pinned by tests/location-bounds.test.ts
 
@@ -29,7 +30,8 @@ export type HeldPlace = { zone: string | null; x: number; z: number; reason: 'ja
 export type HeldFn = (db: Db, account: string, character: string) => Promise<HeldPlace | null>;
 export const noServerHeldState: HeldFn = async () => null;
 
-export type Served = { saved: false; name?: string | null } | { saved: true; zone: string | null; x: number; z: number; source: 'saved' | 'trade-edge' | HeldPlace['reason']; name?: string | null };
+export type Worn = Readonly<Record<string, string>>;   // {slot: lootId} of the pieces a character wears, what other players see
+export type Served = { saved: false; name?: string | null; worn?: Worn } | { saved: true; zone: string | null; x: number; z: number; source: 'saved' | 'trade-edge' | HeldPlace['reason']; name?: string | null; worn?: Worn };
 // What presence should start this account at. Pure given the saved row and the held state.
 export function serve(saved: store.SavedRow | null, held: HeldPlace | null): Served {
   if (held) return { saved: true, zone: held.zone, x: held.x, z: held.z, source: held.reason };
@@ -65,11 +67,12 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
       if (req.method === 'GET') {
         const account = url.searchParams.get('account')?.toLowerCase();
         if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
+        if (url.searchParams.get('worn') === '1') return reply(200, { worn: await wornIdsOf(db, account) });   // presence's refresh: only what others see worn, nothing else
         if (flusher?.has(account)) await flusher.flush();   // read your own write: presence rejoining right after a leave sees the spot it just posted
         const saved = await store.savedLocation(db, account);
         const character = saved?.character ?? await store.active(db, account);
         const name = await store.activeName(db, account);   // presence's name tag for this account's active character; null when none, or before the migration
-        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name });
+        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name, worn: character ? await wornIdsOf(db, account) : {} });   // worn: the visible gear {slot: lootId}, read from the ledger, never from the client
       }
       const text = await new Promise<string>((resolve, reject) => {
         let size = 0; const parts: Buffer[] = [];
@@ -101,9 +104,24 @@ export function parseServed(v: unknown): Served {
   if (!o || typeof o !== 'object') throw new Error('writer: malformed answer');
   // `name` is additive: an older writer sends none (undefined = no name tag); a malformed one is dropped, never trusted
   const name = typeof o.name === 'string' && o.name !== '' ? o.name : null;   // the database holds the length (origins_characters.name check)
-  if (o.saved === false) return { saved: false, name };
+  const worn = parseWorn(o.worn);
+  if (o.saved === false) return { saved: false, name, worn };
   if (o.saved !== true || !cm(o.x) || !cm(o.z) || (o.zone !== null && typeof o.zone !== 'string') || typeof o.source !== 'string') throw new Error('writer: malformed answer');
-  return { saved: true, zone: o.zone, x: o.x as number, z: o.z as number, source: o.source as Extract<Served, { saved: true }>['source'], name };
+  return { saved: true, zone: o.zone, x: o.x as number, z: o.z as number, source: o.source as Extract<Served, { saved: true }>['source'], name, worn };
+}
+// `worn` is additive like `name`: an older writer sends none (nothing worn shown); entries that are not {slot: id} strings are dropped, never trusted (the keys are sorted so equal sets compare equal).
+const SLOT = /^[a-z][a-z0-9_-]{0,23}$/, LOOT_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+export function parseWorn(v: unknown): Worn {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, string] => SLOT.test(e[0]) && typeof e[1] === 'string' && LOOT_ID.test(e[1])).sort(([a], [b]) => (a < b ? -1 : 1)));
+}
+// presence's refresh: only the worn set (GET /internal/location?worn=1). Any error is thrown; the caller keeps the last set.
+export function writerWorn(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): (account: string) => Promise<Worn> {
+  return async account => {
+    const res = await fetchImpl(`${baseUrl}/internal/location?account=${encodeURIComponent(account)}&worn=1`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) });
+    if (res.status !== 200) throw new Error(`writer: HTTP ${res.status}`);
+    return parseWorn(((await res.json()) as { worn?: unknown }).worn);
+  };
 }
 // The join's ask. Any error (no answer in time, a refusal, a malformed body) is thrown: presence turns it into the default spawn, never a client pose.
 export function writerSavedLocation(baseUrl: string, key: string, timeoutMs = 500, fetchImpl: typeof fetch = fetch): (account: string) => Promise<Served> {
