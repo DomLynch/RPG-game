@@ -26,9 +26,11 @@ export type Bot = {
   close(): void;
 };
 
-export function joinBot(port: number, token: string, opts: { v1?: boolean } = {}): Promise<Bot> {
+/** `token` null = join as a guest (no token; the server mints the identity). */
+export function joinBot(port: number, token: string | null, opts: { v1?: boolean } = {}): Promise<Bot> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence`, opts.v1 ? [PROTOCOL, `token.${token}`] : [PROTOCOL_V2, PROTOCOL, `token.${token}`]);
+    const protocols = token === null ? [PROTOCOL_V2, 'guest'] : opts.v1 ? [PROTOCOL, `token.${token}`] : [PROTOCOL_V2, PROTOCOL, `token.${token}`];
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/origins/presence`, protocols);
     ws.binaryType = 'arraybuffer';
     const entered: { id: number; name: string | null; guest: boolean; afterEntities: boolean }[] = [];
     const announced = new Set<number>(), unannounced = new Set<number>();
