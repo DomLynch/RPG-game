@@ -119,7 +119,11 @@ net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch failed}"
 git cat-file -e "$sha^{commit}" 2>/dev/null || stop "candidate $sha not fetched"
 git merge-base --is-ancestor "origin/$trunk" "$sha" || stop "trunk moved outside the train: the candidate does not contain origin/$trunk; nothing pushed, re-cut on trunk"
 [ "$draft" = draft ] && { net_gh 60 pr ready "$pr" >/dev/null || stop "${NET_WHY:-gh pr ready failed}"; }
-net_git 180 push -q origin "$sha:refs/heads/$trunk" || stop "${NET_WHY:+$NET_WHY: }the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
+net_git "${NET_PUSH_S:-180}" push -q origin "$sha:refs/heads/$trunk" || {
+  rc=$?   # 124 = killed at the limit: the push may have landed, so "refused ... nothing deployed" would be a claim nobody checked (the 04:17:54Z stop, 2026-10-16)
+  [ "$rc" = 124 ] && stop "$NET_WHY: trunk state UNKNOWN (a push killed late may already have moved it); run git ls-remote origin $trunk before any retry; deploy.sh did not run"
+  stop "the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
+}
 net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch after the fast-forward failed}"
 rev=$(git rev-parse "origin/$trunk") || stop "no origin/$trunk"
 [ "$rev" = "$sha" ] || stop "trunk is $rev after the fast-forward, not the audited $sha: not deploying an unchecked commit"

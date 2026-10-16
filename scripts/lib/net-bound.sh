@@ -26,7 +26,7 @@ net_bound() {
   return $rc
 }
 # The low-speed limits ride in git's environment, not in -c arguments: the command line stays exactly `git <op> args` (the train's tests,
-# and anyone reading ps, match it).
+# and anyone reading ps, match it). It sets GIT_CONFIG_COUNT outright, so a caller's own GIT_CONFIG_* is dropped for the call (no caller sets any).
 net_git() {
   local secs=$1 op=$2; shift 2
   GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=http.lowSpeedLimit GIT_CONFIG_VALUE_0=1000 GIT_CONFIG_KEY_1=http.lowSpeedTime GIT_CONFIG_VALUE_1=60 \
