@@ -30,7 +30,7 @@ export function loadGoblinField(raw: Raw) {
     if (!(frac(b.x0) && frac(b.x1) && frac(b.y0) && frac(b.y1) && b.x0 < b.x1 && b.y0 < b.y1)) throw Error(`goblin-field backdrop "${b.id}": the crop is fractions of the picture, 0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1`);
     if (b.arc === undefined) { if (!(Number.isInteger(b.repeat) && b.repeat! >= 2 && b.repeat! % 2 === 0)) throw Error(`goblin-field backdrop "${b.id}": repeat is an even whole number (mirrored copies meet round the dome)`); }
     else if (!(b.arc > 0 && b.arc <= 180 && Number.isFinite(b.azimuth) && b.azimuth! >= 0 && b.azimuth! < 360 && frac(b.fadeSide ?? NaN) && b.fadeSide! < 0.5)) throw Error(`goblin-field backdrop "${b.id}": a sector has 0 < arc <= 180 degrees, 0 <= azimuth < 360 and fadeSide < 0.5`);
-    if (b.arc !== undefined && b.fadeFoot > 1 - b.drop) throw Error(`goblin-field backdrop "${b.id}": a sector's foot fade must fit above its horizon row (fadeFoot <= 1 - drop)`);
+    if (b.arc !== undefined && b.drop < 0.5 && b.fadeFoot > 1 - b.drop) throw Error(`goblin-field backdrop "${b.id}": a sector's foot fade must fit above its horizon row (fadeFoot <= 1 - drop)`);
     if (!(b.texW > 0 && b.texH > 0 && frac(b.fadeTop) && frac(b.fadeFoot) && b.fadeTop + b.fadeFoot < 1 && frac(b.drop) && b.drop < 0.5)) throw Error(`goblin-field backdrop "${b.id}": texW/texH > 0, fadeTop + fadeFoot < 1, 0 <= drop < 0.5`);
     if (!/^[a-z0-9/_.-]+\.(webp|png|jpg)$/.test(b.file) || b.file.startsWith('/')) throw Error(`goblin-field backdrop "${b.id}": file is a picture path under the page base, no leading slash`);
   }
