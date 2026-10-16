@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import console from 'node:console';
 import process from 'node:process';
 import { execFileSync } from 'node:child_process';
+import { URL } from 'node:url';
 import { chromium } from 'playwright';
 
 const QA_ENV = process.env.QA_ENV ?? '/etc/frankendom/qa-account.env', WRITER_ENV = process.env.WRITER_ENV ?? '/etc/frankendom/origins-writer.env';
@@ -66,11 +67,11 @@ step('gear_open: the four pieces are worn', JSON.stringify(worn) === JSON.string
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  await context.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } }, [AUTH_KEY, JSON.stringify({ access_token: token, expires_at: expiresAt })]);
+  await context.addInitScript(([k, v]) => { try { globalThis.localStorage.setItem(k, v); } catch { /* storage blocked */ } }, [AUTH_KEY, JSON.stringify({ access_token: token, expires_at: expiresAt })]);
   const page = await context.newPage();
   await page.goto(PAGE, { waitUntil: 'load', timeout: 60_000 });
   const read = () => page.evaluate(() => {
-    const p = window.originsPreview, c = p?.combat?.(), t = c?.trace ?? p?.trace?.();
+    const p = globalThis.originsPreview, c = p?.combat?.(), t = c?.trace ?? p?.trace?.();
     return { trace: t ?? null, max: c?.hero?.max ?? null, career: p?.career?.() ?? null };
   });
   let got = await read();
