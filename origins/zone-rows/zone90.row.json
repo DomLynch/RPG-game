@@ -18,7 +18,7 @@
       "character:giant-salamander": {
         "opponent": "giant-salamander",
         "tint": 16777215,
-        "scale": 3,
+        "scale": 6,
         "dressing": {
           "soot": 0.2,
           "burnt": 0.1
@@ -32,12 +32,12 @@
           "burnt": 0
         }
       },
-      "character:ash-wolf": { "opponent": "wolf", "tint": 9077624, "scale": 2, "dressing": { "soot": 0.4, "burnt": 0 } },
+      "character:ash-wolf": { "opponent": "wolf", "tint": 9077624, "scale": 4, "dressing": { "soot": 0.4, "burnt": 0 } },
       "character:ash-boar": { "opponent": "boar", "tint": 8021330, "dressing": { "soot": 0.35, "burnt": 0 } },
       "character:pit-goblin": {
         "opponent": "goblin",
         "tint": 16777215,
-        "scale": 1,
+        "scale": 1.25,
         "dressing": {
           "soot": 0,
           "burnt": 0
