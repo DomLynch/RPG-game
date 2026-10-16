@@ -16,7 +16,7 @@ const BOTS: Record<string, Bot> = {
 BOTS.focus = BOTS.guard!;   // guard, and he turns to face the weakest living creature (the retarget cone picks his foe by where he faces)
 const FACE: Record<string, (w: World) => number | undefined> = { focus: (w) => { const h = w.fighters[0]!, t = w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead' && f.hunting).sort((a, b) => a.health - b.health)[0]; return t ? Math.atan2(t.x - h.x, t.z - h.z) : undefined; } };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot, botName = '') {
-  const sheet = rungSheet(rung, heroLevel ?? level);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
+  const sheet = rungSheet(rung, heroLevel ?? level, 'plate', process.env.RECRUIT === '1');   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
   const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, i < size ? level : escortLevel ?? level); });
   let w = newWorld([player('hero', 0, 0, 0, heroLevel ?? level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
   for (let k = 0; k < MAX_S / DT; k++) {
