@@ -1,6 +1,6 @@
-// The HUD's career line ("Level 16 · 3 / 100 CP"). In Zone 1 (?region=1) the world fight is a bare body until the character sheet is applied in it (Strategy 2026-10-16), so the
-// level there is labelled as the career's, not the fighter's: it must not promise a body the hero does not fight with. Remove the `world` branch (and `levelWorld` in
-// career-text.json) when Combat's sheet-in-world PR lands. The label is a row; nothing here is a number of its own.
+// The HUD's career line ("Level 16 · 3 / 100 CP"). In Zone 1 (?region=1) the level is labelled as the career's, not the fighter's ("Career Level N"): the world fight can
+// be a bare body (before the character sheet is applied, or when the sheet writer is dead and the 15 s fallback runs, #2900), and a plain "Level N" would promise a body the
+// hero does not fight with. PERMANENT (Lead, 2026-10-16): do not remove the `world` branch or `levelWorld` in career-text.json when the sheet-in-world PR lands. The label is a row; nothing here is a number of its own.
 import TEXT from './career-text.json' with { type: 'json' };
 import type { CareerLine } from '../pit/pit.ts';
 
