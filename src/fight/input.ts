@@ -5,7 +5,7 @@
 import { accepts, type Action, type CombatEvent, type Practice } from './combat.ts';
 import type { Direction } from './moves.ts';
 import { inputNum } from './input-rows.ts';
-import { ONE_BUTTON, HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE } from './sandbox-rules.ts';
+import { ONE_BUTTON, HEAVY_HOLD_MS, STAB_SLIDE_PX, STAB_HALF_ANGLE, SPELL_BUFFER_MS } from './sandbox-rules.ts';
 
 type Lookup = <T extends HTMLElement>(id: string) => T;
 export type InputEnv = {
@@ -100,9 +100,12 @@ export function createInput(env: InputEnv) {
   function unhold(by: Strike) {
     holders.delete(by);
   }
+  // sandbox spellBuffer: a SPELL press the game cannot take yet (staggered, mid-recovery) waits SPELL_BUFFER_MS and fires the moment it can, so a tap is never silently lost. 0 (trunk) = off.
+  let pendingSpell: { action: Action; until: number } | null = null;
   function request(next: Action) {
     if (!paused() && env.ready()) env.press?.();
-    if (!paused() && env.ready() && accepts(env.practice(), next)) action = next;
+    if (!paused() && env.ready() && accepts(env.practice(), next)) { action = next; pendingSpell = null; }
+    else if (SPELL_BUFFER_MS && (next === 'skill' || next === 'skill2') && !paused() && env.ready()) pendingSpell = { action: next, until: env.now() + SPELL_BUFFER_MS };
   }
   // Directional-cut flash (Dom 2026-10-07: "an indicator which comes at the same time, not before, but faint"): restart the CSS animation on the chosen edge; it removes itself.
   function flashCut(next: Action) {
@@ -454,6 +457,7 @@ export function createInput(env: InputEnv) {
     // What the simulation sees this tick. Presses reach it only once the assets are ready (the buttons read disabled until then).
     intent(): ControlIntent {
       if (slashWait && env.now() - slashWait.since >= (ONE_BUTTON ? HEAVY_HOLD_MS : SLASH_DECIDE_MS)) { if (ONE_BUTTON) fireHeavy(); else fireSlash(null); }
+      if (pendingSpell) { if (env.now() > pendingSpell.until) pendingSpell = null; else if (!action && env.ready() && accepts(env.practice(), pendingSpell.action)) { action = pendingSpell.action; pendingSpell = null; } }
       const ready = env.ready(), q = keys.has('KeyQ'), arrow = (code: string) => !q && keys.has(code);
       // The side the simulation will see this tick: the thumb's slide, else Q + an arrow. The button's hint (data-side) follows it, so a
       // keyboard guard lights the arrow's side too and shows straight again on release.
@@ -490,7 +494,7 @@ export function createInput(env: InputEnv) {
     },
     // Every press, hold, key and stick released: the welcome/journal/rename/visibility paths, a rematch, a graphics loss.
     clear() {
-      action = null;
+      action = null; pendingSpell = null;
       cancel = true;
       dodgeHeld = null;
       holders.clear();

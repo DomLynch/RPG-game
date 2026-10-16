@@ -8,7 +8,7 @@ const defs = DEFS as unknown as { rules: { id: string; value: number }[]; bands:
 const rule = (id: string) => defs.rules.find((r) => r.id === id)!;
 rule('manaMax').value = 100; rule('manaRegen').value = 60; rule('manaDelay').value = 90; rule('manaCostMult').value = 1000;
 defs.bands.push({ id: 'inner', upTo: 135 }, { id: 'mid', upTo: 180 }, { id: 'outer', upTo: 100000 });
-defs.spellRange.push({ root: 'theWord', band: 'inner', kind: 'melee' }, { root: 'longShadow', band: 'mid', kind: 'magic' }, { root: 'gale', band: 'outer', kind: 'magic', speed: 900, tint: '#9fd0ff' });
+defs.spellRange.push({ root: 'theWord', band: 'inner', kind: 'melee', windup: 60 }, { root: 'longShadow', band: 'mid', kind: 'magic' }, { root: 'gale', band: 'outer', kind: 'magic', speed: 900, tint: '#9fd0ff' });
 defs.spellCue.push({ id: 'far', text: 'too far' });
 const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.ts');
 const { resolveSpell } = await import('../src/fight/spell-cast.ts');
@@ -45,8 +45,14 @@ test('mana is no use to a melee spell, and stamina is no use to a magic one', ()
 test('a melee spell is cast up close only: out past the close band it is refused', () => {
   assert.equal(press(duelAt(MELEE, 1.5)).events.find((e) => e.type === 'SpellRefused')?.cue, 'far');
 });
+test('a melee cast is quicker than a magic one: 1 s (60 ticks) against the 2 s (120 ticks) special windup', () => {
+  const melee = press(duelAt(MELEE, 0.8)).fighters[0]!.special!, magic = press(duelAt(MAGIC, 1.5)).fighters[0]!.special!;
+  assert.ok(melee >= 58 && melee <= 60, `melee windup ${melee}`);
+  assert.ok(magic >= 118 && magic <= 120, `magic windup ${magic}`);
+});
 test('the sandbox rows tag every spell root: the four close roots are melee, the five medium / long roots are magic', () => {
   const rows = (RANGE as unknown as { files: { 'sandbox-rules-defs': { spellRange: { root: string; band: string; kind: string }[] } } }).files['sandbox-rules-defs'].spellRange;
   assert.equal(rows.length, 9);
   for (const r of rows) assert.equal(r.kind, r.band === 'inner' ? 'melee' : 'magic', r.root);
+  for (const r of rows) assert.equal((r as { windup?: number }).windup, r.kind === 'melee' ? 60 : undefined, `${r.root}: only melee roots name their own windup`);
 });
