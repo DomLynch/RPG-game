@@ -63,7 +63,7 @@ test('one of each and pack room: a second sword is refused as have-it, a full pa
 
 test('the point and the radius come from rows: the place\'s centre plus the offset, and the row\'s radius or the default row plus the slack', () => {
   assert.ok(point && Number.isFinite(point.x) && Number.isFinite(point.z));
-  assert.deepEqual(groundPointOf({ ...row, offsetX: 3, offsetZ: -2 }), { x: point.x + 3, z: point.z - 2 });
+  assert.deepEqual(groundPointOf({ ...row, offsetX: 3, offsetZ: -2 }), { x: point.x - (row.offsetX ?? 0) + 3, z: point.z - (row.offsetZ ?? 0) - 2 }, 'the offset is added to the place centre (the row may carry its own: the sword lies at the camp edge)');
   assert.equal(groundPointOf({ ...row, place: 'nowhere' }), null);
   assert.equal(groundPointOf({ ...row, zone: 'zone0' }), null);
   assert.ok(radiusOf(row) > GROUND_LIMITS.defaultRadiusM && radiusOf({ radiusM: 3 }) > 3);
