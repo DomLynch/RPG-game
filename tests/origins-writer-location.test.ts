@@ -39,6 +39,7 @@ test('location: no logout escape is a seam today: the default held-state lookup 
   assert.equal(await noServerHeldState(db, A, 'pc:a1'), null);
 });
 
+let activeNameAnswer = 'absent';
 // A fake Db for the route: records the saved-location calls.
 function fakeDb() {
   const saved = new Map<string, ReturnType<typeof row>>(), calls: { sql: string; vars: Readonly<Record<string, string>> }[] = [];
@@ -47,6 +48,7 @@ function fakeDb() {
       calls.push({ sql, vars });
       if (sql.includes('origins_save_location')) { saved.set(vars.a, { character: 'pc:a1', zone: vars.zone || null, x: Number(vars.x), z: Number(vars.z), updated_at: vars.t }); return JSON.stringify({ character: 'pc:a1', stored: true }); }
       if (sql.includes('origins_saved_location')) return JSON.stringify(saved.get(vars.a) ?? null);
+      if (sql.includes('origins_active_name')) return activeNameAnswer;   // 'absent' = a database without migration 20261016170000; else the JSON the function returns
       if (sql.includes('origins_active(')) return saved.has(vars.a) ? 'pc:a1' : '';
       throw Error(`unscripted ${sql}`);
     },
@@ -105,6 +107,16 @@ test('location: without a configured key the internal routes do not exist; clien
     assert.equal((await fetch(`${base}/origins/save_location`, { method: 'POST', headers: { authorization: 'Bearer tok' }, body: JSON.stringify({ ...PIT }) })).status, 404, 'no client op writes a location');
     assert.equal(f.calls.length, 0);
   } finally { server.close(); }
+});
+
+test('location: the served answer carries the active character\'s name (none before the migration, none when the account has no character)', async () => {
+  const f = fakeDb(), { server, base } = await start(f.db, { key: KEY });
+  try {
+    const read = writerSavedLocation(base, KEY);
+    activeNameAnswer = 'absent'; assert.equal((await read(A)).name, null, 'a database without the function: no name tag, nothing else changes');
+    activeNameAnswer = '"Ash Walker"'; assert.equal((await read(A)).name, 'Ash Walker');
+    activeNameAnswer = 'null'; assert.equal((await read(A)).name, null);
+  } finally { server.close(); activeNameAnswer = 'absent'; }
 });
 
 test('location: the presence-side parser fails closed', () => {
