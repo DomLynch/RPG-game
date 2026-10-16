@@ -40,7 +40,7 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     assert.ok(Math.abs(z.mobLooks!.looks['character:ash-boar']!.scale! - 1.5 * bodyScale('boar')) < 1e-9, 'Dom: boars +50%');
     const { fxNum } = await import('../src/fight/fx-rows.ts'); assert.equal(fxNum('stand-off.per-scale'), 0.5, 'a scaled creature stands back 0.5 m per unit of extra scale (Dom 2026-10-16: the wolf and the salamander overlapped the hero)');
     assert.equal(z.level, 1);
-    const { variantLook, VARIANTS } = await import('../origins/preview/mob-looks.ts'), { isWeaponId } = await import('../src/fight/moves.ts');   // Dom 2026-10-16: goblins vary, each variant carries a weapon from the zone row's spread.gear (data)
+    const { VARIANTS } = await import('../origins/preview/mob-looks.ts'), { isWeaponId } = await import('../src/fight/moves.ts');   // Dom 2026-10-16: goblins vary, each variant carries a weapon from the zone row's spread.gear (data)
     const gears = Array.from({ length: VARIANTS }, (_, v) => variantLook('character:pit-goblin', v, z)?.gear);
     assert.ok(new Set(gears.filter(Boolean)).size >= 3, `goblin variants carry at least three different weapons: ${gears.join()}`);
     assert.ok(gears.every((g) => g === undefined || isWeaponId(g)), 'every loadout weapon is a real weapon row'); assert.equal(gears[0], undefined, 'variant 0 keeps the body\'s own weapon');
