@@ -42,16 +42,18 @@ function run(name: string, seed: number) {
   let w = newWorld([...heroes, creature('c0', kind, Math.sin(a) * 7, Math.cos(a) * 7, a + Math.PI, level)]);
   const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, ruleEvades: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
   let lastBlow = 0, hunted = false;
+  const recent: { t: number; type: string }[] = [];
   for (let k = 0; k < MAX_S / DT; k++) {
     const c = w.fighters.find((f) => f.id === 'c0')!, h = w.fighters[0]!, h2 = w.fighters.find((f) => f.id === 'hero2');
     const was = c.returning, inputs: Record<string, Input> = { hero: BOTS[name]!({ w, k, h, c, s: st }) };
     if (h2) inputs.hero2 = BOTS.stand!({ w, k, h: h2, c, s: st });
     const res = stepCombat(w, inputs, DT); w = res.world;
     const c2 = w.fighters.find((f) => f.id === 'c0');
+    for (const e of res.events) if (('attacker' in e && e.attacker === 'c0') || ('id' in e && e.id === 'c0')) recent.push({ t: k * DT, type: e.type });
     for (const e of res.events) if (e.attacker === 'c0' && (e.type === 'Hit' || (landed === 'swing' && (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')))) lastBlow = k * DT;
     if (c2 && c2.health > 0 && c2.hunting && !c2.returning) {
       if (!hunted) lastBlow = k * DT;
-      if ((rule === 'noblow' && k * DT - lastBlow > noblowS) || (rule === 'spawn' && Math.hypot(c2.x - c2.homeX, c2.z - c2.homeZ) > leashOf(c2.kind))) { c2.hunting = false; c2.returning = true; c2.phase = 'ready'; r.ruleEvades++; }
+      if ((rule === 'noblow' && k * DT - lastBlow > noblowS) || (rule === 'spawn' && Math.hypot(c2.x - c2.homeX, c2.z - c2.homeZ) > leashOf(c2.kind))) { c2.hunting = false; c2.returning = true; c2.phase = 'ready'; r.ruleEvades++; if (process.env.DEBUG_EVADE && r.ruleEvades <= 2) console.log(`evade t=${(k * DT).toFixed(1)} hp=${Math.round(c2.health)}/${Math.round(c2.maxHealth)} dist=${dist(c2, w.fighters[0]!).toFixed(1)} hero=${Math.round(w.fighters[0]!.health)} last c0 events: ${recent.slice(-8).map((q) => `${q.t.toFixed(1)}:${q.type}`).join(' ')}`); }
     }
     hunted = !!c2?.hunting;
     for (const e of res.events) {
