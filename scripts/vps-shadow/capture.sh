@@ -101,10 +101,27 @@ done
 [[ "$prio" =~ ^[1-4]$ ]] || { echo "capture: priority must be 1..4 (1 a live bug Dom reported, 2 release-gating, 3 default, 4 cleanup), got '$prio'"; exit 2; }
 lane="${1:?usage: capture [--prio 1..4] [--hf-ok] <lane> <command…> | --status | --queue}"; shift
 [[ $# -gt 0 ]] || { echo "capture: nothing to run"; exit 2; }
-npm_rewrites='(^|[^[:alnum:]_./-])npm[[:space:]]+(-[^[:space:]]+[[:space:]]+)*(ci|clean-install|install-clean|install|i|in|add|it|install-test|uninstall|un|remove|rm|r|update|up|upgrade|prune|dedupe|ddp)([[:space:];&|)]|$)'
-if [[ -L node_modules && " $* " =~ $npm_rewrites ]]; then
-  echo "capture: refused: '$*' rewrites node_modules, and $PWD/node_modules is a symlink to $(readlink -f node_modules): npm would empty that SHARED folder. Give this checkout its own node_modules (remove the link, then npm ci) and run it again."
-  exit 2
+# An option may carry a value (`npm --prefix ../x ci`), so the subcommand is found past it. The checked dirs are $PWD plus every `--prefix <dir>`,
+# `--prefix=<dir>` or `-C <dir>` given to npm (Lead 2026-10-16, the #2861 gap). A `cd <dir> && npm ci` inside bash -c is not followed: AGENTS.md's rule covers it.
+npm_rewrites='(^|[^[:alnum:]_./-])npm[[:space:]]+(-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?[[:space:]]+)*(ci|clean-install|install-clean|install|i|in|add|it|install-test|uninstall|un|remove|rm|r|update|up|upgrade|prune|dedupe|ddp)([[:space:];&|)]|$)'
+if [[ " $* " =~ $npm_rewrites ]]; then
+  npm_dirs=(.); seen_npm=0
+  read -ra words <<< "$*"
+  for ((k = 0; k < ${#words[@]}; k++)); do
+    w="${words[k]//[\"\']/}"
+    case "$w" in
+      npm) seen_npm=1 ;;
+      *';' | '&&' | '||' | '|') seen_npm=0 ;;
+      --prefix=*) if [[ $seen_npm == 1 ]]; then npm_dirs+=("${w#--prefix=}"); fi ;;
+      --prefix | -C) if [[ $seen_npm == 1 ]]; then npm_dirs+=("${words[k + 1]//[\"\']/}"); fi ;;
+    esac
+  done
+  for d in "${npm_dirs[@]}"; do
+    if [[ -n "$d" && -L "$d/node_modules" ]]; then
+      echo "capture: refused: '$*' rewrites node_modules, and $(cd "$d" && pwd)/node_modules is a symlink to $(readlink -f "$d/node_modules"): npm would empty that SHARED folder. Give that checkout its own node_modules (remove the link, then npm ci) and run it again."
+      exit 2
+    fi
+  done
 fi
 
 # --hf-ok is a claim; this checks it. Prints the reason a job may NOT spill (nothing = it may). Only unit tests and typechecks of a clean,

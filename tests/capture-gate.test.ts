@@ -199,3 +199,22 @@ test('a job that would rewrite a SYMLINKED node_modules (npm ci/install/i, also 
   const own = await capture(['t', 'npm', 'ci'], '1.00 1.00 1.00', {}, (repo) => mkdirSync(join(repo, 'node_modules')));
   assert.equal(own.code, 0, own.out); assert.equal(own.ran.trim(), 'ci', 'a checkout with its own node_modules installs as before');
 });
+
+// v9 follow-up (Lead 2026-10-16, the #2861 gap): npm's --prefix / -C points it at ANOTHER checkout, so that checkout's node_modules link is checked too.
+test('npm --prefix / --prefix= / -C at a checkout with a SYMLINKED node_modules is refused; read-only npm and other tools\' -C are not', { skip }, async () => {
+  const shared = mkdtempSync(join(tmpdir(), 'capture-shared-nm-'));
+  writeFileSync(join(shared, 'keep'), 'x');
+  const ownPlusLinkedSibling = (repo: string) => { mkdirSync(join(repo, 'node_modules')); mkdirSync(join(repo, '..', 'linked')); symlinkSync(shared, join(repo, '..', 'linked', 'node_modules')); };
+  for (const job of [['npm', '--prefix', '../linked', 'ci'], ['npm', '--prefix=../linked', 'install'], ['npm', '-C', '../linked', 'ci'], ['npm', '--silent', '--prefix', '../linked', 'i', 'three'], ['bash', '-c', 'npm --prefix "../linked" ci']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, ownPlusLinkedSibling);
+    assert.equal(r.code, 2, `${job.join(' ')}: ${r.out}`);
+    assert.match(r.out, /capture: refused: .*\/linked\/node_modules is a symlink to .*capture-shared-nm-/, job.join(' '));
+    assert.equal(r.lanejob, '', `${job.join(' ')}: nothing ran`); assert.ok(existsSync(join(shared, 'keep')));
+  }
+  for (const job of [['npm', '--prefix', '../linked', 'test'], ['bash', '-c', 'git -C ../linked status >/dev/null; npm ci']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, ownPlusLinkedSibling);
+    assert.equal(r.code, 0, `${job.join(' ')} runs: ${r.out}`);
+  }
+  const silent = await capture(['t', 'npm', '--silent', 'ci'], '1.00 1.00 1.00', {}, (repo) => symlinkSync(shared, join(repo, 'node_modules')));
+  assert.equal(silent.code, 2, `an option before the subcommand is skipped: ${silent.out}`);
+});
