@@ -28,6 +28,18 @@ BODIES = {
         "hind": [(.72, .52), (.68, .34), (.75, .20), (.74, .03)],                      # hip, knee, hock, paw
         "legx": .55,
     },
+    # The giant salamander (Zone camp creature, FLUX seed 190926 side view, TRELLIS.2 -> herolook_bake 20k / 2048): a long low body with a tail
+    # that is 40% of its length and curls up at the tip; heavy splayed legs (wide stance); the dorsal spikes ride the spine bones, the head spikes
+    # stand in for the ears. Fractions read off the concept's side view (the mesh is the same proportions: 1.00 m long, 0.31 m tall, 0.28 m wide).
+    "giant-salamander": {
+        "spine": [(.57, .58), (.49, .62), (.39, .645), (.305, .645), (.225, .62)],
+        "neck": [(.14, .566)], "head": (.082, .51), "nose": (.02, .43), "jaw": (.04, .38),
+        "ear": ((.10, .74), .35),
+        "tail": [(.63, .52), (.74, .42), (.86, .38), (.97, .55)],
+        "front": [(.22, .58), (.243, .276), (.229, .079), (.211, .02)],
+        "hind": [(.52, .53), (.53, .276), (.523, .09), (.51, .02)],
+        "legx": .72,
+    },
 }[BODY]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
