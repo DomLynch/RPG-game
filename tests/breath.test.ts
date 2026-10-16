@@ -17,7 +17,8 @@ test('a breath draws puffs between the mouth and the hero, never past its reach,
   for (let k = 0; k < 20; k++) breath.update(0.02);
   const sprites = (scene.children[0] as THREE.Group).children as THREE.Sprite[], shown = sprites.filter((s) => s.visible);
   assert.ok(shown.length > 0, 'puffs are showing');
-  assert.ok(shown.every((s) => s.position.z >= -1e-9 && s.position.z <= 3 + 1e-6), 'every puff stays on the line from the mouth to the chest');
+  assert.ok(shown.every((s) => s.position.z >= -1e-9 && s.position.z <= fxNum('breath.range') + 1e-6), 'every puff stays on the line out of the mouth, within the stream\'s reach');
+  assert.ok(shown.every((s) => (s.material as THREE.SpriteMaterial).opacity <= fxNum('breath.opacity') + 1e-9), 'no puff is brighter than the row\'s opacity');
   breath.start('s1', mouth, chest, 7);
   assert.equal(breath.active(), 1, 'a restart replaces the jet');
   for (let k = 0; k < Math.ceil((fxNum('breath.life') + 1) / 0.05); k++) breath.update(0.05);

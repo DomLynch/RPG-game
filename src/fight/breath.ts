@@ -4,7 +4,7 @@ import { fxHas, fxNum } from './fx-rows.ts';
 // A creature's fire breath (Dom 2026-10-16, the Test Zone's Giant Salamander). Presentation only: it reads the duel's AttackStarted of the creature's side and draws a
 // cone of additive flame puffs from its head to the hero; nothing here reads input or touches the sim, a record or a number the fight uses. Which creatures breathe is
 // a row (`breath.<opponent>` in fx-rows.json), and so are the reach, width, life, puff count, size and the two colours (breath.*).
-const RANGE = fxNum('breath.range'), RADIUS = fxNum('breath.radius'), LIFE = fxNum('breath.life'), PUFFS = fxNum('breath.puffs'), SIZE = fxNum('breath.size');
+const RANGE = fxNum('breath.range'), RADIUS = fxNum('breath.radius'), LIFE = fxNum('breath.life'), PUFFS = fxNum('breath.puffs'), SIZE = fxNum('breath.size'), OPACITY = fxNum('breath.opacity');
 const CORE = new THREE.Color(fxNum('breath.core')), EMBER = new THREE.Color(fxNum('breath.ember'));
 
 export const breathes = (opponent: string): boolean => fxHas(`breath.${opponent}`);
@@ -40,7 +40,7 @@ export function createBreath(scene: THREE.Scene) {
       const next = rand(seed), group = new THREE.Group(), puffs: Puff[] = [];
       for (let k = 0; k < PUFFS; k++) {
         const sprite = new THREE.Sprite(material()); sprite.visible = false; group.add(sprite);
-        puffs.push({ sprite, side: next() * 2 - 1, lift: next() * 2 - 1, delay: (k / PUFFS) * 0.45 * LIFE });
+        puffs.push({ sprite, side: next() * 2 - 1, lift: next() * 2 - 1, delay: (k / PUFFS) * 0.45 * LIFE });   // the puffs leave the mouth one after another, a stream, not a burst
       }
       scene.add(group); live.set(id, { age: 0, from: from.clone(), to: to.clone(), puffs, group });
     },
@@ -48,18 +48,18 @@ export function createBreath(scene: THREE.Scene) {
     update(dt: number): void {
       for (const [id, j] of live) {
         j.age += dt;
-        const dir = tmp.copy(j.to).sub(j.from), reach = Math.min(RANGE, dir.length()); dir.normalize();
+        const dir = tmp.copy(j.to).sub(j.from).normalize(), reach = RANGE;   // a stream out of the mouth along the line to the hero, its full reach (it flows past him), not cut at him
         side.crossVectors(dir, up).normalize();
         let alive = false;
         for (const p of j.puffs) {
           const t = (j.age - p.delay) / (LIFE * 0.55);
           if (t < 0 || t > 1) { p.sprite.visible = false; if (t < 0) alive = true; continue; }
           alive = true;
-          const spread = RADIUS * t * t, m = p.sprite.material as THREE.SpriteMaterial;
+          const spread = RADIUS * t * t, sway = Math.sin((j.age + p.delay) * 4.5 + p.side * 9) * 0.18 * t, m = p.sprite.material as THREE.SpriteMaterial;   // the stream licks side to side as it goes
           p.sprite.visible = true;
-          p.sprite.position.copy(j.from).addScaledVector(dir, reach * t).addScaledVector(side, p.side * spread).addScaledVector(up, p.lift * spread * 0.6 + t * 0.35);
-          p.sprite.scale.setScalar(SIZE * (0.5 + 1.6 * t));
-          m.color.copy(CORE).lerp(EMBER, t); m.opacity = (1 - t) * (t < 0.12 ? t / 0.12 : 1);
+          p.sprite.position.copy(j.from).addScaledVector(dir, reach * t).addScaledVector(side, p.side * spread + sway).addScaledVector(up, p.lift * spread * 0.5 + t * 0.5);   // and drifts up as it cools
+          p.sprite.scale.setScalar(SIZE * (0.45 + 1.4 * t));
+          m.color.copy(CORE).lerp(EMBER, Math.min(1, t * 1.3)); m.opacity = OPACITY * (1 - t) * (t < 0.15 ? t / 0.15 : 1);   // yellow-orange at the mouth, deep red-orange as it thins out
         }
         if (!alive) drop(id);
       }

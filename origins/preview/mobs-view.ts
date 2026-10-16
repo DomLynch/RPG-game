@@ -9,8 +9,9 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { bodyScale, mobVariant } from './mob-looks.ts';
-import { fxNum } from '../../src/fight/fx-rows.ts';
-const STAND_OFF = fxNum('stand-off.per-scale');   // metres a drawn body stands back per unit of look scale above 1 (src/fight/fx-rows.json), read once
+import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
+const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
+const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
@@ -186,7 +187,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         v.group.visible = !hiddenInFight(s.id, engaged); v.ring.visible = v.group.visible && (opts.markers?.ring ?? true);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
-        const look = mobVariant(s.character, s.id), off = look ? STAND_OFF * Math.max(0, look.scale - bodyScale(look.opponent)) : 0, ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;   // a bigger drawn body (a zone look's scale) stands back along the line to the hero by STAND_OFF m per unit of extra scale, so its mouth reaches his edge and not inside him; presentation only, the sim's contact distance is untouched
+        const look = mobVariant(s.character, s.id), ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;
+        const off = look && look.scale > bodyScale(look.opponent) ? Math.max(0, mouthReach(look.opponent) * look.scale + HERO_EDGE - dh) : 0;   // a body drawn bigger than its rig (a zone look's scale) stands back along the line to the hero until its MOUTH (the row's metres per unit of scale, from its centre) is at his edge and not inside him; presentation only, the sim's contact distance is untouched
         v.group.position.set(m.x + (ux / dh) * off, gy, m.z + (uz / dh) * off); v.group.rotation.y = m.facing;
         v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
