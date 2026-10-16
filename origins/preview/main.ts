@@ -53,7 +53,7 @@ import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
-import { loadLoot, lootIds } from '../../src/fight/index.ts';
+import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { warmKits } from './warm-kits.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
@@ -128,7 +128,14 @@ const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.sear
 const groundY = (x: number, z: number): number => (relief.length ? groundAt(relief, x, z) : 0);
 // Ground items (ground loot slice 3): the view draws what the page's ground_state says is there (show on `visible`, hide on a take). Each item's model is the equip file its ground-looks.json row names; the glob lists only the files rows use (add a line when a row names another).
 const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc}.glb', { eager: true, query: '?url', import: 'default' }), GROUND_LOOT = import.meta.glob<string>('../../src/assets/loot.glb', { eager: true, query: '?url', import: 'default' });   // `asset: "loot"` rows name a piece inside loot.glb
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => { const { asset } = groundLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: async (url) => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; } });
+// One fetch and parse per model file: the ground view and the remote-kit warm-up (loot.glb's pieces) read the same scene. On a phone the skins are capped as the fighters' are (loadFighter / loadLoot do the same).
+const gltfScenes = new Map<string, Promise<THREE.Object3D>>();
+const sceneOf = (url: string): Promise<THREE.Object3D> => {
+  let p = gltfScenes.get(url);
+  if (!p) gltfScenes.set(url, (p = (async () => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); const loaded = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; if (phoneTier()) budgetTextures(loaded, FIGHTER_TEXTURE_CAP); return loaded; })().catch((error: unknown) => { gltfScenes.delete(url); throw error; })));
+  return p;
+};
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => { const { asset } = groundLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: sceneOf });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
@@ -415,15 +422,18 @@ async function warmHero(anchor: THREE.Object3D) {   // the player's own programs
   warmedHero.done = true;
 }
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
-// The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked in idle time AFTER [zone ready]: nothing is added to the zone's entry (the hero rig and loot.glb are fetched once at entry already; this is their second parse), and
-// `__remoteKitsWarm` flips when done (failed: true on a miss; that only costs a first-sight compile). The page draws a remote in the base figure until it is set, then dresses it (dressRemote).
+// The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked in idle time AFTER [zone ready]: nothing is fetched or parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's
+// parsed asset, which buildWarriors clones), and `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs } (failed: only costs a first-sight compile). The page draws a remote in the base figure until it answers, then dresses it (dressRemote).
+let remoteKitsWarm: { failed: boolean; ms: number; programs: number } | null = null;
 function warmRemoteKitsInIdle() {
-  const run = () => { const t0 = performance.now(); settleWithin('remote-kits', warmRemoteKits(nextFrame), KINDS_WAIT_MS).then(() => ({ failed: false }), (error: unknown) => { console.warn('remote-kit warm-up failed', error); return { failed: true }; }).then((r) => { (window as unknown as { __remoteKitsWarm?: unknown }).__remoteKitsWarm = { ...r, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 }; }); };
+  const run = () => { const t0 = performance.now(); settleWithin('remote-kits', warmRemoteKits(nextFrame), KINDS_WAIT_MS).then(() => false, (error: unknown) => { console.warn('remote-kit warm-up failed', error); return true; }).then((failed) => { remoteKitsWarm = { failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 }; }); };
   if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 2000);
 }
+const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
+const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
 async function warmRemoteKits(frame: () => Promise<void>) {
   const kits = warmKits(); if (!kits.length) return;
-  const pieces = await loadLoot(lootUrl), remote = (await loadWarriors(ASSETS.hero!)).player;
+  const pieces = await sharedLoot(), remote = secondActor();
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
   remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor);
   try { for (const kit of kits) { dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), frame); await frame(); await frame(); } } finally { scene.remove(remote.anchor); }
@@ -732,9 +742,9 @@ const wc = createWorldCombat({
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 // Debug (the dressRemote warm-up proof, scripts/remote-programs-check.mjs): a second hero actor beside the walker, re-dressed with one source kit at a time through dressRemote. The page's own renderer links what that kit needs,
 // so renderInfo() before and after names the programs a remote wearing it would compile after zone ready.
-let probeActor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, probePieces: Awaited<ReturnType<typeof loadLoot>> | undefined;
+let probeActor: ReturnType<typeof secondActor> | undefined, probePieces: Awaited<ReturnType<typeof sharedLoot>> | undefined;
 async function remoteProbe(opponent: string): Promise<{ worn: string[]; missing: string[] }> {
-  if (!probeActor || !probePieces) { probePieces = await loadLoot(lootUrl); probeActor = (await loadWarriors(ASSETS.hero!)).player; scene.add(probeActor.anchor); }
+  if (!probeActor || !probePieces) { probePieces = await sharedLoot(); probeActor = secondActor(); scene.add(probeActor.anchor); }
   const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(4);   // in the camera's view, so the frame draws it and links its programs
   probeActor.anchor.position.set(camera.position.x + ahead.x, hero.position.y, camera.position.z + ahead.z);
   const [kit, only] = opponent.split(':');   // 'goblin' = the whole kit, 'goblin:Helmet' = one slot of it
@@ -761,7 +771,7 @@ function programOwners(): Record<string, string[]> {
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  remoteProbe,
+  remoteProbe, remoteKitsWarm: () => remoteKitsWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
