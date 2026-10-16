@@ -39,7 +39,7 @@ try {
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 150000 });
     // the walker stands BACK_M from the item, facing it, on the side of the 8 compass points that is farthest from any creature (a creature in aggro range engages him and turns the camera), the side toward the place's centre winning ties
     const mobs = await page.evaluate(() => window.originsPreview.mobs().mobs.map((m) => [m.x, m.z]));
     const towardCentre = Math.atan2(centre.x - at.x, centre.z - at.z) || Math.PI;
@@ -69,7 +69,7 @@ try {
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => receipt.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 150000 });
     await page.waitForTimeout(4000);
     const at = await page.evaluate(() => { const p = window.originsPreview.pos; return { x: p.x, z: p.z }; });
     receipt.walker = at;
