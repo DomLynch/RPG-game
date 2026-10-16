@@ -19,7 +19,7 @@ const practiceWith = (foe?: string) => initialPractice(731, undefined, undefined
 // the foe stands `gap` metres from the player, its special ready and mana full
 const foeAt = (foe: string | undefined, gap: number) => {
   const p = practiceWith(foe), f = p.duel.fighters;
-  f[0].body = { ...f[0].body, x: 0, z: 0 }; f[1].body = { ...f[1].body, x: 0, z: gap, heading: Math.PI }; f[1].skillCooldown = 0; f[1].phase = 'ready';
+  f[0].phase = 'ready'; f[0].body = { ...f[0].body, x: 0, z: 0 };   // the AI waits while the player is still sheathed f[1].body = { ...f[1].body, x: 0, z: gap, heading: Math.PI }; f[1].skillCooldown = 0; f[1].phase = 'ready';
   return decide(p.duel, 1, initialAi(), PROFILES.normal).intent.action;
 };
 
