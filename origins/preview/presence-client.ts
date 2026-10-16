@@ -24,21 +24,25 @@ export type Pose = { x: number; z: number; heading: number; anim?: number; flags
 export type Other = { id: number; x: number; z: number; heading: number; anim: number; flags: number };
 export type Socket = { binaryType: string; readyState: number; send(data: Uint8Array | string): void; close(code?: number): void; onopen: (() => void) | null; onmessage: ((e: { data: unknown }) => void) | null; onclose: (() => void) | null; onerror: (() => void) | null };
 export type Deps = {
-  token: string | null; url: string; open: (url: string, protocols: string[]) => Socket;
+  token: string | null; url: string;
+  open: (url: string, protocols: string[]) => Socket;
+  guest?: boolean;   // signed out and still in the shared world: with no token, offer `guest` (v2 only; nothing is saved, the server mints the identity)
   pose: () => Pose | null;                              // where the hero stands now; null while the page has no hero to show
   onHello?: (at: { x: number; z: number; layer: number }) => void;   // where the server placed us (metres): fires on every (re)connect, before the first pose
   onOthers?: (others: Other[]) => void;
+  onEnter?: (who: { id: number; name: string | null; guest: boolean }) => void;   // an id came into range: its name tag (null name + guest = "Guest"); sent again each time it re-enters range
   setTimer?: (fn: () => void, ms: number) => unknown; clearTimer?: (id: unknown) => void; every?: (fn: () => void, ms: number) => unknown; clearEvery?: (id: unknown) => void;
   rng?: () => number;
 };
-export type Presence = { stop(): void; flush(): void; warp(landmark: string): boolean; state(): 'connecting' | 'live' | 'retrying' | 'off' };   // flush: a pose now (a zone change, so the saved place is fresh)
+export type Presence = { stop(): void; flush(): void; warp(landmark: string): boolean; guest(): boolean; state(): 'connecting' | 'live' | 'retrying' | 'off' };   // flush: a pose now (a zone change, so the saved place is fresh)
 
 const OPEN = 1;
 export function joinPresence(d: Deps): Presence | null {
-  if (!d.token) return null;
+  if (!d.token && !d.guest) return null;   // signed out and not a guest: nothing is opened
+  if (typeof d.open !== 'function') throw new Error('joinPresence: the socket opener (open) is required');   // loud, never a silent "presence never connects" (a missing opener once hid behind a // comment)
   const setTimer = d.setTimer ?? ((fn, ms) => setTimeout(fn, ms)), clearTimer = d.clearTimer ?? ((id) => clearTimeout(id as never));
   const every = d.every ?? ((fn, ms) => setInterval(fn, ms)), clearEvery = d.clearEvery ?? ((id) => clearInterval(id as never)), rng = d.rng ?? Math.random;
-  let frame: Frame = LEGACY_FRAME, socket: Socket | null = null, poseTimer: unknown, retryTimer: unknown, stopped = false, failures = 0, welcomed = false, status: ReturnType<Presence['state']> = 'connecting';
+  let isGuest = false, frame: Frame = LEGACY_FRAME, socket: Socket | null = null, poseTimer: unknown, retryTimer: unknown, stopped = false, failures = 0, welcomed = false, status: ReturnType<Presence['state']> = 'connecting';
   const send = (): void => {
     const p = d.pose(), legacy = frame === LEGACY_FRAME;
     if (!p || (legacy && (Math.abs(p.x) >= LEGACY_EDGE_M || Math.abs(p.z) >= LEGACY_EDGE_M)) || !socket || socket.readyState !== OPEN || !welcomed) return;   // never pose before the server's hello: a first pose from the page's own spawn would look like a teleport
@@ -50,16 +54,21 @@ export function joinPresence(d: Deps): Presence | null {
     if (stopped) return;
     welcomed = false; status = failures ? 'retrying' : 'connecting';
     let s: Socket;
-    try { s = d.open(d.url, [PROTOCOL_V2, PROTOCOL, `token.${d.token}`]); } catch { return void lost(); }   // the token rides the subprotocol header, never the URL (the service refuses a token in the URL)
+    try { s = d.open(d.url, d.token ? [PROTOCOL_V2, PROTOCOL, `token.${d.token}`] : [PROTOCOL_V2, 'guest']); } catch { return void lost(); }   // the token rides the subprotocol header, never the URL (the service refuses a token in the URL)
     socket = s; s.binaryType = 'arraybuffer';
     s.onmessage = (e) => {
       if (s !== socket) return;
       if (typeof e.data === 'string') {
-        let hello: { t?: unknown; x?: unknown; z?: unknown; layer?: unknown; frame?: { centreCm?: unknown; sizeCm?: unknown } } | null;
+        let hello: { t?: unknown; x?: unknown; z?: unknown; layer?: unknown; id?: unknown; name?: unknown; guest?: unknown; frame?: { centreCm?: unknown; sizeCm?: unknown } } | null;
         try { hello = JSON.parse(e.data); } catch { hello = null; }
+        if (hello?.t === 'enter') {   // who an id is, sent once when it comes into range (before its first packet)
+          if (typeof hello.id === 'number') d.onEnter?.({ id: hello.id, name: typeof hello.name === 'string' ? hello.name : null, guest: hello.guest === true });
+          return;
+        }
         if (hello?.t !== 'hello' || typeof hello.x !== 'number' || typeof hello.z !== 'number') return;
         const f = hello.frame;   // a v2 hello names its frame; a v1 hello has none
         frame = typeof f?.centreCm === 'number' && typeof f.sizeCm === 'number' ? { centreCm: f.centreCm, sizeCm: f.sizeCm } : LEGACY_FRAME;
+        isGuest = hello.guest === true;   // the server says whether it admitted us as a guest (nothing is saved): Web's "Sign in to keep it" nudge reads this
         welcomed = true; failures = 0; status = 'live';
         d.onHello?.({ x: metres(hello.x), z: metres(hello.z), layer: typeof hello.layer === 'number' ? hello.layer : 0 });
         return;
@@ -84,6 +93,7 @@ export function joinPresence(d: Deps): Presence | null {
   return {
     stop() { stopped = true; status = 'off'; if (poseTimer !== undefined) clearEvery(poseTimer); if (retryTimer !== undefined) clearTimer(retryTimer); poseTimer = retryTimer = undefined; const s = socket; socket = null; try { s?.close(1000); } catch { /* already closed */ } },
     flush: send,
+    guest: () => isGuest,
     // The page teleports the hero (death respawn, the way back, the Zone 1 start): presence must be told WHICH landmark, never where (origins/presence/warps.ts). Needs a v2 server; false when not live.
     warp(landmark) {
       if (!socket || socket.readyState !== OPEN || !welcomed || frame === LEGACY_FRAME) return false;

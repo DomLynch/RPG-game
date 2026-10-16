@@ -8,7 +8,12 @@ export const RULES = interestRules();
 export type Rules = ReturnType<typeof interestRules>;
 
 // legacy: a v1 client (town square only, old frame): clamped to the square, sees only the square, and is sent the old frame (the shim; docs/specs/origins/frontier-presence.md §5). zone: its zone row, kept current by every accepted pose.
-export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null };
+export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
+  name: string | null; guest: boolean;   // the name tag the page draws (null: none known; guests carry no name)
+  told: Map<number, string>; sees: Set<number>;   // viewer state: the id -> identity this viewer has been introduced to (so an `enter` goes out once per sighting), and the ids in range this tick
+};
+/** One `enter` record: who an id is, sent to a viewer before the first packet that carries that id. */
+export type Intro = { id: number; name: string | null; guest: boolean };
 export class Layer {
   readonly players = new Map<number, Player>();
   readonly cells = new Map<number, Set<Player>>();
@@ -48,7 +53,7 @@ export class World {
     const wanted = at ?? this.recall(account, now) ?? SPAWN, fits = legacy ? inTownSquare : walkable;
     const from = fits(Math.round(wanted.x), Math.round(wanted.z)) ? wanted : SPAWN;   // a remembered or saved spot the clamp would refuse (or a v1 client cannot see) starts at the spawn
     const x = Math.round(from.x), z = Math.round(from.z);
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z) };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, told: new Map(), sees: new Set() };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -59,7 +64,8 @@ export class World {
     layer.cells.get(cellOf(this.rules, p.x, p.z))?.delete(p);
     layer.players.delete(p.id); this.byAccount.delete(p.account);
     if (!layer.players.size) layer.emptySince = now;
-    this.memory.delete(p.account); this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
+    this.memory.delete(p.account); if (p.guest) return;   // a guest leaves no 10-minute memory: a reconnect is a new guest at the spawn
+    this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
     if (this.memory.size > this.rules.memoryMax) this.memory.delete(this.memory.keys().next().value!);
   }
   // The remembered position of an account that left at most `memoryMs` ago, moved clear of any trade area; undefined when there is none or it has expired.
@@ -118,19 +124,34 @@ export class World {
       if (set) for (const e of set) if (e !== p && this.canSee(p, e)) { const d = Math.hypot(e.x - p.x, e.z - p.z); if (d <= radiusCm) near.push({ e, d }); }
     }
     near.sort((a, b) => a.d - b.d);
-    const out: Entity[] = [];
-    for (const { e, d } of near.slice(0, nearCap)) {
+    const out: Entity[] = [], inRange = near.slice(0, nearCap);
+    p.sees = new Set(inRange.map(({ e }) => e.id));
+    for (const { e, d } of inRange) {
       const every = (tiers.find(t => d <= t[0]) ?? tiers[tiers.length - 1])[1];
       if ((tickNo + e.id) % every === 0) out.push({ id: e.id, x: e.x, z: e.z, heading: e.heading, anim: e.anim, flags: e.flags, tick: e.tick });
     }
     return out;
   }
   // One tick: a packet for every player who has anything to be told (never an empty packet).
+  // `intros` is filled by the same call: per viewer, the `enter` records for ids it is about to be sent for the first time since they came into range (a v1 viewer is sent none).
+  readonly intros = new Map<Player, Intro[]>();
   tick(tickNo: number): Map<Player, Uint8Array> {
     const out = new Map<Player, Uint8Array>();
+    this.intros.clear();
     for (const layer of this.layers.values()) for (const p of layer.players.values()) {
       const seen = this.seenBy(p, tickNo);
+      for (const id of p.told.keys()) if (!p.sees.has(id)) p.told.delete(id);   // out of range: introduce again when it comes back
       if (seen.length) out.set(p, encodeDown(tickNo, p.legacy ? seen.map(e => ({ ...e, x: e.x - LEGACY_SHIFT_CM, z: e.z - LEGACY_SHIFT_CM })) : seen));
+      if (p.legacy) continue;
+      for (const e of seen) {
+        const o = layer.players.get(e.id);
+        if (!o) continue;
+        const who = `${o.account}|${o.name ?? ''}|${o.guest}`;
+        if (p.told.get(e.id) === who) continue;
+        p.told.set(e.id, who);
+        const list = this.intros.get(p); const intro: Intro = { id: e.id, name: o.guest ? null : o.name, guest: o.guest };
+        if (list) list.push(intro); else this.intros.set(p, [intro]);
+      }
     }
     return out;
   }

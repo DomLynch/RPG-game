@@ -2,19 +2,20 @@
 // a lost socket is retried on the jittered schedule and given up on when the service never answers; stop() closes cleanly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { decodeUp, encodeDown } from '../presence/wire.ts';
 import { CENTRE_CM as V2_CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM as CENTRE_CM } from '../presence/frame.ts';
 import { GIVE_UP_AFTER, headingByte, joinPresence, PROTOCOL, PROTOCOL_V2, presenceUrl, presenceWanted, type Socket } from './presence-client.ts';
 
 type Fake = Socket & { sent: Uint8Array[]; closed: number | null; calls: { url: string; protocols: string[] } };
-function rig(over: { token?: string | null } = {}) {
+function rig(over: { token?: string | null; guest?: boolean } = {}) {
   const sockets: Fake[] = [];
   const timers: { fn: () => void; ms: number; live: boolean }[] = [];
   const ticks: (() => void)[] = [];
   const hello: unknown[] = [], others: unknown[][] = [];
   let at = { x: 3, z: -4, heading: Math.PI };
   const p = joinPresence({
-    token: over.token === undefined ? 'jwt-abc' : over.token, url: 'wss://example.test/origins/presence',
+    token: over.token === undefined ? 'jwt-abc' : over.token, guest: over.guest, url: 'wss://example.test/origins/presence',
     open: (url, protocols) => {
       const s: Fake = { binaryType: '', readyState: 0, sent: [], closed: null, calls: { url, protocols }, send(b) { this.sent.push(b as Uint8Array); }, close(c) { this.closed = c ?? 0; }, onopen: null, onmessage: null, onclose: null, onerror: null };
       sockets.push(s); return s;
@@ -31,6 +32,25 @@ function rig(over: { token?: string | null } = {}) {
 test('no token (signed out): nothing is opened at all', () => {
   const r = rig({ token: null });
   assert.equal(r.p, null); assert.equal(r.sockets.length, 0);
+});
+
+test('signed out as a guest: no token, the page offers v2 + guest only (never v1), and the hello says whether the server admitted it as one', () => {
+  const r = rig({ token: null, guest: true });
+  assert.deepEqual(r.sockets[0]!.calls.protocols, [PROTOCOL_V2, 'guest']);
+  const s = r.sockets[0]!; r.open(s);
+  assert.equal(r.p!.guest(), false, 'not a guest until the server says so');
+  r.say(s, { t: 'hello', id: 1, layer: 1, x: V2_CENTRE_CM, z: V2_CENTRE_CM, frame: { centreCm: V2_CENTRE_CM, sizeCm: FRAME_CM }, guest: true });
+  assert.equal(r.p!.guest(), true);
+  assert.equal(rig({ token: null }).p, null, 'signed out and not asked to be a guest: nothing opens');
+});
+
+test('joinPresence refuses to be built without a socket opener, and the page\'s own call passes `open:` outside any comment (#2921: a trailing // comment once swallowed it and presence never connected for anyone)', () => {
+  assert.throws(() => joinPresence({ token: 'jwt', url: 'wss://x/origins/presence', pose: () => null } as never), /open/);
+  assert.throws(() => joinPresence({ token: null, guest: true, url: 'wss://x/origins/presence', pose: () => null } as never), /open/);
+  const src = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), at = src.indexOf('presence = joinPresence({');
+  assert.ok(at > 0, 'the page builds its presence join');
+  const call = src.slice(at, src.indexOf('}); });', at)).split('\n').map((l) => l.replace(/\s\/\/.*$/, '')).join('\n');   // the call with every line comment removed
+  for (const key of ['token:', 'url:', 'open:', 'pose:']) assert.match(call, new RegExp(`\\b${key}`), `${key} survives outside a comment`);
 });
 
 test('the token rides the subprotocol, never the URL', () => {

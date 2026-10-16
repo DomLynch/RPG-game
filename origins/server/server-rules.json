@@ -29,8 +29,8 @@
   "gearImport": [
     {
       "id": "cutoff",
-      "closesAt": "2099-01-01T00:00:00Z",
-      "note": "PLACEHOLDER (Lead/Strategy 2026-10-16): gear_import, the one-time migration of the old local loot ledger, closes at this instant and refuses everything after it. The date is a far-future placeholder until Strategy/Dom set beta open; change this one row, nothing else."
+      "closesAt": "2026-10-30T00:00:00Z",
+      "note": "PROVISIONAL (Strategy ruling 2026-10-16, relayed by Lead): gear_import, the one-time migration of the old local loot ledger, closes at this instant and refuses everything after it. 2026-10-30 stands until Dom names the beta-open date and may move it; change this one row, nothing else."
     }
   ],
   "serverLimits": [

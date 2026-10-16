@@ -28,6 +28,8 @@
     { "id": "tickRing", "value": 40000, "unit": "ticks" },
     { "id": "townSideCm", "value": 30000, "unit": "cm" },
     { "id": "rejoinPastGateCm", "value": 50, "unit": "cm" },
-    { "id": "warpPerMin", "value": 6, "unit": "warps" }
+    { "id": "warpPerMin", "value": 6, "unit": "warps" },
+    { "id": "guestIpSockets", "value": 2, "unit": "sockets" },
+    { "id": "guestCeiling", "value": 64, "unit": "guests" }
   ]
 }
