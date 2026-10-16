@@ -11,12 +11,12 @@ import { resolveSpell } from '../src/fight/spell-cast.ts';
 import { arena } from '../tests/strategies.ts';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const seeds = Number(arg('seeds', 6)), ticks = Number(arg('ticks', 3000)), era = Number(arg('era', 68)), IDS = (arg('ids', 'hervor,barghest,brokkr,andvari')).split(',');
+const seeds = Number(arg('seeds', 6)), ticks = Number(arg('ticks', 3000)), era = Number(arg('era', 68)), power = Number(arg('power', 0)), IDS = (arg('ids', 'hervor,barghest,brokkr,andvari')).split(',');   // --power: the sheet's spell power (credit), so a dear spell (Three Blows costs 65) is not always a fizzle
 const SKIP = new Set(['hits', 'hitEvery', 'hitHolds', 'volley']), strip = (_k, v) => (SKIP.has(_k) ? undefined : v);
 const roots = {};
 for (const id of IDS) { const h = createHash('sha256'); let fights = 0;
   for (const skill of [0, 60, 100]) for (let s = 1; s <= seeds; s++) {
-    let d = withSpell(withSpecials(arena(OPPONENTS.veteran), 6, 'shove'), 0, resolveSpell(id, skill, 0, era), s * 7919);
+    let d = withSpell(withSpecials(arena(OPPONENTS.veteran), 6, 'shove'), 0, resolveSpell(id, skill, power, era), s * 7919);
     d.fighters[0].skillCooldown = 0; d.fighters[1].skillCooldown = 0;
     let ai0 = initialAi((s * 2654435761) >>> 0), ai1 = initialAi((s * 40503 + 7) >>> 0);
     for (let i = 0; i < ticks && !d.finish; i++) {
