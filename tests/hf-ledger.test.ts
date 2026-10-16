@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HF_COST, SHARED_LEDGER, callerOf, ledgerPath, ledgerStore, localStore, record, settle, spentOn, sshStore, t4Refusal, taggedReason, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
+import { HF_COST, SHARED_LEDGER, callerOf, ledgerPath, ledgerStore, localStore, record, settle, spentOn, sshStore, t4Refusal, t4StopOn, taggedReason, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
 import { execFileSync } from 'node:child_process';
 import { withSlot } from '../scripts/lib/hf-slots.mjs';
 import { USD_PER_HOUR } from '../scripts/hf-cleanup.mjs';
@@ -58,6 +58,18 @@ test('at $10 a day no new T4 job; CPU jobs continue', () => {
   assert.equal(t4Refusal('cpu-upgrade', { path, now: NOON }), null);
   writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t999\t9.9900\tgpu-only\n`);
   assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, '$9.99: still allowed');
+});
+
+test('a one-day raise (T4_STOP_BY_DAY) applies on its UTC day only, then the $10 stop is back', () => {
+  const { path } = box(), on = Date.parse('2026-10-16T18:00:00Z'), next = Date.parse('2026-10-17T01:00:00Z');
+  assert.equal(t4StopOn(on), 15);
+  assert.equal(t4StopOn(next), HF_COST.t4StopUsdPerDay);
+  writeFileSync(path, `2026-10-16T10:00:00.000Z\t${job(1)}\tt4-medium\t1000\t12.0000\tgpu-only\n`);
+  assert.equal(t4Refusal('t4-medium', { path, now: on }), null, '$12 on the raised day: allowed');
+  writeFileSync(path, `2026-10-16T10:00:00.000Z\t${job(1)}\tt4-medium\t1000\t15.0000\tgpu-only\n`);
+  assert.match(t4Refusal('t4-medium', { path, now: on })!, /at or over the \$15 T4 stop/);
+  writeFileSync(path, `2026-10-17T00:30:00.000Z\t${job(2)}\tt4-medium\t1000\t12.0000\tgpu-only\n`);
+  assert.match(t4Refusal('t4-medium', { path, now: next })!, /at or over the \$10 T4 stop/, 'the next day is back to $10');
 });
 
 test('withSlot({ cost }) is the one place: a T4 over the stop is refused before launch, a launched job is recorded, no cost records nothing', () => {
