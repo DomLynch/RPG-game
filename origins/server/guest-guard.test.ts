@@ -29,7 +29,7 @@ async function serve() {
   const touched: string[] = [], called: string[] = [];
   const db: Db = { async run(sql) { touched.push(sql.slice(0, 60)); return '[]'; } };
   const spies = Object.fromEntries(Object.keys(production()).map((op) => [op, (async () => { called.push(op); return {}; }) as Handler]));
-  const server = createWriter({ db, verify: supabaseVerify('http://auth.test', 'anon-key', auth), where: async () => null, handlers: spies });
+  const server = createWriter({ db, verify: supabaseVerify('http://auth.test', 'anon-key', auth), where: async () => ({ online: false }), handlers: spies });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return { url, touched, called, ops: Object.keys(spies), close: () => new Promise((r) => server.close(r)) };
@@ -59,7 +59,7 @@ test('every writer route refuses a guest: no token, a guest-minted identity as t
 
 test('the internal routes refuse a guest identity: a position save or a read for a non-uuid account is 400 (and with no key 401), and nothing is written', async () => {
   const touched: string[] = [], db: Db = { async run(sql) { touched.push(sql.slice(0, 60)); return '[]'; } };
-  const server = createWriter({ db, verify: supabaseVerify('http://auth.test', 'anon-key', auth), where: async () => null, handlers: {}, internal: { key: 'internal-key' } });
+  const server = createWriter({ db, verify: supabaseVerify('http://auth.test', 'anon-key', auth), where: async () => ({ online: false }), handlers: {}, internal: { key: 'internal-key' } });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/internal/location`, key = { authorization: 'Bearer internal-key' };
   try {
