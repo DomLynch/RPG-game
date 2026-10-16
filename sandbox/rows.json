@@ -28,6 +28,7 @@
 "2026-10-13 Dom: execution via posture break: the critical heavy that lands after a posture break hits 1.5x, and finishes a foe at or under 25% health (sandbox-mech execution).",
 "2026-10-14 Dom: no posture effects: the base animation only, no tired hunch, no open-stagger arm lift, no charge lean, no stance silhouette (sandbox-mech plainPosture). Guard-side tilt and finishers stay.",
 "2026-10-13 Lead: armour weights now match #2577 (src/fight/armour-weights.json, castPenalty heavy 20 / medium 10 / light 0): heavy = plate, medium = leathers, light = robes, no mail set. The line above is superseded. The cast hook is Combat's, built on #2577.",
+"2026-10-16 Dom: enrage removed (the boss-phase row is gone; phases is empty again, so no boss changes at 50% health).",
 "2026-10-13 Dom: boss phase: at 50% health a boss's special hits 1.5x as hard and is ready after 30% of its cooldown (attack change, no colour change), with an on-screen message. A cast cut early now locks the caster out up to twice as long."
 ],"files":{
 "stance-defs":{"stances":[
@@ -158,9 +159,7 @@
 {"id":"medium","weightClass":"medium","preset":true,"weight":9,"wearMax":90,"resist":{},"set":"leathers"},
 {"id":"heavy","weightClass":"heavy","preset":true,"set":"plate","weight":16,"wearMax":140,"resist":{}}
 ]},
-"boss-phase-defs":{"phases":[
-{"id":"enrage","special":"*","below":50,"share":1500,"cooldown":30,"label":"ENRAGED","note":"its special hits harder and comes sooner"}
-]},
+"boss-phase-defs":{"phases":[]},
 "play-radius-defs":{"dials":[
 {"id":"OPEN_RADIUS","value":1000000000.0},
 {"id":"WALL_INNER","value":11.7},
