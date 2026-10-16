@@ -99,31 +99,40 @@ test('rowCeilingS: 600 s by default, ROW_TIMEOUT_S overrides it, and a bad value
 
 // GT 2026-10-16: a flat 600 s ceiling killed row 55 (end-overlap-check), which passes in 868-1024 s (GS2 868, GR 1024, GQ 999); row 14 runs 503-525 s. A slow row now names its own ceiling as DATA
 // (scripts/lib/row-ceilings.json) and that entry wins over the default.
-test('rowCeilingS: a row\'s own entry wins over the default; ROW_TIMEOUT_S overrides the DEFAULT only; the real table has rows 14 and 55', () => {
-  const table = { default: 600, rows: { '14': 900, '55': 1500 } };
-  assert.equal(rowCeilingS(55, table, undefined), 1500);
-  assert.equal(rowCeilingS(14, table, undefined), 900);
-  assert.equal(rowCeilingS(12, table, undefined), 600, 'a row with no entry gets the default');
-  assert.equal(rowCeilingS(12, table, '45'), 45, 'the env overrides the default');
-  assert.equal(rowCeilingS(55, table, '45'), 1500, 'but never a row\'s own ceiling');
-  assert.equal(rowCeilingS(12, { default: 'x', rows: { '12': -5 } }, undefined), 600, 'bad data falls back to 600, never to "no limit"');
+test('rowCeilingS: a row\'s own entry (by NAME) wins over the default; ROW_TIMEOUT_S overrides the DEFAULT only', () => {
+  const table = { default: 600, rows: { 'account-browser-check': 900, 'end-overlap-check': 1500 } };
+  assert.equal(rowCeilingS('end-overlap-check', table, undefined), 1500);
+  assert.equal(rowCeilingS('account-browser-check', table, undefined), 900);
+  assert.equal(rowCeilingS('roster-browser-check', table, undefined), 600, 'a row with no entry gets the default');
+  assert.equal(rowCeilingS('roster-browser-check', table, '45'), 45, 'the env overrides the default');
+  assert.equal(rowCeilingS('end-overlap-check', table, '45'), 1500, 'but never a row\'s own ceiling');
+  assert.equal(rowCeilingS('x', { default: 'x', rows: { x: -5 } }, undefined), 600, 'bad data falls back to 600, never to "no limit"');
   assert.equal(rowCeilingS(undefined, table, undefined), 600);
+});
+// The ceilings are keyed by check NAME because the row INDEX moves whenever a row is inserted (#2843 and #2834 both took 56 on 2026-10-16): a ceiling keyed by index would land on the wrong check
+// and put end-overlap-check back at the 600 s that killed it on GT. So every name in the table must be exactly one real release row, and every recorded time must fit its row's ceiling.
+test('row-ceilings.json: every named row is exactly one real release check, and the real table has end-overlap-check 1500 and account-browser-check 900', async () => {
+  const { rows: all } = await import('../scripts/release-rows-for.mjs');
   const real = JSON.parse(readFileSync(new URL('../scripts/lib/row-ceilings.json', import.meta.url), 'utf8'));
   assert.equal(real.default, 600);
-  assert.deepEqual([real.rows['14'], real.rows['55']], [900, 1500]);
+  assert.deepEqual([real.rows['end-overlap-check'], real.rows['account-browser-check']], [1500, 900]);
+  for (const name of Object.keys(real.rows)) assert.equal(all.filter((r: { name: string }) => r.name === name).length, 1, `"${name}" must name exactly one release_commands row (renamed or duplicated? re-key row-ceilings.json)`);
 });
-test('row-ceilings.json vs row-seconds.json: every measured row time fits under 90% of its own ceiling, and a row longer than the packing target is alone in its job', () => {
+test('row-seconds.json vs row-ceilings.json: every recorded row time fits under 90% of its own ceiling, and a row longer than the packing target is alone in its job', async () => {
+  const { rows: all } = await import('../scripts/release-rows-for.mjs');
   const real = JSON.parse(readFileSync(new URL('../scripts/lib/row-ceilings.json', import.meta.url), 'utf8')), seconds = rowSeconds();
-  for (const [index, s] of Object.entries(seconds)) assert.ok(Number(s) <= 0.9 * rowCeilingS(Number(index), real, undefined), `row ${index}: measured ${s} s needs a ceiling of at least ${Math.ceil(Number(s) / 0.9)} s (name it in row-ceilings.json)`);
-  for (const index of Object.keys(real.rows)) assert.ok(Number(index) in seconds || Number(real.rows[index]) <= 900, `row ${index} has its own ceiling, so its measured time belongs in row-seconds.json (packing)`);
-  const groups = packRows([14, 55, 3, 6, 8].map(i => ({ index: i, name: `r${i}` })));
-  assert.deepEqual(groups.find(g => g.rows.some(r => r.index === 55))?.rows.map(r => r.index), [55], 'row 55 (1024 s measured) gets a job to itself, so its 1500 s ceiling cannot eat the job timeout with other rows');
+  const nameOf = (index: number) => all.find((r: { index: number }) => r.index === index)?.name;
+  for (const [index, s] of Object.entries(seconds)) assert.ok(Number(s) <= 0.9 * rowCeilingS(nameOf(Number(index)), real, undefined), `row ${index} (${nameOf(Number(index))}): recorded ${s} s needs a ceiling of at least ${Math.ceil(Number(s) / 0.9)} s (name it in row-ceilings.json)`);
+  const slow = all.find((r: { name: string }) => r.name === 'end-overlap-check');
+  assert.equal(seconds[String(slow.index)], 1024, 'row-seconds.json is keyed by index: end-overlap-check\'s measured time must sit at its CURRENT index (re-key after an insert)');
+  const groups = packRows([slow.index, 3, 6, 8].map((i: number) => ({ index: i, name: `r${i}` })));
+  assert.deepEqual(groups.find(g => g.rows.some(r => r.index === slow.index))?.rows.map(r => r.index), [slow.index], 'end-overlap-check (1024 s) gets a job to itself, so its 1500 s ceiling cannot eat the 30 min job timeout beside other rows');
 });
 test('runGroup: a row over the default but under its OWN ceiling passes; the same duration on a row without one is killed', { skip: spawnSync('sh', ['-c', 'command -v timeout']).status !== 0 }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'rowceil-')), lines: string[] = [];
   try {
     const slow = (index: number, name: string) => ({ index, name, argv: JSON.stringify(['sleep', '3']) });
-    const { receipts, failed } = runGroup({ id: 'g5', rows: [slow(4, 'own-ceiling'), slow(5, 'default-only')], event: 'pull_request', dir, log: (l: string) => lines.push(l), ceilings: { default: 1, rows: { '4': 8 } } });
+    const { receipts, failed } = runGroup({ id: 'g5', rows: [slow(4, 'own-ceiling'), slow(5, 'default-only')], event: 'pull_request', dir, log: (l: string) => lines.push(l), ceilings: { default: 1, rows: { 'own-ceiling': 8 } } });
     assert.deepEqual(receipts.map(r => [r.index, r.status]), [[4, 0], [5, 124]], lines.join('\n'));
     assert.deepEqual(failed.map(r => [r.index, r.name, r.timed_out]), [[5, 'default-only', true]]);
     assert.ok(lines.some(l => /check 5 \(default-only\) hit the 1s ceiling/.test(l)), 'the kill names the default it hit');
