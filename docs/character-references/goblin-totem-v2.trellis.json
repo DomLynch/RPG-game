@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": ".scratch-stills/fort/ref/totem-191001.png",
+  "preprocess_s": 14.0,
+  "image_to_3d_s": 19.8,
+  "extract_glb_s": 36.9,
+  "glb": "src/assets/source/creatures/goblin-totem-v2.glb",
+  "bytes": 7589904,
+  "sha256": "1355df3a0565865c25388848e41f9d65da0899a7920600ba49828a8008985b3a",
+  "attempts": 1
+}
