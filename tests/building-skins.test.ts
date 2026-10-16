@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import DEFS from '../origins/world/building-skins.json' with { type: 'json' };
-import { loadSkins, skinIds, skinParts } from '../origins/world/building-skins-rules.ts';
+import { readFileSync } from 'node:fs';
+import { fitScale, loadSkins, modelOfNode, skinFit, skinIds, skinParts } from '../origins/world/building-skins-rules.ts';
 import { zoneBuildings } from '../origins/world/goblin-field-rules.ts';
 import { skinPieces } from '../origins/preview/building-skin.ts';
 import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts';
@@ -19,6 +20,15 @@ test('the loader refuses a bad part, a missing default and an unknown tint', () 
   assert.throws(() => loadSkins({ skins, parts: parts.map((p, i) => (i === 0 ? { ...p, size: [1, 1] } : p)) }), /3 sizes/);
   assert.throws(() => loadSkins({ skins, parts: parts.map((p, i) => (i === 0 ? { ...p, tint: 'neon' } : p)) }), /not a props tint/);
   assert.throws(() => loadSkins({ skins, parts: parts.filter((p) => p.kind !== 'default') }), /kind "default"/);
+});
+test('every model node a row names exists in the real glb, and every fit names a node of its model', () => {
+  for (const m of DEFS.models) {
+    const buf = readFileSync(`public/${m.url}`), len = buf.readUInt32LE(12), json = JSON.parse(buf.subarray(20, 20 + len).toString('utf8')) as { nodes: { name?: string }[] };   // the glb's JSON chunk
+    const names = new Set(json.nodes.map((n) => n.name)); for (const node of m.nodes) assert.ok(names.has(node), `${m.id}: node ${node} is in ${m.url}`);
+  }
+  for (const f of DEFS.fits) assert.ok(DEFS.models.find((m) => m.id === f.model)!.nodes.includes(f.node), `${f.id} -> ${f.node}`);
+  assert.equal(skinFit('goblin', 'watchtower')!.node, 'goblin_tower'); assert.equal(skinFit('goblin', 'hall'), null, 'a kind with no fit of its own has none (the block asks for the default)'); assert.equal(modelOfNode('goblin_hut')!.id, 'goblin-fort'); assert.equal(modelOfNode('nope'), null);
+  const hut = skinFit('goblin', 'default')!; assert.equal(fitScale(hut, 8, 6), Math.min(8 / 5.24, 6 / 3.3)); assert.equal(fitScale(hut, 100, 100), 2.5, 'capped'); assert.equal(fitScale(hut, 0.1, 0.1), 0.6, 'floored');
 });
 test('a skin is fractions of the building: the same parts stand inside a small and a large block', () => {
   const parts = skinParts('goblin', 'default')!;

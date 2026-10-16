@@ -1,6 +1,8 @@
 {
   "tables": [
     { "table": "building-skin", "file": "building-skins.json", "at": "skins", "key": "id", "required": { "label": "string" } },
+    { "table": "building-skin-model", "file": "building-skins.json", "at": "models", "key": "id", "required": { "url": "string", "nodes": "array" } },
+    { "table": "building-skin-fit", "file": "building-skins.json", "at": "fits", "key": "id", "required": { "skin": "string", "kind": "string", "model": "string", "node": "string", "w": "number", "d": "number" }, "refs": { "skin": "building-skin", "model": "building-skin-model" } },
     {
       "table": "building-skin-part",
       "file": "building-skins.json",

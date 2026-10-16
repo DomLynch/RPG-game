@@ -13,7 +13,7 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
-import { skinKind, skinParts } from '../world/building-skins-rules.ts';
+import { fitScale, skinFit, skinKind, skinParts } from '../world/building-skins-rules.ts';
 import { skinPieces } from './building-skin.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 
@@ -166,7 +166,8 @@ export function inFirstView(f: Frontier, x: number, z: number, r: number): boole
 
 export type Solid = { x: number; z: number; r: number }; // the walker keeps out of these circles (buildings, towers)
 export type Board = { x: number; y: number; z: number; facing: number; lines: string[] }; // a sign's face, readable from `facing`
-export type Build = { pieces: Piece[]; solids: Solid[]; people: Figure[]; boards: Board[] };
+export type ModelPlacement = { node: string; x: number; z: number; rotY: number; scale: number };   // a node of a skin's model file stood on the ground (drawn by frontier-kit-view.ts loadKit)
+export type Build = { pieces: Piece[]; solids: Solid[]; people: Figure[]; boards: Board[]; models: ModelPlacement[] };
 
 const ASH: Tint = [0.5, 0.47, 0.44], DARK: Tint = [0.62, 0.6, 0.57], SAND: Tint = [1.05, 1, 0.92], TIMBER: Tint = [0.42, 0.3, 0.2], SOOT: Tint = [0.1, 0.09, 0.08];
 const GROUND: Record<string, Tint> = { ash: ASH, paving: [0.86, 0.83, 0.78], sand: [0.95, 0.82, 0.62] };
@@ -180,12 +181,14 @@ const kindOf = (name: string) => name.split('-').at(-1)!;
 
 export function frontierBuild(f: Frontier, skinId = ''): Build {   // skinId: a building skin id (look.buildings, building-skins.json): the town's blocks are drawn as its parts; '' or an unknown id = the brick blocks as they were
   const skin = skinParts(skinId, 'default') ? skinId : '';
-  const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [];
+  const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [], models: ModelPlacement[] = [];
+  const stand = (kind: string, x: number, z: number, facing: number, w: number, d: number, strict = false): boolean => { const fit = skin ? (skinFit(skin, kind) ?? (strict ? null : skinFit(skin, 'default'))) : null; if (!fit) return false; models.push({ node: fit.node, x, z, rotY: facing, scale: fitScale(fit, w, d) }); return true; };   // a kind with a fit row stands as that model node, scaled to the block's footprint
   const put = (layer: Layer, shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10) => { pieces.push({ layer, shape, x, y, z, tint, rotY, foot }); };
   // A point `ahead` metres along a facing and `right` metres across it (right of a walker looking along it).
   const off = (a: { x: number; z: number }, facing: number, ahead: number, right = 0) => ({ x: a.x + Math.sin(facing) * ahead - Math.cos(facing) * right, z: a.z + Math.cos(facing) * ahead + Math.sin(facing) * right });
   const block = (a: At, [w, h, d, tint]: [number, number, number, Tint], solid = true, kind = 'house') => {
     const c = off(a, a.facing, -d / 2), parts = skin ? skinParts(skin, kind) : null;
+    if (stand(kind, c.x, c.z, a.facing, w, d)) { if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + 0.3 }); return c; }   // the skin's model stands where the block stood; footprint and solid are the block's own
     if (parts) { pieces.push(...skinPieces(parts, c.x, c.z, a.facing, w, h, d)); if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + 0.3 }); return c; }   // the skin replaces the brick box, eaves and door; the footprint and solid are the block's own
     put('stone', ['box', w, h, d], c.x, h / 2, c.z, tint, a.facing, 0);
     put('stone', ['box', w + 0.6, 0.35, d + 0.6], c.x, h + 0.17, c.z, TIMBER, a.facing); // eaves
@@ -218,8 +221,8 @@ export function frontierBuild(f: Frontier, skinId = ''): Build {   // skinId: a 
     const links = new Set(z.links.map((l) => l.here));
     for (const [name, a] of Object.entries(z.landmarks)) {
       if (links.has(name)) { // a way on: two gate posts either side of it
-        const gp = skin ? skinKind(skin, 'gate') : null; if (gp) pieces.push(...skinPieces(gp, a.x, a.z, a.facing, 6.4, 5.4, 1.2));   // a skin may dress the way on as a gate
-        for (const side of [-1, 1]) { const p = off(a, a.facing, -0.4, side * 2.4); if (!gp) put('stone', ['box', 0.6, 3, 0.6], p.x, 1.5, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.5 }); }
+        const gp = skin ? skinKind(skin, 'gate') : null, gm = stand('gate', a.x, a.z, a.facing, 7.4, 1.02, true); if (!gm && gp) pieces.push(...skinPieces(gp, a.x, a.z, a.facing, 6.4, 5.4, 1.2));   // a skin may dress the way on as a gate: a model node, else its parts
+        for (const side of [-1, 1]) { const p = off(a, a.facing, -0.4, side * 2.4); if (!gp && !gm) put('stone', ['box', 0.6, 3, 0.6], p.x, 1.5, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.5 }); }
         continue;
       }
       const k = kindOf(name), c = z.town && z.landmarks[z.town.centre];
@@ -235,6 +238,7 @@ export function frontierBuild(f: Frontier, skinId = ''): Build {   // skinId: a 
       } else if (k === 'pits' || k === 'hollow') put('soot', ['cylinder', k === 'pits' ? 6 : 10, k === 'pits' ? 6 : 10, 0.06, 24], a.x, 0.03, a.z, SOOT);
       else if (k === 'dock' || k === 'jetty') { const c = off(a, a.facing, 3); put('stone', ['box', 3.5, 0.3, 7], c.x, 0.15, c.z, TIMBER, a.facing, 0); }
       else if (k === 'bank') for (let j = 0; j < 14; j++) { const p = off(a, a.facing, (j % 4) * 1.3 - 2, Math.floor(j / 4) * 1.4 - 2); put('stone', ['box', 0.08, 1.6 + (j % 3) * 0.3, 0.08], p.x, 0.9, p.z, [0.5, 0.48, 0.3], 0, 0); }
+      else if (k === 'gate' && stand('gate', a.x, a.z, a.facing, 7.4, 1.02, true)) { for (const side of [-1, 1]) solids.push({ ...off(a, a.facing, 0, side * 2.6), r: 0.8 }); }   // the skin's gate as a model node: the same posts' footprints
       else if (k === 'gate' && skin && skinKind(skin, 'gate')) { pieces.push(...skinPieces(skinKind(skin, 'gate')!, a.x, a.z, a.facing, 6.4, 5.4, 1.2)); for (const side of [-1, 1]) solids.push({ ...off(a, a.facing, 0, side * 2.6), r: 0.8 }); }   // the skin's gate: the same posts' footprints
       else if (k === 'gate') { // the ruin's gate: posts and a lintel across the way
         for (const side of [-1, 1]) { const p = off(a, a.facing, 0, side * 2.6); put('stone', ['box', 1, 4.5, 1], p.x, 2.25, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.8 }); }
@@ -255,7 +259,7 @@ export function frontierBuild(f: Frontier, skinId = ''): Build {   // skinId: a 
     for (let j = 0; j < 4; j++) { const p = off(c, j * 1.7, 4 + j); people.push({ x: p.x, z: p.z, color: CLOTH[(i + j) % CLOTH.length]! }); }
   });
   for (const s of f.signs) sign(s);
-  return { pieces, solids, people, boards };
+  return { pieces, solids, people, boards, models };
 }
 
 // Where the walker may stand beyond the Exchange: on the west road or on a Frontier zone's ground, clear of every solid.

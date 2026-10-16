@@ -37,9 +37,9 @@ export default defineConfig({
     // The dev server (hot-reload preview: a row edit shows in seconds, no rebuild, `npm run`-free: npx vite --config origins/preview/vite.config.mjs --host): serves the same two public folders a build emits.
     name: 'dev-public', apply: 'serve',
     configureServer(server) {
-      const TYPES = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.png': 'image/png', '.json': 'application/json' };
+      const TYPES = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.png': 'image/png', '.json': 'application/json', '.glb': 'model/gltf-binary' };
       server.middlewares.use(async (req, res, next) => {
-        const m = /^\/preview\/origins\/(arena|zones)\/([\w.-]+)$/.exec((req.url ?? '').split('?')[0]);
+        const m = /^\/preview\/origins\/(arena|zones|world\/kit)\/([\w.-]+)$/.exec((req.url ?? '').split('?')[0]);
         if (!m) return next();
         try { const body = await readFile(`${repo}public/${m[1]}/${m[2]}`); res.setHeader('content-type', TYPES[m[2].slice(m[2].lastIndexOf('.'))] ?? 'application/octet-stream'); res.end(body); } catch { next(); }
       });
@@ -47,7 +47,8 @@ export default defineConfig({
   }, {
     name: 'pit-arena-public', apply: 'build',
     async generateBundle() {
-      for (const dir of ['arena', 'zones']) for (const name of await readdir(`${repo}public/${dir}`)) this.emitFile({ type: 'asset', fileName: `${dir}/${name}`, source: await readFile(`${repo}public/${dir}/${name}`) });   // zones/: the zone domes' painted backdrops (goblin-field-defs.json backdrops rows)
+      for (const dir of ['arena', 'zones']) for (const name of await readdir(`${repo}public/${dir}`)) this.emitFile({ type: 'asset', fileName: `${dir}/${name}`, source: await readFile(`${repo}public/${dir}/${name}`) });
+      for (const name of (await readdir(`${repo}public/world/kit`)).filter((n) => n.startsWith('goblin-'))) this.emitFile({ type: 'asset', fileName: `world/kit/${name}`, source: await readFile(`${repo}public/world/kit/${name}`) });   // a skin's model files (building-skins.json models): served next to the page, not from the live game's folder  // zones/: the zone domes' painted backdrops (goblin-field-defs.json backdrops rows)
     },
   }],
 });

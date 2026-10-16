@@ -27,6 +27,7 @@ import { createCreatureCard } from './creature-card.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId, zoneAsBiome } from '../zones/loader.ts';
 import { setFightBack } from '../../src/fight/camera.ts';
+import { skinModels } from '../world/building-skins-rules.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
@@ -147,6 +148,7 @@ if (frontier && frontierParts) {
   if (ZONE_SKY) { arena.group.traverse((o) => { if (goblinPitParts().includes(o.name)) pitFar.push(o); }); pitFar.push(exchange.group); }   // the Exchange (bank, smithy) goes with the Pit's scenery: a zone dome has no cream town behind it   // the Pit's fog-proof scenery: hidden when the walker is far from the Pit (the walkLoop)
   if (goblinDome) { const pitSky = arena.group.getObjectByName(goblinDome.covers); if (pitSky) pitSky.renderOrder = goblinDome.mesh.renderOrder - 1; }   // the Pit's sky dome (same 150 m, depth on) draws just before ours, so ours paints over it and every real object still draws in front
   if (goblinKit) goblinSmoke = createGoblinSmoke(scene, goblinKit.fires, ZONE_SKY ?? goblinPalette());   // the camp fires' smoke and light
+  { const standing = [...(frontierParts?.models ?? []), ...(goblinKit?.models ?? [])]; for (const m of skinModels()) { const mine = standing.filter((p) => m.nodes.includes(p.node)); if (mine.length) void loadKit({ placements: mine, landmarks: [] }, `${import.meta.env.BASE_URL}${m.url}`, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}); } }   // the building skin's and the kit's modelled nodes (rows: building-skins.json models/fits), one instanced draw per node; a failed file only leaves the ground bare
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }

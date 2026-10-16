@@ -7,9 +7,10 @@ import { toWorld } from '../world/derive.ts';
 import { stageRule } from '../world/stage-rules.ts';
 import type { Piece, Shape } from './exchange-plan.ts';
 import { footprintOf, rng, type Dress } from './frontier-dress.ts';
-import { inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
+import { inZone, onRoad, type Build, type Frontier, type ModelPlacement, type Solid } from './frontier-plan.ts';
+import { modelOfNode } from '../world/building-skins-rules.ts';
 
-export type KitResult = { dress: Dress; fires: { x: number; z: number }[]; centre: { x: number; z: number } | null };
+export type KitResult = { dress: Dress; fires: { x: number; z: number }[]; centre: { x: number; z: number } | null; models: ModelPlacement[] };   // models: props whose `glb` node a model file holds stand as that node (drawn by loadKit), the rest as their parts
 const shapeOf = (q: Part, s: number): Shape => { const n = q.size, k = q.shape; return k === 'box' ? ['box', n[0]! * s, n[1]! * s, n[2]! * s] : k === 'cylinder' ? ['cylinder', n[0]! * s, n[1]! * s, n[2]! * s, n[3]!] : k === 'cone' ? ['cone', n[0]! * s, n[1]! * s, n[2]!] : ['sphere', n[0]! * s, n[1]!, n[2]!]; };
 
 /** One prop at (x, z) facing yaw, scaled by s: its parts turned into pieces (a part with `ring` repeats n times round the prop's axis). */
@@ -24,7 +25,7 @@ export function propPieces(p: Prop, x: number, z: number, yaw: number, s: number
 }
 
 export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, kitId: string, recipes: readonly Recipe[] = recipesOf(kitId), rim = false): KitResult {   // recipes: the kit's own list unless a test passes a subset
-  const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [], fires: { x: number; z: number }[] = [], none = { dress: { ground, pieces, solids }, fires, centre: null };
+  const ground: Piece[] = [], pieces: Piece[] = [], solids: Solid[] = [], fires: { x: number; z: number }[] = [], models: ModelPlacement[] = [], none = { dress: { ground, pieces, solids }, fires, centre: null, models };
   const kit = propKitRow(kitId), z0 = f.zones.find((q) => q.zone === zoneName);
   if (!kit || !z0) return none;
   const z = z0, world = (x: number, d: number) => toWorld({ x, d }, z.mount), centre = world(0, z.depth * kit.centreDepth);
@@ -40,7 +41,8 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
     const total = rc.props.reduce((n, w) => n + w.weight, 0), pick = (): Prop => { let t = R() * total; for (const w of rc.props) { t -= w.weight; if (t <= 0) return propRow(w.prop); } return propRow(rc.props[rc.props.length - 1]!.prop); };
     const put = (p: Prop, x: number, zz: number, along?: number) => {
       const s = between(p.scaleMin, p.scaleMax), yaw = along ?? between(0, 6.28);
-      pieces.push(...propPieces(p, x, zz, yaw, s)); placed.push({ x, z: zz, r: p.r * s });
+      if (rim && p.glb && modelOfNode(p.glb)) models.push({ node: p.glb, x, z: zz, rotY: yaw, scale: s }); else pieces.push(...propPieces(p, x, zz, yaw, s));   // a rim zone draws the kit's modelled props as models (the real goblin kit); the rest, and every other zone, as parts
+      placed.push({ x, z: zz, r: p.r * s });
       if (p.emits === 'fire') fires.push({ x, z: zz });
     };
     const spot = (r: number, near: number) => { for (let i = 0; i < kit.tries; i++) { const a = between(0, Math.PI * 2), d = between(r, Math.max(r, kit.radius * near)), x = centre.x + Math.sin(a) * d, zz = centre.z + Math.cos(a) * d; if (free(x, zz, r)) return { x, z: zz }; } return null; };
@@ -64,7 +66,7 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
       }
     }
   }
-  return { dress: { ground, pieces, solids }, fires, centre };
+  return { dress: { ground, pieces, solids }, fires, centre, models };
 }
 
 /** The base dressing and the kit as one Dress (frontier.ts meshes its ground then its pieces; the kit adds no solid). */
