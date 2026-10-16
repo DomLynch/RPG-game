@@ -9,7 +9,7 @@ create function public.origins_active_name(p_account uuid) returns text language
   select c.name from public.origins_active_character a join public.origins_characters c on c.id = a.character and c.account = a.account
   where a.account = p_account and public.origins_allowed(p_account)
 $$;
--- Supabase's default privileges grant EXECUTE to anon and authenticated on creation: revoke them, then grant the writer role only.
+-- Supabase's default privileges grant EXECUTE to anon and authenticated on creation: revoke them, then grant the two writer roles only (as migration 20261013174936 does).
 revoke all on function public.origins_active_name(uuid) from public, anon, authenticated;
-grant execute on function public.origins_active_name(uuid) to frankendom_origins;
+grant execute on function public.origins_active_name(uuid) to frankendom_origins, frankendom_verifier;
 commit;
