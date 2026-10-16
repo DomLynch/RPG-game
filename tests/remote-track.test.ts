@@ -45,12 +45,30 @@ test('the heading takes the short way round the circle', () => {
   assert.ok(h > 3.0 && h < 3.0 + (2 * Math.PI - 6.0), `eased across the seam, not back through 0: ${h}`);
 });
 
-test('the cap keeps the nearest to the hero (ties by id) and a remote that left the list is forgotten', () => {
+test('the cap keeps the nearest to the hero (ties by id)', () => {
   const t = createTrack(T);
   t.push([at(5, 20, 0), at(2, 3, 0), at(9, 10, 0), at(4, 10, 0)], 0);
   assert.deepEqual(t.shown(0, near).map((s) => s.id), [2, 4, 9], 'nearest three; 4 before 9 at equal distance');
-  t.push([at(2, 3, 0)], 100);
-  assert.equal(t.size(), 1); assert.deepEqual(t.shown(100, near).map((s) => s.id), [2]);
+});
+
+test('a packet carries only the entities due: ids missing from it stay, and are gone only after remoteExpire ms with no update', () => {
+  const t = createTrack({ ...T, expire: 1500 });
+  t.push([at(1, 3, 0), at(2, 5, 0)], 0);
+  t.push([at(1, 3.2, 0)], 100);   // 2 is not due this tick: it stays
+  assert.deepEqual(t.shown(100, near).map((s) => s.id), [1, 2]);
+  t.push([at(1, 3.4, 0)], 1400);
+  assert.deepEqual(t.shown(1400, near).map((s) => s.id), [1, 2], '1.4 s without an update: still there');
+  assert.deepEqual(t.shown(1501, near).map((s) => s.id), [1], '2 had no update for more than 1.5 s: gone, its record with it');
+  assert.equal(t.size(), 1);
+});
+
+test('an id that is reused after it expired starts fresh: it is shown where the new player is, never eased from the old one\'s last pose', () => {
+  const t = createTrack({ ...T, expire: 1500, snap: 1000 });   // a snap far larger than the gap, so only the reset can explain the start
+  t.push([at(7, 0, 5)], 0);
+  assert.deepEqual(t.shown(2000, near).map((s) => s.id), [], 'expired');
+  t.push([at(7, 30, 5)], 2100);   // someone else gets id 7
+  const s = t.shown(2100, near)[0]!;
+  assert.deepEqual([s.x, s.z, s.speed], [30, 5, 0], 'at the new player\'s place, at rest: no run from (0, 5)');
 });
 
 test('defaults read the presence tick, its interest cap and the preview snap row', () => {

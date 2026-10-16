@@ -11,8 +11,8 @@ import { createTrack, type Remote } from './remote-track.ts';
 
 type Actor = ReturnType<typeof buildWarriors>['player'];
 export type Who = { name: string; guest: boolean };
-/** The tag: the player's name, or "Guest" for a guest and for a player whose name has not arrived (Dom: guests are in the world). */
-export const tagText = (who: Who | undefined): string => (!who || who.guest || !who.name.trim() ? 'Guest' : who.name.trim());
+/** The tag: "Guest" for a guest (Dom: guests are in the world), the name otherwise, and nothing at all until the name has arrived (the server sends { id, name, guest } once, on entering interest). */
+export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name.trim() || null);
 
 type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number; tag: THREE.Sprite | null; text: string };
 
@@ -22,17 +22,17 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
     const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
     const slot: Slot = { group, actor, id: null, speed: 0, tag: null, text: '' }; pool.push(slot); return slot;
   };
-  const retag = (s: Slot, text: string): void => {
-    if (s.tag && s.text === text) return;
-    if (s.tag) { s.group.remove(s.tag); (s.tag.material as THREE.SpriteMaterial).map?.dispose(); s.tag.material.dispose(); }
-    s.tag = labelSprite(text, false); s.tag.position.y = tagY; s.tag.userData.y0 = tagY; s.text = text; s.group.add(s.tag);
+  const retag = (s: Slot, text: string | null): void => {
+    if ((s.tag ? s.text : null) === text) return;
+    if (s.tag) { s.group.remove(s.tag); (s.tag.material as THREE.SpriteMaterial).map?.dispose(); s.tag.material.dispose(); s.tag = null; s.text = ''; }
+    if (text) { s.tag = labelSprite(text, false); s.tag.position.y = tagY; s.tag.userData.y0 = tagY; s.text = text; s.group.add(s.tag); }
   };
   return {
     /** At zone entry: the slots exist (the rig built, its skins bound) before the first player appears. */
     warm(): void { while (pool.length < previewRule('remoteWarm')) grow(); },
     /** A presence packet's `others`. */
-    push: (list: readonly Remote[], now: number): void => { track.push(list, now); for (const id of [...names.keys()]) if (!list.some((o) => o.id === id)) names.delete(id); },
-    /** Who an id is: the server sends { id, name, guest } once when an id enters the interest (Backend); until it has, the tag reads "Guest". */
+    push: (list: readonly Remote[], now: number): void => track.push(list, now),
+    /** Who an id is: the server sends { id, name, guest } once when an id enters the interest (Backend's next PR); until it has, no tag. Forgotten with the slot, so a reused id never wears the last player's name. */
     know: (id: number, who: Who): void => { names.set(id, who); },
     update(dt: number, now: number, hero: { x: number; z: number }): void {
       const seen = new Set<number>();
@@ -45,7 +45,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         slot.actor.update(slot.speed, dt, 'ready', 0, 'light', 0.35, 0);
         retag(slot, tagText(names.get(s.id)));
       }
-      for (const [id, slot] of live) if (!seen.has(id)) { slot.id = null; slot.group.visible = false; live.delete(id); }
+      for (const [id, slot] of live) if (!seen.has(id)) { slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
     },
     /** Before the draw: a tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). */
     clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void {

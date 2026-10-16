@@ -35,7 +35,7 @@ test('the duel still builds its two actors as before: player and a separate oppo
   assert.equal(solo.opponent, solo.player, 'a zone creature (solo) is still one actor');
 });
 
-test('the tag: the name, "Guest" for a guest, for an empty name and for a player whose name has not arrived', () => {
+test('the tag: the name, "Guest" for a guest, and nothing until a name has arrived', () => {
   assert.equal(tagText({ name: 'Crixus', guest: false }), 'Crixus'); assert.equal(tagText({ name: '  Spartacus ', guest: false }), 'Spartacus');
-  assert.equal(tagText({ name: 'Crixus', guest: true }), 'Guest'); assert.equal(tagText({ name: '  ', guest: false }), 'Guest'); assert.equal(tagText(undefined), 'Guest');
+  assert.equal(tagText({ name: 'Crixus', guest: true }), 'Guest'); assert.equal(tagText({ name: '  ', guest: false }), null); assert.equal(tagText(undefined), null);
 });
