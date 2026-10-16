@@ -70,7 +70,7 @@ try {
   for (const vp of VIEWPORTS) {   // open world: SPELL 2 appears by itself once the book is read
     const { context, page } = await open(vp);
     await page.goto(`${origin}/preview/origins/?region=1&worldfight&writer=${encodeURIComponent(writerUrl)}`, { waitUntil: 'load' });
-    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 300000 });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 300000 });
     await page.waitForFunction(() => { const b = document.getElementById('skill2-button'); return !!b && !b.hidden; }, null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(2500); await frame('zone', vp, page, true); await context.close();
   }

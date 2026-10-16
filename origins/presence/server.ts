@@ -8,13 +8,14 @@ import type { Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { decodeUp } from './wire.ts';
 import { RULES, World, type Player, type Rules } from './interest.ts';
+import { PROTOCOL, PROTOCOL_V2 } from './frame.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, ZONE_ROWS, fromLegacy, toLegacy, zoneAt } from './zones.ts';
 import { SAVE_EVERY_MS, saveQueue, type SaveFn } from './saves.ts';
 import { presenceRule } from './presence-rules.ts';
+import { warpPlace } from './warps.ts';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
-export const PROTOCOL = 'frankendom.presence.v1';   // the old town-only client (centre 15000, the 300 m square): served through the shim
-export const PROTOCOL_V2 = 'frankendom.presence.v2';   // the whole-world frame (CENTRE_CM, FRAME_CM); the client offers one of them next to `token.<jwt>`, the server echoes it, never the token
+export { PROTOCOL, PROTOCOL_V2 };   // defined in ./frame.ts (the page shares them)
 const UUID = /^[0-9a-f-]{36}$/;
 export const LIMITS = { maxMessage: presenceRule('maxMessage'), perSecond: presenceRule('perSecond'), idleMs: presenceRule('idleMs'), ipSockets: presenceRule('ipSockets'), ipJoinsPerMinute: presenceRule('ipJoinsPerMinute'), beatMs: presenceRule('beatMs') };
 export type Limits = typeof LIMITS;
@@ -43,7 +44,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   const world = new World(rules, opts.maxLayers ?? 8);
   const sockets = new Map<Player, Duplex>();
   const perIp = new Map<string, { sockets: number; windowStart: number; joins: number }>();
-  const counts = { packets: 0, bytes: 0, up: 0, joined: 0, refused: {} as Record<string, number>, maxTickMs: 0, ticks: 0 };
+  const counts = { packets: 0, bytes: 0, up: 0, joined: 0, warped: 0, refused: {} as Record<string, number>, maxTickMs: 0, ticks: 0 };
   const perLayerOut = new Map<number, { packets: number; bytes: number }>();
   const refused = (why: string): void => { counts.refused[why] = (counts.refused[why] ?? 0) + 1; };
   let tickNo = 0;
@@ -172,6 +173,7 @@ export function createPresence(opts: PresenceOptions): Presence {
       socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${createHash('sha1').update(key + GUID).digest('base64')}\r\nSec-WebSocket-Protocol: ${speaks}\r\n\r\n`);
       (socket as Socket).setNoDelay(true);
       socket.write(hello(player));
+      let warpWindow = 0, warpCount = 0;   // a minute's count of warps on this socket (warpPerMin)
       let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout, zone = zoneAt(player.x, player.z);
       const close = (code: number, why?: string): void => { if (why) refused(why); if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); } };
       const touch = (): void => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), limits.idleMs); };
@@ -205,10 +207,20 @@ export function createPresence(opts: PresenceOptions): Presence {
           if (opcode === 8) return close(1000);
           if (opcode === 9) { socket.write(frame(10, payload)); continue; }
           if (opcode === 10) continue;
-          if (opcode !== 2) return close(1003, 'malformed');
+          if (opcode !== 2 && opcode !== 1) return close(1003, 'malformed');
           const nowMs = now();
           if (nowMs - windowStart >= 1000) { windowStart = nowMs; count = 0; }
           if (++count > limits.perSecond) return close(4008, 'message-rate');
+          if (opcode === 1) {   // a warp: {"t":"warp","to":"<landmark id>"}. The client names a landmark, never a coordinate; the place comes from the warp table (warps.ts)
+            let to: unknown; try { const m = JSON.parse(payload.toString('utf8')) as { t?: unknown; to?: unknown }; to = m.t === 'warp' ? m.to : undefined; } catch { to = undefined; }
+            const at = typeof to === 'string' && !player.legacy ? warpPlace(to) : null;
+            if (!at) return close(1003, 'warp-id');   // a forged id, or a v1 client that cannot hold the frame
+            if (nowMs - warpWindow >= 60_000) { warpWindow = nowMs; warpCount = 0; }
+            if (++warpCount > presenceRule('warpPerMin')) { refused('warp-rate'); continue; }   // over the rate: ignored, the client keeps its place
+            world.warp(player, at.x, at.z, nowMs); zone = zoneAt(player.x, player.z); counts.warped++;
+            socket.write(hello(player));   // the fresh hello is the client's cue to adopt the place
+            continue;
+          }
           const up = decodeUp(payload);
           if (!up) return close(1003, 'malformed');
           const pose = player.legacy ? { ...up, x: up.x + LEGACY_SHIFT_CM, z: up.z + LEGACY_SHIFT_CM } : up;

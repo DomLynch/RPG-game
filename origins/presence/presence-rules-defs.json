@@ -27,6 +27,7 @@
     { "id": "beatMs", "value": 2000, "unit": "ms" },
     { "id": "tickRing", "value": 40000, "unit": "ticks" },
     { "id": "townSideCm", "value": 30000, "unit": "cm" },
-    { "id": "rejoinPastGateCm", "value": 50, "unit": "cm" }
+    { "id": "rejoinPastGateCm", "value": 50, "unit": "cm" },
+    { "id": "warpPerMin", "value": 6, "unit": "warps" }
   ]
 }
