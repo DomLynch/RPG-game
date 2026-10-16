@@ -8,9 +8,8 @@
 import { createHash } from 'node:crypto';
 import type { CharacterInstanceId, EncounterId, Inventory } from '../../src/core/server.ts';
 import { intoBackpack, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
-import { frontierPlan } from '../preview/frontier-plan.ts';
 import { worldMetres } from '../presence/zones.ts';
-import { toWorld } from '../world/derive.ts';
+import { groundPointOf } from '../world/ground-point.ts';
 import { GROUND_ITEMS, GROUND_LIMITS, type GroundItem, type GroundItems, type GroundLimits } from '../world/ground-items.ts';
 import { BadRequest, Refused } from './errors.ts';
 import type { Handler } from './handlers.ts';
@@ -28,14 +27,7 @@ const REFUSAL: Record<string, [409 | 422 | 503, string]> = {
 };
 const refuse = (why: string): never => { const [status, message] = REFUSAL[why] ?? [422, why]; throw new Refused(status, message, why); };
 
-/** Where a ground item stands, in world metres: the centre of its place (a zone of the zone package) plus the row's offset. null = the row names a zone or place this server does not have. */
-export function groundPointOf(row: Pick<GroundItem, 'zone' | 'place' | 'offsetX' | 'offsetZ'>): { x: number; z: number } | null {
-  const zone = /^zone([1-9][0-9]*)$/.exec(row.zone)?.[1];
-  const plan = zone ? frontierPlan(true, zone).zones.find((z) => z.zone === row.place) : undefined;
-  if (!plan) return null;
-  const c = toWorld({ x: 0, d: plan.depth / 2 }, plan.mount);
-  return { x: c.x + (row.offsetX ?? 0), z: c.z + (row.offsetZ ?? 0) };
-}
+export { groundPointOf };   // moved to origins/world/ground-point.ts so the page's pickup prompt reads the same point (it cannot import this file: node:crypto)
 /** The take radius: the row's own, else the default row (limits.defaultRadiusM), plus the pose-lag slack. */
 export const radiusOf = (row: Pick<GroundItem, 'radiusM'>, limits: GroundLimits = GROUND_LIMITS): number => (row.radiusM ?? limits.defaultRadiusM) + REACH_SLACK;
 /** The id the take's mint key and event id hang on: one per (instance, account, claim number). The database derives the same digest and refuses any other key. */
