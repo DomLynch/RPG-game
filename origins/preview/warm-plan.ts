@@ -20,15 +20,16 @@ export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Cam
 }
 
 /**
- * Warm `kits` one after another within `boundMs`. `settle` is settleWithin (true when the work settled, false at the bound). At the bound the loop STOPS before its next kit (a kit already compiling finishes: a compile cannot be taken back) and the result is
- * `failed: true`, so the page keeps remotes on the base figure and nothing keeps compiling behind a zone that has gone ready. A kit that throws stops the loop the same way. `done` runs once when the loop has really ended (clean up what it set up).
+ * Warm `kits` one after another within `boundMs` (the kit warm-up's own cap, `kitWarmMs`). `settle` is settleWithin (true when the work settled, false at the bound). At the bound the loop STOPS before its next kit and the result is `failed: true`, so the page keeps remotes
+ * on the base figure. A compile cannot be taken back, so the ONE kit already in flight is waited for (at most `hardMs`, a compile that never settles must not hold the zone): when this returns nothing is compiling and nothing will, so nothing compiles after ready.
+ * A kit that throws stops the loop the same way. `done` runs once when the loop has really ended (clean up what it set up).
  */
-export async function warmKitsWithin<K>(kits: readonly K[], warmOne: (kit: K) => Promise<void>, boundMs: number, settle: (label: string, work: Promise<unknown>, boundMs: number) => Promise<boolean>, done: () => void = () => {}): Promise<{ failed: boolean; warmed: number }> {
+export async function warmKitsWithin<K>(kits: readonly K[], warmOne: (kit: K) => Promise<void>, boundMs: number, settle: (label: string, work: Promise<unknown>, boundMs: number) => Promise<boolean>, done: () => void = () => {}, hardMs = boundMs * 6): Promise<{ failed: boolean; warmed: number }> {
   let stop = false, broke = false, warmed = 0;
   const loop = (async () => {
     try { for (const kit of kits) { if (stop) return; await warmOne(kit); warmed++; } } catch { broke = true; } finally { done(); }
   })();
   const settled = await settle('remote-kits', loop, boundMs);
-  if (!settled) stop = true;
+  if (!settled) { stop = true; await settle('remote-kits in flight', loop, hardMs); }
   return { failed: !settled || broke, warmed };
 }

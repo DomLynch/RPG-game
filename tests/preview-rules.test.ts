@@ -17,7 +17,8 @@ test('every preview rule equals the literal it replaced', () => {
   assert.deepEqual(['gateGap', 'heroWait', 'kindsWait', 'materialBound', 'uploadBudget', 'legendReach', 'lockRange', 'turnRate', 'tapRange', 'tapMs', 'tapPx'].map((id) => previewRule(id as never)), [0.62, 45000, 20000, 4000, 6, 6, 9, 1.9, 14, 4000, 12]);   // main.ts's own numbers
   assert.deepEqual(['askBudget', 'engageTtl', 'releaseFactor', 'engageRetry'].map((id) => previewRule(id as never)), [4, 120_000, 1.5, 5000]);   // engage-ahead.ts's literals
   assert.deepEqual(['loadoutWait', 'gearRetry'].map((id) => previewRule(id as never)), [15_000, 10_000]);   // main.ts's loadout gate (sheet-in-world, #2900)
-  assert.equal(PREVIEW_RULES.length, 37);
+  assert.equal(previewRule('kitWarmMs'), 3000);   // the other-players' gear warm-up's own cap (Lead on #2938): ready waits at most this long for it, then the one kit in flight
+  assert.equal(PREVIEW_RULES.length, 38);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;

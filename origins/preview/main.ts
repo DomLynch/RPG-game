@@ -439,8 +439,8 @@ async function warmRemoteKitsInPlan() {
     if (!pieces || !remote) { pieces = await sharedLoot(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); }
     dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), nextFrame); await nextFrame(); await nextFrame();
   };
-  // Bounded by KINDS_WAIT_MS: at the cap the loop stops before its next kit and reports failed (Web keeps base figures), so nothing keeps compiling behind a zone that has gone ready.
-  const r = await warmKitsWithin(warmKits(), warmOne, KINDS_WAIT_MS, settleWithin, () => { if (remote) scene.remove(remote.anchor); });
+  // Its own cap (kitWarmMs, from here: the hero's own warm-up is done): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures), so nothing compiles after ready.
+  const r = await warmKitsWithin(warmKits(), warmOne, previewRule('kitWarmMs'), settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
   remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 };
 }

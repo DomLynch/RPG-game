@@ -19,16 +19,22 @@ test('a zone is ready only when the player and every kind are warmed or failed',
 const timeoutSettle = async (_label: string, work: Promise<unknown>, boundMs: number) => Promise.race([work.then(() => true, () => true), new Promise<false>((r) => setTimeout(() => r(false), boundMs))]);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-test('a kit warm-up that hits its cap stops before the next kit, reports failed, and compiles nothing more', async () => {
-  const compiled: number[] = []; let cleaned = 0;
-  const result = await warmKitsWithin([1, 2, 3, 4, 5, 6], async (k) => { await sleep(40); compiled.push(k); }, 70, timeoutSettle, () => { cleaned++; });
+test('a kit warm-up that hits its cap stops before the next kit, waits for the ONE kit in flight, reports failed, and compiles nothing after it returns', async () => {
+  const compiled: number[] = []; let running = 0, cleaned = 0;
+  const result = await warmKitsWithin([1, 2, 3, 4, 5, 6], async (k) => { running++; await sleep(40); compiled.push(k); running--; }, 70, timeoutSettle, () => { cleaned++; }, 500);
   assert.equal(result.failed, true);
-  const atCap = compiled.length;
-  assert.ok(atCap >= 1 && atCap < 6, `some kits ran before the cap (${atCap})`);
+  assert.equal(running, 0, 'the kit that was compiling at the cap has finished by the time the warm-up returns (zone ready waits for exactly that one)');
+  assert.equal(cleaned, 1, 'cleanup ran when the loop really ended, before the return');
+  const atReturn = compiled.length;
+  assert.ok(atReturn >= 1 && atReturn < 6, `some kits ran before the cap, not all (${atReturn})`);
   await sleep(200);   // the loop would have finished all six by now
-  assert.ok(compiled.length <= atCap + 1, `at most the kit already compiling finishes (${atCap} -> ${compiled.length}), none after`);
-  assert.equal(compiled.length < 6, true);
-  assert.equal(cleaned, 1, 'cleanup runs once, when the loop really ended');
+  assert.equal(compiled.length, atReturn, 'nothing compiles after the warm-up has returned');
+});
+
+test('a kit that never settles cannot hold the zone past the hard bound', async () => {
+  const t0 = Date.now();
+  const result = await warmKitsWithin([1, 2], () => new Promise<void>(() => {}), 30, timeoutSettle, () => {}, 80);
+  assert.equal(result.failed, true); assert.ok(Date.now() - t0 < 400, 'returned at about cap + hard bound');
 });
 
 test('a warm-up inside its cap warms every kit and is not failed; a kit that throws fails it and stops', async () => {
