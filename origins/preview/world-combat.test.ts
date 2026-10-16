@@ -206,3 +206,20 @@ test('sheet-in-world, the real build row: a level-12 build with 4/4/4 placed and
   assert.equal(wc.debug().length, 2, 'the wolf joined the fight'); assert.deepEqual(t.sheet, geared, 'the loop fights on the page\'s sheet');
   assert.ok(t.maxHealth > bare.trace().maxHealth, 'the placed health points are in the bar'); assert.ok((t.sheet?.armour ?? 0) > (buildOnly.armour ?? 0), 'the worn set adds armour on top of the placed points'); assert.ok((t.sheet?.attack ?? 0) > 0);
 });
+
+// Backend's second repro (same harness): level 20, build_get {"level":20,"placed":{"armour":6,"attack":7,"health":7},"version":2}, all nine paperdoll slots worn at Legionary (tier 2).
+test('sheet-in-world, the level-20 row with the full paperdoll: the nine worn pieces and 6/7/7 placed points are all in the sheet the loop fights on', () => {
+  const own = { level: 20, placed: { armour: 6, attack: 7, health: 7 } };
+  const equipped = { head: 'dwarf.Helmet', crest: 'executioner.Crest', chest: 'dwarf.Body', arms: 'dwarf.Arms', hands: 'dwarf.Gloves', legs: 'dwarf.Greaves', feet: 'dwarf.Boots', main: 'dwarf.Warhammer', off: 'shieldmaiden.Shield' };
+  const ids = Object.values(equipped), taken = Object.fromEntries(ids.map((id) => [id, { opponent: id.split('.')[0], attempt: 1, healthLeft: 1, recordId: null, day: '2026-10-16', tier: 2 }]));
+  const loot = { owned: ids, equipped, taken } as unknown as Loot;
+  const geared = sheetFor(loot, own)!, buildOnly = sheetFor(undefined, own)!;
+  assert.ok(geared && buildOnly, 'the stored build is legal (20 points at level 20)');
+  const bare = createWorldCombat({ mobs: () => fakeMobs([]).mobs, hero: () => ({ gear: NAKED, level: 20 }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 2 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => true, hero: () => ({ gear: NAKED, level: 20, sheet: geared }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  run(wc, { x: 0, z: 0, facing: 0 }, 1);
+  const t = wc.trace(); console.log('TRACE20 ' + JSON.stringify({ build: own, gear: Object.keys(equipped), bareMaxHealth: bare.trace().maxHealth, buildOnlySheet: buildOnly, trace: t }));
+  assert.equal(wc.debug().length, 2, 'the wolf joined the fight'); assert.deepEqual(t.sheet, geared);
+  assert.ok(t.maxHealth > bare.trace().maxHealth); assert.ok((t.sheet?.armour ?? 0) > (buildOnly.armour ?? 0), 'the worn set adds armour on top of the placed points'); assert.ok((t.sheet?.attack ?? 0) >= (buildOnly.attack ?? 0));
+});
