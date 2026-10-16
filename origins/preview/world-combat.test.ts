@@ -204,6 +204,22 @@ test('idle hero sheet: with no creature near, the bar is the sheet\'s the moment
   assert.equal(wc.trace().maxHealth, wc.hero().max); assert.equal(wc.trace().sheet?.armour, sheet.armour);
 });
 
+test('idle hero sheet costs nothing per frame: hero() is read at the gate\'s ready edge and when the page says the build or gear answered, and not once over hundreds of idle frames', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10 } })!, sheet2 = sheetOf({ level: 20, placed: { health: 20 } })!;
+  const state: { ready: boolean; sheet?: Sheet; reads: number } = { ready: false, reads: 0 };
+  const f = fakeMobs([]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => { state.reads++; return { gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 }, bare = wc.hero().max;
+  run(wc, hero, 5); assert.equal(state.reads, 1, 'gate closed: only the build at load, nothing per frame');
+  state.sheet = sheet; state.ready = true; run(wc, hero, 1);
+  const edge = wc.hero().max; assert.ok(edge > bare, 'the ready edge rebuilt him on the sheet');
+  const after = state.reads; run(wc, hero, 20);   // ~600 idle frames
+  assert.equal(state.reads, after, 'no hero() read over 600 idle frames after the edge');
+  state.sheet = sheet2; run(wc, hero, 1); assert.equal(wc.hero().max, edge, 'a change nobody announced is not polled for (it is picked up at the next join)');
+  wc.heroChanged(); run(wc, hero, 1); assert.ok(wc.hero().max > edge, 'heroChanged() rebuilds him once on the new sheet');
+  const once = state.reads; run(wc, hero, 20); assert.equal(state.reads, once, 'and then reads nothing again');
+});
+
 // Backend's disposable-Postgres repro (real writer handlers on trunk 2941e7a88, no prod write): build_get {"level":12,"placed":{"armour":4,"attack":4,"health":4},"version":2} and the worn set head Helmet, chest Body, legs Greaves, main Warhammer,
 // all dwarf pieces at Legionary (tier 2). The page's own derivation (gear-numbers sheetFor, the path main.ts hero() takes) feeds the loop; the trace line is the receipt for the PR body.
 test('sheet-in-world, the real build row: a level-12 build with 4/4/4 placed and a worn dwarf set fights with the sheet\'s hp, armour and attack, not the bare body', () => {
