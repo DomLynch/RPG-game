@@ -8,7 +8,7 @@ export type LoadoutDeps = {
   buildHeld(): boolean;      // build_get has answered
   buildInflight(): boolean;  // a build_get is on its way (each call times out on its own, so this ends)
   gearReady(): boolean;      // the server's worn-gear view has answered
-  askGear(): void;           // read the server's worn-gear view now
+  askGear(): boolean;        // read the server's worn-gear view now; false = it could not be asked yet (the gear screen is not mounted), so it is asked again at the next look, not after `retry`
   wait: number; retry: number;
 };
 export function createLoadoutGate(d: LoadoutDeps): () => boolean {
@@ -18,7 +18,7 @@ export function createLoadoutGate(d: LoadoutDeps): () => boolean {
     const t = d.now();
     if (!gearDone && t - asked > d.retry) {
       if (!d.signedIn() || d.gearReady()) gearDone = true;
-      else { asked = t; d.askGear(); }
+      else if (d.askGear()) asked = t;   // gearDone is only ever set by an answer (or a guest): a gear view that cannot be asked yet is not an answer
     }
     if (latched) return true;
     if (!d.signedIn()) return (latched = true);

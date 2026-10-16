@@ -692,7 +692,8 @@ loadOwnBuild(10);
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
 // The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
 // The gate (loadout-gate.ts, tested) latches once ready, keeps asking the gear view after a latch until it answers (a writer blip must not leave him ungeared), and both numbers are preview-rules rows.
-const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? true, askGear: () => void gearMount?.refresh(), wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
+const loadoutReady = createLoadoutGate({ now: () => Date.now(), signedIn: () => !!storedToken(storage, Date.now()), buildHeld: () => ownBuild !== undefined, buildInflight: () => buildInflight, gearReady: () => gearMount?.ready() ?? false, askGear: () => { if (!gearMount) return false; void gearMount.refresh(); return true; },   // no gear screen yet is NOT "answered": the gate keeps asking until it exists and has answered (a signed-in player never fights on the bare body because the screen mounted late)
+ wait: previewRule('loadoutWait'), retry: previewRule('gearRetry') });
 const wc = createWorldCombat({
   loadoutReady,
   canPlay: canPlayFinisher,
