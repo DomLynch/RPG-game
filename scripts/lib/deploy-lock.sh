@@ -10,6 +10,7 @@
 #     older or unrelated tree never overwrites a newer one. scripts/release-worktree.sh refuses N+1 unless it is cut on every in-flight N.
 # Locks are mkdir directories holding the owner's pid (macOS has no flock); a lock whose pid is dead is broken, never waited on.
 # Works on macOS bash 3.2. Env: DEPLOY_LOCK, DEPLOY_RUNS_DIR, DEPLOY_PUBLISH_LOCK, DEPLOY_ROWS_LOCK, DEPLOY_LOCK_WAIT_S (default 1800), DEPLOY_LOCK_POLL_S.
+source "$(dirname "${BASH_SOURCE[0]}")/net-bound.sh"   # net_git: the fetch below is bounded
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 DEPLOY_RUNS_DIR="${DEPLOY_RUNS_DIR:-$(dirname "$DEPLOY_LOCK")/deploy_runs}"
 DEPLOY_PUBLISH_LOCK="${DEPLOY_PUBLISH_LOCK:-$(dirname "$DEPLOY_LOCK")/deploy_publish.lock}"
@@ -60,7 +61,7 @@ deploy_lock_release() {   # the EXIT trap: every lock this run holds, then the m
 deploy_publish_order() {   # $1 = live revision (may be empty), $2 = this revision
   [[ -n "$1" ]] || { echo unknown; return 0; }
   [[ "$1" != "$2" ]] || { echo forward; return 0; }
-  git cat-file -e "$1^{commit}" 2>/dev/null || git fetch -q origin 2>/dev/null || true
+  git cat-file -e "$1^{commit}" 2>/dev/null || net_git 60 fetch -q origin 2>/dev/null || true
   if git merge-base --is-ancestor "$1" "$2" 2>/dev/null; then echo forward
   elif git merge-base --is-ancestor "$2" "$1" 2>/dev/null; then echo superseded
   else echo diverged; fi

@@ -117,3 +117,11 @@ test('the prompt sits above the live fight kit: its tap must not land on #action
   const z = Number(/#prompt \{[^}]*?z-index:\s*(\d+)/.exec(html)?.[1]);
   assert.ok(Number.isInteger(z) && z >= 6, `#prompt z-index is ${z}: it must sit above the fight kit (z-index 5 in src/style.css)`);
 });
+
+test('every prompt shares the one raised slot, above the fight cluster: the page marks the shown prompt, the stylesheet places it', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../origins/preview/index.html', import.meta.url), 'utf8'), main = await readFile(new URL('../origins/preview/main.ts', import.meta.url), 'utf8');
+  assert.match(html, /#prompt\[data-slot\] \{[^}]*bottom:[^}]*\}/, 'the stylesheet places the slot');
+  assert.match(main, /prompt\.toggleAttribute\('data-slot', !prompt\.hidden\)/, 'the page marks whatever prompt is shown, not only the ground one');
+  assert.ok(!/data-slot-ground/.test(html + main), 'no ground-only slot is left');
+});

@@ -39,7 +39,11 @@ const measure = (page) => page.evaluate(() => {
 const expectClear = async (page, step, text, tapTarget) => {
   for (const w of WIDTHS) {
     await settled(page, w);
-    if (!tapTarget) await page.evaluate((t) => window.originsPreview.ground.say(t), text);   // a line holds the slot for lineSec only and a loaded box can spend that on the resize: put the same line in the same slot again at this width, then measure at once
+    if (!tapTarget) {   // a line holds the slot for lineSec only and a loaded box can spend that on the resize: put the same line in the same slot again at this width, then measure
+      await page.evaluate((t) => window.originsPreview.ground.say(t), text);
+      await page.waitForFunction((t) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent === t; }, text, { timeout: 15000 })   // prompt.hidden is recomputed in the page's frame loop, not by say(): measure once a frame has shown it
+        .catch(() => failures.push(`${step} @${w}: the line "${text}" never took the prompt's slot within 15 s of being said`));
+    }
     const m = await measure(page); receipt.steps.push({ step, width: w, ...m });
     if (!m.shown) failures.push(`${step} @${w}: the prompt is not shown`);
     else {
@@ -73,8 +77,27 @@ async function run(take) {
   if (errors.length) failures.push(...errors);
   await page.context().close();
 }
+// Talk, Bank and Fight in the Pit share the prompt's slot (#2857): the hero is placed where each shows, and the shown prompt is measured like the ground one.
+async function runPrompts() {
+  const page = await (await browser.newContext({ viewport: { width: WIDTHS[0], height: 812 }, isMobile: true, hasTouch: true })).newPage();
+  const errors = []; page.on('pageerror', (e) => errors.push(`pageerror: ${String(e).slice(0, 200)}`));
+  await stubSignedIn(page, { offsets: [], take: 'taken' });
+  await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+  const spots = await page.evaluate(() => window.originsPreview.promptSpots());
+  let prev = '';
+  for (const [kind, [x, z]] of Object.entries(spots)) {
+    await page.evaluate(([px, pz]) => window.originsPreview.place(px, pz, 0), [x, z]);
+    await page.waitForFunction((was) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent !== was; }, prev, { timeout: 30000 }).catch(() => failures.push(`${kind}: no prompt shown at its spot ${x},${z}`));
+    const label = await page.evaluate(() => document.getElementById('prompt').textContent);
+    prev = label;
+    await expectClear(page, `prompt-${kind}`, label, true);
+  }
+  if (errors.length) failures.push(...errors);
+  await page.context().close();
+}
 const ceiling = new Promise((_, reject) => setTimeout(() => reject(new Error(`the check ran past its ${CEILING_MS / 1000} s ceiling`)), CEILING_MS).unref());
-try { await Promise.race([(async () => { await run('taken'); await run('race'); })(), ceiling]); }
+try { await Promise.race([(async () => { await run('taken'); await run('race'); await runPrompts(); })(), ceiling]); }
 catch (e) { failures.push(`check crashed: ${String(e).slice(0, 300)}`); }
 finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); await close(); }
 receipt.failures = failures; await fs.writeFile(path.join(OUT, 'receipt.json'), JSON.stringify(receipt, null, 2));

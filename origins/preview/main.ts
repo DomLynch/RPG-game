@@ -345,7 +345,7 @@ function step(dt: number) {
     : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
   const lineOn = Date.now() < groundLineUntil;   // a ground result line holds the prompt's slot (ground-pickup.json lineSec), inert, instead of a toast over the fight buttons
   prompt.hidden = !(near || lineOn) || !!open; if (lineOn) prompt.textContent = groundLine; else if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
-  prompt.toggleAttribute('data-slot-ground', near === 'ground' || lineOn); prompt.style.pointerEvents = lineOn ? 'none' : '';
+  prompt.toggleAttribute('data-slot', !prompt.hidden); prompt.style.pointerEvents = lineOn ? 'none' : '';
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
 }
 
@@ -708,6 +708,7 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
+  promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },
