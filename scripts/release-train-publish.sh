@@ -21,6 +21,9 @@
 # Env: RELEASE_TRAIN_STATE, RELEASE_TRAIN_REPO (default ~/Developer/frankendom-train), RELEASE_TRAIN_ENV (sourced before
 # deploy.sh, default $STATE/release-train.env: Deploy's usual DEPLOY_* settings), RELEASE_TRAIN_DEPLOY / RELEASE_TRAIN_WORKTREE (tests).
 set -uo pipefail
+# Every git/gh call is bounded (2026-10-15/16: a fetch hung 73 min, a push 61 min, a gh poll 21 min, only inside this launchd job): a hang
+# becomes a named stop or a "next tick" in seconds. A checkout without the helper runs unbounded rather than not at all.
+. "$(dirname "$0")/lib/net-bound.sh" 2>/dev/null || { net_git() { shift; git "$@"; }; net_gh() { shift; gh "$@"; }; }
 {
 state="${RELEASE_TRAIN_STATE:-$HOME/.claude/state}"
 hold="$state/deploy_hold"; stopped="$state/release-train.stopped"; lock="$state/release-train.lock"
@@ -38,7 +41,7 @@ skip() { if [ -n "$dry" ]; then log "DRY RUN: $*; going on"; else log "$*"; exit
 # background (one run at a time, its own checkout MAC_ROWS_DIR, the train's, checked above; under deploy.sh's Mac-rows lock); deploy.sh trusts the rows
 # that passed for that tree. A dry run only says which candidate it would start.
 early_dir="${PRELAUNCH_DIR:-$state/pre-launch}"
-early=$(gh pr list --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
+early=$(net_gh 60 pr list --state open --base "$trunk" --limit 50 --json headRefName,headRefOid,createdAt \
   --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[].headRefOid' 2>/dev/null \
   | while read -r c; do [ -e "$early_dir/$c.macrows.json" ] || { echo "$c"; break; }; done)
 if [ -n "$early" ] && [ -n "$dry" ]; then log "DRY RUN: would start mac rows (early) for ${early:0:9} in $MAC_ROWS_DIR"
@@ -74,17 +77,17 @@ if [ -z "$dry" ]; then   # a dry run writes nothing, not even the lock
   trap 'rm -rf "$lock"' EXIT
 fi
 cd "$repo" || { log "no repo at $repo"; exit 1; }
-if [ -z "$(git status --porcelain --untracked-files=no)" ]; then git fetch -q origin && git switch -q --detach "origin/$trunk" || log "could not move $repo to origin/$trunk; using $(git rev-parse --short HEAD)"; else log "$repo is dirty: not moved"; fi
+if [ -z "$(git status --porcelain --untracked-files=no)" ]; then net_git 120 fetch -q origin && git switch -q --detach "origin/$trunk" || log "could not move $repo to origin/$trunk; using $(git rev-parse --short HEAD)"; else log "$repo is dirty: not moved"; fi
 
 # Judge each candidate on its FULL check list: `gh pr list` returns at most 100 checks per PR, and a candidate has 150+, so the list cut quality/quality and
 # release-checks/summary off DL #2431 (169 checks) and `pick` never chose it (2026-10-13: PASS + candidate:pass from 00:29Z, nothing published).
 # Oldest first; the first that passes the gate on its own `gh pr view` is the pick (forward-only, as before).
-cands=$(gh pr list --state open --base "$trunk" --label candidate:pass --limit 50 --json number,headRefName,headRefOid,createdAt \
+cands=$(net_gh 90 pr list --state open --base "$trunk" --label candidate:pass --limit 50 --json number,headRefName,headRefOid,createdAt \
   --jq '[.[] | select(.headRefName | startswith("release-"))] | sort_by(.createdAt) | .[] | "\(.number) \(.headRefOid)"') || { log "gh pr list failed; next tick"; exit 0; }
 pick=""
 while read -r n listed; do
   [ -n "$n" ] || continue
-  view=$(gh pr view "$n" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments) || { log "gh pr view #$n failed; next tick"; exit 0; }
+  view=$(net_gh 120 pr view "$n" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments) || { log "gh pr view #$n failed; next tick"; exit 0; }
   pick=$(printf '[%s]' "$view" | node scripts/release-train.mjs pick) || { log "pick failed on #$n; next tick"; exit 0; }
   [ -n "$pick" ] && break
   log "#$n @${listed:0:9} not publishable on its full check list: $(printf '%s' "$view" | node scripts/release-train.mjs verify "$listed")"   # why, for the log
@@ -92,7 +95,7 @@ done <<< "$cands"
 [ -n "$pick" ] || { log "no candidate with candidate:pass, a PASS at its head and green unit-ci/quality/release-checks"; exit 0; }
 read -r pr sha draft <<< "$pick"
 # `gh pr list` returns at most 100 checks per PR (CQ #2342: 144 via `gh pr view`, exactly 100 via list): re-read THIS candidate's full rollup and re-check the gate.
-if ! why=$(gh pr view "$pr" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments | node scripts/release-train.mjs verify "$sha"); then
+if ! why=$(net_gh 120 pr view "$pr" --json number,headRefName,baseRefName,headRefOid,createdAt,isDraft,labels,statusCheckRollup,comments | node scripts/release-train.mjs verify "$sha"); then
   log "#$pr @${sha:0:9} not publishable on its full check list: ${why:-gh pr view failed}; next tick"; exit 0
 fi
 [ -n "$dry" ] && { log "DRY RUN: would publish #$pr @${sha:0:9} (repo $repo at $(git rev-parse --short HEAD); slots $RELEASE_SLOTS); nothing written"; exit 0; }
@@ -102,7 +105,7 @@ stop() {   # $1 = reason: the train stays stopped until a person removes both fi
   local why="release-train STOPPED at #$pr @${sha:0:9}: $1"
   printf '%s\n%s\n' "$why" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$stopped"
   log "$why"
-  gh pr comment "$pr" --body "$why. deploy_hold is kept and the train is stopped: fix it, then remove \`$stopped\` and \`$hold\` on the Mac." >/dev/null 2>&1 || true
+  net_gh 30 pr comment "$pr" --body "$why. deploy_hold is kept and the train is stopped: fix it, then remove \`$stopped\` and \`$hold\` on the Mac." >/dev/null 2>&1 || true
   if [ -n "${RELEASE_TRAIN_NOTIFY:-}" ]; then $RELEASE_TRAIN_NOTIFY "$why" || true
   elif command -v osascript >/dev/null 2>&1; then osascript -e "display notification \"${why//\"/}\" with title \"Frankendom release train\"" || true; fi
   exit 1
@@ -112,12 +115,12 @@ if p=$(deploy_running); then log "deploy.sh is running (pid $p)"; exit 0; fi   #
 # A checkout without the helper (the train runs the trunk it has) skips the check rather than stopping the train.
 if [ -r scripts/lib/free-space.sh ] && ! space=$(bash scripts/lib/free-space.sh "${FREE_GIB_MIN:-20}" 2>&1); then log "not publishing: $space"; exit 0; fi
 ( set -o noclobber; echo "$$" > "$hold" ) 2>/dev/null || { log "deploy_hold appeared meanwhile"; exit 0; }
-git fetch -q origin || stop "git fetch failed"
+net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch failed}"
 git cat-file -e "$sha^{commit}" 2>/dev/null || stop "candidate $sha not fetched"
 git merge-base --is-ancestor "origin/$trunk" "$sha" || stop "trunk moved outside the train: the candidate does not contain origin/$trunk; nothing pushed, re-cut on trunk"
-[ "$draft" = draft ] && { gh pr ready "$pr" >/dev/null || stop "gh pr ready failed"; }
-git push -q origin "$sha:refs/heads/$trunk" || stop "the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
-git fetch -q origin || stop "git fetch after the fast-forward failed"
+[ "$draft" = draft ] && { net_gh 60 pr ready "$pr" >/dev/null || stop "${NET_WHY:-gh pr ready failed}"; }
+net_git 180 push -q origin "$sha:refs/heads/$trunk" || stop "${NET_WHY:+$NET_WHY: }the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
+net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch after the fast-forward failed}"
 rev=$(git rev-parse "origin/$trunk") || stop "no origin/$trunk"
 [ "$rev" = "$sha" ] || stop "trunk is $rev after the fast-forward, not the audited $sha: not deploying an unchecked commit"
 dir=$(${RELEASE_TRAIN_WORKTREE:-bash scripts/release-worktree.sh} "$rev") || stop "no release checkout for $rev"
@@ -130,10 +133,10 @@ rc=$?
 grep -q "^Published $rev" "$logf" || stop "deploy.sh exited 0 without a Published $rev line; log $logf"
 rm -f "$hold" "$hold.stale-told"
 summary=$(sed -n "/^Published $rev/,\$p" "$logf" | head -n 40)
-gh pr comment "$pr" --body "$(printf 'release-train: published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$rev" "$summary")" >/dev/null 2>&1 || true
+net_gh 30 pr comment "$pr" --body "$(printf 'release-train: published #%s as trunk %s.\n\n```\n%s\n```' "$pr" "$rev" "$summary")" >/dev/null 2>&1 || true
 # Every open PR whose head live now contains is done (forward-only publish; DI 2026-10-13 left its stacked members #2430/#2442/#2444/#2447/#2426 open): close it with a pointer.
-gh pr list --state open --limit 200 --json number,headRefOid --jq '.[] | "\(.number) \(.headRefOid)"' 2>/dev/null \
-  | while read -r n h; do git merge-base --is-ancestor "$h" "$rev" 2>/dev/null && gh pr close "$n" --comment "release-train: live $rev (#$pr) contains this head, so it is shipped; closing." >/dev/null 2>&1; done
+net_gh 60 pr list --state open --limit 200 --json number,headRefOid --jq '.[] | "\(.number) \(.headRefOid)"' 2>/dev/null \
+  | while read -r n h; do git merge-base --is-ancestor "$h" "$rev" 2>/dev/null && net_gh 30 pr close "$n" --comment "release-train: live $rev (#$pr) contains this head, so it is shipped; closing." >/dev/null 2>&1; done
 log "published #$pr as $rev"
 exit 0
 }
