@@ -35,6 +35,7 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     res.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a'; });
     res.software = soft || /swiftshader|llvmpipe|software/i.test(res.renderer);
     if (throttle > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
+    if (process.env.DRESS && !(await page.evaluate(() => typeof window.originsPreview.dressRemote === 'function'))) throw new Error('DRESS=1: this build has no originsPreview.dressRemote (#2926 dress-remote.ts is merged but not wired into main.ts yet)');   // the dressed case, once wired: call dressRemote(id, worn) per figure here, before programs0
     const programs0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     // The crowd stands in the camera's view: find which way the hero walks (hold W 400 ms), then lay N figures in a cone 4-14 m ahead on ground the engine says is standable.
     const a0 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));

@@ -9,5 +9,6 @@ if [[ "${1:-}" == "profile" ]]; then
   SERVE=1 PROFILE=1 COUNTS=0,16,40 MODES=walk THROTTLE=1,4 OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
 else
   npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
-  SERVE=1 THROTTLE=1,4 OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
+  # `dressed`: DRESS=1, the crowd wears a worn set through originsPreview.dressRemote (#2926's dress-remote.ts, once main.ts wires it); the harness stops with a clear message until then.
+  SERVE=1 THROTTLE=1,4 DRESS="$([[ "${1:-}" == "dressed" ]] && echo 1 || true)" OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
 fi
