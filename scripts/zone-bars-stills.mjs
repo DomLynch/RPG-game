@@ -32,7 +32,7 @@ try {
     const page = await (await browser.newContext({ viewport: { width, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => z.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 150000 });   // `model`: the body has replaced the capsule (`body` is only the kind name, always set)
     const target = await page.evaluate(() => { const l = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); return l[0]; });
     z.target = target.body;
     await page.waitForTimeout(4000);
