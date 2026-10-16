@@ -38,6 +38,7 @@ export const levelHealth = (kind: string, level: number): number => opponentAt(O
  *  Under PROTECT_LEVEL a player is shielded until his own first attack; nobody may fight a player more than MAX_LEVEL_GAP levels away. A player's blows always land on creatures, whatever the flags. */
 export const PROTECT_LEVEL = worldRule('protectLevel'), MAX_LEVEL_GAP = worldRule('maxLevelGap');
 const TAU = 6.283185307179586, RETARGET_CONE = worldRule('retargetCone') * (TAU / 360), RETARGET_GAP_S = worldRule('retargetGap');   // many-on-one (A): at ready, the creature in front of the hero (half-angle, deg) becomes his foe; at most one swap per gap (s)
+const PROMOTE_SETTLE_TICKS = Math.round(worldRule('promoteSettle') * 60);   // many-on-one (d): a joiner promoted to the hero's foe takes no action for this long (s -> Pit ticks)
 export const AGGRO_WINDOW_S = worldRule('aggroWindow');                       // a player who hit you in the last minute is not "first" when you hit back
 
 export type Phase = 'ready' | 'guard' | 'roll' | 'windup' | 'active' | 'recover' | 'stagger' | 'dead';
@@ -152,7 +153,7 @@ function separate(f: Fighter, all: Fighter[]): void {
 /** The next world: who fights whom, then every fight stepped on the Pit's duel; creatures that are not in a fight chase, hold off at the ring, give up or walk home. Never mutates its input. The Pit's brain decides every creature blow, so there is no randomness here. */
 /** The many-on-one cut on a creature's duel against a player: the creature is the `slot`th attacker on him (Duel.crowd; slot 1 = no cut, the key is dropped so the Pit's own fights stay byte for byte). */
 const slotted = (duel: Bout['duel'], slot: number): Bout['duel'] => {
-  const { crowd: _gone, ...rest } = duel;
+  const rest = { ...duel }; delete rest.crowd;
   return slot > 1 ? { ...rest, crowd: { from: 1, slot, kind: 'mob' } } : rest;
 };
 
@@ -220,8 +221,9 @@ export function stepCombat(world: World, inputs: Readonly<Record<string, Input>>
 
   for (const { a, b } of bouts) {
     const prev = world.streams[a.id], same = prev && prev.foe === (b?.id ?? null);
-    const opened: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
-    const bout: Bout = opened.duel.crowd ? { ...opened, duel: slotted(opened.duel, 1) } : opened;   // the primary foe is the 1st attacker on him: full blow (a joiner promoted to primary sheds its slot)
+    const fresh: Bout = same ? prev : openBout(a, b, prev && !same && prev.duel.fighters[0] ? prev.duel.fighters[0] : undefined);
+    const opened: Bout = !same && b && b.side === 'creature' && prev?.joined?.some((j) => j.foe === b.id) ? { ...fresh, settle: PROMOTE_SETTLE_TICKS } : fresh;   // a joiner promoted to his foe (retarget, or the first foe fell) settles before its first action
+    const bout: Bout = opened.duel.crowd ? { ...opened, duel: slotted(opened.duel, 1) } : opened;   // the primary foe is the 1st attacker on him: full blow (a joiner promoted to primary sheds its slot)   // the primary foe is the 1st attacker on him: full blow (a joiner promoted to primary sheds its slot)
     const r = stepBout(bout, a, b ?? undefined, inputs[a.id] ?? IDLE_INPUT, b && b.side === 'player' ? inputs[b.id] ?? IDLE_INPUT : IDLE_INPUT, dt, clock);
     if (b && b.side === 'creature' && r.bout.ai) b.brain = carried(r.bout.ai, r.bout.duel.tick);   // the brain lives on the creature, not in the fight
     if (b && b.side === 'creature' && !engagedWith(a, b.id)) events.push({ type: 'FightStarted', creature: b.id, player: a.id });

@@ -11,7 +11,7 @@ import type { Event, Fighter, Input, Phase } from './world.ts';
 import { worldRule } from './world-rules.ts';
 
 /** One fight: slot 0 is a player (the "hero" of the Pit's duel); slot 1 is a creature, another player, or nobody (`foe: null`, a dummy far away: the hero alone, swinging, guarding, rolling, regaining stamina). */
-export type Bout = { foe: string | null; duel: Duel; ai: AiState | null; profile: AiProfile | null; joined?: Bout[] };   // joined: the other creatures on this player, each its own duel against him (zone1.ts MAX_ATTACKERS)
+export type Bout = { foe: string | null; duel: Duel; ai: AiState | null; profile: AiProfile | null; joined?: Bout[]; settle?: number };   // settle: the duel tick until which a creature that was just promoted to the player's foe takes no action (world rule promoteSettle)   // joined: the other creatures on this player, each its own duel against him (zone1.ts MAX_ATTACKERS)
 // open-world: the guard-side thumbs exist here as they always have in the Pit (Dom 2026-10-13): the world steps the Pit's RULES unchanged (directionalGuard on) and carries the held side in the Input (intentOf).
 const TICK = 1 / 60, FAR_M = worldRule('farM');   // FAR_M: the world-rules row `farM`
 export const IDLE_INPUT: Input = { x: 0, z: 0 };
@@ -90,7 +90,7 @@ export function stepBout(s: Bout, a: Fighter, b: Fighter | undefined, inputA: In
     const press = (i: Input): Input => (k === 0 ? i : { x: i.x, z: i.z, run: i.run, guard: i.guard });   // open-world: a press (cut, roll, special) is one tick; the rest of a frame's ticks hold only the walk and the guard
     const intentA = intentOf(press(inputA), guardA, !!b); guardA = !!inputA.guard;
     let intentB: Intent = idleIntent();
-    if (b && ai && s.profile) { const brain = decide(before, 1, ai, s.profile); ai = brain.ai; intentB = brain.intent; }
+    if (b && ai && s.profile) { const brain = decide(before, 1, ai, s.profile); ai = brain.ai; intentB = s.settle !== undefined && duel.tick < s.settle ? { ...idleIntent(), lock: true } : brain.intent; }   // a promoted creature settles: its brain thinks, its body does nothing for `settle` ticks
     else if (b) { intentB = intentOf(press(inputB), guardB, true); guardB = !!inputB.guard; }
     const next = stepDuel(before, [intentA, intentB]);
     out.push(...eventsOf(next.events, [a.id, b?.id ?? ''], next));
@@ -105,5 +105,5 @@ export function stepBout(s: Bout, a: Fighter, b: Fighter | undefined, inputA: In
   write(a, pa);
   if (b) write(b, pb);
   if (pa.skillCooldown !== undefined && a.special) a.specialIn = pa.skillCooldown * TICK;
-  return { bout: { foe: s.foe, duel, ai, profile: s.profile }, events: out };
+  return { bout: { foe: s.foe, duel, ai, profile: s.profile, ...(s.settle !== undefined && duel.tick < s.settle ? { settle: s.settle } : {}) }, events: out };
 }
