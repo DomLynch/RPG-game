@@ -123,20 +123,20 @@ test('location: the served answer carries the active character\'s name (none bef
 
 test('location: the answer carries the gear the active character wears, read server-side from the ledger; the refresh asks for it alone; an old database or an unreadable ledger shows nothing', async () => {
   const f = fakeDb(), { server, base } = await start(f.db, { key: KEY });
-  const sword = { item: 'item:loot.veteran.Sword', tier: 'veteran', slot: 'mainhand' }, helm = { item: 'item:loot.veteran.Helmet', tier: 'veteran', slot: 'head' };
+  const sword = { item: 'item:loot.veteran.Body', tier: 'veteran', slot: 'body' }, helm = { item: 'item:loot.veteran.Helmet', tier: 'veteran', slot: 'head' };   // (named for the slot they stand in below: 'sword' is the second piece)
   try {
     const read = writerSavedLocation(base, KEY), refresh = writerWorn(base, KEY);
     await writerSaveLocation(base, KEY)(A, { ...PIT, atMs: 1 });   // an active character now exists
     assert.deepEqual((await read(A)).worn, {}, 'a database without the function: nothing worn is shown, the join still works');
     activeWornAnswer = JSON.stringify([sword, helm]);
     const lootOf = (await read(A)).worn!;
-    assert.deepEqual(Object.keys(lootOf), ['head', 'mainhand'], 'one entry per worn slot, keys sorted');
+    assert.deepEqual(Object.keys(lootOf), ['body', 'head'], 'one entry per worn slot, keys sorted');
     assert.ok(Object.values(lootOf).every((id) => typeof id === 'string' && id.length > 0), 'each value is the piece\'s loot id, mapped by the writer');
     assert.deepEqual(await refresh(A), lootOf, 'the 30 s refresh returns the same set from the same read');
     const asked = f.calls.filter((c) => c.sql.includes('origins_active_worn')).length, opened = f.calls.filter((c) => c.sql.includes('origins_open')).length;
     assert.equal(opened, 0, 'never origins_open: it locks the career row and returns the whole snapshot');
     assert.ok(asked >= 3);
-    activeWornAnswer = JSON.stringify([sword, { ...helm, slot: 'mainhand' }]);
+    activeWornAnswer = JSON.stringify([sword, { ...helm, slot: 'body' }]);
     assert.deepEqual(await refresh(A), {}, 'two pieces in one slot cannot be one worn set: nothing is shown, the join does not fail');
     activeWornAnswer = '[]'; assert.deepEqual(await refresh(A), {}, 'nothing equipped');
     await assert.rejects(writerWorn(base, 'wrong')(A), /HTTP 401/, 'the refresh needs the key too');
