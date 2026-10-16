@@ -23,7 +23,7 @@ const sets = [kit('goblin'), kit('shieldmaiden')], out = {};
 for (const [i, worn] of sets.entries()) {
   const actor = (await loadWarriors(heroUrl)).player;
   scene.add(actor.anchor); actor.update(0, 0.016, 'sheathed', 0);
-  actor.anchor.position.set(i === 0 ? -0.9 : 0.9, 0, 0); actor.anchor.rotation.y = i === 0 ? 0.35 : -0.35;   // after update: it places the anchor itself
+  actor.anchor.position.set(i === 0 ? -0.55 : 0.55, 0, 0); actor.anchor.rotation.y = i === 0 ? 0.35 : -0.35;   // after update: it places the anchor itself
   out[i] = { worn, missing: dressRemote(actor, pieces, worn), cold: coldPieces(actor, pieces).length };
 }
 window.result = out;
