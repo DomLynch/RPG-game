@@ -36,6 +36,8 @@ const INDEX = (SPELL_INDEX as unknown as { spells: Record<string, readonly [stri
 for (const [id, [root, level]] of Object.entries(INDEX)) if (!Object.hasOwn(BRICKS, root) || !Number.isInteger(level) || level < 1 || level > 10) throw Error(`spell-index "${id}": root "${root}" is a brick row and level is a rank 1-10`);
 export const SPELL_IDS: readonly string[] = Object.keys(INDEX);
 export const isSpellId = (id: string): boolean => Object.hasOwn(INDEX, id);
+/** The root (brick) a catalogue spell belongs to: its range row in the sandbox is keyed by it. */
+export const spellRoot = (id: string): string | undefined => INDEX[id]?.[0];
 
 const clampTo = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 /** The spell `id` as `skill` (0-100, the caster's skill in its school) and `spellPower` (the sheet's dial, worn quality included) cast it; undefined for an id the catalogue does not hold. */

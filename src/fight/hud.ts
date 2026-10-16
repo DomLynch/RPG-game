@@ -10,6 +10,7 @@ import { createGapHistory } from './kick-close.ts';
 import { staminaLow } from './fatigue-preview.ts';
 import { SKILL_MOVE, weaponOf, type OpponentId } from './moves.ts';
 import { fxNum } from './fx-rows.ts';
+import { spellCueText } from './sandbox-rules.ts';
 
 // Heavy-class contacts: bigger damage numbers here, a longer hit-stop in the frame loop.
 export const HEAVY_MOVES = new Set<string>(['heavy_overhead', 'heavy_riposte', 'heavy_counter', 'critical']);
@@ -180,6 +181,25 @@ export function createHud(element: Lookup) {
     // The journal's damage-numbers toggle turning off: whatever is floating disappears.
     hideDamage() {
       for (const span of dmgPool) span.hidden = true;
+    },
+    // sandbox spellRange (Dom 2026-10-16: a tap on SPELL must never feel like nothing): a refused cast floats its short cue ("too far" / "too close", a spellCue row) over the caster, a landed spell floats its damage over the foe.
+    floatSpell(
+      events: CombatEvent[],
+      fighters: readonly { body: { x: number; z: number }; scale: number }[],
+      project: ((point: [number, number, number]) => [number, number] | null) | undefined,
+    ): void {
+      if (!dmgPool.length || typeof project !== 'function') return;
+      for (const e of events) {
+        const cue = e.type === 'SpellRefused' ? spellCueText(e.cue ?? '') : e.type === 'SpecialLanded' && e.spell && e.damage ? String(Math.round(e.damage)) : '';
+        const who = e.type === 'SpellRefused' ? e.actor : e.target;
+        if (!cue || who === undefined || (e.type === 'SpellRefused' && e.actor !== 0)) continue;
+        const body = fighters[who]!, at = project([body.body.x, 1.9 * body.scale, body.body.z]);
+        if (!at) continue;
+        const span = dmgPool[dmgCursor++ % dmgPool.length]!;
+        span.textContent = cue; span.className = `dmg heavy${who === 0 ? ' taken' : ''}`; span.style.left = `${at[0]}px`; span.style.top = `${at[1]}px`; span.hidden = false;
+        if (typeof span.animate === 'function') span.animate([{ transform: 'translate(-50%, 0)', opacity: 1 }, { transform: 'translate(-50%, -52px)', opacity: 0 }], { duration: 1100, easing: 'ease-out', fill: 'forwards' }).onfinish = () => { span.hidden = true; };
+        else setTimeout(() => { span.hidden = true; }, 1100);
+      }
     },
     // Clarity cue 3 (Lead's brief): a press the sim refused dims and shakes its button for a moment, no text. The CSS class restarts on each refusal.
     refused(clarity: readonly ClarityEvent[]) {

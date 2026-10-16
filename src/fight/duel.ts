@@ -13,11 +13,11 @@ import { poolsOf, type PoolValues } from './pools.ts';
 import { percentOf, rolledDamage, rollUnit, swarmBand } from './roll.ts';
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
-import { castOutcome, outcomeMult, type CastOutcome, type Spell } from './spell-cast.ts';
+import { castOutcome, outcomeMult, spellRoot, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -45,7 +45,7 @@ export type Fighter = {
   scars?: readonly string[];   // sandbox-mech wounds (stance.ts woundsAt): the wound rows this fighter has taken; absent until a row fires
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
-  missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number };   // sandbox-mech missiles: the one bolt this fighter has in flight
+  missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number; spell?: string; outcome?: CastOutcome; tint?: string };   // spell, outcome, tint: a long-range SPELL flying through the same model (sandbox spellRange); sandbox-mech missiles: the one bolt this fighter has in flight
   spell2?: Spell; skillCooldown2?: number; spellHome?: Spell; slot2Active?: boolean;   // sandbox-mech spell slot 2: the second spell, its own cooldown, and the slot-1 spell parked while the second is cast
   ammo?: number;   // sandbox-mech missiles: arrows or bolts left in the quiver (absent = infinite)
   mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
@@ -108,10 +108,10 @@ export const withPerk = (f: Fighter, perk: Perk | undefined): Fighter => {
 
 export type Side = 0 | 1;
 export type Finish = { victim: Side; location: HitLocation; move: MoveId; heading: number; draw?: boolean };   // draw: both fell on the same tick (victim is then the first processed)
-type EventType = 'MissileLaunched' | 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'PhaseChanged' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
+type EventType = 'MissileLaunched' | 'SpellRefused' | 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'PhaseChanged' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { missile?: boolean; lane?: number; glance?: boolean; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { missile?: boolean; lane?: number; glance?: boolean; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome; cue?: 'far' | 'close' };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
@@ -336,8 +336,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
     } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && (action === 'skill' || me.spell2)) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
-      if (distance(me.body, foe.body) <= R.special.reach) {
-        const chosen = action === 'skill2' ? me.spell2 : me.spell;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
+      const picked = action === 'skill2' ? me.spell2 : me.spell, root = picked && spellRoot(picked.id), gap = distance(me.body, foe.body);
+      const cue = root ? spellRangeCue(root, gap) : undefined;   // sandbox spellRange: a spell with a range row is cast only in its band (it replaces the special's reach); out of band nothing is spent and a cue is shown
+      if (cue) events.push({ tick, type: 'SpellRefused', actor: i, cue, ...(picked ? { spell: picked.id } : {}) });
+      else if (gap <= R.special.reach || (root && spellRangeOf(root))) {
+        const chosen = picked;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
         if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; }
         next.special = castWindup(me.sheet, R.special.windup); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
         if (chosen && MANA_MAX) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
@@ -623,6 +626,13 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const outcome = A.spell && duel.cast ? castOutcome(A.spell, rollUnit(duel.cast.seed, casts++)) : undefined, mult = A.spell && outcome ? outcomeMult(A.spell, outcome) : 1;
     if (A.spell && outcome && !mult) { events.push({ tick, type: 'SpecialFizzled', actor: i, spell: A.spell.id, outcome }); continue; }
     const damage = Math.round((A.spell && outcome ? A.spell.share * mult : A.specialShare!) * D.maxHealth);
+    const flight = A.spell && outcome ? spellRangeOf(spellRoot(A.spell.id) ?? '') : undefined;
+    if (flight?.speed && !A.missile) {   // a long spell (sandbox spellRange) goes through the one missile model: it arrives after its travel time and a roll or a guard answers it
+      const range = distance(A.body, D.body);
+      A.missile = { launched: tick, arrives: tick + missileTicks({ speed: flight.speed }, range), x: A.body.x, z: A.body.z, dx: M.sin(aim(A.body, D.body)), dz: M.cos(aim(A.body, D.body)), range, damage, move, lane: 0, spell: A.spell!.id, outcome: outcome!, ...(flight.tint ? { tint: flight.tint } : {}) };
+      events.push({ tick, type: 'MissileLaunched', actor: i, target: j, move, lane: 0, spell: A.spell!.id });
+      continue;
+    }
     D.health = Math.max(0, D.health - damage);
     { const pr = poisonOf(A.oid); if (pr && D.health) { D.poisonUntil = tick + pr.duration; D.poisonEnemy = A.oid!; } }
     events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}), ...(A.spell && outcome ? { spell: A.spell.id, outcome } : {}) });
@@ -696,7 +706,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       continue;
     }
     D.health = Math.max(0, D.health - m.damage);
-    events.push({ tick, type: 'Hit', actor: i, target: j, move: m.move, damage: m.damage, location: 'torso', heading: A.body.heading, weapon: weapon.id, material: weapon.material, missile: true, lane: m.lane });
+    if (m.spell) events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move: m.move, damage: m.damage, spell: m.spell, outcome: m.outcome! });   // a long spell lands as the spell it is (the cast's own effect), not as a weapon hit
+    else events.push({ tick, type: 'Hit', actor: i, target: j, move: m.move, damage: m.damage, location: 'torso', heading: A.body.heading, weapon: weapon.id, material: weapon.material, missile: true, lane: m.lane });
     if (D.health) { D.phase = 'hurt'; D.age = 0; D.stun = Math.max(1, MISSILE_STUN); D.buffer = null; events.push({ tick, type: 'Staggered', actor: j, ticks: D.stun }); continue; }
     D.phase = 'dead'; D.age = 0; D.stun = R.death; D.buffer = null;
     finish = finish ? { ...finish, draw: true } : { victim: j, location: 'torso', move: m.move, heading: A.body.heading };

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Fighter } from './duel.ts';
-import { missileOf } from './sandbox-rules.ts';
+import { missileOf, spellRangeOf } from './sandbox-rules.ts';
+import { spellRoot } from './spell-cast.ts';
 
 // sandbox-mech: missiles, the bolt in flight. A small cold core with a soft halo and a short fading trail, drawn from the fighter's `missile` state (position by tick along its line), so it always matches the sim's arrival. Presentation only:
 // it reads the duel, never changes it, allocates once, draws nothing while no missile is in flight (so with no missile rows this file draws nothing).
@@ -26,15 +27,37 @@ export function createMissileFx(scene: THREE.Scene) {
     s.fins.forEach((f) => { f.scale.set(k.r * 9, k.r * 9, 1); f.position.x = -k.len / 2 + k.r * 5; (f.material as THREE.MeshBasicMaterial).color.set(k.fin); });
   };
   const dressed = [undefined, undefined] as (string | undefined)[];
+  // Spell bursts (Dom 2026-10-16: a cast must be clearly visible): a flash + swelling halo on the foe where a spell lands (colour from its range row, else violet) and a small flash on the caster when the cast starts. Fed from the tick's events.
+  const bursts = Array.from({ length: 6 }, () => ({ core: sprite(1, '#ffffff', 1), halo: sprite(1, '#b070ff', 0.8), at: -1, x: 0, z: 0, big: 1 })); let next = 0;
+  const BURST_TICKS = 42;
   return {
+    burst(events: readonly { type: string; actor: number; target?: number; spell?: string; tick: number }[], fighters: readonly Pick<Fighter, 'body'>[]): void {
+      for (const e of events) {
+        const land = e.type === 'SpecialLanded' && e.spell && e.target !== undefined, start = e.type === 'SpecialStarted' && e.spell;
+        if (!land && !start) continue;
+        const who = fighters[land ? e.target! : e.actor]; if (!who) continue;
+        const b = bursts[next++ % bursts.length]!, root = e.spell ? spellRoot(e.spell) : undefined, tint = (root && spellRangeOf(root)?.tint) || '#b070ff';
+        (b.halo.material as THREE.SpriteMaterial).color.set(tint); b.at = e.tick; b.x = who.body.x; b.z = who.body.z; b.big = land ? 1 : 0.4;
+      }
+    },
     update(tick: number, fighters: readonly Pick<Fighter, 'missile' | 'weapon'>[]): void {
+      for (const b of bursts) {
+        const age = tick - b.at, live = b.at >= 0 && age >= 0 && age < BURST_TICKS, k = live ? age / BURST_TICKS : 1;
+        b.core.visible = b.halo.visible = live; if (!live) continue;
+        b.core.position.set(b.x, HEIGHT, b.z); b.halo.position.copy(b.core.position);
+        b.core.scale.setScalar(b.big * (1.1 - k * 0.6)); b.halo.scale.setScalar(b.big * (0.8 + k * 2.6));
+        (b.core.material as THREE.SpriteMaterial).opacity = 1 - k; (b.halo.material as THREE.SpriteMaterial).opacity = 0.85 * (1 - k * k);
+      }
+      this.fly(tick, fighters);
+    },
+    fly(tick: number, fighters: readonly Pick<Fighter, 'missile' | 'weapon'>[]): void {
       fighters.forEach((f, i) => {
         const b = bolts[i]!, m = f.missile, live = !!m && tick < m.arrives;
         const kind = missileOf(f.weapon)?.kind, arrow = kind === 'bow' || kind === 'crossbow' ? kind : undefined, sh = shafts[i]!;
         b.core.visible = live && !arrow; b.halo.visible = live && !arrow; for (const t of b.trail) t.visible = live && !arrow; sh.g.visible = live && !!arrow;   // an arrow or bolt is plain wood and iron: no glow, no trail (the staff keeps its white orb)
         if (!m || !live) return;
         if (arrow && dressed[i] !== arrow) { dress(sh, arrow); dressed[i] = arrow; }
-        const tint = missileOf(f.weapon)?.tint;   // the row's colour for this weapon's bolt (staff blue, arrow tan, crossbow bolt amber)
+        const tint = m.tint ?? missileOf(f.weapon)?.tint;   // a spell's own colour, else the row's colour for this weapon's bolt (staff blue, arrow tan, crossbow bolt amber)
         if (tint) { (b.halo.material as THREE.SpriteMaterial).color.set(tint); for (const t of b.trail) (t.material as THREE.SpriteMaterial).color.set(tint); }
         const along = m.range * Math.min(1, Math.max(0, (tick - m.launched) / Math.max(1, m.arrives - m.launched)));
         b.core.position.set(m.x + m.dx * along, HEIGHT, m.z + m.dz * along); b.halo.position.copy(b.core.position);

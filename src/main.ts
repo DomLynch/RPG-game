@@ -1586,6 +1586,7 @@ function frame(now: number) {
         if (!seen) { onLesson('pace'); try { storage.setItem(PACE_KEY, '1'); } catch { /* unsaved: harmless */ } }
       }
       if (!quiet && damageNumbersOn) hud.floatDamage(practice.events, practice.duel.fighters, view.project);
+      if (!quiet) hud.floatSpell(practice.events, practice.duel.fighters, view.project);   // sandbox spellRange: the refused-cast cue and a landed spell's number; nothing without a spell event
       controls.consumed(practice.events);
       state = practice.fighter;
       accumulator -= step();

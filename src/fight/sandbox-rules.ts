@@ -210,8 +210,22 @@ export const missilePaysNoStamina = (weapon: string): boolean => MANA_MAX > 0 &&
 export const MISSILE_RADIUS = num('missileRadius', 'value'), MISSILE_FAN = num('missileFan', 'value'), MISSILE_STUN = num('missileStun', 'value');
 /** The nearest a missile can be thrown from: the inner edge of the outer band (Strategy: the bow is helpless up close). */
 export const missileMinGap = (): number => (BANDS.length > 1 ? BANDS[BANDS.length - 2]!.upTo / 100 : 0);
+// spellRange (Dom 2026-10-16, Strategy's table stands): one `spellRange` row per spell root { root, band (a `bands` id), speed (cm/s) and tint when the spell travels }. A cast is legal only while the gap between the fighters
+// is in the root's band (the band edges are the live `bands` rows, no new distance); outside it the press is refused and nothing is spent, with a `spellCue` row's short text ("far" / "close"). A row with a speed goes through the
+// one missile model (travel time, answered by roll or guard); the rest land on the foe at the release. No rows (trunk) = a spell has no range, as before.
+type SpellRangeRow = { root: string; band: string; speed?: number; tint?: string }; type CueRow = { id: string; text: string };
+const SPELL_RANGES = ((DEFS as unknown as { spellRange?: SpellRangeRow[] }).spellRange ?? []);
+const CUES = ((DEFS as unknown as { spellCue?: CueRow[] }).spellCue ?? []);
+export const spellRangeOf = (root: string): SpellRangeRow | undefined => (BANDS.length ? SPELL_RANGES.find((r) => r.root === root) : undefined);
+/** 'far' / 'close' when `distance` metres is outside the root's band, undefined when the cast may go (or the root has no row). */
+export const spellRangeCue = (root: string, distance: number): 'far' | 'close' | undefined => {
+  const row = spellRangeOf(root); if (!row) return undefined;
+  const have = BANDS.findIndex((b) => b.id === bandOf(distance)), want = BANDS.findIndex((b) => b.id === row.band);
+  return have === want || want < 0 ? undefined : have > want ? 'far' : 'close';
+};
+export const spellCueText = (id: string): string => CUES.find((c) => c.id === id)?.text ?? id;
 /** Travel time in whole ticks over `range` metres at the row's cm/s speed. */
-export const missileTicks = (row: MissileRow, range: number): number => Math.max(1, Math.ceil((range * 100 * 60) / row.speed));
+export const missileTicks = (row: { speed: number }, range: number): number => Math.max(1, Math.ceil((range * 100 * 60) / row.speed));
 
 // quiver + weapon timing for missile weapons (Strategy: bows and crossbows carry a finite quiver, a row flag `quiver` on/off for the A/B; the staff is infinite, mana is its cost).
 export const QUIVER = num('quiver', 'value');

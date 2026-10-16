@@ -1094,7 +1094,7 @@ export function createScene(
       }
       // A landed skill blow's flash and sparks in its move's colour (skill-impact.ts, the kit every skill ships on): after the poses settle.
       skillImpact.fire(events, practice.duel.fighters, [1, OPPONENTS[opponentId].scale]); skillImpact.update(dt);
-      impactFx.fire(events, practice.duel.fighters); impactFx.update(dt); missileFx.update(practice.duel.tick, practice.duel.fighters); woundNotice.update(practice.duel.fighters, dt);
+      impactFx.fire(events, practice.duel.fighters); impactFx.update(dt); missileFx.burst(events, practice.duel.fighters); missileFx.update(practice.duel.tick, practice.duel.fighters); woundNotice.update(practice.duel.fighters, dt);
       if (miasmaMark) { miasmaMark.fire(events); miasmaMark.update(dt, practice.duel.fighters, [1, OPPONENTS[opponentId].scale], [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null]); }
 
       // The Witch-fire skill's glow, gout and embers (witchfire.ts), read off the sim's clock on the final poses.

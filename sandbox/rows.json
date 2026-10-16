@@ -100,6 +100,12 @@
 {"id":"inner","upTo":135},
 {"id":"mid","upTo":180},
 {"id":"outer","upTo":100000}
+],"spellRange":[
+{"root":"theWord","band":"inner"},{"root":"threeBlows","band":"inner"},{"root":"theRing","band":"inner"},{"root":"harvest","band":"inner"},
+{"root":"crack","band":"mid"},{"root":"longShadow","band":"mid"},{"root":"baying","band":"mid"},
+{"root":"gale","band":"outer","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","speed":700,"tint":"#ff8a3a"}
+],"spellCue":[
+{"id":"far","text":"too far"},{"id":"close","text":"too close"}
 ],"bandBest":[
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
 {"weapon":"longsword","band":"mid"},{"weapon":"cleaver","band":"mid"},{"weapon":"maul","band":"mid"},{"weapon":"warhammer","band":"mid"},
