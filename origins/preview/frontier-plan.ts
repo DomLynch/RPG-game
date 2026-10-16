@@ -178,7 +178,8 @@ const BLOCKS: Record<string, [number, number, number, Tint]> = {
 };
 const kindOf = (name: string) => name.split('-').at(-1)!;
 
-export function frontierBuild(f: Frontier, skin = ''): Build {   // skin: a building skin id (look.buildings, building-skins.json): the town's blocks are drawn as its parts; '' = the brick blocks as they were
+export function frontierBuild(f: Frontier, skinId = ''): Build {   // skinId: a building skin id (look.buildings, building-skins.json): the town's blocks are drawn as its parts; '' or an unknown id = the brick blocks as they were
+  const skin = skinParts(skinId, 'default') ? skinId : '';
   const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [];
   const put = (layer: Layer, shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10) => { pieces.push({ layer, shape, x, y, z, tint, rotY, foot }); };
   // A point `ahead` metres along a facing and `right` metres across it (right of a walker looking along it).
