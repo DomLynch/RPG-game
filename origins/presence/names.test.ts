@@ -19,14 +19,14 @@ test('an enter record: once per sighting, before the first packet, null name for
   try {
     const a = await joinBot(p.port(), 'a'), b = await joinBot(p.port(), 'b');
     await until(() => a.entered().length === 1 && b.entered().length === 1);
-    assert.deepEqual(a.entered(), [{ id: p.world.byAccount.get(B)!.id, name: 'Bob', guest: false }]);
-    assert.deepEqual(b.entered(), [{ id: p.world.byAccount.get(A)!.id, name: 'Alice', guest: false }]);
+    assert.deepEqual(a.entered(), [{ id: p.world.byAccount.get(B)!.id, name: 'Bob', guest: false, worn: {} }]);
+    assert.deepEqual(b.entered(), [{ id: p.world.byAccount.get(A)!.id, name: 'Alice', guest: false, worn: {} }]);
     await wait(600);
     assert.equal(a.entered().length, 1, 'many packets later, still one enter record');
     assert.equal(a.enteredLate(), false, 'the record came before the id\'s first packet');
     const c = await joinBot(p.port(), 'c');   // an account with no name known
     await until(() => a.entered().length === 2);
-    assert.deepEqual(a.entered()[1], { id: p.world.byAccount.get(C)!.id, name: null, guest: false });
+    assert.deepEqual(a.entered()[1], { id: p.world.byAccount.get(C)!.id, name: null, guest: false, worn: {} });
     // B walks east out of A's 40 m range (honest 1.5 m steps), then back: A is introduced to B a second time.
     const aP = p.world.byAccount.get(A)!, bId = p.world.byAccount.get(B)!.id;
     for (let i = 1; i <= 8; i++) { b.pose(-62 + i * 1.5, 40); await wait(150); }

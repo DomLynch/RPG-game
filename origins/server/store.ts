@@ -92,12 +92,20 @@ export const setActive = async (db: Db, account: string, character: string): Pro
 };
 export const active = async (db: Db, account: string): Promise<string | null> =>
   (await db.run(`select coalesce(public.origins_active(:'a'::uuid), '');`, { a: acct(account) })) || null;
-// The ACTIVE character's display name (migration 20261016170000), for presence's name tags: null when there is none, and also null on a database without the function (a name tag is then
+// The ACTIVE character's display name (migration 20261016161137), for presence's name tags: null when there is none, and also null on a database without the function (a name tag is then
 // simply missing, nothing else changes). The answer is JSON (a string is quoted), so a character named "absent" cannot be mistaken for the gate's 'absent' sentinel.
 const HAS_ACTIVE_NAME = `select to_regprocedure('public.origins_active_name(uuid)') is not null as actname \\gset\n`;
 export const activeName = async (db: Db, account: string): Promise<string | null> => {
   const out = await gated(db, 'active_name', HAS_ACTIVE_NAME, 'actname', `select coalesce(to_jsonb(public.origins_active_name(:'a'::uuid))::text, 'null');`, { a: acct(account) });
   return out === 'absent' ? null : (JSON.parse(out) as string | null);
+};
+// The ACTIVE character's equipped pieces (migration 20261016200000), for the gear other players see: [{item, tier, slot}], a plain read with no lock (origins_open locks the career row and returns
+// the whole snapshot, too heavy for a 30 s refresh per player). Null on a database without the function: nothing worn is shown, nothing else changes.
+const HAS_ACTIVE_WORN = `select to_regprocedure('public.origins_active_worn(uuid)') is not null as actworn \\gset\n`;
+export type WornRow = { item: string; tier: string | null; slot: string };
+export const activeWorn = async (db: Db, account: string): Promise<WornRow[] | null> => {
+  const out = await gated(db, 'active_worn', HAS_ACTIVE_WORN, 'actworn', `select public.origins_active_worn(:'a'::uuid)::text;`, { a: acct(account) });
+  return out === 'absent' ? null : (JSON.parse(out) as WornRow[]);
 };
 export type SavedRow = { character: string; zone: string | null; x: number; z: number; updated_at: string };
 export const saveLocation = async (db: Db, account: string, at: { x: number; z: number; zone: string | null; atMs: number }): Promise<{ character: string | null; stored: boolean }> =>
