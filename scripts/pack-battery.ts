@@ -17,7 +17,7 @@ BOTS.focus = BOTS.guard!;   // guard, and he turns to face the weakest living cr
 const FACE: Record<string, (w: World) => number | undefined> = { focus: (w) => { const h = w.fighters[0]!, t = w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead' && f.hunting).sort((a, b) => a.health - b.health)[0]; return t ? Math.atan2(t.x - h.x, t.z - h.z) : undefined; } };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot, botName = '') {
   const sheet = rungSheet(rung, heroLevel ?? level);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
-  const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, level); });
+  const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, i < size ? level : escortLevel ?? level); });
   let w = newWorld([player('hero', 0, 0, 0, heroLevel ?? level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
   for (let k = 0; k < MAX_S / DT; k++) {
     const face = FACE[botName]?.(w); if (face !== undefined) w = { ...w, fighters: w.fighters.map((f, i) => (i === 0 ? { ...f, facing: face } : f)) };
@@ -30,6 +30,7 @@ function fight(kind: string, level: number, size: number, rung: number, seed: nu
   return { win: false, died: false, hp: w.fighters[0]!.health / w.fighters[0]!.maxHealth, t: MAX_S, left: -1, peak, three: three / ticks };
 }
 for (const kv of (process.env.SLOTS ?? '').split(',').filter(Boolean)) { const [id, pct] = kv.split('='); const row = SLOT_ROWS.find((r) => r.id === id); if (!row) throw Error(`SLOTS: no swarm-defs slot row "${id}"`); (row as { percent: number }).percent = +pct!; }   // SLOTS=mob2=30,mob3=20: an experiment's override of the crowd-cut rows (swarm-defs.json), never a shipped number
+const escortLevel = process.env.ESCORT_LEVEL ? +process.env.ESCORT_LEVEL : undefined;   // ESCORT_LEVEL: the escorts' level (default: the pack's level)
 const heroLevel = process.env.HERO_LEVEL ? +process.env.HERO_LEVEL : undefined;   // HERO_LEVEL: the hero's level (build points placed and his level argument); default the creature's level
 const kind = env('KIND', 'wolf')[0]!, seeds = +env('SEEDS', '16')[0]!, escort = env('ESCORT', 'goblin')[0]!, escorts = +env('ESCORTS', '0')[0]!;   // ESCORTS=n adds n creatures of ESCORT (default goblin, the scavenger's body) beside the SIZES of KIND
 for (const botName of env('BOTS', 'masher,guard')) for (const rung of env('RUNGS', '0,2,4').map(Number)) for (const level of env('LEVELS', '2,3').map(Number)) {
