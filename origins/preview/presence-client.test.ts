@@ -47,8 +47,8 @@ test('no pose before the hello; then 8-byte poses in presence centimetres, hero 
   assert.deepEqual(r.hello, [{ x: 0, z: 0, layer: 2 }]); assert.equal(r.p!.state(), 'live');
   r.ticks[0]!(); assert.equal(s.sent.length, 1); assert.equal(s.sent[0]!.length, 8);
   assert.deepEqual(decodeUp(s.sent[0]!), { x: CENTRE_CM + 300, z: CENTRE_CM - 400, heading: 128, anim: 0, flags: 0 });
-  r.move(1000, -1000); r.p!.flush();
-  assert.deepEqual([decodeUp(s.sent[1]!)!.x, decodeUp(s.sent[1]!)!.z], [30000, 0], 'clamped inside the 300 m square');
+  r.move(148, -148); r.p!.flush();
+  assert.deepEqual([decodeUp(s.sent[1]!)!.x, decodeUp(s.sent[1]!)!.z], [CENTRE_CM + 14800, CENTRE_CM - 14800], 'the square edge: still inside the v1 frame');
 });
 
 test('a v1 hello (no frame): a pose outside the square is withheld, not clamped onto the edge', () => {
