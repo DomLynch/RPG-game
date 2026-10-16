@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
-import { createPresence } from '../origins/presence/server.ts';
+import { createPresence, LIMITS } from '../origins/presence/server.ts';
 import { joinBot } from '../origins/presence/test-client.ts';
 import { serveOriginsPreview, AUTH_KEY } from './lib/origins-preview-harness.mjs';
 
@@ -23,7 +23,7 @@ const nameOf = (a) => (a in names ? names[a] : `P${Number(a.slice(-12))}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (ok, ms = 20000) => { for (let t = 0; t < ms; t += 100) { if (await ok()) return true; await wait(100); } return false; };
 
-const presence = createPresence({ verify, nameOf, log: () => {} });
+const presence = createPresence({ verify, nameOf, log: () => {}, limits: { ...LIMITS, ipSockets: 64, ipJoinsPerMinute: 600 } });   // every client is 127.0.0.1: the per-address caps (a production defence) would refuse the ninth socket
 await new Promise((r) => presence.server.listen(0, '127.0.0.1', r));
 const { origin, close } = await serveOriginsPreview(built);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
