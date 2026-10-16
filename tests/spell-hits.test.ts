@@ -7,10 +7,10 @@ import { CAST, HITS, resolveSpell, spellUsesHits, splitDamage } from '../src/fig
 import { RECORD_VERSION } from '../src/fight/record.ts';
 import { act, arena, idle } from './strategies.ts';
 
-const BURST = 'hervor' /* threeBlows L4 */, DOT = 'barghest' /* baying L2 */, PLAIN = 'andvari' /* crack L1: no row */, SEED = 4242;
+const BURST = 'hervor' /* threeBlows L4 */, DOT = 'barghest' /* baying L2 */, PLAIN = 'andvari' /* crack L1: no row */, SEED = 4242, POWER = 500 /* worn spell power: the credit lifts the relative level so the seeded draw lands (a dear spell at skill 100 alone fizzles) */;
 const fight = (id: string, version?: number): Duel => {
   let d = withSpecials(arena(OPPONENTS.veteran), 6, 'shove'); d.fighters[0].skillCooldown = 0; d.fighters[1].skillCooldown = 0;
-  d = withSpell(d, 0, resolveSpell(id, 100, 0, version)!, SEED); return d;
+  d = withSpell(d, 0, resolveSpell(id, 100, POWER, version)!, SEED); return d;
 };
 const run = (d: Duel, ticks: number) => { const ev: CombatEvent[] = []; for (let t = 0; t < ticks; t++) { d = stepDuel(d, [t === 0 ? act('skill') : idle(), idle()]); ev.push(...d.events); } return { d, ev }; };
 const landed = (ev: CombatEvent[]) => ev.filter((e) => e.type === 'SpecialLanded');
