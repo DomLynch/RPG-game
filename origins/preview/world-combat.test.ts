@@ -210,14 +210,15 @@ test('idle hero sheet costs nothing per frame: hero() is read at the gate\'s rea
   const f = fakeMobs([]);
   const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => { state.reads++; return { gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   const hero = { x: 0, z: 0, facing: 0 }, bare = wc.hero().max;
-  run(wc, hero, 5); assert.equal(state.reads, 1, 'gate closed: only the build at load, nothing per frame');
+  // The sim step already reads hero().level once per step (gearOf for stepHero): that is the baseline per second, with the gate closed and nothing to rebuild. The rebuild adds NOTHING to it.
+  const r0 = state.reads; run(wc, hero, 5); const baseline = state.reads - r0;
   state.sheet = sheet; state.ready = true; run(wc, hero, 1);
   const edge = wc.hero().max; assert.ok(edge > bare, 'the ready edge rebuilt him on the sheet');
-  const after = state.reads; run(wc, hero, 20);   // ~600 idle frames
-  assert.equal(state.reads, after, 'no hero() read over 600 idle frames after the edge');
+  const r1 = state.reads; run(wc, hero, 5);   // ~150 idle frames after the edge
+  assert.equal(state.reads - r1, baseline, 'idle frames after the edge read hero() exactly as often as before it: no sheet build per frame');
   state.sheet = sheet2; run(wc, hero, 1); assert.equal(wc.hero().max, edge, 'a change nobody announced is not polled for (it is picked up at the next join)');
   wc.heroChanged(); run(wc, hero, 1); assert.ok(wc.hero().max > edge, 'heroChanged() rebuilds him once on the new sheet');
-  const once = state.reads; run(wc, hero, 20); assert.equal(state.reads, once, 'and then reads nothing again');
+  const r2 = state.reads; run(wc, hero, 5); assert.equal(state.reads - r2, baseline, 'and then back to the baseline');
 });
 
 // Backend's disposable-Postgres repro (real writer handlers on trunk 2941e7a88, no prod write): build_get {"level":12,"placed":{"armour":4,"attack":4,"health":4},"version":2} and the worn set head Helmet, chest Body, legs Greaves, main Warhammer,
