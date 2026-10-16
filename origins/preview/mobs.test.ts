@@ -9,7 +9,7 @@ import { signedIn } from './save.ts';
 import { campCount } from '../../src/core/index.ts';
 import { mixSeed } from './mobs.ts';
 import { loadZone } from '../zones/loader.ts';
-const ZONE_LEVEL = loadZone().level;
+const ZONE_LEVEL = loadZone().level, FRONTIER_ROWS_NAMED = new Set(loadZone().spawns.rows.filter((r) => r.named).map((r) => r.id));
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
 import { catalogueRow, fieldOf } from '../../src/fight/catalogue-rows.ts';
 
@@ -21,12 +21,12 @@ const at = (x: number, z: number) => ({ x, z });
 test('the Frontier is populated from the data: scavengers on the Cinder Fields, brood and the Mere-Mother at the Black Mere, ghouls at the Blood Ruin', () => {
   assert.equal(byZone('cinder-fields').filter((s) => !s.named).length, 8, 'a camp of four (a leader and three, Strategy), one lone opener near the entry (zone-rules), the one Ash Boar and the Ash Wolf camp at the hold road: two now, since the camp size is drawn in 2..3 and no longer always the upper bound (re-pinned on purpose, Lead 10-10)');
   assert.deepEqual(byZone('ferry-landing').map((s) => s.id), ['opener-ferry-landing-1'], 'the landing has one creature: its opener');
-  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cinder-scavenger', 'character:hrungnir']);
+  assert.deepEqual([...new Set(byZone('cinder-fields').map((s) => s.character))].sort(), ['character:ash-boar', 'character:ash-wolf', 'character:cave-troll', 'character:cinder-scavenger', 'character:hrungnir']);   // + the Cave Troll, Zone 1's camp boss (a `named` row, level 3, appended after the openers)
   assert.deepEqual(byZone('black-mere').map((s) => s.character).sort(), ['character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-brood', 'character:mere-mother', 'character:peg-powler']);
   assert.deepEqual(byZone('blood-ruin').map((s) => s.character), ['character:ruin-ghoul', 'character:ruin-ghoul', 'character:ruin-ghoul', 'character:cinder-bear'], 'the ghouls, then the one Cinder Bear at the ruin jetty');
   assert.deepEqual(byZone('east-road').map((s) => s.character).sort(), ['character:court-thrall', 'character:pit-goblin', 'character:pit-goblin'], 'the court thrall, and the Pit goblin camp of two at the watchtower by the start path (goblin camp added, Dom 10-09)');
   for (const quiet of ['cinder-hold', 'mere-end']) assert.equal(byZone(quiet).length, 0, `${quiet}: a town has no creatures in it (the landing is not a town: it has its opener)`);
-  assert.equal(SPECS.length, 23, '22 + the two Pit goblins, minus one: the Ash Wolf camp is drawn in 2..3 and is two (re-pinned 10-10, Lead)');
+  assert.equal(SPECS.length, 24, '22 + the two Pit goblins, minus one: the Ash Wolf camp is drawn in 2..3 and is two (re-pinned 10-10, Lead); + the Cave Troll camp boss (10-16), appended after the openers so the other 23 are exactly as they were');
   assert.equal(new Set(SPECS.map((s) => s.id)).size, SPECS.length, 'ids are unique');
 });
 
@@ -38,7 +38,7 @@ test('each creature carries the body, level and encounter its character record n
   assert.equal(row('character:mere-mother').level, ZONE_LEVEL + 3, 'the public world boss is the zone level + 3 (4,000 health, the 1,000-a-level rule; boss-battery tunable); the bounty bosses are the named rares at the zone level + 2');
   assert.equal(row('character:cinder-scavenger').encounter, null);
   assert.equal(row('character:cinder-scavenger').name, 'Cinder scavenger');
-  assert.ok(SPECS.every((s) => (s.named) === (s.encounter !== null)));
+  assert.ok(SPECS.every((s) => s.named === (s.encounter !== null || FRONTIER_ROWS_NAMED.has(s.character))), 'named = an encounter\'s boss, or a row flagged `named` (the camp boss)');
   assert.ok(SPECS.filter((s) => !s.named).every((s) => s.level === ZONE_LEVEL || s.level === ZONE_LEVEL + 1), 'Zone 1 creatures are level 1 near the spawn and 2 at the edge (was the flat 11-14 bands)');
   assert.ok(SPECS.filter((s) => s.named && s.character !== 'character:mere-mother').every((s) => s.level === NAMED_LEVEL), 'the bounty bosses (the named rares) are the zone level + 2');
 });

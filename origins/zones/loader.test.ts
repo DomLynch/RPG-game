@@ -13,9 +13,10 @@ import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
 const clone = (z: Zone): Mut<Zone> => JSON.parse(JSON.stringify(z));
 
-test('Zone 1 loads: level 1, seven rows of [1, 2], every opener a row, the kit and looks valid', () => {
+test('Zone 1 loads: level 1, seven rows of [1, 2] and the named Cave Troll at 3 (zone level + namedLevelLift), every opener a row, the kit and looks valid', () => {
   const z = loadZone();
-  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 7);
+  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 8);
+  assert.deepEqual(z.spawns.rows.filter((r) => r.named).map((r) => [r.id, ...r.level]), [['character:cave-troll', 3, 3]]);
   assert.deepEqual(zoneProblems(z), []);
   assert.equal(loadZone('1'), z, 'cached: the same package');
   assert.throws(() => loadZone('99'), /no zone 99/);

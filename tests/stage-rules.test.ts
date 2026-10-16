@@ -22,5 +22,5 @@ test('the loader refuses a missing named rule, a non-positive value and a duplic
   assert.throws(() => loadStageRules({ rules: rows.filter((r) => r.id !== 'crowdHold') }), /"crowdHold" rule by name/);
   assert.throws(() => loadStageRules({ rules: rows.map((r) => (r.id === 'edgeFade' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadStageRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadStageRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 37);
+  assert.equal(loadStageRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 38);
 });
