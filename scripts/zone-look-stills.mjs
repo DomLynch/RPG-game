@@ -41,6 +41,10 @@ try {
       const pit = name.includes('-pit');   // a name containing -pit: stand at the camp facing east, back towards the Pit (where the fog-proof Pit scenery showed)
       const hm = /-h(\d+)/.exec(name), turn = hm ? (Number(hm[1]) * Math.PI) / 180 : null;   // a name with -h<degrees> (e.g. -h45): stand at the camp centre facing that world bearing (0 = +z, 90 = +x), to check the whole horizon round
       if (camp) await page.evaluate(([x, z, back, h]) => window.originsPreview.place(h === null ? x : x, h === null ? (back ? z : z + 9) : z, h ?? (back ? Math.PI / 2 : Math.PI)), [camp.x, camp.z, pit, turn]);   // else 9 m south of the camp, facing it (forward is (sin h, cos h))
+      if (process.env.STILLS_MOB) {   // a named creature: the world view stands the hero 9 m from him, facing him (forward is (sin h, cos h))
+        const at = await page.evaluate((want) => (window.originsPreview.mobs()?.mobs ?? []).find((m) => String(m.id).includes(want)) ?? null, process.env.STILLS_MOB);
+        r.target = at; if (at) await page.evaluate(([x, z]) => window.originsPreview.place(x, z + 9, Math.PI), [at.x, at.z]);
+      }
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
       if (process.env.STILLS_PROBE) {   // debugging the dome: its own texture (does it hold the picture?) and a frame with it painted flat magenta (where is it on screen?)
