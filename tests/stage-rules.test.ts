@@ -14,8 +14,8 @@ test('every stage rule equals the literal it replaced', () => {
   assert.deepEqual([SKIRMISHER_HANDOVER, LEADER_HOLD, SWEEP], [{ starts: 2, hold: 240 }, 240, { reach: 2.5, delay: 60 }]);
   assert.deepEqual([KERB_INSET, STONE_RADIUS, EDGE_FADE, PAD_MARGIN, LANDMARK_PAD, LEVEL_NEAR_M, LEVEL_FAR_M], [4, 2.6, 6, 2.5, 7, 30, 150]);
   assert.deepEqual(CINDER, { beyond: 120, skylineGap: [3, 15], skylineStep: [6, 12] });
-  assert.deepEqual(['mobsSeed', 'cinderSlab', 'cinderDrift', 'cinderRingA', 'cinderRingB', 'cinderLip', 'cinderCore', 'dressSlab', 'landmarkR', 'spawnNear', 'spawnFar'].map((id) => stageRule(id as never)), [0x6d6f6273, 0.03, 0.065, 0.105, 0.11, 0.112, 0.118, 0.04, 3.5, 25, 35]);
-  assert.equal(STAGE_RULES.length, 36);
+  assert.deepEqual(['mobsSeed', 'cinderSlab', 'cinderDrift', 'cinderRingA', 'cinderRingB', 'cinderLip', 'cinderCore', 'dressSlab', 'landmarkR', 'spawnNear', 'spawnFar', 'namedLevelLift'].map((id) => stageRule(id as never)), [0x6d6f6273, 0.03, 0.065, 0.105, 0.11, 0.112, 0.118, 0.04, 3.5, 25, 35, 2]);
+  assert.equal(STAGE_RULES.length, 37);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
