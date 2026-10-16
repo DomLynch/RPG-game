@@ -59,7 +59,7 @@ test('starter only is data: an item that is not a starterItem row is refused by 
 
 test('the loader refuses: a scope other than account, qty 0 or above the starter maxQty, respawn outside 60..86400, a radius outside 0.25..5, a lone offset, a missing field', () => {
   for (const [patch, why] of [[{ scope: 'shared' }, /scope/], [{ qty: 0 }, /qty/], [{ qty: 2 }, /qty/], [{ respawnSec: GROUND_LIMITS.minRespawnSec - 1 }, /respawnSec/], [{ respawnSec: GROUND_LIMITS.maxRespawnSec + 1 }, /respawnSec/],
-    [{ radiusM: GROUND_LIMITS.minRadiusM / 2 }, /radiusM/], [{ radiusM: GROUND_LIMITS.maxRadiusM + 1 }, /radiusM/], [{ offsetX: 1 }, /offset/], [{ place: undefined }, /missing-field|place/], [{ hiddenWhileTaken: undefined }, /missing-field|hiddenWhileTaken/]] as const) {
+    [{ radiusM: GROUND_LIMITS.minRadiusM / 2 }, /radiusM/], [{ radiusM: GROUND_LIMITS.maxRadiusM + 1 }, /radiusM/], [{ offsetX: 1, offsetZ: undefined }, /offset/], [{ place: undefined }, /missing-field|place/], [{ hiddenWhileTaken: undefined }, /missing-field|hiddenWhileTaken/]] as const) {
     assert.throws(() => loadGroundItems(raw(patch)), why, JSON.stringify(patch));
   }
   assert.throws(() => loadGroundItems(raw({}, { 'item:starter.rusty-sword': { maxQty: 0 } })), /maxQty/);
