@@ -18,7 +18,8 @@ export const presenceUrl = (origin: string): string => `${origin.replace(/^http/
 export type Frame = { centreCm: number; sizeCm: number };   // the hello's frame: world (0,0) at centreCm, positions 0..sizeCm (u16 centimetres)
 export const LEGACY_FRAME: Frame = { centreCm: LEGACY_CENTRE_CM, sizeCm: LEGACY_SPAN_CM };   // a v1 server, or a hello with no frame
 const LEGACY_EDGE_M = LEGACY_SPAN_CM / 200 - 1;   // v1 only knows the town square: a pose beyond this is withheld, never clamped onto the edge
-export const headingByte = (radians: number): number => Math.round((((radians % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI) * 256) & 255;
+const wornFrom = (v: unknown): Record<string, string> => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, string] => typeof e[1] === 'string')) : {});   // the record's {slot: lootId}; anything else is nothing worn
+export const headingByte =(radians: number): number => Math.round((((radians % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI) * 256) & 255;
 
 export type Pose = { x: number; z: number; heading: number; anim?: number; flags?: number };   // metres in the Concord frame, heading in radians
 export type Other = { id: number; x: number; z: number; heading: number; anim: number; flags: number };
@@ -30,7 +31,7 @@ export type Deps = {
   pose: () => Pose | null;                              // where the hero stands now; null while the page has no hero to show
   onHello?: (at: { x: number; z: number; layer: number }) => void;   // where the server placed us (metres): fires on every (re)connect, before the first pose
   onOthers?: (others: Other[]) => void;
-  onEnter?: (who: { id: number; name: string | null; guest: boolean }) => void;   // an id came into range: its name tag (null name + guest = "Guest"); sent again each time it re-enters range
+  onEnter?: (who: { id: number; name: string | null; guest: boolean; worn: Record<string, string> }) => void;   // an id came into range: its name tag (null name + guest = "Guest") and the gear it wears {slot: lootId} (a guest: {}); sent again each time it re-enters range AND whenever that player's worn set changes
   setTimer?: (fn: () => void, ms: number) => unknown; clearTimer?: (id: unknown) => void; every?: (fn: () => void, ms: number) => unknown; clearEvery?: (id: unknown) => void;
   rng?: () => number;
 };
@@ -59,10 +60,10 @@ export function joinPresence(d: Deps): Presence | null {
     s.onmessage = (e) => {
       if (s !== socket) return;
       if (typeof e.data === 'string') {
-        let hello: { t?: unknown; x?: unknown; z?: unknown; layer?: unknown; id?: unknown; name?: unknown; guest?: unknown; frame?: { centreCm?: unknown; sizeCm?: unknown } } | null;
+        let hello: { t?: unknown; x?: unknown; z?: unknown; layer?: unknown; id?: unknown; name?: unknown; guest?: unknown; worn?: unknown; frame?: { centreCm?: unknown; sizeCm?: unknown } } | null;
         try { hello = JSON.parse(e.data); } catch { hello = null; }
         if (hello?.t === 'enter') {   // who an id is, sent once when it comes into range (before its first packet)
-          if (typeof hello.id === 'number') d.onEnter?.({ id: hello.id, name: typeof hello.name === 'string' ? hello.name : null, guest: hello.guest === true });
+          if (typeof hello.id === 'number') d.onEnter?.({ id: hello.id, name: typeof hello.name === 'string' ? hello.name : null, guest: hello.guest === true, worn: wornFrom(hello.worn) });
           return;
         }
         if (hello?.t !== 'hello' || typeof hello.x !== 'number' || typeof hello.z !== 'number') return;

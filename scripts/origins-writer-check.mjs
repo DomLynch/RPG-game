@@ -441,17 +441,17 @@ try {
     const rawPost = (body, auth) => globalThis.fetch(`${lbase}/internal/location`, { method: 'POST', headers: auth ? { authorization: auth } : {}, body: JSON.stringify(body) });
     const locRow = character => psql(`select coalesce((select coalesce(zone, '-') || ':' || x || ':' || z from public.origins_character_location where character = '${character}'), 'none')`);
     const activeOf = account => psql(`select coalesce(public.origins_active('${account}'), 'none')`);
-    const nameOfActive = account => psql(`select coalesce(public.origins_active_name('${account}'::uuid), '')`) || null;   // the name tag the writer serves beside the saved spot (migration 20261016170000)
+    const nameOfActive = account => psql(`select coalesce(public.origins_active_name('${account}'::uuid), '')`) || null;   // the name tag the writer serves beside the saved spot (migration 20261016161137)
     const PIT = { x: 15000, z: 16000 }, EXCH = { x: 15000, z: 11000 }, t0 = Date.now() - 60_000;
     const daraTwo = psql(`select id from public.origins_characters where account = '${D}' and name = 'Dara Two'`);
     // the active character: create_character made each new character active
     eq([activeOf(A), activeOf(D), activeOf(C)], [pc, daraTwo, 'none'], 'create_character makes the new character the active one; an account with none has none');
-    eq(await served(A), { saved: false, name: nameOfActive(A) }, 'nothing saved yet: none (presence uses its default spawn), with the active character\'s name');
+    eq(await served(A), { saved: false, name: nameOfActive(A), worn: {} }, 'nothing saved yet: none (presence uses its default spawn), with the active character\'s name');
     eq([typeof nameOfActive(A), nameOfActive(C), nameOfActive('00000000-0000-4000-8000-00000000dead')], ['string', null, null], 'origins_active_name: the active character\'s name; none for an account with no character or no account');
     // presence posts a location for the active character -> stored
     eq(await save(A, { ...PIT, atMs: t0 }), { character: pc, stored: true }, 'presence\'s post is stored for A\'s active character');
     eq(locRow(pc), `pit-yard:${PIT.x}:${PIT.z}`, 'the row: zone computed by the writer, x, z');
-    eq(await served(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: nameOfActive(A) }, 'serve returns it');
+    eq(await served(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: nameOfActive(A), worn: {} }, 'serve returns it');
     eq(await save(A, { x: 1, z: 1, atMs: t0 - 1000 }), { character: pc, stored: false }, 'an older observation (a late retry) changes nothing');
     eq(locRow(pc), `pit-yard:${PIT.x}:${PIT.z}`, 'the latest observation stands');
     // a client body cannot write it: there is no client op, and the internal route refuses a client's token
@@ -463,7 +463,7 @@ try {
     eq(locRow(pc), before, '...and nothing a client sent moved the saved spot');
     const asClient = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message); } };
     for (const sql of [`select * from public.origins_character_location;`, `insert into public.origins_character_location values ('${pc}', 'exchange', 1, 1, now());`, `select * from public.origins_active_character;`,
-      `select public.origins_save_location('${A}', 1, 1, null, 0);`, `select public.origins_set_active('${A}', '${pc}');`, `select public.origins_saved_location('${A}');`, `select public.origins_active_name('${A}'::uuid);`])
+      `select public.origins_save_location('${A}', 1, 1, null, 0);`, `select public.origins_set_active('${A}', '${pc}');`, `select public.origins_saved_location('${A}');`, `select public.origins_active_name('${A}'::uuid);`, `select public.origins_active_worn('${A}'::uuid);`])
       eq(asClient(sql), 'permission denied', `a client may not: ${sql.slice(0, 60)}`);
     eq((() => { try { return psql(`set role frankendom_origins; insert into public.origins_character_location values ('${pc}', 'exchange', 1, 1, now());`); } catch (e) { return /permission denied/.test(String(e.stderr)) ? 'permission denied' : String(e.stderr); } })(), 'permission denied', 'even the writer role only writes through the functions');
     eq(psql(`select count(*) from pg_policies where tablename in ('origins_character_location', 'origins_active_character')`) + '|' + psql(`select string_agg(relname || '=' || relrowsecurity, ',' order by relname) from pg_class where relname in ('origins_character_location', 'origins_active_character')`), '0|origins_active_character=true,origins_character_location=true', 'RLS on, no policies');
@@ -476,24 +476,24 @@ try {
     // a saved spot in the exchange zone is served at the gate edge (Pit side of outer-gate, 50 cm in)
     eq(await save(A, { ...EXCH, atMs: t0 + 1000 }), { character: pc, stored: true }, 'presence saw A inside the Exchange');
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'stored as observed');
-    eq(await served(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge', name: nameOfActive(A) }, 'served just outside the gate');
+    eq(await served(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge', name: nameOfActive(A), worn: {} }, 'served just outside the gate');
     eq(zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z) !== 'exchange', true, 'the edge is not in the trade area');
     // account -> active character after switching characters (D has Dara and Dara Two)
     eq(await save(D, { ...PIT, atMs: t0 }), { character: daraTwo, stored: true }, 'D\'s post lands on Dara Two (active)');
     eq((await locOp('open', 'td', { character: dara })).status, 200, 'D opens with Dara');
     eq(activeOf(D), dara, 'Dara is now active');
-    eq(await served(D), { saved: false, name: nameOfActive(D) }, 'Dara has nothing saved: Dara Two\'s spot is not served for her');
+    eq(await served(D), { saved: false, name: nameOfActive(D), worn: {} }, 'Dara has nothing saved: Dara Two\'s spot is not served for her');
     eq(nameOfActive(D), 'Dara', 'the name tag follows the ACTIVE character');
     eq(await save(D, { x: 14000, z: 15500, atMs: t0 + 2000 }), { character: dara, stored: true }, 'the next post lands on Dara');
     eq([locRow(dara), locRow(daraTwo)], [`pit-yard:14000:15500`, `pit-yard:${PIT.x}:${PIT.z}`], 'each character keeps its own spot');
     eq((await locOp('open', 'td', { character: daraTwo })).status, 200, 'D switches back');
-    eq(await served(D), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: 'Dara Two' }, 'Dara Two\'s spot is served again');
+    eq(await served(D), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: 'Dara Two', worn: {} }, 'Dara Two\'s spot is served again');
     eq([(await locOp('open', 'td', { character: pc })).status, (await locOp('open', 'tb', { character: dara })).status, (await locOp('open', 'td', { character: 7 })).status], [400, 400, 400], 'open refuses a character that is not the account\'s (or not an id)');
     eq(activeOf(D), daraTwo, 'a refused switch changed nothing');
     eq((await locOp('open', 'td', {})).status === 200 && activeOf(D) === daraTwo, true, 'open without a character keeps the active one');
     // the flag gates it like every origins write
     psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
-    eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false, name: null }, { character: null, stored: false }], 'flag off: nothing served (no name either), nothing stored');
+    eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false, name: null, worn: {} }, { character: null, stored: false }], 'flag off: nothing served (no name or gear either), nothing stored');
     psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'flag off wrote nothing');
     // the build field (migration 202610120024): get / set with a version check, a level that only rises, ownership, closed to clients
@@ -666,6 +666,14 @@ try {
     eq([imp.status, imp.json.result?.imported.length, imp.json.result?.skipped.length], [200, ids.length, 0], 'gear_import: the whole roster is imported, nothing skipped');
     const packN = Number(count(`and loc_kind = 'pack'`)), bankN = Number(count(`and loc_kind = 'bank'`)), wornN = Number(count(`and loc_kind = 'equipped'`));
     eq([wornN, packN + bankN + wornN, packN, bankN], [dolls.length, ids.length, 64, ids.length - dolls.length - 64], 'gear_import: worn on the paperdoll (counting toward neither grid), the pack full at 64, the overflow in the bank');
+    // origins_active_worn (migration 20261016200000): what other players see, a plain read of the ACTIVE character's equipped rows (the paperdoll only: nothing from the pack or the bank).
+    psql(up); psql(`select public.origins_set_active('${B}'::uuid, '${gc}');`);   // this section runs with the 0009 tables dropped (the down above): put them back for these reads, then drop them again below
+    const wornRows = JSON.parse(psql(`select public.origins_active_worn('${B}'::uuid)`));
+    eq([wornRows.length, wornRows.map(r => r.slot).sort().join(',')], [dolls.length, [...dolls].sort().join(',')], 'origins_active_worn: one equipped piece per paperdoll slot, none from the pack or the bank');
+    eq(wornRows.every(r => r.item.startsWith('item:loot.') && typeof r.slot === 'string'), true, 'origins_active_worn: each row names the item and its slot');
+    eq(psql(`select public.origins_active_worn('00000000-0000-4000-8000-00000000dead'::uuid)`), '[]', 'origins_active_worn: an unknown account wears nothing');
+    eq(psql(`select public.origins_active_worn('${C}'::uuid)`), '[]', 'origins_active_worn: an account with no character wears nothing');
+    psql(down);   // as it was for the rest of the section; the single psql(up) further down restores it for good
     eq(psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and provenance ->> 'kind' = 'legacy-unlock' and mint_key like 'legacy:%'`), String(ids.length), 'gear_import: every piece carries the derived legacy mint key and the legacy-unlock provenance');
     eq(psql(`select count(*) from public.origins_events where account = '${B}' and kind = 'mint' and character = '${gc}'`), '1', 'gear_import: one audit event');
     const before = psql(`select md5(string_agg(id || version::text || coalesce(loc_index::text, loc_slot), ',' order by id)) from public.origins_items where loc_owner = '${gc}'`);

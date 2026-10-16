@@ -1,5 +1,5 @@
 begin;
--- ROLLBACK: supabase/down/20261016170000_origins_active_name_down.sql (drops exactly what this file creates).
+-- ROLLBACK: supabase/down/20261016161137_origins_active_name_down.sql (drops exactly what this file creates).
 -- CLASS 1, ADDITIVE and Origins-only: ONE read function, no table, column, index, existing function, grant or policy is altered.
 -- Why (presence name tags): presence tells a player the display name of each other player who comes within sight, once, so Web can draw a name tag. Presence holds no names; the name is
 -- origins_characters.name (1..32 chars, already past the name filter at creation). The writer already asks "where does this account start" at join (GET /internal/location) and

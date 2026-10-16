@@ -5,6 +5,8 @@ or memory disagrees with this file, this file wins and the older line is stale. 
 *Rewrite 2026-10-02: the 09-25 stack-ranked list is replaced by the status table below; items Dom added since (duels, the Pit,
 the 30 boss specials, class specials, menu, gear screen) are now in it.*
 
+**2026-10-16 ~23:00 (+04), Dom (via the combat sandbox, Strategy agreed): BETA LAUNCH SCOPE = TWO ZONES + THE PIT, LADDER LEVELS 1-2.** Beta launches Zone 1 plus one dungeon, plus the gladiator Pit; ladder levels 1-2 only, with 5 of the 10 bosses per level. Only the rank 1-2 spells (20) are player-facing. Every other spell, level and boss stays in its rows, hidden behind one max-rank / allow-list row (data, not code). This supersedes "the ladder is 50 levels" / "Origin V ends the beta" below **for launch scope only**; the 50-level ladder stays the design. Main-game lanes' order of work is unchanged by this line.
+
 **2026-10-16 ~17:55 (+04), Dom: ZONE 1 IS OPEN TO EVERYONE; SIGN-IN IS A SAVE, NEVER A GATE.** "Zone 1 is basically what all players, the newcomers are gonna see. So stop adding fake barriers because everything should be open… If you're logged in or not, obviously saving your game is better. But if you don't save it, you can still do the same stuff… fight the same NPCs." Zone 1 is the main game; Dom's experimental sandbox is the separate "Test Zone". Acceptance (Strategy, 2026-10-16) for the guest-presence and guest-loot work:
 1. A guest with no account fights the same NPCs, sees other players, and picks up loot that works for the session.
 2. "Sign in to keep it" is a one-line nudge on the pickup screen, never a modal or a blocked action.
