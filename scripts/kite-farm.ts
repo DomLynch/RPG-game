@@ -15,7 +15,7 @@ import { leashOf } from '../src/fight/speeds.ts';
 // RULE (test-only; no row changes, the rule is applied to the world after each step with the flags the world's own leash code sets): none | noblow | spawn.
 //   noblow : the creature gives up (walks home, heals) when it has landed no blow on a hero for NOBLOW_S seconds (default 10), counted from the chase start or its last landed blow (AzerothCore's cannot-reach-target evade).
 //   spawn  : the creature gives up when it is further than its leash from its SPAWN point (EQEmu leash), not from where the chase began.
-const rule = process.env.RULE ?? 'none', noblowS = +(process.env.NOBLOW_S ?? '10');
+const rule = process.env.RULE ?? 'none', noblowS = +(process.env.NOBLOW_S ?? '10'), landed = process.env.LANDED ?? 'hit';   // LANDED=hit: only a Hit resets the timer; LANDED=swing: a blocked, parried or dodged swing of the creature does too
 
 const DT = 1 / 60, MAX_S = 180, env = (k: string, d: string) => process.env[k] ?? d;
 const kind = env('KIND', 'goblin'), level = +env('LEVEL', '2'), seeds = +env('SEEDS', '16'), backoff = +env('BACKOFF', '0.5'), leave = +env('LEAVE', '0.6'), circleM = +env('CIRCLE_M', '26');
@@ -33,13 +33,14 @@ const BOTS: Record<string, (x: Ctx) => Input> = {
   hitrun: (x) => (swing(x.c) && dist(x.h, x.c) < 8 ? away(x.h, x.c) : dist(x.h, x.c) > 11 ? toward(x.h, x.c) : trade(x)),
   circle: (x) => { const home = { x: x.c.chaseX, z: x.c.chaseZ }, r = dist(x.h, home); if (!x.c.hunting || r < 2) return trade(x); return swing(x.c) && dist(x.h, x.c) < 6 ? away(x.h, x.c, r < circleM ? 0.9 : 2.2) : dist(x.h, x.c) < 4 ? { x: 0, z: 0, attack: x.k % 20 === 0 ? 'light' : null } : { x: 0, z: 0 }; },
   tag: (x) => BOTS.backoff!(x),
+  turtle: () => ({ x: 0, z: 0, guard: true }),   // a hero who only blocks: the creature swings and swings; the rule must not read that as a creature that cannot reach him
 };
 function run(name: string, seed: number) {
   const sheet = rungSheet(0, level, 'plate', env('RECRUIT', '1') === '1'), a = seed * 0.37;
   const hero = (id: string, x: number, z: number) => player(id, x, z, 0, level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) });
   const heroes = name === 'tag' ? [hero('hero', 0, 0), hero('hero2', 14, 0)] : [hero('hero', 0, 0)];
   let w = newWorld([...heroes, creature('c0', kind, Math.sin(a) * 7, Math.cos(a) * 7, a + Math.PI, level)]);
-  const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
+  const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, ruleEvades: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
   let lastBlow = 0, hunted = false;
   for (let k = 0; k < MAX_S / DT; k++) {
     const c = w.fighters.find((f) => f.id === 'c0')!, h = w.fighters[0]!, h2 = w.fighters.find((f) => f.id === 'hero2');
@@ -47,10 +48,10 @@ function run(name: string, seed: number) {
     if (h2) inputs.hero2 = BOTS.stand!({ w, k, h: h2, c, s: st });
     const res = stepCombat(w, inputs, DT); w = res.world;
     const c2 = w.fighters.find((f) => f.id === 'c0');
-    for (const e of res.events) if (e.type === 'Hit' && e.attacker === 'c0') lastBlow = k * DT;
+    for (const e of res.events) if (e.attacker === 'c0' && (e.type === 'Hit' || (landed === 'swing' && (e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')))) lastBlow = k * DT;
     if (c2 && c2.health > 0 && c2.hunting && !c2.returning) {
       if (!hunted) lastBlow = k * DT;
-      if ((rule === 'noblow' && k * DT - lastBlow > noblowS) || (rule === 'spawn' && Math.hypot(c2.x - c2.homeX, c2.z - c2.homeZ) > leashOf(c2.kind))) { c2.hunting = false; c2.returning = true; c2.phase = 'ready'; }
+      if ((rule === 'noblow' && k * DT - lastBlow > noblowS) || (rule === 'spawn' && Math.hypot(c2.x - c2.homeX, c2.z - c2.homeZ) > leashOf(c2.kind))) { c2.hunting = false; c2.returning = true; c2.phase = 'ready'; r.ruleEvades++; }
     }
     hunted = !!c2?.hunting;
     for (const e of res.events) {
@@ -67,5 +68,5 @@ function run(name: string, seed: number) {
 }
 for (const name of env('CASES', 'stand,backoff,pursue,hitrun,circle,tag').split(',')) {
   const rs = Array.from({ length: seeds }, (_, s) => run(name, s + 1)), n = (f: (r: ReturnType<typeof run>) => boolean) => rs.filter(f).length;
-  console.log(`${name.padEnd(8)} ${kind} L${level}: hero died ${n((r) => r.heroDied)}/${seeds}, creature killed ${n((r) => r.killed)}, killed while walking home ${n((r) => r.killedHome)}, dmg while home ${rs.reduce((a, r) => a + r.homeDmg, 0).toFixed(0)}, resets ${rs.reduce((a, r) => a + r.resets, 0)} (lowest hp carried over a reset ${(Math.min(...rs.map((r) => r.resetHp)) * 100).toFixed(0)}%), hero took ${(rs.reduce((a, r) => a + r.taken, 0) / seeds).toFixed(0)} dmg/run, mean time to kill ${(rs.filter((r) => r.killed).reduce((a, r) => a + r.t, 0) / Math.max(1, n((r) => r.killed))).toFixed(0)}s, longest worn <50% ${Math.max(...rs.map((r) => r.longest)).toFixed(1)}s`);
+  console.log(`${name.padEnd(8)} ${kind} L${level}: hero died ${n((r) => r.heroDied)}/${seeds}, creature killed ${n((r) => r.killed)}, killed while walking home ${n((r) => r.killedHome)}, dmg while home ${rs.reduce((a, r) => a + r.homeDmg, 0).toFixed(0)}, resets ${rs.reduce((a, r) => a + r.resets, 0)} (lowest hp carried over a reset ${(Math.min(...rs.map((r) => r.resetHp)) * 100).toFixed(0)}%), rule evades ${rs.reduce((a, r) => a + r.ruleEvades, 0)}, hero took ${(rs.reduce((a, r) => a + r.taken, 0) / seeds).toFixed(0)} dmg/run, mean time to kill ${(rs.filter((r) => r.killed).reduce((a, r) => a + r.t, 0) / Math.max(1, n((r) => r.killed))).toFixed(0)}s, longest worn <50% ${Math.max(...rs.map((r) => r.longest)).toFixed(1)}s`);
 }
