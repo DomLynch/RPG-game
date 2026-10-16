@@ -1,6 +1,7 @@
 // Real SDK + rendered game. Provider transport is controlled; this is not a live Google login receipt.
 import { chromium } from 'playwright';
 import { quietDebug } from './lib/harness.mjs';   // stills carry no debug overlay (SHOW_DEBUG=1 shows it)
+import { skipDraws, skipDrawsOnLoad } from './lib/harness-clock.mjs';
 import { build, preview } from 'vite';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -21,11 +22,19 @@ const server = await preview({ build: { outDir }, preview: { host: '127.0.0.1', 
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: chromium.executablePath() });
 let inspectedPage;
+// This row asserts on the DOM, never on pixels, and on software GL every painted frame is a ~0.5 s draw that starves the page's taps and loads: no draws unless `--draws` (the old pace).
+// A screenshot (evidence only) lifts the gate for two frames. The whole row has a ceiling under the 10-minute row cap, so a hang is a FAIL that names the last lap.
+const NODRAW = !process.argv.includes('--draws'), T0 = Date.now(), CEILING_MS = 540_000;
+let lastLap = 'start';
+const lap = (what) => { lastLap = what; console.log(`lap ${what} ${Math.round((Date.now() - T0) / 1000)}s`); };
+const quiet = async (ctx) => { if (NODRAW) await skipDrawsOnLoad(ctx); };
+const snap = async (p, file) => { if (NODRAW) { await skipDraws(p, false); await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); } await p.screenshot({ path: file }); if (NODRAW) await skipDraws(p, true); };
+setTimeout(() => { console.error(`account-browser-check FAILED: past its ${CEILING_MS / 1000} s ceiling, last lap "${lastLap}"`); process.exit(1); }, CEILING_MS).unref();
 const receipt = { origin, providerTransport: 'controlled test responses, not live Google', checks: [], errors: [] };
 const user = { id: '11111111-1111-4111-8111-111111111111', email: 'fighter@example.test', aud: 'authenticated', role: 'authenticated' };
 const session = { access_token: 'qa-access-token', refresh_token: 'qa-refresh-token', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user };
 try {
-  const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); await quiet(context);
   const page = await context.newPage(); await quietDebug(page); inspectedPage = page; page.setDefaultTimeout(60000);   // a software-GL runner: text and taps wait behind the game's startup on every navigation
   page.on('pageerror', error => receipt.errors.push(String(error)));
   let row = null, standing = { marks: 12, owned: [], pending: 1, pending_owned: [] }, admin = false, failRead = false, failLogout = false, writes = [], claimPosts = [], claimedHashes = new Set(), authUrl;
@@ -71,13 +80,13 @@ try {
   // Readiness = the attack button enables (assets decoded, renderer up). 120 s: a software-GL runner spends most of a minute here, and the
   // page's main thread is blocked meanwhile — a click attempted before this hangs until Playwright's own timeout (CI run 35534160181, check 11).
   const ready = p => p.waitForFunction(() => document.querySelector('#attack-button').getAttribute('aria-disabled') === 'false', null, { timeout: 120000 });
-  await ready(page);
+  await ready(page); lap('guest boot');
   assert.equal(await page.locator('#account-login').isVisible(), false);
   assert.equal(requests.some(url => url.startsWith(api) || /\/account-[^/]+\.js/.test(url)), false);
   await page.locator('#journal-button').tap();
   await page.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await page.screenshot({ path: 'artifacts/account/mobile-guest.png' });
+  await snap(page, 'artifacts/account/mobile-guest.png');
   await page.locator('#account-login').tap();
   await page.waitForURL(`${api}/**`);
   assert.equal(authUrl.searchParams.get('provider'), 'google');
@@ -88,6 +97,7 @@ try {
   await page.goto(`${origin}/?account=return&error=access_denied&error_description=qa`); await ready(page);
   await page.getByText('Sign-in cancelled.', { exact: false }).waitFor();
   assert.equal(new URL(page.url()).search, '');
+  lap('cancelled sign-in');
   receipt.checks.push('Cancelled OAuth returns to usable journal and removes callback parameters');
   await page.evaluate(() => localStorage.setItem('frankendom.auth.v1-code-verifier', JSON.stringify('qa-verifier')));
   row = { display_name: 'Cloud fighter', encounter: 'goblin', revision: 4, victory_marks: 80, loot: { owned: [], equipped: {} } };   // the cloud row carries the loot column (PR #330); a row without it is refused as invalid
@@ -111,7 +121,7 @@ try {
   const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);
   assert.equal(await toolsHidden(page), true, 'a signed-in account off the admins roster never sees the journal test tools');
   assert.equal(await page.locator('#account-save').count(), 0); assert.equal(await page.locator('#account-load').count(), 0);
-  await page.screenshot({ path: 'artifacts/account/mobile-signed-in.png' });
+  await snap(page, 'artifacts/account/mobile-signed-in.png'); lap('sign-in merge');
   // A change on this device goes up on the next persist beat, with no button.
   const rename = (name) => page.evaluate(n => { const p = JSON.parse(localStorage.getItem('frankendom.fighter.v1')); p.name = n; localStorage.setItem('frankendom.fighter.v1', JSON.stringify(p)); window.dispatchEvent(new Event('frankendom:profile')); }, name);
   await rename('Renamed');
@@ -148,7 +158,7 @@ try {
   assert.equal(hidden.persisted, 'false', 'a reload is a real pagehide, not the back/forward cache');
   assert.deepEqual(hidden.sent, { url: `${api}/rest/v1/loot_claims`, method: 'POST', keepalive: true, auth: `Bearer ${session.access_token}`, body: { opponent: 'goblin', piece: null, record: qaRecord } }, 'the leaving page sent the open entry, final with no piece, with keepalive and the stored token');
   assert.deepEqual(claimPosts, [{ opponent: 'goblin', piece: null, record: qaRecord, status: 409 }], 'the next load posts it once more, 23505 drops it: one claim either way');
-  receipt.pagehide = { sent: { ...hidden.sent, auth: 'Bearer <qa token>' }, nextLoadPosts: claimPosts };
+  lap('pagehide claim'); receipt.pagehide = { sent: { ...hidden.sent, auth: 'Bearer <qa token>' }, nextLoadPosts: claimPosts };
   receipt.checks.push('A signed-in win left with no last word is sent on pagehide (keepalive, stored token, not bfcache); the next load\'s re-post is 23505 and the outbox empties');
   failRead = true;
   await page.reload(); await ready(page); await page.locator('#journal-button').tap();
@@ -171,23 +181,25 @@ try {
   assert.equal(await toolsHidden(page), true, 'sign-out hides the test tools again');
   admin = false;
   assert.equal(await page.evaluate(() => localStorage.getItem('frankendom.auth.v1')), null);
+  lap('failure, retry, admin, sign-out');
   receipt.checks.push('Service failure cannot overwrite cloud; retry recovers; admins roster gates the journal test tools; sign-out clears session, cloud controls and test tools');
   await page.close();   // the phone page's game loop would starve the desktop page's load on a software-GL runner (third Linux run: page.goto timed out at 30 s)
-  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } }); desktop.setDefaultTimeout(60000);
+  const desktopContext = await browser.newContext({ viewport: { width: 1440, height: 900 } }); await quiet(desktopContext);
+  const desktop = await desktopContext.newPage(); desktop.setDefaultTimeout(60000);
   desktop.on('pageerror', error => receipt.errors.push(String(error)));
   await desktop.goto(origin, { timeout: 120000 }); await ready(desktop); await desktop.locator('#journal-button').click();
   await desktop.getByText('Sign in to keep your fighter name', { exact: false }).waitFor();
   assert.equal(await desktop.locator('#journal-button span').isVisible(), true, 'Actual desktop media path');
   assert.equal(await desktop.locator('#account-login').isVisible(), true);
-  await desktop.screenshot({ path: 'artifacts/account/desktop-menu.png' });
+  await snap(desktop, 'artifacts/account/desktop-menu.png');
   await desktop.locator('#nav-arena').click();
   assert.equal(await desktop.locator('#account-login').isVisible(), false);
   receipt.checks.push('Account controls inside journal on desktop and mobile, hidden when journal closes');
-  await desktop.close();
+  await desktopContext.close(); lap('desktop');
   // Re-pinned (Daily removed, Dom 2026-09-29): an old `?daily=1` link boots the LADDER fight, in the EQUIPPED kit, and asks the server
   // nothing daily. A fresh guest with the Nightborn's estoc equipped opens it: no daily banner, the estoc in hand, and no Supabase call at
   // all before a fight ends (the daily_fight / daily_board_summary endpoints stay on the server, unused by this client).
-  const dailyContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const dailyContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); await quiet(dailyContext);
   const daily = await dailyContext.newPage(); await quietDebug(daily); inspectedPage = daily; daily.setDefaultTimeout(60000);
   daily.on('pageerror', error => receipt.errors.push(String(error)));
   const dailyCalls = [];
@@ -200,7 +212,7 @@ try {
   await ready(daily);
   const dailyView = await daily.evaluate(() => ({ search: location.search, status: document.querySelector('#combat-status').textContent, banner: document.querySelector('#replay-banner')?.textContent ?? '' }));
   receipt.daily = { ...dailyView, calls: dailyCalls };
-  await daily.screenshot({ path: 'artifacts/account/mobile-old-daily-link.png' });
+  await snap(daily, 'artifacts/account/mobile-old-daily-link.png');
   assert.doesNotMatch(dailyView.banner, /daily/i, `no daily banner: ${dailyView.banner}`);
   assert.match(dailyView.status, /^Tap Fight\./, `the ladder fight waits sheathed: ${dailyView.status}`);
   // The sheathed line stopped naming the weapon (Draw → Fight, Dom 2026-09-29), so the estoc receipt is the draw line after the tap.
@@ -208,6 +220,7 @@ try {
   await daily.getByRole('button', { name: 'Fight', exact: true }).tap();
   await daily.waitForFunction(() => /^Drawing estoc/.test(document.querySelector('#combat-status').textContent), null, { timeout: 10000, polling: 16 });
   assert.deepEqual([...new Set(dailyCalls)], [], 'an old daily link asks the server nothing');
+  lap('old daily link');
   receipt.checks.push('An old ?daily=1 link boots the ladder in the equipped kit: no daily banner, no daily call, "Drawing estoc…" after Fight');
   // B3 (Dom's Safari, 2026-09-30): a kill link is self-contained (Strategy). A signed-in viewer at a high rank, wearing loot, and a guest open
   // the same level-1 link; both pages must show the FIGHT: its rank on the HUD (Lead 2026-09-30) and no worn loot on the replayed hero.
@@ -217,7 +230,7 @@ try {
   const viewers = {};
   for (const signedIn of [true, false]) {
     const who = signedIn ? 'signed-in' : 'guest';
-    const linkContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+    const linkContext = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true }); await quiet(linkContext);
     const link = await linkContext.newPage(); await quietDebug(link); inspectedPage = link; link.setDefaultTimeout(60000);
     link.on('pageerror', error => receipt.errors.push(String(error)));
     const viewerStanding = { marks: 200, owned: ['dwarf.Greaves'], pending: 0, pending_owned: [] };
@@ -249,11 +262,11 @@ try {
     if (signedIn) await link.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(200).label, { timeout: 60000 });
     await link.waitForTimeout(4000);   // the loot file is local and small: a worn piece that was going to draw has drawn by now
     const seen = await link.evaluate(() => ({ fightRank: document.querySelector('#fight-rank').getAttribute('aria-label'), worn: JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? null }));
-    await link.screenshot({ path: `artifacts/account/kill-link-${who}.png` });
+    await snap(link, `artifacts/account/kill-link-${who}.png`);
     viewers[who] = seen;
     assert.equal(seen.fightRank, rankFor(0).label, `${who}: the HUD shows the fight's rank, not the viewer's`);
     assert.deepEqual(seen.worn, [], `${who}: the replayed hero wears none of the viewer's loot`);
-    await linkContext.close();
+    await linkContext.close(); lap(`kill link ${who}`);
   }
   assert.deepEqual(viewers['signed-in'], viewers.guest, 'a signed-in viewer and a guest see the same kill-link fight');
   receipt.killLink = viewers;
@@ -263,5 +276,7 @@ try {
 } catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
 finally {
   await fs.writeFile('artifacts/account/browser-receipt.json', JSON.stringify(receipt, null, 2));
-  await browser.close(); await new Promise(resolve => server.httpServer.close(resolve));
+  await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]);
+  server.httpServer.closeAllConnections?.(); await Promise.race([new Promise(resolve => server.httpServer.close(resolve)), new Promise((r) => setTimeout(r, 5000).unref())]);
+  lap('end'); process.exit(receipt.passed ? 0 : 1);   // nothing left open (a browser child, a keep-alive socket) may hold the row
 }
