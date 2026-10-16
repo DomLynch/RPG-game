@@ -9,7 +9,8 @@ import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
 const root = process.cwd(), built = path.join(root, 'artifacts/origins-preview'), out = path.join(root, 'artifacts/zone-stills');
-if (!fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 600_000 });
+const LIVE = process.env.STILLS_URL;   // STILLS_URL=https://frankendom.com/preview/zone-look/ : take the pictures from a published preview (no local build, no local server)
+if (!LIVE && !fs.existsSync(path.join(built, 'index.html'))) execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs'], { stdio: 'inherit', timeout: 600_000 });
 fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm' };
 const roots = { '/preview/origins/': `${built}/` };
@@ -33,7 +34,7 @@ try {
     page.on('pageerror', (e) => r.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     if (process.env.STILLS_PROBE) { r.console = []; r.assets = []; page.on('console', (m) => { if (m.type() !== 'log') r.console.push(`${m.type()}: ${m.text().slice(0, 200)}`); }); page.on('response', (q) => { if (/\/zones\//.test(q.url())) r.assets.push(`${q.status()} ${q.url().replace(origin, '')}`); }); page.on('requestfailed', (q) => r.assets.push(`FAILED ${q.url().replace(origin, '')}`)); }
     try {
-      await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
+      await page.goto(LIVE ? `${LIVE}${query}` : `${origin}/preview/origins/${query}`, { waitUntil: 'load' });
       await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadLeft() === 0 && (window.originsPreview.uploadItems() > 0 || performance.now() > 20000), null, { timeout: 180000 });   // the walk's world is all on the GPU (a zone with nothing to upload: 20 s after load)
       const camp = await page.evaluate(() => window.originsPreview.goblinCentre?.() ?? null); r.camp = camp;
       const pit = name.includes('-pit');   // a name containing -pit: stand at the camp facing east, back towards the Pit (where the fog-proof Pit scenery showed)
