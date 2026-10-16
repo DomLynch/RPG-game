@@ -1,5 +1,6 @@
 // Stills of a ground item on the Zone 1 path at a phone (visual-pr-stills): the built origins preview, the walk camera at 375 wide, once with nothing on the ground (before) and once with the item lying a few
 // steps ahead (after), drawn by the ground-item view through the `originsPreview.ground` hook. Chromium on software GL (VPS `capture`).
+//   BEFORE=1 (with ROWS): a `<stem>-none-<width>.jpg` of the empty spot first.
 //   ROWS=1: one still per shipped ground row (origins/world/ground-items.json), the walker 3 m short of the item at its place, labels on; named <item stem>-<width>.jpg.
 //   ZONE_DIST=<built origins preview> OUT=<dir> ITEM=item:starter.rusty-sword node scripts/ground-item-stills.mjs
 /* global process, console, window */
@@ -51,6 +52,7 @@ try {
     }
     const hero = best.c, heading = Math.atan2(at.x - hero.x, at.z - hero.z);
     await page.evaluate(([x, z, h]) => window.originsPreview.place(x, z, h), [hero.x, hero.z, heading]);
+    if (process.env.BEFORE) { await page.waitForTimeout(5000); await shoot(page, `${stem}-none-${width}.jpg`); }   // BEFORE=1: the same spot, same camera, nothing on the ground yet
     await page.evaluate(([id, item, x, z]) => window.originsPreview.ground.show(id, item, x, z), [gid, row.item, at.x, at.z]);
     await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, gid, { timeout: 60000 });
     await page.waitForTimeout(5000);
