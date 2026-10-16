@@ -46,3 +46,20 @@ test('two v2 clients at the troll cave see each other and follow each other\'s m
     a.close(); b.close(); old.close();
   } finally { await p.close(); }
 });
+
+// A stale (cached) page still speaks v1: it must connect, be served in the old frame, walk the square and see/be seen by a v2 client there, and never be dropped for being old.
+test('a v1 (cached old) client connects, walks the town square in the old frame, and shares it with a v2 client without being kicked', async () => {
+  const p = createPresence({ verify: async (t) => ({ v1: V1, v2: A } as Record<string, string>)[t] ?? null, log: () => {} });
+  await new Promise<void>((r) => p.server.listen(0, '127.0.0.1', r));
+  try {
+    const old = await joinBot(p.port(), 'v1', { v1: true }), fresh = await joinBot(p.port(), 'v2');
+    assert.equal(old.frame.centreCm, 15000, 'a v1 hello carries no frame: the old square frame'); assert.equal(fresh.frame.centreCm, CENTRE_CM);
+    for (let i = 1; i <= 6; i++) { old.pose(i, 0); await wait(300); }   // 6 m in 1.8 s: ordinary walking in the square
+    await until(() => fresh.seen().some((e) => Math.abs(e.x - 6) < 0.02) && old.seen().length === 1);
+    assert.ok(fresh.seen().some((e) => Math.abs(e.x - 6) < 0.02 && Math.abs(e.z) < 0.02), 'the v2 client sees the v1 client at +6 m, converted to its own frame');
+    assert.ok(Math.abs(old.seen()[0]!.x) < 0.02, 'the v1 client sees the v2 client at the spawn, in the old frame');
+    assert.equal(old.closeCode(), null, 'the old client is still connected');
+    assert.equal(p.world.byAccount.get(V1)!.strikes, 0);
+    old.close(); fresh.close();
+  } finally { await p.close(); }
+});
