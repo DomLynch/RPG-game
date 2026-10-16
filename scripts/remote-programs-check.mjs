@@ -1,6 +1,6 @@
 // How many NEW render programs does a remote player wearing each source kit add after [zone ready]? (the dressRemote warm-up proof; renderInfo().programKeys, the method of origins-seamless-check.mjs)
 // Usage (repo checkout, node_modules, built preview): node scripts/remote-programs-check.mjs <dist> <out dir>
-// Receipt: programsAtReady, then per kit the programs it added (name#id -> cacheKey, owners), and the unique new program keys over all kits. Exit 0 always; the numbers are the result (the fix PR makes it a gate: 0 new).
+// Receipt: programsAtReady, then per kit the programs it added (name#id -> cacheKey, owners), and the unique new program keys over all kits. Exit 0 and the numbers are the result; GATE=1 exits 1 when any kit adds a program (the warm-up's acceptance: 0 new).
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -40,4 +40,6 @@ try {
   fs.writeFileSync(path.join(out, 'receipt.json'), JSON.stringify(receipt, null, 1));
   console.log('receipt:', JSON.stringify({ atReady: receipt.programsAtReady, perKit: Object.fromEntries(Object.entries(receipt.kits).map(([k, v]) => [k, v.added.length])), totalNew: receipt.totalNew, errors: errors.length }));
   console.log('uniqueNew:', JSON.stringify(receipt.uniqueNew).slice(0, 4000));
+  console.log('zoneReady:', JSON.stringify(await page.evaluate(() => window.__zoneReady)));
+  if (process.env.GATE && receipt.totalNew > 0) { console.log(`GATE FAIL: ${receipt.totalNew} programs link at a remote's first sight`); process.exitCode = 1; }
 } finally { await browser.close(); server.close(); }
