@@ -684,12 +684,20 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) void
 const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
 let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get), the other half of the sheet the writer holds a world record equal to
-const loadOwnBuild = (tries: number): void => void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); });   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
+let buildInflight = false;   // a build_get is on its way (each call times out on its own: the offline fallback below never fires while one is still pending)
+const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) ownBuild = b; else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
 // No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
-const LOADOUT_WAIT_MS = 15_000, loadoutSince = Date.now();
-const loadoutReady = (): boolean => !storedToken(storage, Date.now()) || (ownBuild !== undefined && (gearMount?.ready() ?? true)) || Date.now() - loadoutSince > LOADOUT_WAIT_MS;
+// The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
+const LOADOUT_WAIT_MS = 15_000, GEAR_RETRY_MS = 10_000, loadoutSince = Date.now();
+let gearAsked = 0;
+const loadoutReady = (): boolean => {
+  if (!storedToken(storage, Date.now())) return true;
+  const g = gearMount;
+  if (g && !g.ready() && Date.now() - gearAsked > GEAR_RETRY_MS) { gearAsked = Date.now(); void g.refresh(); }
+  return (ownBuild !== undefined && (g?.ready() ?? true)) || (!buildInflight && Date.now() - loadoutSince > LOADOUT_WAIT_MS);
+};
 const wc = createWorldCombat({
   loadoutReady,
   canPlay: canPlayFinisher,
