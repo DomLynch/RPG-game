@@ -16,7 +16,7 @@ const UID = '0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b';
 const career = { seed_credit: 0, world_credit: 0, total_credit: 0, rested: 0, rested_at: 0, heat: {}, beaten: [], story: [], version: 1 };
 const row = (n: number, item: string, loc: Record<string, unknown>) => ({
   id: `inst:t-${n}`, item, version: 2, quantity: 1, tier: null, upgrade_level: 0, loc_kind: loc.kind, loc_owner: PC, loc_index: loc.index ?? null, loc_slot: loc.slot ?? null,
-  bound_to: PC, mint_key: `shop:t:${n}`, provenance: { kind: 'shop', at: '2026-10-06T12:00:00Z', boughtBy: PC, shop: 'exchange' }, history: [],
+  bound_to: PC, mint_key: `shop:t:${n}`, provenance: { kind: 'shop', at: '2026-10-06T12:00:00Z', boughtBy: PC, shop: 'service:exchange-provisioner' }, history: [],
 });
 function stub(items: unknown[]) {
   const commits: { op: string; id: string; loc: { kind: string; slot?: string } }[][] = [];
