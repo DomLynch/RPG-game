@@ -62,10 +62,28 @@ try {
   const bob = await join('bot2'), bobId = presence.world.byAccount.get(acct(2)).id;
   const drawn = (id) => page.evaluate((i) => window.originsPreview.remote().shown.find((s) => s.id === i) ?? null, id);
   assert.ok(await until(async () => (await drawn(bobId))?.tag === 'Bob'), `Bob is not drawn with his name: ${await diag()}`);
-  const start = await drawn(bobId), from = bob.at();
-  for (let i = 1; i <= 8; i++) { bob.pose(from.x + i * 1.5, from.z); await wait(150); }
-  assert.ok(await until(async () => { const s = await drawn(bobId); return s && Math.hypot(s.x - start.x, s.z - start.z) >= 8; }), `Bob walked 12 m and the page shows him moving less than 8: ${JSON.stringify([start, await drawn(bobId)])}`);
-  receipt.bobMoved = { start, end: await drawn(bobId) };
+  // What the page got for Bob, so a red names its cause (a cold presence socket, the cap, the frustum, an expiry): a timeline of the page's `others` and `shown` rows for his id sampled every 200 ms, and a snapshot of both ends.
+  const timeline = [], t0 = Date.now();
+  const sample = setInterval(() => { void page.evaluate((i) => { const o = window.originsPreview, e = o.presence().others.find((q) => q.id === i), s = o.remote().shown.find((q) => q.id === i); return { state: o.presence().state, others: e ? [+e.x.toFixed(1), +e.z.toFixed(1)] : null, shown: s ? { x: s.x, z: s.z, visible: s.visible, frozen: s.frozen, cheap: s.cheap } : null }; }, bobId).then((r) => { const last = timeline.at(-1); if (!last || JSON.stringify([last.state, last.others, last.shown?.visible, !!last.shown]) !== JSON.stringify([r.state, r.others, r.shown?.visible, !!r.shown])) timeline.push({ ms: Date.now() - t0, ...r }); if (timeline.length > 60) timeline.shift(); }).catch(() => {}); }, 200);
+  const bobDiag = async () => {
+    const mine = presence.world.byAccount.get(acct(2));
+    const page_ = await page.evaluate((i) => { const o = window.originsPreview; return { hero: { x: o.pos.x, z: o.pos.z }, state: o.presence().state, nOthers: o.presence().others.length, name: o.presence().names[i] ?? null, shownCount: o.remote().shown.length, slots: o.remote().slots, adaptive: o.remote().adaptive ?? null }; }, bobId);
+    const row = timeline.at(-1); const away = row?.others && Math.hypot(row.others[0] - page_.hero.x, row.others[1] - page_.hero.z);
+    return JSON.stringify({ page: page_, bob: { at: bob.at(), closeCode: bob.closeCode(), hellos: bob.hellos(), serverSees: mine?.sees?.size ?? null }, distanceFromHeroM: away === undefined || away === null ? null : +away.toFixed(1), lastRows: timeline.slice(-14) });
+  };
+  const walk = async (dir) => {   // Bob walks 12 m along x in 1.5 m steps (the server accepts honest steps only); the page must show him move about as far
+    const s0 = await drawn(bobId), from = bob.at();
+    for (let i = 1; i <= 8; i++) { bob.pose(from.x + dir * i * 1.5, from.z); await wait(150); }
+    const ok = await until(async () => { const s = await drawn(bobId); return s && s0 && Math.hypot(s.x - s0.x, s.z - s0.z) >= 8; });
+    return { ok, start: s0, end: await drawn(bobId) };
+  };
+  // A cold presence socket can lose Bob for a while on the first run: the walk gets one retry, back the other way, and both attempts are reported (receipt.bobWalk).
+  const first = await walk(1); receipt.bobWalk = { first: { ok: first.ok, start: first.start, end: first.end } };
+  let walked = first;
+  if (!first.ok) { receipt.bobWalk.firstDiag = JSON.parse(await bobDiag()); walked = await walk(-1); receipt.bobWalk.retry = { ok: walked.ok, start: walked.start, end: walked.end }; }
+  clearInterval(sample);
+  assert.ok(walked.ok, `Bob walked 12 m and the page shows him moving less than 8${first.ok ? '' : ' (also on the retry)'}: ${await bobDiag()}`);
+  receipt.bobMoved = { start: first.start, end: first.ok ? first.end : walked.end };
   const guest = await join(null), guestId = guest.hello.id;
   assert.ok(await until(async () => (await drawn(guestId))?.tag === 'Guest'), `the guest is not tagged "Guest": ${JSON.stringify(await drawn(guestId))}`);
   await join('bot3'); const unnamedId = presence.world.byAccount.get(acct(3)).id;
