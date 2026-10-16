@@ -28,13 +28,13 @@ test('a skin is fractions of the building: the same parts stand inside a small a
   }
 });
 test('the Test Zone has goblin dressing: its house and tower landmarks stand as skinned plank buildings, with solids', () => {
-  process.env.VITE_UNLISTED_ZONES = '1';
+  process.env.VITE_UNLISTED_ZONES = '1'; (globalThis as { location?: unknown }).location = { pathname: '/zone/90/', search: '' };   // the page /zone/90/ opens the unlisted zone (as tests/test-zone.test.ts does)
   try {
     const F = frontierPlan(true, '90'), zone = F.zones.find((q) => q.zone === 'test-field')!, plain = frontierBuild(F), skinned = frontierBuild(F, 'goblin');
     for (const name of ['test-hut-1-house', 'test-hut-2-house', 'test-tower-watchtower']) assert.ok(zone.landmarks[name], `${name} is a landmark of the Test Field`);
     assert.ok(skinned.pieces.length > plain.pieces.length + 20, 'the huts add plank pieces'); assert.deepEqual(skinned.solids, plain.solids, 'the same footprints block the hero either way');
     assert.ok(plain.solids.length > 0);
-  } finally { delete process.env.VITE_UNLISTED_ZONES; }
+  } finally { delete process.env.VITE_UNLISTED_ZONES; delete (globalThis as { location?: unknown }).location; }
 });
 test('the skin changes how a town looks, never where it stands: same solids, different pieces; Zones 1-4 ask for none', () => {
   const F = frontierPlan(true, '1'), plain = frontierBuild(F), skinned = frontierBuild(F, 'goblin');
