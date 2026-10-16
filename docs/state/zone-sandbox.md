@@ -1,0 +1,32 @@
+# Zone sandbox (Dom-driven design sandbox for Zone 1's look, then zones as rows) - state
+
+Append new entries at the TOP. Lane started 2026-10-15; this file written 2026-10-16 09:30 +04. The longer 2026-10-15 handoff and the "UPDATE 2" entry are in docs/state/world.md ("Zone sandbox handoff 2026-10-15").
+
+## 2026-10-16 morning - Now / Done / Open / Gotchas (READ FIRST)
+
+**Now.** Branch `zone/goblin-field-dome` @25df22774 (contains a MERGE of trunk 06fde4704; vet it against trunk, `git diff origin/codex/01a09a76/task-1...HEAD` is ours only). Preview LIVE at https://frankendom.com/preview/zone-look/?region=1&look=goblin (Deploy, 68M, bundle checked for goblin-fortress / fortress-wind / goblin-camp / creature-card). Test zone: `?zone=90&region=1`. Dom opens it on his phone and gives feedback; he said "we are a sandbox, just update the sandbox": everything below is fortress-mood only, zones 1-4 and the live game are untouched (flag-off identical). Strategy rulings: Gothic is the model for creature UI; keep zone fields first; the main game follows only when Dom says (the same rows flipped on Zones 1-4).
+
+**Done (all rows through the shared registry; `npm run check:as-data -- --gate` green, 73 targeted + 312 preview/zone/world tests green on the VPS at 25df227).**
+- Moods and picture: fortress palette (`origins/world/goblin-field-defs.json`), Dom's two pictures (`public/zones/goblin-fortress-{portrait,landscape}.webp`, `backdrops` rows incl. `drop`), Pit scenery hidden beyond `pitHideM`, richer ground recipe (`grounds`), look rows (`looks`).
+- Generic engine: zone fields `look.sky`, `look.props.kit/camp/density`, `look.dress`, `look.ground.material`, `look.creatures.alert/name/card/growl/ring/lock`, `sound.ambience`, schema `unlisted`; `origins/world/props-defs.json` (+ `props-rules.ts`): tints, props (parts), kit `goblin-camp`, recipes (scatter/ring/cluster, own random stream each, `chance` for rare places), `dress` sets (thin the base clutter: drifts/rings/cracks/scrub/trees/skyline/rocks/ruins/fill/posts, `reach`), `ambience` rows; renderer `origins/preview/prop-kit.ts`; synthesized wind + fire crackle `origins/preview/ambience.ts`; biome row `goblin-fortress` (`origins/zones/biomes-data.ts`) carries the whole mood; `?look=goblin` = Zone 1 seen as that biome (`zoneAsBiome`, loader.ts). Zone 90 = name + places + `biome`.
+- Creature UI (fortress only): no "!", no floating names, no ring, one-line danger-tinted target card (lock-on target, top centre), the growl without ?look=creatures (the stop-and-face on notice is the sim's own), soft camera lock (rows lockPull/lockPullSoft/lockAwayStick/lockPauseSec; the hard lock's literal 6 is now `lockPull`).
+- Trunk merged in (brings the Pit's own health bars, trunk 640c794c5, 49e5443b2).
+- Donor study: docs/donor-studies/zones-props-and-ranged-2026-10-15.md (+ cross-check against Games-Analysis).
+- Zone-91 proof (Strategy): 3 min 55 s, rows only, 18:23:57 -> 18:27:52 +04 (zone 91 itself was deleted when only the fortress mood was kept).
+
+**Open.**
+1. Dom has NOT yet seen the 25df227 build on his phone (he saw b18c95e and earlier); I have seen NO render of the prop kit, ground, ambience, card or lock (T4 daily cap hit at $5.29 on 10-15; CPU stills via the VPS capture queue never finished). First job on the next phone feedback: read his screenshots.
+2. Dom's decision still open for the main game: the "!"/names/ring/card/lock for every zone, including live Zone 1 (Strategy: same rows flipped on Zones 1-4, when Dom says).
+3. Item 10 of the donor top-10, weighted creature spawns (`place.spawns characters` as `{id, weight}`): sim-visible (world digest, WSV bump, Backend + Combat + World), needs Strategy's ruling. Not built.
+4. Strategy's open asks: ~110 prop-shape literals in the (now generic) kit are rows already; the dome painter still has a few literals (gradient stop 0.55, n=256, amp*3, amp*0.4, canvas 64) to group into rows; slope and water avoidance not built (no zone has either).
+5. The banners' crest on Dom's picture resembles a real game's emblem: blur before this ever ships to the main game (fine for the private preview).
+6. Delete zone 90 and `tests/test-zone.test.ts` when Zone 1's look graduates; World carries the engine PR (schema/loader/registry wiring, unlisted, props-defs, looks table), never the zone90 row.
+7. Spell/ranged donor findings were handed to the Combat sandbox as a doc only; nothing built here.
+
+**Gotchas.**
+- Deploy publishes `/preview/zone-look/`; the recipe is `npx vite build --config origins/preview/vite.config.mjs --base=/preview/zone-look/` (~68M). The ROOT vite config produces the main game (594M): on 10-16 a rebuild after a hang used it by mistake; always check `du -sh` (~68M) and grep the bundle for `goblin-fortress`. Self-publishing into the live webroot is NOT mine (Deploy's call).
+- Mac hook blocks node tests, `gpu-run`, browsers: gates run on the VPS via `/tmp/zs-gate.sh` (needs `scripts/gate.sh`-style copy: tsc tests, origins-tsc, as-data gate, targeted `node --test`) in `/opt/frankendom-shadow/work/zone-sandbox-gate-b` (sparse clone, node_modules symlinked to char-rows; `bn-trunk/node_modules` is EMPTY). ONE run per folder at a time (two concurrent runs raced and tested a stale commit). Stills: `scripts/zone-look-stills.mjs` (STILLS_PROXY / STILLS_SOFTWARE for a CPU-only box) via `capture` on the VPS or `gpu-run` as user `lanes` (root `hf` is not logged in); the T4 daily cap stops at $5.
+- `?look=goblin` reads the zone as the biome: any new creature or look reader must read `zoneRow` (the biome-resolved zone), not `loadZone()`, or the flag will not carry it (this was the "! still shows" bug).
+- Source-text pin tests (origins/preview/mobs.test.ts) assert exact lines of mobs-view.ts: a change there needs the pin updated (same intent).
+- `scripts/data-only-check.mjs` exit 2 in my gate script is its usage error (needs a base sha); `dataOnly:false` is expected (code + rows).
+- Zone ids: 99 is the loader tests' "no such zone"; zone 90 is the test zone; test zones are never "Zone 3" (Zone N means level N creatures).
