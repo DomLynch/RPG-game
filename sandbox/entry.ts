@@ -102,7 +102,7 @@ function panel(opponents: string[]) {
   spellSel.append(el('option', { value: '', textContent: '(none: class special)' }));
   // Every spell is MELEE (close range, paid in stamina) or MAGIC (medium / long range, paid in mana): the kind comes from the spell root's `spellRange` row. The three spell pickers group by kind, then school.
   const KIND_NAME: Record<string, string> = { melee: 'Melee (close, stamina)', magic: 'Magic (medium / long, mana)' };
-  // spellPick rows: only the hand-picked spells (30: levels 1-3) are offered; no rows = every spell.
+  // spellPick rows: only the hand-picked spells (30: levels 8-10) are offered; no rows = every spell.
   const spellBook = Promise.all([import('../src/fight/spell-catalogue.ts'), import('../src/fight/spell-cast.ts'), import('../src/fight/sandbox-rules.ts')]).then(([{ SPELL_INFO }, { spellRoot }, { spellRangeOf, spellPick }]) => {
     const pick = new Set(spellPick());
     return Object.entries(SPELL_INFO).filter(([id]) => !pick.size || pick.has(id)).map(([id, i]) => {
