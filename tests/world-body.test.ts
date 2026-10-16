@@ -5,7 +5,7 @@ import { CATALOGUE } from '../src/fight/catalogue-rows.ts';
 import { worldBodyUrl } from '../src/fight/catalogue-bodies.ts';
 
 // Before this flag mobs-view held WORLD_URLS = { goblin, wolf, bear, boar } by hand: those four, and only those, draw a world body; knight, pitborn and witch (which have a world file too) keep their engine body.
-const DRAWN = ['bear', 'boar', 'goblin', 'wolf'];
+const DRAWN = ['bear', 'boar', 'cave-troll', 'goblin', 'wolf'];
 
 test('the kinds the open world draws as world bodies are exactly the rows flagged worldBody, and a flagged row has the file', () => {
   const flagged = CATALOGUE.filter((r) => r.worldBody).map((r) => r.id).sort();
