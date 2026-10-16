@@ -30,12 +30,12 @@ test('the rows equal the places the page teleports to (a zone or mob edit that m
   const F = frontierPlan(false), B = frontierBuild(F);
   for (const signedIn of [true, false]) {
     const start = spawnAmong(F, B, mobSpecs(F, B, previewRows('', signedIn)))!;
-    near(m('zone1-start').x, start.x, 1e-6); near(m('zone1-start').z, start.z, 1e-6);   // signed in or a guest: the same start
+    near(m('zone1-start').x, start.x, 0.006); near(m('zone1-start').z, start.z, 0.006);   // signed in or a guest: the same start (a row is centimetres)
   }
   const r = F.road, back = { x: r.from.x + Math.sin(r.inward) * 2, z: r.from.z + Math.cos(r.inward) * 2 };   // main.ts goBack
   // The page's goBack stands at the Exchange's west gate, which is inside a trade area: a warp may not land there (Lead's rule), so the row is where presence clears it to, the Pit yard's edge.
   const cleared = clearOfTradeAreas(Math.round(CENTRE_CM + back.x * 100), Math.round(CENTRE_CM + back.z * 100));
-  near(m('zone1-road-end').x, (cleared.x - CENTRE_CM) / 100, 1e-6); near(m('zone1-road-end').z, (cleared.z - CENTRE_CM) / 100, 1e-6);
+  near(m('zone1-road-end').x, (cleared.x - CENTRE_CM) / 100, 0.006); near(m('zone1-road-end').z, (cleared.z - CENTRE_CM) / 100, 0.006);
   assert.match(readFileSync(new URL('../preview/main.ts', import.meta.url), 'utf8'), /TOWN_RESPAWN = \{ x: 0, z: 3 \}/, 'the page\'s town respawn is the town-respawn row');
   near(m('town-respawn').x, 0, 1e-9); near(m('town-respawn').z, 3, 1e-9);
 });
@@ -54,6 +54,7 @@ test('the server: a warp moves the player to the landmark; a forged id, a plain 
     const aId = p.world.byAccount.get('00000000-0000-4000-8000-0000000000a1')!;
     assert.equal(zoneAt(aId.x, aId.z), 'cinder-fields', 'the server holds it in the start zone');
     assert.equal(aId.strikes, 0);
+    await wait(350);   // the clamp allows ~10 m/s x elapsed time: 2 m after 350 ms is ordinary walking
     a.pose(m('zone1-start').x + 2, m('zone1-start').z); await wait(250);
     near((aId.x - CENTRE_CM) / 100, m('zone1-start').x + 2);   // the speed clamp restarted at the landmark: ordinary movement from there is accepted
     // the rate: warpPerMin warps are honoured, the rest ignored (socket stays open)
