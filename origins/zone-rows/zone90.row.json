@@ -4,7 +4,23 @@
   "defaultKind": "goblin",
   "biome": "goblin-fortress",
   "camera": {
-    "preset": "a"
+    "preset": "a",
+    "presets": {
+      "a": {
+        "back": 4.32,
+        "up": 2.52,
+        "side": 0.8,
+        "ahead": 4,
+        "lookY": 1.5
+      },
+      "b": {
+        "back": 6.4,
+        "up": 3.5,
+        "side": 0,
+        "ahead": 2,
+        "lookY": 1.1
+      }
+    }
   },
   "names": {
     "test-field": "The Test Field"

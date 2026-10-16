@@ -21,6 +21,7 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll'], 'Dom 2026-10-16: the salamander and the troll stand here, at the level-1 band its row asks for');
     const { variantLook } = await import('../origins/preview/mob-looks.ts');   // the per-frame reader that threw on a row with no mobLooks.spread (2026-10-16: the page froze, the hero stayed a capsule)
     for (const id of ['character:giant-salamander', 'character:cave-troll']) for (let v = 0; v < 4; v++) assert.doesNotThrow(() => variantLook(id, v, z), `${id} variant ${v}`);
+    const cam = (z.fields?.['camera.presets'] as { a: { back: number; up: number } }).a; assert.ok(Math.abs(cam.back / 3.6 - 1.2) < 1e-9 && Math.abs(cam.up / 2.1 - 1.2) < 1e-9, 'Dom 2026-10-16: the over-the-shoulder camera stands 20% further back and up than the default (same angle)');
     assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['test-troll-cave', 'test-mere-bank']);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });
