@@ -349,14 +349,14 @@
     ],
     "spawns": [
       {
-        "id": "cave-troll",
+        "id": "test-cave-troll",
         "at": "test-troll-cave",
         "characters": [
           "character:cave-troll"
         ]
       },
       {
-        "id": "salamander",
+        "id": "test-salamander",
         "at": "test-mere-bank",
         "characters": [
           "character:giant-salamander"
