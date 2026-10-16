@@ -2,6 +2,14 @@
 
 Append new entries at the TOP. Lane started 2026-10-15; this file written 2026-10-16 09:30 +04. The longer 2026-10-15 handoff and the "UPDATE 2" entry are in docs/state/world.md ("Zone sandbox handoff 2026-10-15").
 
+## START HERE: the iteration loop (Strategy's ruling 2026-10-16 night, Dom's rule: every change 5-10 minutes)
+
+1. Start the hot-reload server: preview_start `test-zone-hot` (.claude/launch.json). Page: http://localhost:5190/preview/origins/?zone=90&region=1 on the Mac, **http://192.168.1.20:5190/preview/origins/?zone=90&region=1 on Dom's phone (same wifi)**. A row edit (origins/zone-rows/zone90.row.json, origins/zones/biomes-data.ts, origins/world/*.json) reloads in seconds.
+2. Loop: edit a row -> Dom reloads his phone (10 s) -> "yes/no". NO build, NO gate, NO rsync per tweak: publishing per tweak was the lost hour.
+3. When Dom says "ship that": ONE gate run + ONE publish for the whole batch of yeses (recipe below, ~5 min). Do not add a second preview, server or GPU step to the loop.
+4. Keep the session small: clear it when context passes ~300k, resume from this file.
+5. First job: open item 1 below (fight stand-off for the scaled wolf 2.8x and salamander 6x).
+
 ## 2026-10-16 night - HANDOFF before Dom's /clear (READ FIRST; supersedes the evening recipe paths)
 
 **Names.** This lane is "Test Zone Sandbox"; the thing we build is "the Test Zone" (zone 90). "Zone 1" is always the real game. Dom's sandbox is independent: decisions come from Dom only; Strategy ("Project Strategy - Fable 5.1") may be asked for ideas/critique; do not route work to Lead/Combat; Characters & Art builds the goblin kit on a written Strategy GO.
