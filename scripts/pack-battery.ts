@@ -4,6 +4,7 @@
 import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
 import { TIERS } from '../src/core/server.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
+import { SLOT_ROWS } from '../src/fight/roll.ts';
 
 const DT = 1 / 60, MAX_S = 120, env = (k: string, d: string) => (process.env[k] ?? d).split(',');
 type Bot = (w: World, k: number) => Input;
@@ -28,6 +29,7 @@ function fight(kind: string, level: number, size: number, rung: number, seed: nu
   }
   return { win: false, died: false, hp: w.fighters[0]!.health / w.fighters[0]!.maxHealth, t: MAX_S, left: -1, peak, three: three / ticks };
 }
+for (const kv of (process.env.SLOTS ?? '').split(',').filter(Boolean)) { const [id, pct] = kv.split('='); const row = SLOT_ROWS.find((r) => r.id === id); if (!row) throw Error(`SLOTS: no swarm-defs slot row "${id}"`); (row as { percent: number }).percent = +pct!; }   // SLOTS=mob2=30,mob3=20: an experiment's override of the crowd-cut rows (swarm-defs.json), never a shipped number
 const heroLevel = process.env.HERO_LEVEL ? +process.env.HERO_LEVEL : undefined;   // HERO_LEVEL: the hero's level (build points placed and his level argument); default the creature's level
 const kind = env('KIND', 'wolf')[0]!, seeds = +env('SEEDS', '16')[0]!, escort = env('ESCORT', 'goblin')[0]!, escorts = +env('ESCORTS', '0')[0]!;   // ESCORTS=n adds n creatures of ESCORT (default goblin, the scavenger's body) beside the SIZES of KIND
 for (const botName of env('BOTS', 'masher,guard')) for (const rung of env('RUNGS', '0,2,4').map(Number)) for (const level of env('LEVELS', '2,3').map(Number)) {
