@@ -28,7 +28,7 @@ node -e '
 const [r, sha, job, out] = process.argv.slice(1), d = require(require("path").resolve(r)), fs = require("fs");
 const cell = (c) => `${c.medianFps}`; const key = (c) => `${c.throttle}|${c.n}`; const m = new Map();
 for (const c of d.results) { const k = key(c); m.set(k, { ...(m.get(k) || {}), [c.mode]: c, n: c.n, t: c.throttle }); }
-let md = `T4 crowd table on **${sha}** (HF job ${job}, harness #2931). Median fps idle / walking; programs added after ready: ${d.results.reduce((a, c) => a + (c.programsAdded?.length || 0), 0)} across ${d.results.length} cases; fails: ${d.results.filter((c) => c.fail).length}.\n\n| players | 1x | 4x CPU |\n|---|---|---|\n`;
+let md = `T4 crowd table on **${sha}** (HF job ${job}, harness #2931). Median fps idle / walking; programs added after ready: ${d.results.reduce((a, c) => a + (c.programsAdded?.length || 0), 0)} across ${d.results.length} cases; run errors: ${d.results.filter((c) => c.fail).length}; cases below the ${d.barFps} fps bar: ${d.results.filter((c) => c.pass === false && !c.fail).length} (${d.results.filter((c) => c.pass === false && !c.fail).map((c) => c.n + " " + c.mode + " " + c.throttle + "x").join(", ") || "none"}).\n\n| players | 1x | 4x CPU |\n|---|---|---|\n`;
 for (const n of [...new Set(d.results.map((c) => c.n))]) { const g = (t) => { const e = m.get(`${t}|${n}`); return e ? `${e.idle ? cell(e.idle) : "-"} / ${e.walk ? cell(e.walk) : "-"} (p95 ${e.walk?.p95Ms ?? e.idle?.p95Ms} ms)` : "-"; }; md += `| ${n} | ${g(1)} | ${g(4)} |\n`; }
 fs.writeFileSync(out, md); console.log(md);' "$R" "$SHORT" "${JOB}" "$OUT"
 echo "comment body: $OUT   (post with: gh pr comment <PR> --body-file $OUT)"
