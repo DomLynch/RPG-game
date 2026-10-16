@@ -26,6 +26,7 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const spots = groups.map((g) => lay[g.at]!), ring = spots.map((p) => Math.hypot(p.u - 0.5, p.v - 0.5) * 100);   // a 100 m zone: metres from its centre
     assert.ok(Math.max(...ring) <= 40, `no spot in the outer 10% (45 m) plus roam room: ${Math.max(...ring)}`); assert.ok(Math.min(...ring) >= 12, 'none on the camp');
     const gap = Math.min(...spots.flatMap((p, i) => spots.slice(i + 1).map((q) => Math.hypot(p.u - q.u, p.v - q.v) * 100))); assert.ok(gap >= 10, `evenly spread: nearest two spots ${gap} m apart`);
+    const same = Math.min(...groups.flatMap((g, i) => groups.slice(i + 1).filter((h) => h.characters[0] === g.characters[0]).map((h) => Math.hypot(lay[g.at]!.u - lay[h.at]!.u, lay[g.at]!.v - lay[h.at]!.v) * 100))); assert.ok(same >= 22, `Dom: no two of a kind side by side, they rotate: nearest same-type pair ${same} m apart`);
     const { variantLook } = await import('../origins/preview/mob-looks.ts');   // the per-frame reader that threw on a row with no mobLooks.spread (2026-10-16: the page froze, the hero stayed a capsule)
     for (const id of ['character:giant-salamander', 'character:cave-troll']) for (let v = 0; v < 4; v++) assert.doesNotThrow(() => variantLook(id, v, z), `${id} variant ${v}`);
     assert.equal(z.level, 1);

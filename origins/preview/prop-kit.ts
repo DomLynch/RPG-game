@@ -4,6 +4,7 @@
 // `offStream`), so adding or changing one recipe never moves another's props. Donors: Ultima Online statics / EQEmu objects (one table of props), World of Claudecraft camp scatter (seeded recipes), Veloren scatter.
 import { propKitRow, propRow, propTint, recipesOf, type Part, type Prop, type Recipe } from '../world/props-rules.ts';
 import { toWorld } from '../world/derive.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import type { Piece, Shape } from './exchange-plan.ts';
 import { footprintOf, rng, type Dress } from './frontier-dress.ts';
 import { inZone, onRoad, type Build, type Frontier, type Solid } from './frontier-plan.ts';
@@ -31,6 +32,7 @@ export function propKit(f: Frontier, b: Build, base: Dress, zoneName: string, ki
   const free = (x: number, zz: number, r: number, edge = kit.edge) => inZone(z, x, zz, r + edge) && !onRoad(f, x, zz) && !strips.some((s) => Math.hypot(s.x - x, s.z - zz) < r + kit.clearRoad)
     && !marks.some((k) => Math.hypot(k.x - x, k.z - zz) < r + kit.clearLandmark) && ![...b.solids, ...base.solids, ...placed, ...baseFoot].some((s) => Math.hypot(s.x - x, s.z - zz) < s.r + r + kit.clearProp);
 
+  if (rim && kit.mouth) { const m = world(0, -kit.mouth / 2); ground.push({ layer: 'stone', shape: ['box', z.width + kit.mouth * 2, stageRule('cinderSlab'), kit.mouth], x: m.x, y: stageRule('cinderSlab') / 2, z: m.z, tint: [1, 1, 1], rotY: z.mount.heading, foot: -1 }); }   // the dirt carried out behind the gate end too (the cinder pass stops at the mouth), a hair under the zone slab
   for (const rc of recipes) {
     if (rc.kind === 'rim' && !rim) continue;   // the stake ring is only for a zone that asks for it (look.props.rim)
     const R = rng(`kit:${kitId}:${z.zone}:${rc.id}`), between = (lo: number, hi: number) => lo + (hi - lo) * R();   // this recipe's own stream
