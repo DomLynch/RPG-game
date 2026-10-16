@@ -14,6 +14,7 @@
     { "id": "bandOff", "value": 0 },
     { "id": "castTellOff", "value": 0 },
     { "id": "spellBuffer", "value": 0 },
+    { "id": "spellMaxRank", "value": 0 },
     { "id": "spellFx", "value": 0 },
     { "id": "glanceGain", "value": 0 },
     { "id": "glanceRate", "value": 1000 },
