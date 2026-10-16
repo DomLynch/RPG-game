@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of a single small barbarian frontier hut, three-quarter front view, centred, isolated on a plain neutral grey background with soft even light. About three and a half metres wide: rough split oak plank walls leaning slightly, lashed at the corners with coarse hemp rope, a steep overhanging roof of dried stitched animal hides and turf patches, a ridge pole carrying a pair of real ram skulls with curled horns, a dark low doorway with a tattered hide flap, a few bone and antler trophies hung by the door, dark pitted iron nails, soot stains, dried mud at the base. Historical Roman-era barbarian camp dwelling, grim and weathered, realistic proportions and materials, matte, no glow, not cartoon, not stylised, no people, no text.",
+  "seed": 191201,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1024x1024",
+  "seconds": 50.4,
+  "sha256": "9a539043e9a07629397b9dbe6b60bb0639d88da78295f64bb57b73c2e622deea"
+}
