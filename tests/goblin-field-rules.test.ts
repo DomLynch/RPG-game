@@ -29,6 +29,8 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, azimuth: 400 } : b)) }), /0 <= azimuth < 360/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, fadeSide: 0.6 } : b)) }), /fadeSide < 0\.5/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, fadeFoot: 0.7, drop: 0.4 } : b)) }), /foot fade must fit above its horizon row/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, around: 7 } : b)) }), /around is an even whole number/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, around: 8, arc: 30 } : b)) }), /no gap is left/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, file: '/abs.webp' })) }), /no leading slash/);
   assert.throws(() => loadGoblinField({ ...d, harmonics: d.harmonics.map((h) => ({ ...h, k: 2.5 })) }), /whole number of periods/);
   assert.throws(() => loadGoblinField({ ...d, names: d.names.map((n) => (n.id === 'palette' ? { ...n, text: 'gone' } : n)) }), /names a palette row/);
@@ -49,7 +51,7 @@ test('a palette with pictures shows the portrait row on a tall screen and the la
   const { existsSync } = await import('node:fs');
   const f = goblinPalette('fortress');
   assert.equal(goblinBackdrop(f, true)?.id, 'fortress-panorama'); assert.equal(goblinBackdrop(f, false)?.id, 'fortress-panorama', 'one panorama serves both screen shapes: it is a sector, the camera sees only 25 to 92 degrees of it');
-  const sec = goblinBackdrop(f, true)!; assert.ok(sec.arc !== undefined && (sec.arc * sec.texH) / sec.texW < 90, 'the sector band is under 90 degrees tall');
+  const sec = goblinBackdrop(f, true)!; assert.ok((sec.around ?? 1) * sec.arc! >= 359.5, 'the fortress picture covers the whole horizon: copies x arc >= 360 degrees (a single 48 degree slice left the phone looking at bare sky)'); assert.ok(sec.arc !== undefined && (sec.arc * sec.texH) / sec.texW < 90, 'the sector band is under 90 degrees tall');
   const view = 180 * 0.62; assert.ok(sec.drop <= 0.5 && ((sec.arc! * sec.texH) / sec.texW) * (1 + sec.drop) < view / 2 + 20, 'the sector, lowered by drop, stays inside the dome');
   assert.equal(goblinBackdrop({ ...f, backdropPortrait: '', backdropLandscape: '' }, true), null, 'no picture: the painted sky alone');
   for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(existsSync(`public/${b.file}`), `public/${b.file}`);

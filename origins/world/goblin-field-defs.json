@@ -53,7 +53,7 @@
   ],
   "backdrops": [
     { "id": "fortress-card", "file": "zones/goblin-fortress-panorama.jpg", "x0": 0, "x1": 1, "y0": 0, "y1": 0.84, "arc": 56, "azimuth": 180, "fadeSide": 0.25, "flat": 1, "texW": 2172, "texH": 724, "fadeTop": 0.3, "fadeFoot": 0.06, "drop": 0.04 },
-    { "id": "fortress-panorama", "file": "zones/goblin-fortress-panorama.jpg", "x0": 0, "x1": 1, "y0": 0, "y1": 0.92, "arc": 48, "azimuth": 180, "fadeSide": 0.25, "texW": 2172, "texH": 724, "fadeTop": 0.3, "fadeFoot": 0.08, "drop": 0 },
+    { "id": "fortress-panorama", "file": "zones/goblin-fortress-panorama.jpg", "x0": 0, "x1": 1, "y0": 0, "y1": 0.92, "arc": 45, "azimuth": 180, "around": 8, "fadeSide": 0, "texW": 2172, "texH": 724, "fadeTop": 0.3, "fadeFoot": 0.08, "drop": 0 },
     { "id": "fortress-portrait", "file": "zones/goblin-fortress-portrait.webp", "x0": 0, "x1": 1, "y0": 0.18, "y1": 0.705, "repeat": 8, "texW": 2560, "texH": 800, "fadeTop": 0.12, "fadeFoot": 0.06, "drop": 0.12 },
     { "id": "fortress-landscape", "file": "zones/goblin-fortress-landscape.webp", "x0": 0, "x1": 1, "y0": 0.02, "y1": 0.72, "repeat": 4, "texW": 3072, "texH": 960, "fadeTop": 0.1, "fadeFoot": 0.06, "drop": 0.08 }
   ],

@@ -68,13 +68,14 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
   const mesh = new THREE.Mesh(geo, mat); mesh.name = 'horizon-dome'; mesh.renderOrder = -1000; mesh.frustumCulled = false; scene.add(mesh);
   const shape = typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : null, images = new Map<string, Promise<HTMLImageElement>>();
   const load = (file: string) => { let p = images.get(file); if (!p) { p = new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = `${base}${file}`; }); images.set(file, p); } return p; };
-  let sector: THREE.Mesh | null = null, sectorOf: GoblinBackdrop | null = null;
-  const dropSector = () => { if (!sector) return; scene.remove(sector); sector.geometry.dispose(); const m = sector.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.dispose(); sector = null; sectorOf = null; };
+  let sector: THREE.Group | null = null, sectorOf: GoblinBackdrop | null = null;
+  const dropSector = () => { if (!sector) return; scene.remove(sector); const maps = new Set<THREE.Texture>(); sector.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); const mt = m.material as THREE.MeshBasicMaterial; if (mt.map) maps.add(mt.map); mt.dispose(); }); maps.forEach((t) => t.dispose()); sector = null; sectorOf = null; };
   const showSector = (img: HTMLImageElement, b: GoblinBackdrop) => {   // (depthTest ON: a see-through layer is drawn after every opaque one, so with the test off it painted over the ground and the props)  one non-repeating arc at the picture's own resolution, facing b.azimuth; the dome's painted sky shows round it
     if (sectorOf === b) return; dropSector();
     const { canvas, heightDeg } = sectorCanvas(palette, img, b), t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1;   // seen from inside the sphere u runs leftwards: flipped so the picture reads the right way round
     const arc = (b.arc! * Math.PI) / 180, hRad = (heightDeg * Math.PI) / 180, az = (b.azimuth! * Math.PI) / 180, phiMid = Math.atan2(Math.cos(az), -Math.sin(az)), bottom = Math.PI / 2 + hRad * b.drop;   // three's sphere: x = -r cos(phi) sin(theta), z = r sin(phi) sin(theta)
-    const dist = R('domeRadius') * R('sectorInset');
+    const dist = R('domeRadius') * R('sectorInset'), around = b.flat ? 1 : (b.around ?? 1), group = new THREE.Group(); group.name = 'horizon-sector';
+    const tm = t.clone(); tm.repeat.x = 1; tm.offset.x = 0; tm.needsUpdate = true;   // the mirrored copy of the texture (the same pixels): every second copy round the dome is flipped, so neighbouring copies meet edge to edge and the picture is on every side of the camera
     let g: THREE.BufferGeometry;
     if (b.flat) {   // a MATTE CARD (Gothic / Morrowind's distant landmark): one flat quad facing the camp, native pixels, no curvature; same rows (arc = the angle it spans, azimuth, drop, crop)
       const width = 2 * dist * Math.tan(arc / 2), height = (width * canvas.height) / canvas.width, plane = new THREE.PlaneGeometry(width, height);
@@ -82,7 +83,11 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
       plane.rotateY(Math.PI + az); plane.translate(Math.sin(az) * dist, 0, Math.cos(az) * dist); g = plane;   // faces the camera at the origin (normal = bearing az + 180 degrees)
       t.repeat.x = 1; t.offset.x = 0;   // a front-facing card reads left to right: no flip
     } else g = new THREE.SphereGeometry(dist, 48, 16, phiMid - arc / 2, arc, bottom - hRad, hRad);
-    sector = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, side: b.flat ? THREE.FrontSide : THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false })); sector.name = 'horizon-sector'; sector.renderOrder = mesh.renderOrder + 1; sector.frustumCulled = false; sector.position.copy(mesh.position); scene.add(sector); sectorOf = b;
+    for (let k = 0; k < around; k++) {
+      const geometry = k === 0 ? g : new THREE.SphereGeometry(dist, 48, 16, phiMid + (k * 2 * Math.PI) / around - arc / 2, arc, bottom - hRad, hRad);
+      const m = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: k % 2 ? tm : t, side: b.flat ? THREE.FrontSide : THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false })); m.renderOrder = mesh.renderOrder + 1; m.frustumCulled = false; group.add(m);
+    }
+    group.position.copy(mesh.position); scene.add(group); sector = group; sectorOf = b;
   };
   const show = () => { const b = goblinBackdrop(palette, shape?.matches ?? true); if (!b) return; void load(b.file).then((img) => { if (!alive || goblinBackdrop(palette, shape?.matches ?? true) !== b) return; if (b.arc !== undefined) { showSector(img, b); return; } dropSector(); const old = tex; tex = texOf(paint(b.texW, b.texH, palette, { img, b }), true); mat.map = tex; mat.needsUpdate = true; old.dispose(); }).catch((e: unknown) => console.warn('zone dome: the backdrop did not paint; the painted sky stays', b.file, e)); };   // a missing picture leaves the painted sky
   show(); shape?.addEventListener('change', show);
