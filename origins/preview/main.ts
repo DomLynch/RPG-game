@@ -421,14 +421,14 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
-  await warmRemoteKitsInPlan();   // the same plan entry: [zone ready] waits for the player's warm-up, so it waits for this (bounded)
-  warmedHero.done = true;
+  warmedHero.done = true;   // the hero's own warm-up is done HERE: the kits are a plan entry of their own, so a slow kit warm never trips the hero-wait fallback (45 s)
+  await warmRemoteKitsInPlan();   // [zone ready] waits for this too (allWarmed), bounded by kitWarmMs + the one kit in flight
 }
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
 // The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked BEFORE [zone ready], inside the player's warm-up (Lead's ruling on #2938: an idle warm-up after ready stalls an early engage and reddens the seamless row). Nothing is fetched or
 // parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
 // the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
-let remoteKitsWarm: { failed: boolean; ms: number; programs: number } | null = null;
+let remoteKitsWarm: { failed: boolean; ms: number; programs: number; warmed: number } | null = null;
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
 async function warmRemoteKitsInPlan() {
@@ -442,11 +442,12 @@ async function warmRemoteKitsInPlan() {
   // Its own cap (kitWarmMs, from here: the hero's own warm-up is done): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures), so nothing compiles after ready.
   const r = await warmKitsWithin(warmKits(), warmOne, previewRule('kitWarmMs'), settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
-  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1 };
+  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
-  return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
+  return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])])
+    && (remoteKitsWarm !== null || warmedHero.failed);   // the other players' gear programs are the last plan entry (a hero that never arrived has no second rig to warm: nothing to wait for)
 }
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
