@@ -32,6 +32,8 @@
           "burnt": 0
         }
       },
+      "character:ash-wolf": { "opponent": "wolf", "tint": 9077624, "dressing": { "soot": 0.4, "burnt": 0 } },
+      "character:ash-boar": { "opponent": "boar", "tint": 8021330, "dressing": { "soot": 0.35, "burnt": 0 } },
       "character:pit-goblin": {
         "opponent": "goblin",
         "tint": 16777215,
@@ -68,11 +70,11 @@
         "behaviour": {
           "aggro": 6,
           "roam": 4,
-          "spread": 10,
+          "spread": 2,
           "pull": 0,
           "campSize": [
-            3,
-            3
+            1,
+            1
           ]
         }
       },
@@ -97,11 +99,11 @@
         "behaviour": {
           "aggro": 8,
           "roam": 2,
-          "spread": 8,
+          "spread": 2,
           "pull": 0,
           "campSize": [
-            3,
-            3
+            1,
+            1
           ]
         }
       },
@@ -123,14 +125,47 @@
         ],
         "respawnSeconds": 75,
         "behaviour": {
-          "roam": 8,
-          "spread": 16,
+          "roam": 6,
+          "spread": 2,
           "pull": 0,
           "campSize": [
-            6,
-            6
+            1,
+            1
           ]
         }
+      },
+      {
+        "id": "character:ash-wolf",
+        "source": {
+          "kind": "folklore",
+          "work": "Kinder- und Hausmärchen, 7th ed. (Rotkäppchen: the wolf on the forest road)",
+          "author": "Jacob and Wilhelm Grimm",
+          "year": 1857,
+          "authorDied": 1863,
+          "locator": "KHM 26, Rotkäppchen (the wolf meets her on the path)"
+        },
+        "role": "beast",
+        "loot": "loottable:ash-wolf",
+        "level": [1, 2],
+        "respawnSeconds": 75,
+        "behaviour": { "aggro": 9, "roam": 7, "spread": 2, "pull": 0, "campSize": [1, 1] }
+      },
+      {
+        "id": "character:ash-boar",
+        "source": {
+          "kind": "literature",
+          "work": "Metamorphoses (the boar Diana loosed on Calydon, and the hunt that took it)",
+          "author": "Ovid",
+          "year": 8,
+          "authorDied": 17,
+          "locator": "Bk. VIII, ll. 260-424 (the boar ravages the fields; the hunt)"
+        },
+        "role": "beast",
+        "loot": "loottable:ash-boar",
+        "level": [1, 2],
+        "weight": 3,
+        "respawnSeconds": 75,
+        "behaviour": { "aggro": 6, "roam": 5, "spread": 2, "pull": 0, "campSize": [1, 1] }
       }
     ]
   },
@@ -336,16 +371,22 @@
             "v": 0.5,
             "facing": 0
           },
-          "test-troll-cave": {
-            "u": 0.85,
-            "v": 0.5,
-            "facing": 90
-          },
-          "test-mere-bank": {
-            "u": 0.5,
-            "v": 0.85,
-            "facing": 0
-          }
+          "test-t-01": { "u": 0.679, "v": 0.5, "facing": 270 },
+          "test-t-02": { "u": 0.347, "v": 0.64, "facing": 132 },
+          "test-t-03": { "u": 0.52, "v": 0.274, "facing": 355 },
+          "test-t-04": { "u": 0.648, "v": 0.693, "facing": 217 },
+          "test-t-05": { "u": 0.247, "v": 0.455, "facing": 80 },
+          "test-t-06": { "u": 0.727, "v": 0.356, "facing": 302 },
+          "test-t-07": { "u": 0.427, "v": 0.771, "facing": 165 },
+          "test-t-08": { "u": 0.366, "v": 0.242, "facing": 27 },
+          "test-t-09": { "u": 0.782, "v": 0.603, "facing": 250 },
+          "test-t-10": { "u": 0.214, "v": 0.618, "facing": 112 },
+          "test-t-11": { "u": 0.635, "v": 0.212, "facing": 335 },
+          "test-t-12": { "u": 0.598, "v": 0.812, "facing": 197 },
+          "test-t-13": { "u": 0.211, "v": 0.332, "facing": 60 },
+          "test-t-14": { "u": 0.834, "v": 0.427, "facing": 282 },
+          "test-t-15": { "u": 0.299, "v": 0.786, "facing": 145 },
+          "test-t-16": { "u": 0.454, "v": 0.146, "facing": 7 }
         },
         "connections": {
           "road": {
@@ -382,31 +423,26 @@
       "marsh-test",
       "test-gate",
       "test-camp",
-      "test-troll-cave",
-      "test-mere-bank"
+      "test-t-01", "test-t-02", "test-t-03", "test-t-04", "test-t-05", "test-t-06", "test-t-07", "test-t-08",
+      "test-t-09", "test-t-10", "test-t-11", "test-t-12", "test-t-13", "test-t-14", "test-t-15", "test-t-16"
     ],
     "spawns": [
-      {
-        "id": "test-cave-troll",
-        "at": "test-troll-cave",
-        "characters": [
-          "character:cave-troll"
-        ]
-      },
-      {
-        "id": "test-goblins",
-        "at": "test-camp",
-        "characters": [
-          "character:pit-goblin"
-        ]
-      },
-      {
-        "id": "test-salamander",
-        "at": "test-mere-bank",
-        "characters": [
-          "character:giant-salamander"
-        ]
-      }
+      { "id": "test-t-01-troll", "at": "test-t-01", "characters": ["character:cave-troll"] },
+      { "id": "test-t-02-goblin", "at": "test-t-02", "characters": ["character:pit-goblin"] },
+      { "id": "test-t-03-salamander", "at": "test-t-03", "characters": ["character:giant-salamander"] },
+      { "id": "test-t-04-goblin", "at": "test-t-04", "characters": ["character:pit-goblin"] },
+      { "id": "test-t-05-wolf", "at": "test-t-05", "characters": ["character:ash-wolf"] },
+      { "id": "test-t-06-boar", "at": "test-t-06", "characters": ["character:ash-boar"] },
+      { "id": "test-t-07-goblin", "at": "test-t-07", "characters": ["character:pit-goblin"] },
+      { "id": "test-t-08-troll", "at": "test-t-08", "characters": ["character:cave-troll"] },
+      { "id": "test-t-09-goblin", "at": "test-t-09", "characters": ["character:pit-goblin"] },
+      { "id": "test-t-10-salamander", "at": "test-t-10", "characters": ["character:giant-salamander"] },
+      { "id": "test-t-11-boar", "at": "test-t-11", "characters": ["character:ash-boar"] },
+      { "id": "test-t-12-goblin", "at": "test-t-12", "characters": ["character:pit-goblin"] },
+      { "id": "test-t-13-wolf", "at": "test-t-13", "characters": ["character:ash-wolf"] },
+      { "id": "test-t-14-troll", "at": "test-t-14", "characters": ["character:cave-troll"] },
+      { "id": "test-t-15-salamander", "at": "test-t-15", "characters": ["character:giant-salamander"] },
+      { "id": "test-t-16-goblin", "at": "test-t-16", "characters": ["character:pit-goblin"] }
     ]
   },
   "notes": {

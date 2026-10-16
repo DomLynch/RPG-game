@@ -18,10 +18,15 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const z = loadZone('90'); assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: 'test-field' }); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'soft' }, 'the biome turns the creature markers off'); assert.equal(z.fields?.['look.sky'], 'fortress', 'the biome row, not the zone row, sets the sky'); assert.equal(z.fields?.['look.props.density'], 0.25, 'and thins the game\'s own rock and scrub kit');
     const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     const K = propKit(F, B, frontierDress(F, B), 'test-field', 'goblin-camp'); assert.ok(K.centre && K.fires.length >= 1 && K.dress.pieces.length > 50, `${K.dress.pieces.length} camp pieces`);
-    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll', 'character:pit-goblin'], 'Dom 2026-10-16: the salamander (3 of them, drawn at scale 3), the troll (3) and 6 pit goblins stand here, at the level-1 band its row asks for');
-    assert.deepEqual(z.spawns.rows.map((r) => r.behaviour.campSize), [[3, 3], [3, 3], [6, 6]]); assert.equal(z.mobLooks?.looks['character:giant-salamander']?.scale, 3);
+    assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll', 'character:pit-goblin', 'character:ash-wolf', 'character:ash-boar'], 'Dom 2026-10-16: salamander, troll, pit goblin, wolf and boar stand here, at the level-1 band its row asks for');
+    assert.ok(z.spawns.rows.every((r) => r.behaviour.campSize?.join() === '1,1'), 'every spot holds ONE creature (Dom: spread evenly, one in each location)'); assert.equal(z.mobLooks?.looks['character:giant-salamander']?.scale, 3);
+    const groups = z.place!.spawns, count = (id: string) => groups.filter((g) => g.characters[0] === id).length, lay = (z.place!.zones['test-field'] as { layout: Record<string, { u: number; v: number }> }).layout;
+    assert.deepEqual(['character:cave-troll', 'character:giant-salamander', 'character:pit-goblin', 'character:ash-wolf', 'character:ash-boar'].map(count), [3, 3, 6, 2, 2], 'trolls, salamanders, goblins, wolves, boars');
+    const spots = groups.map((g) => lay[g.at]!), ring = spots.map((p) => Math.hypot(p.u - 0.5, p.v - 0.5) * 100);   // a 100 m zone: metres from its centre
+    assert.ok(Math.max(...ring) <= 40, `no spot in the outer 10% (45 m) plus roam room: ${Math.max(...ring)}`); assert.ok(Math.min(...ring) >= 12, 'none on the camp');
+    const gap = Math.min(...spots.flatMap((p, i) => spots.slice(i + 1).map((q) => Math.hypot(p.u - q.u, p.v - q.v) * 100))); assert.ok(gap >= 10, `evenly spread: nearest two spots ${gap} m apart`);
     const { variantLook } = await import('../origins/preview/mob-looks.ts');   // the per-frame reader that threw on a row with no mobLooks.spread (2026-10-16: the page froze, the hero stayed a capsule)
     for (const id of ['character:giant-salamander', 'character:cave-troll']) for (let v = 0; v < 4; v++) assert.doesNotThrow(() => variantLook(id, v, z), `${id} variant ${v}`);
-    assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['test-troll-cave', 'test-camp', 'test-mere-bank']);
+    assert.equal(z.level, 1);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });
