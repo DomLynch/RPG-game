@@ -3,10 +3,10 @@
 // (WALK, a circle at ~2.5 m/s), all inside the camera's view ahead of the hero; measures WINDOW ms of rAF gaps and writes OUT/receipt.json: median fps, p95 frame time, worst gap,
 // drawn count (remote().shown.length, must equal N up to nearCap), programs added since zone ready (must be 0), renderer. Software GL (swiftshader/llvmpipe) numbers are marked and mean nothing.
 // Usage: SERVE=1 OUT=/tmp/crowd node scripts/origins-crowd-fps.mjs   (SERVE=1 serves artifacts/origins-preview, built with `npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview`)
-//   COUNTS=8,16,40  MODES=idle,walk  WINDOW=10000  URL=<page>  GL=swiftshader  PASS_FPS=30 (S2 bar on a real GPU run)  QS=&x=y appended to the served URL
+//   COUNTS=8,16,40  MODES=idle,walk  THROTTLE=1,4  WINDOW=10000  URL=<page>  GL=swiftshader  PASS_FPS=30 (S2 bar on a real GPU run)  QS=&x=y appended to the served URL
 // Needs #2929 (originsPreview.setOthers / remote) in the build; dressing the crowd (#2926 dressRemote) will be a DRESS=1 case once it is wired in main.ts.
 import fs from 'node:fs'; import http from 'node:http'; import path from 'node:path'; import { chromium } from 'playwright';
-const OUT = process.env.OUT || '/tmp/crowd-fps', COUNTS = (process.env.COUNTS || '8,16,40').split(',').map(Number), MODES = (process.env.MODES || 'idle,walk').split(','), WINDOW = +(process.env.WINDOW || 10000), BAR = +(process.env.PASS_FPS || 30);
+const OUT = process.env.OUT || '/tmp/crowd-fps', COUNTS = (process.env.COUNTS || '8,16,40').split(',').map(Number), MODES = (process.env.MODES || 'idle,walk').split(','), WINDOW = +(process.env.WINDOW || 10000), BAR = +(process.env.PASS_FPS || 30), THROTTLES = (process.env.THROTTLE || '1').split(',').map(Number);   // THROTTLE=1,4: also a 4x CPU-throttled case (CDP Emulation.setCPUThrottlingRate, applied after [zone ready]): a phone-like trend, not a phone
 fs.mkdirSync(OUT, { recursive: true });
 let URL = process.env.URL || 'https://frankendom.com/zone1/', srv = null;
 if (process.env.SERVE) {   // same static server as scripts/origins-engage-warmup.mjs: the built preview plus the public asset folders
@@ -24,8 +24,8 @@ if (process.env.SERVE) {   // same static server as scripts/origins-engage-warmu
 const soft = process.env.GL === 'swiftshader';
 const browser = await chromium.launch({ headless: true, args: soft ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist'] });
 const results = [];
-for (const n of COUNTS) for (const mode of MODES) {
-  const res = { n, mode, errors: [] }, page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
+for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MODES) {
+  const res = { n, mode, throttle, errors: [] }, page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
   page.on('pageerror', (e) => res.errors.push(String(e).slice(0, 160)));
   try {
     await page.goto(URL, { waitUntil: 'load' });
@@ -34,6 +34,7 @@ for (const n of COUNTS) for (const mode of MODES) {
     if (!(await page.evaluate(() => typeof window.originsPreview.setOthers === 'function'))) throw new Error('this build has no originsPreview.setOthers (needs #2929)');
     res.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a'; });
     res.software = soft || /swiftshader|llvmpipe|software/i.test(res.renderer);
+    if (throttle > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
     const programs0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     // The crowd stands in the camera's view: find which way the hero walks (hold W 400 ms), then lay N figures in a cone 4-14 m ahead on ground the engine says is standable.
     const a0 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
