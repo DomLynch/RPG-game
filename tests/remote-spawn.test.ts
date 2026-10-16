@@ -19,9 +19,11 @@ const meshes = (root: { traverse(cb: (o: unknown) => void): void }): Mesh[] => {
 test('spawn: another actor of the hero\'s rig from the same asset, sharing its geometry and materials (so no new program), with its own skeleton', async () => {
   const warriors = buildWarriors(await parse('warrior.glb')), a = warriors.spawn(), b = warriors.spawn();
   assert.notEqual(a.anchor, warriors.player.anchor); assert.notEqual(a.anchor, b.anchor);
-  const own = meshes(warriors.player.anchor), mine = meshes(a.anchor);
-  assert.equal(mine.length, own.length, 'the same draws');
+  const asset = (list: Mesh[]) => list.filter((m) => m.name !== 'WeaponTrail');   // the weapon's trail ribbon is each actor's own (its geometry is rewritten every frame); everything from the GLB is shared
+  const own = asset(meshes(warriors.player.anchor)), mine = asset(meshes(a.anchor));
+  assert.equal(mine.length, own.length, 'the same draws'); assert.ok(own.length > 3, 'the rig has its draws');
   for (let i = 0; i < own.length; i++) { assert.equal(mine[i]!.geometry, own[i]!.geometry, `${own[i]!.name}: shared geometry`); assert.equal(mine[i]!.material, own[i]!.material, `${own[i]!.name}: shared material`); }
+  assert.notEqual(meshes(a.anchor).find((m) => m.name === 'WeaponTrail')?.geometry, meshes(warriors.player.anchor).find((m) => m.name === 'WeaponTrail')?.geometry, 'its own trail ribbon');
   const skin = (m: Mesh[]) => m.find((x): x is SkinnedMesh => x instanceof SkinnedMesh)!.skeleton;
   assert.notEqual(skin(mine), skin(own), 'its own skeleton: it moves on its own');
   a.update(1.5, 1 / 30, 'ready', 0, 'light', 0.35, 0);   // the engine's gait runs on it without touching the player's actor
