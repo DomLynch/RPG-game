@@ -10,7 +10,9 @@ set -uo pipefail
 cd /home/pwuser && git clone -q --filter=blob:none https://github.com/DomLynch/RPG-game.git r && cd r
 git checkout -q "$HEAD" && echo "HEAD $(git rev-parse --short HEAD)"
 npm ci --no-audit --no-fund >/dev/null 2>&1; echo "NPMCI=$?"; nproc
-node --test tests/origins-world-combat.test.ts tests/origins-test-stubs.test.ts tests/origins-warm-kits.test.ts tests/origins-dress-remote.test.ts tests/preview-rules.test.ts 2>&1 | grep -E "^# (pass|fail)|^not ok"
+node scripts/as-data/check.ts --gate 2>&1 | tail -3; echo "AS-DATA=${PIPESTATUS[0]}"
+npx eslint origins/preview/main.ts 2>&1 | tail -8; echo "ESLINT-main=${PIPESTATUS[0]} (5 pre-existing errors expected on trunk)"
+node --test --test-reporter=tap tests/origins-world-combat.test.ts tests/origins-test-stubs.test.ts tests/origins-warm-kits.test.ts tests/origins-dress-remote.test.ts tests/preview-rules.test.ts 2>&1 | grep -E "^# (pass|fail)|^not ok"
 npx vite build --config origins/preview/vite.config.mjs > /home/pwuser/build.log 2>&1; echo "BUILD=$?"
 node scripts/origins-seamless-check.mjs 2>&1 | tail -25 | cut -c1-400; echo "SEAMLESS-EXIT=${PIPESTATUS[0]}"
 cp scripts/remote-programs-check.mjs /home/pwuser/check.mjs
