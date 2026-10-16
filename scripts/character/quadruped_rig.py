@@ -341,7 +341,7 @@ weapon.rotation_euler = (-math.pi / 2, 0, 0)   # the exporter turns objects (not
 weapon["weapon"] = "bite"
 weapon["contact"] = {"from": 0.0, "to": 0.08}
 os.makedirs(os.path.dirname(os.path.abspath(DST)), exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format="JPEG", export_animations=True,
+bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", export_image_format=os.environ.get("QUAD_FMT", "JPEG"), export_animations=True,   # QUAD_FMT=WEBP: the salamander's engine body (the loader reads EXT_texture_webp, the troll's already ships it)
                           export_animation_mode="NLA_TRACKS", export_force_sampling=True, use_selection=False, export_extras=True)
 print("exported", DST, {n: (int(a.frame_range[0]), int(a.frame_range[1])) for n, a in actions.items()}, flush=True)
 
