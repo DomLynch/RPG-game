@@ -329,7 +329,7 @@ const layoutA = (): void => {
     ...Object.entries(label).map(([id, t]) => `.actions #${id}::after{content:"${t}"!important}`),
     '.actions #attack-button::after{font-size:13px!important;letter-spacing:.05em}',
     
-    '.actions #sbx-spell2{opacity:.45}.actions #sbx-spell2[data-live]{opacity:1}',
+    '.actions #sbx-spell2{opacity:1}.actions #sbx-spell2[aria-disabled=true]{opacity:.5}',   // lit when it would cast, dim like SPELL 1 on cooldown / no mana (hud.ts sets aria-disabled each frame)
     '#joystick{bottom:max(56px,env(safe-area-inset-bottom))!important}',
     `#sbx-zones{position:fixed;z-index:4;pointer-events:none;right:${CX - V.R / 2}px;bottom:${CY - V.R / 2}px;width:${V.R}px;height:${V.R}px;border-radius:50%;border:1px dashed rgba(190,120,80,.7);background:conic-gradient(from -50deg,rgba(150,70,40,.34) 0 100deg,rgba(150,70,40,.16) 100deg 360deg)}`,
     '#sbx-zones i{position:absolute;font:600 10px sans-serif;color:rgba(255,235,215,.85);font-style:normal;letter-spacing:.04em}',

@@ -163,6 +163,7 @@ export function createHud(element: Lookup) {
       // Lit off the simulation's own test (legal: a skill equipped, not cooling, 40 stamina), never while cooling. No ring, no countdown.
       skillButton.setAttribute('aria-disabled', String(!controlsReady || !skillOk));
       if (inSkillReach === null) delete skillButton.dataset.reach; else skillButton.dataset.reach = String(inSkillReach);   // out of its cone: the cluster's dim, still pressable
+      { const two = typeof document === 'undefined' ? null : document.getElementById('sbx-spell2'), f0 = practice.duel.fighters[0]; if (two) { two.hidden = ended; two.setAttribute('aria-disabled', String(!controlsReady || !f0.spell2 || !!f0.skillCooldown2 || !accepts(practice, 'skill2'))); } }   // sandbox spell slot 2: lit off the same test as SPELL 1 (cooldown, mana, standing), dim when it would not cast
       heavyButton.setAttribute('aria-disabled', String(!controlsReady || !ok[1]));
       attackButton.hidden = ended;
       // A stalled viewer page (record ran out, or the link never decoded) shows the button over the frozen frame: it is the only way on.
