@@ -27,14 +27,14 @@
       "character:cave-troll": {
         "opponent": "cave-troll",
         "tint": 16777215,
-        "scale": 0.8,
+        "scale": 1.52,
         "dressing": {
           "soot": 0.15,
           "burnt": 0
         }
       },
       "character:ash-wolf": { "opponent": "wolf", "tint": 9077624, "scale": 2.8, "dressing": { "soot": 0.4, "burnt": 0 } },
-      "character:ash-boar": { "opponent": "boar", "tint": 8021330, "dressing": { "soot": 0.35, "burnt": 0 } },
+      "character:ash-boar": { "opponent": "boar", "tint": 8021330, "scale": 2.7, "dressing": { "soot": 0.35, "burnt": 0 } },
       "character:pit-goblin": {
         "opponent": "goblin",
         "tint": 16777215,

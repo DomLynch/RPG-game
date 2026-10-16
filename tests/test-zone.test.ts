@@ -35,7 +35,9 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const same = Math.min(...groups.flatMap((g, i) => groups.slice(i + 1).filter((h) => h.characters[0] === g.characters[0]).map((h) => Math.hypot(lay[g.at]!.u - lay[h.at]!.u, lay[g.at]!.v - lay[h.at]!.v) * 100))); assert.ok(same >= 22, `Dom: no two of a kind side by side, they rotate: nearest same-type pair ${same} m apart`);
     const { variantLook } = await import('../origins/preview/mob-looks.ts');   // the per-frame reader that threw on a row with no mobLooks.spread (2026-10-16: the page froze, the hero stayed a capsule)
     for (const id of ['character:giant-salamander', 'character:cave-troll']) for (let v = 0; v < 4; v++) assert.doesNotThrow(() => variantLook(id, v, z), `${id} variant ${v}`);
-    assert.equal(z.mobLooks?.looks['character:cave-troll']?.scale, 0.8, 'Dom 2026-10-16: the Test Zone troll is 20% smaller (a zone-90 look only; the main game\'s troll row is untouched)');
+    const { bodyScale } = await import('../origins/preview/mob-looks.ts');   // a look's scale is the ABSOLUTE draw size; an omitted one is the body's own (catalogue render.scale)
+    assert.ok(Math.abs(z.mobLooks!.looks['character:cave-troll']!.scale! - 0.8 * bodyScale('cave-troll')) < 1e-9, 'Dom 2026-10-16: the Test Zone troll is 80% of its normal size (a zone-90 look only; the main game\'s troll row is untouched)');
+    assert.ok(Math.abs(z.mobLooks!.looks['character:ash-boar']!.scale! - 1.5 * bodyScale('boar')) < 1e-9, 'Dom: boars +50%');
     const { fxNum } = await import('../src/fight/fx-rows.ts'); assert.equal(fxNum('stand-off.per-scale'), 0.5, 'a scaled creature stands back 0.5 m per unit of extra scale (Dom 2026-10-16: the wolf and the salamander overlapped the hero)');
     assert.equal(z.level, 1);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }

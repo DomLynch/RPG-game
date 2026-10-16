@@ -10,7 +10,7 @@ import { loadZone, type Zone } from '../zones/loader.ts';
 import MOB_LOOK_RULES from './mob-looks-rules.json' with { type: 'json' };
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
-const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
+export const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
 export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
 /** A look as a table or a zone row writes it: `scale` is optional, and an omitted scale means the body's own (its catalogue row's render.scale), resolved in mobLook(). A literal scale wins. */
