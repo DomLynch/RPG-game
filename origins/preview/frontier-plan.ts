@@ -13,6 +13,8 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
+import { skinParts } from '../world/building-skins-rules.ts';
+import { skinPieces } from './building-skin.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
@@ -176,13 +178,14 @@ const BLOCKS: Record<string, [number, number, number, Tint]> = {
 };
 const kindOf = (name: string) => name.split('-').at(-1)!;
 
-export function frontierBuild(f: Frontier): Build {
+export function frontierBuild(f: Frontier, skin = ''): Build {   // skin: a building skin id (look.buildings, building-skins.json): the town's blocks are drawn as its parts; '' = the brick blocks as they were
   const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [];
   const put = (layer: Layer, shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10) => { pieces.push({ layer, shape, x, y, z, tint, rotY, foot }); };
   // A point `ahead` metres along a facing and `right` metres across it (right of a walker looking along it).
   const off = (a: { x: number; z: number }, facing: number, ahead: number, right = 0) => ({ x: a.x + Math.sin(facing) * ahead - Math.cos(facing) * right, z: a.z + Math.cos(facing) * ahead + Math.sin(facing) * right });
-  const block = (a: At, [w, h, d, tint]: [number, number, number, Tint], solid = true) => {
-    const c = off(a, a.facing, -d / 2);
+  const block = (a: At, [w, h, d, tint]: [number, number, number, Tint], solid = true, kind = 'house') => {
+    const c = off(a, a.facing, -d / 2), parts = skin ? skinParts(skin, kind) : null;
+    if (parts) { pieces.push(...skinPieces(parts, c.x, c.z, a.facing, w, h, d)); if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + 0.3 }); return c; }   // the skin replaces the brick box, eaves and door; the footprint and solid are the block's own
     put('stone', ['box', w, h, d], c.x, h / 2, c.z, tint, a.facing, 0);
     put('stone', ['box', w + 0.6, 0.35, d + 0.6], c.x, h + 0.17, c.z, TIMBER, a.facing); // eaves
     if (w > 2) put('soot', ['box', Math.min(1.6, w / 3), Math.min(2.4, h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(1.2, (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
@@ -220,7 +223,7 @@ export function frontierBuild(f: Frontier): Build {
       const k = kindOf(name), c = z.town && z.landmarks[z.town.centre];
       // In a town every building opens onto the town's centre (greybox reading of the plan; the data's facings are not about doors).
       const door = c && name !== z.town!.centre ? { ...a, facing: Math.atan2(c.x - a.x, c.z - a.z) } : a;
-      if (BLOCKS[k]) block(door, BLOCKS[k]!);
+      if (BLOCKS[k]) block(door, BLOCKS[k]!, true, k);
       else if (name === 'ferry-house') block(door, BLOCKS.house!);
       else if (k === 'centre') { put('stone', ['cylinder', 1.2, 1.3, 0.8, 16], a.x, 0.4, a.z, DARK, 0, 0); solids.push({ x: a.x, z: a.z, r: 1.5 }); }
       else if (k === 'milestone') { put('stone', ['box', 0.5, 1.4, 0.35], a.x, 0.7, a.z, SAND, a.facing, 0); solids.push({ x: a.x, z: a.z, r: 0.5 }); }

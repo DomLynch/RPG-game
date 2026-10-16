@@ -6,6 +6,7 @@ import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/serve
 import DEFS from './goblin-field-defs.json' with { type: 'json' };
 import MANIFEST from './goblin-field-defs.manifest.json' with { type: 'json' };
 import { ambienceRow, dressSet, kitIds } from './props-rules.ts';
+import { skinIds } from './building-skins-rules.ts';
 
 export type GoblinRule = { readonly id: string; readonly value: number; readonly unit: string };
 type Raw = { rules?: readonly unknown[]; palettes?: readonly unknown[]; backdrops?: readonly unknown[]; grounds?: readonly unknown[]; looks?: readonly unknown[]; harmonics?: readonly unknown[]; names?: readonly unknown[] };
@@ -67,6 +68,8 @@ export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: 
   const at = zoneSet(z, 'look.props.camp'), zone = typeof at === 'string' && at && z.world.includes(at) ? at : z.world[0];
   return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true } : null;   // rim: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too
 }
+/** The building skin a zone asks for (`look.buildings`, an id in building-skins.json); '' = the brick blocks as they were. */
+export const zoneBuildings = (z: ZoneLookFields): string => { const v = zoneSet(z, 'look.buildings'); return typeof v === 'string' && skinIds().includes(v) ? v : ''; };
 /** The soft rim a zone asks for (`boundary.*`): within `margin` m of the zone's edge the walker slows toward `slow` (x speed) and `line` shows; margin 0 = no rim. */
 export const zoneRim = (z: ZoneLookFields): { margin: number; slow: number; line: string } => {
   const m = zoneSet(z, 'boundary.margin'), s = zoneSet(z, 'boundary.slow'), l = zoneSet(z, 'boundary.line');

@@ -66,7 +66,7 @@ import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneRim } from '../world/goblin-field-rules.ts';
+import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneRim, zoneBuildings } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
@@ -114,12 +114,13 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') !== '0';
-const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier);
+const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null;
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const GOBLIN = /[?&]look=(?:[^&]*,)?goblin\b/.test(location.search);   // ?look=goblin (with ?region=1): the goblin field's look test: the Cinder ground plus a near-ground kit (stakes, totems, smoking fires, dead trees, bones), a painted horizon dome and look.ts 'goblin-haze' (goblin-field.ts, horizon-dome.ts, goblin-smoke.ts); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
 const zoneRow = frontier ? (GOBLIN ? zoneAsBiome(pageZoneId(), goblinBiome(), { 'look.props.camp': goblinZone(), ...(new URLSearchParams(location.search).get('goblin') ? { 'look.sky': new URLSearchParams(location.search).get('goblin') } : {}) }) : loadZone()) : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields. A biome row can set them all (goblin-fortress); ?look=goblin is Zone 1 seen as that biome. Zones 1-4 set none of them, so they are unchanged
+const frontierParts = frontier && frontierBuild(frontier, zoneRow ? zoneBuildings(zoneRow) : '');   // the town's blocks, drawn as the zone's building skin (look.buildings) when it asks for one
 const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
 const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;
 const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
