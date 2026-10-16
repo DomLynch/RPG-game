@@ -17,7 +17,7 @@
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
 import { LOOT_ITEMS } from '../../src/core/server.ts';
-import { placedSpawns, placedWaypoints } from '../zones/place.ts';
+import { placedSpawns, placedWaypoints, spawnIds } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import lootTableRows from './loot-tables.json' with { type: 'json' };
 import townRows from './towns.json' with { type: 'json' };
@@ -47,6 +47,32 @@ export const ITEMS = [
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:starter.rusty-sword', name: 'Rusty sword', category: 'gear', rarity: 'common', slot: 'Longsword',
     power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/longsword.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  // The other four starter weapons (Strategy 2026-10-15: fixed ground placements, looks in origins/preview/ground-looks.json). Common, bound on acquire, never above Recruit gear.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.knife', name: 'Chipped knife', category: 'gear', rarity: 'common', slot: 'Knife',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/knife.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.cleaver', name: 'Notched cleaver', category: 'gear', rarity: 'common', slot: 'Cleaver',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/cleaver.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.gladius', name: 'Pitted gladius', category: 'gear', rarity: 'common', slot: 'Gladius',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/gladius.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.estoc', name: 'Bent estoc', category: 'gear', rarity: 'common', slot: 'Estoc',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/estoc.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  // Armour on the ground (batch two): Recruit-tier goblin pieces from loot.glb, looks in origins/preview/ground-looks.json. No placements yet (Strategy's call).
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-scrap-cap', name: 'Goblin scrap cap', category: 'gear', rarity: 'common', slot: 'Helmet',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'loot.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-shin-plates', name: 'Goblin shin plates', category: 'gear', rarity: 'common', slot: 'Greaves',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'loot.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
   },
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
@@ -120,7 +146,7 @@ export const REGIONS = [
       spawn('bounty-toll', 'milestone', 'encounter:bounty-toll'),
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
-      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
+      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, spawnIds(g))),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },

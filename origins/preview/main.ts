@@ -16,6 +16,9 @@ import { frontierKit } from './frontier-kit.ts';
 import { loadKit } from './frontier-kit-view.ts';
 import { createGroundItemView } from './ground-item-view.ts';
 import { groundLook } from './ground-looks.ts';
+import { createGroundPickup } from './ground-pickup.ts';
+import { groundPointOf } from '../world/ground-point.ts';
+import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
@@ -65,7 +68,7 @@ import { createGoblinSmoke } from './goblin-smoke.ts';
 import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
-import { pickSpell } from '../../src/fight/index.ts';
+import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
@@ -128,8 +131,8 @@ const camps = frontier && frontierParts && /[?&]camps\b/.test(location.search) ?
 const relief = frontier && frontierParts && !/[?&]relief=0\b/.test(location.search) ? reliefZones(frontier, frontierParts, dress, camps.flatMap((c) => c.pieces)) : [];
 const groundY = (x: number, z: number): number => (relief.length ? groundAt(relief, x, z) : 0);
 // Ground items (ground loot slice 3): the view draws what the page's ground_state says is there (show on `visible`, hide on a take). Each item's model is the equip file its ground-looks.json row names; the glob lists only the files rows use (add a line when a row names another).
-const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/longsword.glb', { eager: true, query: '?url', import: 'default' });
-const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => GROUND_MODELS[`../../src/assets/weapons/player/${groundLook(item).asset}.glb`], loadModel: async (url) => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; } });
+const GROUND_MODELS = import.meta.glob<string>('../../src/assets/weapons/player/{longsword,knife,cleaver,gladius,estoc}.glb', { eager: true, query: '?url', import: 'default' }), GROUND_LOOT = import.meta.glob<string>('../../src/assets/loot.glb', { eager: true, query: '?url', import: 'default' });   // `asset: "loot"` rows name a piece inside loot.glb
+const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (item) => { const { asset } = groundLook(item); return asset === 'loot' ? GROUND_LOOT['../../src/assets/loot.glb'] : GROUND_MODELS[`../../src/assets/weapons/player/${asset}.glb`]; }, loadModel: async (url) => { const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]); return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene; } });
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
@@ -248,13 +251,13 @@ const held = (...codes: string[]) => codes.some((c) => keys.has(c)) ? 1 : 0;
 
 // Tap-to-open: the prompt opens what you stand near; panels are play.ts's (rules modules) built with the ui.ts kit.
 const prompt = document.getElementById('prompt')!, shade = document.getElementById('shade')!, card = document.getElementById('card')!;
-const NEAR: Partial<Record<Kind | 'fight' | 'back', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit',
+const NEAR: Partial<Record<Kind | 'fight' | 'back' | 'ground', string>> = { talk: `Talk to ${SMITH_NAME}`, bank: 'Bank — tap to open', ore: 'Take the ore', fight: 'Fight in the Pit',
   bounty: `Talk to ${frontier?.giver.name ?? ''}`, back: 'Take the road back to the Exchange' };
 type Panel = Kind | 'allegiance';
-let near: Kind | 'fight' | 'back' | null = null, open: Panel | null = null;
+let near: Kind | 'fight' | 'back' | 'ground' | null = null, open: Panel | null = null, groundNear: { instance: string; label: string } | null = null, groundLine = '', groundLineUntil = 0;   // groundNear: the ground item the prompt is for (ground-pickup.ts)
 // ?region=1: the way back, from the Frontier's signpost to the Exchange's west gate, facing into the plaza.
 const goBack = () => { if (!frontier) return; const r = frontier.road; state.x = r.from.x + Math.sin(r.inward) * 2; state.z = r.from.z + Math.cos(r.inward) * 2; heading = r.inward; };
-const tapNear = () => { if (near === 'fight') void startFight(); else if (near === 'back') goBack(); else openPanel(near); };
+const tapNear = () => { if (near === 'fight') void startFight(); else if (near === 'back') goBack(); else if (near === 'ground') { if (groundNear) void groundPickup.tap(groundNear.instance); } else openPanel(near); };
 const show = (kind: Panel | null) => { const was = open; open = kind; if (kind === 'journal') hint.hidden = true; else if (was === 'journal' && !hintMoved) hint.hidden = false; shade.hidden = !kind; if (kind) card.innerHTML = kind === 'allegiance' ? picker.render(allegiance, playerName) : play.render(kind); };
 function openPanel(kind: Panel | null) {
   play.fresh(); picker.reset(); if (kind === 'ore') play.takeOre();
@@ -354,13 +357,17 @@ function step(dt: number) {
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
   const g = frontier?.giver, sign = frontier?.signs.find((s) => s.back);
+  groundNear = groundPickup.nearest(state.x, state.z);
   near = g && Math.hypot(state.x - g.at.x, state.z - g.at.z) < T.reach.forge ? 'bounty'
     : sign && Math.hypot(state.x - sign.at.x, state.z - sign.at.z) < 6 ? 'back'
     : Math.hypot(state.x, state.z) < T.reach.pit ? 'fight'
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
+    : groundNear ? 'ground'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
     : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
-  prompt.hidden = !near || !!open; if (near) prompt.textContent = NEAR[near]!;
+  const lineOn = Date.now() < groundLineUntil;   // a ground result line holds the prompt's slot (ground-pickup.json lineSec), inert, instead of a toast over the fight buttons
+  prompt.hidden = !(near || lineOn) || !!open; if (lineOn) prompt.textContent = groundLine; else if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
+  prompt.toggleAttribute('data-slot', !prompt.hidden); prompt.style.pointerEvents = lineOn ? 'none' : '';
   sun.position.copy(hero.position).add(sunHome); sun.target.position.copy(hero.position);
 }
 
@@ -510,7 +517,12 @@ void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.s
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
 // The Pit's HUD (pit-duel.ts) draws the button and runs every frame, so the page tells it whether slot b is filled instead of touching the element (which the HUD would re-hide).
-function syncSpell2Button() { duel?.setWorldSlotB(slotShown([equippedCast(), equippedCast(1)], 1)); }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
+const spellNames = new Map<string, string>();   // legend id -> the catalogue's spell name, read once through the lazy catalogue (the entry bundle carries no spell data)
+function syncSpell2Button() {
+  const id = equippedCast(1)?.id;
+  duel?.setWorldSlotB(slotShown([equippedCast(), equippedCast(1)], 1), id ? spellNames.get(id) : undefined);
+  if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
+}   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
 onSpellsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". Only the Concord square (+-150 m round the Pit) is in presence's frame today, so the pose is withheld outside it; ?presence=0 is the kill switch.
@@ -684,6 +696,15 @@ const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id)
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const zoneSound = createZoneSound(() => loadFeedback(), soundWanted(location.search));   // K8: the Pit's own combat cues, fed by wc's events (zone-sound.ts)
 for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => { zoneSound.unlock(); ambience?.unlock(); }, { passive: true });
+// Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
+const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
+const groundPickup = createGroundPickup({
+  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
+  read: () => readGround(storedToken(storage, Date.now()), repairBase),
+  take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
+});
+void AUTH_READY.then(() => groundPickup.refresh()); setInterval(() => void groundPickup.poll(state.x, state.z, document.hidden), groundPickup.pollSec * 1000);   // not while the tab is hidden or the walker is far from every item
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void groundPickup.poll(state.x, state.z, false); });
 (typeof requestIdleCallback === 'function' ? (f: () => void) => requestIdleCallback(f, { timeout: 3000 }) : (f: () => void) => setTimeout(f, 1000))(() => zoneSound.preload());   // the feedback chunk loads at idle, so the first gesture's unlock is synchronous (iOS resumes audio only inside the gesture)
 const spawnEvent = onCombatEvent(spawnNet, ME);
 const engageAhead = createEngageAhead(spawnNet, () => Date.now());   // the engage token is asked for inside a creature's aggro radius, before the join: the bout's roll seed needs it (engage-ahead.ts)
@@ -712,7 +733,8 @@ document.getElementById('leave')!.addEventListener('click', leaveFight);
   tapLog: () => [...tapLog],
   goblinCentre: () => goblinKit?.centre ?? null, goblinFires: () => goblinKit?.fires ?? [], goblinDomeProbe: (flat?: boolean) => { const m = goblinDome?.mesh; if (!m) return null; if (flat) { const mt = m.material as THREE.MeshBasicMaterial; mt.map = null; mt.color.set('#ff00ff'); mt.needsUpdate = true; } return { visible: m.visible, inScene: scene.children.includes(m), pos: m.position.toArray(), renderOrder: m.renderOrder, camY: camera.position.y, far: camera.far }; }, goblinDomeImage: () => { const t = (goblinDome?.mesh.material as THREE.MeshBasicMaterial | undefined)?.map?.image as HTMLCanvasElement | undefined; return t ? t.toDataURL('image/png') : null; },   // ?look=goblin: where the kit's camp stands, for the look stills
   // tap a creature by id as the page would (same reach rule).
-  ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor },   // for a capture and slice 3's page
+  ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
+  promptSpots: () => ({ fight: [0, 0], talk: [FORGE.x, FORGE.z], bank: [0, BANK_STEP_Z + T.reach.bank - 1] }),   // where the hero stands for each walk prompt (a check places the hero here and measures the prompt: scripts/ground-prompt-check.mjs)
   uploadMs: () => uploadMs,   // the walk's world upload: the latest slice's ms (-1 before the first); uploadLeft() = items still queued, uploadItems() = all planned so far
   uploadLeft: () => uploadQueue.length, uploadItems: () => uploadTotal,
   tapMob: (id: string) => { const m = mobs?.find(id); if (!m) return false; engage(m.spec, m.x, m.z); return true; },

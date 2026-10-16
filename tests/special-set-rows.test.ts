@@ -11,7 +11,7 @@ import { bossSpecialId } from '../src/fight/special-identity.ts';
 test('the special sets and the rank levels built from rows equal the old literal and thresholds', () => {
   const table: Record<string, (string | null)[]> = {};
   for (const id of Object.keys(OPPONENTS)) { table[id] = []; for (let level = 0; level <= 50; level++) table[id]!.push(specialOf(id as keyof typeof OPPONENTS, level)); }
-  assert.equal(createHash('sha256').update(JSON.stringify({ SPECIAL_SETS, table })).digest('hex'), '89cccac0b4373a856b500b1d3f78cc4df3fc20180c591e83d6418dd3804d8c0c');
+  assert.equal(createHash('sha256').update(JSON.stringify({ SPECIAL_SETS, table })).digest('hex'), '08e84bba9bac8c7b2efcec5c4711ee1b6de122e9ffbb183bf179df0dcc4bdef2');
   assert.deepEqual([...SPECIAL_RANK_LEVELS], [36, 41, 46]);
   assert.equal(Object.keys(SPECIAL_SETS).length, 10);
 });

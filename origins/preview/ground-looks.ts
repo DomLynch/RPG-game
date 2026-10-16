@@ -3,13 +3,13 @@ import MANIFEST from './ground-looks.manifest.json' with { type: 'json' };
 import LOOKS from './ground-looks.json' with { type: 'json' };
 
 // How a ground item lies (ground loot slice 3; donors 2004Scape ObjType, where each object type is one row carrying its model's recolour pairs, angles and offsets, and Ultima Online's item Hue over the same art):
-// one row per item id, nothing literal in the view. `asset` is the model's equip-file stem (src/assets/weapons/player/<asset>.glb: this item has no appearance.asset of its own yet), `yawDeg` turns it about the vertical, `rollDeg` rolls it about its long axis (0 = as the model's own face-up side lies), `tiltDeg` lifts the long axis off the ground (so it reads from the walk camera and clears the grass), `scale` multiplies the model,
+// one row per item id, nothing literal in the view. `asset` is the model's equip-file stem (src/assets/weapons/player/<asset>.glb: this item has no appearance.asset of its own yet), or `loot` (src/assets/loot.glb) with `piece` naming the armour piece's node in it (a skinned mesh: the view bakes its bind pose into a plain mesh to lay it down), `yawDeg` turns it about the vertical, `rollDeg` rolls it about its long axis (0 = as the model's own face-up side lies), `tiltDeg` lifts the long axis off the ground (so it reads from the walk camera and clears the grass), `scale` multiplies the model,
 // `liftM` is the clearance between its underside and the ground, `ring` an optional pale pickup ring on the ground under it (colour, radius in metres, opacity: the glint that makes it read at a glance at 375), `beam` an optional thin light column rising from it (colour, height and radius in metres, opacity; fades to nothing at the top: it clears the grass and reads from across the road), `finish` an optional finish row (src/core/finish-rows.json, e.g. `rust`) written onto its metal and trim by rank-tint's finishedAs.
 // `bands` are [inner, outer, strength] as fractions of `radiusM` (outer <= 1; strength scales `opacity`), `liftM` the ring's height over the ground.
 export type GroundRing = { readonly color: string; readonly radiusM: number; readonly opacity: number; readonly bands: readonly (readonly [number, number, number])[]; readonly segments: number; readonly liftM: number };
 // `topRatio` is the cone's top radius over its foot radius.
 export type GroundBeam = { readonly color: string; readonly heightM: number; readonly radiusM: number; readonly opacity: number; readonly topRatio: number; readonly segments: number };
-export type GroundLook = { readonly asset: string; readonly yawDeg: number; readonly rollDeg: number; readonly tiltDeg: number; readonly scale: number; readonly liftM: number; readonly finish?: string; readonly ring?: GroundRing; readonly beam?: GroundBeam };
+export type GroundLook = { readonly asset: string; readonly piece?: string; readonly yawDeg: number; readonly rollDeg: number; readonly tiltDeg: number; readonly scale: number; readonly liftM: number; readonly finish?: string; readonly ring?: GroundRing; readonly beam?: GroundBeam };
 
 const num = (id: string, what: string, v: unknown, ok: (n: number) => boolean, rule: string): number => { if (typeof v !== 'number' || !Number.isFinite(v) || !ok(v)) throw new Error(`ground-looks "${id}": ${what} is ${rule} (got ${JSON.stringify(v)})`); return v; };
 const hex = (id: string, what: string, v: unknown) => { if (typeof v !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error(`ground-looks "${id}": ${what} is a #rrggbb colour (got ${JSON.stringify(v)})`); };
@@ -25,6 +25,7 @@ export function loadGroundLooks(raw: unknown): ReadonlyMap<string, GroundLook> {
     if (typeof f.asset !== 'string' || !f.asset) throw new Error(`ground-looks "${id}": asset is the equip-file stem`);
     for (const k of ['yawDeg', 'rollDeg', 'tiltDeg']) num(id, k, f[k], () => true, 'a number');
     num(id, 'scale', f.scale, (n) => n > 0, 'above 0'); num(id, 'liftM', f.liftM, (n) => n >= 0, 'at least 0');
+    if (f.piece !== undefined && (typeof f.piece !== 'string' || !f.piece || f.asset !== 'loot')) throw new Error(`ground-looks "${id}": piece is a node name in loot.glb and goes with asset "loot"`);
     if (f.finish !== undefined && typeof f.finish !== 'string') throw new Error(`ground-looks "${id}": finish is a finish row id`);
     const ring = f.ring as Record<string, unknown> | undefined, beam = f.beam as Record<string, unknown> | undefined;
     if (ring) {

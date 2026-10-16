@@ -147,12 +147,12 @@ test('every zone row loads through the loader and passes its rules', () => {
   const rows = zoneRows();
   assert.ok(rows.length >= 2, 'origins/zone-rows has at least Zones 1 and 2');
   for (const { id, n } of rows) {
-    const z = loadZone(id);   // throws for an unregistered or invalid zone
+    const z = loadZone(id, true);   // throws for an unregistered or invalid zone (true: unlisted rows are checked too)
     assert.deepEqual([z.id, z.level], [id, n], `zone${n}.row.json loads under its own number`);
     assert.deepEqual(zoneProblems(z), [], id);
   }
   assert.deepEqual(allZoneIds(), rows.map((r) => r.id), 'the registry holds every row and nothing else');
-  assert.deepEqual(zoneIds(), rows.filter((r) => !loadZone(r.id).unlisted).map((r) => r.id), 'the list holds every row but the unlisted');
+  assert.deepEqual(zoneIds(), rows.filter((r) => !loadZone(r.id, true).unlisted).map((r) => r.id), 'the list holds every row but the unlisted');
   assert.deepEqual(packagesIn(repo), [], 'no zone is a TypeScript folder any more: origins/zones holds the loader and its helpers only');
 });
 

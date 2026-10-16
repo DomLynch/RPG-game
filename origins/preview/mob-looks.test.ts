@@ -25,7 +25,7 @@ test('every Frontier foe has exactly one look, on the body content.ts names', ()
 test('ranges: scale, dressing and tint are sane; a friendly figure has no look', () => {
   for (const [id, l] of Object.entries(Z1.looks)) {
     const scale = mobLook(id)!.scale;   // the resolved scale: a literal in the row, else the body's own
-    assert.ok(scale >= .7 && scale <= 2.2, `${id} scale ${scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/fight/beast-scale.ts)
+    assert.ok(scale >= .7 && scale <= 2.8, `${id} scale ${scale}`);   // 2: the Ash Wolf at twice its rig (Dom, 2026-10-07); 2.2: the Cinder Bear (src/fight/beast-scale.ts); 2.8: the Giant Salamander on the wolf rig (Combat's catalogue row render.scale, Characters' body; the cap is a typo guard, raised 2.2 -> 2.8 on purpose, 2026-10-16)
     for (const v of [l.dressing.soot, l.dressing.burnt]) assert.ok(v >= 0 && v <= 1, `${id} dressing ${v}`);
     assert.ok(Number.isInteger(l.tint) && l.tint >= 0 && l.tint <= 0xffffff, `${id} tint`);
   }

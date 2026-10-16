@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 
 const deploy = readFileSync('scripts/deploy.sh', 'utf8');
 const last = deploy.indexOf('\n}\n', deploy.indexOf('\nquality_green() {')) + 3;
+const net = `source '${join(process.cwd(), 'scripts', 'lib', 'net-bound.sh')}'`;   // quality_green calls net_gh: every gh call is bounded
 const fn = `${deploy.slice(deploy.indexOf('quality_green_jq='), last)}`;
 const run = (runs: Record<string, string>, list: string[]) => {
   const dir = mkdtempSync(join(tmpdir(), 'qgreen-'));
@@ -16,7 +17,7 @@ const run = (runs: Record<string, string>, list: string[]) => {
     mkdirSync(join(dir, 'bin'));
     const gh = `#!/bin/sh\nif [ "$2" = list ]; then printf '%s\\n' ${list.map((l) => `'${l}'`).join(' ')}; exit 0; fi\ncase "$3" in ${Object.entries(runs).map(([id, v]) => `${id}) echo ${v};;`).join(' ')} esac\n`;
     writeFileSync(join(dir, 'bin/gh'), gh); chmodSync(join(dir, 'bin/gh'), 0o755);
-    const r = spawnSync('bash', ['-c', `${fn}\nquality_green deadbeef`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
+    const r = spawnSync('bash', ['-c', `${net}\n${fn}\nquality_green deadbeef`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
     assert.equal(r.status, 0, r.stderr);
     return r.stdout.trim();
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -66,7 +67,7 @@ const guard = (opts: { parent: string | null; between?: boolean; runs: Record<st
     // cand~1 is a member merge (no CI run) when `between`, else the trunk itself; cand~2 is the trunk.
     writeFileSync(join(dir, 'bin/git'), `#!/bin/sh\ncase "$4" in cand~1) ${opts.parent ? (opts.between ? 'echo member' : `echo ${opts.parent}`) : 'exit 1'};; cand~2) ${opts.parent && opts.between ? `echo ${opts.parent}` : 'exit 1'};; *) exit 1;; esac\n`);
     chmodSync(join(dir, 'bin/gh'), 0o755); chmodSync(join(dir, 'bin/git'), 0o755);
-    const r = spawnSync('bash', ['-c', `${fn}\nquality_green cand`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
+    const r = spawnSync('bash', ['-c', `${net}\n${fn}\nquality_green cand`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
     assert.equal(r.status, 0, r.stderr);
     return r.stdout.trim();
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -99,7 +100,7 @@ test('a gh failure while looking up the trunk commit stops the walk and fails cl
     writeFileSync(join(dir, 'bin/gh'), '#!/bin/sh\nif [ "$2" = list ]; then case "$6" in cand) echo "1 https://x/runs/1";; older) echo "2 https://x/runs/2";; *) exit 1;; esac; exit 0; fi\ncase "$3" in 1) echo scoped;; 2) echo yes;; esac\n');
     writeFileSync(join(dir, 'bin/git'), '#!/bin/sh\ncase "$4" in cand~1) echo parent;; cand~2) echo older;; *) exit 1;; esac\n');
     chmodSync(join(dir, 'bin/gh'), 0o755); chmodSync(join(dir, 'bin/git'), 0o755);
-    const r = spawnSync('bash', ['-c', `${fn}\nquality_green cand`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
+    const r = spawnSync('bash', ['-c', `${net}\n${fn}\nquality_green cand`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}` } });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout.trim(), '');
   } finally { rmSync(dir, { recursive: true, force: true }); }
