@@ -30,6 +30,5 @@ test('a short spike does not flip it, and it returns only after a full window un
   t = run(g, t, 4, 70); assert.equal(g.low(), true);
   t = run(g, t, 5, 29); assert.equal(g.low(), true, '29 ms is under the drop threshold but not under the return threshold: it stays LOW');
   t = run(g, t, 2, 16.7); assert.equal(g.low(), true, 'two seconds back at 60 fps: the window is not clean yet');
-  t = run(g, t, 3, 16.7); assert.equal(g.low(), false, 'a full clean window: HIGH again');
-  void t;
+  run(g, t, 3, 16.7); assert.equal(g.low(), false, 'a full clean window: HIGH again');
 });
