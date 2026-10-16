@@ -252,6 +252,21 @@ for i, n in enumerate(d["nodes"]):
     if "mesh" in n and i not in keep:
         n.pop("mesh")
         n.pop("skin", None)
+# A bare-fisted brute (the Cave Troll) carries no sword: the rig keeps a mesh-less WeaponDrawn under hand_r (characters.ts throws without a
+# weapon node), the hero's sword meshes go (the compaction below drops their meshes, materials and buffers), and there is no sheath.
+NO_WEAPON_MESH = {"cave-troll"}
+if family in NO_WEAPON_MESH:
+    sheathed = {i for i, n in enumerate(d["nodes"]) if n.get("name") == "SwordSheathed"}
+    for n in d["nodes"]:
+        if n.get("name") == "SwordDrawn":
+            n["name"] = "WeaponDrawn"
+            n.pop("children", None)
+        if "children" in n:
+            n["children"] = [c for c in n["children"] if c not in sheathed]
+            if not n["children"]:
+                n.pop("children")
+    for i in keep:
+        d["nodes"][i].pop("mesh", None)
 b += b"\0" * (-len(b) % 4)
 bo = len(b)
 b += nb
