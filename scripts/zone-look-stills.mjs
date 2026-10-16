@@ -38,7 +38,8 @@ try {
       await page.waitForFunction(() => window.originsPreview && window.originsPreview.uploadLeft() === 0 && (window.originsPreview.uploadItems() > 0 || performance.now() > 20000), null, { timeout: 180000 });   // the walk's world is all on the GPU (a zone with nothing to upload: 20 s after load)
       const camp = await page.evaluate(() => window.originsPreview.goblinCentre?.() ?? null); r.camp = camp;
       const pit = name.includes('-pit');   // a name containing -pit: stand at the camp facing east, back towards the Pit (where the fog-proof Pit scenery showed)
-      if (camp) await page.evaluate(([x, z, back]) => window.originsPreview.place(back ? x : x, back ? z : z + 9, back ? Math.PI / 2 : Math.PI), [camp.x, camp.z, pit]);   // else 9 m south of the camp, facing it (forward is (sin h, cos h))
+      const hm = /-h(\d+)/.exec(name), turn = hm ? (Number(hm[1]) * Math.PI) / 180 : null;   // a name with -h<degrees> (e.g. -h45): stand at the camp centre facing that world bearing (0 = +z, 90 = +x), to check the whole horizon round
+      if (camp) await page.evaluate(([x, z, back, h]) => window.originsPreview.place(h === null ? x : x, h === null ? (back ? z : z + 9) : z, h ?? (back ? Math.PI / 2 : Math.PI)), [camp.x, camp.z, pit, turn]);   // else 9 m south of the camp, facing it (forward is (sin h, cos h))
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `${name}-camp.png`) }); r.stills.push(`${name}-camp.png`);
       if (process.env.STILLS_PROBE) {   // debugging the dome: its own texture (does it hold the picture?) and a frame with it painted flat magenta (where is it on screen?)
