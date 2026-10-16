@@ -16,11 +16,11 @@ Capturing cave-troll (8518e88b0) →
 |---|---|
 | glbBytes | 5,602,108 |
 | glbGzip | 2,908,610 |
-| enemyGlbBytes | 6,850,664 |
-| enemyGlbGzip | 3,079,225 |
+| enemyGlbBytes | 4,548,928 |
+| enemyGlbGzip | 2,105,525 |
 | meshTriangles | 63,584 |
 | drawCallsTwoFighters | 40 |
-| trianglesRenderedTwoFighters | 207,134 |
+| trianglesRenderedTwoFighters | 206,952 |
 | textureBytes | 31,544,651 |
 | bones | 65 |
 | textures | 31 |
