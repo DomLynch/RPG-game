@@ -71,6 +71,8 @@ export function zonePropKit(z: ZoneLookFields): { kit: string; at: string } | nu
 export const zoneDress = (z: ZoneLookFields) => dressSet(zoneSet(z, 'look.dress') as string | undefined);
 /** The ground a zone asks for (`look.ground.material` naming a ground row; an id with no row, like the biomes' old "ash", leaves the Frontier's own dirt). */
 export const zoneGround = (z: ZoneLookFields): GoblinGround | null => LOADED.grounds.find((g) => g.id === zoneSet(z, 'look.ground.material')) ?? null;
+/** How much closer the camera looks when the phone is held wide (landscape): `camera.landscapeZoom`, 1 = as before. Portrait is never changed. */
+export const zoneLandscapeZoom = (z: ZoneLookFields): number => { const v = zoneSet(z, 'camera.landscapeZoom'); return typeof v === 'number' && v >= 1 && v <= 3 ? v : 1; };
 /** The ambience row a zone asks for (`sound.ambience`); an id with no row stays silent. */
 export const zoneAmbience = (z: ZoneLookFields) => ambienceRow(zoneSet(z, 'sound.ambience') as string | undefined);
 /** The creature markers a zone shows: the "!" over a creature that noticed you, the floating name tag, and the creature's growl when it notices you (off unless set: the stop-and-face is the sim's own, the growl is the sound), the ground ring under a creature (on unless set off), the camera lock ('hard' = it swings to the nearest creature and holds; 'soft' = a gentle pull that lets go when you drag or push back), and the info card ('full' = today's three lines for the nearest creature that noticed you; 'target' = one line, name and level, for the creature you are targeting). All as today unless the zone SETS them. */
