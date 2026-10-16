@@ -11,7 +11,7 @@ test('the defaults are the look Dom is shown: pinned; the default palette is the
   assert.equal(goblinZone(), 'cinder-fields');
   assert.deepEqual([goblinRule('smokeCount'), goblinRule('campView'), goblinRule('pitHideM')], [9, 9, 60]);
   const f = goblinPalette();
-  assert.deepEqual([f.id, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['fortress', 'goblin-fortress', '#3a6090', '#7d93b4', '#b8946a', '#ffd890', '#4c3c36', '#74604f', '#5c4c44', 6, 'fortress-portrait', 'fortress-landscape']);
+  assert.deepEqual([f.id, f.haze, f.zenith, f.mid, f.horizon, f.glow, f.ridge, f.ridgeFar, f.smoke, f.torchPower, f.backdropPortrait, f.backdropLandscape], ['fortress', 'goblin-fortress', '#3a6090', '#7d93b4', '#b8946a', '#ffd890', '#4c3c36', '#74604f', '#5c4c44', 6, 'fortress-panorama', 'fortress-panorama']);
   assert.equal(goblinPalette('nope').id, 'fortress', 'an unknown ?goblin= id is the default row');
 });
 test('the loader refuses a missing named row, a non-positive value, a bad colour, a duplicate id, a dangling backdrop and a bad crop; a new row is one entry', () => {
@@ -25,6 +25,9 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.throws(() => loadGoblinField({ ...d, grounds: (d as unknown as { grounds: Record<string, unknown>[] }).grounds.map((g) => ({ ...g, texN: 4096 })) }), /texN is a whole number up to 2048/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, repeat: 3 })) }), /even whole number/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, drop: 0.9 })) }), /0 <= drop < 0\.5/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, arc: 0 } : b)) }), /0 < arc <= 180/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, azimuth: 400 } : b)) }), /0 <= azimuth < 360/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, fadeSide: 0.6 } : b)) }), /fadeSide < 0\.5/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, file: '/abs.webp' })) }), /no leading slash/);
   assert.throws(() => loadGoblinField({ ...d, harmonics: d.harmonics.map((h) => ({ ...h, k: 2.5 })) }), /whole number of periods/);
   assert.throws(() => loadGoblinField({ ...d, names: d.names.map((n) => (n.id === 'palette' ? { ...n, text: 'gone' } : n)) }), /names a palette row/);
@@ -44,9 +47,11 @@ test('every palette\'s haze is a look row whose fog is the dome horizon colour (
 test('a palette with pictures shows the portrait row on a tall screen and the landscape row on a wide one; the files are in public/', async () => {
   const { existsSync } = await import('node:fs');
   const f = goblinPalette('fortress');
-  assert.equal(goblinBackdrop(f, true)?.id, 'fortress-portrait'); assert.equal(goblinBackdrop(f, false)?.id, 'fortress-landscape');
+  assert.equal(goblinBackdrop(f, true)?.id, 'fortress-panorama'); assert.equal(goblinBackdrop(f, false)?.id, 'fortress-panorama', 'one panorama serves both screen shapes: it is a sector, the camera sees only 25 to 92 degrees of it');
+  const sec = goblinBackdrop(f, true)!; assert.ok(sec.arc !== undefined && (sec.arc * sec.texH) / sec.texW < 90, 'the sector band is under 90 degrees tall');
+  const view = 180 * 0.62; assert.ok(sec.drop <= 0.5 && ((sec.arc! * sec.texH) / sec.texW) * (1 + sec.drop) < view / 2 + 20, 'the sector, lowered by drop, stays inside the dome');
   assert.equal(goblinBackdrop({ ...f, backdropPortrait: '', backdropLandscape: '' }, true), null, 'no picture: the painted sky alone');
   for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(existsSync(`public/${b.file}`), `public/${b.file}`);
   const turn = 360 / (180 * goblinRule('domeHalf'));   // the dome texture spans 360 degrees across and domeHalf x 180 down: a picture keeps its shape only when texW:texH is that ratio
-  for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b) assert.ok(Math.abs(b.texW / b.texH / turn - 1) < 0.05, `${b.id}: texW/texH ${(b.texW / b.texH).toFixed(2)} is within 5 % of ${turn.toFixed(2)} (else the picture stretches)`);
+  for (const p of goblinPalettes()) for (const b of [goblinBackdrop(p, true), goblinBackdrop(p, false)]) if (b && b.arc === undefined) assert.ok(Math.abs(b.texW / b.texH / turn - 1) < 0.05, `${b.id}: texW/texH ${(b.texW / b.texH).toFixed(2)} is within 5 % of ${turn.toFixed(2)} (else the picture stretches)`);
 });

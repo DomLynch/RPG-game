@@ -55,12 +55,17 @@
         "x1": "number",
         "y0": "number",
         "y1": "number",
-        "repeat": "number",
         "texW": "number",
         "texH": "number",
         "fadeTop": "number",
         "fadeFoot": "number",
         "drop": "number"
+      },
+      "optional": {
+        "repeat": "number",
+        "arc": "number",
+        "azimuth": "number",
+        "fadeSide": "number"
       }
     },
     {
