@@ -55,6 +55,7 @@ import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { loadLoot, lootIds } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
+import { warmKits } from './warm-kits.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
@@ -410,8 +411,16 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
-  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), () => new Promise<void>((r) => requestAnimationFrame(() => r()))), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+  try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), frame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  // The programs another player's gear brings (warm-kits.json, drawn through dressRemote): linked here, so a remote's first sight compiles nothing. A failure here only costs that first-sight compile: it never fails the hero's own warm-up.
+  try { await settleWithin('remote-kits', warmRemoteKits(frame), KINDS_WAIT_MS); } catch (error) { console.warn('remote-kit warm-up failed', error); }
   warmedHero.done = true;
+}
+async function warmRemoteKits(frame: () => Promise<void>) {
+  const kits = warmKits(); if (!kits.length) return;
+  const pieces = await loadLoot(lootUrl), remote = (await loadWarriors(ASSETS.hero!)).player;
+  for (const kit of kits) { dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), frame); }
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
