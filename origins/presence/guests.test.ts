@@ -32,8 +32,8 @@ test('a guest joins with no token at the spawn, is told it is a guest, and is se
     const guest = [...p.world.byAccount.values()].find((x) => x.guest)!;
     assert.ok(guest.account.startsWith('guest-') && !/^[0-9a-f-]{36}$/.test(guest.account), 'a server-minted identity that is not a uuid');
     await until(() => a.entered().length === 1 && g.entered().length === 1);
-    assert.deepEqual(a.entered(), [{ id: guest.id, name: null, guest: true }], 'the signed-in player sees a Guest, no name');
-    assert.deepEqual(g.entered(), [{ id: p.world.byAccount.get(A)!.id, name: 'Alice', guest: false }], 'the guest sees the signed-in name');
+    assert.deepEqual(a.entered(), [{ id: guest.id, name: null, guest: true, worn: {} }], 'the signed-in player sees a Guest, no name, nothing worn');
+    assert.deepEqual(g.entered(), [{ id: p.world.byAccount.get(A)!.id, name: 'Alice', guest: false, worn: {} }], 'the guest sees the signed-in name');
     assert.ok(g.seen().length === 1 && a.seen().length === 1);
     a.close(); g.close();
   } finally { await p.close(); }

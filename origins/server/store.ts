@@ -99,6 +99,14 @@ export const activeName = async (db: Db, account: string): Promise<string | null
   const out = await gated(db, 'active_name', HAS_ACTIVE_NAME, 'actname', `select coalesce(to_jsonb(public.origins_active_name(:'a'::uuid))::text, 'null');`, { a: acct(account) });
   return out === 'absent' ? null : (JSON.parse(out) as string | null);
 };
+// The ACTIVE character's equipped pieces (migration 20261016200000), for the gear other players see: [{item, tier, slot}], a plain read with no lock (origins_open locks the career row and returns
+// the whole snapshot, too heavy for a 30 s refresh per player). Null on a database without the function: nothing worn is shown, nothing else changes.
+const HAS_ACTIVE_WORN = `select to_regprocedure('public.origins_active_worn(uuid)') is not null as actworn \\gset\n`;
+export type WornRow = { item: string; tier: string | null; slot: string };
+export const activeWorn = async (db: Db, account: string): Promise<WornRow[] | null> => {
+  const out = await gated(db, 'active_worn', HAS_ACTIVE_WORN, 'actworn', `select public.origins_active_worn(:'a'::uuid)::text;`, { a: acct(account) });
+  return out === 'absent' ? null : (JSON.parse(out) as WornRow[]);
+};
 export type SavedRow = { character: string; zone: string | null; x: number; z: number; updated_at: string };
 export const saveLocation = async (db: Db, account: string, at: { x: number; z: number; zone: string | null; atMs: number }): Promise<{ character: string | null; stored: boolean }> =>
   JSON.parse(await db.run(`select public.origins_save_location(:'a'::uuid, :'x'::int, :'z'::int, nullif(:'zone', ''), :'t'::bigint)::text;`,

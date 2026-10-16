@@ -12,7 +12,7 @@ import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_ED
 import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
-const wornIdsOf = async (db: Db, account: string, character: string) => (await import('./worn-gear.ts')).wornIdsOf(db, account, character);   // lazy: presence imports this file for its client half and must not load the fight code
+const wornIdsOf = async (db: Db, account: string) => (await import('./worn-gear.ts')).wornIdsOf(db, account);   // lazy: presence imports this file for its client half and must not load the fight code
 
 export const ZONE_CM = 30000;   // the saved x/z columns' bound, check (between 0 and 30000) in migration 202610070009 (old town frame): a storage contract, pinned by tests/location-bounds.test.ts
 
@@ -67,12 +67,12 @@ export function internalRoute(db: Db, opts: InternalOptions): (req: IncomingMess
       if (req.method === 'GET') {
         const account = url.searchParams.get('account')?.toLowerCase();
         if (!account || !UUID.test(account)) return reply(400, { error: 'account: a uuid' });
-        if (url.searchParams.get('worn') === '1') { const c = await store.active(db, account); return reply(200, { worn: c ? await wornIdsOf(db, account, c) : {} }); }   // presence's refresh: only what others see worn, nothing else
+        if (url.searchParams.get('worn') === '1') return reply(200, { worn: await wornIdsOf(db, account) });   // presence's refresh: only what others see worn, nothing else
         if (flusher?.has(account)) await flusher.flush();   // read your own write: presence rejoining right after a leave sees the spot it just posted
         const saved = await store.savedLocation(db, account);
         const character = saved?.character ?? await store.active(db, account);
         const name = await store.activeName(db, account);   // presence's name tag for this account's active character; null when none, or before the migration
-        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name, worn: character ? await wornIdsOf(db, account, character) : {} });   // worn: the visible gear {slot: lootId}, read from the ledger, never from the client
+        return reply(200, { ...serve(saved, character ? await held(db, account, character) : null), name, worn: character ? await wornIdsOf(db, account) : {} });   // worn: the visible gear {slot: lootId}, read from the ledger, never from the client
       }
       const text = await new Promise<string>((resolve, reject) => {
         let size = 0; const parts: Buffer[] = [];
