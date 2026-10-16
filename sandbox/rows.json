@@ -83,6 +83,7 @@
 {"id":"stabHalfAngle","value":50},
 {"id":"stabSlide","value":18},
 {"id":"bandOff","value":400},
+{"id":"castTellOff","value":1},
 {"id":"glanceGain","value":450},
 {"id":"glanceRate","value":820},
 {"id":"flankDamage","value":1200},

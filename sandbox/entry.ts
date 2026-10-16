@@ -18,7 +18,7 @@ import SAVED from './rows.json' with { type: 'json' };
 
 declare const __SANDBOX_INFO__: string;
 // The spell picks survive a link or a reload that does not name them (a ?me= link used to drop them): remembered per browser, the URL wins, an empty Apply clears.
-const LOADOUT_KEY = 'frankendom.sandbox.loadout', SPELL_KEYS = ['spell', 'spell2', 'cast', 'cast2'];
+const LOADOUT_KEY = 'frankendom.sandbox.loadout', SPELL_KEYS = ['spell', 'spell2', 'cast', 'cast2', 'foespell', 'foecast'];
 {
   const u = new URL(location.href); let saved: Record<string, string> = {}; let changed = false;
   try { saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; } catch { /* none */ }
@@ -101,6 +101,15 @@ function panel(opponents: string[]) {
     for (const [school, list] of [...bySchool].sort()) { const g = el('optgroup', { label: school }); for (const [id, label] of list.sort((a, b) => a[1].localeCompare(b[1]))) g.append(el('option', { value: id, textContent: label, selected: params.get('spell') === id })); spellSel.append(g); }
     fill2();
   });
+  // The OPPONENT's spell (?foespell= ?foecast=), grouped by the range band its root casts from, so Short / Medium / Long is one pick.
+  const foeSel = el('select'), foeCast = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('foecast') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
+  foeSel.append(el('option', { value: '', textContent: '(none: class special)' }));
+  void Promise.all([import('../src/fight/spell-catalogue.ts'), import('../src/fight/spell-cast.ts'), import('../src/fight/sandbox-rules.ts')]).then(([{ SPELL_INFO }, { spellRoot }, { spellRangeOf }]) => {
+    const BAND_NAME: Record<string, string> = { inner: 'Short range', mid: 'Medium range', outer: 'Long range' }, byBand = new Map<string, [string, string][]>();
+    for (const [id, i] of Object.entries(SPELL_INFO)) { const root = spellRoot(id), band = (root && spellRangeOf(root)?.band) || ''; const l = byBand.get(band) ?? []; l.push([id, `${i.spell || id} - L${i.level} (${i.legend})`]); byBand.set(band, l); }
+    for (const band of ['inner', 'mid', 'outer', '']) { const list = byBand.get(band); if (!list) continue; const g = el('optgroup', { label: BAND_NAME[band] ?? 'No range row' }); for (const [id, label] of list.sort((a, b) => a[1].localeCompare(b[1]))) g.append(el('option', { value: id, textContent: label, selected: params.get('foespell') === id })); foeSel.append(g); }
+  });
+  foeSel.onchange = () => stage('foespell', foeSel.value); foeCast.onchange = () => stage('foecast', foeCast.value);
   const spell2Sel = el('select'), cast2 = el('input', { type: 'number', min: '0', max: '100', placeholder: 'cast skill', value: params.get('cast2') ?? '', style: 'width:84px' } as Partial<HTMLInputElement>);
   spell2Sel.append(el('option', { value: '', textContent: '(none)' }));
   const fill2 = () => { for (const g of spellSel.querySelectorAll('optgroup')) { const c = g.cloneNode(true) as HTMLOptGroupElement; for (const o of c.querySelectorAll('option')) (o as HTMLOptionElement).selected = params.get('spell2') === (o as HTMLOptionElement).value; spell2Sel.append(c); } };
@@ -120,6 +129,7 @@ function panel(opponents: string[]) {
     el('div', { textContent: 'Loadout (pick everything, then Apply once)', style: 'color:#c9a227;font-weight:600' }),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell (SPELL 1) ' }), spellSel, cast),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell 2 (SPELL 2) ' }), spell2Sel, cast2),
+    el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Opponent spell ' }), foeSel, foeCast),
     weaponPick('Your weapon', true), weaponPick('Opponent weapon', false), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)), applyLoadout,
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);

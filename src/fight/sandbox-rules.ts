@@ -95,6 +95,8 @@ type BandRow = { id: string; upTo: number }; type BandBestRow = { weapon: string
 const BANDS = ((DEFS as unknown as { bands?: BandRow[] }).bands ?? []).slice().sort((a, b) => a.upTo - b.upTo);
 const BAND_BEST = ((DEFS as unknown as { bandBest?: BandBestRow[] }).bandBest ?? []);
 export const BAND_OFF = num('bandOff', 'value');
+//   castTellOff: 1 hides the ground ring + fill drawn under the target while a spell winds up (boss-telegraph.ts caster tell; Dom 2026-10-16: "large white rings look shit"). 0 = trunk, the ring is drawn.
+export const CAST_TELL_OFF = num('castTellOff', 'value');
 export const bandOf = (distance: number): string | undefined => BANDS.find((b) => distance * 100 < b.upTo)?.id ?? BANDS[BANDS.length - 1]?.id;
 export const bandPerMille = (weapon: string, distance: number): number => {
   if (!BAND_OFF || !BANDS.length) return 1000;
