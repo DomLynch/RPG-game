@@ -11,8 +11,9 @@
 // repro build {level 12, armour 4, attack 4, health 4} + the same four dwarf pieces at tier 2; the same body also carries the level-20 TRACE20 line, which this script does NOT use): sheet {attack 4,
 // armour 31, health 6, poise 1}, maxHealth 159 against the bare 150.
 // Safety: it REFUSES any account that is not is_test with display_name "QA Smoke" (checked before any write); it never prints a credential, a token or a connection string (the token only goes in an
-// Authorization header and into the page's own session storage; the database password goes in the child's environment, never its arguments); it never opens presence (a presence page would show the
-// QA character to real players). Prod evidence that a level-12 test row appears on no public board: the receipt on #2900.
+// Authorization header and into the page's own session storage; the database password goes in the child's environment, never its arguments); it never joins presence (presence is opt-out
+// on a signed-in page, so the page URL must carry presence=0, asserted on the parsed URL so a QA_PAGE override cannot drop it, and any websocket to /origins/presence fails the run; a joined hero
+// would show "QA Smoke" to real players). Prod evidence that a level-12 test row appears on no public board: the receipt on #2900.
 import fs from 'node:fs';
 import console from 'node:console';
 import process from 'node:process';
@@ -21,7 +22,7 @@ import { URL } from 'node:url';
 import { chromium } from 'playwright';
 
 const QA_ENV = process.env.QA_ENV ?? '/etc/frankendom/qa-account.env', WRITER_ENV = process.env.WRITER_ENV ?? '/etc/frankendom/origins-writer.env';
-const PAGE = process.env.QA_PAGE ?? 'https://frankendom.com/preview/origins/?region=1', RELEASE = process.env.QA_RELEASE ?? 'https://frankendom.com/release.json';
+const PAGE = process.env.QA_PAGE ?? 'https://frankendom.com/preview/origins/?region=1&presence=0', RELEASE = process.env.QA_RELEASE ?? 'https://frankendom.com/release.json';
 const LEVEL = 12, PLACED = { armour: 4, attack: 4, health: 4 };
 const WORN = { head: 'dwarf.Helmet', chest: 'dwarf.Body', legs: 'dwarf.Greaves', main: 'dwarf.Warhammer' }, WANT = { attack: 4, armour: 31, health: 6, poise: 1, maxHealth: 159 };
 const AUTH_KEY = 'frankendom.auth.v1';   // src/core/writer-call.ts: the page reads { access_token, expires_at } from here
@@ -32,7 +33,10 @@ const envOf = (file) => {
 const send = async (url, init) => { try { const res = await globalThis.fetch(url, { ...init, signal: globalThis.AbortSignal.timeout(20_000) }); return { status: res.status, json: await res.json().catch(() => null) }; } catch { return { status: 0, json: null }; } };
 
 // ---- preflight, part 1: no browser, no write -----------------------------------------------------------------------------------------------------------------------------------------------
-step('refuse a presence page', !/presence/i.test(PAGE), 'QA_PAGE must not open presence');
+// Presence is OPT-OUT on a signed-in page (origins/preview/presence-client.ts presenceWanted: on unless ?presence=0), and a joined QA hero would show "QA Smoke" to real players: the page URL MUST carry presence=0.
+let pageUrl = null;
+try { pageUrl = new URL(PAGE); } catch { /* not a URL: refused below */ }
+step('the page URL carries presence=0 (presence is opt-out, so a URL without it would join)', pageUrl?.searchParams.get('presence') === '0', 'QA_PAGE must be a URL with presence=0');
 const pr = process.argv.find((a) => a.startsWith('--pr2900='))?.slice('--pr2900='.length) ?? '';
 step('--pr2900=<40-hex merge sha of #2900> given', /^[0-9a-f]{40}$/.test(pr));
 const live = (await send(RELEASE)).json?.revision;
@@ -58,6 +62,9 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   await context.addInitScript(([k, v]) => { try { globalThis.localStorage.setItem(k, v); } catch { /* storage blocked */ } }, [AUTH_KEY, JSON.stringify({ access_token: token, expires_at: expiresAt })]);
   const page = await context.newPage();
+  let joinedPresence = '';   // belt and braces: any websocket to the presence service is a failure, whatever the URL said
+  page.on('websocket', (ws) => { if (/\/origins\/presence/.test(ws.url())) joinedPresence = ws.url().replace(/[?#].*$/, ''); });
+  const noPresence = (when) => step(`no presence websocket was opened ${when}`, joinedPresence === '', `the page joined ${joinedPresence}`);
   const read = () => page.evaluate(() => {
     const p = globalThis.originsPreview, c = p?.combat?.(), t = c?.trace ?? p?.trace?.();
     return { trace: t ?? null, max: c?.hero?.max ?? null, career: p?.career?.() ?? null };
@@ -69,6 +76,7 @@ try {
   // ---- preflight, part 2: the page (still no write) -----------------------------------------------------------------------------------------------------------------------------------------
   await page.goto(PAGE, { waitUntil: 'load', timeout: 60_000 });
   const pre = await settle(exists);
+  noPresence('in the preflight load');
   step('PREFLIGHT: originsPreview.combat().trace exists and has a numeric maxHealth (the sheet is not required yet)', exists(pre), pre.trace ? 'trace has no numeric maxHealth' : 'no trace handle: the release does not carry #2900 as expected');
   const preArmour = pre.trace.sheet?.armour ?? 0;
   console.log(`preflight: before any write the QA hero's maxHealth is ${pre.trace.maxHealth} (150 = bare on a first run), sheet ${pre.trace.sheet ? `armour ${preArmour}` : 'none (bare)'}`);
@@ -101,6 +109,7 @@ try {
   // ---- the read-back: a fresh page load with the new build and gear ---------------------------------------------------------------------------------------------------------------------------
   await page.reload({ waitUntil: 'load', timeout: 60_000 });
   const got = await settle((g) => shaped(g) && g.trace.ready === true && g.trace.sheet.armour === WANT.armour);   // a re-run (build already in place) passes too; a mismatch times out and the lines below print the actual numbers
+  noPresence('in the read-back load');
   step('the reloaded page answers its trace (ready, with the new sheet)', shaped(got) && got.trace.ready === true, 'trace never showed the new build');
   const s = got.trace.sheet, maxHealth = got.trace.maxHealth;
   console.log(`HUD career level ${got.career?.level ?? '?'}; trace level ${got.trace.level ?? '?'}; sheet attack ${s.attack} armour ${s.armour} health ${s.health} poise ${s.poise}; maxHealth ${maxHealth} (bare 150)`);
