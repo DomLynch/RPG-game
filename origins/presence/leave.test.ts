@@ -20,7 +20,10 @@ async function assertGone(p: Awaited<ReturnType<typeof start>>, alice: Bot, bobI
   const layer = [...p.world.layers.values()][0]!;
   assert.equal(layer.players.has(bobId), false, `${why}: the layer forgot him`);
   assert.equal([...layer.cells.values()].some((c) => [...c].some((q) => q.id === bobId)), false, `${why}: no cell still holds him`);
-  for (let i = 0; i < 12; i++) { alice.pose(1 + (i % 2), 0); await wait(50); assert.equal(alice.seen().some((e) => e.id === bobId), false, `${why}: packet ${i} after he left still carried his id`); }
+  const leftAt = Date.now();
+  for (let i = 0; i < 12; i++) { alice.pose(1 + (i % 2), 0); await wait(50); }
+  const after = alice.packets().filter((q) => q.at > leftAt + 150);   // 150 ms: a packet already on the wire when the world forgot him may still land
+  assert.equal(after.some((q) => q.ids.includes(bobId)), false, `${why}: a packet received after the world forgot him still carried his id (${after.length} packets since)`);
 }
 
 for (const how of ['standing still', 'after walking', 'after a warp', 'with a worn set and the refresh running', 'as a guest']) {
@@ -55,7 +58,8 @@ test('a player who closes while the writer refresh read is in flight is not brou
     release();
     await wait(200);
     assert.equal(p.world.byAccount.has(B), false, 'the late read did not re-add him');
-    assert.equal(alice.seen().some((e) => e.id === bobId), false);
+    const leftAt = Date.now() - 200; await wait(300);
+    assert.equal(alice.packets().some((q) => q.at > leftAt && q.ids.includes(bobId)), false, 'and no packet after he left carries his id');
     alice.close();
   } finally { release(); await p.close(); }
 });
