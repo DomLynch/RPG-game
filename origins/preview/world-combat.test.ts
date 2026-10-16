@@ -174,7 +174,7 @@ test('the hero is rebuilt from hero() at the next clean window open: a sheet tha
 });
 
 test('sheet-in-world gate: while the loadout is not ready no creature joins (no fight on the bare body), and when it is the fight starts on the sheet with its armour in the trace', () => {
-  const sheet = sheetOf({ level: 10, placed: { health: 10, armour: 10 } })!; assert.ok(sheet.armour, 'armour is on the sheet');
+  const sheet = sheetOf({ level: 20, placed: { health: 10, armour: 10 } })!; assert.ok(sheet.armour, 'armour is on the sheet');
   const state: { ready: boolean; sheet?: Sheet } = { ready: false };
   const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 2 }]);
   const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => ({ gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
