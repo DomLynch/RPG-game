@@ -2,7 +2,7 @@
 //   ZONE (open world): the built origins preview (?region=1&worldfight) signed in to a stub writer whose book holds two spells, slot a and slot b picked in localStorage (the key the grimoire's Equip A / Equip B writes);
 //   the page reads the book, and SPELL 2 appears by itself. PIT: the built Pit page with the SAME picks and book, which must NOT show SPELL 2 (the ladder never fills slot b).
 // 375x812 and 320x568 each. Each frame comes with a receipt of the visible action boxes (no two overlap, all inside the viewport, each >= 44 px) and the page text is checked for a fallback toast.
-//   node scripts/spell-slots-still.mjs --dist dist [--out artifacts/spell-slots] [--dpr 2]      (the origins preview is always rebuilt here and checked for this tree's code)
+//   node scripts/spell-slots-still.mjs --dist dist [--out artifacts/spell-slots] [--dpr 2] [--b <spell id for slot b, default andvari>]      (the origins preview is always rebuilt here and checked for this tree's code)
 /* global process, console, document, localStorage */
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -12,8 +12,8 @@ import { execFileSync } from 'node:child_process';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const DIST = arg('dist', 'dist'), OUT = arg('out', 'artifacts/spell-slots'), DPR = Number(arg('dpr', 2)), ROOT = process.cwd(), PREVIEW = path.join(ROOT, 'artifacts/origins-preview');
-const VIEWPORTS = [{ w: 375, h: 812 }, { w: 320, h: 568 }], TOKEN = 'stub-access';
-const BOOK = { alvis: { root: 'longShadow', modifiers: [], suffix: null }, andvari: { root: 'crack', modifiers: [], suffix: null } };
+const SLOT_B = arg('b', 'andvari'), VIEWPORTS = [{ w: 375, h: 812 }, { w: 320, h: 568 }], TOKEN = 'stub-access';
+const BOOK = { alvis: { root: 'longShadow', modifiers: [], suffix: null }, andvari: { root: 'crack', modifiers: [], suffix: null }, 'fisher-king': { root: 'theWord', modifiers: [], suffix: null }, 'spider-spirits': { root: 'baying', modifiers: [], suffix: null } };   // the last two are the catalogue's longest name ("Wound That Will Not Close") and a short one ("Silk Web"), for --b
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.wasm': 'application/wasm', '.woff2': 'font/woff2' };
 
 execFileSync('npx', ['vite', 'build', '--config', 'origins/preview/vite.config.mjs', '--emptyOutDir'], { stdio: 'inherit', timeout: 900_000 });   // always fresh: a stale artifacts/origins-preview once made the fix look broken
@@ -61,7 +61,7 @@ async function frame(label, vp, page, expectSkill2) {
 }
 const open = async (vp) => {
   const context = await browser.newContext({ viewport: { width: vp.w, height: vp.h }, isMobile: true, hasTouch: true, deviceScaleFactor: DPR });
-  await context.addInitScript(([t, slots]) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer' })); localStorage.setItem('frankendom.spell.slots.v1', JSON.stringify(slots)); } catch { /* storage refused */ } }, [TOKEN, ['alvis', 'andvari']]);
+  await context.addInitScript(([t, slots]) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer' })); localStorage.setItem('frankendom.spell.slots.v1', JSON.stringify(slots)); } catch { /* storage refused */ } }, [TOKEN, ['alvis', SLOT_B]]);
   const page = await context.newPage(); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 160))); page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`console.${m.type()}:`, m.text().slice(0, 200)); }); await page.route('**/*sentry.io/**', (r) => r.abort());
   return { context, page };
 };

@@ -173,6 +173,19 @@ test('update: SPELL 2 is absent in the Pit and with slot b empty, present and li
   assert.deepEqual(show(true, true), { hidden: false, disabled: 'true' }, 'slot b cooling: the button stays, dim');
 });
 
+// Lead's ruling (2026-10-16): SPELL 2 names its spell from the catalogue row; an empty or unknown slot keeps "Spell 2"; the full name is in aria-label and the tooltip.
+test('update: SPELL 2 carries the name the page hands over, and falls back to the markup\'s "Spell 2"', () => {
+  const pit = initialPractice(731, OPPONENTS.veteran), { element, get } = dom(), button = () => get('skill2-button');
+  element<FakeElement>('skill2-button').dataset.mobile = 'Spell 2';   // the page's markup
+  const hud = createHud(element as never), name = 'Wound That Will Not Close';
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true, slotBName: name });
+  assert.deepEqual([button().dataset.mobile, button().attributes.get('aria-label'), button().textContent], [name, name, name], 'the name, in the cluster label, the accessible name and the text');
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true, slotBName: '' });
+  assert.equal(button().attributes.get('aria-label'), 'Spell 2', 'a name not read yet (or unknown): the generic words');
+  hud.update(project(pit.duel, pit.ai), { ...view(), slotB: true });
+  assert.equal(button().dataset.mobile, 'Spell 2', 'no name given: the generic words');
+});
+
 // Combat 2026-09-27: a lit Dirty Jab pressed at 1.0–1.4 m started and whiffed (live tick log). SKILL now says when the equipped cone
 // skill can land, as Kick does: data-reach from the move's own reach (Jab 1.0 m, Pommel 1.3 m, Lunge 2.4 m), no number in the HUD.
 test('update: SKILL shows whether the equipped cone skill is in reach (data-reach), from the move\'s own reach', () => {

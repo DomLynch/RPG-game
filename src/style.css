@@ -1465,6 +1465,16 @@ dialog>p {
     left: 41px;
     top: -65px;
   }
+  .actions[data-gestures=cluster] #skill2-button:not([hidden])::after {   /* the spell's name: two small lines inside the 58 px circle, the rest ellipsised (the full name stays in aria-label and the tooltip) */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    max-width: 46px;
+    margin: 0 auto;
+    font: 10px/11px Arial;
+    overflow-wrap: anywhere;
+  }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
     height: 44px;
