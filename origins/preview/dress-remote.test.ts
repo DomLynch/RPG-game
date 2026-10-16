@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildWarriors, lootIds, lootPiecesOf, lootWorn } from '../../src/fight/characters.ts';
-import { dressRemote, wornIds } from './dress-remote.ts';
+import { coldPieces, dressRemote, wornIds } from './dress-remote.ts';
 import type { Tier } from '../../src/core/index.ts';
 
 // Parse a shipped GLB in Node, as tests/shield-carry.test.ts does (images dropped: decoding is the browser's).
@@ -36,6 +36,13 @@ test('a remote actor dressed with a worn set wears exactly what the player\'s ow
   own.player.wear(own.pieces.filter((piece) => lootWorn(piece, ids)), undefined, (piece) => tiers[lootIds(piece).find((id) => ids.includes(id)) ?? ''] ?? 'Recruit');
   assert.ok(remote.player.worn().length >= 3, 'the set is on the body');
   assert.deepEqual(shown(remote.player), shown(own.player));
+});
+
+test('which pieces a remote would compile on first sight: those whose material is not the warmed hero palette', async () => {
+  const { player, pieces } = await rig(), cold = coldPieces(player, pieces);
+  console.log(`cold (${cold.length}/${pieces.length}):`, cold.join(' '));
+  assert.ok(cold.includes('knight.Body.KnightIron'), 'the Knight\'s iron is its own material');
+  assert.ok(!cold.includes('goblin.Body.Steel'), 'the Goblin\'s Steel is the hero\'s mapped Steel (warm)');
 });
 
 test('a re-dress undresses what is no longer worn, and an id the build does not know is handed back', async () => {
