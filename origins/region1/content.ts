@@ -65,6 +65,15 @@ export const ITEMS = [
     kind: 'item-definition', schemaVersion: 1, id: 'item:starter.estoc', name: 'Bent estoc', category: 'gear', rarity: 'common', slot: 'Estoc',
     power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/estoc.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
   },
+  // Armour on the ground (batch two): Recruit-tier goblin pieces from loot.glb, looks in origins/preview/ground-looks.json. No placements yet (Strategy's call).
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-scrap-cap', name: 'Goblin scrap cap', category: 'gear', rarity: 'common', slot: 'Helmet',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'loot.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-shin-plates', name: 'Goblin shin plates', category: 'gear', rarity: 'common', slot: 'Greaves',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'loot.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
     power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,
