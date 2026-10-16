@@ -49,7 +49,7 @@ export const START_LEVEL = START.startLevel;
 let STANDING: CareerStanding = { source: 'server', careerLevel: START_LEVEL };
 
 // The bank and the smith's link to the one ledger (main.ts supplies it): the sign-in token, the character, where the writer is, and a nudge to redraw the open panel when an answer lands.
-export type Link = { token(): string | null; character(): string | null | Promise<string | null>; base?: string; changed(): void };
+export type Link = { token(): string | null; character(): string | null | Promise<string | null>; base?: string; changed(): void; guest?(): GearView };   // guest: a signed-out player's session pack (guest-pack.ts), in memory
 let link: Link | null = null, view: GearView | null = null, busy = false, down: string | null = null;
 let journal: Journal = newJournal(PC as CharacterInstanceId), talk = newTalkState(), oreCarried = false;   // the Concord commission's errand token, spent when handed over: a quest step, not a value
 let reply = '', msg = '', picked: string | null = null, ended = false;
@@ -85,7 +85,7 @@ async function ask<T>(run: (token: string | null, character: string) => Promise<
 async function refresh(): Promise<void> {
   const l = link; if (!l) return;
   const character = await l.character(), token = l.token();
-  if (!token || !character) { view = null; down = 'no-session'; return; }
+  if (!token || !character) { view = !token && l.guest ? l.guest() : null; down = view ? null : 'no-session'; return; }
   const v = await openGear(token, character, { base: l.base });
   if ('offline' in v) { down = v.offline; return; }
   view = v; down = null; if (picked && !pieceOf(picked) && !stockOf(picked)) picked = null;
