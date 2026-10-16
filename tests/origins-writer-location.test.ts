@@ -48,7 +48,7 @@ function fakeDb() {
       calls.push({ sql, vars });
       if (sql.includes('origins_save_location')) { saved.set(vars.a, { character: 'pc:a1', zone: vars.zone || null, x: Number(vars.x), z: Number(vars.z), updated_at: vars.t }); return JSON.stringify({ character: 'pc:a1', stored: true }); }
       if (sql.includes('origins_saved_location')) return JSON.stringify(saved.get(vars.a) ?? null);
-      if (sql.includes('origins_active_name')) return activeNameAnswer;   // 'absent' = a database without migration 20261016170000; else the JSON the function returns
+      if (sql.includes('origins_active_name')) return activeNameAnswer;   // 'absent' = a database without migration 20261016161137; else the JSON the function returns
       if (sql.includes('origins_active(')) return saved.has(vars.a) ? 'pc:a1' : '';
       throw Error(`unscripted ${sql}`);
     },
