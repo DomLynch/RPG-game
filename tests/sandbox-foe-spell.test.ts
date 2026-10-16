@@ -16,10 +16,10 @@ const { PROFILES } = await import('../src/fight/moves.ts');
 
 const SHORT = 'mother-shipton', MEDIUM = 'alvis', LONG = 'blue-men';   // theWord, longShadow, gale
 const practiceWith = (foe?: string) => initialPractice(731, undefined, undefined, null, { level: 1, aiSkill: null }, undefined, undefined, undefined, undefined, undefined, undefined, foe ? resolveSpell(foe, 100) : undefined);
-// the foe stands `gap` metres from the player, its special ready and mana full
+// the foe stands `gap` metres from the player, its special ready and mana full (the player is set ready too: the AI waits while he is still sheathed)
 const foeAt = (foe: string | undefined, gap: number) => {
   const p = practiceWith(foe), f = p.duel.fighters;
-  f[0].phase = 'ready'; f[0].body = { ...f[0].body, x: 0, z: 0 };   // the AI waits while the player is still sheathed f[1].body = { ...f[1].body, x: 0, z: gap, heading: Math.PI }; f[1].skillCooldown = 0; f[1].phase = 'ready';
+  f[0].phase = 'ready'; f[0].body = { ...f[0].body, x: 0, z: 0 }; f[1].body = { ...f[1].body, x: 0, z: gap, heading: Math.PI }; f[1].skillCooldown = 0; f[1].phase = 'ready';
   return decide(p.duel, 1, initialAi(), PROFILES.normal).intent.action;
 };
 
