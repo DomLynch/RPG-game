@@ -3,10 +3,10 @@
 // (WALK, a circle at ~2.5 m/s), all inside the camera's view ahead of the hero; measures WINDOW ms of rAF gaps and writes OUT/receipt.json: median fps, p95 frame time, worst gap,
 // drawn count (remote().shown.length, must equal N up to nearCap), programs added since zone ready (must be 0), renderer. Software GL (swiftshader/llvmpipe) numbers are marked and mean nothing.
 // Usage: SERVE=1 OUT=/tmp/crowd node scripts/origins-crowd-fps.mjs   (SERVE=1 serves artifacts/origins-preview, built with `npx vite build --config origins/preview/vite.config.mjs --outDir artifacts/origins-preview`)
-//   COUNTS=8,16,40  MODES=idle,walk  THROTTLE=1,4  WINDOW=10000  URL=<page>  GL=swiftshader  PASS_FPS=30 (S2 bar on a real GPU run)  QS=&x=y appended to the served URL
+//   COUNTS=0,8,16,40 (0 = the empty-zone baseline)  MODES=idle,walk  THROTTLE=1,4  WINDOW=10000  URL=<page>  GL=swiftshader  PASS_FPS=30 (S2 bar on a real GPU run)  QS=&x=y appended to the served URL
 // Needs #2929 (originsPreview.setOthers / remote) in the build; dressing the crowd (#2926 dressRemote) will be a DRESS=1 case once it is wired in main.ts.
 import fs from 'node:fs'; import http from 'node:http'; import path from 'node:path'; import { chromium } from 'playwright';
-const OUT = process.env.OUT || '/tmp/crowd-fps', COUNTS = (process.env.COUNTS || '8,16,40').split(',').map(Number), MODES = (process.env.MODES || 'idle,walk').split(','), WINDOW = +(process.env.WINDOW || 10000), BAR = +(process.env.PASS_FPS || 30), THROTTLES = (process.env.THROTTLE || '1').split(',').map(Number);   // THROTTLE=1,4: also a 4x CPU-throttled case (CDP Emulation.setCPUThrottlingRate, applied after [zone ready]): a phone-like trend, not a phone
+const OUT = process.env.OUT || '/tmp/crowd-fps', COUNTS = (process.env.COUNTS || '0,8,16,40').split(',').map(Number), MODES = (process.env.MODES || 'idle,walk').split(','), WINDOW = +(process.env.WINDOW || 10000), BAR = +(process.env.PASS_FPS || 30), THROTTLES = (process.env.THROTTLE || '1').split(',').map(Number);   // THROTTLE=1,4: also a 4x CPU-throttled case (CDP Emulation.setCPUThrottlingRate, applied after [zone ready]): a phone-like trend, not a phone
 fs.mkdirSync(OUT, { recursive: true });
 let URL = process.env.URL || 'https://frankendom.com/zone1/', srv = null;
 if (process.env.SERVE) {   // same static server as scripts/origins-engage-warmup.mjs: the built preview plus the public asset folders
