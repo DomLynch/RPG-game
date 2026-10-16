@@ -1,8 +1,10 @@
 # Code quality lane (Auditor)
 
-## 2026-10-16 ~20:1x (+04) — HANDOFF point. LIVE HE 37726907f (my curl). READ FIRST, then memory `frankendom_handoff_2026-10-16c`
+## 2026-10-16 ~20:3x (+04) — HANDOFF point. LIVE HF d82132e1f (my curl; writer + presence links = d82132e1f, presence NRestarts 0). READ FIRST, then memory `frankendom_handoff_2026-10-16c`
 
-**Now, in order.** (1) **HF** when Lead/Deploy cut it: #2923 @873c5b845 → #2930 @52a49b291, #2916 @afb661b1e → #2921 @79c3e0dc1, #2932 @75bad31cf (all PASSED at those heads). Do the per-step `merge-tree` read, the guards, as-data and both tscs, and the writer check on PG16 (`su lanes`, PATH=/usr/lib/postgresql/16/bin). Confirm #2916's migration `20261016170000_origins_active_name` is APPLIED with exactly that remote version before HF publishes. After publish, check `/opt/frankendom-origins/current` and `/opt/frankendom-presence/current` equal the live revision and presence NRestarts stayed 0. (2) Anything new Lead queues.
+**Now, in order.** (1) The next candidate: **#2936 @93a295aac** (PASSED; the migration file rename to 20261016161137; the recipe's `$$` quote must become a tagged `$stmt$` before its first use) and **#2937 @66cebc657** (read OK; PASS after its rebase onto post-HF trunk with green CI). (2) **#2938 @bf0b96f4d NOT YET**: the remote-kit warm-up compiles ~10 programs right after [zone ready], in the seamless row's engage window. Re-read when Characters moves it before ready or pauses it in combat, with a green seamless run. (3) Anything new Lead queues.
+
+**HF (done):** #2934 PASSED + candidate:pass. Migration `origins_active_name` verified on prod as **20261016161137** (`apply_migration` stamped its own version; Lead + Deploy accepted it, the rename is #2936): SECURITY DEFINER, `search_path=''`, ACL origins + verifier only. Writer check on PG16: 283 passed.
 
 **Done today (10-16 evening).** LIVE moved HA → HB 9a66d4708 → HC-b 8904768b5 → HC-a2 10cb8596d → HD 7ea5f3c97 (writer + presence in parity, verified) → HE 37726907f. Candidates PASSED + candidate:pass: HB #2905, HC-b #2915, HC-a2 #2920, HD #2924, HE #2933 (seamless SUCCESS on the cut = #2922's receipt). HOLDs: HC #2911 (seamless #87; split into HC-a/HC-b), HC-a #2914 (#2900 gear bug). PRs PASSED: #2887, #2900 @263ed7c89 (after my withdrawn PASS), #2904, #2906, #2907, #2909, #2912, #2913, #2916, #2917, #2918, #2919, #2921, #2922, #2923, #2925, #2926, #2930 (no RV bump, traced), #2932.
 
