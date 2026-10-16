@@ -19,6 +19,6 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     const F = frontierPlan(true, '90'), B = frontierBuild(F); assert.deepEqual(F.zones.filter((q) => q.region === FRONTIER).map((q) => q.zone), ['test-field']);
     const K = propKit(F, B, frontierDress(F, B), 'test-field', 'goblin-camp'); assert.ok(K.centre && K.fires.length >= 1 && K.dress.pieces.length > 50, `${K.dress.pieces.length} camp pieces`);
     assert.deepEqual(z.spawns.rows.map((r) => r.id), ['character:giant-salamander', 'character:cave-troll'], 'Dom 2026-10-16: the salamander and the troll stand here, at the level-1 band its row asks for');
-    assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['troll-cave', 'mere-bank']);
+    assert.equal(z.level, 1); assert.deepEqual(z.place?.spawns.map((g) => g.at), ['test-troll-cave', 'test-mere-bank']);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });

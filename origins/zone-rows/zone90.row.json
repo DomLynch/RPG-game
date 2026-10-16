@@ -298,12 +298,12 @@
             "v": 0.5,
             "facing": 0
           },
-          "troll-cave": {
+          "test-troll-cave": {
             "u": 0.85,
             "v": 0.5,
             "facing": 90
           },
-          "mere-bank": {
+          "test-mere-bank": {
             "u": 0.5,
             "v": 0.85,
             "facing": 0
@@ -343,19 +343,21 @@
     "waypoints": [
       "marsh-test",
       "test-gate",
-      "test-camp"
+      "test-camp",
+      "test-troll-cave",
+      "test-mere-bank"
     ],
     "spawns": [
       {
         "id": "cave-troll",
-        "at": "troll-cave",
+        "at": "test-troll-cave",
         "characters": [
           "character:cave-troll"
         ]
       },
       {
         "id": "salamander",
-        "at": "mere-bank",
+        "at": "test-mere-bank",
         "characters": [
           "character:giant-salamander"
         ]
