@@ -228,8 +228,9 @@ const SPELL_EFFECTS = ((DEFS as unknown as { spellEffect?: SpellEffectRow[] }).s
 export const spellEffectOf = (spell: string): string | undefined => SPELL_EFFECTS.find((r) => r.id === spell)?.fx;
 // spellBuffer (Dom 2026-10-16: "sometimes a first tap does nothing"): milliseconds a SPELL press the game cannot take yet (a stagger, a swing's recovery) is held and fired the moment it can. 0 = off (trunk): a refused press is simply lost.
 export const SPELL_BUFFER_MS = num('spellBuffer', 'value');
-// spellMaxRank (Dom + Strategy 2026-10-16: the beta ladder is levels 1-2): the spell pickers list only spells of level 1..N (142 at N = 2; the catalogue's level is the spell's rank); every other spell stays in the rows, hidden. 0 = off (trunk): all of them.
-export const SPELL_MAX_RANK = num('spellMaxRank', 'value');
+// spellPick (Dom 2026-10-16: the alpha / pre-beta ladder is levels 1-2, so 20 hand-picked spells, 10 a level, the most interesting): one row { id, level } per offered spell. The spell pickers list only these; every other spell stays in the rows, hidden. No rows (trunk) = every spell.
+type SpellPickRow = { id: string; level: number };
+export const spellPick = (): readonly string[] => ((DEFS as unknown as { spellPick?: SpellPickRow[] }).spellPick ?? []).map((r) => r.id);
 // windup (Dom 2026-10-16: a melee cast must be quicker than a magic one, or the caster is a sitting duck next to a plain slash): ticks of cast for this root, at 60 a second. No row field = the global special windup (120, two seconds).
 /** Ticks this root's cast takes before it lands, or `base` (the global special windup) when its row names none. */
 export const spellWindupOf = (root: string | undefined, base: number): number => (root && spellRangeOf(root)?.windup) || base;

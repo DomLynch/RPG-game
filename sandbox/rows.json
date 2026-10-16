@@ -86,7 +86,6 @@
 {"id":"bandOff","value":400},
 {"id":"castTellOff","value":1},
 {"id":"spellBuffer","value":350},
-{"id":"spellMaxRank","value":2},
 {"id":"spellFx","value":1},
 {"id":"glanceGain","value":450},
 {"id":"glanceRate","value":820},
@@ -111,6 +110,11 @@
 {"root":"gale","band":"outer","kind":"magic","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","kind":"magic","speed":700,"tint":"#ff8a3a"}
 ],"spellCue":[
 {"id":"far","text":"too far"}
+],"spellPick":[
+{"id":"brokkr","level":1},{"id":"banshee","level":1},{"id":"redcap","level":1},{"id":"scarab-khepri","level":1},{"id":"shedu","level":1},
+{"id":"jaguar-warrior","level":1},{"id":"eagle-warrior","level":1},{"id":"rumpelstiltskin","level":1},{"id":"kappa","level":1},{"id":"bake-danuki","level":1},
+{"id":"nian","level":2},{"id":"rubezahl","level":2},{"id":"baobhan-sith","level":2},{"id":"dullahan","level":2},{"id":"kelpie","level":2},
+{"id":"eitri","level":2},{"id":"jorogumo","level":2},{"id":"sphinx","level":2},{"id":"diomedes-mares","level":2},{"id":"taweret","level":2}
 ],"bandBest":[
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
 {"weapon":"longsword","band":"mid"},{"weapon":"cleaver","band":"mid"},{"weapon":"maul","band":"mid"},{"weapon":"warhammer","band":"mid"},

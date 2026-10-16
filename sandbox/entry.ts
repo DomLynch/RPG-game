@@ -102,9 +102,10 @@ function panel(opponents: string[]) {
   spellSel.append(el('option', { value: '', textContent: '(none: class special)' }));
   // Every spell is MELEE (close range, paid in stamina) or MAGIC (medium / long range, paid in mana): the kind comes from the spell root's `spellRange` row. The three spell pickers group by kind, then school.
   const KIND_NAME: Record<string, string> = { melee: 'Melee (close, stamina)', magic: 'Magic (medium / long, mana)' };
-  // spellMaxRank row: only spells of level 1..N are offered (beta = levels 1-2); 0 = every spell.
-  const spellBook = Promise.all([import('../src/fight/spell-catalogue.ts'), import('../src/fight/spell-cast.ts'), import('../src/fight/sandbox-rules.ts')]).then(([{ SPELL_INFO }, { spellRoot }, { spellRangeOf, SPELL_MAX_RANK }]) => {
-    return Object.entries(SPELL_INFO).filter(([, i]) => !SPELL_MAX_RANK || i.level <= SPELL_MAX_RANK).map(([id, i]) => {
+  // spellPick rows: only the hand-picked spells (20: levels 1-2) are offered; no rows = every spell.
+  const spellBook = Promise.all([import('../src/fight/spell-catalogue.ts'), import('../src/fight/spell-cast.ts'), import('../src/fight/sandbox-rules.ts')]).then(([{ SPELL_INFO }, { spellRoot }, { spellRangeOf, spellPick }]) => {
+    const pick = new Set(spellPick());
+    return Object.entries(SPELL_INFO).filter(([id]) => !pick.size || pick.has(id)).map(([id, i]) => {
     const root = spellRoot(id), kind = (root && spellRangeOf(root)?.kind) || '';
     return { id, group: `${KIND_NAME[kind] ?? 'No kind row'} - ${i.school}`, label: `${i.spell || id} - L${i.level} (${i.legend})` };
   }); });
