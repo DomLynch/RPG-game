@@ -17,7 +17,7 @@ function rig(over: Partial<GroundDeps> = {}) {
   const log = { shown: [] as string[], hidden: [] as string[], cues: [] as string[], said: [] as string[], taken: [] as string[], packReads: 0, reads: 0 };
   let rows: GroundRow[] = [row()];
   const deps: GroundDeps = {
-    view: { show: (id) => log.shown.push(id), hide: (id) => log.hidden.push(id) }, signedIn: () => true, nameOf: () => 'Rusty Sword',
+    view: { show: (id) => log.shown.push(id), hide: (id) => log.hidden.push(id) }, signedIn: () => true, guestTake: () => {}, nameOf: () => 'Rusty Sword',
     read: async () => { log.reads++; return { items: rows }; },
     take: async (i) => { log.taken.push(i); return { instance: i, item: ITEM, qty: 1 }; },
     refreshPack: async () => { log.packReads++; }, cue: (k) => log.cues.push(k), say: (l) => log.said.push(l), ...over,
@@ -84,11 +84,14 @@ test('what is drawn follows the state: visible rows shown, a row that goes invis
   set([row({ visible: false, available: false })]); await g.refresh(); assert.deepEqual(log.hidden, [ID]);
   const down = createGroundPickup({ ...deps, read: async () => ({ offline: 'timeout' }) }); await down.refresh(); assert.equal(log.hidden.length, 1);
 });
-test('signed out: the static rows draw, the prompt says to sign in, and a tap says so without calling the writer', async () => {
-  const { g, log } = rig({ signedIn: () => false }); await g.refresh();
+test('signed out: the static rows draw, the prompt says Take, and a tap puts it in the session bag with the sign-in nudge (no writer call, no pack read)', async () => {
+  const bag: [string, number][] = [], { g, log } = rig({ signedIn: () => false, guestTake: (item, qty) => bag.push([item, qty]) }); await g.refresh();
   assert.deepEqual(log.shown, staticRows().map((r) => r.instance), 'every static row draws, whatever Zone 1 holds'); assert.ok(log.shown.includes(ID)); assert.equal(log.reads, 0);
-  assert.deepEqual(g.nearest(at.x, at.z), { instance: ID, label: 'Sign in to take the Rusty Sword' });
-  assert.equal(await g.tap(ID), 'signed-out'); assert.deepEqual(log.said, ['Sign in to take the Rusty Sword']); assert.deepEqual(log.taken, []);
+  assert.deepEqual(g.nearest(at.x, at.z), { instance: ID, label: 'Take the Rusty Sword' });
+  assert.equal(await g.tap(ID), 'taken'); assert.deepEqual(log.said, ['You take the Rusty Sword. Sign in to keep it.']); assert.deepEqual(log.taken, []); assert.equal(log.packReads, 0);
+  assert.deepEqual(bag, [[staticRows().find((r) => r.instance === ID)!.item, 1]]); assert.deepEqual(log.cues, ['pickup']); assert.ok(log.hidden.includes(ID));
+  assert.equal(await g.tap(ID), 'refused', 'a second tap takes nothing'); assert.equal(bag.length, 1);
+  await g.refresh(); assert.equal(log.shown.filter((i) => i === ID).length, 1, 'the next refresh does not bring a taken row back'); assert.equal(g.nearest(at.x, at.z), null);
 });
 
 test('a take: hides the item, plays the pickup cue, says what was taken and reads the pack again', async () => {
