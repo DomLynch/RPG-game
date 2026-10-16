@@ -487,13 +487,13 @@ try {
     eq(await save(D, { x: 14000, z: 15500, atMs: t0 + 2000 }), { character: dara, stored: true }, 'the next post lands on Dara');
     eq([locRow(dara), locRow(daraTwo)], [`pit-yard:14000:15500`, `pit-yard:${PIT.x}:${PIT.z}`], 'each character keeps its own spot');
     eq((await locOp('open', 'td', { character: daraTwo })).status, 200, 'D switches back');
-    eq(await served(D), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: 'Dara Two' }, 'Dara Two\'s spot is served again');
+    eq(await served(D), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: 'Dara Two', worn: {} }, 'Dara Two\'s spot is served again');
     eq([(await locOp('open', 'td', { character: pc })).status, (await locOp('open', 'tb', { character: dara })).status, (await locOp('open', 'td', { character: 7 })).status], [400, 400, 400], 'open refuses a character that is not the account\'s (or not an id)');
     eq(activeOf(D), daraTwo, 'a refused switch changed nothing');
     eq((await locOp('open', 'td', {})).status === 200 && activeOf(D) === daraTwo, true, 'open without a character keeps the active one');
     // the flag gates it like every origins write
     psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
-    eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false, name: null }, { character: null, stored: false }], 'flag off: nothing served (no name either), nothing stored');
+    eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false, name: null, worn: {} }, { character: null, stored: false }], 'flag off: nothing served (no name or gear either), nothing stored');
     psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'flag off wrote nothing');
     // the build field (migration 202610120024): get / set with a version check, a level that only rises, ownership, closed to clients
