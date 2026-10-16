@@ -1,3 +1,23 @@
+## 2026-10-14 (night) — HANDOFF: chain, batch B, hit stop and hero-hits are in; #2532 caster tells in flight; Gothic tactic table spec ruled, build is next
+
+**Now (what the next session picks up):**
+1. **#2532 caster tells** (combat/caster-tells @1671b9283, trunk merged, `auditor:ready` set by Lead): the full test:all passed on a fresh VPS clone (4669/0 fail). **Owed: re-take the 4 stills ON THIS HEAD** (Lead's order; scene.ts and main.ts changed, a lot of trunk rendering landed). A VPS job is running: `/opt/frankendom-shadow/work/ct-stills.sh` (log `ctst.log`, clone `ctst/`, outputs `ctst/out-after` and `ctst/out-before`, ready.jpg and mid.jpg each; spell `brokkr`, 375 wide, SwiftShader). If the dir is gone, rerun the script. Then: copy the 4 files into `artifacts/combat/caster-tell-375/` (before-ready, before-mid, after-ready, after-mid), commit on combat/caster-tells, replace the image links in the PR body with the new commit sha, tell Lead. The PR-wording check failed once on the words "port" and "copy" in the body (rewritten to hook/clone): keep those words out.
+2. **Gothic tactic table** (spec PR #2758, combat/gothic-tactic-spec @3c3c6dfb1, docs/specs/combat/gothic-tactic-table.md): ruled. Pit archetypes only (no WSV), `trade` OUT of v1, Strategy YES on identity blocks under four conditions (own commit + win-rate table per identity; agree with Shieldmaiden guard-first / Knight methodical / Plague Doctor parry-first; stay in the tier band; every number a row, 0 debt). Build after #2532 lands: PR 1 zero behaviour (loader `tactic-defs.json` + manifest + `tactic-rows.ts`, SIM file + SIM_DATA entries, the absent-block branch in `ai.ts decide()`, RV bump with REACH, proof = rng-fingerprint byte-identical + record-replay-check + test:all), then PR 2 first tactics.
+3. **#2751 (multi-attacker note, docs)** waits on Lead's PASS in the docs train. Ruled: PvP stays a strict duel; shared PvE kills need Dom's parties call; the RV39 pool stays built and unwired; loot stays the first kill_report.
+4. **Next free version:** RV 63 / WSV 38 as of 10-14 evening (trunk was WSV 37 / RV 62 after batch B). Re-check trunk before pinning anything.
+
+**Done today (2026-10-14):** the whole B chain (#2584, #2597, #2608, #2614, #2627), sim batch A #2689, mobkit/pack #2694, tithe #2642, hit stop rows #2515 (ruled PASS 801e45c8d) and hit-follow #2699 are MERGED; batch B #2738 (FAR_M/MAX_ATTACKERS as world-rules rows, stance HOME from the catalogue, UNIT exempt; RV 62 / WSV 37) was cut as FS. #2620 (hero-hits) is green at bb94e8039 and goes first after FV. #2551 and #2688 and #2693 closed as superseded. Content PASS on Web's #2706-9, Characters' #2711 #2712 #2691, World's #2724. #2719 (dwarf-shield test: the def was right) merged. The wolf was already on trunk and the flee was cut by Dom on 10-11, so only caster tells remain of that old queue item.
+
+**Open (blocked on whom):** Lead: PASS on #2751; the stills decision is made (re-take). Auditor: canonical PASS on #2620 at bb94e8039 (watcher posts on green). Strategy/Dom: parties and guilds (shared PvE kills).
+
+**Gotchas (cost time):**
+- zsh: `"${T}:path"` (the bare `$T:path` is a modifier); `set -- $var` does not word-split; never `rm -rf` or `pkill -f` with a bare variable (use `"${D:?}"`; pkill patterns match your own ssh).
+- Merging trunk into a branch by "take theirs" on allow files silently DROPS the branch's own added entries (sim-batch's exempt ones, twice; #2620's HERO_SIDE; sheet UNIT) and can leave stale debt lines: after every merge-up diff the allow file against the first parent and run `check:as-data --gate`.
+- After any RECORD_VERSION bump grep the tests for the old number (`RECORD_VERSION, <old>`): the full suite found 3.
+- unit-ci shards only run on a PR with the `auditor:ready` label (the Auditor or Lead sets it); a push while the PR is a draft skips them. A "fail" named `quality (${{ matrix.part }})` is usually a cancelled superseded run: look at the runs for the head sha.
+- Run suites on the VPS in a REAL shallow clone (`git clone --depth 1 --filter=blob:none -b <branch>`), `/opt/frankendom-shadow/work/combat-suite.sh <branch> <tag>` does it and writes `cs-<tag>.log`; an rsync copy has no .git and ~17 git-ls-files tests fail.
+- A worktree command that fails inside `cd X && cat > file <<E` loses the heredoc: check the cd first. Worktrees: -mk, -rr2, -mv, -cp, -ss, -la, -sb, -sb2, -hs, -hf, -hh, -dk, -ma, -gt, -ct2, -wg, -sh under ~/Developer/frankendom-combat-*.
+
 ## 2026-10-14 — HANDOFF at 602k context: the B chain, sim batch A and the view-layer debt PRs are all with the Auditor or Lead
 
 **Now (what the next session picks up):**
