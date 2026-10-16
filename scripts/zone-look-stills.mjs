@@ -49,7 +49,8 @@ try {
         r.probe = await page.evaluate(() => window.originsPreview.goblinDomeProbe?.(true) ?? null); await page.waitForTimeout(500);
         await page.screenshot({ path: path.join(out, `${name}-magenta.png`) }); r.stills.push(`${name}-magenta.png`);
       }
-      const mob = await page.evaluate(() => { const p = window.originsPreview.pos, ms = window.originsPreview.mobs()?.mobs?.filter((m) => m.drawn && m.body) ?? []; return ms.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] ?? null; });
+      const want = process.env.STILLS_MOB ?? '';   // STILLS_MOB=cave-troll: the fight shot (and a camp shot beside him) is of the creature whose id contains this, wherever he stands; else the nearest creature
+      const mob = await page.evaluate((want) => { const p = window.originsPreview.pos, ms = (window.originsPreview.mobs()?.mobs?.filter((m) => m.drawn && m.body) ?? []).filter((m) => !want || String(m.id).includes(want)); return ms.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] ?? null; }, want);
       if (mob) {
         await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 2.5, 0), [mob.x, mob.z]); await page.waitForTimeout(1500);
         await page.evaluate((id) => window.originsPreview.tapMob(id), mob.id); await page.waitForTimeout(3500);
