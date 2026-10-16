@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -177,4 +177,44 @@ test('a head that waits says WHY: a release run owns the box (load is fine) or t
   assert.equal(busy.code, 75, busy.out); assert.match(busy.out, /WAITING: load5 20\.00 is at or over 12/, 'the wait line names the load');
   const free = await capture(['t', 'npm', 'test'], '1.00 1.00 1.00');
   assert.equal(free.code, 0, free.out); assert.doesNotMatch(free.out, /WAITING/, 'nothing waits, nothing is blamed');
+});
+
+// v9 (Lead 2026-10-16): `npm ci` in a checkout whose node_modules is a symlink empties the shared target (bn-trunk was wiped that way twice). capture refuses it
+// before the job queues; the same commands run when node_modules is the checkout's own folder, and npm test / npm run go through a link untouched.
+test('a job that would rewrite a SYMLINKED node_modules (npm ci/install/i, also inside bash -c) is refused before it queues; the shared target is untouched', { skip }, async () => {
+  const shared = mkdtempSync(join(tmpdir(), 'capture-shared-nm-'));
+  writeFileSync(join(shared, 'keep'), 'x');
+  const linked = (repo: string) => symlinkSync(shared, join(repo, 'node_modules'));
+  for (const job of [['npm', 'ci'], ['npm', '--no-audit', 'install'], ['npm', 'i', 'three'], ['bash', '-c', 'git pull -q && npm ci --no-fund']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, linked);
+    assert.equal(r.code, 2, `${job.join(' ')}: ${r.out}`);
+    assert.match(r.out, /capture: refused: .* rewrites node_modules, and .*node_modules is a symlink to .*capture-shared-nm-/);
+    assert.equal(r.lanejob, '', `${job.join(' ')}: nothing ran`); assert.equal(r.ran, ''); assert.equal(r.queue.trim(), '', 'it never took a ticket');
+    assert.ok(existsSync(join(shared, 'keep')), 'the shared folder keeps its files');
+  }
+  for (const job of [['npm', 'test'], ['npm', 'run', 'typecheck:tests'], ['bash', '-c', 'echo npm-ci-skipped; echo install done']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, linked);
+    assert.equal(r.code, 0, `${job.join(' ')} reads node_modules only and runs through a link: ${r.out}`);
+  }
+  const own = await capture(['t', 'npm', 'ci'], '1.00 1.00 1.00', {}, (repo) => mkdirSync(join(repo, 'node_modules')));
+  assert.equal(own.code, 0, own.out); assert.equal(own.ran.trim(), 'ci', 'a checkout with its own node_modules installs as before');
+});
+
+// v9 follow-up (Lead 2026-10-16, the #2861 gap): npm's --prefix / -C points it at ANOTHER checkout, so that checkout's node_modules link is checked too.
+test('npm --prefix / --prefix= / -C at a checkout with a SYMLINKED node_modules is refused; read-only npm and other tools\' -C are not', { skip }, async () => {
+  const shared = mkdtempSync(join(tmpdir(), 'capture-shared-nm-'));
+  writeFileSync(join(shared, 'keep'), 'x');
+  const ownPlusLinkedSibling = (repo: string) => { mkdirSync(join(repo, 'node_modules')); mkdirSync(join(repo, '..', 'linked')); symlinkSync(shared, join(repo, '..', 'linked', 'node_modules')); };
+  for (const job of [['npm', '--prefix', '../linked', 'ci'], ['npm', '--prefix=../linked', 'install'], ['npm', '-C', '../linked', 'ci'], ['npm', '--silent', '--prefix', '../linked', 'i', 'three'], ['bash', '-c', 'npm --prefix "../linked" ci']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, ownPlusLinkedSibling);
+    assert.equal(r.code, 2, `${job.join(' ')}: ${r.out}`);
+    assert.match(r.out, /capture: refused: .*\/linked\/node_modules is a symlink to .*capture-shared-nm-/, job.join(' '));
+    assert.equal(r.lanejob, '', `${job.join(' ')}: nothing ran`); assert.ok(existsSync(join(shared, 'keep')));
+  }
+  for (const job of [['npm', '--prefix', '../linked', 'test'], ['bash', '-c', 'git -C ../linked status >/dev/null; npm ci']]) {
+    const r = await capture(['t', ...job], '1.00 1.00 1.00', {}, ownPlusLinkedSibling);
+    assert.equal(r.code, 0, `${job.join(' ')} runs: ${r.out}`);
+  }
+  const silent = await capture(['t', 'npm', '--silent', 'ci'], '1.00 1.00 1.00', {}, (repo) => symlinkSync(shared, join(repo, 'node_modules')));
+  assert.equal(silent.code, 2, `an option before the subcommand is skipped: ${silent.out}`);
 });

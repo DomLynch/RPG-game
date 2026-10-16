@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "warp-landmark", "file": "warp-landmarks.json", "at": "landmarks", "key": "id", "required": { "x": "number", "z": "number", "unit": "string" } }
+  ]
+}

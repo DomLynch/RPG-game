@@ -107,6 +107,23 @@ esac`, { mode: 0o755 });
   assert.equal(readFileSync(join(dir, 'cancelled'), 'utf8').trim(), 'cancelled');
 });
 
+test('a finished job is not cancelled as "no hardware" when `hf jobs inspect` itself fails: the log\'s COST line proves it ended (Release HA lost 4 COMPLETED T4 jobs this way)', { skip: noGit }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hf-wall-rows-inspect-')), fake = join(dir, 'hf'), state = join(dir, 'state');
+  const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim(), sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  writeFileSync(fake, `#!/bin/bash
+case "$1 $2" in
+  "jobs run") echo "Job started with ID: job123";;
+  "jobs inspect") echo "inspect: broken" >&2; exit 1;;
+  "jobs logs") echo "=== HEAD ${sha} TREE ${tree} ==="; echo '=== RECEIPT {"index":1,"status":0,"seconds":63,"tree":"${tree}"} ==='; echo "=== COST seconds=184 rows_wall=63 ===";;
+  "jobs cancel") echo cancelled > "${dir}/cancelled";;
+esac`, { mode: 0o755 });
+  const env = { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: state, HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_WALL_ROWS_SCHEDULE_MAX_S: '0', HF_WALL_ROWS_POLL_S: '0' };
+  const run = (args: string[]) => execFileSync(process.execPath, ['scripts/hf-wall-rows.mjs', ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] });
+  run(['launch', sha, '--rows', '1']);
+  assert.equal(run(['collect']).trim(), '1', 'the job finished: its row 1 receipt counts');
+  assert.equal(existsSync(join(dir, 'cancelled')), false, 'a finished job is never cancelled');
+});
+
 test('deploy-hf.sh: always on (no switch): it appends the rows the T4 proved, and an old HF_WALL_ROWS value changes nothing', () => {
   const dir = mkdtempSync(join(tmpdir(), 'deploy-hf-'));
   // A fake `node` on PATH: launch prints a job id, collect prints "1,3"; a fake `hf` so `command -v hf` succeeds.

@@ -39,6 +39,7 @@ test('location: no logout escape is a seam today: the default held-state lookup 
   assert.equal(await noServerHeldState(db, A, 'pc:a1'), null);
 });
 
+let activeNameAnswer = 'absent';
 // A fake Db for the route: records the saved-location calls.
 function fakeDb() {
   const saved = new Map<string, ReturnType<typeof row>>(), calls: { sql: string; vars: Readonly<Record<string, string>> }[] = [];
@@ -47,6 +48,7 @@ function fakeDb() {
       calls.push({ sql, vars });
       if (sql.includes('origins_save_location')) { saved.set(vars.a, { character: 'pc:a1', zone: vars.zone || null, x: Number(vars.x), z: Number(vars.z), updated_at: vars.t }); return JSON.stringify({ character: 'pc:a1', stored: true }); }
       if (sql.includes('origins_saved_location')) return JSON.stringify(saved.get(vars.a) ?? null);
+      if (sql.includes('origins_active_name')) return activeNameAnswer;   // 'absent' = a database without migration 20261016161137; else the JSON the function returns
       if (sql.includes('origins_active(')) return saved.has(vars.a) ? 'pc:a1' : '';
       throw Error(`unscripted ${sql}`);
     },
@@ -72,16 +74,16 @@ test('location: the internal route needs the key, stores what presence saw, and 
     for (const bad of [{ account: 'x', ...PIT }, { account: A, x: 1.5, z: 0 }, { account: A, x: -1, z: 0 }, { account: A, x: 0, z: 30001 }, { account: A, x: 0 }, { account: A, ...PIT, at: 'now' }])
       assert.equal((await post(bad, `Bearer ${KEY}`)).status, 400, JSON.stringify(bad));
     const save = writerSaveLocation(base, KEY), read = writerSavedLocation(base, KEY);
-    assert.deepEqual(await read(A), { saved: false }, 'nothing saved yet');
+    assert.deepEqual(await read(A), { saved: false, name: null }, 'nothing saved yet (and no name tag: the harness has no active_name function)');
     assert.deepEqual(await save(A, { ...EXCHANGE, atMs: 1_790_000_000_000 }), { character: 'pc:a1', stored: true });
     const stored = f.calls.find(c => c.sql.includes('origins_save_location'))!.vars;
     assert.deepEqual([stored.zone, stored.x, stored.z, stored.t], ['exchange', String(EXCHANGE.x), String(EXCHANGE.z), '1790000000000'], 'the zone is the writer\'s own computation from x, z');
     await post({ account: A, ...PIT, zone: 'exchange' }, `Bearer ${KEY}`);
     assert.equal(f.calls.filter(c => c.sql.includes('origins_save_location')).at(-1)!.vars.zone, 'pit-yard', 'a zone field in the post is ignored');
     assert.equal(f.calls.filter(c => c.sql.includes('origins_save_location')).at(-1)!.vars.t, '1791000000000', 'no `at`: the writer\'s clock');
-    assert.deepEqual(await read(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved' });
+    assert.deepEqual(await read(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: null });
     await save(A, { ...EXCHANGE, atMs: 1_791_000_000_001 });
-    assert.deepEqual(await read(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge' }, 'an Exchange spot is served at the edge');
+    assert.deepEqual(await read(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge', name: null }, 'an Exchange spot is served at the edge');
     await assert.rejects(writerSavedLocation(base, 'wrong')(A), /HTTP 401/, 'the client turns a refusal into an error (presence then uses its default spawn)');
     assert.equal((await fetch(`${base}/internal/where?account=${A}`, { headers: { authorization: `Bearer ${KEY}` } })).status, 404, 'only /internal/location exists');
     assert.equal((await fetch(`${base}/internal/location?account=${A}`, { method: 'PUT', headers: { authorization: `Bearer ${KEY}` } })).status, 404, 'GET and POST only');
@@ -93,7 +95,7 @@ test('location: a held state from the seam overrides what is saved', async () =>
   const { server, base } = await start(f.db, { key: KEY, held });
   try {
     await writerSaveLocation(base, KEY)(A, { ...PIT, atMs: 1 });
-    assert.deepEqual(await writerSavedLocation(base, KEY)(A), { saved: true, zone: 'pit-yard', x: 100, z: 200, source: 'duel' });
+    assert.deepEqual(await writerSavedLocation(base, KEY)(A), { saved: true, zone: 'pit-yard', x: 100, z: 200, source: 'duel', name: null });
   } finally { server.close(); }
 });
 
@@ -107,8 +109,22 @@ test('location: without a configured key the internal routes do not exist; clien
   } finally { server.close(); }
 });
 
+test('location: the served answer carries the active character\'s name (none before the migration, none when the account has no character)', async () => {
+  const f = fakeDb(), { server, base } = await start(f.db, { key: KEY });
+  try {
+    const read = writerSavedLocation(base, KEY);
+    activeNameAnswer = 'absent'; assert.equal((await read(A)).name, null, 'a database without the function: no name tag, nothing else changes');
+    activeNameAnswer = '"Ash Walker"'; assert.equal((await read(A)).name, 'Ash Walker');
+    activeNameAnswer = '"absent"'; assert.equal((await read(A)).name, 'absent', 'a character named absent is a name, not the gate\'s sentinel');
+    activeNameAnswer = 'null'; assert.equal((await read(A)).name, null);
+  } finally { server.close(); activeNameAnswer = 'absent'; }
+});
+
 test('location: the presence-side parser fails closed', () => {
   for (const bad of [null, 7, {}, { saved: 'yes' }, { saved: true, x: 1, z: 1, zone: 3, source: 'saved' }, { saved: true, x: -1, z: 1, zone: null, source: 'saved' }, { saved: true, x: 1, z: 1, zone: null }])
     assert.throws(() => parseServed(bad), /malformed/, JSON.stringify(bad));
-  assert.deepEqual(parseServed({ saved: false }), { saved: false });
+  assert.deepEqual(parseServed({ saved: false }), { saved: false, name: null });
+  assert.deepEqual(parseServed({ saved: false, name: 'Ash' }), { saved: false, name: 'Ash' }, 'the name rides beside the saved spot');
+  assert.deepEqual(parseServed({ saved: false, name: '' }), { saved: false, name: null }, 'an empty name is no name');
+  assert.deepEqual(parseServed({ saved: false, name: 7 }), { saved: false, name: null }, 'a malformed name is dropped, never trusted');
 });

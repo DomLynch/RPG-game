@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "groundPickup",
+      "file": "ground-pickup.json",
+      "at": "groundPickup",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

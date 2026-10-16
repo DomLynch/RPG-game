@@ -8,6 +8,7 @@
     { "prefix": "backend/", "lane": "backend" },
     { "prefix": "deploy/", "lane": "deploy" },
     { "prefix": "release-", "lane": "deploy" },
-    { "prefix": "lead/", "lane": "lead" }
+    { "prefix": "lead/", "lane": "lead" },
+    { "prefix": "zone/", "lane": "zone-sandbox" }
   ]
 }

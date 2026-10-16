@@ -170,6 +170,64 @@
         }
       },
       {
+        "id": "character:giant-salamander",
+        "source": {
+          "kind": "history",
+          "work": "Naturalis Historia (the salamander, the beast that puts out fire)",
+          "author": "Pliny the Elder",
+          "year": 77,
+          "authorDied": 79,
+          "locator": "Bk. X, ch. 86 (§188)"
+        },
+        "role": "beast",
+        "loot": "loottable:giant-salamander",
+        "level": [
+          1,
+          2
+        ],
+        "weight": 2,
+        "respawnSeconds": 90,
+        "behaviour": {
+          "aggro": 6,
+          "roam": 4,
+          "spread": 6,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "character:cave-troll",
+        "source": {
+          "kind": "folklore",
+          "work": "Norske Folkeeventyr (the mountain trolls of the Askeladden tales)",
+          "author": "Peter Christen Asbjørnsen and Jørgen Moe",
+          "year": 1841,
+          "authorDied": 1885,
+          "locator": "the first collection, 1841-44 (the troll in the mountain and the lad who outwits him)"
+        },
+        "role": "beast",
+        "loot": "loottable:cave-troll",
+        "level": [
+          3,
+          3
+        ],
+        "named": true,
+        "respawnSeconds": 300,
+        "behaviour": {
+          "aggro": 8,
+          "roam": 2,
+          "spread": 4,
+          "pull": 0,
+          "campSize": [
+            1,
+            1
+          ]
+        }
+      },
+      {
         "id": "character:ash-wolf",
         "source": {
           "kind": "folklore",
@@ -509,6 +567,22 @@
           "burnt": 0
         }
       },
+      "character:giant-salamander": {
+        "opponent": "giant-salamander",
+        "tint": 16777215,
+        "dressing": {
+          "soot": 0.2,
+          "burnt": 0.1
+        }
+      },
+      "character:cave-troll": {
+        "opponent": "cave-troll",
+        "tint": 16777215,
+        "dressing": {
+          "soot": 0.15,
+          "burnt": 0
+        }
+      },
       "character:lambton-worm": {
         "opponent": "minotaur",
         "tint": 5917242,
@@ -703,6 +777,11 @@
           "hold-road": {
             "u": 0,
             "v": 0.3,
+            "facing": 90
+          },
+          "troll-cave": {
+            "u": 0.7,
+            "v": 0.8,
             "facing": 90
           }
         },
@@ -981,6 +1060,7 @@
       "ash-pits",
       "shrine",
       "hold-road",
+      "troll-cave",
       "landing-shore",
       "reed-bank",
       "mere-hollow",
@@ -1021,7 +1101,15 @@
         "id": "brood",
         "at": "reed-bank",
         "characters": [
-          "character:mere-brood"
+          {
+            "id": "character:mere-brood",
+            "weight": 6
+          },
+          {
+            "id": "character:giant-salamander",
+            "weight": 2,
+            "max": 1
+          }
         ]
       },
       {
@@ -1099,6 +1187,13 @@
         "at": "watchtower",
         "characters": [
           "character:pit-goblin"
+        ]
+      },
+      {
+        "id": "cave-troll",
+        "at": "troll-cave",
+        "characters": [
+          "character:cave-troll"
         ]
       }
     ]

@@ -12,6 +12,8 @@ import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
+import { entryOf, isPlainGroup, rollCamp } from '../zones/place.ts';
+import { seedOf } from '../world/relief.ts';
 const ZONE = loadZone(), ZONE_LEVEL = ZONE.level, FRONTIER_OPENERS = ZONE.spawns.openers, FRONTIER_ROWS = ZONE.spawns.rows;   // Zone 1's creature data (origins/zone-rows/zone1.row.json (spawns)), through the loader
 import { MAX_FIRST_FIGHT_M, openerSpot } from '../world/zone-rules.ts';
 import { FRONTIER, inZone, type Build, type Frontier, type ZonePlan } from './frontier-plan.ts';
@@ -41,7 +43,7 @@ export const previewRows = (search: string, signedIn: boolean): readonly MobRow[
 export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTIER_ROWS): MobSpec[] {
   const defaultKind = String(loadZone(f.zone).fields?.defaultKind);   // the zone row's column (schema default goblin): the body a character form that names none stands as
   const ID_PREFIX = zoneKeyPrefix(f.zone);   // instance ids: Zone 1's unchanged, every other zone z<id>: (the server keys a creature by its id alone)
-  const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [];
+  const reg = f.data.registry.regions.get(FRONTIER)!, out: MobSpec[] = [], late: MobSpec[] = [];   // late: a named camp boss's creature, appended after the openers so no existing creature (or opener) draws a different seed
   for (const sp of reg.spawns) {
     const zone = f.zones.find((z) => z.region === FRONTIER && Object.hasOwn(z.landmarks, sp.at));
     if (!zone) continue;
@@ -57,15 +59,24 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
       if (def && form) who.push({ id: def.id, form });
     }
     const at = zone.landmarks[sp.at]!, stand = mobStand(b, zone), mid = zoneCentre(zone);
-    for (const w of who) {
+    // A weighted group (docs/specs/origins/weighted-spawns.md): ONE camp, sized by its first entry's row, each slot rolled from the entries in proportion to their weights (rollCamp), from the group's own stream.
+    // A plain group (a single bare id, every row today) never reaches this and keeps the draws below exactly.
+    const group = loadZone(f.zone).place?.spawns.find((g) => g.id === sp.id), weighted = !!group && !isPlainGroup(group) && !sp.encounter;
+    const kinds = new Map<string, (typeof who)[number]>(who.map((w) => [w.id, w]));
+    for (const w of weighted ? who.slice(0, 1) : who) {
       const named = !!sp.encounter, row = named ? undefined : rows.find((r) => r.id === w.id);
       if (!named && !row) continue;   // a kind with no row stands nowhere
-      const bh = row?.behaviour, p = named ? NAMED : { spread: bh!.spread ?? 6, pull: bh!.pull ?? 0, roam: bh!.roam ?? 6 };
-      const count = named ? 1 : campCount(bh!.campSize, nextRandom(mixSeed(TUNING.seed, 9000 + out.length))[0]), def = f.data.registry.characters.get(w.id)!;
-      const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
-      for (let i = 0; i < count; i++) {
+      const boss = !!row?.named, dest = boss ? late : out;   // a camp boss: a row flagged `named` (zone level + namedLevelLift), placed by its own group
+      const bh = row?.behaviour, count = named ? 1 : campCount(bh!.campSize, nextRandom(mixSeed(TUNING.seed, 9000 + out.length))[0]);
+      const slots: (typeof w)[] = weighted
+        ? rollCamp(group!.characters.map(entryOf).filter((e) => kinds.has(e.id) && rows.some((r) => r.id === e.id)), count, (slot) => nextRandom(mixSeed(mixSeed(TUNING.seed, seedOf(`${f.zone}:${sp.id}`)), slot))[0]).map((c) => kinds.get(c)!)
+        : Array.from({ length: count }, () => w);
+      for (let i = 0; i < slots.length; i++) {
+        const sw = slots[i]!, srow = named ? undefined : rows.find((r) => r.id === sw.id), sbh = srow?.behaviour;
+        const p = named ? NAMED : { spread: sbh!.spread ?? 6, pull: sbh!.pull ?? 0, roam: sbh!.roam ?? 6 }, def = f.data.registry.characters.get(sw.id)!;
+        const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
         const id = `${ID_PREFIX}${sp.id}-${i + 1}`;
-        let rng = mixSeed(TUNING.seed, out.length), home: Pos | null = null;
+        let rng = mixSeed(TUNING.seed, boss ? out.length + late.length : out.length), home: Pos | null = null;
         for (let tries = 0; tries < 60 && !home; tries++) {
           let u: number, v: number;
           [u, rng] = nextRandom(rng); [v, rng] = nextRandom(rng);
@@ -73,9 +84,9 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
           if (stand(x, z)) home = { x, z };
         }
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
-        out.push({
-          id, character: w.id, name: def.name, encounter: sp.encounter, body: w.form.opponent ?? defaultKind, level: named ? (w.form.level ?? NAMED_LEVEL) : row!.level[0],
-          zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (bh!.aggro ?? TUNING.aggro), named,
+        dest.push({
+          id, character: sw.id, name: def.name, encounter: sp.encounter, body: sw.form.opponent ?? defaultKind, level: named ? (sw.form.level ?? NAMED_LEVEL) : srow!.level[0],
+          zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (sbh!.aggro ?? TUNING.aggro), named: named || boss,   // a camp boss draws as a named foe (label, height, hit ring) like an encounter's
         });
       }
     }
@@ -92,12 +103,13 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     if (!spot) continue;
     out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
   }
+  out.push(...late);
   return levelByDistance(f, b, out, rows);
 }
 // Risk = reward by depth (Dom 2026-10-08): a common creature is its zone's level near the hero's spawn (Zone 1 = L1) and one more at the zone's edge, a
 // row's band [N, N+1] ramped by the distance of its home from the spawn; the named rares are N+2. The origin is the Zone 1 spawn (spawnAmong) until the bank
 // town is placed: then it is this one function to change. Rewards and loot already follow the resulting spec.level.
-export const LEVEL_NEAR_M = stageRule('levelNear'), LEVEL_FAR_M = stageRule('levelFar'), NAMED_LEVEL = ZONE_LEVEL + 2;
+export const LEVEL_NEAR_M = stageRule('levelNear'), LEVEL_FAR_M = stageRule('levelFar'), NAMED_LEVEL = ZONE_LEVEL + stageRule('namedLevelLift');
 export const levelAt = (d: number, band: readonly [number, number]): number => band[0] + Math.round(Math.max(0, Math.min(1, (d - LEVEL_NEAR_M) / (LEVEL_FAR_M - LEVEL_NEAR_M))) * (band[1] - band[0]));
 const levelByDistance = (f: Frontier, b: Build, specs: MobSpec[], rows: readonly MobRow[]): MobSpec[] => {
   const origin = spawnAmong(f, b, specs);

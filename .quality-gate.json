@@ -365,16 +365,34 @@
     [
       "node",
       "scripts/spell-slots-zone-check.mjs"
+    ],
+    [
+      "node",
+      "scripts/ground-prompt-check.mjs"
     ]
   ],
   "release_triggers": [
     {
       "paths": [
-        "origins/preview/main.ts"
+        "origins/preview/ground-*",
+        "origins/preview/main.ts",
+        "origins/preview/index.html",
+        "origins/preview/zone-sound.ts",
+        "origins/world/ground-point.ts"
       ],
       "rows": [
         "origins-writer-boot-check",
-        "spell-slots-zone-check"
+        "spell-slots-zone-check",
+        "ground-prompt-check"
+      ]
+    },
+    {
+      "paths": [
+        "scripts/ground-prompt-check.mjs",
+        "scripts/lib/origins-preview-harness.mjs"
+      ],
+      "rows": [
+        "ground-prompt-check"
       ]
     },
     {

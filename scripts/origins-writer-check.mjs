@@ -441,15 +441,17 @@ try {
     const rawPost = (body, auth) => globalThis.fetch(`${lbase}/internal/location`, { method: 'POST', headers: auth ? { authorization: auth } : {}, body: JSON.stringify(body) });
     const locRow = character => psql(`select coalesce((select coalesce(zone, '-') || ':' || x || ':' || z from public.origins_character_location where character = '${character}'), 'none')`);
     const activeOf = account => psql(`select coalesce(public.origins_active('${account}'), 'none')`);
+    const nameOfActive = account => psql(`select coalesce(public.origins_active_name('${account}'::uuid), '')`) || null;   // the name tag the writer serves beside the saved spot (migration 20261016161137)
     const PIT = { x: 15000, z: 16000 }, EXCH = { x: 15000, z: 11000 }, t0 = Date.now() - 60_000;
     const daraTwo = psql(`select id from public.origins_characters where account = '${D}' and name = 'Dara Two'`);
     // the active character: create_character made each new character active
     eq([activeOf(A), activeOf(D), activeOf(C)], [pc, daraTwo, 'none'], 'create_character makes the new character the active one; an account with none has none');
-    eq(await served(A), { saved: false }, 'nothing saved yet: none (presence uses its default spawn)');
+    eq(await served(A), { saved: false, name: nameOfActive(A) }, 'nothing saved yet: none (presence uses its default spawn), with the active character\'s name');
+    eq([typeof nameOfActive(A), nameOfActive(C), nameOfActive('00000000-0000-4000-8000-00000000dead')], ['string', null, null], 'origins_active_name: the active character\'s name; none for an account with no character or no account');
     // presence posts a location for the active character -> stored
     eq(await save(A, { ...PIT, atMs: t0 }), { character: pc, stored: true }, 'presence\'s post is stored for A\'s active character');
     eq(locRow(pc), `pit-yard:${PIT.x}:${PIT.z}`, 'the row: zone computed by the writer, x, z');
-    eq(await served(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved' }, 'serve returns it');
+    eq(await served(A), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: nameOfActive(A) }, 'serve returns it');
     eq(await save(A, { x: 1, z: 1, atMs: t0 - 1000 }), { character: pc, stored: false }, 'an older observation (a late retry) changes nothing');
     eq(locRow(pc), `pit-yard:${PIT.x}:${PIT.z}`, 'the latest observation stands');
     // a client body cannot write it: there is no client op, and the internal route refuses a client's token
@@ -461,7 +463,7 @@ try {
     eq(locRow(pc), before, '...and nothing a client sent moved the saved spot');
     const asClient = sql => { try { return psql(`set role authenticated; set request.jwt.claim.sub = '${A}'; ${sql}`); } catch (e) { return /permission denied/.test(String(e.stderr ?? e.message)) ? 'permission denied' : String(e.stderr ?? e.message); } };
     for (const sql of [`select * from public.origins_character_location;`, `insert into public.origins_character_location values ('${pc}', 'exchange', 1, 1, now());`, `select * from public.origins_active_character;`,
-      `select public.origins_save_location('${A}', 1, 1, null, 0);`, `select public.origins_set_active('${A}', '${pc}');`, `select public.origins_saved_location('${A}');`])
+      `select public.origins_save_location('${A}', 1, 1, null, 0);`, `select public.origins_set_active('${A}', '${pc}');`, `select public.origins_saved_location('${A}');`, `select public.origins_active_name('${A}'::uuid);`])
       eq(asClient(sql), 'permission denied', `a client may not: ${sql.slice(0, 60)}`);
     eq((() => { try { return psql(`set role frankendom_origins; insert into public.origins_character_location values ('${pc}', 'exchange', 1, 1, now());`); } catch (e) { return /permission denied/.test(String(e.stderr)) ? 'permission denied' : String(e.stderr); } })(), 'permission denied', 'even the writer role only writes through the functions');
     eq(psql(`select count(*) from pg_policies where tablename in ('origins_character_location', 'origins_active_character')`) + '|' + psql(`select string_agg(relname || '=' || relrowsecurity, ',' order by relname) from pg_class where relname in ('origins_character_location', 'origins_active_character')`), '0|origins_active_character=true,origins_character_location=true', 'RLS on, no policies');
@@ -474,23 +476,24 @@ try {
     // a saved spot in the exchange zone is served at the gate edge (Pit side of outer-gate, 50 cm in)
     eq(await save(A, { ...EXCH, atMs: t0 + 1000 }), { character: pc, stored: true }, 'presence saw A inside the Exchange');
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'stored as observed');
-    eq(await served(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge' }, 'served just outside the gate');
+    eq(await served(A), { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge', name: nameOfActive(A) }, 'served just outside the gate');
     eq(zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z) !== 'exchange', true, 'the edge is not in the trade area');
     // account -> active character after switching characters (D has Dara and Dara Two)
     eq(await save(D, { ...PIT, atMs: t0 }), { character: daraTwo, stored: true }, 'D\'s post lands on Dara Two (active)');
     eq((await locOp('open', 'td', { character: dara })).status, 200, 'D opens with Dara');
     eq(activeOf(D), dara, 'Dara is now active');
-    eq(await served(D), { saved: false }, 'Dara has nothing saved: Dara Two\'s spot is not served for her');
+    eq(await served(D), { saved: false, name: nameOfActive(D) }, 'Dara has nothing saved: Dara Two\'s spot is not served for her');
+    eq(nameOfActive(D), 'Dara', 'the name tag follows the ACTIVE character');
     eq(await save(D, { x: 14000, z: 15500, atMs: t0 + 2000 }), { character: dara, stored: true }, 'the next post lands on Dara');
     eq([locRow(dara), locRow(daraTwo)], [`pit-yard:14000:15500`, `pit-yard:${PIT.x}:${PIT.z}`], 'each character keeps its own spot');
     eq((await locOp('open', 'td', { character: daraTwo })).status, 200, 'D switches back');
-    eq(await served(D), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved' }, 'Dara Two\'s spot is served again');
+    eq(await served(D), { saved: true, zone: 'pit-yard', x: PIT.x, z: PIT.z, source: 'saved', name: 'Dara Two' }, 'Dara Two\'s spot is served again');
     eq([(await locOp('open', 'td', { character: pc })).status, (await locOp('open', 'tb', { character: dara })).status, (await locOp('open', 'td', { character: 7 })).status], [400, 400, 400], 'open refuses a character that is not the account\'s (or not an id)');
     eq(activeOf(D), daraTwo, 'a refused switch changed nothing');
     eq((await locOp('open', 'td', {})).status === 200 && activeOf(D) === daraTwo, true, 'open without a character keeps the active one');
     // the flag gates it like every origins write
     psql(`update public.origins_config set value = 'false'::jsonb where key = 'origins_enabled';`);
-    eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false }, { character: null, stored: false }], 'flag off: nothing served, nothing stored');
+    eq([await served(A), await save(A, { ...PIT, atMs: Date.now() })], [{ saved: false, name: null }, { character: null, stored: false }], 'flag off: nothing served (no name either), nothing stored');
     psql(`update public.origins_config set value = 'true'::jsonb where key = 'origins_enabled';`);
     eq(locRow(pc), `exchange:${EXCH.x}:${EXCH.z}`, 'flag off wrote nothing');
     // the build field (migration 202610120024): get / set with a version check, a level that only rises, ownership, closed to clients
@@ -624,6 +627,17 @@ try {
     eq([second.json.result.characters.map(c => c.id), chars(E).split(',').length], [[id1], 1], 'open: a second open still has that one character (no second row)');
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
+    // the rank cap on real Postgres: G's career is the fresh snapshot (seed 0, level 1), so a body claiming rungs above the first imports only what it claims at rank 1 (plus the unclaimed, minted at Recruit)
+    // and skips the rest 'above your rank'; nothing is spent for the skipped ones, and they import once the career reaches the rank (a forged full roster at the top rung mints nothing)
+    {
+      const gid = psql(`select id from public.origins_characters where account = '${G}' limit 1`), few = [...LOOT_IDS].sort().slice(0, 6), top = [...LOOT_IDS].sort();
+      const gg = body => call('gear_import', 'tf', { character: gid, ...body });
+      const forged = await gg({ owned: top, equipped: {}, tiers: Object.fromEntries(top.map(id => [id, 10])) });
+      eq([forged.status, forged.json.result?.imported.length, forged.json.result?.skipped.length, forged.json.result?.skipped.every(s => s.reason === 'above your rank')], [200, 0, top.length, true], 'gear_import: a forged full roster at the top rung on a level-1 career mints nothing');
+      eq(psql(`select count(*) from public.origins_items where loc_owner = '${gid}' and provenance ->> 'kind' = 'legacy-unlock'`), '0', 'gear_import: nothing was written for the skipped pieces');
+      const low = await gg({ owned: few, equipped: {}, tiers: { [few[0]]: 1, [few[1]]: 2, [few[2]]: 10 } });
+      eq([low.status, [...(low.json.result?.imported ?? [])].sort(), low.json.result?.skipped.map(s => s.reason)], [200, [few[0], few[3], few[4], few[5]].sort(), ['above your rank', 'above your rank']], 'gear_import: a level-1 career imports the rank-1 and unclaimed pieces and skips the rest above its rank');
+    }
     // one rule for every door (src/core/open.ts): a fresh account whose first page is the Pit gets exactly one character, and a later /zone1/ open (another page, so another storage) reuses it
     psql(`insert into public.origins_access(account) values ('${H}');`);
     const pitId = await openCharacter({ storage: pageStorage('tg'), search: `?writer=${encodeURIComponent(writer)}` });
@@ -645,6 +659,8 @@ try {
     const made2 = await call('create_character', 'tb', { name: 'Gearer' });
     const gc = made2.json.result.id;
     const gi = body => call('gear_import', 'tb', { character: gc, ...body });
+    // The rung each piece claims is bounded by the server-verified career tier (#2919), so this account holds a career that reaches the top tier: the whole legacy roster still imports at the rungs it claims.
+    psql(`update public.origins_career set world_credit = ${cumulative(50)}, version = version + 1 where account = '${B}';`);
     const count = where => psql(`select count(*) from public.origins_items where loc_owner = '${gc}' and item like 'item:loot.%' and retired_at is null ${where}`);
     const imp = await gi({ owned: ids, equipped: worn, tiers: Object.fromEntries(ids.map((id, i) => [id, (i % 10) + 1])) });
     eq([imp.status, imp.json.result?.imported.length, imp.json.result?.skipped.length], [200, ids.length, 0], 'gear_import: the whole roster is imported, nothing skipped');

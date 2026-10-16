@@ -2,6 +2,14 @@
 
 Entries moved verbatim from the root PROJECT_STATE.md on 2026-09-21 (state split). Append new entries at the TOP. Keep evidence and remaining validation in every entry (AGENTS.md).
 
+## 2026-10-16 08:1x Dubai — LIVE GS2 07661ae44; GT2 publishing (train git hangs on the Mac). READ FIRST
+
+- **Now:** GT2 #2856 @935f9d70a (four new Zone 1 starter weapons #2850, versions registry #2849, two lane state docs) has Auditor PASS + candidate:pass; the train's git fetch/push hung twice on the loaded Mac (iCloud fileproviderd), nothing deployed. Deploy is on attempt 3, with a by-hand push (low-speed limits) + deploy.sh fallback approved. Then GU = #2843 (loot slice 3: pickup prompt, take, lost race, off switch; Auditor PASS @b21facc84; writer reinstall). Then #2854 (spell name on SPELL 2; bundle fix @1d89bb4b1, Auditor re-read pending).
+- **Done 10-15/16:** live in order GJ, GK, GL, GM, GN (loot slice 2 + migration 20261015151218), GO (spell slots RV68/WSV44), GP, GQ, GR, GS2 (spell-slot HUD + row 56). Cut gates (#2806), sweep tool with /tmp lane + glob refusal (#2841). AGENTS.md: rows read once, never per frame (#2822); VPS jobs never in /tmp (#2828).
+- **Rulings:** ground items are FIXED placements, never loot rolls (Strategy); whichever PR has its Auditor PASS first is cut first, up to two in flight; any release row that spawns a server proves a timed exit; Dom's Zone 1 sandbox is his alone (#2823, #2827 paused).
+- **Open:** Deploy follow-ups in order: hard timeouts on every train git call; #2847 per-row ceilingS (row 55 1500 s, row 14 900 s); the vpsSafeRow trailing-comment fix; the migrations train gate. Next Web: #2857 (Talk/Bank/Pit prompts into the raised slot + overlap check + stills) and row 55 speed-up. Dom: yes/no on the QA account for GN's live toggle check.
+- **Gotchas:** unit-ci starts only on a real commit or an `auditor:ready` label event, and skips docs-only PRs by design. The live Origins game IS the /preview/origins/ bundle. No hand deletes on the VPS. Look at stills yourself before any visual verdict.
+
 ## 2026-10-13 21:5x — new account (dom123dxb), all lanes on the Mac. LIVE EH eb5eba4ce (my curl); EK #2600 merged 17:42Z, publishing. READ FIRST
 
 - **Now:** EK publishing → EL #2618 @5eeb13674 (shop economy #2586, career rows #2583, CLAUDE.md #2603, Playwright seed #2598, as-data CI gate #2536, capture wording #2612, docs #2593; Auditor armed) → NEXT cut = FULL-STATS SERIES (#2569 @95c4c1731 → #2572 @6526398a5 → #2557 @ed524f9ce → #2587 @873db47f6, all formal PASS) + #2523 (0030 applied) + #2610 gear_repair (0032 APPLIED on prod; writer reinstall at that release) + #2615 repair screen if PASSed. One candidate in release-checks at a time; batch everything with a formal line.

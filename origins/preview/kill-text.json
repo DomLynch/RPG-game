@@ -1,0 +1,7 @@
+{
+  "toast": {
+    "guestNoLoot": "Sign in to keep loot.",
+    "guestLoot": "{paid} (sign in to keep it).",
+    "notSaved": "Not saved: the server did not answer."
+  }
+}

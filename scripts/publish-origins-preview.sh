@@ -24,8 +24,9 @@ dest="${PUBLISH_DEST:-/var/www/frankendom/current/preview/origins/}" site="${PUB
 head="$(git rev-parse HEAD)" live="$(curl -fsS "$site/release.json" | sed -n 's/.*"revision":"\([0-9a-f]*\)".*/\1/p')"
 if [ "$head" != "$live" ] && [ "$mismatch" = 0 ]; then echo "checkout $head is not the live revision $live (use --allow-mismatch to publish anyway)" >&2; exit 1; fi
 [ -f .env.production.local ] || { echo ".env.production.local is missing: a guest-only preview would ship" >&2; exit 1; }
+sh scripts/refuse-unlisted-zones-env.sh . || exit 1   # no .env* may set VITE_UNLISTED_ZONES: env -u below clears only the process environment, vite also reads the files
 rm -rf artifacts/origins-preview
-( set -a; . ./.env.production.local; set +a; npx vite build --config origins/preview/vite.config.mjs >/dev/null )
+( set -a; . ./.env.production.local; set +a; env -u VITE_UNLISTED_ZONES npx vite build --config origins/preview/vite.config.mjs >/dev/null )   # cleared AFTER the env file: this bundle is the live game (also published at /zone1/), and an unlisted zone must never open in it, whatever the shell or the env file says
 node scripts/check-built-account.mjs artifacts/origins-preview
 if [ "$dry" = 1 ]; then echo "dry run: built and checked $head, nothing copied"; exit 0; fi
 rsync -a --delete -e "ssh -i $key -o BatchMode=yes" artifacts/origins-preview/ "$host:$dest"

@@ -1,8 +1,11 @@
 // The Hugging Face cost ledger (Dom 2026-10-12): one line per HF job ANY launcher starts (one ledger for the account, Auditor HOLD on #2329), an alarm when the day passes HF_COST.alarmUsdPerDay,
 // and no new T4 job once the day reaches HF_COST.t4StopUsdPerDay (CPU builds and unit receipts continue). The count starts from the ledger's own lines
 // (no backfill). Every launcher reaches it through scripts/lib/hf-slots.mjs withSlot({ cost }), so there is one place that launches and one that counts.
-//   line: <iso time>\t<job id>\t<flavor>\t<minutes>\t<usd>\t<reason>     minutes/usd are the job's UPPER bound (its own --timeout x USD_PER_HOUR):
-//   hf reports no end time for a finished job, and a bound that overcounts can only stop the T4 early, never late.
+//   line: <iso time>\t<job id>\t<flavor>\t<minutes>\t<usd>\t<reason>     minutes/usd are the job's UPPER bound (its own --timeout x USD_PER_HOUR), booked at launch
+//   as a reservation: a bound that overcounts can only stop the T4 early, never late.
+//   settle: `SETTLE\t<iso time>\t<job id>\t<flavor>\t<seconds>\t<usd>` once the launcher knows the job's real runtime (gpu-run reads it from the job log). The day's total then
+//   counts that job at its settled USD on the reservation's day, not at its bound (Lead 2026-10-16: 25-min-timeout stills jobs that ran 194-259 s were booked at ~$0.25, not ~$0.04, and
+//   tripped the stop on spend that never happened). A job never settled (no log, cancelled at its timeout) keeps its bound. The ledger stays append-only: several writers share it.
 //   alarm: one `ALARM\t<day>\t<usd>` line the first time a day passes the alarm, a stderr line, and ~/.claude/state/hf-cost-alarm-<day>.json for the
 //   COO's sweep (a script cannot message a session; the COO and Lead read the flag file).
 // ONE ledger: /var/lib/frankendom/hf-cost-ledger.tsv on the VPS (dir 2775 root:lanes, so VPS root and the lanes user append to the same file); the Mac and
@@ -17,7 +20,10 @@ import { USD_PER_HOUR } from '../hf-cleanup.mjs';
 import { vpsHost } from './waterfall.mjs';
 import LANE_PREFIXES from './lane-prefixes.json' with { type: 'json' };
 
-export const HF_COST = Object.freeze({ alarmUsdPerDay: 3, t4StopUsdPerDay: 5 });
+export const HF_COST = Object.freeze({ alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });   // Dom 2026-10-16 (topped up the account): "unlock it, within reason, don't waste"
+// One-day raises of the T4 stop, keyed by UTC day; every other day uses HF_COST.t4StopUsdPerDay. Dom 2026-10-16 ~21:05 +04, in the Lead chat: "ok yes" to $15 for that day only.
+export const T4_STOP_BY_DAY = Object.freeze({ '2026-10-16': 15 });
+export const t4StopOn = (ms) => T4_STOP_BY_DAY[day(ms)] ?? HF_COST.t4StopUsdPerDay;
 // Under `node --test` (NODE_TEST_CONTEXT, inherited by every child a test spawns) without an explicit HF_COST_LEDGER the ledger is a throwaway file:
 // a test that launches through a stub hf must never write the real ledger (AGENTS.md: tests never read or write live box state).
 export const ledgerPath = (env = process.env) => env.HF_COST_LEDGER
@@ -76,11 +82,22 @@ export function timeoutSeconds(text) {
   return m ? Number(m[1]) * ({ s: 1, m: 60, h: 3600, '': 1 })[m[2]] : NaN;
 }
 
-/** The USD the ledger holds for the day of `now` (job lines only). */
+/** The USD the ledger holds for the day of `now`: each job line of that day at its SETTLE line's USD when it has one, else at its reserved bound. */
 export function spentOn(text, now = Date.now()) {
-  const today = day(now);
-  return text.split('\n').map(line => line.split('\t')).filter(f => f.length === 6 && f[0].slice(0, 10) === today && f[0] !== 'ALARM')
-    .reduce((sum, f) => sum + (Number(f[4]) || 0), 0);
+  const today = day(now), rows = text.split('\n').map(line => line.split('\t'));
+  const settled = new Map(rows.filter(f => f.length === 6 && f[0] === 'SETTLE').map(f => [f[2], Number(f[5]) || 0]));
+  return rows.filter(f => f.length === 6 && f[0].slice(0, 10) === today && f[0] !== 'ALARM' && f[0] !== 'SETTLE')
+    .reduce((sum, f) => sum + (settled.has(f[1]) ? settled.get(f[1]) : (Number(f[4]) || 0)), 0);
+}
+
+/** Settles a reserved job to its real runtime: appends one SETTLE line, so spentOn counts the job at `seconds` x USD_PER_HOUR instead of its --timeout bound.
+ * A bad id or runtime records nothing (the bound stands, the safe side). Returns { usd } or null.
+ * @param {{ id: string, flavor: string, seconds: number }} job @param {{ store?: LedgerStore, path?: string, now?: number, say?: (m: string) => void }} [opts] */
+export function settle({ id, flavor, seconds }, { store, path, now = Date.now(), say = m => console.error(m) } = {}) {
+  if (!id || !Number.isFinite(seconds) || seconds < 0) return null;
+  const ledger = storeOf({ store, path }), usd = (USD_PER_HOUR[flavor] ?? USD_PER_HOUR['t4-medium']) * seconds / 3600;
+  if (!ledger.append(`SETTLE\t${new Date(now).toISOString()}\t${id}\t${flavor}\t${Math.round(seconds)}\t${usd.toFixed(4)}\n`)) say(`hf-cost: could not settle job ${id} in ${ledger.where}; it stays counted at its --timeout bound`);
+  return { usd };
 }
 
 /** null, or why this launch is refused: a T4 job once the day has reached the stop, or when the ledger cannot be read (fail closed).
@@ -90,7 +107,8 @@ export function t4Refusal(flavor, { store, path, now = Date.now() } = {}) {
   const ledger = storeOf({ store, path }), text = ledger.read();
   if (text === null) return `hf-cost: the HF cost ledger (${ledger.where}) cannot be read: no new T4 job until it can (CPU jobs continue). One-time setup on the VPS as root: install -d -m 2775 -g lanes ${dirname(SHARED_LEDGER)} && install -m 664 -g lanes /dev/null ${SHARED_LEDGER}`;
   const spent = spentOn(text, now);
-  return spent >= HF_COST.t4StopUsdPerDay ? `hf-cost: $${spent.toFixed(2)} spent on HF today (UTC ${day(now)}), at or over the $${HF_COST.t4StopUsdPerDay} T4 stop: no new T4 job (CPU jobs continue)` : null;
+  const stop = t4StopOn(now);
+  return spent >= stop ? `hf-cost: $${spent.toFixed(2)} spent on HF today (UTC ${day(now)}), at or over the $${stop} T4 stop: no new T4 job (CPU jobs continue)` : null;
 }
 
 /** Appends one job line; on the first crossing of the alarm that day, the ALARM line, a stderr line and the flag file. Returns { usd, total, alarm }.
