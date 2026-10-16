@@ -273,7 +273,7 @@ try {
   receipt.checks.push('A level-1 kill link shows the same fight to a signed-in rank-200 viewer wearing loot and to a guest: the fight\'s rank on the HUD, no worn loot (B3)');
   assert.deepEqual(receipt.errors, []); receipt.passed = true;
   console.log(JSON.stringify(receipt, null, 2));
-} catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); throw error; }
+} catch (error) { receipt.failure = String(error); receipt.ui = inspectedPage?.isClosed() ? 'phone page closed' : await inspectedPage?.locator('#account').textContent().catch(() => 'not available'); console.error(JSON.stringify(receipt, null, 2)); console.error(error?.stack ?? String(error)); throw error; }   // the finally ends the process, so the stack is printed here, not left to the rethrow
 finally {
   await fs.writeFile('artifacts/account/browser-receipt.json', JSON.stringify(receipt, null, 2));
   await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]);
