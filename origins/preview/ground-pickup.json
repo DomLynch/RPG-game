@@ -3,7 +3,8 @@
     {
       "id": "ground",
       "fields": {
-        "pollSec": 20,
+        "pollSec": 3,
+        "emptyPollSec": 20,
         "pollRangeM": 60,
         "lineSec": 3.5,
         "labels": { "take": "Take the {item}", "signedOut": "Sign in to take the {item}", "taken": "You take the {item}" },
