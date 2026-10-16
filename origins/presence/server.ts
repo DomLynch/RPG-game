@@ -154,7 +154,9 @@ export function createPresence(opts: PresenceOptions): Presence {
     const ip = String((opts.ipHeader ? req.headers['x-real-ip'] : null) ?? req.socket.remoteAddress ?? '?'), t = now();
     const refuse = (code: number, why: string): void => { refused(why); socket.end(`HTTP/1.1 ${code} Refused\r\nConnection: close\r\n\r\n`); };
     if (url.pathname !== '/origins/presence' || typeof key !== 'string') return refuse(400, 'bad-request');
-    let b = perIp.get(ip); if (!b || t - b.windowStart >= 60_000) { b = { sockets: b?.sockets ?? 0, windowStart: t, joins: 0, guests: b?.guests ?? 0 }; perIp.set(ip, b); }
+    // ONE bucket object per address for as long as it lives: a window roll resets the join count in place. (It used to be replaced with a copy, so a socket opened before the roll
+    // released the OLD object and the copy kept its count for ever: after a minute's session a guest address was locked out at guestIpSockets until presence restarted.)
+    let b = perIp.get(ip); if (!b) { b = { sockets: 0, windowStart: t, joins: 0, guests: 0 }; perIp.set(ip, b); } else if (t - b.windowStart >= 60_000) { b.windowStart = t; b.joins = 0; }
     if (++b.joins > limits.ipJoinsPerMinute) return refuse(429, 'join-rate');
     if (b.sockets >= limits.ipSockets) return refuse(429, 'ip-sockets');
     if (url.searchParams.has('token')) return refuse(400, 'token-in-url');   // a token in the URL is already in a log: refuse it loudly rather than accept it
