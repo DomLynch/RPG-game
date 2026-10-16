@@ -53,10 +53,15 @@ try {
   assert.ok(await until(async () => (await page.evaluate(() => window.originsPreview.presence().state)) === 'live', 60000), 'the page never reached presence (state is not live)');
 
   // sees: Bob (named), then a guest, then an unnamed signed-in player; Bob walks east
-  const join = async (token) => { const b = await joinBot(port, token); bots.push(b); receipt.bots = bots.length; return b; };
+  const join = async (token) => {   // the page warps itself to Zone 1's start landmark when it joins (main.ts onHello): so does each bot, or it would stand at the default spawn, out of range
+    const b = await joinBot(port, token); bots.push(b); receipt.bots = bots.length;
+    b.warp('zone1-start'); assert.ok(await until(() => b.hellos() >= 2, 10000), `bot ${token} was not warped to zone1-start`);
+    return b;
+  };
+  const diag = async () => JSON.stringify({ page: await page.evaluate(() => ({ pos: { x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }, presence: window.originsPreview.presence(), remote: window.originsPreview.remote() })), bots: bots.map((b) => b.at()) });
   const bob = await join('bot2'), bobId = presence.world.byAccount.get(acct(2)).id;
   const drawn = (id) => page.evaluate((i) => window.originsPreview.remote().shown.find((s) => s.id === i) ?? null, id);
-  assert.ok(await until(async () => (await drawn(bobId))?.tag === 'Bob'), `Bob is not drawn with his name: ${JSON.stringify(await drawn(bobId))}`);
+  assert.ok(await until(async () => (await drawn(bobId))?.tag === 'Bob'), `Bob is not drawn with his name: ${await diag()}`);
   const start = await drawn(bobId), from = bob.at();
   for (let i = 1; i <= 8; i++) { bob.pose(from.x + i * 1.5, from.z); await wait(150); }
   assert.ok(await until(async () => { const s = await drawn(bobId); return s && Math.hypot(s.x - start.x, s.z - start.z) >= 8; }), `Bob walked 12 m and the page shows him moving less than 8: ${JSON.stringify([start, await drawn(bobId)])}`);
@@ -81,7 +86,7 @@ try {
   bob.close();
   assert.ok(await until(async () => !(await drawn(bobId)), 8000), 'Bob left and is still drawn');
   receipt.pass = true;
-} catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 600); console.error('FAIL', receipt.failure); }
+} catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 1800); console.error('FAIL', receipt.failure); }
 finally {
   for (const b of bots) try { b.close(); } catch { /* already closed */ }
   fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync('artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
