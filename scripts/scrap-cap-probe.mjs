@@ -22,7 +22,7 @@ try {
   await stubSignedIn(page, { offsets: [], take: 'taken' });
   let taken = false; const takes = [];
   await page.route('**/origins/ground_state', (route) => json(route, { ok: true, result: { now: new Date().toISOString(), items: [{ ...CAP, zone: 'zone1', place: 'cinder-fields', radiusM: 1.5, available: !taken, visible: !taken }] } }));
-  await page.route('**/origins/ground_take', async (route) => { taken = true; takes.push(await page.evaluate(() => ({ near: window.originsPreview.region()?.near ?? null, mobs: window.originsPreview.mobs()?.mobs?.filter((m) => m.engaged || m.state !== 'idle').length ?? null }))); json(route, { ok: true, result: { result: 'taken', instance: CAP.instance, item: CAP.item } }); });
+  await page.route('**/origins/ground_take', async (route) => { taken = true; takes.push(await page.evaluate(() => ({ near: window.originsPreview.region()?.near ?? null, mobs: window.originsPreview.mobs()?.mobs?.filter((m) => m.engaged || m.state !== 'idle').length ?? null }))); json(route, { ok: true, result: { result: 'taken', instance: CAP.instance, item: CAP.item, qty: 1, availableAt: new Date(Date.now() + 3.6e6).toISOString() } }); });
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
   const centre = await centreOf(page);
@@ -33,7 +33,8 @@ try {
     return { label: l, prompt: p.hidden ? null : p.textContent, near: o.region()?.near ?? null, pos: [Math.round(o.pos.x * 10) / 10, Math.round(o.pos.z * 10) / 10], mobs: ms.filter((m) => m.drawn).slice(0, 8).map((m) => ({ id: m.id, d: Math.round(Math.hypot(m.x - o.pos.x, m.z - o.pos.z) * 10) / 10, ...Object.fromEntries(Object.entries(m).filter(([k, v]) => ['state', 'engaged', 'aggro', 'hp', 'dead', 'fighting'].includes(k) && typeof v !== 'object')) })) };
   }, label);
   await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [report.capAt.x, report.capAt.z]);
-  for (let i = 0; i < 6; i++) { await page.waitForTimeout(2500); report.steps.push(await snap(`bout+${(i + 1) * 2.5}s`)); }
+  const placedAt = Date.now();
+  for (let i = 0; i < 14; i++) { await page.waitForTimeout(2500); const s = await snap(`bout+${(i + 1) * 2.5}s`); report.steps.push(s); if (s.prompt && i >= 3) { report.promptAfterS = Math.round((Date.now() - placedAt) / 1000); break; } }   // the ground state is polled every 20 s (ground-pickup.json pollSec): the prompt waits for a read, whatever the camp is doing
   report.promptShown = await page.evaluate(() => { const p = document.getElementById('prompt'); if (p.hidden) return null; const r = p.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { text: p.textContent, topmost: top?.id || top?.tagName, box: [r.left, r.top, r.right, r.bottom].map(Math.round) }; });
   await page.screenshot({ path: path.join(OUT, 'cap-bout.jpg'), type: 'jpeg', quality: 72, timeout: 240000 });
   if (report.promptShown) {
