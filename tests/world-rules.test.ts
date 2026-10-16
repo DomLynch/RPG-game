@@ -29,7 +29,7 @@ test('every world rule equals the literal it replaced', () => {
   assert.equal(MAX_ATTACKERS, 3);   // the attacker cap reads its row
   assert.equal(worldRule('farM'), 1000);   // the far-off dummy foe's distance reads its row
   
-  assert.equal(WORLD_RULES.length, 58);   // 56 + retargetCone, retargetGap (many-on-one, WSV49)
+  assert.equal(WORLD_RULES.length, 60);   // 56 + retargetCone, retargetGap (many-on-one, WSV49) + evadeAfter, evadeHealToFull (evade, WSV50)
 });
 test('the loader refuses a missing named rule, a non-positive value, a duplicate id, an engageOut below engage, a holdFactor above 1; a new row is one entry', () => {
   const rows = DEFS.rules;
@@ -38,7 +38,7 @@ test('the loader refuses a missing named rule, a non-positive value, a duplicate
   assert.throws(() => loadWorldRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'engageOut' ? { ...r, value: 3 } : r)) }), /hysteresis/);
   assert.throws(() => loadWorldRules({ rules: rows.map((r) => (r.id === 'holdFactor' ? { ...r, value: 1.2 } : r)) }), /holdFactor/);
-  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 59);
+  assert.equal(loadWorldRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 61);
   assert.equal(worldRule('engage'), 4);
 });
 test('the Pit sim keeps its own run literal (a Pit sim file: editing it would force a RECORD_VERSION bump); it must equal the playerRun row', () => {

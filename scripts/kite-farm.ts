@@ -11,6 +11,8 @@
 import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
 import { leashOf } from '../src/fight/speeds.ts';
+import { wornGear } from '../src/fight/gear-stats.ts';
+import { TIERS } from '../src/core/grades.ts';
 
 // RULE (test-only; no row changes, the rule is applied to the world after each step with the flags the world's own leash code sets): none | noblow | spawn.
 //   noblow : the creature gives up (walks home, heals) when it has landed no blow on a hero for NOBLOW_S seconds (default 10), counted from the chase start or its last landed blow (AzerothCore's cannot-reach-target evade).
@@ -40,7 +42,8 @@ const BOTS: Record<string, (x: Ctx) => Input> = {
   turtle: () => ({ x: 0, z: 0, guard: true }),   // a hero who only blocks: the creature swings and swings; the rule must not read that as a creature that cannot reach him
 };
 function run(name: string, seed: number) {
-  const sheet = rungSheet(0, level, 'plate', env('RECRUIT', '1') === '1'), a = seed * 0.37;
+  const starter = env('KIT', 'plate') === 'starter' ? wornGear({ head: 'goblin.Helmet', legs: 'goblin.Greaves' }, () => TIERS[0]) : undefined;   // KIT=starter: the starter armour (goblin helmet + shin plates at Recruit); KIT=plate (default): the full plate set at Recruit quality, RECRUIT=1
+  const sheet = rungSheet(0, level, 'plate', env('RECRUIT', '1') === '1', starter), a = seed * 0.37;
   const hero = (id: string, x: number, z: number) => player(id, x, z, 0, level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) });
   const heroes = name === 'tag' ? [hero('hero', 0, 0), hero('hero2', 14, 0)] : [hero('hero', 0, 0)];
   let w = newWorld([...heroes, creature('c0', kind, Math.sin(a) * 7, Math.cos(a) * 7, a + Math.PI, level)]);
