@@ -1,0 +1,54 @@
+// A crowd of other players: the nearest `remoteFullCount` are full figures, the rest CHEAP (no trail, no shadow cast, a pose update every `remoteCheapEvery` frames), all still drawn, and none adds a program.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Group, Mesh, BufferGeometry, MeshBasicMaterial } from 'three';
+import { createRemoteHeroes } from '../origins/preview/remote-heroes.ts';
+import { previewRule } from '../origins/preview/preview-rules.ts';
+
+const FULL = previewRule('remoteFullCount'), EVERY = previewRule('remoteCheapEvery');
+const material = new MeshBasicMaterial();   // one shared material, as the rig's: a cheap figure must keep it
+
+function crowd(n: number) {
+  const made: { anchor: Group; draws: Mesh[]; trail: Mesh; updates: number[] }[] = [];
+  const spawn = () => {
+    const anchor = new Group(), draws = [new Mesh(new BufferGeometry(), material), new Mesh(new BufferGeometry(), material)], trail = new Mesh(new BufferGeometry(), material);
+    for (const d of draws) { d.castShadow = true; anchor.add(d); }
+    trail.name = 'WeaponTrail'; trail.visible = true; anchor.add(trail);
+    const updates: number[] = [];
+    made.push({ anchor, draws, trail, updates });
+    return { anchor, update: (_s: number, dt: number) => { updates.push(dt); } } as never;
+  };
+  const heroes = createRemoteHeroes({ scene: new Group(), spawn, groundAt: () => 0 });
+  heroes.warm();
+  heroes.push(Array.from({ length: n }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
+  return { heroes, made };
+}
+
+test('17+ remotes: exactly remoteFullCount full figures, the rest cheap, all drawn, no new material', () => {
+  const { heroes, made } = crowd(FULL + 5);
+  heroes.update(1 / 60, 0, { x: 0, z: 0 });
+  const shown = heroes.debug().shown;
+  assert.equal(shown.length, FULL + 5, 'all drawn');
+  assert.equal(shown.filter((s) => !s.cheap).length, FULL);
+  assert.deepEqual(shown.filter((s) => !s.cheap).map((s) => s.id).sort((a, b) => a - b), Array.from({ length: FULL }, (_, i) => i + 1), 'the nearest are the full ones');
+  for (const f of made.filter((m) => m.draws[0]!.castShadow === false || m.updates.length)) for (const d of f.draws) assert.equal(d.material, material);
+  const cheap = shown.filter((s) => s.cheap).length; assert.equal(made.filter((m) => m.draws.every((d) => !d.castShadow) && !m.trail.visible).length, cheap, 'cheap: no shadow, no trail');
+});
+
+test('a cheap figure poses every Nth frame with the time it was owed; a full one every frame', () => {
+  const { heroes, made } = crowd(FULL + 1);
+  for (let f = 0; f < EVERY * 2; f++) heroes.update(0.01, 0, { x: 0, z: 0 });
+  const cheapFig = made.find((m) => !m.draws[0]!.castShadow)!, fullFig = made.find((m) => m.draws[0]!.castShadow && m.updates.length)!;
+  assert.equal(fullFig.updates.length, EVERY * 2);
+  assert.equal(cheapFig.updates.length, 2);
+  assert.ok(Math.abs(cheapFig.updates[0]! - 0.01 * EVERY) < 1e-9, 'it is owed the frames it skipped');
+});
+
+test('a figure that comes back near gets its shadow back as it was', () => {
+  const { heroes, made } = crowd(FULL + 1);
+  heroes.update(1 / 60, 0, { x: 0, z: 0 });
+  assert.ok(made.some((m) => !m.draws[0]!.castShadow), 'one is cheap');
+  heroes.update(1 / 60, 0, { x: 2 + FULL, z: 0 });   // the hero walks to the far end: the once-far figure is now the nearest
+  assert.equal(made.filter((m) => m.draws[0]!.castShadow === false).length, 1, 'still exactly one cheap');
+  assert.ok(made.every((m) => m.draws[0]!.castShadow || !m.draws[1]!.castShadow), 'a restored figure casts on every draw');
+});

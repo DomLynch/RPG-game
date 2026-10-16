@@ -1,9 +1,9 @@
 // Pack balance battery (Combat): a hero of a given gear rung against a camp of N creatures of one row at one level, the real world loop (src/fight/world.ts stepCombat, MAX_ATTACKERS 3), headless.
 //   READOUT=1 adds the many-on-one reading per cell: the most creatures in windup/active at once (turn-taking: MAX_ATTACKERS 3, the 4th holds at the ring) and the share of the fight with 3 or more biting.
-//   node scripts/pack-battery.ts   env: KIND (wolf), LEVELS (2,3), SIZES (1,2,3,4), RUNGS (0,2,4 = Recruit, 3rd, 5th tier), SEEDS (16), BOTS (masher,guard)
+//   node scripts/pack-battery.ts   env: KIND (wolf), LEVELS (2,3), SIZES (1,2,3,4), RUNGS (0,2,4 = Recruit, 3rd, 5th tier), SEEDS (16), BOTS (masher,guard), ESCORT (goblin), ESCORTS (0)
 import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
-import { fullSet, loadoutFor, NAKED } from '../src/fight/gear-stats.ts';
 import { TIERS } from '../src/core/server.ts';
+import { rungSheet } from './lib/rung-sheet.ts';
 
 const DT = 1 / 60, MAX_S = 120, env = (k: string, d: string) => (process.env[k] ?? d).split(',');
 type Bot = (w: World, k: number) => Input;
@@ -13,9 +13,9 @@ const BOTS: Record<string, Bot> = {
   guard: (w, k) => { const f = nearest(w); return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }; },
 };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot) {
-  const gear = rung === 0 ? NAKED : loadoutFor(fullSet(TIERS[rung]!, 'Longsword'));
-  const foes = Array.from({ length: size }, (_, i) => { const a = (i / size) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, kind, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, level); });
-  let w = newWorld([player('hero', 0, 0, 0, gear, 1), ...foes]), peak = 0, three = 0, ticks = 0;
+  const sheet = rungSheet(rung, heroLevel ?? level);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
+  const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, level); });
+  let w = newWorld([player('hero', 0, 0, 0, heroLevel ?? level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
   for (let k = 0; k < MAX_S / DT; k++) {
     w = stepCombat(w, { hero: bot(w, k) }, DT).world;
     const biting = w.fighters.filter((f) => f.side === 'creature' && (f.phase === 'windup' || f.phase === 'active')).length; peak = Math.max(peak, biting); ticks++; if (biting >= 3) three++;
@@ -25,7 +25,8 @@ function fight(kind: string, level: number, size: number, rung: number, seed: nu
   }
   return { win: false, died: false, hp: w.fighters[0]!.health / w.fighters[0]!.maxHealth, t: MAX_S, left: -1, peak, three: three / ticks };
 }
-const kind = env('KIND', 'wolf')[0]!, seeds = +env('SEEDS', '16')[0]!;
+const heroLevel = process.env.HERO_LEVEL ? +process.env.HERO_LEVEL : undefined;   // HERO_LEVEL: the hero's level (build points placed and his level argument); default the creature's level
+const kind = env('KIND', 'wolf')[0]!, seeds = +env('SEEDS', '16')[0]!, escort = env('ESCORT', 'goblin')[0]!, escorts = +env('ESCORTS', '0')[0]!;   // ESCORTS=n adds n creatures of ESCORT (default goblin, the scavenger's body) beside the SIZES of KIND
 for (const botName of env('BOTS', 'masher,guard')) for (const rung of env('RUNGS', '0,2,4').map(Number)) for (const level of env('LEVELS', '2,3').map(Number)) {
   const row = env('SIZES', '1,2,3,4').map(Number).map((size) => {
     const rs = Array.from({ length: seeds }, (_, s) => fight(kind, level, size, rung, s + 1, BOTS[botName]!));

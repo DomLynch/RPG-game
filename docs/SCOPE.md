@@ -5,6 +5,12 @@ or memory disagrees with this file, this file wins and the older line is stale. 
 *Rewrite 2026-10-02: the 09-25 stack-ranked list is replaced by the status table below; items Dom added since (duels, the Pit,
 the 30 boss specials, class specials, menu, gear screen) are now in it.*
 
+**2026-10-16 ~17:55 (+04), Dom: ZONE 1 IS OPEN TO EVERYONE; SIGN-IN IS A SAVE, NEVER A GATE.** "Zone 1 is basically what all players, the newcomers are gonna see. So stop adding fake barriers because everything should be open… If you're logged in or not, obviously saving your game is better. But if you don't save it, you can still do the same stuff… fight the same NPCs." Zone 1 is the main game; Dom's experimental sandbox is the separate "Test Zone". Acceptance (Strategy, 2026-10-16) for the guest-presence and guest-loot work:
+1. A guest with no account fights the same NPCs, sees other players, and picks up loot that works for the session.
+2. "Sign in to keep it" is a one-line nudge on the pickup screen, never a modal or a blocked action.
+3. Guest kills and loot never reach leaderboards, the kill ledger or any persistent row (no spoof surface); the guest token carries the same rate caps.
+4. Signing in mid-session keeps what the guest holds if that is cheap; otherwise the sign-in screen states the loss before the tap.
+
 **2026-10-08 (+04, `date`), Dom: FRANKENDOM IS AN MMO and always has been.** Beta = ONE always-on shared world for thousands of players. The duel Pit is the starting zone and stays a prominent feature; around it is the open world with open PvP (flag on/off) and NPCs/creatures that are each hostile or not (a simple flag). The world is server-run and never stops or freezes for a fight; any number of hostiles can join (cap 7 attackers, 3–4 biting at once). Space-sharded: one server per zone (~200 players), layers only for crowded towns; creatures far from every player update about once a second. The ladder is 50 levels (Origin I–V).
 
 **2026-10-07 08:1x (+04, `date`), Dom: BETA INCLUDES ORIGINS ZONE 1** (Region 1: the Pit gate, the Concord Exchange with bank, smith and player trade, Ash Frontier towns and Bounties), in addition to the duel game and live duels below. Its launch gates are docs/specs/origins/launch-gates.md (trade, writer route, Exchange-only X1/X2, flag GO, one-shard S1-S4, patrons P1-P5). Also IN beta (Dom, no freeze): stances (incl. AI home stance = mood), the Gambit, luck (±10% rolls vs Zone 1 mobs only) and Coach mode, as approved 2026-10-07 in #1513. The table below predates this line; Zone 1 is the open beta item.

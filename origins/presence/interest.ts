@@ -85,6 +85,11 @@ export class World {
     }
     return this.place(p, x, z, pose);
   }
+  // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
+  warp(p: Player, x: number, z: number, now: number): void {
+    p.movedAt = now; p.seenAt = now; p.strikes = 0;
+    this.place(p, x, z, { x, z, heading: p.heading, anim: p.anim, flags: p.flags });
+  }
   private place(p: Player, x: number, z: number, pose: Pose): MoveResult {
     const from = cellOf(this.rules, p.x, p.z), to = cellOf(this.rules, x, z);
     if (from !== to) { p.layer.cells.get(from)?.delete(p); this.cellOf(p.layer, { ...p, x, z }).add(p); }
