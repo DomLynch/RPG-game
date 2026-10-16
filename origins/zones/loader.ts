@@ -9,6 +9,7 @@ import { duplicateKeys, describeDuplicates } from '../../scripts/lib/json-dup-ke
 import { REGISTRY } from './registry.ts';
 import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import type { Spec } from './biomes.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
@@ -51,7 +52,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
-    if (r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${z.level}-${z.level + 1}`);
+    const lift = stageRule('namedLevelLift');   // a named camp boss is the zone level + the lift (stage rules row; was the NAMED_LEVEL literal)
+    if (r.named ? r.level[0] !== z.level + lift || r.level[1] !== z.level + lift : r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${r.named ? `${z.level + lift} (a named camp boss is the zone level + ${lift})` : `${z.level}-${z.level + 1}`}`);
   }
   for (const [zoneId, rowId] of Object.entries(z.spawns.openers)) if (!ids.has(rowId)) bad.push(`opener for ${zoneId} names ${rowId}, which is not a row`);
   for (const g of z.place?.spawns ?? []) {   // weighted entries (docs/specs/origins/weighted-spawns.md): the camp is sized by the first entry's row; that every id is a character is the registry's check (region1 load.ts)
