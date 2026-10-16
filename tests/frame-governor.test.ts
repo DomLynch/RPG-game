@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createGovernor } from '../origins/preview/frame-governor.ts';
 import { previewRule } from '../origins/preview/preview-rules.ts';
 
-const rules = { windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs') };
+const rules = { windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile') };
 /** Feed `seconds` of frames of length `ms` starting at `t0`; returns the time after the last frame. */
 const run = (g: ReturnType<typeof createGovernor>, t0: number, seconds: number, ms: number, every?: { n: number; ms: number }): number => {
   let t = t0, i = 0;
