@@ -64,7 +64,8 @@ export class World {
     layer.cells.get(cellOf(this.rules, p.x, p.z))?.delete(p);
     layer.players.delete(p.id); this.byAccount.delete(p.account);
     if (!layer.players.size) layer.emptySince = now;
-    this.memory.delete(p.account); this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
+    this.memory.delete(p.account); if (p.guest) return;   // a guest leaves no 10-minute memory: a reconnect is a new guest at the spawn
+    this.memory.set(p.account, { x: p.x, z: p.z, at: now });   // the last position the speed clamp accepted; the oldest entry goes past memoryMax
     if (this.memory.size > this.rules.memoryMax) this.memory.delete(this.memory.keys().next().value!);
   }
   // The remembered position of an account that left at most `memoryMs` ago, moved clear of any trade area; undefined when there is none or it has expired.
