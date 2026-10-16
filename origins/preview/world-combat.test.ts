@@ -25,7 +25,7 @@ test('a wolf that comes within the ring joins the loop, hunts, telegraphs, bites
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => void died++, onHeroHit: () => void hit++, onSwing: () => {}, onTelegraph: () => void tell++ });
   run(wc, { x: 0, z: 0, facing: 0 }, 6);
   assert.ok(f.driven.has('wolf-1'), 'driven by the loop'); assert.ok(tell >= 1 && hit >= 1, `tell ${tell} before hit ${hit}`); assert.ok(wc.hero().health < wc.hero().max); assert.equal(died, 0);
-  assert.equal(wc.target()?.name, 'wolf-1'); assert.ok(wc.inCombat());
+  assert.equal(wc.target()?.name, 'wolf-1'); assert.equal(wc.target()?.id, 'wolf-1', 'the target carries its creature id (the creature card follows the fight by it)'); assert.ok(wc.inCombat());
 });
 
 test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once, and the creature is released', () => {
