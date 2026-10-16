@@ -28,6 +28,8 @@ export function loadSkins(raw: Raw) {
 }
 const LOADED = loadSkins(DEFS);
 export const skinIds = (): readonly string[] => LOADED.skins.map((s) => s.id);
+/** A skin's parts for exactly this kind (no fallback): `gate` and `marker` are landmark kinds a skin may dress or leave bare. null = none. */
+export const skinKind = (skin: string, kind: string): readonly SkinPart[] | null => { const own = LOADED.parts.filter((p) => p.skin === skin && p.kind === kind); return own.length ? own : null; };
 /** A skin's parts for one building kind (hall, house, watchtower...), else its default; null = no such skin. */
 export const skinParts = (skin: string, kind: string): readonly SkinPart[] | null => {
   if (!skinIds().includes(skin)) return null;

@@ -27,6 +27,15 @@
     { "id": "goblin.watchtower.8", "skin": "goblin", "kind": "watchtower", "shape": "sphere", "size": [0.08, 8, 6], "at": [0, 1.15, 0], "tint": "bone", "yaw": 0, "layer": "plain" },
     { "id": "goblin.watchtower.9", "skin": "goblin", "kind": "watchtower", "shape": "box", "size": [0.14, 0.2, 0.03], "at": [0.46, 0.84, 0.46], "tint": "banner", "yaw": 0, "layer": "plain" },
 
+    { "id": "goblin.gate.1", "skin": "goblin", "kind": "gate", "shape": "box", "size": [0.13, 0.84, 0.8], "at": [-0.41, 0.42, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.2", "skin": "goblin", "kind": "gate", "shape": "box", "size": [0.13, 0.84, 0.8], "at": [0.41, 0.42, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.3", "skin": "goblin", "kind": "gate", "shape": "box", "size": [0.98, 0.1, 0.8], "at": [0, 0.89, 0], "tint": "wood", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.4", "skin": "goblin", "kind": "gate", "shape": "cone", "size": [0.04, 0.2, 5], "at": [-0.41, 1.0, 0], "tint": "bone", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.5", "skin": "goblin", "kind": "gate", "shape": "cone", "size": [0.04, 0.2, 5], "at": [0.41, 1.0, 0], "tint": "bone", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.6", "skin": "goblin", "kind": "gate", "shape": "sphere", "size": [0.12, 8, 6], "at": [0, 1.0, 0], "tint": "bone", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.7", "skin": "goblin", "kind": "gate", "shape": "box", "size": [0.12, 0.32, 0.03], "at": [-0.2, 0.7, 0.5], "tint": "banner", "yaw": 0, "layer": "plain" },
+    { "id": "goblin.gate.8", "skin": "goblin", "kind": "gate", "shape": "box", "size": [0.12, 0.32, 0.03], "at": [0.2, 0.7, 0.5], "tint": "banner", "yaw": 0, "layer": "plain" },
+
     { "id": "goblin.fence.1", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.4, 5], "at": [-0.42, 0.7, 0], "tint": "wood", "yaw": 0, "layer": "plain" },
     { "id": "goblin.fence.2", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.3, 5], "at": [-0.21, 0.65, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
     { "id": "goblin.fence.3", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.5, 5], "at": [0, 0.75, 0], "tint": "wood", "yaw": 0, "layer": "plain" },

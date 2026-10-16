@@ -13,7 +13,7 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
-import { skinParts } from '../world/building-skins-rules.ts';
+import { skinKind, skinParts } from '../world/building-skins-rules.ts';
 import { skinPieces } from './building-skin.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 
@@ -217,7 +217,8 @@ export function frontierBuild(f: Frontier, skin = ''): Build {   // skin: a buil
     const links = new Set(z.links.map((l) => l.here));
     for (const [name, a] of Object.entries(z.landmarks)) {
       if (links.has(name)) { // a way on: two gate posts either side of it
-        for (const side of [-1, 1]) { const p = off(a, a.facing, -0.4, side * 2.4); put('stone', ['box', 0.6, 3, 0.6], p.x, 1.5, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.5 }); }
+        const gp = skin ? skinKind(skin, 'gate') : null; if (gp) pieces.push(...skinPieces(gp, a.x, a.z, a.facing, 6.4, 5.4, 1.2));   // a skin may dress the way on as a gate
+        for (const side of [-1, 1]) { const p = off(a, a.facing, -0.4, side * 2.4); if (!gp) put('stone', ['box', 0.6, 3, 0.6], p.x, 1.5, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.5 }); }
         continue;
       }
       const k = kindOf(name), c = z.town && z.landmarks[z.town.centre];
@@ -233,10 +234,12 @@ export function frontierBuild(f: Frontier, skin = ''): Build {   // skin: a buil
       } else if (k === 'pits' || k === 'hollow') put('soot', ['cylinder', k === 'pits' ? 6 : 10, k === 'pits' ? 6 : 10, 0.06, 24], a.x, 0.03, a.z, SOOT);
       else if (k === 'dock' || k === 'jetty') { const c = off(a, a.facing, 3); put('stone', ['box', 3.5, 0.3, 7], c.x, 0.15, c.z, TIMBER, a.facing, 0); }
       else if (k === 'bank') for (let j = 0; j < 14; j++) { const p = off(a, a.facing, (j % 4) * 1.3 - 2, Math.floor(j / 4) * 1.4 - 2); put('stone', ['box', 0.08, 1.6 + (j % 3) * 0.3, 0.08], p.x, 0.9, p.z, [0.5, 0.48, 0.3], 0, 0); }
+      else if (k === 'gate' && skin && skinKind(skin, 'gate')) { pieces.push(...skinPieces(skinKind(skin, 'gate')!, a.x, a.z, a.facing, 6.4, 5.4, 1.2)); for (const side of [-1, 1]) solids.push({ ...off(a, a.facing, 0, side * 2.6), r: 0.8 }); }   // the skin's gate: the same posts' footprints
       else if (k === 'gate') { // the ruin's gate: posts and a lintel across the way
         for (const side of [-1, 1]) { const p = off(a, a.facing, 0, side * 2.6); put('stone', ['box', 1, 4.5, 1], p.x, 2.25, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.8 }); }
         put('stone', ['box', 6.4, 0.9, 1.2], a.x, 4.9, a.z, DARK, a.facing);
-      } else { put('stone', ['box', 0.8, 1, 0.8], a.x, 0.5, a.z, DARK, a.facing, 0); solids.push({ x: a.x, z: a.z, r: 0.6 }); } // a cairn
+      } else if (skin) { const mp = skinKind(skin, 'marker'); if (mp) { pieces.push(...skinPieces(mp, a.x, a.z, a.facing, 0.8, 1, 0.8)); solids.push({ x: a.x, z: a.z, r: 0.6 }); } }   // a skin dresses a plain landmark (a spawn spot, a camp) or leaves it bare: no stone cairn
+      else { put('stone', ['box', 0.8, 1, 0.8], a.x, 0.5, a.z, DARK, a.facing, 0); solids.push({ x: a.x, z: a.z, r: 0.6 }); } // a cairn
     }
     if (!z.town) return;
     // A town: its named buildings (above), a ring of houses round its centre, its name on a board at the centre, people about.
