@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HF_COST, SHARED_LEDGER, callerOf, ledgerPath, ledgerStore, localStore, record, spentOn, sshStore, t4Refusal, taggedReason, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
+import { HF_COST, SHARED_LEDGER, callerOf, ledgerPath, ledgerStore, localStore, record, settle, spentOn, sshStore, t4Refusal, taggedReason, timeoutSeconds } from '../scripts/lib/hf-ledger.mjs';
 import { execFileSync } from 'node:child_process';
 import { withSlot } from '../scripts/lib/hf-slots.mjs';
 import { USD_PER_HOUR } from '../scripts/hf-cleanup.mjs';
@@ -175,11 +175,37 @@ test('a missing CLAUDE.local.md (or no git at all) still launches, with unknown-
 });
 
 test('with no CLAUDE.local.md and no env var (a VPS clone) the lane comes from the branch prefix, and CLAUDE.local.md or the env var still win', () => {
-  for (const [branch, lane] of [['combat/x', 'combat'], ['web/y', 'web'], ['world/z', 'world'], ['char/state-1015', 'char'], ['backend/ground-loot-rows', 'backend'], ['deploy/sweep', 'deploy'], ['release-GK', 'deploy'], ['lead/pit-ship', 'lead']] as const) {
+  for (const [branch, lane] of [['combat/x', 'combat'], ['web/y', 'web'], ['world/z', 'world'], ['char/state-1015', 'char'], ['backend/ground-loot-rows', 'backend'], ['deploy/sweep', 'deploy'], ['release-GK', 'deploy'], ['lead/pit-ship', 'lead'], ['zone/goblin-camp', 'zone-sandbox']] as const) {
     assert.deepEqual(callerOf({ cwd: checkout(branch, null), env: {} }), { lane, branch }, branch);
   }
   assert.equal(taggedReason('gpu-run', { cwd: checkout('combat/x', null), env: {} }), 'gpu-run;lane=combat;branch=combat/x');
   assert.equal(callerOf({ cwd: checkout('some-branch', null), env: {} }).lane, 'unknown-lane', 'an unprefixed branch is still unknown-lane');
   assert.equal(callerOf({ cwd: checkout('combat/x', 'web'), env: {} }).lane, 'web', 'CLAUDE.local.md beats the prefix');
   assert.equal(callerOf({ cwd: checkout('combat/x', 'web'), env: { FRANKENDOM_LANE: 'lead' } }).lane, 'lead', 'the env var beats both');
+});
+
+// Lead 2026-10-16: a 25-min-timeout stills job that ran ~240 s was booked at ~$0.25, not ~$0.04, so a day of them hit the $5 T4 stop on spend that never happened.
+// The launch line stays a reservation at the --timeout bound; a SETTLE line, once the runtime is known, makes the day count the job at what it really cost.
+test('settle: a reserved job counts at its settled runtime, an unsettled one keeps its bound, and phantom spend no longer trips the T4 stop', () => {
+  const { path } = box(), quiet = { path, now: NOON, say: () => {} };
+  const n = Math.floor(HF_COST.t4StopUsdPerDay / 0.25) + 1;   // enough 25-min reservations ($0.25 each) to pass the stop, whatever the stop is set to
+  for (let i = 0; i < n; i++) record({ id: job(i), flavor: 't4-medium', timeout: '25m', reason: 'zone-still' }, quiet);
+  assert.equal(spentOn(readFileSync(path, 'utf8'), NOON).toFixed(2), (n * 0.25).toFixed(2));
+  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, new RegExp(`at or over the \\$${HF_COST.t4StopUsdPerDay} T4 stop`), 'reserved only: the stop trips');
+  for (let i = 0; i < n - 1; i++) assert.equal(settle({ id: job(i), flavor: 't4-medium', seconds: 240 }, quiet)!.usd, 0.04);
+  const text = readFileSync(path, 'utf8');
+  assert.equal(spentOn(text, NOON).toFixed(2), ((n - 1) * 0.04 + 0.25).toFixed(2), 'every job but one settled at $0.04 (240 s) + the one never settled at its $0.25 bound');
+  assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, 'settled: the T4 runs again');
+  assert.match(text, new RegExp(`^SETTLE\\t2026-10-12T12:00:00.000Z\\t${job(0)}\\tt4-medium\\t240\\t0.0400$`, 'm'), 'six tab fields, so an older reader skips it (its first field is no date)');
+});
+
+test('settle: a SETTLE line written after midnight still settles the reservation\'s own day; a bad runtime or id appends nothing and the bound stands', () => {
+  const { path } = box(), quiet = { path, now: NOON, say: () => {} };
+  record({ id: job(1), flavor: 't4-medium', timeout: '25m', reason: 'zone-still' }, quiet);
+  settle({ id: job(1), flavor: 't4-medium', seconds: 300 }, { ...quiet, now: NOON + 13 * 3600_000 });   // settled at 01:00 the next day
+  assert.equal(spentOn(readFileSync(path, 'utf8'), NOON).toFixed(2), '0.05', 'the job\'s day counts it at 300 s');
+  assert.equal(spentOn(readFileSync(path, 'utf8'), NOON + 13 * 3600_000), 0, 'the next day holds nothing for it');
+  const before = readFileSync(path, 'utf8');
+  for (const bad of [{ id: job(1), seconds: NaN }, { id: job(1), seconds: -5 }, { id: '', seconds: 60 }]) assert.equal(settle({ ...bad, flavor: 't4-medium' }, quiet), null);
+  assert.equal(readFileSync(path, 'utf8'), before, 'nothing appended');
 });
