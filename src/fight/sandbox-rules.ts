@@ -220,6 +220,8 @@ const SPELL_RANGES = ((DEFS as unknown as { spellRange?: SpellRangeRow[] }).spel
 const CUES = ((DEFS as unknown as { spellCue?: CueRow[] }).spellCue ?? []);
 export const spellRangeOf = (root: string): SpellRangeRow | undefined => (BANDS.length ? SPELL_RANGES.find((r) => r.root === root) : undefined);
 // kind (Dom 2026-10-16: melee or magic, nothing else): a `melee` root is cast up close and paid in STAMINA; a `magic` root (medium / long band) is paid in MANA. A root with no kind (trunk, no rows) pays as before: mana while mana is on.
+// spellFx (Dom 2026-10-16: "we designed unique level 10 spell effects, black fog, a claw, earth movement; where are they?"): 1 = a catalogue spell cast plays its root's designed special effect (crack = Antaeus' earth, longShadow = Thanatos' fog, baying = Arawn ...) instead of the sandbox's plain flash. 0 = trunk: a spell cast in a real fight draws no special effect.
+export const SPELL_FX = num('spellFx', 'value');
 // spellBuffer (Dom 2026-10-16: "sometimes a first tap does nothing"): milliseconds a SPELL press the game cannot take yet (a stagger, a swing's recovery) is held and fired the moment it can. 0 = off (trunk): a refused press is simply lost.
 export const SPELL_BUFFER_MS = num('spellBuffer', 'value');
 // windup (Dom 2026-10-16: a melee cast must be quicker than a magic one, or the caster is a sitting duck next to a plain slash): ticks of cast for this root, at 60 a second. No row field = the global special windup (120, two seconds).

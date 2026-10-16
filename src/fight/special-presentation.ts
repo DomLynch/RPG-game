@@ -7,6 +7,11 @@ import { bossSpecialId } from './special-identity.ts';
 import { SPECIAL_TESTS, type SpecialTest } from './special-look.ts';
 import { SCHOOL_OF, schoolTinter, schoolsFlag, schoolsStrength } from './spell-school.ts';
 import { SPECIAL_MODES, type Pose, type SpecialFx, type SpecialMode } from './special-modes.ts';
+import { SPECIALS } from './special-rows.ts';
+import { spellRoot } from './spell-cast.ts';
+import { SPELL_FX } from './sandbox-rules.ts';
+// sandbox spellFx: a catalogue spell's root IS a special template (spell-rows.ts), so a cast plays that special's designed effect (crack = Antaeus' earth, longShadow = Thanatos' fog ...). Off (trunk) = no effect id: a spell cast draws nothing here.
+const spellFxId = (spell: string | undefined): string | null => { if (!SPELL_FX || !spell) return null; const root = spellRoot(spell); return (root && SPECIALS.find((s) => s.template === root)?.id) || null; };
 
 type Pair<T> = readonly [T, T];
 type Warriors = Parameters<NonNullable<SpecialMode['extra']>>[0];
@@ -66,7 +71,7 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
     prepare(nextEpoch: number, events: readonly CombatEvent[], fighters: Pair<Fighter>, tick: number, yielding: boolean, fight?: SpecialFightIdentity) {
       if (epoch !== nextEpoch || tick < lastTick) clear(); epoch = nextEpoch; lastTick = tick;
       for (const side of [0, 1] as const) {
-        const fighter = fighters[side], id = fighter.specialShare === undefined ? null : fight?.presets ? fight.presets[side] : bossSpecialId(fighter.specialName ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
+        const fighter = fighters[side], id = fighter.specialShare === undefined ? null : fight?.presets ? fight.presets[side] : spellFxId(fighter.spell?.id) ?? bossSpecialId(fighter.specialName ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
         const opponent = id ? previews[id]?.opponent ?? fight?.opponent : undefined;
         if (!id || !opponent || !modes[id]) { if (slots[side]) discard(slots[side]!); slots[side] = undefined; continue; }
         if (!slots[side] || slots[side]!.id !== id) select(side, id, opponent);
@@ -76,15 +81,15 @@ export function createSpecialPresentation(scene: THREE.Scene, exposure: number, 
         let slot = slots[side];
         if (!slot) continue;
         if (event.type === 'SpecialStarted') {
-          if (yielding || event.tick <= slot.start || (event.spell && !fight?.presets)) continue;   // outside the spell look test (presets), a SPELL cast has its own flash and bolt (missile-fx.ts), not the class special's visuals
-          const id = fight?.presets ? fight.presets[side] : bossSpecialId(event.name ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
+          if (yielding || event.tick <= slot.start || (event.spell && !fight?.presets && !SPELL_FX)) continue;   // outside the spell look test (presets) and without spellFx, a SPELL cast has its own flash and bolt (missile-fx.ts), not the class special's visuals
+          const id = fight?.presets ? fight.presets[side] : spellFxId(event.spell) ?? bossSpecialId(event.name ?? null) ?? (side === 1 && fight ? classSpecialFor(fight.opponent, fight.level) : null);
           if (!id) continue;
           // The same effect again (a repeat cast): its textures, meshes and materials are built once per fight and kept; only its cast state is reset. A different
           // special is a different effect and is built (select). Re-creating a landed effect cost 200-700 ms at 4x CPU throttle on the cast's first frame.
           if (slot.id !== id || (slot.ended && !slot.fx)) slot = select(side, id, previews[id]?.opponent ?? slot.opponent);   // (a load that failed or never landed is tried again)
           else if (slot.ended) slot.fx!.clear();
           slot.start = event.tick; slot.ended = false; slot.events = [casterEvent(event, side)];
-        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended && !(event.spell && !fight?.presets)) {
+        } else if ((event.type === 'SpecialLanded' || event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.tick >= slot.start && !slot.ended && !(event.spell && !fight?.presets && !SPELL_FX)) {
           slot.ended = true;
           if (event.type !== 'SpecialLanded' && !slot.fx) { discard(slot); slot.events = []; }
           else slot.events.push(casterEvent(event.type === 'SpecialInterrupted' ? { ...event, type: 'SpecialFizzled' } : event, side));   // a cut cast ends like a fizzled one: charge FX dropped, no payoff

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Fighter } from './duel.ts';
-import { missileOf, spellLookOf, spellRangeOf } from './sandbox-rules.ts';
+import { missileOf, spellLookOf, spellRangeOf, SPELL_FX } from './sandbox-rules.ts';   // SPELL_FX on: the designed special effect lands the spell (special-presentation.ts), so no plain landing burst over it
 import { spellRoot } from './spell-cast.ts';
 
 // sandbox-mech: missiles, the bolt in flight. A small cold core with a soft halo and a short fading trail, drawn from the fighter's `missile` state (position by tick along its line), so it always matches the sim's arrival. Presentation only:
@@ -33,7 +33,7 @@ export function createMissileFx(scene: THREE.Scene) {
   return {
     burst(events: readonly { type: string; actor: number; target?: number; spell?: string; tick: number }[], fighters: readonly Pick<Fighter, 'body'>[]): void {
       for (const e of events) {
-        const land = e.type === 'SpecialLanded' && e.spell && e.target !== undefined, start = e.type === 'SpecialStarted' && e.spell;
+        const land = !SPELL_FX && e.type === 'SpecialLanded' && e.spell && e.target !== undefined, start = e.type === 'SpecialStarted' && e.spell;
         if (!land && !start) continue;
         const who = fighters[land ? e.target! : e.actor]; if (!who) continue;
         const b = bursts[next++ % bursts.length]!, root = e.spell ? spellRoot(e.spell) : undefined, look = e.spell ? spellLookOf(e.spell) : undefined, tint = look?.tint || (root && spellRangeOf(root)?.tint) || '#b070ff';   // the spell's own look row first, then its root's range tint
