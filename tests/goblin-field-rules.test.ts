@@ -28,6 +28,7 @@ test('the loader refuses a missing named row, a non-positive value, a bad colour
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, arc: 0 } : b)) }), /0 < arc <= 180/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, azimuth: 400 } : b)) }), /0 <= azimuth < 360/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, fadeSide: 0.6 } : b)) }), /fadeSide < 0\.5/);
+  assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => (b.id === 'fortress-panorama' ? { ...b, fadeFoot: 0.7 } : b)) }), /foot fade must fit above its horizon row/);
   assert.throws(() => loadGoblinField({ ...d, backdrops: d.backdrops.map((b) => ({ ...b, file: '/abs.webp' })) }), /no leading slash/);
   assert.throws(() => loadGoblinField({ ...d, harmonics: d.harmonics.map((h) => ({ ...h, k: 2.5 })) }), /whole number of periods/);
   assert.throws(() => loadGoblinField({ ...d, names: d.names.map((n) => (n.id === 'palette' ? { ...n, text: 'gone' } : n)) }), /names a palette row/);
