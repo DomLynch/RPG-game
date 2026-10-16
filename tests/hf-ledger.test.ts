@@ -82,7 +82,7 @@ test('withSlot({ cost }) is the one place: a T4 over the stop is refused before 
     assert.match(readFileSync(path, 'utf8'), new RegExp(`\\t${job(9)}\\tt4-medium\\t20\\t0\\.2000\\tgpu-only;lane=[^;\\t]+;branch=[^;\\t]+\\n$`), 'the launcher\'s reason, then who launched it, in the one reason field');
     withSlot({ flavor: 't4-medium', generic: true, launch: () => ({ stdout: `Job started with ID: ${job(10)}\n` }), ps, ...clock });
     assert.doesNotMatch(readFileSync(path, 'utf8'), new RegExp(job(10)), 'a caller without cost is not counted');
-    writeFileSync(path, `${new Date().toISOString()}\t${job(1)}\tt4-medium\t1100\t11.0000\tgpu-only\n`);
+    writeFileSync(path, `${new Date().toISOString()}\t${job(1)}\tt4-medium\t9900\t99.0000\tgpu-only\n`);   // over every stop, a one-day raise included (the ledger reads the real day)
     const refused = withSlot({ flavor: 't4-medium', generic: true, launch: () => assert.fail('must not launch over the stop'), ps, cost: { timeout: '20m', reason: 'gpu-only' }, ...clock });
     assert.equal(refused.ok, false);
     assert.match(String(!refused.ok && refused.refused), /T4 stop/);
