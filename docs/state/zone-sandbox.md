@@ -2,7 +2,11 @@
 
 Append new entries at the TOP. Lane started 2026-10-15; this file written 2026-10-16 09:30 +04. The longer 2026-10-15 handoff and the "UPDATE 2" entry are in docs/state/world.md ("Zone sandbox handoff 2026-10-15").
 
-## 2026-10-16 morning - Now / Done / Open / Gotchas (READ FIRST)
+## 2026-10-16 evening - the sandbox publishes itself (Dom's ruling, READ FIRST)
+
+Dom: the sandbox is independent of the main lanes; "it goes through you and you alone". The sandbox lane publishes `/preview/zone-look/` itself, no Deploy, Lead or Strategy in the loop, and takes its decisions from Dom only. Recipe (VPS, `/opt/frankendom-shadow/work/deploy-zonelook`, which holds `.env.production.local`): fetch the branch head, `VITE_UNLISTED_ZONES=1 npx vite build --configLoader native --config origins/preview/vite.config.mjs --base=/preview/zone-look/ --outDir $PWD/dist-preview --emptyOutDir` (~69M), `node scripts/check-built-account.mjs dist-preview`, write `release.json` ({"revision":sha,"phase":"preview-zone-look"}), `rsync -a --delete` into `$(readlink -f /var/www/frankendom/current)/preview/zone-look/` ONLY, curl page and bundle 200. Skip while `scripts/deploy.sh` runs. Published 3d36945f0 (trunk aa0fd5872 merged in: Cave Troll + Giant Salamander in Zone 1) at 18:3x +04; gate 86/86 green on the VPS. Open: troll and salamander in zone 90 (needs a row so the unlisted zone borrows Zone 1's level band; Dom's call).
+
+## 2026-10-16 morning - Now / Done / Open / Gotchas
 
 **Now.** Branch `zone/goblin-field-dome` @25df22774 (contains a MERGE of trunk 06fde4704; vet it against trunk, `git diff origin/codex/01a09a76/task-1...HEAD` is ours only). Preview LIVE at https://frankendom.com/preview/zone-look/?region=1&look=goblin (Deploy, 68M, bundle checked for goblin-fortress / fortress-wind / goblin-camp / creature-card). Test zone: `?zone=90&region=1`. Dom opens it on his phone and gives feedback; he said "we are a sandbox, just update the sandbox": everything below is fortress-mood only, zones 1-4 and the live game are untouched (flag-off identical). Strategy rulings: Gothic is the model for creature UI; keep zone fields first; the main game follows only when Dom says (the same rows flipped on Zones 1-4).
 
