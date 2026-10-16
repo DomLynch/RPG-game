@@ -13,6 +13,9 @@ const BOTS: Record<string, Bot> = {
   masher: (_w, k) => ({ x: 0, z: 0, attack: k % 25 === 0 ? 'light' : null }),
   guard: (w, k) => { const f = nearest(w); return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }; },
 };
+// retreat: trades like the guard bot until his health drops under BACKOFF (env, default 0.5 of max), then runs straight away from the nearest hunter (a creature's chase is slower than a running player). The disengage acceptance: a Recruit who pulls one goblin and backs off survives.
+const BACKOFF = +(process.env.BACKOFF ?? '0.5');
+BOTS.retreat = (w, k) => { const h = w.fighters[0]!, f = nearest(w); if (!f || h.health > h.maxHealth * BACKOFF) return BOTS.guard!(w, k); const dx = h.x - f.x, dz = h.z - f.z, d = Math.hypot(dx, dz) || 1; return { x: dx / d, z: dz / d, run: true }; };
 BOTS.focus = BOTS.guard!;   // guard, and he turns to face the weakest living creature (the retarget cone picks his foe by where he faces)
 const FACE: Record<string, (w: World) => number | undefined> = { focus: (w) => { const h = w.fighters[0]!, t = w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead' && f.hunting).sort((a, b) => a.health - b.health)[0]; return t ? Math.atan2(t.x - h.x, t.z - h.z) : undefined; } };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot, botName = '') {
