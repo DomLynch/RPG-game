@@ -9,7 +9,7 @@ import DEFS from './warp-landmarks.json' with { type: 'json' };
 import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
 import { loadWarps, warpIds, warpPlace } from './warps.ts';
-import { CENTRE_CM, zoneAt } from './zones.ts';
+import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
 const m = (id: string): { x: number; z: number } => { const p = warpPlace(id)!; return { x: (p.x - CENTRE_CM) / 100, z: (p.z - CENTRE_CM) / 100 }; };
@@ -33,7 +33,9 @@ test('the rows equal the places the page teleports to (a zone or mob edit that m
     near(m('zone1-start').x, start.x, 1e-6); near(m('zone1-start').z, start.z, 1e-6);   // signed in or a guest: the same start
   }
   const r = F.road, back = { x: r.from.x + Math.sin(r.inward) * 2, z: r.from.z + Math.cos(r.inward) * 2 };   // main.ts goBack
-  near(m('zone1-road-end').x, back.x, 1e-6); near(m('zone1-road-end').z, back.z, 1e-6);
+  // The page's goBack stands at the Exchange's west gate, which is inside a trade area: a warp may not land there (Lead's rule), so the row is where presence clears it to, the Pit yard's edge.
+  const cleared = clearOfTradeAreas(Math.round(CENTRE_CM + back.x * 100), Math.round(CENTRE_CM + back.z * 100));
+  near(m('zone1-road-end').x, (cleared.x - CENTRE_CM) / 100, 1e-6); near(m('zone1-road-end').z, (cleared.z - CENTRE_CM) / 100, 1e-6);
   assert.match(readFileSync(new URL('../preview/main.ts', import.meta.url), 'utf8'), /TOWN_RESPAWN = \{ x: 0, z: 3 \}/, 'the page\'s town respawn is the town-respawn row');
   near(m('town-respawn').x, 0, 1e-9); near(m('town-respawn').z, 3, 1e-9);
 });
