@@ -20,6 +20,8 @@
 
 **VPS jobs install their own node_modules (Lead, standing, 2026-10-16):** never run `npm ci` / `npm install` in a checkout whose `node_modules` is a symlink. npm empties the link's TARGET, and on 2026-10-15 that emptied the shared `/opt/frankendom-shadow/work/bn-trunk/node_modules` for every linked clone. A new VPS job clones, runs its own `npm ci` and never links into bn-trunk. `capture` refuses such a job with exit 2 (scripts/vps-shadow/capture.sh v9).
 
+**No file edits through Bash (Dom, standing, 2026-10-16):** (1) every file edit or script rewrite goes through the Read/Edit/Write tools, never a python/sed/cat heredoc run through Bash; (2) every variable in an `rm` path is `"${VAR:?}"` or a literal; (3) no `bash -c` / `sh -c` / quoted wrappers the app cannot inspect; (4) never park on a permission card: Deny it, rewrite the step and carry on. Why: Dom got a card for a heredoc script rewrite plus `rm -f $D/*` ("we said the devs wouldn't use bash").
+
 **Clear at the start of the day; subagents small (Dom + Strategy + Lead, standing, 2026-10-12):** (1) a lane that resumes with yesterday's context pays it on every turn: any lane above 250k context does the handoff-clear (state entry + memory, `handoff-clear` skill) and restarts with the restart paste before its first task of the day. (2) Subagents are Sonnet or Haiku only, one at a time per lane, 30-turn cap, started from a context packet (task, files, success check), never a whole-repo read; no lane runs a parallel swarm of subagents without Strategy's word.
 
 Read docs/SCOPE.md, GAME_SPEC.md and PROJECT_STATE.md before work. GAME_SPEC.md is canonical design; docs/SCOPE.md is the current dated scope and wins over any older scope line.
