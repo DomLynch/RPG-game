@@ -391,7 +391,9 @@
           "test-t-13": { "u": 0.211, "v": 0.332, "facing": 60 },
           "test-t-14": { "u": 0.834, "v": 0.427, "facing": -78 },
           "test-t-15": { "u": 0.299, "v": 0.786, "facing": 145 },
-          "test-t-16": { "u": 0.454, "v": 0.146, "facing": 7 }
+          "test-t-16": { "u": 0.454, "v": 0.146, "facing": 7 },
+          "test-t-17": { "u": 0.74, "v": 0.8, "facing": -135 },
+          "test-t-18": { "u": 0.78, "v": 0.22, "facing": -45 }
         },
         "connections": {
           "road": {
@@ -430,7 +432,7 @@
       "test-camp",
       "test-entry-gate", "test-hut-1-house", "test-hut-2-house", "test-tower-watchtower",
       "test-t-01", "test-t-02", "test-t-03", "test-t-04", "test-t-05", "test-t-06", "test-t-07", "test-t-08",
-      "test-t-09", "test-t-10", "test-t-11", "test-t-12", "test-t-13", "test-t-14", "test-t-15", "test-t-16"
+      "test-t-09", "test-t-10", "test-t-11", "test-t-12", "test-t-13", "test-t-14", "test-t-15", "test-t-16", "test-t-17", "test-t-18"
     ],
     "spawns": [
       { "id": "test-t-01-salamander", "at": "test-t-01", "characters": ["character:giant-salamander"] },
@@ -448,7 +450,9 @@
       { "id": "test-t-13-goblin", "at": "test-t-13", "characters": ["character:pit-goblin"] },
       { "id": "test-t-14-troll", "at": "test-t-14", "characters": ["character:cave-troll"] },
       { "id": "test-t-15-goblin", "at": "test-t-15", "characters": ["character:pit-goblin"] },
-      { "id": "test-t-16-goblin", "at": "test-t-16", "characters": ["character:pit-goblin"] }
+      { "id": "test-t-16-goblin", "at": "test-t-16", "characters": ["character:pit-goblin"] },
+      { "id": "test-t-17-troll", "at": "test-t-17", "characters": ["character:cave-troll"] },
+      { "id": "test-t-18-salamander", "at": "test-t-18", "characters": ["character:giant-salamander"] }
     ]
   },
   "notes": {
