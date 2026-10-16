@@ -14,7 +14,7 @@ function rig(over: { token?: string | null; guest?: boolean } = {}) {
   const hello: unknown[] = [], others: unknown[][] = [];
   let at = { x: 3, z: -4, heading: Math.PI };
   const p = joinPresence({
-    token: over.token === undefined ? 'jwt-abc' : over.token, ...(over.guest ? { guest: true } : {}), url: 'wss://example.test/origins/presence',
+    token: over.token === undefined ? 'jwt-abc' : over.token, guest: over.guest, url: 'wss://example.test/origins/presence',
     open: (url, protocols) => {
       const s: Fake = { binaryType: '', readyState: 0, sent: [], closed: null, calls: { url, protocols }, send(b) { this.sent.push(b as Uint8Array); }, close(c) { this.closed = c ?? 0; }, onopen: null, onmessage: null, onclose: null, onerror: null };
       sockets.push(s); return s;
