@@ -1,5 +1,15 @@
 # Code quality lane (Auditor)
 
+## 2026-10-16 ~21:3x (+04) — HANDOFF before /clear. LIVE HF d82132e1f (my curl). HG #2940 PASSED + candidate:pass, NOT yet live. READ FIRST, then memory `frankendom_handoff_2026-10-16c` (its ~21:3x update)
+
+**Now, in order.** (1) **HG #2940 @abb52fe8e** (the presence per-IP bucket leak hotfix #2939 + #2936): PASS + candidate:pass posted, with the seamless-quiet re-run green. When it goes live: curl `release.json`, check `/opt/frankendom-presence/current` = the live revision, presence active, NRestarts 0 (and the writer link). (2) **#2941 @1cf9358f5** (Dom's one-day $15 T4 stop, 2026-10-16 UTC only; "ok yes" relayed by Lead): read OK, 17/17 on the VPS. **Post the PASS** when its unit-ci + quality are green (draft in the old session's scratchpad; just restate: T4_STOP_BY_DAY {'2026-10-16':15}, t4StopOn fallback $10, test 7 now $99). (3) **#2942 @c6ed77fbd** (World's #87 fix: one shared never-disposed upload proxy, linked before ready): read OK, VPS 40/40. **PASS on green CI**; the candidate's seamless + seamless-quiet rows bind. (4) **#2938**: now at **850d4917e** (moved again after b693e21f9). Re-read the delta. PASS needs Characters' zone-ready delta ×3 on the thread + a VPS seamless read + green CI (auditor:ready set); the candidate's seamless row binds. (5) **#2937 @66cebc657** (hidden idle HUD text): read OK. PASS after Combat rebases onto post-HF trunk with green CI.
+
+**Done since ~20:3x.** HF LIVE d82132e1f (writer + presence links = d82132e1f, verified). PASSED: #2936, #2939 @e428ca8b9 (fail-first confirmed; every close path releases once), HG #2940. #87 diagnosed (the per-use upload proxy whose dispose drops its program), fixed in #2942.
+
+**My misses today (owned on the threads, memory files written):** #2900 (gate wiring at t=0), #2921 (bucket copy on the window roll → #2939), /dev/null deleted on the VPS (restored).
+
+**Gotchas to add.** (j) Copy shas from `gh pr view`, not from a message (Lead's "c6ed77fba" was c6ed77fbd, and my watcher refused it). (k) Before re-running a CI job, check that nobody else has (Deploy did HG's; mine got "cannot be rerun"). (l) Edits go through the Write/Edit tools (a hook blocks Bash file edits, scratchpad included).
+
 ## 2026-10-16 ~20:3x (+04) — HANDOFF point. LIVE HF d82132e1f (my curl; writer + presence links = d82132e1f, presence NRestarts 0). READ FIRST, then memory `frankendom_handoff_2026-10-16c`
 
 **Now, in order.** (1) The next candidate: **#2936 @93a295aac** (PASSED; the migration file rename to 20261016161137; the recipe's `$$` quote must become a tagged `$stmt$` before its first use) and **#2937 @66cebc657** (read OK; PASS after its rebase onto post-HF trunk with green CI). (2) **#2938 @bf0b96f4d NOT YET**: the remote-kit warm-up compiles ~10 programs right after [zone ready], in the seamless row's engage window. Re-read when Characters moves it before ready or pauses it in combat, with a green seamless run. (3) Anything new Lead queues.
