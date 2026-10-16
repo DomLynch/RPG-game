@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Photorealistic game-asset reference of a single barbarian post lantern, front view, centred, isolated on a plain neutral grey background with soft even light. A rough weathered oak post about two and a half metres tall leaning slightly, with a hooked dark pitted wrought-iron arm near the top from which a short iron chain hangs a small cage lantern of rusted iron bars with a stub of yellowed tallow candle inside, unlit; a real sheep skull wired to the post below it, a few strips of dried hide and frayed hemp rope hanging, cracked wood, dried mud and small stones at the base. Historical Roman-era frontier camp, grim and weathered, realistic proportions and materials, matte, no glow, no flame, not cartoon, not stylised, no people, no text.",
+  "seed": 191301,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "832x1216",
+  "seconds": 92.1,
+  "sha256": "9c3afa64694f4a7a899fa8f1acbb2accd0602bd62bc39ad3e1e90fbad9d7817b"
+}

@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": ".scratch-stills/fort/ref/lantern-191301.png",
+  "preprocess_s": 11.5,
+  "image_to_3d_s": 22.1,
+  "extract_glb_s": 23.2,
+  "glb": "src/assets/source/creatures/goblin-lantern-v2.glb",
+  "bytes": 7143324,
+  "sha256": "c2956ea34fb465db93a1e037da725ce466c1440c1f44f88073f4719acc57bfab",
+  "attempts": 1
+}
