@@ -6,6 +6,7 @@ import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts
 import { characterFor, fetchOwnBuild, type OwnBuild } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
+import { careerHud } from './career-text.ts';
 import { careerLine, newSession, nextFight, outcomeOf, settle, started, type Finished, type PitFight, type PitSession, type Settled } from '../pit/pit.ts';
 import { BANK_STEP_Z, buildExchange, FORGE, PASSAGE, walkable } from './exchange.ts';
 import { SPEEDS } from '../../src/fight/index.ts';
@@ -512,7 +513,7 @@ addEventListener('pagehide', () => presence?.stop());   // the socket's close is
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
-  career.textContent = `Level ${c.level} · ${c.top ? `${c.credit} CP` : `${c.into} / ${c.need} CP`}${extra ? ` · +${extra} CP (preview)` : ''}`;
+  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight is a bare body until Combat applies the sheet there)
   saveNote.textContent = saveLine(source);
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
 }
