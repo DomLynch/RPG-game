@@ -8,7 +8,8 @@ Append new entries at the TOP. Lane started 2026-10-15; this file written 2026-1
 2. Loop: edit a row -> Dom reloads his phone (10 s) -> "yes/no". NO build, NO gate, NO rsync per tweak: publishing per tweak was the lost hour.
 3. When Dom says "ship that": ONE gate run + ONE publish for the whole batch of yeses (recipe below, ~5 min). Do not add a second preview, server or GPU step to the loop.
 4. Keep the session small: clear it when context passes ~300k, resume from this file.
-5. First job: open item 1 below (fight stand-off for the scaled wolf 2.8x and salamander 6x).
+5. First job: open item 1 below (fight stand-off for the scaled wolf 2.8x and salamander 6x). Strategy's view: it is an ENGINE rule (engage gap should scale with mobLooks.scale, rows only, Combat/World), not a sandbox fix: send Lead ONE line and move on. Dom earlier said to leave the main devs alone, so ASK DOM before sending that line (or fix it in the sandbox branch if he prefers).
+6. Efficiency rules (Strategy): one turn = one batch of tool calls (all row edits together, one command, look once); no screenshot per tweak, Dom's phone is the judge; publish once per batch of Dom's yeses.
 
 ## 2026-10-16 night - HANDOFF before Dom's /clear (READ FIRST; supersedes the evening recipe paths)
 
