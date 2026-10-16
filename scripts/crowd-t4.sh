@@ -13,10 +13,11 @@ git fetch -q origin
 if [[ "$REF" =~ ^[0-9]+$ ]]; then SHA=$(gh pr view "$REF" --json headRefOid --jq .headRefOid); else SHA=$(git rev-parse --verify -q "origin/$REF" || git rev-parse --verify "$REF"); fi
 SHORT=${SHA:0:9}; BR="world/crowd-fps-on-$SHORT"; OUT="${OUT:-/tmp/crowd-t4-$SHORT.md}"
 HARNESS=(scripts/origins-crowd-fps.mjs scripts/gpu-run/crowd-fps.sh)
-echo "ref $REF -> $SHA; test branch $BR; harness from origin/world/crowd-fps; mode ${DRESSED:-undressed}"
+HREF="${HARNESS_REF:-origin/world/crowd-t4}"   # where the harness files come from (the branch with the dressed guard; origin/world/crowd-fps is #2931 without it)
+echo "ref $REF -> $SHA; test branch $BR; harness from $HREF; mode ${DRESSED:-undressed}"
 WT=$(mktemp -d); trap 'git worktree remove --force "$WT" >/dev/null 2>&1 || true' EXIT
 git worktree add -q --detach "$WT" "$SHA"
-( cd "$WT" && git checkout -q origin/world/crowd-fps -- "${HARNESS[@]}" && git commit -qm "TEST ONLY, do not merge: crowd harness on $SHORT" && git rev-parse HEAD > "$WT/.test-sha" )
+( cd "$WT" && git checkout -q "$HREF" -- "${HARNESS[@]}" && git commit -qm "TEST ONLY, do not merge: crowd harness on $SHORT" && git rev-parse HEAD > "$WT/.test-sha" )
 TEST=$(cat "$WT/.test-sha")
 if [[ $DRY -eq 1 ]]; then echo "DRY RUN: would push $BR at $TEST and run: node scripts/gpu-run.mjs $TEST --timeout 30m -- bash scripts/gpu-run/crowd-fps.sh $DRESSED"; exit 0; fi
 ( cd "$WT" && git push -q -f origin "HEAD:refs/heads/$BR" )
