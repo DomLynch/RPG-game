@@ -72,8 +72,11 @@ test('a close frame removes the player at once even when the peer never finishes
     assert.ok(Date.now() - t0 < 600, `and quickly (${Date.now() - t0} ms)`);
     const leftAt = Date.now(); for (let i = 0; i < 8; i++) { alice.pose(1 + (i % 2), 0); await wait(50); }
     assert.equal(alice.packets().some((q) => q.at > leftAt + 150 && q.ids.includes(bobId)), false, 'no packet after that carries his id');
-    await until(() => ghost.closed(), 3000);
-    assert.equal(ghost.closed(), true, 'the server destroyed the socket after the grace, the peer\'s FIN or not');
+    const open = (): Promise<number> => new Promise((r) => p.server.getConnections((_e, n) => r(n)));
+    assert.equal(await open(), 2, 'the half-open socket is still held right after the close frame (alice + the ghost)');
+    let n = 2; for (let i = 0; i < 60 && n > 1; i++) { await wait(50); n = await open(); }
+    assert.equal(n, 1, 'the server destroyed the half-open socket after the grace, the peer\'s FIN or not (only alice is left)');
+    ghost.socket.destroy();
     alice.close();
   } finally { await p.close(); }
 });
