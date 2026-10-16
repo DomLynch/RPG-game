@@ -17,7 +17,7 @@ import { USD_PER_HOUR } from '../hf-cleanup.mjs';
 import { vpsHost } from './waterfall.mjs';
 import LANE_PREFIXES from './lane-prefixes.json' with { type: 'json' };
 
-export const HF_COST = Object.freeze({ alarmUsdPerDay: 3, t4StopUsdPerDay: 5 });
+export const HF_COST = Object.freeze({ alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });   // Dom 2026-10-16 (topped up the account): "unlock it, within reason, don't waste"
 // Under `node --test` (NODE_TEST_CONTEXT, inherited by every child a test spawns) without an explicit HF_COST_LEDGER the ledger is a throwaway file:
 // a test that launches through a stub hf must never write the real ledger (AGENTS.md: tests never read or write live box state).
 export const ledgerPath = (env = process.env) => env.HF_COST_LEDGER
