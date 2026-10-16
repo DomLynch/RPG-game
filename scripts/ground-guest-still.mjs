@@ -18,8 +18,10 @@ receipt.storage = await page.evaluate(() => Object.keys(localStorage));
 receipt.anchorAtLoad = await page.evaluate((id) => window.originsPreview.ground.anchor(id) ?? null, SWORD).catch(() => 'no-ground-api');
 await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, SWORD, { timeout: 90000 }).catch(() => { receipt.anchorTimeout = true; });
 const centre = await centreOf(page);
-await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [centre.x, centre.z - 1.3]);
-await page.waitForTimeout(4000);
+await page.waitForTimeout(8000);   // the shared world's hello answers with the server's own start and snaps the hero there: place only after it
+for (let i = 0; i < 6; i++) { await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [centre.x, centre.z - 1.3]); await page.waitForTimeout(1500); }
+receipt.pos = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
+receipt.place = await page.evaluate(() => document.getElementById('place')?.textContent ?? null);
 const tri = async () => page.evaluate(() => window.originsPreview.renderInfo().triangles);
 receipt.prompt = await page.evaluate(() => ({ hidden: document.getElementById('prompt')?.hidden, text: document.getElementById('prompt')?.textContent }));
 receipt.anchor = await page.evaluate((id) => window.originsPreview.ground.anchor(id) ?? null, SWORD);
