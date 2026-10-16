@@ -210,8 +210,9 @@ test('idle hero sheet costs nothing per frame: hero() is read at the gate\'s rea
   const f = fakeMobs([]);
   const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => { state.reads++; return { gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   const hero = { x: 0, z: 0, facing: 0 }, bare = wc.hero().max;
-  // The sim step already reads hero().level once per step (gearOf for stepHero): that is the baseline per second, with the gate closed and nothing to rebuild. The rebuild adds NOTHING to it.
+  // The sim step reads the level cached at load / window open / rebody (gearOf for stepHero), never hero(): 0 reads per step, and the rebuild adds none.
   const r0 = state.reads; run(wc, hero, 5); const baseline = state.reads - r0;
+  assert.equal(baseline, 0, 'the sim step reads the hero\'s cached level, not hero(): 0 hero() reads per step with the gate closed');
   state.sheet = sheet; state.ready = true; run(wc, hero, 1);
   const edge = wc.hero().max; assert.ok(edge > bare, 'the ready edge rebuilt him on the sheet');
   const r1 = state.reads; run(wc, hero, 5);   // ~150 idle frames after the edge
@@ -219,6 +220,18 @@ test('idle hero sheet costs nothing per frame: hero() is read at the gate\'s rea
   state.sheet = sheet2; run(wc, hero, 1); assert.equal(wc.hero().max, edge, 'a change nobody announced is not polled for (it is picked up at the next join)');
   wc.heroChanged(); run(wc, hero, 1); assert.ok(wc.hero().max > edge, 'heroChanged() rebuilds him once on the new sheet');
   const r2 = state.reads; run(wc, hero, 5); assert.equal(state.reads - r2, baseline, 'and then back to the baseline');
+});
+
+test('the level the step reads is the one taken at the window open: a level-up between fights (shield gone at PROTECT_LEVEL) shows at the next creature join, and mid-fight the step does not read hero() at all', () => {
+  const lv = { level: 1, reads: 0 };
+  const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 30 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, hero: () => { lv.reads++; return { gear: NAKED, level: lv.level }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  run(wc, hero, 1); assert.equal(wc.trace().level, 1);
+  lv.level = 40; run(wc, hero, 1); assert.equal(wc.trace().level, 1, 'a level-up nobody announced waits for the next window open');
+  f.mobs.within = () => [{ spec: { ...spec('wolf-2', 'wolf'), level: 1 }, x: 0, z: 1.5, dist: 1.5 }] as never;   // a creature joins the empty loop: the window opens and he is rebuilt at level 40
+  wc.update(1 / 30, hero); assert.equal(wc.trace().level, 40, 'rebuilt at the join');
+  const before = lv.reads; run(wc, hero, 1); assert.equal(lv.reads, before, 'mid-fight: no hero() read per step');
 });
 
 // Backend's disposable-Postgres repro (real writer handlers on trunk 2941e7a88, no prod write): build_get {"level":12,"placed":{"armour":4,"attack":4,"health":4},"version":2} and the worn set head Helmet, chest Body, legs Greaves, main Warhammer,
