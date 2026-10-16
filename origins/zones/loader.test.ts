@@ -7,7 +7,7 @@ import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
 import { JOIN_M } from '../../src/fight/index.ts';
 import { AGGRO_M } from '../../src/fight/world.ts';
-import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
+import { allZoneIds, listedIds, loadZone, pageZoneId, unlistedOpens, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
@@ -35,8 +35,10 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
 });
 
-test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; zoneIds lists every package', () => {
-  assert.deepEqual(zoneIds(), readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b)));   // every row, and no more (a new zone row adds no line here)
+test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; allZoneIds lists every package, zoneIds every listed one', () => {
+  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
+  assert.deepEqual(allZoneIds(), rows);   // every row, and no more (a new zone row adds no line here)
+  assert.deepEqual(zoneIds(), rows.filter((id) => !loadZone(id, true).unlisted), 'no page: every row but the unlisted ones');
   assert.equal(zoneFromAddress('/zone1/', ''), '1');
   assert.equal(zoneFromAddress('/preview/origins/', '?region=1'), '1');
   assert.equal(zoneFromAddress('/zone/2/', ''), '2');
@@ -118,4 +120,20 @@ test('a mob look for a character nothing names is a problem once the known ids a
   const typo = { ...z, mobLooks: { looks: { ...z.mobLooks!.looks, 'character:cinder-scavanger': z.mobLooks!.looks[id]! }, spread: z.mobLooks!.spread } } as unknown as Zone;
   assert.match(zoneProblems(typo, known).join('; '), /character:cinder-scavanger: no such character/);
   assert.deepEqual(zoneProblems(typo), [], 'without a known set the old check is unchanged');
+});
+
+test('an unlisted zone opens only with the explicit VITE_UNLISTED_ZONES=1 opt-in; otherwise its address is the normal "no such place", even on the live /preview/origins/ build', () => {
+  assert.equal(unlistedOpens({ VITE_UNLISTED_ZONES: '1' }), true, 'a sandbox preview built with the flag');
+  assert.equal(unlistedOpens({}), false, 'default off');
+  assert.equal(unlistedOpens(undefined), false, 'no env: off');
+  assert.equal(unlistedOpens({ PROD: true, BASE_URL: '/preview/origins/' } as never), false, 'the real live env (production, base /preview/origins/) without the flag refuses it');
+  assert.equal(unlistedOpens({ VITE_UNLISTED_ZONES: '0' }), false); assert.equal(unlistedOpens({ VITE_UNLISTED_ZONES: 'true' }), false, 'only the exact value 1 opens it');
+  const pk = { '1': {}, '90': { unlisted: true } };
+  assert.deepEqual(listedIds(pk, '90', false), ['1'], 'without the flag: the page that names it still does not see it');
+  assert.deepEqual(listedIds(pk, '90', true), ['1', '90'], 'with the flag: its own page sees it');
+  assert.deepEqual(listedIds(pk, '1', true), ['1'], 'a flagged page of another zone does not see it');
+  assert.throws(() => loadZone('90', false), /no zone 90/, 'refused with the same error as an id that is no zone');
+  assert.throws(() => loadZone('99', false), /no zone 99/);
+  assert.equal(loadZone('90', true).unlisted, true, 'with the flag: opens');
+  assert.equal(loadZone('1', false).name, loadZone('1', true).name, 'a listed zone is the same either way');
 });
