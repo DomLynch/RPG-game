@@ -690,13 +690,14 @@ loadOwnBuild(10);
 // No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
 // The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
-const LOADOUT_WAIT_MS = 15_000, GEAR_RETRY_MS = 10_000, loadoutSince = Date.now();
-let gearAsked = 0;
+const LOADOUT_WAIT_MS = previewRule('loadoutWait'), GEAR_RETRY_MS = previewRule('gearRetry'), loadoutSince = Date.now();   // both are preview-rules rows
+let gearAsked = 0, loadoutLatched = false;   // latched: once ready it stays ready (the check reads storage, so it is not repeated every frame)
 const loadoutReady = (): boolean => {
-  if (!storedToken(storage, Date.now())) return true;
+  if (loadoutLatched) return true;
+  if (!storedToken(storage, Date.now())) return (loadoutLatched = true);
   const g = gearMount;
   if (g && !g.ready() && Date.now() - gearAsked > GEAR_RETRY_MS) { gearAsked = Date.now(); void g.refresh(); }
-  return (ownBuild !== undefined && (g?.ready() ?? true)) || (!buildInflight && Date.now() - loadoutSince > LOADOUT_WAIT_MS);
+  return (loadoutLatched = (ownBuild !== undefined && (g?.ready() ?? true)) || (!buildInflight && Date.now() - loadoutSince > LOADOUT_WAIT_MS));
 };
 const wc = createWorldCombat({
   loadoutReady,
