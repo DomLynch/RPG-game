@@ -71,7 +71,7 @@ test('the point and the radius come from rows: the place\'s centre plus the offs
 
 test('ground_state: every row with this account\'s availability from the database\'s clock; a taken row is not visible while the window runs (hiddenWhileTaken)', async () => {
   const fresh = await ops().ground_state!(ctx(stub().db), {}) as { items: { instance: string; available: boolean; visible: boolean; availableAt: string | null }[] };
-  assert.deepEqual(fresh.items.map((i) => [i.instance, i.available, i.visible, i.availableAt]), [[INSTANCE, true, true, null]]);
+  assert.deepEqual(fresh.items.map((i) => [i.instance, i.available, i.visible, i.availableAt]), Object.keys(GROUND_ITEMS).map((k) => [k, true, true, null]));
   const takenAt = new Date(Date.parse(NOW) - 600_000).toISOString();
   const taken = await ops().ground_state!(ctx(stub({ claims: [{ instance: INSTANCE, n: 1, takenAt }] }).db), {}) as typeof fresh;
   assert.deepEqual([taken.items[0]!.available, taken.items[0]!.visible, taken.items[0]!.availableAt], [false, false, new Date(Date.parse(takenAt) + row.respawnSec * 1000).toISOString()]);

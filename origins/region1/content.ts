@@ -48,6 +48,23 @@ export const ITEMS = [
     kind: 'item-definition', schemaVersion: 1, id: 'item:starter.rusty-sword', name: 'Rusty sword', category: 'gear', rarity: 'common', slot: 'Longsword',
     power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/longsword.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
   },
+  // The other four starter weapons (Strategy 2026-10-15: fixed ground placements, looks in origins/preview/ground-looks.json). Common, bound on acquire, never above Recruit gear.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.knife', name: 'Chipped knife', category: 'gear', rarity: 'common', slot: 'Knife',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/knife.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.cleaver', name: 'Notched cleaver', category: 'gear', rarity: 'common', slot: 'Cleaver',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/cleaver.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.gladius', name: 'Pitted gladius', category: 'gear', rarity: 'common', slot: 'Gladius',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/gladius.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.estoc', name: 'Bent estoc', category: 'gear', rarity: 'common', slot: 'Estoc',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/estoc.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
     power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,
