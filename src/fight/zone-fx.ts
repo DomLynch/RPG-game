@@ -7,6 +7,8 @@ import type { CombatEvent } from './combat.ts';
 import { createFightFx, impactTexture, type CameraKick, type ContactCtx, type FxRig } from './fx.ts';
 import type { PairContacts } from './world-combat.ts';
 import FEEL_RULES from './feel-rules.json' with { type: 'json' };
+import { breathes, createBreath } from './breath.ts';
+import { OPPONENT_SIDE } from './signature.ts';
 
 /** The hint sink for a walk camera that is placed afresh every frame (camera.position set, then lookAt): draw() adds the settling shove and tumble on top, and the next placement drops them. */
 export function createWalkKick(camera: THREE.Camera): CameraKick & { draw(dt: number): void } {
@@ -37,7 +39,7 @@ const IDLE_S = FEEL_RULES.zoneFxRule[0]!.idleS;   // a pair's effects stay (a co
 export type ZoneRigs = { hero(): FxRig | null; foe(id: string): FxRig | null };
 
 export function createZoneFx(host: { scene: THREE.Scene; camera: THREE.Camera; rigs?: ZoneRigs }) {
-  const dropTexture = impactTexture(false), splatTexture = impactTexture(true), kick = createWalkKick(host.camera), right = new THREE.Vector3();
+  const dropTexture = impactTexture(false), splatTexture = impactTexture(true), kick = createWalkKick(host.camera), right = new THREE.Vector3(), breath = createBreath(host.scene);
   type Slot = { fx: ReturnType<typeof createFightFx>; idle: number; struck?: [number, number]; victim?: number };
   const live = new Map<string, Slot>(), free: Slot[] = [];
   const newSlot = (): Slot => ({ fx: createFightFx({ scene: host.scene, dropTexture, splatTexture }), idle: 0 });
@@ -61,6 +63,13 @@ export function createZoneFx(host: { scene: THREE.Scene; camera: THREE.Camera; r
   return {
     /** Once a frame, after the loop stepped: the frame's contacts of every active pair, then the walk camera's kick on top of the placed camera. */
     frame(pairs: PairContacts[], dt: number): void {
+      for (const c of pairs) {   // a creature with a `breath.<kind>` row breathes fire at the hero whenever its attack starts (breath.ts: presentation only)
+        if (!breathes(c.kind) || !c.events.some((e) => e.type === 'AttackStarted' && e.actor === OPPONENT_SIDE && e.move !== 'kick')) continue;
+        const foe = host.rigs?.foe(c.foe), hero = host.rigs?.hero(), mouth = foe?.boneWorld('Head') ?? foe?.boneWorld('head') ?? foe?.anchor.getWorldPosition(new THREE.Vector3()).setY(1) ?? new THREE.Vector3(c.foeAt.x, 1, c.foeAt.z);
+        const chest = hero?.boneWorld('Head') ?? new THREE.Vector3(c.hero.x, 1.4, c.hero.z);
+        breath.start(c.foe, mouth, chest.clone().setY(chest.y - 0.3), c.events[0]!.tick);
+      }
+      breath.update(dt);
       for (const c of pairs) { if (!(c.kind in OPPONENTS)) continue; const s = slotFor(c.foe); s.idle = 0; s.fx.onContact(ctxOf(c, dt)); const hit = c.events.find((e) => e.type === 'Hit'); if (hit) { s.victim = hit.target; s.struck = hit.target === 1 ? [c.foeAt.x, c.foeAt.z] : [c.hero.x, c.hero.z]; } else s.victim = undefined; }
       for (const [foe, s] of live) {
         s.fx.update(dt);
