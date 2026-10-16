@@ -1,4 +1,4 @@
-// The HF cost ledger (Dom 2026-10-12): one line per HF job (id, flavor, minutes, USD, reason), an alarm at $3/day, no new T4 job at $5/day, counted
+// The HF cost ledger (Dom 2026-10-12): one line per HF job (id, flavor, minutes, USD, reason), an alarm at $6/day, no new T4 job at $10/day (raised from $3/$5, Dom 2026-10-16), counted
 // from the ledger's own lines only, thresholds in one constant (HF_COST). Every file lives in a tmp dir (HF_COST_LEDGER), never ~/.claude/state.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,8 +14,8 @@ const NOON = Date.parse('2026-10-12T12:00:00Z');
 const box = () => { const dir = mkdtempSync(join(tmpdir(), 'hf-ledger-')); return { dir, path: join(dir, 'ledger.tsv') }; };
 const job = (n: number) => n.toString(16).padStart(24, '0');
 
-test('the thresholds are one constant: alarm $3, T4 stop $5; prices come from hf-cleanup USD_PER_HOUR', () => {
-  assert.deepEqual({ ...HF_COST }, { alarmUsdPerDay: 3, t4StopUsdPerDay: 5 });
+test('the thresholds are one constant: alarm $6, T4 stop $10; prices come from hf-cleanup USD_PER_HOUR', () => {
+  assert.deepEqual({ ...HF_COST }, { alarmUsdPerDay: 6, t4StopUsdPerDay: 10 });
   assert.ok(Object.isFrozen(HF_COST));
   assert.equal(USD_PER_HOUR['t4-medium'], 0.6);
   assert.deepEqual(['45m', '2h', '600s', '600', 'x'].map(timeoutSeconds), [2700, 7200, 600, 600, NaN]);
@@ -39,25 +39,25 @@ test('the day counts only its own ledger lines (no backfill): other days and an 
   assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null);
 });
 
-test('the alarm fires once, the first time the day passes $3: an ALARM line, a stderr line, and the flag file for the COO and Lead', () => {
+test('the alarm fires once, the first time the day passes $6: an ALARM line, a stderr line, and the flag file for the COO and Lead', () => {
   const { dir, path } = box(), said: string[] = [];
   const opts = { path, now: NOON, alarmDir: dir, say: (m: string) => said.push(m) };
-  for (let i = 0; i < 6; i++) assert.equal(record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, opts).alarm, false, `$${(0.45 * (i + 1)).toFixed(2)}`);
-  const crossing = record({ id: job(6), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, opts);   // 7 x 0.45 = 3.15
+  for (let i = 0; i < 13; i++) assert.equal(record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, opts).alarm, false, `$${(0.45 * (i + 1)).toFixed(2)}`);
+  const crossing = record({ id: job(13), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, opts);   // 14 x 0.45 = 6.30
   assert.equal(crossing.alarm, true);
-  assert.match(said.join('\n'), /HF COST ALARM: \$3\.15 on HF today \(UTC 2026-10-12\) passed \$3; the T4 stops at \$5/);
-  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'hf-cost-alarm-2026-10-12.json'), 'utf8')), { day: '2026-10-12', usd: 3.15, alarmAt: 3, t4StopAt: 5, lastJob: job(6) });
-  assert.equal(record({ id: job(7), flavor: 'cpu-upgrade', timeout: '20m', reason: 'x' }, opts).alarm, false, 'once a day');
+  assert.match(said.join('\n'), /HF COST ALARM: \$6\.30 on HF today \(UTC 2026-10-12\) passed \$6; the T4 stops at \$10/);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'hf-cost-alarm-2026-10-12.json'), 'utf8')), { day: '2026-10-12', usd: 6.3, alarmAt: 6, t4StopAt: 10, lastJob: job(13) });
+  assert.equal(record({ id: job(14), flavor: 'cpu-upgrade', timeout: '20m', reason: 'x' }, opts).alarm, false, 'once a day');
   assert.equal(readFileSync(path, 'utf8').split('\n').filter(l => l.startsWith('ALARM\t')).length, 1);
 });
 
-test('at $5 a day no new T4 job; CPU jobs continue', () => {
+test('at $10 a day no new T4 job; CPU jobs continue', () => {
   const { path } = box();
-  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t500\t5.0000\tgpu-only\n`);
-  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, /\$5\.00 spent on HF today \(UTC 2026-10-12\), at or over the \$5 T4 stop/);
+  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t1000\t10.0000\tgpu-only\n`);
+  assert.match(t4Refusal('t4-medium', { path, now: NOON })!, /\$10\.00 spent on HF today \(UTC 2026-10-12\), at or over the \$10 T4 stop/);
   assert.equal(t4Refusal('cpu-upgrade', { path, now: NOON }), null);
-  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t499\t4.9900\tgpu-only\n`);
-  assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, '$4.99: still allowed');
+  writeFileSync(path, `2026-10-12T01:00:00.000Z\t${job(1)}\tt4-medium\t999\t9.9900\tgpu-only\n`);
+  assert.equal(t4Refusal('t4-medium', { path, now: NOON }), null, '$9.99: still allowed');
 });
 
 test('withSlot({ cost }) is the one place: a T4 over the stop is refused before launch, a launched job is recorded, no cost records nothing', () => {
@@ -70,7 +70,7 @@ test('withSlot({ cost }) is the one place: a T4 over the stop is refused before 
     assert.match(readFileSync(path, 'utf8'), new RegExp(`\\t${job(9)}\\tt4-medium\\t20\\t0\\.2000\\tgpu-only;lane=[^;\\t]+;branch=[^;\\t]+\\n$`), 'the launcher\'s reason, then who launched it, in the one reason field');
     withSlot({ flavor: 't4-medium', generic: true, launch: () => ({ stdout: `Job started with ID: ${job(10)}\n` }), ps, ...clock });
     assert.doesNotMatch(readFileSync(path, 'utf8'), new RegExp(job(10)), 'a caller without cost is not counted');
-    writeFileSync(path, `${new Date().toISOString()}\t${job(1)}\tt4-medium\t600\t6.0000\tgpu-only\n`);
+    writeFileSync(path, `${new Date().toISOString()}\t${job(1)}\tt4-medium\t1100\t11.0000\tgpu-only\n`);
     const refused = withSlot({ flavor: 't4-medium', generic: true, launch: () => assert.fail('must not launch over the stop'), ps, cost: { timeout: '20m', reason: 'gpu-only' }, ...clock });
     assert.equal(refused.ok, false);
     assert.match(String(!refused.ok && refused.refused), /T4 stop/);
@@ -99,14 +99,14 @@ test('Auditor HOLD on #2329: ONE ledger for the account: VPS root, the VPS lanes
   assert.equal(vps('/root').where, SHARED_LEDGER); assert.equal(vps('/home/lanes').where, SHARED_LEDGER, 'not per HOME');
   const mac = ledgerStore({ HOME: '/Users/dom' } as NodeJS.ProcessEnv, { onVps: false, ssh: () => ({ where: 'root@vps:' + SHARED_LEDGER, read: () => '', append: () => true }) });
   assert.equal(mac.where, `root@vps:${SHARED_LEDGER}`, 'the Mac reads and appends the VPS ledger');
-  // two launchers (root's HOME, lanes' HOME) on one shared file: $2.70 + $2.70 crosses the $5 stop for the next T4, whoever launches it
+  // two launchers (root's HOME, lanes' HOME) on one shared file: 23 x $0.45 = $10.35 crosses the $10 stop for the next T4, whoever launches it
   const { dir } = box(), shared = join(dir, 'shared.tsv');
   const root = localStore(shared, { shared: true }), lanes = localStore(shared, { shared: true });
   for (let i = 0; i < 6; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
   assert.equal(t4Refusal('t4-medium', { store: lanes, now: NOON }), null, '$2.70: under the stop');
   assert.equal(spentOn(readFileSync(shared, 'utf8'), NOON).toFixed(2), '2.70');
-  for (let i = 6; i < 12; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
-  assert.match(t4Refusal('t4-medium', { store: root, now: NOON })!, /\$5\.40 spent on HF today/, 'the day total spans both launchers');
+  for (let i = 6; i < 23; i++) record({ id: job(i), flavor: 't4-medium', timeout: '45m', reason: 'gpu-only' }, { store: i % 2 ? lanes : root, now: NOON, alarmDir: dir, say: () => {} });
+  assert.match(t4Refusal('t4-medium', { store: root, now: NOON })!, /\$10\.35 spent on HF today/, 'the day total spans both launchers');
   assert.equal(readFileSync(shared, 'utf8').split('\n').filter(l => l.startsWith('ALARM\t')).length, 1, 'one alarm for the account, not one per launcher');
   // fail closed: the shared directory not set up, or the VPS unreachable
   const missing = localStore(join(dir, 'nodir', 'x.tsv'), { shared: true });
