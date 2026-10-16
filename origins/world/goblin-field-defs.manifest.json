@@ -65,7 +65,8 @@
         "repeat": "number",
         "arc": "number",
         "azimuth": "number",
-        "fadeSide": "number"
+        "fadeSide": "number",
+        "flat": "number"
       }
     },
     {

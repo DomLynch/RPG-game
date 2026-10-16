@@ -74,8 +74,15 @@ export function createHorizonDome(scene: THREE.Scene, palette: GoblinPalette, ba
     if (sectorOf === b) return; dropSector();
     const { canvas, heightDeg } = sectorCanvas(palette, img, b), t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1;   // seen from inside the sphere u runs leftwards: flipped so the picture reads the right way round
     const arc = (b.arc! * Math.PI) / 180, hRad = (heightDeg * Math.PI) / 180, az = (b.azimuth! * Math.PI) / 180, phiMid = Math.atan2(Math.cos(az), -Math.sin(az)), bottom = Math.PI / 2 + hRad * b.drop;   // three's sphere: x = -r cos(phi) sin(theta), z = r sin(phi) sin(theta)
-    const g = new THREE.SphereGeometry(R('domeRadius') * R('sectorInset'), 48, 16, phiMid - arc / 2, arc, bottom - hRad, hRad);
-    sector = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false })); sector.name = 'horizon-sector'; sector.renderOrder = mesh.renderOrder + 1; sector.frustumCulled = false; sector.position.copy(mesh.position); scene.add(sector); sectorOf = b;
+    const dist = R('domeRadius') * R('sectorInset');
+    let g: THREE.BufferGeometry;
+    if (b.flat) {   // a MATTE CARD (Gothic / Morrowind's distant landmark): one flat quad facing the camp, native pixels, no curvature; same rows (arc = the angle it spans, azimuth, drop, crop)
+      const width = 2 * dist * Math.tan(arc / 2), height = (width * canvas.height) / canvas.width, plane = new THREE.PlaneGeometry(width, height);
+      plane.translate(0, dist * Math.tan(-hRad * b.drop) + height / 2, 0);   // its foot `drop` of the band below the horizon
+      plane.rotateY(Math.PI + az); plane.translate(Math.sin(az) * dist, 0, Math.cos(az) * dist); g = plane;   // faces the camera at the origin (normal = bearing az + 180 degrees)
+      t.repeat.x = 1; t.offset.x = 0;   // a front-facing card reads left to right: no flip
+    } else g = new THREE.SphereGeometry(dist, 48, 16, phiMid - arc / 2, arc, bottom - hRad, hRad);
+    sector = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, side: b.flat ? THREE.FrontSide : THREE.BackSide, transparent: true, fog: false, depthTest: true, depthWrite: false })); sector.name = 'horizon-sector'; sector.renderOrder = mesh.renderOrder + 1; sector.frustumCulled = false; sector.position.copy(mesh.position); scene.add(sector); sectorOf = b;
   };
   const show = () => { const b = goblinBackdrop(palette, shape?.matches ?? true); if (!b) return; void load(b.file).then((img) => { if (!alive || goblinBackdrop(palette, shape?.matches ?? true) !== b) return; if (b.arc !== undefined) { showSector(img, b); return; } dropSector(); const old = tex; tex = texOf(paint(b.texW, b.texH, palette, { img, b }), true); mat.map = tex; mat.needsUpdate = true; old.dispose(); }).catch((e: unknown) => console.warn('zone dome: the backdrop did not paint; the painted sky stays', b.file, e)); };   // a missing picture leaves the painted sky
   show(); shape?.addEventListener('change', show);
