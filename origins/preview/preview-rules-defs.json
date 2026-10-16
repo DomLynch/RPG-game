@@ -34,6 +34,8 @@
     { "id": "turnRate", "value": 1.9, "unit": "rad/s" },
     { "id": "tapRange", "value": 14, "unit": "m" },
     { "id": "tapMs", "value": 4000, "unit": "ms" },
-    { "id": "tapPx", "value": 12, "unit": "px" }
+    { "id": "tapPx", "value": 12, "unit": "px" },
+    { "id": "loadoutWait", "value": 15000, "unit": "ms" },
+    { "id": "gearRetry", "value": 10000, "unit": "ms" }
   ]
 }
