@@ -65,7 +65,7 @@ test('createZoneBars: the hidden idle bars still carry the hero\'s real numbers 
 test('idle text node == the sheet\'s max once the loadout gate opens (world loop + bars, no creature near)', () => {
   const { m: bars, pit } = mount(), sheet = sheetOf({ level: 20, placed: { health: 10 } })!, st: { ready: boolean } = { ready: false };
   pit['player-health-value']!.textContent = '150 / 150';   // index.html's static markup
-  const wc = createWorldCombat({ mobs: () => ({ within: () => [], drive: () => {}, fell: () => {}, play: () => {} }) as never, loadoutReady: () => st.ready, hero: () => ({ gear: NAKED, level: 1, sheet }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const wc = createWorldCombat({ mobs: () => ({ within: () => [], drive: () => {}, fell: () => {}, play: () => {} }) as never, loadoutReady: () => st.ready, hero: () => ({ gear: NAKED, level: 1, ...(st.ready ? { sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   const frame = () => { for (let i = 0; i < 30; i++) { wc.update(1 / 30, { x: 0, z: 0, facing: 0 }); bars.feed(wc); } };
   frame(); const bare = wc.hero().max; assert.equal(pit['player-health-value']!.textContent, `${bare} / ${bare}`, 'gate closed: the bare body');
   st.ready = true; frame();
