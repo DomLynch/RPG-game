@@ -5,6 +5,6 @@
     { "id": "dwarf-boots", "fields": { "worn": { "Boots": "dwarf.Boots" }, "programs": ["DwarfIron"] } },
     { "id": "executioner-greaves", "fields": { "worn": { "Greaves": "executioner.Greaves" }, "programs": ["Bronze"] } },
     { "id": "veteran-crest", "fields": { "worn": { "Crest": "veteran.Crest" }, "programs": ["HorsehairCloth"] } },
-    { "id": "kit-shield", "fields": { "worn": { "Shield": "~kit.Shield" }, "programs": ["Antique brass (shield)"] } }
+    { "id": "kit-shield", "fields": { "worn": { "Shield": "veteran.Shield" }, "programs": ["Antique brass (shield)"] } }
   ]
 }
