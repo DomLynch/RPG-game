@@ -14,7 +14,9 @@ git checkout -q "$HEAD"; cp /tmp/check.mjs scripts/remote-programs-check.mjs
 for i in $(seq 1 "${RUNS:-3}"); do
   if (( i % 2 )); then order="base head"; else order="head base"; fi
   for label in $order; do
-    KITS=none GATE= node scripts/remote-programs-check.mjs "artifacts/dist-$label" "artifacts/out-$label-$i" 2>&1 | grep -E "^zoneReady:" | sed "s/^/$label#$i /" | cut -c1-300
+    out=$(KITS=none GATE= timeout 300 node scripts/remote-programs-check.mjs "artifacts/dist-$label" "artifacts/out-$label-$i" 2>&1); code=$?
+    line=$(printf '%s\n' "$out" | grep -E "^zoneReady:" | head -1)
+    if [ -n "$line" ]; then echo "$label#$i $line" | cut -c1-300; else echo "$label#$i NO zoneReady (exit $code); tail:"; printf '%s\n' "$out" | tail -6 | cut -c1-240; fi
   done
 done
 echo "=== DONE ==="
