@@ -3,7 +3,7 @@ import { ui } from './ui-rows.ts';
 import { AFK_CAP_S, FRAME_DT_MAX_S } from './first-loss.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers, pieceNumbers } from './fight/gear-numbers.ts';
 import { weightClassOf } from './fight/gear-weight.ts';
-import { PLAYER_WEAPONS, RULES, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
+import { PLAYER_WEAPONS, RULES, SKILL_ROWS, opponentAt, weaponOf, DEFAULT_WEAPON, type SkillId, type WeaponId } from './fight/moves.ts';
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
@@ -15,7 +15,7 @@ import { headlineFlag, victoryHeadline } from './fight/victory-headline.ts';
 import { peekRecordHeader } from './record-header.ts';
 import { api, revision } from './api.ts';
 import { automated, beaconPayload, screenOf, sendPerfBeacon } from './perf-beacon.ts';
-import { bookIsOffline, createServerBuild, createServerSkills, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
+import { bookIsOffline, createServerBuild, createServerSkills, equippedSpell, fetchOwnBuild, getGrimoire, mountBuild, mountGrimoire, mountSpecials, ownedSpells, session, useSpellStore, storedToken, writerBase, type OwnBuild } from './core/index.ts';
 import { bankClaim, CLAIM_HELD, CLAIM_WAIT_MS, claimOnHide, finaliseClaim, flushThenStanding, loadStanding, saveStanding, outbox, pendingClaims, reloadAfter, settleOutbox } from './core/index.ts';
 import { dressFor, fetchSharedRecord, mintShare, sharedIdFrom, shortLink } from './share-store.ts';
 import { recordSpecials, replayParam, verifyRecord } from './fight/replay.ts';
@@ -781,6 +781,8 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
 { const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
   { const applySpecialOne = (): void => { const one = equippedSpecial(0) as SkillId | undefined; if (one) { match.lastSkill = one; match.skill = one; } }; applySpecialOne(); onSpecialsChanged(applySpecialOne); }
+  { const specials = mountSpecials(element<HTMLDialogElement>('special-dialog'), (id) => SKILL_ROWS[id]?.name ?? id);   // the SPECIAL 1 / 2 picker (special-screen.ts): ids, order and role lines are the betaCut rows, names the skill rows; the store got its storage before the Match was built (above)
+    element('special-open').addEventListener('click', () => { journal.close(); specials.open(); }); }
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }
 element('journal-button').addEventListener('click', openJournal);
