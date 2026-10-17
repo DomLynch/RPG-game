@@ -39,7 +39,7 @@ test('rows: every Frontier zone is a row named by the plan, its centre and spawn
 });
 
 test('zoneAt: the road and the open ground belong to no zone; the open ground of the town square and the road are walkable, the wilderness is not', () => {
-  for (const [x, z] of [[100, 0], [0, 100], [0, -100]] as const) { const p = cm(x, z); assert.equal(zoneAt(...p), null, `(${x}, ${z}) is open ground`); assert.ok(walkable(...p), 'and walkable'); }
+  for (const [x, z] of [[100, 0], [0, 100], [0, -95]] as const)   // (0, -95): the dungeon framework's Sample Crypt (Zone 6) now stands from z -100 to -140 east of the Ash Reach, so the old (0, -100) is its edge { const p = cm(x, z); assert.equal(zoneAt(...p), null, `(${x}, ${z}) is open ground`); assert.ok(walkable(...p), 'and walkable'); }
   assert.equal(zoneAt(...cm(-100, 0)), 'cinder-fields');
   assert.equal(walkable(...cm(0, 600)), false, 'far outside every zone: not walkable');
   assert.equal(walkable(0, 0), false, 'the frame\'s corner: not walkable');
