@@ -1,5 +1,26 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~00:1x: HANDOFF before /clear (Dom). READ FIRST. LIVE = IG 9b75db87f (verified: writer, presence and verifier on it, NRestarts 0)
+
+**Now, in order.**
+1. **IH #3121 @4cd41912f** (#3110 alone) is PASSED + candidate:pass. When it publishes, check release.json only; it changes scripts/as-data only, so nothing restarts.
+2. **#3116 RV76**: Strategy rescoped it to the TROLL ONLY. The current head bd2e4cfe2 is NOT the rescope (goblin still buffed, REACH[76] still lists goblin). It is red on the slow player-weapons "weapon flip" test. On Combat's new head, run `bash scratchpad/rv76check.sh` (rewrite it if the scratchpad is gone) and check:
+   - the goblin row is byte-equal to trunk (hp 120, no sheet), and REACH[76] = cave-troll only;
+   - every goblin test and fixture is byte-equal to trunk;
+   - reachStamp(goblin) = 0, and the RV77 real-recipe probe packs the troll at v76 and a goblin at v31;
+   - the L1 first-timer ≥44/48 bar is held.
+   Already verified at 9696ec800 and still valid: packRecord accepts reachStamp; the pose try-read is safe (dv is bounded); troll hp 680 / atk 45, pinned 15/16. Own cut, with `verify-loot.mjs --dry` before publish.
+3. **#3122 @3949ffceb** (World zone-exit-check under ?kitwarm=soft): the read is OK. A VPS run of both modes was in flight: /srv/dev-jobs/cq-3122 (built). Results in /tmp/cq3122-soft.log, /tmp/cq3122-off.log and the .json receipts. Lead's bar: EXIT_KITWARM=0 must still REPRODUCE the old post-ready failure, and soft must pass. PASS only if both hold and CI is green. Afterwards, tell Deploy that cq-3122 is dead.
+4. **#3123 @bfe8911f6** (the slow-device verdict sticky for 24 h): stacked on #3122. The URL overrides still win, and slowVerdict rejects malformed, future and expired records. **NOT YET to post:** a background tab (rAF throttled) can be judged slow and stuck slow for 24 h. Store only if `document.visibilityState === 'visible'` through the probe. It also needs a rebase after the batch (the preview-rules count pin conflicts with #3117).
+5. **The data-layer batch:** all PASSED. Mine: #3113 @7a259a859, #3112 @135d5b2b9 (contains #3110), #3105, #3107, #3108, #3114, #3101 @766836814, #3096 @e3ec809b6. Lead's: #3104 @19c81e004, #3109, #3111, #3117 @3efaee75d, #3118. #3119 waits on Web's rebase. When Deploy cuts it, recut with `THEIRS="<#3110 sha>" bash scratchpad/recut2.sh …` (it takes the widening PR's baseline side and regenerates).
+
+**Done this stretch:** IF and IG verified live. PASS: #3106, #3090, #3103, #3100, #3102, IG #3115, IH #3121, plus all of the batch above. NOT YET then fixed: #3106 (CI wait before the Mac rollback; fail-open), #3112 ×3, #3101 ×2 (tsc, scope, registry), #3096, #3116 ×2 (the RV77 pack trap; the goblin fixture). Told Deploy that /srv/dev-jobs/cq-{gt-3708027c5,hcab,ff-trunk2,ff-3019} are dead.
+
+**Gotchas.**
+- (xx) **The baseline-widening cut trap:** the as-data writer only SHRINKS a baseline. When a PR re-seeds one upward (#3110), a cut that takes ours on the baseline conflict cannot be regenerated back: the gate exits 3 with thousands NEW. Take THEIRS for that PR, then regenerate. recut.sh lacks this (and branch-id); use recut2.sh.
+- (yy) A PR with no auditor:ready, or one retargeted with the label already on, gets NO unit-ci. Seen on #3105, #3107, #3108, #3114, #3112 and #3106. Add the label (or remove and re-add it), then wait.
+- (zz) cisnap.sh picks the max created_at run per workflow, and a skipped duplicate can win the tie. Confirm against the check-runs list before calling a candidate red.
+
 ## 2026-10-17 ~23:0x: READ FIRST. LIVE = IF bddba6ebc (verified: writer, presence, verifier, NRestarts 0). IG #3115 @9b75db87f PASSED + candidate:pass
 
 **Now.** 1. **IG**: when it publishes, verify release.json, the writer and **presence** = 9b75db87f, NRestarts 0. The verifier is unchanged. 2. **#3116 RV76** (Combat balance) is NOT YET @4bf820afa. **The RV77 trap:** every bump moves the `<= 76 ? 31` thresholds, and reachStamp keeps returning 76 for goblin/troll, so packRecord would throw "cannot pack version 76". Fix: packRecord accepts reachStamp's version, and the probe uses the real bump recipe. Also pin the troll L16 bar at >= 6/8. Already verified: REACH[76] complete, reachStamp correct today, reader min-length fix OK, no Pit sim file changed f245a0112→IG (so the HELD replay on f245a0112 is valid). Its own cut. 3. **#3112** is NOT YET @04dd1ebaa: pit-duel.ts → gameplay; the `* 2 - 1` remap only with a unit draw; no CI yet (stacked, no label). 4. **#3110** PASS @18338bc44; it lands after #3104/#3113, and the candidate's baseline must equal a fresh `--write-inline-number-baseline`. 5. **#3101** is waiting on World (tsc + Zone 6 scope ruling). 6. **#3098** PASS @3419e74af (canonical line posted); not a GO.
