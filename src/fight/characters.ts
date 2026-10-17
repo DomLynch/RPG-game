@@ -732,7 +732,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         specialRole = role;
         if (role && !clips[role] && !specialLoading.has(role) && specialRow(role).weapons.includes(weapon)) {
           specialLoading.add(role);
-          void SPECIAL_LOADERS[role]().then(m => this.adoptClip(role, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { /* the weapon's own clip keeps playing */ });
+          void SPECIAL_LOADERS[role]().then(m => this.adoptClip(role, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { specialLoading.delete(role); /* the weapon's own clip keeps playing */ });
         }
       },
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
