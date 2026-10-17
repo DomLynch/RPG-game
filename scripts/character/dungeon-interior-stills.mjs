@@ -30,9 +30,11 @@ try {
   const H = Number(process.env.HEADING_E ?? Math.PI / 2);   // heading that looks east (+x) from the gate; override if the stills face the wrong way
   const shots = [   // name, x, z, heading
     ['01-gate-arrival', lm['hollow-gate'].x + 3, lm['hollow-gate'].z, H],
-    ['02-hall', lm['hollow-hall'].x, lm['hollow-hall'].z, H],
-    ['03-den-piles', lm['hollow-den'].x - 12, lm['hollow-den'].z, H],
-    ['04-den-doorway', lm['hollow-den'].x + 2, lm['hollow-den'].z, H],
+    ['02-gate-doorway-from-inside', lm['hollow-gate'].x + 9, lm['hollow-gate'].z, H + Math.PI],   // looking west back at the doorway and its two lanterns
+    ['03-hall', lm['hollow-hall'].x, lm['hollow-hall'].z, H],
+    ['04-den-piles', lm['hollow-den'].x - 11, lm['hollow-den'].z, H],
+    ['05-den-piles-close', lm['hollow-den'].x - 10, lm['hollow-den'].z - 3, H - 0.3],
+    ['06-east-doorway', lm['hollow-den'].x - 3, lm['hollow-den'].z, H],   // the doorway at the end of the room and its lanterns
   ];
   for (const [name, x, z, h] of shots) {
     await page.evaluate(([px, pz, ph]) => window.originsPreview.place(px, pz, ph), [x, z, h]);

@@ -47,12 +47,16 @@
   },
   "kit": {
     "url": "/world/kit/dungeon-kit.glb",
-    "nodes": ["cave_wall", "cave_doorway", "bone_pile"],
+    "nodes": ["cave_wall", "cave_doorway", "bone_pile", "lantern"],
     "landmarks": [],
     "kinds": [],
     "fixed": [
       { "node": "cave_doorway", "at": "hollow-gate", "dx": 0, "dz": 0, "rotDeg": 90, "scale": 1, "solid": 0 },
       { "node": "cave_doorway", "at": "hollow-den", "dx": 8, "dz": 0, "rotDeg": 90, "scale": 1, "solid": 0 },
+      { "node": "lantern", "at": "hollow-gate", "dx": 3, "dz": -2.4, "rotDeg": 0, "scale": 1, "solid": 0.3 },
+      { "node": "lantern", "at": "hollow-gate", "dx": 3, "dz": 2.4, "rotDeg": 0, "scale": 1, "solid": 0.3 },
+      { "node": "lantern", "at": "hollow-den", "dx": 5.5, "dz": -2.4, "rotDeg": 0, "scale": 1, "solid": 0.3 },
+      { "node": "lantern", "at": "hollow-den", "dx": 5.5, "dz": 2.4, "rotDeg": 0, "scale": 1, "solid": 0.3 },
       { "node": "bone_pile", "at": "hollow-den", "dx": -6, "dz": -3, "rotDeg": 20, "scale": 1, "solid": 0.8 },
       { "node": "bone_pile", "at": "hollow-den", "dx": -2, "dz": 5, "rotDeg": 160, "scale": 1.2, "solid": 0.8 },
       { "node": "bone_pile", "at": "hollow-den", "dx": 5, "dz": -5, "rotDeg": 300, "scale": 0.9, "solid": 0.8 },
