@@ -44,6 +44,9 @@ export function loadGroundLooks(raw: unknown): ReadonlyMap<string, GroundLook> {
 }
 const BY_ITEM = loadGroundLooks(LOOKS);
 
+/** The finish row id of an item's look, or undefined (an item with no look row, or a row with no finish, keeps its own metal). The hand and paperdoll read the same row as the ground (worn-finish.ts). */
+export const groundFinish = (itemId: string): string | undefined => BY_ITEM.get(itemId)?.finish;
+
 /** The look of an item; an item with no row throws rather than drawing at a guessed pose. */
 export function groundLook(itemId: string): GroundLook {
   const look = BY_ITEM.get(itemId);
