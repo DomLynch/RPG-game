@@ -41,6 +41,7 @@ export const lookupOf = (content: EncounterContent): Lookup => (id: ItemId) => c
 // level-to-rung mapping) + the base offset (mintRule) + the item's rarity shift (rarityShift; the row marked `fallback` serves an item with no rarity or an unknown one), kept within the first rung and
 // the beta cap (betaCut.maxLootRung in career-rules.json, which lifts with the cut). The level is the creature's for a drop, the zone band's midpoint for a mint with no creature (origins/zones/band.ts).
 // There is NO default rung: a mint with neither a creature nor a zone level is refused.
+// Item rarity (common, fine, rare, relic: a rung shift) is NOT the wildlife spawn rarity (common, uncommon, rare: a spawn weight, src/core/world/wildlife-rules.ts): same word, different table and scale, kept apart on purpose.
 loadRegistry(LOOT_TIER_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, LOOT_TIER_ROWS, 'origins/encounters/loot-tier.json')));
 export type RungRules = { readonly shifts: ReadonlyMap<string, number>; readonly fallback: number; readonly base: number; readonly cap: number };
 const SHIFT_ROWS = LOOT_TIER_ROWS.rarityShift as readonly { id: string; shift: number; fallback?: boolean }[];

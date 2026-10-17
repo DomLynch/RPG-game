@@ -10,6 +10,7 @@
         "markGap": "number",
         "edge": "number",
         "scaleFloor": "number",
+        "maxCoordM": "number",
         "note": "string"
       }
     },
