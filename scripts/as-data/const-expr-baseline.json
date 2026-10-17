@@ -101,9 +101,6 @@
   "TAU": 1,
   "RETARGET_CONE": 1
  },
- "src/lorarii.ts": {
-  "TICK": 1
- },
  "src/net/lobby.ts": {
   "RETIRE_MS": 1
  },
