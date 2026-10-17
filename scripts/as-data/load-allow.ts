@@ -10,12 +10,14 @@ export type TunableAllow = { file: string; name: string; kind: 'exempt' | 'debt'
 export type Verb = { file: string; name: string; dispatch: string; sunset: string | null };
 // An ID TABLE kept in TypeScript on purpose (rule (i), id-table.yml): named by its file and first row id, with the specific reason it stays (no expiry). Listed apart, never counted; one whose table is gone is stale.
 export type IdTableAllow = { file: string; id: string; reason: string };
-export type AllowData = { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[]; idTables?: IdTableAllow[] };
+// A BRANCH on a content id kept in code on purpose (rule (j), branch-id.yml): a category branch (a schema/world switch such as resolve.ts 'zone') or a verb dispatch, named by file and literal with the specific reason. Listed apart, never counted.
+export type BranchIdAllow = { file: string; literal: string; reason: string };
+export type AllowData = { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[]; idTables?: IdTableAllow[]; branchIds?: BranchIdAllow[] };
 // A directory is every *.json in it, in name order: `allow` and `verbs` concatenate in that order (they live in _lists.json, which sorts first), `tunables` merge sorted by (file, name), so the
 // report is the same whatever the split. A single file (the old shape, and the tests' fixtures) is read as it is.
 export function loadAllow(path: string): AllowData {
   if (!statSync(path).isDirectory()) return JSON.parse(readFileSync(path, 'utf8')) as AllowData;
   const parts = readdirSync(path).filter((f) => f.endsWith('.json')).sort().map((f) => JSON.parse(readFileSync(join(path, f), 'utf8')) as Partial<AllowData>);
   const by = (a: TunableAllow, b: TunableAllow) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-  return { allow: parts.flatMap((p) => p.allow ?? []), verbs: parts.flatMap((p) => p.verbs ?? []), tunables: parts.flatMap((p) => p.tunables ?? []).sort(by), idTables: parts.flatMap((p) => p.idTables ?? []) };
+  return { allow: parts.flatMap((p) => p.allow ?? []), verbs: parts.flatMap((p) => p.verbs ?? []), tunables: parts.flatMap((p) => p.tunables ?? []).sort(by), idTables: parts.flatMap((p) => p.idTables ?? []), branchIds: parts.flatMap((p) => p.branchIds ?? []) };
 }
