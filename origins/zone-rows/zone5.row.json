@@ -40,7 +40,7 @@
         "loot": "loottable:giant-salamander",
         "level": [7, 7],
         "named": true,
-        "respawnSeconds": 300,
+        "respawnSeconds": 90,
         "behaviour": { "aggro": 6, "roam": 2, "spread": 4, "pull": 0, "campSize": [1, 1] }
       }
     ]
@@ -242,7 +242,7 @@
   "place": {
     "zones": {
       "bone-hollow": {
-        "zoneSize": { "width": 100, "depth": 140 },
+        "zoneSize": { "width": 100, "depth": 100 },
         "layout": {
           "hollow-gate": { "u": 0, "v": 0.5, "facing": 90 },
           "hollow-hall": { "u": 0.3, "v": 0.5, "facing": 0 },
@@ -250,15 +250,15 @@
           "hollow-den": { "u": 0.9, "v": 0.75, "facing": 180 },
           "hollow-cache": { "u": 0.97, "v": 0.95, "facing": 180 }
         },
-        "connections": { "mouth": { "to": "cinder-fields", "kind": "road", "here": "hollow-gate", "there": "cave-mouth" } },
+        "connections": { "mouth": { "to": "drowned-marsh", "kind": "road", "here": "hollow-gate", "there": "marsh-hollow" } },
         "density": { "creatures": 0.3 },
         "ambience": { "preset": "frontier-haze" }
       }
     },
     "joins": [
-      { "zone": "cinder-fields", "landmark": "cave-mouth", "at": { "u": 0.62, "v": 0.36, "facing": 0 }, "link": "hollow", "to": "bone-hollow", "here": "cave-mouth", "there": "hollow-gate" }
+      { "zone": "drowned-marsh", "landmark": "marsh-hollow", "at": { "u": 0.5, "v": 0, "facing": 180 }, "link": "hollow", "to": "bone-hollow", "here": "marsh-hollow", "there": "hollow-gate" }
     ],
-    "waypoints": ["cave-mouth", "hollow-gate", "hollow-hall", "hollow-patrol", "hollow-den", "hollow-cache"],
+    "waypoints": ["marsh-hollow", "hollow-gate", "hollow-hall", "hollow-patrol", "hollow-den", "hollow-cache"],
     "spawns": [
       { "id": "hollow-kin", "at": "hollow-hall", "characters": ["character:cinder-scavenger"] },
       { "id": "hollow-kin-deep", "at": "hollow-den", "characters": ["character:cinder-scavenger"] },
@@ -269,7 +269,7 @@
   "notes": {
     "zone": "Zone 5 (the Bone Hollow, the beta dungeon, docs/specs/origins/dungeon-scope-beta.md): a zone with a roof, rows only. `level` is the zone number = its base level (Dom 2026-10-08). Default theme: the bone-and-skull cave camp (zone 90's look and the goblin-camp props kit), dark by data; Dom swaps the look through rows.",
     "spawns": "Existing creature rows only, copied from Zone 1 at this zone's band: cinder-scavenger (the goblin kin, Gobelinus) as the population, pit-goblin as the patrol, giant-salamander as the end fight with the troll treatment (a named row: zone level + the named lift, so hp x2 and +20% damage from the stage rows, as the cave troll).",
-    "place": "The entrance is the cave-mouth landmark in Zone 1 (cinder-fields, beside the ash-pits) joined by the `hollow` link; the link runs both ways, so the return exit at hollow-gate is the same row. The fixed end-room ground piece is a ground-loot row at hollow-cache (outside the salamander's aggro).",
+    "place": "The zone is MOUNTED in the shared world frame at the far end of the Drowned Marsh (the `hollow` join), more than presence's 40 m sight radius from every other zone, so nobody sees across zones and presence needs no change (Backend 2026-10-17); it is listed, so presence's walkable accepts it. The way in is not a link: the cave-mouth landmark is in Zone 1's own row (cinder-fields, beside the ash-pits camp) and the crossing is two exit rows (origins/zones/exit-rows.json, cave-mouth and hollow-gate): a door from one zone page to the other, with presence warp rows zone5-gate and zone1-cave-mouth. The fixed end-room ground piece is a ground-loot row at hollow-cache (outside the salamander's aggro).",
     "kit": "Zone 5's kit: a copy of Zone 2's until Characters ship this zone's own (the kit's node names are a contract)."
   }
 }
