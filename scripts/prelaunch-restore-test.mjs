@@ -21,7 +21,7 @@ export const parseManifest = file => readFileSync(file, 'utf8').trim().split('\n
 /** The same count and hash the backup script takes, against a cluster whose socket dir is `socket`. */
 export function measure(socket, tables) {
   const psql = sql => run('psql', ['-h', socket, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t', '-F', '\t'], sql).trim();
-  const sql = tables.map(t => `select '${t}', count(*), coalesce(md5(string_agg(to_jsonb(x)::text, E'\\n' order by to_jsonb(x)::text)), 'empty') from public.${t} x;`).join(' ');   // jsonb: keys sorted, independent of the physical column order
+  const sql = tables.map(t => `select '${t}', count(*), coalesce(md5(string_agg(to_jsonb(x)::text, E'\\n' order by to_jsonb(x)::text collate "C")), 'empty') from public.${t} x;`).join(' ');   // jsonb: keys sorted, independent of the physical column order; collate "C": independent of the text collation
   return psql(`begin isolation level repeatable read read only; set local time zone 'UTC'; set local datestyle = 'ISO, MDY'; ${sql} commit;`).split('\n').map(l => { const [table, n, hash] = l.split('\t'); return { table, n: Number(n), hash }; });
 }
 

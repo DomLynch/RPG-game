@@ -39,7 +39,7 @@ for t in "${tables[@]}"; do
   rm -f "$part/err"
 done
 sql="begin isolation level repeatable read read only; set local time zone 'UTC'; set local datestyle = 'ISO, MDY';"   # timestamptz text depends on the session zone: pin it, the restore test pins the same
-for t in "${tables[@]}"; do sql+=" select '$t', count(*), coalesce(md5(string_agg(to_jsonb(x)::text, E'\n' order by to_jsonb(x)::text)), 'empty') from public.$t x;"; done   # jsonb: keys sorted, so the hash does not depend on the physical column order (production added columns in a different sequence than a fresh migration run)
+for t in "${tables[@]}"; do sql+=" select '$t', count(*), coalesce(md5(string_agg(to_jsonb(x)::text, E'\n' order by to_jsonb(x)::text collate "C")), 'empty') from public.$t x;"; done   # jsonb: keys sorted, so the hash does not depend on the physical column order (production added columns in a different sequence than a fresh migration run); collate "C": the row order must not depend on the database's text collation (production and a scratch cluster differ)
 sql+=" commit;"
 "$psql_bin" -X -q -A -t -F $'\t' -v ON_ERROR_STOP=1 -c "$sql" >"$part/manifest.tsv" || cleanup_fail "the manifest query failed"
 [[ $(wc -l <"$part/manifest.tsv") -eq ${#tables[@]} ]] || cleanup_fail "manifest has $(wc -l <"$part/manifest.tsv") rows, wanted ${#tables[@]}"
