@@ -2,15 +2,15 @@
 // materials, and the programs the player's own warm-up already linked: a ninth player compiles nothing), eased between presence packets by remote-track.ts, with the engine's gait
 // from the speed it covers and a plain name tag. v1 look = the base hero figure (a player's own gear on the figure is a later item). No gameplay: no collider, no tap target, nothing in the world fight.
 // The slots are made at zone entry (`warm`, remoteWarm rows) and reused as players come and go; more are added only when the zone has more players than that, from the same asset.
-// A crowd costs frames (the T4 harness: 8 and 16 remotes hold 60 fps, 40 sit at 30): the nearest `remoteFullCount` are full figures, the rest CHEAP: the same mesh and materials (no new program),
-// but no weapon trail, no shadow cast, and a pose update only every `remoteCheapEvery` frames (the actor's update is the mixer AND the bone matrices, so both run at that rate; the pose holds between).
+// A crowd costs frames (the T4 harness: 8 and 16 remotes hold 60 fps, 40 sit at 30): the nearest `full` figures of the current ladder rung (crowd-ladder.json) are full, the rest CHEAP: the same mesh and materials (no new program),
+// but no weapon trail, no shadow cast, and a pose update only every `every` frames of that rung (the actor's update is the mixer AND the bone matrices, so both run at that rate; the pose holds between).
 // Out of the camera frustum or beyond `remoteAnimRange` the figure is HIDDEN (visible = false, so the render's traverseVisible never enters it) and its pose skipped altogether, full or cheap.
-// ADAPTIVE: when the frames' p95 stays above `remoteAdaptSlowMs` for `remoteAdaptWindowMs` (World's 4x-throttled T4: 40 players give 15/12 fps, about 8 full figures is the 30 fps point), the full count drops from
-// `remoteFullCount` to `remoteAdaptFullCount`; it returns once the p95 has stayed under `remoteAdaptOkMs` for a window (frame-governor.ts, pure; every number a row).
+// ADAPTIVE: when the frames' p95 stays above `remoteAdaptSlowMs` for `remoteAdaptWindowMs` (World's 4x-throttled T4: 40 players give 15/12 fps, about 8 full figures is the 30 fps point), the governor steps one rung down the ladder (16/4, 8/4, 4/8, 0/12:
+// full figures / cheap pose gap); it steps one back up once the p95 has stayed under `remoteAdaptOkMs` for a window (frame-governor.ts, pure; every number a row).
 // The T4 profile of 40 walking (4x) said the cost is the scene graph, not the mixer: the bone-hierarchy matrix walk, then the bone-texture re-upload every Skeleton.update. So a FROZEN figure (cheap, or hidden)
 // is cut out of both on its skipped frames: its group's matrixWorldAutoUpdate is off (scene.updateMatrixWorld stops at the group, the bones are not walked) and its skeletons' `update` does nothing (no
 // bone-matrix recompute, no boneTexture.needsUpdate). A skinned mesh draws from the bone matrices of its LAST update, so a frozen figure stands where it was posed: a cheap one moves on its pose frames
-// (every remoteCheapEvery-th), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
+// (every `every`-th frame of the rung), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
 import { createGovernor } from './frame-governor.ts';
@@ -71,7 +71,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
       governor.push(dt * 1000, now);   // the frames' p95 stays high: the governor steps down the ladder (crowd-ladder.json), and back up once it has stayed low again
       const rung = CROWD_LADDER[governor.level()]!, seen = new Set<number>(), full = rung.full, every = rung.every;
       if (camera) frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-      track.shown(now, hero).forEach((s, rank) => {   // nearest first: rank < remoteFullCount is a full figure
+      track.shown(now, hero).forEach((s, rank) => {   // nearest first: rank < the rung's `full` is a full figure
         seen.add(s.id);
         let slot = live.get(s.id);
         if (!slot) { slot = pool.find((p) => p.id === null) ?? grow(); slot.id = s.id; slot.speed = 0; slot.gx = NaN; live.set(s.id, slot); }

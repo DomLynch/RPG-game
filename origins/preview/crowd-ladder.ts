@@ -1,5 +1,5 @@
 // The remote-crowd cost ladder (crowd-ladder.json + manifest through the registry): rung 0 is the full treatment, each later rung is cheaper. Read by remote-heroes.ts with the frame governor's level. Pure.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/index.ts';   // page code takes the registry from the core's page door (index.ts), not server.ts (core-boundary C1)
 import DEFS from './crowd-ladder.json' with { type: 'json' };
 import MANIFEST from './crowd-ladder.manifest.json' with { type: 'json' };
 
