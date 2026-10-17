@@ -2,6 +2,7 @@
 
 ## 2026-10-17 ~13:5x (+04) — HANDOFF before /clear. READ FIRST. LIVE = HU2 53aed13d5 (verified)
 
+**Status ~14:5x (supersedes the ~14:3x line):** #2947 PASS @e64384053. #3014 PASS @6e48746a6. #3018 PASS @ccb65b7a5 (a clean merge onto #3014; it lands with or after #3014, and the candidate's CI + signedin-gear receipt bind). #3021 (trunk-based dungeon kit, Lead's choice) NOT YET @0d961d86a: dungeon-kit.glb is 1.74 MB gzip against the 1.3 MB world-body budget (quality static); Characters is to meshopt/decimate it. #3020 marked NOT YET (same glb; to be closed). #3019 is still a draft. Lead: #3005's READY waits only on Dom's iPhone walk.
 **Status ~14:3x:** #2947 NOT YET @5eed49c0c (C1 core-boundary: take TIERS from src/core/server.ts; Combat told). #3018 NOT YET @8714667b5 (sits on an old #3014: rebase onto 6e48746a6, add auditor:ready, re-run signedin-gear at the new head; Web told). #3014 read OK @6e48746a6, PASS on green CI. #3020 PASS @9b899e7b4 (contents). Ruling: it doesn't need #2945, but stacked it waits for the unread restyle stack #2951–#2968; Lead chooses the trunk copy or the stack. #3019: read it when it's ready.
 
 **Now, in Lead's order (updated ~14:0x):**
