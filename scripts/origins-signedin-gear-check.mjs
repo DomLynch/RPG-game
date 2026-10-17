@@ -67,6 +67,15 @@ try {
 
   await page.waitForFunction(() => window.originsPreview.career().source === 'saved', null, { timeout: 30000 }).catch(() => {});
   assert.equal((await page.evaluate(() => window.originsPreview.career())).source, 'saved', 'signed in: open answered a saved career');
+  // the gear sheet opens mid-run (menu > Gear, as scripts/gear-in-zone1-check.mjs): its mannequin loads the hero rig and loot.glb and dresses the worn set, which must not link a program after ready
+  await page.locator('#journal-button').tap(); await page.locator('#menu-gear').tap();
+  await page.waitForSelector('#journal[open][data-gear="live"]', { timeout: 30000 });
+  await page.waitForSelector('#slot-head[data-loot="goblin.Helmet"]', { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(Number(process.env.RIG_WAIT_MS ?? 8000));   // the rig and loot.glb load on the first open
+  const afterSheet = await snap(); receipt.programsAfterSheet = afterSheet.names.length;
+  receipt.programsAddedBySheet = afterSheet.names.filter((n) => !before.names.includes(n)).map((n) => [n, String(afterSheet.keys[n] ?? '').split(',')[0], afterSheet.owners[n] ?? []]);
+  assert.equal(receipt.programsAddedBySheet.length, 0, `opening the gear sheet linked render programs after zone ready (${receipt.programsAddedBySheet.length}): ${JSON.stringify(receipt.programsAddedBySheet)}`);
+  await page.evaluate(() => document.getElementById('journal')?.close()); await page.waitForTimeout(500);   // close it again
   const target = await page.evaluate(() => { const l = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); return l.find((m) => /wolf/i.test(m.body)) || l[0]; });
   assert.ok(target, 'a drawn creature to fight'); receipt.target = { id: target.id, body: target.body };
   const near = async () => { const m = await page.evaluate((i) => { const x = window.originsPreview.mobs().mobs.find((q) => q.id === i); return x && [x.x, x.z]; }, target.id); assert.ok(m, `${target.id} is gone`); await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 1.4, 0), m); };
