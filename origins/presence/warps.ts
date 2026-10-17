@@ -42,7 +42,7 @@ export function exitWarps(rows: readonly ExitRow[], taken: ReadonlySet<string> =
   return out;
 }
 const TABLE = loadWarps(DEFS);
-const WARPS = new Map([...TABLE, ...exitWarps(openExits(), new Set(TABLE.keys()))]);
+const WARPS = new Map([...TABLE, ...exitWarps(openExits(undefined, false), new Set(TABLE.keys()))]);
 /** The landmark's place in presence centimetres (the v2 frame), or null for an id the table does not hold. */
 export const warpPlace = (id: string): { x: number; z: number } | null => WARPS.get(id) ?? null;
 export const warpIds = (): string[] => [...WARPS.keys()];

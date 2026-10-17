@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon, type DungeonTheme } from './dungeon.ts';
-import { loadZone, zoneIds, zoneProblems, type Zone } from './loader.ts';
+import { loadZone, zoneIds, zoneOpen, zoneProblems, type Zone } from './loader.ts';
 import { EXITS, openExits } from './exits.ts';
 import THEMES from './dungeon-themes.json' with { type: 'json' };
 
@@ -63,11 +63,12 @@ test('the dungeon row\'s level band WINS over the zone-number rule, which is onl
 });
 
 test('the sample crypt is UNLISTED: closed on a normal build (no zone, no door, no warp), open only with the explicit opt-in', () => {
-  assert.ok(!zoneIds(false).includes('6') && zoneIds(true).includes('6') && zoneIds(false).includes('5'));
+  assert.ok(!zoneIds(false).includes('6') && zoneIds(false).includes('5') && !zoneOpen('6', false) && zoneOpen('6', true) && zoneOpen('5', false));
   assert.throws(() => loadZone('6', false), /no zone 6/);
   const crypt = (rows: readonly { id: string }[]) => rows.map((r) => r.id).filter((id) => id.startsWith('crypt-'));
-  assert.deepEqual(crypt(openExits()), [], 'a beta page draws no crypt door and presence derives no zone6 warp');
-  assert.deepEqual(crypt(openExits(EXITS, zoneIds(true))), ['crypt-mouth', 'crypt-door'], 'a preview built with the opt-in has both doors');
+  assert.deepEqual(crypt(openExits()), [], 'a beta page draws no crypt door');
+  assert.deepEqual(crypt(openExits(EXITS, false)), [], 'and presence derives no zone6 warp (the server passes false)');
+  assert.deepEqual(crypt(openExits(EXITS, true)), ['crypt-mouth', 'crypt-door'], 'a preview built with the opt-in has both doors');
   assert.ok(openExits().some((r) => r.id === 'cave-mouth') && openExits().some((r) => r.id === 'hollow-gate'), 'the Bone Hollow doors are unaffected');
 });
 

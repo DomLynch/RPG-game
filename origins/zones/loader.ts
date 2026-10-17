@@ -53,7 +53,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   const bad: string[] = rowText === undefined ? [] : describeDuplicates(`zone ${z.id} row`, duplicateKeys(rowText)), ids = new Set<string>();   // rowText: the row's raw JSON when the caller has it: a repeated key is invisible in the parsed Zone (JSON.parse keeps the last), so it is scanned in the text
   if (!z.name.trim()) bad.push('no display name');
   const own: Record<string, unknown> = { ...z };
-  delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
+  delete own.resolved; delete own.fields; delete own.set; delete own.band;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
@@ -102,6 +102,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   return bad;
 }
 
+/** Whether zone `id` exists for this build: a listed zone always, an UNLISTED one only with the opt-in (the Zone 1 page needs this to draw a door to it; zoneIds() lists an unlisted zone only on its own page). `opens` false is the server's. */
+export const zoneOpen = (id: string, opens: boolean = opensNow()): boolean => { const z = PACKAGES[id]; return !!z && (!z.unlisted || opens); };
 export const zoneIds = (opens: boolean = opensNow()): string[] => listedIds(PACKAGES, here(), opens);
 /** Every zone row, listed or not: for checks that must validate an unlisted row too (scripts/data-only-check.mjs), never for what a player or the server sees. */
 export const allZoneIds = (): string[] => Object.keys(PACKAGES);
