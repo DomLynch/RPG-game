@@ -525,253 +525,253 @@
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "1d016a678c39ed59"
+   "state": "f5f80ee2f57fcf70"
   },
   "goblin:1:731:walkin": {
    "ticks": 600,
    "draws": 376,
    "rng": "930eb70c9db16820",
-   "state": "312dcdb6525169fa"
+   "state": "3e4702cbfa53d93b"
   },
   "goblin:1:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "1d016a678c39ed59"
+   "state": "f5f80ee2f57fcf70"
   },
   "goblin:1:20260922:walkin": {
    "ticks": 600,
    "draws": 458,
    "rng": "6928a451aae8854d",
-   "state": "11ba20c28b976e26"
+   "state": "bf046438da6d4874"
   },
   "goblin:1:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "1d016a678c39ed59"
+   "state": "f5f80ee2f57fcf70"
   },
   "goblin:1:4242424242:walkin": {
    "ticks": 600,
    "draws": 450,
    "rng": "88a006701b49d6b7",
-   "state": "0629404d4480495d"
+   "state": "d71842a189d4c2f3"
   },
   "goblin:6:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:6:731:walkin": {
    "ticks": 600,
    "draws": 339,
    "rng": "71ea08b1bb022cd6",
-   "state": "8ab12a1a3dada39a"
+   "state": "0b3cfe8fe4a105ff"
   },
   "goblin:6:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:6:20260922:walkin": {
    "ticks": 600,
    "draws": 441,
    "rng": "e621e120149d54c9",
-   "state": "499dff0bd5d9bfb3"
+   "state": "a3db8a0138796d33"
   },
   "goblin:6:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:6:4242424242:walkin": {
    "ticks": 600,
    "draws": 353,
    "rng": "4b449f9e89e8065e",
-   "state": "40d4d0fa9ef6526e"
+   "state": "113fd553b9e14669"
   },
   "goblin:11:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:11:731:walkin": {
    "ticks": 600,
    "draws": 424,
    "rng": "93d5ac9b07909593",
-   "state": "49ea7044ca8db5ea"
+   "state": "bf61d6129ed80be2"
   },
   "goblin:11:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:11:20260922:walkin": {
    "ticks": 600,
    "draws": 465,
    "rng": "1dadf9507c458a8d",
-   "state": "b3473f3845a34ede"
+   "state": "4f899f9fe59e4391"
   },
   "goblin:11:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:11:4242424242:walkin": {
    "ticks": 600,
    "draws": 449,
    "rng": "08daaa5825dfc8c8",
-   "state": "c705d09a118643d4"
+   "state": "d56c5796a4ae6714"
   },
   "goblin:12:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:12:731:walkin": {
    "ticks": 600,
    "draws": 450,
    "rng": "4e8431fe3ded1a08",
-   "state": "451907d016f64a02"
+   "state": "c1ece2f904d863e7"
   },
   "goblin:12:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:12:20260922:walkin": {
    "ticks": 600,
    "draws": 465,
    "rng": "1dadf9507c458a8d",
-   "state": "0615de28655700dc"
+   "state": "e23bdebf3b2f88b3"
   },
   "goblin:12:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:12:4242424242:walkin": {
    "ticks": 600,
    "draws": 449,
    "rng": "08daaa5825dfc8c8",
-   "state": "b3eac7c037a3be46"
+   "state": "cadcfeaa1cfa273a"
   },
   "goblin:18:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:18:731:walkin": {
    "ticks": 600,
    "draws": 519,
    "rng": "c5f161e615a56219",
-   "state": "3f314d700e1c0102"
+   "state": "67352941c207bf5d"
   },
   "goblin:18:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:18:20260922:walkin": {
    "ticks": 600,
    "draws": 436,
    "rng": "158a6fcfb49e8828",
-   "state": "8309060fd082e0b1"
+   "state": "be2707b639d3afaa"
   },
   "goblin:18:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:18:4242424242:walkin": {
    "ticks": 600,
    "draws": 498,
    "rng": "8e395f684cc09ea8",
-   "state": "fdba192a2877bee6"
+   "state": "f4510b070cea5971"
   },
   "goblin:30:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:30:731:walkin": {
    "ticks": 600,
    "draws": 452,
    "rng": "142510ce264eb237",
-   "state": "1e8bd6919e7c94a7"
+   "state": "5b140e9e2dae5d4e"
   },
   "goblin:30:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:30:20260922:walkin": {
    "ticks": 600,
    "draws": 486,
    "rng": "b6062f8a370aaf72",
-   "state": "cbca963df3a87127"
+   "state": "54ffc1515a73bd37"
   },
   "goblin:30:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:30:4242424242:walkin": {
    "ticks": 600,
    "draws": 498,
    "rng": "8e395f684cc09ea8",
-   "state": "088064801a3007a8"
+   "state": "01c4773139467903"
   },
   "goblin:46:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:46:731:walkin": {
    "ticks": 600,
    "draws": 429,
    "rng": "c7d6f69ff91a60ef",
-   "state": "680c9930932e7dcc"
+   "state": "820c6fa9a78eeb95"
   },
   "goblin:46:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:46:20260922:walkin": {
    "ticks": 600,
    "draws": 475,
    "rng": "870a67781508b2b1",
-   "state": "57662bc4430a92a2"
+   "state": "df372cf140b7f13b"
   },
   "goblin:46:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "e9e0681f64e42349"
+   "state": "9d948c20459a008c"
   },
   "goblin:46:4242424242:walkin": {
    "ticks": 600,
    "draws": 448,
    "rng": "a68e52afc9be8a1f",
-   "state": "d6baf2f315f93a5f"
+   "state": "4a11c490835b3300"
   },
   "nightborn:1:731:idle": {
    "ticks": 600,
@@ -2541,253 +2541,253 @@
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "dff7631e7b7f655a"
+   "state": "2107a3d6bc97514e"
   },
   "cave-troll:1:731:walkin": {
    "ticks": 600,
    "draws": 476,
    "rng": "98e6db7529ed2287",
-   "state": "e18d86f3bc6dc42d"
+   "state": "739f57924c33b6b8"
   },
   "cave-troll:1:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "dff7631e7b7f655a"
+   "state": "2107a3d6bc97514e"
   },
   "cave-troll:1:20260922:walkin": {
    "ticks": 600,
    "draws": 476,
    "rng": "808701ead6f12288",
-   "state": "689c35ee710615fc"
+   "state": "75f55eab1be00ac9"
   },
   "cave-troll:1:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "dff7631e7b7f655a"
+   "state": "2107a3d6bc97514e"
   },
   "cave-troll:1:4242424242:walkin": {
    "ticks": 600,
    "draws": 476,
    "rng": "44a14a552ece530a",
-   "state": "e18d86f3bc6dc42d"
+   "state": "739f57924c33b6b8"
   },
   "cave-troll:6:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:6:731:walkin": {
    "ticks": 600,
    "draws": 338,
    "rng": "01f45c70722e606b",
-   "state": "fa68ff0d5e4090f7"
+   "state": "0394dc3b4f2c65bf"
   },
   "cave-troll:6:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:6:20260922:walkin": {
    "ticks": 600,
    "draws": 386,
    "rng": "779f7e2fc6f941da",
-   "state": "3d985cf8145de6fc"
+   "state": "565cc53b5f97890f"
   },
   "cave-troll:6:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:6:4242424242:walkin": {
    "ticks": 600,
    "draws": 322,
    "rng": "a2abffafd8655e06",
-   "state": "f0e8f014bf7065ea"
+   "state": "8c8dde5ac4bb113a"
   },
   "cave-troll:11:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:11:731:walkin": {
    "ticks": 600,
    "draws": 408,
    "rng": "759dfbb4412f4e0a",
-   "state": "91829d8571841155"
+   "state": "9d50b44d9407aebb"
   },
   "cave-troll:11:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:11:20260922:walkin": {
    "ticks": 600,
    "draws": 337,
    "rng": "9222a970790ad8eb",
-   "state": "83831282621595fa"
+   "state": "1dabb2f996203885"
   },
   "cave-troll:11:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:11:4242424242:walkin": {
    "ticks": 600,
    "draws": 387,
    "rng": "3914849776aa9bbf",
-   "state": "80989e3c8f31f710"
+   "state": "5b35aee906a36b27"
   },
   "cave-troll:12:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:12:731:walkin": {
    "ticks": 600,
    "draws": 363,
    "rng": "355edaff988e4c5d",
-   "state": "b33642adee21e2af"
+   "state": "097c9c32ab7da0b2"
   },
   "cave-troll:12:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:12:20260922:walkin": {
    "ticks": 600,
    "draws": 348,
    "rng": "296eb156970c136c",
-   "state": "52e693f50e691873"
+   "state": "8b96e3976f714303"
   },
   "cave-troll:12:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:12:4242424242:walkin": {
    "ticks": 600,
    "draws": 357,
    "rng": "fbccf2afdd24af85",
-   "state": "6c8caf1ed546e414"
+   "state": "932e43015dee58c1"
   },
   "cave-troll:18:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:18:731:walkin": {
    "ticks": 600,
    "draws": 407,
    "rng": "be874e2f9f52cce6",
-   "state": "b066b66cc9048f62"
+   "state": "f6e8753b97234ea1"
   },
   "cave-troll:18:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:18:20260922:walkin": {
    "ticks": 600,
    "draws": 347,
    "rng": "ffae79179b24e038",
-   "state": "bbe9758ce9ca1102"
+   "state": "1004bf489cd68b9e"
   },
   "cave-troll:18:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:18:4242424242:walkin": {
    "ticks": 600,
    "draws": 373,
    "rng": "e314a6d2d04677ce",
-   "state": "838316f0001686e2"
+   "state": "3a9bd9aa47702210"
   },
   "cave-troll:30:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:30:731:walkin": {
    "ticks": 600,
    "draws": 387,
    "rng": "f5dd8427b8abed3c",
-   "state": "a8b54adfefe814ad"
+   "state": "2456a24a5d838448"
   },
   "cave-troll:30:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:30:20260922:walkin": {
    "ticks": 490,
    "draws": 245,
    "rng": "33345ed6f96fb3e3",
-   "state": "474be750ad1d3c2a"
+   "state": "042daae40188413e"
   },
   "cave-troll:30:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:30:4242424242:walkin": {
    "ticks": 600,
    "draws": 398,
    "rng": "c4fb398ddbd91f52",
-   "state": "5445ad86ecb56f8a"
+   "state": "3cc33f00dfbeac88"
   },
   "cave-troll:46:731:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:46:731:walkin": {
    "ticks": 600,
    "draws": 406,
    "rng": "2ecbc0a92e18e68e",
-   "state": "7c20b16c98759186"
+   "state": "afcb550981a03585"
   },
   "cave-troll:46:20260922:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:46:20260922:walkin": {
    "ticks": 600,
    "draws": 413,
    "rng": "5227d2df23a5b588",
-   "state": "d1bc795059c44d2a"
+   "state": "f796fc3abdf4c18a"
   },
   "cave-troll:46:4242424242:idle": {
    "ticks": 600,
    "draws": 0,
    "rng": "e3b0c44298fc1c14",
-   "state": "5460cb43e8d91f81"
+   "state": "7d90744f879bbcdd"
   },
   "cave-troll:46:4242424242:walkin": {
    "ticks": 600,
    "draws": 344,
    "rng": "b36843fd297f140c",
-   "state": "77e52a2a3cc3f100"
+   "state": "e1aff6e0643fefec"
   },
   "wraith:1:731:idle": {
    "ticks": 600,
