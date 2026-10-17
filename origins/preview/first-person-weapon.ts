@@ -3,7 +3,7 @@
 //  - the weapon the rig carries (`SwordDrawn`) is CLONED into the scene at the pose it has relative to the eye, shifted so the resting hand sits at `rest` in view; every swing moves it by what the animation moves the
 //    hand; it is drawn on top (no depth test, a late render order), so a foe at arm's length or a wall never swallows it; the blade's metal is eased (a fully metallic blade with no environment map renders black and
 //    "see-through" against a dark foe);
-//  - the hero's own arms are collapsed (his hand floated detached in the corner) and a forearm and fist are drawn instead from the grip back towards where the rig's elbow is, so the hand is joined to the sword;
+//  - the hero's own body is not drawn (his hand floated detached in the corner; the bones still animate) and a forearm and fist are drawn instead from the grip back towards where the rig's elbow is, so the hand is joined to the sword;
 //  - the sword's trail strip is hidden (a big translucent quad in front of the lens).
 // The original sword is hidden while the clone is shown. Pure matrix part in `viewmodelMatrix` (tested).
 import * as THREE from 'three';
@@ -19,16 +19,16 @@ export type Rest = { right: number; up: number; forward: number };
 /** How the clone looks (rows fp.*): the blade metalness and roughness it is eased to, and the skin tone and radii of the forearm and fist. */
 export type Look = { metal: number; rough: number; skin: number; forearm: number; fist: number };
 
-const ARM_BONES = ['upperarm_r', 'upperarm_l'] as const;
-
 export function createViewmodel(scene: THREE.Scene) {
+  const hidden: THREE.Object3D[] = [];   // the hero's skinned meshes hidden while first person is on
   let source: THREE.Object3D | null = null, vm: THREE.Object3D | null = null, restAt: THREE.Vector3 | null = null, arm: THREE.Mesh | null = null, fist: THREE.Mesh | null = null;   // restAt: where the rig's hand holds the weapon at rest, in the eye frame
   const lift = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   const drop = (rig?: THREE.Object3D) => {
     if (vm) { scene.remove(vm); vm.traverse((o) => { const m = (o as THREE.Mesh).material; if (m && !Array.isArray(m)) m.dispose(); }); }
     if (source) source.visible = true;
     vm = null; source = null; arm = null; fist = null; restAt = null;
-    if (rig) { for (const n of ARM_BONES) rig.getObjectByName(n)?.scale.setScalar(1); const trail = rig.getObjectByName('WeaponTrail'); if (trail) trail.visible = true; }
+    for (const m of hidden) m.visible = true; hidden.length = 0;
+    if (rig) { const trail = rig.getObjectByName('WeaponTrail'); if (trail) trail.visible = true; }
   };
   return {
     /** For a check from the page (originsPreview.fpWeapon()): is a clone up, is it shown, where is it (world) and where the rest pose was taken. */
@@ -37,7 +37,7 @@ export function createViewmodel(scene: THREE.Scene) {
     update(rig: THREE.Object3D | undefined, on: boolean, eye: THREE.Matrix4, rest: Rest, ready: boolean, look: Look): void {
       const weapon = on && rig ? rig.getObjectByName('SwordDrawn') ?? null : null;
       if (!weapon || !rig) { drop(rig); return; }
-      for (const n of ARM_BONES) rig.getObjectByName(n)?.scale.setScalar(0.001);   // his own arms go (the finisher's trick): the forearm below replaces the right one
+      rig.traverse((o) => { const sk = o as THREE.SkinnedMesh; if (sk.isSkinnedMesh && sk.visible) { sk.visible = false; hidden.push(sk); } });   // the hero's own body is not drawn (OpenMW and WoWee do the same): its detached hand floated in the corner; the bones still animate, so the sword and the elbow below still follow every swing
       const trail = rig.getObjectByName('WeaponTrail'); if (trail) trail.visible = false;
       if (weapon !== source) {   // first time, or the hero changed weapon: build the clone (its own materials: drawn on top without touching what the creatures share)
         drop(rig); source = weapon; vm = weapon.clone(true);
