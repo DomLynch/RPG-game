@@ -35,7 +35,7 @@ test('blendPose: halfway is halfway, the facing takes the short arc, and a jump 
 test('at 120 Hz the drawn creature moves EVERY frame (no frozen frame between ticks), and as far per second as at 60 Hz', () => {
   const hi = approach(120), lo = approach(60);
   assert.ok(hi.z.length > 40, `the wolf was drawn closing in for ${hi.z.length} frames`);
-  const steps = hi.z.slice(1).map((v, i) => hi.z[i]! - v);   // metres closed per frame (the wolf comes toward the hero, z falls)
+  const after = hi.z.slice(1), steps = after.slice(1).map((v, i) => after[i]! - v);   // metres closed per frame (the wolf comes toward the hero, z falls); the first drawn frame is its join pose, with no earlier tick to blend from
   const frozen = steps.filter((s) => s < 1e-9).length;
   assert.equal(frozen, 0, `${frozen} of ${steps.length} 120 Hz frames drew the creature where it already was (at frame ${steps.findIndex((s) => s < 1e-9)}; steps ${steps.slice(0, 8).map((s) => s.toFixed(4)).join(' ')})`);
   assert.ok(Math.max(...steps) < 2.2 * Math.min(...steps.filter((s) => s > 0)), 'and no frame moves it double the others');
