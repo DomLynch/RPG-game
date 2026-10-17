@@ -97,6 +97,10 @@ const BAND_BEST = ((DEFS as unknown as { bandBest?: BandBestRow[] }).bandBest ??
 export const BAND_OFF = num('bandOff', 'value');
 //   castTellOff: 1 hides the ground ring + fill drawn under the target while a spell winds up (boss-telegraph.ts caster tell; Dom 2026-10-16: "large white rings look shit"). 0 = trunk, the ring is drawn.
 export const CAST_TELL_OFF = num('castTellOff', 'value');
+//   specialMeleeWindup (Dom 2026-10-17: "it takes like two seconds, it is not a long-distance spell, same speed as the stab, slash or heavy"): ticks a MELEE special (no spell) is committed before it lands; 0 = trunk, the special's own windup rule.
+export const SPECIAL_MELEE_WINDUP = num('specialMeleeWindup', 'value');
+//   specialReact (Strategy 2026-10-17: the victim's stagger is a sim reaction from the move's row, not a canned animation): 1 = a landed melee special applies its move row's stagger, knockback and posture to the victim like a landed blow; 0 = trunk, damage only.
+export const SPECIAL_REACT = num('specialReact', 'value');
 export const bandOf = (distance: number): string | undefined => BANDS.find((b) => distance * 100 < b.upTo)?.id ?? BANDS[BANDS.length - 1]?.id;
 export const bandPerMille = (weapon: string, distance: number): number => {
   if (!BAND_OFF || !BANDS.length) return 1000;
