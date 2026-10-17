@@ -1,5 +1,11 @@
 {
-  "lootTierRule": [
-    { "id": "region1", "tier": "Gladiator" }
+  "mintRule": [
+    { "id": "mint", "baseRungOffset": 1 }
+  ],
+  "rarityShift": [
+    { "id": "common", "shift": 0, "fallback": true },
+    { "id": "fine", "shift": 1 },
+    { "id": "rare", "shift": 2 },
+    { "id": "relic", "shift": 3 }
   ]
 }

@@ -24,7 +24,7 @@ export const LEGEND_OPPONENTS = CATALOGUE.filter((r) => r.ranks.length > 0).sort
 export const LEGENDS = Object.fromEntries(LEGEND_OPPONENTS.map((id) => [id, CATALOGUE.find((r) => r.id === id)!.ranks.map(({ name, source, backstory }): Legend => ({ name, source, backstory }))])) as unknown as Record<LegendOpponent, readonly Legend[]>;
 
 // The legend for an opponent at a rung (1..10).
-export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id][Math.min(10, Math.max(1, Math.floor(tier))) - 1]!;
+export const legendAt = (id: LegendOpponent, tier: number): Legend => LEGENDS[id][Math.min(LEGENDS[id].length, Math.max(1, Math.floor(tier))) - 1]!;
 // The rung (1..10) a fight at `level` (1..50, the dial) is fought at: that level's rank title on the career ladder, the one the HUD reads.
 // The one source for "which legend was this": the face, the skull and a kill's Provenance.tier (Lead 2026-09-30: one win, one skull).
 export const rungOf = (level: number): number => levelOf(tierAt(level - 1));

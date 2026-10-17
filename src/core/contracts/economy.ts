@@ -16,6 +16,7 @@
 // or shop gear. Instead an escalating PER-ITEM cooldown (tradeCooldown below): a fresh piece waits FIRST_TRADE_DELAY_S after it entered
 // its owner's hands, and after each change of hands the new owner waits COOLDOWN_STEPS_S[hops - 1], capped at the last step forever.
 // Cash-shop items, metal, shop consumables and every stackable stay untradeable.
+import CADENCE from '../cadence-rules.json' with { type: 'json' };
 import { SLOT_WEIGHT } from '../../fight/server.ts';
 import { levelOf as tierLevel } from '../grades.ts';
 import { isWeaponSlot } from '../loot.ts';
@@ -45,9 +46,9 @@ export const CONCORD_EXCHANGE = 'region:concord-exchange' as RegionId;
 //   - COOLDOWN_STEPS_S[k]: after its (k + 1)th change of hands the new owner waits this long; every later trade uses the last step.
 // The hop count is the number of 'trade' entries in the piece's append-only history, so it never decays and survives every version
 // bump, upgrade, move and split (a split copies history). The clock starts at the last trade entry's `at`, or the mint `at` if none.
-const HOUR_S = 3600, DAY_S = 24 * HOUR_S;
-export const FIRST_TRADE_DELAY_S = 72 * HOUR_S;
-export const COOLDOWN_STEPS_S: readonly number[] = Object.freeze([7 * DAY_S, 14 * DAY_S, 30 * DAY_S]);
+// Rows of src/core/cadence-rules.json (tradeLock, tradeCooldownStep): 72 h, then 7 / 14 / 30 days; the steps are read in hop order and tests/core-rows-6.test.ts pins the numbers.
+export const FIRST_TRADE_DELAY_S = CADENCE.tradeLock[0]!.firstTradeDelayS;
+export const COOLDOWN_STEPS_S: readonly number[] = Object.freeze([...CADENCE.tradeCooldownStep].sort((a, b) => a.hops - b.hops).map((s) => s.seconds));
 
 // Why a piece can or cannot be offered right now. 'cooling' is the only reason that passes with time; every other refusal is permanent
 // for that piece as it stands (a bound piece stays bound; a stackable never becomes single-copy).

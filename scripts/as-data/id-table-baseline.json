@@ -1,11 +1,1 @@
-{
- "origins/patrons/patrons.ts": {
-  "day-half": 1
- },
- "origins/region1/content.ts": {
-  "cinder-hold": 1
- },
- "src/core/gear-strip.ts": {
-  "health": 1
- }
-}
+{}

@@ -7,7 +7,7 @@
 import { presenceRule } from './presence-rules.ts';
 export type SaveAt = { x: number; z: number; atMs: number };
 export type SaveFn = (account: string, at: SaveAt) => Promise<unknown>;
-export const SAVE_EVERY_MS = 5 * 60_000;   // Dom's cadence (tunable to 10 min); the writer keeps only the newest row per character
+export const SAVE_EVERY_MS = presenceRule('saveEveryMs');   // Dom's cadence, a presence-rules row (300000 ms = 5 min, tunable to 10 min); the writer keeps only the newest row per character
 export const SAVE_QUEUE_MAX = presenceRule('memoryMax');      // = RULES.memoryMax: at most one queued place per remembered account
 
 export function saveQueue(save: SaveFn, log: (line: string) => void = console.log, max = SAVE_QUEUE_MAX) {

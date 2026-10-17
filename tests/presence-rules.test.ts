@@ -5,6 +5,7 @@ import { PRESENCE_RULES, loadPresenceRules, presenceRule } from '../origins/pres
 import { RULES } from '../origins/presence/interest.ts';
 import { LIMITS } from '../origins/presence/server.ts';
 import { SAVE_QUEUE_MAX } from '../origins/presence/saves.ts';
+import { MAX_ENTITIES } from '../origins/presence/wire.ts';
 import { TOWN_CM, REJOIN_EDGE, CENTRE_CM } from '../origins/presence/zones.ts';
 import DEFS from '../origins/presence/presence-rules-defs.json' with { type: 'json' };
 
@@ -13,13 +14,15 @@ test('every presence rule equals the literal it replaced', () => {
   assert.deepEqual(LIMITS, { maxMessage: 64, perSecond: 30, idleMs: 30_000, ipSockets: 8, ipJoinsPerMinute: 30, beatMs: 2000 });
   assert.deepEqual([SAVE_QUEUE_MAX, presenceRule('tickRing'), TOWN_CM, presenceRule('rejoinPastGateCm')], [10_000, 40_000, 30_000, 50]);
   assert.ok(REJOIN_EDGE.x > 0 && CENTRE_CM === 40_000);
-  assert.equal(PRESENCE_RULES.length, 35);
-  assert.deepEqual([presenceRule('warpPerMin'), presenceRule('guestIpSockets'), presenceRule('guestCeiling'), presenceRule('wornEveryMs'), presenceRule('closeGraceMs'), presenceRule('wornPokeGapMs')], [6, 2, 64, 30_000, 1000, 500]);
+  assert.equal(presenceRule('tickFloorMs'), 5, 'the tick-check interval floor');
+  assert.equal(MAX_ENTITIES, 255, 'the packet count is one byte');
+  assert.equal(PRESENCE_RULES.length, 37);
+  assert.deepEqual([presenceRule('warpPerMin'), presenceRule('guestIpSockets'), presenceRule('guestCeiling'), presenceRule('wornEveryMs'), presenceRule('closeGraceMs'), presenceRule('wornPokeGapMs'), presenceRule('saveEveryMs')], [6, 2, 64, 30_000, 1000, 500, 5 * 60_000]);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadPresenceRules({ rules: rows.filter((r) => r.id !== 'cellCm') }), /"cellCm" rule by name/);
   assert.throws(() => loadPresenceRules({ rules: rows.map((r) => (r.id === 'tickMs' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPresenceRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 36);
+  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 38);
 });

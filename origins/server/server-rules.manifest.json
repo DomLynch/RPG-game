@@ -9,6 +9,7 @@
         "minGap": "number",
         "markGap": "number",
         "edge": "number",
+        "scaleFloor": "number",
         "note": "string"
       }
     },
@@ -33,6 +34,16 @@
         "slack": "number",
         "reachSlack": "number",
         "poseAgeMs": "integer",
+        "note": "string"
+      }
+    },
+    {
+      "table": "fightLimit",
+      "file": "server-rules.json",
+      "at": "fightLimit",
+      "key": "id",
+      "required": {
+        "maxFightSec": "integer",
         "note": "string"
       }
     },

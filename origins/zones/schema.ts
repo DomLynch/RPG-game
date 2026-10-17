@@ -20,7 +20,7 @@ export const FIELDS: readonly Field[] = [
   // DESCRIPTION (map, hint card, legend)
   description('region', 'string', '', { donor: 'EQEmu zone.long_name / expansion' }), description('blurb', 'string', ''), description('legend', 'list', []), description('icon', 'string', ''), description('minimap', 'string', ''),
   // WORLD POSITION. `exits` and `entry` are carried today by place.ts joins and spawns.openers; these rows are the zone-level overrides.
-  position('exits', 'list', [], { donor: 'EQEmu zone_points' }), position('entry', 'point', null, { nullable: true }), position('respawn', 'point', null, { nullable: true, donor: 'EQEmu zone.safe_x/z' }),
+  position('exits', 'list', [], { donor: 'EQEmu zone_points', wired: true }), position('entry', 'point', null, { nullable: true }), position('respawn', 'point', null, { nullable: true, donor: 'EQEmu zone.safe_x/z' }),
   position('fastTravel', 'list', []), position('instance.mode', 'enum', 'shared', { values: ['shared', 'instanced'], owner: 'Backend', donor: 'EQEmu zone.insttype' }),
   position('instance.cap', 'number', 0, { min: 0, owner: 'Backend', donor: 'EQEmu zone.maxclients' }), position('instance.seeding', 'boolean', false, { owner: 'Backend' }),
   // LOOK. Wire first (Strategy): sky/time, fog, grade, ground, prop density.
@@ -47,6 +47,7 @@ export const FIELDS: readonly Field[] = [
   interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp' }), interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp' }),
   // HOW IT PLAYS (the warm-up list is DERIVED from camps + the player, warm-plan.ts: not a field)
   play('loot.overrides', 'map', {}), play('difficulty.mult', 'number', 1, { min: 0.1, max: 10 }), play('reward.mult', 'number', 1, { min: 0, max: 10, donor: 'EQEmu zone.zone_exp_multiplier' }),
+  play('presence', 'map', {}, { donor: 'EQEmu zone.maxclients (per world zone: speed, quiet, caps {floor, soft, hard}; fields only, nothing enforces caps)' }),
   play('dayNight.on', 'boolean', true, { owner: 'World' }), play('dayNight.cycleSeconds', 'number', 0, { min: 0, owner: 'World' }),
   // BUDGET (0 = no zone limit: the global gate applies)
   budget('budget.triangles', 'number', 0, { min: 0 }), budget('budget.textures', 'number', 0, { min: 0 }), budget('budget.drawCalls', 'number', 0, { min: 0 }),
