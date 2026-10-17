@@ -6,11 +6,13 @@
 // Valuables are ONE transaction (Dom 2026-10-08 08:37): the `shop:<character>:<op>` event (carrying the receipt and the shelf after the buy), the bronze spend
 // (versioned: a stale balance aborts the batch) and the minted items commit in ONE origins_apply batch. The op id is the one-time token: an identical retry is
 // answered from the stored receipt (replayed: true), a different request under the same op id is a 409, and a racing retry (O0001) answers from what committed.
-// Gear (power 'slot-weight') is minted at REGION1_LOOT_TIER, the tier a Region 1 drop carries. Beta: the shelf is per account (a global shelf needs its own table and a lock). Open hours are World's schedule; until it exists `open` says every shop is open.
+// Gear (power 'slot-weight') is minted at the rung of the shop zone's level band (mintRung), as a ground pickup is. Beta: the shelf is per account (a global shelf needs its own table and a lock). Open hours are World's schedule; until it exists `open` says every shop is open.
 import { createHash } from 'node:crypto';
 import { parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { powerOf } from '../../src/core/server.ts';
-import { REGION1_LOOT_TIER } from '../encounters/encounters.ts';
+import { mintRung } from '../encounters/encounters.ts';
+import { zoneMintLevel } from '../zones/band.ts';
+import type { Tier } from '../../src/core/server.ts';
 import { receive } from '../../src/core/server.ts';
 import { standingLevel } from '../../src/core/server.ts';
 import { checkBuy, costOf, stockNow } from '../shops/shop.ts';
@@ -70,11 +72,17 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     const at = new Date(shelf.now).toISOString(), key = createHash('sha256').update(`${account}|${eventId}`).digest('hex').slice(0, 32);
     const def = content.lookup(item as never);
     const lines = def?.stack === 1 ? Array.from({ length: quantity as number }, () => 1) : [quantity as number];
+    let shopTier: Tier | null = null;
+    if (def && powerOf(def.power).tiered) {
+      const mintLevel = list.zone === undefined ? null : zoneMintLevel(list.zone);
+      if (mintLevel === null) throw new Refused(500, `shop ${shop} has no zone level band to price ${item} at: there is no default rung`, 'no-mint-level');
+      shopTier = mintRung(def.rarity, mintLevel).tier;
+    }
     let inv = inventory;
     const minted: ItemInstance[] = [];
     for (const [n, q] of lines.entries()) {
       const parsed = parseItemInstance({
-        kind: 'item-instance', schemaVersion: 1, id: `inst:shop-${key.slice(0, 16)}-${n}`, item, version: 0, quantity: q, tier: def && powerOf(def.power).tiered ? REGION1_LOOT_TIER : null,   // shop gear carries the Region's loot tier, as a drop does
+        kind: 'item-instance', schemaVersion: 1, id: `inst:shop-${key.slice(0, 16)}-${n}`, item, version: 0, quantity: q, tier: shopTier,   // shop gear is priced at the shop's zone band, as a ground pickup is (mintRung); no zone band = no default rung
         location: { kind: 'trade-escrow', container: 'container:shop-mint', from: character }, boundTo: null,
         provenance: { kind: 'shop', mintKey: `shop:${key}:${n}`, at, boughtBy: character, shop }, history: [],
       }, `items[${n}]`);

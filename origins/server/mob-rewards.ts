@@ -22,7 +22,7 @@ import * as store from './store.ts';
 import { metalOf, type CareerRow, type Json, type MetalRow } from './store.ts';
 
 export type Kill = { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null };
-export type Paid = { batch: Json[]; summary: { cp: number; cpReason: string; drops: string[]; bronze: number; lootRefused: string | null; unpaid: string[] } };
+export type Paid = { batch: Json[]; summary: { cp: number; cpReason: string; drops: string[]; bronze: number; lootRefused: string | null; unpaid: string[]; clamped?: string[] } };
 
 const CAP_REACHED = SERVER_RULES.mobPayout[0]!.capReached;   // the mobPayout row (server-rules.json): no "wins today / rolls this week" read yet, so the cap counts as reached and nothing is paid past it
 
@@ -57,14 +57,14 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
   }
 
   // The loot: the table rolled on the SERVER's seed (the page rolls the same seed, so it shows the same drops), into the pack all or nothing.
-  const drops: string[] = [];
+  const drops: string[] = [], clamped: string[] = [];
   let bronze = 0, lootRefused: string | null = null;
   if (payout.lootTable) {
     const rolled = rollLoot(payout.lootTable, kill.seed, content, { foeLevel: kill.level });
     if (!rolled.ok) lootRefused = rolled.issues[0]!.message;
     else {
       const encounter = setup.value.scope === 'open-world' ? null : (kill.fight as EncounterId);
-      const got = intoBackpack(state.inventory, rolled.value, { wonBy: kill.character as CharacterInstanceId, killId: killIdOf(kill.token), encounter, at, foeLevel: setup.value.opponent.level }, content);
+      const got = intoBackpack(state.inventory, rolled.value, { wonBy: kill.character as CharacterInstanceId, killId: killIdOf(kill.token), encounter, at, level: setup.value.opponent.level }, content);
       if (!got.ok) lootRefused = got.issues[0]!.message;   // the pack could not take it (full, or one-of-each): nothing minted, as the page says
       else {
         const lookup = lookupOf(content);
@@ -74,6 +74,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
           drops.push(inst.item);
         }
         bronze += got.value.metal;
+        clamped.push(...got.value.clamped);   // the receipt names a drop the beta cap lowered
       }
     }
   }
@@ -82,7 +83,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
   const metal = state.metal === undefined ? 'absent' : state.metal;   // null = no row yet (the first award inserts it), not 'absent'
   if (bronze > 0 && metal === 'absent') unpaid.push(`bronze ${bronze}`);
   else if (bronze > 0 && metal !== 'absent') batch.push({ op: 'metal', account: kill.account, delta_bronze: bronze, reason: 'award', event_id: eventId, ...(metal ? { expected_version: metal.version } : {}) });
-  return { batch, summary: { cp, cpReason, drops, bronze: bronze > 0 && metal !== 'absent' ? bronze : 0, lootRefused, unpaid } };
+  return { batch, summary: { cp, cpReason, drops, bronze: bronze > 0 && metal !== 'absent' ? bronze : 0, lootRefused, unpaid, clamped } };
 }
 
 // The kill's key inside mint keys: mint keys are lowercase (/^[a-z0-9][a-z0-9:._-]{7,127}$/) and the token is base64url, so the key is a digest of

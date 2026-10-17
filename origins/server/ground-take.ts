@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import type { CharacterInstanceId, EncounterId, Inventory } from '../../src/core/server.ts';
 import { intoBackpack, lookupOf, type EncounterContent } from '../encounters/encounters.ts';
 import { worldMetres } from '../presence/zones.ts';
+import { zoneMintLevel } from '../zones/band.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { GROUND_ITEMS, GROUND_LIMITS, type GroundItem, type GroundItems, type GroundLimits } from '../world/ground-items.ts';
 import { BadRequest, Refused } from './errors.ts';
@@ -39,7 +40,9 @@ export function groundTakeBatch(a: { account: string; character: string; instanc
   const lookup = lookupOf(a.content);
   if (a.inventory.items.some((i) => i.item === a.row.item)) return { refused: 'have-it' };
   const killId = groundKillId(a.instance, a.account, a.n);
-  const got = intoBackpack(a.inventory, { table: `loottable:${a.instance.slice('ground:'.length)}` as never, items: [{ item: a.row.item, quantity: a.row.qty }] as never, metal: 0 }, { wonBy: a.character as CharacterInstanceId, killId, encounter: null as EncounterId | null, at: a.at }, a.content);
+  const level = zoneMintLevel(a.row.zone);   // no creature made this drop: it is priced at the zone's level band (origins/zones/band.ts); a ground row in a zone with no band is a data error, never a default rung
+  if (level === null) throw new Error(`ground take ${a.instance}: zone "${a.row.zone}" has no level band to price the mint at`);
+  const got = intoBackpack(a.inventory, { table: `loottable:${a.instance.slice('ground:'.length)}` as never, items: [{ item: a.row.item, quantity: a.row.qty }] as never, metal: 0 }, { wonBy: a.character as CharacterInstanceId, killId, encounter: null as EncounterId | null, at: a.at, level }, a.content);
   if (!got.ok) return { refused: 'full' };
   const inst = got.value.inventory.items.find((i) => i.id === got.value.received[0])!;
   const event: store.Json = { op: 'event', event_id: `ground:${killId}`, kind: 'mint', account: a.account, character: a.character, payload: { ground: { instance: a.instance, n: a.n, item: a.row.item, qty: a.row.qty, reach: a.reach } } };

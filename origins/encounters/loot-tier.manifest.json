@@ -1,12 +1,12 @@
 {
   "tables": [
     {
-      "table": "lootTierRule",
+      "table": "mintRule",
       "file": "loot-tier.json",
-      "at": "lootTierRule",
+      "at": "mintRule",
       "key": "id",
       "required": {
-        "tier": "string"
+        "baseRungOffset": "integer"
       }
     },
     {
