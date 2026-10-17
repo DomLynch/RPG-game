@@ -2,13 +2,15 @@
 // Contact is the creature's own landed, blocked, parried or dodged blow; a swing on air or an approach the prey left before the swing is a whiff; a stagger is neither. Pure simulation.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EVADE_HEAL_TO_FULL, EVADE_WHIFFS, creature, newWorld, player, stepCombat, type Event, type Input, type World } from '../src/fight/world.ts';
+import { EVADE_CHASE_M, EVADE_HEAL_TO_FULL, EVADE_WHIFFS, creature, newWorld, player, stepCombat, type Event, type Input, type World } from '../src/fight/world.ts';
 
 const DT = 1 / 60, dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
 const swinging = (c: { phase: string }) => c.phase === 'windup' || c.phase === 'active';
 // A hero steps out of the troll's reach when it winds up and back in to hit it when it does not (the kite), or blocks each swing and trades (stand-and-trade).
 const BOTS: Record<string, (w: World, k: number) => Input> = {
   kite: (w, k) => { const h = w.fighters[0]!, c = w.fighters[1]!, d = dist(h, c) || 1; return swinging(c) && d < 8 ? { x: (h.x - c.x) / d, z: (h.z - c.z) / d, run: true } : d > 11 ? { x: (c.x - h.x) / d, z: (c.z - h.z) / d, run: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }; },
+  // A hero runs a circle of 9 m round the origin (inside the creature's 14 m sight, outside the 4 m engage ring) and never lets it close: the creature never starts an attack cycle, so only the chase-distance row can end this.
+  orbit: (w) => { const h = w.fighters[0]!, r = Math.hypot(h.x, h.z); return r < 1 ? { x: 1, z: 0, run: true } : { x: h.z / r + (h.x / r) * (9 - r) * 0.3, z: -h.x / r + (h.z / r) * (9 - r) * 0.3, run: true }; },
   stand: (w, k) => (swinging(w.fighters[1]!) && dist(w.fighters[0]!, w.fighters[1]!) < 5 ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null }),
 };
 function run(bot: string, seed: number, seconds: number) {
@@ -37,6 +39,16 @@ test('evade: a hero who steps out of reach at every wind-up and hits in between 
   assert.ok(seeds.some((r) => r.evaded.length > 0), 'the kite makes the troll whiff K cycles and it evades at least once in four runs');
   for (const r of seeds) {
     assert.deepEqual(r.hitWhileHome, [], 'a creature walking home takes no blow');
+    for (const hp of r.healthAtEvade) assert.equal(hp, 1, 'it arrives home at full health');
+  }
+});
+
+test('chase distance: a hero who circles beyond the engage ring is given up on after EVADE_CHASE_M metres of pursuit, with no swing ever started and no blow landing on the walk home', () => {
+  assert.equal(EVADE_CHASE_M, 45);
+  for (const seed of [1, 2]) {
+    const r = run('orbit', seed, 40);
+    assert.ok(r.evaded.length >= 1, `seed ${seed}: the troll gave up the chase`);
+    assert.deepEqual(r.hitWhileHome, [], 'nothing lands on it while it walks home');
     for (const hp of r.healthAtEvade) assert.equal(hp, 1, 'it arrives home at full health');
   }
 });

@@ -59,6 +59,7 @@
     { "id": "maxAttackers", "value": 3, "unit": "creatures" },
     { "id": "farM", "value": 1000, "unit": "m" },
     { "id": "evadeWhiffs", "value": 4, "unit": "cycles" },
-    { "id": "evadeHealToFull", "value": 1, "unit": "flag" }
+    { "id": "evadeHealToFull", "value": 1, "unit": "flag" },
+    { "id": "evadeChase", "value": 45, "unit": "m" }
   ]
 }
