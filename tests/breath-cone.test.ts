@@ -1,5 +1,5 @@
 // The breath cone (Combat, top-30 item 23, PROVISIONAL numbers): a special with a row in cone-defs.json breathes in pulses instead of striking once. Era-keyed at v55 (cone-era.ts); creature specials only.
-import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
+import { SHEET_ERA_VERSION } from '../src/fight/cast-penalty-era.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stepDuel, withSpecials, type CombatEvent, type Duel } from '../src/fight/duel.ts';
@@ -102,7 +102,7 @@ test('recorded and replayed: a Pitborn L42 Special Moves fight is stamped at the
   for (let i = 0; i < RULES.special.first + RULES.special.windup + 120 && !p.finish; i++) { p = stepPractice(p, rec.push(i === 0 ? act('light') : idle()), profile); seen.push(...p.duel.events.filter((e) => e.type === 'SpecialLanded')); }
   assert.ok(seen.some((e) => e.cone), 'the Pitborn breathed in the recorded fight');
   const record = unpackRecord(packRecord(rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned')));
-  assert.equal(record.v, FIRST_CAST_PENALTY_VERSION, 'a sheet fight is stamped no lower than the cast-penalty version, above the cone era');
+  assert.equal(record.v, SHEET_ERA_VERSION, 'a sheet fight is stamped no lower than the cast-penalty version, above the cone era');
   const replay = verifyRecord(record, undefined, { sheet: 'trust' });
   assert.ok(replay.ok, replay.ok ? '' : replay.reason); if (replay.ok) assert.equal(hashDuel(replay.practice.duel), hashDuel(p.duel));
   const stampOf = (opponent: 'veteran' | 'pitborn', specials: boolean) => { const r = liveRecorder({ build: 'test', opponent, weapon: 'longsword', level: 42, seed, ...(specials ? { specials: true } : {}) }); for (let i = 0; i < 10; i++) r.push(idle()); return unpackRecord(packRecord(r.finish('abandoned'))).v; };
