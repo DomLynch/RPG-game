@@ -15,7 +15,6 @@ const EDGE = POSE.edge;   // stay this far inside the wall so float32 rounding c
 const MAX_COORD = POSE.maxCoordM;   // a proposed pose names nothing farther than this from the arena centre (m)
 const EPS = 1e-6;   // two fighters closer than this are "on top of each other" (float tolerance, not a rule)
 const FLOAT32_BYTES = 4;   // the width of one float32 in the packed pose
-const half = (v: number): number => v / 2;   // exact in floating point, like the x / 2 it replaces
 
 // The circle and the widest start gap for this foe, as a posed (v38) record of it replays (detmath.ts underRecord -> play-radius.ts underPlayScale).
 export function poseBounds(enemy: string): { radius: number; maxGap: number } {
@@ -37,11 +36,11 @@ export function issuePose(enemy: string, proposal: unknown): DuelPose | undefine
   const { radius, maxGap } = poseBounds(enemy), r = radius - EDGE;
   const dx = foe.x - hero.x, dz = foe.z - hero.z, len = Math.hypot(dx, dz);
   const [ux, uz] = len > EPS ? [dx / len, dz / len] : [0, 1];   // on top of each other: the hero faces +z, as at the marks
-  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, r + r);   // r + r is exactly 2 * r
-  let mx = half(hero.x + foe.x), mz = half(hero.z + foe.z);
-  const room = r - half(gap), m = Math.hypot(mx, mz);
+  const gap = Math.min(Math.max(len, MIN_GAP), maxGap, 2 * r);
+  let mx = (hero.x + foe.x) / 2, mz = (hero.z + foe.z) / 2;
+  const room = r - gap / 2, m = Math.hypot(mx, mz);
   if (m > room) { mx *= room / m; mz *= room / m; }   // pull the pair in toward the centre until both ends are inside
-  const h = { x: mx - half(ux * gap), z: mz - half(uz * gap) }, f = { x: mx + half(ux * gap), z: mz + half(uz * gap) };
+  const h = { x: mx - ux * gap / 2, z: mz - uz * gap / 2 }, f = { x: mx + ux * gap / 2, z: mz + uz * gap / 2 };
   return roundPose({ hero: h, foe: f, heroFacing: Math.atan2(f.x - h.x, f.z - h.z) });
 }
 
