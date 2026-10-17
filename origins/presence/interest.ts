@@ -55,7 +55,7 @@ export class World {
     const wanted = at ?? this.recall(account, now) ?? SPAWN, fits = legacy ? inTownSquare : walkable;
     const from = fits(Math.round(wanted.x), Math.round(wanted.z)) ? wanted : SPAWN;   // a remembered or saved spot the clamp would refuse (or a v1 client cannot see) starts at the spawn
     const x = Math.round(from.x), z = Math.round(from.z);
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, credit: this.creditPerTick(zoneRowAt(x, z)), seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, credit: 0, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -99,14 +99,13 @@ export class World {
     p.credit -= step;
     return this.place(p, x, z, pose);
   }
-  // cm of reach earned per ms in a zone (the sprint speed times the zone's speed row, with slack), and the starting allowance: one tick of it (a joiner's or a warped player's first pose).
+  // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there).
   private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / 1000; }
-  private creditPerTick(zone: ZoneRow | null): number { return this.creditRate(zone) * this.rules.tickMs; }
   // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
   warp(p: Player, x: number, z: number, now: number): void {
     p.movedAt = now; p.seenAt = now; p.strikes = 0;
     this.place(p, x, z, { x, z, heading: p.heading, anim: p.anim, flags: p.flags });
-    p.credit = this.creditPerTick(p.zone);   // the credit restarts from the warp like the clock does
+    p.credit = 0;   // the credit restarts from the warp like the clock does
   }
   private place(p: Player, x: number, z: number, pose: Pose): MoveResult {
     const from = cellOf(this.rules, p.x, p.z), to = cellOf(this.rules, x, z);

@@ -27,7 +27,7 @@ test('repeated jitter on a slow link (a burst of 4 late packets every 2 s) never
 });
 
 test('a speed hack still strikes and drops: 3000 cm/s sustained cannot out-run the credit', () => {
-  const out = walk(3000, 100, 60, (k, sentAt) => sentAt);
+  const out = walk(3000, 100, 60, (_, sentAt) => sentAt);
   assert.ok(out.includes('snapped'), 'the hack is snapped');
   assert.ok(out.includes('drop'), 'and dropped');
 });
