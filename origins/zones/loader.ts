@@ -10,6 +10,7 @@ import { REGISTRY } from './registry.ts';
 import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
 import { stageRule } from '../world/stage-rules.ts';
+import { loadoutRow } from '../world/loadouts-rules.ts';
 import type { Spec } from './biomes.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
@@ -84,7 +85,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
-    if (sp.gear && !(Array.isArray(sp.gear) && sp.gear.every((g) => typeof g === 'string' && g))) bad.push(`mob spread ${id}: gear is a list of weapon ids`);
+    if (sp.loadouts && !(Array.isArray(sp.loadouts) && sp.loadouts.every((l) => loadoutRow(l)))) bad.push(`mob spread ${id}: loadouts is a list of loadout row ids (origins/world/loadouts.json)`);
+    const own = z.mobLooks!.looks[id]!; if (own.loadout && !loadoutRow(own.loadout)) bad.push(`mob look ${id}: loadout "${own.loadout}" is not a loadout row`);
   }
   return bad;
 }

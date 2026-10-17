@@ -40,9 +40,12 @@ test('its own page: the rows give it a dome, a camp in its field and a start off
     assert.ok(Math.abs(z.mobLooks!.looks['character:ash-boar']!.scale! - 1.5 * bodyScale('boar')) < 1e-9, 'Dom: boars +50%');
     const { fxNum } = await import('../src/fight/fx-rows.ts'); assert.deepEqual(['reach.default', 'reach.giant-salamander', 'reach.hero-edge', 'reach.gap'].map(fxNum), [0.5, 0.5, 0.45, 2.2], 'a creature drawn bigger than its rig stands back until its mouth (0.5 m per unit of scale from its centre) is 2.2 m short of the hero\'s edge (Dom 2026-10-16/17: the wolf and the salamander overlapped the hero)');
     assert.equal(z.level, 1);
-    const { VARIANTS } = await import('../origins/preview/mob-looks.ts'), { isWeaponId } = await import('../src/fight/moves.ts');   // Dom 2026-10-16: goblins vary, each variant carries a weapon from the zone row's spread.gear (data)
-    const gears = Array.from({ length: VARIANTS }, (_, v) => variantLook('character:pit-goblin', v, z)?.gear);
-    assert.ok(new Set(gears.filter(Boolean)).size >= 3, `goblin variants carry at least three different weapons: ${gears.join()}`);
-    assert.ok(gears.every((g) => g === undefined || isWeaponId(g)), 'every loadout weapon is a real weapon row'); assert.equal(gears[0], undefined, 'variant 0 keeps the body\'s own weapon');
+    const { VARIANTS } = await import('../origins/preview/mob-looks.ts'), { isWeaponId } = await import('../src/fight/moves.ts'), { loadoutRow, droppedPiece } = await import('../origins/world/loadouts-rules.ts');   // Dom 2026-10-16/17: goblins vary, each variant wears a loadout row (weapon + armour pieces) from the zone row (data)
+    const looks = Array.from({ length: VARIANTS }, (_, v) => variantLook('character:pit-goblin', v, z)!), rows = looks.map((l) => loadoutRow(l.loadout));
+    assert.ok(new Set(looks.map((l) => l.loadout)).size >= 4, `goblin variants wear at least four different loadouts: ${looks.map((l) => l.loadout).join()}`);
+    assert.ok(rows.every((r) => r && isWeaponId(r.weapon)) && looks.every((l, i) => l.gear === rows[i]!.weapon), 'every loadout is a row, its weapon a real weapon row, and the look carries it');
+    assert.ok(looks.every((l) => l.body === 'world/kit/goblin-bare.glb'), 'every goblin variant is drawn on the bare body, so what it wears is its loadout');
+    assert.ok(new Set(rows.map((r) => r!.tier)).size === 3, 'light, medium and heavy are all worn'); const captain = loadoutRow('goblin.captain')!;
+    assert.ok(captain.pieces.includes(droppedPiece(captain, 'z90:test-t-06-goblin-1')!) && droppedPiece(captain, 'a') === droppedPiece(captain, 'a'), 'a kill drops ONE piece the goblin wore, the same one every time for the same goblin');
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });

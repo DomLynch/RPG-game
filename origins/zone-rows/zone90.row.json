@@ -39,6 +39,8 @@
         "opponent": "goblin",
         "tint": 16777215,
         "scale": 1.25,
+        "loadout": "goblin.scrapper",
+        "body": "world/kit/goblin-bare.glb",
         "dressing": {
           "soot": 0,
           "burnt": 0
@@ -46,7 +48,7 @@
       }
     },
     "spread": {
-      "character:pit-goblin": { "tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "gear": ["cleaver", "gladius", "estoc"] }
+      "character:pit-goblin": { "tints": [13421715, 12632176, 14719136], "scale": 0.08, "soot": 0.25, "burnt": 0.15, "loadouts": ["goblin.cutter", "goblin.guard", "goblin.captain"] }
     }
   },
   "spawns": {

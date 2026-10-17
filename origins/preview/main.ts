@@ -20,6 +20,7 @@ import { createGroundPickup } from './ground-pickup.ts';
 import { groundPointOf } from '../world/ground-point.ts';
 import { readGround, takeGround } from './ground-net.ts';
 import { mobVariant } from './mob-looks.ts';
+import { droppedPiece, loadoutRow, pieceLabel } from '../world/loadouts-rules.ts';
 import { dressMob } from './mob-dress.ts';
 import { mountGear } from './gear-mount.ts';
 import { mobSpecs, previewRows, spawnAmong, type MobSpec } from './mobs.ts';
@@ -676,6 +677,9 @@ function creatureFell(spec: MobSpec) {
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
+  // The sandbox only (an unlisted zone the server never sees): a creature that wore a loadout drops ONE of the pieces it wore (loadouts-rules.ts droppedPiece), named on screen after the kill toast. Nothing is saved; the real item is the backend's loot-table work.
+  const worn = (zoneRow ?? loadZone()).unlisted ? droppedPiece(loadoutRow(mobVariant(spec.character, spec.id)?.loadout), spec.id) : undefined;
+  if (worn) setTimeout(() => worldToast(`${spec.name} drops what it wore: ${pieceLabel(worn)}`), 3600);
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });

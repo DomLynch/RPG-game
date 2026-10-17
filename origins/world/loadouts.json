@@ -1,0 +1,16 @@
+{
+  "pieces": [
+    { "id": "goblin.Helmet", "label": "Goblin helmet" },
+    { "id": "goblin.Body", "label": "Goblin breastplate" },
+    { "id": "goblin.Arms", "label": "Goblin arm guards" },
+    { "id": "goblin.Gloves", "label": "Goblin gloves" },
+    { "id": "goblin.Greaves", "label": "Goblin greaves" },
+    { "id": "goblin.Boots", "label": "Goblin boots" }
+  ],
+  "loadouts": [
+    { "id": "goblin.scrapper", "label": "Scrapper", "tier": "light", "weapon": "knife", "pieces": ["goblin.Boots"] },
+    { "id": "goblin.cutter", "label": "Cleaver goblin", "tier": "light", "weapon": "cleaver", "pieces": ["goblin.Helmet", "goblin.Boots"] },
+    { "id": "goblin.guard", "label": "Gladius guard", "tier": "medium", "weapon": "gladius", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Gloves", "goblin.Boots"] },
+    { "id": "goblin.captain", "label": "Estoc captain", "tier": "heavy", "weapon": "estoc", "pieces": ["goblin.Helmet", "goblin.Body", "goblin.Arms", "goblin.Gloves", "goblin.Greaves", "goblin.Boots"] }
+  ]
+}

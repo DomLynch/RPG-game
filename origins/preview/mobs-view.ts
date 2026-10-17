@@ -8,7 +8,9 @@ import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { bodyScale, mobVariant } from './mob-looks.ts';
+import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
+import { loadoutRow } from '../world/loadouts-rules.ts';
+import { loadLoot, lootWorn } from '../../src/fight/characters.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
@@ -33,7 +35,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number };
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[] };   // wearIds: the loadout's armour pieces this creature puts on once the carrier file is in
 
 function labelSprite(text: string, named: boolean): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = 512; c.height = 96;
@@ -88,8 +90,27 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let shown: number[] = [];
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
+  const urlOfKind = (kind: string): string | undefined => {   // a zone look's own bare body (`look.body`, a file in the preview's world/kit/) wins over the baked world body and the roster body
+    const own = specs.map((x) => (x.body === kind ? mobLook(x.character)?.body : undefined)).find(Boolean);
+    return own ? `${import.meta.env?.BASE_URL ?? '/'}${own}` : worldBodyUrl(kind) ?? URLS[kind];
+  };
+  // The loadout's armour pieces (loot ids `<opponent>.<slot>`) come from the roster's carrier file, once per kind, and are worn on the bare body with the engine's own `wear` (the Pit's machinery).
+  const carrierFiles = import.meta.glob<string>('../../src/assets/loot/carriers-goblin.glb', { eager: true, query: '?url', import: 'default' });
+  const carriers = new Map<string, THREE.SkinnedMesh[] | 'loading'>();
+  const putOn = (v: View) => {
+    const pieces = v.actor && v.wearIds ? carriers.get('goblin') : undefined;
+    if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
+    try { v.actor.wear(pieces.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => 'Recruit'); }
+    catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }   // never breaks drawing the creature
+  };
+  const loadCarriers = (kind: string) => {
+    const url = carrierFiles[`../../src/assets/loot/carriers-${kind}.glb`];
+    if (!url || carriers.has(kind)) return;
+    carriers.set(kind, 'loading');
+    loadLoot(url).then((pieces) => { carriers.set(kind, pieces); for (const v of views.values()) putOn(v); }).catch((error: unknown) => { carriers.delete(kind); console.warn(`${kind} carriers did not load; no armour is worn`, error); });
+  };
   const fetchBody = (kind: string) => {
-    const url = worldBodyUrl(kind) ?? URLS[kind];
+    const url = urlOfKind(kind);
     if (bodies.has(kind) || !url) return;
     bodies.set(kind, 'loading');
     loader.loadAsync(url).then((gltf) => {
@@ -147,6 +168,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     if (look) dressMob(actor.anchor, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
+    const row = loadoutRow(look?.loadout);
+    if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
   function viewOf(i: number): View {
@@ -241,7 +264,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
-    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (worldBodyUrl(k) ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
+    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKind(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),

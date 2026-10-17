@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "loadout-piece", "file": "loadouts.json", "at": "pieces", "key": "id", "required": { "label": "string" } },
+    { "table": "loadout", "file": "loadouts.json", "at": "loadouts", "key": "id", "required": { "label": "string", "tier": "string", "weapon": "string", "pieces": "array" } }
+  ]
+}

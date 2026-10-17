@@ -8,11 +8,14 @@
 import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 import MOB_LOOK_RULES from './mob-looks-rules.json' with { type: 'json' };
+import { loadoutRow } from '../world/loadouts-rules.ts';
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
 export const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
-export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; dressing: { soot: number; burnt: number }; later?: true };
+//   loadout  the loadout row (origins/world/loadouts.json) the figure wears: its armour pieces and its weapon (which sets `gear` in a variant); absent = the body as it is
+//   body     a bare body file (`world/kit/<name>.glb`, same rig) to draw instead of the baked world body, so the loadout's pieces are what it wears
+export type MobLook = { opponent: string; tint: number; scale: number; gear?: WeaponId; loadout?: string; body?: string; dressing: { soot: number; burnt: number }; later?: true };
 /** A look as a table or a zone row writes it: `scale` is optional, and an omitted scale means the body's own (its catalogue row's render.scale), resolved in mobLook(). A literal scale wins. */
 export type MobLookRow = Omit<MobLook, 'scale'> & { scale?: number };
 
@@ -28,7 +31,7 @@ export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => 
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
 // swap the tint from a small pool, step the height within +-`scale` of the kind's, and nudge the soot and scorch within +-`soot` / `burnt`. Named foes and
 // friendly figures have no spread. Gear is NOT varied here: `MobLook.gear` has no reader yet, and a weapon change belongs to the roster, not to a look.
-export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number; gear?: readonly WeaponId[] };   // gear: the weapons a camp's variants carry (variant v takes gear[v % length]; the first variant keeps the look's own)
+export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number; loadouts?: readonly string[] };   // loadouts: the loadout rows a camp's variants wear (variant v takes [the look's own, ...loadouts][v % length]); each sets the weapon too
 export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {};   // empty for the same reason: the spreads are in the zone rows
 export const VARIANTS = MOB_LOOK_RULES.mobLookRule[0]!.variants;   // the mobLookRule row (mob-looks-rules.json)
 const memo = new Map<string, MobLook>();
@@ -40,8 +43,8 @@ export function variantLook(id: string, v: number, zone: Zone = loadZone()): Mob
   v = ((v % VARIANTS) + VARIANTS) % VARIANTS;
   const key = `${zone.id}:${id}#${v}`, known = memo.get(key); if (known) return known;
   const pool = [base.tint, ...spread.tints], unit = (n: number) => ((v * n) % VARIANTS) / (VARIANTS - 1) * 2 - 1;   // -1..1, a different walk per field
-  const gear = spread.gear?.length ? [base.gear, ...spread.gear][v % (spread.gear.length + 1)] : base.gear;   // undefined = the body's own weapon
-  const look: MobLook = { ...base, tint: pool[v % pool.length]!, ...(gear ? { gear } : {}), scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
+  const loadout = spread.loadouts?.length ? [base.loadout, ...spread.loadouts][v % (spread.loadouts.length + 1)] : base.loadout, gear = loadoutRow(loadout)?.weapon ?? base.gear;   // undefined = the body's own weapon
+  const look: MobLook = { ...base, tint: pool[v % pool.length]!, ...(loadout ? { loadout } : {}), ...(gear ? { gear } : {}), scale: Math.round(base.scale * (1 + unit(3) * spread.scale) * 1000) / 1000,
     dressing: { soot: clamp01(base.dressing.soot + unit(5) * spread.soot), burnt: clamp01(base.dressing.burnt + unit(7) * spread.burnt) } };
   memo.set(key, look); return look;
 }
