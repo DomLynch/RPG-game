@@ -75,7 +75,7 @@ test('the Test Zone offers four combat cameras as data, each complete; the real 
     const zone = loadZone('90'), cams = zoneCombatCams(zone);
     assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3'], 'three looks (1 tight over the shoulder, 2 wide auto-fit, 3 elevated), not three numbers');
     assert.ok(Object.values(cams).every((c) => c.ease.out < c.ease.in), 'every exit is slower than its entry');
-    for (const id of ['2', '3']) for (const shape of [cams[id]!.portrait, cams[id]!.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && shape.shiftY! > 0, `${id}: the fitting cameras have their speed limit, floor, cap and a lift in both orientations`);
+    for (const id of ['2', '3']) for (const shape of [cams[id]!.portrait, cams[id]!.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && (id === '3' || shape.shiftY! > 0), `${id}: the fitting cameras have their speed limit, floor and cap (and 2 a lift off the thumbs; 3 keeps the skyline instead)`);
     assert.ok(cams['2']!.zoom && !cams['2']!.portrait.side && cams['1']!.portrait.side, 'option 2 carries the zoom setting; option 1 is the one with a shoulder');
     const gaze = (f: { back: number; up: number; lookY?: number }) => Math.atan2(f.up - (f.lookY ?? 1), f.back) * 180 / Math.PI;   // how steeply down the camera looks
     assert.ok(cams['3']!.portrait.up > cams['2']!.portrait.up * 2 && gaze(cams['3']!.portrait) < 15 && gaze(cams['3']!.landscape) < 15, 'option 3 sits much higher than 2 but its gaze stays shallow (under 15 degrees down), so the skyline is kept (Dom)');
