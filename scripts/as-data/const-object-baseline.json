@@ -63,10 +63,7 @@
   "DEFAULT_DOLLY": 1
  },
  "src/fight/characters.ts": {
-  "GUARD_TILT": 1,
-  "LEAN_OUT": 1,
-  "LEAN_LOW": 1,
-  "LEAN_HIGH": 1
+  "GUARD_TILT": 1
  },
  "src/fight/defence-grade.ts": {
   "GRADE_AUDIO": 1
