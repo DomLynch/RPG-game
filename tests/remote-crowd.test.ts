@@ -148,6 +148,20 @@ test('a cheap figure does not draw the parts the remote-cheap row names, the rig
   assert.equal(built.filter((b) => !b.part.visible).length, 1, 'and the figure that is now the farthest is the one that hides its part');
 });
 
+test('a row part name that matches no mesh warns once (not per slot), so a renamed rig part cannot silently stop the saving', () => {
+  const warned: string[] = [], real = console.warn; console.warn = (m: string) => { warned.push(String(m)); };
+  try {
+    const have = [...CHEAP_PARTS][0]!;   // the figure has this part and none of the others
+    const spawn = () => { const anchor = new Group(), m = new Mesh(new BufferGeometry(), material); m.name = have; anchor.add(m); return { anchor, update: () => {} } as never; };
+    const heroes = createRemoteHeroes({ scene: new Group(), spawn, groundAt: () => 0 }); heroes.warm();   // remoteWarm slots are built
+    heroes.push(Array.from({ length: previewRule('remoteWarm') + 3 }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), 0); heroes.update(0.01, 0, { x: 0, z: 0 });   // and three more are grown
+    const missing = [...CHEAP_PARTS].filter((n) => n !== have);
+    assert.equal(warned.length, missing.length, 'one warning per missing name, however many slots');
+    for (const n of missing) assert.ok(warned.some((w) => w.includes(`"${n}"`)), `names ${n}`);
+    assert.ok(!warned.some((w) => w.includes(`"${have}"`)), 'the part the figure has is not warned about');
+  } finally { console.warn = real; }
+});
+
 test('the remote-cheap loader refuses a missing row, a blank or repeated part name and a non-list', () => {
   const row = (hideParts: unknown) => ({ remoteCheap: [{ id: 'cheap', fields: { hideParts } }] });
   assert.deepEqual([...loadCheapParts(row(['A', 'B']))], ['A', 'B']);

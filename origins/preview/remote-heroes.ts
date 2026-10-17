@@ -32,11 +32,14 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
   const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile') });
   const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep');   // read once: update() runs every frame
+  const unmatched = new Set<string>();   // row part names already warned about
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
     const slot: Slot = { group, actor, id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
     actor.anchor.traverse((o) => { if (o instanceof THREE.Mesh && CHEAP_PARTS.has(o.name)) slot.parts.push(o); });
+    const found = new Set(slot.parts.map((p) => p.name));
+    for (const n of CHEAP_PARTS) if (!found.has(n) && !unmatched.has(n)) { unmatched.add(n); console.warn(`remote-cheap: no mesh named "${n}" on a remote figure: a renamed rig part stops that saving until the row is updated`); }   // once per name, not per slot
     const skins = new Set<THREE.Skeleton>(); actor.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
     for (const skeleton of skins) { const real = skeleton.update.bind(skeleton); skeleton.update = () => { if (!slot.frozen || slot.thaw) real(); }; }   // the render calls this every frame for every drawn skin: a frozen figure's does nothing (no matrices, no texture upload)
     return slot;
