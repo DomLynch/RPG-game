@@ -38,7 +38,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
   const grow = (): Slot => {
     const actor = d.spawn(), far = d.spawnFar?.() ?? null, group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
     if (far) { far.anchor.visible = false; group.add(far.anchor); }   // the far LOD (the merged far figure) is built with the near one; only one is visible at a time
-    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
+    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot); freezeGroup(group, slot, true);   // an unused slot is hidden: out of the matrix walk until a player takes it (update() sets the real state each frame)
     actor.anchor.traverse((o) => { if (o instanceof THREE.Mesh && CHEAP_PARTS.has(o.name)) slot.parts.push(o); });
     const skins = new Set<THREE.Skeleton>(); for (const a of far ? [actor, far] : [actor]) a.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
     for (const skeleton of skins) { const real = skeleton.update.bind(skeleton); skeleton.update = () => { if (!slot.frozen || slot.thaw) real(); }; }   // the render calls this every frame for every drawn skin: a frozen figure's does nothing (no matrices, no texture upload)
@@ -98,7 +98,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         slot.hidden = !seen_;
         retag(slot, tagText(d.who?.(s.id) ?? names.get(s.id)));
       });
-      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); setLod(slot, 'near'); freeze(slot, false); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
+      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); setLod(slot, 'near'); freeze(slot, true); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
     },
     /** Before the draw: a tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). */
     clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void {
