@@ -38,7 +38,7 @@ export async function harnessClock(page) {
 // runner every stepped frame is a software-GL draw (~0.5 s on CI), so a 90 s duel budget ran past the 30 min job cap (rows 37/38, CI
 // run 36324591308). While `on`, the WebGL draw calls return at once: the simulation, input, DOM and timers run exactly as before, the
 // canvas just stops being painted. Switch it off and step a few frames before any screenshot or pixel read.
-export const skipDraws = (page, on) => page.evaluate((on) => {
+const gateDraws = (on) => {
   for (const gl of [globalThis.WebGLRenderingContext, globalThis.WebGL2RenderingContext]) {
     if (!gl || gl.prototype.__drawsGated) continue;
     gl.prototype.__drawsGated = true;
@@ -48,4 +48,7 @@ export const skipDraws = (page, on) => page.evaluate((on) => {
     }
   }
   globalThis.__skipDraws = on;
-}, on);
+};
+export const skipDraws = (page, on) => page.evaluate(gateDraws, on);
+/** The same gate installed before every document of a context (a row that reloads or navigates keeps it): draws are off from the first frame; skipDraws(page, false) lifts it on the current page. */
+export const skipDrawsOnLoad = (context) => context.addInitScript(gateDraws, true);

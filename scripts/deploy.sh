@@ -8,6 +8,7 @@ cd "$(dirname "$0")/.."
 # Pipelining (scripts/lib/deploy-lock.sh): two runs may be in flight, each in its own checkout; only the publish window is exclusive.
 DEPLOY_LOCK="${DEPLOY_LOCK:-$HOME/.claude/state/deploy_in_flight.json}"
 mkdir -p "$(dirname "$DEPLOY_LOCK")"
+source scripts/lib/net-bound.sh   # net_git / net_gh: every network call below has a limit and a name (a gh poll hung 21 min inside the launchd train, 2026-10-16)
 source scripts/lib/deploy-lock.sh
 deploy_lock_take "$(git rev-parse HEAD)"
 source scripts/lib/deploy-ceiling.sh
@@ -90,9 +91,9 @@ quality_run_with() {
   local want="$1" run_id run_url verdict
   while read -r run_id run_url; do
     [[ -n "$run_id" ]] || continue
-    verdict=$(gh run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
+    verdict=$(net_gh 60 run view "$run_id" --json jobs --jq "$quality_green_jq" 2>/dev/null || true)
     if [[ "$verdict" == "$want" || "$verdict" == yes ]]; then echo "$run_url"; return 0; fi
-  done < <(gh run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
+  done < <(net_gh 60 run list --workflow quality.yml --commit "$2" --json databaseId,url --limit 8 --jq '.[] | "\(.databaseId) \(.url)"' 2>/dev/null || true)
   return 0
 }
 # A scoped run proves only `quality`: the Mac then skips test:browser, so the trunk under this candidate must have had browser (combat) green itself (Auditor LOW on #2136).
@@ -105,7 +106,7 @@ quality_green() {
   for n in 1 2 3 4 5 6 7 8; do
     base=$(git rev-parse -q --verify "$1~$n" 2>/dev/null || true)
     [[ -n "$base" ]] || return 0
-    runs=$(gh run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
+    runs=$(net_gh 60 run list --workflow quality.yml --commit "$base" --json databaseId --limit 1 --jq '.[0].databaseId' 2>/dev/null) || return 0   # a gh error is not "no run": stop, fail closed
     if [[ -n "$runs" ]]; then
       [[ -n "$(quality_run_with yes "$base")" ]] && echo "$url"
       return 0

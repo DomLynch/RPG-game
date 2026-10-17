@@ -1,0 +1,10 @@
+{
+  "remoteCheap": [
+    {
+      "id": "cheap",
+      "fields": {
+        "hideParts": ["PhotoEyes", "PhotoTeeth", "Steel", "Antique_brass", "Antique_brassBody", "WrapBoots", "LeatherBody"]
+      }
+    }
+  ]
+}

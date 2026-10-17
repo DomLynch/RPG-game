@@ -37,6 +37,25 @@
       }
     },
     {
+      "table": "gearImport",
+      "file": "server-rules.json",
+      "at": "gearImport",
+      "key": "id",
+      "required": {
+        "closesAt": "string",
+        "note": "string"
+      }
+    },
+    {
+      "table": "wornPoke",
+      "file": "server-rules.json",
+      "at": "wornPoke",
+      "key": "id",
+      "required": {
+        "note": "string"
+      }
+    },
+    {
       "table": "serverLimits",
       "file": "server-rules.json",
       "at": "serverLimits",

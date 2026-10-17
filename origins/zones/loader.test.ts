@@ -7,15 +7,16 @@ import { frontierBuild } from '../preview/frontier-plan.ts';
 import { mobSpecs } from '../preview/mobs.ts';
 import { JOIN_M } from '../../src/fight/index.ts';
 import { AGGRO_M } from '../../src/fight/world.ts';
-import { loadZone, pageZoneId, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
+import { allZoneIds, listedIds, loadZone, pageZoneId, unlistedOpens, zoneFromAddress, zoneIds, zoneProblems, type Zone } from './loader.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
 
 type Mut<T> = T extends readonly (infer U)[] ? Mut<U>[] : T extends object ? { -readonly [K in keyof T]: Mut<T[K]> } : T;
 const clone = (z: Zone): Mut<Zone> => JSON.parse(JSON.stringify(z));
 
-test('Zone 1 loads: level 1, seven rows of [1, 2], every opener a row, the kit and looks valid', () => {
+test('Zone 1 loads: level 1, seven rows of [1, 2] and the named Cave Troll at 3 (zone level + namedLevelLift), every opener a row, the kit and looks valid', () => {
   const z = loadZone();
-  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 7);
+  assert.equal(z.id, '1'); assert.equal(z.level, 1); assert.equal(z.spawns.rows.length, 9);   // seven + the Giant Salamander (a weighted entry in the brood camp) + the Cave Troll
+  assert.deepEqual(z.spawns.rows.filter((r) => r.named).map((r) => [r.id, ...r.level]), [['character:cave-troll', 3, 3]]);
   assert.deepEqual(zoneProblems(z), []);
   assert.equal(loadZone('1'), z, 'cached: the same package');
   assert.throws(() => loadZone('99'), /no zone 99/);
@@ -35,8 +36,10 @@ test('the validator names each way a package can be wrong', () => {
   assert.match(edit((c) => { c.looks['frontier-haze']!.exposure = 9; }), /out of range/);
 });
 
-test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; zoneIds lists every package', () => {
-  assert.deepEqual(zoneIds(), readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b)));   // every row, and no more (a new zone row adds no line here)
+test('a page address names its zone: /zone/<id>/ or ?zone=<id>, else Zone 1; allZoneIds lists every package, zoneIds every listed one', () => {
+  const rows = readdirSync('origins/zone-rows').flatMap((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1] ?? []).sort((a, b) => Number(a) - Number(b));
+  assert.deepEqual(allZoneIds(), rows);   // every row, and no more (a new zone row adds no line here)
+  assert.deepEqual(zoneIds(), rows.filter((id) => !loadZone(id, true).unlisted), 'no page: every row but the unlisted ones');
   assert.equal(zoneFromAddress('/zone1/', ''), '1');
   assert.equal(zoneFromAddress('/preview/origins/', '?region=1'), '1');
   assert.equal(zoneFromAddress('/zone/2/', ''), '2');
@@ -85,9 +88,12 @@ test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of 
 });
 
 // Zone 1 is byte-identical to what it was before Zone 2 existed: hashes recorded from the base (world/zone2-data 5eee9e6), order-free. A link this page does not walk (the Ash Reach turn) leaves no post or collider behind.
-test('Zone 1 world is pinned: the same pieces and solids as before Zone 2', () => {
+// Re-pinned 2026-10-16 (the Cave Troll placement #2877, Lead's ruling: the troll's group moves out of the goblin camp's aggro range): the new `troll-cave` landmark (u 0.7, v 0.8; chosen from a scan of the free ground because it is a spot where the seeded dressing stays byte-identical to before and no dressing solid comes within 4 m of any landmark) is drawn like every landmark, one marker piece and one collider (170 -> 171 pieces, 57 -> 58 solids); the sha before it acc9e948fd235ae5 / 70bce4a238048f1c. Nothing else in Zone 1 moved.
+// Re-pinned 2026-10-17 (the beta dungeon's door, Lead's ruling: the cave mouth is a door to Zone 5): the `cave-mouth` landmark (cinder-fields west edge, zones/exit-rows.json) is kept on the page and signposted
+// like a link: +3 pieces (marker and sign) and +1 collider, 171 -> 174 and 58 -> 59.
+test('Zone 1 world is pinned: the same pieces and solids as before Zone 2 (plus the troll-cave landmark and the cave-mouth door)', () => {
   const b = frontierBuild(frontierPlan(false, '1')), h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
-  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [170, 'acc9e948fd235ae5', 57, '70bce4a238048f1c']);
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [174, 'fbc437921f82ccf3', 59, '2fce1d40b375e5ff']);
 });
 
 // Zone 2 is byte-identical to what it was before its map entry moved into the zone 2 row (hashes recorded from trunk 5719c9f36, equal on the place.ts branch): pieces, solids, creature homes, the plan's zones.
@@ -118,4 +124,20 @@ test('a mob look for a character nothing names is a problem once the known ids a
   const typo = { ...z, mobLooks: { looks: { ...z.mobLooks!.looks, 'character:cinder-scavanger': z.mobLooks!.looks[id]! }, spread: z.mobLooks!.spread } } as unknown as Zone;
   assert.match(zoneProblems(typo, known).join('; '), /character:cinder-scavanger: no such character/);
   assert.deepEqual(zoneProblems(typo), [], 'without a known set the old check is unchanged');
+});
+
+test('an unlisted zone opens only with the explicit VITE_UNLISTED_ZONES=1 opt-in; otherwise its address is the normal "no such place", even on the live /preview/origins/ build', () => {
+  assert.equal(unlistedOpens({ VITE_UNLISTED_ZONES: '1' }), true, 'a sandbox preview built with the flag');
+  assert.equal(unlistedOpens({}), false, 'default off');
+  assert.equal(unlistedOpens(undefined), false, 'no env: off');
+  assert.equal(unlistedOpens({ PROD: true, BASE_URL: '/preview/origins/' } as never), false, 'the real live env (production, base /preview/origins/) without the flag refuses it');
+  assert.equal(unlistedOpens({ VITE_UNLISTED_ZONES: '0' }), false); assert.equal(unlistedOpens({ VITE_UNLISTED_ZONES: 'true' }), false, 'only the exact value 1 opens it');
+  const pk = { '1': {}, '90': { unlisted: true } };
+  assert.deepEqual(listedIds(pk, '90', false), ['1'], 'without the flag: the page that names it still does not see it');
+  assert.deepEqual(listedIds(pk, '90', true), ['1', '90'], 'with the flag: its own page sees it');
+  assert.deepEqual(listedIds(pk, '1', true), ['1'], 'a flagged page of another zone does not see it');
+  assert.throws(() => loadZone('90', false), /no zone 90/, 'refused with the same error as an id that is no zone');
+  assert.throws(() => loadZone('99', false), /no zone 99/);
+  assert.equal(loadZone('90', true).unlisted, true, 'with the flag: opens');
+  assert.equal(loadZone('1', false).name, loadZone('1', true).name, 'a listed zone is the same either way');
 });

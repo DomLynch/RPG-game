@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { AnimationMixer, Box3, BoxGeometry, Vector3, PerspectiveCamera, SkinnedMesh, Mesh, MeshStandardMaterial, Group, Triangle, Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { SWORD, ATTACKS, initialPractice } from '../src/fight/combat.ts';
 import { equipNotice } from '../src/fight/match.ts';
@@ -52,7 +53,7 @@ async function readWarrior(file: (typeof FIGHTERS)[number] | 'minotaur.glb' | 'w
   json.images = []; json.textures = []; json.materials = json.materials.map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
-  return new GLTFLoader().parseAsync(JSON.stringify(json), '');
+  return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '');
 }
 
 test('Split Crown cuts every fighter head, follows its animated bone, respects blood modes and restores on rematch [slow]', async () => {
@@ -1021,7 +1022,7 @@ test('K6: a beast loses its head at its own row\'s bones (Actor.sever(bones)), o
 
 test('each beast is drawn the same size in the duel as in the world: one scale per body, the rig times it', async () => {
   assert.equal(mobLook('character:ash-wolf')!.scale, WOLF_RENDER_SCALE, 'walking scale == fighting scale (the wolf; a boar or bear look must use its constant too)');
-  assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');
+  assert.deepEqual(Object.keys(BEAST_RENDER_SCALE).sort(), ['bear', 'boar', 'cave-troll', 'giant-salamander', 'wolf']); assert.equal(beastRenderScale('veteran'), 1, 'a man is drawn as built');
   const hero = await readWarrior('warrior.glb');
   for (const [id, file, k, height] of [['wolf', 'wolf.glb', WOLF_RENDER_SCALE, 1.29], ['boar', 'boar.glb', BOAR_RENDER_SCALE, 1.14], ['bear', 'bear.glb', BEAR_RENDER_SCALE, 1.40]] as const) {
     const rig = await readWarrior(file);

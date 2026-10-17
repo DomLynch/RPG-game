@@ -1291,7 +1291,8 @@ dialog>p {
 }
 
 #thrust-button,
-#skill-button {
+#skill-button,
+#skill2-button {
   display: none;   /* cluster-only buttons: shown by the phone cluster's rules */
 }
 .actions {
@@ -1455,6 +1456,24 @@ dialog>p {
     height: 58px;
     left: 119px;
     top: -65px;
+  }
+  /* SPELL 2 (spell slots, Strategy's ruling: a second button, no button for an empty slot): SKILL's 58 px, one SKILL-to-STAB spacing to the LEFT of SKILL on the same row above the cluster, centre 70,-36 (rim gaps 20.0 to SKILL and 16.4 to STAB, none of the six touched). Shown only while slot b holds a spell (the page toggles [hidden] on a pick, not per frame). */
+  .actions[data-gestures=cluster] #skill2-button:not([hidden]) {
+    display: block;
+    width: 58px;
+    height: 58px;
+    left: 41px;
+    top: -65px;
+  }
+  .actions[data-gestures=cluster] #skill2-button:not([hidden])::after {   /* the spell's name: two small lines inside the 58 px circle, the rest ellipsised (the full name stays in aria-label and the tooltip) */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    max-width: 46px;
+    margin: 0 auto;
+    font: 10px/11px Arial;
+    overflow-wrap: anywhere;
   }
   .actions[data-gestures=cluster] #kick-button {
     width: 44px;
@@ -2253,6 +2272,9 @@ dialog .rank-seg { --rank-fill: var(--js); }
      be tapped: release rows 16, 21 and 25, Lead 2026-10-07). The rest of the column waits (visibility: nothing reflows) and returns with the offer's close. */
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] .loot-panel-actions { position: fixed; left: auto; top: auto; right: var(--end-gutter); bottom: calc(var(--end-base) + 56px); width: var(--end-width); }
   :root:has(#loot-panel-actions:not([hidden])) .actions[data-gestures=cluster] :is(#share-link, #clip-button, .clip-pick, #share-status) { visibility: hidden; }
+  /* Once the fight is over and Next fight is up, the fight buttons have nothing to do: ROLL and GUARD sat under it and showed through at 375
+     (Lead 2026-10-15, scripts/end-overlap-check.mjs). Hidden and inert, nothing reflows; they return with the next fight (Next fight hides again). */
+  :root:has(#reset-button:not([hidden], [data-play='1'])) .actions[data-gestures=cluster] :is(#attack-button, #heavy-button, #skill-button, #thrust-button, #kick-button, #dodge-button, #guard-button, #run-button) { visibility: hidden; pointer-events: none; }
 }
 /* ===== The gear sheet: Fitting rail (Strategy 2026-10-01, concept 03). Grey box: the painted pieces (docs: gear-fitting-painted-pieces) replace these plain plates.
    The sheet is the whole phone, dark in the /game Golden Order palette. While the live mannequin is up (#journal[data-gear=live]) the Gear tab leaves
@@ -2584,7 +2606,7 @@ html[data-tutorial] #combat-status { visibility: hidden; }   /* the prompt is th
    the journal header's right padding goes (the name ellipsizes itself) and the rank row starts under the tab icons so the rank bar keeps its width */
 @media (orientation: portrait) and (max-width: 600px) { #stance-panel { top: 64px !important; max-width: 72px !important; padding: 4px !important; } #stance-panel > div:last-child { flex-direction: column !important; } #stance-panel button { min-width: 0 !important; font-size: 11px !important; padding: 4px 2px !important; } #stance-reveal { font-size: 10px; } }   /* a column down the right edge: clear of the HUD bars (x < 290), the opponent and the cluster */
 @media (min-width: 900px) { #stance-panel { top: 84px !important; } }
-@media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button { top: -44px; } }
+@media (orientation: landscape) and (max-height: 360px) { .actions[data-gestures=cluster] #skill-button, .actions[data-gestures=cluster] #skill2-button:not([hidden]) { top: -44px; } }
 #journal .fighter, #journal:has(#journal-tab-fighter:checked) .fighter { padding-right: 16px; }
 #journal #journal-rank { margin-top: 6px; }
 @media (max-width: 440px) { #journal #journal-name, #journal:has(#journal-tab-fighter:checked) #journal-name { display: block; font-size: 20px; max-width: calc(100vw - 204px); padding-right: 22px; background-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 44px; min-height: 44px; } }   /* vw, not %: the header cell is shrink-wrapped (a % of it cut "Wanderer" to "Wa…"); 262 = the avatar, the three tabs and a Safari margin (Safari's wider fallback face broke "Wander|er" at 254); a name that does not fit ends in an ellipsis, never mid-word */

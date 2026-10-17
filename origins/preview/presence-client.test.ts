@@ -2,20 +2,22 @@
 // a lost socket is retried on the jittered schedule and given up on when the service never answers; stop() closes cleanly.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { decodeUp, encodeDown } from '../presence/wire.ts';
-import { CENTRE_CM, GIVE_UP_AFTER, headingByte, joinPresence, PROTOCOL, presenceUrl, presenceWanted, type Socket } from './presence-client.ts';
+import { CENTRE_CM as V2_CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM as CENTRE_CM } from '../presence/frame.ts';
+import { GIVE_UP_AFTER, headingByte, joinPresence, PROTOCOL, PROTOCOL_V2, presenceUrl, presenceWanted, type Socket } from './presence-client.ts';
 
 type Fake = Socket & { sent: Uint8Array[]; closed: number | null; calls: { url: string; protocols: string[] } };
-function rig(over: { token?: string | null } = {}) {
+function rig(over: { token?: string | null; guest?: boolean } = {}) {
   const sockets: Fake[] = [];
   const timers: { fn: () => void; ms: number; live: boolean }[] = [];
   const ticks: (() => void)[] = [];
   const hello: unknown[] = [], others: unknown[][] = [];
   let at = { x: 3, z: -4, heading: Math.PI };
   const p = joinPresence({
-    token: over.token === undefined ? 'jwt-abc' : over.token, url: 'wss://example.test/origins/presence',
+    token: over.token === undefined ? 'jwt-abc' : over.token, guest: over.guest, url: 'wss://example.test/origins/presence',
     open: (url, protocols) => {
-      const s: Fake = { binaryType: '', readyState: 0, sent: [], closed: null, calls: { url, protocols }, send(b) { this.sent.push(b); }, close(c) { this.closed = c ?? 0; }, onopen: null, onmessage: null, onclose: null, onerror: null };
+      const s: Fake = { binaryType: '', readyState: 0, sent: [], closed: null, calls: { url, protocols }, send(b) { this.sent.push(b as Uint8Array); }, close(c) { this.closed = c ?? 0; }, onopen: null, onmessage: null, onclose: null, onerror: null };
       sockets.push(s); return s;
     },
     pose: () => at, onHello: (h) => hello.push(h), onOthers: (o) => others.push(o), rng: () => 0.5,
@@ -32,9 +34,28 @@ test('no token (signed out): nothing is opened at all', () => {
   assert.equal(r.p, null); assert.equal(r.sockets.length, 0);
 });
 
+test('signed out as a guest: no token, the page offers v2 + guest only (never v1), and the hello says whether the server admitted it as one', () => {
+  const r = rig({ token: null, guest: true });
+  assert.deepEqual(r.sockets[0]!.calls.protocols, [PROTOCOL_V2, 'guest']);
+  const s = r.sockets[0]!; r.open(s);
+  assert.equal(r.p!.guest(), false, 'not a guest until the server says so');
+  r.say(s, { t: 'hello', id: 1, layer: 1, x: V2_CENTRE_CM, z: V2_CENTRE_CM, frame: { centreCm: V2_CENTRE_CM, sizeCm: FRAME_CM }, guest: true });
+  assert.equal(r.p!.guest(), true);
+  assert.equal(rig({ token: null }).p, null, 'signed out and not asked to be a guest: nothing opens');
+});
+
+test('joinPresence refuses to be built without a socket opener, and the page\'s own call passes `open:` outside any comment (#2921: a trailing // comment once swallowed it and presence never connected for anyone)', () => {
+  assert.throws(() => joinPresence({ token: 'jwt', url: 'wss://x/origins/presence', pose: () => null } as never), /open/);
+  assert.throws(() => joinPresence({ token: null, guest: true, url: 'wss://x/origins/presence', pose: () => null } as never), /open/);
+  const src = readFileSync(new URL('./main.ts', import.meta.url), 'utf8'), at = src.indexOf('presence = joinPresence({');
+  assert.ok(at > 0, 'the page builds its presence join');
+  const call = src.slice(at, src.indexOf('}); });', at)).split('\n').map((l) => l.replace(/\s\/\/.*$/, '')).join('\n');   // the call with every line comment removed
+  for (const key of ['token:', 'url:', 'open:', 'pose:']) assert.match(call, new RegExp(`\\b${key}`), `${key} survives outside a comment`);
+});
+
 test('the token rides the subprotocol, never the URL', () => {
   const r = rig();
-  assert.deepEqual(r.sockets[0]!.calls.protocols, [PROTOCOL, 'token.jwt-abc']);
+  assert.deepEqual(r.sockets[0]!.calls.protocols, [PROTOCOL_V2, PROTOCOL, 'token.jwt-abc']);
   assert.ok(!r.sockets[0]!.calls.url.includes('jwt-abc') && !r.sockets[0]!.calls.url.includes('token'));
   assert.equal(r.sockets[0]!.binaryType, 'arraybuffer');
 });
@@ -46,8 +67,38 @@ test('no pose before the hello; then 8-byte poses in presence centimetres, hero 
   assert.deepEqual(r.hello, [{ x: 0, z: 0, layer: 2 }]); assert.equal(r.p!.state(), 'live');
   r.ticks[0]!(); assert.equal(s.sent.length, 1); assert.equal(s.sent[0]!.length, 8);
   assert.deepEqual(decodeUp(s.sent[0]!), { x: CENTRE_CM + 300, z: CENTRE_CM - 400, heading: 128, anim: 0, flags: 0 });
-  r.move(1000, -1000); r.p!.flush();
-  assert.deepEqual([decodeUp(s.sent[1]!)!.x, decodeUp(s.sent[1]!)!.z], [30000, 0], 'clamped inside the 300 m square');
+  r.move(148, -148); r.p!.flush();
+  assert.deepEqual([decodeUp(s.sent[1]!)!.x, decodeUp(s.sent[1]!)!.z], [CENTRE_CM + 14800, CENTRE_CM - 14800], 'the square edge: still inside the v1 frame');
+});
+
+test('a v1 hello (no frame): a pose outside the square is withheld, not clamped onto the edge', () => {
+  const r = rig(); const s = r.sockets[0]!; r.open(s); r.say(s, { t: 'hello', id: 1, layer: 1, x: CENTRE_CM, z: CENTRE_CM });
+  r.move(-200, 0); r.p!.flush(); assert.equal(s.sent.length, 0);
+  r.move(-148, 0); r.p!.flush(); assert.equal(s.sent.length, 1);
+});
+
+test('a v2 hello names the whole-world frame: Zone 1 poses go out, and others come down in the same frame', () => {
+  const r = rig(); const s = r.sockets[0]!; r.open(s);
+  r.say(s, { t: 'hello', id: 3, layer: 1, x: V2_CENTRE_CM, z: V2_CENTRE_CM, frame: { centreCm: V2_CENTRE_CM, sizeCm: FRAME_CM } });
+  assert.deepEqual(r.hello, [{ x: 0, z: 0, layer: 1 }]);
+  r.move(-290, -150); r.p!.flush();   // the troll-cave side of the Frontier: far outside the 300 m square
+  assert.deepEqual(decodeUp(s.sent[0]!), { x: V2_CENTRE_CM - 29000, z: V2_CENTRE_CM - 15000, heading: 128, anim: 0, flags: 0 });
+  r.move(-1000, 0); r.p!.flush();   // past the u16 frame: clamped to its edge, never wrapped
+  assert.equal(decodeUp(s.sent[1]!)!.x, 0);
+  const b = encodeDown(9, [{ id: 4, x: V2_CENTRE_CM - 28000, z: V2_CENTRE_CM - 14000, heading: 0, anim: 0, flags: 0, tick: 9 }]);
+  s.onmessage?.({ data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) });
+  const o = r.others[0]![0] as { x: number; z: number };
+  assert.equal(o.x, -280); assert.equal(o.z, -140);
+});
+
+test('warp names a landmark, never a place; it needs a live v2 socket', () => {
+  const r = rig(); const s = r.sockets[0]!; r.open(s);
+  assert.equal(r.p!.warp('town-respawn'), false, 'before the hello: nothing is sent');
+  r.say(s, { t: 'hello', id: 1, layer: 1, x: CENTRE_CM, z: CENTRE_CM });
+  assert.equal(r.p!.warp('town-respawn'), false, 'a v1 hello has no frame to warp in');
+  r.say(s, { t: 'hello', id: 1, layer: 1, x: V2_CENTRE_CM, z: V2_CENTRE_CM, frame: { centreCm: V2_CENTRE_CM, sizeCm: FRAME_CM } });
+  assert.equal(r.p!.warp('zone1-start'), true);
+  assert.deepEqual(s.sent.map((m) => (typeof m === 'string' ? JSON.parse(m) : null)).filter(Boolean), [{ t: 'warp', to: 'zone1-start' }]);
 });
 
 test('other players come down as metres in the same frame', () => {

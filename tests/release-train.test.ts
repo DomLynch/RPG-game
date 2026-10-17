@@ -195,7 +195,7 @@ function publisher() {
   const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
   sh('gh', `echo "gh $*" >> "${log}"; jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr="$a"; prev="$a"; done
 case "$1 $2" in "pr list") { [ -n "\${PRS:-}" ] && cat "$PRS" || echo '[]'; } | if [ -n "$jq_expr" ]; then jq -r "$jq_expr"; else cat; fi ;; "pr view") if [ -n "\${VIEW:-}" ]; then cat "$VIEW"; else node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.env.PRS, "utf8"))[0]))'; fi ;; "pr merge") exit "\${MERGE_RC:-0}" ;; esac; exit 0`);
-  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
+  sh('git', `echo "git $*" >> "${log}"; case "$1" in rev-parse) case "$2" in origin/*) echo "\${TRUNK_SHA:-$CAND}" ;; *) echo 1234567 ;; esac ;; push) [ -n "\${PUSH_HANG:-}" ] && exec sleep 30; exit "\${PUSH_RC:-0}" ;; esac; exit 0`);
   sh('fake-deploy', `echo "deploy FRANKENDOM_RELEASE=$FRANKENDOM_RELEASE" >> "${log}"; [ "\${DEPLOY_RC:-0}" = 0 ] || { echo 'row 12 failed'; exit "$DEPLOY_RC"; }; printf 'rows ok\\nPublished %s\\nall green\\n' "$CAND"`);
   sh('fake-worktree', `echo "${dir}"`);
   sh('fake-mac-rows', `echo "mac-rows $1" >> "${log}"`);
@@ -219,6 +219,24 @@ test('publisher: FAST-FORWARDS trunk to the audited candidate sha (never a merge
     assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
     assert.equal(existsSync(join(p.state, 'release-train.lock')), false, 'lock released');
   } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('publisher (Auditor on #2863): a push refused says so; a push killed at its limit says the trunk state is UNKNOWN, names the check, and never claims "refused" or "nothing deployed"', () => {
+  const refused = publisher();
+  try {
+    const r = refused.run({ PUSH_RC: '1' });
+    assert.equal(r.status, 1);
+    assert.match(readFileSync(join(refused.state, 'release-train.stopped'), 'utf8'), /the fast-forward of .* was refused \(trunk moved\?\); nothing deployed/);
+  } finally { rmSync(refused.dir, { recursive: true, force: true }); }
+  const hung = publisher();
+  try {
+    const r = hung.run({ PUSH_HANG: '1', NET_PUSH_S: '1' });
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    const stopped = readFileSync(join(hung.state, 'release-train.stopped'), 'utf8');
+    assert.match(stopped, /git push timed out after 1s: trunk state UNKNOWN .*git ls-remote origin codex\/01a09a76\/task-1 before any retry/);
+    assert.doesNotMatch(stopped, /refused|nothing deployed/);
+    assert.doesNotMatch(hung.calls(), /deploy FRANKENDOM/, 'deploy.sh did not run');
+  } finally { rmSync(hung.dir, { recursive: true, force: true }); }
 });
 
 test('publisher: after a publish it closes EVERY open PR whose head the new trunk contains, stacked or feature, not only release-* candidates (DI left #2430/#2442/#2444/#2447/#2426 open, 2026-10-13)', () => {
@@ -425,4 +443,55 @@ test('checksGreen: a feature head needs unit-ci/receipt and quality present and 
   assert.equal(checksGreen(OK.map(c => (c.name === 'quality' ? { ...c, conclusion: 'FAILURE' } : c)), 'lane/x'), false, 'a red quality verdict');
   assert.equal(checksGreen(staticOnly, 'release-CV'), true, 'a release-* head is held by missingRows, not here');
   assert.equal(checksGreen(staticOnly), true, 'no head ref: this rule is not applied');
+});
+
+test('publisher: a stop AFTER the fast-forward names the exact resume command and says trunk is already the sha; a stop BEFORE it does not (HL2 2026-10-16: merged but not live, nothing left to pick)', () => {
+  let p = publisher();
+  try {
+    assert.equal(p.run({ DEPLOY_RC: '3' }).status, 1);
+    const stopped = readFileSync(join(p.state, 'release-train.stopped'), 'utf8');
+    assert.match(stopped, new RegExp(`Trunk is ALREADY ${p.cand} \\(#2400 reads merged\\) but live is not`));
+    assert.match(stopped, new RegExp(`bash scripts/release-train-resume\\.sh 2400 ${p.cand}`));
+    assert.match(p.calls(), /gh pr comment 2400 --body .*release-train-resume\.sh 2400/);
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+  p = publisher();
+  try {
+    assert.equal(p.run({ PUSH_RC: '1' }).status, 1);
+    assert.doesNotMatch(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /ALREADY|release-train-resume/, 'nothing was fast-forwarded: no resume hint');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
+});
+
+test('release-train-resume: refuses unless trunk IS the sha and live is not; takes the hold; deploys with FRANKENDOM_RELEASE=1; removes the hold only on Published; a failure keeps the hold and re-files the stop', () => {
+  const p = publisher();
+  const liveFile = join(p.dir, 'release.json');
+  const resume = (env: Record<string, string> = {}, live = 'e'.repeat(40)) => {
+    writeFileSync(liveFile, JSON.stringify({ revision: live }));
+    return spawnSync('bash', ['scripts/release-train-resume.sh', '2400', p.cand], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, ...p.env, RELEASE_JSON_URL: `file://${liveFile}`, ...env } });
+  };
+  try {
+    let r = resume({}, p.cand);
+    assert.equal(r.status, 1); assert.match(r.stderr, /already live/); assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'refused before the hold');
+    r = resume({ TRUNK_SHA: 'd'.repeat(40) });
+    assert.equal(r.status, 1); assert.match(r.stderr, /not a resume, re-cut on trunk/);
+    writeFileSync(join(p.state, 'release-train.stopped'), 'still stopped\n');
+    r = resume(); assert.equal(r.status, 1); assert.match(r.stderr, /release-train\.stopped exists/);
+    rmSync(join(p.state, 'release-train.stopped'));
+    writeFileSync(join(p.state, 'deploy_hold'), '1\n');
+    r = resume(); assert.equal(r.status, 1); assert.match(r.stderr, /deploy_hold exists/);
+    rmSync(join(p.state, 'deploy_hold'));
+    assert.doesNotMatch(p.calls(), /deploy FRANKENDOM/, 'no refusal ran deploy.sh');
+
+    r = resume({ DEPLOY_RC: '3' });
+    assert.equal(r.status, 1); assert.match(r.stderr, /FAILED: deploy\.sh exit 3/);
+    assert.ok(existsSync(join(p.state, 'deploy_hold')), 'hold kept on failure');
+    assert.match(readFileSync(join(p.state, 'release-train.stopped'), 'utf8'), /RESUME of #2400 .* failed: deploy\.sh exit 3/);
+    rmSync(join(p.state, 'release-train.stopped')); rmSync(join(p.state, 'deploy_hold')); p.reset();
+
+    r = resume();
+    assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, new RegExp(`Published ${p.cand} \\(resumed\\)`));
+    assert.match(p.calls(), /deploy FRANKENDOM_RELEASE=1/);
+    assert.doesNotMatch(p.calls(), /git push/, 'a resume never pushes: trunk is already the sha');
+    assert.match(p.calls(), /gh pr comment 2400 --body release-train: RESUMED and published #2400/);
+    assert.equal(existsSync(join(p.state, 'deploy_hold')), false, 'hold removed after Published');
+  } finally { rmSync(p.dir, { recursive: true, force: true }); }
 });

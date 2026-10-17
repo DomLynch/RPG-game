@@ -17,7 +17,7 @@ test('the danger band is the payout ladder: every gap lands on the band whose pe
 });
 
 test('how common comes from the row weight against the zone rows; named is unique', () => {
-  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Uncommon', 'Uncommon', 'Uncommon', 'Rare', 'Rare', 'Uncommon', 'Uncommon'], 'seven kinds now (the Pit goblin camp is the seventh, Characters 2026-10-09): the three equal kinds, the wolf and the Pit goblin are each about a sixth of the draw (Uncommon); the single Cinder Bear (weight .3) and the Ash Boar (weight 3) are the rare ones');
+  assert.deepEqual(FRONTIER_ROWS.map((r) => commonOf(r, FRONTIER_ROWS)), ['Uncommon', 'Uncommon', 'Uncommon', 'Rare', 'Rare', 'Rare', 'Unique', 'Uncommon', 'Uncommon'], 'nine rows now: the Giant Salamander (weight 2, Rare) sixth and the Cave Troll (a `named` camp boss, Unique) seventh; seven kinds before (the Pit goblin camp is the seventh, Characters 2026-10-09): the three equal kinds, the wolf and the Pit goblin are each about a sixth of the draw (Uncommon); the single Cinder Bear (weight .3) and the Ash Boar (weight 3) are the rare ones');
   const rows = [row({ id: 'a', weight: 80 }), row({ id: 'b', weight: 15 }), row({ id: 'c', weight: 5 })];
   assert.deepEqual(rows.map((r) => commonOf(r, rows)), ['Common', 'Uncommon', 'Rare']);
   assert.equal(commonOf(row({ named: true }), rows), 'Unique'); assert.equal(commonOf(undefined, rows), 'Unique');
@@ -25,7 +25,7 @@ test('how common comes from the row weight against the zone rows; named is uniqu
 });
 
 test('the group is the row camp size, never a constant', () => {
-  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3', 'Alone', 'Alone', 'Packs of 2 to 3', 'Packs of 2']);
+  assert.deepEqual(FRONTIER_ROWS.map(groupOf), ['Packs of 4', 'Packs of 4', 'Packs of 3', 'Alone', 'Alone', 'Alone', 'Alone', 'Packs of 2 to 3', 'Packs of 2']);   // the sixth and seventh are the Giant Salamander and the Cave Troll (campSize [1, 1])
   assert.equal(groupOf(row({ behaviour: { campSize: [2, 3] } })), 'Packs of 2 to 3'); assert.equal(groupOf(row({ behaviour: { campSize: [1, 1] } })), 'Alone');
   assert.equal(groupOf(row()), 'Packs of 2 to 3', 'the row default'); assert.equal(groupOf(row({ named: true })), 'Alone'); assert.equal(groupOf(undefined), 'Alone');
 });
@@ -34,6 +34,10 @@ test('the card: the nearest noticing creature, three lines, marks carry the band
   const seen = [{ id: 'a', x: 0, z: 9, mode: 'aggro' }, { id: 'b', x: 0, z: 3, mode: 'wander' }, { id: 'c', x: 0, z: 5, mode: 'aggro' }];
   assert.equal(nearestNoticing(seen, { x: 0, z: 0 })?.id, 'c'); assert.equal(nearestNoticing(seen.filter((m) => m.mode !== 'aggro'), { x: 0, z: 0 }), null);
   assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, 'b')?.id, 'b', 'a tapped legend (it never notices) takes the card'); assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, 'gone')?.id, 'c', 'a focus that is not in the list changes nothing');
+  // the hero is fighting 'a' (the troll), a nearer 'c' (a scavenger) has only noticed him: the fight's target takes the card, then a tapped legend, then the nearest
+  assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, null, 'a')?.id, 'a', 'mid-bout the card follows the fight, not the nearest aggro creature');
+  assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, 'b', 'a')?.id, 'a', 'the fight beats a tapped legend'); assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, 'b', null)?.id, 'b');
+  assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, null, 'gone')?.id, 'c', 'a target that is not in the list falls back to the nearest'); assert.equal(nearestNoticing(seen, { x: 0, z: 0 }, null, undefined)?.id, 'c');
   const info = creatureInfo({ name: 'Cinder scavenger', level: 12 }, FRONTIER_ROWS[0], 16, FRONTIER_ROWS);
   assert.deepEqual(cardLines(info), ['Cinder scavenger · Lv 12', '▰▰▱▱▱▱ Comfortable', 'Uncommon · Packs of 4']);
   assert.equal(cardLines(creatureInfo({ name: 'x', level: 1 }, undefined, 30, []))[1], '▱▱▱▱▱▱ Trivial'); assert.equal(cardLines(creatureInfo({ name: 'x', level: 30 }, undefined, 1, []))[1], '▰▰▰▰▰▰ Dangerous');

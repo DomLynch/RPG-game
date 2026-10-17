@@ -3,7 +3,39 @@
 // Pure data and pure functions: no DOM, no clock; node-safe (the server reads region1 too).
 export type Slot = { u: number; v: number; facing: number };
 export type Join = { zone: string; landmark: string; at: Slot; before?: string; link: string; to: string; here: string; there: string };   // landmark `at` + connection `link` added to the EXISTING zone `zone`; `before` keeps the landmark's key order (the plan walks it)
-export type SpawnGroup = { id: string; at: string; characters: string[] };
+/** A spawn group's creature: a bare id (weight 1) or `{ id, weight, max? }` (docs/specs/origins/weighted-spawns.md; donor EQEmu spawnentry.chance / spawn_limit, shape only). */
+export type SpawnEntry = string | { id: string; weight: number; max?: number };
+export type SpawnGroup = { id: string; at: string; characters: SpawnEntry[] };
+export type Entry = { id: string; weight: number; max?: number };
+export const entryOf = (e: SpawnEntry): Entry => (typeof e === 'string' ? { id: e, weight: 1 } : e);
+/** The ids a group names, in order, each once: what the registry (and every reader that only asks WHO) sees. */
+export const spawnIds = (g: Pick<SpawnGroup, 'characters'>): string[] => [...new Set(g.characters.map((e) => entryOf(e).id))];
+/** Whether a group is the one-kind camp every row was before weights: a single bare id. Such a group never touches a roll stream, so its creatures are exactly what they were. */
+export const isPlainGroup = (g: Pick<SpawnGroup, 'characters'>): boolean => g.characters.length <= 1 && g.characters.every((e) => typeof e === 'string');
+/** What a weighted camp is made of: slot i takes an entry in proportion to its weight, at most `max` of one id per camp. `roll(i)` is the slot's own draw in [0,1) (the caller keys it by zone, group and slot, so a new group never reshuffles another). */
+export function rollCamp(entries: readonly Entry[], size: number, roll: (slot: number) => number): string[] {
+  const out: string[] = [], taken = new Map<string, number>();
+  for (let i = 0; i < size; i++) {
+    const open = entries.filter((e) => (taken.get(e.id) ?? 0) < (e.max ?? Infinity)), total = open.reduce((n, e) => n + e.weight, 0);
+    if (!open.length) break;   // every entry is at its max: validation (spawnProblems) makes this unreachable, a short camp is the safe answer
+    let p = roll(i) * total, pick = open[open.length - 1]!;
+    for (const e of open) { if ((p -= e.weight) < 0) { pick = e; break; } }
+    taken.set(pick.id, (taken.get(pick.id) ?? 0) + 1); out.push(pick.id);
+  }
+  return out;
+}
+/** The problems in one group's entries (empty = valid): positive weights, whole `max` >= 1, no id twice, and a camp of `campMax` can always be filled (some entry has no max, or a max >= campMax). */
+export function spawnProblems(g: SpawnGroup, campMax: number): string[] {
+  const bad: string[] = [], seen = new Set<string>(), es = g.characters.map(entryOf);
+  for (const e of es) {
+    if (typeof e.id !== 'string' || !e.id) bad.push(`group ${g.id}: an entry has no id`);
+    if (seen.has(e.id)) bad.push(`group ${g.id}: ${e.id} is listed twice`); seen.add(e.id);
+    if (!(typeof e.weight === 'number' && Number.isFinite(e.weight) && e.weight > 0)) bad.push(`group ${g.id}: ${e.id} weight ${String(e.weight)} is not a number > 0`);
+    if (e.max !== undefined && !(Number.isInteger(e.max) && e.max >= 1)) bad.push(`group ${g.id}: ${e.id} max ${String(e.max)} is not a whole number >= 1`);
+  }
+  if (es.length && !es.some((e) => e.max === undefined || e.max >= campMax)) bad.push(`group ${g.id}: every entry has a max below the camp size ${campMax}`);
+  return bad;
+}
 export type Place = { zones: Record<string, Record<string, unknown>>; joins: Join[]; waypoints: string[]; spawns: SpawnGroup[] };
 type Zones = Record<string, Record<string, unknown>>;
 

@@ -7,7 +7,7 @@ import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { player } from '../../src/fight/world.ts';
 import { TIERS, legacyLootOfItemId, PC } from '../../src/core/server.ts';
 import { verifyWorldRecord } from './world-verify.ts';
-import { heldWeaponOf, heroLimitOf, loadoutOf, loadoutOfItems, wornGearOfItems } from './worn-gear.ts';
+import { heldWeaponOf, heroLimitOf, loadoutOf, loadoutOfItems, wornGearOfItems, wornGearOfSnapshot, wornIdsOfRows } from './worn-gear.ts';
 import { DEFAULT_WEAPON, sheetOf, type Sheet } from '../../src/fight/server.ts';
 import { defaultZoneSpawns, type Spawn } from './world-spawns.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
@@ -102,4 +102,28 @@ test('end to end: a geared, built character fights with the page\'s sheet and ve
   assert.deepEqual(await verifyWorldRecord(naked.text, wolf, 'wolf', limit), { ok: false, reason: 'sheet' }, 'a sheetless record from a geared character is refused');
   const inflated = await killWith({ ...pageSheet, attack: 100 });
   assert.deepEqual(await verifyWorldRecord(inflated.text, wolf, 'wolf', limit), { ok: false, reason: 'sheet' });
+});
+
+// What other players SEE worn must be what the fight is verified against (Lead 2026-10-16): the dressing path (origins_active_worn rows -> wornIdsOfRows) and the sheet path (the open
+// snapshot's rows -> wornGearOfSnapshot / wornOf) are fed the SAME equipped rows and must read the same worn set, piece for piece.
+test('dressing and fight verification read the same equipped rows to the same worn set', () => {
+  const rows = [
+    { item: 'item:loot.veteran.Helmet', tier: RUNG, slot: 'head' }, { item: 'item:loot.veteran.Body', tier: RUNG, slot: 'chest' },
+    { item: 'item:potion.small', tier: null, slot: 'belt' },   // equipped but not a loot id: adds nothing to either path
+  ];
+  const snapshot = { items: rows.map((r) => ({ item: r.item, tier: r.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: r.slot })) };
+  const shown = wornIdsOfRows(rows);
+  const expected = Object.fromEntries(rows.flatMap((r) => { const id = legacyLootOfItemId(r.item as Parameters<typeof legacyLootOfItemId>[0]); return id ? [[r.slot, id]] : []; }));
+  assert.deepEqual(shown, expected, 'the shown set is exactly the loot ids of the equipped rows, by slot');
+  assert.deepEqual(Object.keys(shown), ['head', 'chest'], 'a non-loot equipped item is not shown');
+  // the fight path derives its sheet deltas from the same rows: rebuilding the rows from what is SHOWN must give the identical deltas
+  const rebuilt = Object.entries(shown).map(([slot, id]) => ({ item: rows.find((r) => r.slot === slot)!.item, tier: RUNG, location: { kind: 'equipped', slot }, id }));
+  assert.deepEqual(wornGearOfItems(rebuilt), wornGearOfSnapshot(snapshot, PC), 'the pieces shown yield the same sheet deltas the verification uses');
+  // the same rows, split across characters: only the active character's rows reach either path (the writer's function selects by character; the snapshot path filters by loc_owner)
+  assert.deepEqual(wornGearOfSnapshot({ items: [...snapshot.items, { item: 'item:loot.veteran.Crest', tier: RUNG, loc_kind: 'equipped', loc_owner: 'pc:someone-else', loc_slot: 'head' }] }, PC), wornGearOfSnapshot(snapshot, PC), 'another character\'s piece changes neither');
+  // two pieces in one slot cannot be one worn set: the sheet path throws, the dressing path shows nothing (and never fails the join)
+  const clash = [...rows, { item: 'item:loot.veteran.Crest', tier: RUNG, slot: 'head' }];
+  assert.throws(() => wornGearOfSnapshot({ items: clash.map((r) => ({ item: r.item, tier: r.tier, loc_kind: 'equipped', loc_owner: PC, loc_slot: r.slot })) }, PC), /two pieces worn in head/);
+  assert.deepEqual(wornIdsOfRows(clash), {});
+  assert.deepEqual(wornIdsOfRows([]), {}, 'nothing equipped');
 });
