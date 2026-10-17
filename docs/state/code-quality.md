@@ -5,6 +5,7 @@
 **Now, in order.**
 1. **HS #2999 PASSED @a41de381d + candidate:pass:** verify it live (release.json + writer link + NRestarts; no presence change).
 2. **#2997** (Backend: presence save-ack + strike counters) is next, ALONE with a presence restart: contents read + security scan on its cut; its remote-heroes row binds.
+2b. **NEW, unread: #3005** (Web, merged near/far remote figure) @4f0b84625 + **#2998** (Characters' glbs, carried via a merge commit), both auditor:ready. Lead wants them in one candidate after #2997. Receipts so far are Lead's relay, not yet read by me: World's same-job T4 A/B gives 0 programs after ready in every case (the kit warm on its own line), 26.3 vs 47.7 ms at 40 players (−45%); Web's checks exit 0, tests 22/22, remote-heroes 3/3 with a max gap of 251 ms. To do: full read of both, the security scan (glbs are binary: check the paths stay under public/ and assets), and check for the row-gap caveat (signed-in gear).
 3. **Row gap (open):** no binding row dresses the signed-in hero (seamless = guest, no token; remote-heroes' stub 404s gear_open). Web is adding a row that signs in with a starter kit worn: read it. Until it lands, no PASS relies on those rows for signed-in gear.
 4. **Passed, waiting for a cut:** #2945, #2954 (in HO2, live), #2996 + #2972 (in HS). #2977 (loader slot check) is unread. #2975/#2983 need a retarget to trunk.
 
