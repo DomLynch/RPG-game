@@ -57,7 +57,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, slowVerdict, slowVerdictRecord, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { wideCombatCam } from './combat-cam.ts';
@@ -524,10 +524,15 @@ async function slowDevice(): Promise<boolean> {
   let kept: boolean | undefined;
   try { kept = slowVerdict(localStorage.getItem(SLOW_KEY), Date.now(), previewRule('slowVerdictMs')); } catch { /* storage blocked: measure */ }
   if (kept !== undefined) return (deviceSlow = kept);
+  // A hidden or backgrounded tab throttles or suspends rAF and would measure as slow: that verdict serves this load but is NOT stored (keepVerdict).
+  const visibleAtStart = document.visibilityState === 'visible'; let hiddenSeen = false;
+  const onVisibility = () => { if (document.visibilityState !== 'visible') hiddenSeen = true; };
+  document.addEventListener('visibilitychange', onVisibility);
   const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
   for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
+  document.removeEventListener('visibilitychange', onVisibility);
   deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs'));
-  try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now())); } catch { /* storage blocked: not kept */ }
+  if (keepVerdict(visibleAtStart, document.visibilityState === 'visible', hiddenSeen)) try { localStorage.setItem(SLOW_KEY, slowVerdictRecord(deviceSlow, Date.now())); } catch { /* storage blocked: not kept */ }
   return deviceSlow;
 }
 // On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).

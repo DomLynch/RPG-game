@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAYER, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, keepVerdict, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { previewRule } from './preview-rules.ts';
 
 test('the slow-device verdict is sticky for the device: a fresh record is used as stored, a stale, future or malformed one is re-measured', () => {
@@ -76,4 +76,11 @@ test('a warm-up inside its cap warms every kit and is not failed; a kit that thr
   const seen: number[] = [];
   const bad = await warmKitsWithin([1, 2, 3], async (k) => { seen.push(k); if (k === 2) throw new Error('compile failed'); }, 1000, timeoutSettle);
   assert.equal(bad.failed, true); assert.deepEqual(seen, [1, 2]);
+});
+
+test('a slow verdict is stored only when the page stayed visible through the whole probe (a hidden tab measures slow and would stick for the ttl)', () => {
+  assert.equal(keepVerdict(true, true, false), true, 'visible throughout: keep');
+  assert.equal(keepVerdict(false, true, false), false, 'hidden at the start: not kept');
+  assert.equal(keepVerdict(true, false, false), false, 'hidden at the end: not kept');
+  assert.equal(keepVerdict(true, true, true), false, 'hidden and shown again during the probe: not kept');
 });

@@ -37,6 +37,8 @@ export const slowVerdict = (stored: string | null | undefined, nowMs: number, tt
   return at <= nowMs && nowMs - at < ttlMs ? m[1] === '1' : undefined;
 };
 export const slowVerdictRecord = (slow: boolean, nowMs: number): string => `${slow ? 1 : 0}@${Math.round(nowMs)}`;
+/** Keep (store) a measured verdict only when the page was visible for the WHOLE probe: a hidden or backgrounded tab throttles or suspends rAF, measures as slow and would stick for the ttl. `hiddenSeen` = a visibilitychange to hidden fired during the probe. The verdict still serves this load either way. Pure. */
+export const keepVerdict = (visibleAtStart: boolean, visibleAtEnd: boolean, hiddenSeen: boolean): boolean => visibleAtStart && visibleAtEnd && !hiddenSeen;
 
 /**
  * Warm `kits` one after another within `boundMs` (the kit warm-up's own cap, `kitWarmMs`). `settle` is settleWithin (true when the work settled, false at the bound). At the bound the loop STOPS before its next kit and the result is `failed: true`, so the page keeps remotes
