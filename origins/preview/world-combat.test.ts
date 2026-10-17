@@ -161,6 +161,14 @@ test('a frame that runs no step (dt 0: the clock\'s first frame, or a very short
   assert.deepEqual(wc.update(1 / 60, hero), { dx: 0, dz: 0 }, 'and a normal frame after it still moves him nowhere');
 });
 
+test('gear in the world: the hero wields the weapon hero() names (a picked-up knife), and the longsword when it names none; a weapon that arrives after load is the live one at the next clean window', () => {
+  const make = (hero: () => { level: number; weapon?: 'knife' }) => createWorldCombat({ mobs: () => fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 8 }]).mobs, hero, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const held: { weapon?: 'knife' } = {}, late = make(() => ({ level: 1, ...held })), knife = make(() => ({ level: 1, weapon: 'knife' })), bare = make(() => ({ level: 1 }));
+  held.weapon = 'knife';   // the worn-gear view answers after load
+  for (const wc of [late, knife, bare]) wc.update(1 / 30, { x: 0, z: 0, facing: 0 });
+  assert.equal(knife.trace().weapon, 'knife'); assert.equal(late.trace().weapon, 'knife', 'the late weapon is the live one'); assert.equal(bare.trace().weapon, 'longsword', 'no weapon named: the default');
+});
+
 test('the hero is rebuilt from hero() at the next clean window open: a sheet that arrives after load is the live fighter (the record\'s heroBody() reads the same hero())', () => {
   const sheet = sheetOf({ level: 10, placed: { health: 10 } })!; assert.ok(sheet, 'a placed point moves the dials');
   const make = (hero: () => { gear: typeof NAKED; level: number; sheet?: Sheet }) => {

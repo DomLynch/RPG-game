@@ -38,7 +38,7 @@ const R = '55555555-5555-4555-8555-555555555555';   // seeded at the same bounda
 const H = '66666666-6666-4666-8666-666666666666';   // seeded high: the level floor check
 const SEED_MARKS = 4, SEED_OWNED = ['veteran.Helmet'];   // 4 is Recruit V and 5 is Legionary I: a tier read one win late gives a different level.
 // Low enough that the scripted level-6 wins clear the dial floor (awards.ts levelRefusal) for every seeded account's run of wins here.
-const HIGH_MARKS = 19;   // server rank level 20, floor 15 (DIAL_TRAIL 5): Lead's fresh-device and boundary cases
+const HIGH_MARKS = 19;   // server rank level 20, floor 10 (the beta cut caps the level the floor reads at 10): Lead's fresh-device and boundary cases
 let started = false;
 try {
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -162,8 +162,8 @@ try {
   if (!same(waiting(Z), { pending: 0, pieces: [] })) fail(`a refused claim is still pending: ${JSON.stringify(waiting(Z))}`);
   if (mine(Z).marks + waiting(Z).pending !== marksZ + 4 - 3) fail('three refusals did not take exactly three off the shown rank');
   // Lead's level floor (#621): a win fought below the dial floor under the account's SERVER rank is refused with its reason: no mark.
-  // Scripted walk-in wins at exact levels (seeds found by search): level 1 (a fresh device at the device count), 14 (one under the floor),
-  // 15 (the floor). The two refusals go first so the standing is still level 20 when the floor case is swept.
+  // Scripted walk-in wins at exact levels (seeds found by search): level 1 (a fresh device at the device count), 9 (one under the floor),
+  // 10 (the floor: the beta cut caps the level the floor reads at 10, #3024). The two refusals go first so the standing is still level 20 when the floor case is swept.
   // The walk-in's outcome at a given (level, seed) moves with every rule batch (RV29 killed it at L14 seed 10): take the first seed from `seed` up whose fight is a win.
   const winAt = async (level, seed, build) => {
     for (let s = seed; s < seed + 40; s++) {
@@ -173,16 +173,16 @@ try {
     fail(`no walk-in win at level ${level} within 40 seeds from ${seed}`);
   };
   const fresh = claim(H, await winAt(1, 1, 'h-fresh'), 'goblin', 'goblin.Knife');
-  const under = claim(H, await winAt(14, 10, 'h-14'));
+  const under = claim(H, await winAt(9, 10, 'h-9'));
   await sweep();
-  for (const [id, level] of [[fresh, 1], [under, 14]]) {
+  for (const [id, level] of [[fresh, 1], [under, 9]]) {
     const s = settled(id);
-    if (s.verified || s.award || s.note !== `This win was fought below your rank and didn't count (level ${level}; your rank is level 20, floor 15).`) fail(`a level-${level} win at server level 20 was not refused with the player's note: ${JSON.stringify(s)}`);
+    if (s.verified || s.award || s.note !== `This win was fought below your rank and didn't count (level ${level}; your rank is level 20, floor 10).`) fail(`a level-${level} win at server level 20 was not refused with the player's note: ${JSON.stringify(s)}`);
   }
   if (!same(mine(H), { marks: HIGH_MARKS, owned: [] })) fail(`refused low-level wins moved the standing: ${JSON.stringify(mine(H))}`);
-  const floor = claim(H, await winAt(15, 9, 'h-15'));
+  const floor = claim(H, await winAt(10, 9, 'h-10'));
   await sweep();
-  if (!settled(floor).verified || mine(H).marks !== HIGH_MARKS + 1) fail(`a win at the floor (level 15) did not count: ${JSON.stringify(settled(floor))}`);
+  if (!settled(floor).verified || mine(H).marks !== HIGH_MARKS + 1) fail(`a win at the floor (level 10) did not count: ${JSON.stringify(settled(floor))}`);
   // Liveness (Backend): a record that cannot be read is refused with a note and never blocks the account's next win.
   const junk = claim(G, 'AAAA');
   const after = claim(G, await win('g2'));
