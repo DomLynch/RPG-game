@@ -14,6 +14,7 @@ import { BadRequest, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
 import * as store from './store.ts';
 import { gearImportHandler } from './gear-import.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const locOf = (l: Location): store.Json => (l.kind === 'equipped' ? { kind: l.kind, owner: l.owner, slot: l.slot } : { ...l });
 // The rows that differ between two reads of one inventory, as origins_apply `put`s (the same shape upgrade.ts commits).
@@ -42,8 +43,9 @@ export function gearView(inv: Inventory, lookup: Lookup): { pieces: GearPiece[];
   return { pieces, stock, worn, packSize: inv.packSize, bankSize: inv.bankSize };
 }
 
-const characterOf = (v: unknown): string => { if (typeof v !== 'string' || v.length > 80) throw new BadRequest('character: a character id'); return v; };
-const idOf = (v: unknown): string => { if (typeof v !== 'string' || v.length > 80) throw new BadRequest('id: a piece id'); return v; };
+const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
+const characterOf = (v: unknown): string => { if (typeof v !== 'string' || v.length > INPUT.characterIdChars) throw new BadRequest('character: a character id'); return v; };
+const idOf = (v: unknown): string => { if (typeof v !== 'string' || v.length > INPUT.pieceIdChars) throw new BadRequest('id: a piece id'); return v; };
 const indexOf = (v: unknown): number | undefined => { if (v === undefined) return undefined; if (!Number.isInteger(v) || (v as number) < 0) throw new BadRequest('index: a slot number'); return v as number; };
 const refusal = (issues: { message: string }[]): Refused => new Refused(422, issues[0]?.message ?? 'refused', 'rule');
 

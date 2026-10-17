@@ -24,7 +24,10 @@
       "slack": 0.5,
       "reachSlack": 4,
       "poseAgeMs": 5000,
-      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, and the oldest presence pose (ms) that still counts"
+      "maxHits": 10000,
+      "engageTokenBytes": 24,
+      "windowSlackTicks": 120,
+      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, the oldest presence pose (ms) that still counts, the most landed hits a kill report may claim, the random bytes in a spawn-engage token, and the ticks (two seconds) a record may run past the engagement's age for the window that opened just before the token"
     }
   ],
   "fightLimit": [
@@ -61,6 +64,31 @@
       "queueMax": 16,
       "presenceFreshMs": 5000,
       "note": "gear import: most LootIds a body may list (it only bounds a hostile body); an open settles at most this many Pit claims, the rest wait for the next open; requests that may wait behind one account's queue before 'busy' (503); how old (ms) a presence pose may be for the Exchange bank to count the player as there"
+    }
+  ],
+  "inputLimits": [
+    {
+      "id": "input",
+      "characterIdChars": 80,
+      "pieceIdChars": 80,
+      "instanceIdChars": 120,
+      "lootIdChars": 40,
+      "questIdChars": 120,
+      "npcIdChars": 120,
+      "stageIdChars": 64,
+      "choiceIdChars": 64,
+      "lineIdChars": 64,
+      "note": "the longest string (characters) each request field may be before the writer refuses it with a 400: a character id, a worn piece id, an item instance id, a legacy LootId in a gear import, a quest id, an npc id, a quest stage id, a quest choice id and a dialogue line id. They only bound a hostile body; every real id is far shorter"
+    }
+  ],
+  "callTimeouts": [
+    {
+      "id": "calls",
+      "authFetchMs": 5000,
+      "psqlMs": 30000,
+      "verifyQueueMax": 16,
+      "verifyJobMs": 3000,
+      "note": "how long the sign-in check waits for Supabase before the token counts as bad (ms); how long one database script may run before it is killed (ms); how many world-record replays may wait for the verifier thread before 'busy', and how long one replay may take (ms)"
     }
   ]
 }

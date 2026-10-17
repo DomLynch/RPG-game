@@ -5,6 +5,9 @@
 import { randomBytes } from 'node:crypto';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { pgConn } from './pg-service.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+
+const PSQL_MS = SERVER_RULES.callTimeouts[0]!.psqlMs;   // how long one database script may run before it is killed: a row of the callTimeouts table
 
 export type Db = { run(sql: string, vars?: Readonly<Record<string, string>>): Promise<string> };
 
@@ -16,7 +19,7 @@ export class DbError extends Error {
 
 const CODE = /ERROR:\s+(O\d{4}|[0-9A-Z]{5}):\s*(.*)/;
 
-export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0): Db {
+export function psqlDb(url: string, bin = 'psql', timeoutMs = PSQL_MS, pool = 0): Db {
   if (pool > 0) return pooledDb(url, bin, timeoutMs, pool);
   return {
     run: (sql, vars = {}) => new Promise((resolve, reject) => {
