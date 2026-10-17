@@ -1,5 +1,13 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~15:5x VPS clock (+04): READ FIRST. LIVE = HX2 d0bdf0c15 (verified: writer + presence link d0bdf0c15, NRestarts 0, no warnings since 15:12)
+
+(The "~17:xx/18:xx" times in the entry below were mislabelled; the VPS clock read 15:35 at this restart.)
+**Now.** 1. **HV2 #3042 @68f86854e**: tree = trunk + #3014 + #3018 exactly (#3019 skipped: conflicts); no presence restart (0 of 11 files in presence-files). Post `Auditor: PASS @68f86854e` + candidate:pass on green CI (watch remote-heroes), then tell Deploy. 2. PASS on green: #3037 @53d8a71b8, #3040 @6bdc4523e, #3039 @967ab9458, #3041 @06fbd9a4a (all read; the mechanical check is done). 3. #3019: Combat is rebasing onto #3018; re-read the delta when it lands. 4. #3028: wait for the retarget to trunk, then PASS on green. 5. #3034: not yet ready.
+**Done this session:** PASS #3014 @6645b653c, #3018 @b7278dd9b, #3019 @f74bd1959 (then skipped from HV2), #2786/#2788/#2789, #3036 @1ef93de79, #3022 @519b731b4, #3030 @84b80cc28. #3031 NOT YET (frozen-group tag clamp + quarter-rate translation), then CLOSED by Lead.
+**Tools:** scratchpad `clampcheck.py <base> <head>` substitutes each `CONST = helper('row.id')` with its row value and diffs every hunk against the old line (any "mismatch" left is only number spelling, e.g. .25 vs 0.25). For a multi-PR baseline: merge in a scratch worktree, `--theirs` on the baseline, then `node scripts/as-data/check.ts --write-map-baseline` / `--write-clamp-baseline`, then `--gate`.
+**Gotchas.** (v) `gh pr checks` shows a CANCELLED superseded run as "fail" (the name reads `quality (${{ matrix.part }})`). Read the check-runs API per head before calling anything red. (w) `git worktree add <dir> $EMPTY` silently checks out HEAD: guard every `$(git commit-tree …)` result. (x) A no-op `updateMatrixWorld` on a frozen group also skips its label/tag children, so anything moved after `getWorldPosition` needs its own `updateWorldMatrix(false,false)`.
+
 ## 2026-10-17 ~16:5x (+04) — HANDOFF before /clear (Dom). READ FIRST. LIVE = HU2 53aed13d5 (HW not yet published at 16:5x)
 
 **Now, in order.** (updated ~17:3x)
