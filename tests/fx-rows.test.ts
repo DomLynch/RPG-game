@@ -22,6 +22,13 @@ test('the private numbers are rows with their old values', () => {
   assert.throws(() => fxNum('no-such-row'), /no row/);
 });
 
+// The inline Math.min / Math.max bounds that moved out of the view files (as-data rule (e), 2026-10-17): a `clamp.<file>.<value>` row IS its value, so a row can be retuned but never silently drifts from the literal it replaced.
+test('every clamp row holds the value its id names', () => {
+  const rows = (JSON.parse(readFileSync(new URL('../src/fight/fx-rows.json', import.meta.url), 'utf8')) as { fxRows: { id: string }[] }).fxRows.filter((r) => r.id.startsWith('clamp.'));
+  assert.ok(rows.length >= 25, 'the special-fx group moved 25 rows');
+  for (const { id } of rows) assert.equal(fxNum(id), Number(id.slice(id.indexOf('.', 6) + 1)), id);
+});
+
 test('the seven files keep none of the old literals', () => {
   const src = (f: string) => readFileSync(new URL(`../src/fight/${f}`, import.meta.url), 'utf8');
   assert.doesNotMatch(src('charge-fx.ts'), /HOOF = 18|STRIDE = 0\.36|LEAD = 2\.0/);
