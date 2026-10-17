@@ -21,6 +21,8 @@
     {"file": "src/core/world/kit-version.ts", "name": "KIT_LOGIC_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
   ],
   "branchIds": [
+    {"file": "src/core/contracts/items.ts", "literal": "loot", "reason": "ItemOrigin discriminant (loot | shop | ...): the closed origin-kind union the parser switches on, a state of the mechanism; the kinds' trade flags are the provenanceKinds rows (Lead ruling 10-17)"},
+    {"file": "src/core/contracts/items.ts", "literal": "shop", "reason": "ItemOrigin discriminant (loot | shop | ...): the closed origin-kind union the parser switches on, a state of the mechanism; the kinds' trade flags are the provenanceKinds rows (Lead ruling 10-17)"},
     {"file": "src/core/gear-net.ts", "literal": "gear_unequip", "reason": "a wire operation name of the gear endpoint (gear_equip, gear_unequip): the API's own verb vocabulary, not a content id"},
     {"file": "src/core/loot.ts", "literal": "Shield", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"},
     {"file": "src/core/loot.ts", "literal": "Crest", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"},

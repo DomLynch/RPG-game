@@ -58,11 +58,6 @@
  "src/core/contracts/ids.ts": {
   "'item'": 1
  },
- "src/core/contracts/items.ts": {
-  "'gear'": 2,
-  "'loot'": 1,
-  "'shop'": 1
- },
  "src/core/contracts/world.ts": {
   "'public'": 1
  },
@@ -186,9 +181,7 @@
   "'hold'": 4
  },
  "src/main.ts": {
-  "'ladder'": 1,
-  "'drag'": 1,
-  "'full'": 1
+  "'drag'": 1
  },
  "src/pit/skulls.ts": {
   "'duel'": 2
