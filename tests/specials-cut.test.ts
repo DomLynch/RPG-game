@@ -6,7 +6,7 @@ import { BETA_SPECIALS_CUT, specialsRefusal, type SpecialsCut } from '../src/cor
 import { specialsRefusal as viaAwards } from '../src/awards.ts';
 import { verifyWorldRecord } from '../origins/server/world-verify.ts';
 import { createWorldCombat } from '../src/fight/world-combat.ts';
-import { encodeWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
+import { decodeWorldRecord, encodeWorldRecord, type WorldRecord } from '../src/fight/world-record.ts';
 import type { SkillId } from '../src/fight/moves.ts';
 import type { Event } from '../src/fight/world.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
@@ -48,6 +48,23 @@ async function recorded(pick: { special?: SkillId; special2?: SkillId }): Promis
   assert.ok(rec, 'the scripted hero kills the wolf');
   return encodeWorldRecord(rec!);
 }
+
+test('a claim is judged by the rules it was made under: the cut does not reach back below the version that introduced it', () => {
+  assert.equal(BETA_SPECIALS_CUT.fromVersion, 75, 'the betaCut row names the era (tests/frontier-era.test.ts ties it to FIRST_SKILL2_VERSION)');
+  assert.equal(specialsRefusal({ spell: { id: 'brokkr' } }, BETA_SPECIALS_CUT, true, 74), null, 'a v74 spell win (legal when it was fought), settled or rechecked after the deploy, is not refused');
+  assert.match(String(specialsRefusal({ spell: { id: 'brokkr' } }, BETA_SPECIALS_CUT, true, 75)), /Spells are off/, 'a v75 spell claim is refused');
+  assert.match(String(specialsRefusal({ skill2: 'witchfire' }, BETA_SPECIALS_CUT, true, 75)), /special the beta doesn't offer/, 'a v75 off-pick SPECIAL 2 is refused');
+  assert.equal(specialsRefusal({ skill2: 'witchfire' }, BETA_SPECIALS_CUT, true, 74), null, 'and a v74 record cannot name a SPECIAL 2 at all, so nothing is judged');
+  assert.match(String(specialsRefusal({ spell: { id: 'brokkr' } })), /Spells are off/, 'no version given: judged by the current rules (a caller with no record version)');
+});
+
+test('the world verifier judges by the record\'s own version: a v74 record is not refused as "special", a v75 one is', async () => {
+  const good = await recorded({ special: 'lunge', special2: 'stomp' }), narrow = { cut: { ...BETA_SPECIALS_CUT, pick: ['lunge'] } };
+  assert.deepEqual(await verifyWorldRecord(good, wolf, 'wolf', narrow), { ok: false, reason: 'special' }, 'a v75 record outside the pick: refused');
+  const old = await decodeWorldRecord(good); old.rv = 74;
+  const verdict = await verifyWorldRecord(await encodeWorldRecord(old), wolf, 'wolf', narrow);
+  assert.ok(verdict.ok === false && verdict.reason !== 'special', `the same record stamped v74 is not judged by the cut (it fails later, on the sim version): ${JSON.stringify(verdict)}`);
+});
 
 test('the world verifier refuses a record outside the pick before any replay, and honours the cut\'s own picks', async () => {
   const good = await recorded({ special: 'lunge', special2: 'stomp' });
