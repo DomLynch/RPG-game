@@ -1,5 +1,6 @@
 import { cameraRule } from './camera-rules.ts';
 import { impactTier } from './hit-impact.ts';
+import { specialTrailOf } from './sandbox-rules.ts';
 import { ROSTER, supportsFinishers, resolveFinisher } from '../roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
@@ -1082,6 +1083,11 @@ export function createScene(
         const at = mode?.at === 'feet' ? [feet(warriors?.player), feet(warriors?.opponent)] as const : [warriors?.player.boneWorld('Head') ?? null, warriors?.opponent.boneWorld('Head') ?? null] as const;
         (specialFx as ModeFx).render(dt, events, practice.duel.fighters, practice.duel.tick, at, !!practice.finish, ...(mode?.extra?.(warriors) ?? []));
         if (mode?.hideTrail && specialStage(practice.duel.fighters[1])) { const trail = warriors?.opponent.anchor.getObjectByName('WeaponTrail'); if (trail) trail.visible = false; }   // the game's pale weapon trail streaks above a raised sword
+      }
+      for (const side of SIDES) {   // a melee special's own weapon trail (sandbox specialTrail rows): longer and firmer than the swing's, from `lead` ticks before the release to `tail` after
+        const f = practice.duel.fighters[side], w = side === 0 ? warriors?.player : warriors?.opponent, row = f.skill && !f.spell ? specialTrailOf(f.skill) : undefined;
+        const live = !!row && ((f.special ?? 0) > 0 ? (f.special ?? 0) <= row.lead : (f.specialRecover ?? 0) > RULES.special.recovery - row.tail);
+        w?.specialTrail(live && row ? row : null);
       }
       for (const side of SIDES) {
         const foe = (side === 0 ? warriors?.opponent : warriors?.player), l = foe?.boneWorld('foot_l'), r = foe?.boneWorld('foot_r');

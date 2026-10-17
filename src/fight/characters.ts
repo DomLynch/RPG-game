@@ -464,7 +464,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
     for (const role of ONE_SHOT) { const action = actions[role]; if (!action) continue; action.setLoop(LoopOnce, 1); action.clampWhenFinished = true; action.paused = true; }
     if (opponent) actions.Idle.time = clips.Idle.duration * 0.4;
     mixer.update(0);
-    const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(6 * 6 * 3);
+    const ribbon = new BufferGeometry(), ribbonVertices = new Float32Array(24 * 6 * 3);   // 24 samples: a special's trail row may be longer than a swing's 7
     ribbon.setAttribute('position', new BufferAttribute(ribbonVertices, 3));
     const trail = new Mesh(ribbon, new MeshBasicMaterial({ color: '#e8dfc8', transparent: true, opacity: .12, side: DoubleSide, depthWrite: false }));
     trail.name = 'WeaponTrail'; trail.frustumCulled = false; trail.visible = false; anchor.add(trail);   // named: the Witch-fire hides it (witchfire.ts)
@@ -483,6 +483,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
+    let special: { samples: number; opacity: number; color: string } | null = null, trailKey = '';   // a melee special's weapon trail (sandbox specialTrail rows; the scene sets it while the special is in its swing): longer, brighter, on without the swing pose
     let slam = 0;   // Shield Quake's weight, 0 none, 1 the shield held up, 2 driven down (the scene sets it from the cast)
     function carryShield(amount: number, lift: number, open: number) {
       const [upperL, lowerL, handL] = offHand;
@@ -708,6 +709,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         return { added: added.map(d => d.name), hidden: [...lookHidden].map(d => d.name), tris, vertices, bodyFreed, maps: maps.size, gpuMB: +(gpuBytes / 2 ** 20).toFixed(1) };
       },
       slam(weight: number) { slam = weight; },
+      specialTrail(t: { samples: number; opacity: number; color: string } | null) { special = t; },
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
       opening(o: Opening | null) { open = o; },   // opening-pose.ts: this body's open stagger (Practice.opening when its side is this body), or null
       fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
@@ -839,12 +841,13 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           upperArm.quaternion.premultiply(new Quaternion().slerp(new Quaternion().setFromUnitVectors(from, to), amount));
           root.updateWorldMatrix(true, true);
         }
-        trail.visible = pose === 'attack' && progress > contact * .7 && progress < contact + .18;
+        trail.visible = (pose === 'attack' && progress > contact * .7 && progress < contact + .18) || (!!special && !dead);
+        { const key = special ? `${special.opacity}|${special.color}` : ''; if (key !== trailKey) { trailKey = key; const m = trail.material as MeshBasicMaterial; m.opacity = special?.opacity ?? .12; m.color.set(special?.color ?? '#e8dfc8'); } }
         if (trail.visible && step > 0) {
           anchor.updateWorldMatrix(true, true);
           const override = combatRole && contactByClip?.[clips[combatRole].name], strike = override ? [override.from, override.to] : segment;
           samples.unshift(strike.map(y => anchor.worldToLocal(blade.localToWorld(new Vector3(0, y, 0)))));
-          if (samples.length > 7) samples.pop();
+          while (samples.length > Math.min(24, special?.samples ?? 7)) samples.pop();
           let offset = 0;
           for (let i = 1; i < samples.length; i++) for (const point of [samples[i-1][0],samples[i-1][1],samples[i][0],samples[i][0],samples[i-1][1],samples[i][1]]) { point.toArray(ribbonVertices, offset); offset += 3; }
           ribbon.setDrawRange(0, offset / 3); ribbon.attributes.position.needsUpdate = true;
