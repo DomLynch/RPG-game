@@ -9,6 +9,7 @@
 // Donor: AzerothCore CreatureAI::_EnterEvadeMode (combat stop, loot recipient and damage requirement cleared) and EQEmu mob_ai.cpp leash (hate list wiped past the leash, measured from the spawn point).
 //   node scripts/kite-farm.ts   env: KIND (goblin), LEVEL (2), LEAVE (0.6: backoff, pursue and tag leave once the creature is worn below this share of its health, or he is under BACKOFF), CASES (stand,backoff,pursue,hitrun,circle,tag), SEEDS (16), BACKOFF (0.5), CIRCLE_M (26), RECRUIT (1)
 import { HOLD_M, creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
+import { OPPONENTS } from '../src/fight/moves.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
 import { chaseSpeed, leashOf } from '../src/fight/speeds.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
@@ -21,6 +22,7 @@ const chargeX = +(process.env.CHARGE_X ?? '1.3'), chargeAfterHit = process.env.C
 const rule = process.env.RULE ?? 'none', noblowS = +(process.env.NOBLOW_S ?? '10'), landed = process.env.LANDED ?? 'hit', pause = process.env.PAUSE ?? 'none';   // LANDED=hit: only a Hit resets the timer; LANDED=swing: a blocked, parried or dodged swing of the creature does too
 
 const DT = 1 / 60, MAX_S = 180, env = (k: string, d: string) => process.env[k] ?? d;
+const duelX = +(process.env.DUEL_SPEED ?? '1');   // DUEL_SPEED: scales Opponent.speed (the duel's creature pace: walking, sprinting, the wind-up lunge, the backstep) for the creature under test; an emulation, no sim change
 const kind = env('KIND', 'goblin'), level = +env('LEVEL', '2'), seeds = +env('SEEDS', '16'), backoff = +env('BACKOFF', '0.5'), leave = +env('LEAVE', '0.6'), circleM = +env('CIRCLE_M', '26');
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
 const away = (h: Fighter, c: Fighter, turn = 0): Input => { const a = Math.atan2(h.x - c.x, h.z - c.z) + turn; return { x: Math.sin(a), z: Math.cos(a), run: true }; };
@@ -86,6 +88,8 @@ function run(name: string, seed: number) {
   }
   return r;
 }
+if (duelX !== 1) (OPPONENTS as unknown as Record<string, { speed: number }>)[kind]!.speed *= duelX;
+console.log(`duel speed ${kind}: ${(OPPONENTS as unknown as Record<string, { speed: number }>)[kind]!.speed.toFixed(3)} (x${duelX})`);
 for (const name of env('CASES', 'stand,backoff,pursue,hitrun,circle,tag').split(',')) {
   const rs = Array.from({ length: seeds }, (_, s) => run(name, s + 1)), n = (f: (r: ReturnType<typeof run>) => boolean) => rs.filter(f).length;
   console.log(`${name.padEnd(8)} ${kind} L${level}: hero died ${n((r) => r.heroDied)}/${seeds}, creature killed ${n((r) => r.killed)}, killed while walking home ${n((r) => r.killedHome)}, dmg while home ${rs.reduce((a, r) => a + r.homeDmg, 0).toFixed(0)}, resets ${rs.reduce((a, r) => a + r.resets, 0)} (lowest hp carried over a reset ${(Math.min(...rs.map((r) => r.resetHp)) * 100).toFixed(0)}%), rule evades ${rs.reduce((a, r) => a + r.ruleEvades, 0)}, max follow ${Math.max(...rs.map((r) => r.follow)).toFixed(0)} m, hero took ${(rs.reduce((a, r) => a + r.taken, 0) / seeds).toFixed(0)} dmg/run, mean time to kill ${(rs.filter((r) => r.killed).reduce((a, r) => a + r.t, 0) / Math.max(1, n((r) => r.killed))).toFixed(0)}s, longest worn <50% ${Math.max(...rs.map((r) => r.longest)).toFixed(1)}s`);
