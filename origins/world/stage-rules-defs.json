@@ -43,6 +43,10 @@
     { "id": "roadChance", "value": 0.3, "unit": "ratio" },
     { "id": "openerTries", "value": 60, "unit": "tries" },
     { "id": "openerPad", "value": 4, "unit": "m" },
-    { "id": "openerSlack", "value": 12, "unit": "m" }
+    { "id": "openerSlack", "value": 12, "unit": "m" },
+    { "id": "sootWidthMax", "value": 1.6, "unit": "m" },
+    { "id": "sootHeightMax", "value": 2.4, "unit": "m" },
+    { "id": "sootCenterMax", "value": 1.2, "unit": "m" },
+    { "id": "reliefPadMin", "value": 0.5, "unit": "m" }
   ]
 }

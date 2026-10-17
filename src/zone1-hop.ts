@@ -13,9 +13,10 @@ export const zone1Hop = (o: HopFacts, on = ZONE1_IS_DEFAULT): string | null =>
 export const zone1AfterLesson = (on = ZONE1_IS_DEFAULT): string | null => (on ? ZONE1_URL : null);
 
 // "Sign in" on Zone 1's signed-out line sends `/?account=signin&next=zone1` to the arena's own Google sign-in; the wish to come back is kept for the one OAuth round trip (sessionStorage, taken once) and honoured when the sign-in succeeds.
+import CADENCE from './core/cadence-rules.json' with { type: 'json' };
 const NEXT_KEY = 'frankendom.next';
 type Session = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-const NEXT_TTL_MS = 10 * 60_000;   // an abandoned sign-in must not send a much later arena sign-in to Zone 1
+const NEXT_TTL_MS = CADENCE.zone1Hop[0]!.nextTtlMs;   // an abandoned sign-in must not send a much later arena sign-in to Zone 1 (cadence-rules.json, 10 minutes)
 export const rememberZone1 = (search: string, storage: Session | null, now = Date.now()): boolean => {
   const p = new URLSearchParams(search);
   if (p.get('account') !== 'signin' || p.get('next') !== 'zone1') return false;

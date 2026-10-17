@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "region-landmark", "file": "landmarks.json", "at": "landmarks", "key": "id", "required": { "region": "string", "name": "string", "at": "string" } }
+  ]
+}

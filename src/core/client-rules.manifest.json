@@ -1,0 +1,15 @@
+{
+  "tables": [
+    {
+      "table": "clientRule",
+      "file": "client-rules.json",
+      "at": "clientRule",
+      "key": "id",
+      "required": {
+        "writerTimeoutMs": "number",
+        "accountIdleMs": "number",
+        "accountFallbackMs": "number"
+      }
+    }
+  ]
+}

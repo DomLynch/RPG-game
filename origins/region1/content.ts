@@ -23,6 +23,8 @@ import lootTableRows from './loot-tables.json' with { type: 'json' };
 import townRows from './towns.json' with { type: 'json' };
 import townManifest from './towns.manifest.json' with { type: 'json' };
 import lootManifest from './loot-tables.manifest.json' with { type: 'json' };
+import landmarkRows from './landmarks.json' with { type: 'json' };
+import landmarkManifest from './landmarks.manifest.json' with { type: 'json' };
 import rows from './progression.json' with { type: 'json' };
 import progressionManifest from './progression.manifest.json' with { type: 'json' };
 import { buildTables, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
@@ -106,6 +108,9 @@ export const ENCOUNTERS: Record<string, unknown>[] = rows.encounters;
 
 // The two contracts regions. Waypoints are the world landmark names (unique across each region, region1 §1), checked by the loader.
 const spawn = (id: string, at: string, encounter: string | null, characters: string[] = []) => ({ id, at, encounter, characters });
+// A region's named landmarks are rows (landmarks.json + manifest; the id-table ratchet #3079): { id, name, at } in the file's order.
+loadRegistry(landmarkManifest.tables.map((m) => tableFromFile(m as unknown as Manifest, landmarkRows, 'origins/region1/landmarks.json')));
+const landmarksOf = (region: string) => landmarkRows.landmarks.filter((l) => l.region === region).map(({ id, name, at }) => ({ id, name, at }));
 export const REGIONS = [
   {
     kind: 'region-definition', schemaVersion: 1, id: 'region:concord-exchange', name: 'The Concord Exchange', gate: 'outer',
@@ -115,10 +120,7 @@ export const REGIONS = [
       'quarter-arch', 'quarter-centre', 'quarter-hall', 'quarter-forge', 'quarter-healer', 'quarter-fence', 'quarter-jail',
     ],
     portals: [{ id: 'to-frontier', at: 'west-gate', to: 'region:ash-frontier', toPortal: 'to-exchange' }],
-    landmarks: [
-      { id: 'square-arch', name: 'The Exchange Arch', at: 'square-arch' },
-      { id: 'quarter', name: 'The Exchange Quarter', at: 'quarter-centre' },
-    ],
+    landmarks: landmarksOf('region:concord-exchange'),
     spawns: [
       spawn('marrow', 'contract-board', null, ['character:recorder-marrow']),
       spawn('quarter-ruler', 'quarter-hall', null, ['character:mayor-hollin']),
@@ -135,11 +137,7 @@ export const REGIONS = [
       ...placedWaypoints(zonePlaces()),   // each zone row's own landmarks (its place), Zone 1's first
     ],
     portals: [{ id: 'to-exchange', at: 'exchange-gate', to: 'region:concord-exchange', toPortal: 'to-frontier' }],
-    landmarks: [
-      { id: 'cinder-hold', name: 'Cinder Hold', at: 'hold-centre' },
-      { id: 'mere-end', name: 'Mere End', at: 'end-centre' },
-      { id: 'grey-ferry', name: 'The Grey Ferry', at: 'dock' },
-    ],
+    landmarks: landmarksOf('region:ash-frontier'),
     // triggers: []: nothing advances on walking into a place (region1 §1). The five feud-* spawns are superseded.
     spawns: [
       spawn('bounty-shrine', 'shrine', 'encounter:bounty-hrungnir'),

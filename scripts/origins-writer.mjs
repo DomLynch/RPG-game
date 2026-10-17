@@ -36,7 +36,7 @@ import { killWear } from '../origins/server/wear-settle.ts';
 const verifyPool = createVerifyPool();
 const tally = createVerdictTally();
 setInterval(() => { const t = tally.snapshot(); if (t.total) console.log(`world records since ${t.since}: ${t.verified}/${t.total} verified ${JSON.stringify(t.outcomes)}`); }, 3_600_000).unref();
-const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, heroOf: (account, character) => heroLimitOf(db, account, character) }; };
+const spawnDeps = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return { content: c.value, verifyRecord: (job) => verifyPool.verify(job), tally, heroOf: (account, character, version) => heroLimitOf(db, account, character, version) }; };
 const regionWear = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return killWear(c.value); };
 const regionRewards = () => { const c = loadEncounterContent(); if (!c.ok) throw new Error('encounter content does not load'); return mobRewards(c.value); };
 

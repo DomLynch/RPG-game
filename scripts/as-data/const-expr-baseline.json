@@ -2,14 +2,8 @@
  "origins/feuds/feuds.ts": {
   "GRUDGE_MIN_LEVEL": 1
  },
- "origins/patrons/patrons.ts": {
-  "FIGHT_HALF_TICKS": 1
- },
  "origins/presence/interest.ts": {
   "TOWN_HALF_CM": 1
- },
- "origins/presence/saves.ts": {
-  "SAVE_EVERY_MS": 1
  },
  "origins/preview/daynight.ts": {
   "DAY_NIGHT_SPEED": 1
@@ -52,13 +46,6 @@
  },
  "src/chunk-recover.ts": {
   "LOOP_GUARD_MS": 1
- },
- "src/core/contracts/economy.ts": {
-  "DAY_S": 1,
-  "FIRST_TRADE_DELAY_S": 1
- },
- "src/core/live-ops.ts": {
-  "MAX_EVENT_MINUTES": 1
  },
  "src/core/spell-slot-view.ts": {
   "ALLOW_DUPLICATE_SLOTS": 1
@@ -122,8 +109,5 @@
  },
  "src/pvp-hold.ts": {
   "TICK_MS": 1
- },
- "src/zone1-hop.ts": {
-  "NEXT_TTL_MS": 1
  }
 }

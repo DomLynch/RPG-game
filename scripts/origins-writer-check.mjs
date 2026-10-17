@@ -23,7 +23,8 @@ import { openedAccount, isOffline, saveLine } from '../origins/preview/save.ts';
 import { LOOT_IDS, PAPERDOLL, paperdollOf, slotOf, openCharacter } from '../src/core/server.ts';
 import { careerLine } from '../origins/pit/pit.ts';
 import { repairCost, repairedPiece, wearKindOf } from '../origins/gear/wear-repair.ts';
-import { loadEncounterContent, lookupOf } from '../origins/encounters/encounters.ts';
+import { loadEncounterContent, lookupOf, mintRung } from '../origins/encounters/encounters.ts';
+import { zoneMintLevel } from '../origins/zones/band.ts';
 import { openHoldingsWith } from '../origins/server/holdings.ts';
 import { killWearLines, wearMaxOf } from '../origins/server/wear-settle.ts';
 import { REJOIN_EDGE, zoneAt, writerSaveLocation, writerSavedLocation } from '../origins/server/location.ts';
@@ -43,7 +44,7 @@ const TOKENS = { ta: A, tb: B, tc: C, td: D, te: E, tf: G, tg: H };
 const CQ = 'quest:concord-commission', NPC = 'character:smith-orla';
 // The shop (Town plan A2): one list, per-account shelf; iron restocks one a minute, ore is gated far above anyone's level.
 const SHOP = 'service:frontier-provisioner';
-const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rangeCm: 500, rows: [
+const SHOP_LIST = { id: 'shoplist:frontier-provisioner', revision: 2, currency: 'bronze', rangeCm: 500, zone: 'zone1', rows: [
   { item: 'item:grave-iron', price: 4, max: 5, restockSeconds: 60 }, { item: 'item:exchange-ore', price: 1, max: 5, restockSeconds: 60, minLevel: 99 },
   { item: 'item:loot.veteran.Arms', price: 5, max: 1, restockSeconds: 600 }] };
 let checks = 0, started = false, server;
@@ -333,11 +334,12 @@ try {
   eq([poor.status, poor.json.code, shopEvents()], [422, 'funds', '3'], 'shop: 3 bronze cannot pay 4');
   presence[B] = atBank();   // B at the counter too, so the character rule is what refuses
   eq((await call('shop_buy', 'tb', buy({ op: 'shop:iron-b001', quantity: 1 }))).status, 400, 'shop: B cannot buy into A\'s character');
-  // Shop gear: a single-copy slot-weight piece is minted at the Region's loot tier; a second copy is refused by one-of-each (and by the shelf of 1).
+  // Shop gear: a single-copy slot-weight piece is minted at the rung of its shop's zone band (mintRung over zoneMintLevel, no default rung); a second copy is refused by one-of-each (and by the shelf of 1).
+  const shopGearTier = mintRung(LOOT_ITEMS.find(r => r.id === 'item:loot.veteran.Arms').rarity, zoneMintLevel('zone1')).tier;
   psql(`select public.origins_commit('${A}', $j$[{"op":"metal","account":"${A}","delta_bronze":20,"reason":"award","event_id":"test:shop-gear","expected_version":5}]$j$::jsonb);`);
   const gearBuy = await call('shop_buy', 'ta', buy({ op: 'shop:body-0001', item: 'item:loot.veteran.Arms', quantity: 1 }));
   eq([gearBuy.status, psql(`select tier || ':' || quantity || ':' || (provenance ->> 'kind') from public.origins_items where item = 'item:loot.veteran.Arms' and retired_at is null`), conserved()],
-    [200, 'Gladiator:1:shop', '0'], 'shop: gear is minted at the Region loot tier with shop provenance');
+    [200, `${shopGearTier}:1:shop`, '0'], 'shop: gear is minted at its zone band rung with shop provenance');
   eq((await call('shop_buy', 'ta', buy({ op: 'shop:body-0002', item: 'item:loot.veteran.Arms', quantity: 1 }))).status, 422, 'shop: no second copy (shelf of 1, one of each)');
 
   // Story ops (quest_advance, talk_pick): Dara (10 marks: level 11, past the outer gate) talks to Orla, takes the Concord Commission and moves it on.
