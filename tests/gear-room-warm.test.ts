@@ -9,12 +9,12 @@ import { warmGearRoom, type GearStage } from '../src/core/gear-room.ts';
 
 const stageOf = (log: string[]): GearStage => {
   const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x123456, 1, 9); scene.background = new THREE.Color(0xabcdef); scene.add(new THREE.HemisphereLight());
-  return { scene, camera: new THREE.PerspectiveCamera(), setArenaVisible: () => log.push('arena'), hero: { place: () => log.push('place') }, draw: () => log.push(`draw lights=${scene.children.filter((c) => (c as THREE.Light).isDirectionalLight).length} fog=${scene.fog}`) };
+  return { scene, camera: new THREE.PerspectiveCamera(), setArenaVisible: () => log.push('arena'), hero: { place: () => log.push('place') }, draw: () => log.push(`draw lights=${scene.children.filter((c) => (c as THREE.DirectionalLight).isDirectionalLight).length} fog=${scene.fog}`) };
 };
 
 test('the warm-up draws the mannequin under the studio, once, after the compile, and leaves the scene as it was', async () => {
   const log: string[] = [], stage = stageOf(log), fog = stage.scene.fog, background = stage.scene.background, children = stage.scene.children.length;
-  await warmGearRoom(stage, async (scene) => { log.push(`compile lights=${scene.children.filter((c) => (c as THREE.Light).isDirectionalLight).length}`); });
+  await warmGearRoom(stage, async (scene) => { log.push(`compile lights=${scene.children.filter((c) => (c as THREE.DirectionalLight).isDirectionalLight).length}`); });
   assert.deepEqual(log, ['place', 'compile lights=2', 'draw lights=2 fog=null']);
   assert.equal(stage.scene.fog, fog); assert.equal(stage.scene.background, background); assert.equal(stage.scene.children.length, children);
 });
