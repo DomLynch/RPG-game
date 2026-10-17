@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>far lod still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// The merged FAR LOD of the hero (scripts/character/hero_far_lod.py) beside the whole hero: left the shipped warrior.glb, right src/assets/hero-far.glb, at ?d= metres in the game's camera (fov 51), ?mode=stand|walk (walk: 2 m/s, 1.5 s in),
+// ?pose=sheathed|ready. Reports each figure's meshes, triangles and the draw calls of one frame drawing it alone. Driven by far-lod-still.mjs (window.ready flips true).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildWarriors, loadWarriors } from '/src/fight/index.ts';
+
+const q = new URLSearchParams(location.search), d = Number(q.get('d') ?? 8), mode = q.get('mode') ?? 'stand', pose = q.get('pose') ?? 'sheathed';
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(2, 4, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(51, innerWidth / innerHeight, 0.1, 180);
+const figures = [];
+const lod = q.get('lod') ?? 'far';
+const gap = d < 3 ? 0.4 : 0.7;   // at 2 m the frame is ~1.3 m wide: the pair stands closer, and is cropped at the knees like any 2 m figure on a phone
+for (const [x, url] of [[-gap, '/src/assets/warrior.glb'], [gap, `/src/assets/hero-${lod}.glb`]]) {
+  // the whole hero through the game's loader; a LOD has no textures (vertex colour), which loadWarriors' texture check refuses, so it is parsed and built the way a remote figure is (buildWarriors on a parsed asset)
+  const player = x < 0 ? (await loadWarriors(url)).player : buildWarriors(await new GLTFLoader().loadAsync(url)).player;
+  const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot); figures.push({ player, spot, x });
+}
+const meshes = (actor) => { const out = []; actor.anchor.traverse((o) => { if (o.isMesh && o.visible) { let v = true; for (let p = o.parent; p; p = p.parent) if (!p.visible) v = false; if (v) out.push(o); } }); return out; };
+const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+camera.position.set(0, 1.55, d); camera.lookAt(0, 1.0, 0);
+const speed = mode === 'walk' ? 2 : 0, steps = mode === 'walk' ? 45 : 4;
+for (let i = 0; i < steps; i++) { for (const f of figures) f.player.update(speed, 1 / 30, pose, 0); renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); }
+const stats = figures.map((f) => { const m = meshes(f.player); return { meshes: m.length, tris: Math.round(m.reduce((a, o) => a + tris(o), 0)), skinned: m.filter((o) => o.isSkinnedMesh).length }; });
+const calls = [];
+for (const f of figures) { for (const g of figures) g.spot.visible = g === f; renderer.info.reset(); renderer.render(scene, camera); calls.push(renderer.info.render.calls); }
+for (const f of figures) f.spot.visible = true;
+for (let i = 0; i < 2; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); }
+window.result = { lod, d, mode, pose, whole: { ...stats[0], drawCallsAlone: calls[0] }, far: { ...stats[1], drawCallsAlone: calls[1] } };
+window.ready = true;
+</script>
