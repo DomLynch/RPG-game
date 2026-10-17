@@ -53,7 +53,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   const bad: string[] = rowText === undefined ? [] : describeDuplicates(`zone ${z.id} row`, duplicateKeys(rowText)), ids = new Set<string>();   // rowText: the row's raw JSON when the caller has it: a repeated key is invisible in the parsed Zone (JSON.parse keeps the last), so it is scanned in the text
   if (!z.name.trim()) bad.push('no display name');
   const own: Record<string, unknown> = { ...z };
-  delete own.resolved; delete own.fields; delete own.set; delete own.band;   // what loadZone adds, not part of the spec
+  delete own.resolved; delete own.fields; delete own.set;   // what loadZone adds, not part of the spec
   bad.push(...resolveZone(z.id, own as unknown as Spec).problems.map((p) => `schema: ${p}`));
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {

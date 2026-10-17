@@ -13,7 +13,7 @@ const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
 // Re-pinned 2026-10-17 (fix-forward, lootStarter): +item:loot.starter.Longsword in BUNDLE's catalogue slice, was 4fac8be1…; expected to be the only change (not hash-checked: BUNDLE without the item was not hashed back to 4fac8be1…).
 // Re-pinned 2026-10-17 (fix-forward, the beta dungeon's door #3016, merged over lootStarter): +waypoint `cave-mouth` in Zone 1's row; the sha before it f6ee20d2fd208f20f78d1d6537637891af9a9e5ad7074fbb35498d840e21a0ab (alone on the pre-lootStarter tree the waypoint made da007bff…, from 4fac8be1…).
 // Re-pinned 2026-10-17 (fix-forward, the dungeon framework's sample crypt door): +waypoint `crypt-mouth` in Zone 1's row (a world landmark must be a waypoint, region loader); the sha before it 74dab0cc5aa7cb7b2bd46d815be45f1b55c8b2f075fee41adfdac2d7c25df583.
-const TRUNK_SHA = '2c2ee95b497dc208b35a63c257ce144e03228b372571583bdb1421aa04e7309f';
+const TRUNK_SHA = 'fddfdea325eab7474198933d3b2df12de5e47a15940baf16c61da37226ec72f2';
 
 test('the economy and progression rows read back byte-identical to the records content.ts built in code', () => {
   const now = { FOES, TOWNSFOLK, ENCOUNTERS, BOUNTIES, RIFTS, KILL_ROWS, BOSS_LOOT, ENCOUNTER_FLAGS, BUNDLE, LOCAL };
