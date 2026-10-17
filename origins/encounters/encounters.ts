@@ -11,8 +11,6 @@ import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanc
 import { parseItemInstance, type LootTable } from '../../src/core/server.ts';
 import { powerOf, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import LOOT_TIER_ROWS from './loot-tier.json' with { type: 'json' };
-import CAREER_RULES from '../../src/core/career-rules.json' with { type: 'json' };
-import { rungOf as legendRung } from '../../src/legends.ts';
 import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' };
 import { sha256, shortHash } from '../boss/hash.ts';
 import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
@@ -20,7 +18,8 @@ import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlag
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
 import { OPPONENTS, opponentAt, type OpponentId, oneBarHealth, type TwistFlag, type TwistOutcome } from '../../src/fight/server.ts';
-import { TIERS, type Tier } from '../../src/core/server.ts';
+import { BETA_MAX_LOOT_RUNG, TIERS, type Tier } from '../../src/core/server.ts';
+import { rungOf as legendRung } from '../../src/fight/server.ts';
 
 // ---- the twist flags Combat reads: imported from src/fight/twist.ts (PR #1626, on trunk), not mirrored ------------------------------------
 export { oneBarHealth };
@@ -45,7 +44,7 @@ export const lookupOf = (content: EncounterContent): Lookup => (id: ItemId) => c
 loadRegistry(LOOT_TIER_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, LOOT_TIER_ROWS, 'origins/encounters/loot-tier.json')));
 export type RungRules = { readonly shifts: ReadonlyMap<string, number>; readonly fallback: number; readonly base: number; readonly cap: number };
 const SHIFT_ROWS = LOOT_TIER_ROWS.rarityShift as readonly { id: string; shift: number; fallback?: boolean }[];
-export const RUNG_RULES: RungRules = { shifts: new Map(SHIFT_ROWS.map((r) => [r.id, r.shift])), fallback: SHIFT_ROWS.find((r) => r.fallback)!.shift, base: LOOT_TIER_ROWS.mintRule[0]!.baseRungOffset, cap: CAREER_RULES.betaCut[0]!.maxLootRung };
+export const RUNG_RULES: RungRules = { shifts: new Map(SHIFT_ROWS.map((r) => [r.id, r.shift])), fallback: SHIFT_ROWS.find((r) => r.fallback)!.shift, base: LOOT_TIER_ROWS.mintRule[0]!.baseRungOffset, cap: BETA_MAX_LOOT_RUNG };
 export type Rung = { readonly tier: Tier; readonly wanted: number; readonly clamped: boolean };
 export const mintRung = (rarity: string | undefined, level: number, rules: RungRules = RUNG_RULES): Rung => {
   const wanted = legendRung(level) + rules.base + ((rarity === undefined ? undefined : rules.shifts.get(rarity)) ?? rules.fallback);
