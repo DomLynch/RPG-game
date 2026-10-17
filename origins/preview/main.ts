@@ -358,7 +358,12 @@ function step(dt: number) {
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
   if (FIGHT_WITH && !fightStarted && mobs) {   // wait until that creature is drawn, stand the hero 3 m from it and strike: the fight is on
     const g = mobs.within(state.x, state.z, 90).find((m) => FIGHT_WITH === '1' || m.spec.body === FIGHT_WITH);
-    if (g) { fightStarted = true; const ux = state.x - g.x, uz = state.z - g.z, L = Math.hypot(ux, uz) || 1; state.x = g.x + (ux / L) * 3.2; state.z = g.z + (uz / L) * 3.2; heading = Math.atan2(g.x - state.x, g.z - state.z); followCam.snap(); wc.press('light'); }
+    if (g) {
+      fightStarted = true;
+      const others = mobs.within(g.x, g.z, 60).filter((m) => m.spec.id !== g.spec.id);   // stand on the side of it that is farthest from every other creature, so a test fight is one on one (Dom: dropped next to a salamander and got two on him)
+      let best = { x: g.x + 3.2, z: g.z, far: -1 };
+      for (let k = 0; k < 24; k++) { const a = (k / 24) * Math.PI * 2, x = g.x + Math.sin(a) * 3.2, z = g.z + Math.cos(a) * 3.2, far = Math.min(99, ...others.map((m) => Math.hypot(m.x - x, m.z - z))); if (far > best.far) best = { x, z, far }; }
+      state.x = best.x; state.z = best.z; heading = Math.atan2(g.x - state.x, g.z - state.z); followCam.snap(); wc.press('light'); }
   }
   const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : 1.8 } : null;   // in a fight with the locked creature
   if (foeNow && !wasInFight && combatCam) worldToast(`Combat camera ${combatId} on: ${combatCam.label.split(':')[0]}`);   // so a tester can see which camera a fight is using
