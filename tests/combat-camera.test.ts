@@ -80,7 +80,7 @@ test('the Test Zone offers four combat cameras as data, each complete; the real 
   try {
     const { loadZone } = await import('../origins/zones/loader.ts'), { zoneCombatCams, zoneCombatPreset } = await import('../origins/world/goblin-field-rules.ts');
     const zone = loadZone('90'), cams = zoneCombatCams(zone);
-    assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3', '4'], 'three looks (1 tight over the shoulder, 2 wide auto-fit, 3 elevated) and 4 = 2 with portrait a further 10% back, for comparing');
+    assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3', '4', '5'], 'three looks (1 tight over the shoulder, 2 wide auto-fit, 3 elevated), 4 = 2 with portrait 10% back, 5 = 2 with portrait 20% back, for comparing'); assert.ok(Math.abs(cams['5']!.portrait.back / cams['2']!.portrait.back - 1.2) < 0.01 && Math.abs(cams['5']!.portrait.maxBack! / cams['2']!.portrait.maxBack! - 1.2) < 0.01, '5 is 2 plus 20% in portrait');
     assert.ok(Math.abs(cams['4']!.portrait.back / cams['2']!.portrait.back - 1.1) < 0.01 && Math.abs(cams['4']!.portrait.maxBack! / cams['2']!.portrait.maxBack! - 1.1) < 0.01 && cams['4']!.landscape.back === cams['2']!.landscape.back, '4 is 2 plus 10% in portrait only');
     assert.ok(Object.values(cams).every((c) => c.ease.out < c.ease.in), 'every exit is slower than its entry');
     for (const id of ['2', '3']) for (const shape of [cams[id]!.portrait, cams[id]!.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && (id === '3' || shape.shiftY! > 0), `${id}: the fitting cameras have their speed limit, floor and cap (and 2 a lift off the thumbs; 3 keeps the skyline instead)`);
