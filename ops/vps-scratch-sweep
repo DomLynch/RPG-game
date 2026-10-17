@@ -70,6 +70,22 @@ sweep_in_use() {
   [ "$rc" = 1 ] && return 1
   return 0
 }
+# The open PRs' heads, "ref" then "sha" per PR, one per line: the dirs these protect are never swept. gh first (works where a token exists); the VPS has NO GitHub token by design
+# (Lead 2026-10-17), so fall back to the PUBLIC API, unauthenticated (60 requests/h), paginated. FAIL CLOSED: a failed read, a non-list answer, an empty list or 10 full pages
+# (1000+ open PRs: not a complete list) prints nothing and returns 1, so the caller aborts. This check is never skipped.
+open_pr_list() {
+  local out heads n page=1 all=""
+  out=$(gh pr list -R "$REPO" --state open --limit 200 --json headRefName,headRefOid -q '.[]|.headRefName,.headRefOid' 2>/dev/null) && [ -n "$out" ] && { printf '%s\n' "$out"; return 0; }
+  while [ "$page" -le 10 ]; do
+    out=$(curl -fsS -m 20 "${SWEEP_PULLS_URL:-https://api.github.com/repos/$REPO/pulls}?state=open&per_page=100&page=$page" 2>/dev/null) || return 1
+    n=$(printf '%s' "$out" | jq -e 'if type == "array" then length else error("not a list") end' 2>/dev/null) || return 1
+    heads=$(printf '%s' "$out" | jq -r '.[] | .head.ref, .head.sha' 2>/dev/null) || return 1
+    [ -n "$heads" ] && all+="$heads"$'\n'
+    if [ "$n" -lt 100 ]; then [ -n "$all" ] && { printf '%s' "$all"; return 0; }; return 1; fi
+    page=$((page + 1))
+  done
+  return 1
+}
 [ "${SWEEP_SOURCE_ONLY:-}" = 1 ] && return 0
 for a in "$@"; do case $a in --apply) APPLY=1;; --force) FORCE=1;; --path=*) case "${a#--path=}" in *"*"*|*"?"*|*"["*) echo "vps-scratch-sweep: REFUSE(a glob character in --path; a path is exact) ${a#--path=}" >&2; exit 2;; esac; PATHS+=("${a#--path=}"); FORCE=1;; *) BAD_ARG="$a";; esac; done
 # Bare mode (no --path) is the SCHEDULED sweep: vps-scratch-sweep.service runs `--apply` with SWEEP_SCHEDULED=1 every 6 h, and it includes a blanket /tmp delete (-mtime +2).
@@ -93,8 +109,7 @@ if [ "$FORCE" = 0 ] && [ "$(free_gib)" -ge "$TRIGGER_GIB" ]; then say "enough fr
 
 # fail closed: need the box mounted and writable, and the open-PR list
 t="$ARCH/.sweep-probe.$$"; mkdir -p "$ARCH" && : > "$t" && rm -f "$t" || { say "ABORT: storage box not writable"; exit 3; }
-PRS=$(gh pr list -R "$REPO" --state open --limit 200 --json headRefName,headRefOid -q '.[]|.headRefName,.headRefOid' 2>/dev/null) \
-  && [ -n "$PRS" ] || { say "ABORT: cannot read open PR list"; exit 3; }
+PRS=$(open_pr_list) && [ -n "$PRS" ] || { say "ABORT: cannot read open PR list"; exit 3; }
 INUSE=$( { lsof +D "$WORK" 2>/dev/null | awk 'NR>1{print $9}'; lsof +D "$JOBS" 2>/dev/null | awk 'NR>1{print $9}'
           for p in /proc/[0-9]*; do readlink "$p/cwd" 2>/dev/null; done; } | sed -n -E "s#^($WORK|$JOBS)/([^/]+).*#\1/\2#p" | sort -u )
 # a dir another dir symlinks into (the shared node_modules in bn-trunk, world-z2fix, char-nk...) is never swept, one hop at a time: 2026-10-13 a hand-run prune deleted bn-trunk and every VPS lane job failed
