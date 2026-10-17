@@ -12,5 +12,10 @@
     "src/fight/catalogue-fields.ts", "src/fight/threat.ts"
   ],
   "excluded": ["src/fight/blade-paths.ts", "src/fight/catalogue-data.ts"],
-  "dirs": ["origins/**/*.ts", "src/**/*.ts"]
+  "dirs": ["origins/**/*.ts", "src/**/*.ts"],
+  "presentation": {
+    "note": "NON-GAMEPLAY (Strategy 2026-10-17): look, sound, camera and UI layout numbers. Counted and ratcheted down, reported apart, and a NEW one is tracked, not blocking. Everything else under scope is GAMEPLAY (the gate). A file not listed here is gameplay; move it here only if no designer would tune it for how the game plays.",
+    "fightViewIsPresentation": true,
+    "prefixes": ["src/audio/", "src/assets/", "src/arena", "origins/preview/", "src/souls-look.ts", "src/lorarii.ts", "src/colour-grade.ts", "src/perf-beacon.ts", "src/main.ts", "src/pit/", "src/first-loss.ts", "src/zoom-guard.ts", "src/gate-rise.ts", "src/chunk-recover.ts", "src/clip.ts", "src/tutorial.ts"]
+  }
 }
