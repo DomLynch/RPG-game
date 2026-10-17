@@ -81,7 +81,7 @@ try {
     return encodeRecord(rec.finish(claimed ?? (practice.finish.victim === 1 ? 'killed' : 'died')));   // `claimed`: a record that lies
   };
   const ACTS = ['light', 'heavy', 'thrust'];
-  const win = build => fight('goblin', 'easy', 1, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 43 === 0 ? ACTS[(t / 43) % 3] : null, guard: false, lock: true }), build);   // cadence 43: the balance rows (RV76) make the old 45 lose; 43 wins on every build nudge (searched, 24 of 24)
+  const win = build => fight('goblin', 'easy', 1, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
   const loss = (build, claimed) => fight('veteran', 'normal', 20260922, () => ({ ...idleIntent(), move: { x: 0, z: 0.8, yaw: 0, run: false } }), build, claimed);
   const verifier = psqlAdapter(`postgresql://frankendom_verifier@/postgres?host=${root}`, (command, args, options) => spawnSync(pg(command), args, { ...options, env: { ...options.env, LC_ALL: env.LC_ALL }, timeout: 60_000 }));
   const sweep = (options, db = verifier) => verifyClaims(db, options);
@@ -167,7 +167,7 @@ try {
   // The walk-in's outcome at a given (level, seed) moves with every rule batch (RV29 killed it at L14 seed 10): take the first seed from `seed` up whose fight is a win.
   const winAt = async (level, seed, build) => {
     for (let s = seed; s < seed + 40; s++) {
-      const record = await fight('goblin', level, s, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 43 === 0 ? ACTS[(t / 43) % 3] : null, guard: false, lock: true }), build);
+      const record = await fight('goblin', level, s, t => ({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? ACTS[(t / 45) % 3] : null, guard: false, lock: true }), build);
       if ((await decodeRecord(record)).outcome === 'killed') return record;
     }
     fail(`no walk-in win at level ${level} within 40 seeds from ${seed}`);

@@ -1071,12 +1071,12 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   const settle = async (ready: () => boolean) => { for (let i = 0; i < 400 && !ready(); i++) await new Promise((r) => setTimeout(r, 5)); };
   // A headless record is stamped with an older era (play-radius.ts: no circle, no late notice, no stab), and every pre-29 version is refused (REACH[29]): stamp this one as a live fight is.
   const pr = await import('../src/fight/play-radius.ts'), { setStab } = await import('../src/fight/stab-rule.ts');
-  const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('veteran', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);   // a veteran link, not a goblin one: RV76 (balance) reaches the goblin, so his v31 link would be refused as "older version" before the opponent check
-  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'veteran', level: 18, seed: 5 });
+  const was = pr.PLAY_SCALE; pr.setPlayScale(pr.playScaleFor('goblin', record.RECORD_VERSION)); pr.setLateNotice(true); setStab(true);
+  const rec = record.createRecorder({ weapon: 'longsword', build: 'dev', opponent: 'goblin', level: 18, seed: 5 });
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   pr.setPlayScale(was); pr.setLateNotice(false); setStab(false);
-  const wrong = boot({}, undefined, {}, `?opponent=goblin&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
+  const wrong = boot({}, undefined, {}, `?opponent=veteran&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(wrong.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line, never a raw error over the HUD (owner 2026-09-22)
   assert.equal(wrong.element('reset-button').hidden, false, 'a refused link still offers PLAY NOW'); assert.equal(wrong.element('reset-button').textContent, 'PLAY NOW');
   assert.equal(wrong.element('replay-banner').dataset.stale, '1', 'the stale-link line leaves the header band for the slot above PLAY NOW');

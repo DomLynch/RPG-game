@@ -95,7 +95,7 @@ test('any real change still moves the digest (a constant, a number in a body, an
 // second copy on the server can never quietly disagree with this one.
 test('the decoder accept-list is what someone pinned, and this build can read what it writes', () => {
   assert.deepEqual([...READABLE_VERSIONS], [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76], 'READABLE_VERSIONS changed: widen it deliberately (a record on an accepted version must still decode to the fight it recorded), then re-pin here.');
-  assert.deepEqual(REACH, { 19: [{ opponent: 'veteran', from: 6 }], 20: [{ opponent: 'plaguedoctor', from: 1 }], 21: [], 22: [], 23: [], 24: [], 25: [], 26: [], 27: [], 28: [], 29: ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'].map((opponent) => ({ opponent, from: 1 })), 30: ['shieldmaiden', 'knight', 'plaguedoctor'].map((opponent) => ({ opponent, from: 1 })), 31: ['veteran', 'pitborn', 'dwarf', 'knight', 'shieldmaiden'].map((opponent) => ({ opponent, from: 1 })), 32: [], 33: [], 34: [], 35: [], 36: [], 37: [], 38: [], 40: [], 39: [], 41: [], 42: [], 43: [], 44: [], 45: [], 46: [], 47: [], 48: [], 49: [], 50: [], 51: [], 52: [], 53: [], 54: [], 55: [], 56: [], 57: [], 58: [], 59: [], 60: [], 61: [], 62: [], 63: [], 64: [], 65: [], 66: [], 67: [], 68: [], 69: [], 70: [], 71: [], 72: [{ opponent: 'cave-troll', from: 2 }], 73: [], 74: [], 75: [], 76: [{ opponent: 'goblin', from: 1 }, { opponent: 'cave-troll', from: 1 }] }, 'REACH is what each bump changed (19: the Centurion from level 6; 20: the Plague Doctor; 21: nothing, Special Moves ride the record\'s own flag; 24: nothing, late notice is keyed on the record\'s version): history, not tuning. A new bump appends its own line.');
+  assert.deepEqual(REACH, { 19: [{ opponent: 'veteran', from: 6 }], 20: [{ opponent: 'plaguedoctor', from: 1 }], 21: [], 22: [], 23: [], 24: [], 25: [], 26: [], 27: [], 28: [], 29: ['veteran', 'pitborn', 'goblin', 'nightborn', 'executioner', 'minotaur', 'wraith', 'werewolf', 'skeleton', 'dwarf', 'plaguedoctor', 'knight', 'witch', 'shieldmaiden'].map((opponent) => ({ opponent, from: 1 })), 30: ['shieldmaiden', 'knight', 'plaguedoctor'].map((opponent) => ({ opponent, from: 1 })), 31: ['veteran', 'pitborn', 'dwarf', 'knight', 'shieldmaiden'].map((opponent) => ({ opponent, from: 1 })), 32: [], 33: [], 34: [], 35: [], 36: [], 37: [], 38: [], 40: [], 39: [], 41: [], 42: [], 43: [], 44: [], 45: [], 46: [], 47: [], 48: [], 49: [], 50: [], 51: [], 52: [], 53: [], 54: [], 55: [], 56: [], 57: [], 58: [], 59: [], 60: [], 61: [], 62: [], 63: [], 64: [], 65: [], 66: [], 67: [], 68: [], 69: [], 70: [], 71: [], 72: [{ opponent: 'cave-troll', from: 2 }], 73: [], 74: [], 75: [], 76: [{ opponent: 'cave-troll', from: 1 }] }, 'REACH is what each bump changed (19: the Centurion from level 6; 20: the Plague Doctor; 21: nothing, Special Moves ride the record\'s own flag; 24: nothing, late notice is keyed on the record\'s version): history, not tuning. A new bump appends its own line.');
   for (let v = READABLE_VERSIONS[0] + 1; v <= RECORD_VERSION; v++) assert.ok(REACH[v], `bump ${v} is read across but declares no reach`);
   assert.ok((READABLE_VERSIONS as readonly number[]).includes(RECORD_VERSION), `This build writes version ${RECORD_VERSION} but does not accept it back: a fight it recorded would be refused at decode.`);
 });
@@ -124,9 +124,9 @@ test('the closure walk skips type-only imports and follows every value form', ()
 test('an older record decodes only where no later bump reached its fight', () => {
   // A pre-21 header has no specials byte (it follows the skill byte, after the three strings): drop it, then stamp the old version.
   const at = (v: number, opponent: OpponentId, level: number) => { const full = packRecord(liveRecorder({ build: 'x', opponent, weapon: 'longsword', level, seed: 5 }).finish('abandoned')); let o = 3; for (let k = 0; k < 3; k++) o += 1 + full[o]; const p = full[2] >= 53 ? new Uint8Array([...full.subarray(0, o + 3), ...full.subarray(o + 5)]) : full; const b = v >= 26 ? new Uint8Array(p) : v >= 21 ? new Uint8Array([...p.subarray(0, o + 2), ...p.subarray(o + 3)]) : new Uint8Array([...p.subarray(0, o + 1), ...p.subarray(o + 3)]); b[2] = v; return b; };   // the skill byte, then the specials byte (v21 on) and the arena byte (v26 on): an older stamp drops the ones it has no field for
-  for (const [v, opponent, level] of [[31, 'skeleton', 18], [31, 'witch', 10], [31, 'plaguedoctor', 46], [31, 'knight', 1], [30, 'skeleton', 18], [30, 'witch', 10], [30, 'plaguedoctor', 46], [29, 'wraith', 18], [29, 'witch', 10], [29, 'skeleton', 18]] as const)   // RV76 (balance) reaches the goblin, so the goblin cases moved to the refused list below
+  for (const [v, opponent, level] of [[31, 'goblin', 18], [31, 'witch', 10], [31, 'plaguedoctor', 46], [31, 'knight', 1], [30, 'goblin', 18], [30, 'witch', 10], [30, 'plaguedoctor', 46], [29, 'goblin', 18], [29, 'witch', 10], [29, 'skeleton', 18]] as const)
     assert.equal(unpackRecord(at(v, opponent, level)).v, v, `a v${v} ${opponent} L${level} fight is this build's own, so its link must keep working`);
-  for (const [v, opponent, level] of [[31, 'goblin', 18], [30, 'goblin', 18], [29, 'goblin', 18], [31, 'cave-troll', 3], [28, 'goblin', 1], [27, 'veteran', 46], [26, 'witch', 10], [19, 'plaguedoctor', 1], [18, 'veteran', 6], [18, 'knight', 18], [29, 'knight', 1], [29, 'shieldmaiden', 46], [29, 'plaguedoctor', 10], [30, 'knight', 1], [30, 'veteran', 18], [30, 'pitborn', 46], [30, 'dwarf', 6], [30, 'shieldmaiden', 12], [29, 'veteran', 5], [29, 'dwarf', 46]] as const)
+  for (const [v, opponent, level] of [[31, 'cave-troll', 3], [28, 'goblin', 1], [27, 'veteran', 46], [26, 'witch', 10], [19, 'plaguedoctor', 1], [18, 'veteran', 6], [18, 'knight', 18], [29, 'knight', 1], [29, 'shieldmaiden', 46], [29, 'plaguedoctor', 10], [30, 'knight', 1], [30, 'veteran', 18], [30, 'pitborn', 46], [30, 'dwarf', 6], [30, 'shieldmaiden', 12], [29, 'veteran', 5], [29, 'dwarf', 46]] as const)
     assert.throws(() => unpackRecord(at(v, opponent, level)), new RegExp(`^Error: Fight record: version ${v} is not supported for the ${opponent} from level \\d+ \\(bump \\d+ changed`), `a v${v} ${opponent} L${level} record replays a fight the RV29 rule batch changed`);
   assert.throws(() => unpackRecord(at(17, 'goblin', 18)), /version 17 is not supported/, 'v17 is outside the window');
 });
@@ -144,9 +144,9 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
     const file = join(dir, 'record33.ts'); writeFileSync(file, bumped);
     const m = await import(pathToFileURL(file).href) as typeof import('../src/fight/record.ts');
     assert.equal(m.RECORD_VERSION, 77); assert.equal(m.NO_PATRON_VERSION, 77); assert.equal(m.PATRON_VERSION, 77);
-    setPlayScale(playScaleFor('veteran', 43)); setLateNotice(true); setStab(true);   // the veteran, not the goblin: RV76 (balance) reaches the goblin, so a v32 goblin record is refused by the reach before it can show the patron rule
+    setPlayScale(playScaleFor('goblin', 43)); setLateNotice(true); setStab(true);
     const fightOf = (patron?: number) => {
-      const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 12, seed: 7, ...(patron ? { patron } : {}) });
+      const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}) });
       for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
       return rec.finish('draw');
     };
@@ -155,7 +155,7 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
     assert.equal(m.packRecord(none)[2], 77);
     assert.deepEqual(m.unpackRecord(m.packRecord(none)), none, 'a v38 record with patron byte 0 round-trips with no patron');
     assert.equal(withPatron.v, 77); assert.deepEqual(m.unpackRecord(m.packRecord(withPatron)), withPatron);
-    for (const opponent of ['goblin', 'cave-troll'] as const) {   // RV76's reach (goblin, cave-troll): at the NEXT bump a fight against either must still pack (the real recipe moves the <= 76 thresholds too) and round-trip
+    for (const opponent of ['cave-troll'] as const) {   // RV76's reach (cave-troll): at a ceiling bump a fight against it must still pack and round-trip
       setPlayScale(playScaleFor(opponent, 43));
       const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent, level: 3, seed: 7 });
       for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
@@ -169,9 +169,9 @@ test('RV43 simulated: a patron-less fight stamps the new ceiling and round-trips
   void createRecorder;
 });
 
-// The REAL bump recipe at RV77 (Lead, 2026-10-17): the `<= 76` thresholds move to `<= 77` with the version, so a plain fight stays the v31 it always was, while a goblin or cave-troll fight (REACH[76]) is stamped 76 by reachStamp
+// The REAL bump recipe at RV77 (Lead, 2026-10-17): the `<= 76` thresholds move to `<= 77` with the version, so a plain fight stays the v31 it always was, while a cave-troll fight (REACH[76]) is stamped 76 by reachStamp
 // and must still PACK and round-trip: packRecord accepts the reach stamp, not only the current version.
-test('RV77 simulated with the real recipe (thresholds move too): a goblin and a cave-troll fight pack at v76 and round-trip; a plain fight is still v31', async () => {
+test('RV77 simulated with the real recipe (thresholds move too): a cave-troll fight packs at v76 and round-trips; a plain fight (the goblin, the veteran) is still v31', async () => {
   const src = readFileSync(new URL('../src/fight/record.ts', import.meta.url), 'utf8').replace(/from '\.\.\//g, `from '${new URL('../src/', import.meta.url).href}`).replace(/from '\.\//g, `from '${new URL('../src/fight/', import.meta.url).href}`);
   const bumped = src.replaceAll('(RECORD_VERSION as number) <= 76', '(RECORD_VERSION as number) <= 77').replace('export const RECORD_VERSION = 76;', 'export const RECORD_VERSION = 77;').replace('75, 76] as const', '75, 76, 77] as const').replace("  76: [{", "  77: [],\n  76: [{");
   assert.ok(bumped.includes('RECORD_VERSION = 77') && bumped.includes('<= 77 ? 31') && bumped.includes('77: [],'), 'the probe edits applied');
@@ -181,16 +181,16 @@ test('RV77 simulated with the real recipe (thresholds move too): a goblin and a 
     const m = await import(pathToFileURL(file).href) as typeof import('../src/fight/record.ts');
     assert.equal(m.RECORD_VERSION, 77); assert.equal(m.NO_PATRON_VERSION, 31);
     const fight = (opponent: OpponentId, level: number) => { setPlayScale(playScaleFor(opponent, 43)); setLateNotice(true); setStab(true); const rec = m.createRecorder({ weapon: 'longsword', build: 'abc1234', opponent, level, seed: 7 }); for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('draw'); };
-    for (const [opponent, level] of [['goblin', 6], ['cave-troll', 3]] as const) { const f = fight(opponent, level); assert.equal(f.v, 76, `${opponent}: stamped at the reaching bump`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `${opponent}: packs and round-trips at RV77`); }
-    const plain = fight('veteran', 18); assert.equal(plain.v, 31); assert.deepEqual(m.unpackRecord(m.packRecord(plain)), plain);
+    for (const [opponent, level] of [['cave-troll', 3]] as const) { const f = fight(opponent, level); assert.equal(f.v, 76, `${opponent}: stamped at the reaching bump`); assert.deepEqual(m.unpackRecord(m.packRecord(f)), f, `${opponent}: packs and round-trips at RV77`); }
+    for (const [opponent, level] of [['veteran', 18], ['goblin', 6]] as const) { const plain = fight(opponent, level); assert.equal(plain.v, 31, `${opponent} is not reached by RV76: still v31`); assert.deepEqual(m.unpackRecord(m.packRecord(plain)), plain); }
   } finally { rmSync(dir, { recursive: true, force: true }); setLateNotice(false); setStab(false); setPlayScale(1); }
 });
 
 // RV76 (balance): a live fight against an opponent the bump REACHED is stamped at that bump (reachStamp), and a plain v76 record (no patron, no flag) must round-trip; a fight against an unreached opponent stays the no-patron v31, unaffected.
-test('a live goblin or cave-troll fight is a plain v76 record that round-trips; a live veteran fight is still the v31 it always was', () => {
+test('a live cave-troll fight is a plain v76 record that round-trips; a live goblin or veteran fight is still the v31 it always was', () => {
   const fight = (opponent: OpponentId, level: number) => { const rec = liveRecorder({ build: 'abc1234', opponent, weapon: 'longsword', level, seed: 3 }); for (let i = 0; i < 20; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); return rec.finish('draw'); };
   try {
-    for (const [opponent, level] of [['goblin', 1], ['goblin', 46], ['cave-troll', 3]] as const) { const r = fight(opponent, level); assert.equal(r.v, 76, `${opponent} L${level} is stamped at the reaching bump`); assert.deepEqual(unpackRecord(packRecord(r)), r, `${opponent} L${level}: a plain v76 record round-trips`); }
+    for (const [opponent, level] of [['cave-troll', 1], ['cave-troll', 3], ['cave-troll', 46]] as const) { const r = fight(opponent, level); assert.equal(r.v, 76, `${opponent} L${level} is stamped at the reaching bump`); assert.deepEqual(unpackRecord(packRecord(r)), r, `${opponent} L${level}: a plain v76 record round-trips`); }
     const veteran = fight('veteran', 18); assert.equal(veteran.v, NO_PATRON_VERSION); assert.equal(packRecord(veteran)[2], 31, 'an unreached fight is still written as v31'); assert.deepEqual(unpackRecord(packRecord(veteran)), veteran);
   } finally { setLateNotice(false); setStab(false); setPlayScale(1); }
 });

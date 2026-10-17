@@ -9,7 +9,7 @@ import { NO_HIP_DRAW, clipFor, drawRole } from '../src/fight/characters.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/fight/moves.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
-import { RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
+import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, arena, k, kt } from './strategies.ts';
@@ -64,7 +64,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   const record = rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   assert.equal(record.weapon, 'knife');
   const bytes = packRecord(record);
-  assert.equal(bytes[2], RECORD_VERSION);   // RV76 (balance): a goblin fight is stamped at the bump that reached him (record.ts reachStamp), not the no-patron v31
+  assert.equal(bytes[2], NO_PATRON_VERSION);
   assert.deepEqual(unpackRecord(bytes), record);
   assert.deepEqual(await decodeRecord(await encodeRecord(record)), record);
   assert.equal(verifyRecord(record).ok, true, 'the replay steps the knife, not the longsword');

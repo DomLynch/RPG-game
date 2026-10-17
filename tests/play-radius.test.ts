@@ -45,13 +45,13 @@ test('fighters start inside the smaller circle, shrunk with it but never closer 
 });
 
 test('a record states the circle its fight was fought in: this build\'s version in the live circle, the old-circle version otherwise, and the current one round-trips (an older era is refused, REACH[29])', () => {
-  const stamp = (opponent: 'veteran' | 'skeleton') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); if (r.v === NO_PATRON_VERSION) assert.deepEqual(unpackRecord(packRecord(r)), r); else assert.throws(() => unpackRecord(packRecord(r)), /bump 29 changed/, 'an older era is refused at decode (REACH[29])'); return r.v; };
+  const stamp = (opponent: 'veteran' | 'goblin') => { const rec = createRecorder({ weapon: 'longsword', build: 'x', opponent, level: 18, seed: 1 }); rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true }); const r = rec.finish('abandoned'); if (r.v === NO_PATRON_VERSION) assert.deepEqual(unpackRecord(packRecord(r)), r); else assert.throws(() => unpackRecord(packRecord(r)), /bump 29 changed/, 'an older era is refused at decode (REACH[29])'); return r.v; };
   setLateNotice(true); setStab(true);
-  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), NO_PATRON_VERSION); assert.equal(stamp('skeleton'), FIRST_SCALED_VERSION - 1, 'a skeleton fought in the small circle was not fought in his own');   // the skeleton stands in for the goblin: RV76 (balance) reaches the goblin, whose fight is stamped v76 whatever the circle (record.ts reachStamp)
-  setPlayScale(1); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'a veteran fought in the old circle is an old-circle record'); assert.equal(stamp('skeleton'), NO_PATRON_VERSION);
+  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), NO_PATRON_VERSION); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION - 1, 'a goblin fought in the small circle was not fought in his own');
+  setPlayScale(1); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'a veteran fought in the old circle is an old-circle record'); assert.equal(stamp('goblin'), NO_PATRON_VERSION);
   // The ramp is part of the era (play-radius.ts LATE_NOTICE): a fight without it in the right circle is the version before the ramp, so it replays without it.
   setLateNotice(false); setStab(false);
-  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION, 'the small circle without late notice is v23'); setPlayScale(1); assert.equal(stamp('skeleton'), FIRST_SCALED_VERSION, 'a skeleton without late notice is v23 (his circle is the same in both)');
+  setPlayScale(ARENA_ONE_SCALE); assert.equal(stamp('veteran'), FIRST_SCALED_VERSION, 'the small circle without late notice is v23'); setPlayScale(1); assert.equal(stamp('goblin'), FIRST_SCALED_VERSION, 'a goblin without late notice is v23 (his circle is the same in both)');
   assert.equal(stamp('veteran'), FIRST_SCALED_VERSION - 1, 'the old circle without late notice is v22');
 });
 

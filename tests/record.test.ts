@@ -27,7 +27,7 @@ test('record: quantization is idempotent, keeps every field, and maps the stick 
 
 test('record: pack/unpack and encode/decode round-trip every intent shape, the seed and the metadata; the version comes first and an unknown one is refused', async () => {
   setLateNotice(true); setStab(true);   // a live fight (the premise of RECORD_VERSION here); a headless recorder stamps FIRST_SCALED_VERSION
-  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 46, seed: 0xdeadbeef });   // the veteran, not the goblin: RV76 (balance) reaches the goblin, so an older-version goblin record is refused by the reach (record-version-guard.test.ts pins that)
+  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 46, seed: 0xdeadbeef });
   setLateNotice(false); setStab(false);
   const shapes: Intent[] = [
     intent(), intent({ move: { x: 1, z: -1, yaw: -3.1, run: true } }), intent({ action: 'light_left', guardDirection: 'left' }),
@@ -117,10 +117,10 @@ test('record: an opponent-only weapon (the reaper) is refused at decode — the 
 import { MAX_RECORD_BYTES, MAX_RECORD_TICKS } from '../src/fight/record.ts';
 test('a record past the tick limit or the expanded-size limit is refused, not allocated', async () => {
   // A real 2-tick record with its tick count forged to MAX+1: refused before the intent array exists.
-  const rec = mk({ build: 'dev', opponent: 'veteran', weapon: 'longsword', level: 18, seed: 7 });
+  const rec = mk({ build: 'dev', opponent: 'goblin', weapon: 'longsword', level: 18, seed: 7 });
   rec.push(intent()); rec.push(intent());
   const bytes = packRecord(rec.finish('killed')), dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const o = 3 + 1 + 3 + 1 + 7 + 1 + 9 + 1 + 1 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'veteran', weapon 'longsword', skill (v12), specials (v21), arena (v26), profile, seed → the tick count
+  const o = 3 + 1 + 3 + 1 + 6 + 1 + 9 + 1 + 1 + 1 + 1 + 4;   // magic+v, build 'dev', opponent 'goblin', weapon 'longsword', skill (v12), specials (v21), arena (v26), profile, seed → the tick count
   assert.equal(dv.getUint32(o, true), 2, 'found the tick count field');
   dv.setUint32(o, MAX_RECORD_TICKS + 1, true);
   assert.throws(() => unpackRecord(bytes), /past the 108000-tick limit/);
@@ -135,7 +135,7 @@ test('a record past the tick limit or the expanded-size limit is refused, not al
 
 // Patron perks (docs/specs/origins/patron-perks-sim.md): the header byte exists only on v32, and a fight with no patron is byte-identical to v31.
 const fight = (patron?: number, gambit = false) => {
-  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'veteran', level: 12, seed: 7, ...(patron ? { patron } : {}), ...(gambit ? { gambit: true } : {}) });
+  const rec = mk({ weapon: 'longsword', build: 'abc1234', opponent: 'goblin', level: 12, seed: 7, ...(patron ? { patron } : {}), ...(gambit ? { gambit: true } : {}) });
   for (let i = 0; i < 40; i++) rec.push(intent({ action: i % 9 === 0 ? 'light' : null }));
   return rec.finish('draw');
 };

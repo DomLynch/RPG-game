@@ -61,7 +61,7 @@ test('the wolf flees through the existing twist layer: flee-at 30 fires once he 
   assert.equal(stepTwist(at(wolf.health * 0.29), flag, noTwist()).twist.outcome, 'fled');
 });
 
-// Fairness: the hero's brain against the wolf and against the Goblin (same hit-and-run family), 24 seeded fights each. The wolf is meant to be the Goblin's kin, a notch frailer. RV76 (balance, Strategy targets) moved the Goblin's row (health 140, sheet attack 40) and not the wolf's: the band widens 3 -> 4 (easy brain wolf 7 / goblin 3, normal brain 4 / 1); a wolf retune is its own PR.
+// Fairness: the hero's brain against the wolf and against the Goblin (same hit-and-run family), 24 seeded fights each. The wolf is meant to be the Goblin's kin, a notch frailer.
 function wins(o: Opponent, hero: AiProfile, level: 'easy' | 'normal', seeds = 24): number {
   let n = 0;
   for (let s = 1; s <= seeds; s++) {
@@ -76,7 +76,7 @@ function wins(o: Opponent, hero: AiProfile, level: 'easy' | 'normal', seeds = 24
 test('against the hero\'s brain the wolf is neither a pushover nor a wall (the Goblin\'s band)', () => {
   const rows = { easy: [wins(wolf, PROFILES.easy, 'easy'), wins(OPPONENTS.goblin, PROFILES.easy, 'easy')], normal: [wins(wolf, PROFILES.normal, 'normal'), wins(OPPONENTS.goblin, PROFILES.normal, 'normal')] };
   console.log(`wolf vs goblin wins of 24 (the warden's side): hero easy brain ${rows.easy}, hero normal brain ${rows.normal}`);
-  for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 4, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
+  for (const [w, g] of [rows.easy, rows.normal]) assert.ok(Math.abs(w - g) <= 3, `the wolf won ${w}/24 against the Goblin's ${g}: the beast sits in the Goblin's band`);
 });
 
 // The baked blade tables of every rig that was live before the wolf are byte-identical to trunk (the Auditor's RV35 delta, 2026-10-07: a re-bake had moved all nine Goblin knife
