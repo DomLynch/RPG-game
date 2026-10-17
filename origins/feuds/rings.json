@@ -1,0 +1,7 @@
+{
+  "rings": [
+    { "id": "outer", "fromMetres": 30, "band": "wanted", "levelFrom": "rules", "damagePermille": 1000 },
+    { "id": "middle", "fromMetres": 15, "band": "wanted", "guardLevelFloor": 30, "guardLevelOver": 10, "damagePermille": 1500 },
+    { "id": "inner", "fromMetres": 0, "band": "hunted", "guardLevelFloor": 40, "guardLevelOver": 20, "damagePermille": 4000 }
+  ]
+}
