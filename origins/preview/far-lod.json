@@ -4,20 +4,47 @@
       "id": "hero",
       "fields": {
         "source": "src/assets/warrior.glb",
-        "out": "src/assets/hero-far.glb",
         "body": "CreatureBody",
-        "parts": [
-          {"mesh": "Skin", "tris": 1700},
-          {"mesh": "Photo", "tris": 700},
-          {"mesh": "Face", "tris": 100},
-          {"mesh": "Wrap", "tris": 500},
-          {"mesh": "Gambeson", "tris": 600},
-          {"mesh": "Heraldry", "tris": 500},
-          {"mesh": "Leather.Boots", "tris": 300},
-          {"mesh": "Leather", "tris": 80}
-        ],
-        "weapon": {"meshes": ["WeaponDrawn_1", "WeaponDrawn_2"], "tris": 400},
-        "influences": 4
+        "influences": 4,
+        "levels": [
+          {
+            "id": "near",
+            "out": "src/assets/hero-near.glb",
+            "parts": [
+              {"mesh": "Skin", "tris": 7000},
+              {"mesh": "Photo", "tris": 2500},
+              {"mesh": "Face", "tris": 500},
+              {"mesh": "Wrap", "tris": 2500},
+              {"mesh": "Gambeson", "tris": 1800},
+              {"mesh": "Heraldry", "tris": 2000},
+              {"mesh": "Leather.Boots", "tris": 1200},
+              {"mesh": "Leather", "tris": 312},
+              {"mesh": "Leather.Body", "tris": 400},
+              {"mesh": "Wrap.Boots", "tris": 300},
+              {"mesh": "Steel", "tris": 300},
+              {"mesh": "PhotoEyes", "tris": 300},
+              {"mesh": "PhotoTeeth", "tris": 150},
+              {"mesh": "Antique brass", "tris": 88},
+              {"mesh": "Antique brass.Body", "tris": 320}
+            ],
+            "weapon": {"meshes": ["WeaponDrawn_1", "WeaponDrawn_2"], "tris": 800}
+          },
+          {
+            "id": "far",
+            "out": "src/assets/hero-far.glb",
+            "parts": [
+              {"mesh": "Skin", "tris": 1700},
+              {"mesh": "Photo", "tris": 700},
+              {"mesh": "Face", "tris": 100},
+              {"mesh": "Wrap", "tris": 500},
+              {"mesh": "Gambeson", "tris": 600},
+              {"mesh": "Heraldry", "tris": 500},
+              {"mesh": "Leather.Boots", "tris": 300},
+              {"mesh": "Leather", "tris": 80}
+            ],
+            "weapon": {"meshes": ["WeaponDrawn_1", "WeaponDrawn_2"], "tris": 400}
+          }
+        ]
       }
     }
   ]

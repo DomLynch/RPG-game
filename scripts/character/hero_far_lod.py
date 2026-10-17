@@ -2,7 +2,7 @@
 # every clip of the source, plus the weapon as one small rigid mesh on each of the source's SwordDrawn / SwordSheathed nodes, so the figure's existing draw/sheathe swap keeps working. The parts and their triangle budgets are a row
 # (origins/preview/far-lod.json), so a new kit bakes its own by adding a row. No texture: each part's base colour is sampled at its vertices into one vertex-colour layer and the body is one material (kit-style: vertex colour only),
 # so a far figure uploads no image and links no per-part program.
-#   blender -b -P scripts/character/hero_far_lod.py -- <far-lod.json> <row id> [source override] [out override]
+#   blender -b -P scripts/character/hero_far_lod.py -- <far-lod.json> <row id> <level id: near|far>   (a level is a parts list + budgets in the row; one run bakes one level)
 # Donor check (2026-10-17): the donor repos hold no client-side model LODs (azerothcore is the server; the listing has no client asset pipeline), so nothing is copied. The approach is the common one for MMO characters (WoW's M2 skin
 # profiles, a lower-poly merged body per LOD on the same skeleton), recalled from general knowledge and not read from a donor here: the colour atlas is replaced by vertex colour, and the rig is not reduced (65 bones cost little next to the draws).
 import json
@@ -12,15 +12,18 @@ import bpy
 import numpy as np
 
 argv = sys.argv[sys.argv.index("--") + 1:]
-ROWS, ROW_ID = argv[0], argv[1]
-row = next(r for r in json.load(open(ROWS))["farLods"] if r["id"] == ROW_ID)["fields"]
-SRC = argv[2] if len(argv) > 2 else row["source"]
-OUT = argv[3] if len(argv) > 3 else row["out"]
+ROWS, ROW_ID, LEVEL = argv[0], argv[1], argv[2]
+base = next(r for r in json.load(open(ROWS))["farLods"] if r["id"] == ROW_ID)["fields"]
+row = {**base, **next(lv for lv in base["levels"] if lv["id"] == LEVEL)}
+SRC, OUT = row["source"], row["out"]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SRC)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 objs = {o.name: o for o in bpy.data.objects if o.type == "MESH"}
+for o in objs.values():
+    if o.data.users > 1:   # the drawn and sheathed weapon copies share one mesh; each gets its own before anything is baked or removed from it
+        o.data = o.data.copy()
 
 
 def base_colour_image(mat):
@@ -84,6 +87,8 @@ def reduce_to(o, tris):
     cur = sum(len(p.vertices) - 2 for p in o.data.polygons)
     if tris >= cur:
         return cur
+    if o.data.users > 1:   # the drawn and sheathed weapon copies share one mesh: a modifier cannot be applied to shared data
+        o.data = o.data.copy()
     bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.objects.active = o
     o.select_set(True)

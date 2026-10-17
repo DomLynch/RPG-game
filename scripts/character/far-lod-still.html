@@ -17,7 +17,8 @@ scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new T
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const camera = new THREE.PerspectiveCamera(51, innerWidth / innerHeight, 0.1, 180);
 const figures = [];
-for (const [x, url] of [[-0.7, '/src/assets/warrior.glb'], [0.7, '/src/assets/hero-far.glb']]) {
+const lod = q.get('lod') ?? 'far';
+for (const [x, url] of [[-0.7, '/src/assets/warrior.glb'], [0.7, `/src/assets/hero-${lod}.glb`]]) {
   const { player } = await loadWarriors(url);
   const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot); figures.push({ player, spot, x });
 }
@@ -31,6 +32,6 @@ const calls = [];
 for (const f of figures) { for (const g of figures) g.spot.visible = g === f; renderer.info.reset(); renderer.render(scene, camera); calls.push(renderer.info.render.calls); }
 for (const f of figures) f.spot.visible = true;
 for (let i = 0; i < 2; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); }
-window.result = { d, mode, pose, whole: { ...stats[0], drawCallsAlone: calls[0] }, far: { ...stats[1], drawCallsAlone: calls[1] } };
+window.result = { lod, d, mode, pose, whole: { ...stats[0], drawCallsAlone: calls[0] }, far: { ...stats[1], drawCallsAlone: calls[1] } };
 window.ready = true;
 </script>

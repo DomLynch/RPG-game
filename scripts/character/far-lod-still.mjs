@@ -1,27 +1,27 @@
-// The far LOD beside the whole hero at 4 / 8 / 14 m, standing and walking, at 375 wide (scripts/character/far-lod-still.html on a vite dev server, software GL). Per distance and mode: the 375 frame and a crop at 4x (2x at 4 m).
-// Usage: node scripts/character/far-lod-still.mjs <out dir> [sheathed|ready]
+// The merged LODs beside the whole hero at 2 / 4 / 8 / 14 m, standing and walking, at 375 wide (scripts/character/far-lod-still.html on a vite dev server, software GL): the whole hero left, the LOD right.
+// One shot per (lod, mode, distance): a crop of the two figures at 3x the phone's pixels. Usage: node scripts/character/far-lod-still.mjs <out dir> [sheathed|ready] [near,far]
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
-const out = path.resolve(process.argv[2] ?? 'artifacts/far-lod'), pose = process.argv[3] ?? 'sheathed';
+const out = path.resolve(process.argv[2] ?? 'artifacts/far-lod'), pose = process.argv[3] ?? 'sheathed', lods = (process.argv[4] ?? 'near,far').split(',');
 fs.mkdirSync(out, { recursive: true });
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
 const base = `http://127.0.0.1:${server.httpServer.address().port}/scripts/character/far-lod-still.html`;
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const crop = { 4: { x: 0, y: 40, width: 375, height: 420 }, 8: { x: 55, y: 190, width: 265, height: 240 }, 14: { x: 95, y: 250, width: 185, height: 140 } };
+const crop = { 2: { x: 0, y: 0, width: 375, height: 560 }, 4: { x: 0, y: 40, width: 375, height: 420 }, 8: { x: 55, y: 190, width: 265, height: 240 }, 14: { x: 95, y: 250, width: 185, height: 140 } };
 try {
-  for (const mode of ['stand', 'walk']) {
-    for (const d of [4, 8, 14]) {
-      for (const scale of [1, d === 4 ? 2 : 4]) {
-        const page = await (await browser.newContext({ viewport: { width: 375, height: 560 }, deviceScaleFactor: scale, isMobile: true, hasTouch: true })).newPage();
+  for (const lod of lods) {
+    for (const mode of ['stand', 'walk']) {
+      for (const d of [2, 4, 8, 14]) {
+        const page = await (await browser.newContext({ viewport: { width: 375, height: 560 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true })).newPage();
         const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
-        await page.goto(`${base}?d=${d}&mode=${mode}&pose=${pose}`, { waitUntil: 'load' });
+        await page.goto(`${base}?lod=${lod}&d=${d}&mode=${mode}&pose=${pose}`, { waitUntil: 'load' });
         await page.waitForFunction(() => window.ready === true, null, { timeout: 240000 }).catch(() => { throw new Error(`not ready: ${errors.join(' | ')}`); });
-        if (scale === 1) { await page.screenshot({ path: path.join(out, `lod-${mode}-${d}m-375.png`) }); console.log(JSON.stringify(await page.evaluate(() => window.result)), 'errors', errors.length, errors.slice(0, 2)); }
-        else await page.screenshot({ path: path.join(out, `lod-${mode}-${d}m-zoom.png`), clip: crop[d] });
+        await page.screenshot({ path: path.join(out, `lod-${lod}-${mode}-${d}m.png`), clip: crop[d] });
+        console.log(JSON.stringify(await page.evaluate(() => window.result)), 'errors', errors.length, errors.slice(0, 2));
         await page.close();
       }
     }
