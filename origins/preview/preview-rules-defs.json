@@ -59,6 +59,7 @@
     { "id": "remoteAdaptPercentile", "value": 0.95, "unit": "ratio" },
     { "id": "remoteGroundStep", "value": 0.25, "unit": "m" },
     { "id": "remoteFarRangeM", "value": 8, "unit": "m" },
-    { "id": "remoteLodSlackM", "value": 1, "unit": "m" }
+    { "id": "remoteLodSlackM", "value": 1, "unit": "m" },
+    { "id": "remoteNearCap", "value": 8, "unit": "figures" }
   ]
 }

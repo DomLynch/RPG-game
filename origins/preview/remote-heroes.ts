@@ -18,6 +18,7 @@ import { labelSprite } from './label-sprite.ts';
 import { labelCeilingNdc } from './mobs.ts';
 import { CHEAP_PARTS } from './remote-cheap.ts';
 import { previewRule } from './preview-rules.ts';
+import { chooseLod } from './remote-lod.ts';
 import { createTrack, type Remote } from './remote-track.ts';
 
 type Actor = ReturnType<typeof buildWarriors>['player'];
@@ -32,7 +33,7 @@ type Slot = { group: THREE.Group; actor: Actor; near: Actor; far: Actor | null; 
 export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; spawnFar?: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
   const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile') });
-  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep'), farRange = previewRule('remoteFarRangeM'), lodSlack = previewRule('remoteLodSlackM');   // read once: update() runs every frame
+  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep'), farRange = previewRule('remoteFarRangeM'), lodSlack = previewRule('remoteLodSlackM'), nearCap = previewRule('remoteNearCap');   // read once: update() runs every frame
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), far = d.spawnFar?.() ?? null, group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
@@ -82,7 +83,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         slot.speed += ((s.speed < idle ? 0 : s.speed) - slot.speed) * (1 - Math.exp(-dt * 14)); if (slot.speed < idle) slot.speed = 0;
         slot.owed = Math.min(owedCap, slot.owed + dt); slot.frames++;
         let switched = false;   // a figure that changes LOD is posed this frame: the one that comes on was not updated while it was hidden
-        if (slot.far) { const dist = Math.hypot(s.x - hero.x, s.z - hero.z), lod: Lod = slot.lod === 'near' ? (dist > farRange + lodSlack ? 'far' : 'near') : (dist < farRange - lodSlack ? 'near' : 'far'); if (lod !== slot.lod) { switched = true; setLod(slot, lod); } }   // the slack keeps a figure on the boundary from flipping every frame
+        if (slot.far) { const lod = chooseLod({ dist: Math.hypot(s.x - hero.x, s.z - hero.z), rank, current: slot.lod, farRange, slack: lodSlack, nearCap }); if (lod !== slot.lod) { switched = true; setLod(slot, lod); } }   // remote-lod.ts: the near figure only for the nearest nearCap figures inside farRange; the slack keeps a figure on the boundary from flipping every frame
         if (!(Math.hypot(s.x - slot.gx, s.z - slot.gz) <= groundStep)) { slot.gy = d.groundAt(s.x, s.z); slot.gx = s.x; slot.gz = s.z; }   // the ground height is read again only once the figure has moved a step (T4 profile 2026-10-17: reliefAt per figure per frame was +1.9 ms at 40 players, 4x); a NaN (a fresh slot) reads
         const gy = slot.gy, seen_ = !camera || (Math.hypot(s.x - hero.x, s.z - hero.z) <= range && frustum.intersectsSphere(ball.set(at.set(s.x, gy, s.z), radius).translate(up)));
         const pose = seen_ && (!slot.cheap || slot.hidden || switched || slot.frames % every === 0);   // a cheap figure poses every Nth frame (and on the frame it comes back into view) with the time it has been owed
