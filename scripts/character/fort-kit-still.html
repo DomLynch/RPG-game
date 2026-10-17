@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>goblin fort kit still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// Lays the goblin fort kit's pieces in two rows on a ground plane and reports, per node: name, size (m), tris. Also counts the WebGL programs after the zone 1 kit
+// alone and after the fort kit is added (should add 0: the same material features). Driven by scripts/character/fort-kit-still.mjs (window.ready flips true).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(3, 5, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 600);
+const frame = async (n = 3) => { for (let i = 0; i < n; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
+const load = (url) => new GLTFLoader().loadAsync(url);
+
+const z1 = await load('/public/world/kit/zone1-kit.glb'); const z1probe = z1.scene.clone(true); z1probe.position.set(40, 0, 0); scene.add(z1probe);
+camera.position.set(40, 6, 14); camera.lookAt(40, 1, 0); await frame();
+const programsZone1 = renderer.info.programs.length; scene.remove(z1probe);
+
+const fort = await load('/public/world/kit/goblin-fort-kit.glb');
+const nodes = []; fort.scene.traverse((o) => { if (o.isMesh) nodes.push(o); });
+const info = nodes.map((m) => { const b = new THREE.Box3().setFromObject(m), s = b.getSize(new THREE.Vector3()); const g = m.geometry; return { name: m.name, size: [s.x, s.y, s.z].map((v) => +v.toFixed(2)), tris: (g.index ? g.index.count : g.attributes.position.count) / 3, centre: b.getCenter(new THREE.Vector3()) }; });
+// A grid, three pieces to a row, each cell as wide as its widest piece (portrait 375 wide: a wide single row would be cropped by the narrow horizontal field of view).
+const COLS = 3, group = new THREE.Group(); scene.add(group);
+const cell = Math.max(...info.map((i) => Math.max(i.size[0], i.size[2]))) + 1.5;
+for (const [k, it] of info.entries()) { const src = nodes.find((n) => n.name === it.name), m = src.clone(); const col = k % COLS, row = Math.floor(k / COLS);
+  // the node keeps whatever offset it has in the glb: move its box centre to the cell centre, standing on the ground
+  m.position.copy(src.position).add(new THREE.Vector3(col * cell, it.size[1] / 2, -row * cell)).sub(it.centre); group.add(m); }
+const bb = new THREE.Box3().setFromObject(group), c = bb.getCenter(new THREE.Vector3()), radius = bb.getSize(new THREE.Vector3()).length() / 2;
+const result = { programsZone1, programsAfterFort: 0, info: info.map(({ centre, ...i }) => i) };
+// fit the whole grid in the narrower of the two fields of view; 'front' looks down 30 degrees, 'quarter' is the same from the left corner
+const fit = radius / Math.sin(Math.min(THREE.MathUtils.degToRad(camera.fov / 2), Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect)));
+const look = (yaw) => { camera.position.set(c.x + Math.sin(yaw) * Math.cos(0.5) * fit, c.y + Math.sin(0.5) * fit, c.z + Math.cos(yaw) * Math.cos(0.5) * fit); camera.lookAt(c); };
+look(0); await frame(); result.programsAfterFort = renderer.info.programs.length;
+window.result = result;
+window.view = async (name) => { if (name === 'quarter') look(-0.7); await frame(); };
+window.ready = true;
+</script>
