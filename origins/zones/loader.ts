@@ -67,7 +67,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     for (const n of k.nodes) if (!nodes.has(n)) bad.push(`kit kind uses ${n}, which is not a kit node`);
     if (!(k.per > 0 && k.r > 0 && k.solid >= 0 && k.scale[0] > 0 && k.scale[1] >= k.scale[0])) bad.push(`kit kind ${k.nodes[0]}: bad numbers`);
   }
-  const places = new Set(Object.keys(z.place?.zones ? Object.values(z.place.zones).flatMap((q) => Object.keys(q.layout ?? {})) : []));
+  const places = new Set(Object.values(z.place?.zones ?? {}).flatMap((q) => Object.keys((q.layout ?? {}) as object)));
   for (const f of z.kit.fixed ?? []) {
     if (!nodes.has(f.node)) bad.push(`kit fixed piece uses ${f.node}, which is not a kit node`);
     if (!places.has(f.at)) bad.push(`kit fixed ${f.node}: ${f.at} is not a landmark of this zone`);
