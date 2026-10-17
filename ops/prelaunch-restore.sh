@@ -5,10 +5,10 @@
 #                                                             which needs ownership, not superuser: production's role is refused session_replication_role, probe 2026-10-17). Changes nothing.
 #   bash ops/prelaunch-restore.sh restore <r1-... backup dir> load the CSVs in ONE transaction (see restoreSql in scripts/prelaunch-restore-test.mjs): parents first, refuses a non-empty table,
 #                                                             user triggers off only inside it and back on before COMMIT, identity sequences advanced to max(id). Only after a reset, writer stopped.
-#   env: BACKUP_ENV (/etc/frankendom/backup.env, DATABASE_URL), PSQL, NODE. The URL (it holds the password) is turned into a service file, never echoed, never on a command line.
+#   env: RESTORE_ENV (a file with DATABASE_URL of the OWNER role; falls back to BACKUP_ENV, /etc/frankendom/backup.env), PSQL, NODE. The URL (it holds the password) is turned into a service file, never echoed, never on a command line.
 set -euo pipefail
 umask 077
-env_file=${BACKUP_ENV:-/etc/frankendom/backup.env}
+env_file=${RESTORE_ENV:-${BACKUP_ENV:-/etc/frankendom/backup.env}}   # the restore needs the OWNER role (postgres on production); backup.env's role is read-only, so the probe refuses it
 psql_bin=${PSQL:-psql}
 node_bin=${NODE:-node}
 here=$(cd "$(dirname "$0")" && pwd)
