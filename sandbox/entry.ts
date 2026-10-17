@@ -14,13 +14,17 @@ import CROWD from '../src/audio/crowd-defs.json' with { type: 'json' };
 import RULES from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 import PHASES from '../src/fight/boss-phase-defs.json' with { type: 'json' };
 import PLAY_RADIUS from '../src/fight/play-radius-defs.json' with { type: 'json' };
+import SKILL_DEFS from '../src/fight/skill-defs.json' with { type: 'json' };
 import SAVED from './rows.json' with { type: 'json' };
 import SPELL_LOOKS from './spell-looks.json' with { type: 'json' };
 import SPELL_EFFECTS from './spell-fx.json' with { type: 'json' };
 
 declare const __SANDBOX_INFO__: string;
 // The spell picks survive a link or a reload that does not name them (a ?me= link used to drop them): remembered per browser, the URL wins, an empty Apply clears.
-const LOADOUT_KEY = 'frankendom.sandbox.loadout', SPELL_KEYS = ['spell', 'spell2', 'cast', 'cast2', 'foespell', 'foecast'];
+const LOADOUT_KEY = 'frankendom.sandbox.loadout', SPELL_KEYS = ['spell', 'spell2', 'special2', 'cast', 'cast2', 'foespell', 'foecast'];
+// Beta (Dom 2026-10-17): the two slots are SPECIAL 1 / SPECIAL 2, filled from the existing class skills (skill-defs rows, their own clips). The `spellsOff` row hides the spell pickers and drops every spell pick from the link except the heal rows (the utility pick); ?spells=1 brings the spells back for the look work.
+const spellsOff = (): boolean => (RULES.rules as { id: string; value?: number }[]).some((r) => r.id === 'spellsOff' && r.value) && new URLSearchParams(location.search).get('spells') !== '1';
+const healIds = (): string[] => ((RULES as unknown as { spellHeal?: { id: string }[] }).spellHeal ?? []).map((r) => r.id);
 {
   const u = new URL(location.href); let saved: Record<string, string> = {}; let changed = false;
   try { saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; } catch { /* none */ }
@@ -143,11 +147,18 @@ function panel(opponents: string[]) {
     for (const [k, v] of Object.entries({ spar: '1', weapon: from.searchParams.get('weapon') ?? 'longsword', difficulty: 'dummy', skill: 'none', opponent: from.searchParams.get('opponent') ?? 'Centurion' })) u.searchParams.set(k, v);
     location.assign(u.href);
   };
-  const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
-    el('div', { textContent: 'Loadout (pick everything, then Apply once)', style: 'color:#c9a227;font-weight:600' }),
+  // SPECIAL 1 is the game's own equipped skill (?skill=<skill id>); SPECIAL 2 is any class skill too (?special2=<skill id>) or the heal (?spell2=<heal id>). Every list comes from the rows, nothing is named here.
+  const skillIds = (SKILL_DEFS as { skills: { id: string; name: string }[] }).skills;
+  const special1 = el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your special 1 (SPECIAL 1) ' }), (() => { const s = el('select'); s.append(el('option', { value: '', textContent: '(game default)' })); for (const k of skillIds) s.append(el('option', { value: k.id, textContent: k.name, selected: params.get('skill') === k.id })); s.onchange = () => stage('skill', s.value); return s; })());
+  const special2 = el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your special 2 (SPECIAL 2) ' }), (() => { const s = el('select'); s.append(el('option', { value: '', textContent: '(none)' })); for (const k of skillIds) s.append(el('option', { value: k.id, textContent: k.name, selected: params.get('special2') === k.id })); for (const h of healIds()) s.append(el('option', { value: `heal:${h}`, textContent: 'Heal (utility)', selected: params.get('spell2') === h })); s.onchange = () => { const h = s.value.startsWith('heal:'); stage('special2', h ? '' : s.value); stage('spell2', h ? s.value.slice(5) : ''); }; return s; })());
+  const spellRows = spellsOff() ? [] : [
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell (SPELL 1) ' }), spellSel, cast),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell 2 (SPELL 2) ' }), spell2Sel, cast2),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Opponent spell ' }), foeSel, foeCast),
+  ];
+  const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
+    el('div', { textContent: 'Loadout (pick everything, then Apply once)', style: 'color:#c9a227;font-weight:600' }),
+    special1, special2, ...spellRows,
     weaponPick('Your weapon', true), weaponPick('Opponent weapon', false), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)), applyLoadout, dummyBtn,
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
@@ -206,6 +217,8 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
 // Loadout (the sandbox panel's menu): ?foeWeapon= swaps every warden's weapon (the sim, the AI and the rig's grafted equip follow the fighter's weapon), ?foeArmour= / ?myArmour= force the armour class the blow-type table reads.
 {
   const q = new URLSearchParams(location.search), { OPPONENTS } = await import('../src/fight/moves.ts');
+  if (spellsOff()) for (const k of ['spell', 'spell2', 'foespell']) { const v = q.get(k); if (v && !healIds().includes(v)) q.delete(k); }   // beta: only the heal survives from the spell picks
+  { const s2 = q.get('special2'); if (s2 && !q.get('spell2')) (globalThis as { __SANDBOX_SKILL2__?: string }).__SANDBOX_SKILL2__ = s2; }   // a melee special in slot 2 (an existing skill row); Match checks the id
   const fw = q.get('foeWeapon'); if (fw && WEAPON_IDS.includes(fw)) for (const o of Object.values(OPPONENTS)) (o as { weapon: string }).weapon = fw;
   // ?staff=<weapon> makes that existing weapon fire bolts instead of striking (the missile rows, kind staff; a stand-in until the weapons lane bakes a staff): the sim, the AI and the sandbox bands follow the weapon id.
   {
@@ -337,7 +350,7 @@ const layoutA = (): void => {
   const spots: [string, number, number, number][] = [['attack-button', 0, 0, V.S], ['skill-button', sp1[0], sp1[1], V.d], ['sbx-spell2', sp2[0], sp2[1], V.d], ['guard-button', gd[0], gd[1], V.d], ['dodge-button', rl[0], rl[1], V.d], ['kick-button', kk[0], kk[1], KD]];   // id, dx, dy (down is +), diameter
   const ids = spots.map(([id]) => `.actions #${id}`);
   const place = spots.map(([id, dx, dy, d]) => `.actions #${id}{right:${CX - dx - d / 2}px!important;bottom:${CY - dy - d / 2}px!important;width:${d}px!important;height:${d}px!important}`);
-  const label: Record<string, string> = { 'attack-button': 'STRIKE', 'skill-button': 'SPELL 1', 'sbx-spell2': 'SPELL 2', 'guard-button': 'GUARD', 'dodge-button': 'ROLL', 'kick-button': 'KICK' };
+  const label: Record<string, string> = { 'attack-button': 'STRIKE', 'skill-button': 'SPECIAL 1', 'sbx-spell2': 'SPECIAL 2', 'guard-button': 'GUARD', 'dodge-button': 'ROLL', 'kick-button': 'KICK' };
   const css = document.createElement('style');
   css.textContent = [
     '.actions #heavy-button,.actions #thrust-button,.actions #run-button,.actions #attack-button svg{display:none!important}',
@@ -346,6 +359,7 @@ const layoutA = (): void => {
     `${ids.map((i) => i + '::after').join(',')}{display:block!important;position:static!important;font-size:10px!important;font-weight:600;letter-spacing:.03em;color:inherit;text-align:center;white-space:nowrap}`,
     ...Object.entries(label).map(([id, t]) => `.actions #${id}::after{content:"${t}"!important}`),
     '.actions #attack-button::after{font-size:13px!important;letter-spacing:.05em}',
+    '.actions #skill-button::after,.actions #sbx-spell2::after{font-size:8px!important;letter-spacing:0!important}',   // SPECIAL 1 / SPECIAL 2 are longer than SPELL 1 / SPELL 2: keep them inside the 50 px circle
     
     '.actions #sbx-spell2{opacity:1}.actions #sbx-spell2[aria-disabled=true]{opacity:.5}',   // lit when it would cast, dim like SPELL 1 on cooldown / no mana (hud.ts sets aria-disabled each frame)
     '#joystick{bottom:max(56px,env(safe-area-inset-bottom))!important}',
@@ -353,7 +367,7 @@ const layoutA = (): void => {
     '#sbx-zones i{position:absolute;font:600 10px sans-serif;color:rgba(255,235,215,.85);font-style:normal;letter-spacing:.04em}',
   ].join('\n');
   document.head.append(css);
-  const two = document.createElement('button'); two.id = 'sbx-spell2'; two.type = 'button'; if ((globalThis as { __SANDBOX_SPELL2__?: unknown }).__SANDBOX_SPELL2__) { two.dataset.live = ''; two.title = 'Second spell'; } else { two.title = 'Second spell slot: pick a spell in the Sandbox menu'; two.setAttribute('aria-disabled', 'true'); } document.getElementById('actions')?.append(two);   // a placeholder: the game has one spell slot
+  const two = document.createElement('button'); two.id = 'sbx-spell2'; two.type = 'button'; if ((globalThis as { __SANDBOX_SPELL2__?: unknown }).__SANDBOX_SPELL2__ || (globalThis as { __SANDBOX_SKILL2__?: unknown }).__SANDBOX_SKILL2__) { two.dataset.live = ''; two.title = 'Second special'; } else { two.title = 'Second special slot: pick one in the Sandbox menu'; two.setAttribute('aria-disabled', 'true'); } document.getElementById('actions')?.append(two);   // a placeholder: the game has one spell slot
   const zones = document.createElement('div'); zones.id = 'sbx-zones';
   zones.innerHTML = '<i style="left:50%;top:5px;transform:translateX(-50%)">stab</i><i style="left:6px;top:50%;transform:translateY(-50%)">sl</i><i style="right:6px;top:50%;transform:translateY(-50%)">sh</i>';
   document.body.append(zones);

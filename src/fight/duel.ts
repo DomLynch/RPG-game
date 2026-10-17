@@ -48,6 +48,7 @@ export type Fighter = {
   missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number; spell?: string; outcome?: CastOutcome; tint?: string };   // spell, outcome, tint: a long-range SPELL flying through the same model (sandbox spellRange); sandbox-mech missiles: the one bolt this fighter has in flight
   healUses?: number;   // sandbox spellHeal: heals cast this fight, against the row's `uses` cap
   spell2?: Spell; skillCooldown2?: number; spellHome?: Spell; slot2Active?: boolean;   // sandbox-mech spell slot 2: the second spell, its own cooldown, and the slot-1 spell parked while the second is cast
+  skill2?: SkillId; skillHome?: SkillId | null;   // sandbox-mech special slot 2 as a melee special (an existing class skill row): the skill parked while it is cast
   ammo?: number;   // sandbox-mech missiles: arrows or bolts left in the quiver (absent = infinite)
   mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
   bound?: number; boundHold?: number; boundReact?: number; disarmed?: number;   // sandbox-mech bindAndDisarm: ticks left bound / the disarm it turns into / the AI's reaction / ticks left disarmed
@@ -193,6 +194,11 @@ export const withSpell2 = (duel: Duel, side: Side, spell: Spell): Duel => {
   if (duel.fighters[side].specialShare === undefined) throw Error('A spell is cast through the special: the fight needs Special Moves');
   const fighters = [...duel.fighters] as [Fighter, Fighter]; fighters[side] = { ...fighters[side], spell2: spell }; return { ...duel, fighters };
 };
+// sandbox-mech special slot 2 as a melee special: the second slot holds an existing class skill (a skill-defs row, so its move and clip already exist) instead of a spell.
+export const withSkill2 = (duel: Duel, side: Side, skill: SkillId): Duel => {
+  if (duel.fighters[side].specialShare === undefined) throw Error('A special is cast through the special slot: the fight needs Special Moves');
+  const fighters = [...duel.fighters] as [Fighter, Fighter]; fighters[side] = { ...fighters[side], skill2: skill }; return { ...duel, fighters };
+};
 export const withSpecials = (duel: Duel, level: number, aiSkill: SkillId | null, R: typeof RULES = RULES, name?: SpecialName | null): Duel => ({ ...duel, fighters: [
   { ...duel.fighters[0], specialShare: R.special.damage, skillCooldown: R.special.first },
   { ...duel.fighters[1], specialShare: level >= R.special.bossFrom ? R.special.bossDamage : R.special.damage, skillCooldown: R.special.first, skill: duel.fighters[1].skill ?? aiSkill, ...(name ? { specialName: name } : {}) },
@@ -263,6 +269,7 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
+  if (action === 'skill2' && f.spell2 === undefined) return f.skill2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail);   // a melee special in slot 2: no cost, like a class special
   if (action === 'skill2') return f.spell2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail) && !healSpent(f, f.spell2) && (paysManaFor(f.spell2.id) ? (f.mana ?? 0) >= manaCost(f.spell2.cost) : f.stamina >= f.spell2.cost);   // sandbox-mech spell slot 2: its own cooldown, its own cost
   if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && !healSpent(f, f.spell) && (!f.spell || (paysManaFor(f.spell.id) ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
@@ -285,7 +292,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
   // A committed special windup: the caster stands and tracks the target, whatever the thumb does (no guard, roll, parry or step).
   if (before[0].special || before[1].special) intents = [before[0].special ? idleIntent() : intents[0], before[1].special ? idleIntent() : intents[1]];
   const fighters = before.map(f => ({ ...f, age: f.stall > 0 ? f.age : f.age + 1, stall: Math.max(0, f.stall - 1), wound: Math.max(0, f.wound - 1), chain: Math.max(0, f.chain - 1), parryCooldown: Math.max(0, f.parryCooldown - 1), skillCooldown: Math.max(0, f.skillCooldown - 1), ...(f.skillCooldown2 ? { skillCooldown2: f.skillCooldown2 - 1 } : {}), punish: Math.max(0, f.punish - 1), critical: Math.max(0, f.critical - 1), posture: f.phase === 'hurt' || f.phase === 'dead' || f.postureRest > 0 ? f.posture : Math.max(0, f.posture - stanced(f, 'recover', R.posture.decay) * guardOf(f, R).postureDecay * (f.health < R.posture.bloodied * f.maxHealth ? R.posture.bloodiedDecay : 1)), postureRest: Math.max(0, f.postureRest - 1), rest: Math.max(0, f.rest - 1), exposed: Math.max(0, f.exposed - 1), evaded: Math.max(0, f.evaded - 1), counterWindow: Math.max(0, f.counterWindow - 1), buffer: f.buffer && f.buffer.ttl > 1 ? { ...f.buffer, ttl: f.buffer.ttl - 1 } : null })) as [Fighter, Fighter];
-  for (const f of fighters) if (f.slot2Active && !f.special) { f.spell = f.spellHome; delete f.spellHome; delete f.slot2Active; }   // sandbox-mech spell slot 2: the cast is over, the slot-1 spell is back
+  for (const f of fighters) if (f.slot2Active && !f.special) { f.spell = f.spellHome; delete f.spellHome; if ('skillHome' in f) { f.skill = f.skillHome!; delete f.skillHome; } delete f.slot2Active; }   // sandbox-mech spell slot 2: the cast is over, the slot-1 spell is back
   for (const f of fighters) if (f.poiseRest) { if (f.poiseRest > 1) f.poiseRest--; else delete f.poiseRest; }
   for (const f of fighters) if (f.specialRecover) f.specialRecover--;
   for (const f of fighters) if (f.feintEdge) { f.feintEdge--; if (!f.feintEdge) delete f.feintEdge; }
@@ -338,7 +345,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       // Cornered: the wall is at the back, there is nowhere to step. The press is simply refused (a roll still works).
     } else if (action === 'backstep') {
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
-    } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && (action === 'skill' || me.spell2)) {
+    } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && (action === 'skill' || me.spell2 || me.skill2)) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       const picked = action === 'skill2' ? me.spell2 : me.spell, root = picked && spellRoot(picked.id), gap = distance(me.body, foe.body);
       const heal = healOf(picked?.id);   // sandbox spellHeal: needs no range, windup from its row
@@ -346,11 +353,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (cue) events.push({ tick, type: 'SpellRefused', actor: i, cue, ...(picked ? { spell: picked.id } : {}) });
       else if (gap <= R.special.reach || heal || (root && spellRangeOf(root))) {
         const chosen = picked;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
-        if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; }
+        if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; if (!me.spell2) { next.skillHome = me.skill ?? null; next.skill = me.skill2!; } }   // a melee special in slot 2 casts no spell: the slot-1 spell is parked and the skill swapped
         next.special = castWindup(me.sheet, heal ? heal.windup : spellWindupOf(root, R.special.windup)); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
         if (chosen && paysManaFor(chosen.id)) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
         else if (chosen) spend(i, chosen.cost);   // the stamina is gone at the commit, whatever the outcome
-        events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(chosen ? { spell: chosen.id } : {}) });
+        events.push({ tick, type: 'SpecialStarted', actor: i, ...((action === 'skill2' && !me.spell2 ? me.skill2 : me.skill) ? { move: SKILL_MOVE[(action === 'skill2' && !me.spell2 ? me.skill2 : me.skill)!] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(chosen ? { spell: chosen.id } : {}) });
       }
     } else if (action === 'kick') {
       beginAttack(next, 'kick', false, foe.body); spend(i, perked(me, 'thrift', movesOf(next).kick.stamina));

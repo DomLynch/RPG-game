@@ -13,13 +13,13 @@
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { isSpellId, resolveSpell } from './spell-cast.ts';
-import { foeSpellPick } from './spell-slot2.ts';
+import { foeSpellPick, skill2Pick } from './spell-slot2.ts';
 import { recordSpecials } from './replay.ts';
 import type { PickedStance } from './stance.ts';
 // Phase two: class B from Veteran and all boss tiers are enabled in valid PvE fights. A record carries its own flag
 // (version 21), so links made either way replay as they were fought.
 const LIVE_SPECIALS = true;
-import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, DEFAULT_WEAPON, type SkillId, type WeaponId } from './moves.ts';
+import { LEVELS, LEVEL_ANCHORS, opponentAt, profileAt, DEFAULT_WEAPON, SKILL_ROWS, type SkillId, type WeaponId } from './moves.ts';
 import { loadTrial, recordPractice, recordRematch, saveTrial, type Trial } from '../trial.ts';
 import { loadScorecard, recordResult, saveScorecard, type Scorecard } from '../scorecard.ts';
 import { awardMark, levelOfMarks as levelOf, marksOf, turnDial, RANK_STEPS, TITLES } from '../core/career-ladder.ts';
@@ -84,6 +84,7 @@ export class Match {
   stancePref: PickedStance | undefined = undefined;   // the stance preview's pick (src/stance-panel.ts, ?stances=): a live career/practice fight takes it at begin(); undefined = no stances, every live fight today
   stances: PickedStance | undefined = undefined;   // the player's stance pick (src/fight/stance.ts, RV34): undefined = a fight without stances, which is every live fight until a flag turns them on; a replay takes its record's own
   sheetPref: Sheet | undefined = undefined;   // the player's sheet (gear-stats.ts gearSheet, RV48): a live career/practice fight takes them at begin(); undefined = no gear, every live fight until the kit is wired
+  skill2: SkillId | undefined = undefined;   // sandbox-mech special slot 2 as a melee special: an existing class skill id, taken at begin() (spell-slot2.ts skill2Pick)
   foeSpell: { id: string; skill: number } | undefined = undefined;   // sandbox-mech opponent spells: the foe's spell, taken at begin() (spell-slot2.ts foeSpellPick); a replay never has one
   spell2: { id: string; skill: number } | undefined = undefined;   // sandbox-mech spell slot 2: the second spell a live career/practice fight takes at begin() (spell-slot2.ts)
   spell: { id: string; skill: number } | undefined = undefined;   // the spell THIS fight casts through the skill slot's special (RV53, spell-cast.ts): a live career/practice fight takes it at begin(), a replay its record's own
@@ -152,9 +153,10 @@ export class Match {
     if (mode !== 'replay') this.specials = mode !== 'pvp' && (look && isSpellId(look.id) ? true : test ? test.enabled !== false : live);   // previews/off explicit; replay retains its recorded phase
     if (mode !== 'replay') { const asked = mode === 'career' || mode === 'practice' ? this.ports.spell?.() : look; this.spell = asked && this.specials && isSpellId(asked.id) ? asked : undefined; }
     { const a2 = mode === 'career' || mode === 'practice' || mode === 'sparring' ? this.ports.spell2?.() : undefined; this.spell2 = a2 && this.specials && isSpellId(a2.id) ? a2 : undefined; }   // sandbox-mech spell slot 2   // a spell is cast through the special: no Special Moves, no spell; an unknown id is no spell
+    { const s2 = mode === 'career' || mode === 'practice' || mode === 'sparring' ? skill2Pick() : undefined; this.skill2 = s2 && this.specials && !this.spell2 && Object.hasOwn(SKILL_ROWS, s2) ? (s2 as SkillId) : undefined; }   // sandbox-mech: slot 2 is a spell or a melee special, not both
     { const fs = mode === 'career' || mode === 'practice' || mode === 'sparring' ? foeSpellPick() : undefined; this.foeSpell = fs && this.specials && isSpellId(fs.id) ? fs : undefined; }   // sandbox-mech opponent spells
     this.fightIdentity = { opponent: this.opponent.id, level: this.level };
-    this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: test?.level ?? this.level, opponent: this.opponent.id }), this.gambit ? this.seed : undefined, this.stances, pose, this.sheet, this.spell ? resolveSpell(this.spell.id, this.spell.skill, this.sheet?.spellPower ?? 0) : undefined, this.spell2 ? resolveSpell(this.spell2.id, this.spell2.skill, this.sheet?.spellPower ?? 0) : undefined, this.foeSpell ? resolveSpell(this.foeSpell.id, this.foeSpell.skill) : undefined);   // preview identity/share only; body/AI remain on the visible difficulty
+    this.practice = initialPractice(this.seed, opponentAt(this.opponent, this.level), this.weapon, this.skill, recordSpecials({ specials: this.specials, level: test?.level ?? this.level, opponent: this.opponent.id }), this.gambit ? this.seed : undefined, this.stances, pose, this.sheet, this.spell ? resolveSpell(this.spell.id, this.spell.skill, this.sheet?.spellPower ?? 0) : undefined, this.spell2 ? resolveSpell(this.spell2.id, this.spell2.skill, this.sheet?.spellPower ?? 0) : undefined, this.foeSpell ? resolveSpell(this.foeSpell.id, this.foeSpell.skill) : undefined, this.skill2);   // preview identity/share only; body/AI remain on the visible difficulty
     if (test && this.specials) for (const f of this.practice.duel.fighters) f.skillCooldown = test.first;   // a test page's early first cast (special-look.ts); sparring keeps no record
     if (mode === 'sparring' && this.sparSelection) {
       this.practice = { ...this.practice, duel: sparringSpecialDuel(this.practice.duel, this.sparSelection) };
