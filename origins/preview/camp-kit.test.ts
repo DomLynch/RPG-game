@@ -8,7 +8,7 @@ import { CAMP_KIT } from './frontier-camp.ts';
 
 test('the camp kit row equals the literal it replaced', () => {
   assert.deepEqual(CAMP_KIT, {
-    radius: 6,
+    id: 'camp-kit', radius: 6,
     fire: { stones: 9, ring: 1.0, stone: [0.32, 0.3, 0.42], coal: [0.8, 0.16], logs: 4 },
     seat: { ring: 2.9, log: [1.9, 0.5, 0.55], standOut: 4.6 },
     bedroll: [1.0, 0.2, 2.3], crate: [1.0, 0.9, 1.0], barrel: [0.48, 1.1],
@@ -18,6 +18,6 @@ test('the camp kit row equals the literal it replaced', () => {
 
 test('the registry loader accepts the row and refuses a missing field', () => {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, ROWS, 'camp-kit.json')]);
-  const { glow: _glow, ...broken } = ROWS.campKit[0]!;
+  const broken = { ...ROWS.campKit[0]!, glow: undefined };
   assert.throws(() => loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, { campKit: [broken] }, 'camp-kit.json')]));
 });
