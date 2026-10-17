@@ -3,7 +3,7 @@
     {
       "id": "cheap",
       "fields": {
-        "hideParts": ["PhotoEyes", "PhotoTeeth", "Steel", "Heraldry", "LeatherBoots", "WrapBoots", "LeatherBody", "Antique_brassBody"]
+        "hideParts": ["PhotoEyes", "PhotoTeeth", "Steel", "Antique_brassBody", "WrapBoots", "LeatherBody"]
       }
     }
   ]
