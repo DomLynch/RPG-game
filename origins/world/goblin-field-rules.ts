@@ -7,6 +7,7 @@ import DEFS from './goblin-field-defs.json' with { type: 'json' };
 import MANIFEST from './goblin-field-defs.manifest.json' with { type: 'json' };
 import { ambienceRow, dressSet, kitIds } from './props-rules.ts';
 import { skinIds } from './building-skins-rules.ts';
+import type { CombatCam, CombatFraming } from '../../src/fight/follow-camera.ts';
 
 export type GoblinRule = { readonly id: string; readonly value: number; readonly unit: string };
 type Raw = { rules?: readonly unknown[]; palettes?: readonly unknown[]; backdrops?: readonly unknown[]; grounds?: readonly unknown[]; looks?: readonly unknown[]; harmonics?: readonly unknown[]; names?: readonly unknown[] };
@@ -85,6 +86,13 @@ export const zoneLandscapeZoom = (z: ZoneLookFields): number => { const v = zone
 export const zoneFightBack = (z: ZoneLookFields): number => { const v = zoneSet(z, 'camera.fightBack'); return typeof v === 'number' && v >= 1 && v <= 2 ? v : 1; };
 /** The extra the fight camera stands back on a portrait screen only (a phone held upright): `camera.fightBackPortrait`, multiplied on top of `camera.fightBack`; 1 = none (Dom 2026-10-17: +10% in portrait, landscape and the walking camera untouched). */
 export const zoneFightBackPortrait = (z: ZoneLookFields): number => { const v = zoneSet(z, 'camera.fightBackPortrait'); return typeof v === 'number' && v >= 1 && v <= 2 ? v : 1; };
+/** The combat cameras a zone offers (`camera.combat`, by id) and the one in use (`camera.combatPreset`, '' = none: the same camera walking or fighting). A malformed row is dropped, never thrown at a page. */
+export const zoneCombatCams = (z: ZoneLookFields): Readonly<Record<string, CombatCam>> => {
+  const v = zoneSet(z, 'camera.combat'); if (!v || typeof v !== 'object') return {};
+  const ok = (f: unknown) => !!f && typeof f === 'object' && typeof (f as CombatFraming).back === 'number' && typeof (f as CombatFraming).up === 'number';
+  return Object.fromEntries(Object.entries(v as Record<string, CombatCam>).filter(([, c]) => c && typeof c.label === 'string' && ok(c.portrait) && ok(c.landscape)));
+};
+export const zoneCombatPreset = (z: ZoneLookFields): string => { const v = zoneSet(z, 'camera.combatPreset'); return typeof v === 'string' ? v : ''; };
 /** The ambience row a zone asks for (`sound.ambience`); an id with no row stays silent. */
 export const zoneAmbience = (z: ZoneLookFields) => ambienceRow(zoneSet(z, 'sound.ambience') as string | undefined);
 /** The creature markers a zone shows: the "!" over a creature that noticed you, the floating name tag, and the creature's growl when it notices you (off unless set: the stop-and-face is the sim's own, the growl is the sound), the ground ring under a creature (on unless set off), the camera lock ('hard' = it swings to the nearest creature and holds; 'soft' = a gentle pull that lets go when you drag or push back), and the info card ('full' = today's three lines for the nearest creature that noticed you; 'target' = one line, name and level, for the creature you are targeting). All as today unless the zone SETS them. */

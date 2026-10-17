@@ -57,7 +57,7 @@ import { PLAYER, warmActor, warmDone, warmList } from './warm-plan.ts';
 import { exitFace } from './leave-entry.ts';
 import { ASSETS, play, SMITH_NAME, START_LEVEL, WORLD_TUNING as T, type Kind } from './play.ts';
 import { joinPresence, presenceUrl, presenceWanted, type Other, type Presence } from './presence-client.ts';
-import { ME, createFollowCamera, pickFraming, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
+import { ME, createFollowCamera, pickFraming, type CombatCam, type Passage, type Presets, createZoneBars, createWorldCombat, canPlayFinisher, createWoundFx, createZoneFx, loadFeedback, woundSpec } from '../../src/fight/index.ts';
 import '../../src/fight/meters.css';
 import { onCombatEvent, spawnTracker } from './spawn-net.ts';
 import { startFight as startEncounter, settleFight as settleEncounter } from './encounter-net.ts';
@@ -68,7 +68,7 @@ import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneFightBackPortrait, zoneRim, zoneBuildings } from '../world/goblin-field-rules.ts';
+import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneFightBackPortrait, zoneCombatCams, zoneCombatPreset, zoneRim, zoneBuildings } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
@@ -351,7 +351,9 @@ function step(dt: number) {
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) });
+  const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: sizeOfFoe(lockOn.spec.id) } : null;   // in a fight with the locked creature
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1 } : undefined);
+  applyCombatView();
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -391,10 +393,28 @@ function showZone(id: string | null) {
 }
 
 const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none
+// The combat camera (Dom 2026-10-17: in a fight the thumb buttons hide the hero and the foe is too close). Walking is untouched; in a fight the follow camera eases into the zone's combat framing (camera.combat, follow-camera.ts).
+// `?combatcam=1|2|3` picks one of the zone's framings for this page (the three previews), else the zone's `camera.combatPreset`; none = the camera is the same walking or fighting, as before.
+const COMBAT_CAMS = zoneCombatCams(zoneRow ?? loadZone());
+let combatId = /[?&]combatcam=(\w+)/.exec(location.search)?.[1] ?? zoneCombatPreset(zoneRow ?? loadZone()), combatCam: CombatCam | undefined = COMBAT_CAMS[combatId];
+const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0;
+try { const saved = Number(localStorage.getItem(FIGHT_ZOOM_KEY)); if (combatCam?.zoom && Number.isInteger(saved) && saved >= 0 && saved < combatCam.zoom.steps.length && localStorage.getItem(FIGHT_ZOOM_KEY) !== null) fightZoom = saved; } catch { /* storage blocked: the framing's own start */ }
+const foeSizes = new Map<string, number>();
+const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
+  let s = foeSizes.get(id); if (s !== undefined) return s;
+  const body = mobs?.anchorOf(id); if (!body) return 1.8;
+  const b = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3()); s = Math.max(b.x, b.y, b.z); foeSizes.set(id, s); return s;
+};
+function applyCombatView() {   // the follow camera only places the camera; what a fight adds to the lens (a lift off the thumb buttons, fov, zoom) is applied here, only when it changed
+  const v = followCam.view, key = `${v.fov.toFixed(3)}|${v.zoom.toFixed(3)}|${v.shiftY.toFixed(3)}`; if (key === lastView) return; lastView = key;
+  camera.fov = BASE_FOV + v.fov; camera.zoom = baseZoom * v.zoom;
+  if (v.shiftY > 0.001) camera.setViewOffset(innerWidth, innerHeight, 0, Math.round(v.shiftY * innerHeight), innerWidth, innerHeight); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false);
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); lastView = '';
   setFightBack(zoneFightBack(zoneRow ?? loadZone()) * (w > h ? 1 : zoneFightBackPortrait(zoneRow ?? loadZone())));   // the combat camera stands this much further back (camera.fightBack; 1 = the duel as it was), and a portrait screen a little more (camera.fightBackPortrait); the walking camera is never changed
-  camera.aspect = w / h; camera.zoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
+  baseZoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.aspect = w / h; camera.zoom = baseZoom * followCam.view.zoom; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
@@ -514,6 +534,12 @@ if (frontier) {
     const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
     chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
     paint();
+    if (combatCam?.zoom && chips) {   // a combat camera the player may zoom (WoW, RuneScape and Claudecraft let the player pick): one chip in the ☰ menu cycles the steps, saved on this device
+      const z = document.createElement('button'); z.id = 'menu-fight-zoom';
+      const paintZoom = () => { z.textContent = `Fight zoom: ${combatCam!.zoom!.labels[fightZoom]}`; };
+      z.addEventListener('click', () => { fightZoom = (fightZoom + 1) % combatCam!.zoom!.steps.length; try { localStorage.setItem(FIGHT_ZOOM_KEY, String(fightZoom)); } catch { /* storage blocked */ } paintZoom(); });
+      paintZoom(); chips.append(z);
+    }
   }).catch((error) => console.warn('the Pit controls did not load; the two sticks stay', error));
 }
 const saveNote = document.getElementById('save')!, allegianceButton = document.getElementById('allegiance')!;
@@ -735,6 +761,7 @@ const wc = createWorldCombat({
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
 (window as unknown as { originsPreview: unknown }).originsPreview = {
+  combatCam: (id: string) => { combatId = id; combatCam = COMBAT_CAMS[id]; lastView = ''; fightZoom = combatCam?.zoom?.start ?? 0; return !!combatCam; }, camView: () => ({ ...followCam.view, fight: followCam.fighting(), id: combatId, fov: camera.fov, zoom: camera.zoom }),   // browser checks: switch the combat camera without a reload, read what the lens has
   combat: () => ({ hero: wc.hero(), target: wc.target(), fighters: wc.debug(), fx: zoneFx.active(), breaths: zoneFx.breaths(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
