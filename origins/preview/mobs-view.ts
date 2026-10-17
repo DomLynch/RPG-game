@@ -10,6 +10,7 @@ import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
+import { calmStep, type Calm } from './mob-calm.ts';
 import { loadLoot, lootWorn } from '../../src/fight/characters.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
@@ -190,11 +191,18 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
 
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
+  // Calmer drawn movement in a fight (mob-calm.ts; Dom 2026-10-17: "a twitch FPS"). `?mobsmooth=0` turns it off to compare.
+  const calm = new Map<number, Calm>(), SMOOTH = !(typeof location !== 'undefined' && /[?&;]mobsmooth=0\b/.test(location.search));
+  const calmed = (i: number, d: MobDrive, hero: { x: number; z: number }, dt: number): Calm => {
+    const prev = calm.get(i), want: Calm = { x: d.x, z: d.z, facing: d.facing };
+    const now = !prev || !SMOOTH ? want : calmStep(prev, want, hero, dt, { lateralTau: fxNum('mob-view.lateral-tau'), radialTau: fxNum('mob-view.radial-tau'), turnDps: fxNum('mob-view.turn-dps'), snapM: fxNum('mob-view.snap-m') });
+    calm.set(i, now); return now;
+  };
   const zoneFinisher = createZoneFinisher(scene, { groundAt: opts.groundAt, bleed: opts.onCut });   // K6: a creature the engine killed with a decapitation loses its head (the row's bones), the Pit's own ballistics
   return {
     update(dt, hero, hideLabel) {
       lastHero = hero; zoneFinisher.update(dt);
-      mobs.forEach((m, i) => { const d = driven.get(i); mobs[i] = d ? { ...m, x: d.x, z: d.z, facing: d.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? m : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss stands where it is placed (it never wanders or chases: the player walks up and taps it)
+      mobs.forEach((m, i) => { const d = driven.get(i), s = d ? calmed(i, d, hero, dt) : null; mobs[i] = d && s ? { ...m, x: s.x, z: s.z, facing: s.facing, mode: d.moving ? 'wander' : 'aggro' } : specs[i]!.legend ? m : stepMob(m, specs[i]!, hero, dt, stands[i]!); });   // a legend boss stands where it is placed (it never wanders or chases: the player walks up and taps it)
       for (const [i, t] of down) { if (t - dt <= 0) { down.delete(i); } else down.set(i, t - dt); }
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
@@ -259,7 +267,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       return best;
     },
     within(x, z, r) { const out: MobPick[] = []; for (const i of shown) { const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (d <= r && !specs[i]!.legend) out.push({ spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: d }); } return out; },
-    drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else driven.delete(i); },
+    drive(id, pose) { const i = specs.findIndex((sp) => sp.id === id); if (i < 0) return; if (pose) driven.set(i, pose); else { driven.delete(i); calm.delete(i); } },
     anchorOf(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 ? null : views.get(i)?.model ?? null; },
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
