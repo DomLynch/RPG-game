@@ -184,6 +184,29 @@ test('the remote-cheap loader refuses a missing row, a blank or repeated part na
   assert.throws(() => loadCheapParts({ remoteCheap: [{ id: 'other', fields: { hideParts: ['A'] } }] }), /"cheap" row is missing/);
 });
 
+test('animation-rate LOD: a figure poses every frame within remoteRateMidM, every remoteRateMidEvery-th past it and every remoteRateFarEvery-th past remoteRateFarM, owed the time it skipped', () => {
+  const MID = previewRule('remoteRateMidM'), FAR = previewRule('remoteRateFarM'), MID_N = previewRule('remoteRateMidEvery'), FAR_N = previewRule('remoteRateFarEvery'), FRAMES = MID_N * FAR_N * 2;
+  const { heroes, made } = crowd(0);
+  heroes.push([{ id: 1, x: MID - 3, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 2, x: MID + 3, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 3, x: FAR + 6, z: 0, heading: 0, anim: 0, flags: 0 }], 0);
+  for (let f = 0; f < FRAMES; f++) heroes.update(0.01, 0, { x: 0, z: 0 });
+  const [near, mid, far] = made.slice(0, 3);
+  assert.equal(near!.updates.length, FRAMES, 'within the mid range: every frame');
+  assert.equal(mid!.updates.length, 1 + FRAMES / MID_N, 'past it: on arrival, then every mid-rate frame');
+  assert.equal(far!.updates.length, 1 + FRAMES / FAR_N, 'past the far line: on arrival, then every far-rate frame');
+  assert.ok(Math.abs(far!.updates[2]! - 0.01 * FAR_N) < 1e-9, 'owed the frames it skipped');
+  assert.deepEqual(heroes.debug().shown.map((s) => s.frozen), [false, true, true], 'a slow figure is out of the scene-graph walk between its poses');
+});
+
+test('animation-rate LOD: the phases are staggered by slot, so a far crowd poses about 1/N of its figures each frame, not all of them every Nth frame', () => {
+  const FAR = previewRule('remoteRateFarM'), N = previewRule('remoteRateFarEvery'), COUNT = N * 6;
+  const { heroes, made } = crowd(0);
+  heroes.push(Array.from({ length: COUNT }, (_, i) => ({ id: i + 1, x: FAR + 5 + i * 0.1, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
+  heroes.update(0.01, 0, { x: 0, z: 0 });   // arrival: every figure is posed once
+  const total = () => made.reduce((sum, m) => sum + m.updates.length, 0);
+  let before = total();
+  for (let f = 0; f < N * 3; f++) { heroes.update(0.01, 0, { x: 0, z: 0 }); const now = total(); assert.equal(now - before, COUNT / N, `frame ${f + 2}: exactly 1/${N} of the crowd poses`); before = now; }
+});
+
 test('a figure that comes back near gets its shadow back as it was', () => {
   const { heroes, made } = crowd(FULL + 1);
   heroes.update(1 / 60, 0, { x: 0, z: 0 });

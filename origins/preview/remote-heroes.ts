@@ -11,6 +11,9 @@
 // is cut out of both on its skipped frames: its group's matrixWorldAutoUpdate is off (scene.updateMatrixWorld stops at the group, the bones are not walked) and its skeletons' `update` does nothing (no
 // bone-matrix recompute, no boneTexture.needsUpdate). A skinned mesh draws from the bone matrices of its LAST update, so a frozen figure stands where it was posed: a cheap one moves on its pose frames
 // (every remoteCheapEvery-th), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
+// ANIMATION-RATE LOD (World's T4 profile of #3005, 40 walking: the top self-time was updateMatrixWorld, then multiplyMatrices, then the mixer's slerpFlat, and a far figure cost nearly the same as a near one): rank alone left the
+// nearest `remoteFullCount` figures posing every frame whatever their distance. Now a figure past `remoteRateMidM` poses every `remoteRateMidEvery`-th frame and past `remoteRateFarM` every `remoteRateFarEvery`-th (the slower of that
+// and the cheap rate), through the same freeze; the slot index staggers the phases, so about 1/N of the slow figures pose each frame. All rows.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
 import { createGovernor } from './frame-governor.ts';
@@ -26,18 +29,18 @@ export type Who = { name: string | null; guest: boolean };
 export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name?.trim() || null);
 
 type Lod = 'near' | 'far';
-type Slot = { group: THREE.Group; actor: Actor; near: Actor; far: Actor | null; lod: Lod; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
+type Slot = { group: THREE.Group; actor: Actor; near: Actor; far: Actor | null; lod: Lod; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; phase: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
 
 /** `who`: the page's record of an id's { name, guest } (presence's `enter`, kept by main.ts), read each frame for the ids drawn; `forget`: called when a slot expires, so a reused id never wears the last player's name before its own `enter` arrives. */
 export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; spawnFar?: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
   const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile') });
-  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep'), farRange = previewRule('remoteFarRangeM'), lodSlack = previewRule('remoteLodSlackM');   // read once: update() runs every frame
+  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep'), farRange = previewRule('remoteFarRangeM'), lodSlack = previewRule('remoteLodSlackM'), midM = previewRule('remoteRateMidM'), midEvery = previewRule('remoteRateMidEvery'), farM = previewRule('remoteRateFarM'), farEvery = previewRule('remoteRateFarEvery');   // read once: update() runs every frame
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), far = d.spawnFar?.() ?? null, group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
     if (far) { far.anchor.visible = false; group.add(far.anchor); }   // the far LOD (the merged far figure) is built with the near one; only one is visible at a time
-    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
+    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, phase: pool.length, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
     actor.anchor.traverse((o) => { if (o instanceof THREE.Mesh && CHEAP_PARTS.has(o.name)) slot.parts.push(o); });
     const skins = new Set<THREE.Skeleton>(); for (const a of far ? [actor, far] : [actor]) a.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
     for (const skeleton of skins) { const real = skeleton.update.bind(skeleton); skeleton.update = () => { if (!slot.frozen || slot.thaw) real(); }; }   // the render calls this every frame for every drawn skin: a frozen figure's does nothing (no matrices, no texture upload)
@@ -85,10 +88,11 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         if (slot.far) { const dist = Math.hypot(s.x - hero.x, s.z - hero.z), lod: Lod = slot.lod === 'near' ? (dist > farRange + lodSlack ? 'far' : 'near') : (dist < farRange - lodSlack ? 'near' : 'far'); if (lod !== slot.lod) { switched = true; setLod(slot, lod); } }   // the slack keeps a figure on the boundary from flipping every frame
         if (!(Math.hypot(s.x - slot.gx, s.z - slot.gz) <= groundStep)) { slot.gy = d.groundAt(s.x, s.z); slot.gx = s.x; slot.gz = s.z; }   // the ground height is read again only once the figure has moved a step (T4 profile 2026-10-17: reliefAt per figure per frame was +1.9 ms at 40 players, 4x); a NaN (a fresh slot) reads
         const gy = slot.gy, seen_ = !camera || (Math.hypot(s.x - hero.x, s.z - hero.z) <= range && frustum.intersectsSphere(ball.set(at.set(s.x, gy, s.z), radius).translate(up)));
-        const pose = seen_ && (!slot.cheap || slot.hidden || switched || slot.frames % every === 0);   // a cheap figure poses every Nth frame (and on the frame it comes back into view) with the time it has been owed
+        const away = Math.hypot(s.x - hero.x, s.z - hero.z), n = Math.max(slot.cheap ? every : 1, away > farM ? farEvery : away > midM ? midEvery : 1);   // frames between this figure's poses: the cheap rate, or the animation-rate LOD's by distance (rows), whichever is slower
+        const pose = seen_ && (n === 1 || slot.hidden || switched || (slot.frames + slot.phase) % n === 0);   // a slow figure poses every nth frame (and on the frame it comes back into view) with the time it has been owed; the slot index staggers the phases so about 1/n of them pose per frame
         slot.thaw = false; slot.group.visible = seen_;
-        if (!slot.cheap || !seen_ || pose) { slot.group.position.set(s.x, gy, s.z); slot.group.rotation.y = s.heading; }   // a cheap figure on view holds its place between its pose frames
-        freeze(slot, slot.cheap || !seen_);
+        if (n === 1 || !seen_ || pose) { slot.group.position.set(s.x, gy, s.z); slot.group.rotation.y = s.heading; }   // a slow figure on view holds its place between its pose frames
+        freeze(slot, n > 1 || !seen_);
         if (pose) {
           slot.thaw = true; slot.actor.update(slot.speed, slot.owed, 'ready', 0, 'light', 0.35, 0); slot.owed = 0;
           if (slot.cheap) for (const p of slot.parts) p.visible = false;   // the rig's own update may show a part again
