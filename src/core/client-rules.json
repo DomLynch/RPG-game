@@ -1,0 +1,10 @@
+{
+  "clientRule": [
+    {
+      "id": "client",
+      "writerTimeoutMs": 8000,
+      "accountIdleMs": 5000,
+      "accountFallbackMs": 2000
+    }
+  ]
+}

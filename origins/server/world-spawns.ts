@@ -14,7 +14,7 @@ import { worldMetres } from '../presence/zones.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
 import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
 import { listedZone, listedZoneIds } from '../zones/listed.ts';
-import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
+import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS, decodeWorldRecord } from '../../src/fight/server.ts';
 import { ROLL_BAND } from '../../src/fight/server.ts';
 import { DbError } from './db.ts';
 import { BadRequest, Refused } from './errors.ts';
@@ -106,7 +106,7 @@ const refuse = (why: string): never => { const [status, message] = REFUSAL[why] 
 const off = (): never => { throw new Refused(503, 'world spawns are off', 'off'); };
 const absent = (): never => { throw new Refused(503, 'world spawns are not installed yet'); };
 
-export type SpawnDeps = { verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
+export type SpawnDeps = { verifyRecord?: (job: VerifyJob) => Promise<Verdict>; scorecardOnlyUnverified?: boolean; tally?: Pick<VerdictTally, 'add'>; heroOf?: (account: string, character: string, version?: number) => Promise<HeroLimit | null>; content: EncounterContent; spawns?: Map<string, Spawn>; zones?: Record<string, Map<string, Spawn>>; refuseUnchecked?: boolean; seed?: () => number; now?: () => Date; log?: (line: string) => void };
 
 export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
@@ -179,7 +179,8 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       const tag = `kill_report ${token.slice(-6)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
-        const limit = deps.heroOf ? await deps.heroOf(account, open.character).catch(() => null) : null;
+        const rv = deps.heroOf ? (await decodeWorldRecord(recText).catch(() => null))?.rv : undefined;   // the claim's own record version: the worn set is held to the rules of the era the page recorded under, not this build's
+        const limit = deps.heroOf ? await deps.heroOf(account, open.character, rv).catch(() => null) : null;
         const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
         deps.tally?.add(v.ok ? 'verified' : v.reason);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);

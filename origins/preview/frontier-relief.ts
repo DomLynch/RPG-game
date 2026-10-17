@@ -20,7 +20,7 @@ export function padsOf(p: Piece): Pad[] {
   if (sh[0] === 'box') {
     const [, w, h, d] = sh;
     if (p.y + h / 2 <= 0.05) return [];
-    const long = Math.max(w, d), short = Math.min(w, d), r = Math.max(short / 2, 0.5) + PAD_MARGIN, alongX = w >= d;
+    const long = Math.max(w, d), short = Math.min(w, d), r = Math.max(short / 2, stageRule('reliefPadMin')) + PAD_MARGIN, alongX = w >= d;
     const n = Math.max(1, Math.ceil(long / r)), ux = alongX ? Math.cos(p.rotY) : Math.sin(p.rotY), uz = alongX ? -Math.sin(p.rotY) : Math.cos(p.rotY), out: Pad[] = [];
     for (let i = 0; i < n; i++) { const t = n === 1 ? 0 : (i / (n - 1) - 0.5) * (long - short); out.push({ x: p.x + ux * t, z: p.z + uz * t, r }); }
     return out;

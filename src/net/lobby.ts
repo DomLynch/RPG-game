@@ -3,6 +3,7 @@
 // the handshake and the fight (pvp.ts), and one duel_metrics row per side when the duel ends or the page hides.
 // main.ts reaches this file only through a dynamic import behind `?duel=`: a page without it never loads any of src/net.
 import { idleIntent } from '../fight/duel.ts';
+import { present } from '../present-rows.ts';
 import { PvpDuel, SILENCE, type DuelResult } from './pvp.ts';
 import type { Kit, NetMetrics } from './rollback.ts';
 import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
@@ -57,7 +58,7 @@ export function metricsRow(m: NetMetrics | null, meta: { revision: string | null
   const ua = [...meta.ua].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? ' ' : c)).join('').slice(0, 300) || 'unknown';
   const p50 = clamp(m.rttP50Ms, 10000);
   return {
-    revision: meta.revision, room: meta.room, side: meta.side, path: meta.path, candidate: meta.candidate, frames: Math.min(1_000_000, m.frames),
+    revision: meta.revision, room: meta.room, side: meta.side, path: meta.path, candidate: meta.candidate, frames: Math.min(present('beacon-frames-cap'), m.frames),
     rollbacks_per_min: clamp(m.rollbacksPerMin, 3600), depth_p95: clamp(m.depthP95, 60), max_depth: clamp(Math.max(m.maxDepth, m.depthP95), 60),
     stalls_per_min: clamp(m.stallsPerMin, 3600), delay: clamp(m.delay, 60), max_delay: clamp(Math.max(m.maxDelay, m.delay), 60),
     rtt_p50_ms: p50, rtt_p95_ms: Math.max(p50, clamp(m.rttP95Ms, 10000)), desyncs: clamp(m.desyncs, 100000), corrections_per_min: null, ua, result: meta.result ?? null, reconnects: clamp(Math.trunc(meta.reconnects ?? 0), 1000),
