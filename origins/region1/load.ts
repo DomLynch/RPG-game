@@ -23,6 +23,7 @@ export const REGION1 = [EXCHANGE_REGION, FRONTIER_REGION] as const;
 // Spec numbers the data must sit inside (region1 §3 Bounties table; living-world §3.3, §12; feuds §3.1).
 export const BOUNTY_METAL: { readonly min: number; readonly max: number } = RULES.bountyMetal; // bronze per paid win
 export const BOUNTY_DAILY_CAP: { readonly min: number; readonly max: number } = RULES.bountyDailyCap; // paid wins per character per UTC day
+export const BOUNTY_GATE: string = RULES.bountyGate; // the gate Region 1 sits behind (a rules row, not a literal in the check)
 export const MIN_TOWNS_FOR_WAR: number = RULES.minTownsForWar; // living-world §4.3 / §12
 export const TOWN_SAFE_CLEARANCE_M: number = RULES.townSafeClearanceM; // living-world §12: a quarter's ring centre sits ≥ 30 m from the square's gate
 // living-world §3.3 tiers: prosperity floor, services open, ruler title (§4.1).
@@ -323,7 +324,7 @@ function readBounty(issues: Issues, raw: unknown, path: string): Bounty | undefi
   kindOf(issues, obj, path, 'bounty-definition');
   const id = localId(issues, obj.id, join(path, 'id'), 'bounty'), name = readText(issues, obj, 'name', path, { max: 60 });
   const region = ref(issues, obj.region, join(path, 'region'), 'region'), encounter = ref(issues, obj.encounter, join(path, 'encounter'), 'encounter');
-  if (obj.gate !== 'outer') issues.add('rule-violation', join(path, 'gate'), 'Region 1 is behind the outer gate');
+  if (obj.gate !== BOUNTY_GATE) issues.add('rule-violation', join(path, 'gate'), `Region 1 is behind the ${BOUNTY_GATE} gate`);
   const twist = readTwist(issues, obj.twist, join(path, 'twist'));
   const metal = readInt(issues, obj, 'metal', path, BOUNTY_METAL.min, BOUNTY_METAL.max);
   const dailyCap = readInt(issues, obj, 'dailyCap', path, BOUNTY_DAILY_CAP.min, BOUNTY_DAILY_CAP.max);

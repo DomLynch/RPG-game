@@ -17,9 +17,10 @@ export const NPC_ROLE_ROWS = roles.roles as Readonly<Record<string, NpcRoleRow>>
 export const NPC_ROLES: readonly string[] = Object.entries(NPC_ROLE_ROWS).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
 export type NpcRole = string;
 loadRegistry([tableFromFile(HOURS_MANIFEST.tables[0] as unknown as Manifest, HOURS, 'hours.json')]);
-const shopRow = HOURS.hours.find((h) => h.id === 'shop');
-if (!shopRow) throw new Error('npcs/hours.json has no "shop" row');
-export const SHOP_HOURS: readonly [number, number] = [shopRow.open, shopRow.close];   // the "shop" row of hours.json (Dom 2026-10-08: shops open 06:00, shut 22:00, game clock); an NPC row says "hours": "shop" and region1/npcs.ts resolves it here
+const HOURS_ROWS = new Map<string, readonly [number, number]>(HOURS.hours.map((h) => [h.id, [h.open, h.close] as const]));   // one array per row, so every NPC naming a row shares it: retune the row, retune them all
+/** The [open, close) game hours of an hours row (origins/npcs/hours.json). An NPC row's `hours` is 'always' (never closes), [open, close], or the id of one of these rows (region1/npcs.ts resolves it); an unknown id throws at load. */
+export const hoursRow = (id: string): readonly [number, number] => { const h = HOURS_ROWS.get(id); if (!h) throw new Error(`npcs/hours.json has no "${id}" row`); return h; };
+export const SHOP_HOURS: readonly [number, number] = hoursRow('shop');   // the "shop" row (Dom 2026-10-08: shops open 06:00, shut 22:00, game clock)
 
 export type NpcRow = {
   npc: string;                       // a character id in the content bundle

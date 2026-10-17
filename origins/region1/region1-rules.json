@@ -8,6 +8,7 @@
     "min": 1,
     "max": 3
   },
+  "bountyGate": "outer",
   "minTownsForWar": 3,
   "townSafeClearanceM": 30,
   "tiers": [
