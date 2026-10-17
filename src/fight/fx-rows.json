@@ -61,6 +61,7 @@
     { "id": "gfx.grade.vignette", "fields": {"value": 0.42} },
     { "id": "gfx.fog.ground-boost", "fields": {"value": 1.9} },
     { "id": "gfx.fog.height-falloff", "fields": {"value": 0.11} },
-    { "id": "gfx.fog.sky-keep", "fields": {"value": 0.45} }
+    { "id": "gfx.fog.sky-keep", "fields": {"value": 0.45} },
+    { "id": "pose-blend.snap-m", "fields": {"value": 3} }
   ]
 }
