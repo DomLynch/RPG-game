@@ -1,6 +1,7 @@
 {
-  "note": "Words rule (j) branch-id never counts even when a data row happens to use them as an id: generic state/direction words, not content. The engine's own closed vocabularies (duel.ts Phase/Action, world.ts Phase, match.ts Mode, moves.ts MoveId) are read from their sources by check.ts, not listed here.",
+  "note": "Words rule (j) branch-id never counts even when a data row happens to use them as an id: generic state/direction words, not content. engineEvents: the sim's CombatEvent kinds (duel.ts), verbs the fx/sound rows are keyed by, not content. The engine's own closed vocabularies (duel.ts Phase/Action, world.ts Phase, match.ts Mode, moves.ts MoveId) are read from their sources by check.ts, not listed here.",
   "generic": ["ready", "idle", "attack", "block", "light", "heavy", "none", "left", "right", "near", "far", "open", "done", "player", "foe", "day", "night", "hero", "guest", "error", "start", "end", "move", "stand", "walk", "run", "death", "hit", "miss", "win", "loss", "draw", "true", "false", "null"],
+  "engineEvents": ["Hit", "Parried", "Blocked", "GuardBroken", "Killed", "SpecialLanded", "PostureBroken"],
   "engineTypes": [
     { "file": "src/fight/duel.ts", "types": ["Phase", "Action"] },
     { "file": "src/fight/world.ts", "types": ["Phase"] },

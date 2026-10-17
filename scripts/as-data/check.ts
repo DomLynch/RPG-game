@@ -74,8 +74,8 @@ for (const c of CATEGORIES) if (!sets[c].length) fail(`the ${c} id list is empty
 function branchIds(): string[] {
   const given = arg('--branch-ids');
   if (given) return (JSON.parse(readFileSync(given, 'utf8')) as string[]).filter((id) => /^[\w-]+$/.test(id)).sort();
-  const vocab = JSON.parse(readFileSync(join(HERE, 'branch-id-vocab.json'), 'utf8')) as { generic: string[]; engineTypes: { file: string; types: string[] }[] };
-  const skip = new Set<string>([...all, ...vocab.generic, ...vocab.engineTypes.flatMap((e) => e.types.flatMap((t) => unionOf(e.file, t)))]);
+  const vocab = JSON.parse(readFileSync(join(HERE, 'branch-id-vocab.json'), 'utf8')) as { generic: string[]; engineEvents: string[]; engineTypes: { file: string; types: string[] }[] };
+  const skip = new Set<string>([...all, ...vocab.generic, ...vocab.engineEvents,...vocab.engineTypes.flatMap((e) => e.types.flatMap((t) => unionOf(e.file, t)))]);
   const found = new Set<string>();
   const walk = (v: unknown) => { if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { if (k === 'id' && typeof x === 'string' && x.length > 2 && /^[\w-]+$/.test(x) && !skip.has(x)) found.add(x); else walk(x); } };
   const files = (d: string): string[] => readdirSync(join(REPO, d), { withFileTypes: true }).flatMap((e) => (e.name === 'node_modules' || e.name.startsWith('.') ? [] : e.isDirectory() ? files(join(d, e.name)) : e.name.endsWith('.json') && !/manifest|baseline/.test(e.name) ? [join(d, e.name)] : []));
