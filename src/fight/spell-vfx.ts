@@ -59,6 +59,9 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
     funnel: `${HEAD} void main(){ float y = vUv.y; float ang = vUv.x * 6.2832; vec2 p = vec2(vUv.x * 5.0 + y * 1.6 - uT * 1.4, y * 2.2 - uT * 0.6); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.1 + 0.2).r * 0.4;
       float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.1); float h = min(1.0, uK * 4.0), reveal = 1.0 - smoothstep(h - 0.15, h, y); float erode = smoothstep(uK * 0.9, uK * 0.9 + 0.25, n);
       float a = reveal * erode * (0.2 + 0.65 * rim) * (0.35 + 0.65 * y) * smoothstep(0.0, 0.05, uK) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n), a); }`,
+    // a dark pool on the ground: the dome cannot darken the sand (the ground is nearer than the dome's far wall and hides it), so the floor is darkened here, soft edge eroded by the grain
+    pool: `${HEAD} void main(){ float r = length(vUv - 0.5) * 2.0; float n = texture2D(uNoise, vUv * 3.0 + uT * 0.05).r; float edge = 1.0 - smoothstep(0.55 + 0.25 * n, 1.0, r);
+      float fade = smoothstep(0.0, 0.15, uK) * (1.0 - smoothstep(0.7, 1.0, uK)); gl_FragColor = vec4(mix(uA, uB, n * edge), edge * fade * uAlpha); }`,
     // an inside-out dome: deep colour, grain stars, fades in and out
     dome: `${HEAD} void main(){ float n = texture2D(uNoise, vUv * vec2(3.0, 1.5) + uT * 0.02).r; float star = smoothstep(0.80, 0.83, texture2D(uNoise, vUv * vec2(14.0, 7.0)).r); float fade = smoothstep(0.0, 0.18, uK) * (1.0 - smoothstep(0.72, 1.0, uK));
       float a = fade * (0.50 + 0.2 * n) * uAlpha; vec3 col = mix(uA, uB, n * 0.6) + vec3(star * 0.9); if (uUseRamp > 0.5) col = texture2D(uRamp, vec2(0.12 + 0.3 * n, 0.5)).rgb + vec3(star * 0.9);
@@ -104,12 +107,12 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
         return { light: 0.35 * Math.sin(Math.PI * Math.min(1, k * 1.4)), color: '#dfe8c8' }; } };
   };
   const nyx = (): Inst => {   // Nyx Nightfall: the arena goes dark under a grain-starred dome, shadow wisps gather on the target
-    const d = surface(FRAG.dome, new THREE.SphereGeometry(13, 40, 20), THREE.BackSide), ws = smoke(9, '#150c24', '#7a4cc2', 0.5), cur = surface(FRAG.pillar, new THREE.CylinderGeometry(0.9, 1.1, 3.4, 40, 1, true)), ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)), motes = glints(14, '#c9a8ff', 0.3);
-    set(d, { uA: '#0b0618', uB: '#2a1850', uUseRamp: 1 }); set(cur, { uA: '#3a1c78', uB: '#b58cff' }); set(ring, { uA: '#2a1850', uB: '#b58cff' }); for (const p of ws) set(p, { uUseRamp: 1 }); let x = 0, z = 0; const ticks = 130;
-    return { ticks, objs: [d, cur, ring, ...ws, ...motes], start(px_, pz) { x = px_; z = pz; },
+    const d = surface(FRAG.dome, new THREE.SphereGeometry(13, 40, 20), THREE.BackSide), ws = smoke(9, '#150c24', '#7a4cc2', 0.5), pool = surface(FRAG.pool, new THREE.PlaneGeometry(14, 14).rotateX(-Math.PI / 2)), ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)), motes = glints(14, '#c9a8ff', 0.3);
+    set(d, { uA: '#0b0618', uB: '#2a1850', uUseRamp: 1 }); set(pool, { uA: '#03010a', uB: '#1a0c38' }); set(ring, { uA: '#2a1850', uB: '#b58cff' }); for (const p of ws) set(p, { uUseRamp: 1 }); let x = 0, z = 0; const ticks = 130;
+    return { ticks, objs: [d, pool, ring, ...ws, ...motes], start(px_, pz) { x = px_; z = pz; },
       update(age) { const k = age / ticks, flash = Math.exp(-age / 3.5);   // the landing frame: one overbright violet flash, then the dark settles in
         d.position.set(x, 1.5, z); set(d, { uK: k, uT: age / 60, uAlpha: 1, uHot: flash });
-        cur.position.set(x, 1.7, z); cur.scale.set(1 + 0.3 * k, 1, 1 + 0.3 * k); set(cur, { uK: Math.min(1, k * 1.1), uT: age / 60, uAlpha: 0.85 });
+        pool.position.set(x, 0.04, z); set(pool, { uK: k, uT: age / 60, uAlpha: 0.8 });
         ring.position.set(x, 0.05, z); ring.scale.setScalar(0.6 + 1.6 * (1 - (1 - k) ** 3)); set(ring, { uK: k, uT: age / 60, uAlpha: 0.9 });
         ws.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 20) / (ticks - 20)), a = i * 0.7 + age * 0.03, r = 1.4 * (1 - 0.55 * Math.sin(Math.PI * t)); p.position.set(x + Math.cos(a) * r, 0.5 + t * 1.8, z + Math.sin(a) * r); set(p, { uSize: 1.1 + 1.2 * t, uK: t, uSeed: rnd(i, 4), uHot: 0.8 * Math.sin(Math.PI * t), uAlpha: 0.9 }); });
         motes.forEach((m, i) => { const t = clamp01((age - rnd(i, 2) * 30) / 80), a = i * 0.45 + age * 0.05; m.position.set(x + Math.cos(a) * (0.5 + 0.4 * t), 0.2 + t * 3.2, z + Math.sin(a) * (0.5 + 0.4 * t)); m.scale.setScalar(0.3 * (1 - 0.5 * t)); sop(m, 0.85 * Math.sin(Math.PI * t)); });
