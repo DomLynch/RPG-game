@@ -52,7 +52,7 @@ try {
   psql(`select public.origins_snapshot('${A}', 4, 5000); select public.origins_snapshot('${B}', 2, 800);`);
   const mint = (account, id, pc, key) => psql(`select public.origins_commit('${account}', $j$[{"op":"mint","item":{"id":"${id}","item":"iron-ore","quantity":10,"mint_key":"${key}","loc":{"kind":"pack","owner":"${pc}","index":0},"provenance":{"kind":"loot","mintKey":"${key}","at":"2026-10-06T00:00:00Z"}}}]$j$::jsonb)::text;`);
   mint(A, 'it:a1', pcA, 'mk:a1'); mint(B, 'it:b1', pcB, 'mk:b1');
-  psql(`insert into public.origins_character_location(character, x, z) values ('${pcA}', 100, 200) on conflict do nothing;`);
+  psql(`insert into public.origins_character_location(character, x, z, updated_at) values ('${pcA}', 100, 200, now()) on conflict do nothing;`);
   const all = origins();
   const RESET = ['origins_characters','origins_active_character','origins_career','origins_character_build','origins_character_location','origins_character_renown','origins_items','origins_item_ledger','origins_metal','origins_metal_ledger','origins_events','origins_encounters','origins_encounter_runs','origins_creature_claims','origins_quest_state','origins_quest_journal','origins_talk','origins_trades','origins_trade_audit','origins_grimoire','origins_skill_practice','origins_skill_xp','origins_beta_ledger','origins_ground_takes','origins_spawn_engages'];
   const KEEP = ['origins_access','origins_config','origins_world_config','origins_switches','origins_live_events','origins_spawns'];
