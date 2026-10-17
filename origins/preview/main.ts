@@ -460,7 +460,8 @@ async function warmGearScreen() {
   const t0 = performance.now(), took = () => Math.round(performance.now() - t0);
   try {
     if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
-    if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) {   // ?kitwarm=soft is the browser rows' flag: software GL by definition, no second probe console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
+    // (?kitwarm=soft is the browser rows' flag: software GL by definition, so no second probe)
+    if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
     while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
     let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
     const settled = await settleWithin('gear-screen', gearMount.warm().then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
