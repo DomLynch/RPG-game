@@ -29,7 +29,9 @@ export const isWeaponSlot = (slot: LootSlot): slot is WeaponSlot => (WEAPON_SLOT
 // Before it, Crest shared `head` with Helmet, so a crest could only be worn INSTEAD of a helmet; cleanLoot moves such a crest to `crest`.
 export const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: ['Shield'] } as const satisfies Record<string, readonly LootSlot[]>;
 export type Paperdoll = keyof typeof PAPERDOLL;
-export type LootId = `${OpponentId}.${LootSlot}`;
+// A starter piece (loot-pieces.json lootStarter): a weapon the world lays on the ground for a new player, owned by no roster opponent. Never offered or dropped (LOOT does not list it); valid under isLootId like a retired piece.
+export type StarterLootId = `zone1.${WeaponSlot}`;
+export type LootId = `${OpponentId}.${LootSlot}` | StarterLootId;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
 // from null when that fight is published (a Share happens after the drop). Cosmetic and historical: the paperdoll reads it, nothing else.
 // `tier` (Block A tier dressing, Lead 2026-09-24): the level (1..10) of the rung the opponent was met at — tierAt(marks before the win), the
@@ -77,7 +79,12 @@ for (const r of [...LOOT_PIECES.lootPiece, ...LOOT_PIECES.lootNotWorn.map((n) =>
   if (!isOpponentId(r.id)) throw new Error(`loot-pieces: ${r.id} is not an opponent`);
   for (const slot of r.slots) if (!(LOOT_SLOTS as readonly string[]).includes(slot)) throw new Error(`loot-pieces: ${r.id} has unknown slot ${slot}`);
 }
-export const DECLINED_KEPT = LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
+for (const r of LOOT_PIECES.lootStarter) {   // a starter owner is not a roster opponent (it would shadow its pieces), and its slots are weapons (the slot IS the weapon)
+  if (isOpponentId(r.id)) throw new Error(`loot-pieces: starter owner ${r.id} is a roster opponent`);
+  if (r.id !== 'zone1') throw new Error(`loot-pieces: starter owner ${r.id} is not zone1`);
+  for (const slot of r.slots) if (!(WEAPON_SLOTS as readonly string[]).includes(slot)) throw new Error(`loot-pieces: starter ${r.id}.${slot} is not a weapon slot`);
+}
+export const DECLINED_KEPT =LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
 // slots; slots 3–5 are drawn locked, a cosmetic placeholder with no price and no shop behind it.
 export const PACK = { open: 2, total: 5 } as const;
@@ -100,7 +107,9 @@ export const WORN_FROM: WornFrom = {};
 // anyone, but still owned, wearable and valid under isLootId, so a ledger that holds one (cloud-profile, loot-claims owned.filter(isLootId))
 // keeps it. plaguedoctor.Longsword: his weapon until bump 20 gave him the estoc (roster.ts); his rung offers plaguedoctor.Estoc now.
 export const RETIRED_LOOT: readonly LootId[] = ['plaguedoctor.Longsword'];
-export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT]);
+export const STARTER_LOOT: readonly LootId[] = LOOT_PIECES.lootStarter.flatMap((r) => r.slots.map((slot) => `${r.id}.${slot}` as LootId));   // the lootStarter rows: owned, wearable and valid, never in LOOT, so never offered or dropped
+export const STARTER_OWNERS: Readonly<Record<string, string>> = Object.fromEntries(LOOT_PIECES.lootStarter.map((r) => [r.id, r.name]));   // owner id -> display name (the roster has none for it)
+export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT, ...STARTER_LOOT]);
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
 export const slotOf = (id: LootId): LootSlot => id.split('.')[1] as LootSlot;
 export const isWeaponLoot = (id: LootId): boolean => isWeaponSlot(slotOf(id));
@@ -143,7 +152,7 @@ export const lootName = (id: LootId, opponentName: string): string => `${opponen
 // with no tier (taken before tiers were recorded) or off the legend roster keeps the class, "the Centurion's boots".
 export const ownedName = (id: LootId, tier?: number): string => {
   const from = id.split('.')[0]!;
-  return lootName(id, tier && isLegendOpponent(from) ? legendAt(from, tier).name : ROSTER[from as OpponentId].name);
+  return lootName(id, tier && isLegendOpponent(from) ? legendAt(from, tier).name : ROSTER[from as OpponentId]?.name ?? STARTER_OWNERS[from]!);
 };
 
 // The career sub-rank as one number: Recruit I is 0, Legionary I is 5, Origin I is 45, Origin V 49.

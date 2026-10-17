@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { LADDER } from '../src/ladder.ts';
 import { ROSTER } from '../src/roster.ts';
-import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, RETIRED_LOOT, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/core/loot.ts';
+import { ARMOUR_SLOTS, LOOT, PACK, LOOT_IDS, RETIRED_LOOT, STARTER_LOOT, PAPERDOLL, WEAPON_SLOTS, cleanLoot, cleanProvenance, dropFor, ownedName, emptyLoot, isLootId, isWeaponLoot, lootName, mergeLoot, paperdollOf, recordTaken, slotOf, store, subRank, unwear, wear, weaponOf, type Loot, type LootId } from '../src/core/loot.ts';
 import { WEAPON_CLIPS } from '../src/fight/characters.ts';
 import { PLAYER_WEAPONS } from '../src/fight/moves.ts';
 import { absorbCloud, profileDiffers, type CloudProfile } from '../src/core/cloud-profile.ts';
@@ -60,7 +60,7 @@ test('loot: the armour piece list is exactly the draws of loot.glb, every piece 
 // file (the #309 contract), never a loot.glb draw, and it is the opponent's own weapon.
 test('loot: every weapon piece names a player weapon whose equip file ships with its clip family, sits in the main hand, and is its opponent\'s weapon', () => {
   const weapons = [...LOOT_IDS].filter(id => isWeaponLoot(id as LootId)) as LootId[];
-  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'plaguedoctor.Estoc', 'plaguedoctor.Longsword', 'shieldmaiden.Gladius', 'veteran.Trident', 'witch.Trident'], 'every live warden\'s weapon is takeable');
+  assert.deepEqual(weapons.sort(), ['dwarf.Warhammer', 'executioner.Scythe', 'goblin.Knife', 'knight.Maul', 'nightborn.Estoc', 'pitborn.Cleaver', 'plaguedoctor.Estoc', 'plaguedoctor.Longsword', 'shieldmaiden.Gladius', 'veteran.Trident', 'witch.Trident', 'zone1.Longsword'], 'every live warden\'s weapon is takeable, plus the starter longsword (lootStarter)');
   // Every rung offers its weapon (Strategy, 2026-09-23): the Plague Doctor's longsword included — its equip file is the hero's own
   // SwordDrawn (build-player-weapon.mjs longsword) — and the Shieldmaiden's gladius, which joined ahead of her armour export.
   for (const rung of LADDER) assert.ok(weapons.includes(`${rung.id}.${ROSTER[rung.id].weapon[0]!.toUpperCase()}${ROSTER[rung.id].weapon.slice(1)}` as LootId), `${rung.id}'s weapon is a piece`);
@@ -71,7 +71,7 @@ test('loot: every weapon piece names a player weapon whose equip file ships with
     const weapon = weaponOf(id), opponent = id.split('.')[0];
     assert.ok(PLAYER_WEAPONS.includes(weapon), `${id}: ${weapon} is a player weapon`);
     assert.equal(paperdollOf(slotOf(id)), 'main', `${id} fills the main hand`);
-    if (!RETIRED_LOOT.includes(id)) assert.equal(ROSTER[opponent as keyof typeof ROSTER].weapon, weapon, `${id}: the ${opponent}'s own weapon`);   // a retired piece was his weapon once (RETIRED_LOOT)
+    if (!RETIRED_LOOT.includes(id) && !STARTER_LOOT.includes(id)) assert.equal(ROSTER[opponent as keyof typeof ROSTER].weapon, weapon, `${id}: the ${opponent}'s own weapon`);   // a retired piece was his weapon once (RETIRED_LOOT)
     const file = `src/assets/weapons/player/${weapon}.glb`;
     assert.ok(existsSync(file), `${id}: ${file} ships`);
     const bytes = readFileSync(file), length = bytes.readUInt32LE(12), json = JSON.parse(bytes.subarray(20, 20 + length).toString()) as { nodes: { name: string }[]; animations?: { name: string }[] };
