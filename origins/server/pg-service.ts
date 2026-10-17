@@ -29,6 +29,10 @@ export function serviceFileText(url: string): string {
   return `[fk]\n${[...out].map(([k, v]) => `${k}=${v}`).join('\n')}\n`;
 }
 
+/** Permission bits, not tuning: owner-only, so no other user can read the service file. */
+const PRIVATE_DIR_MODE = 0o700;
+const SECRET_FILE_MODE = 0o600;
+
 const made = new Map<string, PgConn>();
 let dir: string | undefined;
 function cleanup(): void { if (dir) { try { rmSync(dir, { recursive: true, force: true }); } catch { /* the directory is private and under tmp */ } dir = undefined; made.clear(); } }
@@ -38,10 +42,10 @@ export function pgConn(url: string): PgConn {
   const hit = made.get(url);
   if (hit) return hit;
   const text = serviceFileText(url);
-  if (!dir) { dir = mkdtempSync(join(tmpdir(), 'fk-pg-')); chmodSync(dir, 0o700); process.once('exit', cleanup); }
+  if (!dir) { dir = mkdtempSync(join(tmpdir(), 'fk-pg-')); chmodSync(dir, PRIVATE_DIR_MODE); process.once('exit', cleanup); }
   const file = join(dir, `svc-${made.size}.conf`);
-  writeFileSync(file, text, { mode: 0o600 });
-  chmodSync(file, 0o600);
+  writeFileSync(file, text, { mode: SECRET_FILE_MODE });
+  chmodSync(file, SECRET_FILE_MODE);
   const conn: PgConn = { serviceFile: file, env: { PGSERVICEFILE: file, PGSERVICE: 'fk' } };
   made.set(url, conn);
   return conn;
