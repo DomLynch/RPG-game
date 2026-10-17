@@ -6,7 +6,9 @@
       "at": "mobLookRule",
       "key": "id",
       "required": {
-        "variants": "integer"
+        "variants": "integer",
+        "wholeSootCap": "number",
+        "clothSootCap": "number"
       }
     }
   ]

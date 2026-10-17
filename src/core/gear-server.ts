@@ -14,7 +14,7 @@ export function createServerGear(d: Deps) {
   const opts = () => ({ base: writerBase(d.search), timeoutMs: 8000, ...(d.fetch ? { fetch: d.fetch } : {}) });
   // The server owns owned / worn / pack / tiers; the move, declines and skull wall stay the local profile's.
   // The server's view is SHOWN from a shadow of the profile, never written into it: the Pit's other persist paths (a decline, a take) keep saving the device's own ledger untouched.
-  const apply = (v: GearView) => { view = v; const s = lootOfView(v), loot = { ...(d.getLoot() ?? emptyLoot()), owned: s.owned, equipped: s.equipped, pack: s.pack, taken: s.taken }; shadow = { loot }; d.show(loot); };
+  const apply = (v: GearView) => { view = v; const s = lootOfView(v), loot = { ...(d.getLoot() ?? emptyLoot()), owned: s.owned, equipped: s.equipped, pack: s.pack, packInfo: s.packInfo, taken: s.taken }; shadow = { loot }; d.show(loot); };
   async function who(): Promise<string | null> {
     if (character) return character;
     const token = storedToken(d.storage, d.now()); if (!token) return null;

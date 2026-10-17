@@ -2,7 +2,9 @@
   "mobLookRule": [
     {
       "id": "mob-look",
-      "variants": 8
+      "variants": 8,
+      "wholeSootCap": 0.2,
+      "clothSootCap": 0.7
     }
   ]
 }

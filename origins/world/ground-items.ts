@@ -4,6 +4,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './ground-items.json' with { type: 'json' };
 import MANIFEST from './ground-items.manifest.json' with { type: 'json' };
+import { STARTER_QTY } from '../region1/starter-wield.ts';
 
 export type GroundItem = { readonly zone: string; readonly place: string; readonly item: string; readonly qty: number; readonly respawnSec: number; readonly scope: string; readonly hiddenWhileTaken: boolean; readonly radiusM?: number; readonly offsetX?: number; readonly offsetZ?: number };
 export type GroundItems = Readonly<Record<string, GroundItem>>;
@@ -12,7 +13,9 @@ export type GroundLimits = { readonly minRespawnSec: number; readonly maxRespawn
 
 /** The one loader: the registry's duplicate / missing / mistyped / unknown-ref checks (an item that is not a starterItem row is refused there), then the row rules the manifest cannot say. */
 export function loadGroundItems(raw: { starterItems?: unknown; groundLimits?: unknown; groundItems?: unknown }): { items: GroundItems; starters: StarterItems; limits: GroundLimits } {
-  loadRegistry(MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, raw, 'ground-items.json')));
+  // The starterItem table's rows live in starter-wield.json (`wield`, the one source); the keyed starter map handed in is shown to the registry in that shape, so the runtime and the gate read the same table.
+  const seen = { ...(raw as object), wield: Object.entries((raw.starterItems ?? {}) as StarterItems).map(([id, s]) => ({ id, ...s })) };
+  loadRegistry(MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, seen, t.file)));
   const rows = raw.groundItems as Record<string, Omit<GroundItem, 'respawnSec'> & { respawnSec?: number }>, starters = raw.starterItems as StarterItems, limits = (raw.groundLimits as Record<string, GroundLimits>).ground!;   // the bounds are the groundLimit row (ground-items.json), not literals here
   if (!(limits.minRespawnSec >= 1 && limits.maxRespawnSec >= limits.minRespawnSec && limits.minRadiusM > 0 && limits.maxRadiusM >= limits.minRadiusM && limits.defaultRadiusM >= limits.minRadiusM && limits.defaultRadiusM <= limits.maxRadiusM)) throw Error('ground-items limits: 1 <= minRespawnSec <= maxRespawnSec and 0 < minRadiusM <= defaultRadiusM <= maxRadiusM');
   if (!(limits.defaultRespawnSec >= limits.minRespawnSec && limits.defaultRespawnSec <= limits.maxRespawnSec)) throw Error('ground-items limits: defaultRespawnSec is within minRespawnSec..maxRespawnSec');
@@ -29,4 +32,5 @@ export function loadGroundItems(raw: { starterItems?: unknown; groundLimits?: un
   for (const [id, s] of Object.entries(starters)) if (!(s.maxQty >= 1)) throw Error(`ground-items starter "${id}": maxQty is at least 1`);
   return { items, starters, limits };
 }
-export const { items: GROUND_ITEMS, starters: STARTER_ITEMS, limits: GROUND_LIMITS } = loadGroundItems(DEFS);   // validated again by origins/world/ground-items.test.ts
+// The starter set is declared once, in starter-wield.json (item -> LootId + maxQty); the `starterItem` table is built from those rows, so ground-items.json carries only limits and placements.
+export const { items: GROUND_ITEMS, starters: STARTER_ITEMS, limits: GROUND_LIMITS } = loadGroundItems({ ...DEFS, starterItems: STARTER_QTY });   // validated again by origins/world/ground-items.test.ts

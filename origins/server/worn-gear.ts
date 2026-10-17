@@ -12,11 +12,12 @@ import { heldSql, type SpellHeld } from './spell-check.ts';
 type LootId = NonNullable<ReturnType<typeof lootIdOfItem>>;
 
 // The worn pieces and the rung each was won at, as the ledger holds them: the one reading both wornGear (sheet deltas) and loadoutFor (the world's Attack and RES) take.
-function wornOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): { equipped: Record<string, LootId>; tiers: Map<LootId, Tier | null> } {
+// `version` is the record's: a Frontier piece stands as a LootId only from its era row (frontier-wield.json), so an older claim re-checks without it; none = this build's version.
+function wornOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): { equipped: Record<string, LootId>; tiers: Map<LootId, Tier | null> } {
   const equipped: Record<string, LootId> = {}, tiers = new Map<LootId, Tier | null>();
   for (const i of items) {
     if (i.location.kind !== 'equipped' || i.location.slot === undefined) continue;
-    const id = lootIdOfItem(i.item);
+    const id = lootIdOfItem(i.item, version);
     if (!id) continue;   // a piece that is not a loot id adds nothing to the sheet
     if (i.location.slot in equipped) throw new Error(`two pieces worn in ${i.location.slot}`);
     if (tiers.has(id)) throw new Error(`${id} is worn twice`);   // wornGear's rung lookup is by LootId, so one id on two instances could not carry two rungs
@@ -32,13 +33,13 @@ export function heldWeaponOf(items: readonly { item: string; tier?: string | nul
 }
 
 export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): Readonly<Record<string, number>> {
-  const { equipped, tiers } = wornOf(items);
+  const { equipped, tiers } = wornOf(items, version);
   return wornGear(equipped as Parameters<typeof wornGear>[0], (id) => tiers.get(id), version);
 }
 
 /** The world loop's hero Loadout (Attack out, RES in) from the same held rows: what the page derives from its worn set (gear-numbers.ts), so a world record's hero claim can be held to it. */
-export function loadoutOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Loadout {
-  const { equipped, tiers } = wornOf(items);
+export function loadoutOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): Loadout {
+  const { equipped, tiers } = wornOf(items, version);
   return loadoutFor(kitFrom(equipped as Parameters<typeof kitFrom>[0], (id) => tiers.get(id) ?? undefined));
 }
 
