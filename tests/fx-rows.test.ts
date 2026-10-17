@@ -1,7 +1,7 @@
 // The view effects' numbers are rows (src/fight/fx-rows.json), and every default is the literal the code held before (Dom's data-layer rule, 2026-10-13).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fxNum } from '../src/fight/fx-rows.ts';
 import { LOW_OFF, LOW_STAMINA } from '../src/fight/fatigue-preview.ts';
 import { KICK_CLOSE_GROWTH, KICK_CLOSE_TICKS } from '../src/fight/kick-close.ts';
@@ -22,13 +22,6 @@ test('the private numbers are rows with their old values', () => {
   assert.throws(() => fxNum('no-such-row'), /no row/);
 });
 
-// The inline Math.min / Math.max bounds that moved out of the view files (as-data rule (e), 2026-10-17): a `clamp.<file>.<value>` row IS its value, so a row can be retuned but never silently drifts from the literal it replaced.
-test('every clamp row holds the value its id names', () => {
-  const rows = (JSON.parse(readFileSync(new URL('../src/fight/fx-rows.json', import.meta.url), 'utf8')) as { fxRows: { id: string }[] }).fxRows.filter((r) => r.id.startsWith('clamp.'));
-  assert.ok(rows.length >= 25, 'the special-fx group moved 25 rows');
-  for (const { id } of rows) assert.equal(fxNum(id), Number(id.slice(id.indexOf('.', 6) + 1)), id);
-});
-
 test('the seven files keep none of the old literals', () => {
   const src = (f: string) => readFileSync(new URL(`../src/fight/${f}`, import.meta.url), 'utf8');
   assert.doesNotMatch(src('charge-fx.ts'), /HOOF = 18|STRIDE = 0\.36|LEAD = 2\.0/);
@@ -38,9 +31,18 @@ test('the seven files keep none of the old literals', () => {
   assert.doesNotMatch(src('quality.ts'), /FIGHTER_TEXTURE_CAP = 1024/);
 });
 
-// The view files' inline Math.min / Math.max bounds that became rows (as-data rule (e), 2026-10-17): a `clamp.<file>.<value>` row holds the value its id names, so it can be retuned but never silently drifts from the literal it replaced.
-test('every view-file clamp row holds the value its id names', () => {
-  const rows = (JSON.parse(readFileSync(new URL('../src/fight/fx-rows.json', import.meta.url), 'utf8')) as { fxRows: { id: string }[] }).fxRows.filter((r) => r.id.startsWith('clamp.'));
-  assert.ok(rows.length >= 40, 'the view-file group moved 40 rows');
-  for (const { id } of rows) assert.equal(fxNum(id), Number(id.slice(id.indexOf('.', 6) + 1)), id);
+// The view files' inline Math.min / Math.max bounds that became rows (as-data rule (e), 2026-10-17). Each is named for what it IS (`fx.<file>.<what>Min|Max`), so retuning one is an edit of its value, never a rename:
+// the row exists, is finite, a byte ceiling stays a byte, a Min stays under its Max, and a view file still reads it (no orphan row).
+test('every fx.* bound row is named for what it is and is in range', () => {
+  const rows = (JSON.parse(readFileSync(new URL('../src/fight/fx-rows.json', import.meta.url), 'utf8')) as { fxRows: { id: string; fields: { value: number } }[] }).fxRows.filter((r) => r.id.startsWith('fx.'));
+  assert.ok(rows.length >= 60, 'the view-file and special-effect bounds are rows');
+  const view = readdirSync(new URL('../src/fight/', import.meta.url)).filter((f) => f.endsWith('.ts')).map((f) => readFileSync(new URL(`../src/fight/${f}`, import.meta.url), 'utf8')).join('\n');
+  for (const { id, fields: { value } } of rows) {
+    assert.match(id, /^fx\.[a-z][A-Za-z]*\.[a-z][A-Za-z]*(Min|Max)$|^fx\.[a-z][A-Za-z]*\.payoffHoldRel$/, `${id}: named for what it is, not its value`);
+    assert.ok(Number.isFinite(fxNum(id)) && fxNum(id) === value, id);
+    if (id.endsWith('byteMax')) assert.ok(value > 0 && value <= 255, `${id}: a texel byte`);
+    assert.ok(view.includes(`fxNum('${id}')`), `${id}: read by a view file`);
+  }
+  const v = (id: string) => fxNum(id);
+  assert.ok(v('fx.specialTithe.aimMin') < v('fx.specialTithe.aimMax') && v('fx.fatigueRead.depthMin') < v('fx.fatigueRead.depthMax') && v('fx.characters.propRadiusMin') < v('fx.characters.propRadiusMax'), 'a Min stays under its Max');
 });

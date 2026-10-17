@@ -19,7 +19,8 @@ function fight(opts: { spell?: { id: string; skill: number }; press: 'cast' | 'c
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, onEvent: (e) => events.push(e), ...(opts.spell ? { hero: () => ({ level: 1, spell: opts.spell }) } : {}) });
   const t0 = wc.hero().stamina;
   for (let i = 0; i < 30 * (opts.seconds ?? 40) && kills.length === 0; i++) {
-    if (i % 15 === 0) { if (opts.press === 'cast' || (opts.press === 'mix' && i % 120 === 0)) wc.cast(); else wc.press(); }   // mix: a cast every four seconds, cuts between
+    // a press every 20 ticks (was 15, RV75/WSV52): the wolf now stops at 0.85 of its reach and trades from where it stands, and the fixed script at 15 died to it; at 20 it kills at every distance tried (a seeded script: stable until the next sim change). The hero's health is untouched.
+    if (i % 20 === 0) { if (opts.press === 'cast' || (opts.press === 'mix' && i % 120 === 0)) wc.cast(); else wc.press(); }   // mix: a cast every four seconds, cuts between
     const w = wc.debug().find((x) => x.id === 'wolf-1');
     wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 });
   }
