@@ -148,6 +148,33 @@ test('a cheap figure does not draw the parts the remote-cheap row names, the rig
   assert.equal(built.filter((b) => !b.part.visible).length, 1, 'and the figure that is now the farthest is the one that hides its part');
 });
 
+test('with a far figure: the near one shows within remoteFarRangeM, the far one beyond it, a slack keeps the boundary from flipping, and the one that comes on is posed that frame', () => {
+  const range = previewRule('remoteFarRangeM'), slack = previewRule('remoteLodSlackM');
+  const mk = () => { const anchor = new Group(); anchor.add(new Mesh(new BufferGeometry(), material)); const f = { anchor, updates: 0, update() { f.updates++; } }; return f; };
+  const nears: ReturnType<typeof mk>[] = [], fars: ReturnType<typeof mk>[] = [];
+  const heroes = createRemoteHeroes({ scene: new Group(), spawn: () => { const f = mk(); nears.push(f); return f as never; }, spawnFar: () => { const f = mk(); fars.push(f); return f as never; }, groundAt: () => 0 });
+  heroes.warm();   // slots are built pairwise: nears[i] and fars[i] are slot i's two figures
+  const x = 40; heroes.push([{ id: 1, x, z: 0, heading: 0, anim: 0, flags: 0 }], 0);
+  const lodAt = (heroX: number) => { heroes.update(0.01, 0, { x: heroX, z: 0 }); return heroes.debug().shown[0]!.lod; };
+  const near = nears[0]!, far = fars[0]!;   // the first free slot takes the remote
+  assert.equal(lodAt(x - (range - 2)), 'near', 'inside the range');
+  assert.ok(near.anchor.visible && !far.anchor.visible, 'the near figure shows, the far one is hidden');
+  const nearUpdates = near.updates;
+  assert.equal(lodAt(x - (range + slack + 1)), 'far', 'beyond the range and its slack');
+  assert.ok(far.anchor.visible && !near.anchor.visible, 'now the far one shows and the near one does not');
+  assert.ok(far.updates >= 1, 'the figure that came on was posed that frame');
+  assert.equal(lodAt(x - (range + 0.5)), 'far', 'in the slack: a far figure stays far');
+  assert.equal(lodAt(x - (range - slack - 0.5)), 'near', 'inside the range minus the slack: back to near');
+  assert.ok(near.updates > nearUpdates, 'the near figure is posed again');
+  assert.equal(lodAt(x - (range + slack - 0.5)), 'near', 'in the slack: a near figure stays near');
+});
+
+test('without a far figure nothing changes: one figure per slot, always near', () => {
+  const { heroes } = crowd(1);
+  heroes.update(0.01, 0, { x: 200, z: 0 });
+  assert.equal(heroes.debug().shown[0]!.lod, 'near');
+});
+
 test('the remote-cheap loader refuses a missing row, a blank or repeated part name and a non-list', () => {
   const row = (hideParts: unknown) => ({ remoteCheap: [{ id: 'cheap', fields: { hideParts } }] });
   assert.deepEqual([...loadCheapParts(row(['A', 'B']))], ['A', 'B']);
