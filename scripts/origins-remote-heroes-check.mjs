@@ -71,9 +71,9 @@ try {
     const row = timeline.at(-1); const away = row?.others && Math.hypot(row.others[0] - page_.hero.x, row.others[1] - page_.hero.z);
     return JSON.stringify({ page: page_, bob: { at: bob.at(), closeCode: bob.closeCode(), hellos: bob.hellos(), serverSees: mine?.sees?.size ?? null }, distanceFromHeroM: away === undefined || away === null ? null : +away.toFixed(1), lastRows: timeline.slice(-14) });
   };
-  const walk = async (dir) => {   // Bob walks 12 m along x in 1.5 m steps (the server accepts honest steps only); the page must show him move about as far
+  const walk = async (dir) => {   // Bob walks 12 m along x in 1 m steps (the server accepts honest steps only: its measured gap is clamped to at least 100 ms, so a step must stay inside maxSpeed x slack x 0.1 s = 105 cm; 1.5 m steps got Bob dropped with 4009 'teleport' when two packets arrived close together on a loaded runner); the page must show him move about as far
     const s0 = await drawn(bobId), from = bob.at();
-    for (let i = 1; i <= 8; i++) { bob.pose(from.x + dir * i * 1.5, from.z); await wait(150); }
+    for (let i = 1; i <= 12; i++) { bob.pose(from.x + dir * i * 1, from.z); await wait(150); }
     const ok = await until(async () => { const s = await drawn(bobId); return s && s0 && Math.hypot(s.x - s0.x, s.z - s0.z) >= 8; });
     return { ok, start: s0, end: await drawn(bobId) };
   };
