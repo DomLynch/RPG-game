@@ -41,7 +41,7 @@ async function honest(): Promise<{ rec: WorldRecord; text: string }> {
   const spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {} });
-  const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
+  const hero = { x: at.x, z: at.z - 1.4, facing: 0 };   // 1.4 m (was 1.2, RV75/WSV52): a world creature now stops at 0.85 of its reach and stands, so the bot stands outside that band and swings from there; at 1.2 it traded blow for blow and died on some timings
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
@@ -54,7 +54,8 @@ async function honestCast(spell: { id: string; skill: number }, spell2?: { id: s
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, hero: () => ({ level: 1, spell, ...(spell2 ? { spell2 } : {}) }) });
   const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
-  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 8; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
+  // RV75/WSV52 re-timing: the wolf now stops at 0.85 of its reach and trades from where it stands, so a fixed-script caster kills it only on some timings (a seeded script: the result is stable until the next sim change). Measured: at 1.2 m a cast every 10 presses (one slot, was 8) or every 16 (two slots) kills; the hero's health is untouched.
+  for (let i = 0; i < 3000 && !fell.length; i++) { const every = spell2 ? 16 : 10; if (i % every === 0) wc.cast(); else if (spell2 && i % every === 8) wc.cast2(); else wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted caster kills the wolf');
   return { rec: rec!, text: await encodeWorldRecord(rec!) };
 }

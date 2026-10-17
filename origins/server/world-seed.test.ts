@@ -20,7 +20,7 @@ async function fight(token: string | null): Promise<WorldRecord> {
   const at = { x: wolf.spec.home.x, z: wolf.spec.home.z }, spec = { id: wolf.spec.id, body: 'wolf', level: 1, name: 'wolf' };
   const mobs = { within: (x: number, z: number, r: number) => fell.length || Math.hypot(at.x - x, at.z - z) > r ? [] : [{ spec, x: at.x, z: at.z, dist: Math.hypot(at.x - x, at.z - z) }], drive: () => {} };
   const wc = live({ mobs: () => mobs, onKill: (s) => { fell.push(s.id); rec = wc.record(); }, onHeroDied: () => {}, onHeroHit: () => {}, ...(token ? { engageToken: () => token } : {}) });
-  const hero = { x: at.x, z: at.z - 1.2, facing: 0 };
+  const hero = { x: at.x, z: at.z - 1.4, facing: 0 };   // 1.4 m (was 1.2, RV75/WSV52): outside the creature's new stop band (0.85 of its reach), see world-verify.test.ts
   for (let i = 0; i < 400 && !fell.length; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((q) => q.id === spec.id); hero.facing = w ? Math.atan2(w.x - hero.x, w.z - hero.z) : 0; wc.update(1 / 30, hero); } }
   assert.ok(rec, 'the scripted hero kills the wolf');
   return rec!;
