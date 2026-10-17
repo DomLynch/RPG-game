@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { launch, phonePage, serveDist, waitForGame, writeReceipt } from './lib/harness.mjs';
 
 const out = process.argv[2] ?? 'artifacts/special-pit', FIRST = process.env.SPECIAL_FIRST ?? 'lunge', SECOND = process.env.SPECIAL_SECOND ?? 'stomp';
-const server = await serveDist();
+// QA_DIST=<built dist dir> serves that build (e.g. one made on the VPS) instead of this tree's ./dist
+const server = process.env.QA_DIST ? await (async () => { const { preview } = await import('vite'); const s = await preview({ build: { outDir: process.env.QA_DIST }, preview: { host: '127.0.0.1', port: 0, strictPort: true } }); return { url: `http://127.0.0.1:${s.httpServer.address().port}`, close: () => new Promise((resolve) => s.httpServer.close(resolve)) }; })() : await serveDist();
 const browser = await launch(process.env.PIT_GL === '1' ? { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } : {});
 const receipt = { picks: [FIRST, SECOND], checks: [], errors: [], passed: false };
 const ok = (name, detail) => { receipt.checks.push({ name, ...(detail === undefined ? {} : { detail }) }); console.log('ok:', name, detail === undefined ? '' : JSON.stringify(detail)); };
