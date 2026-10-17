@@ -9,7 +9,7 @@ export const RULES = interestRules();
 export type Rules = ReturnType<typeof interestRules>;
 
 // legacy: a v1 client (town square only, old frame): clamped to the square, sees only the square, and is sent the old frame (the shim; docs/specs/origins/frontier-presence.md §5). zone: its zone row, kept current by every accepted pose.
-export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; credit: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
+export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; credit: number; fresh: boolean; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
   name: string | null; guest: boolean;   // the name tag the page draws (null: none known; guests carry no name)
   worn: Worn;   // {slot: lootId} the writer reads from the ledger for the active character, what others see on it (a guest wears nothing: {})
   told: Map<number, string>; sees: Set<number>;   // viewer state: the id -> identity this viewer has been introduced to (so an `enter` goes out once per sighting), and the ids in range this tick
@@ -55,7 +55,7 @@ export class World {
     const wanted = at ?? this.recall(account, now) ?? SPAWN, fits = legacy ? inTownSquare : walkable;
     const from = fits(Math.round(wanted.x), Math.round(wanted.z)) ? wanted : SPAWN;   // a remembered or saved spot the clamp would refuse (or a v1 client cannot see) starts at the spawn
     const x = Math.round(from.x), z = Math.round(from.z);
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, credit: 0, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, credit: 0, fresh: true, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -92,20 +92,22 @@ export class World {
     const x = p.legacy ? Math.min(hi, Math.max(lo, pose.x)) : pose.x, z = p.legacy ? Math.min(hi, Math.max(lo, pose.z)) : pose.z;
     p.movedAt = now; p.seenAt = now;
     const step = Math.hypot(x - p.x, z - p.z);
-    if (!(p.legacy || walkable(x, z)) || step > Math.max(p.credit, rate * tickMs)) {   // a tick's worth is always allowed (a joiner's first pose, a warp's first step); the credit only ADDS to it
+    const reach = Math.max(p.credit, p.fresh ? rate * tickMs : 0);   // one tick's worth for the FIRST pose after a join or warp only (the client's opening step); after that, only what time has earned
+    p.fresh = false;
+    if (!(p.legacy || walkable(x, z)) || step > reach) {
       if (++p.strikes > strikesToDrop) return 'drop';
       return 'snapped';
     }
     p.credit = Math.max(0, p.credit - step);
     return this.place(p, x, z, pose);
   }
-  // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there; one tick of it is always allowed per pose).
+  // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there; one tick of it is allowed for their first pose only).
   private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / 1000; }
   // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
   warp(p: Player, x: number, z: number, now: number): void {
     p.movedAt = now; p.seenAt = now; p.strikes = 0;
     this.place(p, x, z, { x, z, heading: p.heading, anim: p.anim, flags: p.flags });
-    p.credit = 0;   // the credit restarts from the warp like the clock does
+    p.credit = 0; p.fresh = true;   // the credit restarts from the warp like the clock does
   }
   private place(p: Player, x: number, z: number, pose: Pose): MoveResult {
     const from = cellOf(this.rules, p.x, p.z), to = cellOf(this.rules, x, z);

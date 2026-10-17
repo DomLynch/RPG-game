@@ -37,6 +37,13 @@ test('a jump cannot be banked: a teleport of 50 m after a long quiet spell is st
   assert.equal(w.move(p, { x: SPAWN.x + 5000, z: SPAWN.z, heading: 0, anim: 0, flags: 0 }, 60_000), 'snapped');
 });
 
+test('tick-sized poses sent 1 ms apart are a speed hack: a tick of reach is only for the first pose, so the flood is snapped and the player dropped', () => {
+  const out = walk(105_000, 1, 60, (_, sentAt) => sentAt);   // 105 cm every millisecond (the old floor per pose, 1000x the speed limit)
+  assert.equal(out[0], 'ok', 'the opening pose gets its tick');
+  assert.ok(out.slice(1).includes('snapped'), 'then the flood is snapped');
+  assert.ok(out.includes('drop'), 'and dropped');
+});
+
 test('many packets in the same millisecond cannot spend more than the credit: 30 steps of 150 cm at one instant is a hack', () => {
   const w = new World(), p = w.join(A, 0)!, seen: MoveResult[] = [];
   for (let k = 1; k <= 30; k++) seen.push(w.move(p, { x: SPAWN.x + 150 * k, z: SPAWN.z, heading: 0, anim: 0, flags: 0 }, 1000));
