@@ -124,13 +124,13 @@
 {"id":"lunge","role":"opener"},{"id":"ironrush","role":"opener"},{"id":"pommel","role":"control"},{"id":"shove","role":"control"},{"id":"cleave","role":"heavy","slot2Default":1},{"id":"stomp","role":"posture break"}
 ],"specialLook":[
 ],"specialShards":[
-{"id":"cleave","kind":"stone","count":5,"tint":"#8a7a62","power":1000,"forward":1400,"lift":2200,"size":130,"life":1450,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
-{"id":"cleave","kind":"metal","count":3,"tint":"#a3abb4","power":1000,"forward":1400,"lift":2200,"size":100,"life":1000,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
-{"id":"stomp","kind":"stone","count":8,"tint":"#8a7a62","power":1200,"forward":1000,"lift":2600,"size":150,"life":1600,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
-{"id":"lunge","kind":"metal","count":4,"tint":"#a3abb4","power":900,"forward":1800,"lift":1800,"size":90,"life":900,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
-{"id":"ironrush","kind":"metal","count":5,"tint":"#a3abb4","power":1000,"forward":1600,"lift":2000,"size":100,"life":1000,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
-{"id":"shove","kind":"stone","count":6,"tint":"#8a7a62","power":1000,"forward":1600,"lift":2000,"size":130,"life":1300,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
-{"id":"pommel","kind":"metal","count":3,"tint":"#a3abb4","power":800,"forward":1200,"lift":1600,"size":80,"life":800,"gravity":12000,"bounce":240,"slide":300,"shrink":660}
+{"id":"cleave","kind":"stone","count":5,"tint":"#a08560","power":1000,"forward":1400,"lift":2200,"size":42,"life":1450,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
+{"id":"cleave","kind":"metal","count":3,"tint":"#b5bcc4","power":1000,"forward":1400,"lift":2200,"size":34,"life":1000,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
+{"id":"stomp","kind":"stone","count":8,"tint":"#a08560","power":1200,"forward":1000,"lift":2600,"size":50,"life":1600,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
+{"id":"lunge","kind":"metal","count":4,"tint":"#b5bcc4","power":900,"forward":1800,"lift":1800,"size":30,"life":900,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
+{"id":"ironrush","kind":"metal","count":5,"tint":"#b5bcc4","power":1000,"forward":1600,"lift":2000,"size":34,"life":1000,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
+{"id":"shove","kind":"stone","count":6,"tint":"#a08560","power":1000,"forward":1600,"lift":2000,"size":42,"life":1300,"gravity":12000,"bounce":240,"slide":300,"shrink":660},
+{"id":"pommel","kind":"metal","count":3,"tint":"#b5bcc4","power":800,"forward":1200,"lift":1600,"size":26,"life":800,"gravity":12000,"bounce":240,"slide":300,"shrink":660}
 ],"specialTrail":[
 {"id":"cleave","samples":16,"opacity":0.5,"color":"#cfc3a4","lead":34,"tail":24},{"id":"stomp","samples":14,"opacity":0.45,"color":"#c9b48a","lead":34,"tail":24},{"id":"lunge","samples":10,"opacity":0.5,"color":"#d7dde3","lead":24,"tail":18},
 {"id":"ironrush","samples":10,"opacity":0.5,"color":"#c4d0dc","lead":24,"tail":18},{"id":"shove","samples":12,"opacity":0.45,"color":"#d6c28f","lead":28,"tail":20},{"id":"pommel","samples":8,"opacity":0.4,"color":"#d9dde2","lead":22,"tail":14}
