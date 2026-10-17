@@ -446,14 +446,15 @@ async function warmRemoteKitsAfterReady() {
   const t0 = performance.now();
   let pieces: Awaited<ReturnType<typeof sharedLoot>> | undefined, remote: ReturnType<typeof secondActor> | undefined;
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
-  const until = t0 + previewRule('kitWarmMs');
+  const cap = previewRule(/[?&]kitwarm=soft\b/.test(location.search) ? 'kitWarmMsSoft' : 'kitWarmMs');   // ?kitwarm=soft is the browser rows' flag: software GL links a kit in ~40 s, so they get the longer row; the live page never carries it
+  const until = t0 + cap;
   const warmOne = async (kit: WarmKit) => {
     await kitSlice(until);
     if (!pieces || !remote) { pieces = await sharedLoot(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); }
     dressRemote(remote, pieces, kit.worn); await warmActor(renderer, camera, scene, cloneRig(remote.anchor), nextFrame); await nextFrame(); await nextFrame();
   };
   // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
-  const r = await warmKitsWithin(warmKits(), warmOne, previewRule('kitWarmMs'), settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
+  const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
   remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
 }

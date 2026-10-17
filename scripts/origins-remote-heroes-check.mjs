@@ -44,12 +44,12 @@ try {
     const ok = (result) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, result }) });
     return op === 'open' ? ok({ characters: [{ id: 'pc:still', name: 'Alice' }] }) : route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'stub' }) });
   });
-  await page.goto(`${origin}/preview/origins/?region=1&zone=1`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview/origins/?region=1&zone=1&kitwarm=soft`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 170000 });
   assert.ok(await page.waitForFunction(() => window.originsPreview.remote() !== null, null, { timeout: 120000 }).then(() => true).catch(() => false), 'the remote view never came up (the hero rig did not load)');
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
   const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });   // one atomic read: the linked programs, and which scene objects use each
-  const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === 'kitWarmMs').value;
+  const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === 'kitWarmMsSoft').value;   // the page runs with ?kitwarm=soft: software GL gets the longer row, so the dressed remote is exercised
   // the other-players' gear warm-up links its programs after [zone ready] (#2938): the "before" read waits for it, or its programs would count as added by the bots
   assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 60000 }).then(() => true).catch(() => false), 'the remote kits warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');   // bounded by the kitWarmMs row (it stops starting kits then) plus the one in flight
   receipt.remoteKitsWarm = await page.evaluate(() => window.originsPreview.remoteKitsWarm());
