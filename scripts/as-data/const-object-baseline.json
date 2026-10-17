@@ -38,9 +38,6 @@
  "src/core/grades.ts": {
   "GRADES": 1
  },
- "src/core/loot.ts": {
-  "PACK": 1
- },
  "src/fight/armfeel.ts": {
   "FLINCH_GAIN": 1
  },
