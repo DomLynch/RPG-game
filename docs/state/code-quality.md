@@ -2,6 +2,8 @@
 
 ## 2026-10-17 ~13:5x (+04) — HANDOFF before /clear. READ FIRST. LIVE = HU2 53aed13d5 (verified)
 
+**Status ~14:3x:** #2947 NOT YET @5eed49c0c (C1 core-boundary: take TIERS from src/core/server.ts; Combat told). #3018 NOT YET @8714667b5 (sits on an old #3014: rebase onto 6e48746a6, add auditor:ready, re-run signedin-gear at the new head; Web told). #3014 read OK @6e48746a6, PASS on green CI. #3020 PASS @9b899e7b4 (contents). Ruling: it doesn't need #2945, but stacked it waits for the unread restyle stack #2951–#2968; Lead chooses the trunk copy or the stack. #3019: read it when it's ready.
+
 **Now, in Lead's order (updated ~14:0x):**
 1. **#2947 @5eed49c0c**: kite harness + receipts, test-only. Deploy merges it in a gap, and it gives every lane the KIT label. Read it; PASS on green unit-ci + quality (check auditor:ready is set, gotcha a).
 2. **#3018** (Web self-dress: the walking hero wears their gear; Zone 1 beta). This touches the open row gap (no binding row dresses the signed-in hero): check whether it adds that row.
