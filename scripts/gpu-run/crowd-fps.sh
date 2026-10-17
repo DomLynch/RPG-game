@@ -18,6 +18,16 @@ elif [[ "${1:-}" == "ab" ]]; then
     SERVE=1 COUNTS=0,16,40 MODES=walk THROTTLE=4 OUT="$HERE/artifacts/crowd-fps/a$pass" node scripts/origins-crowd-fps.mjs || true
     (cd /tmp/base && SERVE=1 COUNTS=0,16,40 MODES=walk THROTTLE=4 OUT="$HERE/artifacts/crowd-fps/b$pass" node "$HERE/scripts/origins-crowd-fps.mjs") || true
   done
+elif [[ "${1:-}" == "imp" ]]; then
+  # `imp`: the impostor far tier (?impostors=N, origins/preview/remote-impostor-bench.ts) against the full figures (remote heroes through setOthers) in ONE job at 4x CPU, two passes of
+  # none (the bare page), 40 impostors, 40 full figures, 100 impostors; receipts artifacts/crowd-fps/imp<pass>-{none,i40,f40,i100}/receipt.json; scripts/crowd-imp-table.mjs reads them.
+  npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
+  for pass in 1 2; do
+    SERVE=1 COUNTS=0 MODES=walk THROTTLE=4 OUT="artifacts/crowd-fps/imp$pass-none" node scripts/origins-crowd-fps.mjs || true
+    SERVE=1 COUNTS=0 MODES=walk THROTTLE=4 QS="&impostors=40" OUT="artifacts/crowd-fps/imp$pass-i40" node scripts/origins-crowd-fps.mjs || true
+    SERVE=1 COUNTS=40 MODES=walk THROTTLE=4 OUT="artifacts/crowd-fps/imp$pass-f40" node scripts/origins-crowd-fps.mjs || true
+    SERVE=1 COUNTS=0 MODES=walk THROTTLE=4 QS="&impostors=100" OUT="artifacts/crowd-fps/imp$pass-i100" node scripts/origins-crowd-fps.mjs || true
+  done
 elif [[ "${1:-}" == "quick" ]]; then
   # `quick`: the empty zone at 4x CPU only (0 players, idle): one case, about a minute, for bisecting a frame-rate regression that needs no crowd.
   npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
