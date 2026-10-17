@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "farLod",
+      "file": "far-lod.json",
+      "at": "farLods",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

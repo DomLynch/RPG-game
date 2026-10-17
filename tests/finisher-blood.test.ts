@@ -54,7 +54,7 @@ test('enabling blood after an off-mode finish restores nearby pools without repl
 
 test('a kill bloodies the striking part of every shipped weapon and never its haft', () => {
   const dir = new URL('../src/assets/', import.meta.url), seen: string[] = [];
-  for (const file of readdirSync(dir).filter((f) => f.endsWith('.glb'))) {
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.glb') && !/^hero-(near|far)\.glb$/.test(f))) {   // the remote LODs merge their materials and take no kill blood
     const bytes = readFileSync(new URL(file, dir)), n = bytes.readUInt32LE(12);
     const doc = JSON.parse(bytes.subarray(20, 20 + n).toString()) as { nodes: { name?: string; mesh?: number; children?: number[] }[]; meshes: { primitives: { material: number }[] }[]; materials: { name: string }[] };
     for (const [node, twoHanded] of [['WeaponDrawn', true], ['SwordDrawn', false]] as const) {

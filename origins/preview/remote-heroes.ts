@@ -25,28 +25,32 @@ export type Who = { name: string | null; guest: boolean };
 /** The tag: "Guest" for a guest (Dom: guests are in the world), the name otherwise, and nothing at all until the name has arrived (the server sends { id, name, guest } once, on entering interest). */
 export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name?.trim() || null);
 
-type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
+type Lod = 'near' | 'far';
+type Slot = { group: THREE.Group; actor: Actor; near: Actor; far: Actor | null; lod: Lod; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
 
 /** `who`: the page's record of an id's { name, guest } (presence's `enter`, kept by main.ts), read each frame for the ids drawn; `forget`: called when a slot expires, so a reused id never wears the last player's name before its own `enter` arrives. */
-export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
+export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; spawnFar?: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
   const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile') });
-  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep');   // read once: update() runs every frame
+  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep'), farRange = previewRule('remoteFarRangeM'), lodSlack = previewRule('remoteLodSlackM');   // read once: update() runs every frame
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
-    const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
-    const slot: Slot = { group, actor, id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
+    const actor = d.spawn(), far = d.spawnFar?.() ?? null, group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
+    if (far) { far.anchor.visible = false; group.add(far.anchor); }   // the far LOD (the merged far figure) is built with the near one; only one is visible at a time
+    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
     actor.anchor.traverse((o) => { if (o instanceof THREE.Mesh && CHEAP_PARTS.has(o.name)) slot.parts.push(o); });
-    const skins = new Set<THREE.Skeleton>(); actor.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
+    const skins = new Set<THREE.Skeleton>(); for (const a of far ? [actor, far] : [actor]) a.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
     for (const skeleton of skins) { const real = skeleton.update.bind(skeleton); skeleton.update = () => { if (!slot.frozen || slot.thaw) real(); }; }   // the render calls this every frame for every drawn skin: a frozen figure's does nothing (no matrices, no texture upload)
     return slot;
   };
   /** Freeze or thaw a figure's scene-graph cost (see the header): the group drops out of scene.updateMatrixWorld's walk, and its skeletons stop updating. */
   const freeze = (s: Slot, on: boolean): void => { s.frozen = on; s.group.matrixWorldAutoUpdate = !on; };
+  /** Near <-> far figure: only the chosen one is visible (the other costs the render nothing) and it is the one `update` poses. */
+  const setLod = (s: Slot, lod: Lod): void => { s.lod = lod; s.actor = lod === 'far' && s.far ? s.far : s.near; s.near.anchor.visible = s.actor === s.near; if (s.far) s.far.anchor.visible = s.actor === s.far; };
   /** Full <-> cheap: the trail hidden and the shadow off (each draw's own setting remembered, so a figure that comes back near is exactly as it was). Nothing here touches a material. */
   const setCheap = (s: Slot, cheap: boolean): void => {
     s.cheap = cheap; s.owed = 0;
-    s.actor.anchor.traverse((o) => {
+    for (const a of s.far ? [s.near, s.far] : [s.near]) a.anchor.traverse((o) => {
       if (o.name === 'WeaponTrail') { if (cheap) o.visible = false; return; }
       if (!(o instanceof THREE.Mesh)) return;
       if (cheap) { o.userData.castWas ??= o.castShadow; o.castShadow = false; } else if (o.userData.castWas !== undefined) o.castShadow = o.userData.castWas as boolean;
@@ -77,9 +81,11 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         if ((rank >= full) !== slot.cheap) setCheap(slot, rank >= full);
         slot.speed += ((s.speed < idle ? 0 : s.speed) - slot.speed) * (1 - Math.exp(-dt * 14)); if (slot.speed < idle) slot.speed = 0;
         slot.owed = Math.min(owedCap, slot.owed + dt); slot.frames++;
+        let switched = false;   // a figure that changes LOD is posed this frame: the one that comes on was not updated while it was hidden
+        if (slot.far) { const dist = Math.hypot(s.x - hero.x, s.z - hero.z), lod: Lod = slot.lod === 'near' ? (dist > farRange + lodSlack ? 'far' : 'near') : (dist < farRange - lodSlack ? 'near' : 'far'); if (lod !== slot.lod) { switched = true; setLod(slot, lod); } }   // the slack keeps a figure on the boundary from flipping every frame
         if (!(Math.hypot(s.x - slot.gx, s.z - slot.gz) <= groundStep)) { slot.gy = d.groundAt(s.x, s.z); slot.gx = s.x; slot.gz = s.z; }   // the ground height is read again only once the figure has moved a step (T4 profile 2026-10-17: reliefAt per figure per frame was +1.9 ms at 40 players, 4x); a NaN (a fresh slot) reads
         const gy = slot.gy, seen_ = !camera || (Math.hypot(s.x - hero.x, s.z - hero.z) <= range && frustum.intersectsSphere(ball.set(at.set(s.x, gy, s.z), radius).translate(up)));
-        const pose = seen_ && (!slot.cheap || slot.hidden || slot.frames % every === 0);   // a cheap figure poses every Nth frame (and on the frame it comes back into view) with the time it has been owed
+        const pose = seen_ && (!slot.cheap || slot.hidden || switched || slot.frames % every === 0);   // a cheap figure poses every Nth frame (and on the frame it comes back into view) with the time it has been owed
         slot.thaw = false; slot.group.visible = seen_;
         if (!slot.cheap || !seen_ || pose) { slot.group.position.set(s.x, gy, s.z); slot.group.rotation.y = s.heading; }   // a cheap figure on view holds its place between its pose frames
         freeze(slot, slot.cheap || !seen_);
@@ -91,7 +97,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         slot.hidden = !seen_;
         retag(slot, tagText(d.who?.(s.id) ?? names.get(s.id)));
       });
-      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); freeze(slot, false); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
+      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); setLod(slot, 'near'); freeze(slot, false); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
     },
     /** Before the draw: a tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). */
     clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void {
@@ -105,6 +111,6 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
       }
     },
     /** For the browser checks and the release row: who is drawn, where, with what tag and gait speed. */
-    debug: () => ({ slots: pool.length, adaptive: { low: governor.low(), p95Ms: +governor.p95().toFixed(1) }, shown: [...live.entries()].map(([id, s]) => ({ id, x: +s.group.position.x.toFixed(2), z: +s.group.position.z.toFixed(2), heading: +s.group.rotation.y.toFixed(2), speed: +s.speed.toFixed(2), tag: s.text, visible: s.group.visible, cheap: s.cheap, frozen: s.frozen })) }),
+    debug: () => ({ slots: pool.length, adaptive: { low: governor.low(), p95Ms: +governor.p95().toFixed(1) }, shown: [...live.entries()].map(([id, s]) => ({ id, x: +s.group.position.x.toFixed(2), z: +s.group.position.z.toFixed(2), heading: +s.group.rotation.y.toFixed(2), speed: +s.speed.toFixed(2), tag: s.text, visible: s.group.visible, cheap: s.cheap, frozen: s.frozen, lod: s.lod })) }),
   };
 }

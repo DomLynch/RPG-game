@@ -61,7 +61,7 @@ const fromFightIndex = (spec: string, file = ''): boolean => /(^|\/)src\/fight\/
 export function violations(read: (f: string) => string = (f) => readFileSync(f, 'utf8'), list: readonly string[] = files('origins')): { bad: string[]; unclassified: string[] } {
   const bad: string[] = [], unclassified: string[] = [];
   for (const file of list) for (const spec of new Set([...read(file).matchAll(IMPORT)].map((m) => m[1]!))) {
-    const mod = moduleOf(spec); if (!mod || fromFightIndex(spec, file) || /\.(png|webp|ogg|css)(\?.*)?$/.test(spec) || /(^|\/)assets\/loot\.glb(\?.*)?$/.test(spec)) continue;   // loot.glb: an asset URL, not the core's loot.ts
+    const mod = moduleOf(spec); if (!mod || fromFightIndex(spec, file) || /\.(png|webp|ogg|css)(\?.*)?$/.test(spec) || /(^|\/)assets\/(loot|hero-near|hero-far)\.glb(\?.*)?$/.test(spec)) continue;   // loot.glb, hero-near.glb, hero-far.glb: asset URLs, not core modules
     const row = ROWS[mod]; if (row) bad.push(`${row[0]} | ${SERVER_DIRS.some((d) => file.startsWith(d)) ? 'server' : row[1]} | ${file} -> ${mod}`);
     else if (!ALLOWED.has(mod) && !LEDGER_UI.includes(`${file} -> ${mod}`) && !WRITER_SAFE.includes(`${file} -> ${mod}`)) unclassified.push(`${file} -> ${mod}`);
   }
