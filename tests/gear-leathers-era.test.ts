@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadGearDefs, GEAR, gearDeltas } from '../src/fight/gear-rows.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
-import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
-import { RECORD_VERSION } from '../src/fight/record.ts';
+import { FIRST_CAST_PENALTY_VERSION, SHEET_ERA_VERSION } from '../src/fight/cast-penalty-era.ts';
+import { RECORD_VERSION, createRecorder, packRecord, unpackRecord } from '../src/fight/record.ts';
+import { playScaleFor, setLateNotice, setPlayScale } from '../src/fight/play-radius.ts';
+import { setStab } from '../src/fight/stab-rule.ts';
 import { TIERS } from '../src/core/grades.ts';
 import GEAR_DEFS from '../src/fight/gear-defs.json' with { type: 'json' };
 
@@ -22,7 +24,17 @@ test('leathers era: below it the old shape (stamina up, armour down), from it ar
 test('leathers era: the starter pair and the whole goblin drop set now add armour; a sheet fight is stamped no lower than the era', () => {
   const pair = wornGear({ head: 'goblin.Helmet', legs: 'goblin.Greaves' } as never, () => TIERS[0]!), whole = wornGear({ head: 'goblin.Helmet', body: 'goblin.Body', arms: 'goblin.Arms', hands: 'goblin.Gloves', legs: 'goblin.Greaves', feet: 'goblin.Boots' } as never, () => TIERS[0]!);
   assert.ok(pair.armour! > 0, 'a picked-up helmet and shin plates count'); assert.ok(whole.armour! > pair.armour!, 'and more pieces count for more');
-  assert.ok(FIRST_CAST_PENALTY_VERSION >= FROM, 'the sheet floor is no lower than the newest set era');
+  assert.ok(SHEET_ERA_VERSION >= FROM, 'the sheet floor is no lower than the newest set era'); assert.equal(FIRST_CAST_PENALTY_VERSION, 58, 'the cast penalty era keeps its own number (the allow-list of readable record versions)');
+});
+
+test('leathers era: a v58 sheet record (every sheet fight since RV58) still unpacks and re-packs: the allow-list keeps 58 while new sheet fights stamp the era', () => {
+  const meta = { build: 't', opponent: 'veteran' as const, weapon: 'longsword' as const, level: 1, seed: 7, sheet: { attack: 40, armour: 30 } };
+  setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);
+  const rec = createRecorder(meta); for (let i = 0; i < 30; i++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
+  const fresh = rec.finish('abandoned'); assert.equal(fresh.v, SHEET_ERA_VERSION, 'a new sheet fight is stamped no lower than the newest set era');
+  const old = packRecord(fresh).slice(); old[2] = FIRST_CAST_PENALTY_VERSION;   // the same fight as a record written at RV58
+  const back = unpackRecord(old); assert.equal(back.v, FIRST_CAST_PENALTY_VERSION, 'it unpacks at its own version');
+  assert.doesNotThrow(() => packRecord(back), 're-packing it (share links, mint, encounter) must not throw "cannot pack version 58"');
 });
 
 test('leathers era: the loader holds an era to the same rules as a shape, in rising order', () => {
