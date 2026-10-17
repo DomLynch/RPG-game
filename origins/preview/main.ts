@@ -431,7 +431,8 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 // The programs another player's gear brings (warm-kits.json, drawn through dressRemote), linked AFTER [zone ready] and off its critical path (Lead's ruling on #2938, 2026-10-16 night: before ready the one kit in flight cost +8 s of [zone ready] on SwiftShader and the cap cannot cut a compile). One kit per idle slice, and NO kit starts while a creature is within tap range (the engage window the seamless row guards); the kit already in flight cannot be cut. Nothing is fetched or
 // parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
 // the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
-let remoteKitsWarm: { failed: boolean; ms: number; programs: number; warmed: number; maxLongTaskMs?: number; longTasks?: number; phases?: { kit: string; dressMs: number; compileMs: number; framesMs: number }[] } | null = null;   // the optional fields are the warm's main-thread cost (a skipped warm has none)
+type KitPhase = { kit: string; at: number; prepMs: number; actorMs: number; dressMs: number; cloneMs: number; compileMs: number; framesMs: number };   // at: ms from the warm's start; prep / actor only on the first kit
+let remoteKitsWarm: { failed: boolean; ms: number; programs: number; warmed: number; maxLongTaskMs?: number; longTasks?: { at: number; ms: number }[]; phases?: KitPhase[] } | null = null;   // the optional fields are the warm's main-thread cost (a skipped warm has none)
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
 // One idle slice, then wait while a creature is within tap range; gives up (the loop reports failed) once `until` passes with one still there.
@@ -460,23 +461,28 @@ async function warmRemoteKitsAfterReady() {
     }
   }
   // What the warm costs the main thread, for the receipt: every long task (the browser reports only those over 50 ms, so an empty list is "none over 50 ms") and each kit's three phases in wall ms.
-  const longTasks: number[] = [], phases: { kit: string; dressMs: number; compileMs: number; framesMs: number }[] = [];
-  const watcher = typeof PerformanceObserver === 'function' ? new PerformanceObserver((list) => { for (const e of list.getEntries()) longTasks.push(Math.round(e.duration)); }) : null;
+  const longTasks: { at: number; ms: number }[] = [], phases: KitPhase[] = [];
+  const watcher = typeof PerformanceObserver === 'function' ? new PerformanceObserver((list) => { for (const e of list.getEntries()) longTasks.push({ at: Math.round(e.startTime - t0), ms: Math.round(e.duration) }); }) : null;
   try { watcher?.observe({ type: 'longtask' }); } catch { /* an engine without long-task entries: the list stays empty */ }
   const warmOne = async (kit: WarmKit) => {
     await kitSlice(until);
-    if (!pieces || !remote) { pieces = await sharedLoot(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); }
+    let prepMs = 0, actorMs = 0;
+    if (!pieces || !remote) {
+      const p0 = performance.now(); pieces = await sharedLoot(); prepMs = Math.round(performance.now() - p0);
+      const a0 = performance.now(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); actorMs = Math.round(performance.now() - a0);
+    }
     const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
-    await warmActor(renderer, camera, scene, cloneRig(remote.anchor), nextFrame); const t3 = performance.now();
+    const clone = cloneRig(remote.anchor), t2b = performance.now();
+    await warmActor(renderer, camera, scene, clone, nextFrame); const t3 = performance.now();
     await nextFrame(); await nextFrame();
-    phases.push({ kit: kit.id, dressMs: Math.round(t2 - t1), compileMs: Math.round(t3 - t2), framesMs: Math.round(performance.now() - t3) });
+    phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3) });
   };
   // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
   const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
   await r.ended;   // a kit that outlasts the hard bound (a slow runner) is still compiling here: remoteKitsWarm is set only once the loop has truly ended, so nothing reads the programs (or links one) after it is non-null
   watcher?.disconnect();
-  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed, maxLongTaskMs: Math.max(0, ...longTasks), longTasks: longTasks.length, phases };
+  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed, maxLongTaskMs: Math.max(0, ...longTasks.map((t) => t.ms)), longTasks, phases };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
