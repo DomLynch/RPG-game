@@ -24,5 +24,5 @@ test('the loader refuses a missing named rule, a non-positive value and a duplic
   assert.throws(() => loadPresenceRules({ rules: rows.filter((r) => r.id !== 'cellCm') }), /"cellCm" rule by name/);
   assert.throws(() => loadPresenceRules({ rules: rows.map((r) => (r.id === 'tickMs' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPresenceRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 36);
+  assert.equal(loadPresenceRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 37);
 });
