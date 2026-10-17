@@ -6,11 +6,18 @@ import manifest from '../origins/server/server-rules.manifest.json' with { type:
 import { MARK_GAP, MIN_GAP, POSE_BYTES } from '../origins/server/encounter-pose.ts';
 import { POSED_FIGHT_MAX, fightOfToken, tokenFor } from '../origins/server/encounter.ts';
 import { POSE_AGE_MS, REACH_SLACK, SLACK } from '../origins/server/world-spawns.ts';
+import gearRules from '../src/fight/gear-stats-rules.json' with { type: 'json' };
+import { CAPS, fullSet, loadoutFor } from '../src/fight/gear-stats.ts';
 
 test('server rules: the exports keep the numbers they had in code', () => {
   assert.deepEqual([MIN_GAP, MARK_GAP, POSE_BYTES, POSED_FIGHT_MAX, SLACK, REACH_SLACK, POSE_AGE_MS], [2, 6.5, 20, 50, 0.5, 4, 5000]);
   assert.deepEqual(rules.encounterPose.map((r) => r.edge), [0.01]);
   assert.deepEqual(rules.encounterToken.map((r) => r.randomBytes), [24]);
+  assert.equal(rules.mobPayout[0]!.capReached, Number.MAX_SAFE_INTEGER, 'the caps a kill cannot read yet count as reached');
+  const m = gearRules.multiplier[0]!;
+  assert.deepEqual([m.scale, m.attackPerPoint, m.resPerPoint], [90000, 15, 20], 'the gear multipliers keep the literals they had');
+  assert.deepEqual(loadoutFor({}), { attack: 1, res: 1 }, 'naked is the identity');
+  assert.deepEqual(loadoutFor(fullSet('Origin', 'Longsword')), CAPS, 'a full Origin set lands exactly on the caps');
 });
 
 test('server rules: the file loads through the registry, one row per table', () => {

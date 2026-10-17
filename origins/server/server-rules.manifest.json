@@ -56,6 +56,16 @@
       }
     },
     {
+      "table": "mobPayout",
+      "file": "server-rules.json",
+      "at": "mobPayout",
+      "key": "id",
+      "required": {
+        "capReached": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "serverLimits",
       "file": "server-rules.json",
       "at": "serverLimits",

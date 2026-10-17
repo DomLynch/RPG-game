@@ -17,13 +17,14 @@ import { worldRule, type TwistOutcome } from '../../src/fight/server.ts';
 import { careerState } from '../../src/core/server.ts';
 import type { Db } from './db.ts';
 import { openHoldingsWith } from './holdings.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
 import * as store from './store.ts';
 import { metalOf, type CareerRow, type Json, type MetalRow } from './store.ts';
 
 export type Kill = { account: string; character: string; token: string; fight: string | null; seed: number; enemy: string; level: number; twist: string | null };
 export type Paid = { batch: Json[]; summary: { cp: number; cpReason: string; drops: string[]; bronze: number; lootRefused: string | null; unpaid: string[] } };
 
-const CAP_REACHED = Number.MAX_SAFE_INTEGER;   // no "wins today / rolls this week" read yet: the cap counts as reached, so nothing is paid past it
+const CAP_REACHED = SERVER_RULES.mobPayout[0]!.capReached;   // the mobPayout row (server-rules.json): no "wins today / rolls this week" read yet, so the cap counts as reached and nothing is paid past it
 
 // Pure: the server's own state in, the batch lines out. `at` is the server time (ISO). Nothing here reads the client's body.
 // `fought` (world spawns only, world-spawns.ts): the open-world creature was fought at the server's own spawn level, so it is priced there; without it the

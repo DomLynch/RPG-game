@@ -38,6 +38,13 @@
     { "id": "gear_unequip", "note": "takes a piece off: same poke" },
     { "id": "gear_import", "note": "the one-time legacy import can equip pieces: same poke" }
   ],
+  "mobPayout": [
+    {
+      "id": "caps",
+      "capReached": 9007199254740991,
+      "note": "a verified creature kill passes the Bounty 'wins today' and the weekly-boss 'rolls this week' counts to the loot roll. No events read is built yet, so both are passed as this value (a count already at its cap): nothing is paid past a cap it cannot see, so it can never overpay. Lower it only when the events read exists"
+    }
+  ],
   "serverLimits": [
     {
       "id": "limits",
