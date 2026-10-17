@@ -27,7 +27,7 @@ async function open(w, h) {
   await page.goto(`${origin}/`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
   if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true });
-  await page.waitForFunction(() => document.querySelector('#welcome').hidden); await page.waitForTimeout(1500);
+  await page.waitForFunction(() => document.querySelector('#welcome')?.hidden); await page.waitForTimeout(1500);   // ?. : on the live site #welcome was null once mid-load (WebKit); keep polling instead of throwing
   await page.locator('#journal-button').click({ force: true }); await page.waitForTimeout(600); await page.locator('#journal .tab-fighter').click({ force: true }); await page.waitForTimeout(300);
   await page.locator('#special-open').click({ force: true });
   await page.waitForFunction(() => document.getElementById('special-dialog').open);
@@ -70,7 +70,7 @@ try {
       await page.evaluate(() => localStorage.setItem('frankendom.firstloss.v1', '1'));   // the lesson is done: a fresh profile's first arena is the scripted first-loss LESSON, which never takes the picks (Combat: Match takes SPECIAL 2 only in career or practice mode)
       await page.reload(); await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
       if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true });
-      await page.waitForFunction(() => document.querySelector('#welcome').hidden); await page.waitForTimeout(2500);
+      await page.waitForFunction(() => document.querySelector('#welcome')?.hidden); await page.waitForTimeout(2500);
       await page.getByRole('button', { name: /^fight$/i }).first().click({ force: true, timeout: 5000 }).catch(() => {});   // the arena opens at the stance; the Match (and its skill2 port) begins when Fight is tapped
       await page.waitForTimeout(2500);
       const hud = await page.evaluate(() => ['skill-button', 'skill2-button'].map((id) => { const b = document.getElementById(id), r = b?.getBoundingClientRect(); return { id, hidden: !b || b.hidden || !r || r.width === 0, text: b?.textContent?.trim() ?? '', right: r?.right ?? 0 }; }));
@@ -80,7 +80,7 @@ try {
     }
     await context.close();
   }
-} catch (e) { fails.push(`ERROR ${String(e.message).slice(0, 300)}`); }
+} catch (e) { fails.push(`ERROR ${String(e.message).slice(0, 300)} @ ${(String(e.stack).split('\n').find((l) => l.includes('special-picker-check')) || '').trim()}`); }
 finally { await browser.close(); await server?.close(); }
 console.log(fails.length ? `special-picker-check [${ENGINE}] FAIL\n${fails.join('\n')}` : `special-picker-check [${ENGINE}] PASS`);
 process.exitCode = fails.length ? 1 : 0;
