@@ -86,6 +86,11 @@ test('a poke from the writer shows new gear to viewers within a tick, with no re
     assert.deepEqual(a.entered().at(-1)!.worn, { ...HELM_AND_BODY, feet: 'veteran.Boots' }, 'the LAST change is what shows');
     assert.equal(reads.length, 2, 'the two pokes inside the gap cost ONE read');
     assert.equal((await poke(guest.account)).status, 400, 'a guest id is not an account: the route refuses it, so a guest can never be refreshed');
+    // lastPoke prune: B's stamp is older than the gap after a wait, so the next poke (A's) forgets it and the map holds A alone.
+    assert.equal(p.stats().pokeTracked, 1, 'B poked inside the last gap');
+    await new Promise((r) => setTimeout(r, 600));
+    assert.deepEqual(await (await poke(A)).json(), { poke: 'queued' });
+    assert.equal(p.stats().pokeTracked, 1, 'B\'s stale stamp was pruned; only A is tracked');
     a.close(); b.close(); g.close();
   } finally { await p.close(); }
 });

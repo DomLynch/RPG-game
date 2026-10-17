@@ -96,7 +96,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   const wornTimer = setInterval(() => { if (worns) for (const p of sockets.keys()) if (!p.guest) worns.push(p.account); }, opts.wornEveryMs ?? presenceRule('wornEveryMs'));
   for (const t of [ticker, beats, reporter, sweeper, checkpoint, wornTimer]) t.unref();
 
-  const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut), ...(saves ? { saves: saves.stats() } : {}) });
+  const stats = (): Record<string, unknown> => ({ ...world.stats(), sockets: sockets.size, ips: perIp.size, pokeTracked: lastPoke.size, ...counts, perLayerOut: Object.fromEntries(perLayerOut), ...(saves ? { saves: saves.stats() } : {}) });
   // The hello carries where the server placed the player, so a client adopts it before its first pose (a rejoin or a recalled spot must not look like a teleport).
   const hello = (p: Player): Buffer => frame(1, Buffer.from(JSON.stringify(p.legacy ? { t: 'hello', id: p.id, layer: p.layer.id, x: p.x - LEGACY_SHIFT_CM, z: p.z - LEGACY_SHIFT_CM }
     : { t: 'hello', id: p.id, layer: p.layer.id, x: p.x, z: p.z, frame: { centreCm: CENTRE_CM, sizeCm: FRAME_CM }, zones: ZONE_TABLE_HASH, ...(p.guest ? { guest: true } : {}) })));
@@ -167,7 +167,10 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (!worns || !p || p.guest) return 'ignored';
     if (pokeTimers.has(account)) return 'scheduled';   // a trailing read is already waiting: it will see this change too
     const wait = Math.max(0, (lastPoke.get(account) ?? -Infinity) + pokeGap - now());
-    const go = (): void => { lastPoke.set(account, now()); pokeTimers.delete(account); worns.push(account); };
+    const go = (): void => {
+      for (const [a, t] of lastPoke) if (t + pokeGap <= now()) lastPoke.delete(a);   // a stamp older than the gap equals none: forget it, so the map holds only accounts poked inside the last gap
+      lastPoke.set(account, now()); pokeTimers.delete(account); worns.push(account);
+    };
     if (wait === 0) { go(); return 'queued'; }
     pokeTimers.set(account, setTimeout(go, wait).unref());
     return 'scheduled';
