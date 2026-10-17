@@ -9,7 +9,7 @@ export const RULES = interestRules();
 export type Rules = ReturnType<typeof interestRules>;
 
 // legacy: a v1 client (town square only, old frame): clamped to the square, sees only the square, and is sent the old frame (the shim; docs/specs/origins/frontier-presence.md §5). zone: its zone row, kept current by every accepted pose.
-export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
+export type Player = Pose & { id: number; account: string; layer: Layer; tick: number; movedAt: number; credit: number; seenAt: number; strikes: number; strikeAt: number; legacy: boolean; zone: ZoneRow | null;
   name: string | null; guest: boolean;   // the name tag the page draws (null: none known; guests carry no name)
   worn: Worn;   // {slot: lootId} the writer reads from the ledger for the active character, what others see on it (a guest wears nothing: {})
   told: Map<number, string>; sees: Set<number>;   // viewer state: the id -> identity this viewer has been introduced to (so an `enter` goes out once per sighting), and the ids in range this tick
@@ -55,7 +55,7 @@ export class World {
     const wanted = at ?? this.recall(account, now) ?? SPAWN, fits = legacy ? inTownSquare : walkable;
     const from = fits(Math.round(wanted.x), Math.round(wanted.z)) ? wanted : SPAWN;   // a remembered or saved spot the clamp would refuse (or a v1 client cannot see) starts at the spawn
     const x = Math.round(from.x), z = Math.round(from.z);
-    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
+    const p: Player = { id, account, layer, x, z, heading: 0, anim: 0, flags: 0, tick: 0, movedAt: now, credit: this.creditPerTick(zoneRowAt(x, z)), seenAt: now, strikes: 0, strikeAt: now, legacy, zone: zoneRowAt(x, z), name: null, guest: false, worn: {}, told: new Map(), sees: new Set() };
     layer.players.set(id, p); layer.emptySince = null; this.byAccount.set(account, p);
     this.cellOf(layer, p).add(p);
     return p;
@@ -80,23 +80,33 @@ export class World {
   // The client's claimed pose, clamped: somewhere walkable (the town square, a Frontier zone, the west road; a v1 client: the square, clamped to its edge), at most the sprint speed times the speed of
   // the zone it is leaving (with slack). A pose off the walkable ground or a jump past the speed keeps the old position ("snapped": the client is told nothing, it simply sees itself pulled back
   // by the next packet) and counts a strike; repeated, the player is dropped.
+  // The reach is a CREDIT, not a per-packet window (Lead 2026-10-17): it accrues in real time at the speed limit, is capped at one second plus the jitter row, and each accepted step spends what it
+  // moved. So packets that bunch on a jittery link draw on what the walker earned while they were in flight, a refused pose spends nothing (and the clock still runs, so one hiccup cannot snowball),
+  // and a speed hack still cannot average more than the limit: the cap bounds any burst.
   move(p: Player, pose: Pose, now: number): MoveResult {
-    const { maxSpeedCmS, speedSlack, strikesToDrop, strikeWindowMs } = this.rules;
+    const { strikesToDrop, strikeWindowMs, jitterMs } = this.rules;
     if (now - p.strikeAt > strikeWindowMs) { p.strikes = 0; p.strikeAt = now; }
-    const dt = Math.max(100, Math.min(1000, now - p.movedAt)) / 1000, reach = maxSpeedCmS * (p.zone?.speed ?? 1) * speedSlack * dt;
+    const rate = this.creditRate(p.zone);
+    p.credit = Math.min(rate * (1000 + jitterMs), p.credit + rate * Math.max(0, now - p.movedAt));
     const lo = SPAWN.x - TOWN_HALF_CM, hi = SPAWN.x + TOWN_HALF_CM;
     const x = p.legacy ? Math.min(hi, Math.max(lo, pose.x)) : pose.x, z = p.legacy ? Math.min(hi, Math.max(lo, pose.z)) : pose.z;
     p.movedAt = now; p.seenAt = now;
-    if (!(p.legacy || walkable(x, z)) || Math.hypot(x - p.x, z - p.z) > reach) {
+    const step = Math.hypot(x - p.x, z - p.z);
+    if (!(p.legacy || walkable(x, z)) || step > p.credit) {
       if (++p.strikes > strikesToDrop) return 'drop';
       return 'snapped';
     }
+    p.credit -= step;
     return this.place(p, x, z, pose);
   }
+  // cm of reach earned per ms in a zone (the sprint speed times the zone's speed row, with slack), and the starting allowance: one tick of it (a joiner's or a warped player's first pose).
+  private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / 1000; }
+  private creditPerTick(zone: ZoneRow | null): number { return this.creditRate(zone) * this.rules.tickMs; }
   // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
   warp(p: Player, x: number, z: number, now: number): void {
     p.movedAt = now; p.seenAt = now; p.strikes = 0;
     this.place(p, x, z, { x, z, heading: p.heading, anim: p.anim, flags: p.flags });
+    p.credit = this.creditPerTick(p.zone);   // the credit restarts from the warp like the clock does
   }
   private place(p: Player, x: number, z: number, pose: Pose): MoveResult {
     const from = cellOf(this.rules, p.x, p.z), to = cellOf(this.rules, x, z);

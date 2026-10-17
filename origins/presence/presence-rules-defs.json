@@ -33,6 +33,7 @@
     { "id": "guestCeiling", "value": 64, "unit": "guests" },
     { "id": "wornEveryMs", "value": 30000, "unit": "ms" },
     { "id": "closeGraceMs", "value": 1000, "unit": "ms" },
+    { "id": "jitterMs", "value": 500, "unit": "ms" },
     { "id": "wornPokeGapMs", "value": 500, "unit": "ms" }
   ]
 }
