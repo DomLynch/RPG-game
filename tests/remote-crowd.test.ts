@@ -144,7 +144,8 @@ test('a cheap figure does not draw the parts the remote-cheap row names, the rig
   assert.ok(hidden[0]!.kept.visible, 'the body stays');
   assert.ok(built.filter((b) => b !== hidden[0]!).every((b) => b.part.visible && b.kept.visible), 'full figures draw everything');
   heroes.update(0.01, 0, { x: 2 + FULL, z: 0 });   // the hero walks to the far end: the once-far figure is the nearest, so it is full again
-  assert.ok(built.every((b) => b.part.visible), 'back near: drawn as before');
+  assert.ok(hidden[0]!.part.visible, 'back near: the figure draws its part as before');
+  assert.equal(built.filter((b) => !b.part.visible).length, 1, 'and the figure that is now the farthest is the one that hides its part');
 });
 
 test('the remote-cheap loader refuses a missing row, a blank or repeated part name and a non-list', () => {
