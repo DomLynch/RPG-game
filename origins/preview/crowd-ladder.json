@@ -1,0 +1,9 @@
+{
+  "about": "The remote-crowd cost ladder as rows (World, S2: 40 characters at 30 fps; Lead's ladder 16/4 -> 8/4 -> 4/8 -> 0/12). Rung 0 is the full treatment; the frame governor (frame-governor.ts) steps one rung down when the frames' p95 stays over remoteAdaptSlowMs for a window and one back up when it stays under remoteAdaptOkMs. `full`: how many of the nearest remote figures are FULL (the rest are cheap: no trail, no shadow cast); `every`: a cheap figure is posed once per this many frames. Rung 0 equals the old remoteFullCount 16 / remoteCheapEvery 4 and rung 1 the old remoteAdaptFullCount 8.",
+  "rungs": [
+    { "id": "rung0", "full": 16, "every": 4 },
+    { "id": "rung1", "full": 8, "every": 4 },
+    { "id": "rung2", "full": 4, "every": 8 },
+    { "id": "rung3", "full": 0, "every": 12 }
+  ]
+}

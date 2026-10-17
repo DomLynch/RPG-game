@@ -46,6 +46,16 @@ The number comes from three budgets, each *est.* until measured; the tightest on
 
 1. **Client render cost (the tightest).** A mid phone has to draw the town and up to 40 other animated, geared characters at a steady frame rate. That is the reason for the 40-entity cap, and 100 players in one 40 m radius is possible (a market square) while only the nearest 40 are drawn. Measure: 40 animated characters at 30 fps on the slowest test phone, before the cap is fixed.
 2. **Server CPU and bandwidth.** 100 players at the §2 rates is about 1,000 packets/s and at worst about **3 Mbit/s out** per layer (100 clients × about 3.6 KB/s ≈ 360 KB/s ≈ 2.9 Mbit/s; typical is far lower because few players share one radius). One Node process should handle that well under one core (*est.*; measure with a synthetic load of 100 bots before trusting it). At that worst case a layer that is full around the clock moves about 930 GB a month (0.36 MB/s × 2.6 million s); check the VPS plan's included traffic.
+   **Measured (launch gate S1, Backend, 2026-10-17, live build `05a39ccce`).** `scripts/presence-loadtest.mjs`, 100 real WebSocket bots against the real presence process on the VPS (16 cores, load 1.6 at the start), 30 s measured, each run with all 100 bots in one layer (`--layer-cap=100`, which is also the script's default; the layer split at the 80 soft cap is not exercised by this script and is covered by the layer tests):
+
+   | Run | Server CPU (of one core) | RSS | Packets/s | Down total | Down per client | Entities per packet | Tick p50 / p99 / max |
+   |---|---|---|---|---|---|---|---|
+   | Worst case: all 100 in one 60 m square | **14%** | 151 MB | 984 | 280 KB/s (2.2 Mbit/s) | 2.8 KB/s (22.9 kbit/s) | 26.1 | 7.3 / 10.3 / 13.7 ms |
+   | Spread over 300 m | 8.8% | 147 MB | 898 | 31 KB/s | 0.31 KB/s | 2.8 | 3.1 / 4.9 / 6.2 ms |
+   | Exchange cluster (40% in a 20 m square, median 40 gathered) | 9.2% | 147 MB | 858 | 174 KB/s | 1.74 KB/s | 18.5 | 3.9 / 6.1 / 6.8 ms |
+   | Worst case again (a repeat, for run-to-run spread) | 12.5% | 148 MB | 989 | 270 KB/s | 2.7 KB/s | 25.0 | 7.0 / 10.2 / 10.6 ms |
+
+   The estimates held with room to spare: about 1,000 packets/s (measured 984), under 3 Mbit/s worst case (measured 2.2 Mbit/s against the 2.9 estimate), and well under one core (14%, so roughly 7 layers per core on CPU alone; the tick budget is 100 ms and the worst tick was 18 ms). What this does **not** measure: the client render cost in item 1 (still open: S2), the writer or the database, or a second host. At the worst case a layer that is full around the clock moves about 280 KB/s, or about 730 GB a month; the VPS plan's included traffic is still to be checked.
 3. **Social legibility.** Past about 100 in one town (*est.*) the square stops being readable and chat stops being useful whatever the technology does.
 
 So: a layer accepts joins until **80** (soft), then new arrivals go to another layer; **100** is the hard stop for the rare friend-join. **Beta target: 3 layers, about 300 concurrent**, on the one VPS beside the writer, verifier and relay. The box has no spare capacity measured yet: the synthetic load test is part of the first build task, and the number above is replaced by what it shows.

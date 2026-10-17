@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { OPPONENTS, opponentAt, profileAt } from '../src/fight/moves.ts';
 import { idleIntent } from '../src/fight/duel.ts';
@@ -88,10 +89,12 @@ test('a row that lies about its outcome, seed, opponent or record stays unverifi
 test('the psql adapter issues the three statements as the verifier role and refuses malformed keys', async () => {
   const { record, text } = await dailyRecord();
   const statements: string[] = [];
-  const run = ((_cmd: string, args: string[]) => {
-    const statement = args[args.length - 1]!, url = args[0];
+  const run = ((_cmd: string, args: string[], opts: { env: Record<string, string> }) => {
+    const statement = args[args.length - 1]!;
     statements.push(statement);
-    assert.equal(url, 'postgres://verifier@db/postgres');
+    assert.ok(!args.some((a) => a.includes('://')), 'no connection URL in argv: it goes through a service file (pg-service.ts)');
+    assert.equal(opts.env.PGSERVICE, 'fk');
+    assert.match(readFileSync(opts.env.PGSERVICEFILE!, 'utf8'), /^\[fk\]\nhost=db\ndbname=postgres\nuser=verifier\n$/);
     if (statement.startsWith('select coalesce(json_agg')) return { status: 0, stdout: JSON.stringify([{ day: DAY, user_id: '11111111-2222-3333-4444-555555555555', opponent: 'veteran', weapon: 'longsword', outcome: record.outcome, ticks: record.ticks, record: text }]), stderr: '' };
     if (statement.startsWith('select seed from public.daily_fight')) return { status: 0, stdout: `${SEED | 0}\n`, stderr: '' };
     return { status: 0, stdout: '', stderr: '' };

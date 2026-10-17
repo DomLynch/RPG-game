@@ -88,7 +88,7 @@ test('signed out: the static rows draw, the prompt says Take, and a tap puts it 
   const bag: [string, number][] = [], { g, log } = rig({ signedIn: () => false, guestTake: (item, qty) => bag.push([item, qty]) }); await g.refresh();
   assert.deepEqual(log.shown, staticRows().map((r) => r.instance), 'every static row draws, whatever Zone 1 holds'); assert.ok(log.shown.includes(ID)); assert.equal(log.reads, 0);
   assert.deepEqual(g.nearest(at.x, at.z), { instance: ID, label: 'Take the Rusty Sword' });
-  assert.equal(await g.tap(ID), 'taken'); assert.deepEqual(log.said, ['You take the Rusty Sword. Sign in to keep it.']); assert.deepEqual(log.taken, []); assert.equal(log.packReads, 0);
+  assert.equal(await g.tap(ID), 'taken'); assert.deepEqual(log.said, ['You take the Rusty Sword. This session only.']); assert.deepEqual(log.taken, []); assert.equal(log.packReads, 0);
   assert.deepEqual(bag, [[staticRows().find((r) => r.instance === ID)!.item, 1]]); assert.deepEqual(log.cues, ['pickup']); assert.ok(log.hidden.includes(ID));
   assert.equal(await g.tap(ID), 'refused', 'a second tap takes nothing'); assert.equal(bag.length, 1);
   await g.refresh(); assert.equal(log.shown.filter((i) => i === ID).length, 1, 'the next refresh does not bring a taken row back'); assert.equal(g.nearest(at.x, at.z), null);
