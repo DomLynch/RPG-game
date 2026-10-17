@@ -2,7 +2,7 @@ import './zone-guard.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
-import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
+import { actorPose, armWarriors, loadEquip, loadWarriors, DEFAULT_WEAPON, PLAYER_WEAPONS, type Practice, type WeaponId } from '../../src/fight/index.ts';
 import { characterFor, fetchOwnBuild, type OwnBuild } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
@@ -192,9 +192,24 @@ ore.position.set(T.orePile.x, T.orePile.radius / 2, T.orePile.z); ore.castShadow
 // The hero is the shared fight engine's actor (src/fight/characters.ts loadWarriors: the same rig, clips, trail and gait every client plays), posed every frame by the Pit's actorPose from his real duel (wc.heroDuel()):
 // slash, stab, heavy, kick, guard and roll each play their own Pit clip. The opponent actor loadWarriors also builds is never added to the scene.
 let remote: ReturnType<typeof createRemoteHeroes> | undefined, shownOthers: Other[] | null = null;   // the zone's other players (remote-heroes.ts), made with the hero's own rig once it has loaded
-let warriors: Awaited<ReturnType<typeof loadWarriors>> | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
+let warriors: (Awaited<ReturnType<typeof loadWarriors>> & { baseAsset: Awaited<ReturnType<typeof loadWarriors>>['asset'] }) | undefined, forcedPose: ReturnType<typeof actorPose> | null = null;   // forcedPose: the browser checks hold the hero in one engine pose (a still mid-kick without racing the sim)
 const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; failed: boolean } = { done: false, failed: false };   // the player's actor is on every zone's warm-up list (warm-plan.ts)
-loadWarriors(ASSETS.hero!).then((w) => { warriors = w; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
+// The weapon the hero wields in the world is the one he wears (Dom 2026-10-17): the rig draws it and the sim swings it, from the same variable (`rigWeapon`, handed to the sim by hero() below). Only weapons whose art
+// ships with this page (the ground models) are offered; any other worn weapon is the longsword. A change re-arms the rig between fights (the equip file loads on demand), and the sim's hero is rebuilt at the next clean window.
+const WEAPON_ART: Record<string, string> = Object.fromEntries(Object.entries(GROUND_MODELS).map(([path, url]) => [path.replace(/^.*\/(\w+)\.glb$/, '$1'), url]));
+const ZONE_CARRIED: readonly WeaponId[] = PLAYER_WEAPONS.filter((w) => w === DEFAULT_WEAPON || WEAPON_ART[w] !== undefined);
+let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false;
+function syncRigWeapon() {
+  const want = gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON;
+  if (want === rigWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
+  swappingWeapon = true;
+  const base = warriors.baseAsset;
+  (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadEquip(WEAPON_ART[want]!)).then((part) => {
+    const next = armWarriors(base, undefined, [want, DEFAULT_WEAPON], part);
+    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; wc.heroChanged(); void warmHero(next.player.anchor);
+  }).catch((error: unknown) => { rigWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
+}
+loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
@@ -349,6 +364,7 @@ function step(dt: number) {
     void import('./mobs-view.ts').then((m) => { mobs = m.createMobs(scene, frontier, frontierParts, { phone: PHONE, groundAt: groundY, onCut: (id, at, from) => { const sp = mobs?.find(id)?.spec ?? null; const w = sp && woundSpec(sp.character, sp.body); if (w) wounds().cut(w, at, from); }, renderer, camera, after: arena.ready }); }).catch((error: unknown) => console.warn('the Frontier creatures did not load', error));
   }
   // Zone 1's own combat (wc.update below) is stepped with the walk, every frame.
+  syncRigWeapon();
   if (mobs) { mobs.update(dt, state, cardId); woundFx?.update(dt); engageAhead.frame(mobs.within(state.x, state.z, 16).map((m) => ({ id: m.spec.id, dist: m.dist, aggro: m.spec.aggro })), (id) => wc.debug().some((f) => f.id === id)); { const aim = mobs.nearest(state.x, state.z, 3.5); const mv = wc.update(dt, { x: state.x, z: state.z, facing: aim ? Math.atan2(aim.x - state.x, aim.z - state.z) : heading }); zoneFx.frame(wc.takeContacts(), dt); if (mv.dx || mv.dz) { const rx = state.x + mv.dx, rz = state.z + mv.dz; if (canStand(rx, rz)) { state.x = rx; state.z = rz; } else if (canStand(rx, state.z)) state.x = rx; else if (canStand(state.x, rz)) state.z = rz; } if (!duelLayer.classList.contains('infight')) meters.feed(wc); document.body.classList.toggle('infight', wc.inCombat()); spawnNet.tick(); zoneSound.flush(); } if ((cardClock += dt) > 0.2) { cardClock = 0; { const seen = (mobs.debug() as { mobs: { id: string; x: number; z: number; mode: string }[] }).mobs, f = seen.find((m) => m.id === legendFocus); if (f && Math.hypot(f.x - state.x, f.z - state.z) > LEGEND_REACH * 2) legendFocus = null; cardId = creatureCard.update(seen, state, legendFocus, wc.target()?.id ?? null); } } }
   const label = zone ? zone.name : frontier && state.x < -19.5 ? 'The West Road' : atForge ? 'The Blacksmith' : state.z > -11 ? 'The Pit' : state.z > PASSAGE.to ? 'The Gladiator Gate' : state.z > -58 ? 'The Concord Exchange' : 'The Exchange — the bank';
   if (place.textContent !== label) { place.textContent = label; presence?.flush(); }   // a new place: presence hears the pose now, so the place it saves is fresh
@@ -586,7 +602,7 @@ addEventListener('pagehide', () => presence?.stop());   // the socket's close is
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
-  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight is a bare body until Combat applies the sheet there)
+  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight's strength is the build's placed points plus the worn gear, not the level)
   saveNote.textContent = saveLine(source);
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
 }
@@ -778,7 +794,7 @@ const wc = createWorldCombat({
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
-  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; return { level: careerLine(session.career).level, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; return { level: careerLine(session.career).level, weapon: rigWeapon, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
