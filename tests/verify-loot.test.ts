@@ -201,8 +201,9 @@ async function withVersion(opponent: 'veteran' | 'goblin', level: number, versio
   const rec = liveRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const packed = packRecord(rec.finish(outcome));
-  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then (v21) the specials byte
-  const bytes = version >= 26 ? packed : version >= 21 ? new Uint8Array([...packed.subarray(0, o + 2), ...packed.subarray(o + 3)]) : new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 3)]);   // the arena byte is v26's, the specials byte v21's: an older stamp has neither
+  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then (v21) the specials byte, (v26) the arena byte, (v32) the patron byte, (v53) the second flag byte
+  const have = packed[2]! >= 53 ? 5 : packed[2]! >= 32 ? 4 : 3, keep = [0, ...(version >= 21 ? [1] : []), ...(version >= 26 ? [2] : []), ...(version >= 32 ? [3] : []), ...(version >= 53 ? [4] : [])].filter((i) => i < have);   // the header bytes this stamp has: a goblin fight is stamped v76 (RV76 reachStamp), so it carries all five; an older stamp has fewer
+  const bytes = new Uint8Array([...packed.subarray(0, o), ...keep.map((i) => packed[o + i]!), ...packed.subarray(o + have)]);
   bytes[2] = version;   // the version byte (record.ts: 'F', 'K', version)
   return toBase64Url(await gzip(bytes));
 }
@@ -236,10 +237,7 @@ test('--accept on a reach hold still refuses a lost fight or another opponent fr
 // Bump 21 (Special Moves behind the record's flag) reached no fight, so a v20 claim pending at that publish still verified; RV29's reach covers every fight, so a v20 claim pending
 // across it is HELD like any other (kept for the runbook, never lost).
 test('a v20 win claim pending across RV29 is HELD by the reach, not refused (REACH[29] lists every opponent)', async () => {
-  const packed = packRecord(await decodeRecord(await goblinKill()));
-  let o = 3; for (let k = 0; k < 3; k++) o += 1 + packed[o];   // past build, opponent, weapon: the skill byte, then the v21 specials byte and the v26 arena byte
-  const v20 = new Uint8Array([...packed.subarray(0, o + 1), ...packed.subarray(o + 3)]); v20[2] = 20;
-  assert.match(String(await refusal({ opponent: 'goblin', record: toBase64Url(await gzip(v20)) }, FRESH)), /^HELD v20: reach: .*bump 29 changed that fight/);
+  assert.match(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 20) }, FRESH)), /^HELD v20: reach: .*bump 29 changed that fight/);   // forged by withVersion (a goblin fight is stamped v76 now, RV76, so the header carries its five bytes)
 });
 
 // F2 (Auditer on 0895d84c; Strategy's A+ 2026-10-01): one FIGHT is one claim, whatever its string.
@@ -330,13 +328,13 @@ test('RV29: a pending v28 claim is HELD by the reach (kept, no award), --accept 
   const outcome = await acceptHeld(db, 7, 'chromium+webkit @10 on 0d2d9996', { now: new Date('2026-10-08T09:00:00Z') });
   assert.equal(outcome.verified, true);
   assert.match(outcome.note!, /^HELD v28: reach: .* \| ACCEPTED 2026-10-08T09:00:00.000Z by runbook: chromium\+webkit @10 on 0d2d9996$/);
-  assert.doesNotMatch(String(await refusal({ opponent: 'goblin', record: await withVersion('goblin', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');
+  assert.doesNotMatch(String(await refusal({ opponent: 'veteran', record: await withVersion('veteran', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');   // the veteran, not the goblin: RV76 (balance) reaches the goblin, so a v29 goblin record is HELD by bump 76
 });
 
 test('--accept still refuses a non-reach hold on a v20+ record (its replay is engine-independent); only a reach hold is accepted past heldMax', async () => {
   const win = await goblinKill();
   const db = { ...fakeDb([], FRESH), claim: async () => ({ id: 9, user_id: U, opponent: 'goblin', piece: null, record: win, verified: false, note: 'HELD v29: the replay ends in "died", the record says "killed"' }) };
-  await assert.rejects(acceptHeld(db, 9, 'chromium @10 on 0d2d9996'), /is a v31 record: its replay is engine-independent/);
+  await assert.rejects(acceptHeld(db, 9, 'chromium @10 on 0d2d9996'), /is a v\d+ record: its replay is engine-independent/);
   assert.equal(db.settled.size, 0);
 });
 
@@ -348,7 +346,7 @@ test('a won claim whose record carries a sheet is replayed with the stored build
     let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6), undefined, null, undefined, undefined, undefined, undefined, sheet);
     for (let t = 0; t < 20000 && !practice.finish; t++) {
       const acts = ['light', 'heavy', 'thrust'] as const;
-      practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 45 === 0 ? acts[(t / 45) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));
+      practice = stepPractice(practice, rec.push({ move: { x: 0, z: t % 120 < 60 ? 0.8 : 0, yaw: 0, run: false }, action: t % 43 === 0 ? acts[(t / 43) % 3]! : null, guard: false, lock: true }), profileAt(OPPONENTS.goblin, 6));   // cadence 43: the balance rows (RV76) make the old 45 lose; 43 wins with the honest and the forged sheet alike
     }
     assert.equal(practice.finish?.victim, 1, 'a player win');
     return encodeRecord(rec.finish('killed'));
