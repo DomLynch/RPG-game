@@ -81,7 +81,7 @@ test('the Test Zone offers four combat cameras as data, each complete; the real 
     assert.ok(pitch(cams['1']!.portrait) < pitch(cams['2']!.portrait) + 1 && pitch(cams['2']!.portrait) < pitch(cams['3']!.portrait) && pitch(cams['3']!.portrait) < 25, 'getting steeper from 1 to 3, but never so steep the skyline is lost (Dom)');
     assert.ok(cams['3']!.portrait.back > cams['2']!.portrait.back && cams['2']!.portrait.back > cams['1']!.portrait.back * 2, 'each stands clearly further back than the one before (twice from 1 to 2)'); assert.equal(zoneCombatPreset(zone), '', 'none in use until Dom picks one');
     for (const [id, cam] of Object.entries(cams)) for (const shape of [cam.portrait, cam.landscape]) assert.ok(shape.back > 0 && shape.up > 0 && (shape.shiftY ?? 0) >= 0 && (shape.shiftY ?? 0) < 0.4, `${id}: a framing that is a camera`);
-    assert.ok(cams['3']!.zoom && cams['3']!.zoom.steps.length === cams['3']!.zoom.labels.length && cams['3']!.zoom.start < cams['3']!.zoom.steps.length, 'option 3 is the one with a player zoom');
+    assert.ok(cams['2']!.zoom!.steps.length === cams['2']!.zoom!.labels.length && cams['2']!.zoom!.start < cams['2']!.zoom!.steps.length, 'the zoom steps are labelled and the start is one of them');
     for (const id of ['1', '2', '3', '4']) assert.deepEqual(zoneCombatCams(loadZone(id)), {}, `zone ${id} has no combat camera`);
   } finally { delete (globalThis as { location?: unknown }).location; delete process.env.VITE_UNLISTED_ZONES; }
 });
