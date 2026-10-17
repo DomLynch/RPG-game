@@ -55,7 +55,7 @@ import { bountyQuest, bountyQuestId, giverTalk } from './bounty.ts';
 import type { Mobs } from './mobs-view.ts';
 import { settleWithin } from '../../src/fight/index.ts';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { PLAYER, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
 import { warmKits, type WarmKit } from './warm-kits.ts';
@@ -448,6 +448,17 @@ async function warmRemoteKitsAfterReady() {
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
   const cap = previewRule(/[?&]kitwarm=soft\b/.test(location.search) ? 'kitWarmMsSoft' : 'kitWarmMs');   // ?kitwarm=soft is the browser rows' flag: software GL links a kit in ~40 s, so they get the longer row; the live page never carries it
   const until = t0 + cap;
+  // A kit's shadow-pass link is one synchronous step (no API makes it async): on a slow device it stalls the main thread for seconds (CI's software GL: a 1.0 s and a 2.4 s gap, Bob never expired in the remote-heroes row). So the warm-up first samples the frame gaps
+  // (kitProbeFrames) and skips itself when their median is above kitSlowFrameMs: failed, none warmed, remotes keep the BASE figure. ?kitwarm=soft forces the warm (the budget row), for a deliberate run on software GL.
+  if (!/[?&]kitwarm=soft\b/.test(location.search)) {
+    const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
+    for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
+    if (tooSlow(gaps, previewRule('kitSlowFrameMs'))) {
+      console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
+      remoteKitsWarm = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
+      return;
+    }
+  }
   const warmOne = async (kit: WarmKit) => {
     await kitSlice(until);
     if (!pieces || !remote) { pieces = await sharedLoot(); remote = secondActor(); remote.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(remote.anchor); }
@@ -456,6 +467,7 @@ async function warmRemoteKitsAfterReady() {
   // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
   const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
+  await r.ended;   // a kit that outlasts the hard bound (a slow runner) is still compiling here: remoteKitsWarm is set only once the loop has truly ended, so nothing reads the programs (or links one) after it is non-null
   remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
