@@ -98,7 +98,7 @@ try {
   await wait(3000);
   const after = await snap(); receipt.programsAfterBots = after.names.length; receipt.shown = await page.evaluate(() => window.originsPreview.remote().shown.length);
   // Strict again: NO program may link after zone ready, owned or not. A program a figure in the scene compiles has an owner (programOwners names the scene objects using it). Before the shared warm proxy linked at zone ready
-  // (warm-proxy.ts, in trunk since HL2) one UNOWNED MeshBasic program ("basic") linked in about half the crowd runs on software GL; with it, 0 of 14 runs added one (4 hunt runs and these 10), so the allowance is gone.
+  // (warm-proxy.ts, in trunk since HL2) one UNOWNED MeshBasic program ("basic") linked in about half the crowd runs on software GL; with it, 0 of 24 runs added one (4 hunt runs and two batches of 10 on the strict row), so the allowance is gone.
   // The receipt still lists programsAddedUnowned.
   const added = after.names.filter((n) => !before.names.includes(n)), owned = added.filter((n) => (after.owners[n] ?? []).length > 0), unowned = added.filter((n) => !owned.includes(n));
   receipt.programsAddedOwned = owned.map((n) => [n, after.owners[n]]); receipt.programsAddedUnowned = unowned.map((n) => [n, String(after.keys[n] ?? '').split(',')[0]]);
