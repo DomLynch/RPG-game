@@ -6,7 +6,7 @@ import DEFS from './presence-rules-defs.json' with { type: 'json' };
 import MANIFEST from './presence-rules-defs.manifest.json' with { type: 'json' };
 
 export type PresenceRule = { readonly id: string; readonly value: number; readonly unit: string };
-const NAMED = ['cellCm', 'radiusCm', 'nearCap', 'tier1Cm', 'tier1Every', 'tier2Cm', 'tier2Every', 'tier3Cm', 'tier3Every', 'tickMs', 'softCap', 'hardCap', 'maxSpeedCmS', 'speedSlack', 'strikesToDrop', 'strikeWindowMs', 'emptyLayerMs', 'memoryMs', 'memoryMax', 'maxMessage', 'perSecond', 'idleMs', 'ipSockets', 'ipJoinsPerMinute', 'beatMs', 'tickRing', 'townSideCm', 'rejoinPastGateCm', 'warpPerMin', 'guestIpSockets', 'guestCeiling', 'wornEveryMs', 'closeGraceMs', 'wornPokeGapMs', 'jitterMs'] as const;
+const NAMED = ['cellCm', 'radiusCm', 'nearCap', 'tier1Cm', 'tier1Every', 'tier2Cm', 'tier2Every', 'tier3Cm', 'tier3Every', 'tickMs', 'tickFloorMs', 'softCap', 'hardCap', 'maxSpeedCmS', 'speedSlack', 'strikesToDrop', 'strikeWindowMs', 'emptyLayerMs', 'memoryMs', 'memoryMax', 'maxMessage', 'perSecond', 'idleMs', 'ipSockets', 'ipJoinsPerMinute', 'beatMs', 'tickRing', 'townSideCm', 'rejoinPastGateCm', 'warpPerMin', 'guestIpSockets', 'guestCeiling', 'wornEveryMs', 'closeGraceMs', 'wornPokeGapMs', 'jitterMs'] as const;
 /** The one loader: rows keyed by id (a duplicate id or a missing or mistyped field is refused), every rule the server reads by name must exist, with a positive value. */
 export function loadPresenceRules(raw: { rules?: readonly unknown[] }): readonly PresenceRule[] {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'presence-rules-defs.json')]);
