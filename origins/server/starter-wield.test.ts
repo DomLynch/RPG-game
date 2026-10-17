@@ -29,16 +29,15 @@ function stub(items: unknown[]) {
 const ops = gearHandlers({ lookup: lookupOf(loaded.value) });
 const ctx = (db: Db) => ({ db, account: UID });
 
-test('every starter gear item names a LootId of its own slot, except the rusty sword (no live Longsword LootId yet: Combat adds one)', () => {
+test('every starter gear item names a LootId of its own slot (the rusty sword stands as starter.Longsword, Combat\'s lootStarter row)', () => {
   const starters = ITEMS.filter((d) => String(d.id).startsWith('item:starter.') && d.category === 'gear');
   assert.equal(starters.length, 7);
   for (const d of starters) {
     const id = STARTER_WIELD.get(String(d.id));
-    if (d.id === 'item:starter.rusty-sword') { assert.equal(id, undefined); continue; }
     assert.ok(id && isLootId(id), `${d.id} has a row naming a LootId`);
     assert.equal(slotOf(id), d.slot, `${d.id}: the stand-in LootId is the same slot`);
   }
-  assert.equal(STARTER_WIELD.size, 6);
+  assert.equal(STARTER_WIELD.size, 7);
 });
 
 test('the loader refuses a non-starter item, an unknown LootId and a duplicate id', () => {
@@ -51,7 +50,7 @@ test('the loader refuses a non-starter item, an unknown LootId and a duplicate i
 test('lootIdOfItem: a legacy loot piece is its own, a starter item its row, anything else none', () => {
   assert.equal(lootIdOfItem('item:loot.goblin.Helmet'), 'goblin.Helmet');
   assert.equal(lootIdOfItem('item:starter.knife'), 'goblin.Knife');
-  assert.equal(lootIdOfItem('item:starter.rusty-sword'), null);
+  assert.equal(lootIdOfItem('item:starter.rusty-sword'), 'starter.Longsword');
   assert.equal(lootIdOfItem('item:grave-iron'), null);
 });
 
@@ -76,9 +75,13 @@ test('a worn starter piece shows on the paperdoll, in the worn set others see an
   assert.deepEqual(wornGearOfItems(held), wornGearOfItems(real));
 });
 
-test('a rusty sword stays a bare piece for now (null LootId): held, never drawn, never refused', async () => {
+test('a rusty sword carries starter.Longsword: the sheet draws it and one gear_equip puts it on the main hand', async () => {
   const s = stub([row(1, 'item:starter.rusty-sword', { kind: 'pack', index: 0 })]);
   const out = await ops.gear_open!(ctx(s.db), { character: PC }) as ReturnType<typeof gearView>;
-  assert.deepEqual(out.pieces.map((p) => p.lootId), [null]);
-  assert.deepEqual(lootOfView(viewOf(out)!).owned, []);
+  assert.deepEqual(out.pieces.map((p) => p.lootId), ['starter.Longsword']);
+  const view = viewOf(out)!;
+  assert.deepEqual(lootOfView(view).owned, ['starter.Longsword']);
+  assert.deepEqual(stepsToWear(view, 'starter.Longsword'), [{ op: 'gear_equip', id: 'inst:t-1' }]);
+  await ops.gear_equip!(ctx(s.db), { character: PC, id: 'inst:t-1' });
+  assert.deepEqual(s.commits.flat().map((c) => [c.op, c.id, c.loc.kind, c.loc.slot]), [['put', 'inst:t-1', 'equipped', 'main']]);
 });
