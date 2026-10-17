@@ -253,6 +253,9 @@ export const specialTrailOf = (skill: string): SpecialTrailRow | undefined => ((
 export type ShardRow = { id: string; kind: 'stone' | 'metal'; count: number; tint: string; power: number; forward: number; lift: number; size: number; life: number; gravity: number; bounce: number; slide: number; shrink: number };
 export const specialShardsOf = (skill: string): ShardRow[] => ((DEFS as unknown as { specialShards?: ShardRow[] }).specialShards ?? []).filter((r) => r.id === skill);
 export const shardRows = (): number => ((DEFS as unknown as { specialShards?: ShardRow[] }).specialShards ?? []).length;
+// specialSound (Dom 2026-10-17, gritty melee: the hit must sound like bone and weight): rows { id (skill id), cue (a CueName), gain, room, delay } played in order when that melee special lands on the foe. No rows (trunk) = no sound added.
+export type SpecialSoundRow = { id: string; cue: string; gain: number; room: number; delay: number };
+export const specialSoundOf = (skill: string): SpecialSoundRow[] => ((DEFS as unknown as { specialSound?: SpecialSoundRow[] }).specialSound ?? []).filter((r) => r.id === skill);
 type HealRow = { id: string; share: number; uses: number; windup: number };
 export const healRows = (): number => ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).length;   // 0 on trunk: no heal objects or light are built
 export const healOf = (spell: string | undefined): HealRow | undefined => (spell ? ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).find((r) => r.id === spell) : undefined);

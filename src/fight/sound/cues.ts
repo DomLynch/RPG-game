@@ -1,5 +1,5 @@
 import { audioRule } from './audio-rules.ts';
-import { GLANCE_GAIN, GLANCE_RATE } from '../sandbox-rules.ts';
+import { GLANCE_GAIN, GLANCE_RATE, specialSoundOf } from '../sandbox-rules.ts';
 import type { ClarityEvent, CombatEvent } from '../combat.ts';
 import type { Finish } from '../duel.ts';
 import { MOVES, RULES, WEAPON_LOOK, type MoveId, type WeaponId } from '../moves.ts';
@@ -49,6 +49,7 @@ export function cuesFor(events: CombatEvent[], presentation?: DeathPresentation,
       // so a failed block sounds unlike both a clean block and an open hit. No new sprite bytes.
       if (e.guarded) impacts.push(cue('block', .3, .2, undefined, .8));
     }
+    else if (e.type === 'SpecialLanded' && !e.spell && e.target !== undefined && e.target !== e.actor && e.move?.startsWith('skill_')) { for (const r of specialSoundOf(e.move.slice('skill_'.length))) impacts.push(cue(r.cue as CueName, r.gain / 1000, r.room / 1000, r.delay ? r.delay / 1000 : undefined)); }   // a melee special's own landing sound (sandbox specialSound rows; none on trunk)
     else if (e.type === 'GuardBroken') impacts.push(cue('guard_break', 1, .35), cue(bone ? 'bone_crack' : 'hit_flesh', .55, .2));
     else if (defence && defenceGrade(e)) impacts.push(...GRADE_AUDIO[defenceGrade(e)!].map((l) => cue(l.name, l.gain, l.room, l.delay, l.rate)));   // ?look=defence (defence-grade.ts): the player's own Parried/Blocked by grade
     else if (e.type === 'Parried') impacts.push(cue('parry', 1, .45));
