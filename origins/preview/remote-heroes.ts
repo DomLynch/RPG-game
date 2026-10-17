@@ -26,6 +26,15 @@ export type Who = { name: string | null; guest: boolean };
 /** The tag: "Guest" for a guest (Dom: guests are in the world), the name otherwise, and nothing at all until the name has arrived (the server sends { id, name, guest } once, on entering interest). */
 export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name?.trim() || null);
 
+/** One tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). A FROZEN group is not walked by the scene (creature-freeze.ts), so nothing would carry the tag's new local
+ *  position into its world matrix before the draw: this does it (the group's own matrix is the BODY's last posed one, which getWorldPosition just brought current), whether the tag was clamped or put back. `at` is scratch. */
+export function clampTag(tag: THREE.Sprite, group: THREE.Object3D, camera: THREE.Camera, ceiling: number, at: THREE.Vector3): void {
+  tag.position.set(0, tag.userData.y0 as number, 0);
+  tag.getWorldPosition(at).project(camera);   // brings the group's own matrix current (not its bones: that walk is what a frozen figure is spared); a frozen group holds where it was posed
+  if (!(at.z > 1 || at.z < -1 || at.y <= ceiling)) { at.y = ceiling; at.unproject(camera); group.worldToLocal(at); tag.position.copy(at); }
+  tag.updateWorldMatrix(false, false);   // own matrix and world matrix from the parent's current one: the walk a frozen group skips
+}
+
 type Lod = 'near' | 'far';
 type Slot = { group: THREE.Group; actor: Actor; near: Actor; far: Actor | null; lod: Lod; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
 
@@ -103,13 +112,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
     /** Before the draw: a tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). */
     clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void {
       const ceiling = labelCeilingNdc(floorPx, heightPx);
-      for (const slot of live.values()) {
-        const tag = slot.tag; if (!tag || !slot.group.visible) continue;
-        tag.position.set(0, tag.userData.y0 as number, 0);
-        tag.getWorldPosition(at).project(camera);   // brings the group's own matrix current (not its bones: that walk is what a frozen figure is spared); a frozen group holds where it was posed
-        if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;
-        at.y = ceiling; at.unproject(camera); slot.group.worldToLocal(at); tag.position.copy(at);
-      }
+      for (const slot of live.values()) if (slot.tag && slot.group.visible) clampTag(slot.tag, slot.group, camera, ceiling, at);
     },
     /** For the browser checks and the release row: who is drawn, where, with what tag and gait speed. */
     debug: () => ({ slots: pool.length, adaptive: { low: governor.low(), p95Ms: +governor.p95().toFixed(1) }, shown: [...live.entries()].map(([id, s]) => ({ id, x: +s.group.position.x.toFixed(2), z: +s.group.position.z.toFixed(2), heading: +s.group.rotation.y.toFixed(2), speed: +s.speed.toFixed(2), tag: s.text, visible: s.group.visible, cheap: s.cheap, frozen: s.frozen, lod: s.lod })) }),
