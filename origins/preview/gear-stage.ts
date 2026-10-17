@@ -20,9 +20,17 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     scene, camera,
     setArenaVisible() { /* a scene of its own: there is no arena in it to hide */ },
     hero: { place(x, z, heading, speed, dt) { load(); if (!actor) return; actor.anchor.position.set(x, 0, z); actor.anchor.rotation.y = heading; actor.update(speed, dt, 'sheathed', 0); } },
-    draw() { renderer.render(scene, camera); },
+    draw() { if (held) renderer.clear(); else renderer.render(scene, camera); },   // while the warm-up runs the sheet shows its empty stage (the backdrop clear), not a synchronous program link under the player's thumb
   };
-  // The rig and loot.glb load, the worn set goes on, and one studio frame is drawn: the sheet's programs link now, not when the player first opens it (a no-op where the rig did not load).
-  const warm = async () => { await load(); if (actor) warmGearRoom(stage); };
-  return { stage, load, warm, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
+  const paint = () => renderer.render(scene, camera);
+  // The rig and loot.glb load, the worn set goes on, and the studio frame is built off the main thread: the sheet's programs link after [zone ready] on the kit warm's queue, not when the player first opens it
+  // (a no-op where the rig did not load). `hold()` is called when that warm is queued, and the stage is released whatever the warm does.
+  let held = false;
+  const hold = () => { held = true; };
+  const warm = async (): Promise<number> => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread)
+    let drawMs = 0;
+    try { await load(); if (actor) await warmGearRoom({ ...stage, draw: () => { const t = performance.now(); paint(); drawMs = performance.now() - t; } }, (s, c) => renderer.compileAsync(s, c)); } finally { held = false; }
+    return drawMs;
+  };
+  return { stage, load, hold, warm, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
 }

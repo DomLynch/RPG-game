@@ -63,7 +63,14 @@ try {
   await page.goto(`${origin}/preview/origins/?region=1&zone=1&writer=${encodeURIComponent(writerUrl)}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
   const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });
-  const before = await snap(); receipt.programsAtReady = before.names.length;
+  receipt.programsAtReady = (await snap()).names.length;
+  // the kit warm and then the gear sheet's mannequin build their programs after [zone ready] (#2938, Lead 2026-10-17): the baseline is taken once both have ended (originsPreview.remoteKitsWarm() waits for the mannequin)
+  const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === 'kitWarmMs').value;
+  assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 90000 }).then(() => true).catch(() => false), 'the post-ready warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');
+  receipt.gearWarm = await page.evaluate(() => (window.originsPreview.gearWarm ? window.originsPreview.gearWarm() : 'no warm-up on this build'));   // { ms, drawMs: the one synchronous frame (the long task it leaves; budget 50 ms on the T4), failed }
+  if (typeof receipt.gearWarm === 'object') assert.ok(receipt.gearWarm && !receipt.gearWarm.failed, `the mannequin warm-up ended without failing: ${JSON.stringify(receipt.gearWarm)}`);
+  if (process.env.GEAR_TASK_MS && typeof receipt.gearWarm === 'object') assert.ok(receipt.gearWarm.drawMs <= Number(process.env.GEAR_TASK_MS), `the mannequin's synchronous frame took ${receipt.gearWarm.drawMs} ms (budget ${process.env.GEAR_TASK_MS})`);
+  const before = await snap(); receipt.programsAfterWarm = before.names.length;
 
   await page.waitForFunction(() => window.originsPreview.career().source === 'saved', null, { timeout: 30000 }).catch(() => {});
   assert.equal((await page.evaluate(() => window.originsPreview.career())).source, 'saved', 'signed in: open answered a saved career');

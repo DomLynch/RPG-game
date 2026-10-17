@@ -39,10 +39,10 @@ function studio(scene: THREE.Scene): { off(): void } {
   key.position.set(-1.6, 2.6, 3.2); rim.position.set(2.2, 2.2, -2.4); scene.add(key, rim);
   return { off() { scene.remove(key, rim); key.dispose?.(); rim.dispose?.(); scene.background = was.background; scene.fog = was.fog; glow?.dispose(); } };
 }
-/** One frame of the dressed mannequin under the studio, drawn and handed back: links the sheet's programs before the player ever opens it (the next game frame overdraws it). */
-export function warmGearRoom(stage: GearStage): void {
+/** The dressed mannequin under the studio, built before the player opens the sheet: `compile` (the renderer's compileAsync, off the main thread) builds the figure's programs, then ONE frame is drawn for the backdrop's (the next game frame overdraws it). Hands the scene back as found. */
+export async function warmGearRoom(stage: GearStage, compile: (scene: THREE.Scene, camera: THREE.Camera) => Promise<unknown>): Promise<void> {
   const look = studio(stage.scene);
-  try { stage.hero.place(0, 0, 0, 0, 1 / 60); stage.draw(); } finally { look.off(); }
+  try { stage.hero.place(0, 0, 0, 0, 1 / 60); await compile(stage.scene, stage.camera); stage.draw(); } finally { look.off(); }
 }
 export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { width(): number; height(): number; clip?(inset: string | null): void }): GearRoom {
   const { scene, camera } = stage;
