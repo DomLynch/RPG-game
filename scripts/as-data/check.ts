@@ -146,7 +146,7 @@ try {
   const { fresh: newConstObjects, lowered: loweredConstObjects } = ratchet('const-object', constObjects, constName);
   const scope = JSON.parse(readFileSync(arg('--inline-scope') ?? join(HERE, 'inline-number-scope.json'), 'utf8')) as { files: string[]; dirs: string[]; presentation?: { files: string[] } };
   // Strategy 2026-10-17 (rulings via Lead): a category may be left out of the count only if it is NOT gameplay, and every run names each category with its count. These are the only ones, each in its real context:
-  // MATH (2 as a midpoint (a+b)/2, in Math.PI * 2, or as the * 2 - 1 remap; x * 2 and 0.5 COUNT), TIME UNITS (1000, 3600, 86400, 60_000, 1_000_000 beside * or /; % COUNTS: a cadence is tuning), BITS (a literal beside
+  // MATH (2 as a midpoint (a+b)/2, in Math.PI * 2, or as the * 2 - 1 remap of a unit draw (random/roll/draw/seedUnit/hash/k/t); x * 2 and 0.5 COUNT), TIME UNITS (1000, 3600, 86400, 60_000, 1_000_000 beside * or /; % COUNTS: a cadence is tuning), BITS (a literal beside
   // & | ^ << >>), HEX (a bit mask / hash salt beside a bit op or Math.imul, or a 6-digit colour in a view file) and -1 (compared with ===/!==/<... or beside indexOf/findIndex). A percent (100), a frame count (60),
   // a compare, a + / - or a % is never excluded: that is where a tuning hides.
   const arith = /^[*/](?![*/=])/, arithBefore = /(?<![*/])[*/]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
@@ -169,7 +169,7 @@ try {
     if (text === '2') {
       if (/\([^()]*\+[^()]*\)\s*\/$/.test(before)) return 'math: 2 as a midpoint (a+b)/2';
       if (/Math\.PI\s*\*$/.test(before) || (/^\*\s*Math\.PI/.test(after))) return 'math: Math.PI * 2';
-      if (/\*$/.test(before) && /^-\s*1\b/.test(after)) return 'math: the * 2 - 1 remap';
+      if (/\*$/.test(before) && /^-\s*1\b/.test(after) && /\b(?:Math\.random\(\)|(?:random|rand|rng|roll|draw|seedUnit|hash|unit|k|t|u)(?:\([^()]*\))?)\s*\*$/.test(before)) return 'math: the * 2 - 1 remap of a unit draw';   // level * 2 - 1 is a count, not a draw: it stays counted
       return null;
     }
     if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';
