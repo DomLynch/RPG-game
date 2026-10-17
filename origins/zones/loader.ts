@@ -13,6 +13,8 @@ import { stageRule } from '../world/stage-rules.ts';
 import type { Spec } from './biomes.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
+/** One world zone's presence settings (zone row `presence.<world-zone>`); every field optional, defaults speed 1, quiet false, no caps. Fields only: nothing enforces `caps` yet. */
+export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
 export type Zone = {
   id: string; level: number;
   defaultKind?: string;       // the roster body a creature whose character form names none stands as (a row column, schema default 'goblin', checked as a roster body)
@@ -27,6 +29,7 @@ export type Zone = {
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
   unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
+  presence?: Readonly<Record<string, ZonePresence>>;   // per WORLD zone (a name in `world`): how presence treats it (speed, quiet, caps); the presence tables read it, nothing here enforces it (zone row `presence`)
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
@@ -84,6 +87,12 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!z.mobLooks!.looks[id]) bad.push(`mob spread ${id} has no mob look`);
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
+  }
+  for (const [w, p] of Object.entries(z.presence ?? {})) {
+    if (!z.world.includes(w)) bad.push(`presence ${w}: not a world zone of this package`);
+    if (p.speed !== undefined && !(p.speed > 0 && p.speed <= 10)) bad.push(`presence ${w}: speed ${p.speed} is out of range (0-10]`);
+    const c = p.caps, ns = [c?.floor, c?.soft, c?.hard].filter((n): n is number => n !== undefined);
+    if (c && !(ns.every((n) => Number.isInteger(n) && n >= 0) && (c.floor ?? 0) <= (c.soft ?? Infinity) && (c.soft ?? 0) <= (c.hard ?? Infinity))) bad.push(`presence ${w}: caps must be whole numbers with floor <= soft <= hard`);
   }
   return bad;
 }
