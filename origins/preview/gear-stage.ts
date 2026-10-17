@@ -40,12 +40,14 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     let drawMs = 0;
     const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0, slowest: '' };
     const count = () => renderer.info.programs?.length ?? -1;
-    const timed = (label = 'all') => { const t = performance.now(), before = count(); paint(); const ms = performance.now() - t; if (ms > drawMs) { drawMs = ms; trace.slowest = label; } trace.drawPrograms += count() - before; };
+    const top: [string, number][] = [];
+    const timed = (label = 'all') => { const t = performance.now(), before = count(); paint(); const ms = performance.now() - t; drawMs = Math.max(drawMs, ms); top.push([label, Math.round(ms)]); top.sort((a, b) => b[1] - a[1]); top.length = Math.min(top.length, 4); trace.slowest = top.map(([l, m]) => `${l}:${m}`).join(' ; '); trace.drawPrograms += count() - before; };
     // compileAsync builds the programs off the main thread, but the GPU's first draw with each still costs (T4: 13 programs, one 226 ms frame): so the backdrop and then each mesh are drawn alone, one per frame.
     const slices = async (s: THREE.Scene, c: THREE.Camera) => {
       const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before;
       const meshes: THREE.Object3D[] = []; s.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.visible) meshes.push(o); });
       for (const m of meshes) m.visible = false;
+      for (let i = 0; i < 30; i++) await nextFrame();   // the driver's own pipeline builds for the compiled programs finish while no frame waits on them (T4: the first draw after compileAsync was a 179 ms wait)
       try { timed('backdrop'); await nextFrame(); for (const m of meshes) { m.visible = true; timed(`${m.name}|${(m as THREE.Mesh).isSkinnedMesh ? 'skinned' : 'mesh'}|${String(((m as THREE.Mesh).material as THREE.Material).name)}`); m.visible = false; await nextFrame(); } } finally { for (const m of meshes) m.visible = true; }
     };
     try {
