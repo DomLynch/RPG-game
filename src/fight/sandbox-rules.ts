@@ -248,6 +248,14 @@ export const healOf = (spell: string | undefined): HealRow | undefined => (spell
 /** 'far' when `distance` metres is beyond the root's band (its farthest reach), undefined when the cast may go (any distance inside it, however close; or the root has no row). */
 // spellReach (Dom 2026-10-17: no short / medium / long, one maximum distance within reason): centimetres beyond which any spell is refused 'far' and costs nothing. 0 = off (trunk).
 export const SPELL_REACH = num('spellReach', 'value');
+// vfxScale (Dom 2026-10-17: a spell cast from range was "a speck" on his phone): a spell's look grows with the caster-to-target distance, 1x up to vfxScaleNear cm, rising evenly to vfxScaleMax per mille at vfxScaleFar cm and beyond. vfxScaleMax 0 = off (trunk): always 1x.
+export const VFX_GROUND_Y = num('vfxGroundCm', 'value') / 100;   // vfxGroundCm: thrown rubble and embers never sink below this height above the sand
+const VFX_NEAR = num('vfxScaleNear', 'value'), VFX_FAR = num('vfxScaleFar', 'value'), VFX_MAX = num('vfxScaleMax', 'value');
+export const vfxScaleAt = (distCm: number): number => {
+  if (VFX_MAX <= 1000 || VFX_FAR <= VFX_NEAR) return 1;
+  const t = (distCm - VFX_NEAR) / (VFX_FAR - VFX_NEAR);
+  return 1 + ((VFX_MAX - 1000) / 1000) * (t < 0 ? 0 : t > 1 ? 1 : t);
+};
 export const spellRangeCue = (root: string, distance: number): 'far' | undefined => {
   const row = spellRangeOf(root); if (!row) return undefined;
   if (SPELL_REACH && distance * 100 > SPELL_REACH) return 'far';

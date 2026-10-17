@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 
-const defs = DEFS as unknown as { spellHeal: object[]; spellPick: object[] };
+const defs = DEFS as unknown as { spellHeal: object[]; spellPick: object[]; rules: { id: string; value?: number }[] };
+for (const [id, value] of [['vfxGroundCm', 5], ['vfxScaleNear', 100], ['vfxScaleFar', 1000], ['vfxScaleMax', 3000]] as const) defs.rules.find((r) => r.id === id)!.value = value;   // the distance-scale rows (trunk 0 = off)
 defs.spellHeal.push({ id: 'gula', share: 250, uses: 2, windup: 120 });
 defs.spellPick.push({ id: 'ugallu', level: 1, vfx: 'shock' }, { id: 'brokkr', level: 1, vfx: 'ash' }, { id: 'kamaitachi', level: 1, vfx: 'wind' }, { id: 'banshee', level: 1, vfx: 'nyx' }, { id: 'gula', level: 3, vfx: 'heal' });
 const { createSpellVfx } = await import('../src/fight/spell-vfx.ts');
@@ -60,7 +61,7 @@ for (const [name, spell] of [['heal', 'gula'], ['shock', 'ugallu'], ['wind', 'ka
 test('a spell landing far away is drawn bigger (3x from 10 m), up close stays 1x, a heal stays 1x', () => {
   const far = [{ body: { x: 0, z: 0 } }, { body: { x: 10, z: 0 } }] as never, scales = (ev: object, fs: never) => { const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined); v.trigger([ev as never], fs); v.update(110); return scene.children.filter((c) => (c as THREE.Group).isGroup && c.visible !== undefined && c.children.some((o) => o.visible)).map((g) => g.scale.x); };
   assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 100 }, far), [3]);
-  assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 100 }, fighters), [1 > 0.8 + 0.22 * Math.hypot(1.5, 0.5) ? 1 : 0.8 + 0.22 * Math.hypot(1.5, 0.5)]);
+  assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 100 }, fighters), [1 + 2 * ((100 * Math.hypot(1.5, 0.5) - 100) / 900)]);   // the rows: 1x at 1 m rising evenly to 3x at 10 m
   assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 0, spell: 'gula', tick: 100, heal: 38 }, far), [1]);
 });
 

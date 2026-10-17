@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Fighter } from './duel.ts';
-import { healRows, vfxOf } from './sandbox-rules.ts';
+import { healRows, vfxOf, vfxScaleAt, VFX_GROUND_Y as GROUND_Y } from './sandbox-rules.ts';
 
 // sandbox-mech: the spells' own looks (Dom 2026-10-17: "low res, cheap, tacky": 2026, AAA). Five looks (heal, start dust shock, Ash Fall, Wind Wall, Nyx Nightfall), each built from the same few parts: noise-eroded shader surfaces (a tiling fbm texture made once here),
 // view-facing smoke puffs that erode as they age, four-point glints, and one short coloured light that washes the sand and the fighters. Presentation only: tick-driven (a replay draws the same frames), it reads events and positions and never writes the duel.
@@ -56,9 +56,6 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
     pillar: `${HEAD} void main(){ float y = vUv.y; vec2 p = vec2(vUv.x * 3.0, y * 1.4 - uT * 0.9); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.3 + 0.37).r * 0.4;
       float h = min(1.0, uK * 3.2), reveal = 1.0 - smoothstep(h - 0.12, h, y), erode = smoothstep(uK * 0.95, uK * 0.95 + 0.2, n), body = pow(1.0 - y, 0.7); float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.4);
       float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * (0.1 + 0.26 * rim) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`,
-    // a flat ring on the ground, eroded
-    ring: `${HEAD} void main(){ float r = length(vUv - 0.5) * 2.0; float band = smoothstep(0.68, 0.86, r) * (1.0 - smoothstep(0.93, 1.0, r)); float n = texture2D(uNoise, vUv * 2.0 + uT * 0.3).r;
-      float a = band * smoothstep(uK * 0.9, uK * 0.9 + 0.2, n) * (1.0 - uK * 0.6) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n), a); }`,
     // a view-facing puff of smoke or dust: soft body, grain-eroded edge, lit from above, hot at the core while young
     puff: `${HEAD} void main(){ vec2 c = vUv - 0.5; float r = length(c) * 2.0; float mask = 1.0 - smoothstep(0.35, 1.0, r); vec2 p = vUv * 1.6 + vec2(uSeed * 7.31, uSeed * 3.17) + vec2(0.0, -uK * 0.35);
       float n = texture2D(uNoise, p).r * 0.65 + texture2D(uNoise, p * 2.7 + 0.5).r * 0.35; float erode = smoothstep(uK * 0.85, uK * 0.85 + 0.25, n);
@@ -82,9 +79,6 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
     slash: `${HEAD} void main(){ vec2 p = (vUv - 0.5) * 2.0; float an = uSeed * 6.2832, cs = cos(an), sn = sin(an); p = vec2(cs * p.x - sn * p.y, sn * p.x + cs * p.y);
       float d = length(p - vec2(0.0, -1.1)), dd = abs(d - 1.55), core = 1.0 - smoothstep(0.0, 0.2, dd), halo = 0.28 * (1.0 - smoothstep(0.0, 0.65, dd)), hot = 1.0 - smoothstep(0.0, 0.08, dd); float sweep = -1.3 + 2.8 * uK, head = 1.0 - smoothstep(sweep - 0.25, sweep, p.x), taper = 1.0 - smoothstep(0.3, 1.05, abs(p.x));
       float g = 0.65 + 0.35 * texture2D(uNoise, vUv * 3.0 + uSeed).r, al = (core + halo) * head * taper * g * (1.0 - smoothstep(0.55, 1.0, uK)) * uAlpha; gl_FragColor = vec4(texture2D(uRamp, vec2(clamp(0.45 + 0.55 * (hot * 0.8 + core * 0.4), 0.0, 1.0), 0.5)).rgb, min(1.0, al * 1.6)); }`,
-    // a dark pool on the ground: the dome cannot darken the sand (the ground is nearer than the dome's far wall and hides it), so the floor is darkened here, soft edge eroded by the grain
-    pool: `${HEAD} void main(){ float r = length(vUv - 0.5) * 2.0; float n = texture2D(uNoise, vUv * 3.0 + uT * 0.05).r; float edge = 1.0 - smoothstep(0.55 + 0.25 * n, 1.0, r);
-      float fade = smoothstep(0.0, 0.15, uK) * (1.0 - smoothstep(0.7, 1.0, uK)); gl_FragColor = vec4(mix(uA, uB, n * edge), edge * fade * uAlpha); }`,
     // an inside-out dome: deep colour, grain stars, fades in and out
     dome: `${HEAD} void main(){ float n = texture2D(uNoise, vUv * vec2(3.0, 1.5) + uT * 0.02).r; float star = smoothstep(0.80, 0.83, texture2D(uNoise, vUv * vec2(14.0, 7.0)).r); float fade = smoothstep(0.0, 0.18, uK) * (1.0 - smoothstep(0.72, 1.0, uK));
       float a = fade * (0.50 + 0.2 * n) * uAlpha; vec3 col = mix(uA, uB, n * 0.6) + vec3(star * 0.9); if (uUseRamp > 0.5) col = texture2D(uRamp, vec2(0.12 + 0.3 * n, 0.5)).rgb + vec3(star * 0.9);
@@ -124,7 +118,7 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
         wave.position.set(x, 0.06, z); wave.scale.setScalar(3.6); set(wave, { uK: k, uT: age / 60, uAlpha: 1 }); wave2.position.set(x, 0.08, z); wave2.scale.setScalar(3.6); set(wave2, { uK: clamp01(k * 1.25 - 0.12), uT: age / 60, uAlpha: 0.7 });
         dust.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 6) / (ticks - 6)), a = (i / 12) * 6.283 + rnd(i, 2), r = 0.3 + (0.2 + 2.6 * (1 - (1 - t) ** 2)) * (0.6 + 0.6 * rnd(i, 3)); p.position.set(x + Math.cos(a) * r, 0.2 + t * (0.9 + rnd(i, 6)), z + Math.sin(a) * r); set(p, { uSize: 1.1 + 2.5 * t, uK: t, uSeed: rnd(i, 4), uHot: 0.9 * (1 - 0.7 * t) + flash * 0.5, uAlpha: 0.85 }); });   // pale, billowing dust (lit from the flash), not a muddy brown smear
         flashS.position.set(x, 0.9, z); flashS.scale.setScalar(3.2 * flash); sop(flashS, 0.85 * flash);
-        rock.forEach((p, i) => { const t = (age - rnd(i, 5) * 4) / 60; if (t < 0 || t > 1.1) { p.visible = false; return; } p.visible = true; const a = rnd(i, 6) * 6.283, v = 1.5 + 2.4 * rnd(i, 7), up = 3.2 + 3.0 * rnd(i, 8); p.position.set(x + Math.cos(a) * v * t, Math.max(0.05, 0.3 + up * t - 4.9 * t * t), z + Math.sin(a) * v * t); set(p, { uSize: 0.16 + 0.12 * rnd(i, 9), uK: 0.1 + 0.5 * t, uSeed: rnd(i, 4), uHot: 0, uAlpha: 1 }); });   // chunks arc out, fall and vanish on the sand
+        rock.forEach((p, i) => { const t = (age - rnd(i, 5) * 4) / 60; if (t < 0 || t > 1.1) { p.visible = false; return; } p.visible = true; const a = rnd(i, 6) * 6.283, v = 1.5 + 2.4 * rnd(i, 7), up = 3.2 + 3.0 * rnd(i, 8); p.position.set(x + Math.cos(a) * v * t, Math.max(GROUND_Y, 0.3 + up * t - 4.9 * t * t), z + Math.sin(a) * v * t); set(p, { uSize: 0.16 + 0.12 * rnd(i, 9), uK: 0.1 + 0.5 * t, uSeed: rnd(i, 4), uHot: 0, uAlpha: 1 }); });   // chunks arc out, fall and vanish on the sand
         return { light: Math.max(flash * 1.1, 0.25 * (1 - k)), color: '#ffd9a0' }; } };
   };
   const shockGather = (): Inst => {   // the roar's windup: dust is pulled in toward the caster and a crack stain spreads under the feet
@@ -142,7 +136,7 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
         scorch.position.set(x, 0.04, z); scorch.scale.setScalar(2.2 + 0.8 * (1 - (1 - k) ** 3)); set(scorch, { uK: k, uT: age / 60, uAlpha: 0.85 * inn });
         glow.position.set(x, 0.05, z); glow.scale.setScalar(1.3 + 0.7 * (1 - (1 - k) ** 3)); set(glow, { uK: k, uT: age / 60, uAlpha: inn, uHot: Math.max(flash, 0.9 * (1 - k * 1.2)) });
         ps.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 14) / (ticks - 14)), a = i * 2.4, r = 0.25 + 0.5 * t * rnd(i, 2); p.position.set(x + Math.cos(a) * r, 0.3 + t * (2.2 + rnd(i, 3)), z + Math.sin(a) * r); set(p, { uSize: 0.9 + 1.8 * t, uK: t, uSeed: rnd(i, 4), uHot: Math.max(0, 1 - t * 1.5) + flash * 0.6, uAlpha: 0.7 }); });
-        em.forEach((s, i) => { const t = (age - rnd(i, 5) * 10) / 60, life = clamp01(t / 1.6); if (t < 0 || t > 1.6) { s.visible = false; return; } s.visible = true; const a = rnd(i, 6) * 6.283, v = 0.8 + 1.8 * rnd(i, 7), up = 3.0 + 2.6 * rnd(i, 8); s.position.set(x + Math.cos(a) * v * t, Math.max(0.05, 0.3 + up * t - 4.2 * t * t), z + Math.sin(a) * v * t); sop(s, 0.95 * (1 - life) * (0.6 + 0.4 * Math.sin(age * 1.7 + i * 2))); s.scale.setScalar(0.24 * (1 - 0.6 * life)); });   // embers arc up, fall back and sputter out on the ground
+        em.forEach((s, i) => { const t = (age - rnd(i, 5) * 10) / 60, life = clamp01(t / 1.6); if (t < 0 || t > 1.6) { s.visible = false; return; } s.visible = true; const a = rnd(i, 6) * 6.283, v = 0.8 + 1.8 * rnd(i, 7), up = 3.0 + 2.6 * rnd(i, 8); s.position.set(x + Math.cos(a) * v * t, Math.max(GROUND_Y, 0.3 + up * t - 4.2 * t * t), z + Math.sin(a) * v * t); sop(s, 0.95 * (1 - life) * (0.6 + 0.4 * Math.sin(age * 1.7 + i * 2))); s.scale.setScalar(0.24 * (1 - 0.6 * life)); });   // embers arc up, fall back and sputter out on the ground
         return { light: Math.max(flash * 1.4, 0.45 * (1 - k)), color: '#ff7a2a' }; } };
   };
   // Ash Fall's anticipation: heat builds around the caster: a scorch creeps out under the feet, ember veins heat up, sparks lift off the ground. Ends when the cast lands or is cut.
@@ -223,7 +217,7 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
         const kind = e.heal !== undefined ? 'heal' : e.spell ? vfxOf(e.spell) : undefined, who = fighters[e.heal !== undefined ? e.actor : (e.target ?? -1)];
         if (!kind || !who || !insts[kind]) continue;
         const list = insts[kind]!, inst = list[(next[kind] = ((next[kind] ?? -1) + 1) % list.length)]!, from = fighters[e.actor];
-        const s = e.heal !== undefined || !from ? 1 : Math.min(3, Math.max(1, 0.8 + 0.22 * Math.hypot(who.body.x - from.body.x, who.body.z - from.body.z)));   // Dom 2026-10-17: "didn't see much": spells land up to 25 m away, so the look grows with the distance (1x up close, 3x from 10 m) to read on a phone
+        const s = e.heal !== undefined || !from ? 1 : vfxScaleAt(100 * Math.hypot(who.body.x - from.body.x, who.body.z - from.body.z));   // Dom 2026-10-17: "didn't see much": spells land up to 25 m away, so the look grows with the distance (rows vfxScale*: 1x close, 3x from 10 m) to read on a phone
         inst.start(who.body.x, who.body.z); place(inst, s, who.body.x, who.body.z); find(inst).at = e.tick;
       }
     },
