@@ -12,7 +12,7 @@
 // bone-matrix recompute, no boneTexture.needsUpdate). A skinned mesh draws from the bone matrices of its LAST update, so a frozen figure stands where it was posed: a cheap one moves on its pose frames
 // (every remoteCheapEvery-th), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
 // ANIMATION-RATE LOD (World's T4 profile of #3005, 40 walking: the top self-time was updateMatrixWorld, then multiplyMatrices, then the mixer's slerpFlat, and a far figure cost nearly the same as a near one): rank alone left the
-// nearest `remoteFullCount` figures posing every frame whatever their distance. Now a figure past `remoteRateMidM` poses every `remoteRateMidEvery`-th frame and past `remoteRateFarM` every `remoteRateFarEvery`-th (the slower of that
+// nearest `remoteFullCount` figures posing every frame whatever their distance. Now a figure past `remoteRateMidM` (8 m, the far-figure line) poses every `remoteRateMidEvery`-th frame and past `remoteRateFarM` every `remoteRateFarEvery`-th (the slower of that
 // and the cheap rate), through the same freeze; the slot index staggers the phases, so about 1/N of the slow figures pose each frame. All rows.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';

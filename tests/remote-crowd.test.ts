@@ -74,7 +74,7 @@ test('a frozen figure (cheap on a skip frame, or hidden) triggers no skeleton up
       return { scene, heroes, render };
     };
     const a = rig();
-    a.heroes.push(Array.from({ length: FULL + 1 }, (_, i) => ({ id: i + 1, x: 2 + i * 0.5, z: 0, heading: 0, anim: 0, flags: 0 })), 0);   // all within remoteRateMidM, so only the cheap one is slow
+    a.heroes.push(Array.from({ length: FULL + 1 }, (_, i) => ({ id: i + 1, x: 2 + i * 0.3, z: 0, heading: 0, anim: 0, flags: 0 })), 0);   // all within remoteRateMidM, so only the cheap one is slow
     const perFrame: number[] = [];
     for (let f = 0; f < EVERY * 2; f++) { a.heroes.update(0.01, 0, { x: 0, z: 0 }); perFrame.push(a.render()); }
     assert.deepEqual(perFrame.map((n) => n - FULL), perFrame.map((_, f) => (f === 0 || (f + 1) % EVERY === 0 ? 1 : 0)), 'the 16 full figures upload every frame; the cheap one only on its pose frames (the first, then every Nth): a skip frame uploads nothing for it');
