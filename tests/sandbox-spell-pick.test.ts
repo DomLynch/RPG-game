@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 import ROWS from '../sandbox/rows.json' with { type: 'json' };
 import { SPELL_INFO } from '../src/fight/spell-catalogue.ts';
+import { castOutcome, resolveSpell, spellRoot } from '../src/fight/spell-cast.ts';
 import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
 
@@ -29,4 +30,15 @@ test('each pick is a real catalogue spell of the level its row says, playing its
     assert.ok(p.fx && SPECIAL_MODES[p.fx as SpecialTest] && SPECIAL_TESTS[p.fx as SpecialTest], `${p.id}: ${p.fx} has a mode and a look-test`);
   }
   assert.equal(new Set(picks.map((p) => p.fx)).size, 4, '4 different effects');
+});
+test('every pick lands at the sandbox skill floor (100): at least 90% of casts succeed or crit, and its root is the outer band (cast from any distance)', () => {
+  const floor = Number(JSON.stringify(ROWS).match(/"id":"spellSkillFloor","value":(\d+)/)?.[1]);
+  assert.equal(floor, 100);
+  const bands = new Map([...JSON.stringify(ROWS).matchAll(/\{"root":"(\w+)","band":"(\w+)"/g)].map((m) => [m[1], m[2]]));
+  for (const p of picks) {
+    const s = resolveSpell(p.id, floor)!, n = 1000; let ok = 0;
+    for (let k = 0; k < n; k++) { const o = castOutcome(s, k / n); if (o === 'success' || o === 'crit') ok++; }
+    assert.ok(ok / n >= 0.9, `${p.id}: ${ok / n} of casts land at skill ${floor}`);
+    assert.equal(bands.get(spellRoot(p.id)!), 'outer', `${p.id}: root ${spellRoot(p.id)} is the outer band`);
+  }
 });

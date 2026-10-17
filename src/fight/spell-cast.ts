@@ -1,5 +1,6 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../core/registry.ts';
 import { RULES } from './moves.ts';
+import { SPELL_SKILL_FLOOR } from './sandbox-rules.ts';
 import BRICK_DEFS from './brick-defs.json' with { type: 'json' };
 import BRICK_MANIFEST from './brick-defs.manifest.json' with { type: 'json' };
 import CAST_RULES from './cast-rules.json' with { type: 'json' };
@@ -43,6 +44,7 @@ const clampTo = (v: number, lo: number, hi: number): number => Math.max(lo, Math
 /** The spell `id` as `skill` (0-100, the caster's skill in its school) and `spellPower` (the sheet's dial, worn quality included) cast it; undefined for an id the catalogue does not hold. */
 export function resolveSpell(id: string, skill: number, spellPower = 0): Spell | undefined {
   if (!isSpellId(id)) return undefined;
+  skill = Math.max(skill, SPELL_SKILL_FLOOR);   // sandbox row spellSkillFloor (0 on trunk)
   const [root, level] = INDEX[id]!, b = BRICKS[root]!, cost = b.cost + b.costPerLevel * level, credit = Math.round(spellPower * CAST.creditPerPoint);
   return {
     id, cost, share: RULES.special.damage * b.effect.magnitude * (1 + b.effect.perLevel * (level - 1)),

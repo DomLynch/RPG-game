@@ -229,6 +229,8 @@ const SPELL_EFFECTS = ((DEFS as unknown as { spellEffect?: SpellEffectRow[] }).s
 export const spellEffectOf = (spell: string): string | undefined => ((DEFS as unknown as { spellPick?: { id: string; fx?: string }[] }).spellPick ?? []).find((r) => r.id === spell)?.fx ?? SPELL_EFFECTS.find((r) => r.id === spell)?.fx;
 // spellBuffer (Dom 2026-10-16: "sometimes a first tap does nothing"): milliseconds a SPELL press the game cannot take yet (a stagger, a swing's recovery) is held and fired the moment it can. 0 = off (trunk): a refused press is simply lost.
 export const SPELL_BUFFER_MS = num('spellBuffer', 'value');
+// spellSkillFloor (Dom 2026-10-17: spells fizzled): a cast's outcome is skill against 2 x cost (spell-cast.ts), so below skill ~70 even a level 1 spell never lands and a level 8-10 one never lands at any skill. The alpha treats every caster as at least this skill. 0 = off (trunk).
+export const SPELL_SKILL_FLOOR = num('spellSkillFloor', 'value');
 // spellPick (Dom 2026-10-17: the alpha / pre-beta has 4 spells, the four whose designed effect looked best in a real browser, whatever their level; start, Gladiator Pit first win, Zone 1, Zone 2). One row { id, level, fx, unlock } per offered spell; `unlock` is documentation until the progression lane builds the unlock flow. The spell pickers list only these; every other spell stays in the rows, hidden. No rows (trunk) = every spell.
 type SpellPickRow = { id: string; level: number; fx?: string };
 export const spellPick = (): readonly string[] => ((DEFS as unknown as { spellPick?: SpellPickRow[] }).spellPick ?? []).map((r) => r.id);
