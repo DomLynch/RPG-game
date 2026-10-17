@@ -11,7 +11,7 @@ import SPECIAL_CLIP_ROWS from '../assets/special-clips.json' with { type: 'json'
 import { bloodDark, bloodHidden, type BloodMode } from './blood-mode.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
-import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
@@ -732,7 +732,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         specialRole = role;
         if (role && !clips[role] && !specialLoading.has(role) && specialRow(role).weapons.includes(weapon)) {
           specialLoading.add(role);
-          void SPECIAL_LOADERS[role]().then(m => this.adoptClip(role, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { /* the weapon's own clip keeps playing */ });
+          void SPECIAL_LOADERS[role]().then(m => this.adoptClip(role, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { specialLoading.delete(role); /* the weapon's own clip keeps playing */ });
         }
       },
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).

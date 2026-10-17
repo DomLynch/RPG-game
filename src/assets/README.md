@@ -793,3 +793,22 @@ creature donors, so any rebuild regressed the hold. `scripts/character/sync-hold
 channels into the donor in place (done for `source/backups/executioner-v5.glb` and `source/backups/veteran-v1.glb`; the Dwarf
 donor postdates the patch); rebuilds now reproduce trunk's hold keys exactly. A relit-mask source was tried and rejected: the
 mask sits recessed under the hood, so TRELLIS bakes it dark regardless of source lighting, and that bake shifted his skin red.
+
+## Special-move clips (combat-sandbox, 2026-10-17)
+
+`special-skullcrack.json`, `special-whirlwind.json`, `special-groundslam.json`, `special-lunge.json`: plain clip JSON beside `warrior.glb` (the
+Hamstrung pattern: adopted on demand by `characters.ts`, `warrior.glb` untouched), rows in `special-clips.json`, baked by
+`scripts/build-special-clips.mjs`. Only our baked output is committed; the Mixamo FBX never enters the repo (Adobe forbids redistributing the raw files).
+
+| clip | source | licence | downloaded |
+|---|---|---|---|
+| `Special_SkullCrack` | Adobe Mixamo "Standing Melee Attack Downward" (FBX binary, 30 fps, no skin, no keyframe reduction) | Mixamo terms (royalty-free in games; no raw redistribution, no ML training) | 2026-10-17 (Dom's Adobe ID) |
+| `Special_Whirlwind` | Adobe Mixamo "Standing Melee Attack 360 High" (same settings) | same | 2026-10-17 |
+| `Special_GroundSlam` | Adobe Mixamo "Standing Melee Run Jump Attack" (the file carries root motion; the horizontal hip travel, 3.4 m, is dropped) | same | 2026-10-17 |
+| `Special_Lunge` | Quaternius Universal Animation Library 2 `Sword_Dash` | CC0 1.0 | 2026-06-16 (pack date) |
+
+Not used: Mixamo "Sword And Shield Attack" / "-2" (both carry 2.7-3.7 m of root motion, a one-hand lunge the UAL2 dash already covers), "Sword And Shield
+Slash", "Mutant Swiping" (kept in the private drop folder for the Side Head-Smash and Reaping Sweep). Retarget: `scripts/character/mixamo_dump.py`
+(Blender, headless) writes each FBX's world bone poses to a private JSON; the build aims each of OUR 52 bones along the source bone's direction with the
+source twist, so the T-pose vs A-pose rest difference never matters; the UAL2 clip shares our skeleton and takes the build-warrior.mjs rest correction.
+No Mixamo clip was fed to any ML tool.
