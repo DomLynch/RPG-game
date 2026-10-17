@@ -77,6 +77,7 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
+import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
@@ -106,6 +107,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
+if (gfxOn(location.search)) patchHeightFog();   // ?gfx=1 (gfx-lift.ts): height fog, bloom, grade; the fog chunks are patched before any material compiles
+const gfx = gfxOn(location.search) ? createGfxLift(renderer, scene, camera) : null;
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
@@ -421,7 +424,7 @@ function applyCombatView() {   // the follow camera only places the camera; what
   camera.updateProjectionMatrix();
 }
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); lastView = '';
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); lastView = '';
   setFightBack(zoneFightBack(zoneRow ?? loadZone()) * (w > h ? 1 : zoneFightBackPortrait(zoneRow ?? loadZone())));   // the combat camera stands this much further back (camera.fightBack; 1 = the duel as it was), and a portrait screen a little more (camera.fightBackPortrait); the walking camera is never changed
   baseZoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.aspect = w / h; camera.zoom = baseZoom * followCam.view.zoom; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
 }
@@ -489,7 +492,7 @@ const walkLoop = () => {
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }
   ambience?.update(dt);
   goblinDome?.follow(camera); goblinSmoke?.update(dt);
-  renderer.render(scene, camera);
+  if (gfx) gfx.render(); else renderer.render(scene, camera);
 };
 renderer.setAnimationLoop(walkLoop);
 
