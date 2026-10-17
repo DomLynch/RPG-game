@@ -8,6 +8,15 @@
       "required": {
         "tier": "string"
       }
+    },
+    {
+      "table": "rarityTier",
+      "file": "loot-tier.json",
+      "at": "rarityTier",
+      "key": "id",
+      "required": {
+        "tier": "string"
+      }
     }
   ]
 }
