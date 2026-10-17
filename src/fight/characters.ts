@@ -27,7 +27,7 @@ import { fatigueRead, readRate } from './fatigue-read.ts';
 import { HAMSTRUNG_BEATS } from './hamstrung.ts';
 import { EXECUTION_BEATS } from './execution.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
-import { tinted } from './rank-tint.ts';
+import { finishedAs, tinted } from './rank-tint.ts';
 import type { Tier } from '../core/grades.ts';
 import { finisherBodyPose } from './finisher-look.ts';
 // What a rig is asked to do: a combat pose (code), or a finisher body's pose word (a row of src/fight/finisher-defs.json: finisher-look.ts finisherBodyPose).
@@ -563,7 +563,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       anchor,
       // Rank finish on the weapon (Lead via Strategy, 2026-09-27: per-rank weapon looks): the armour's tint (rank-tint.ts) over the weapon's own
       // maps, so no GLB byte changes. What takes it is the drawMaterials rows read by grades.ts classOf (blade metal, fittings trim; wood, stone and bone stay). No tier = its own finish.
-      grade(tier: Tier | undefined) { for (const [draw, own] of weaponDraws) draw.material = tier ? tinted(own, tier) : own; },
+      // `finish` (a finish-rows.json id, e.g. `rust`: a starter item's own look, worn-finish.ts) takes the weapon's metal over the rung's tint; absent, the line is what it was.
+      grade(tier: Tier | undefined, finish?: string) { for (const [draw, own] of weaponDraws) draw.material = finish ? finishedAs(own, finish) : tier ? tinted(own, tier) : own; },
       // Weapon shape per rank band (weapon-shapes.ts): the band's mesh in place of the weapon's own draws, hung on the weapon node itself (the
       // file's frame is the node's: hand at the origin, +Y along the weapon), so it follows every clip and the draw/sheathe swap. The node, its
       // contact extras and the sim's blade tables stay: reach and contact never move. Its finish is GPT's painted one, never the rung's tint
@@ -586,7 +587,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // Rank finishes (rank-tint.ts): `tierOf` names the rung a piece shows — the rung it was taken at on the player, the rung he is met at on an
       // opponent — and its metal, trim and leather take that grade as a tint over their own maps. Without it nothing is graded (ruling C, #705).
       // His own draws are never touched.
-      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined) {
+      // `finishOf` names a finish row a piece wears on its metal and trim instead of a rung's tint (a starter item's own look, worn-finish.ts); absent, or undefined for a piece, nothing changes.
+      wear(pieces: readonly SkinnedMesh[], failed: (id: string, error: unknown) => void = () => {}, tierOf: (piece: SkinnedMesh) => Tier | undefined = () => undefined, finishOf: (piece: SkinnedMesh) => string | undefined = () => undefined) {
         for (const piece of worn) piece.removeFromParent(); worn.length = 0;
         for (const [draw, visible] of covered) draw.visible = visible; covered.clear();
         let body: SkinnedMesh | undefined; const materials = rigMaterials(root);
@@ -607,7 +609,8 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         for (const piece of pieces) {
           try {
             const painted = piece.userData.painted === true, mapped = painted ? piece.material : sourceMaterial(piece, materials);   // a painted piece keeps its own finish: no rig map, no rank tint
-            const tier = painted ? undefined : tierOf(piece), own = tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
+            const finish = painted ? undefined : finishOf(piece), tier = painted ? undefined : tierOf(piece);
+            const own = finish && mapped instanceof MeshStandardMaterial ? finishedAs(mapped, finish) : tier && mapped instanceof MeshStandardMaterial ? tinted(mapped, tier) : mapped;
             const material = piece.userData.slot === 'Shield' && own instanceof MeshStandardMaterial ? bothSides(own) : own;
             const copy = new SkinnedMesh(typeof piece.userData.gripBone === 'string' ? gripFit(piece.geometry, rig, piece.userData.gripBone) : piece.geometry, material);
             copy.name = piece.name; copy.userData = { ...piece.userData }; copy.castShadow = copy.receiveShadow = true; copy.frustumCulled = false;
