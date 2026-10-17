@@ -20,7 +20,7 @@ Donor: EQEmu (`zone`, `zone_points`, `spawn2` / `spawngroup` / `spawnentry`, `gr
 | Townsfolk, shops | `origins/region1/npcs-defs.json`, `origins/region1/shops.json` | npc id | World / Backend |
 
 ### The zone row (the whole list of keys; `from-row.ts` `ROW_KEYS` refuses any other)
-`name`, `defaultKind`, `names`, `world`, `biome`, `id`, `spawns`, `kit`, `looks`, `mobLooks`, `place`, `camera`, `look`, `unlisted`, `presence`, `notes`.
+`name`, `defaultKind`, `names`, `world`, `biome`, `id`, `spawns`, `kit`, `looks`, `mobLooks`, `place`, `camera`, `look`, `unlisted`, `presence` (with #3043; trunk's `ROW_KEYS` has the other 15), `notes`.
 
 - **Required:** `name`, `kit`, `looks`. Everything else is optional with its default in `origins/zones/schema.ts` or the biome.
 - **`world`**: the list of world-zone names in the package (Zone 1 has seven). `names` maps each to its display name. Presence, exits and `place.zones` are all keyed by these names.
