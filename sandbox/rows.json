@@ -121,7 +121,7 @@
 {"id":"kamaitachi","level":1,"vfx":"wind","unlock":"zone1"},{"id":"banshee","level":1,"vfx":"nyx","unlock":"zone2"},
 {"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
 ],"specialPick":[
-{"id":"lunge","role":"opener"},{"id":"ironrush","role":"opener"},{"id":"pommel","role":"control"},{"id":"shove","role":"control"},{"id":"cleave","role":"heavy"},{"id":"stomp","role":"posture break"}
+{"id":"lunge","role":"opener"},{"id":"ironrush","role":"opener"},{"id":"pommel","role":"control"},{"id":"shove","role":"control"},{"id":"cleave","role":"heavy","slot2Default":1},{"id":"stomp","role":"posture break"}
 ],"specialLook":[
 {"id":"pommel","flash":90,"sparks":60,"spread":50,"lift":60,"size":200},{"id":"lunge","flash":100,"sparks":80,"spread":30,"lift":50,"size":170},{"id":"ironrush","flash":200,"sparks":170,"spread":50,"lift":50,"size":320},
 {"id":"shove","flash":130,"sparks":160,"spread":140,"lift":30,"size":400},{"id":"cleave","flash":190,"sparks":260,"spread":100,"lift":160,"size":330},{"id":"stomp","flash":160,"sparks":300,"spread":200,"lift":20,"size":500}
