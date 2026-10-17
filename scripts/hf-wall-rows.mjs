@@ -11,13 +11,13 @@
 // (collect's own cap, inside the deploy ceiling), HF_WALL_ROWS_POLL_S.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { loadavg, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tierLine, withSlot } from './lib/hf-slots.mjs';
 import { costLine, parseJobLog, selectWallRows, splitRows, trustedRows, untrustedReasons, waitBudget } from './lib/hf-wall-rows.mjs';
 import { ledger } from './vps-shadow/launch.mjs';
-import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS } from './lib/row-placement.mjs';
+import { GPU_ONLY, HF_MAC_LOAD_MAX, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS, t4Reason } from './lib/row-placement.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 // launchd's login shell may not have Homebrew on PATH (Release HA: four finished T4 jobs were cancelled as "no hardware" after `hf jobs inspect` failed to run): use the absolute path when it exists.
@@ -42,6 +42,13 @@ function launch(sha, rowsArg, skipArg) {
   const rows = (rowsArg ? rowsArg.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= commands.length)
     : [...new Set([...selectWallRows(commands, script => { try { return readFileSync(join(root, script), 'utf8'); } catch { return ''; } }), ...ON_T4.map(entry => entry.row)])].sort((a, b) => a - b)).filter(n => !skipRows.includes(n) && (rowsArg || GPU_ONLY.includes(n)));   // the release's T4 leg is gpu-only (row-placement.mjs GPU_ONLY); every other row is CI's and the CPU waterfall's
   if (!rows.length) throw new Error('no wall rows to run');
+  // Mac first (Dom 2026-10-17): the release's own selection goes to the T4 only while the Mac is loaded (scripts/lib/hf-routing.json); below that the Mac runs them, one at a time.
+  // The wording is the one deploy-hf.sh already reads as "nothing to launch". An explicit --rows (a benchmark, a test) is the caller's decision.
+  if (!rowsArg) {
+    const load = Number(process.env.HF_WALL_ROWS_MAC_LOAD ?? loadavg()[0]);
+    if (!(load >= HF_MAC_LOAD_MAX)) throw new Error(`no wall rows to run: Mac load ${load.toFixed(1)} < ${HF_MAC_LOAD_MAX}, the Mac runs rows [${rows.join(',')}] (Mac first)`);
+    for (const row of rows) say(t4Reason(row, load));
+  }
   // An explicit --rows (a benchmark, a test) is one job; the release's own selection is split across T4_JOBS parallel jobs, longest rows first.
   const expected = new Map(ON_T4.map(entry => [entry.row, entry.t4_s ?? 60])), groups = rowsArg ? [rows] : splitRows(rows, T4_JOBS, row => expected.get(row) ?? 60);
   const job = readFileSync(join(root, 'scripts', 'hf-wall-rows', 'job.sh'));
