@@ -1,0 +1,7 @@
+{
+  "about": "The biome presets as rows (World, Dom's data-layer rule 2026-10-13; was biomes-data.ts). A zone row names a `biome`; changing a row here changes every zone in it. A row is a partial spec in the nested shape a zone file uses (resolve.ts flattens it through the field registry, schema.ts). drowned-marsh: Zone 4 (donor, mood only: OpenMW's Bitter Coast region, a green-grey swamp under low light; no values taken): a cold green fog close in, a low pale sun, dim sky and damp dark ground, the ground tinted green. The DEFAULT_BIOME is in biomes.ts.",
+  "biomes": {
+    "ash-wastes": { "look": { "weather": { "preset": "dust" }, "ground": { "material": "ash" } }, "sound": { "ambience": "wind", "footsteps": "ash" } },
+    "drowned-marsh": { "look": { "fog": { "colour": "#3f5a4c", "density": 0.03 }, "sun": { "colour": "#b9d6c4", "intensity": 3.4, "pos": [-18, 8, -20] }, "ambient": { "sky": "#7f9c94", "ground": "#27382e", "intensity": 1.05 }, "exposure": 1.15, "ground": { "tint": [0.55, 0.64, 0.5] }, "weather": { "preset": "dust" } }, "sound": { "ambience": "wind", "footsteps": "dirt" } }
+  }
+}

@@ -10,7 +10,7 @@ import { loadZone, zoneIds, zoneProblems, type Zone } from '../origins/zones/loa
 import { zoneFromRow } from '../origins/zones/from-row.ts';
 import { BIOMES, DEFAULT_BIOME } from '../origins/zones/biomes.ts';
 import { resolveSpec } from '../origins/zones/resolve.ts';
-import biomesData from '../origins/zones/biomes-data.ts';
+import biomesData from '../origins/zones/biomes.json' with { type: 'json' };
 
 const rowOf = (id: string) => JSON.parse(readFileSync(`${ROWS_DIR}zone${id}.row.json`, 'utf8')) as Record<string, any>;
 const scratchDir = (tag: string) => mkdtempSync(`${tmpdir()}/newzone-${tag}-`);
@@ -94,8 +94,8 @@ test('zoneFromRow builds exactly what the registry holds, and a row is the zone:
   assert.deepEqual([z.id, z.level, z.name], ['2', 2, 'The Ash Reach']);
 });
 
-test('the biome presets are the literal data file, and the default biome is one of them', () => {
-  assert.equal(BIOMES, biomesData);
+test('the biome presets are the data file, and the default biome is one of them', () => {
+  assert.equal(BIOMES, biomesData.biomes);
   assert.ok(Object.hasOwn(BIOMES, DEFAULT_BIOME));
 });
 

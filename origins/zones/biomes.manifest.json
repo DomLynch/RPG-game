@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "biome", "file": "biomes.json", "at": "biomes", "keyed": true, "key": "id", "required": {} }
+  ]
+}
