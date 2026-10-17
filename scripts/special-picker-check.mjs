@@ -3,26 +3,27 @@
 // (never in both); a second press clears; the summary line says what each slot holds; no control under 44 px, off screen, text clipped or horizontal scroll, at 375 and 320. Stills: <OUT>/pick-*.png.
 // Serves this tree's build (`npx vite build` first). Usage: OUT=<dir> node scripts/special-picker-check.mjs [--engine webkit]; PIT_GL=1 = the browser's own GL (the VPS).
 import fs from 'node:fs/promises';
-import { chromium, webkit } from 'playwright';
+import { chromium, devices, webkit } from 'playwright';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { preview } from 'vite';
-if (!existsSync(new URL('../dist/index.html', import.meta.url))) execFileSync('npx', ['vite', 'build'], { stdio: 'inherit', timeout: 600_000 });   // serves this tree's build, made here when missing
+if (!process.env.BASE_URL && !existsSync(new URL('../dist/index.html', import.meta.url))) execFileSync('npx', ['vite', 'build'], { stdio: 'inherit', timeout: 600_000 });   // serves this tree's build, made here when missing
 
 const out = process.env.OUT || 'artifacts/special-picker'; await fs.mkdir(out, { recursive: true });
 const ENGINE = process.argv.includes('--engine') ? process.argv[process.argv.indexOf('--engine') + 1] : 'chromium';
 const read = async (f) => JSON.parse(await fs.readFile(new URL(`../${f}`, import.meta.url), 'utf8'));
 const CUT = (await read('src/core/career-rules.json')).betaCut[0], NAMES = Object.fromEntries((await read('src/fight/skill-defs.json')).skills.map((s) => [s.id, s.name]));
 const PICK = CUT.specialPick, ROLES = CUT.specialRoles, KEY = 'frankendom.special.slots.v1';
-const server = await preview({ preview: { host: '127.0.0.1', port: 0 } });
-const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+const server = process.env.BASE_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });   // BASE_URL=https://frankendom.com checks the LIVE site (no local build)
+const origin = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/$/, '') : `http://127.0.0.1:${server.httpServer.address().port}`;
 const args = process.env.PIT_GL ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
 const browser = ENGINE === 'webkit' ? await webkit.launch({ headless: true }) : await chromium.launch({ headless: true, executablePath: chromium.executablePath(), args });
 const fails = [], check = (ok, what) => { if (!ok) fails.push(what); };
 async function open(w, h) {
-  const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+  const context = await browser.newContext(ENGINE === 'webkit' ? { ...devices['iPhone 15'], viewport: { width: w, height: h } } : { viewport: { width: w, height: h }, isMobile: true, hasTouch: true });   // WebKit runs as the iPhone 15 profile (touch, Safari UA) at the checked widths
   const page = await context.newPage(); page.setDefaultTimeout(60000);
-  page.on('pageerror', (e) => fails.push(`${w}: ${String(e).slice(0, 160)}`)); await page.route('**/*sentry.io/**', (r) => r.abort());
+  page.on('pageerror', (e) => { if (!/Fetch API cannot load/.test(String(e))) fails.push(`${w}: ${String(e).slice(0, 160)}`); });   // WebKit logs blob fetch errors after any page.reload() on trunk too (not the picker)
+  await page.route('**/*sentry.io/**', (r) => r.abort());
   await page.goto(`${origin}/`);
   await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
   if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true });
@@ -80,6 +81,6 @@ try {
     await context.close();
   }
 } catch (e) { fails.push(`ERROR ${String(e.message).slice(0, 300)}`); }
-finally { await browser.close(); await server.close(); }
+finally { await browser.close(); await server?.close(); }
 console.log(fails.length ? `special-picker-check [${ENGINE}] FAIL\n${fails.join('\n')}` : `special-picker-check [${ENGINE}] PASS`);
 process.exitCode = fails.length ? 1 : 0;
