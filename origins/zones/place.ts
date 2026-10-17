@@ -2,7 +2,7 @@
 // zone, the landmark + road it hangs off an EXISTING zone, its waypoints and its spawn groups; region1 reads every folder's place from the generated registry (applyPlaces) and names no zone itself.
 // Pure data and pure functions: no DOM, no clock; node-safe (the server reads region1 too).
 export type Slot = { u: number; v: number; facing: number };
-export type Join = { zone: string; landmark: string; at: Slot; before?: string; link: string; to: string; here: string; there: string };   // landmark `at` + connection `link` added to the EXISTING zone `zone`; `before` keeps the landmark's key order (the plan walks it)
+export type Join = { zone: string; landmark: string; at: Slot; before?: string; link?: string; to?: string; here?: string; there?: string };   // a join WITHOUT `link` adds only its landmark (a door a zone package brings into an existing zone: the crossing is an exit row, and an unlisted package brings nothing into a normal build)   // landmark `at` + connection `link` added to the EXISTING zone `zone`; `before` keeps the landmark's key order (the plan walks it)
 /** A spawn group's creature: a bare id (weight 1) or `{ id, weight, max? }` (docs/specs/origins/weighted-spawns.md; donor EQEmu spawnentry.chance / spawn_limit, shape only). */
 export type SpawnEntry = string | { id: string; weight: number; max?: number };
 export type SpawnGroup = { id: string; at: string; characters: SpawnEntry[] };
@@ -52,11 +52,11 @@ export function applyZones(base: Zones, places: readonly Place[]): Zones {
     const layout = { ...(parent.layout as Record<string, Slot>) }, entries = Object.entries(layout), cut = j.before ? entries.findIndex(([k]) => k === j.before) : -1;
     if (j.before && cut < 0) throw new Error(`join ${j.landmark}: no landmark ${j.before} in ${j.zone}`);
     const next = cut < 0 ? [...entries, [j.landmark, j.at] as const] : [...entries.slice(0, cut), [j.landmark, j.at] as const, ...entries.slice(cut)];
-    out[j.zone] = { ...parent, layout: Object.fromEntries(next), connections: { ...(parent.connections as object), [j.link]: { to: j.to, kind: 'road', here: j.here, there: j.there } } };
+    out[j.zone] = { ...parent, layout: Object.fromEntries(next), ...(j.link === undefined ? {} : { connections: { ...(parent.connections as object), [j.link]: { to: j.to, kind: 'road', here: j.here, there: j.there } } }) };
   }
   return out;
 }
 export const placedWaypoints = (places: readonly Place[]): string[] => places.flatMap((p) => p.waypoints);
 export const placedSpawns = (places: readonly Place[]): SpawnGroup[] => places.flatMap((p) => p.spawns);
 /** Every name a place introduces: region1's source must contain none of them (tests/zone-place.test.ts). */
-export const placeNames = (p: Place): string[] => [...Object.keys(p.zones), ...p.joins.flatMap((j) => [j.landmark, j.link]), ...p.waypoints, ...p.spawns.map((s) => s.id)];
+export const placeNames = (p: Place): string[] => [...Object.keys(p.zones), ...p.joins.flatMap((j) => j.link === undefined ? [j.landmark] : [j.landmark, j.link]), ...p.waypoints, ...p.spawns.map((s) => s.id)];

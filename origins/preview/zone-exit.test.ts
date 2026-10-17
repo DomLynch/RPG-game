@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frontierPlan } from './frontier-plan.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
-import { EXITS, exitSpots, loadExits } from '../zones/exits.ts';
+import { openExits, exitSpots, loadExits } from '../zones/exits.ts';
+const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
 import { loadZone, zoneIds } from '../zones/loader.ts';
 import { warpPlace } from '../presence/warps.ts';
 import { CENTRE_CM, ZONE_ROWS, walkable, zoneAt } from '../presence/zones.ts';
