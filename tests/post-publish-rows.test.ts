@@ -276,20 +276,26 @@ const ciRows = (env: Record<string, string>) => spawnSync('bash', ['-c', `source
   encoding: 'utf8', env: { ...process.env, ROWS: '9,46,3,15', POST_PUBLISH_CI_SETTLE_S: '0', ...env },
 });
 
+// The trust and dispatch commands are word-split (no quote parsing), so a test stands them in with small scripts.
+const stub = (root: string, name: string, body: string) => { const file = join(root, name); writeFileSync(file, `#!/bin/bash\n${body}\n`, { mode: 0o755 }); return file; };
+
 test('post_publish_ci_rows: rows already green on CI for the tree never reach the Mac and nothing is dispatched', () => {
-  const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: 'echo 9,46,3,15', POST_PUBLISH_DISPATCH: 'echo DISPATCHED' });
-  assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, '');
-  assert.ok(!/DISPATCHED/.test(r.stderr));
-  assert.match(r.stderr, /CI-trusted 3,9,15,46, Mac none/);
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
+  try {
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3,15'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '');
+    assert.ok(!/DISPATCHED/.test(r.stderr));
+    assert.match(r.stderr, /CI-trusted 3,9,15,46, Mac none/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('post_publish_ci_rows: rows CI has not proved start one release-checks dispatch on the trunk ref, then only the still-unproved rows are left for the Mac', () => {
   const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
   try {
     // first look trusts 9,46; after the dispatch CI also proved 3 (15 stays red/missing)
-    const trust = `bash -c 'n=$(cat ${calls}.n 2>/dev/null || echo 0); echo $((n+1)) > ${calls}.n; if [ $n = 0 ]; then echo 9,46; else echo 9,46,3; fi' --`;
-    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: `bash -c 'echo "$@" >> ${calls}' --`, POST_PUBLISH_CI_REF: 'trunk-ref' });
+    const trust = stub(root, 'trust.sh', `n=$(cat ${calls}.n 2>/dev/null || echo 0); echo $((n+1)) > ${calls}.n; if [ $n = 0 ]; then echo 9,46; else echo 9,46,3; fi`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: `${stub(root, 'dispatch.sh', `echo "$@" >> ${calls}`)} --ref trunk-ref`, POST_PUBLISH_CI_REF: 'trunk-ref' });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout, '15');
     assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 1, 'exactly one dispatch');
@@ -299,12 +305,15 @@ test('post_publish_ci_rows: rows CI has not proved start one release-checks disp
 });
 
 test('post_publish_ci_rows: a failed dispatch or POST_PUBLISH_CI=off leaves every row for the Mac, as before', () => {
-  const down = ciRows({ POST_PUBLISH_TRUSTED_CMD: 'echo', POST_PUBLISH_DISPATCH: 'false' });
-  assert.equal(down.stdout, '3,9,15,46');
-  assert.match(down.stderr, /dispatch failed/);
-  const off = ciRows({ POST_PUBLISH_CI: 'off', POST_PUBLISH_DISPATCH: 'echo DISPATCHED' });
-  assert.equal(off.stdout, '9,46,3,15');
-  assert.ok(!/DISPATCHED/.test(off.stderr));
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
+  try {
+    const down = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: 'false' });
+    assert.equal(down.stdout, '3,9,15,46');
+    assert.match(down.stderr, /dispatch failed/);
+    const off = ciRows({ POST_PUBLISH_CI: 'off', POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
+    assert.equal(off.stdout, '9,46,3,15');
+    assert.ok(!/DISPATCHED/.test(off.stderr));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('deploy.sh: the non-Mac post-publish group is narrowed by post_publish_ci_rows before the Mac group runs; no workflow file is part of it', () => {
