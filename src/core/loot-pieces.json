@@ -17,5 +17,8 @@
     {"id": "knight", "slots": ["Helmet"], "opponent": "knight"},
     {"id": "executioner", "slots": ["Greaves", "Boots"], "opponent": "executioner"},
     {"id": "pitborn.Recruit", "opponent": "pitborn", "tier": "Recruit", "slots": ["Helmet"]}
+  ],
+  "lootStarter": [
+    {"id": "starter", "slots": ["Longsword"], "name": "The starter", "note": "The rusty sword a new player finds on the ground (item:starter.rusty-sword). Not a roster opponent's piece, so it is never offered or dropped (LOOT does not list it); valid under isLootId like a retired piece. The slot decides the weapon, so it fights as the default longsword with identical numbers."}
   ]
 }
