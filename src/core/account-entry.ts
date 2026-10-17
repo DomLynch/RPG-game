@@ -2,6 +2,7 @@
 import { api } from '../api.ts';
 import { autoReload } from '../chunk-recover.ts';
 import { rememberZone1 } from '../zone1-hop.ts';
+import { CLIENT } from './client-rules.ts';
 // main.ts hides the welcome card whenever a fight is on screen (paused() reads !welcome.hidden): only with the card up may a stale chunk reload the page by itself.
 const fightOn = () => document.getElementById('welcome')?.hidden === true;
 const safeStorage = () => { try { return sessionStorage; } catch { return null; } };
@@ -34,7 +35,7 @@ if (api) {
   // A device that has signed in before mounts the account once the page is idle, so its wins are claimed (loot-claims.ts) and the
   // rank shows the server's marks without a journal visit. A guest has no stored session and still never loads the SDK.
   else if ((() => { try { return !!localStorage.getItem('frankendom.auth.v1'); } catch { return false; } })()) {
-    if ('requestIdleCallback' in window) requestIdleCallback(() => { void start(); }, { timeout: 5000 });
-    else setTimeout(() => { void start(); }, 2000);
+    if ('requestIdleCallback' in window) requestIdleCallback(() => { void start(); }, { timeout: CLIENT.accountIdleMs });
+    else setTimeout(() => { void start(); }, CLIENT.accountFallbackMs);
   }
 }
