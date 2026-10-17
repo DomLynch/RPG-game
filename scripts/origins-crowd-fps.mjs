@@ -36,6 +36,8 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     res.software = soft || /swiftshader|llvmpipe|software/i.test(res.renderer);
     if (throttle > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
     if (process.env.DRESS && !(await page.evaluate(() => typeof window.originsPreview.dressRemote === 'function'))) throw new Error('DRESS=1: this build has no originsPreview.dressRemote (#2926 dress-remote.ts is merged but not wired into main.ts yet)');   // the dressed case, once wired: call dressRemote(id, worn) per figure here, before programs0
+    // A fixed CPU workload timed in this page under this throttle (best of 5): how fast THIS job's host is. Frame time divided by it compares builds across jobs; a build change moves the frames, a host change moves both.
+    res.calibMs = +Math.min(...(await page.evaluate(() => Array.from({ length: 5 }, () => { const t = performance.now(); let s = 0; for (let i = 0; i < 4e6; i++) s += Math.sqrt(i) * Math.sin(i); return performance.now() - t + (s > 1e99 ? 1 : 0); })))).toFixed(1);
     const programs0 = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     // The crowd stands in the camera's view: find which way the hero walks (hold W 400 ms), then lay N figures in a cone 4-14 m ahead on ground the engine says is standable.
     const a0 = await page.evaluate(() => ({ x: window.originsPreview.pos.x, z: window.originsPreview.pos.z }));
