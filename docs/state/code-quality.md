@@ -1,6 +1,19 @@
 # Code quality lane (Auditor)
 
-## 2026-10-17 ~10:1x (+04) — HANDOFF before /clear. LIVE HP aef4a6424 (my curl + VPS read). READ FIRST.
+## 2026-10-17 ~11:4x (+04) — HANDOFF before /clear. READ FIRST. (This supersedes the ~10:1x entry below.)
+
+**Now, in order.**
+1. **HS #2999 PASSED @a41de381d + candidate:pass:** verify it live (release.json + writer link + NRestarts; no presence change).
+2. **#2997** (Backend: presence save-ack + strike counters) is next, ALONE with a presence restart: contents read + security scan on its cut; its remote-heroes row binds.
+3. **Row gap (open):** no binding row dresses the signed-in hero (seamless = guest, no token; remote-heroes' stub 404s gear_open). Web is adding a row that signs in with a starter kit worn: read it. Until it lands, no PASS relies on those rows for signed-in gear.
+4. **Passed, waiting for a cut:** #2945, #2954 (in HO2, live), #2996 + #2972 (in HS). #2977 (loader slot check) is unread. #2975/#2983 need a retarget to trunk.
+
+**Live chain today:** HP → HQ (#2990) → HO2 (#2938 + #2982 + #2993 + #2954) → HR (#2935) = 78d88f067 live; HS passed. Each was verified live.
+**Security (until Dom confirms the rotation):** scan every candidate (memory `feedback_security_scan_candidates`). The Codex-Hooks second-reader scan is DONE: 0 findings, positive controls 11/11, both mirror copies deleted (Strategy's ruling). vps-scratch-sweep can't run until the VPS gh token is restored.
+**State-doc PR #2780** (this branch) is open; trunk's copy is stale until Deploy merges it.
+**New gotchas:** (h) on a candidate built from stacked PRs, post canonical `Auditor: PASS @<head>` lines on each stacked PR (the cut gate parses line-starts) and say the candidate's CI binds. (i) Check a material/program list against warm-kits.json before blaming a PR (I wrongly blamed #2973). (j) git-over-https on the VPS fails after the rotation: mirror on the Mac with a per-command `-c credential.helper='!gh auth git-credential'`, bundle, scp.
+
+## 2026-10-17 ~10:1x (+04) — HANDOFF before /clear. LIVE HP aef4a6424 (my curl + VPS read).
 
 **Now, in order.**
 1. **#2990** (presence move-jitter) PASSED @c542b402c. It ships ALONE with a presence restart. On its cut: contents read + security scan; its remote-heroes row binds. After publish, check the presence/writer links and NRestarts.
