@@ -12,7 +12,7 @@ test('with no specialLook row a landed special throws nothing (trunk is unchange
 });
 
 test('a row makes the landing throw the kit, shaped by the row, in the skill\'s own tint', () => {
-  rows.push({ id: 'stomp', flash: 150, sparks: 300, spread: 200, lift: 20 }, { id: 'pommel', flash: 70, sparks: 60, spread: 50, lift: 60 });
+  rows.push({ id: 'stomp', flash: 150, sparks: 300, spread: 200, lift: 20, size: 500 }, { id: 'pommel', flash: 70, sparks: 60, spread: 50, lift: 60, size: 200 });
   const stomp = impactOf(landed('skill_stomp')), pommel = impactOf(landed('skill_pommel'));
   assert.ok(stomp && pommel);
   assert.equal(stomp.look?.sparks, 300); assert.equal(pommel.look?.sparks, 60);

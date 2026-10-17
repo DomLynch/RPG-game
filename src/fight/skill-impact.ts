@@ -37,6 +37,7 @@ export function impactPoint(event: CombatEvent, fighters: readonly Pick<Fighter,
 
 export function createSkillImpact(scene: THREE.Scene) {
   const pool = 48, positions = new Float32Array(pool * 3), colors = new Float32Array(pool * 3), sizes = new Float32Array(pool);
+  const bulk = new Float32Array(pool).fill(1);   // per-particle size multiplier (a special's specialLook size row; 1 = the kit as it was)
   const life = new Float32Array(pool), span = new Float32Array(pool), velocity = new Float32Array(pool * 3), flash = new Uint8Array(pool), power = new Float32Array(pool), tint = new Float32Array(pool * 3);
   const n = 32, pixels = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const u = (x - (n - 1) / 2) / ((n - 1) / 2), v = (y - (n - 1) / 2) / ((n - 1) / 2); pixels.set([255, 255, 255, 255 * Math.max(0, 1 - Math.hypot(u, v)) ** 1.5], (y * n + x) * 4); }
@@ -68,7 +69,7 @@ export function createSkillImpact(scene: THREE.Scene) {
           // A fan off the struck side, back toward the attacker and up (the chase camera sits behind him): a jet straight through the
           // victim would hide behind his own body, as the clash sparks found.
           const p = cursor++ % pool, a = away + Math.PI + (random() - 0.5) * 2.2 * k100(look?.spread), speed = (1.2 + random() * 2.6) * (0.7 + hit.strength * 0.3);
-          born(p, IMPACT.life * (0.5 + random() * 0.5), false);
+          born(p, IMPACT.life * (0.5 + random() * 0.5), false); bulk[p] = k100(look?.size);
           velocity.set([Math.sin(a) * speed, (0.6 + random() * 2.2) * k100(look?.lift), Math.cos(a) * speed], p * 3);
         }
       }
@@ -93,7 +94,7 @@ export function createSkillImpact(scene: THREE.Scene) {
           if (positions[p * 3 + 1] < 0.01) { positions[p * 3 + 1] = 0.01; velocity[p * 3 + 1] = 0; velocity[p * 3] *= 0.5; velocity[p * 3 + 2] *= 0.5; }   // dust settles on the sand
           // A spark cools from the tint toward sand-grey dust as it falls.
           for (let c = 0; c < 3; c++) colors[p * 3 + c] = (tint[p * 3 + c] * heat + 0.45 * (1 - heat)) * heat;
-          sizes[p] = 0.6 + heat * 0.9;
+          sizes[p] = (0.6 + heat * 0.9) * bulk[p]!;
         }
       }
       if (active || points.visible) for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;
