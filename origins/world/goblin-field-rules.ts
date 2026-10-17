@@ -90,7 +90,7 @@ export const zoneFightBackPortrait = (z: ZoneLookFields): number => { const v = 
 export const zoneCombatCams = (z: ZoneLookFields): Readonly<Record<string, CombatCam>> => {
   const v = zoneSet(z, 'camera.combat'); if (!v || typeof v !== 'object') return {};
   const ok = (f: unknown) => !!f && typeof f === 'object' && typeof (f as CombatFraming).back === 'number' && typeof (f as CombatFraming).up === 'number';
-  return Object.fromEntries(Object.entries(v as Record<string, CombatCam>).filter(([, c]) => c && typeof c.label === 'string' && ok(c.portrait) && ok(c.landscape)));
+  return Object.fromEntries(Object.entries(v as Record<string, CombatCam>).filter(([, c]) => c && typeof c.label === 'string' && ok(c.portrait) && ok(c.landscape) && c.ease && c.ease.in > 0 && c.ease.out > 0));
 };
 export const zoneCombatPreset = (z: ZoneLookFields): string => { const v = zoneSet(z, 'camera.combatPreset'); return typeof v === 'string' ? v : ''; };
 /** The ambience row a zone asks for (`sound.ambience`); an id with no row stays silent. */

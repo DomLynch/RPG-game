@@ -352,7 +352,7 @@ function step(dt: number) {
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
   const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : 1.8 } : null;   // in a fight with the locked creature
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1 } : undefined);
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1, flip: shoulder } : undefined);
   applyCombatView();
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
@@ -397,7 +397,8 @@ const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim:
 // `?combatcam=1|2|3` picks one of the zone's framings for this page (the three previews), else the zone's `camera.combatPreset`; none = the camera is the same walking or fighting, as before.
 const COMBAT_CAMS = zoneCombatCams(zoneRow ?? loadZone());
 let combatId = /[?&]combatcam=(\w+)/.exec(location.search)?.[1] ?? zoneCombatPreset(zoneRow ?? loadZone()), combatCam: CombatCam | undefined = COMBAT_CAMS[combatId];
-const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0;
+const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1', SHOULDER_KEY = 'origins-preview.shoulder.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0, shoulder = 1;   // shoulder: 1 = the framing's own side, -1 = mirrored; a setting on this device, never switched by the camera (a flip mid-fight moves the foe under the thumb)
+try { shoulder = localStorage.getItem(SHOULDER_KEY) === 'left' ? -1 : 1; } catch { /* storage blocked: the framing's own side */ }
 try { const saved = Number(localStorage.getItem(FIGHT_ZOOM_KEY)); if (combatCam?.zoom && Number.isInteger(saved) && saved >= 0 && saved < combatCam.zoom.steps.length && localStorage.getItem(FIGHT_ZOOM_KEY) !== null) fightZoom = saved; } catch { /* storage blocked: the framing's own start */ }
 const foeSizes = new Map<string, number>();
 const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
@@ -539,6 +540,12 @@ if (frontier) {
       const paintZoom = () => { z.textContent = `Fight zoom: ${combatCam!.zoom!.labels[fightZoom]}`; };
       z.addEventListener('click', () => { fightZoom = (fightZoom + 1) % combatCam!.zoom!.steps.length; try { localStorage.setItem(FIGHT_ZOOM_KEY, String(fightZoom)); } catch { /* storage blocked */ } paintZoom(); });
       paintZoom(); chips.append(z);
+    }
+    if (combatCam && chips && (combatCam.portrait.side || combatCam.landscape.side)) {   // a combat camera with a shoulder (Claudecraft's action cam): which shoulder is the player's setting, saved on this device
+      const sh = document.createElement('button'); sh.id = 'menu-shoulder';
+      const paintShoulder = () => { sh.textContent = `Shoulder: ${shoulder > 0 ? 'Right' : 'Left'}`; };
+      sh.addEventListener('click', () => { shoulder = -shoulder; try { localStorage.setItem(SHOULDER_KEY, shoulder < 0 ? 'left' : 'right'); } catch { /* storage blocked */ } paintShoulder(); });
+      paintShoulder(); chips.append(sh);
     }
   }).catch((error) => console.warn('the Pit controls did not load; the two sticks stay', error));
 }

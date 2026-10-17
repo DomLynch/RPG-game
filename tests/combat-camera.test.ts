@@ -6,7 +6,7 @@ import { createFollowCamera, type CombatCam } from '../src/fight/follow-camera.t
 
 const S = { x: 0, z: 0, heading: 0, pitch: 0, groundY: 0 };
 const CAM: CombatCam = {
-  label: 'test',
+  label: 'test', ease: { in: 3, out: 1.8 },
   portrait: { back: 8, up: 4, side: 0, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.5, perSize: 1, sizeFrom: 1.8, shiftY: 0.1, fov: 4, zoom: 0.9 },   // further back and higher than the default walking camera (5.2 / 2.7)
   landscape: { back: 7, up: 3.5, side: 0, ahead: 2, lookY: 1, mid: 0.5, zoom: 0.8 },
 };
@@ -41,12 +41,42 @@ test('the player zoom step scales the combat framing (Near < Mid < Far)', () => 
   assert.ok(at(1.6) < at(1) && at(1) < at(0.8), 'a bigger step stands further back (more negative z)');
 });
 
-test('the Test Zone offers three combat cameras as data, each complete; the real zones offer none', async () => {
+test('the fit may not change faster than fitRate: a lunging foe does not pump the camera', () => {
+  const cam: CombatCam = { ...CAM, portrait: { ...CAM.portrait, fitRate: 1, mid: 0, perSep: 1, perSize: 0, zoom: 1 }, landscape: CAM.landscape };
+  const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 3, { cam, portrait: true, foe: { x: 0, z: 2, size: 1.8 } });
+  const before = c.position.z; f.update(1 / 60, S, { cam, portrait: true, foe: { x: 0, z: 12, size: 1.8 } });   // the foe jumps 10 m away in one frame
+  assert.ok(Math.abs(c.position.z - before) < 0.2, `the camera did not jump: ${before} -> ${c.position.z}`);
+  run(f, 12, { cam, portrait: true, foe: { x: 0, z: 12, size: 1.8 } }); assert.ok(c.position.z < before - 5, 'and it does follow once given time');
+});
+
+test('minBack and maxBack: never closer than the floor; past the cap the camera rises instead of coming in', () => {
+  const cam = (back: number, extra: object): CombatCam => ({ ...CAM, portrait: { ...CAM.portrait, back, mid: 0, perSep: 0, perSize: 0, zoom: 1, ...extra }, landscape: CAM.landscape });
+  const at = (cm: CombatCam) => { const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 6, { cam: cm, portrait: true, foe: { x: 0, z: 3, size: 1.8 } }); return { z: c.position.z, y: c.position.y }; };
+  const floored = at(cam(2, { minBack: 4 })), free = at(cam(2, {})); assert.ok(floored.z < free.z - 1.5 && Math.abs(floored.z + 4) < 0.05, `floor holds the camera at 4 m back: ${floored.z}`);
+  const capped = at(cam(20, { maxBack: 9 })), uncapped = at(cam(20, {})); assert.ok(Math.abs(capped.z + 9) < 0.05 && capped.y > uncapped.y - 6 && capped.y > at(cam(9, {})).y, 'the cap holds the distance and gives the lost metres to height');
+});
+
+test('the exit eases slower than the entry, so a kill does not snap the view', () => {
+  const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 0.5, { cam: CAM, portrait: false, foe: { x: 0, z: 3, size: 1.8 } }); const enteredIn = f.fighting();
+  run(f, 4, { cam: CAM, portrait: false, foe: { x: 0, z: 3, size: 1.8 } }); run(f, 0.5, { cam: CAM, portrait: false, foe: null }); const leftIn = 1 - f.fighting();
+  assert.ok(enteredIn > leftIn + 0.1, `half a second in goes further (${enteredIn.toFixed(2)}) than half a second out (${leftIn.toFixed(2)})`);
+});
+
+test('the shoulder is mirrored by the setting, never by the camera', () => {
+  const cam: CombatCam = { ...CAM, portrait: { ...CAM.portrait, side: 0.9, mid: 0 }, landscape: CAM.landscape };
+  const at = (flip?: number) => { const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 6, { cam, portrait: true, foe: { x: 0, z: 3, size: 1.8 }, ...(flip ? { flip } : {}) }); return c.position.x; };
+  assert.ok(at() > 0.5 && Math.abs(at(-1) + at()) < 1e-6, 'a mirror image about the hero');
+});
+
+test('the Test Zone offers four combat cameras as data, each complete; the real zones offer none', async () => {
   process.env.VITE_UNLISTED_ZONES = '1'; (globalThis as { location?: unknown }).location = { pathname: '/zone/90/', search: '' };   // the sandbox page, as tests/test-zone.test.ts opens it
   try {
     const { loadZone } = await import('../origins/zones/loader.ts'), { zoneCombatCams, zoneCombatPreset } = await import('../origins/world/goblin-field-rules.ts');
     const zone = loadZone('90'), cams = zoneCombatCams(zone);
-    assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3'], 'three options'); assert.equal(zoneCombatPreset(zone), '', 'none in use until Dom picks one');
+    assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3', '4'], 'four options (1 stance, 2 auto-fit, 3 player zoom, 4 auto-fit plus the zoom chip)');
+    assert.ok(Object.values(cams).every((c) => c.ease.out < c.ease.in), 'every exit is slower than its entry');
+    for (const id of ['2', '4']) for (const shape of [cams[id]!.portrait, cams[id]!.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && shape.shiftY! > 0, `${id}: the auto-fit has its speed limit, floor, cap and a lift in both orientations`);
+    assert.ok(cams['4']!.zoom && !cams['4']!.portrait.side && !cams['4']!.landscape.side, 'option 4 is option 2 with the zoom chip and no shoulder'); assert.equal(zoneCombatPreset(zone), '', 'none in use until Dom picks one');
     for (const [id, cam] of Object.entries(cams)) for (const shape of [cam.portrait, cam.landscape]) assert.ok(shape.back > 0 && shape.up > 0 && (shape.shiftY ?? 0) >= 0 && (shape.shiftY ?? 0) < 0.4, `${id}: a framing that is a camera`);
     assert.ok(cams['3']!.zoom && cams['3']!.zoom.steps.length === cams['3']!.zoom.labels.length && cams['3']!.zoom.start < cams['3']!.zoom.steps.length, 'option 3 is the one with a player zoom');
     for (const id of ['1', '2', '3', '4']) assert.deepEqual(zoneCombatCams(loadZone(id)), {}, `zone ${id} has no combat camera`);
