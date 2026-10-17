@@ -21,5 +21,5 @@ test('the loader accepts the rows and refuses a duplicate id and a missing field
   const tables = (d: unknown) => MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, d as never, 'coach-defs.json'));
   loadRegistry(tables(DEFS));
   assert.throws(() => loadRegistry(tables({ ...DEFS, coachFoe: [...DEFS.coachFoe, DEFS.coachFoe[0]] })));
-  assert.throws(() => loadRegistry(tables({ ...DEFS, coachStance: [{ id: 'neutral', brain: {} }] })));
+  assert.throws(() => loadRegistry(tables({ ...DEFS, coachStance: [{ id: 'coach-neutral', stance: 'neutral', brain: {} }] })));
 });

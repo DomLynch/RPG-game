@@ -1,9 +1,9 @@
 {
   "coachStance": [
-    { "id": "neutral",    "lapseScale": 1,    "brain": { "lapse": 0.5, "read": 0.5 } },
-    { "id": "aggressive", "lapseScale": 1.8,  "brain": { "aggression": 0.9, "parry": 0.2, "lapse": 0.6, "read": 0.45 } },
-    { "id": "defensive",  "lapseScale": 0.35, "brain": { "parry": 0.7, "dodge": 0.1, "aggression": 0.35, "guard": 1, "lapse": 0.4, "read": 0.6 } },
-    { "id": "trickster",  "lapseScale": 0.8,  "brain": { "feint": 0.5, "kick": 0.6, "aggression": 0.7, "parry": 0.2, "lapse": 0.5, "read": 0.5 } }
+    { "id": "coach-neutral",    "stance": "neutral",    "lapseScale": 1,    "brain": { "lapse": 0.5, "read": 0.5 } },
+    { "id": "coach-aggressive", "stance": "aggressive", "lapseScale": 1.8,  "brain": { "aggression": 0.9, "parry": 0.2, "lapse": 0.6, "read": 0.45 } },
+    { "id": "coach-defensive",  "stance": "defensive",  "lapseScale": 0.35, "brain": { "parry": 0.7, "dodge": 0.1, "aggression": 0.35, "guard": 1, "lapse": 0.4, "read": 0.6 } },
+    { "id": "coach-trickster",  "stance": "trickster",  "lapseScale": 0.8,  "brain": { "feint": 0.5, "kick": 0.6, "aggression": 0.7, "parry": 0.2, "lapse": 0.5, "read": 0.5 } }
   ],
   "coachFoe": [
     { "id": "goblin", "lapse": 0.15 },

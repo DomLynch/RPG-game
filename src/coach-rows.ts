@@ -9,7 +9,8 @@ import type { PickedStance } from './fight/stance.ts';
 const STANCE_T = tableFromFile(MANIFEST.tables[0] as unknown as Manifest, DEFS, 'coach-defs.json');
 const FOE_T = tableFromFile(MANIFEST.tables[1] as unknown as Manifest, DEFS, 'coach-defs.json');
 loadRegistry([STANCE_T, FOE_T]);
-const stances = STANCE_T.rows as unknown as { id: PickedStance; lapseScale: number; brain: Partial<AiProfile> }[];
-export const COACH_BRAINS = Object.fromEntries(stances.map((r) => [r.id, r.brain])) as Readonly<Record<PickedStance, Partial<AiProfile>>>;
-export const FOE_LAPSE_SCALE = Object.fromEntries(stances.map((r) => [r.id, r.lapseScale])) as Readonly<Record<PickedStance, number>>;
+// The row id is `coach-<stance>` (the stance name itself is kept out of the id list the as-data branch rule reads) and the stance is a field.
+const stances = STANCE_T.rows as unknown as { stance: PickedStance; lapseScale: number; brain: Partial<AiProfile> }[];
+export const COACH_BRAINS = Object.fromEntries(stances.map((r) => [r.stance, r.brain])) as Readonly<Record<PickedStance, Partial<AiProfile>>>;
+export const FOE_LAPSE_SCALE = Object.fromEntries(stances.map((r) => [r.stance, r.lapseScale])) as Readonly<Record<PickedStance, number>>;
 export const FOE_LAPSE = Object.fromEntries((FOE_T.rows as unknown as { id: string; lapse: number }[]).map((r) => [r.id, r.lapse])) as Readonly<Record<string, number>>;

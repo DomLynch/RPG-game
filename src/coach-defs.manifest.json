@@ -1,7 +1,7 @@
 {
   "tables": [
     { "table": "coachStance", "file": "coach-defs.json", "at": "coachStance", "key": "id",
-      "required": { "lapseScale": "number", "brain": "object" } },
+      "required": { "stance": "string", "lapseScale": "number", "brain": "object" } },
     { "table": "coachFoe", "file": "coach-defs.json", "at": "coachFoe", "key": "id",
       "required": { "lapse": "number" } }
   ]
