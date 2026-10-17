@@ -321,7 +321,15 @@ if test -s /etc/frankendom/verifier.env; then
   echo "daily verifier timer armed on $1"
   # The loot sweep reads loot_claims (migration 202609230001): arm it only once that table exists, so a publish before the apply is harmless.
   db=$(sed -n 's/^DATABASE_URL=//p' /etc/frankendom/verifier.env | head -n 1 | sed 's/^"\(.*\)"$/\1/')
-  if ! loot=$(psql "$db" -tAc "select to_regclass('public.loot_claims') is not null" 2>&1); then
+  # No secret in argv (Lead 2026-10-17): the URL becomes a mode-600 libpq service file, as ops/db-backup.sh does, and psql reads it by PGSERVICEFILE.
+  svc=$(mktemp) && chmod 600 "$svc"
+  python3 -c 'import sys, urllib.parse as u
+r = u.urlparse(sys.stdin.read().strip()); q = dict(u.parse_qsl(r.query))
+v = {"host": r.hostname, "port": r.port, "dbname": (r.path or "/")[1:] or None, "user": u.unquote(r.username) if r.username else None, "password": u.unquote(r.password) if r.password else None, **q}
+print("[fk]"); [print(f"{k}={x}") for k, x in v.items() if x is not None]' <<<"$db" >"$svc"
+  loot_ok=0; loot=$(PGSERVICEFILE="$svc" PGSERVICE=fk psql -tAc "select to_regclass('public.loot_claims') is not null" 2>&1) && loot_ok=1
+  rm -f "$svc"
+  if test "$loot_ok" = 0; then
     echo "loot verifier shipped to $1; loot_claims check failed, timer not armed: $(printf '%s' "$loot" | head -n 1 | cut -c1-200)"
   elif test "$loot" = t; then
     systemctl enable --now --quiet frankendom-verify-loot.timer

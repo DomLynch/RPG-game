@@ -44,10 +44,6 @@
  "src/fight/armfeel.ts": {
   "FLINCH_GAIN": 1
  },
- "src/fight/body-tables.ts": {
-  "BODYTYPES": 1,
-  "SPECIES": 1
- },
  "src/fight/camera.ts": {
   "FRAMING_TALL": 1,
   "SETTLE": 1,
