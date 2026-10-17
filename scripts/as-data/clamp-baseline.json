@@ -1,11 +1,4 @@
 {
- "src/core/career-client.ts": {
-  "50": 1
- },
- "src/core/career-model.ts": {
-  "5": 1,
-  "10": 1
- },
  "src/fight/cc-ladder.ts": {
   "10": 1
  },

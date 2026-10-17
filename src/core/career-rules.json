@@ -7,7 +7,10 @@
       "heatUnitSeconds": 360,
       "freeRepeats": 3,
       "restedPerDayCp": 1500,
-      "restedCapCp": 3000
+      "restedCapCp": 3000,
+      "partyGapFloor": 5,
+      "topTier": 10,
+      "boardMax": 50
     }
   ],
   "typeWeight": [

@@ -11,7 +11,10 @@
         "heatUnitSeconds": "integer",
         "freeRepeats": "integer",
         "restedPerDayCp": "integer",
-        "restedCapCp": "integer"
+        "restedCapCp": "integer",
+        "partyGapFloor": "integer",
+        "topTier": "integer",
+        "boardMax": "integer"
       }
     },
     {
