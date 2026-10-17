@@ -398,7 +398,8 @@ test('a won claim that casts a spell: unowned, inflated skill, unknown build, no
   const build = async (character: string, version: number) => (character === 'pc:one' && version === 1 ? stored : null);
   const load = (held: { grimoire: Record<string, unknown>; xp: Record<string, number> }, b = async (_a: string, c: string, v: number) => (c === 'pc:one' && v === 1 ? stored : null)) => ({ held: async () => held, build: b });
   const owns = { grimoire: { alvis: {} }, xp: { wind: 500 } };
-  const gate = (row: Awaited<ReturnType<typeof make>>, spellLoad?: ReturnType<typeof load>) => refusal(row, FRESH, { build, ...(spellLoad ? { spellLoad } : {}) });
+  // the beta's spellsOff keeps the spell path inert (the code and rows stay): these cases test that path, so they run with the cut lifted; the cut itself is tested in tests/specials-cut.test.ts
+  const gate = (row: Awaited<ReturnType<typeof make>>, spellLoad?: ReturnType<typeof load>) => refusal(row, FRESH, { build, cut: { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 }, ...(spellLoad ? { spellLoad } : {}) });
   assert.match(String(await gate(await make({ id: 'alvis', skill: 6 }), load(owns))), /casts at 6, past the 5/);
   assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load({ grimoire: {}, xp: owns.xp }))), /not in this account's grimoire/);
   assert.match(String(await gate(await make({ id: 'alvis', skill: 5 }), load(owns, async () => null))), /stored build is unknown/);
