@@ -31,7 +31,7 @@ function tree() {
   ];
   const run = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', join(dir, 'src'), ...args, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
   const report = (r: ReturnType<typeof run>) => JSON.parse(r.stdout.split('\n').filter((l) => l.startsWith('{')).pop()!) as Report;
-  return { dir, file, run, report };
+  return { dir, file, run, report, allowFile: join(dir, 'allow.json'), key };
 }
 
 test('(j) lists a compare or a case against a row id (not another string, not a non-compare); a tree at its baseline is green under --gate', () => {
@@ -42,6 +42,25 @@ test('(j) lists a compare or a case against a row id (not another string, not a 
     const rep = t.report(r);
     assert.deepEqual(rep.branchIdSites.map((s) => [s.line, s.text]), [[1, "'gale'"], [2, "'loki'"], [4, "'gale'"]]);
     assert.deepEqual(rep.newBranchIdSites, []);
+  } finally { rmSync(t.dir, { recursive: true, force: true }); }
+});
+
+test('a named allow (allow branchIds: file + literal + reason, e.g. a category branch) is listed apart and not counted; one whose branch is gone is stale (exit 3); a short reason is refused (exit 2)', () => {
+  const t = tree();
+  try {
+    const allow = (entries: unknown[]) => writeFileSync(t.allowFile, JSON.stringify({ allow: [], branchIds: entries }));
+    allow([{ file: t.key, literal: 'loki', reason: 'category branch (Lead ruling): a mechanism state, not content' }]);
+    const r = t.run();
+    assert.equal(r.status, 3, 'the baseline still counts loki while the allow removes it: stale, lower it');
+    const rep = t.report(r) as unknown as { branchIdSites: Site[]; allowedBranchIds: Site[]; staleBranchAllow: unknown[] };
+    assert.deepEqual(rep.branchIdSites.map((s) => s.text), ["'gale'", "'gale'"]);
+    assert.deepEqual(rep.allowedBranchIds.map((s) => s.text), ["'loki'"]);
+    allow([{ file: t.key, literal: 'zz', reason: 'a branch that is not there any more' }]);
+    const stale = t.run();
+    assert.equal(stale.status, 3);
+    assert.equal((t.report(stale) as unknown as { staleBranchAllow: unknown[] }).staleBranchAllow.length, 1);
+    allow([{ file: t.key, literal: 'loki', reason: 'short' }]);
+    assert.equal(t.run().status, 2);
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
 });
 
