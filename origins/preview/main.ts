@@ -80,6 +80,7 @@ import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
 import { fxNum } from '../../src/fight/fx-rows.ts';
+import { createViewmodel } from './first-person-weapon.ts';
 import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
@@ -372,8 +373,9 @@ function step(dt: number) {
   if (foeNow && !wasInFight && combatCam) worldToast(`Combat camera ${combatId} on: ${combatCam.label.split(':')[0]}`);   // so a tester can see which camera a fight is using
   wasInFight = !!foeNow;
   warriors?.player.anchor.getObjectByName('Head')?.scale.setScalar(firstPerson ? 0.001 : 1);   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it; the body, arms and weapon stay in view
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV } } : {}) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1, flip: shoulder } : undefined);
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), down: fxNum('fp.look-down'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV, bobAmp: headBob ? fxNum('fp.bob-amp') : 0, bobStep: fxNum('fp.bob-step'), bobSpeedCap: fxNum('fp.bob-speed-cap') } } : {}) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1, flip: shoulder } : undefined);
   applyCombatView();
+  fpWeapon.update(warriors?.player.anchor, firstPerson, new THREE.Matrix4().compose(camera.position, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading), new THREE.Vector3(1, 1, 1)), { x: fxNum('fp.weapon-x'), y: fxNum('fp.weapon-y'), z: fxNum('fp.weapon-z') });   // first person: the sword comes into view (first-person-weapon.ts)
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -417,6 +419,8 @@ const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim:
 // `?combatcam=1|2|3` picks one of the zone's framings for this page (the three previews), else the zone's `camera.combatPreset`; none = the camera is the same walking or fighting, as before.
 const COMBAT_CAMS = zoneCombatCams(zoneRow ?? loadZone());
 let combatId = /[?&;]combatcam=(\w+)/.exec(location.search)?.[1] ?? zoneCombatPreset(zoneRow ?? loadZone()), combatCam: CombatCam | undefined = COMBAT_CAMS[combatId];
+const BOB_KEY = 'origins-preview.head-bob.v1'; let headBob = (() => { try { return localStorage.getItem(BOB_KEY) !== 'off'; } catch { return true; } })();   // first-person head bob: on unless the player turned it off (the ☰ menu)
+const fpWeapon = createViewmodel(scene);
 const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());   // View: first person or over the shoulder
 const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1', SHOULDER_KEY = 'origins-preview.shoulder.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0, shoulder = 1;   // shoulder: 1 = the framing's own side, -1 = mirrored; a setting on this device, never switched by the camera (a flip mid-fight moves the foe under the thumb)
 try { shoulder = localStorage.getItem(SHOULDER_KEY) === 'left' ? -1 : 1; } catch { /* storage blocked: the framing's own side */ }
@@ -564,6 +568,10 @@ if (frontier) {
       const paintView = () => { v.textContent = `View: ${firstPerson ? 'First person' : 'Over the shoulder'}`; v.setAttribute('aria-pressed', String(firstPerson)); };
       v.addEventListener('click', () => { firstPerson = !firstPerson; try { localStorage.setItem(VIEW_KEY, firstPerson ? 'first' : 'third'); } catch { /* storage blocked */ } followCam.snap(); lastView = ''; paintView(); });
       paintView(); chips.append(v);
+      const b = document.createElement('button'); b.id = 'menu-head-bob';   // first person only matters, but the setting is kept either way
+      const paintBob = () => { b.textContent = `Head bob: ${headBob ? 'On' : 'Off'}`; b.setAttribute('aria-pressed', String(headBob)); };
+      b.addEventListener('click', () => { headBob = !headBob; try { localStorage.setItem(BOB_KEY, headBob ? 'on' : 'off'); } catch { /* storage blocked */ } paintBob(); });
+      paintBob(); chips.append(b);
     }
     if (combatCam?.zoom && chips) {   // a combat camera the player may zoom (WoW, RuneScape and Claudecraft let the player pick): one chip in the ☰ menu cycles the steps, saved on this device
       const z = document.createElement('button'); z.id = 'menu-fight-zoom';

@@ -15,7 +15,7 @@ export type Presets = Readonly<Record<string, Framing>>;
 /** The framing a page asks for: `choice` (a ?camera= name) wins, else the zone's own `camera.preset`; unknown or empty = the generic open walk (undefined). */
 export const pickFraming = (presets: Presets | undefined, choice: string | null | undefined, zonePreset?: string): Framing | undefined => presets?.[(choice || zonePreset || '').toLowerCase()];
 /** First person (the ☰ menu's View setting, Dom 2026-10-17): the eye stands `eye` m above the ground and `fwd` m ahead of the hero's centre, looking along his heading (the stick's pitch tilts the gaze by `tilt` m per unit at 10 m); `fovAdd`: degrees added to the base lens. */
-export type FirstPerson = { eye: number; fwd: number; tilt: number; down: number; fovAdd: number };   // down: metres the gaze drops over 10 m (a slight look-down puts a foe at arm's length mid-screen and shows the ground)
+export type FirstPerson = { eye: number; fwd: number; tilt: number; down: number; fovAdd: number; bobAmp?: number; bobStep?: number; bobSpeedCap?: number };   // bobAmp: metres of head bob at a walk (0 or absent = none); bobStep: bob phase per metre walked; bobSpeedCap: the speed (m/s) past which a faster run bobs no faster   // down: metres the gaze drops over 10 m (a slight look-down puts a foe at arm's length mid-screen and shows the ground)
 export type FollowState = { x: number; z: number; heading: number; pitch: number; groundY: number; fp?: FirstPerson };
 /** What a fight changes on top of a Framing (a zone's `camera.combat`, Dom 2026-10-17: the thumb buttons hide the hero and the foe is too close). mid: how far the gaze moves from the hero toward the foe (0 = as walking, 0.5 = between them);
  *  perSep / perSize: extra metres back per metre between them / per metre the foe's biggest dimension is above a man's; shiftY: the share of the screen height the picture is lifted, off the thumb buttons; fov: degrees added; zoom: a multiplier on the camera's own zoom. */
@@ -32,6 +32,7 @@ export const inPassage = (p: Passage | undefined, x: number, z: number): boolean
 
 export function createFollowCamera(camera: THREE.Camera, opts: { passage?: Passage; open?: Framing } = {}) {
   const eye = new THREE.Vector3(), look = new THREE.Vector3(), at = new THREE.Vector3(0, 2.6, 8);
+  const bobAt = { x: 0, z: 0 }; let bobPhase = 0, bobGain = 0;   // first-person head bob: where the hero was last frame, the step phase, and the 0..1 fade in and out
   let snap = true, passage = opts.passage, fight = 0, fitNow = 0;   // fight: 0 walking .. 1 in a fight, eased; fitNow: the foe-size and gap fit in metres, rate-limited
   let open = opts.open ?? OPEN;
   const view = { shiftY: 0, fov: 0, zoom: 1 };   // what the page applies to its camera this frame (the follow camera only places it)
@@ -49,7 +50,9 @@ export function createFollowCamera(camera: THREE.Camera, opts: { passage?: Passa
     update(dt: number, s: FollowState, combat?: CombatInput): void {
       if (s.fp) {   // first person: the camera IS the head (no easing: a lagging eye makes a phone sick), looking along the heading
         const sx = Math.sin(s.heading), cz = Math.cos(s.heading);
-        eye.set(s.x + sx * s.fp.fwd, s.groundY + s.fp.eye, s.z + cz * s.fp.fwd); at.copy(eye); snap = false;
+        const moved = Math.hypot(s.x - bobAt.x, s.z - bobAt.z), speed = dt > 0 ? moved / dt : 0; bobAt.x = s.x; bobAt.z = s.z;   // head bob (Daggerfall / Luanti / OpenMW: a gentle rise and fall with the steps, none standing still, off by a setting)
+        const amp = s.fp.bobAmp ?? 0; if (amp > 0 && moved < 2) { bobPhase += Math.min(speed, s.fp.bobSpeedCap ?? 3.2) * dt * (s.fp.bobStep ?? 8); bobGain += ((speed > 0.3 ? 1 : 0) - bobGain) * (1 - Math.exp(-dt * 8)); } else bobGain = 0;   // a respawn jump (more than 2 m in a frame) is not a step
+        eye.set(s.x + sx * s.fp.fwd, s.groundY + s.fp.eye + Math.sin(bobPhase) * amp * bobGain, s.z + cz * s.fp.fwd); at.copy(eye); snap = false;
         look.set(eye.x + sx * 10, eye.y - s.fp.down + s.pitch * s.fp.tilt, eye.z + cz * 10);
         view.shiftY = 0; view.fov = s.fp.fovAdd; view.zoom = 1; fight = 0;
         camera.position.copy(at); camera.lookAt(look); return;
