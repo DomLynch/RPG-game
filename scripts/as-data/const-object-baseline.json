@@ -1,7 +1,4 @@
 {
- "origins/crowd/crowd.ts": {
-  "ROLE_RING": 1
- },
  "origins/feuds/feuds.ts": {
   "BAND_RANK": 1
  },
@@ -43,12 +40,6 @@
  },
  "src/core/loot.ts": {
   "PACK": 1
- },
- "src/core/world/kits.ts": {
-  "MODE": 1
- },
- "src/core/world/row.ts": {
-  "RARITY_WEIGHT": 1
  },
  "src/fight/armfeel.ts": {
   "FLINCH_GAIN": 1
