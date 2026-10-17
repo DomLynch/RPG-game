@@ -21,4 +21,6 @@ const fmt = (xs) => (xs.length ? mean(xs) : '-');
 md += `\n**Added ms at 40 players over the empty zone (mean over both passes; the target is <= 10 ms): ${head} ${fmt(add40.a)} ms (p95 at 40: ${fmt(p95at40.a)}), ${base} ${fmt(add40.b)} ms (p95 at 40: ${fmt(p95at40.b)}); delta ${add40.a.length && add40.b.length ? +(mean(add40.a) - mean(add40.b)).toFixed(2) : '-'} ms (negative = ${head} is cheaper).**\n`;
 const progs = (t) => [1, 2].flatMap((p) => (read(`${t}${p}`) ?? []).map((c) => c.programsAdded ?? [])), names = (t) => [...new Set(progs(t).flat())];
 md += `\nPrograms added after [zone ready] (all cases, both passes): ${head} ${progs('a').reduce((s, l) => s + l.length, 0)}${names('a').length ? ` (${names('a').join(', ')})` : ''}, ${base} ${progs('b').reduce((s, l) => s + l.length, 0)}${names('b').length ? ` (${names('b').join(', ')})` : ''}.\n`;
+const kw = (t) => JSON.stringify((read(`${t}1`) ?? [])[0]?.kitWarm ?? 'not reported');
+md += `Remote-kit warm (#2938: its programs link AFTER [zone ready] by design; the harness waits for it before the baseline, so they are not counted above): ${head} ${kw('a')}, ${base} ${kw('b')}.\n`;
 fs.writeFileSync(out, md); console.log(md);
