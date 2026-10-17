@@ -6,8 +6,8 @@ import { DIALS, pointsAt, sheetOf, type Sheet } from '../../src/fight/sheet-rows
 
 export const RUNG_MAX = 9;
 const SPREAD = ['attack', 'armour', 'health', 'poise'];
-export const rungSheet = (rung: number, level = 0, set = 'plate', recruit = false): Sheet | undefined => {   // recruit: rung 0 wears the full set at the Recruit tier (quality 0) instead of nothing
+export const rungSheet = (rung: number, level = 0, set = 'plate', recruit = false, worn?: ReturnType<typeof gearDeltas>): Sheet | undefined => {   // recruit: rung 0 wears the full set at the Recruit tier (quality 0) instead of nothing; worn: a worn set's deltas (gear-stats wornGear) used instead of the full set
   const each = Math.floor(pointsAt(level) / SPREAD.length), placed: Record<string, number> = {};
   for (const id of SPREAD) { const d = DIALS.find((x) => x.id === id)!; placed[id] = Math.max(0, Math.min(each, d.cap - d.base)); }
-  return sheetOf({ level, placed: each > 0 ? placed : {} }, rung <= 0 && !recruit ? {} : gearDeltas(set, 1, Math.min(rung, RUNG_MAX) / RUNG_MAX));
+  return sheetOf({ level, placed: each > 0 ? placed : {} }, worn ?? (rung <= 0 && !recruit ? {} : gearDeltas(set, 1, Math.min(rung, RUNG_MAX) / RUNG_MAX)));
 };

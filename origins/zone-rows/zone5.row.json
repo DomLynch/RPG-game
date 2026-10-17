@@ -1,0 +1,275 @@
+{
+  "name": "The Bone Hollow",
+  "defaultKind": "goblin",
+  "look": {
+    "arena": "3",
+    "sky": "dusk",
+    "props": { "kit": "goblin-camp", "density": 1 },
+    "fog": { "colour": "#6a4044", "density": 0.035 },
+    "sun": { "colour": "#ff7a40", "intensity": 0.6, "pos": [-24, 3, -15] },
+    "ambient": { "sky": "#4a4c7c", "ground": "#1c1414", "intensity": 0.35 },
+    "exposure": 0.95,
+    "ground": { "tint": [0.72, 0.62, 0.58] }
+  },
+  "names": { "bone-hollow": "The Bone Hollow" },
+  "world": ["bone-hollow"],
+  "spawns": {
+    "openers": { "bone-hollow": "character:cinder-scavenger" },
+    "rows": [
+      {
+        "id": "character:cinder-scavenger",
+        "source": { "kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\"" },
+        "role": "beast",
+        "loot": "loottable:cinder-scavenger",
+        "level": [5, 6],
+        "behaviour": { "roam": 8, "spread": 16, "pull": 0, "campSize": [4, 4] }
+      },
+      {
+        "id": "character:pit-goblin",
+        "source": { "kind": "chronicle", "work": "Historia Ecclesiastica (the demon St Taurinus drove from the temple of Diana at Evreux, whom the people call Gobelinus)", "author": "Orderic Vitalis", "year": 1141, "authorDied": 1142, "locator": "Bk. V (Le Prevost, vol. 3, p. 331; ch. 7 in Chibnall): \"Hunc vulgus Gobelinum appellat\"" },
+        "role": "beast",
+        "loot": "loottable:pit-goblin",
+        "level": [5, 6],
+        "respawnSeconds": 75,
+        "behaviour": { "roam": 6, "spread": 6, "pull": 0, "campSize": [2, 2] }
+      },
+      {
+        "id": "character:giant-salamander",
+        "source": { "kind": "history", "work": "Naturalis Historia (the salamander, the beast that puts out fire)", "author": "Pliny the Elder", "year": 77, "authorDied": 79, "locator": "Bk. X, ch. 86 (§188)" },
+        "role": "beast",
+        "loot": "loottable:giant-salamander",
+        "level": [7, 7],
+        "named": true,
+        "respawnSeconds": 90,
+        "behaviour": { "aggro": 6, "roam": 2, "spread": 4, "pull": 0, "campSize": [1, 1] }
+      }
+    ]
+  },
+  "kit": {
+    "url": "/world/kit/zone1-kit.glb",
+    "nodes": [
+      "boulder_a",
+      "boulder_b",
+      "boulder_c",
+      "bush_scrub_a",
+      "bush_scrub_b",
+      "tree_dead_a",
+      "tree_dead_b",
+      "tree_dead_c",
+      "tuft_a",
+      "tuft_b"
+    ],
+    "landmarks": [
+      "landmark_camp",
+      "landmark_ruin_arch",
+      "landmark_stone_circle",
+      "landmark_grove"
+    ],
+    "kinds": [
+      {
+        "nodes": [
+          "tree_dead_a",
+          "tree_dead_b",
+          "tree_dead_c"
+        ],
+        "per": 3,
+        "r": 1.2,
+        "solid": 0.6,
+        "scale": [
+          0.9,
+          1.35
+        ]
+      },
+      {
+        "nodes": [
+          "boulder_a",
+          "boulder_b",
+          "boulder_c"
+        ],
+        "per": 4,
+        "r": 1.4,
+        "solid": 1,
+        "scale": [
+          0.8,
+          1.4
+        ]
+      },
+      {
+        "nodes": [
+          "bush_scrub_a",
+          "bush_scrub_b"
+        ],
+        "per": 8,
+        "r": 0.9,
+        "solid": 0,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      },
+      {
+        "nodes": [
+          "tuft_a",
+          "tuft_b"
+        ],
+        "per": 14,
+        "r": 0.4,
+        "solid": 0,
+        "scale": [
+          0.8,
+          1.5
+        ]
+      }
+    ]
+  },
+  "looks": {
+    "zone1": {
+      "fog": "#5d5a60",
+      "fogDensity": 0.012,
+      "hemiSky": "#9fb2d4",
+      "hemiGround": "#4a3426",
+      "hemiIntensity": 1.25,
+      "sunColor": "#ffb46a",
+      "sunIntensity": 5.9799999999999995,
+      "sunPos": [
+        -16,
+        15,
+        20
+      ],
+      "exposure": 1.3,
+      "ground": [
+        0.5,
+        0.47,
+        0.45
+      ],
+      "stone": [
+        1.35,
+        1.2,
+        1
+      ]
+    },
+    "frontier-haze": {
+      "fog": "#b9aea4",
+      "fogDensity": 0.012,
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
+      "hemiIntensity": 1.35,
+      "sunColor": "#e8cfb4",
+      "sunIntensity": 5.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.05,
+        0.98,
+        0.88
+      ]
+    },
+    "cinder-haze": {
+      "fog": "#b9aea4",
+      "fogDensity": 0.0095,
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#443a33",
+      "hemiIntensity": 1.35,
+      "sunColor": "#e8cfb4",
+      "sunIntensity": 5.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.05,
+        0.98,
+        0.88
+      ]
+    },
+    "frontier-duel": {
+      "fog": "#b9aea4",
+      "fogDensity": 0.0095,
+      "hemiSky": "#a3b3cc",
+      "hemiGround": "#574a40",
+      "hemiIntensity": 1.35,
+      "sunColor": "#e8cfb4",
+      "sunIntensity": 5.04,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.35,
+      "ground": [
+        1.2075,
+        1.127,
+        1.012
+      ]
+    },
+    "frontier-night": {
+      "fog": "#141a2a",
+      "fogDensity": 0.02,
+      "hemiSky": "#2a3558",
+      "hemiGround": "#14100e",
+      "hemiIntensity": 0.45,
+      "sunColor": "#6a7ab0",
+      "sunIntensity": 0.6,
+      "sunPos": [
+        -24,
+        12,
+        -15
+      ],
+      "exposure": 1.1,
+      "ground": [
+        0.8,
+        0.8,
+        0.9
+      ]
+    }
+  },
+  "mobLooks": {
+    "looks": {
+      "character:cinder-scavenger": { "opponent": "goblin", "tint": 7035464, "scale": 0.9, "dressing": { "soot": 0.7, "burnt": 0.3 } },
+      "character:pit-goblin": { "opponent": "goblin", "tint": 16777215, "scale": 1, "dressing": { "soot": 0, "burnt": 0 } },
+      "character:giant-salamander": { "opponent": "giant-salamander", "tint": 16777215, "dressing": { "soot": 0.2, "burnt": 0.1 } }
+    },
+    "spread": {
+      "character:cinder-scavenger": { "tints": [6115135, 8021584, 5196357], "scale": 0.08, "soot": 0.2, "burnt": 0.2 }
+    }
+  },
+  "place": {
+    "zones": {
+      "bone-hollow": {
+        "zoneSize": { "width": 100, "depth": 100 },
+        "layout": {
+          "hollow-gate": { "u": 0, "v": 0.5, "facing": 90 },
+          "hollow-hall": { "u": 0.3, "v": 0.5, "facing": 0 },
+          "hollow-patrol": { "u": 0.55, "v": 0.3, "facing": 0 },
+          "hollow-den": { "u": 0.9, "v": 0.75, "facing": 180 },
+          "hollow-cache": { "u": 0.97, "v": 0.95, "facing": 180 }
+        },
+        "connections": { "mouth": { "to": "drowned-marsh", "kind": "road", "here": "hollow-gate", "there": "marsh-hollow" } },
+        "density": { "creatures": 0.3 },
+        "ambience": { "preset": "frontier-haze" }
+      }
+    },
+    "joins": [
+      { "zone": "drowned-marsh", "landmark": "marsh-hollow", "at": { "u": 0.5, "v": 0, "facing": 180 }, "link": "hollow", "to": "bone-hollow", "here": "marsh-hollow", "there": "hollow-gate" }
+    ],
+    "waypoints": ["marsh-hollow", "hollow-gate", "hollow-hall", "hollow-patrol", "hollow-den", "hollow-cache"],
+    "spawns": [
+      { "id": "hollow-kin", "at": "hollow-hall", "characters": ["character:cinder-scavenger"] },
+      { "id": "hollow-kin-deep", "at": "hollow-den", "characters": ["character:cinder-scavenger"] },
+      { "id": "hollow-patrol", "at": "hollow-patrol", "characters": ["character:pit-goblin"] },
+      { "id": "hollow-wyrm", "at": "hollow-den", "characters": ["character:giant-salamander"] }
+    ]
+  },
+  "notes": {
+    "zone": "Zone 5 (the Bone Hollow, the beta dungeon, docs/specs/origins/dungeon-scope-beta.md): a zone with a roof, rows only. `level` is the zone number = its base level (Dom 2026-10-08). Default theme: the bone-and-skull cave camp (zone 90's look and the goblin-camp props kit), dark by data; Dom swaps the look through rows.",
+    "spawns": "Existing creature rows only, copied from Zone 1 at this zone's band: cinder-scavenger (the goblin kin, Gobelinus) as the population, pit-goblin as the patrol, giant-salamander as the end fight with the troll treatment (a named row: zone level + the named lift, so hp x2 and +20% damage from the stage rows, as the cave troll).",
+    "place": "The zone is MOUNTED in the shared world frame at the far end of the Drowned Marsh (the `hollow` join), more than presence's 40 m sight radius from every other zone, so nobody sees across zones and presence needs no change (Backend 2026-10-17); it is listed, so presence's walkable accepts it. The way in is not a link: the cave-mouth landmark is in Zone 1's own row (cinder-fields, beside the ash-pits camp) and the crossing is two exit rows (origins/zones/exit-rows.json, cave-mouth and hollow-gate): a door from one zone page to the other, with presence warp rows zone5-gate and zone1-cave-mouth. The fixed end-room ground piece is a ground-loot row at hollow-cache (outside the salamander's aggro).",
+    "kit": "Zone 5's kit: a copy of Zone 2's until Characters ship this zone's own (the kit's node names are a contract)."
+  }
+}

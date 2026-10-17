@@ -1,0 +1,6 @@
+{
+  "exits": [
+    { "id": "cave-mouth", "zone": "cinder-fields", "landmark": "cave-mouth", "to": "5", "arrive": "hollow-gate", "warp": "zone5-gate", "radiusM": 2.5, "arriveM": 3, "label": "The Bone Hollow" },
+    { "id": "hollow-gate", "zone": "bone-hollow", "landmark": "hollow-gate", "to": "1", "arrive": "cave-mouth", "warp": "zone1-cave-mouth", "radiusM": 2.5, "arriveM": 3, "label": "The Cinder Fields" }
+  ]
+}
