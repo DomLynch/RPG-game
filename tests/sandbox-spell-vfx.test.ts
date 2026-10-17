@@ -35,3 +35,16 @@ for (const [name, ev] of [
     v.update(100 + 200); assert.equal(shown(scene), 0, 'hidden once done'); assert.equal(light(scene).intensity, 0, 'dark once done');
   });
 }
+
+test('nyx anticipation: the windup shows a gather on the caster; a landing or a cut cast ends it at once', () => {
+  for (const end of ['SpecialLanded', 'SpecialInterrupted'] as const) {
+    const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);
+    v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'banshee', tick: 10 }], fighters);
+    v.update(60); assert.ok(shown(scene) >= 3, 'gather drawn mid-windup'); assert.ok(light(scene).intensity > 0, 'and it glows');
+    v.trigger([{ type: end, actor: 0, target: 1, spell: 'banshee', tick: 70 }], fighters); v.update(70);
+    if (end === 'SpecialInterrupted') assert.equal(shown(scene), 0, 'a cut cast leaves nothing');
+    else assert.ok(shown(scene) >= 3, 'the landing look replaces the gather');
+  }
+  const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);   // another spell's windup draws no gather
+  v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'brokkr', tick: 10 }], fighters); v.update(60); assert.equal(shown(scene), 0);
+});

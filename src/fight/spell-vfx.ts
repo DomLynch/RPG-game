@@ -10,7 +10,10 @@ type Ev = { type: string; actor: number; target?: number; spell?: string; tick: 
 type At = Pick<Fighter, 'body'>;
 type Inst = { objs: THREE.Object3D[]; start(x: number, z: number): void; update(age: number): { light: number; color: string } | undefined; ticks: number };
 
-const NOISE = 128, GLINT = 64;
+const NOISE = 256, GLINT = 64;   // 256 px grain (was 128: the "low-res" look on a phone)
+// Nyx pass 2 (study docs/specs/combat/spell-effects-aaa-study.md): a 1D colour ramp (black-violet edge to white-hot core) sampled by the grain value instead of a flat two-colour mix. Sandbox constant like the other looks' colours; moves to a row at promotion.
+const NYX_RAMP: readonly [number, string][] = [[0, '#05020c'], [0.35, '#1c0e3a'], [0.62, '#5a2fa8'], [0.85, '#b58cff'], [1, '#f3e9ff']];
+const NYX_GATHER_TICKS = 120;   // the default cast windup (2 s); the gather ends early when the cast lands, fizzles or is cut
 const hash = (x: number, y: number, s: number) => { let h = (x * 374761393 + y * 668265263 + s * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
 const value = (x: number, y: number, cells: number, s: number) => { const fx = (x / NOISE) * cells, fy = (y / NOISE) * cells, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), w = (i: number, j: number) => hash((x0 + i) % cells, (y0 + j) % cells, s); return (w(0, 0) * (1 - sx) + w(1, 0) * sx) * (1 - sy) + (w(0, 1) * (1 - sx) + w(1, 1) * sx) * sy; };   // tiles: lattice indices wrap at `cells`
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -29,11 +32,15 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
   for (let y = 0; y < GLINT; y++) for (let x = 0; x < GLINT; x++) { const dx = (x - (GLINT - 1) / 2) / ((GLINT - 1) / 2), dy = (y - (GLINT - 1) / 2) / ((GLINT - 1) / 2), r = Math.hypot(dx, dy), v = Math.min(1, Math.exp(-r * 7) + 0.55 * (Math.exp(-Math.abs(dx) * 38 - Math.abs(dy) * 2.6) + Math.exp(-Math.abs(dy) * 38 - Math.abs(dx) * 2.6))); gp.set([255, 255, 255, 255 * v * Math.max(0, 1 - r)], (y * GLINT + x) * 4); }
   const glintTex = new THREE.DataTexture(gp, GLINT, GLINT); glintTex.magFilter = glintTex.minFilter = THREE.LinearFilter; glintTex.needsUpdate = true;
 
-  const VERT = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
+  const rp = new Uint8Array(256 * 4);
+  for (let i = 0; i < 256; i++) { const v = i / 255, hi = Math.max(1, NYX_RAMP.findIndex(([s]) => s >= v)), [s0, c0] = NYX_RAMP[hi - 1]!, [s1, c1] = NYX_RAMP[hi]!, col = new THREE.Color(c0).lerp(new THREE.Color(c1), clamp01((v - s0) / (s1 - s0 || 1))); rp.set([col.r * 255, col.g * 255, col.b * 255, 255], i * 4); }
+  const nyxRamp = new THREE.DataTexture(rp, 256, 1); nyxRamp.magFilter = nyxRamp.minFilter = THREE.LinearFilter; nyxRamp.colorSpace = THREE.SRGBColorSpace; nyxRamp.needsUpdate = true;
+
+  const VERT ='varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
   const BILL = 'varying vec2 vUv; uniform float uSize; void main(){ vUv = uv; vec4 c = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); gl_Position = projectionMatrix * (c + vec4(position.xy * uSize, 0.0, 0.0)); }';
-  const HEAD = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform float uSeed; uniform float uHot; uniform float uAlpha; uniform vec3 uA; uniform vec3 uB;';
+  const HEAD = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform float uSeed; uniform float uHot; uniform float uAlpha; uniform vec3 uA; uniform vec3 uB; uniform sampler2D uRamp; uniform float uUseRamp;';
   const mat = (vertex: string, frag: string, side: THREE.Side = THREE.DoubleSide) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side, vertexShader: vertex, fragmentShader: frag,
-    uniforms: { uNoise: { value: noise }, uK: { value: 0 }, uT: { value: 0 }, uSeed: { value: 0 }, uHot: { value: 0 }, uAlpha: { value: 1 }, uSize: { value: 1 }, uA: { value: new THREE.Color('#fff') }, uB: { value: new THREE.Color('#fff') } } });
+    uniforms: { uNoise: { value: noise }, uK: { value: 0 }, uT: { value: 0 }, uSeed: { value: 0 }, uHot: { value: 0 }, uAlpha: { value: 1 }, uSize: { value: 1 }, uRamp: { value: nyxRamp }, uUseRamp: { value: 0 }, uA: { value: new THREE.Color('#fff') }, uB: { value: new THREE.Color('#fff') } } });
   const set = (m: THREE.Mesh, p: Record<string, number | string>) => { const u = (m.material as THREE.ShaderMaterial).uniforms; for (const [k, v] of Object.entries(p)) { if (typeof v === 'string') (u[k]!.value as THREE.Color).set(v); else u[k]!.value = v; } };
   const FRAG = {
     // a column of light: rim-lit, thin in the middle, revealed from the foot, eroded by the grain as it ends
@@ -47,14 +54,15 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
     puff: `${HEAD} void main(){ vec2 c = vUv - 0.5; float r = length(c) * 2.0; float mask = 1.0 - smoothstep(0.35, 1.0, r); vec2 p = vUv * 1.6 + vec2(uSeed * 7.31, uSeed * 3.17) + vec2(0.0, -uK * 0.35);
       float n = texture2D(uNoise, p).r * 0.65 + texture2D(uNoise, p * 2.7 + 0.5).r * 0.35; float erode = smoothstep(uK * 0.85, uK * 0.85 + 0.25, n);
       float a = mask * erode * uAlpha * (1.0 - uK * 0.5) * smoothstep(0.0, 0.08, uK); float lit = clamp(n * 1.3 - c.y * 0.9 + 0.2, 0.0, 1.0);
-      vec3 col = mix(uA * (0.55 + 0.6 * lit), uB, uHot * (1.0 - r) * n); gl_FragColor = vec4(col, a); }`,
+      vec3 col = mix(uA * (0.55 + 0.6 * lit), uB, uHot * (1.0 - r) * n); if (uUseRamp > 0.5) col = texture2D(uRamp, vec2(clamp(n * (0.4 + 0.6 * lit) + uHot * (1.0 - r) * 0.55, 0.0, 1.0), 0.5)).rgb; gl_FragColor = vec4(col, a); }`,
     // a funnel: swirling grain that climbs and turns, wider at the top
     funnel: `${HEAD} void main(){ float y = vUv.y; float ang = vUv.x * 6.2832; vec2 p = vec2(vUv.x * 5.0 + y * 1.6 - uT * 1.4, y * 2.2 - uT * 0.6); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.1 + 0.2).r * 0.4;
       float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.1); float h = min(1.0, uK * 4.0), reveal = 1.0 - smoothstep(h - 0.15, h, y); float erode = smoothstep(uK * 0.9, uK * 0.9 + 0.25, n);
       float a = reveal * erode * (0.2 + 0.65 * rim) * (0.35 + 0.65 * y) * smoothstep(0.0, 0.05, uK) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n), a); }`,
     // an inside-out dome: deep colour, grain stars, fades in and out
     dome: `${HEAD} void main(){ float n = texture2D(uNoise, vUv * vec2(3.0, 1.5) + uT * 0.02).r; float star = smoothstep(0.80, 0.83, texture2D(uNoise, vUv * vec2(14.0, 7.0)).r); float fade = smoothstep(0.0, 0.18, uK) * (1.0 - smoothstep(0.72, 1.0, uK));
-      float a = fade * (0.50 + 0.2 * n) * uAlpha; vec3 col = mix(uA, uB, n * 0.6) + vec3(star * 0.9); gl_FragColor = vec4(col, a + fade * star * 0.6); }`,
+      float a = fade * (0.50 + 0.2 * n) * uAlpha; vec3 col = mix(uA, uB, n * 0.6) + vec3(star * 0.9); if (uUseRamp > 0.5) col = texture2D(uRamp, vec2(0.12 + 0.3 * n, 0.5)).rgb + vec3(star * 0.9);
+      float flash = uHot; gl_FragColor = vec4(col + vec3(0.55, 0.35, 0.95) * flash, min(1.0, a + fade * star * 0.6 + flash * 0.5)); }`,
   } as const;
   const surface = (frag: string, geo: THREE.BufferGeometry, side?: THREE.Side) => { const m = new THREE.Mesh(geo, mat(VERT, frag, side)); m.visible = false; m.frustumCulled = false; scene.add(m); return m; };
   const puff = () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(BILL, FRAG.puff)); m.visible = false; m.frustumCulled = false; scene.add(m); return m; };
@@ -96,17 +104,30 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
         return { light: 0.35 * Math.sin(Math.PI * Math.min(1, k * 1.4)), color: '#dfe8c8' }; } };
   };
   const nyx = (): Inst => {   // Nyx Nightfall: the arena goes dark under a grain-starred dome, shadow wisps gather on the target
-    const d = surface(FRAG.dome, new THREE.SphereGeometry(13, 40, 20), THREE.BackSide), ws = smoke(7, '#150c24', '#7a4cc2', 0.5); set(d, { uA: '#0b0618', uB: '#2a1850' }); let x = 0, z = 0; const ticks = 130;
-    return { ticks, objs: [d, ...ws], start(px_, pz) { x = px_; z = pz; },
-      update(age) { const k = age / ticks; d.position.set(x, 1.5, z); set(d, { uK: k, uT: age / 60, uAlpha: 1 });
-        ws.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 20) / (ticks - 20)), a = i * 0.9 + age * 0.03, r = 1.4 * (1 - 0.55 * Math.sin(Math.PI * t)); p.position.set(x + Math.cos(a) * r, 0.5 + t * 1.8, z + Math.sin(a) * r); set(p, { uSize: 1.1 + 1.2 * t, uK: t, uSeed: rnd(i, 4), uHot: 0.8 * Math.sin(Math.PI * t), uAlpha: 0.9 }); });
-        return { light: 0.5 * Math.sin(Math.PI * Math.min(1, k * 1.2)), color: '#8a5cf0' }; } };
+    const d = surface(FRAG.dome, new THREE.SphereGeometry(13, 40, 20), THREE.BackSide), ws = smoke(9, '#150c24', '#7a4cc2', 0.5), cur = surface(FRAG.pillar, new THREE.CylinderGeometry(0.9, 1.1, 3.4, 40, 1, true)), ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)), motes = glints(14, '#c9a8ff', 0.3);
+    set(d, { uA: '#0b0618', uB: '#2a1850', uUseRamp: 1 }); set(cur, { uA: '#3a1c78', uB: '#b58cff' }); set(ring, { uA: '#2a1850', uB: '#b58cff' }); for (const p of ws) set(p, { uUseRamp: 1 }); let x = 0, z = 0; const ticks = 130;
+    return { ticks, objs: [d, cur, ring, ...ws, ...motes], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / ticks, flash = Math.exp(-age / 3.5);   // the landing frame: one overbright violet flash, then the dark settles in
+        d.position.set(x, 1.5, z); set(d, { uK: k, uT: age / 60, uAlpha: 1, uHot: flash });
+        cur.position.set(x, 1.7, z); cur.scale.set(1 + 0.3 * k, 1, 1 + 0.3 * k); set(cur, { uK: Math.min(1, k * 1.1), uT: age / 60, uAlpha: 0.85 });
+        ring.position.set(x, 0.05, z); ring.scale.setScalar(0.6 + 1.6 * (1 - (1 - k) ** 3)); set(ring, { uK: k, uT: age / 60, uAlpha: 0.9 });
+        ws.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 20) / (ticks - 20)), a = i * 0.7 + age * 0.03, r = 1.4 * (1 - 0.55 * Math.sin(Math.PI * t)); p.position.set(x + Math.cos(a) * r, 0.5 + t * 1.8, z + Math.sin(a) * r); set(p, { uSize: 1.1 + 1.2 * t, uK: t, uSeed: rnd(i, 4), uHot: 0.8 * Math.sin(Math.PI * t), uAlpha: 0.9 }); });
+        motes.forEach((m, i) => { const t = clamp01((age - rnd(i, 2) * 30) / 80), a = i * 0.45 + age * 0.05; m.position.set(x + Math.cos(a) * (0.5 + 0.4 * t), 0.2 + t * 3.2, z + Math.sin(a) * (0.5 + 0.4 * t)); m.scale.setScalar(0.3 * (1 - 0.5 * t)); sop(m, 0.85 * Math.sin(Math.PI * t)); });
+        return { light: Math.max(flash * 1.3, 0.5 * Math.sin(Math.PI * Math.min(1, k * 1.2))), color: '#8a5cf0' }; } };
   };
-  const builders: Record<string, () => Inst> = { heal, shock, ash, wind, nyx };
+  // Nyx's anticipation: during the windup, violet motes stream in to the caster and a dark ring tightens under them, building with the cast (study rule 2: the windup is free time). Ends at once when that caster's cast lands, fizzles or is cut.
+  const nyxGather = (): Inst => {
+    const ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)), motes = glints(16, '#b58cff', 0.26); set(ring, { uA: '#1c0e3a', uB: '#8a5cf0' }); let x = 0, z = 0;
+    return { ticks: NYX_GATHER_TICKS, objs: [ring, ...motes], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / NYX_GATHER_TICKS, build = Math.min(1, k * 1.4); ring.position.set(x, 0.05, z); ring.scale.setScalar(2.2 - 1.5 * build); set(ring, { uK: 0.25, uT: age / 60, uAlpha: 0.25 + 0.65 * build });
+        motes.forEach((m, i) => { const t = ((age * 0.011 + rnd(i, 3)) % 1), a = i * 0.39 + rnd(i, 4) * 6.283, r = 1.9 * (1 - t); m.position.set(x + Math.cos(a + t * 2) * r, 0.15 + t * 1.5, z + Math.sin(a + t * 2) * r); m.scale.setScalar(0.18 + 0.2 * build); sop(m, 0.9 * Math.sin(Math.PI * t) * (0.3 + 0.7 * build)); });
+        return { light: 0.35 * build, color: '#7a4cc2' }; } };
+  };
+  const builders: Record<string, () => Inst> = { heal, shock, ash, wind, nyx, nyxGather };
   for (const [kind, build] of Object.entries(builders)) insts[kind] = [build(), build()];
   light = new THREE.PointLight('#ffffff', 0, 7, 2); scene.add(light);   // in the scene from the start (intensity 0 when idle): the lit materials are compiled with it
   const live: { inst: Inst; at: number }[] = []; for (const list of Object.values(insts)) for (const inst of list) live.push({ inst, at: -1 });
-  const next: Record<string, number> = {};
+  const next: Record<string, number> = {}, gathering = new Map<number, Inst>();
   const show = (inst: Inst, v: boolean) => { for (const o of inst.objs) o.visible = v; };
   const find = (inst: Inst) => live.find((l) => l.inst === inst)!;
   return {
@@ -118,6 +139,11 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
     },
     trigger(events: readonly Ev[], fighters: readonly At[]): void {
       for (const e of events) {
+        if (e.type === 'SpecialStarted' && e.spell && vfxOf(e.spell) === 'nyx' && fighters[e.actor]) {   // the windup begins: Nyx gathers on the caster
+          const list = insts.nyxGather!, inst = list[(next.nyxGather = ((next.nyxGather ?? -1) + 1) % list.length)]!;
+          inst.start(fighters[e.actor]!.body.x, fighters[e.actor]!.body.z); find(inst).at = e.tick; gathering.set(e.actor, inst); continue;
+        }
+        if (e.type === 'SpecialInterrupted' || e.type === 'SpecialFizzled' || e.type === 'SpecialLanded') { const g = gathering.get(e.actor); if (g) { find(g).at = -1; gathering.delete(e.actor); } }
         if (e.type !== 'SpecialLanded') continue;
         const kind = e.heal !== undefined ? 'heal' : e.spell ? vfxOf(e.spell) : undefined, who = fighters[e.heal !== undefined ? e.actor : (e.target ?? -1)];
         if (!kind || !who || !insts[kind]) continue;
