@@ -474,10 +474,21 @@ function allWarmed() {   // every body kind and the hero are warmed (or failed):
   const w = mobs?.warmState();
   return !!w && w.kinds.length > 0 && warmDone(warmList(w.kinds), [...w.warmed, ...(warmedHero.done ? [PLAYER] : [])], [...w.failed, ...(warmedHero.failed ? [PLAYER] : [])]);
 }
+// The gear sheet's mannequin (rig, loot.glb, studio light) is drawn once before [zone ready], dressed with the worn set: a signed-in player waits for the ledger's answer first (bounded by the hero wait), so opening Gear later links no program.
+let gearWarm: 'idle' | 'running' | 'done' = 'idle';
+function warmGearScreen() {
+  if (gearWarm !== 'idle') return;
+  if (!gearMount) { gearWarm = 'done'; return; }
+  if (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() < HERO_WAIT_MS) return;
+  gearWarm = 'running';
+  void gearMount.warm().catch((error: unknown) => console.warn('gear screen warm-up failed', error)).finally(() => { gearWarm = 'done'; });
+}
 function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
+  if (warmedHero.done) warmGearScreen();   // after the hero's own warm: the rig is parsed once and cached
+  if (gearWarm !== 'done') return;
   if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };

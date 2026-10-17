@@ -30,15 +30,25 @@ function warmBackdrop(): THREE.CanvasTexture | null {
 
 // `stage`: the element the mannequin shows through; `view`: the page size the canvas covers (the window, here), and `clip` (optional) cuts the canvas to a CSS inset: the canvas covers the whole page, so
 // a stage window scrolled out of the dialog would otherwise draw the rig over the page above it (issue #2439); the room clips the canvas to the dialog's box every frame and clears it on leave.
-export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { width(): number; height(): number; clip?(inset: string | null): void }): GearRoom {
-  const { scene, camera } = stage;
-  const was = { fov: camera.fov, position: camera.position.clone(), quaternion: camera.quaternion.clone(), background: scene.background, fog: scene.fog };
-  stage.setArenaVisible(false);
-  const glow = warmBackdrop();
+// The fitting room's look on the stage's scene: the backdrop, no fog, and a key from the front-left and a cool rim from behind (the arena's own lights stay as the fill). Shared by the room and its warm-up,
+// so the warm-up links the very programs the sheet draws; `off()` hands the scene back as found.
+function studio(scene: THREE.Scene): { off(): void } {
+  const was = { background: scene.background, fog: scene.fog }, glow = warmBackdrop();
   scene.background = glow ?? new THREE.Color(BACKDROP); scene.fog = null;
-  // A key from the front-left and a cool rim from behind, the studio light of a fitting room; the arena's own lights stay as the fill.
   const key = new THREE.DirectionalLight(0xffe3bd, 2.4), rim = new THREE.DirectionalLight(0x9db2ff, 1.1);
   key.position.set(-1.6, 2.6, 3.2); rim.position.set(2.2, 2.2, -2.4); scene.add(key, rim);
+  return { off() { scene.remove(key, rim); key.dispose?.(); rim.dispose?.(); scene.background = was.background; scene.fog = was.fog; glow?.dispose(); } };
+}
+/** One frame of the dressed mannequin under the studio, drawn and handed back: links the sheet's programs before the player ever opens it (the next game frame overdraws it). */
+export function warmGearRoom(stage: GearStage): void {
+  const look = studio(stage.scene);
+  try { stage.hero.place(0, 0, 0, 0, 1 / 60); stage.draw(); } finally { look.off(); }
+}
+export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { width(): number; height(): number; clip?(inset: string | null): void }): GearRoom {
+  const { scene, camera } = stage;
+  const was = { fov: camera.fov, position: camera.position.clone(), quaternion: camera.quaternion.clone() };
+  stage.setArenaVisible(false);
+  const look = studio(scene);
   let heading = 0, drag: number | null = null;
   const down = (e: PointerEvent) => { drag = e.clientX; window.setPointerCapture?.(e.pointerId); };
   const move = (e: PointerEvent) => { if (drag !== null) { heading += (e.clientX - drag) * TURN; drag = e.clientX; } };
@@ -71,8 +81,7 @@ export function enterGearRoom(stage: GearStage, window: HTMLElement, view: { wid
       view.clip?.(null);
       window.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
       camera.clearViewOffset(); camera.fov = was.fov; camera.position.copy(was.position); camera.quaternion.copy(was.quaternion); camera.updateProjectionMatrix();
-      scene.remove(key, rim); key.dispose?.(); rim.dispose?.();
-      scene.background = was.background; scene.fog = was.fog; glow?.dispose();
+      look.off();
       stage.setArenaVisible(true);
     },
   };

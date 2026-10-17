@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
-import type { GearStage } from '../../src/core/index.ts';
+import { warmGearRoom, type GearStage } from '../../src/core/index.ts';
 import type { Tier } from '../../src/core/index.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 
@@ -14,12 +14,15 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.1));   // the room's key and rim come from gear-room.ts; this is the fill the Pit borrows from its arena
   let actor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, pieces: Awaited<ReturnType<typeof loadLoot>> | undefined, worn: readonly string[] = [], tiers: Record<string, Tier> = {}, started = false;
   const dress = () => { if (actor && pieces) actor.wear(pieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => tiers[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit'); };
-  const load = () => { if (started) return; started = true; void Promise.all([loadWarriors(bodyUrl), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; console.warn('the gear screen rig did not load', error); captureException(error); }); };
+  let loading: Promise<void> = Promise.resolve();
+  const load = () => { if (started) return loading; started = true; loading = Promise.all([loadWarriors(bodyUrl), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; console.warn('the gear screen rig did not load', error); captureException(error); }); return loading; };
   const stage: GearStage = {
     scene, camera,
     setArenaVisible() { /* a scene of its own: there is no arena in it to hide */ },
     hero: { place(x, z, heading, speed, dt) { load(); if (!actor) return; actor.anchor.position.set(x, 0, z); actor.anchor.rotation.y = heading; actor.update(speed, dt, 'sheathed', 0); } },
     draw() { renderer.render(scene, camera); },
   };
-  return { stage, load, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
+  // The rig and loot.glb load, the worn set goes on, and one studio frame is drawn: the sheet's programs link now, not when the player first opens it (a no-op where the rig did not load).
+  const warm = async () => { await load(); if (actor) warmGearRoom(stage); };
+  return { stage, load, warm, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
 }
