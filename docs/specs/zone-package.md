@@ -43,21 +43,25 @@ Unknown keys refused; `id` equals the file's number; required keys present; kit 
 5. **References resolve:** every character id, loot id and shop id it names exists in the shared tables. A package that needs a *new* character or loot table brings those rows into the shared tables in the same PR; it never brings code.
 6. **Unlisted until Dom says so:** `"unlisted": true` keeps a package off the map and out of the server's zone list (EQEmu `min_status`).
 
+## Beta rule (Lead, 2026-10-17)
+
+For beta a package may only spawn **bodies already in the roster** (`ROSTER`), name **existing** sky, look and loot ids, and use `place.layout` `u` / `v` rows for its landmarks. The later step, once the data layer is done, is *a body = a catalogue row + a glb through the registry, no roster code* (#3064's `world: { ... }` rows on the Pit bodies are the start). Each gap below is marked **BETA** (needed for the first Test Zone import to be rows only) or **LATER**; the ranking is Lead's, this is my proposal.
+
 ## Gaps (need code today; listed, not hooked)
 
-1. **Landmark positions for generated zones.** A zone whose `place.layout` is `u`/`v` rows is pure data. Zone 1's world coordinates come from `origins/preview/frontier-plan.ts`, which is code. A package must use `layout` rows; the frontier plan is not available to it.
-2. **Exit rows are one global file**, not part of the package. Importing a package means editing `exit-rows.json`. Proposal: allow an `exits` list on the zone row (the field already exists in `schema.ts`, `wired: false`) and have the loader merge it. Needs Backend's agreement because warps derive from it.
-3. **Characters and bodies.** A package names `defaultKind` and character ids; the roster (`ROSTER`) and `MOB_LOOKS` are TypeScript. A new body is code and cannot ship in a package.
-4. **Loot tables, items, shops** are in `region1/content.ts` (TypeScript literals) except where already moved to rows. A package that needs one has to wait for that table to be rows, or reuse an existing id.
-5. **`look.sky` ids and the dome / backdrop render** are resolved by preview code; a package may name an existing sky, not define a new one.
-6. **Quests, townsfolk placement, gather points, containers, safe areas** (`schema.ts` groups `population` / `interaction`) are `wired: false`: no reader exists, so a package cannot use them yet.
-7. **The map position of a package** (`place.joins`, `waypoints`) assumes the Region 1 map. A package that joins no existing zone is an island; how an island appears on the world map is undecided.
+1. **Landmark positions for generated zones.** A zone whose `place.layout` is `u`/`v` rows is pure data. Zone 1's world coordinates come from `origins/preview/frontier-plan.ts`, which is code. A package must use `layout` rows; the frontier plan is not available to it. **LATER:** beta packages use `layout` rows, which the Test Zone already does; packaging a frontier-plan zone (Zones 1-4) is the later step.
+2. **Exit rows are one global file**, not part of the package. Importing a package means editing `exit-rows.json`. Proposal: allow an `exits` list on the zone row (the field already exists in `schema.ts`, `wired: false`) and have the loader merge it. Needs Backend's agreement because warps derive from it. **BETA** for any package with a door; a package with no exit needs nothing.
+3. **Characters and bodies.** A package names `defaultKind` and character ids; the roster (`ROSTER`) and `MOB_LOOKS` are TypeScript. A new body is code and cannot ship in a package. **LATER** (Lead): the beta rule above is roster bodies only; the later step is a body as a row plus an asset.
+4. **Loot tables, items, shops** are in `region1/content.ts` (TypeScript literals) except where already moved to rows. A package that needs one has to wait for that table to be rows, or reuse an existing id. **LATER:** the beta rule is to reuse existing ids; a package with creatures also needs its loot ids to exist, which the load check refuses otherwise.
+5. **`look.sky` ids and the dome / backdrop render** are resolved by preview code; a package may name an existing sky, not define a new one. **LATER** for a new sky; the Test Zone's dome is already named by `look.sky` and the camp by `look.props.camp` (#2823), but its backdrop pictures and dome render are still sandbox code, so confirm with the Sandbox whether they are **BETA**.
+6. **Quests, townsfolk placement, gather points, containers, safe areas** (`schema.ts` groups `population` / `interaction`) are `wired: false`: no reader exists, so a package cannot use them yet. **LATER:** the Test Zone has no creatures and uses none of them.
+7. **The map position of a package** (`place.joins`, `waypoints`) assumes the Region 1 map. A package that joins no existing zone is an island; how an island appears on the world map is undecided. **LATER:** a beta package joins an existing zone through `place.joins` (the Test Zone joins the Drowned Marsh).
 
 ## Open questions
 
 - **Backend:** (a) is `presence` keyed per world zone enough for warps, or do warps want their own table when a package has no exit row? (b) can the server load an exit list from the zone row (gap 2) without a migration?
 - **Test Zone Sandbox:** which of the six contract items does the Test Zone already meet, and which pieces of it are code today (the dome, the camp dress, the backdrop pictures)? Those are gaps 1, 5 and 6 until shown otherwise.
-- **Lead:** is gap 3 (new bodies) out of scope for a package forever, or a later content-bundle step?
+- **Lead:** answered 2026-10-17: gap 3 is a later content-bundle step (see the Beta rule), not out of scope for good.
 
 ## Not in this spec
 
