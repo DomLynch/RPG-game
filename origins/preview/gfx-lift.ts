@@ -23,7 +23,7 @@ export function patchHeightFog(): void {
     `float fogH = ${keep} + ${boost} * exp( - max( vFogY, 0.0 ) * ${fall} );\n\t\tfloat fogD = fogDensity * fogH;\n\t\tfloat fogFactor = 1.0 - exp( - fogD * fogD * vFogDepth * vFogDepth );`);
 }
 
-const GRADE = {
+const gradeShader = {
   uniforms: { tDiffuse: { value: null as THREE.Texture | null }, contrast: { value: 1 }, saturation: { value: 1 }, teal: { value: 0 }, warm: { value: 0 }, vignette: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: `uniform sampler2D tDiffuse; uniform float contrast, saturation, teal, warm, vignette; varying vec2 vUv;
@@ -48,8 +48,8 @@ export function createGfxLift(renderer: THREE.WebGLRenderer, scene: THREE.Scene,
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(size.x, size.y), fxNum('gfx.bloom.strength'), fxNum('gfx.bloom.radius'), fxNum('gfx.bloom.threshold')));
   composer.addPass(new OutputPass());   // the renderer's tone mapping and sRGB, once, here
-  const grade = new ShaderPass(GRADE);
-  const u = grade.uniforms as typeof GRADE.uniforms;
+  const grade = new ShaderPass(gradeShader);
+  const u = grade.uniforms as typeof gradeShader.uniforms;
   u.contrast.value = fxNum('gfx.grade.contrast'); u.saturation.value = fxNum('gfx.grade.saturation'); u.teal.value = fxNum('gfx.grade.shadow-teal'); u.warm.value = fxNum('gfx.grade.highlight-warm'); u.vignette.value = fxNum('gfx.grade.vignette');
   composer.addPass(grade);
   return {
