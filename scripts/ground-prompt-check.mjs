@@ -11,7 +11,7 @@ import path from 'node:path';
 import { build } from 'vite';
 import { chromium } from 'playwright';
 import RULES from '../origins/preview/ground-pickup.json' with { type: 'json' };   // the row itself, not ground-pickup.ts: this script's import chain stops at data (the row-placement test keeps it off the Mac list)
-import { centreOf, serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness.mjs';
+import { serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness.mjs';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
 const PICKUP = RULES.groundPickup[0].fields;
@@ -64,7 +64,7 @@ async function run(take) {
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
   await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, ID, { timeout: 90000 });
-  if (guest) { const c = await centreOf(page); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [c.x, c.z - 1.3]); }
+  if (guest) { const a = await page.evaluate((id) => window.originsPreview.ground.anchor(id), ID); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [a.x, a.z - 1.3]); }   // the row's own point (its place centre plus its offset, wherever World puts it), not the place centre
   await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 });
   const name = (await measure(page)).text.replace(/^Take the /, '');
   await expectClear(page, `${take}-prompt`, `Take the ${name}`, true);
