@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';
-import { betaLevel } from '../src/core/career-ladder.ts';   // the beta cut (#3024): a level above BETA_MAX_LEVEL fights at the cut
+import { betaLevel } from '../src/core/server.ts';   // the beta cut (#3024): a level above BETA_MAX_LEVEL fights at the cut
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;

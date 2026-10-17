@@ -7,8 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { rankFor } from '../src/core/server.ts';
-import { betaMarks } from '../src/core/career-ladder.ts';   // the beta cut (#3024): the journal shows the rank at the cut, so the label a row expects is rankFor(betaMarks(marks))
+import { betaMarks, rankFor } from '../src/core/server.ts';   // betaMarks: the beta cut (#3024) shows the journal rank at the cut, so the label a row expects is rankFor(betaMarks(marks))
 import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
