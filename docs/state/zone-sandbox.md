@@ -2,6 +2,9 @@
 
 Append new entries at the TOP. Lane started 2026-10-15; this file written 2026-10-16 09:30 +04. The longer 2026-10-15 handoff and the "UPDATE 2" entry are in docs/state/world.md ("Zone sandbox handoff 2026-10-15").
 
+## HEADS-UP from Strategy (2026-10-17): the BETA DUNGEON look is ours, NO work until Dom says the theme
+Strategy's default theme pending Dom's line: the bone-and-skull cave camp with lanterns from his second reference picture, built with our building-skins rows plus Characters' kit pieces (skull totem, bone lantern, stakes, banner already commissioned; cave wall, bone pile, rough doorway still to add). Dark by data (ambient row + lanterns). First proof goes on Dom's phone through the hot-reload server, NOT a publish. Lead is lifting the scope page into docs/.
+
 ## UPDATE 2026-10-17 09:30: LIVE `fbf5cd5` (reach row + fire rebuilt)
 **Reach row:** `reach.*` rows in src/fight/fx-rows.json (hero-edge 0.45, default 0.5 m of mouth per unit of look scale, giant-salamander 0.5, gap 2.2): mobs-view.ts shifts a creature drawn bigger than its rig back along the line to the hero until its mouth is `reach.gap` clear of his edge. MEASURED (not guessed) on the page: sim 0.87 m, drawn 4.25 m, mouth 3.1 m from the hero. The old complaint was real: the 6 m body's head was 0.8 m from his face.
 **Fire:** src/fight/breath.ts rebuilt on the donor World of Claudecraft (MIT) src/render/ignivar_fire_beams.ts: separate shader-carved cone TONGUES, NORMAL blending, dark-red ramp (breath.tip/body/core rows), smoke sprites, additive embers; rows `breath.*`. Dom's brief: dark red, less bright yellow, separated tongues not a round beam.
