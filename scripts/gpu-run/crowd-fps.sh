@@ -28,6 +28,10 @@ elif [[ "${1:-}" == "imp" ]]; then
     SERVE=1 COUNTS=40 MODES=walk THROTTLE=4 OUT="artifacts/crowd-fps/imp$pass-f40" node scripts/origins-crowd-fps.mjs || true
     SERVE=1 COUNTS=0 MODES=walk THROTTLE=4 QS="&impostors=100" OUT="artifacts/crowd-fps/imp$pass-i100" node scripts/origins-crowd-fps.mjs || true
   done
+elif [[ "${1:-}" == "quick1" ]]; then
+  # `quick1`: the empty zone at 1x, one case, programs added after [zone ready] (their names are in the receipt): bisecting a post-ready compile.
+  npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
+  SERVE=1 COUNTS=0 MODES=idle THROTTLE=1 OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
 elif [[ "${1:-}" == "quick" ]]; then
   # `quick`: the empty zone at 4x CPU only (0 players, idle): one case, about a minute, for bisecting a frame-rate regression that needs no crowd.
   npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }

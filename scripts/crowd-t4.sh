@@ -8,7 +8,7 @@
 set -euo pipefail
 REF="${1:?usage: scripts/crowd-t4.sh <PR number | branch | sha> [dressed] [--dry-run]}"; shift || true
 DRESSED=""; DRY=0
-for a in "$@"; do case "$a" in dressed|quick|ab|imp) DRESSED=$a;;   # DRESSED carries the wrapper's one mode word: dressed; quick (0 players at 4x only, about a minute, for bisecting); ab (this ref against trunk, alternating in ONE job, 0/16/40 walking at 4x: the within-job cost per figure)
+for a in "$@"; do case "$a" in dressed|quick|quick1|ab|imp) DRESSED=$a;;   # DRESSED carries the wrapper's one mode word: dressed; quick (0 players at 4x only, about a minute, for bisecting); ab (this ref against trunk, alternating in ONE job, 0/16/40 walking at 4x: the within-job cost per figure)
  --dry-run) DRY=1;; *) echo "unknown arg $a" >&2; exit 2;; esac; done
 git fetch -q origin
 if [[ "$REF" =~ ^[0-9]+$ ]]; then SHA=$(gh pr view "$REF" --json headRefOid --jq .headRefOid); else SHA=$(git rev-parse --verify -q "origin/$REF" || git rev-parse --verify "$REF"); fi
