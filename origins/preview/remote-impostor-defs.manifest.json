@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "remote-impostor-rule", "file": "remote-impostor-defs.json", "at": "rules", "key": "id", "required": { "value": "number", "unit": "string" }, "optional": { "note": "string" } }
+  ]
+}

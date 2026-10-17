@@ -1,0 +1,20 @@
+{
+  "rules": [
+    { "id": "tierFull", "value": 8, "unit": "figures", "note": "the nearest this many remote heroes keep the full skinned figure" },
+    { "id": "tierMid", "value": 16, "unit": "figures", "note": "the next this many take the middle tier (Characters' merged far LOD, one skinned mesh)" },
+    { "id": "tierRange", "value": 80, "unit": "m", "note": "past this a remote hero is not drawn at all (the 2004Scape drawn-player cap, by distance)" },
+    { "id": "atlasCells", "value": 8, "unit": "views", "note": "views of the figure around a full turn, baked side by side" },
+    { "id": "atlasCellW", "value": 96, "unit": "px" },
+    { "id": "atlasCellH", "value": 192, "unit": "px" },
+    { "id": "figureHeight", "value": 1.9, "unit": "m", "note": "the quad's height; the figure is framed to fill the cell" },
+    { "id": "figureWidth", "value": 1, "unit": "m", "note": "the quad's width" },
+    { "id": "alphaCut", "value": 0.5, "unit": "alpha", "note": "a texel below this is discarded (no sorting, one draw)" },
+    { "id": "bakeFov", "value": 12, "unit": "deg", "note": "the bake camera's field of view; narrow, so the cells read as near-orthographic" },
+    { "id": "benchWalkSpeed", "value": 2.5, "unit": "m/s", "note": "?impostors=N bench: how fast the figures circle" },
+    { "id": "benchRingMin", "value": 1.5, "unit": "m", "note": "bench: smallest circle radius; the radius is this plus 0, 1 or 2" },
+    { "id": "benchNear", "value": 4, "unit": "m", "note": "bench: the nearest row of the cone ahead of the hero" },
+    { "id": "benchSpread", "value": 11, "unit": "m", "note": "bench: depth of the cone" },
+    { "id": "benchWindow", "value": 5000, "unit": "ms", "note": "bench: the on-screen mean and p95 cover this much of the latest frames" },
+    { "id": "benchMax", "value": 200, "unit": "figures", "note": "bench: the most impostors it will draw, and the instance capacity" }
+  ]
+}

@@ -772,3 +772,4 @@ function programOwners(): Record<string, string[]> {
   leave: leaveFight,
   reset: (level: number) => { session = newSession(level); source = { offline: 'reset' }; last = null; play.standAt(careerLine(session.career).level); showCareer(); return careerLine(session.career); },
 };
+if (new URLSearchParams(location.search).has('impostors')) void import('./remote-impostor-bench.ts').then((m) => m.impostorsFromUrl({ scene, renderer, makeFigure: () => (warriors ? cloneRig(warriors.player.anchor) : null), hero: () => ({ x: state.x, z: state.z, heading }), groundAt: groundY, canStand }));   // ?impostors=N: the far tier alone, with the frame time on screen (dev tooling)
