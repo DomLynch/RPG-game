@@ -47,6 +47,7 @@ export const FIELDS: readonly Field[] = [
   interaction('safeAreas', 'list', [], { donor: 'rathena mapflag town/nopvp' }), interaction('pvp', 'enum', 'off', { values: ['off', 'on', 'opt-in'], owner: 'Backend', donor: 'rathena mapflag pvp' }),
   // HOW IT PLAYS (the warm-up list is DERIVED from camps + the player, warm-plan.ts: not a field)
   play('loot.overrides', 'map', {}), play('difficulty.mult', 'number', 1, { min: 0.1, max: 10 }), play('reward.mult', 'number', 1, { min: 0, max: 10, donor: 'EQEmu zone.zone_exp_multiplier' }),
+  play('presence', 'map', {}, { donor: 'EQEmu zone.maxclients (per world zone: speed, quiet, caps {floor, soft, hard}; fields only, nothing enforces caps)' }),
   play('dayNight.on', 'boolean', true, { owner: 'World' }), play('dayNight.cycleSeconds', 'number', 0, { min: 0, owner: 'World' }),
   // BUDGET (0 = no zone limit: the global gate applies)
   budget('budget.triangles', 'number', 0, { min: 0 }), budget('budget.textures', 'number', 0, { min: 0 }), budget('budget.drawCalls', 'number', 0, { min: 0 }),
