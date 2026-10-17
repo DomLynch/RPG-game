@@ -8,7 +8,7 @@
 // the exchange zone (the whole zone is the trade area, Lead 05:4x) is served just outside the Exchange's outer gate, Pit side, 50 cm in.
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_EDGE_CM, zoneAt as zoneAtCm } from '../presence/zones.ts';
+import { LEGACY_SHIFT_CM, inTradeArea as inTradeAreaCm, REJOIN_EDGE as REJOIN_EDGE_CM, TRADE_ZONE, zoneAt as zoneAtCm } from '../presence/zones.ts';
 import type { Db } from './db.ts';
 import type { LocationFlusher } from './location-flush.ts';
 import * as store from './store.ts';
@@ -36,7 +36,7 @@ export type Served = { saved: false; name?: string | null; worn?: Worn } | { sav
 export function serve(saved: store.SavedRow | null, held: HeldPlace | null): Served {
   if (held) return { saved: true, zone: held.zone, x: held.x, z: held.z, source: held.reason };
   if (!saved) return { saved: false };
-  if (saved.zone === 'exchange' || inTradeArea(saved.x, saved.z)) return { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge' };
+  if (saved.zone === TRADE_ZONE || inTradeArea(saved.x, saved.z)) return { saved: true, zone: zoneAt(REJOIN_EDGE.x, REJOIN_EDGE.z), x: REJOIN_EDGE.x, z: REJOIN_EDGE.z, source: 'trade-edge' };
   return { saved: true, zone: saved.zone, x: saved.x, z: saved.z, source: 'saved' };
 }
 
