@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "crowd-rung", "file": "crowd-ladder.json", "at": "rungs", "key": "id", "required": { "full": "integer", "every": "integer" } }
+  ]
+}

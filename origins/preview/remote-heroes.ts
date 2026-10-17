@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
 import { createGovernor } from './frame-governor.ts';
+import { CROWD_LADDER } from './crowd-ladder.ts';
 import { labelSprite } from './label-sprite.ts';
 import { labelCeilingNdc } from './mobs.ts';
 import { CHEAP_PARTS } from './remote-cheap.ts';
@@ -30,8 +31,8 @@ type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number
 /** `who`: the page's record of an id's { name, guest } (presence's `enter`, kept by main.ts), read each frame for the ids drawn; `forget`: called when a slot expires, so a reused id never wears the last player's name before its own `enter` arrives. */
 export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
   const track = createTrack(), pool: Slot[] = [], live = new Map<number, Slot>(), names = new Map<number, Who>(), at = new THREE.Vector3(), tagY = previewRule('remoteTagY'), idle = previewRule('remoteIdle');
-  const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile') });
-  const fullCount = previewRule('remoteFullCount'), adaptFullCount = previewRule('remoteAdaptFullCount'), every = previewRule('remoteCheapEvery'), range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep');   // read once: update() runs every frame
+  const governor = createGovernor({ windowMs: previewRule('remoteAdaptWindowMs'), slowMs: previewRule('remoteAdaptSlowMs'), okMs: previewRule('remoteAdaptOkMs'), judgeMs: previewRule('remoteAdaptJudgeMs'), percentile: previewRule('remoteAdaptPercentile'), rungs: CROWD_LADDER.length });
+  const range = previewRule('remoteAnimRange'), radius = previewRule('remoteBoundR'), owedCap = previewRule('remoteOwedCap'), groundStep = previewRule('remoteGroundStep');   // read once: update() runs every frame
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
@@ -67,8 +68,8 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
     know: (id: number, who: Who): void => { names.set(id, who); },
     /** `camera` (the last frame's matrices are enough): a remote outside its frustum, or past `remoteAnimRange` metres, is hidden and frozen (root still moved); the time it skipped is paid (capped) when it is next posed. */
     update(dt: number, now: number, hero: { x: number; z: number }, camera?: THREE.Camera): void {
-      const low = governor.push(dt * 1000, now);   // the frames' p95 stays high: the smaller full count applies until it has stayed low again
-      const seen = new Set<number>(), full = low ? adaptFullCount : fullCount;
+      governor.push(dt * 1000, now);   // the frames' p95 stays high: the governor steps down the ladder (crowd-ladder.json), and back up once it has stayed low again
+      const rung = CROWD_LADDER[governor.level()]!, seen = new Set<number>(), full = rung.full, every = rung.every;
       if (camera) frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       track.shown(now, hero).forEach((s, rank) => {   // nearest first: rank < remoteFullCount is a full figure
         seen.add(s.id);
