@@ -11,7 +11,7 @@ import { DIALS, POINTS, SHEET_SKILLS, checkSheet, pointsAt, sheetOf, statDown, s
 import { GEAR, gearDeltas, loadGearDefs } from '../src/fight/gear-rows.ts';
 import { SCHOOLS, SCHOOL_IDS } from '../src/fight/schools.ts';
 import { createRecorder, encodeRecord, packRecord, unpackRecord, FIRST_SHEET_VERSION, RECORD_VERSION } from '../src/fight/record.ts';
-import { FIRST_CAST_PENALTY_VERSION } from '../src/fight/cast-penalty-era.ts';
+import { SHEET_ERA_VERSION } from '../src/fight/cast-penalty-era.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { sheetRefusal, verifyRecord } from '../src/fight/replay.ts';
 import { verifyEncounter } from '../origins/server/encounter-verify.ts';
@@ -193,10 +193,10 @@ test('a sheet fight records no lower than the cast-penalty version with its dial
   const rec = createRecorder({ ...meta, sheet }), plain = createRecorder(meta);
   for (let i = 0; i < 30; i++) { rec.push(idle()); plain.push(idle()); }
   const a = rec.finish('abandoned'), b = plain.finish('abandoned');
-  assert.equal(a.v, FIRST_CAST_PENALTY_VERSION, 'a sheet fight carries the worn set\'s cast penalty from that version, so it is stamped no lower'); assert.notEqual(b.v, FIRST_CAST_PENALTY_VERSION, 'no sheet: the lowest version that can express the fight');
+  assert.equal(a.v, SHEET_ERA_VERSION, 'a sheet fight carries the worn set\'s cast penalty from that version, so it is stamped no lower'); assert.notEqual(b.v, SHEET_ERA_VERSION, 'no sheet: the lowest version that can express the fight');
   assert.deepEqual(unpackRecord(packRecord(a)), a);
   const bytes = packRecord(a);
-  assert.equal(bytes[2], FIRST_CAST_PENALTY_VERSION);
+  assert.equal(bytes[2], SHEET_ERA_VERSION);
   assert.equal(verifyRecord(a, undefined, { sheet: 'trust' }).ok, true);
   const at = bytes.length - 6 * 30 - (1 + 4 + 4 + 1) - (1 + 2 * 3 + 1 + 0 + 4);   // the sheet block: count, (code, value) x 3, an empty character id and a zero build version, just before level
   assert.equal(bytes[at], 3, 'three pairs');
@@ -266,7 +266,7 @@ test('the cast penalty is keyed on the record\'s version: an older heavy-armour 
   setPlayScale(playScaleFor(meta.opponent, RECORD_VERSION)); setLateNotice(true); setStab(true);
   const rec = createRecorder({ ...meta, sheet: newSheet, characterId: 'c1', buildVersion: 1 }); for (let i = 0; i < 10; i++) rec.push(idle());
   const fresh = rec.finish('abandoned');
-  assert.equal(fresh.v, FIRST_CAST_PENALTY_VERSION); assert.equal(newSheet.spellPower, 20, 'heavy takes 20 off a spellPower of 40');
+  assert.equal(fresh.v, SHEET_ERA_VERSION); assert.equal(newSheet.spellPower, 20, 'heavy takes 20 off a spellPower of 40');
   assert.deepEqual(await expectedSheet(fresh, load, gearDeltas('plate', 1, 0, fresh.v)), { ok: true, sheet: newSheet });
   assert.deepEqual(unpackRecord(packRecord({ ...fresh, v: FIRST_SHEET_VERSION as typeof fresh.v })).sheet, fresh.sheet, 'a v48 stamp still decodes: the version only picks the recomputation');
 });
