@@ -74,6 +74,7 @@ try {
       await page.waitForTimeout(2500);
       const hud = await page.evaluate(() => ['skill-button', 'skill2-button'].map((id) => { const b = document.getElementById(id), r = b?.getBoundingClientRect(); return { id, hidden: !b || b.hidden || !r || r.width === 0, text: b?.textContent?.trim() ?? '', right: r?.right ?? 0 }; }));
       check(hud.every((h) => !h.hidden && h.text), `${name}: the fight HUD shows SPECIAL 1 and SPECIAL 2 lit (${JSON.stringify(hud)})`);
+      check(hud[0].text === NAMES[a] && hud[1].text === NAMES[b], `${name}: and each button wears its pick's name (${hud.map((h) => h.text)} vs ${NAMES[a]} / ${NAMES[b]})`);
       await page.screenshot({ path: `${out}/pick-${name}-hud-both-lit.png` });
     }
     await context.close();
