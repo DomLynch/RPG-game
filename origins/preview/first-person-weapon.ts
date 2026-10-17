@@ -61,7 +61,7 @@ export function createViewmodel(scene: THREE.Scene) {
       // The forearm: from the grip (the clone's origin, where its hand is) back towards where the rig's elbow is, in the clone's own space, so it follows every swing; the fist sits on the grip.
       const elbow = rig.getObjectByName('lowerarm_r');
       if (elbow && arm && fist) {
-        const e = elbow.getWorldPosition(new THREE.Vector3()), inv = new THREE.Matrix4().copy(weapon.matrixWorld).invert(), local = e.applyMatrix4(inv), len = Math.max(0.2, local.length());
+        const e = elbow.getWorldPosition(new THREE.Vector3()), inv = new THREE.Matrix4().copy(weapon.matrixWorld).invert(), local = e.applyMatrix4(inv), len = local.length() || Number.EPSILON;
         const dir = local.clone().normalize(); arm.scale.set(1, len * 1.8, 1); arm.position.copy(dir).multiplyScalar(len * 0.9);   // long enough to leave the bottom of the frame
         arm.quaternion.setFromUnitVectors(up, dir); fist.position.set(0, 0.02, 0);
       }
