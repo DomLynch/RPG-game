@@ -8,9 +8,6 @@
  "origins/preview/daynight.ts": {
   "DAY_NIGHT_SPEED": 1
  },
- "origins/preview/mobs-view.ts": {
-  "FETCH_RANGE": 1
- },
  "origins/preview/presence-client.ts": {
   "LEGACY_EDGE_M": 1
  },
