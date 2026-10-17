@@ -1,5 +1,6 @@
 {
   "wield": [
+    { "id": "item:starter.rusty-sword", "lootId": "starter.Longsword" },
     { "id": "item:starter.knife", "lootId": "goblin.Knife" },
     { "id": "item:starter.cleaver", "lootId": "pitborn.Cleaver" },
     { "id": "item:starter.gladius", "lootId": "shieldmaiden.Gladius" },
