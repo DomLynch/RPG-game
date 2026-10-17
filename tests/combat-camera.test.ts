@@ -7,7 +7,7 @@ import { createFollowCamera, type CombatCam } from '../src/fight/follow-camera.t
 const S = { x: 0, z: 0, heading: 0, pitch: 0, groundY: 0 };
 const CAM: CombatCam = {
   label: 'test',
-  portrait: { back: 8, up: 4, side: 0, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.5, perSize: 1, shiftY: 0.1, fov: 4, zoom: 0.9 },   // further back and higher than the default walking camera (5.2 / 2.7)
+  portrait: { back: 8, up: 4, side: 0, ahead: 2, lookY: 1, mid: 0.5, perSep: 0.5, perSize: 1, sizeFrom: 1.8, shiftY: 0.1, fov: 4, zoom: 0.9 },   // further back and higher than the default walking camera (5.2 / 2.7)
   landscape: { back: 7, up: 3.5, side: 0, ahead: 2, lookY: 1, mid: 0.5, zoom: 0.8 },
 };
 const run = (f: ReturnType<typeof createFollowCamera>, seconds: number, input?: Parameters<typeof f.update>[2]) => { for (let t = 0; t < seconds * 60; t++) f.update(1 / 60, S, input); };

@@ -17,13 +17,11 @@ export const pickFraming = (presets: Presets | undefined, choice: string | null 
 export type FollowState = { x: number; z: number; heading: number; pitch: number; groundY: number };
 /** What a fight changes on top of a Framing (a zone's `camera.combat`, Dom 2026-10-17: the thumb buttons hide the hero and the foe is too close). mid: how far the gaze moves from the hero toward the foe (0 = as walking, 0.5 = between them);
  *  perSep / perSize: extra metres back per metre between them / per metre the foe's biggest dimension is above a man's; shiftY: the share of the screen height the picture is lifted, off the thumb buttons; fov: degrees added; zoom: a multiplier on the camera's own zoom. */
-export type CombatFraming = Framing & { mid?: number; perSep?: number; perSize?: number; shiftY?: number; fov?: number; zoom?: number };
+export type CombatFraming = Framing & { mid?: number; perSep?: number; perSize?: number; sizeFrom?: number; shiftY?: number; fov?: number; zoom?: number };   // sizeFrom: the foe size (m) above which perSize starts, a man's height in the rows
 /** One combat camera: its framing for a phone held upright and held wide, and (when `zoom` is set) the steps the player may pick between, a multiplier on back and up. */
 export type CombatCam = { label: string; portrait: CombatFraming; landscape: CombatFraming; zoom?: { steps: readonly number[]; labels: readonly string[]; start: number } };
 /** The fight, per frame: the camera in use, the screen shape, the foe (where it is and its biggest dimension in metres; null = no fight) and the player's zoom step. */
 export type CombatInput = { cam: CombatCam; portrait: boolean; foe: { x: number; z: number; size: number } | null; zoom?: number };
-/** A man's height: the size above which a foe pushes the camera back (perSize). */
-export const MAN_M = 1.8;
 const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 
 const OPEN: Framing = { back: 5.2, up: 2.7 }, AHEAD = cameraRule('followAhead'), LOOK_Y = cameraRule('followLookY');
@@ -51,7 +49,7 @@ export function createFollowCamera(camera: THREE.Camera, opts: { passage?: Passa
       fight += ((combat?.foe ? 1 : 0) - fight) * (1 - Math.exp(-dt * 2.5));   // eased in and out (about a second), never a cut
       if (fight < 1e-3) fight = 0;
       const c = combat && fight > 0 ? (combat.portrait ? combat.cam.portrait : combat.cam.landscape) : undefined;
-      const sep = combat?.foe ? Math.hypot(combat.foe.x - s.x, combat.foe.z - s.z) : 0, size = Math.max(0, (combat?.foe?.size ?? 0) - MAN_M), zoomK = combat?.zoom ?? 1;
+      const sep = combat?.foe ? Math.hypot(combat.foe.x - s.x, combat.foe.z - s.z) : 0, size = Math.max(0, (combat?.foe?.size ?? 0) - (c?.sizeFrom ?? 0)), zoomK = combat?.zoom ?? 1;
       const cBack = c ? (c.back + (c.perSep ?? 0) * sep + (c.perSize ?? 0) * size) * zoomK : t.back, cUp = c ? (c.up + (c.perSep ?? 0) * sep * 0.5 + (c.perSize ?? 0) * size * 0.5) * zoomK : t.up;
       const back = c ? mix(t.back, cBack, fight) : t.back, up = (c ? mix(t.up, cUp, fight) : t.up) - s.pitch * 0.9;   // the right stick's up lowers the camera and raises the gaze
       const side = c ? mix((t as Framing).side ?? 0, c.side ?? 0, fight) : (t as Framing).side ?? 0, ahead = c ? mix((t as Framing).ahead ?? AHEAD, c.ahead ?? AHEAD, fight) : (t as Framing).ahead ?? AHEAD, lookY = c ? mix((t as Framing).lookY ?? LOOK_Y, c.lookY ?? LOOK_Y, fight) : (t as Framing).lookY ?? LOOK_Y;   // right of the hero's heading is (cos h, -sin h)
