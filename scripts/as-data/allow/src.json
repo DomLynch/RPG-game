@@ -5,6 +5,7 @@
   ],
   "branchIds": [
     {"file": "src/lorarii.ts", "literal": "hold", "reason": "lorarius whip phase name (pace | raise | hold | lash | recover): the closed phase vocabulary of the lash state machine, a state of the mechanism, not a content id (Lead ruling 10-17)"},
+    {"file": "src/main.ts", "literal": "full", "reason": "graphics-governor tier name (full | half | phone): the closed tier vocabulary of createGovernor, a state of the mechanism, not a content id"},
     {"file": "src/souls-look.ts", "literal": "Shield", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"}
   ]
 }

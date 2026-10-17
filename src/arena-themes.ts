@@ -61,6 +61,8 @@ export const ARENA_THEMES: Record<ArenaKey, ArenaTheme> = (() => {
   for (const l of THEME_DATA.looks) themes[l.id] = l as unknown as ArenaTheme;
   return themes as Record<ArenaKey, ArenaTheme>;
 })();
+export const ARENA_KEYS = Object.keys(ARENA_THEMES) as readonly ArenaKey[];   // every pickable arena: the theme table's own keys, so a new theme row is pickable with no second list
+export const LADDER_PICK = 'ladder';   // the stage pick that means "no override": the ladder band chooses (arenaFor's default)
 // Owner 2026-09-24 (via Strategy): "get all arenas, they are all good" — all five ride the ladder, two rungs each, in the order
 // they were made. The order is PROVISIONAL: Dom chooses the final rung → arena mapping later; that pick edits this one line.
 export const ARENA_PICK: Record<1 | 2 | 3 | 4 | 5, ArenaKey> = { 1: '1', 2: '2', 3: '3', 4: 'c', 5: 'd' };
