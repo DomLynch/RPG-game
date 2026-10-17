@@ -11,7 +11,7 @@ export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, 
 import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
-import { AGGRO_M } from '../../src/fight/world.ts';
+import { AGGRO_M } from '../../src/fight/threat.ts';   // the sim's notice ring; not world.ts, which no page file under origins/preview imports (call-site pin)
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
 import { entryOf, isPlainGroup, rollCamp } from '../zones/place.ts';
 import { seedOf } from '../world/relief.ts';
@@ -102,7 +102,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     let rng = mixSeed(TUNING.seed, 5000 + out.length);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
-    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
+    out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: AGGRO_M, named: false });
   }
   out.push(...late);
   return levelByDistance(f, b, out, rows);

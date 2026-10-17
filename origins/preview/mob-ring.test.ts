@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorldCombat } from '../../src/fight/index.ts';
-import { AGGRO_M } from '../../src/fight/world.ts';
+import { AGGRO_M } from '../../src/fight/threat.ts';
 import { aggroTest, mobSpecs, newMob, type Mob } from './mobs.ts';
 import { frontierBuild, frontierPlan } from './frontier-plan.ts';
 import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';

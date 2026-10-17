@@ -8,6 +8,7 @@ import { mobLook } from './mob-looks.ts';
 import { signedIn } from './save.ts';
 import { campCount } from '../../src/core/index.ts';
 import { mixSeed } from './mobs.ts';
+import { AGGRO_M } from '../../src/fight/threat.ts';
 import { loadZone } from '../zones/loader.ts';
 const ZONE_LEVEL = loadZone().level, FRONTIER_ROWS_NAMED = new Set(loadZone().spawns.rows.filter((r) => r.named).map((r) => r.id));
 import { LEVEL_FAR_M, LEVEL_NEAR_M, NAMED_LEVEL, TUNING, aggroTest, levelAt, headingTo, hiddenInFight, mobSpecs, mobStand, newMob, nextRandom, pickVisible, previewRows, spawnAmong, stepMob, turnToward, wanderTarget, type Mob, type MobSpec } from './mobs.ts';
@@ -130,9 +131,9 @@ test('aggro: when the hero leaves it pauses, then goes back to wandering', () =>
   assert.ok(back.trail.every((t) => t.mode !== 'aggro'));
 });
 
-test('named creatures notice from further off than the common ones', () => {
+test('named and common creatures notice from the same ring: the sim\'s AGGRO_M (it hunts inside it for every creature)', () => {
   const named = SPECS.find((s) => s.named)!, common = SPECS.find((s) => !s.named)!;
-  assert.ok(named.aggro > common.aggro);
+  assert.equal(named.aggro, AGGRO_M); assert.equal(common.aggro, AGGRO_M);   // was named 9 / common 7 / the row's own: the view noticed from rings the sim never used
 });
 
 test('turnToward swings the short way round and never overshoots', () => {
@@ -179,7 +180,7 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
 
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
-  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, 'Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
+  assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden.map((s) => ({ ...s, aggro: AGGRO_M })), 'aggro is the sim\'s one notice ring now (the golden file keeps the old per-row rings, which nothing read: the placement is what it pins). Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
 });
 
 test('the Ash Wolf is a live row: ?wolf changes nothing, the wolf camp (2 or 3) stands on its own body in the Cinder Fields', () => {
