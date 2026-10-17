@@ -19,10 +19,6 @@
   "1e-3": 1,
   "0.05": 1
  },
- "origins/preview/mob-dress.ts": {
-  ".2": 1,
-  ".7": 1
- },
  "origins/preview/mobs-view.ts": {
   "8": 1,
   "1.9": 1,

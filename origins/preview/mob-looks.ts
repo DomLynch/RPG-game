@@ -31,6 +31,7 @@ export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => 
 export type MobSpread = { tints: readonly number[]; scale: number; soot: number; burnt: number };
 export const MOB_SPREAD: Readonly<Record<string, MobSpread>> = {};   // empty for the same reason: the spreads are in the zone rows
 export const VARIANTS = MOB_LOOK_RULES.mobLookRule[0]!.variants;   // the mobLookRule row (mob-looks-rules.json)
+export const WHOLE_SOOT_CAP = MOB_LOOK_RULES.mobLookRule[0]!.wholeSootCap, CLOTH_SOOT_CAP = MOB_LOOK_RULES.mobLookRule[0]!.clothSootCap;   // the most ash a baked whole-body surface / a cloth draw takes (mob-dress.ts)
 const memo = new Map<string, MobLook>();
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 /** Variant `v` (0..VARIANTS-1) of a kind: the same object every call, so the cloth-clone cache is one entry per (kind, v), at most VARIANTS a kind. */
