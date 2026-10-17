@@ -49,6 +49,10 @@ try {
   assert.ok(await page.waitForFunction(() => window.originsPreview.remote() !== null, null, { timeout: 120000 }).then(() => true).catch(() => false), 'the remote view never came up (the hero rig did not load)');
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
   const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });   // one atomic read: the linked programs, and which scene objects use each
+  const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === 'kitWarmMs').value;
+  // the other-players' gear warm-up links its programs after [zone ready] (#2938): the "before" read waits for it, or its programs would count as added by the bots
+  assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 60000 }).then(() => true).catch(() => false), 'the remote kits warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');   // bounded by the kitWarmMs row (it stops starting kits then) plus the one in flight
+  receipt.remoteKitsWarm = await page.evaluate(() => window.originsPreview.remoteKitsWarm());
   const before = await snap(); receipt.programsBeforeBots = before.names.length;
   assert.ok(await until(async () => (await page.evaluate(() => window.originsPreview.presence().state)) === 'live', 60000), 'the page never reached presence (state is not live)');
 

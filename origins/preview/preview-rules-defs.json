@@ -27,6 +27,7 @@
     { "id": "gateGap", "value": 0.62, "unit": "rad" },
     { "id": "heroWait", "value": 45000, "unit": "ms" },
     { "id": "kindsWait", "value": 20000, "unit": "ms" },
+    { "id": "kitWarmMs", "value": 60000, "unit": "ms" },
     { "id": "materialBound", "value": 4000, "unit": "ms" },
     { "id": "uploadBudget", "value": 6, "unit": "ms" },
     { "id": "legendReach", "value": 6, "unit": "m" },
