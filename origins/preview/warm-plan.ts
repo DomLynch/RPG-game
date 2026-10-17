@@ -19,6 +19,9 @@ export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Cam
   for (const t of textures) { renderer.initTexture(t); await frame(); }
 }
 
+/** The page is too slow to spend frames on warming other players' gear: the median of the sampled frame gaps (ms) is above `limitMs`. A kit's shadow-pass link is one synchronous step that no API makes async, so on a slow device (a software-GL runner, a weak phone) it is skipped and remotes keep the base figure; an empty sample is not slow. */
+export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { if (!gapsMs.length) return false; const sorted = [...gapsMs].sort((a, b) => a - b); return sorted[sorted.length >> 1]! > limitMs; };
+
 /**
  * Warm `kits` one after another within `boundMs` (the kit warm-up's own cap, `kitWarmMs`). `settle` is settleWithin (true when the work settled, false at the bound). At the bound the loop STOPS before its next kit and the result is `failed: true`, so the page keeps remotes
  * on the base figure. A compile cannot be taken back, so the ONE kit already in flight is waited for (at most `hardMs`, a compile that never settles must not hold the zone): when this returns nothing is compiling and nothing will, so nothing compiles after ready.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAYER, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 
 test('the player\'s actor is in every zone\'s warm-up list, first, whatever the creature kinds', () => {
   for (const kinds of [[], ['goblin', 'wolf'], ['goblin', 'boar', 'knight', 'pitborn', 'bear', 'witch', 'wolf'], ['player']]) {
@@ -45,6 +45,15 @@ test('a kit that outlasts the hard bound is still compiling when the warm-up ret
   assert.equal(compiled.length, 1, 'ended waited for that one kit'); assert.equal(cleaned, 1, 'cleanup ran once, at the end');
   await sleep(300);
   assert.equal(compiled.length, 1, 'nothing compiles after `ended`');
+});
+
+test('tooSlow: the median frame gap above the limit is slow; one spike in a smooth run is not; an empty sample is not', () => {
+  assert.equal(tooSlow([16, 17, 16, 33, 16], 100), false, 'a phone');
+  assert.equal(tooSlow([16, 16, 400, 16, 16], 100), false, 'one hitch in a smooth run');
+  assert.equal(tooSlow([250, 300, 280, 260, 310], 100), true, 'a software-GL runner');
+  assert.equal(tooSlow([101, 101, 101], 100), true, 'just over');
+  assert.equal(tooSlow([100, 100, 100], 100), false, 'at the limit');
+  assert.equal(tooSlow([], 100), false);
 });
 
 test('a warm-up inside its cap warms every kit and is not failed; a kit that throws fails it and stops', async () => {
