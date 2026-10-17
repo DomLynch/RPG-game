@@ -13,7 +13,7 @@ for a in "$@"; do case "$a" in dressed|quick|ab|imp) DRESSED=$a;;   # DRESSED ca
 git fetch -q origin
 if [[ "$REF" =~ ^[0-9]+$ ]]; then SHA=$(gh pr view "$REF" --json headRefOid --jq .headRefOid); else SHA=$(git rev-parse --verify -q "origin/$REF" || git rev-parse --verify "$REF"); fi
 SHORT=${SHA:0:9}; BR="world/crowd-fps-on-$SHORT"; OUT="${OUT:-/tmp/crowd-t4-$SHORT.md}"
-MODEARGS="$DRESSED"; if [[ "$DRESSED" == "ab" ]]; then BASE=$(git rev-parse origin/codex/01a09a76/task-1); MODEARGS="ab $BASE"; fi   # ab: the base is trunk's head now
+MODEARGS="$DRESSED"; if [[ "$DRESSED" == "ab" ]]; then BASE=$(git rev-parse "${BASE_REF:-origin/codex/01a09a76/task-1}"); MODEARGS="ab $BASE"; fi   # ab: the base is trunk's head now; BASE_REF=<ref> measures against another tree
 HARNESS=(scripts/origins-crowd-fps.mjs scripts/gpu-run/crowd-fps.sh)   # imp needs the ref's tree to carry origins/preview/remote-impostor-bench.ts (the ?impostors=N page)
 HREF="${HARNESS_REF:-origin/world/crowd-fps}"   # where the harness files come from (#2931's branch; after it merges, set HARNESS_REF=origin/codex/01a09a76/task-1)
 echo "ref $REF -> $SHA; test branch $BR; harness from $HREF; mode ${DRESSED:-undressed}"
