@@ -7,6 +7,30 @@
 # After a rollback no later group starts (post_publish_rows returns 1 with a SKIPPED line, never "live" for the rolled-back revision), and when POST_PUBLISH_LIVE_CMD (deploy.sh: the release.json
 # lookup) is set, the live revision must equal the rows' target before they start (EB drill 2026-10-13: rows 9,46 ran after ROLLED BACK). The hold file is no guard: the train keeps it during every publish.
 # POST_PUBLISH_PROMOTE=0 keeps a pass from promoting the pending full-run stamp. Env (tests): POST_PUBLISH_RUN (the command, default node scripts/release-checks.mjs), DEPLOY_HOLD_FILE.
+# post_publish_ci_rows <revision> <rows csv>: prints (stdout) the rows the Mac still has to run; everything it says goes to stderr. Lead + Strategy 2026-10-17 (the IF publish put 14 rows on a Mac at load ~27):
+# a post-publish row goes to the GitHub runners like a pre-publish one. CI leaves these rows out of a candidate's matrix but a workflow_dispatch runs them, so a row already green on CI for this tree is
+# trusted (scripts/ci-trusted-checks.mjs: by tree, with a receipt), and for the rest one `release-checks` dispatch is started on the trunk ref with ref=<revision> and waited for (POST_PUBLISH_CI_WAIT_S, default
+# 1200). Only what CI could not prove (WebKit/iPhone rows, a red or missing row, gh down) is left for the Mac, exactly as before. POST_PUBLISH_CI=off skips all of it. No workflow file is touched.
+_pp_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+post_publish_ci_rows() {
+  local rev="$1" rows="$2" trusted left
+  local trust="${POST_PUBLISH_TRUSTED_CMD:-node scripts/ci-trusted-checks.mjs}" ref="${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1}"
+  [[ -n "$rows" ]] || return 0
+  if [[ "${POST_PUBLISH_CI:-on}" == off ]]; then printf '%s' "$rows"; return 0; fi
+  trusted=$($trust "$rev" 2>/dev/null || true)
+  left=$(node "$_pp_dir/row-placement.mjs" subtract "$rows" "$trusted")
+  if [[ -n "$left" ]]; then
+    echo "post-publish rows $left for $rev: not yet green on CI for this tree, dispatching release-checks on $ref (ref=$rev)" >&2
+    if ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref $ref -f ref=$rev} >&2 2>&1; then
+      sleep "${POST_PUBLISH_CI_SETTLE_S:-30}"   # the run must exist before ci-trusted-checks can wait on it
+      trusted=$(CI_ROWS_WAIT_S="${POST_PUBLISH_CI_WAIT_S:-1200}" $trust "$rev" 2>/dev/null || true)
+      left=$(node "$_pp_dir/row-placement.mjs" subtract "$rows" "$trusted")
+    else echo "post-publish: the release-checks dispatch failed; the Mac runs rows $left" >&2; fi
+  fi
+  echo "post-publish rows $rows for $rev: CI-trusted $(node "$_pp_dir/row-placement.mjs" subtract "$rows" "$left"), Mac ${left:-none}" >&2
+  printf '%s' "$left"
+}
+
 post_publish_rows() {
   local rev="$1" rows="$2" rollback="${3:-}" hold="${DEPLOY_HOLD_FILE:-$HOME/.claude/state/deploy_hold}"
   [[ -n "$rows" ]] || return 0
