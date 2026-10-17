@@ -39,7 +39,7 @@ test('a bigger foe and a wider gap push the camera back (perSize, perSep); the l
 test('pitch rows: the look-down angle is 16 degrees at a man, rises 3 per metre of foe, never past 30; the camera stays on the hero\'s back side', () => {
   const P: CombatCam = { ...CAM, portrait: { back: 6.5, up: 2, ahead: 2, lookY: 1, mid: 0.5, perSep: 0, perSize: 0, sizeFrom: 1.8, pitch: 16, pitchPerSize: 3, maxPitch: 30 }, landscape: CAM.landscape };
   const deg = (size: number, foeZ = 3) => { const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 8, { cam: P, portrait: true, foe: { x: 0, z: foeZ, size } }); return { d: Math.atan2(c.position.y - 1, -c.position.z) * 180 / Math.PI, z: c.position.z }; };
-  assert.ok(Math.abs(deg(1.8).d - 16) < 0.5, 'a man: 16 degrees'); assert.ok(Math.abs(deg(3.3).d - 20.5) < 0.5, '3.3 m foe: 16 + 4.5'); assert.ok(Math.abs(deg(6).d - 30) < 0.5, 'a 6 m foe is capped at 30');
+  assert.ok(Math.abs(deg(1.8).d - 16) < 0.5, 'a man: 16 degrees'); assert.ok(Math.abs(deg(3.3).d - 20.5) < 0.5, '3.3 m foe: 16 + 4.5'); assert.ok(Math.abs(deg(6).d - 28.6) < 0.5, 'a 6 m foe: 16 + 12.6'); assert.ok(Math.abs(deg(12).d - 30) < 0.5, 'a giant is capped at 30');
   assert.ok(deg(1.8, -4).z < 0, 'a foe behind the hero does not swing the camera to its side');
 });
 
