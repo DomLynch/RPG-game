@@ -10,7 +10,7 @@ import { frontierBuild, frontierPlan } from '../origins/preview/frontier-plan.ts
 import { loadZone, zoneAsBiome } from '../origins/zones/loader.ts';
 
 test('the goblin skin loads; a kind with no parts of its own takes the default; an unknown skin is none', () => {
-  assert.deepEqual(skinIds(), ['goblin']);
+  assert.deepEqual(skinIds(), ['goblin', 'dungeon']);
   assert.ok(skinParts('goblin', 'watchtower')!.every((p) => p.kind === 'watchtower') && skinParts('goblin', 'fence')!.every((p) => p.kind === 'fence'));
   assert.ok(skinParts('goblin', 'hall')!.every((p) => p.kind === 'default'), 'hall, forge, house...: the default parts'); assert.equal(skinParts('nope', 'hall'), null); assert.equal(skinParts('', 'hall'), null);
 });
