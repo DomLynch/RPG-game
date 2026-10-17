@@ -131,12 +131,12 @@ const sandbox = () => {
   return { base, real, target };
 };
 
-test('sweep_safe_path: a real canonical directory passes', () => {
+test('sweep_safe_path: a real canonical directory passes', { skip: process.platform !== 'linux' }, () => {
   const { base, real } = sandbox();
   try { const r = safe(real); assert.equal(r.status, 0, r.stdout + r.stderr); } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
-test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), a dangling link, a link in the middle, .., //, a relative path and a file are all refused', () => {
+test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), a dangling link, a link in the middle, .., //, a relative path and a file are all refused', { skip: process.platform !== 'linux' }, () => {
   const { base, real } = sandbox();
   try {
     const refused: Record<string, RegExp> = {
@@ -152,7 +152,7 @@ test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), 
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
-test('sweep_safe_path: the resolved path must stay inside an allowed root, and sweep_kind itself refuses a trailing slash', () => {
+test('sweep_safe_path: the resolved path must stay inside an allowed root, and sweep_kind itself refuses a trailing slash', { skip: process.platform !== 'linux' }, () => {
   const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', '/etc'], { encoding: 'utf8' });
   assert.equal(r.status, 1); assert.match(r.stdout, /outside the allowed roots/);
   for (const p of ['/tmp/cq-x/', '/var/tmp/be-abc/', '/tmp/hooks-x/', '/srv/dev-jobs/x/', '/opt/frankendom-shadow/work/x/', '/home/lanes/frankendom-char-cd/', '/tmp//cq-x', '/tmp/cq-x/.'])
@@ -167,7 +167,7 @@ const inUse = (dir: string, lsofExit: number, lsofSleep = 0) => {
   finally { rmSync(bin, { recursive: true, force: true }); }
 };
 
-test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means not in use; a hit, a timeout and an unexpected exit all mean in use', () => {
+test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means not in use; a hit, a timeout and an unexpected exit all mean in use', { skip: process.platform !== 'linux' }, () => {
   const { base, real } = sandbox();
   try {
     assert.equal(inUse(real, 1), 1, 'lsof exit 1 = nothing open = safe to remove');
@@ -179,7 +179,7 @@ test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means
 
 // Auditor on #2832 (probed on the VPS): `lsof +D <regular file>` exits 1 (clean) even while the file is open, so the new file kind would pass the in-use check under a reader.
 // A file is probed with plain `lsof -- file` (0 = open, 1 = clean, anything else = could not tell = in use); a directory keeps +D.
-test('sweep_in_use: a regular file is probed with `lsof -- file`, a directory with `lsof +D dir`, and both fail closed', () => {
+test('sweep_in_use: a regular file is probed with `lsof -- file`, a directory with `lsof +D dir`, and both fail closed', { skip: process.platform !== 'linux' }, () => {
   const base = mkdtempSync(join(tmpdir(), 'inuse-args-')), file = join(base, 'a.tgz'), dir = join(base, 'd'), argsFile = join(base, 'args.txt'), bin = join(base, 'bin');
   mkdirSync(dir); mkdirSync(bin); writeFileSync(file, 'x'); writeFileSync(join(bin, 'lsof'), `#!/bin/sh\necho "$@" > "${argsFile}"\nexit \${FAKE_EXIT:-1}\n`); chmodSync(join(bin, 'lsof'), 0o755);
   const probe = (p: string, exit: number) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_in_use "$1"', 'x', p], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_EXIT: String(exit), LSOF_TIMEOUT: '5' } }).status;
