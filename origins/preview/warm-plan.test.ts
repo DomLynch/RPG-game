@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PLAYER, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { PLAYER, slowVerdict, slowVerdictRecord, tooSlow, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
+import { previewRule } from './preview-rules.ts';
+
+test('the slow-device verdict is sticky for the device: a fresh record is used as stored, a stale, future or malformed one is re-measured', () => {
+  const ttl = previewRule('slowVerdictMs'), now = 1_800_000_000_000;
+  assert.ok(ttl > 0);
+  assert.equal(slowVerdict(slowVerdictRecord(true, now - 1000), now, ttl), true, 'a fresh slow verdict stays slow');
+  assert.equal(slowVerdict(slowVerdictRecord(false, now - 1000), now, ttl), false, 'a fresh fast verdict stays fast');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now - ttl), now, ttl), undefined, 'past its ttl: measure again');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now - ttl + 1), now, ttl), true, 'one ms inside the ttl: kept');
+  assert.equal(slowVerdict(slowVerdictRecord(true, now + 5000), now, ttl), undefined, 'a clock that went back: not trusted');
+  for (const bad of [null, undefined, '', 'true', '1', '2@5', '1@x', '1@-4']) assert.equal(slowVerdict(bad, now, ttl), undefined, `${String(bad)} is no record`);
+  assert.equal(slowVerdictRecord(true, 12.4), '1@12', 'the record is whole ms');
+});
 
 test('the player\'s actor is in every zone\'s warm-up list, first, whatever the creature kinds', () => {
   for (const kinds of [[], ['goblin', 'wolf'], ['goblin', 'boar', 'knight', 'pitborn', 'bear', 'witch', 'wolf'], ['player']]) {

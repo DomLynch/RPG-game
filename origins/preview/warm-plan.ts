@@ -28,6 +28,16 @@ export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Cam
 /** The page is too slow to spend frames on warming other players' gear: the median of the sampled frame gaps (ms) is above `limitMs`. A kit's shadow-pass link is one synchronous step that no API makes async, so on a slow device (a software-GL runner, a weak phone) it is skipped and remotes keep the base figure; an empty sample is not slow. */
 export const tooSlow = (gapsMs: readonly number[], limitMs: number): boolean => { if (!gapsMs.length) return false; const sorted = [...gapsMs].sort((a, b) => a - b); return sorted[sorted.length >> 1]! > limitMs; };
 
+/** The slow-device verdict is STICKY for the device: one measure on one load gave a different answer from the next load of the same machine, so a phone near the threshold got a different game each load. A stored record is `<1|0>@<epoch ms>`;
+ *  it is trusted for `ttlMs` (a row: slowVerdictMs) and then re-measured, so a device that changed (a new browser, a cooler phone) is not stuck for ever. `undefined` = no usable record (absent, malformed, from the future or past its ttl): measure. Pure. */
+export const slowVerdict = (stored: string | null | undefined, nowMs: number, ttlMs: number): boolean | undefined => {
+  const m = /^([01])@(\d+)$/.exec(stored ?? '');
+  if (!m) return undefined;
+  const at = Number(m[2]);
+  return at <= nowMs && nowMs - at < ttlMs ? m[1] === '1' : undefined;
+};
+export const slowVerdictRecord = (slow: boolean, nowMs: number): string => `${slow ? 1 : 0}@${Math.round(nowMs)}`;
+
 /**
  * Warm `kits` one after another within `boundMs` (the kit warm-up's own cap, `kitWarmMs`). `settle` is settleWithin (true when the work settled, false at the bound). At the bound the loop STOPS before its next kit and the result is `failed: true`, so the page keeps remotes
  * on the base figure. A compile cannot be taken back, so the ONE kit already in flight is waited for (at most `hardMs`, a compile that never settles must not hold the zone): when this returns nothing is compiling and nothing will, so nothing compiles after ready.
