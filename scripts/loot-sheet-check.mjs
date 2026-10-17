@@ -8,7 +8,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
-import { TIERS } from '../src/core/grades.ts';
+import { TIERS } from '../src/core/server.ts';   // the core's door for scripts (core-boundary C1), not grades.ts
 
 const [out] = process.argv.slice(2), root = process.cwd(), built = path.join(root, 'artifacts/origins-preview');
 if (!out) throw new Error('usage: loot-sheet-check.mjs <out dir>');
