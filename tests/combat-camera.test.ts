@@ -24,7 +24,7 @@ test('a fight eases the camera back and up, never cuts, and returns when it ends
   f.update(1 / 60, S, { cam: CAM, portrait: false, foe }); assert.ok(c.position.distanceTo(walk) < 0.2, 'the first frame of a fight is not a jump');
   run(f, 4, { cam: CAM, portrait: false, foe });
   assert.ok(f.fighting() > 0.99 && c.position.z < walk.z - 0.5 && c.position.y > walk.y, `further back and higher in the fight: ${c.position.toArray()} vs ${walk.toArray()}`);
-  run(f, 4, { cam: CAM, portrait: false, foe: null });
+  run(f, 8, { cam: CAM, portrait: false, foe: null });   // the exit is slower than the entry (ease.out < ease.in)
   assert.ok(f.fighting() === 0 && c.position.distanceTo(walk) < 1e-3, 'back to the walking camera when the fight ends');
 });
 
