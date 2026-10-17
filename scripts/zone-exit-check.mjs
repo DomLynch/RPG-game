@@ -40,7 +40,7 @@ try {
     const along = (d, m) => { const dx = inside[0] - d.x, dz = inside[1] - d.z, n = Math.hypot(dx, dz) || 1; return [d.x + (dx / n) * m, d.z + (dz / n) * m]; };
     const d = await door(landmark); assert.ok(d, `${label}: the page has no ${landmark} landmark`);
     await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), along(d, 6));   // stand outside the door's radius: it arms
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(Number(process.env.EXIT_STILL_MS ?? 800));   // EXIT_STILL_MS: a software-GL run needs seconds before the door is drawn
     await page.screenshot({ path: path.join(shots, `${still}.png`) });
     await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), along(d, 0.3));   // step onto it
     await page.waitForFunction(() => document.getElementById('zone-cross'), null, { timeout: 5000 }).catch(() => { throw new Error(`${label}: no fade appeared on the door`); });
