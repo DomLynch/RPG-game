@@ -31,7 +31,7 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 240000 });
     res.zoneReady = await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).then((h) => h.jsonValue()).catch(() => 'never');
-    if (!(await page.evaluate(() => typeof window.originsPreview.setOthers === 'function'))) throw new Error('this build has no originsPreview.setOthers (needs #2929)');
+    if (n > 0 && !(await page.evaluate(() => typeof window.originsPreview.setOthers === 'function'))) throw new Error('this build has no originsPreview.setOthers (needs #2929)');
     res.renderer = await page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'n/a'; });
     res.software = soft || /swiftshader|llvmpipe|software/i.test(res.renderer);
     if (throttle > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: throttle });
@@ -53,7 +53,7 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
       for (let i = 0, tries = 0; slots.length < n && tries < n * 40; tries++) { const d = 4 + ((i * 7 + tries * 3) % 11), side = (((i * 5 + tries) % 9) - 4) * (0.5 + d * 0.12), q = ahead(d, side); if (op.canStand(q.x, q.z)) { slots.push({ id: 1000 + slots.length, cx: q.x, cz: q.z, r: 1.5 + (i % 3), ph: (i * 0.7) % 6.28 }); i++; } }
       window.__crowd = { slots, t0: performance.now(), built: slots.length };
       const WALK_SPEED = 2.5;
-      const send = () => { const t = (performance.now() - window.__crowd.t0) / 1000; op.setOthers(slots.map((s) => { if (mode !== 'walk') return { id: s.id, x: s.cx, z: s.cz, heading: 0, anim: 0, flags: 0 }; const a = s.ph + (t * WALK_SPEED) / s.r; return { id: s.id, x: s.cx + Math.cos(a) * s.r, z: s.cz + Math.sin(a) * s.r, heading: -a, anim: 1, flags: 0 }; })); };
+      const send = () => { const t = (performance.now() - window.__crowd.t0) / 1000; op.setOthers?.(slots.map((s) => { if (mode !== 'walk') return { id: s.id, x: s.cx, z: s.cz, heading: 0, anim: 0, flags: 0 }; const a = s.ph + (t * WALK_SPEED) / s.r; return { id: s.id, x: s.cx + Math.cos(a) * s.r, z: s.cz + Math.sin(a) * s.r, heading: -a, anim: 1, flags: 0 }; })); };
       window.__crowdTimer = setInterval(send, 100); send();
     }, [n, mode, fwd]);
     res.built = await page.evaluate(() => window.__crowd.built);
@@ -70,7 +70,7 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     const gaps =(await page.evaluate(() => window.__gaps.slice())).slice(1, -1).sort((a, b) => a - b);
     const q = (p) => gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * p))];
     res.frames = gaps.length; res.medianMs = +q(0.5).toFixed(2); res.medianFps = +(1000 / q(0.5)).toFixed(1); res.p95Ms = +q(0.95).toFixed(2); res.worstMs = +gaps[gaps.length - 1].toFixed(1);
-    const dbg = await page.evaluate(() => window.originsPreview.remote()); res.slots = dbg?.slots ?? null; res.drawn = dbg?.shown?.length ?? 0;
+    const dbg = await page.evaluate(() => window.originsPreview.remote?.() ?? null);   // an empty-zone case on a build before #2929 has no remote() res.slots = dbg?.slots ?? null; res.drawn = dbg?.shown?.length ?? 0;
     res.programsAdded = (await page.evaluate(() => window.originsPreview.renderInfo().programNames)).filter((p) => !programs0.includes(p));
     res.pass = res.drawn === Math.min(n, 40) && res.programsAdded.length === 0 && (res.software ? null : res.medianFps >= BAR);   // null: a software run does not judge the bar
   } catch (e) { res.fail = String(e).slice(0, 300); res.pass = false; }
