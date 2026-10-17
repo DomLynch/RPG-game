@@ -8,7 +8,7 @@ import { warriorRecipe } from '../scripts/warrior-recipe.mjs';
 import { warriorAppearance } from '../scripts/warrior-appearance.mjs';
 
 test('every recipe resolves to its shipped rig, simulation weapon and offline build', () => {
-  assert.equal(ENCOUNTERS.length, 19);
+  assert.equal(ENCOUNTERS.length, 20);   // + salamander-hollow-boss (2026-10-17, Combat): the Bone Hollow end fight's own tuning row over the Giant Salamander body
   for (const { id } of ENCOUNTERS) {
     const recipe = ROSTER[id], opponent = OPPONENTS[id];
     assert.equal(opponent.id, id); assert.equal(opponent.weapon, recipe.weapon);

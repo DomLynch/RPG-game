@@ -22,6 +22,13 @@ test('Zone 1 loads: level 1, seven rows of [1, 2] and the named Cave Troll at 3 
   assert.throws(() => loadZone('99'), /no zone 99/);
 });
 
+test('a named camp boss is the zone level + the zone lift: Zone 5 (namedLevelLift.5 = 1) is L6, Zone 1 keeps the default (3)', () => {
+  const five = loadZone('5');
+  assert.deepEqual(five.spawns.rows.filter((r) => r.named).map((r) => [r.id, ...r.level]), [['character:giant-salamander', 6, 6]]);
+  assert.deepEqual(zoneProblems(five), []);
+  assert.deepEqual(loadZone().spawns.rows.filter((r) => r.named).map((r) => r.level[0]), [3]);
+});
+
 test('the validator names each way a package can be wrong', () => {
   const z = loadZone(), edit = (f: (c: Mut<Zone>) => void) => { const c = clone(z); f(c); return zoneProblems(c as unknown as Zone).join('|'); };
   assert.match(edit((c) => { c.spawns.rows[1]!.id = c.spawns.rows[0]!.id; }), /duplicate row/);

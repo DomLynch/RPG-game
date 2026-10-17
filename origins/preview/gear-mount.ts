@@ -2,7 +2,8 @@
 // its Profile pane; only the page's hide rule keeps the pane away until `gearing`), with the hero dressed in-zone (gear-stage.ts) and the server's ledger behind it (gear-server.ts).
 // A guest keeps the device's own profile ledger, exactly as the Pit does.
 import type * as THREE from 'three';
-import { createGearSheet } from '../../src/core/index.ts';
+import { createGearSheet, fightWeapon } from '../../src/core/index.ts';
+import { DEFAULT_WEAPON, type WeaponId } from '../../src/fight/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
@@ -27,6 +28,8 @@ export function mountGear(d: Deps) {
     refresh: (): Promise<boolean> => server?.refresh() ?? Promise.resolve(false),   // read the server's worn-gear view now (at load, not only when the Gear screen opens)   // the server's view of the character's worn set has answered (the loadout gate in main.ts reads it)
     // What the hero fights on: the stored build (none = level 0, as the server's heroLimitOf reads it) with the worn set's deltas, from the server's view of the character; the server holds a world record's sheet EQUAL to the books' own.
     sheet: (own: { level: number; placed: Record<string, number> } | undefined): ReturnType<typeof fightSheet> => fightSheet(profile, own ?? { level: 0, placed: {} }, server),   // nothing until the SERVER's view has answered (a guest or an unanswered writer fights bare)
+    // The weapon he wields in the world: the main hand of the server's view of the character (the ledger the server's HeroLimit.weapon reads), when the rig can draw it (`carried`), else the longsword; the default until that view has answered.
+    weapon: (carried: readonly WeaponId[]): WeaponId => (server?.ready() ? fightWeapon(server.profileFor(profile).loot, carried) : DEFAULT_WEAPON),
     // The ☰'s Gear chip: the menu opens on the Profile pane with the mannequin up; the server's ledger replaces the device's the moment it answers.
     open() {
       d.layer.classList.add('gearing'); element<HTMLInputElement>('journal-tab-profile').checked = true;

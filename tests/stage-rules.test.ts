@@ -1,7 +1,7 @@
 // The stage's numbers are rows (origins/world/stage-rules-defs.json): every default equals the literal it replaced, the loader refuses a broken table.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { STAGE_RULES, loadStageRules, stageRule } from '../origins/world/stage-rules.ts';
+import { STAGE_RULES, loadStageRules, namedLift, stageRule } from '../origins/world/stage-rules.ts';
 import { CROWD, SKIRMISHER_HANDOVER, LEADER_HOLD, SWEEP } from '../origins/crowd/crowd.ts';
 import { KERB_INSET, STONE_RADIUS } from '../origins/preview/exchange-plan.ts';
 import { CINDER } from '../origins/preview/frontier-cinder.ts';
@@ -15,7 +15,8 @@ test('every stage rule equals the literal it replaced', () => {
   assert.deepEqual([KERB_INSET, STONE_RADIUS, EDGE_FADE, PAD_MARGIN, LANDMARK_PAD, LEVEL_NEAR_M, LEVEL_FAR_M], [4, 2.6, 6, 2.5, 7, 30, 150]);
   assert.deepEqual(CINDER, { beyond: 120, skylineGap: [3, 15], skylineStep: [6, 12] });
   assert.deepEqual(['mobsSeed', 'cinderSlab', 'cinderDrift', 'cinderRingA', 'cinderRingB', 'cinderLip', 'cinderCore', 'dressSlab', 'landmarkR', 'spawnNear', 'spawnFar', 'namedLevelLift'].map((id) => stageRule(id as never)), [0x6d6f6273, 0.03, 0.065, 0.105, 0.11, 0.112, 0.118, 0.04, 3.5, 25, 35, 2]);
-  assert.equal(STAGE_RULES.length, 37);
+  assert.equal(STAGE_RULES.length, 38);   // 37 + namedLevelLift.5 (2026-10-17, Combat: the Bone Hollow end fight is zone level + 1, so the salamander boss row can sit at L6; every other zone keeps the default 2)
+  assert.equal(namedLift('5'), 1); assert.equal(namedLift('1'), 2); assert.equal(namedLift('3'), 2);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;

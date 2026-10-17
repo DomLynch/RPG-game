@@ -38,7 +38,7 @@
         "source": { "kind": "history", "work": "Naturalis Historia (the salamander, the beast that puts out fire)", "author": "Pliny the Elder", "year": 77, "authorDied": 79, "locator": "Bk. X, ch. 86 (§188)" },
         "role": "beast",
         "loot": "loottable:giant-salamander",
-        "level": [7, 7],
+        "level": [6, 6],
         "named": true,
         "respawnSeconds": 90,
         "behaviour": { "aggro": 6, "roam": 2, "spread": 4, "pull": 0, "campSize": [1, 1] }
@@ -233,7 +233,7 @@
     "looks": {
       "character:cinder-scavenger": { "opponent": "goblin", "tint": 7035464, "scale": 0.9, "dressing": { "soot": 0.7, "burnt": 0.3 } },
       "character:pit-goblin": { "opponent": "goblin", "tint": 16777215, "scale": 1, "dressing": { "soot": 0, "burnt": 0 } },
-      "character:giant-salamander": { "opponent": "giant-salamander", "tint": 16777215, "dressing": { "soot": 0.2, "burnt": 0.1 } }
+      "character:giant-salamander": { "opponent": "salamander-hollow-boss", "tint": 16777215, "dressing": { "soot": 0.2, "burnt": 0.1 } }
     },
     "spread": {
       "character:cinder-scavenger": { "tints": [6115135, 8021584, 5196357], "scale": 0.08, "soot": 0.2, "burnt": 0.2 }
