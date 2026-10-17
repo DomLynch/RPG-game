@@ -39,7 +39,7 @@ export default defineConfig({
     configureServer(server) {
       const TYPES = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.png': 'image/png', '.json': 'application/json', '.glb': 'model/gltf-binary' };
       server.middlewares.use(async (req, res, next) => {
-        const m = /^\/preview\/origins\/(arena|zones|world\/kit)\/([\w.-]+)$/.exec((req.url ?? '').split('?')[0]);
+        const m = /^(?:\/preview\/origins)?\/(arena|zones|world\/kit|world|beasts)\/([\w.-]+)$/.exec((req.url ?? '').split('?')[0]);   // + the creature bodies at the site root (/world/x.glb, /beasts/x.glb), where the live site serves them: without them the hot-reload page draws capsules
         if (!m) return next();
         try { const body = await readFile(`${repo}public/${m[1]}/${m[2]}`); res.setHeader('content-type', TYPES[m[2].slice(m[2].lastIndexOf('.'))] ?? 'application/octet-stream'); res.end(body); } catch { next(); }
       });

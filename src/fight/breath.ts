@@ -79,7 +79,7 @@ export function createBreath(scene: THREE.Scene) {
       const material = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, fog: false,
         uniforms: { uTime, uTip: { value: TIP }, uBody: { value: BODY }, uCore: { value: CORE }, uOpacity: { value: TONGUE_OPACITY } } });
       const tongues = new THREE.InstancedMesh(geometry, material, TONGUES); tongues.frustumCulled = false; tongues.renderOrder = 6;
-      const t = Array.from({ length: TONGUES }, (_, k) => ({ s0: next() * 0.25 * RANGE, delay: (k / TONGUES) * 0.45 * LIFE, len: 0.9 + next() * 1.1, r0: 0.1 + next() * 0.14, yaw: (next() - 0.5) * 0.4, pitch: (next() - 0.5) * 0.3, side: next() * 2 - 1, lift: next() * 2 - 1 }));
+      const t = Array.from({ length: TONGUES }, (_, k) => ({ s0: next() * 0.25 * RANGE, delay: (k / TONGUES) * 0.45 * LIFE, len: 1.4 + next() * 1.4, r0: 0.22 + next() * 0.2, yaw: (next() - 0.5) * 0.4, pitch: (next() - 0.5) * 0.3, side: next() * 2 - 1, lift: next() * 2 - 1 }));
       const smoke = Array.from({ length: SMOKE }, () => { const m = new THREE.SpriteMaterial({ map: smokeArt(), color: 0x2a211c, transparent: true, depthWrite: false, fog: false, opacity: 0 }); const sp = new THREE.Sprite(m); sp.visible = false; group.add(sp); return sp; });
       const s = Array.from({ length: SMOKE }, (_, k) => ({ delay: LIFE * (0.12 + (k / SMOKE) * 0.45), side: next() * 2 - 1, lift: next(), size: 0.5 + next() * 0.5 }));
       const eGeometry = new THREE.BufferGeometry(); eGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EMBERS * 3).fill(-1000), 3));

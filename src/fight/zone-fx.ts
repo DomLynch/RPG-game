@@ -79,6 +79,8 @@ export function createZoneFx(host: { scene: THREE.Scene; camera: THREE.Camera; r
     },
     /** Instances in use, for the browser checks. */
     active: () => live.size,
+    /** Fire breaths in flight, for the browser checks. */
+    breaths: () => breath.active(),
     /** Where each pair's contact sparks are and whether they are showing (world metres): the browser check compares them with the struck creature. */
     probe: () => [...live].map(([foe, s]) => ({ foe, visible: s.fx.sparks.visible, at: s.fx.sparks.position.toArray(), struck: s.struck, victim: s.victim })),
   };

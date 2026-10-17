@@ -245,7 +245,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
-      mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
+      mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model), at: views.get(i) ? [+views.get(i)!.group.position.x.toFixed(2), +views.get(i)!.group.position.z.toFixed(2)] : null, mouth: (() => { const b = views.get(i)?.actor?.boneWorld('Head') ?? views.get(i)?.actor?.boneWorld('head'); return b ? [+b.x.toFixed(2), +b.y.toFixed(2), +b.z.toFixed(2)] : null; })() })),   // height: the model's world height in metres (size checks); at: where the body is DRAWN (after the stand-off); mouth: its head bone in the world
     }),
   };
 }
