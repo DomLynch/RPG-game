@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "dungeon",
+      "file": "dungeon-rows.json",
+      "at": "dungeons",
+      "key": "id",
+      "required": { "name": "string", "theme": "string", "level": "array", "world": "string", "size": "object", "entrance": "object", "rooms": "array", "creatures": "array", "encounters": "array", "boss": "object" },
+      "optional": { "openers": "object", "mount": "object" },
+      "refs": { "theme": "dungeon-theme", "creatures[].loot": "loot-table", "entrance.exit": "zone-exit" }
+    }
+  ]
+}
