@@ -38,7 +38,7 @@ try {
   ];
   for (const [name, x, z, h] of shots) {
     await page.evaluate(([px, pz, ph]) => window.originsPreview.place(px, pz, ph), [x, z, h]);
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(Number(process.env.SETTLE_MS ?? 1200));   // short: a longer wait lets the hero be aggroed and drawn off the mark
     await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 });
   }
   console.log('stills:', shots.length, 'errors:', errors.length, errors.slice(0, 2));
