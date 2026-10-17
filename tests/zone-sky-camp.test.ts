@@ -7,7 +7,7 @@ import { zoneFromRow } from '../origins/zones/from-row.ts';
 import { cameraPose, setFightBack } from '../src/fight/camera.ts';
 import { listedIds, loadZone, zoneAsBiome } from '../origins/zones/loader.ts';
 import { rimScale } from '../origins/preview/frontier-plan.ts';
-import { goblinPalette, zoneAmbience, zoneDress, zoneFightBack, zoneGround, zoneLandscapeZoom, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../origins/world/goblin-field-rules.ts';
+import { goblinPalette, zoneAmbience, zoneDress, zoneFightBack, zoneFightBackPortrait, zoneGround, zoneLandscapeZoom, zoneMarkers, zonePropKit, zoneRim, zoneSky } from '../origins/world/goblin-field-rules.ts';
 
 const field = (path: string) => FIELDS.find((f) => f.path === path);
 const zf = (fields: Record<string, unknown>, world = ['a', 'b']) => ({ fields, set: Object.keys(fields), world });
@@ -74,6 +74,9 @@ test('camera.landscapeZoom: a wide screen can look closer; unset, below 1 or abo
   assert.equal(field('camera.landscapeZoom')?.default, 1); assert.equal(field('camera.landscapeZoom')?.wired, true);
   assert.equal(zoneFightBack(zf({ 'camera.fightBack': 1.2 })), 1.2); assert.equal(zoneFightBack(zf({})), 1); assert.equal(zoneFightBack(zf({ 'camera.fightBack': 0.5 })), 1); assert.equal(zoneFightBack(zf({ 'camera.fightBack': 9 })), 1);
   assert.equal(field('camera.fightBack')?.default, 1); assert.equal(field('camera.fightBack')?.wired, true);
+  assert.equal(zoneFightBackPortrait(zf({ 'camera.fightBackPortrait': 1.1 })), 1.1); assert.equal(zoneFightBackPortrait(zf({})), 1); assert.equal(zoneFightBackPortrait(zf({ 'camera.fightBackPortrait': 0.5 })), 1); assert.equal(zoneFightBackPortrait(zf({ 'camera.fightBackPortrait': 9 })), 1);
+  assert.equal(field('camera.fightBackPortrait')?.default, 1); assert.equal(field('camera.fightBackPortrait')?.wired, true);   // Dom 2026-10-17: the portrait fight camera stands 10% further back, landscape and the walking camera untouched
+  for (const id of ['1', '2', '3', '4']) assert.equal(zoneFightBackPortrait(loadZone(id)), 1, `${id}: the real zones' portrait combat camera is untouched`);
   for (const id of ['1', '2', '3', '4']) assert.equal(zoneFightBack(loadZone(id)), 1, `${id}: the real zones' combat camera is untouched`);
   for (const id of ['1', '2', '3', '4']) assert.equal(zoneLandscapeZoom(loadZone(id)), 1, id);
 });

@@ -67,7 +67,7 @@ import { propKit, withPropKit } from './prop-kit.ts';
 import { createAmbience } from './ambience.ts';
 import { createHorizonDome } from './horizon-dome.ts';
 import { createGoblinSmoke } from './goblin-smoke.ts';
-import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneRim, zoneBuildings } from '../world/goblin-field-rules.ts';
+import { goblinBiome, goblinPalette, goblinPitParts, goblinRule, goblinZone, zoneAmbience, zoneDress, zoneGround, zoneMarkers, zonePropKit, zoneSky, zoneLandscapeZoom, zoneFightBack, zoneFightBackPortrait, zoneRim, zoneBuildings } from '../world/goblin-field-rules.ts';
 import { goblinDirtMaterial } from './goblin-ground.ts';
 import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
@@ -390,9 +390,10 @@ function showZone(id: string | null) {
 }
 
 const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim: margin / slow / line (boundary.*); margin 0 = none
-setFightBack(zoneFightBack(zoneRow ?? loadZone()));   // the combat camera stands this much further back (camera.fightBack; 1 = the duel as it was)
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.zoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false);
+  setFightBack(zoneFightBack(zoneRow ?? loadZone()) * (w > h ? 1 : zoneFightBackPortrait(zoneRow ?? loadZone())));   // the combat camera stands this much further back (camera.fightBack; 1 = the duel as it was), and a portrait screen a little more (camera.fightBackPortrait); the walking camera is never changed
+  camera.aspect = w / h; camera.zoom = w > h ? zoneLandscapeZoom(zoneRow ?? loadZone()) : 1; camera.updateProjectionMatrix();   // a wide screen can look closer than a tall one (camera.landscapeZoom); portrait stays as it was
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
