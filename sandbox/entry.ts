@@ -28,6 +28,7 @@ const healIds = (): string[] => ((RULES as unknown as { spellHeal?: { id: string
 {
   const u = new URL(location.href); let saved: Record<string, string> = {}; let changed = false;
   try { saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '{}') ?? {}; } catch { /* none */ }
+  if (u.searchParams.get('special2')) delete saved.spell2; else if (u.searchParams.get('spell2')) delete saved.special2;   // slot 2 holds a melee special or a spell: the link's pick wins over the remembered one
   for (const k of SPELL_KEYS) { const v = u.searchParams.get(k); if (v) saved[k] = v; else if (saved[k]) { u.searchParams.set(k, saved[k]!); changed = true; } }
   try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(saved)); } catch { /* none */ }
   if (changed) history.replaceState(null, '', u.href);
