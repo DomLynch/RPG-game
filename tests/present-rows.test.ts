@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { present } from '../src/present-rows.ts';
+import { FRAME_DT_MAX_S } from '../src/first-loss.ts';
 import { CLIP_FINISH_CAP, CLIP_HEIGHT, CLIP_LEAD, CLIP_SECONDS, CLIP_TAIL, CLIP_WIDTH } from '../src/clip.ts';
 import { RISE_M, RISE_MS } from '../src/gate-rise.ts';
 import { CATCHUP, MAX_LAG_TICKS } from '../src/pvp-hold.ts';
@@ -13,7 +14,7 @@ test('every row holds the value the code held before', () => {
   assert.deepEqual([RISE_M, RISE_MS, CATCHUP, MAX_LAG_TICKS], [2.3, 1250, 3, 6]);
   assert.deepEqual([present('coach-lapse-min'), present('coach-lapse-max')], [0.1, 0.85]);
   assert.deepEqual({ ...LORARII }, { count: 6, radius: 12.1, top: 2.6, sixth: Math.PI / 3, reach: 0.28, speed: 0.963, raiseClip: 0.5, turn: 4, raise: 0.35, lash: 0.22, recover: 0.6, lead: 60, raiseScaleMax: 2.5, raiseScaleMin: 0.4, leadFloor: 0.05 });
-  assert.deepEqual([present('frame-dt-max'), present('colour-channel-max'), present('beacon-frames-cap')], [0.1, 255, 1_000_000]);   // the inline clamps the as-data ratchet retired (Web 2026-10-17)
+  assert.deepEqual([FRAME_DT_MAX_S, present('colour-channel-max'), present('beacon-frames-cap')], [0.1, 255, 1_000_000]);   // the inline clamps the as-data ratchet retired (Web 2026-10-17)
 });
 
 test('a row that does not exist throws instead of answering NaN', () => {

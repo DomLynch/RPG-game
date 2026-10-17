@@ -27,7 +27,6 @@
     { "id": "lorarii.raiseScaleMax", "value": 2.5, "unit": "ratio" },
     { "id": "lorarii.raiseScaleMin", "value": 0.4, "unit": "ratio" },
     { "id": "lorarii.leadFloor", "value": 0.05, "unit": "s" },
-    { "id": "frame-dt-max", "value": 0.1, "unit": "s" },
     { "id": "colour-channel-max", "value": 255, "unit": "level" },
     { "id": "beacon-frames-cap", "value": 1000000, "unit": "frames" }
   ]
