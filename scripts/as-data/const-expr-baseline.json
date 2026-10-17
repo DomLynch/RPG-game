@@ -1,0 +1,129 @@
+{
+ "origins/feuds/feuds.ts": {
+  "GRUDGE_MIN_LEVEL": 1
+ },
+ "origins/patrons/patrons.ts": {
+  "FIGHT_HALF_TICKS": 1
+ },
+ "origins/presence/interest.ts": {
+  "TOWN_HALF_CM": 1
+ },
+ "origins/presence/saves.ts": {
+  "SAVE_EVERY_MS": 1
+ },
+ "origins/preview/daynight.ts": {
+  "DAY_NIGHT_SPEED": 1
+ },
+ "origins/preview/mobs-view.ts": {
+  "FETCH_RANGE": 1
+ },
+ "origins/preview/presence-client.ts": {
+  "LEGACY_EDGE_M": 1
+ },
+ "origins/preview/remote-track.ts": {
+  "TAU": 1
+ },
+ "origins/server/encounter-verify.ts": {
+  "SPECIALS_FROM": 1
+ },
+ "origins/server/mob-rewards.ts": {
+  "RESPAWN_MS": 1
+ },
+ "origins/server/server.ts": {
+  "MAX_BODY": 1
+ },
+ "origins/server/world-spawns.ts": {
+  "STACK": 1
+ },
+ "origins/world/derive.ts": {
+  "RAD": 1
+ },
+ "origins/world/relief.ts": {
+  "NORM": 1
+ },
+ "src/arena.ts": {
+  "TAU": 1
+ },
+ "src/audio/bell.ts": {
+  "TAPER": 1
+ },
+ "src/autopsy.ts": {
+  "WINDOW": 1
+ },
+ "src/chunk-recover.ts": {
+  "LOOP_GUARD_MS": 1
+ },
+ "src/core/contracts/economy.ts": {
+  "DAY_S": 1,
+  "FIRST_TRADE_DELAY_S": 1
+ },
+ "src/core/live-ops.ts": {
+  "MAX_EVENT_MINUTES": 1
+ },
+ "src/core/spell-slot-view.ts": {
+  "ALLOW_DUPLICATE_SLOTS": 1
+ },
+ "src/fight/bands.ts": {
+  "HOLD_BACK_ON": 1,
+  "HOLD_ONLY_IN_OPENING": 1
+ },
+ "src/fight/blood-style.ts": {
+  "THIN": 1,
+  "LONG": 1
+ },
+ "src/fight/detmath.ts": {
+  "PI_O_2": 1,
+  "PI_O_4": 1
+ },
+ "src/fight/match.ts": {
+  "CLASS_B_FROM": 1
+ },
+ "src/fight/open-fight.ts": {
+  "TICK": 1
+ },
+ "src/fight/record.ts": {
+  "OLD_CIRCLE_VERSION": 1,
+  "YAW_UNIT": 1
+ },
+ "src/fight/sim.ts": {
+  "STEP": 1
+ },
+ "src/fight/sound/feedback.ts": {
+  "COMBAT_LEVEL": 1,
+  "FINISH_LEVEL": 1
+ },
+ "src/fight/special-fx-dwarf-shield.ts": {
+  "TAU": 1
+ },
+ "src/fight/special-timing.ts": {
+  "LAND_AT": 1
+ },
+ "src/fight/special-tithe.ts": {
+  "DUST_FROM": 1
+ },
+ "src/fight/spell-rows.ts": {
+  "SHARED_COOLDOWN": 1,
+  "ALLOW_DUPLICATE": 1
+ },
+ "src/fight/world-record.ts": {
+  "STEP": 1
+ },
+ "src/fight/world.ts": {
+  "TICK": 1,
+  "EVADE_HEAL_TO_FULL": 1,
+  "TAU": 1,
+  "RETARGET_CONE": 1
+ },
+ "src/lorarii.ts": {
+  "TICK": 1
+ },
+ "src/net/lobby.ts": {
+  "RETIRE_MS": 1
+ },
+ "src/pvp-hold.ts": {
+  "TICK_MS": 1
+ },
+ "src/zone1-hop.ts": {
+  "NEXT_TTL_MS": 1
+ }
+}
