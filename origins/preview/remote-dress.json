@@ -1,0 +1,5 @@
+{
+  "remoteDress": [
+    { "id": "pieces", "fields": { "asset": "loot-lod.glb", "cacheMax": 24, "dressFar": false } }
+  ]
+}

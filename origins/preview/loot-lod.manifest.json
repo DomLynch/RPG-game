@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "lootLod",
+      "file": "loot-lod.json",
+      "at": "lootLods",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

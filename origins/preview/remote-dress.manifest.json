@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "remoteDress",
+      "file": "remote-dress.json",
+      "at": "remoteDress",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

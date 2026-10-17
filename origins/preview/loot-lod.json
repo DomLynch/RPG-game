@@ -1,0 +1,16 @@
+{
+  "lootLods": [
+    {
+      "id": "loot",
+      "fields": {
+        "source": "src/assets/loot.glb",
+        "out": "src/assets/loot-lod.glb",
+        "influences": 4,
+        "keepRatio": 0.3,
+        "minTris": 24,
+        "maxTrisPerId": 1500,
+        "skipPrefix": "~kit."
+      }
+    }
+  ]
+}
