@@ -463,7 +463,8 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 // parsed for it (loot.glb's pieces come from the scene the ground view loads, the second rig is built from the hero's parsed asset, which buildWarriors clones). `originsPreview.remoteKitsWarm()` answers null until done, then { failed, ms, programs }; on failed: true
 // the page keeps remotes on the BASE figure (a first-sight compile is the stutter this removes); otherwise it dresses them (dressRemote).
 type KitPhase = { kit: string; at: number; prepMs: number; actorMs: number; dressMs: number; cloneMs: number; compileMs: number; framesMs: number; steps: { step: string; ms: number }[] };   // at: ms from the warm's start; prep / actor only on the first kit
-let remoteKitsWarm: { failed: boolean; ms: number; programs: number; warmed: number; maxLongTaskMs?: number; longTasks?: { at: number; ms: number }[]; phases?: KitPhase[] } | null = null;   // the optional fields are the warm's main-thread cost (a skipped warm has none)
+type KitsWarm = { failed: boolean; ms: number; programs: number; warmed: number; maxLongTaskMs?: number; longTasks?: { at: number; ms: number }[]; phases?: KitPhase[] };
+let remoteKitsWarm: KitsWarm | null = null;   // the optional fields are the warm's main-thread cost (a skipped warm has none)
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
 // The player's OWN figure wears the ledger's set (Lead 2026-10-17; the walking hero was the bare base figure while the gear sheet showed his gear). The sheet's wear is the one place every change passes (gear-mount.ts onWorn).
@@ -496,7 +497,7 @@ async function kitSlice(until: number) {
 }
 // The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
 // (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
-let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: typeof remoteKitsWarm = null as typeof remoteKitsWarm;
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: KitsWarm | null = null as KitsWarm | null;
 // The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once: the median frame gap of the first idle frames after [zone ready].
 let deviceSlow: boolean | undefined;
 async function slowDevice(): Promise<boolean> {
