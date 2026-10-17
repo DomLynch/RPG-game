@@ -55,6 +55,7 @@ try {
   // the other-players' gear warm-up links its programs after [zone ready] (#2938): the "before" read waits for it, or its programs would count as added by the bots
   assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 60000 }).then(() => true).catch(() => false), 'the remote kits warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');   // bounded by the kitWarmMs row (it stops starting kits then) plus the one in flight
   receipt.remoteKitsWarm = await page.evaluate(() => window.originsPreview.remoteKitsWarm());
+  receipt.gearWarm = await page.evaluate(() => (window.originsPreview.gearWarm ? window.originsPreview.gearWarm() : null));   // the gear sheet's mannequin warm (skipped on this runner's slow-device probe, or bounded: it must never be what holds the flag above)
   receipt.maxGapMsDuringWarm = Math.round(await page.evaluate(() => window.__gap.max));
   const before = await snap(); receipt.programsBeforeBots = before.names.length;
   assert.ok(await until(async () => (await page.evaluate(() => window.originsPreview.presence().state)) === 'live', 60000), 'the page never reached presence (state is not live)');
