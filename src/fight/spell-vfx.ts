@@ -42,7 +42,7 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
   const nyxRamp = makeRamp(NYX_RAMP), ashRamp = makeRamp(ASH_RAMP);
 
   const VERT ='varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
-  const BILL = 'varying vec2 vUv; uniform float uSize; void main(){ vUv = uv; vec4 c = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); gl_Position = projectionMatrix * (c + vec4(position.xy * uSize, 0.0, 0.0)); }';
+  const BILL = 'varying vec2 vUv; uniform float uSize; void main(){ vUv = uv; vec4 c = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); gl_Position = projectionMatrix * (c + vec4(position.xy * uSize * length(modelMatrix[0].xyz), 0.0, 0.0)); }';   // a puff grows with its group's scale
   const HEAD = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform float uSeed; uniform float uHot; uniform float uAlpha; uniform vec3 uA; uniform vec3 uB; uniform sampler2D uRamp; uniform float uUseRamp;';
   const mat = (vertex: string, frag: string, side: THREE.Side = THREE.DoubleSide) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side, vertexShader: vertex, fragmentShader: frag,
     uniforms: { uNoise: { value: noise }, uK: { value: 0 }, uT: { value: 0 }, uSeed: { value: 0 }, uHot: { value: 0 }, uAlpha: { value: 1 }, uSize: { value: 1 }, uRamp: { value: nyxRamp }, uUseRamp: { value: 0 }, uA: { value: new THREE.Color('#fff') }, uB: { value: new THREE.Color('#fff') } } });
@@ -151,7 +151,10 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
   };
   const builders: Record<string, () => Inst> = { heal, shock, ash, wind, nyx, nyxGather, ashGather };
   for (const [kind, build] of Object.entries(builders)) insts[kind] = [build(), build()];
-  light = new THREE.PointLight('#ffffff', 0, 7, 2); scene.add(light);   // in the scene from the start (intensity 0 when idle): the lit materials are compiled with it
+  const groups = new Map<Inst, THREE.Group>(), wp = new THREE.Vector3();   // each look lives in a group so it can be scaled about its landing point
+  for (const list of Object.values(insts)) for (const inst of list) { const g = new THREE.Group(); for (const o of inst.objs) g.add(o); scene.add(g); groups.set(inst, g); }
+  const place = (inst: Inst, s: number, x: number, z: number) => { const g = groups.get(inst)!; g.scale.setScalar(s); g.position.set(x * (1 - s), 0, z * (1 - s)); };
+  light = new THREE.PointLight('#ffffff', 0, 12, 2); scene.add(light);   // in the scene from the start (intensity 0 when idle): the lit materials are compiled with it
   const live: { inst: Inst; at: number }[] = []; for (const list of Object.values(insts)) for (const inst of list) live.push({ inst, at: -1 });
   const next: Record<string, number> = {}, gathering = new Map<number, Inst>();
   const show = (inst: Inst, v: boolean) => { for (const o of inst.objs) o.visible = v; };
@@ -168,21 +171,22 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
         const gk = e.type === 'SpecialStarted' && e.spell ? `${vfxOf(e.spell)}Gather` : '';   // the windup begins: a look that has a gather plays it on the caster (nyxGather, ashGather)
         if (gk && insts[gk] && fighters[e.actor]) {
           const list = insts[gk]!, inst = list[(next[gk] = ((next[gk] ?? -1) + 1) % list.length)]!;
-          inst.start(fighters[e.actor]!.body.x, fighters[e.actor]!.body.z); find(inst).at = e.tick; gathering.set(e.actor, inst); continue;
+          inst.start(fighters[e.actor]!.body.x, fighters[e.actor]!.body.z); place(inst, 1, 0, 0); find(inst).at = e.tick; gathering.set(e.actor, inst); continue;
         }
         if (e.type === 'SpecialInterrupted' || e.type === 'SpecialFizzled' || e.type === 'SpecialLanded') { const g = gathering.get(e.actor); if (g) { find(g).at = -1; gathering.delete(e.actor); } }
         if (e.type !== 'SpecialLanded') continue;
         const kind = e.heal !== undefined ? 'heal' : e.spell ? vfxOf(e.spell) : undefined, who = fighters[e.heal !== undefined ? e.actor : (e.target ?? -1)];
         if (!kind || !who || !insts[kind]) continue;
-        const list = insts[kind]!, inst = list[(next[kind] = ((next[kind] ?? -1) + 1) % list.length)]!;
-        inst.start(who.body.x, who.body.z); find(inst).at = e.tick;
+        const list = insts[kind]!, inst = list[(next[kind] = ((next[kind] ?? -1) + 1) % list.length)]!, from = fighters[e.actor];
+        const s = e.heal !== undefined || !from ? 1 : Math.min(3, Math.max(1, 0.8 + 0.22 * Math.hypot(who.body.x - from.body.x, who.body.z - from.body.z)));   // Dom 2026-10-17: "didn't see much": spells land up to 25 m away, so the look grows with the distance (1x up close, 3x from 10 m) to read on a phone
+        inst.start(who.body.x, who.body.z); place(inst, s, who.body.x, who.body.z); find(inst).at = e.tick;
       }
     },
     update(tick: number): void {
       let best = 0, color = '#fff', bx = 0, bz = 0; const py = 1.3;
       for (const l of live) {
         const age = tick - l.at, alive = l.at >= 0 && age >= 0 && age < l.inst.ticks; show(l.inst, alive); if (!alive) continue;
-        const r = l.inst.update(age); if (r && r.light > best) { best = r.light; color = r.color; const o = l.inst.objs[0]!; bx = o.position.x; bz = o.position.z; }
+        const r = l.inst.update(age); if (r && r.light > best) { best = r.light; color = r.color; const o = l.inst.objs[0]!; o.updateWorldMatrix(true, false); o.getWorldPosition(wp); bx = wp.x; bz = wp.z; }
       }
       if (light) { light.intensity = 14 * best; light.color.set(color); light.position.set(bx, py, bz); }
     },

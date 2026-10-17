@@ -49,6 +49,13 @@ test('nyx anticipation: the windup shows a gather on the caster; a landing or a 
   v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'ugallu', tick: 10 }], fighters); v.update(60); assert.equal(shown(scene), 0);
 });
 
+test('a spell landing far away is drawn bigger (3x from 10 m), up close stays 1x, a heal stays 1x', () => {
+  const far = [{ body: { x: 0, z: 0 } }, { body: { x: 10, z: 0 } }] as never, scales = (ev: object, fs: never) => { const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined); v.trigger([ev as never], fs); v.update(110); return scene.children.filter((c) => (c as THREE.Group).isGroup && c.visible !== undefined && c.children.some((o) => o.visible)).map((g) => g.scale.x); };
+  assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 100 }, far), [3]);
+  assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 100 }, fighters), [1 > 0.8 + 0.22 * Math.hypot(1.5, 0.5) ? 1 : 0.8 + 0.22 * Math.hypot(1.5, 0.5)]);
+  assert.deepEqual(scales({ type: 'SpecialLanded', actor: 0, target: 0, spell: 'gula', tick: 100, heal: 38 }, far), [1]);
+});
+
 test('ash anticipation: Brokkr\'s windup shows an ember gather that a cut cast removes', () => {
   const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);
   v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'brokkr', tick: 10 }], fighters); v.update(60); assert.ok(shown(scene) >= 3, 'ember gather mid-windup'); assert.ok(light(scene).intensity > 0);
