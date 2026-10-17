@@ -59,7 +59,7 @@ test('a named exempt (allow idTables: file + first row id + reason) is listed ap
     allow([{ file: key, id: 'zz', reason: 'a table that is not there any more' }]);
     const stale = t.run();
     assert.equal(stale.status, 3);
-    assert.equal((t.report(stale) as { staleIdAllow: unknown[] }).staleIdAllow.length, 1);
+    assert.equal((t.report(stale) as unknown as { staleIdAllow: unknown[] }).staleIdAllow.length, 1);
     allow([{ file: key, id: 'a', reason: 'short' }]);
     assert.equal(t.run().status, 2, 'a reason under 12 characters is refused');
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
