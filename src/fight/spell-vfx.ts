@@ -17,7 +17,7 @@ const NYX_RAMP: readonly [number, string][] = [[0, '#040308'], [0.4, '#17121f'],
 const ASH_RAMP: readonly [number, string][] = [[0, '#060403'], [0.35, '#1f120d'], [0.55, '#5c1c0a'], [0.75, '#c2410c'], [0.9, '#f59e3b'], [1, '#fff1c2']];
 // Pass 2 ramps for the other three looks (dark body to pale hot edge): sand and dust for the roar, grey-green and pale for the wind, deep green to gold-white for the heal.
 const SAND_RAMP: readonly [number, string][] = [[0, '#1a130d'], [0.35, '#5a4733'], [0.6, '#b89a6c'], [0.82, '#e8d5aa'], [1, '#fffaf0']];
-const WIND_RAMP: readonly [number, string][] = [[0, '#16201a'], [0.35, '#4d6b52'], [0.6, '#9fc9a2'], [0.82, '#dff2da'], [1, '#ffffff']];
+const WIND_RAMP: readonly [number, string][] = [[0, '#181d22'], [0.35, '#55646e'], [0.6, '#aebfc9'], [0.82, '#e6eff3'], [1, '#ffffff']];   // cool pale air, not poison green
 const HEAL_RAMP: readonly [number, string][] = [[0, '#0a1608'], [0.35, '#2f6a28'], [0.6, '#8cc84a'], [0.82, '#f0e08a'], [1, '#fffbe6']];
 const NYX_GATHER_TICKS = 120;   // the default cast windup (2 s); the gather ends early when the cast lands, fizzles or is cut
 const hash = (x: number, y: number, s: number) => { let h = (x * 374761393 + y * 668265263 + s * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
@@ -55,7 +55,7 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
     // a column of light: rim-lit, thin in the middle, revealed from the foot, eroded by the grain as it ends
     pillar: `${HEAD} void main(){ float y = vUv.y; vec2 p = vec2(vUv.x * 3.0, y * 1.4 - uT * 0.9); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.3 + 0.37).r * 0.4;
       float h = min(1.0, uK * 3.2), reveal = 1.0 - smoothstep(h - 0.12, h, y), erode = smoothstep(uK * 0.95, uK * 0.95 + 0.2, n), body = pow(1.0 - y, 0.7); float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.4);
-      float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * (0.16 + 0.7 * rim) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`,
+      float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * (0.1 + 0.26 * rim) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`,
     // a flat ring on the ground, eroded
     ring: `${HEAD} void main(){ float r = length(vUv - 0.5) * 2.0; float band = smoothstep(0.68, 0.86, r) * (1.0 - smoothstep(0.93, 1.0, r)); float n = texture2D(uNoise, vUv * 2.0 + uT * 0.3).r;
       float a = band * smoothstep(uK * 0.9, uK * 0.9 + 0.2, n) * (1.0 - uK * 0.6) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n), a); }`,
@@ -99,9 +99,9 @@ export function createSpellVfx(scene: THREE.Scene): Vfx {
   // ---- the five looks. start(x, z) places an instance; update(age) poses it and returns its light, or undefined once done.
   const heal = (): Inst => {
     const glow = surface(FRAG.stain, new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2)), pillar = surface(FRAG.pillar, new THREE.CylinderGeometry(0.6, 0.6, 3.2, 40, 1, true)), motes = glints(24, '#fff0b0', 0.3), bloom = smoke(3, '#fff0b8', '#ffffff', 1);
-    set(glow, { uA: '#244a1a', uSeed: 0.6, uUseRamp: 1, uRamp: healRamp }); set(pillar, { uA: '#6fb94c', uB: '#fff3b8' }); for (const p of bloom) set(p, { uUseRamp: 1, uRamp: healRamp }); let x = 0, z = 0; const ticks = 96;
+    set(glow, { uA: '#4a7a30', uSeed: 0.6, uUseRamp: 1, uRamp: healRamp }); set(pillar, { uA: '#9fd36a', uB: '#fff6c8' }); for (const p of bloom) set(p, { uUseRamp: 1, uRamp: healRamp }); let x = 0, z = 0; const ticks = 96;
     return { ticks, objs: [glow, pillar, ...bloom, ...motes], start(px_, pz) { x = px_; z = pz; },   // a glowing sigil on the ground (ragged, veined), a rim-lit column of light, soft bloom puffs, motes lifting
-      update(age) { const k = age / ticks, out = 1 - (1 - k) ** 3, inn = Math.min(1, age / 10); glow.position.set(x, 0.05, z); glow.scale.setScalar(0.9 + 0.9 * out); set(glow, { uK: k, uT: age / 60, uAlpha: inn, uHot: 0.95 * (1 - 0.6 * k) });
+      update(age) { const k = age / ticks, out = 1 - (1 - k) ** 3, inn = Math.min(1, age / 10); glow.position.set(x, 0.05, z); glow.scale.setScalar(0.9 + 0.9 * out); set(glow, { uK: k, uT: age / 60, uAlpha: 0.6 * inn, uHot: 0.95 * (1 - 0.6 * k) });
         pillar.position.set(x, 1.6, z); pillar.scale.set(1 + 0.18 * k, 1, 1 + 0.18 * k); set(pillar, { uK: k, uT: age / 60 });
         bloom.forEach((p, i) => { const t = clamp01((age - i * 6) / 60); p.position.set(x, 0.7 + t * 1.5, z); set(p, { uSize: 1.7 + t, uK: t, uSeed: rnd(i, 4), uHot: 1, uAlpha: 0.4 * Math.sin(Math.PI * t) }); });
         motes.forEach((m, i) => { const t = clamp01((age - (i / 24) * 40) / 52), a = i * 2.4 + age * 0.12, r = 0.2 + 0.5 * (1 - 0.5 * t); m.position.set(x + Math.cos(a) * r, 0.1 + t * 2.7, z + Math.sin(a) * r); m.scale.setScalar(0.3 * (1 - 0.4 * t)); sop(m, 0.95 * Math.sin(Math.PI * t)); });
