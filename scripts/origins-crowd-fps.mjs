@@ -51,15 +51,15 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     const fwd = { x: (a1.x - a0.x) / moved, z: (a1.z - a0.z) / moved };
     res.forward = fwd;
     await page.waitForTimeout(3000);   // idle settle, then the run
-    await page.evaluate(([n, mode, f]) => {
+    await page.evaluate(([n, mode, f, cone]) => {
       const op = window.originsPreview, h = { x: op.pos.x, z: op.pos.z }, slots = [];
       const ahead = (dist, side) => ({ x: h.x + f.x * dist - f.z * side, z: h.z + f.z * dist + f.x * side });
-      for (let i = 0, tries = 0; slots.length < n && tries < n * 40; tries++) { const d = 4 + ((i * 7 + tries * 3) % 11), side = (((i * 5 + tries) % 9) - 4) * (0.5 + d * 0.12), q = ahead(d, side); if (op.canStand(q.x, q.z)) { slots.push({ id: 1000 + slots.length, cx: q.x, cz: q.z, r: 1.5 + (i % 3), ph: (i * 0.7) % 6.28 }); i++; } }
+      for (let i = 0, tries = 0; slots.length < n && tries < n * 40; tries++) { const d = cone[0] + ((i * 7 + tries * 3) % cone[1]), side = (((i * 5 + tries) % 9) - 4) * (0.5 + d * 0.12), q = ahead(d, side); if (op.canStand(q.x, q.z)) { slots.push({ id: 1000 + slots.length, cx: q.x, cz: q.z, r: 1.5 + (i % 3), ph: (i * 0.7) % 6.28 }); i++; } }
       window.__crowd = { slots, t0: performance.now(), built: slots.length };
       const WALK_SPEED = 2.5;
       const send = () => { const t = (performance.now() - window.__crowd.t0) / 1000; op.setOthers?.(slots.map((s) => { if (mode !== 'walk') return { id: s.id, x: s.cx, z: s.cz, heading: 0, anim: 0, flags: 0 }; const a = s.ph + (t * WALK_SPEED) / s.r; return { id: s.id, x: s.cx + Math.cos(a) * s.r, z: s.cz + Math.sin(a) * s.r, heading: -a, anim: 1, flags: 0 }; })); };
       window.__crowdTimer = setInterval(send, 100); send();
-    }, [n, mode, fwd]);
+    }, [n, mode, fwd, [+(process.env.CONE_NEAR || 4), +(process.env.CONE_SPREAD || 11)]]);   // CONE_NEAR / CONE_SPREAD: the crowd stands this many metres ahead and this deep (default 4 m, 11 m)
     res.built = await page.evaluate(() => window.__crowd.built);
     await page.waitForTimeout(2500);   // the figures appear, grow slots and ease in before the window opens
     await page.evaluate(() => { window.__gaps = []; let last = performance.now(); const tick = (t) => { window.__gaps.push(t - last); last = t; requestAnimationFrame(tick); }; requestAnimationFrame(tick); });

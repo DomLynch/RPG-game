@@ -28,6 +28,15 @@ elif [[ "${1:-}" == "imp" ]]; then
     SERVE=1 COUNTS=40 MODES=walk THROTTLE=4 OUT="artifacts/crowd-fps/imp$pass-f40" node scripts/origins-crowd-fps.mjs || true
     SERVE=1 COUNTS=0 MODES=walk THROTTLE=4 QS="&impostors=100" OUT="artifacts/crowd-fps/imp$pass-i100" node scripts/origins-crowd-fps.mjs || true
   done
+elif [[ "${1:-}" == "nearfar" ]]; then
+  # `nearfar`: the cost of near and far remote figures apart, ONE job, 4x CPU, walking, two passes: none (0 players), 40 players standing 2-7 m ahead (all inside a near range of 8 m), 40 players
+  # standing 10-16 m ahead (all beyond it); receipts artifacts/crowd-fps/nf<pass>-{none,near,far}/receipt.json (lods and drawn tell how many of each were really drawn).
+  npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
+  for pass in 1 2; do
+    SERVE=1 COUNTS=0 MODES=walk THROTTLE=4 OUT="artifacts/crowd-fps/nf$pass-none" node scripts/origins-crowd-fps.mjs || true
+    SERVE=1 COUNTS=40 MODES=walk THROTTLE=4 CONE_NEAR=2 CONE_SPREAD=5 OUT="artifacts/crowd-fps/nf$pass-near" node scripts/origins-crowd-fps.mjs || true
+    SERVE=1 COUNTS=40 MODES=walk THROTTLE=4 CONE_NEAR=10 CONE_SPREAD=6 OUT="artifacts/crowd-fps/nf$pass-far" node scripts/origins-crowd-fps.mjs || true
+  done
 elif [[ "${1:-}" == "quick1" ]]; then
   # `quick1`: the empty zone at 1x, one case, programs added after [zone ready] (their names are in the receipt): bisecting a post-ready compile.
   npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
