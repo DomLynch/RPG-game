@@ -143,12 +143,17 @@ test('the patron venue rows are data; the module that reads them (patrons.ts) is
 });
 
 test('the burn reason rows are data; the inventory code that reads them is not', () => {
-  for (const f of ['origins/inventory/burn-reasons.json', 'origins/inventory/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
-  for (const f of ['origins/inventory/inventory.ts', 'origins/inventory/burn-reasons.test.ts', 'origins/inventory/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
+  for (const f of ['src/core/items/burn-reasons.json', 'src/core/items/burn-reasons.manifest.json']) assert.equal(onDataPath(f), true, f);
+  for (const f of ['src/core/items/inventory.ts', 'tests/items-burn-reasons.test.ts', 'src/core/items/burn-reasons.json.bak']) assert.equal(onDataPath(f), false, f);
 });
 
 test('the contract vocabulary rows are data at their moved home src/core/contracts/, not at the old origins/contracts/ path; the loader beside them stays code', () => {
   for (const f of ['src/core/contracts/definitions.json', 'src/core/contracts/definitions.manifest.json']) assert.equal(onDataPath(f), true, f);
   for (const f of ['origins/contracts/definitions.json', 'origins/contracts/definitions.manifest.json', 'src/core/contracts/definitions.ts', 'src/core/contracts/world.ts',
     'src/core/contracts/definitions.json.bak']) assert.equal(onDataPath(f), false, f);
+});
+
+test('ground-items.json stays OFF the data-only path until the starter check is in force and reviewed: a data-only PR cannot place a ground item without the Auditor', () => {
+  assert.equal(onDataPath('origins/world/ground-items.json'), false);
+  assert.equal(onDataPath('origins/world/ground-items.manifest.json'), false);
 });

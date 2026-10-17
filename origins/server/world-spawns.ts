@@ -12,7 +12,8 @@ import { fightSetup, lookupOf, type EncounterContent } from '../encounters/encou
 import { mobSpecs, type MobSpec } from '../preview/mobs.ts';
 import { worldMetres } from '../presence/zones.ts';
 import { frontierBuild, frontierPlan } from '../preview/frontier-plan.ts';
-import { DEFAULT_ZONE, loadZone, zoneIds, zoneKeyPrefix } from '../zones/loader.ts';
+import { DEFAULT_ZONE, zoneKeyPrefix } from '../zones/loader.ts';
+import { listedZone, listedZoneIds } from '../zones/listed.ts';
 import { OPPONENTS, PLAYER_WEAPONS, RULES, opponentAt, weaponOf, CAPS, GAMBIT_ODDS } from '../../src/fight/server.ts';
 import { ROLL_BAND } from '../../src/fight/server.ts';
 import { DbError } from './db.ts';
@@ -52,7 +53,7 @@ export type Spawn = { spec: MobSpec; fight: string; hp: number; respawnS: number
 // One zone's spawns, priced from THAT zone's own rows (origins/zone-rows/zone<id>.row.json) on its own plan: a Zone 2 kill is checked against Zone 2's creatures and levels, never Zone 1's (Auditor).
 export function zoneSpawns(content: EncounterContent, zoneId: string): Map<string, Spawn> {
   const f = frontierPlan(false, zoneId), out = new Map<string, Spawn>();
-  for (const spec of mobSpecs(f, frontierBuild(f), loadZone(zoneId).spawns.rows)) {
+  for (const spec of mobSpecs(f, frontierBuild(f), listedZone(zoneId).spawns.rows)) {
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
     out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / 1000) });
@@ -69,10 +70,10 @@ export const zoneOfKey = (key: string): string | null => /^z[0-9]/.test(key) ? /
 // `z<N>:`, every key fits the table's key check, and no key is in two zones. The writer refuses to start on a problem (scripts/origins-writer.mjs), so a bad new zone row fails at install.
 export function zoneKeyProblems(): string[] {
   const problems: string[] = [], seen = new Map<string, string>();
-  for (const id of zoneIds()) {
+  for (const id of listedZoneIds()) {
     if (!/^[1-9][0-9]*$/.test(id)) { problems.push(`zone id ${JSON.stringify(id)} is not a number without a leading zero`); continue; }
     const f = frontierPlan(false, id), prefix = zoneKeyPrefix(id);
-    for (const spec of mobSpecs(f, frontierBuild(f), loadZone(id).spawns.rows)) {
+    for (const spec of mobSpecs(f, frontierBuild(f), listedZone(id).spawns.rows)) {
       if (zoneOfKey(spec.id) !== id) problems.push(`${spec.id} reads as zone ${zoneOfKey(spec.id)}, not ${id}`);
       else if (prefix === '' ? /^z[0-9]/.test(spec.id) : !spec.id.startsWith(prefix)) problems.push(`${spec.id}: ${prefix === '' ? `a Zone ${id} key must be bare` : `a Zone ${id} key must start ${prefix}`}`);
       if (!/^[a-z0-9._:-]{1,96}$/.test(spec.id)) problems.push(`${spec.id} does not fit the table's key check`);
@@ -111,7 +112,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   if (!deps) return { spawn_state: off, engage: off, touch: off, kill_report: off };
   const { content } = deps, lookup = lookupOf(content), zones = new Map<string, Map<string, Spawn>>(deps.spawns ? [[DEFAULT_ZONE, deps.spawns]] : []);
   // zoneId in a body: one of the loader's zones (Zone 1 when absent); each zone's list is built on first use and kept.
-  const zoneOf = (v: unknown): string => { if (v === undefined) return DEFAULT_ZONE; if (typeof v !== 'string' || !zoneIds().includes(v)) throw new BadRequest('zoneId: a zone id'); return v; };
+  const zoneOf = (v: unknown): string => { if (v === undefined) return DEFAULT_ZONE; if (typeof v !== 'string' || !listedZoneIds().includes(v)) throw new BadRequest('zoneId: a zone id'); return v; };
   const spawnsOf = (zoneId: string): Map<string, Spawn> => { let z = zones.get(zoneId) ?? (deps.zones?.[zoneId]); if (!z) z = zoneSpawns(content, zoneId); zones.set(zoneId, z); return z; };
   const seed = deps.seed ?? (() => randomInt(1, 2 ** 31)), now = deps.now ?? (() => new Date()), log = deps.log ?? console.log;
 
@@ -153,7 +154,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     const open = await store.spawnEngageGet(db, account, token);
     if (open === null) return absent();
     if (open === 'none') throw new Refused(409, 'engage token unknown, used or expired', 'used');
-    const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && zoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
+    const zone0 = zoneOfKey(open.instance), spawn = zone0 !== null && listedZoneIds().includes(zone0) ? spawnsOf(zone0).get(open.instance) : undefined;   // an unparsable zone key has no spawn: refused below, never read as Zone 1   // the token's own zone, read from its database key
     if (!spawn) throw new Refused(409, 'engage token names a spawn this server no longer has', 'dead');
     if (hits < minHits(spawn.hp)) return refuse('too-few-hits');
     // Reach: a fresh placed pose in the zone is checked (too far = refused). A v2 presence client is placed in the Frontier too (frontier-presence.md); a v1 client, or none, has no Frontier pose: that kill is

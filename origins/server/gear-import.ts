@@ -6,11 +6,11 @@
 // from Recruit), unless the slot is already taken (nothing is displaced: that piece goes to the pack); the rest go to the pack while it has room and the overflow to the BANK grid (a mint,
 // no Exchange); worn pieces count toward neither grid. The whole result is checked by inventory.openInventory (custody, one of each, slots), so no placement rule is re-implemented here.
 import { createHash } from 'node:crypto';
-import { TITLES } from '../../src/core/server.ts';
-import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
+import { TITLES, standingLevel, tierOf } from '../../src/core/server.ts';
+import { PAPERDOLL, STARTER_TIERS, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
 import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
-import { firstFree, openInventory, type Inventory } from '../inventory/inventory.ts';
+import { firstFree, openInventory, type Inventory } from '../../src/core/server.ts';
 import { Refused } from './errors.ts';
 import { BadRequest, Conflict, type Handler } from './handlers.ts';
 import { openHoldingsWith, type Content } from './holdings.ts';
@@ -20,6 +20,9 @@ import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const LIMITS = SERVER_RULES.serverLimits[0]!;
+// The cut-off (the gearImport row): the migration closes at this instant and refuses everything after it. A row that is not a date is a load error, never an open-forever import.
+export const CLOSES_AT_MS = Date.parse(SERVER_RULES.gearImport[0]!.closesAt);
+if (!Number.isFinite(CLOSES_AT_MS)) throw new Error('server-rules gearImport.closesAt is not a date');
 export const MAX_OWNED = LIMITS.maxOwned;   // src/loot.ts knows ~75 pieces; the cap only bounds a hostile body
 export type ImportReceipt = { imported: string[]; alreadyHeld: string[]; skipped: { lootId: string; reason: string }[]; worn: string[]; bank: string[]; unworn: { lootId: string; reason: string }[]; replayed: boolean };
 const DOLLS = new Set(Object.keys(PAPERDOLL));
@@ -28,7 +31,7 @@ const listOf = (v: unknown): string[] => { if (!Array.isArray(v) || v.length > M
 const mapOf = (v: unknown, name: string): Record<string, unknown> => { if (v === undefined || v === null) return {}; if (typeof v !== 'object' || Array.isArray(v)) throw new BadRequest(`${name}: an object`); return v as Record<string, unknown>; };
 
 // The plan: the instances to mint (with their places) and the receipt, from what the character holds now. Pure; the caller commits.
-export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input: { owned: string[]; equipped: Record<string, unknown>; tiers: Record<string, unknown> }, lookup: Parameters<typeof openInventory>[1], at: string): { mint: ItemInstance[]; receipt: ImportReceipt } {
+export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input: { owned: string[]; equipped: Record<string, unknown>; tiers: Record<string, unknown> }, lookup: Parameters<typeof openInventory>[1], at: string, maxRung: number = TITLES.length): { mint: ItemInstance[]; receipt: ImportReceipt } {
   const receipt: ImportReceipt = { imported: [], alreadyHeld: [], skipped: [], worn: [], bank: [], unworn: [], replayed: false };
   const wornBy = new Map<string, Paperdoll>(), extra: string[] = [];   // lootId -> the paperdoll slot the old ledger had it on
   for (const [doll, id] of Object.entries(input.equipped)) {
@@ -47,11 +50,14 @@ export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input:
     if (!isLootId(id)) { receipt.skipped.push({ lootId: id, reason: 'not a LootId this game knows' }); continue; }
     const key = legacyUnlockMintKey(inv.account, id);
     if (heldKeys.has(key)) { receipt.alreadyHeld.push(id); continue; }
-    const rung = Number(input.tiers[id]), known = Number.isInteger(rung) && rung >= 1 && rung <= TITLES.length;
+    const opponent = id.split('.')[0]!, fixed = STARTER_TIERS[opponent];   // a starter piece (loot-pieces.json lootStarter) has no legend and no rung: its row's mintTier is its tier, whatever the client claims
+    const rung = Number(input.tiers[id]), known = fixed === undefined && Number.isInteger(rung) && rung >= 1 && rung <= TITLES.length;
+    // The rung is the client's claim and it sets the minted tier (the stat-bearing field), so it is bounded by what the account's SERVER-verified career level can reach: a piece claimed above it is
+    // skipped, not clamped. Its mint key stays unheld, so it imports later, once the account really holds that rank. An unclaimed rung still mints at Recruit. A starter piece ignores the claim (never skipped, never above its row).
+    if (known && rung > maxRung) { receipt.skipped.push({ lootId: id, reason: 'above your rank' }); continue; }
     const doll = wornBy.get(id), dollKey = doll ? `equipped:${doll}` : '';
     const wear = !!doll && !taken.has(dollKey);
     if (doll && !wear) receipt.unworn.push({ lootId: id, reason: `the ${doll} slot is already worn` });   // owned, so it goes to the pack/bank
-    const opponent = id.split('.')[0]!;
     // a free pack slot, else the bank (the ruling); worn pieces take neither
     const probe = openInventory({ owner: inv.owner, account: inv.account, items, packSize: inv.packSize, bankSize: inv.bankSize }, lookup);
     if (!probe.ok) throw new Refused(422, `the inventory does not hold together: ${probe.issues[0]!.message}`, 'rule');
@@ -63,8 +69,8 @@ export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input:
     for (const location of places) {   // the worn place first; if it is refused for ANY reason the piece still lands in the pack/bank
       const parsed = parseItemInstance({
         kind: 'item-instance', schemaVersion: 1, id: `inst:legacy-${createHash('sha256').update(`${inv.account}|${id}`).digest('hex').slice(0, 24)}`, item: `item:loot.${id}`, version: 0, quantity: 1,
-        tier: TITLES[known ? rung - 1 : 0], location, boundTo: null,
-        provenance: { kind: 'legacy-unlock', mintKey: key, at, account: inv.account, lootId: id, wonBy: inv.owner, fromLegend: known ? `${opponent}-${rung}` : null, atRank: known ? TITLES[rung - 1] : null }, history: [],
+        tier: fixed ?? TITLES[known ? rung - 1 : 0], location, boundTo: null,
+        provenance: { kind: 'legacy-unlock', mintKey: key, at, account: inv.account, lootId: id, wonBy: inv.owner, fromLegend: known ? `${opponent}-${rung}` : null, atRank: known ? TITLES[rung - 1] : null }, history: [],   // a starter piece has no legend to name (known is false for it): both null, as the item contract wants both or neither
       }, `pieces[${id}]`);
       if (!parsed.ok) { why = parsed.issues[0]!.message; continue; }
       const next = openInventory({ owner: inv.owner, account: inv.account, items: [...items, parsed.value], packSize: inv.packSize, bankSize: inv.bankSize }, lookup);
@@ -87,9 +93,10 @@ const mintLegacy = (inst: ItemInstance): store.Json => {
   return m as unknown as store.Json;
 };
 
-export function gearImportHandler(content: Content): Handler {
+export function gearImportHandler(content: Content, now: () => number = Date.now): Handler {
   const lookup = content.lookup;
   return async ({ db, account }, body) => {
+    if (now() >= CLOSES_AT_MS) throw new Refused(422, 'gear import is closed: the migration window ended at beta open', 'closed');   // the gearImport row; nothing after it is read, minted or replayed
     const character = body.character;
     if (typeof character !== 'string' || character.length > 80) throw new BadRequest('character: a character id');
     const input = { owned: listOf(body.owned), equipped: mapOf(body.equipped, 'equipped'), tiers: mapOf(body.tiers, 'tiers') };
@@ -100,7 +107,8 @@ export function gearImportHandler(content: Content): Handler {
     const candidates = [...new Set([...input.owned, ...Object.values(input.equipped).filter((v): v is string => typeof v === 'string')])].filter(isLootId).map((id) => legacyUnlockMintKey(inventory.account, id));
     if (candidates.length) { const ever = await store.mintKeysHeld(db, account, candidates); if (ever !== 'absent') for (const k of ever) heldKeys.add(k); }
     const at = new Date().toISOString();
-    const { mint, receipt } = planImport(inventory, heldKeys, input, lookup, at);
+    const maxRung = snap.career ? tierOf(standingLevel(Number(snap.career.total_credit))) : 1;   // the server-verified standing (gear.ts equips on the same): no career row = the first tier
+    const { mint, receipt } = planImport(inventory, heldKeys, input, lookup, at, maxRung);
     if (!mint.length) return receipt;
     const eventId = `gear-import:${character}:${createHash('sha256').update(mint.map((m) => m.provenance.mintKey).join(',')).digest('hex').slice(0, 16)}`;
     const batch: store.Json[] = [

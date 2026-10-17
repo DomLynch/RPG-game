@@ -31,7 +31,8 @@ export const liveSpecials = (level: number): boolean => Number.isInteger(level) 
 export const knownLayer = (layer: string): layer is MobStyle => (MOB_STYLES as readonly string[]).includes(layer);
 const refuse = (reason: string): Verified => ({ ok: false, reason });
 const HERO_SIDE = 0;   // the hero is side 0 in every fight (the foe's defeat is victim 1)
-const tallyHeroEvents = (into: Record<string, number>, events: readonly { type: string; target?: number }[]): void => { for (const e of events) if (e.target === HERO_SIDE) into[e.type] = (into[e.type] ?? 0) + 1; };
+// One breath cone is ONE bite however many pulses land (src/fight/cone-rules.ts): only pulse 0 of a breath counts, a later pulse (pulse > 0) is the same bite continuing.
+export const tallyHeroEvents = (into: Record<string, number>, events: readonly { type: string; target?: number; pulse?: number }[]): void => { for (const e of events) if (e.target === HERO_SIDE && !(e.pulse! > 0)) into[e.type] = (into[e.type] ?? 0) + 1; };
 // Exact, bit for bit: both sides are float32 values the server issued (Object.is also tells -0 from 0, as the record's bytes do).
 const samePose = (a: DuelPose | undefined, b: DuelPose | null): boolean => !a || !b ? !a && !b
   : Object.is(a.hero.x, b.hero.x) && Object.is(a.hero.z, b.hero.z) && Object.is(a.foe.x, b.foe.x) && Object.is(a.foe.z, b.foe.z) && Object.is(a.heroFacing, b.heroFacing);

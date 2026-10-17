@@ -29,7 +29,7 @@ try {
     const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
     page.on('pageerror', (e) => z.errors.push(`pageerror: ${String(e).slice(0, 200)}`));
     await page.goto(`${origin}/preview/origins/${query}`, { waitUntil: 'load' });
-    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 120000 });
+    await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 120000 });
     const target = await page.evaluate((pref) => { const l = window.originsPreview.mobs().mobs.filter((m) => m.drawn && m.body); return (pref && l.find((m) => pref.includes(m.body))) || l[0]; }, KILL ? ['wolf', 'boar', 'bear', 'goblin'] : null);   // a kill still wants a creature that dies inside the run z.target = target.body;
     if (KILL) await page.evaluate(() => window.originsPreview.reset(40));   // a strong hero (test setup, memory only): the creature goes down in a few cuts, inside the run
     await page.waitForTimeout(4000);

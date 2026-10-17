@@ -74,7 +74,7 @@ jobs:
         run: |
           # A release-* candidate always runs them (Lead 2026-10-12: the Auditor removes auditor:ready after its verdict, so a re-pushed head must not skip them).
           if [ "$GITHUB_EVENT_NAME" != pull_request ] || [[ "$HEAD_REF" == release-* ]]; then echo "browser=true" >> "$GITHUB_OUTPUT"; else echo "browser=false" >> "$GITHUB_OUTPUT"; echo "feature PR: browser jobs run in the release candidate, not here"; fi
-          GAME_RE='^(src/|public/|origins/|supabase/|index\.html$|vite\.config|package(-lock)?\.json$|tsconfig|tests/fixtures/|\.github/workflows/quality\.yml$|scripts/(lib/harness|browser-check|stance-panel-check|counter-browser-check|origins-seamless-check|duel-two-page-check|duel-relay|net-|check-budget|load-time|[a-z-]+-polish-check)|.*\.(glb|webp|png|jpe?g|ogg|mp3|wav)$)'
+          GAME_RE='^(src/|public/|origins/|supabase/|index\.html$|vite\.config|package(-lock)?\.json$|tsconfig|tests/fixtures/|\.github/workflows/quality\.yml$|scripts/(lib/harness|lib/json-dup-keys|lib/origins-preview-harness|browser-check|stance-panel-check|counter-browser-check|origins-seamless-check|origins-remote-heroes-check|duel-two-page-check|duel-relay|net-|check-budget|load-time|[a-z-]+-polish-check)|.*\.(glb|webp|png|jpe?g|ogg|mp3|wav)$)'
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "not a pull request: everything runs"; exit 0; fi
           if ! files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)'); then echo "game=true" >> "$GITHUB_OUTPUT"; echo "could not list the files: everything runs"; exit 0; fi
           if printf '%s\n' "$files" | grep -Eq "$GAME_RE"; then echo "game=true" >> "$GITHUB_OUTPUT"; echo "game paths touched: heavy jobs run"; printf '%s\n' "$files" | grep -E "$GAME_RE" | head -5
@@ -290,6 +290,8 @@ jobs:
           - { name: seamless, script: scripts/origins-seamless-check.mjs, required: false }
           # The same gate with no fight before [zone ready] (SEAMLESS_QUIET), a forced first hit (SEAMLESS_STRIKE) and the program rule on any renderer (SEAMLESS_PROGRAMS): the first-contact particle programs must be warmed by the zone, not by luck of timing (#2289/#2299). Fails on trunk before the planUpload Points warm-up.
           - { name: seamless-quiet, script: scripts/origins-seamless-check.mjs, required: false, seamless: '1' }
+          # Other players in Zone 1 (Web, #2929): a real presence server on loopback, the built preview as a signed-in client, headless bots from origins/presence/test-client.ts. Optional until it has a sample on this runner.
+          - { name: remote-heroes, script: scripts/origins-remote-heroes-check.mjs, required: false }
     name: browser (${{ matrix.gate.name }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ !matrix.gate.required }}

@@ -1,0 +1,10 @@
+{
+  "space": "black-forest-labs/FLUX.1-dev",
+  "prompt": "Full-body side-view creature concept art of a giant cave salamander, a low heavy armoured quadruped standing in a neutral pose with all four legs visible and apart, head level with the spine, mouth closed. Overlapping red scales across the back and flanks, a pale cream ribbed belly and throat, a row of spiked blue-grey dorsal spines running from the head down to the tail, a very long thick blue-grey tail with a fin ridge that curves upward at the tip, a broad crocodile-like jaw, thick splayed legs with dark claws. Painterly dark-fantasy game concept art, even soft light, plain neutral grey background.",
+  "seed": 190926,
+  "guidance": 3.5,
+  "steps": 28,
+  "size": "1216x832",
+  "seconds": 46.8,
+  "sha256": "687463acd7fd14c6f7090f9530b1cbe9231f423f308d01c26d7a0362ef181436"
+}

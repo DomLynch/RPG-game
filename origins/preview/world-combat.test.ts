@@ -7,6 +7,8 @@ import type { MobDrive, MobPick, Mobs } from './mobs-view.ts';
 import type { MobSpec } from './mobs.ts';
 import { NAKED } from '../../src/fight/gear-stats.ts';
 import { sheetOf, type Sheet } from '../../src/fight/sheet-rows.ts';
+import { sheetFor } from '../../src/fight/gear-numbers.ts';
+import type { Loot } from '../../src/core/loot.ts';
 
 const spec = (id: string, body: string): MobSpec => ({ id, body, name: id, level: 11, named: false } as unknown as MobSpec);
 function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
@@ -25,7 +27,7 @@ test('a wolf that comes within the ring joins the loop, hunts, telegraphs, bites
   const wc = createWorldCombat({ mobs: () => f.mobs, onKill: () => {}, onHeroDied: () => void died++, onHeroHit: () => void hit++, onSwing: () => {}, onTelegraph: () => void tell++ });
   run(wc, { x: 0, z: 0, facing: 0 }, 6);
   assert.ok(f.driven.has('wolf-1'), 'driven by the loop'); assert.ok(tell >= 1 && hit >= 1, `tell ${tell} before hit ${hit}`); assert.ok(wc.hero().health < wc.hero().max); assert.equal(died, 0);
-  assert.equal(wc.target()?.name, 'wolf-1'); assert.ok(wc.inCombat());
+  assert.equal(wc.target()?.name, 'wolf-1'); assert.equal(wc.target()?.id, 'wolf-1', 'the target carries its creature id (the creature card follows the fight by it)'); assert.ok(wc.inCombat());
 });
 
 test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once, and the creature is released', () => {
@@ -171,4 +173,97 @@ test('the hero is rebuilt from hero() at the next clean window open: a sheet tha
   for (const wc of [late, born, bare]) wc.update(1 / 30, { x: 0, z: 0, facing: 0 });
   assert.equal(late.hero().max, born.hero().max, 'the late hero is the one a sheeted-at-load hero is');
   assert.notEqual(late.hero().max, bare.hero().max, 'and not the bare one');
+});
+
+test('sheet-in-world gate: while the loadout is not ready no creature joins (no fight on the bare body), and when it is the fight starts on the sheet with its armour in the trace', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10, armour: 10 } })!; assert.ok(sheet.armour, 'armour is on the sheet');
+  const state: { ready: boolean; sheet?: Sheet } = { ready: false };
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 2 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => ({ gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  run(wc, hero, 1);   // the wolf is on top of him but the loadout has not answered
+  assert.equal(wc.debug().length, 1, 'no creature joined while the loadout was late'); assert.equal(wc.trace().ready, false); assert.equal(f.driven.size, 0, 'and none was driven');
+  const bareMax = wc.trace().maxHealth;
+  state.sheet = sheet; state.ready = true;   // the build and the worn-gear view answer
+  run(wc, hero, 1);
+  assert.equal(wc.debug().length, 2, 'now the wolf joins'); const t = wc.trace();
+  assert.equal(t.ready, true); assert.ok(t.maxHealth > bareMax, 'and the hero it fights has the sheet\'s health, not the bare 150'); assert.equal(t.sheet?.armour, sheet.armour, 'the armour dial is in the trace');
+});
+
+test('idle hero sheet: with no creature near, the bar is the sheet\'s the moment the loadout gate opens (159-style max at ready idle), and stays the bare body while the gate is closed', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10, armour: 10 } })!;
+  const state: { ready: boolean; sheet?: Sheet } = { ready: false };
+  const f = fakeMobs([]);   // nobody to fight: the hero only stands there
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => ({ gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  const bare = wc.hero().max;
+  state.sheet = sheet; run(wc, hero, 1);
+  assert.equal(wc.hero().max, bare, 'the sheet has arrived but the gate is closed: he stays the bare body (no half-built hero)');
+  state.ready = true; run(wc, hero, 1);
+  assert.ok(wc.hero().max > bare, 'gate open, idle: the bar is the sheet\'s before any fight'); assert.equal(wc.hero().health, wc.hero().max, 'and full');
+  assert.equal(wc.trace().maxHealth, wc.hero().max); assert.equal(wc.trace().sheet?.armour, sheet.armour);
+});
+
+test('idle hero sheet costs nothing per frame: hero() is read at the gate\'s ready edge and when the page says the build or gear answered, and not once over hundreds of idle frames', () => {
+  const sheet = sheetOf({ level: 20, placed: { health: 10 } })!, sheet2 = sheetOf({ level: 20, placed: { health: 20 } })!;
+  const state: { ready: boolean; sheet?: Sheet; reads: number } = { ready: false, reads: 0 };
+  const f = fakeMobs([]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => state.ready, hero: () => { state.reads++; return { gear: NAKED, level: 1, ...(state.sheet ? { sheet: state.sheet } : {}) }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 }, bare = wc.hero().max;
+  // The sim step reads the level cached at load / window open / rebody (gearOf for stepHero), never hero(): 0 reads per step, and the rebuild adds none.
+  const r0 = state.reads; run(wc, hero, 5); const baseline = state.reads - r0;
+  assert.equal(baseline, 0, 'the sim step reads the hero\'s cached level, not hero(): 0 hero() reads per step with the gate closed');
+  state.sheet = sheet; state.ready = true; run(wc, hero, 1);
+  const edge = wc.hero().max; assert.ok(edge > bare, 'the ready edge rebuilt him on the sheet');
+  const r1 = state.reads; run(wc, hero, 5);   // ~150 idle frames after the edge
+  assert.equal(state.reads - r1, baseline, 'idle frames after the edge read hero() exactly as often as before it: no sheet build per frame');
+  state.sheet = sheet2; run(wc, hero, 1); assert.equal(wc.hero().max, edge, 'a change nobody announced is not polled for (it is picked up at the next join)');
+  wc.heroChanged(); run(wc, hero, 1); assert.ok(wc.hero().max > edge, 'heroChanged() rebuilds him once on the new sheet');
+  const r2 = state.reads; run(wc, hero, 5); assert.equal(state.reads - r2, baseline, 'and then back to the baseline');
+});
+
+test('the level the step reads is the one taken at the window open: a level-up between fights (shield gone at PROTECT_LEVEL) shows at the next creature join, and mid-fight the step does not read hero() at all', () => {
+  const lv = { level: 1, reads: 0 };
+  const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 30 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, hero: () => { lv.reads++; return { gear: NAKED, level: lv.level }; }, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const hero = { x: 0, z: 0, facing: 0 };
+  run(wc, hero, 1); assert.equal(wc.trace().level, 1);
+  lv.level = 40; run(wc, hero, 1); assert.equal(wc.trace().level, 1, 'a level-up nobody announced waits for the next window open');
+  f.mobs.within = () => [{ spec: { ...spec('wolf-2', 'wolf'), level: 1 }, x: 0, z: 1.5, dist: 1.5 }] as never;   // a creature joins the empty loop: the window opens and he is rebuilt at level 40
+  wc.update(1 / 30, hero); assert.equal(wc.trace().level, 40, 'rebuilt at the join');
+  const before = lv.reads; run(wc, hero, 1); assert.equal(lv.reads, before, 'mid-fight: no hero() read per step');
+});
+
+// Backend's disposable-Postgres repro (real writer handlers on trunk 2941e7a88, no prod write): build_get {"level":12,"placed":{"armour":4,"attack":4,"health":4},"version":2} and the worn set head Helmet, chest Body, legs Greaves, main Warhammer,
+// all dwarf pieces at Legionary (tier 2). The page's own derivation (gear-numbers sheetFor, the path main.ts hero() takes) feeds the loop; the trace line is the receipt for the PR body.
+test('sheet-in-world, the real build row: a level-12 build with 4/4/4 placed and a worn dwarf set fights with the sheet\'s hp, armour and attack, not the bare body', () => {
+  const own = { level: 12, placed: { armour: 4, attack: 4, health: 4 } };
+  const piece = (id: string) => [id, { opponent: 'dwarf', attempt: 1, healthLeft: 1, recordId: null, day: '2026-10-16', tier: 2 }] as const;
+  const loot = { owned: ['dwarf.Helmet', 'dwarf.Body', 'dwarf.Greaves', 'dwarf.Warhammer'], equipped: { head: 'dwarf.Helmet', chest: 'dwarf.Body', legs: 'dwarf.Greaves', main: 'dwarf.Warhammer' }, taken: Object.fromEntries(['dwarf.Helmet', 'dwarf.Body', 'dwarf.Greaves', 'dwarf.Warhammer'].map(piece)) } as unknown as Loot;
+  const geared = sheetFor(loot, own)!, buildOnly = sheetFor(undefined, own)!;
+  assert.ok(geared && buildOnly, 'the stored build is legal, so the page gets a sheet');
+  const bare = createWorldCombat({ mobs: () => fakeMobs([]).mobs, hero: () => ({ gear: NAKED, level: 12 }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 2 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => true, hero: () => ({ gear: NAKED, level: 12, sheet: geared }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  run(wc, { x: 0, z: 0, facing: 0 }, 1);
+  const t = wc.trace(); console.log('TRACE ' + JSON.stringify({ build: own, gear: ['head', 'chest', 'legs', 'main'], bareMaxHealth: bare.trace().maxHealth, buildOnlySheet: buildOnly, trace: t }));
+  assert.equal(wc.debug().length, 2, 'the wolf joined the fight'); assert.deepEqual(t.sheet, geared, 'the loop fights on the page\'s sheet');
+  assert.ok(t.maxHealth > bare.trace().maxHealth, 'the placed health points are in the bar'); assert.ok((t.sheet?.armour ?? 0) > (buildOnly.armour ?? 0), 'the worn set adds armour on top of the placed points'); assert.ok((t.sheet?.attack ?? 0) > 0);
+});
+
+// Backend's second repro (same harness): level 20, build_get {"level":20,"placed":{"armour":6,"attack":7,"health":7},"version":2}, all nine paperdoll slots worn at Legionary (tier 2).
+test('sheet-in-world, the level-20 row with the full paperdoll: the nine worn pieces and 6/7/7 placed points are all in the sheet the loop fights on', () => {
+  const own = { level: 20, placed: { armour: 6, attack: 7, health: 7 } };
+  const equipped = { head: 'dwarf.Helmet', crest: 'executioner.Crest', chest: 'dwarf.Body', arms: 'dwarf.Arms', hands: 'dwarf.Gloves', legs: 'dwarf.Greaves', feet: 'dwarf.Boots', main: 'dwarf.Warhammer', off: 'shieldmaiden.Shield' };
+  const ids = Object.values(equipped), taken = Object.fromEntries(ids.map((id) => [id, { opponent: id.split('.')[0], attempt: 1, healthLeft: 1, recordId: null, day: '2026-10-16', tier: 2 }]));
+  const loot = { owned: ids, equipped, taken } as unknown as Loot;
+  const geared = sheetFor(loot, own)!, buildOnly = sheetFor(undefined, own)!;
+  assert.ok(geared && buildOnly, 'the stored build is legal (20 points at level 20)');
+  const bare = createWorldCombat({ mobs: () => fakeMobs([]).mobs, hero: () => ({ gear: NAKED, level: 20 }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const f = fakeMobs([{ spec: spec('wolf-1', 'wolf'), x: 0, z: 2 }]);
+  const wc = createWorldCombat({ mobs: () => f.mobs, loadoutReady: () => true, hero: () => ({ gear: NAKED, level: 20, sheet: geared }), onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  run(wc, { x: 0, z: 0, facing: 0 }, 1);
+  const t = wc.trace(); console.log('TRACE20 ' + JSON.stringify({ build: own, gear: Object.keys(equipped), bareMaxHealth: bare.trace().maxHealth, buildOnlySheet: buildOnly, trace: t }));
+  assert.equal(wc.debug().length, 2, 'the wolf joined the fight'); assert.deepEqual(t.sheet, geared);
+  assert.ok(t.maxHealth > bare.trace().maxHealth); assert.ok((t.sheet?.armour ?? 0) > (buildOnly.armour ?? 0), 'the worn set adds armour on top of the placed points'); assert.ok((t.sheet?.attack ?? 0) >= (buildOnly.attack ?? 0));
 });

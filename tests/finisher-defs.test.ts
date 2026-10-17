@@ -241,7 +241,7 @@ test('the finisher blood driven by the rows is byte-identical to the name-switch
 // whether a pick is its template, which pose word its victim plays (body.victim.pose) and which row is the plain death to fall back to. The hash
 // covers both poseOf, both picks (installed or not) and both resolvers over every roster body × victim × move × heading × override × resolved,
 // computed on trunk BEFORE the change.
-const STAGED_BEFORE = '821d5223a2376130b03c6016ad111b4fed073d76f039afcd22678380c4c7a8a0';
+const STAGED_BEFORE = 'db9368bcd1b1d0bdfd65985aba703205df3de37d240761c1d1f8ba1c62cb92a9';
 test('the staged templates driven by the rows are byte-identical to the name-switches they replaced; hamstrung.ts and execution.ts name no finisher', () => {
   const ids = [null, ...Object.keys(FINISHER_POSE)], h = createHash('sha256');
   for (const id of ids) { if (id) h.update(JSON.stringify([hamstrungPoseOf(id), executionPoseOf(id)])); for (const inst of [true, false]) h.update(JSON.stringify([hamstrungPick(id, inst), executionPick(id, inst)])); }

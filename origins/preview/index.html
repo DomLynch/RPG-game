@@ -67,7 +67,8 @@
     .stick.on { opacity: 1; bottom: auto; }
     .stick i { position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%; border-radius: 50%; background: var(--c-ring); }
     @media (pointer: coarse), (max-width: 900px) { .stick { opacity: 0.55; } .stick.on { opacity: 1; } }
-    #prompt { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
+    #prompt { position: fixed; z-index: 6; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-height: var(--tap-l); max-width: calc(100vw - 2 * var(--gap-m)); padding: 0 var(--gap-l); border-radius: var(--r-pill); font: 600 var(--fs-l) var(--f-serif); white-space: nowrap; }
+    #prompt[data-slot] { bottom: calc(env(safe-area-inset-bottom) + 320px); }   /* every prompt (Talk, Bank, Fight in the Pit, the ore, the way back, ground loot) and the ground result lines sit above the fight cluster (SKILL's top is 304 px up at 320 and 375), clear of every fight button and the move pad */
     #shade { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gap-m); background: var(--c-shade); }
     #creature-card { margin-top: var(--gap-s); padding: var(--gap-xs) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-shadow: none; pointer-events: none; }   /* in the HUD's flow, under the hint; an overlay, never a pause */
     #hint { margin-top: var(--gap-s); padding: var(--gap-s) var(--gap-m); border-radius: var(--r-s); font: var(--fs-m)/1.4 var(--f-serif); text-align: center; text-shadow: none; pointer-events: none; }   /* in the HUD's flow: always under the status lines, however many they wrap to */
@@ -94,8 +95,9 @@
     /* World mode (?region=1): the Pit's own kit is the walk's controls. The layer lets the walk's canvas through; only the stick, the buttons and the ☰ take a touch. */
     #duel.world { background: none; pointer-events: none; }
     #duel.world #joystick, #duel.world #actions, #duel.world header, #duel.world #leave, #duel.world #journal { pointer-events: auto; }   /* #leave: "Back to the fields" took no tap in a world fight (Web's VPS run, 2026-10-08: #view got the hit); #journal: the ☰ menu is a child of the layer, so it inherited none and its buttons (Leave the Pit, Arena, ✕) took no tap either (found by the leave-exit check, PR #1835) */
-    #duel.world #opponent-name, #duel.world #target-health, #duel.world #target-posture, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
-    #duel.world .combat-hud { display: none !important; }   /* Zone 1 shows ONE set of bars, the shared meters (src/fight/hud.ts createMeters, meters.css), placed under the HUD stack by --hud-bottom; the Pit's own bars stay Pit-only (Lead 2026-10-10) */
+    #duel.world #target-posture, #duel.world #posture, #duel.world #fight-rank, #duel.world #combat-status, #duel.world #leave, #duel.world #art-status, #duel.world #dmg-pool, #duel.world #debug, #duel.world #reset-button, #duel.world #run-button { display: none !important; }
+    body:not(.zone-bars) #duel.world .combat-hud { display: none !important; }   /* Zone 1 shows ONE set of bars: the Pit's own (Dom 2026-10-14: "the original ones look better"). Hidden until createZoneBars (src/fight/hud.ts) sets body.zone-bars, i.e. a foe is in reach or the hero is hurt; then nothing hides it and the Pit's own style.css draws it (grid on a phone): the foe's name over its bar, HEALTH and STAMINA beside each other. Only its offset is the zone's: under the HUD stack (--hud-bottom). The Pit's posture bars, rank line and status line stay Pit-only. */
+    body.zone-bars #duel.world .combat-hud { top: max(calc(env(safe-area-inset-top) + 12px), calc(var(--hud-bottom, 0px) + 8px)); }
     #duel.world #mobile-camera { display: revert !important; }
     #duel.world header .brand { visibility: hidden; }   /* the FRANKENDOM / ORIGINS wordmark drew over the status lines in a field duel at desktop width; visibility, not display, so the ☰ stays put (Web, #1732) */
     #duel.world.infight #opponent-name, #duel.world.infight #target-health, #duel.world.infight #target-posture, #duel.world.infight #combat-status { display: revert !important; }   /* no #leave: a world fight ends on its own banner, nothing to tap (seamless S1) */   /* ?worldfight: the duel's own bars over the world */
@@ -114,7 +116,6 @@
       #hud #hint, #hud .walk-only { display: none; }
       #creature-card { margin-top: 3px; padding: 2px var(--gap-s); font-size: var(--fs-s); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #duel.world header { right: calc(max(14px, env(safe-area-inset-right)) + 100px); }
-      .fm-meters { left: max(12px, env(safe-area-inset-left)); }
     }
     @media (min-width: 901px) { #hud { right: 220px; } }   /* the header's Sound and Journal text buttons own the top right on a wide screen */
   </style>

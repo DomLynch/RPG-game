@@ -13,7 +13,7 @@ import { powerOf, loadRegistry, tableFromFile, type Manifest } from '../../src/c
 import LOOT_TIER_ROWS from './loot-tier.json' with { type: 'json' };
 import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' };
 import { sha256, shortHash } from '../boss/hash.ts';
-import { receive, type Inventory, type Lookup } from '../inventory/inventory.ts';
+import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
 import { hitDamage, seededSource, type DamageRoll, type FightKind, type LuckFlags } from '../../src/core/server.ts';
 import { HAZARDS, TWISTS, loadRegion1, type Local, type Region1, type Twist, type TwistKind } from '../region1/load.ts';
 import { DUMMY_STAGE, LOCAL } from '../region1/content.ts';
