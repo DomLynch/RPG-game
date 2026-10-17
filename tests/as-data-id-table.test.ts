@@ -31,7 +31,7 @@ function tree() {
   ];
   const run = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', join(dir, 'src'), ...args, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
   const report = (r: ReturnType<typeof run>) => JSON.parse(r.stdout.split('\n').filter((l) => l.startsWith('{')).pop()!) as Report;
-  return { dir, file, run, report };
+  return { dir, file, run, report, allowFile: join(dir, 'allow.json') };
 }
 
 test('(i) lists an array of 3+ id-bearing object literals (keyed on the first id), not two rows, not rows without an id; a tree at its baseline is green under --gate', () => {
@@ -42,6 +42,26 @@ test('(i) lists an array of 3+ id-bearing object literals (keyed on the first id
     const rep = t.report(r);
     assert.deepEqual(rep.idTableSites.map((s) => [s.line, s.text]), [[1, 'a'], [4, 'q1']]);
     assert.deepEqual(rep.newIdTableSites, []);
+  } finally { rmSync(t.dir, { recursive: true, force: true }); }
+});
+
+test('a named exempt (allow idTables: file + first row id + reason) is listed apart and not counted; an exempt whose table is gone is stale (exit 3)', () => {
+  const t = tree();
+  try {
+    const allow = (entries: unknown[]) => writeFileSync(t.allowFile, JSON.stringify({ allow: [], idTables: entries }));
+    const key = relative(process.cwd(), t.file);
+    allow([{ file: key, id: 'a', reason: 'a pure-data literal read by a tool; moving it needs a bump' }]);
+    const r = t.run();
+    assert.equal(r.status, 3, 'the baseline still counts "a" while the exempt removes it: stale, lower it');
+    const rep = t.report(r) as Report & { allowedIdTables: Site[]; staleIdAllow: unknown[] };
+    assert.deepEqual(rep.idTableSites.map((s) => s.text), ['q1']);
+    assert.deepEqual(rep.allowedIdTables.map((s) => s.text), ['a']);
+    allow([{ file: key, id: 'zz', reason: 'a table that is not there any more' }]);
+    const stale = t.run();
+    assert.equal(stale.status, 3);
+    assert.equal((t.report(stale) as { staleIdAllow: unknown[] }).staleIdAllow.length, 1);
+    allow([{ file: key, id: 'a', reason: 'short' }]);
+    assert.equal(t.run().status, 2, 'a reason under 12 characters is refused');
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
 });
 

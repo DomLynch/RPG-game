@@ -7,9 +7,5 @@
  },
  "src/core/gear-strip.ts": {
   "health": 1
- },
- "src/fight/catalogue-defs.ts": {
-  "weapon": 1,
-  "hero": 1
  }
 }
