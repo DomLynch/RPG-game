@@ -26,6 +26,7 @@ const GAME = [
   'export const g = (x: number) => Math.max(x, 0.5);',           // not (h): a Math.max argument is rule (e)'s
   'export const h = (n = 4) => n;',                              // (h) counted: a parameter default
   'export const k = () => foo({ gap: 7 }, 9);',                  // (h) counted: an object pair and a call argument
+  'export const m = (x: number, s: number) => (x * 1000) / 2 + ((s & 255) ^ 0x9e3779b1) + s % 60 - (x === 0 ? -1 : 0);',   // not (h): math (/ 2), a unit conversion (* 1000, % 60), bits (& 255, ^), a hex literal, the -1 sentinel
   'export const LIMIT = 40;',                                    // not (h): a top-level UPPER const is the const rules'
   'export const z = (x: number) => x + 1;',                      // not (h): 1 is identity
   'declare function foo(...a: unknown[]): void;',

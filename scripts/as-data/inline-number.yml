@@ -17,6 +17,19 @@ rule:
         - inside: { kind: pair, stopBy: neighbor }
         - inside: { any: [{ kind: required_parameter }, { kind: optional_parameter }, { kind: assignment_pattern }], stopBy: neighbor }
         - inside: { kind: arguments, stopBy: neighbor, inside: { kind: call_expression, stopBy: neighbor, not: { has: { field: function, regex: "^Math\\.(max|min)$" } } } }
+    # Non-tunable classes the rule does not count (Lead 2026-10-17): MATH (x * 2, x / 2, * 0.5), UNIT CONVERSION (a literal 100, 1000, 60, 3600, 86400, 60_000, 1_000_000 as the operand of * / %),
+    # BITS (any literal beside & | ^ << >> >>>) and hex/binary literals (hash salts, masks, byte layouts), and the -1 "none" sentinel. A compare or a + / - against these is still counted.
+    - not:
+        any:
+          - all:
+              - kind: number
+              - regex: "^(2|0\\.5|100|1000|60|3600|86400|86_400|60_000|1_000_000|1000000)$"
+              - inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^[*/%]$" } }
+          - all:
+              - kind: number
+              - inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^(&|\\||\\^|<<|>>|>>>)$" } }
+          - { kind: number, regex: "^0[xXbB]" }
+          - { kind: unary_expression, regex: "^-\\s*1$" }
     # a top-level UPPER const is the const rules' (c, d, f, g)
     - not:
         inside:
