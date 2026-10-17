@@ -262,3 +262,102 @@ test('post_publish_rows: POST_PUBLISH_LIVE_CMD must name the row\'s target revis
 test('deploy.sh: gives the post-publish rows the live-revision lookup', () => {
   assert.match(readFileSync(join(process.cwd(), 'scripts/deploy.sh'), 'utf8'), /POST_PUBLISH_LIVE_CMD=.*release\.json/);
 });
+
+// Lead 2026-10-17 (IF: 14 post-publish rows ran on a Mac at load ~27): the non-Mac group goes to the runners first. CI-trusted by tree, else one release-checks dispatch, the Mac keeps what CI could not prove.
+test('subtractRows: a without b, ascending, no duplicates', async () => {
+  const { subtractRows } = await import('../scripts/lib/row-placement.mjs');
+  assert.equal(subtractRows('9,46,3,15', '46,3'), '9,15');
+  assert.equal(subtractRows('9,46', '9,46'), '');
+  assert.equal(subtractRows('9,46', ''), '9,46');
+  assert.equal(subtractRows('', '9'), '');
+});
+
+const ciRows = (env: Record<string, string>) => spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; open=$(post_publish_ci_start abc123 "$ROWS"); echo "START:$open" >&2; post_publish_ci_collect abc123 "$ROWS" "$open"`], {
+  encoding: 'utf8', env: { ...process.env, ROWS: '9,46,3,15', POST_PUBLISH_CI_SETTLE_S: '0', ...env },
+});
+
+// The trust and dispatch commands are word-split (no quote parsing), so a test stands them in with small scripts.
+const stub = (root: string, name: string, body: string) => { const file = join(root, name); writeFileSync(file, `#!/bin/bash\n${body}\n`, { mode: 0o755 }); return file; };
+
+test('post_publish_ci_rows: rows already green on CI for the tree never reach the Mac and nothing is dispatched', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
+  try {
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3,15'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '');
+    assert.ok(!/DISPATCHED/.test(r.stderr));
+    assert.match(r.stderr, /Mac none, the rest CI-trusted/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: rows CI has not proved start one release-checks dispatch on the trunk ref, then only the still-unproved rows are left for the Mac', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), calls = join(root, 'calls');
+  try {
+    // first look trusts 9,46; after the dispatch CI also proved 3 (15 stays red/missing)
+    const trust = stub(root, 'trust.sh', `n=$(cat ${calls}.n 2>/dev/null || echo 0); echo $((n+1)) > ${calls}.n; if [ $n = 0 ]; then echo 9,46; else echo 9,46,3; fi`);
+    const r = ciRows({ POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: `${stub(root, 'dispatch.sh', `echo "$@" >> ${calls}`)} --ref trunk-ref`, POST_PUBLISH_CI_REF: 'trunk-ref' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '15');
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 1, 'exactly one dispatch');
+    assert.match(readFileSync(calls, 'utf8'), /trunk-ref/);
+    assert.match(r.stderr, /Mac 15, the rest CI-trusted/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_rows: a failed dispatch or POST_PUBLISH_CI=off leaves every row for the Mac, as before', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-'));
+  try {
+    const down = ciRows({ POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo'), POST_PUBLISH_DISPATCH: 'false' });
+    assert.equal(down.stdout, '3,9,15,46');
+    assert.match(down.stderr, /dispatch failed/);
+    const off = ciRows({ POST_PUBLISH_CI: 'off', POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'echo DISPATCHED') });
+    assert.equal(off.stdout, '9,46,3,15');
+    assert.ok(!/DISPATCHED/.test(off.stderr));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_start returns without waiting: one trust look, one dispatch, no CI wait before the Mac group could run', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), log = join(root, 'log');
+  try {
+    const trust = stub(root, 'trust.sh', `echo "trust wait=\${CI_ROWS_WAIT_S:-0}" >> ${log}; echo 9`);
+    const r = spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/post-publish.sh')}; post_publish_ci_start abc123 9,46`], {
+      encoding: 'utf8', env: { ...process.env, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', `echo dispatch >> ${log}`) },
+    });
+    assert.equal(r.stdout, '46');
+    assert.equal(readFileSync(log, 'utf8'), 'trust wait=0\ndispatch\n');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('post_publish_ci_*: fail closed. A subtract that fails leaves every row for the Mac', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pp-ci-')), bin = join(root, 'bin');
+  try {
+    mkdirSync(bin);
+    stub(bin, 'node', 'exit 1');   // row-placement.mjs subtract cannot run
+    const r = ciRows({ PATH: `${bin}:${process.env.PATH}`, POST_PUBLISH_TRUSTED_CMD: stub(root, 'trust.sh', 'echo 9,46,3,15'), POST_PUBLISH_DISPATCH: stub(root, 'dispatch.sh', 'true') });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '9,46,3,15');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('deploy.sh: the non-Mac post-publish group is narrowed by post_publish_ci_rows before the Mac group runs; no workflow file is part of it', () => {
+  assert.match(deploy, /pp_open=\$\(post_publish_ci_start "\$revision" "\$post_publish"\)/);
+  assert.match(deploy, /post_publish=\$\(post_publish_ci_collect "\$revision" "\$pp_all" "\$pp_open"\)/);
+  // the dispatch starts before the rollback-capable Mac group, the wait for CI comes after it: the Mac group never waits on CI
+  const start = deploy.indexOf('post_publish_ci_start'), mac = deploy.indexOf('post_publish_rows "$revision" "$mac_deferred"'), collect = deploy.indexOf('post_publish_ci_collect "$revision"');
+  assert.ok(start > 0 && start < mac && mac < collect);
+});
+
+test('deploy-hf.sh: "no wall rows to run" is nothing to launch, any other launch error is still "launch failed"', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hf-launch-'));
+  try {
+    mkdirSync(join(root, 'scripts'));
+    const run = (stderr: string) => {
+      writeFileSync(join(root, 'scripts', 'hf-wall-rows.mjs'), `process.stderr.write(${JSON.stringify(stderr)}); process.exit(1);`);
+      return spawnSync('bash', ['-c', `source ${join(process.cwd(), 'scripts/lib/deploy-hf.sh')}; command() { return 0; }; hf_wall_rows_prelaunched() { return 1; }; revision=abc; hf_wall_rows_launch`], { encoding: 'utf8', cwd: root });
+    };
+    const none = run('Error: no wall rows to run');
+    assert.match(none.stdout, /no wall rows to launch/);
+    assert.ok(!/launch failed/.test(none.stdout));
+    assert.match(run('Error: boom').stdout, /launch failed; every row runs on the Mac/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

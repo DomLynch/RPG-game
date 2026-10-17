@@ -1,9 +1,1 @@
-{
- "src/fight/body-tables.ts": {
-  "head": 1
- },
- "src/fight/catalogue-defs.ts": {
-  "weapon": 1,
-  "hero": 1
- }
-}
+{}

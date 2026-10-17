@@ -321,7 +321,15 @@ if test -s /etc/frankendom/verifier.env; then
   echo "daily verifier timer armed on $1"
   # The loot sweep reads loot_claims (migration 202609230001): arm it only once that table exists, so a publish before the apply is harmless.
   db=$(sed -n 's/^DATABASE_URL=//p' /etc/frankendom/verifier.env | head -n 1 | sed 's/^"\(.*\)"$/\1/')
-  if ! loot=$(psql "$db" -tAc "select to_regclass('public.loot_claims') is not null" 2>&1); then
+  # No secret in argv (Lead 2026-10-17): the URL becomes a mode-600 libpq service file, as ops/db-backup.sh does, and psql reads it by PGSERVICEFILE.
+  svc=$(mktemp) && chmod 600 "$svc"
+  python3 -c 'import sys, urllib.parse as u
+r = u.urlparse(sys.stdin.read().strip()); q = dict(u.parse_qsl(r.query))
+v = {"host": r.hostname, "port": r.port, "dbname": (r.path or "/")[1:] or None, "user": u.unquote(r.username) if r.username else None, "password": u.unquote(r.password) if r.password else None, **q}
+print("[fk]"); [print(f"{k}={x}") for k, x in v.items() if x is not None]' <<<"$db" >"$svc"
+  loot_ok=0; loot=$(PGSERVICEFILE="$svc" PGSERVICE=fk psql -tAc "select to_regclass('public.loot_claims') is not null" 2>&1) && loot_ok=1
+  rm -f "$svc"
+  if test "$loot_ok" = 0; then
     echo "loot verifier shipped to $1; loot_claims check failed, timer not armed: $(printf '%s' "$loot" | head -n 1 | cut -c1-200)"
   elif test "$loot" = t; then
     systemctl enable --now --quiet frankendom-verify-loot.timer
@@ -367,6 +375,10 @@ deploy_lock_drop "$DEPLOY_PUBLISH_LOCK"   # the next candidate may publish now
 # The deferred rows run now, against the release that is live; a failure is raised after the previews check below (exit 1: the train stops and keeps its hold).
 post_rc=0
 POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.json | grep -oE '[0-9a-f]{40}' | head -1"; export POST_PUBLISH_LIVE_CMD   # rows start only while the release they test is the live one
+# The deferred non-Mac group goes to the GitHub runners (post_publish_ci_start: CI-trusted by tree, else one release-checks dispatch, returns at once); the Mac group below, which can roll the
+# release back, never waits on CI; post_publish_ci_collect then waits for the run and leaves only what CI could not prove for the Mac.
+pp_all="$post_publish"
+pp_open=$(post_publish_ci_start "$revision" "$post_publish")
 # The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
 mac_rc=0
 if [[ -n "$mac_deferred" ]]; then
@@ -382,6 +394,10 @@ if [[ -n "$mac_deferred" ]]; then
   if [[ "$writer_install" == *"nothing installed"* && "$live_now" =~ ^[0-9a-f]{40}$ ]]; then mac_rollback=mac_rollback_release
   else echo "Mac rows failing will not roll back: this publish changed the writer (or live was unknown), a person decides" >&2; fi
   POST_PUBLISH_PROMOTE=$([[ -n "$post_publish" ]] && echo 0 || echo 1) post_publish_rows "$revision" "$mac_deferred" "$mac_rollback" || { post_rc=1; mac_rc=1; }
+fi
+if (( mac_rc == 0 )); then   # a rolled-back or failed Mac group: no CI wait, post_publish_rows skips or fails as before
+  post_publish=$(post_publish_ci_collect "$revision" "$pp_all" "$pp_open")
+  [[ -n "$post_publish" || -z "$pp_all" ]] || post_publish_promote_stamp "$revision"   # every row was CI-trusted: nothing left to run, the stamp still counts
 fi
 POST_PUBLISH_PROMOTE=$(( 1 - mac_rc )) post_publish_rows "$revision" "$post_publish" || post_rc=1
 if [[ "$previews_ok" != 1 ]]; then

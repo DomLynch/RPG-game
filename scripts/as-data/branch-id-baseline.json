@@ -1,0 +1,181 @@
+{
+ "origins/npcs/row.ts": {
+  "'shop'": 1
+ },
+ "origins/preview/ground-pickup.ts": {
+  "'ground'": 1,
+  "'refuse'": 1
+ },
+ "origins/preview/main.ts": {
+  "'loot'": 1,
+  "'fight'": 1,
+  "'ground'": 2,
+  "'bounty'": 1
+ },
+ "origins/preview/mobs-view.ts": {
+  "'late'": 1
+ },
+ "origins/preview/mobs.ts": {
+  "'mob'": 2
+ },
+ "origins/preview/play.ts": {
+  "'bounty'": 2
+ },
+ "origins/preview/remote-cheap.ts": {
+  "'cheap'": 1
+ },
+ "origins/region1/load.ts": {
+  "'common'": 1,
+  "'world-boss'": 1,
+  "'public'": 2,
+  "'outer'": 1,
+  "'rift-boss'": 1
+ },
+ "origins/region1/npcs.ts": {
+  "'shop'": 1
+ },
+ "origins/world/goblin-field-rules.ts": {
+  "'palette'": 2,
+  "'kit'": 1,
+  "'zone'": 1
+ },
+ "src/arena.ts": {
+  "'lean'": 1
+ },
+ "src/core/career-model.ts": {
+  "'story'": 1,
+  "'kill'": 1
+ },
+ "src/core/contracts/economy.ts": {
+  "'gear'": 1
+ },
+ "src/core/contracts/ids.ts": {
+  "'item'": 1
+ },
+ "src/core/contracts/items.ts": {
+  "'gear'": 2,
+  "'loot'": 1,
+  "'shop'": 1
+ },
+ "src/core/contracts/world.ts": {
+  "'public'": 1
+ },
+ "src/core/spell-slot-view.ts": {
+  "'allowDuplicate'": 1
+ },
+ "src/core/world/row.ts": {
+  "'rare'": 3
+ },
+ "src/fight/ai.ts": {
+  "'circle'": 3
+ },
+ "src/fight/archetype-rows.ts": {
+  "'health'": 1
+ },
+ "src/fight/duel.ts": {
+  "'trickster'": 1
+ },
+ "src/fight/finisher-blood.ts": {
+  "'head'": 1
+ },
+ "src/fight/fx.ts": {
+  "'head'": 2
+ },
+ "src/fight/gore.ts": {
+  "'torso'": 1,
+  "'head'": 1
+ },
+ "src/fight/poise-ladder.ts": {
+  "'ladder'": 1
+ },
+ "src/fight/scene.ts": {
+  "'Shield'": 1
+ },
+ "src/fight/signature-dwarf.ts": {
+  "'torso'": 1
+ },
+ "src/fight/signature-plaguedoctor.ts": {
+  "'torso'": 1
+ },
+ "src/fight/signature-shieldmaiden.ts": {
+  "'Shield'": 1
+ },
+ "src/fight/signature.ts": {
+  "'floor'": 1
+ },
+ "src/fight/sound/feedback.ts": {
+  "'swing'": 4
+ },
+ "src/fight/special-class-timing.ts": {
+  "'tempo'": 4,
+  "'drag'": 3
+ },
+ "src/fight/special-fx-boss.ts": {
+  "'sling'": 1,
+  "'haze'": 1
+ },
+ "src/fight/special-fx-class.ts": {
+  "'drag'": 5,
+  "'tempo'": 1
+ },
+ "src/fight/special-fx-executioner.ts": {
+  "'harvest'": 4,
+  "'baying'": 3,
+  "'longShadow'": 2
+ },
+ "src/fight/special-fx-goblin.ts": {
+  "'loki'": 3,
+  "'hermes'": 2,
+  "'ratrun'": 2,
+  "'reynard'": 2
+ },
+ "src/fight/special-fx-pitborn.ts": {
+  "'crack'": 3,
+  "'gale'": 2
+ },
+ "src/fight/special-modes.ts": {
+  "'tempo'": 1,
+  "'drag'": 1
+ },
+ "src/fight/spell-cast.ts": {
+  "'cast'": 1,
+  "'stamina'": 1
+ },
+ "src/fight/spell-rows.ts": {
+  "'stamina'": 1
+ },
+ "src/fight/stance-pose.ts": {
+  "'trickster'": 1
+ },
+ "src/fight/tactic-rows.ts": {
+  "'maxEntries'": 1
+ },
+ "src/fight/threat.ts": {
+  "'damage'": 1,
+  "'sight'": 1,
+  "'notice'": 1
+ },
+ "src/fight/tutorial-ui.ts": {
+  "'slash'": 1
+ },
+ "src/fight/warm-gate.ts": {
+  "'late'": 1
+ },
+ "src/fight/world.ts": {
+  "'stamina'": 1
+ },
+ "src/lorarii.ts": {
+  "'hold'": 4
+ },
+ "src/main.ts": {
+  "'ladder'": 1,
+  "'drag'": 1,
+  "'full'": 1
+ },
+ "src/pit/skulls.ts": {
+  "'duel'": 2
+ },
+ "src/zone1-hop.ts": {
+  "'zone1'": 1
+ }
+}
