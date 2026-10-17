@@ -36,6 +36,13 @@ test('a bigger foe and a wider gap push the camera back (perSize, perSep); the l
   const wide = at({ x: 0, z: 3, size: 1.8 }, false); assert.ok(wide.view.shiftY === 0 && Math.abs(wide.view.zoom - 0.8) < 1e-3, 'landscape has its own numbers');
 });
 
+test('pitch rows: the look-down angle is 16 degrees at a man, rises 3 per metre of foe, never past 30; the camera stays on the hero\'s back side', () => {
+  const P: CombatCam = { ...CAM, portrait: { back: 6.5, up: 2, ahead: 2, lookY: 1, mid: 0.5, perSep: 0, perSize: 0, sizeFrom: 1.8, pitch: 16, pitchPerSize: 3, maxPitch: 30 }, landscape: CAM.landscape };
+  const deg = (size: number, foeZ = 3) => { const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 8, { cam: P, portrait: true, foe: { x: 0, z: foeZ, size } }); return { d: Math.atan2(c.position.y - 1, -c.position.z) * 180 / Math.PI, z: c.position.z }; };
+  assert.ok(Math.abs(deg(1.8).d - 16) < 0.5, 'a man: 16 degrees'); assert.ok(Math.abs(deg(3.3).d - 20.5) < 0.5, '3.3 m foe: 16 + 4.5'); assert.ok(Math.abs(deg(6).d - 30) < 0.5, 'a 6 m foe is capped at 30');
+  assert.ok(deg(1.8, -4).z < 0, 'a foe behind the hero does not swing the camera to its side');
+});
+
 test('the player zoom step scales the combat framing (Near < Mid < Far)', () => {
   const at = (zoom: number) => { const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 6, { cam: CAM, portrait: false, foe: { x: 0, z: 3, size: 1.8 }, zoom }); return c.position.z; };
   assert.ok(at(1.6) < at(1) && at(1) < at(0.8), 'a bigger step stands further back (more negative z)');
@@ -79,7 +86,7 @@ test('the Test Zone offers four combat cameras as data, each complete; the real 
     assert.ok(cams['2']!.zoom && !cams['2']!.portrait.side && cams['1']!.portrait.side, 'option 2 carries the zoom setting; option 1 is the one with a shoulder');
     const gaze = (f: { back: number; up: number; lookY?: number }) => Math.atan2(f.up - (f.lookY ?? 1), f.back) * 180 / Math.PI;   // how steeply down the camera looks
     assert.ok(cams['3']!.portrait.up > cams['2']!.portrait.up * 2 && gaze(cams['3']!.portrait) < 15 && gaze(cams['3']!.landscape) < 15, 'option 3 sits much higher than 2 but its gaze stays shallow (under 15 degrees down), so the skyline is kept (Dom)');
-    assert.ok(cams['3']!.portrait.back > cams['2']!.portrait.back && cams['2']!.portrait.back > cams['1']!.portrait.back * 2, 'each stands clearly further back than the one before (twice from 1 to 2)'); assert.equal(zoneCombatPreset(zone), '', 'none in use until Dom picks one');
+    assert.ok(cams['3']!.portrait.back > cams['2']!.portrait.back && cams['2']!.portrait.back > cams['1']!.portrait.back * 2, 'each stands clearly further back than the one before (twice from 1 to 2)'); assert.equal(zoneCombatPreset(zone), '2', 'Wide auto-fit is the default (Dom picked it 2026-10-17)'); const wide = cams['2']!.portrait; assert.ok(wide.pitch === 16 && wide.pitchPerSize === 3 && wide.maxPitch === 30, 'Wide rises with the foe: 16 degrees, +3 per metre above a man, capped at 30');
     for (const [id, cam] of Object.entries(cams)) for (const shape of [cam.portrait, cam.landscape]) assert.ok(shape.back > 0 && shape.up > 0 && (shape.shiftY ?? 0) >= 0 && (shape.shiftY ?? 0) < 0.4, `${id}: a framing that is a camera`);
     assert.ok(cams['2']!.zoom!.steps.length === cams['2']!.zoom!.labels.length && cams['2']!.zoom!.start < cams['2']!.zoom!.steps.length, 'the zoom steps are labelled and the start is one of them');
     for (const id of ['1', '2', '3', '4']) assert.deepEqual(zoneCombatCams(loadZone(id)), {}, `zone ${id} has no combat camera`);
