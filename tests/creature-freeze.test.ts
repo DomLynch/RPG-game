@@ -17,13 +17,14 @@ function creature() {
 }
 const world = (o: { getWorldPosition(v: Vector3): Vector3 }) => o.getWorldPosition(new Vector3());
 
-test('a frozen creature is skipped by scene.updateMatrixWorld; thawing restores the walk', () => {
-  const c = creature();
-  c.group.position.set(5, 0, 0); c.root.updateMatrixWorld(true);
-  freeze(c.group, c.ice, true); c.group.position.set(40, 0, 0); c.root.updateMatrixWorld(true);
-  assert.equal(c.arm.matrixWorld.elements[12], 5, 'frozen: the bone still stands where it was posed');
+test('a frozen creature is NOT walked by scene.updateMatrixWorld (no bone is visited); thawing restores the walk', () => {
+  const c = creature(); let visits = 0; const real = c.arm.updateMatrixWorld.bind(c.arm); c.arm.updateMatrixWorld = (force?: boolean) => { visits++; real(force); };
+  c.group.position.set(5, 0, 0); c.root.updateMatrixWorld(true); assert.equal(visits, 1, 'unfrozen: the walk visits the bone');
+  freeze(c.group, c.ice, true); c.group.position.set(40, 0, 0); c.root.updateMatrixWorld(true); c.root.updateMatrixWorld();
+  assert.equal(visits, 1, 'frozen: the scene walk never reaches the rig (three 0.186 still walks the children of a group whose matrixWorldAutoUpdate is off, so the group itself is cut out)');
+  assert.equal(c.arm.matrixWorld.elements[12], 5, 'and the bone still stands where it was posed');
   freeze(c.group, c.ice, false); c.root.updateMatrixWorld(true);
-  assert.equal(c.arm.matrixWorld.elements[12], 40, 'thawed: the walk reaches it again');
+  assert.equal(visits, 2); assert.equal(c.arm.matrixWorld.elements[12], 40, 'thawed: the walk reaches it again');
 });
 
 test('a creature walking back into view is posed correctly on its FIRST frame: pose() brings its bones and root current, and its skeleton runs for that frame', () => {
@@ -47,5 +48,5 @@ test('a far creature poses on its pose frames only, and a near one is never froz
   assert.equal(c.runs(), 2, 'frames 4 and 8');
   for (let f = 0; f < 5; f++) { freeze(c.group, c.ice, false); c.render(); }
   assert.equal(c.runs(), 7, 'near: every frame');
-  assert.equal(c.group.matrixWorldAutoUpdate, true);
+  assert.equal(Object.hasOwn(c.group, 'updateMatrixWorld'), false, 'thawed: the prototype method is back (no leftover override)');
 });
