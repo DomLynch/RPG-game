@@ -69,9 +69,6 @@
  "src/core/spell-slot-view.ts": {
   "'allowDuplicate'": 1
  },
- "src/core/world/row.ts": {
-  "'rare'": 3
- },
  "src/fight/ai.ts": {
   "'circle'": 3
  },
