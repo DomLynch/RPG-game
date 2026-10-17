@@ -75,7 +75,10 @@ const unit = (s: number): number => s / 0x1_0000_0000;
 // Each enemy's own AI seed: from the encounter seed and his slot, never 0.
 export const enemySeed = (seed: number, i: number): number => lcg((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0);
 
-const isLeader = (s: CrowdState, i: number) => s.enemies[i]!.role === 'leader';
+// What a role DOES is on its roles.json row, not in a role name: packLeader (takes the token last, ranks last, shortens the others' holds while alive, its fall ends the pack's discipline), opener (holding the token counts as "a first fighter had it"), after (waits for that role to have had it, while one lives), quickHandover (the holder before it hands over sooner).
+type RoleFlags = { opener?: boolean; after?: string; quickHandover?: boolean; packLeader?: boolean };
+const flagsOf = (role: Role | undefined): RoleFlags => (role === undefined ? {} : (ROLE_ROWS.roles.find((x) => x.id === role) as RoleFlags | undefined) ?? {});
+const isLeader = (s: CrowdState, i: number) => !!flagsOf(s.enemies[i]!.role).packLeader;
 const othersAlive = (s: CrowdState, i: number) => s.enemies.some((e, j) => j !== i && e.alive && !isLeader(s, j));
 
 // May enemy i take the token now? `relaxed`: after a breath somebody MUST step in, so the role gates and the sweep delay give way.
@@ -84,8 +87,9 @@ function eligible(s: CrowdState, i: number, relaxed: boolean): boolean {
   if (!e.alive || i === s.holder) return false;
   if (relaxed) return true;
   if (e.ring.delay > 0) return false;
-  if (e.role === 'leader' && othersAlive(s, i)) return false;   // last to take the token
-  if (e.role === 'brute' && !s.duellistHad && s.enemies.some((d, j) => j !== i && d.alive && d.role === 'duellist')) return false;   // only after a Duellist had it (while one lives)
+  if (flagsOf(e.role).packLeader && othersAlive(s, i)) return false;   // last to take the token
+  const gate = flagsOf(e.role).after;
+  if (gate && !s.duellistHad && s.enemies.some((d, j) => j !== i && d.alive && d.role === gate)) return false;   // only after the role it waits for (a Duellist for the Brute) had it, while one lives
   return true;
 }
 // Who steps in next: the first eligible in the queue (the "next" marker); a breath falls back to the first alive waiting enemy.
@@ -96,9 +100,9 @@ export function nextUp(s: CrowdState, relaxed = false): number | null {
 }
 // The holder's hand-over limits, set by who steps in after him and whether a pack leader still lives.
 export function limits(s: CrowdState, next: number | null): { starts: number; hold: number } {
-  const skirmisher = next !== null && s.enemies[next]!.role === 'skirmisher';
+  const skirmisher = next !== null && !!flagsOf(s.enemies[next]!.role).quickHandover;
   const base = skirmisher ? SKIRMISHER_HANDOVER : { starts: CROWD.starts, hold: CROWD.hold };
-  const leaderLives = s.enemies.some((e, j) => e.alive && e.role === 'leader' && j !== s.holder);
+  const leaderLives = s.enemies.some((e, j) => e.alive && flagsOf(e.role).packLeader && j !== s.holder);
   return { starts: base.starts, hold: leaderLives ? Math.min(base.hold, LEADER_HOLD) : base.hold };
 }
 
@@ -111,7 +115,7 @@ export function newCrowd(seed: number, pack: readonly PackMember[]): CrowdState 
   let rng = lcg(seed >>> 0);
   const order = pack.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) { rng = lcg(rng); const j = Math.floor(unit(rng) * (i + 1)); [order[i], order[j]] = [order[j]!, order[i]!]; }
-  const ranked = [...order.filter((i) => pack[i]!.role !== 'leader'), ...order.filter((i) => pack[i]!.role === 'leader')];
+  const lead = (i: number) => !!flagsOf(pack[i]!.role).packLeader, ranked = [...order.filter((i) => !lead(i)), ...order.filter(lead)];
   const enemies = pack.map((m, i): CrowdEnemy => {
     rng = lcg(rng); const turn: 1 | -1 = unit(rng) < 0.5 ? 1 : -1;
     rng = lcg(rng); const jitter = (unit(rng) - 0.5) * (Math.PI / pack.length);
@@ -130,7 +134,7 @@ function take(s: CrowdState, to: number, from: number | null = null, at?: Spot, 
     return e;
   });
   const queue = [...s.queue.filter((i) => i !== to), ...(from !== null && s.enemies[from]!.alive ? [from] : [])];
-  return { ...s, enemies, queue, holder: to, heldAt: s.tick, starts: 0, lastPass: s.tick, breath: 0, duellistHad: s.duellistHad || s.enemies[to]!.role === 'duellist' };
+  return { ...s, enemies, queue, holder: to, heldAt: s.tick, starts: 0, lastPass: s.tick, breath: 0, duellistHad: s.duellistHad || !!flagsOf(s.enemies[to]!.role).opener };
 }
 
 // Where a waiting enemy stands now (sim metres).
@@ -161,7 +165,7 @@ export function stepCrowd(prev: CrowdState, obs: Observation): Step {
     const h = s.holder;
     if (obs.holderDown) {
       const enemies = s.enemies.map((e, i) => (i === h ? { ...e, alive: false } : e));
-      s = { ...s, enemies, holder: null, queue: s.queue.filter((i) => i !== h), leaderFell: s.leaderFell || s.enemies[h]!.role === 'leader' };
+      s = { ...s, enemies, holder: null, queue: s.queue.filter((i) => i !== h), leaderFell: s.leaderFell || !!flagsOf(s.enemies[h]!.role).packLeader };
       events.push({ kind: 'fell', who: h });
       if (!enemies.some((e) => e.alive)) { events.push({ kind: 'won' }); return { state: { ...s, outcome: 'won' }, events }; }
       return { state: { ...s, breath: CROWD.breath }, events };
