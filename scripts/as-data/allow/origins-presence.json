@@ -13,7 +13,6 @@
     {"file": "origins/presence/frame.ts", "name": "LEGACY_CENTRE_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"}
   ],
   "branchIds": [
-    {"file": "origins/presence/server.ts", "literal": "drop", "reason": "a verdict word of the movement check (moved === 'drop' closes the socket with a teleport code): the mechanism's own result vocabulary, not a content id"},
-    {"file": "origins/presence/zones.ts", "literal": "pit-yard", "reason": "the town frame's two zones ('pit-yard' | 'exchange') pick their mount from concordMounts() {pit, exchange}: a closed two-member union of the Concord frame; OWED as a row (a `mount` field on town-zones.json rows), left as a named allow because it touches presence (a restart) and the frame's data; Backend/World to take"}
+    {"file": "origins/presence/server.ts", "literal": "drop", "reason": "a verdict word of the movement check (moved === 'drop' closes the socket with a teleport code): the mechanism's own result vocabulary, not a content id"}
   ]
 }

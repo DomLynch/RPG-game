@@ -104,7 +104,8 @@ export function landmarkCm(zone: 'pit-yard' | 'exchange', name: string): Pt {
 
 // The trade area IS the whole `exchange` zone (Expansion's rule for launch gate X1, adopted: bank, smith and trade are Exchange-wide, so a smaller box would let a rejoin land
 // "at the Exchange" without walking in). The edge between the Pit yard and the Exchange belongs to the Pit yard (zoneAt), so it is outside.
-export const inTradeArea = (x: number, z: number): boolean => zoneAt(x, z) === 'exchange';
+export const TRADE_ZONE: string | undefined = TOWN.zones.find((z) => 'trade' in z && z.trade)?.id;   // the town row flagged `trade` in town-zones.json
+export const inTradeArea = (x: number, z: number): boolean => zoneAt(x, z) === TRADE_ZONE;
 
 // Where a rejoin goes when its remembered or saved spot is in a trade area (Strategy's rule f; Lead's ruling 2026-10-07): just outside the Exchange's outer gate on the Pit side, 50 cm
 // into the Pit yard, so a rejoin is never "at the Exchange" at all and the player must walk in fresh (the stricter of the two edges Expansion offered).
