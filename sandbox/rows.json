@@ -120,6 +120,8 @@
 {"id":"ugallu","level":1,"vfx":"shock","unlock":"start"},{"id":"brokkr","level":1,"vfx":"ash","unlock":"pit"},
 {"id":"kamaitachi","level":1,"vfx":"wind","unlock":"zone1"},{"id":"banshee","level":1,"vfx":"nyx","unlock":"zone2"},
 {"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
+],"specialPick":[
+{"id":"lunge","role":"opener"},{"id":"ironrush","role":"opener"},{"id":"pommel","role":"control"},{"id":"shove","role":"control"},{"id":"cleave","role":"heavy"},{"id":"hewer","role":"guard pressure"}
 ],"spellHeal":[
 {"id":"gula","share":250,"uses":2,"windup":120}
 ],"bandBest":[
