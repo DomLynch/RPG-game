@@ -29,7 +29,9 @@ export function createViewmodel(scene: THREE.Scene) {
       }
       weapon.updateWorldMatrix(true, false); source!.visible = false;
       const here = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(eye).invert().multiply(weapon.matrixWorld));   // the hand in the eye frame now
-      if (!restAt) restAt = here.clone(); else if (ready) restAt.lerp(here, 0.25);   // between swings the hand's pose is the rest pose
+      if (!restAt) { if (!ready) { vm!.visible = false; return; } restAt = here.clone(); }   // no rest pose known yet (the first frames, or a fight that began mid-swing): show nothing rather than a guess
+      else if (ready) restAt.lerp(here, 0.25);   // between swings the hand's pose is the rest pose
+      vm!.visible = true;
       lift.set(-rest.right - restAt.x, rest.up - restAt.y, rest.forward - restAt.z);   // right of a heading-yaw frame looking along +z is -x
       vm!.matrix.copy(viewmodelMatrix(eye, weapon.matrixWorld, lift)); vm!.matrixWorldNeedsUpdate = true;
     },
