@@ -36,12 +36,13 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { awardFor, levelRefusal } from '../src/awards.ts';
+import { awardFor, levelRefusal, specialsRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
 import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 import { gunzipSync } from 'node:zlib';
+import { pgConn } from '../origins/server/pg-service.ts';
 import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
@@ -147,15 +148,17 @@ async function settleOne(db, row, receipt, dry, heldMax) {
 /**
  * @param {any} row
  * @param {any} standing
- * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null> }} [options] build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
+ * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null>, cut?: import('../src/core/server.ts').SpecialsCut | null }} [options] cut: the beta cut on specials (src/awards.ts specialsRefusal) a test may lift; null = the betaCut row. build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
  */
-export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS } = {}) {
+export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS, cut = null } = {}) {   // cut: a SpecialsCut (src/awards.ts) a test may lift; null = the betaCut row
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
     if (record.outcome !== 'killed') return `record outcome is ${record.outcome}, not a win`;
     const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
+    const off = specialsRefusal(record, cut ?? undefined, false, record.v);   // the beta cut on specials: spells off (but the utility ones), SPECIAL 2 inside the pick; SPECIAL 1 here is the older equipped-loot skill, not held to the pick
+    if (off) return off;
     if (!replay) return null;
     let worn = {};   // the gear frozen on the claim when it was posted, never the ledger as it is when the sweep runs
     if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`, record.v); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
@@ -237,7 +240,7 @@ export async function report(receipt, stale, { dsn, stateFile, release, send = f
 // awards, execute standing_of; 202610010001: fight_hash on loot_claims and fight_records, and a shared fight's owner and age). Values are validated or reduced to digits before they are quoted into SQL.
 export function psqlAdapter(databaseUrl, run = spawnSync) {
   const sql = statement => {
-    const res = run('psql', [databaseUrl, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C.UTF-8' }, timeout: 60_000 });
+    const res = run('psql', ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, ...pgConn(databaseUrl).env, LC_ALL: 'C.UTF-8' }, timeout: 60_000 });   // the URL (it holds the password) goes in a 0600 service file, never argv
     if (res.status !== 0) throw Error(`psql: ${(res.stderr || res.error?.message || '').trim() || `exit ${res.status}`}`);
     return res.stdout.trim();
   };

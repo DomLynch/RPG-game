@@ -32,7 +32,7 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { EXITS, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
-import { applyServerKill, killToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
 import { guestBag, guestKillLoot } from './guest-loot.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
@@ -74,7 +74,8 @@ import { startFight as startEncounter, settleFight as settleEncounter } from './
 import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
-import { bookIsOffline, createServerSkills, equippedSpell, getGrimoire, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpellStore } from '../../src/core/index.ts';
+import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
+import { SKILL_ROWS, type SkillId } from '../../src/fight/index.ts';   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -331,8 +332,8 @@ function step(dt: number) {
     lockOn = camLock ? mobs?.nearest(state.x, state.z, LOCK_M) ?? null : null;
     if (lockOn) heading += wrapAngle(Math.atan2(lockOn.x - state.x, lockOn.z - state.z) - heading) * (1 - Math.exp(-6 * dt));   // the Pit's lock: the camera swings behind the hero to face it
     const a = i.action;
-    if (a === 'skill2' && slotShown([equippedCast(), equippedCast(1)], 1)) wc.cast2();   // the SPELL 2 button: slot b's own spell, cooldown and cost; an empty slot shows no button and the press does nothing
-    else if (a === 'skill' && equippedCast()) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
+    if (a === 'skill2' && (equippedSpecial(1) || slotShown([equippedCast(), equippedCast(1)], 1))) wc.cast2();   // the SPELL 2 / SPECIAL 2 button: slot b's own spell or melee skill, its cooldown and cost; an empty slot shows no button and the press does nothing
+    else if (a === 'skill' && (equippedSpecial(0) || equippedCast())) wc.cast();   // the SKILL button is the equipped spell's cast (the Pit's special slot); with no spell it stays the light cut
     else if (a === 'heavy') wc.press('heavy'); else if (a === 'thrust') wc.press('thrust'); else if (a === 'kick') wc.press('kick'); else if (a && STRIKES.has(a)) wc.press('light');
     if (a === 'dodge' || a === 'backstep') {   // the stick's world direction (forward = (sin h, cos h)); backstep with no stick goes backwards; a plain dodge with no stick rolls where he faces
       const f = -i.z, st = i.x, len = Math.hypot(f, st), wx = Math.sin(heading) * f - Math.cos(heading) * st, wz = Math.cos(heading) * f + Math.sin(heading) * st;
@@ -665,19 +666,21 @@ const saveNote = document.getElementById('save')!, allegianceButton = document.g
 let storage: Storage | null = null;
 try { storage = localStorage; } catch { /* storage blocked: no session, no saved allegiance */ }
 // The open-world cast (Strategy order 2026-10-14): the equipped spell is the viewer's pick from the account's grimoire (src/core/spell-equip.ts, the Pit page's own), read at load like the Pit page does; the world hero carries it (world-combat hero dep) and SKILL casts it.
+try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / SPECIAL 2 (the specials PR): class skills from the beta pick row, read by the hero hook above and the buttons
 try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }
 const spellSkills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void spellSkills.refresh();
-void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend)); syncSpell2Button(); } }, () => {});
+void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend).filter(inBetaSpells)); syncSpell2Button(); } }, () => {});   // spells are off in the beta (betaCut spellsOff): the book offers only the utility spells } }, () => {});
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
 // The Pit's HUD (pit-duel.ts) draws the button and runs every frame, so the page tells it whether slot b is filled instead of touching the element (which the HUD would re-hide).
 const spellNames = new Map<string, string>();   // legend id -> the catalogue's spell name, read once through the lazy catalogue (the entry bundle carries no spell data)
 function syncSpell2Button() {
-  const id = equippedCast(1)?.id;
-  duel?.setWorldSlotB(slotShown([equippedCast(), equippedCast(1)], 1), id ? spellNames.get(id) : undefined);
+  const id = equippedCast(1)?.id, melee2 = equippedSpecial(1) as SkillId | undefined;
+  duel?.setWorldSpecials((equippedSpecial(0) as SkillId | undefined) ?? null, equippedSpecial(1) as SkillId | undefined);   // the world input judges presses against an idle stand-in fighter: it carries the picks, so the press is accepted and the HUD lights the buttons
+  duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? SKILL_ROWS[melee2]?.name : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows its skill row's own name
   if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
-onSpellsChanged(syncSpell2Button); syncSpell2Button();
+onSpellsChanged(syncSpell2Button); onSpecialsChanged(syncSpell2Button); syncSpell2Button();
 let allegiance = loadAllegiance(storage), playerName = 'You', characterId: string | null = null;
 // Presence (origins/presence): signed in, the page joins it and poses at its tick; presence saves the place, the page never says "save". The page offers the v2 whole-world frame (Zone 1 included) and falls back to v1 (the Concord square only, pose withheld outside it); ?presence=0 is the kill switch.
 const AUTH_READY = ensureFreshSession(storage, Date.now(), () => authClient({ url: import.meta.env.VITE_SUPABASE_URL as string | undefined, key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined }));   // a stale session is renewed once, before presence, the saved career and the paid fight read it
@@ -695,12 +698,15 @@ if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joi
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
 // "Place your point" in Zone 1 (Lead 2026-10-17): a one-line nudge beside "Sign in to keep it" while there are points to place; a tap opens the build dialog, never a modal on its own. The count and the dialog are mounted below the stored build.
 let pointsOpen = 0, pointsPolled = -1, buildOpen: (() => void) | null = null, buildPoll: (() => void) | null = null;
+let guestHolds = (): boolean => false;   // whether a guest's session bag holds anything (set where the bag is made, below: showCareer runs before that line)
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
   career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
-  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
+  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a);
+    if (guestHolds()) { const loss = document.createElement('span'); loss.id = 'guest-loss'; loss.textContent = GUEST_SIGN_IN_LOSS; loss.style.cssText = 'display:block;pointer-events:none'; saveNote.append(loss); }   // before the tap: what signing in costs a guest who holds loot (an empty bag gets no noise)
+  }
   if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.style.cssText = 'pointer-events:auto;background:none;border:0;font:inherit;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px;cursor:pointer'; b.addEventListener('click', buildOpen); career.append(' · ', b); }   // on the career line (Level 16 · 0 / 8625 CP · 16 points to place): one line on a phone
   if (buildPoll && c.level !== pointsPolled) { pointsPolled = c.level; buildPoll(); }   // a level gained: read the build again for the count
 }
@@ -780,6 +786,7 @@ if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) 
 const REACH = previewRule('tapRange'), TAP_MS = previewRule('tapMs'), TAP_PX = previewRule('tapPx');   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const itemName = itemNamer(), guestContent = loadEncounterContent(), guestHeld = guestBag();   // a signed-out player's session loot: in memory only
+guestHolds = () => guestHeld.items().length > 0 || guestHeld.bronze() > 0;
 let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
@@ -831,7 +838,7 @@ function creatureFell(spec: MobSpec) {
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
     const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0) : null;
-    if (guest) guestHeld.add(guest);
+    if (guest) { guestHeld.add(guest); showCareer(); }   // the sign-in line appears as soon as the bag holds something
     worldToast(killToast(k, itemName, spec.name, bountyTaken, guest));
   });
 }
@@ -866,7 +873,7 @@ for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventList
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({
-  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }), nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
+  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); }, nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
   read: () => readGround(storedToken(storage, Date.now()), repairBase),
   take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
 });
@@ -907,7 +914,7 @@ const wc = createWorldCombat({
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
-  mobs: () => mobs, hero: () => { const sheet = pageSignedIn() ? gearMount?.sheet(ownBuild) : gearMount?.sheet(guestBuild.own(), true), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; return { level: careerLine(session.career).level, weapon: rigWeapon, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => { const sheet = pageSignedIn() ? gearMount?.sheet(ownBuild) : gearMount?.sheet(guestBuild.own(), true), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; const special = equippedSpecial(0) as SkillId | undefined, special2 = equippedSpecial(1) as SkillId | undefined; return { level: careerLine(session.career).level, weapon: rigWeapon, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}), ...(special ? { special } : {}), ...(special2 ? { special2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);
@@ -936,6 +943,7 @@ function programOwners(): Record<string, string[]> {
   return out;
 }
 (window as unknown as { originsPreview: unknown }).originsPreview = {
+  guestTake: (item: string, quantity: number) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); },   // browser rows: put something in a guest's session bag as a take or a kill would (guest-loss-check.mjs); the real paths are the ground pickup and the kill
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),

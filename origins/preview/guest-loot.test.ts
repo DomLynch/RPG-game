@@ -3,7 +3,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fightSetup, loadEncounterContent, rollLoot } from '../encounters/encounters.ts';
 import { guestBag, guestKillLoot } from './guest-loot.ts';
-import { killToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, killToast } from './kill-apply.ts';
+import KILL_TEXT from './kill-text.json' with { type: 'json' };
+import GROUND from './ground-pickup.json' with { type: 'json' };
 
 const loaded = loadEncounterContent();
 if (!loaded.ok) throw new Error('Region 1 content must load for these tests');
@@ -43,8 +45,14 @@ test('a guest kill writes nothing: no storage, no network, no clock; the roll is
 
 test('the toast shows a guest what the table rolled with the sign-in nudge (copy from kill-text.json), never CP, and falls back to the plain nudge when nothing rolled', () => {
   const guest = { loot: [{ item: 'pelt', quantity: 2 }], bronze: 3 };
-  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, guest), 'Wolf is down. +3 bronze · pelt ×2 (sign in to keep it).');
-  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', true, { loot: [{ item: 'pelt', quantity: 1 }], bronze: 0 }), 'Wolf is down. pelt (sign in to keep it). Bounty done.');
-  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, { loot: [], bronze: 0 }), 'Wolf is down. Sign in to keep loot.');
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, guest), 'Wolf is down. +3 bronze · pelt ×2 (this session only).');
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', true, { loot: [{ item: 'pelt', quantity: 1 }], bronze: 0 }), 'Wolf is down. pelt (this session only). Bounty done.');
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, { loot: [], bronze: 0 }), 'Wolf is down. Sign in to earn loot you keep.');
   assert.equal(killToast({ offline: 'timeout' }, name, 'Wolf', false, guest), 'Wolf is down. Not saved: the server did not answer.', 'a signed-in page the server did not answer is never shown guest loot');
+});
+test('a guest is told the truth about sign-in (SCOPE guest acceptance item 4): the loss line is a row, and no guest copy promises that signing in keeps session loot', () => {
+  assert.equal(GUEST_SIGN_IN_LOSS, KILL_TEXT.guest.signInLoss);
+  assert.match(GUEST_SIGN_IN_LOSS, /starts fresh/); assert.match(GUEST_SIGN_IN_LOSS, /not kept/);
+  const guestCopy = [KILL_TEXT.toast.guestLoot, KILL_TEXT.toast.guestNoLoot, JSON.stringify(GROUND.groundPickup[0]!.fields.labels)].join(' ');
+  assert.doesNotMatch(guestCopy, /sign in to keep/i, 'the loot a guest holds is session-only (guest-loot.ts): signing in is a new page and the roll is unverified, so nothing promises it is kept');
 });

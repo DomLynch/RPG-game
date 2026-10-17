@@ -1,0 +1,17 @@
+# as-data check (j): a string literal compared (=== / !== / case) against a CONTENT id that rule (a) does not know (hard-coding audit 2026-10-17, gap 5): `template === 'gale'`, `slot === 'Shield'`, a zone id.
+# Rule (a) only knows the five categories (opponent, weapon, skill, special, finisher). __BRANCH_IDS__ is replaced by the runner with every `id` a data row (src + origins JSON) declares, minus those five
+# categories (rule (a)'s), the engine's own closed vocabularies (duel.ts Phase/Action, world.ts Phase, match.ts Mode, moves.ts MoveId: verbs and states, not content), and the generic words in
+# branch-id-vocab.json. check.ts holds the count to a per-file, per-literal ratchet (branch-id-baseline.json): today's sites are a known backlog (a category branch such as a schema switch is triaged out in
+# the PR that moves it), a new one is red under --gate. ast-grep matches syntax, not types: the literal being a row id is the signal.
+id: as-data-branch-id
+language: typescript
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
+rule:
+  kind: string
+  regex: "^['\"](__BRANCH_IDS__)['\"]$"
+  any:
+    - inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^[!=]==$" } }
+    - inside: { kind: switch_case, stopBy: neighbor }

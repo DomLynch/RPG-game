@@ -1,7 +1,10 @@
 {
   "toast": {
-    "guestNoLoot": "Sign in to keep loot.",
-    "guestLoot": "{paid} (sign in to keep it).",
+    "guestNoLoot": "Sign in to earn loot you keep.",
+    "guestLoot": "{paid} (this session only).",
     "notSaved": "Not saved: the server did not answer."
+  },
+  "guest": {
+    "signInLoss": "Signing in starts fresh: loot you hold as a guest is not kept."
   }
 }
