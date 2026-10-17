@@ -1,0 +1,14 @@
+{
+  "campKit": [
+    {
+      "id": "camp-kit",
+      "radius": 6,
+      "fire": { "stones": 9, "ring": 1.0, "stone": [0.32, 0.3, 0.42], "coal": [0.8, 0.16], "logs": 4 },
+      "seat": { "ring": 2.9, "log": [1.9, 0.5, 0.55], "standOut": 4.6 },
+      "bedroll": [1.0, 0.2, 2.3],
+      "crate": [1.0, 0.9, 1.0],
+      "barrel": [0.48, 1.1],
+      "glow": { "radius": 6.5, "color": "#ff8a3a", "opacity": 0.65 }
+    }
+  ]
+}
