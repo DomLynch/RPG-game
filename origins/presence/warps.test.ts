@@ -9,7 +9,8 @@ import DEFS from './warp-landmarks.json' with { type: 'json' };
 import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
 import { exitWarps, loadWarps, warpIds, warpPlace } from './warps.ts';
-import { EXITS } from '../zones/exits.ts';
+import { openExits } from '../zones/exits.ts';
+const EXITS = openExits(undefined, false);   // the doors a normal build has: the sample crypt's are closed (zone 6 is unlisted)
 import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
