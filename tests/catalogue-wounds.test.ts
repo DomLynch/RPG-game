@@ -19,7 +19,7 @@ const known = {
   refs: { weapons: new Set(Object.keys(WEAPONS)) }, defs: DEFS, stances: new Set<string>(PICKS), voices: new Set(Object.keys(THROATS)), poses: new Set(Object.values(FINISHER_POSE).filter((p): p is NonNullable<typeof p> => !!p)),
   bodytypes: BODYTYPES, species: SPECIES,
 };
-const beasts = ['wolf', 'boar', 'bear', 'giant-salamander'];
+const beasts = ['wolf', 'boar', 'bear', 'giant-salamander', 'salamander-hollow-boss'];   // + the Bone Hollow end fight's salamander row (same wounds as the Giant Salamander)
 const edit = (id: string, f: (r: CatalogueRow) => void) => { const r = structuredClone(catalogueRow(id)!) as CatalogueRow; f(r); return [...new Set(catalogueProblems(r, known).map((p) => p.code))].join(','); };
 
 test('every bodytype tree is right side up: one trunk root, the head hangs from the neck and the neck from the trunk', () => {
@@ -53,7 +53,7 @@ test('the parts agree with the finisher cuts and the species with the row blood'
     assert.ok(Math.abs(SPECIES[w.species]!.spray * w.size - row.blood!.amount) < 1e-9, `${id}: spray x size is the row's blood amount`);
     assert.ok(w.tiers.length >= 2 && w.bleedRate > 0, `${id}: it bleeds in tiers`);
   }
-  assert.deepEqual(beasts.map((id) => catalogueRow(id)!.wounds!.size), [0.7, 1, 1.4, 0.8]);
+  assert.deepEqual(beasts.map((id) => catalogueRow(id)!.wounds!.size), [0.7, 1, 1.4, 0.8, 0.8]);
   for (const row of CATALOGUE) if (!beasts.includes(row.body ?? row.id)) assert.equal(row.wounds, null, `${row.id}: the Pit's own gore as today`);
 });
 
