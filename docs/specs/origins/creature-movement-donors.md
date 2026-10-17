@@ -1,5 +1,26 @@
 # Creature movement in melee: what 30 donor games do (2026-10-17, sandbox lane)
 
+## Two-column summary for the rows (stop distance and turn cap, as the donors state them; a dash = not found)
+
+| Donor | Stops at (share of melee reach) | Turn cap |
+|---|---|---|
+| World of Claudecraft | 80% (4 of 5 yd) | facing set straight at the target (none) |
+| AzerothCore | 100% (max range = melee reach, contact 0.5 yd) | none (SetFacing) |
+| TrinityCore | 100% of reach (pets: behind +-45 deg) | none |
+| EQEmu | 100% (RunTo, FaceTarget) | ~214 deg/s walking, running instant |
+| AC Emulator | 0.75 m melee range | per-creature, from its motion table |
+| ModernUO | 1 tile | - |
+| OpenDAoC | follow min 37.5% of melee range | - |
+| Daggerfall Unity | back off under 1.7 m, pursue beyond 2.75 x that (hysteresis) | ~320 deg/s (20 deg per 0.0625 s) |
+| Quake 2 | melee-class range | 100-200 deg/s (yaw_speed 10-20 per 0.1 s) |
+| DOOM | melee range | 45 deg per tic (snapped, 8 directions) |
+| dhewm3 | attack cone 70 deg | 360 deg/s (per monster) |
+| Warcraft Arena Unity | - | 180 deg/s moving, 360 charging |
+| L2J Unity client / shnok | - | eased, time constant ~0.1-0.2 s (dt x 5-10) |
+| knight-duel | per-style engage/retreat pair (hysteresis) | - |
+
+Strategy's ruled rows (2026-10-17): circleChance 0, stopAtReach 0.85 with a 0.8/1.1 hysteresis band, turnRateCap 180 deg/s with lunges exempt, circleRedecide 2-4 s plus strafeSpeedCap only where circleChance > 0, maxAttackers 3.
+
 Why: Dom reports world creatures move like a twitch FPS on a phone (the salamander is right then left in under a second). Our engine (src/fight/ai.ts) picks mode `circle` with a random side and re-decides every 36-81 ticks, so a creature flips direction about once a second; headless probe (`scripts/probe-world-creature-motion.ts`, branch `sandbox/creature-motion-probe`): sweep around the hero avg 6-28 deg/s, max 61-73 deg/s, direction flips 0.16-0.41 per second, speed bursts to 6 m/s, facing snaps up to 180 degrees in one 30 Hz step.
 
 Read from the code on the VPS (/mnt/frankendom-donors), not from memory; a dash means not found. Licence matters for reuse: copy code only from MIT/CC0/Apache; everything else is design reference.
