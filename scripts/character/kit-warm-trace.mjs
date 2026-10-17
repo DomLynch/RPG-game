@@ -26,8 +26,16 @@ try {
   const label = (n) => `${n.callFrame.functionName || '(anonymous)'} ${n.callFrame.url.split('/').pop()}:${n.callFrame.lineNumber + 1}`;
   const times = []; let t = 0; for (const d of profile.timeDeltas) { t += d; times.push(start + t / 1000); }   // page ms of each sample
   console.log(`warm: failed ${warm.kits.failed}, warmed ${warm.kits.warmed}, maxLongTaskMs ${warm.kits.maxLongTaskMs}, long tasks ${JSON.stringify(warm.kits.longTasks)}; clock bracket ${(p0b - p0a).toFixed(1)} ms`);
+  // Profiler.start itself takes ~350 ms, so the profile's clock cannot be placed on the page's to better than that: each long task is found as the run of non-idle samples (gaps under 2 ms merged) whose length is closest to the task's, within 700 ms of where the clocks say it is.
+  const idle = (i) => nodes.get(profile.samples[i]).callFrame.functionName === '(idle)', runs = [];
+  for (let i = 0, from = -1, last = -1; i <= profile.samples.length; i++) {
+    const busy = i < profile.samples.length && !idle(i);
+    if (busy) { if (from < 0) from = i; last = i; } else if (from >= 0 && (i >= profile.samples.length || times[i] - times[last] > 2)) { runs.push({ lo: times[from], hi: times[last] }); from = -1; }
+  }
   for (const lt of warm.kits.longTasks ?? []) {
-    const lo = base + lt.at - 15, hi = base + lt.at + lt.ms + 15, self = new Map(), incl = new Map();
+    const guess = base + lt.at, near = runs.filter((r) => Math.abs(r.lo - guess) < 700).sort((a, b) => Math.abs(b.hi - b.lo - lt.ms) > Math.abs(a.hi - a.lo - lt.ms) ? -1 : 1)[0];
+    const lo = near ? near.lo - 1 : guess - 15, hi = near ? near.hi + 1 : guess + lt.ms + 15, self = new Map(), incl = new Map();
+    console.log(`(run matched: ${near ? `${(near.hi - near.lo).toFixed(0)} ms long, clocks ${(near.lo - guess).toFixed(0)} ms apart` : 'none, using the clock estimate'})`);
     for (let i = 0; i < profile.samples.length; i++) {
       if (times[i] < lo || times[i] > hi) continue;
       const dt = (profile.timeDeltas[i + 1] ?? profile.timeDeltas[i]) / 1000, id = profile.samples[i], seen = new Set();
@@ -35,7 +43,7 @@ try {
       for (let n = id; n !== undefined; n = parent.get(n)) { const l = label(nodes.get(n)); if (!seen.has(l)) { seen.add(l); incl.set(l, (incl.get(l) ?? 0) + dt); } }
     }
     const top = (m, k) => [...m].sort((a, b) => b[1] - a[1]).slice(0, k).map(([l, ms]) => `${ms.toFixed(1)} ms  ${l}`);
-    console.log(`\nLONG TASK at ${lt.at} ms (${lt.ms} ms), window ${(lo - base).toFixed(0)}..${(hi - base).toFixed(0)} ms from ready\n  self:\n    ${top(self, 10).join('\n    ')}\n  inclusive:\n    ${top(incl, 14).join('\n    ')}`);
+    console.log(`\nLONG TASK at ${lt.at} ms (${lt.ms} ms), window ${(lo - base).toFixed(0)}..${(hi - base).toFixed(0)} ms from ready (profile clock)\n  self:\n    ${top(self, 10).join('\n    ')}\n  inclusive:\n    ${top(incl, 14).join('\n    ')}`);
   }
   fs.mkdirSync('artifacts/kit-warm-trace', { recursive: true }); fs.writeFileSync('artifacts/kit-warm-trace/profile.cpuprofile', JSON.stringify(profile));
 } finally { await browser.close(); await close(); }
