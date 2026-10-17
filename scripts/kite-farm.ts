@@ -88,8 +88,9 @@ function run(name: string, seed: number) {
   }
   return r;
 }
-if (duelX !== 1) (OPPONENTS as unknown as Record<string, { speed: number }>)[kind]!.speed *= duelX;
-console.log(`duel speed ${kind}: ${(OPPONENTS as unknown as Record<string, { speed: number }>)[kind]!.speed.toFixed(3)} (x${duelX})`);
+const opp = (OPPONENTS as unknown as Record<string, { speed?: number }>)[kind]!;   // speed is optional on an Opponent: absent = 1 (a man)
+if (duelX !== 1) opp.speed = (opp.speed ?? 1) * duelX;
+console.log(`duel speed ${kind}: ${(opp.speed ?? 1).toFixed(3)} (x${duelX})`);
 for (const name of env('CASES', 'stand,backoff,pursue,hitrun,circle,tag').split(',')) {
   const rs = Array.from({ length: seeds }, (_, s) => run(name, s + 1)), n = (f: (r: ReturnType<typeof run>) => boolean) => rs.filter(f).length;
   console.log(`${name.padEnd(8)} ${kind} L${level}: hero died ${n((r) => r.heroDied)}/${seeds}, creature killed ${n((r) => r.killed)}, killed while walking home ${n((r) => r.killedHome)}, dmg while home ${rs.reduce((a, r) => a + r.homeDmg, 0).toFixed(0)}, resets ${rs.reduce((a, r) => a + r.resets, 0)} (lowest hp carried over a reset ${(Math.min(...rs.map((r) => r.resetHp)) * 100).toFixed(0)}%), rule evades ${rs.reduce((a, r) => a + r.ruleEvades, 0)}, max follow ${Math.max(...rs.map((r) => r.follow)).toFixed(0)} m, hero took ${(rs.reduce((a, r) => a + r.taken, 0) / seeds).toFixed(0)} dmg/run, mean time to kill ${(rs.filter((r) => r.killed).reduce((a, r) => a + r.t, 0) / Math.max(1, n((r) => r.killed))).toFixed(0)}s, longest worn <50% ${Math.max(...rs.map((r) => r.longest)).toFixed(1)}s`);
