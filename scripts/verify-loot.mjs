@@ -147,7 +147,7 @@ async function settleOne(db, row, receipt, dry, heldMax) {
 /**
  * @param {any} row
  * @param {any} standing
- * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null>, cut?: import('../src/core/career-ladder.ts').SpecialsCut | null }} [options] cut: the beta cut on specials (src/awards.ts specialsRefusal) a test may lift; null = the betaCut row. build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
+ * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null>, cut?: import('../src/core/server.ts').SpecialsCut | null }} [options] cut: the beta cut on specials (src/awards.ts specialsRefusal) a test may lift; null = the betaCut row. build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
  */
 export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS, cut = null } = {}) {   // cut: a SpecialsCut (src/awards.ts) a test may lift; null = the betaCut row
   try {
