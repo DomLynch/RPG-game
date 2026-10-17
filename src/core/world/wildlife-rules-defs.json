@@ -1,0 +1,21 @@
+{
+  "rules": [
+    { "id": "rarityCommon", "value": 1, "unit": "x" },
+    { "id": "rarityUncommon", "value": 0.3, "unit": "x" },
+    { "id": "rarityRare", "value": 0, "unit": "x" },
+    { "id": "rareChanceMin", "value": 0.01, "unit": "ratio" },
+    { "id": "rareChanceMax", "value": 0.25, "unit": "ratio" },
+    { "id": "respawnMin", "value": 30, "unit": "s" },
+    { "id": "respawnMax", "value": 300, "unit": "s" },
+    { "id": "aggroMin", "value": 2, "unit": "m" },
+    { "id": "aggroMax", "value": 20, "unit": "m" },
+    { "id": "leashMin", "value": 5, "unit": "m" },
+    { "id": "leashMax", "value": 80, "unit": "m" },
+    { "id": "roamMin", "value": 0, "unit": "m" },
+    { "id": "roamMax", "value": 30, "unit": "m" },
+    { "id": "spreadMin", "value": 0, "unit": "m" },
+    { "id": "spreadMax", "value": 40, "unit": "m" },
+    { "id": "pullMin", "value": 0, "unit": "m" },
+    { "id": "pullMax", "value": 30, "unit": "m" }
+  ]
+}
