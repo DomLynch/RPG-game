@@ -7,7 +7,7 @@ import { DEFAULT_WEAPON, type WeaponId } from '../../src/fight/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
-import { fightSheet, gearNumbers, weightClassOf } from '../../src/fight/index.ts';
+import { fightSheet, gearNumbers, pieceNumbers, sheetFor, weightClassOf } from '../../src/fight/index.ts';
 
 // `onWorn`: the worn set changed (the server's ledger answered, or a wear / stow in the sheet), and once at mount for the device's own: main.ts dresses the walking hero with it (the sheet's wear is the one place every change passes).
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string; onWorn?: (ids: readonly string[], tiers: Record<string, Tier>) => void };
@@ -19,7 +19,7 @@ export function mountGear(d: Deps) {
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
     element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
-    view: () => ({ wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
+    view: () => ({ wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, pieceNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
   const leave = () => { sheet.leaveGear(); d.layer.classList.remove('gearing'); };
@@ -34,7 +34,8 @@ export function mountGear(d: Deps) {
     warm: async () => { const loot = (server?.profileFor(profile) ?? profile).loot; zone.wear(wornIdsOf(loot), wornTiersOf(loot)); return zone.warm(); },
     refresh: (): Promise<boolean> => server?.refresh() ?? Promise.resolve(false),   // read the server's worn-gear view now (at load, not only when the Gear screen opens)   // the server's view of the character's worn set has answered (the loadout gate in main.ts reads it)
     // What the hero fights on: the stored build (none = level 0, as the server's heroLimitOf reads it) with the worn set's deltas, from the server's view of the character; the server holds a world record's sheet EQUAL to the books' own.
-    sheet: (own: { level: number; placed: Record<string, number> } | undefined): ReturnType<typeof fightSheet> => fightSheet(profile, own ?? { level: 0, placed: {} }, server),   // nothing until the SERVER's view has answered (a guest or an unanswered writer fights bare)
+    // A signed-in character: nothing until the SERVER's view has answered (an unanswered writer fights bare). A GUEST has no server view: he fights on his session build (build-guest.ts) and the device's own worn set, as the Pit does (sheetFor).
+    sheet: (own: { level: number; placed: Record<string, number> } | undefined, guest = false): ReturnType<typeof fightSheet> => guest ? sheetFor(profile.loot, own) : fightSheet(profile, own ?? { level: 0, placed: {} }, server),
     // The weapon he wields in the world: the main hand of the server's view of the character (the ledger the server's HeroLimit.weapon reads), when the rig can draw it (`carried`), else the longsword; the default until that view has answered.
     weapon: (carried: readonly WeaponId[]): WeaponId => (server?.ready() ? fightWeapon(server.profileFor(profile).loot, carried) : DEFAULT_WEAPON),
     // The ☰'s Gear chip: the menu opens on the Profile pane with the mannequin up; the server's ledger replaces the device's the moment it answers.

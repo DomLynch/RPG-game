@@ -8,7 +8,8 @@ import { mobSpecs, previewRows, spawnAmong } from '../preview/mobs.ts';
 import DEFS from './warp-landmarks.json' with { type: 'json' };
 import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
-import { loadWarps, warpIds, warpPlace } from './warps.ts';
+import { exitWarps, loadWarps, warpIds, warpPlace } from './warps.ts';
+import { EXITS } from '../zones/exits.ts';
 import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
@@ -24,6 +25,16 @@ test('the table: every landmark stands in a zone row and clear of the trade area
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);
   assert.throws(() => loadWarps({ landmarks: [{ id: 'nowhere', x: 5000, z: 5000, unit: 'm' }] }), /not inside any zone row/);
   assert.throws(() => loadWarps({ landmarks: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
+});
+
+test('the exit warps are DERIVED from the exit rows and the zone plan, not copied: they equal the places they had as table rows, and a taken or unreachable warp id refuses to load', () => {
+  near(m('zone5-gate').x, 1, 0.006); near(m('zone5-gate').z, -320, 0.006);
+  near(m('zone1-cave-mouth').x, -141, 0.006); near(m('zone1-cave-mouth').z, 30, 0.006);
+  assert.ok(!DEFS.landmarks.some((r) => EXITS.some((e) => e.warp === r.id)), 'no exit warp is also a table row');
+  assert.deepEqual([...exitWarps(EXITS).keys()].sort(), EXITS.map((e) => e.warp).sort());
+  assert.throws(() => exitWarps(EXITS, new Set([EXITS[0]!.warp])), /already a warp landmark/);
+  assert.throws(() => exitWarps([EXITS[0]!, { ...EXITS[1]!, warp: EXITS[0]!.warp }]), /already a warp landmark/);
+  assert.throws(() => exitWarps([{ ...EXITS[0]!, arrive: 'no-such-landmark' }]), /no landing/);
 });
 
 test('the rows equal the places the page teleports to (a zone or mob edit that moves one fails here)', () => {

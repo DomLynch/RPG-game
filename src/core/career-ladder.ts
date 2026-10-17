@@ -33,6 +33,7 @@ export const RANK_STEPS = NUMERALS.length;
 // Lifting the cut is the one row: `titles` of 10 (or more) lifts the level cap, an empty `spells` lifts the spell list.
 const BETA = CAREER_RULES.betaCut[0]!;
 export const BETA_MAX_LEVEL = Math.min(MAX_LEVEL, BETA.titles * RANK_STEPS), BETA_SPELLS: ReadonlySet<string> = new Set(BETA.spells);
+export const BETA_MAX_LOOT_RUNG: number = BETA.maxLootRung;   // the cut's loot ceiling (betaCut.maxLootRung): nothing mints above this rung; lifting the cut lifts it. The server's mint reads it through src/core/server.ts
 export const betaLevel = (level: number): number => Math.min(level, BETA_MAX_LEVEL);
 export const betaMarks = (marks: number): number => Math.min(marks, BETA_MAX_LEVEL - 1);   // level = 1 + marks (levelOfMarks)
 export const inBetaSpells = (legend: string): boolean => BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);

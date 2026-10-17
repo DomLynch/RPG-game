@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "wildlife-mob", "file": "wildlife-defs.json", "at": "mobs", "key": "id", "required": { "source": "object", "role": "string", "loot": "string", "level": "array", "behaviour": "object" }, "optional": { "later": "boolean" } }
+  ]
+}

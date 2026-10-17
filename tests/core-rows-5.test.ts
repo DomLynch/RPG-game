@@ -9,6 +9,10 @@ import lootRaw from '../src/core/loot-rules.json' with { type: 'json' };
 import lootMan from '../src/core/loot-rules.manifest.json' with { type: 'json' };
 import roomRaw from '../src/core/gear-room-rules.json' with { type: 'json' };
 import roomMan from '../src/core/gear-room-rules.manifest.json' with { type: 'json' };
+import clientRaw from '../src/core/client-rules.json' with { type: 'json' };
+import clientMan from '../src/core/client-rules.manifest.json' with { type: 'json' };
+import { CLIENT } from '../src/core/client-rules.ts';
+import { readFileSync } from 'node:fs';
 
 test('the loot panel tap guard keeps its 300 ms', () => assert.equal(TAP_GUARD_MS, 300));
 
@@ -17,8 +21,15 @@ test('the gear room row keeps the framing it had in code (gear-room.ts imports t
   assert.equal(parseInt(roomRaw.gearRoomRule[0]!.backdrop.slice(1), 16), 0x0d0b09);
 });
 
-test('both rows files load through the registry', () => {
-  for (const [raw, man, name] of [[lootRaw, lootMan, 'loot-rules.json'], [roomRaw, roomMan, 'gear-room-rules.json']] as const)
+test('the core\'s client waits keep the values they had in code (the writer read timeout, the returning account\'s idle mount)', () => {
+  assert.deepEqual(CLIENT, { id: 'client', writerTimeoutMs: 8000, accountIdleMs: 5000, accountFallbackMs: 2000 });
+  const src = (f: string) => readFileSync(new URL(`../src/core/${f}`, import.meta.url), 'utf8');
+  assert.doesNotMatch(src('gear-server.ts') + src('skills-server.ts'), /timeoutMs: \d/, 'the writer timeout is the row, never a literal');
+  assert.doesNotMatch(src('account-entry.ts'), /timeout: \d|, \d{4}\)/, 'the idle and fallback waits are the row');
+});
+
+test('all three rows files load through the registry', () => {
+  for (const [raw, man, name] of [[lootRaw, lootMan, 'loot-rules.json'], [roomRaw, roomMan, 'gear-room-rules.json'], [clientRaw, clientMan, 'client-rules.json']] as const)
     assert.ok(loadRegistry(man.tables.map((t) => tableFromFile(t as unknown as Manifest, raw, name))));
 });
 

@@ -9,6 +9,7 @@
         "minGap": "number",
         "markGap": "number",
         "edge": "number",
+        "scaleFloor": "number",
         "note": "string"
       }
     },
@@ -52,6 +53,16 @@
       "at": "wornPoke",
       "key": "id",
       "required": {
+        "note": "string"
+      }
+    },
+    {
+      "table": "mobPayout",
+      "file": "server-rules.json",
+      "at": "mobPayout",
+      "key": "id",
+      "required": {
+        "capReached": "integer",
         "note": "string"
       }
     },

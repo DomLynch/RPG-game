@@ -1,0 +1,24 @@
+# as-data check (h): an INLINE number in game logic (hard-coding audit 2026-10-17, gap 2): a number other than 0 or 1 in a compare, an arithmetic operand, an object pair, a parameter default or a call argument
+# (Math.max/min arguments are rule (e)'s, a top-level UPPER const's number is (c)/(d)/(f)/(g)'s). check.ts scans it ONLY in the files named in inline-number-scope.json (the sim, the world sim, origins/server,
+# presence and world) and holds the count to a per-file ratchet (inline-number-baseline.json, per file and literal) started at today's count: it can only go down. A site is the literal.
+id: as-data-inline-number
+language: typescript
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  all:
+    - any:
+        - inside: { kind: binary_expression, stopBy: neighbor }
+        - inside: { kind: pair, stopBy: neighbor }
+        - inside: { any: [{ kind: required_parameter }, { kind: optional_parameter }, { kind: assignment_pattern }], stopBy: neighbor }
+        - inside: { kind: arguments, stopBy: neighbor, inside: { kind: call_expression, stopBy: neighbor, not: { has: { field: function, regex: "^Math\\.(max|min)$" } } } }
+    # a top-level UPPER const is the const rules' (c, d, f, g)
+    - not:
+        inside:
+          kind: variable_declarator
+          stopBy: end
+          has: { field: name, kind: identifier, regex: "^[A-Z][A-Z0-9_]*$" }
+          inside: { kind: lexical_declaration, stopBy: neighbor, any: [{ inside: { kind: program, stopBy: neighbor } }, { inside: { kind: export_statement, stopBy: neighbor, inside: { kind: program, stopBy: neighbor } } }] }

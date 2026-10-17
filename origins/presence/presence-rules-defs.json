@@ -10,6 +10,7 @@
     { "id": "tier3Cm", "value": 4000, "unit": "cm" },
     { "id": "tier3Every", "value": 5, "unit": "ticks" },
     { "id": "tickMs", "value": 100, "unit": "ms" },
+    { "id": "tickFloorMs", "value": 5, "unit": "ms" },
     { "id": "softCap", "value": 80, "unit": "players" },
     { "id": "hardCap", "value": 100, "unit": "players" },
     { "id": "maxSpeedCmS", "value": 700, "unit": "cm/s" },

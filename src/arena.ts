@@ -1,4 +1,5 @@
 import { arenaRule, layoutRules } from './arena-rules.ts';
+import { present } from './present-rows.ts';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { specialGust } from './fight/special-gust.ts';
@@ -107,7 +108,7 @@ export function buildArena(scene: THREE.Scene, theme: ArenaTheme = ARENA_THEMES[
   // second later. Without Workers (Node tests, an old browser) they generate here, synchronously, exactly as before.
   const [sunX, sunY, sunZ] = theme.light?.sun ?? [-15, 26, -18], weather = theme.weather ?? { kind: 'ash', color: theme.motes, count: 520, size: 0.1, opacity: 0.62 };
   const row = weatherRow(weather.kind);
-  const skyU = ((Math.atan2(sunZ, -sunX) / TAU) % 1 + 1) % 1, tint = (c: [number, number, number], t: [number, number, number]) => c.map((v, i) => Math.round(Math.min(255, v * t[i]))) as [number, number, number], solid = (r: number, g: number, b: number) => ({ width: 2, height: 2, data: new Uint8Array([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]) });
+  const skyU = ((Math.atan2(sunZ, -sunX) / TAU) % 1 + 1) % 1, tint = (c: [number, number, number], t: [number, number, number]) => c.map((v, i) => Math.round(Math.min(present('colour-channel-max'), v * t[i]))) as [number, number, number], solid = (r: number, g: number, b: number) => ({ width: 2, height: 2, data: new Uint8Array([r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255]) });
   const worker = typeof Worker === 'function' ? new Worker(new URL('./assets/arena/texture-worker.ts', import.meta.url), { type: 'module' }) : null;
   const heavy: HeavyTextures | null = worker ? null : generateHeavyTextures(phone, skyU, theme.textures);
   const textures = { sand: dataTexture(heavy?.sand ?? solid(...tint([146, 120, 90], theme.textures.sand)), true), sandNormal: dataTexture(heavy?.sandNormal ?? solid(128, 128, 255), false), stone: dataTexture(heavy?.stone ?? solid(...tint([118, 112, 103], theme.textures.stone)), true), stoneNormal: dataTexture(heavy?.stoneNormal ?? solid(128, 128, 255), false), sky: dataTexture(heavy?.sky ?? solid(...tint([156, 168, 166], theme.textures.sky.base.map((c, i) => c / [169, 168, 156][i]) as [number, number, number])), true), banner: dataTexture(bannerAlpha(128, 256, theme.bannerSeed), false), flame: dataTexture(flamePixels(), true), mote: dataTexture(weather.kind === 'rain' ? streakPixels() : motePixels(), true), gateLight: dataTexture(gateLightAtlas(), true) };

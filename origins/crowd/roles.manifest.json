@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "crowd-role", "file": "roles.json", "at": "roles", "key": "id", "required": { "pace": "number" }, "optional": { "radius": "number", "ringEdge": "string" } }
+  ]
+}

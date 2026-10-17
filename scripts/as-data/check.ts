@@ -5,6 +5,8 @@
 // (c) MAPS: an object-literal pair keyed by a content id whose value is a string or an array of strings (a label, colour, blurb or part list kept in code); one site per pair,
 //     held to a ratchet like rule (e) (map-baseline.json, per file and id key).
 // Runs ast-grep through npx at a pinned version (no global install); the rule files beside this script are templates the runner fills with today's id lists.
+// (f) CONST EXPRESSIONS, (g) OBJECT CONSTS and (h) INLINE NUMBERS (hard-coding audit 2026-10-17, gaps 1, 3, 2): an UPPER const whose value is arithmetic with a number, an UPPER const object with any number past 0/1 that (d) does not
+//     already list, and a number past 0/1 in game logic (scoped to inline-number-scope.json), each held to its own ratchet (const-expr-, const-object-, inline-number-baseline.json) started at today's count.
 // Excluded: src/fight/catalogue-data.ts (the data itself) and src/assets. A site is listed as file:line [kind/category] text.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -117,9 +119,20 @@ try {
   const maps = sites.filter((s) => s.kind === 'map');
   const mapKey = (s: Site) => /^['"]?([\w-]+)/.exec(s.text)![1]!;
   const { fresh: newMaps, lowered: loweredMaps } = ratchet('map', maps, mapKey);
+  // Rules (f) const-expr, (g) const-object and (h) inline-number (hard-coding audit 2026-10-17, gaps 1, 3 and 2): each a ratchet like (e), started at today's count so it only goes down. (f) and (g) key on the const
+  // name; (h) scans only inline-number-scope.json (the sim, the world sim, origins/server, presence and world) and keys on the literal.
+  const siteOf = (m: { text: string; file: string; range: { start: { line: number } } }, text: string): Site => ({ file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text });
+  const constName = (s: Site) => /^[A-Z][A-Z0-9_]*/.exec(s.text)![0];
+  const constExprs = run('const-expr.yml').map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite);
+  const { fresh: newConstExprs, lowered: loweredConstExprs } = ratchet('const-expr', constExprs, constName);
+  const constObjects = run('const-object.yml').map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite);
+  const { fresh: newConstObjects, lowered: loweredConstObjects } = ratchet('const-object', constObjects, constName);
+  const scope = JSON.parse(readFileSync(arg('--inline-scope') ?? join(HERE, 'inline-number-scope.json'), 'utf8')) as { files: string[]; dirs: string[] };
+  const inlines = run('inline-number.yml', [...scope.files, ...scope.dirs]).map((m) => siteOf(m, m.text.replace(/\s+/g, ''))).sort(bySite);
+  const { fresh: newInlines, lowered: loweredInlines } = ratchet('inline-number', inlines, (s) => s.text);
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
-  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map'), newMaps: newMaps.length, clamps: clamps.length, newClamps: newClamps.length };
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered, newMapSites: newMaps, loweredMaps }));
+  const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map'), newMaps: newMaps.length, clamps: clamps.length, newClamps: newClamps.length, constExprs: constExprs.length, newConstExprs: newConstExprs.length, constObjects: constObjects.length, newConstObjects: newConstObjects.length, inlineNumbers: inlines.length, newInlineNumbers: newInlines.length };
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered, newMapSites: newMaps, loweredMaps, constExprSites: constExprs, newConstExprSites: newConstExprs, loweredConstExprs, constObjectSites: constObjects, newConstObjectSites: newConstObjects, loweredConstObjects, inlineNumberSites: inlines, newInlineNumberSites: newInlines, loweredInlineNumbers: loweredInlines }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}${s.kind === 'map' && newMaps.includes(s) ? '  NEW: this text belongs in the id\'s data row' : ''}`);
     for (const s of allowedTunables) console.log(`allowed-tunable ${s.file}:${s.line} ${s.text}  (${s.reason})`);
@@ -132,9 +145,13 @@ try {
     for (const a of stale) console.log(`STALE allow entry ${a.file} ${a.literal}: no such site any more, delete it (${a.reason})`);
     for (const c of newClamps) console.log(`NEW inline clamp ${c.file}:${c.line} ${c.text}: a number in Math.max/min is a tuning in code; make it a row (or a named exempt) instead`);
     for (const l of lowered) console.log(`STALE clamp baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-clamp-baseline)`);
+    for (const c of newConstExprs) console.log(`NEW const expression ${c.file}:${c.line} ${c.text}: a tunable written as arithmetic is content in code; make it a row (or a named exempt) instead`);
+    for (const c of newConstObjects) console.log(`NEW object const ${c.file}:${c.line} ${c.text}: a table of numbers in code; make it rows (or a named exempt) instead`);
+    for (const c of newInlines) console.log(`NEW inline number ${c.file}:${c.line} ${c.text}: a number in game logic is a tuning in code; make it a row (or a named exempt) instead`);
+    for (const [name, list] of [['const-expr', loweredConstExprs], ['const-object', loweredConstObjects], ['inline-number', loweredInlines]] as const) for (const l of list) console.log(`STALE ${name} baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-${name}-baseline)`);
     for (const l of loweredMaps) console.log(`STALE map baseline ${l.file} ${l.literal}: ${l.baseline} -> ${l.now}; lower it in the same PR (node scripts/as-data/check.ts --write-map-baseline)`);
-    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps} (new ${summary.newMaps}; the rest are the known backlog in map-baseline.json), inline clamps ${summary.clamps} (new ${summary.newClamps}; the rest are the known backlog in clamp-baseline.json)`);
+    console.log(`as-data: compares ${summary.compares} (${CATEGORIES.map((c) => `${c} ${summary.byCategory[c]}`).join(', ')}), closed unions ${summary.unions}, content rows in code ${summary.rows}, tunables ${summary.tunables}, label maps ${summary.maps} (new ${summary.newMaps}; the rest are the known backlog in map-baseline.json), inline clamps ${summary.clamps} (new ${summary.newClamps}; the rest are the known backlog in clamp-baseline.json), const expressions ${summary.constExprs} (new ${summary.newConstExprs}; const-expr-baseline.json), object consts ${summary.constObjects} (new ${summary.newConstObjects}; const-object-baseline.json), inline numbers in game logic ${summary.inlineNumbers} (new ${summary.newInlineNumbers}; inline-number-baseline.json)`);
   }
-  if (stale.length || staleVerbs.length || staleTunables.length || lowered.length || loweredMaps.length) process.exitCode = 3;   // a rotted allow-list or a clamp baseline above the tree is a list-integrity failure, not a count
-  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length || newMaps.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable, label map or inline clamp literal in code, or a debt past its sunset, is red
+  if (stale.length || staleVerbs.length || staleTunables.length || lowered.length || loweredMaps.length || loweredConstExprs.length || loweredConstObjects.length || loweredInlines.length) process.exitCode = 3;   // a rotted allow-list or a clamp baseline above the tree is a list-integrity failure, not a count
+  else if (process.argv.includes('--gate') && (summary.compares || summary.unions || summary.rows || summary.tunables || overdue.length || newClamps.length || newMaps.length || newConstExprs.length || newConstObjects.length || newInlines.length)) process.exitCode = 1;   // --gate (CI): any new compare, closed union, content row, tunable, label map or inline clamp literal in code, or a debt past its sunset, is red
 } finally { rmSync(dir, { recursive: true, force: true }); }
