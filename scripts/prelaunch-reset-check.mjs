@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
-import { compare, measure, parseManifest, restoreInto, scratchCluster } from './prelaunch-restore-test.mjs';
+import { compare, measure, parseManifest, restoreInto, scratchCluster, seedAuthUsers } from './prelaunch-restore-test.mjs';
 
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-r1-'));
@@ -93,6 +93,7 @@ try {
   eq(manifest.find(m => m.table === 'origins_characters').n, 2, 'the manifest counts the seeded rows');
   const scratch = scratchCluster();
   try {
+    seedAuthUsers(scratch.socket, backupDir);
     restoreInto(scratch.socket, backupDir);
     eq(compare(manifest, measure(scratch.socket, RESET)), [], 'restore into a scratch cluster: every table equals the manifest (counts and content hashes)');
   } finally { scratch.stop(); }

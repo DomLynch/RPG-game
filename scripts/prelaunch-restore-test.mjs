@@ -81,6 +81,16 @@ export function loadOrder(tables, edges) {
   return order;
 }
 
+/**
+ * A SCRATCH cluster has no accounts, and the restore keeps foreign-key checks on (the origins_ tables reference auth.users). In production auth.users is untouched by the reset, so the
+ * accounts are there; here, every uuid found in the backup's CSVs is added to the scratch auth.users first (extra ids are harmless in a disposable cluster).
+ */
+export function seedAuthUsers(socket, backupDir) {
+  const base = resolve(backupDir), ids = new Set();
+  for (const { table } of parseManifest(join(base, 'manifest.tsv'))) for (const m of readFileSync(join(base, `${table}.csv`), 'utf8').matchAll(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g)) ids.add(m[0]);
+  if (ids.size) run('psql', ['-h', socket, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'], `insert into auth.users(id) values ${[...ids].map(i => `('${i}')`).join(', ')} on conflict do nothing;`);
+}
+
 /** Load a backup directory's CSVs into the cluster at `socket` (restoreSql above), as `user` when given (a non-superuser owner in the rehearsal). */
 export function restoreInto(socket, backupDir, user) {
   const args = ['-h', socket, ...(user ? ['-U', user] : []), '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'];
@@ -121,6 +131,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const want = parseManifest(join(backupDir, 'manifest.tsv'));
   const scratch = scratchCluster();
   try {
+    seedAuthUsers(scratch.socket, backupDir);
     restoreInto(scratch.socket, backupDir);
     const bad = compare(want, measure(scratch.socket, want.map(w => w.table)));
     for (const w of want) console.log(`  ${w.table.padEnd(28)} ${String(w.n).padStart(6)} rows  ${bad.some(b => b.startsWith(`${w.table}:`)) ? 'MISMATCH' : 'ok'}`);
