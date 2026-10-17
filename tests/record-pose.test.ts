@@ -37,7 +37,7 @@ test('absent pose: the record keeps its old version and its old bytes (no pose f
 });
 
 test('a pose is decoded without the live wall: a valid goblin pose 6 m out decodes whatever the last fight\'s circle was; a non-finite or overlapping one is still refused', () => {
-  const far = roundPose({ hero: { x: -3, z: 5.1 }, foe: { x: 3, z: 5.2 }, heroFacing: 1 }), live = fight({ ...meta, opponent: 'goblin', pose: far }).record, bytes = packRecord(live);
+  const far = roundPose({ hero: { x: -3, z: 5.1 }, foe: { x: 3, z: 5.2 }, heroFacing: 1 }), live = fight({ ...meta, opponent: 'skeleton', pose: far })   /* RV76 (balance) reaches the goblin: an older-version goblin record is refused; the pose rule is the same for any opponent */.record, bytes = packRecord(live);
   setPlayScale(playScaleFor('veteran', RECORD_VERSION));   // the page's last fight was Arena One: RADIUS 3.79, the pose is 6 m out
   assert.deepEqual(unpackRecord(bytes).pose, far);
 });

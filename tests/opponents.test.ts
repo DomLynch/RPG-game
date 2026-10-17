@@ -40,7 +40,7 @@ test('initialDuel() is the Veteran — the trident (slice V) on a man\'s scale, 
 test('the goblin is set up from his data: the knife (live, slice X), 0.78× scale, 120 health, poise 0, never parries; the hero is unchanged; and a fight against him finishes', () => {
   const G = OPPONENTS.goblin, [hero, goblin] = initialDuel(G).fighters;
   assert.deepEqual(hero, initialDuel().fighters[0]);
-  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 120); assert.equal(goblin.maxHealth, 120); assert.equal(goblin.poise, 0);
+  assert.equal(goblin.weapon, 'knife'); assert.equal(goblin.scale, .78); assert.equal(goblin.health, 140); assert.equal(goblin.maxHealth, 140);   // RV76 (balance, Strategy targets): 120 -> 140, so the L2 starter loses to him about 1 in 8 assert.equal(goblin.poise, 0);
   assert.equal(WEAPONS.knife.placeholder, undefined); assert.notEqual(WEAPONS.knife.moves, MOVES); assert.notDeepEqual(bladePathsByRig.goblin.knife, bladePathsByRig.hero.longsword, 'baked from his own rig');
   for (const level of ['easy', 'normal', 'hard'] as const) { const p = G.profiles[level]; assert.equal(p.parry, 0, `${level}: he never parries`); assert.ok(p.dodge >= .3 && p.reaction <= PROFILES[level].reaction, `${level}: dodges, reacts fast`); }
   // The capsule follows his height: a blade level at 1.40 m is a head hit on a man and passes over the goblin; at 1.13 m (1.45 × 0.78) it finds his head where a man takes it in the chest.
