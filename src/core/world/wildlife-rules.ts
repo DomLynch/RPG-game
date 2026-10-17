@@ -17,6 +17,7 @@ export function loadWildlifeRules(raw: { rules?: readonly unknown[] }): readonly
 }
 // The mob rarity tiers (wildlife-rarity table): a tier's draw weight, whether it is the default tier of a row that names none, and whether it `replaces`
 // (a replacer is never drawn on its own: it stands in a placeholder's camp, so its row names the placeholder). The validator reads these flags, not tier names.
+// NOT the item grades: those are origins/encounters/loot-tier.json `rarityShift` (common | fine | rare | relic, a mint-rung shift, read in encounters.ts). Different scale and meaning, kept apart on purpose.
 export type WildlifeRarity = { readonly id: string; readonly weight: number; readonly default?: boolean; readonly replaces?: boolean };
 /** The tier loader: a duplicate id or missing/mistyped field is refused, weights are >= 0, exactly one default tier and at least one replacer. */
 export function loadWildlifeRarities(raw: { rarities?: readonly unknown[] }): readonly WildlifeRarity[] {
