@@ -4,6 +4,7 @@ import row1 from '../zone-rows/zone1.row.json' with { type: 'json' };
 import row2 from '../zone-rows/zone2.row.json' with { type: 'json' };
 import row3 from '../zone-rows/zone3.row.json' with { type: 'json' };
 import row4 from '../zone-rows/zone4.row.json' with { type: 'json' };
+import row5 from '../zone-rows/zone5.row.json' with { type: 'json' };
 import row90 from '../zone-rows/zone90.row.json' with { type: 'json' };
 
 export const REGISTRY = {
@@ -11,5 +12,6 @@ export const REGISTRY = {
   '2': zoneFromRow(2, row2),
   '3': zoneFromRow(3, row3),
   '4': zoneFromRow(4, row4),
+  '5': zoneFromRow(5, row5),
   '90': zoneFromRow(90, row90),
 };

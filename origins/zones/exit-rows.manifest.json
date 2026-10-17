@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "zone-exit", "file": "exit-rows.json", "at": "exits", "key": "id", "required": { "zone": "string", "landmark": "string", "to": "string", "arrive": "string", "warp": "string", "radiusM": "number", "arriveM": "number", "label": "string" } }
+  ]
+}

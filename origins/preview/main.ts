@@ -29,6 +29,8 @@ import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
+import { EXITS, type ExitRow } from '../zones/exits.ts';
+import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
 import { applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
@@ -58,6 +60,7 @@ import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { PLAYER, tooSlow, warmActor, warmDone, warmKitsWithin, warmList } from './warm-plan.ts';
 import { budgetTextures, buildWarriors, FIGHTER_TEXTURE_CAP, lootIds, lootPiecesOf } from '../../src/fight/index.ts';
 import { dressRemote } from './dress-remote.ts';
+import { wideCombatCam } from './combat-cam.ts';
 import { warmKits, type WarmKit } from './warm-kits.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 import { exitFace } from './leave-entry.ts';
@@ -216,6 +219,15 @@ const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
+const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), EXITS) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
+if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
+const doorWatch = frontier ? createZoneExit(doorsOf(frontier, EXITS), (row) => crossZone(row)) : null;
+function crossZone(row: ExitRow) {   // fade to black, close presence (its close is the save), load the other zone page
+  const veil = document.createElement('div'); veil.id = 'zone-cross'; veil.textContent = row.label;
+  veil.style.cssText = 'position:fixed;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#000;color:#e8dcc8;font:600 22px/1 Georgia,serif;opacity:0;transition:opacity .45s;pointer-events:all';
+  document.body.append(veil); requestAnimationFrame(() => { veil.style.opacity = '1'; });
+  setTimeout(() => { presence?.stop(); location.assign(exitHref(location.href, row)); }, 550);
+}
 const hint = document.getElementById('hint')!, place = document.getElementById('place')!;
 // The player's bars sit under the whole HUD stack (place, hint, creature card), however tall it wraps: index.html reads --hud-bottom.
 let labelFloor = 0;   // the lowest pixel of the HUD stack and the player's bars: creature name tags are kept below it (mobs-view clampLabels)
@@ -305,7 +317,7 @@ const ZONE_FIELDS = loadZone(), FIXED_HOUR = zoneHour(ZONE_FIELDS);   // the zon
 const DAYNIGHT = !/[?&]daynight=(?:0|off)\b/.test(location.search) && zoneDayNight(ZONE_FIELDS), T0 = performance.now(), START_HOUR = Number(/[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search)?.[1] ?? 12);   // ON; ?daynight=0|off is the kill switch, ?hour=22 starts the clock there
 const duelGround = new Set<THREE.MeshStandardMaterial>(); frontierGroup?.traverse((o) => { if ((DUEL || ZONE_FIELDS.set?.includes('look.ground.tint')) && o.name === 'frontier-ground-stone' && (o as THREE.Mesh).isMesh) duelGround.add((o as THREE.Mesh).material as THREE.MeshStandardMaterial); });   // ?look=duel, or a zone that SETS look.ground.tint: the Frontier's own dirt is what the tint reaches (inert on every other look, so they are unchanged)
 const GROUNDS = ZONE1 ? [exchange.ground] : [...duelGround], STONES = ZONE1 ? [exchange.stone] : [];   // hoisted: applyLook runs every frame
-let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
+let kit = false, worldPhase = 'ready', facing = 0, camLock = true, lockOn: { x: number; z: number; spec?: { id: string } } | null = null;   // kit: the Pit's controls are the walk's; camLock: the lock-on (the ☰ chip), saved per player
 const STRIKES = new Set<string>(['light', 'light_left', 'light_right', 'heavy', 'thrust', 'kick', 'skill']), LOCK_M = previewRule('lockRange'), CAMLOCK_KEY = 'origins-preview.camera-lock.v1';
 try { camLock = localStorage.getItem(CAMLOCK_KEY) !== 'off'; } catch { /* storage blocked: locked, the default */ }
 const WALK = SPEEDS.player.walk, RUN = SPEEDS.player.run, TURN = previewRule('turnRate'), followCam = createFollowCamera(camera, { passage: zoneCamera<Passage>('camera.passage'), open: pickFraming(ZONE_FIELDS.fields!['camera.presets'] as Presets, /[?&]camera=([a-z])\b/.exec(location.search)?.[1], ZONE_FIELDS.fields!['camera.preset'] as string) });   // the zone row's camera data; presets and preset come from the schema DEFAULTS (camera B) unless the zone sets them; ?camera=a|b picks a preset on this page
@@ -355,7 +367,9 @@ function step(dt: number) {
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) });
+  const foeNow = COMBAT_CAM && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : MAN_M } : null;   // in a fight with the locked creature
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, COMBAT_CAM ? { cam: COMBAT_CAM, portrait: innerHeight > innerWidth, foe: foeNow } : undefined);
+  applyCombatView();
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
   showZone(zone ? zone.zone : null);
@@ -376,7 +390,7 @@ function step(dt: number) {
     : Math.hypot(state.x - T.orePile.x, state.z - T.orePile.z) < T.reach.ore && play.oreWanted() ? 'ore'
     : groundNear ? 'ground'
     : Math.max(Math.abs(state.x - FORGE.x) - FORGE.halfX, Math.abs(state.z - FORGE.z) - FORGE.halfZ) < T.reach.forge ? 'talk'
-    : state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;
+    : zoneNow?.zone === 'exchange' && state.z < BANK_STEP_Z + T.reach.bank && Math.abs(state.x) < T.reach.bankHalfWidth ? 'bank' : null;   // the bank is the Exchange's: south of its step is the whole Frontier (and the Bone Hollow's gate stands at x 0), where "Bank" is wrong
   const lineOn = Date.now() < groundLineUntil;   // a ground result line holds the prompt's slot (ground-pickup.json lineSec), inert, instead of a toast over the fight buttons
   prompt.hidden = !(near || lineOn) || !!open; if (lineOn) prompt.textContent = groundLine; else if (near) prompt.textContent = near === 'ground' ? groundNear!.label : NEAR[near]!;
   prompt.toggleAttribute('data-slot', !prompt.hidden); prompt.style.pointerEvents = lineOn ? 'none' : '';
@@ -396,8 +410,24 @@ function showZone(id: string | null) {
   document.body.dataset.ambience = z.preset; dispatchEvent(new CustomEvent('origins:zone', { detail: zoneNow }));
 }
 
+// The combat camera (Dom 2026-10-17; combat-cam.ts, the wide auto-fit rows): in a fight the follow camera eases into it and back out, slower. `?combatcam=0` is the walking camera in a fight too (a look test: before / after).
+// The follow camera only places the camera; what a fight adds to the lens (a lift off the thumb buttons, fov, zoom) is applied here, only when it changed.
+const COMBAT_CAM = /[?&;]combatcam=0\b/.test(location.search) ? undefined : wideCombatCam(), BASE_FOV = camera.fov, MAN_M = previewRule('camPSizeFrom');
+let lastView = '';
+const foeSizes = new Map<string, number>();
+const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
+  let s = foeSizes.get(id); if (s !== undefined) return s;
+  const body = mobs?.anchorOf(id); if (!body) return MAN_M;
+  const b = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3()); s = Math.max(b.x, b.y, b.z); foeSizes.set(id, s); return s;
+};
+function applyCombatView() {
+  const v = followCam.view, key = `${v.fov.toFixed(3)}|${v.zoom.toFixed(3)}|${v.shiftY.toFixed(3)}`; if (key === lastView) return; lastView = key;
+  camera.fov = BASE_FOV + v.fov; camera.zoom = v.zoom;
+  if (v.shiftY > 0.001) camera.setViewOffset(innerWidth, innerHeight, 0, Math.round(v.shiftY * innerHeight), innerWidth, innerHeight); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
@@ -504,7 +534,7 @@ let gearMount: ReturnType<typeof mountGear> | undefined;   // the gear screen (g
 const walkLoop = () => {
   const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
   const room = gearMount?.gear(); if (room) { room.frame(dt); return; }   // the gear screen is up: it draws the hero in its own scene and the walk waits
-  step(dt); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
+  step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
@@ -592,7 +622,7 @@ if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joi
   token: storedToken(storage, Date.now()), guest: true, url: presenceUrl(location.origin), open: (url, protocols) => new WebSocket(url, protocols) as never,   // guest: signed out = a guest in the shared world (the server mints its identity; nothing is saved)
   pose: () => ({ x: state.x, z: state.z, heading }),   // the client withholds a pose a v1 server cannot hold (presence-client.ts); the v2 frame holds the town and all of Zone 1
   onHello: (at) => {   // where the server placed us (a rejoin lands where it was left)
-    if (frontier && !startWarped) { startWarped = true; presence?.warp('zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
+    if (frontier && !startWarped) { startWarped = true; presence?.warp(landed?.row.warp ?? 'zone1-start'); return; }   // the Zone 1 page starts among the creatures: ask presence for that landmark (X2: never a coordinate), its next hello confirms
     if (Math.hypot(at.x - state.x, at.z - state.z) > 1 && canStand(at.x, at.z)) { state.x = at.x; state.z = at.z; followCam.snap(); }
   },
   onOthers: (list) => { others = list; },
@@ -823,11 +853,12 @@ function programOwners(): Record<string, string[]> {
   return out;
 }
 (window as unknown as { originsPreview: unknown }).originsPreview = {
+  camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
   pos: state, canStand, place: (x: number, z: number, h: number) => { state.x = x; state.z = z; heading = h; }, open: openPanel,
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
-  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
+  region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
   remoteProbe, remoteKitsWarm: () => remoteKitsWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
