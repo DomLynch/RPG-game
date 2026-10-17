@@ -16,7 +16,7 @@ const digest = (id: string): [number, string] => {
 };
 
 test('plain groups are untouched: zones 2-4 are byte for byte what they were before weighted entries (digests taken on the code before it); zone 1 was 23 creatures 12d8a3ce... and now differs by exactly brood-4 (the black-mere salamander roll) plus the Cave Troll camp boss appended last, at its own troll-cave landmark (mobs.golden.json pins every entry)', () => {
-  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, '8773d9d521f85606'], ['2', 10, '2423b405e7cc588c'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785'], ['5', 11, 'b7828d639492a99e']]);   // zone 5, the Bone Hollow (2026-10-17): the beta dungeon's existing creature rows at its band
+  assert.deepEqual(listedZoneIds().map((id) => [id, ...digest(id)]), [['1', 24, '2ce41106adfbbf25'], ['2', 10, '55da76650763af6b'], ['3', 1, 'd4a1ff259bba0d8a'], ['4', 1, 'ce4afb8cd6a5b785'], ['5', 11, 'dc74d99586b71357']]);   // re-pinned 2026-10-17 (World, one notice ring): the specs hash includes `aggro`, which is now the sim's AGGRO_M for every creature (was the row's own value or 7); same creatures in the same places, zones 3 and 4 (a named one each) were already 9   // zone 5, the Bone Hollow (2026-10-17): the beta dungeon's existing creature rows at its band
 });
 
 test('a bare id is weight 1 and a single bare id is a plain group; an object entry or two entries is weighted', () => {
