@@ -286,7 +286,7 @@ test('post_publish_ci_rows: rows already green on CI for the tree never reach th
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout, '');
     assert.ok(!/DISPATCHED/.test(r.stderr));
-    assert.match(r.stderr, /CI-trusted 3,9,15,46, Mac none/);
+    assert.match(r.stderr, /Mac none, the rest CI-trusted/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -300,7 +300,7 @@ test('post_publish_ci_rows: rows CI has not proved start one release-checks disp
     assert.equal(r.stdout, '15');
     assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 1, 'exactly one dispatch');
     assert.match(readFileSync(calls, 'utf8'), /trunk-ref/);
-    assert.match(r.stderr, /CI-trusted 3,9,46, Mac 15/);
+    assert.match(r.stderr, /Mac 15, the rest CI-trusted/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -343,7 +343,7 @@ test('deploy.sh: the non-Mac post-publish group is narrowed by post_publish_ci_r
   assert.match(deploy, /pp_open=\$\(post_publish_ci_start "\$revision" "\$post_publish"\)/);
   assert.match(deploy, /post_publish=\$\(post_publish_ci_collect "\$revision" "\$pp_all" "\$pp_open"\)/);
   // the dispatch starts before the rollback-capable Mac group, the wait for CI comes after it: the Mac group never waits on CI
-  const start = deploy.indexOf('post_publish_ci_start'), mac = deploy.indexOf('post_publish_rows "$revision" "$mac_deferred"'), collect = deploy.indexOf('post_publish_ci_collect');
+  const start = deploy.indexOf('post_publish_ci_start'), mac = deploy.indexOf('post_publish_rows "$revision" "$mac_deferred"'), collect = deploy.indexOf('post_publish_ci_collect "$revision"');
   assert.ok(start > 0 && start < mac && mac < collect);
 });
 
