@@ -111,12 +111,8 @@
 ],"spellCue":[
 {"id":"far","text":"too far"}
 ],"spellPick":[
-{"id":"ker","level":8,"fx":"flies"},{"id":"arawn","level":8,"fx":"arawn"},{"id":"baba-yaga","level":8,"fx":"mist"},{"id":"grettir","level":8,"fx":"shield"},{"id":"namazu","level":8,"fx":"antaeus"},
-{"id":"siegfried","level":8,"fx":"sling"},{"id":"percival","level":8,"fx":"shield8"},{"id":"tristan","level":8,"fx":"reynard"},{"id":"jamshid","level":8,"fx":"set"},{"id":"moros","level":8,"fx":"dwarf8"},
-{"id":"hydra","level":9,"fx":"stain"},{"id":"surtr","level":9,"fx":"surtr"},{"id":"hannya","level":9,"fx":"hades"},{"id":"osiris","level":9,"fx":"thanatos"},{"id":"thor","level":9,"fx":"haze"},
-{"id":"odin","level":9,"fx":"echo"},{"id":"horus","level":9,"fx":"centurion"},{"id":"brynhildr","level":9,"fx":"shield9"},{"id":"dokkaebi-chief","level":9,"fx":"dwarf9"},{"id":"liyongo","level":9,"fx":"hermes"},
-{"id":"chicomoztoc","level":10,"fx":"dwarf10"},{"id":"mat-syra-zemlya","level":10,"fx":"reaper"},{"id":"atum","level":10,"fx":"loki"},{"id":"fenrir","level":10,"fx":"storm"},{"id":"kek","level":10,"fx":"nyx"},
-{"id":"ten-crows","level":10,"fx":"typhon"},{"id":"nidhogg","level":10,"fx":"breath"},{"id":"fafnir","level":10,"fx":"shield10"},{"id":"ananke","level":10,"fx":"price"},{"id":"beowulf","level":10,"fx":"tithe"}
+{"id":"namazu","level":8,"fx":"antaeus","unlock":"start"},{"id":"surtr","level":9,"fx":"surtr","unlock":"pit"},
+{"id":"tuuletar","level":10,"fx":"typhon","unlock":"zone1"},{"id":"kek","level":10,"fx":"nyx","unlock":"zone2"}
 ],"bandBest":[
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
 {"weapon":"longsword","band":"mid"},{"weapon":"cleaver","band":"mid"},{"weapon":"maul","band":"mid"},{"weapon":"warhammer","band":"mid"},

@@ -1,5 +1,5 @@
-// sandbox-mech: spellPick (Dom 2026-10-16): the alpha / pre-beta spell pickers offer 30 hand-picked spells, the level 8, 9 and 10 ones (10 a level, the designed boss-special looks); trunk ships no rows (every spell).
-// Each level plays the 10 designed boss specials of its own rank, one each: 30 different effects.
+// sandbox-mech: spellPick (Dom 2026-10-17): the alpha / pre-beta spell pickers offer 4 hand-picked spells, the four whose designed effect looked best in a real browser, whatever their level:
+// the start spell, then one for the Gladiator Pit's first win, one for Zone 1, one for Zone 2 (the dungeon). Trunk ships no rows (every spell).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
@@ -8,7 +8,7 @@ import { SPELL_INFO } from '../src/fight/spell-catalogue.ts';
 import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
 
-type Pick = { id: string; level: number; fx?: string };
+type Pick = { id: string; level: number; fx?: string; unlock?: string };
 const find = (src: unknown): Pick[] | undefined => {   // the family anywhere in the rows file (file -> family -> rows)
   if (!src || typeof src !== 'object') return undefined;
   const own = (src as Record<string, unknown>).spellPick;
@@ -18,21 +18,15 @@ const find = (src: unknown): Pick[] | undefined => {   // the family anywhere in
 };
 const picks = find(ROWS) ?? [];
 
-test('trunk ships no spellPick rows (every spell is offered); the sandbox rows pick 30', () => {
+test('trunk ships no spellPick rows (every spell is offered); the sandbox rows pick 4, one per unlock point', () => {
   assert.deepEqual((DEFS as unknown as { spellPick: unknown[] }).spellPick, []);
-  assert.equal(picks.length, 30);
-  assert.equal(new Set(picks.map((p) => p.id)).size, 30, 'no spell twice');
+  assert.deepEqual(picks.map((p) => p.unlock), ['start', 'pit', 'zone1', 'zone2']);
+  assert.equal(new Set(picks.map((p) => p.id)).size, 4, 'no spell twice');
 });
-test('10 spells a level, each a real catalogue spell of that level', () => {
-  for (const level of [8, 9, 10]) assert.equal(picks.filter((p) => p.level === level).length, 10, `level ${level}`);
-  for (const p of picks) { assert.ok(SPELL_INFO[p.id], `${p.id} is in the catalogue`); assert.equal(SPELL_INFO[p.id]!.level, p.level, `${p.id} level`); }
-});
-test('a level N spell plays exactly the ten boss specials of rank N, each once; every effect is real and has a mode', () => {
-  for (const level of [8, 9, 10]) {
-    const rankLevel = 5 * level - 4;   // ladder level of rank 8 / 9 / 10: 36 / 41 / 46
-    const want = Object.entries(SPECIAL_TESTS).filter(([, t]) => t.level === rankLevel).map(([id]) => id).sort();
-    assert.equal(want.length, 10, `ten boss specials at ladder level ${rankLevel}`);
-    assert.deepEqual(picks.filter((p) => p.level === level).map((p) => p.fx).sort(), want, `level ${level}`);
+test('each pick is a real catalogue spell of the level its row says, playing its own real designed effect (4 different)', () => {
+  for (const p of picks) {
+    assert.ok(SPELL_INFO[p.id], `${p.id} is in the catalogue`); assert.equal(SPELL_INFO[p.id]!.level, p.level, `${p.id} level`);
+    assert.ok(p.fx && SPECIAL_MODES[p.fx as SpecialTest] && SPECIAL_TESTS[p.fx as SpecialTest], `${p.id}: ${p.fx} has a mode and a look-test`);
   }
-  for (const p of picks) assert.ok(p.fx && SPECIAL_MODES[p.fx as SpecialTest], `${p.id}: ${p.fx} has a mode`);
+  assert.equal(new Set(picks.map((p) => p.fx)).size, 4, '4 different effects');
 });
