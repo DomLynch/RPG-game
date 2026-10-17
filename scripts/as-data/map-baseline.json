@@ -15,17 +15,5 @@
  },
  "src/fight/special-fx-pitborn.ts": {
   "ashfall": 1
- },
- "src/fight/weapon-shapes.ts": {
-  "maul": 1,
-  "longsword": 1,
-  "gladius": 1,
-  "knife": 1,
-  "estoc": 1,
-  "cleaver": 1,
-  "scythe": 1,
-  "trident": 1,
-  "warhammer": 1,
-  "reaper": 1
  }
 }
