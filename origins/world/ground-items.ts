@@ -13,7 +13,9 @@ export type GroundLimits = { readonly minRespawnSec: number; readonly maxRespawn
 
 /** The one loader: the registry's duplicate / missing / mistyped / unknown-ref checks (an item that is not a starterItem row is refused there), then the row rules the manifest cannot say. */
 export function loadGroundItems(raw: { starterItems?: unknown; groundLimits?: unknown; groundItems?: unknown }): { items: GroundItems; starters: StarterItems; limits: GroundLimits } {
-  loadRegistry(MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, raw, 'ground-items.json')));
+  // The starterItem table's rows live in starter-wield.json (`wield`, the one source); the keyed starter map handed in is shown to the registry in that shape, so the runtime and the gate read the same table.
+  const seen = { ...(raw as object), wield: Object.entries((raw.starterItems ?? {}) as StarterItems).map(([id, s]) => ({ id, ...s })) };
+  loadRegistry(MANIFEST.tables.map((t) => tableFromFile(t as unknown as Manifest, seen, t.file)));
   const rows = raw.groundItems as Record<string, Omit<GroundItem, 'respawnSec'> & { respawnSec?: number }>, starters = raw.starterItems as StarterItems, limits = (raw.groundLimits as Record<string, GroundLimits>).ground!;   // the bounds are the groundLimit row (ground-items.json), not literals here
   if (!(limits.minRespawnSec >= 1 && limits.maxRespawnSec >= limits.minRespawnSec && limits.minRadiusM > 0 && limits.maxRadiusM >= limits.minRadiusM && limits.defaultRadiusM >= limits.minRadiusM && limits.defaultRadiusM <= limits.maxRadiusM)) throw Error('ground-items limits: 1 <= minRespawnSec <= maxRespawnSec and 0 < minRadiusM <= defaultRadiusM <= maxRadiusM');
   if (!(limits.defaultRespawnSec >= limits.minRespawnSec && limits.defaultRespawnSec <= limits.maxRespawnSec)) throw Error('ground-items limits: defaultRespawnSec is within minRespawnSec..maxRespawnSec');

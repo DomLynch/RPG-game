@@ -1,6 +1,6 @@
 {
   "tables": [
-    {"table": "starterItem", "file": "ground-items.json", "at": "starterItems", "keyed": true, "key": "id",
+    {"table": "starterItem", "file": "../region1/starter-wield.json", "at": "wield", "key": "id",
      "required": {"maxQty": "integer"}},
     {"table": "groundLimit", "file": "ground-items.json", "at": "groundLimits", "keyed": true, "key": "id",
      "required": {"minRespawnSec": "integer", "maxRespawnSec": "integer", "defaultRespawnSec": "integer", "minRadiusM": "number", "maxRadiusM": "number", "defaultRadiusM": "number"}},
