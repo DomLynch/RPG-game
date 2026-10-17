@@ -46,6 +46,8 @@ test('the loader refuses a non-starter item, an unknown LootId and a duplicate i
   assert.throws(() => loadStarterWield({ wield: [{ id: 'item:frontier.watch-greaves', lootId: 'goblin.Greaves' }] }), /only an item:starter/);
   assert.throws(() => loadStarterWield({ wield: [{ id: 'item:starter.knife', lootId: 'goblin.Nonsense' }] }), /not a LootId/);
   assert.throws(() => loadStarterWield({ wield: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
+  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:starter.knife', lootId: 'goblin.Helmet' }] }), /Helmet piece but the item's slot is Knife/);
+  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:starter.nothing', lootId: 'goblin.Knife' }] }), /no such item is defined/);
 });
 
 test('lootIdOfItem: a legacy loot piece is its own, a starter item its row, anything else none', () => {
