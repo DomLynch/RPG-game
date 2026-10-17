@@ -15,6 +15,8 @@ export function applyServerKill<S extends Source>(session: PitSession, source: S
   return { session: { ...session, career: credit(session.career) }, source: { saved: credit(source.saved) }, cp: killed.cp };
 }
 export const SIGN_IN_TO_KEEP = TEXT.toast.guestNoLoot, NOT_SAVED = TEXT.toast.notSaved;
+/** The one plain line beside a guest's "Sign in" link, shown only while the guest holds something (SCOPE guest acceptance item 4): signing in is a page navigation and a guest's loot is an unverified, session-only roll (guest-loot.ts), so it is NOT carried over; the player is told before the tap. */
+export const GUEST_SIGN_IN_LOSS = TEXT.guest.signInLoss;
 const lines = (loot: readonly { item: string; quantity: number }[], name: (id: string) => string): string[] => loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
 /** The kill toast: ONE path. What the server paid ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done."); a guest (no session) is shown what the same table rolled for this session with a nudge to sign in to keep it ("Wolf pelt ×2 (sign in to keep it).", guest-loot.ts; no CP, nothing saved), and with nothing rolled gets the plain nudge; a signed-in page the server did not answer is told nothing was saved. "Bounty done." is the journal step's own answer (the server pays no bounty bronze yet). The copy is a row (kill-text.json). */
 export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false, guest: GuestLoot | null = null): string {
