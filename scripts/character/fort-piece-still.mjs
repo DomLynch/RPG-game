@@ -1,14 +1,14 @@
-// One fort kit node close up at 375 wide (scripts/character/fort-piece-still.html on a vite dev server). Usage: node scripts/character/fort-piece-still.mjs <out dir> [node name]   (software GL)
+// One fort kit node close up at 375 wide (scripts/character/fort-piece-still.html on a vite dev server). Usage: node scripts/character/fort-piece-still.mjs <out dir> [node name] [kit file in public/world/kit]   (software GL)
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
-const out = path.resolve(process.argv[2] ?? 'artifacts/fort-piece'), node = process.argv[3] ?? 'goblin_totem';
+const out = path.resolve(process.argv[2] ?? 'artifacts/fort-piece'), node = process.argv[3] ?? 'goblin_totem', kitFile = process.argv[4] ?? 'goblin-fort-kit.glb';
 fs.mkdirSync(out, { recursive: true });
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
-const url = `http://127.0.0.1:${server.httpServer.address().port}/scripts/character/fort-piece-still.html?node=${node}`;
+const url = `http://127.0.0.1:${server.httpServer.address().port}/scripts/character/fort-piece-still.html?node=${node}&kit=${kitFile}`;
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 560 }, isMobile: true, hasTouch: true })).newPage();

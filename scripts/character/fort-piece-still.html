@@ -15,7 +15,7 @@ scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new T
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 400);
 const name = new URLSearchParams(location.search).get('node') ?? 'goblin_totem';
-const kit = await new GLTFLoader().loadAsync('/public/world/kit/goblin-fort-kit.glb');
+const kit = await new GLTFLoader().loadAsync(`/public/world/kit/${new URLSearchParams(location.search).get('kit') ?? 'goblin-fort-kit.glb'}`);   // ?kit=dungeon-kit.glb for the dungeon kit
 let node; kit.scene.traverse((o) => { if (o.name === name && !node) node = o; });
 if (!node) throw new Error(`no node ${name}`);
 const piece = node.clone(); piece.position.set(0, 0, 0); scene.add(piece);
