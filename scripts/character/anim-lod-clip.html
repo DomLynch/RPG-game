@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>anim lod clip</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}.tag{position:fixed;left:6px;font:600 11px/1.2 system-ui;color:#fff;text-shadow:0 0 3px #000}</style>
+<canvas id="c"></canvas><div class="tag" style="top:4px">TOP: remote-heroes.ts, animation-rate LOD (rows)</div><div class="tag" style="top:calc(50% + 4px)">BOTTOM: the same walkers, every frame</div>
+<script type="module">
+// The animation-rate LOD (origins/preview/remote-heroes.ts, rows remoteRateMidM/Every, remoteRateFarM/Every) against the same walkers posed every frame, on a FIXED 1/60 s step so software GL's frame pace does not matter. Eight remotes pace
+// small circles ahead of the hero: four about 10 m away (every 2nd frame), four about 18 m (every 4th). Top half: createRemoteHeroes fed presence packets every 50 ms; bottom half: the same far figure, root and gait speed from the same
+// path, updated every frame. `window.step(n)` advances n frames and renders both; scripts/character/anim-lod-clip.mjs screenshots each one and joins them at 60 fps. window.ready flips true when built.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildWarriors } from '/src/fight/index.ts';
+import { createRemoteHeroes } from '/origins/preview/remote-heroes.ts';
+
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(innerWidth, innerHeight, false); renderer.setScissorTest(true);
+const scene = (hue) => { const s = new THREE.Scene(); s.background = new THREE.Color(hue); s.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(2, 4, 4); s.add(sun);
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); g.rotation.x = -Math.PI / 2; s.add(g); return s; };
+const top = scene(0x6b5a46), bottom = scene(0x5a5046);
+const half = innerHeight / 2, camera = new THREE.PerspectiveCamera(51, innerWidth / half, 0.1, 180);
+camera.position.set(0, 2.4, 3); camera.lookAt(0, 0.9, -14); camera.updateMatrixWorld();
+
+const clips = (await new GLTFLoader().loadAsync('/src/assets/warrior.glb')).animations;   // a LOD has no clips of its own: it is given the hero's (the same 65 bones)
+const farAsset = await new GLTFLoader().loadAsync('/src/assets/hero-far.glb'); farAsset.animations = clips;
+const spawn = () => buildWarriors(farAsset, undefined, undefined, true).player;
+const heroes = createRemoteHeroes({ scene: top, spawn, groundAt: () => 0 }); heroes.warm();
+
+const SPEED = 1.8, R = 1.5, WALKERS = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, cx: (i % 4 - 1.5) * 3.2, cz: -(i < 4 ? 10 : 18) }));   // circle centres: four near, four far
+const at = (w, t) => { const a = (SPEED / R) * t + w.id, x = w.cx + R * Math.cos(a), z = w.cz + R * Math.sin(a); return { x, z, heading: Math.atan2(-Math.sin(a), Math.cos(a)) }; };   // heading = atan2(dx, dz) along the circle
+const refs = WALKERS.map(() => { const player = spawn(), group = new THREE.Group(); group.add(player.anchor); bottom.add(group); return { player, group }; });
+const DT = 1 / 60; let t = 0, nextPush = 0, frame = 0;
+window.programs = () => renderer.info.programs.length;
+window.step = (n = 1) => {
+  for (let i = 0; i < n; i++) {
+    t += DT; frame++;
+    if (t * 1000 >= nextPush) { heroes.push(WALKERS.map((w) => ({ id: w.id, ...at(w, t), anim: 0, flags: 0 })), t * 1000); nextPush += 50; }
+    heroes.update(DT, t * 1000, { x: 0, z: 0 }, camera);
+    WALKERS.forEach((w, k) => { const p = at(w, t); refs[k].group.position.set(p.x, 0, p.z); refs[k].group.rotation.y = p.heading; refs[k].player.update(SPEED, DT, 'ready', 0, 'light', 0.35, 0); });
+    renderer.setViewport(0, half, innerWidth, half); renderer.setScissor(0, half, innerWidth, half); renderer.render(top, camera);
+    renderer.setViewport(0, 0, innerWidth, half); renderer.setScissor(0, 0, innerWidth, half); renderer.render(bottom, camera);
+  }
+  return frame;
+};
+for (let i = 0; i < 90; i++) window.step(1);   // 1.5 s: the track has packets, every figure is posed once
+window.result = { programs: window.programs(), shown: heroes.debug().shown.map((s) => ({ id: s.id, cheap: s.cheap, frozen: s.frozen, lod: s.lod })) };
+window.ready = true;
+</script>
