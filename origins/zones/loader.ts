@@ -86,7 +86,7 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
     if (!sp.tints.length || !sp.tints.every(rgb)) bad.push(`mob spread ${id}: tints must be 0xrrggbb numbers`);
     if (!(sp.scale >= 0 && sp.scale <= 0.5) || !unit(sp.soot) || !unit(sp.burnt)) bad.push(`mob spread ${id}: a number is out of range`);
     if (sp.loadouts && !(Array.isArray(sp.loadouts) && sp.loadouts.every((l) => loadoutRow(l)))) bad.push(`mob spread ${id}: loadouts is a list of loadout row ids (origins/world/loadouts.json)`);
-    const own = z.mobLooks!.looks[id]!; if (own.loadout && !loadoutRow(own.loadout)) bad.push(`mob look ${id}: loadout "${own.loadout}" is not a loadout row`);
+    const own = z.mobLooks!.looks[id]; if (own?.loadout && !loadoutRow(own.loadout)) bad.push(`mob look ${id}: loadout "${own.loadout}" is not a loadout row`);
   }
   return bad;
 }

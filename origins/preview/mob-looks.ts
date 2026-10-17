@@ -24,7 +24,7 @@ export const MOB_LOOKS: Readonly<Record<string, MobLookRow>> = {};
 
 /** The look for a character id, or null for a figure with no entry (a friendly NPC): the caller draws the roster body as it is. */
 const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object per row, so the cloth-clone cache and the variant memo see the same look every call
-function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined) return row as MobLook; let r = resolved.get(row); if (!r) { r = { ...row, scale: bodyScale(row.opponent) }; resolved.set(row, r); } return r; }
+function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined && !row.loadout) return row as MobLook; let r = resolved.get(row); if (!r) { const gear = row.gear ?? loadoutRow(row.loadout)?.weapon; r = { ...row, scale: row.scale ?? bodyScale(row.opponent), ...(gear ? { gear } : {}) }; resolved.set(row, r); } return r; }   // a look with a loadout carries its weapon too (gear), so variant 0 and the others read the same way
 export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? resolve(row) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
