@@ -9,7 +9,7 @@ import { LEVELS, LEVEL_ANCHORS, OPPONENTS, opponentAt, profileAt } from '../src/
 test('the level anchors built from rows equal the old literal, and every opponent resolves the same at every level', () => {
   const rows: Record<string, unknown[]> = {};
   for (const id of Object.keys(OPPONENTS) as (keyof typeof OPPONENTS)[]) { rows[id] = []; for (let level = 1; level <= LEVELS; level++) rows[id]!.push([opponentAt(OPPONENTS[id], level), profileAt(OPPONENTS[id], level)]); }
-  assert.equal(createHash('sha256').update(JSON.stringify({ LEVEL_ANCHORS, rows })).digest('hex'), '6ddcf85ff48e81dbfc7742dd563c8d45a3a6a57b052b028c41f551dc249f7755');
+  assert.equal(createHash('sha256').update(JSON.stringify({ LEVEL_ANCHORS, rows })).digest('hex'), '55cca609b37afeae7908c5769c011ebdb43f02e9fde8660a6a4e5fd9f5f27be5');   // re-pinned 2026-10-17 (RV74, gear in the world fight): the troll row's health 380 -> 570 moves opponentAt for the troll at every level; was 6ddcf85f... (the LEVEL_ANCHORS and every other opponent are byte for byte the same)
   assert.deepEqual({ ...LEVEL_ANCHORS }, { novice: 1, easy: 6, normal: 18, hard: 46 });
   assert.deepEqual(Object.keys(LEVEL_ANCHORS), ['novice', 'easy', 'normal', 'hard']);
 });
