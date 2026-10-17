@@ -8,7 +8,7 @@ import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
+import { mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import { calmStep, type Calm } from './mob-calm.ts';
 import { loadLoot, lootWorn } from '../../src/fight/characters.ts';
