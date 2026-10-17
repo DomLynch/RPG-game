@@ -195,7 +195,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const calm = new Map<number, Calm>(), SMOOTH = !(typeof location !== 'undefined' && /[?&;]mobsmooth=0\b/.test(location.search));
   const calmed = (i: number, d: MobDrive, hero: { x: number; z: number }, dt: number): Calm => {
     const prev = calm.get(i), want: Calm = { x: d.x, z: d.z, facing: d.facing };
-    const now = !prev || !SMOOTH ? want : calmStep(prev, want, hero, dt, { lateralTau: fxNum('mob-view.lateral-tau'), radialTau: fxNum('mob-view.radial-tau'), turnDps: fxNum('mob-view.turn-dps'), snapM: fxNum('mob-view.snap-m'), maxOrbitDps: fxNum('mob-view.max-orbit-dps'), catchUpM: fxNum('mob-view.catch-up-m') });
+    const now = !prev || !SMOOTH ? want : calmStep(prev, want, hero, dt, { lateralTau: fxNum('mob-view.lateral-tau'), radialTau: fxNum('mob-view.radial-tau'), turnDps: fxNum('mob-view.turn-dps'), snapM: fxNum('mob-view.snap-m'), maxOrbitDps: fxNum('mob-view.max-orbit-dps'), maxLagM: fxNum('mob-view.max-lag-m') });
     calm.set(i, now); return now;
   };
   const zoneFinisher = createZoneFinisher(scene, { groundAt: opts.groundAt, bleed: opts.onCut });   // K6: a creature the engine killed with a decapitation loses its head (the row's bones), the Pit's own ballistics
