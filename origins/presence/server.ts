@@ -119,6 +119,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/zones') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' }); return void res.end(ZONE_TABLE); }
     if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/rejoin') return void rejoin(req, res);
+    if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/worn') return void wornRoute(req, res);
     res.writeHead(404); res.end();
   });
   // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
@@ -154,6 +155,35 @@ export function createPresence(opts: PresenceOptions): Presence {
       const again = rejoiners.get(account);
       if (!again) return reply(200, { rejoined: false });
       again().then(ok => reply(200, { rejoined: ok }), () => reply(200, { rejoined: false }));
+    });
+  };
+
+  // POST /internal/worn {account} (Bearer <internalKey>, loopback): the writer says a gear op just succeeded for this account, so its worn set may have changed. Presence reads it again NOW
+  // (the same one-in-flight queue as the refresh, so the writer sees no burst) and the viewers get the new enter within a tick. Reads for one account are spaced by wornPokeGapMs (a row): a
+  // poke inside the gap schedules ONE trailing read at the gap's end, so the last change always shows. The refresh every wornEveryMs stays as the fallback (a lost poke costs up to that).
+  const pokeGap = presenceRule('wornPokeGapMs'), lastPoke = new Map<string, number>(), pokeTimers = new Map<string, NodeJS.Timeout>();
+  const pokeWorn = (account: string): 'queued' | 'scheduled' | 'ignored' => {
+    const p = world.byAccount.get(account);
+    if (!worns || !p || p.guest) return 'ignored';
+    if (pokeTimers.has(account)) return 'scheduled';   // a trailing read is already waiting: it will see this change too
+    const wait = Math.max(0, (lastPoke.get(account) ?? -Infinity) + pokeGap - now());
+    const go = (): void => { lastPoke.set(account, now()); pokeTimers.delete(account); worns.push(account); };
+    if (wait === 0) { go(); return 'queued'; }
+    pokeTimers.set(account, setTimeout(go, wait).unref());
+    return 'scheduled';
+  };
+  const wornRoute = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (!key) { req.resume(); res.writeHead(404); return void res.end(); }
+    const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
+    if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) { req.resume(); return reply(401, { error: 'unauthorised' }); }
+    let size = 0; const parts: Buffer[] = [];
+    req.on('data', (c: Buffer) => { size += c.length; if (size <= 1024) parts.push(c); });
+    req.on('end', () => {
+      let account = ''; try { account = String((JSON.parse(size <= 1024 ? Buffer.concat(parts).toString('utf8') : '{}') as { account?: unknown }).account ?? '').toLowerCase(); } catch { /* 400 below */ }
+      if (!UUID.test(account)) return reply(400, { error: 'account: a uuid' });
+      reply(200, { poke: pokeWorn(account) });
     });
   };
 
@@ -270,6 +300,6 @@ export function createPresence(opts: PresenceOptions): Presence {
 
   return {
     server, world, stats, port: () => (server.address() as { port: number }).port,
-    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper, checkpoint, wornTimer]) clearInterval(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
+    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper, checkpoint, wornTimer]) clearInterval(t); for (const t of pokeTimers.values()) clearTimeout(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
   };
 }

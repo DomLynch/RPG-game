@@ -2,6 +2,7 @@
 // A signed-in walker with one drop in reach (the writer stubbed, the page and prompt real), headless Chromium on software GL, at 375 and 320 (one page, resized):
 //   - the prompt "Take the ..." (and then each result line, which takes the prompt's slot) intersects no fight button, the move pad or the camera buttons, is inside the viewport, and is the topmost element at its centre (a tap lands on it);
 //   - a take: the line replaces the prompt, the item is hidden; a lost race (409 taken): the refuse line, the item hidden AT ONCE and no Take prompt left once the line's lineSec has passed.
+//   - a GUEST (no session, no stub; Dom 2026-10-16): the same prompt "Take the ..." on the static row, the take puts it in the session bag, the "Sign in to keep it" line, the item hidden.
 //   node scripts/ground-prompt-check.mjs [--dist <built origins preview>] [--out artifacts/ground-prompt]     (no --dist: builds origins/preview)
 /* global process, console, document, window */
 import fs from 'node:fs/promises';
@@ -58,18 +59,20 @@ const expectClear = async (page, step, text, tapTarget) => {
 async function run(take) {
   const page = await (await browser.newContext({ viewport: { width: WIDTHS[0], height: 812 }, isMobile: true, hasTouch: true })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(`pageerror: ${String(e).slice(0, 200)}`));
-  await stubSignedIn(page, { offsets: [[0.3, 1.0]], take });
+  const guest = take === 'guest', ID = guest ? 'ground:zone1.rusty-sword-1' : 'ground:still-0';   // a guest: no session and no stub, the static row, and the take goes to the session bag
+  if (!guest) await stubSignedIn(page, { offsets: [[0.3, 1.0]], take });
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.body), null, { timeout: 150000 });
-  await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still-0') !== undefined, null, { timeout: 90000 });
+  await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, ID, { timeout: 90000 });
+  if (guest) { const a = await page.evaluate((id) => window.originsPreview.ground.anchor(id), ID); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [a.x, a.z - 1.3]); }   // the row's own point (its place centre plus its offset, wherever World puts it), not the place centre
   await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 });
   const name = (await measure(page)).text.replace(/^Take the /, '');
   await expectClear(page, `${take}-prompt`, `Take the ${name}`, true);
   await settled(page, WIDTHS[0]);
-  const box = await measure(page), lineText = take === 'race' ? PICKUP.outcomes.taken.line : PICKUP.labels.taken.replace('{item}', name);
+  const box = await measure(page), lineText = take === 'race' ? PICKUP.outcomes.taken.line : (guest ? PICKUP.labels.guestTaken : PICKUP.labels.taken).replace('{item}', name);
   await page.touchscreen.tap((box.box[0] + box.box[2]) / 2, (box.box[1] + box.box[3]) / 2);
   await page.waitForFunction((t) => { const p = document.getElementById('prompt'); return !p.hidden && p.textContent === t; }, lineText, { timeout: 15000 }).catch(() => failures.push(`${take}: the line "${lineText}" never took the prompt's slot after the tap`));
-  if (!(await page.evaluate(() => window.originsPreview.ground.anchor('ground:still-0') === undefined))) failures.push(`${take}: the item is still drawn after the tap`);
+  if (!(await page.evaluate((id) => window.originsPreview.ground.anchor(id) === undefined, ID))) failures.push(`${take}: the item is still drawn after the tap`);
   await expectClear(page, `${take}-line`, lineText, false);
   await page.waitForFunction(() => document.getElementById('prompt').hidden, null, { timeout: (PICKUP.lineSec + 15) * 1000 }).catch(() => {});
   const after = await measure(page); receipt.steps.push({ step: `${take}-after-line`, shown: after.shown, text: after.text });
@@ -97,7 +100,7 @@ async function runPrompts() {
   await page.context().close();
 }
 const ceiling = new Promise((_, reject) => setTimeout(() => reject(new Error(`the check ran past its ${CEILING_MS / 1000} s ceiling`)), CEILING_MS).unref());
-try { await Promise.race([(async () => { await run('taken'); await run('race'); await runPrompts(); })(), ceiling]); }
+try { await Promise.race([(async () => { await run('taken'); await run('race'); await run('guest'); await runPrompts(); })(), ceiling]); }
 catch (e) { failures.push(`check crashed: ${String(e).slice(0, 300)}`); }
 finally { await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000).unref())]); await close(); }
 receipt.failures = failures; await fs.writeFile(path.join(OUT, 'receipt.json'), JSON.stringify(receipt, null, 2));

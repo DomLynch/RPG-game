@@ -18,7 +18,7 @@ import { createLiveOps } from '../origins/server/live-ops.ts';
 import { heroLimitOf } from '../origins/server/worn-gear.ts';
 import { readStoryContent } from '../origins/server/content.ts';
 import { storyOps } from '../origins/server/handlers.ts';
-import { presenceWhere } from '../origins/presence/where.ts';
+import { presenceWhere, presenceWornPoke } from '../origins/presence/where.ts';
 import { itemOps } from '../origins/server/content-ops.ts';
 import { loadEncounterContent } from '../origins/encounters/encounters.ts';
 import { encounterOps } from '../origins/server/encounter.ts';
@@ -47,6 +47,7 @@ const content = process.env.ORIGINS_CONTENT ? readStoryContent(process.env.ORIGI
 const presenceKey = process.env.PRESENCE_INTERNAL_KEY;
 if (!presenceKey) console.log('origins-writer: PRESENCE_INTERNAL_KEY is not set: no player counts as at the Exchange, every Exchange-only action is refused');
 const where = presenceKey ? presenceWhere(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : async () => ({ online: false });
+const wornPoke = presenceKey ? presenceWornPoke(process.env.PRESENCE_URL ?? 'http://127.0.0.1:8793', presenceKey) : undefined;   // a gear op tells presence at once (the refresh timer is the fallback)
 const flushMs = Number(process.env.ORIGINS_LOCATION_FLUSH_MS ?? '90000');
 if (!(flushMs === 0 || (Number.isInteger(flushMs) && flushMs >= 60_000 && flushMs <= 120_000))) { console.error('origins-writer: ORIGINS_LOCATION_FLUSH_MS is 0 or 60000..120000'); process.exit(1); }
 const db = psqlDb(DATABASE_URL, 'psql', 30_000, Number(ORIGINS_DB_POOL));
@@ -54,5 +55,5 @@ const flusher = process.env.ORIGINS_WRITER_INTERNAL_KEY && flushMs > 0 ? createL
 flusher?.start();
 const liveOps = createLiveOps(db);
 liveOps.start();
-const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1' }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords: tally, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
+const server = createWriter({ db, verify: supabaseVerify(SUPABASE_URL, SUPABASE_ANON_KEY), where, wornPoke, handlers: { ...itemOps(loadEncounterContent()), ...storyOps(content), ...groundOps(process.env.ORIGINS_GROUND === '0' ? null : { content: spawnDeps().content, refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1' }), ...worldSpawnOps(process.env.ORIGINS_SPAWNS === '0' ? null : { ...spawnDeps(), refuseUnchecked: process.env.ORIGINS_SPAWN_REFUSE_UNCHECKED === '1', scorecardOnlyUnverified: process.env.ORIGINS_WORLD_RECORD_SCORECARD_ONLY === '1' }), ...encounterOps(process.env.ORIGINS_ENCOUNTERS === '1' ? { resolve: resolveFromRegion1(), verify: verifyEncounter, ...(process.env.ORIGINS_REWARDS === '1' ? { rewards: regionRewards(), wear: regionWear() } : {}) } : null) }, internal: process.env.ORIGINS_WRITER_INTERNAL_KEY ? { key: process.env.ORIGINS_WRITER_INTERNAL_KEY, flusher, worldRecords: tally, liveOps } : undefined, liveOps }).listen(Number(PORT), '127.0.0.1', () => console.log(`origins-writer listening on 127.0.0.1:${PORT}; story content: ${content ? `${content.quests.size} quests, ${content.talks.size} NPCs` : 'none (503)'}`));
 for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, () => { server.close(); liveOps.stop(); (flusher ? flusher.stop() : Promise.resolve()).finally(() => process.exit(0)); });

@@ -3,19 +3,20 @@
 // on a piece or a rung. Wear is not read (wornGear does not read it on the page either). Nothing the client sent is used.
 import type { Db } from './db.ts';
 import * as store from './store.ts';
-import { fightWeapon, isTier, legacyLootOfItemId, type Tier } from '../../src/core/server.ts';
+import { fightWeapon, isTier, type Tier } from '../../src/core/server.ts';
+import { lootIdOfItem } from '../region1/starter-wield.ts';
 import { kitFrom, loadoutFor, sheetOf, wornGear, type Loadout } from '../../src/fight/server.ts';
 import type { HeroLimit } from './world-verify.ts';
 import { heldSql, type SpellHeld } from './spell-check.ts';
 
-type LootId = NonNullable<ReturnType<typeof legacyLootOfItemId>>;
+type LootId = NonNullable<ReturnType<typeof lootIdOfItem>>;
 
 // The worn pieces and the rung each was won at, as the ledger holds them: the one reading both wornGear (sheet deltas) and loadoutFor (the world's Attack and RES) take.
 function wornOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): { equipped: Record<string, LootId>; tiers: Map<LootId, Tier | null> } {
   const equipped: Record<string, LootId> = {}, tiers = new Map<LootId, Tier | null>();
   for (const i of items) {
     if (i.location.kind !== 'equipped' || i.location.slot === undefined) continue;
-    const id = legacyLootOfItemId(i.item as Parameters<typeof legacyLootOfItemId>[0]);
+    const id = lootIdOfItem(i.item);
     if (!id) continue;   // a piece that is not a loot id adds nothing to the sheet
     if (i.location.slot in equipped) throw new Error(`two pieces worn in ${i.location.slot}`);
     if (tiers.has(id)) throw new Error(`${id} is worn twice`);   // wornGear's rung lookup is by LootId, so one id on two instances could not carry two rungs

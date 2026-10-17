@@ -57,6 +57,39 @@ test('a changed worn set is sent again as one enter to each viewer; an unchanged
   } finally { await p.close(); }
 });
 
+// The writer's poke (POST /internal/worn): a gear op just succeeded, so presence reads that account's set now instead of at the next refresh.
+test('a poke from the writer shows new gear to viewers within a tick, with no refresh timer; it needs the key; a guest and an unknown account are ignored; pokes inside the gap coalesce into one trailing read and the last change still shows', async () => {
+  const table: Record<string, Record<string, string>> = { [A]: {}, [B]: {} }, reads: string[] = [];
+  const p = createPresence({ verify: async (t) => (t === 'a' ? A : t === 'b' ? B : null), log: () => {}, internalKey: 'k', wornOf: (acct) => table[acct] ?? {},
+    readWorn: async (acct) => { reads.push(acct); return table[acct] ?? {}; }, wornEveryMs: 3_600_000 });
+  await new Promise<void>((r) => p.server.listen(0, '127.0.0.1', r));
+  const poke = (account: string, key = 'k') => fetch(`http://127.0.0.1:${p.port()}/internal/worn`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: JSON.stringify({ account }) });
+  try {
+    const a = await joinBot(p.port(), 'a'), b = await joinBot(p.port(), 'b'), g = await joinBot(p.port(), null);
+    await until(() => a.entered().length === 2);
+    assert.equal((await poke(B, 'wrong')).status, 401, 'the key is required');
+    assert.equal((await fetch(`http://127.0.0.1:${p.port()}/internal/worn`, { method: 'POST', body: '{}' })).status, 401);
+    assert.equal((await poke('not-a-uuid')).status, 400);
+    assert.deepEqual(await (await poke('00000000-0000-4000-8000-0000000000ff')).json(), { poke: 'ignored' }, 'an account that is not online');
+    const guest = [...p.world.byAccount.values()].find((x) => x.guest)!;
+    assert.equal(reads.length, 0, 'nothing read yet: the refresh timer is an hour away');
+    table[B] = HELM;
+    assert.deepEqual(await (await poke(B)).json(), { poke: 'queued' });
+    await until(() => a.entered().filter((e) => e.worn.head).length === 1);
+    assert.deepEqual(a.entered().find((e) => e.worn.head)!.worn, HELM, 'A sees B\'s helmet after one poke, no timer involved');
+    assert.deepEqual(reads, [B]);
+    table[B] = HELM_AND_BODY;
+    const second = await (await poke(B)).json() as { poke: string }; table[B] = { ...HELM_AND_BODY, feet: 'veteran.Boots' };
+    const third = await (await poke(B)).json() as { poke: string };
+    assert.deepEqual([second.poke, third.poke], ['scheduled', 'scheduled'], 'pokes inside the gap wait for one trailing read');
+    await until(() => a.entered().some((e) => e.worn.feet), 3000);
+    assert.deepEqual(a.entered().at(-1)!.worn, { ...HELM_AND_BODY, feet: 'veteran.Boots' }, 'the LAST change is what shows');
+    assert.equal(reads.length, 2, 'the two pokes inside the gap cost ONE read');
+    assert.equal((await poke(guest.account)).status, 400, 'a guest id is not an account: the route refuses it, so a guest can never be refreshed');
+    a.close(); b.close(); g.close();
+  } finally { await p.close(); }
+});
+
 test('the refresh queue: one read in flight, one entry per account, a failure is logged and the last set stands', async () => {
   const log: string[] = [], applied: string[] = [];
   let release!: () => void, inFlight = 0, maxInFlight = 0;
