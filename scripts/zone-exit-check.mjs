@@ -47,7 +47,9 @@ try {
     await page.waitForURL(new RegExp(`[?&]zone=${toZone}(&|$)`), { timeout: 30000 });
     return d;
   };
-  await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+  // ?kitwarm=soft is the browser rows' flag (main.ts): software GL by definition, so the slow-device probe is not left to chance (without it a page load may judge itself fast, run the kit and gear warms at a seconds-per-frame pace, and see the
+  // gear mannequin's compile outlive its bound and link AFTER the check counted: the 13 "post-ready" programs of the return trip). The gear warm is skipped under it; the kit warm runs on the long soft cap. EXIT_KITWARM=0 drops it.
+  await page.goto(`${origin}/preview/origins/?region=1${process.env.EXIT_KITWARM === '0' ? '' : '&kitwarm=soft'}`, { waitUntil: 'load' });
   // The worst frame gap over a window (a rAF recorder): the hitch measure for an arrival. On software GL every frame is seconds, so it is only comparable run to run, not an absolute stutter figure.
   const gapProbe = () => page.evaluate(() => { window.__maxGap = 0; let last = performance.now(); const f = (t) => { window.__maxGap = Math.max(window.__maxGap, t - last); last = t; requestAnimationFrame(f); }; requestAnimationFrame(f); });
   const z1 = await ready('Zone 1'); receipt.zone1Programs = z1.names.length; receipt.zone1KitWarm = z1.kitWarm;
