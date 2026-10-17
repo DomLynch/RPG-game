@@ -14,6 +14,7 @@ function fakeMobs(list: Array<{ spec: MobSpec; x: number; z: number }>) {
   const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: (id: string) => void fell.push(id), play: (id: string, role: string) => { played.push(`${id}:${role}`); return role === 'death' ? 2.4 : 0.5; } } as unknown as Mobs;
   return { mobs, driven, fell, played };
 }
+const BOT_HERO = () => ({ level: 1, health: 600 });   // the kill tests are an auto-aiming bot that never guards or rolls; world creatures now STAND and swing at the stand-off (circleChance, WSV 48) instead of wandering out of reach half the time, so the bot gets 4x health to reach the kill
 const run = (wc: ReturnType<typeof createWorldCombat>, hero: { x: number; z: number; facing: number }, seconds: number, dt = 1 / 30) => { for (let t = 0; t < seconds; t += dt) wc.update(dt, hero); };
 
 test('kindOf: only roster bodies can be fought; the rest wander', () => {
@@ -30,7 +31,7 @@ test('a wolf that comes within the ring joins the loop, hunts, telegraphs, bites
 
 test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once, and the creature is released', () => {
   const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: string[] = []; let swings = 0;   // level 1: a level-11 wolf outlasts this test under the Pit-copied engine (#1894); the mount flow is what is tested
-  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void swings++ });
+  const wc = createWorldCombat({ mobs: () => f.mobs, hero: BOT_HERO, onKill: (s) => { f.fell.push(s.id); kills.push(s.id); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => void swings++ });
   for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); } }   // auto-aim at the creature as the page does (it circles now)
   assert.ok(swings >= 1); assert.deepEqual(kills, ['wolf-1']); assert.ok(!f.driven.has('wolf-1'), 'released after the fall'); assert.equal(wc.target(), null);
 });
@@ -38,7 +39,7 @@ test('the hero cuts it dead: onSwing, a fall that takes ~1.4 s, then onKill once
 test('K5: the loop reports every hit on a creature (fight-seeded, with its hp fraction), a tick each frame it is up, and its release, so its wounds row can draw the blood', () => {
   const run1 = () => {
     const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const hits: { seed: number; kill: boolean; hpFrac: number; fromX: number; fromZ: number }[] = [], gone: string[] = []; let ticks = 0, kills = 0;
-    const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills++; }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onCreatureHit: (_s, h) => void hits.push(h), onCreatureTick: () => void ticks++, onCreatureGone: (id) => void gone.push(id) });
+    const wc = createWorldCombat({ mobs: () => f.mobs, hero: BOT_HERO, onKill: (s) => { f.fell.push(s.id); kills++; }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {}, onCreatureHit: (_s, h) => void hits.push(h), onCreatureTick: () => void ticks++, onCreatureGone: (id) => void gone.push(id) });
     for (let i = 0; i < 400 && kills === 0; i++) { wc.press(); for (let t = 0; t < 0.5; t += 1 / 30) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); } }
     return { hits, ticks, gone, kills };
   };
@@ -87,7 +88,7 @@ test('call-site pin: the loop (src/fight/world-combat.ts) reaches combat only th
 
 test('a creature that is struck down falls, is released and killed once (the engine\'s actor plays its Death from the duel)', () => {
   const f = fakeMobs([{ spec: { ...spec('wolf-1', 'wolf'), level: 1 }, x: 0, z: 1.2 }]); const kills: number[] = []; let t = 0;   // level 1 and auto-aim, as the kill test above: a level-11 wolf outlasts the test under the Pit-copied engine
-  const wc = createWorldCombat({ mobs: () => f.mobs, onKill: (s) => { f.fell.push(s.id); kills.push(t); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
+  const wc = createWorldCombat({ mobs: () => f.mobs, hero: BOT_HERO, onKill: (s) => { f.fell.push(s.id); kills.push(t); }, onHeroDied: () => {}, onHeroHit: () => {}, onSwing: () => {} });
   for (let i = 0; i < 400 && kills.length === 0; i++) { wc.press(); for (let k = 0; k < 15; k++) { const w = wc.debug().find((x) => x.id === 'wolf-1'); wc.update(1 / 30, { x: 0, z: 0, facing: w ? Math.atan2(w.x, w.z) : 0 }); t += 1 / 30; } }
   assert.equal(kills.length, 1, 'then it is released and killed once');
 });
