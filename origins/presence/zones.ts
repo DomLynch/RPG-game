@@ -5,7 +5,10 @@ import { CONCORD, CONCORD_REGION, concordMounts } from '../world/concord.ts';
 import { resolveZone } from '../world/resolve.ts';
 import { toMetres, toWorld } from '../world/derive.ts';
 import { frontierPlan, type ZonePlan } from '../preview/frontier-plan.ts';
-import { zoneIds } from '../zones/loader.ts';
+import { loadZone, zoneIds } from '../zones/loader.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import TOWN from './town-zones.json' with { type: 'json' };
+import TOWN_MANIFEST from './town-zones.manifest.json' with { type: 'json' };
 import { presenceRule } from './presence-rules.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_CENTRE_CM } from './frame.ts';
 
@@ -22,11 +25,21 @@ if (!mounts.ok) throw new Error('presence: the Concord frame does not resolve');
 // speed: a multiplier on the walking cap while standing in the zone. quiet: nobody outside the zone sees or is seen from inside it. Launch values (Lead 2026-10-13): 1.0 everywhere, quiet = the Pit only.
 export type ZoneRow = { id: string; corners: Pt[]; speed: number; quiet: boolean };
 export type PortalRow = { zone: string; landmark: string; to: string };   // a link the plan does not walk (the night boat): the only legal pose jump, once the wire has its portal frame
-export const ZONE_FIELDS: Record<string, { speed?: number; quiet?: boolean }> = { 'pit-yard': { quiet: true } };
+export type ZoneFieldRow = { id: string; speed?: number; quiet?: boolean };
+/** The per-zone presence fields by world-zone name: the town's rows (town-zones.json: the Pit is quiet) plus every zone package's `presence` block (zone row, keyed by its world zones). A name given twice is refused. */
+export function zoneFields(town: readonly ZoneFieldRow[], packages: readonly { presence?: Readonly<Record<string, { speed?: number; quiet?: boolean }>> }[]): ReadonlyMap<string, { speed?: number; quiet?: boolean }> {
+  const out = new Map<string, { speed?: number; quiet?: boolean }>();
+  const put = (name: string, f: { speed?: number; quiet?: boolean }): void => { if (out.has(name)) throw new Error(`presence: zone "${name}" has its fields given twice`); out.set(name, { speed: f.speed, quiet: f.quiet }); };
+  for (const t of town) put(t.id, t);
+  for (const p of packages) for (const [name, f] of Object.entries(p.presence ?? {})) put(name, f);
+  return out;
+}
+loadRegistry([tableFromFile(TOWN_MANIFEST.tables[0] as unknown as Manifest, TOWN, 'town-zones.json')]);
+const FIELDS = zoneFields(TOWN.zones, zoneIds().map(id => loadZone(id)));
 
 const corners = (width: number, depth: number, mount: Parameters<typeof toWorld>[1]): Pt[] =>
   ([[-width / 2, 0], [width / 2, 0], [width / 2, depth], [-width / 2, depth]] as const).map(([x, d]) => toWorld({ x, d }, mount));
-const row = (id: string, c: Pt[]): ZoneRow => ({ id, corners: c, speed: 1, quiet: false, ...ZONE_FIELDS[id] });
+const row = (id: string, c: Pt[]): ZoneRow => ({ id, corners: c, speed: FIELDS.get(id)?.speed ?? 1, quiet: FIELDS.get(id)?.quiet ?? false });
 
 // Town zones first (a point on a shared edge belongs to the first), then every Frontier zone of every zone package.
 const rows: ZoneRow[] = (['pit-yard', 'exchange'] as const).map(id => {
