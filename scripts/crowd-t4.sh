@@ -8,7 +8,8 @@
 set -euo pipefail
 REF="${1:?usage: scripts/crowd-t4.sh <PR number | branch | sha> [dressed] [--dry-run]}"; shift || true
 DRESSED=""; DRY=0
-for a in "$@"; do case "$a" in dressed) DRESSED=dressed;; --dry-run) DRY=1;; *) echo "unknown arg $a" >&2; exit 2;; esac; done
+for a in "$@"; do case "$a" in dressed|quick) DRESSED=$a;;   # DRESSED carries the wrapper's one mode word: dressed, or quick (0 players at 4x only, about a minute, for bisecting)
+ --dry-run) DRY=1;; *) echo "unknown arg $a" >&2; exit 2;; esac; done
 git fetch -q origin
 if [[ "$REF" =~ ^[0-9]+$ ]]; then SHA=$(gh pr view "$REF" --json headRefOid --jq .headRefOid); else SHA=$(git rev-parse --verify -q "origin/$REF" || git rev-parse --verify "$REF"); fi
 SHORT=${SHA:0:9}; BR="world/crowd-fps-on-$SHORT"; OUT="${OUT:-/tmp/crowd-t4-$SHORT.md}"

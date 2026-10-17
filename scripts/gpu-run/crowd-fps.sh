@@ -7,6 +7,10 @@ set -euo pipefail
 if [[ "${1:-}" == "profile" ]]; then
   npx vite build --config origins/preview/vite.config.mjs --minify false > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
   SERVE=1 PROFILE=1 COUNTS=0,16,40 MODES=walk THROTTLE=1,4 OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
+elif [[ "${1:-}" == "quick" ]]; then
+  # `quick`: the empty zone at 4x CPU only (0 players, idle): one case, about a minute, for bisecting a frame-rate regression that needs no crowd.
+  npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
+  SERVE=1 COUNTS=0 MODES=idle THROTTLE=4 OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
 else
   npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
   # `dressed`: DRESS=1, the crowd wears a worn set through originsPreview.dressRemote (#2926's dress-remote.ts, once main.ts wires it); the harness stops with a clear message until then.
