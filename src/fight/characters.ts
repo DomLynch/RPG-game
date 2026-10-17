@@ -11,7 +11,7 @@ import SPECIAL_CLIP_ROWS from '../assets/special-clips.json' with { type: 'json'
 import { bloodDark, bloodHidden, type BloodMode } from './blood-mode.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
-import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, type AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
+import { AnimationMixer, MathUtils, Group, Mesh, PropertyBinding, type Material, type Texture, MeshStandardMaterial, MeshBasicMaterial, Object3D, SkinnedMesh, Uint16BufferAttribute, Float32BufferAttribute, BufferGeometry, BufferAttribute, DoubleSide, Vector3, Quaternion, Matrix3, Matrix4, Box3, LoopOnce, type AnimationAction, AnimationClip, type BufferAttribute as BufferAttributeType, Skeleton } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
