@@ -53,19 +53,22 @@ try {
   ok('both SPECIAL buttons show and SPECIAL 2 wears its skill name', { one: one.label, two: two.label });
   await page.screenshot({ path: path.join(out, 'hud-both-lit.png') });
   const state = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { stamina: c.hero.stamina, hp: c.fighters.filter((f) => f.id !== 'me').map((f) => f.health) }; });
-  const before = await state();
-  await page.locator('#skill-button').tap({ timeout: 5000 });
-  await page.waitForTimeout(1500);
-  const afterOne = await state();
-  assert.ok(afterOne.stamina < before.stamina - 20, `SPECIAL 1 spent its move row's stamina (${before.stamina} -> ${afterOne.stamina})`);
-  ok('SPECIAL 1 fires and spends its move row\'s stamina', { before: before.stamina, after: afterOne.stamina });
-  await page.waitForTimeout(1500);
-  const beforeTwo = await state();
-  await page.locator('#skill2-button').tap({ timeout: 5000 });
-  await page.waitForTimeout(1500);
-  const afterTwo = await state();
-  assert.ok(afterTwo.stamina < beforeTwo.stamina - 20 || afterTwo.stamina < beforeTwo.stamina, `SPECIAL 2 spent stamina (${beforeTwo.stamina} -> ${afterTwo.stamina})`);
-  ok('SPECIAL 2 fires and spends stamina', { before: beforeTwo.stamina, after: afterTwo.stamina });
+  // stamina regenerates, so the press is read as the DIP: sample for 1.6 s after the tap and keep the lowest figure and the creature's lowest health
+  const press = async (selector) => {
+    const before = await state();
+    await page.locator(selector).tap({ timeout: 5000 });
+    let lowest = before.stamina, creatureHp = Math.min(...before.hp); const series = [before.stamina];
+    for (let t = 0; t < 32; t++) { await page.waitForTimeout(50); const s = await state(); lowest = Math.min(lowest, s.stamina); creatureHp = Math.min(creatureHp, ...s.hp); series.push(Math.round(s.stamina)); }
+    return { before: before.stamina, lowest, dip: before.stamina - lowest, creatureHpBefore: Math.min(...before.hp), creatureHpLowest: creatureHp, series: series.join(',') };
+  };
+  const first = await press('#skill-button');
+  assert.ok(first.dip >= 20, `SPECIAL 1 spent its move row's stamina (dip ${first.dip}; series ${first.series})`);
+  ok('SPECIAL 1 fires and spends its move row\'s stamina', first);
+  await page.waitForTimeout(2500);
+  const second = await press('#skill2-button');
+  assert.ok(second.dip >= 20, `SPECIAL 2 spent its move row's stamina (dip ${second.dip}: ${second.before} -> ${second.lowest})`);
+  ok('SPECIAL 2 fires and spends its move row\'s stamina', second);
+  ok('creature health across both presses', { before: first.creatureHpBefore, lowest: Math.min(first.creatureHpLowest, second.creatureHpLowest) });
   const dim = await button('#skill2-button');
   ok('SPECIAL 2 button state after the press (dims while it cools)', dim);
   await page.screenshot({ path: path.join(out, 'hud-after-both.png') });

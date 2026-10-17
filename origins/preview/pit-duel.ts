@@ -7,7 +7,7 @@
 // The fight kit is the game's too (Strategy 2026-10-06, reuse don't copy): its controls, HUD bars and ☰ menu are the game's index.html
 // markup, cut out at build time (live-kit.mjs), styled by the game's own src/style.css (imported here, on only while the duel is up) and
 // sounded by its src/feedback.ts. The menu shows what a preview can honour: Sound, How to fight, and The Pit (= Leave the Pit).
-import { idleIntent, type Duel, type Fighter, type Intent } from '../../src/fight/index.ts';
+import { idleIntent, type Duel, type Fighter, type Intent, type SkillId } from '../../src/fight/index.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { createFeedback } from '../../src/fight/index.ts';
 import { createHud } from '../../src/fight/index.ts';
@@ -260,13 +260,18 @@ export function worldStep(dt: number, heading: number, i: ControlIntent): WorldM
   }
   return { dx, dz, phase: wsim.phase, stamina: wsim.duel.fighters[0].stamina, facing: wsim.duel.fighters[0].body.heading };
 }
-let worldSlotA = false, worldSlotB = false, worldSlotBName: string | undefined;
-/** The page tells the HUD whether SPECIAL 1 is picked: the world HUD draws an idle stand-in fighter that carries no pick, so the button would read dim (the specials PR). */
-export const setWorldSlotA = (picked: boolean): void => { worldSlotA = picked; };
+let worldSlotB = false, worldSlotBName: string | undefined;
+/** The page's SPECIAL picks (the specials PR): the open world's input judges every press against this idle stand-in fighter (`accepts(wsim, action)`), so a skill the stand-in does not carry is never pressed at all. It carries the picks: SPECIAL 1 on
+ *  the `skill` button, SPECIAL 2 on `skill2`, each off cooldown (the real cooldowns live in the bout), so the press reaches the page and the HUD lights the buttons from the same legality test. Set on a pick, never per frame. */
+export const setWorldSpecials = (first: SkillId | null, second?: SkillId): void => {
+  const [me, foe] = wsim.duel.fighters, next: Fighter = { ...me, skill: first, skillCooldown: 0 };
+  if (second) { next.skill2 = second; next.skillCooldown2 = 0; } else delete next.skill2;
+  wsim = { ...wsim, duel: { ...wsim.duel, fighters: [next, foe] as unknown as Duel['fighters'] } };
+};
 /** The page's slot-b pick (the open world's idle practice carries no spells, so the HUD is told): SPELL 2 shows while it is true. Set on a pick or a book read, never per frame. */
 export const setWorldSlotB = (shown: boolean, name?: string): void => { worldSlotB = shown; worldSlotBName = name; };
 export function worldIntent(): ControlIntent {
-  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotA: worldSlotA, slotB: worldSlotB, slotBName: worldSlotBName });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB, slotBName: worldSlotBName });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
   const i = controls!.intent(); controls!.consumed([]); return i;
 }
 
