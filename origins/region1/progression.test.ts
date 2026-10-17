@@ -12,7 +12,8 @@ const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
 // Re-pinned again 2026-10-16 (fix-forward, #2878 on top of the troll camp move #2877): +character:giant-salamander and its `mob` row, plus the waypoint `troll-cave`; alone they were 8d16271e05d01b65fd412a02e57ad449c9cce1a028bebe0cfd74f8aef79ce83c (salamander) and 83ffcaee813d41506fd6f0d5beb8e8e0923a34fed917d32d413c57c0be7afdaf (troll-cave); the sha before both a89364eb2fa70197e6fda16e8f79d980b1bc952c0b0e30e522e4087157dbbef7.
 // Re-pinned 2026-10-17 (fix-forward, lootStarter): +item:loot.starter.Longsword in BUNDLE's catalogue slice, was 4fac8be1…; expected to be the only change (not hash-checked: BUNDLE without the item was not hashed back to 4fac8be1…).
 // Re-pinned 2026-10-17 (fix-forward, the beta dungeon's door #3016, merged over lootStarter): +waypoint `cave-mouth` in Zone 1's row; the sha before it f6ee20d2fd208f20f78d1d6537637891af9a9e5ad7074fbb35498d840e21a0ab (alone on the pre-lootStarter tree the waypoint made da007bff…, from 4fac8be1…).
-const TRUNK_SHA = '74dab0cc5aa7cb7b2bd46d815be45f1b55c8b2f075fee41adfdac2d7c25df583';
+// Re-pinned 2026-10-17 (fix-forward, the dungeon framework's sample crypt door): +waypoint `crypt-mouth` in Zone 1's row (a world landmark must be a waypoint, region loader); the sha before it 74dab0cc5aa7cb7b2bd46d815be45f1b55c8b2f075fee41adfdac2d7c25df583.
+const TRUNK_SHA = '2c2ee95b497dc208b35a63c257ce144e03228b372571583bdb1421aa04e7309f';
 
 test('the economy and progression rows read back byte-identical to the records content.ts built in code', () => {
   const now = { FOES, TOWNSFOLK, ENCOUNTERS, BOUNTIES, RIFTS, KILL_ROWS, BOSS_LOOT, ENCOUNTER_FLAGS, BUNDLE, LOCAL };

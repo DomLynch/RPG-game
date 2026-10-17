@@ -93,7 +93,7 @@ test('a zone\'s mobLooks are checked: an unknown body, a tint or a scale out of 
 // like a link: +3 pieces (marker and sign) and +1 collider, 171 -> 174 and 58 -> 59.
 test('Zone 1 world is pinned: the same pieces and solids as before Zone 2 (plus the troll-cave landmark and the cave-mouth door)', () => {
   const b = frontierBuild(frontierPlan(false, '1')), h = (x: readonly unknown[]) => createHash('sha256').update(JSON.stringify(x.map((v) => JSON.stringify(v)).sort())).digest('hex').slice(0, 16);
-  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [174, 'fbc437921f82ccf3', 59, '2fce1d40b375e5ff']);
+  assert.deepEqual([b.pieces.length, h(b.pieces), b.solids.length, h(b.solids)], [175, '3f78201b4e2efdc1', 60, 'a6814b67285fe483']);   // +1 piece, +1 solid: the crypt-mouth landmark must be a Zone 1 waypoint (region loader) and a waypoint is kept on the page; no door, sign or exit stands there unless the sample crypt is opened (zone 6 unlisted)
 });
 
 // Zone 2 is byte-identical to what it was before its map entry moved into the zone 2 row (hashes recorded from trunk 5719c9f36, equal on the place.ts branch): pieces, solids, creature homes, the plan's zones.
