@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Mesh, type MeshStandardMaterial, type Object3D } from 'three';
+import { Mesh, type MeshStandardMaterial, type Object3D, type SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createFigureSource, loadRemoteFigures, REMOTE_FIGURES } from '../origins/preview/figure-source.ts';
 
@@ -51,7 +51,7 @@ test('figures of a level share ONE material (no program per player); the two lev
   assert.notEqual(a.anchor, b.anchor);
   assert.equal(body(a).material, body(b).material as MeshStandardMaterial, 'one far material');
   assert.notEqual(body(a).material, body(n).material, 'near and far are two files, two materials');
-  a.update(1.5, 0.5); assert.ok(body(a).skeleton.bones.length === 65, 'the same 65-bone rig');
+  a.update(1.5, 0.5); assert.equal((body(a) as SkinnedMesh).skeleton.bones.length, 65, 'the same 65-bone rig');
 });
 
 test('a load that fails leaves the source not ready and failed, and spawn answers null (the caller keeps its rig)', async () => {
