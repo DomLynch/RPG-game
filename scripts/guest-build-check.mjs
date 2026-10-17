@@ -40,11 +40,12 @@ try {
   await page.screenshot({ path: path.join(out, '1-nudge-line.png') });
   await nudge().tap(); await page.waitForSelector('#build-dialog[open]', { timeout: 10000 });
   await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, '2-dialog.png') });
+  const tapAt = async (loc) => { await loc.scrollIntoViewIfNeeded(); const b = await loc.boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };   // a touch at the button's centre (the dialog's hit test under Playwright's own tap check reports the page)
   let placed = 0;
-  for (let guard = 0; guard < 400; guard++) { const plus = page.locator('#build-dialog .build-plus:not([disabled])').first(); if (!(await plus.count())) break; await plus.tap(); placed++; }
+  for (let guard = 0; guard < 400; guard++) { const plus = page.locator('#build-dialog .build-plus:not([disabled])').first(); if (!(await plus.count())) break; await tapAt(plus); placed++; }
   receipt.placed = placed; assert.ok(placed > 0, 'the guest placed points');
   await page.screenshot({ path: path.join(out, '3-placed.png') });
-  await page.locator('#build-dialog .build-confirm').tap();
+  await tapAt(page.locator('#build-dialog .build-confirm'));
   await page.waitForFunction(() => !document.getElementById('build-dialog')?.open, null, { timeout: 10000 });
   await page.waitForFunction(() => !document.getElementById('build-nudge'), null, { timeout: 10000 });
   receipt.afterConfirm = { dialogOpen: false, nudge: await nudge().count() };
