@@ -35,7 +35,8 @@ test('the sample row compiles to the zone-row parts, in its band L4-6, with the 
 });
 
 test('a broken row is refused at load, naming the dungeon and the fault', () => {
-  const bad = (edit: (d: Dungeon & { [k: string]: any }) => void, why: RegExp) => { const d = clone(sample) as Dungeon & { [k: string]: any }; edit(d); assert.throws(() => load(d), why); };
+  type Row = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any -- a test edits a copy of a row freely
+  const bad = (edit: (d: Row) => void, why: RegExp) => { const d = clone(sample) as unknown as Row; edit(d); assert.throws(() => load(d as unknown as Dungeon), why); };
   bad((d) => { d.rooms[1].links = ['crypt-door']; d.rooms[2].links = []; }, /"crypt-vault" cannot be reached/);
   bad((d) => { d.rooms[2].links = []; }, /does not link back/);
   bad((d) => { d.rooms[2].id = 'crypt-door'; }, /room id "crypt-door" is used twice/);
