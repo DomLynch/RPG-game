@@ -70,7 +70,7 @@ try {
       await page.evaluate(() => localStorage.setItem('frankendom.firstloss.v1', '1'));   // the lesson is done: a fresh profile's first arena is the scripted first-loss LESSON, which never takes the picks (Combat: Match takes SPECIAL 2 only in career or practice mode)
       await page.reload(); await page.waitForFunction(() => document.querySelector('#art-status')?.textContent === '');
       if (await page.locator('#welcome').isVisible()) await page.getByRole('button', { name: 'Enter the arena' }).click({ force: true });
-      await page.waitForFunction(() => document.querySelector('#welcome')?.hidden); await page.waitForTimeout(2500);
+      await page.waitForFunction(() => document.querySelector('#welcome')?.hidden ?? !!document.getElementById('skill-button')); await page.waitForTimeout(2500);   // after a reload the live page has no #welcome at all (returning player): the HUD being up is the signal
       await page.getByRole('button', { name: /^fight$/i }).first().click({ force: true, timeout: 5000 }).catch(() => {});   // the arena opens at the stance; the Match (and its skill2 port) begins when Fight is tapped
       await page.waitForTimeout(2500);
       const hud = await page.evaluate(() => ['skill-button', 'skill2-button'].map((id) => { const b = document.getElementById(id), r = b?.getBoundingClientRect(); return { id, hidden: !b || b.hidden || !r || r.width === 0, text: b?.textContent?.trim() ?? '', right: r?.right ?? 0 }; }));
