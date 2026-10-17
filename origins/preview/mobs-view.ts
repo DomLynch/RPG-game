@@ -192,7 +192,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
   // Calmer drawn movement in a fight (mob-calm.ts; Dom 2026-10-17: "a twitch FPS"). `?mobsmooth=0` turns it off to compare.
-  const calm = new Map<number, Calm>(), SMOOTH = !(typeof location !== 'undefined' && /[?&;]mobsmooth=0\b/.test(location.search));
+  const calm = new Map<number, Calm>(), SMOOTH = typeof location !== 'undefined' && /[?&;]mobsmooth=1\b/.test(location.search);   // OFF by default now (Dom 2026-10-17: the drawn body trailing the engine's position felt floaty; Combat's #3056 is the real fix); ?mobsmooth=1 turns it on to compare
   const calmed = (i: number, d: MobDrive, hero: { x: number; z: number }, dt: number): Calm => {
     const prev = calm.get(i), want: Calm = { x: d.x, z: d.z, facing: d.facing };
     const now = !prev || !SMOOTH ? want : calmStep(prev, want, hero, dt, { lateralTau: fxNum('mob-view.lateral-tau'), radialTau: fxNum('mob-view.radial-tau'), turnDps: fxNum('mob-view.turn-dps'), snapM: fxNum('mob-view.snap-m'), maxOrbitDps: fxNum('mob-view.max-orbit-dps'), maxLagM: fxNum('mob-view.max-lag-m') });
