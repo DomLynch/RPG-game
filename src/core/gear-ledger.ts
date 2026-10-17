@@ -31,25 +31,30 @@ export function lootOfView(v: GearView): Loot {
   const idOf = new Map(held.map((p) => [p.id, p.lootId as LootId]));
   const equipped: Partial<Record<Paperdoll, LootId>> = {};
   for (const [key, id] of Object.entries(v.worn)) { const lootId = idOf.get(id); if (lootId) equipped[key as Paperdoll] = lootId; }
-  const pack = held.filter((p) => p.where === 'pack').sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((p) => p.lootId as LootId);
+  const packed = packedPieces(v), pack = packed.map((p) => p.lootId as LootId);
+  const packInfo = packed.map((p) => ({ tier: rungOf(p.tier), piece: p.id }));   // each cell's own rung: `taken` below keeps only one rung per lootId
   const taken: Loot['taken'] = {};
   // The WORN instance decides a lootId's rung (the server's frozen worn gear reads the worn piece's tier, wornGearOfFrozen): the same id held twice (worn Origin Helmet + packed Recruit Helmet) must not depend on row order.
   // So the other instances write first and the worn ones last, and a worn piece with no rung clears it (the server counts it as identity).
   const wornIds = new Set(Object.values(v.worn));
   for (const p of [...held.filter((x) => !wornIds.has(x.id)), ...held.filter((x) => wornIds.has(x.id))]) {
-    const level = p.tier ? TIERS.indexOf(p.tier as (typeof TIERS)[number]) + 1 : 0;
+    const level = rungOf(p.tier);
     if (level > 0) taken[p.lootId as LootId] = { tier: level } as Provenance;   // only the rung is real; the sheet's provenance line reads what exists
     else if (wornIds.has(p.id)) delete taken[p.lootId as LootId];
   }
-  return { owned: held.map((p) => p.lootId as LootId), equipped, pack, taken };
+  return { owned: held.map((p) => p.lootId as LootId), equipped, pack, packInfo, taken };
 }
+/** A piece's rung (1..TIERS.length) from the tier name the server minted it at (Backend, #3052: `tier` IS the rung's name; `level` is the upgrade level, not the rung); 0 = none or unknown. */
+export const rungOf = (tier: string | null): number => (tier ? TIERS.indexOf(tier as (typeof TIERS)[number]) + 1 : 0);
+/** The pack's pieces in grid order, the one ordering lootOfView's `pack` / `packInfo` and a wear-by-cell step both use. */
+const packedPieces = (v: GearView): (GearPiece & { lootId: string })[] => v.pieces.filter((p): p is GearPiece & { lootId: string } => p.lootId !== null && p.where === 'pack').sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 // The copy that can be put on: the server equips only from the pack (inventory.equip: "is not in the backpack"), so a duplicate lootId resolves to its PACK instance, never a worn or banked one.
 const packedOf = (v: GearView, lootId: LootId): GearPiece | undefined => v.pieces.find((p) => p.lootId === lootId && p.where === 'pack');
 // Wear a piece: the slot's occupant (if any) comes off into the pack first, then the piece goes on. [] when the piece is not in the pack (worn, banked or unknown: the server refuses
 // equip from anywhere else), and [] when a swap has no free pack cell for the occupant (inventory.unequip needs one; the sheet keeps its "Pack full" line). Backend has no swap op; if one
 // lands, the full-pack case becomes one call.
-export function stepsToWear(v: GearView, lootId: LootId): Step[] {
-  const piece = packedOf(v, lootId);
+export function stepsToWear(v: GearView, lootId: LootId, at?: number): Step[] {
+  const cell = at === undefined ? undefined : packedPieces(v)[at], piece = cell?.lootId === lootId ? cell : packedOf(v, lootId);   // `at`: the pack cell the player tried on (two copies of one id differ in rung); a stale cell falls back to the first copy
   if (!piece) return [];
   const occupant = v.worn[paperdollOf(slotOf(lootId))];
   if (occupant && v.pieces.filter((p) => p.where === 'pack').length >= v.packSize) return [];
@@ -60,10 +65,10 @@ export function stepsToStow(v: GearView, key: Paperdoll): Step[] { const id = v.
 
 // Every wear / stow the gear sheet makes is one of these, and the sheet hands it to ONE function (its `act`): a guest's local ledger applies it (applyLocal, src/core/loot.ts), a
 // signed-in character's goes to the server as the calls stepsFor names. The Pit and Zone 1 mount the same sheet, so they decide nothing apart.
-export type GearOp = { kind: 'wear'; id: LootId } | { kind: 'wearFromPack'; id: LootId } | { kind: 'unwear'; key: Paperdoll } | { kind: 'stow'; key: Paperdoll };
+export type GearOp = { kind: 'wear'; id: LootId } | { kind: 'wearFromPack'; id: LootId; at?: number } | { kind: 'unwear'; key: Paperdoll } | { kind: 'stow'; key: Paperdoll };
 export const applyLocal = (loot: Loot, op: GearOp): Loot => (op.kind === 'wear' ? wear(loot, op.id) : op.kind === 'wearFromPack' ? wearFromPack(loot, op.id) : op.kind === 'unwear' ? unwear(loot, op.key) : stow(loot, op.key));
 // The server has one way to take a piece off (into the pack), so Wear's swap and Wear-from-pack are the same calls, and Take off and Store are the same call.
-export const stepsFor = (v: GearView, op: GearOp): Step[] => (op.kind === 'wear' || op.kind === 'wearFromPack' ? stepsToWear(v, op.id) : stepsToStow(v, op.key));
+export const stepsFor = (v: GearView, op: GearOp): Step[] => (op.kind === 'wear' || op.kind === 'wearFromPack' ? stepsToWear(v, op.id, op.kind === 'wearFromPack' ? op.at : undefined) : stepsToStow(v, op.key));
 // What the rig wears, and at which rung (a piece's take tier; none reads Recruit): the same answer for the Pit's profile and for the ledger a zone shows.
 export const wornIdsOf = (loot: Loot | undefined): LootId[] => Object.values(loot?.equipped ?? {}) as LootId[];
 export const wornTiersOf = (loot: Loot | undefined): Record<string, Tier> => Object.fromEntries(wornIdsOf(loot).flatMap((id) => { const level = loot?.taken?.[id]?.tier; return level ? [[id, TIERS[level - 1] ?? 'Recruit']] : []; }));

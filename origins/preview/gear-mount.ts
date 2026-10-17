@@ -7,7 +7,7 @@ import { DEFAULT_WEAPON, type WeaponId } from '../../src/fight/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
-import { fightSheet, gearNumbers, weightClassOf } from '../../src/fight/index.ts';
+import { fightSheet, gearNumbers, pieceNumbers, weightClassOf } from '../../src/fight/index.ts';
 
 // `onWorn`: the worn set changed (the server's ledger answered, or a wear / stow in the sheet), and once at mount for the device's own: main.ts dresses the walking hero with it (the sheet's wear is the one place every change passes).
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string; onWorn?: (ids: readonly string[], tiers: Record<string, Tier>) => void };
@@ -19,7 +19,7 @@ export function mountGear(d: Deps) {
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
     element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
-    view: () => ({ wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
+    view: () => ({ wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, pieceNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
   const leave = () => { sheet.leaveGear(); d.layer.classList.remove('gearing'); };

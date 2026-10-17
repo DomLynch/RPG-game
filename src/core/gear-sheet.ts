@@ -7,7 +7,7 @@ import { isLegendOpponent, legendAt } from '../legends.ts';
 import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
 import { shortLink } from '../share-store.ts';
-import { compareRows, renderCompare, renderStats, statRows } from './gear-strip.ts';
+import { compareRows, pieceLine, renderCompare, renderStats, statRows } from './gear-strip.ts';
 
 export const lootThumb = (id: LootId) => `/game/img/loot/${id}.thumb.webp`;   // armour: scripts/loot-layers.mjs; weapons: scripts/weapon-thumbs.mjs
 type View = { wear(ids: readonly string[], tiers: Record<string, Tier>): void; gearStage?: () => Parameters<typeof enterGearRoom>[0] };
@@ -16,6 +16,7 @@ export type GearSheetDeps = {
   profile: () => { loot?: Loot }; persist: () => void; view: () => View; weapon: () => string;
   weightOf?: (id: LootId) => string | null;   // a piece's armour weight class as the host's gear rows name it (heavy / medium / light), or null for a piece no set owns: a read-only badge on the rail, the rack and the pack
   numbers?: (loot: Loot | undefined) => Record<string, number>;   // the host's numbers for the stat strip (gear-strip.ts): the Pit and the zone read their combat constants, so the core imports no fight code
+  pieceNumbers?: (id: LootId, rung: number) => Record<string, number>;   // what ONE piece gives at a rung (the host's table: gear-numbers.ts pieceNumbers), for the backpack row's own line; absent = no line
   emptyPack?: string;   // the empty rack's line: a host that is not the Pit says its own words
   act?: (op: GearOp) => boolean;   // a signed-in character's wear / stow goes to the server (gear-ledger.ts stepsFor): true = handled; false or absent = the local ledger (a guest, the Pit today)
 };
@@ -70,11 +71,13 @@ export function createGearSheet(d: GearSheetDeps) {
       const li = document.createElement('li'), id = loot.pack?.[i];
       if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
       if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = d.emptyPack ?? 'Nothing stored. Win gear in the arena.'; return li; }
-      const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
-      li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); weightBadge(name, id); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, d.profile().loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
-      button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
-      button.addEventListener('click', () => tryOn(id));
-      text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');
+      const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button'), rung = cellRung(i, id);
+      li.setAttribute('data-loot', id); name.textContent = sentence(ownedName(id, rung)); weightBadge(name, id); rank.textContent = TIERS[rung - 1] ?? 'Recruit'; rank.dataset.rank = String(rung).padStart(2, '0');
+      button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${ownedName(id, rung)}`); button.textContent = '›';
+      button.addEventListener('click', () => tryOn(id, i));
+      text.append(name, rank);
+      if (d.pieceNumbers) { const stats = document.createElement('small'); stats.setAttribute('data-piece-stats', ''); stats.textContent = pieceLine(d.pieceNumbers(id, rung)); text.append(stats); }   // what THIS piece gives at ITS rung
+      li.append(text, button); thumbFor(li, id, 'pack-thumb');
       return li;
     });
     d.element('pack').replaceChildren(...pack);
@@ -89,7 +92,10 @@ export function createGearSheet(d: GearSheetDeps) {
   // The gear sheet (Fitting rail, Strategy 2026-10-01). The rail is the slots; tapping a worn one shows it with Store, tapping a stored row
   // tries it on: the live rig wears it (in memory only: d.view().wear, never the profile) with Cancel and Wear this. Wear this is the pack's own
   // swap (loot.ts wearFromPack: the piece it replaces takes its pack place); Cancel and closing the sheet dress the rig as the profile says.
-  let fitId: LootId | null = null, fitKey: Paperdoll | null = null, gear: GearRoom | undefined;
+  let fitId: LootId | null = null, fitAt: number | undefined, fitKey: Paperdoll | null = null, gear: GearRoom | undefined;   // fitAt: the pack cell being tried on (two copies of one id can sit at different rungs)
+  // The rung of pack cell `i`: that instance's own (a server ledger's packInfo), else the id's recorded take, else Recruit.
+  const cellRung = (i: number, id: LootId): number => Math.min(10, Math.max(1, d.profile().loot?.packInfo?.[i]?.tier || d.profile().loot?.taken?.[id]?.tier || 1));
+  const fitRung = (): number => (fitId ? (fitAt !== undefined ? cellRung(fitAt, fitId) : Math.min(10, Math.max(1, d.profile().loot?.taken?.[fitId]?.tier ?? 1))) : 1);
   const sentence = (text: string) => text[0]!.toUpperCase() + text.slice(1);
   const rankText = (id: LootId) => TIERS[(d.profile().loot?.taken?.[id]?.tier ?? 1) - 1] ?? 'Recruit';   // a piece with no tier reads Recruit
   // A piece's picture inside `host` (one img, made once); a piece with no thumbnail (a weapon, today) shows its name instead.
@@ -107,22 +113,22 @@ export function createGearSheet(d: GearSheetDeps) {
   function dressed() {
     const tiers = wornTiersOf(d.profile().loot);
     if (!fitId) return d.view().wear(wornIdsOf(d.profile().loot), tiers);
-    const key = paperdollOf(slotOf(fitId)), level = d.profile().loot?.taken?.[fitId]?.tier;
+    const key = paperdollOf(slotOf(fitId)), level = fitRung();
     d.view().wear([...wornIdsOf(d.profile().loot).filter((id) => paperdollOf(slotOf(id)) !== key), fitId], level ? { ...tiers, [fitId]: TIERS[level - 1] ?? 'Recruit' } : tiers);
   }
-  const tryOn = (id: LootId | null) => { fitId = id; fitKey = null; dressed(); renderFitting(); };
+  const tryOn = (id: LootId | null, at?: number) => { fitId = id; fitAt = id ? at : undefined; fitKey = null; dressed(); renderFitting(); };
   function renderFitting() {
     const loot = d.profile().loot ?? emptyLoot(), shown = fitId ?? (fitKey ? loot.equipped[fitKey] : undefined);
     const selected = fitId ? paperdollOf(slotOf(fitId)) : fitKey;
     for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) { const slot = d.element(`slot-${key}`); slot.classList.toggle('sel', key === selected); slot.classList.toggle('try', !!fitId && key === selected); }
-    Array.from(d.element('pack').children).forEach((li, i) => li.classList.toggle('sel', !!fitId && loot.pack?.[i] === fitId));
+    Array.from(d.element('pack').children).forEach((li, i) => li.classList.toggle('sel', !!fitId && loot.pack?.[i] === fitId && (fitAt === undefined || fitAt === i)));
     d.element('fitting').hidden = !shown;
     if (!shown) return;
     const replaced = fitId ? loot.equipped[paperdollOf(slotOf(fitId))] : undefined, full = packFull(loot);
     const holder = d.element('fitting'), thumb = d.element<HTMLImageElement>('fitting-thumb');
     thumb.hidden = false; thumb.src = lootThumb(shown);
     d.element('fitting-name').textContent = sentence(pieceName(shown)); weightBadge(d.element('fitting-name'), shown);
-    d.element('fitting-rank').textContent = fitId ? `${rankText(fitId)} · ${replaced ? `replaces ${pieceName(replaced)}, ${rankText(replaced)}` : 'fills an empty slot'}` : `${rankText(shown)} · worn`;
+    d.element('fitting-rank').textContent = fitId ? `${TIERS[fitRung() - 1] ?? 'Recruit'} · ${replaced ? `replaces ${pieceName(replaced)}, ${rankText(replaced)}` : 'fills an empty slot'}` : `${rankText(shown)} · worn`;
     d.element('fitting-note').textContent = !fitId && full ? 'Pack full: wear a packed piece to free a slot.' : '';
     d.element('fitting-cancel').hidden = d.element('fitting-wear').hidden = !fitId;
     const store = d.element<HTMLButtonElement>('fitting-store'); store.hidden = !!fitId; store.disabled = full;
@@ -130,14 +136,15 @@ export function createGearSheet(d: GearSheetDeps) {
     // A try-on shows NEW beside EQUIPPED with the strip's rows (gear-strip.ts); a worn piece needs no comparison.
     const compare = d.element('fitting-compare');
     if (!fitId) { compare.hidden = true; compare.replaceChildren(); return; }
-    const after = applyLocal(loot, { kind: 'wearFromPack', id: fitId }), ctx = (l: Loot) => ({ base: d.numbers?.(l) ?? {}, worn: wornIdsOf(l) });
-    const card = (id: LootId) => ({ name: sentence(pieceName(id)), image: lootThumb(id), sub: rankText(id) });
-    renderCompare(compare, { now: replaced ? card(replaced) : null, next: card(fitId), rows: compareRows(ctx(loot), ctx(after)) }, document);
+    // The swap is shown at the rung of the CELL tried on (`taken` holds one rung per id, the worn instance's), so the NEW card and its numbers are that copy's own.
+    const swapped = applyLocal(loot, { kind: 'wearFromPack', id: fitId }), after = { ...swapped, taken: { ...swapped.taken, [fitId]: { ...swapped.taken?.[fitId], tier: fitRung() } } } as Loot, ctx = (l: Loot) => ({ base: d.numbers?.(l) ?? {}, worn: wornIdsOf(l) });
+    const card = (id: LootId, rung?: number) => ({ name: sentence(rung ? ownedName(id, rung) : pieceName(id)), image: lootThumb(id), sub: rung ? TIERS[rung - 1] ?? 'Recruit' : rankText(id) });
+    renderCompare(compare, { now: replaced ? card(replaced) : null, next: card(fitId, fitRung()), rows: compareRows(ctx(loot), ctx(after)) }, document);
     holder.scrollIntoView?.({ block: 'nearest' });   // opens clear of the sticky tab strip (scroll-margin-top in style.css); a no-op when already in view
   }
   d.element('fitting-thumb').addEventListener('error', () => { d.element('fitting-thumb').hidden = true; });
   d.element('fitting-cancel').addEventListener('click', () => tryOn(null));
-  d.element('fitting-wear').addEventListener('click', () => { const id = fitId; fitId = fitKey = null; if (id) act({ kind: 'wearFromPack', id }); });
+  d.element('fitting-wear').addEventListener('click', () => { const id = fitId, at = fitAt; fitId = fitKey = null; fitAt = undefined; if (id) act({ kind: 'wearFromPack', id, ...(at !== undefined ? { at } : {}) }); });
   d.element('fitting-store').addEventListener('click', () => { const key = fitKey; fitId = fitKey = null; if (key) act({ kind: 'stow', key }); });
   for (const key of Object.keys(PAPERDOLL) as Paperdoll[]) d.element(`slot-${key}`).addEventListener('click', (event) => {
     if ((event.target as Element).closest('.slot-off') || !d.profile().loot?.equipped[key]) return;   // an empty slot has nothing to show; the hidden per-slot Store is the old path
