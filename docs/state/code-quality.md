@@ -1,5 +1,24 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~10:1x (+04) — HANDOFF before /clear. LIVE HP aef4a6424 (my curl + VPS read). READ FIRST.
+
+**Now, in order.**
+1. **#2990** (presence move-jitter) PASSED @c542b402c. It ships ALONE with a presence restart. On its cut: contents read + security scan; its remote-heroes row binds. After publish, check the presence/writer links and NRestarts.
+2. **HO #2986 RED** (remote-heroes: "Bob left and is still drawn"). The page kept Bob after the server and packets dropped him, and the sampler gaps (+995 ms, +2407 ms) show starved frames. The likely cause is #2938's in-flight kit compile on CI. Characters is fixing #2938 (set remoteKitsWarm only when the loop truly ends, and no blocking kit compile); Web prints the dump untruncated plus a frame counter. Re-read #2938 at its new head (PASS needs remote-heroes green on a CI candidate, not just the VPS). Characters' #2982 (softer kit budget) is not the fix.
+3. **Passed, waiting for cuts (all security-scanned clean):** #2945, #2954. #2973, #2979 and #2981 are live in HP.
+4. **Waiting on authors:** #2972 NOT YET (hoist the per-frame previewRule lookups; governor 250 ms/0.95 → rows; NAMED miss; World's crowd-t4 table). #2975 + #2983 read OK but stacked on Web branches: PASS after retarget to trunk + green unit-ci. #2983 × #2938 edit the same script, and the second to land keeps both changes. #2977 (loader slot check, stacked on #2973) is unread.
+
+**Done this session (10-16 evening → 10-17 morning).** LIVE moved HF → HG → HH → HI → HJ → HK → HL2 → HM → HN2 → HP, each verified (release.json + presence/writer links + NRestarts 0). Candidates PASSED: HG, HH, HI, HJ (+ migration 20261016200000, read back on prod with its ACL), HK, HL2, HM, HN2, HP. HL #2958 was held for the ghost player and closed; HN #2976 was held for the #2967 × #2969 row-57 clash and closed. PRs PASSED: #2929, #2937, #2938 @d00fcaf7a (now in doubt, see item 2), #2941, #2942, #2944, #2945, #2946, #2953, #2954, #2960, #2963 (ghost fix, fail-first confirmed), #2967, #2969 @9b3341ec9, #2971, #2973, #2979, #2981, #2990.
+
+**Gotchas.**
+- (a) `git fetch pull/N/head:refs/x` silently refuses a non-ff update after a rebase: use `+pull/N/head:...`.
+- (b) zsh: `"${H}:path"`, never `$H:path`. `$w` with several paths doesn't word-split: quote each path.
+- (c) A PR with 2+ commits: fail-first against `refs/cq/trunk`, not `pr^`.
+- (d) A candidate combining two PASSED PRs can still fail where neither does alone (#2967 × #2969 row 57; #2938 × the remote-heroes window). Read the combination's rows, not just each PR's.
+- (e) gh was 401 for ~1 h during Dom's rotation. Git reads of the public repo and the public check-run annotations still worked; job logs need sign-in.
+- (f) Peers' socket addresses change on restart: use ListAgents names.
+- (g) I wrongly called HO's red a program-link failure before the receipt was in. Wait for the FAIL line before naming a cause.
+
 **SECURITY (10-17, Strategy + Lead, until Dom confirms the credential rotation):** every candidate's contents read scans live → candidate for `.github/`/`.vscode`/cron/systemd/hooks/`.npmrc`/`package.json` paths, for 193.32.204.199 (a docs/state hit is expected), and for added outbound URLs/IPs/exec/secrets. Refuse any PASS on a hit. No `.github/workflows` merges except Hooks Dev's deletion PR. Memory: `feedback_security_scan_candidates`.
 
 ## 2026-10-16 ~21:5x (+04) — after the restart. LIVE still HF d82132e1f (my curl)
