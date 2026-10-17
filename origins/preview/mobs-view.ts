@@ -73,7 +73,8 @@ export type Mobs = {
   drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
-  fellOthers(keep: string): void;         // every creature of the zone but one, drawn or not: a test link's one-on-one fight (?fight=)
+  locate(body: string, x: number, z: number): { x: number; z: number } | null;   // the nearest creature of a body to a point, drawn or not (a test link `?fight=wolf` walks the hero to a wolf that is still out of draw range)
+  fellOthers(keep: string): void;        // every creature of the zone but one, drawn or not: a test link's one-on-one fight (?fight=)
   warmState(): { kinds: string[]; warmed: string[]; failed: string[] };   // the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
 };
 const RESPAWN = previewRule('clientRespawn');   // s
@@ -278,6 +279,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     engage(id) { engaged = id; },
     warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKind(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
+    locate(body, x, z) { let best: { x: number; z: number; d: number } | null = null; specs.forEach((s, i) => { if (s.body !== body || s.legend || down.has(i)) return; const d = Math.hypot(mobs[i]!.x - x, mobs[i]!.z - z); if (!best || d < best.d) best = { x: mobs[i]!.x, z: mobs[i]!.z, d }; }); return best; },
     fellOthers(keep) { specs.forEach((s, i) => { if (s.id !== keep) down.set(i, RESPAWN); }); },   // `within` only sees what is drawn, so a salamander still out of draw range walked in and breathed fire on a 'goblin only' fight (the headless phone clip showed it)
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),

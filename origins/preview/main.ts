@@ -358,6 +358,8 @@ function step(dt: number) {
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
   if (FIGHT_WITH && !fightStarted && mobs) {   // wait until that creature is drawn, stand the hero 3 m from it and strike: the fight is on
     const g = mobs.within(state.x, state.z, 90).find((m) => FIGHT_WITH === '1' || m.spec.body === FIGHT_WITH);
+    const far = !g && FIGHT_WITH !== '1' ? mobs.locate(FIGHT_WITH, state.x, state.z) : null;   // that kind is still out of draw range: walk the hero to it, it is drawn on the next frames
+    if (far) { state.x = far.x + 6; state.z = far.z; followCam.snap(); }
     if (g) {
       fightStarted = true;
       const others = mobs.within(g.x, g.z, 1000).filter((m) => m.spec.id !== g.spec.id);   // stand on the side of it that is farthest from every other creature, so a test fight is one on one (Dom: dropped next to a salamander and got two on him)
