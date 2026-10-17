@@ -52,6 +52,7 @@
     { "id": "remoteAdaptOkMs", "value": 25, "unit": "ms" },
     { "id": "remoteAdaptWindowMs", "value": 3000, "unit": "ms" },
     { "id": "remoteAdaptJudgeMs", "value": 250, "unit": "ms" },
-    { "id": "remoteAdaptPercentile", "value": 0.95, "unit": "ratio" }
+    { "id": "remoteAdaptPercentile", "value": 0.95, "unit": "ratio" },
+    { "id": "remoteGroundStep", "value": 0.25, "unit": "m" }
   ]
 }

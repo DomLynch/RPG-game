@@ -110,6 +110,21 @@ test('adaptive: a frame time that stays high drops the full count from remoteFul
   frames(7, 16.7); assert.equal(fulls(), FULL, 'a clean window: back to the ruled count');
 });
 
+test('the ground height is read again only after a figure has moved remoteGroundStep, and the figure stands on the last read (T4 profile: reliefAt per figure per frame)', () => {
+  const step = previewRule('remoteGroundStep'); let reads = 0;
+  const spawn = () => ({ anchor: new Group(), update: () => {} }) as never;
+  const heroes = createRemoteHeroes({ scene: new Group(), spawn, groundAt: (x) => { reads++; return x; } }); heroes.warm();
+  const frames = 100, dx = step / 5;   // 5 frames per step: a walk of frames x dx metres
+  for (let f = 0; f < frames; f++) { heroes.push([{ id: 1, x: 10 + f * dx, z: 0, heading: 0, anim: 0, flags: 0 }], f * 16); heroes.update(1 / 60, f * 16, { x: 0, z: 0 }); }
+  const walked = (frames - 1) * dx;
+  assert.ok(reads <= Math.ceil(walked / step) + 2, `a walk of ${walked.toFixed(1)} m reads about once per ${step} m, not once per frame (${reads} reads in ${frames} frames)`);
+  assert.ok(reads >= Math.floor(walked / step), 'and not so seldom that the figure floats');
+  const y = heroes.debug().shown[0]!.x; assert.ok(Math.abs(y - (10 + (frames - 1) * dx)) < 2 * step, 'it is drawn where the track puts it');
+  const idle = createRemoteHeroes({ scene: new Group(), spawn, groundAt: () => { reads++; return 0; } }); idle.warm(); reads = 0;
+  for (let f = 0; f < 60; f++) { idle.push([{ id: 2, x: 5, z: 5, heading: 0, anim: 0, flags: 0 }], f * 16); idle.update(1 / 60, f * 16, { x: 0, z: 0 }); }
+  assert.equal(reads, 1, 'a standing figure reads the ground once');
+});
+
 test('a figure that comes back near gets its shadow back as it was', () => {
   const { heroes, made } = crowd(FULL + 1);
   heroes.update(1 / 60, 0, { x: 0, z: 0 });
