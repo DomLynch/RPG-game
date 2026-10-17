@@ -180,5 +180,6 @@ for o in list(bpy.data.objects):
         bpy.data.objects.remove(o, do_unlink=True)
 
 print("FARLOD parts", report, "body tris", btris, "weapon tris (one copy)", weapon_tris // 2, "bones", len(arm.data.bones), "actions", len(bpy.data.actions))
-bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_apply=False, export_animations=True, export_vertex_color="ACTIVE", export_skins=True, export_yup=True)
+# the row says clips: false: a LOD ships no clips and binds the hero's own (same 65 bones), which the loader shares
+bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_apply=False, export_animations=row.get("clips", True), export_vertex_color="ACTIVE", export_skins=True, export_yup=True)
 print("FARLOD-OUT", OUT)

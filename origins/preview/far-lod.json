@@ -6,6 +6,7 @@
         "source": "src/assets/warrior.glb",
         "body": "CreatureBody",
         "influences": 4,
+        "clips": false,
         "levels": [
           {
             "id": "near",
