@@ -74,6 +74,10 @@
       "required": {
         "titles": "integer",
         "maxLootRung": "integer",
+        "spellsOff": "integer",
+        "utilitySpells": "array",
+        "specialPick": "array",
+        "specialRoles": "object",
         "spells": "array"
       }
     },

@@ -36,7 +36,12 @@ export const BETA_MAX_LEVEL = Math.min(MAX_LEVEL, BETA.titles * RANK_STEPS), BET
 export const BETA_MAX_LOOT_RUNG: number = BETA.maxLootRung;   // the cut's loot ceiling (betaCut.maxLootRung): nothing mints above this rung; lifting the cut lifts it. The server's mint reads it through src/core/server.ts
 export const betaLevel = (level: number): number => Math.min(level, BETA_MAX_LEVEL);
 export const betaMarks = (marks: number): number => Math.min(marks, BETA_MAX_LEVEL - 1);   // level = 1 + marks (levelOfMarks)
-export const inBetaSpells = (legend: string): boolean => BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
+// SPELLS OFF, SPECIAL 1 / SPECIAL 2 (Dom 2026-10-17, Strategy signed off): the beta's two universal slots are class specials picked from the six `specialPick` skills (existing skill-defs rows, so their moves and clips exist); spells are
+// off through `spellsOff` (the code and the 20-spell `spells` list stay in the row, inert) except the `utilitySpells` (heal, the one utility pick). Lifting it is the row: `spellsOff` 0 puts the spell list back, an empty `specialPick` lifts the pick.
+export const BETA_SPELLS_OFF: boolean = BETA.spellsOff === 1, BETA_UTILITY_SPELLS: ReadonlySet<string> = new Set(BETA.utilitySpells), BETA_SPECIAL_PICK: readonly string[] = BETA.specialPick, BETA_SPECIAL_ROLES: Readonly<Record<string, string>> = BETA.specialRoles;
+export const inBetaSpells = (legend: string): boolean => BETA_SPELLS_OFF ? BETA_UTILITY_SPELLS.has(legend) : BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
+/** Whether `skill` may sit in a SPECIAL slot under the cut (an empty pick list lifts the pick). */
+export const inBetaSpecials = (skill: string): boolean => BETA_SPECIAL_PICK.length === 0 || BETA_SPECIAL_PICK.includes(skill);
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 50 at Origin V.
 export const levelOfMarks = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));
