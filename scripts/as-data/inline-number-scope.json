@@ -10,5 +10,6 @@
     "src/fight/world.ts", "src/fight/open-fight.ts", "src/fight/world-record.ts", "src/fight/speeds.ts", "src/fight/attackers.ts", "src/fight/world-rules.ts", "src/fight/gear-caps.ts",
     "src/fight/catalogue-fields.ts", "src/fight/threat.ts"
   ],
+  "excluded": ["src/fight/blade-paths.ts", "src/fight/catalogue-data.ts"],
   "dirs": ["origins/server/**/*.ts", "origins/presence/**/*.ts", "origins/world/**/*.ts"]
 }
