@@ -7,9 +7,9 @@ import bpy
 
 OUT = sys.argv[sys.argv.index("--") + 1]
 NODES = (   # name, width, height, depth, x offset in the kit file (laid in a row so the glb opens readable; a row's fit ignores it)
-    ("cave_wall", 4.0, 3.0, 1.0, -4.0),
-    ("cave_doorway", 4.0, 3.2, 1.2, 0.0),
-    ("bone_pile", 1.6, 0.8, 1.6, 3.5),
+    ("cave_wall", 4.0, 3.8, 1.0, -5.0),   # v2 (Lead, 2026-10-17: a 3 m wall read as a low fence next to a hero): 3.8 m so it encloses
+    ("cave_doorway", 5.6, 4.48, 1.7, 0.0),   # v2: 1.4x the v1 piece, so the opening is about 2.1 x 3.8 m and a hero with a raised sword passes clearly
+    ("bone_pile", 1.6, 0.8, 1.6, 4.5),
 )
 bpy.ops.wm.read_factory_settings(use_empty=True)
 mat = bpy.data.materials.new("dungeon-seed")
