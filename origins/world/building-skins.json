@@ -14,7 +14,7 @@
     { "id": "goblin.gate", "skin": "goblin", "kind": "gate", "model": "goblin-fort", "node": "goblin_gate", "w": 7.4, "d": 1.02, "min": 0.6, "max": 2.5 }
     ,{ "id": "dungeon.default", "skin": "dungeon", "kind": "default", "model": "dungeon", "node": "cave_wall", "w": 3.97, "d": 0.97, "min": 0.6, "max": 2.5 },
     { "id": "dungeon.fence", "skin": "dungeon", "kind": "fence", "model": "dungeon", "node": "cave_wall", "w": 3.97, "d": 0.97, "min": 0.6, "max": 2.5 },
-    { "id": "dungeon.gate", "skin": "dungeon", "kind": "gate", "model": "dungeon", "node": "cave_doorway", "w": 4.0, "d": 1.21, "min": 0.6, "max": 2.5 }
+    { "id": "dungeon.gate", "skin": "dungeon", "kind": "gate", "model": "dungeon", "node": "cave_doorway", "w": 4.76, "d": 1.71, "min": 0.6, "max": 2.5 }
   ],
   "parts": [
     { "id": "goblin.default.1", "skin": "goblin", "kind": "default", "shape": "box", "size": [1.0, 0.62, 1.0], "at": [0, 0.31, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
