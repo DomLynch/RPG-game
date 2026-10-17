@@ -11,7 +11,7 @@ import { simDigest } from './lib/sim-digest.ts';
 
 const WORLD_SIM_FILES = ['src/fight/world.ts', 'src/fight/open-fight.ts', 'src/fight/world-record.ts', 'src/fight/speeds.ts', 'src/fight/attackers.ts', 'src/fight/world-rules.ts', 'src/fight/world-rules-defs.json', 'src/fight/world-rules-defs.manifest.json', 'src/fight/gear-caps.ts', 'src/fight/catalogue-fields.ts', 'src/fight/catalogue-data.ts', 'src/fight/catalogue-defs.ts', 'src/fight/threat.ts', 'src/fight/threat-defs.json'];
 const WORLD_DIGEST = 'd184dcddf10981a8bbd26414b15942bc991af29e8cc2ba85e0234a976236704f';   // WSV 49 (many-on-one, RV73; read from a clean VPS clone), was 3f0ee0a3... at WSV 48   // WSV 48 (the Cave Troll's boss special, RV 72, provisional); was WSV 47 (giant salamander row, RV 71), WSV 46 (cave troll row, RV 70), WSV 45 (spell combat slice 1, RV 69); was dc47bbb23dd232f164aba252b6d8eb462da7360a1a92e393a10b66ebca7301ce -- WSV 41 (positioning bands, RV 65, on GJ); was WSV 40 (spell cost cap, RV 64) -- WSV 39 (positioning bands, RV 64, provisional); was WSV 38 --    // WSV 38 (Combat, Gothic tactic table PR 1, RV 63: the Pit's RV is hashed in, no world file changed). Before: WSV 37 (Combat sim batch B, RV 62). WSV 36 (World: core world rows)
-const PINNED_FOR_VERSION = 49;
+const PINNED_FOR_VERSION = 50;
 
 const sources = (): Record<string, string> => ({ ...Object.fromEntries(WORLD_SIM_FILES.map((f) => [f, readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')])), 'resolved/pit-record-version.txt': String(RECORD_VERSION) });
 
