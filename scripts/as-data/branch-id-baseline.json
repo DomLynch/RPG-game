@@ -96,13 +96,6 @@
  "src/core/gear-net.ts": {
   "'gear_unequip'": 1
  },
- "src/core/loot.ts": {
-  "'keepalive-body'": 1,
-  "'starter'": 1,
-  "'Shield'": 1,
-  "'Crest'": 2,
-  "'head'": 1
- },
  "src/core/spell-slot-view.ts": {
   "'allowDuplicate'": 1
  },
@@ -114,11 +107,6 @@
  },
  "src/fight/archetype-rows.ts": {
   "'health'": 1
- },
- "src/fight/characters.ts": {
-  "'Body'": 2,
-  "'Shield'": 5,
-  "'normal'": 1
  },
  "src/fight/duel.ts": {
   "'trickster'": 1
@@ -247,9 +235,6 @@
  },
  "src/pit/skulls.ts": {
   "'duel'": 2
- },
- "src/souls-look.ts": {
-  "'Shield'": 1
  },
  "src/zone1-hop.ts": {
   "'zone1'": 1
