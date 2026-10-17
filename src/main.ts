@@ -26,7 +26,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
-import { fightLevel, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
+import { betaMarks, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, mountCareer, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungOf, rungTopLevel } from './legends.ts';
@@ -131,7 +131,7 @@ const fightRank = element('fight-rank');
 // Signed in, the server count adds the account's pending claims and this device's unposted outbox (loot-claims.ts), so a win shows at once.
 // Until account.ts answers, the last standing this device cached for its account stands in (loot-claims.ts loadStanding), so a signed-in
 // player's Match is built at the level the HUD shows.
-function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length); }
+function careerMarks(): number { const standing = session.standing ?? bootStanding?.standing ?? null; return betaMarks(shownMarks(standing?.marks ?? null, profile, (standing?.pending ?? 0) + claimsPending().length)); }   // the beta cut (career-ladder.ts): the rank, the HUD and the fight's level stop at the cut; the server's marks do not
 // A tab pinned to a ?tier= look (grades.ts tierPin, Strategy 2026-09-28) says so here, "<Rank> · test look", in place of his career rank,
 // so a pinned tab is visible at a glance; ?tier=off clears it. The pin is cosmetic (never in a take), and the journal keeps his real rank.
 let watchedLevel: number | null = null;   // a kill link's record level while its fight is on screen (startReplay); PLAY NOW clears it
@@ -777,7 +777,7 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
   element('journal-button').addEventListener('click', () => { void build.poll(); });   // the dot sits on the journal button: opening the journal re-reads the build
   void build.poll().then((open) => { const v = buildServer.view(); if (open > 0 && v && !prompted(v.level)) { markPrompted(v.level); void build.open(); } });   // the moment: once per level, when the page loads with a point to place
 }
-{ const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got; });   // the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
+{ const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }
