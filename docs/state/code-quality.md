@@ -1,12 +1,13 @@
 # Code quality lane (Auditor)
 
-## 2026-10-17 ~12:5x (+04) — HANDOFF before /clear. READ FIRST. (This supersedes the ~11:4x entry below.) LIVE = HS a41de381d
+## 2026-10-17 ~13:0x (+04) — HANDOFF before /clear. READ FIRST. (This supersedes the ~11:4x entry below.) LIVE = HT bbb513758 (verified)
 
 **Now, in order.**
-1. **HT #3008 @bbb513758** (trunk + #2997 alone) is PASSED + candidate:pass. When it is live, verify that release.json, the writer link and the presence link all = bbb513758, that presence NRestarts is 0, and that the presence stats line shows `snapped N strikes N` while `saves.failed` stops climbing.
-2. **#3005 @c4e6eed74** PASSED (code). It carries #2998, and its READY waits on Dom's iPhone walk + stills. **#2998 @d65848664** is PASSED ONLY inside #3005: its own unit-ci is red on test 164 (kill blood), and #3005 holds the exemption. Never cut #2998 alone.
-3. **#2988 @035668571 NOT YET**: the starter piece's tier still comes from the client's claimed rung (gear-import.ts:72), and it can be skipped as above-rank. I asked for Backend's `starter` predicate in all three places, or a refusal of starter pieces in the import, plus a fail-first test. Lead: it cuts only with Backend's starter-tier fix + the rusty-sword row (both stacked on it).
-4. Carried over: the row gap (no binding row dresses the signed-in hero; Web is adding one, read it); #2977 unread; #2975/#2983 need a retarget; #2945 waits for a cut.
+1. **HT LIVE bbb513758** (verified ~12:4x): release.json, writer, presence and verifier = bbb513758, NRestarts 0 since 12:29, stats line `snapped 0 strikes 0`, and 0 "malformed answer" since the restart. Re-check later that `saves.failed` stays near 0 over a full hour.
+2. **Starter cut PASSED as ONE cut: #2988 @035668571 + #3010 @d4e351a85 + #3011 @84e85bb21** (PASS lines on all three). #3010 fail-first on the VPS: 9/2 → 11/0. Combined tree 44/0, as-data gate 0. When it is cut: the candidate's unit-ci and quality bind, plus a writer reinstall (no migration, no presence change). Never #2988 without #3010.
+3. **#3005 @c4e6eed74** PASSED (code). It carries #2998, and its READY waits on Dom's iPhone walk + stills. **#2998 @d65848664** is PASSED ONLY inside #3005: its own unit-ci is red on test 164 (kill blood), and #3005 holds the exemption. Never cut #2998 alone.
+4. **Incident pass 2 (Strategy)**: done and sent. Across all 28 repos: 0 keys, 0 hooks, 0 secrets, 0 forks. Dirty refs: RPG-game 882 (workflow disabled), Codex-Hooks 103, Research-Agent-Bot 1 (PR #22's merge ref). VPS scratch left for a sweep once the VPS gh token is back: `/srv/dev-jobs/cq-ff-{b765ae74f,d4e351a85,84e85bb21,combined}` (git worktrees of cq-2919), plus `cq-2919/ff.bundle` and `ffc.bundle`.
+5. Carried over: the row gap (no binding row dresses the signed-in hero; Web is adding one, read it); #2977 unread; #2975/#2983 need a retarget; #2945 waits for a cut.
 
 **Done this session:** verified HS live (writer a41de381d, NRestarts 0 since 11:31; presence stays ae685e0ad by design). #2997 PASSED @2a7e46c34. **Dom's GitHub incident check (independent) is DONE**, read-only; report sent to Hooks Dev, cc Lead + Strategy. The report file lives in the session scratchpad, and the findings are in memory `security_incident_check_2026-10-17`. Headline: RPG-game still carried the attacker's security-audit.yml on 883 non-trunk refs (branches cut 10-09..10-13; 935 successful runs 10-09→10-13). **Lead disabled workflow 378982203 (I verified: disabled_manually).** Lead's ruling: never push to a branch cut before 10-13 without merging trunk first. The mass branch delete goes to Dom.
 
