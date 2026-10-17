@@ -260,7 +260,8 @@ export type ShardRow = { id: string; kind: 'stone' | 'metal'; count: number; tin
 export const specialShardsOf = (skill: string): ShardRow[] => ((DEFS as unknown as { specialShards?: ShardRow[] }).specialShards ?? []).filter((r) => r.id === skill);
 export const shardRows = (): number => ((DEFS as unknown as { specialShards?: ShardRow[] }).specialShards ?? []).length;
 // specialSound (Dom 2026-10-17, gritty melee: the hit must sound like bone and weight): rows { id (skill id), cue (a CueName), gain, room, delay } played in order when that melee special lands on the foe. No rows (trunk) = no sound added.
-export type SpecialSoundRow = { id: string; cue: string; gain: number; room: number; delay: number };
+// `on`: 'start' plays when the special is committed (the swing's whoosh, `delay` seconds in), 'land' (default) when it lands on the foe.
+export type SpecialSoundRow = { id: string; cue: string; gain: number; room: number; delay: number; on?: 'start' | 'land' };
 export const specialSoundOf = (skill: string): SpecialSoundRow[] => ((DEFS as unknown as { specialSound?: SpecialSoundRow[] }).specialSound ?? []).filter((r) => r.id === skill);
 type HealRow = { id: string; share: number; uses: number; windup: number };
 export const healRows = (): number => ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).length;   // 0 on trunk: no heal objects or light are built

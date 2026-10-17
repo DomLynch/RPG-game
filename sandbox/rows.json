@@ -126,7 +126,13 @@
 ],"specialShards":[
 ],"specialTrail":[
 ],"specialSound":[
-{"id":"cleave","cue":"bone_crack","gain":850,"room":150,"delay":0},{"id":"cleave","cue":"hit_heavy","gain":600,"room":300,"delay":0}
+{"id":"cleave","cue":"whoosh_heavy","gain":650,"room":200,"delay":280,"on":"start"},{"id":"cleave","cue":"bone_crack","gain":850,"room":150,"delay":0},{"id":"cleave","cue":"hit_heavy","gain":600,"room":300,"delay":0},
+{"id":"reaping","cue":"whoosh_heavy","gain":600,"room":200,"delay":120,"on":"start"},{"id":"reaping","cue":"whoosh_heavy","gain":750,"room":200,"delay":300,"on":"start"},{"id":"reaping","cue":"hit_heavy","gain":750,"room":300,"delay":0},{"id":"reaping","cue":"flesh_cut","gain":550,"room":200,"delay":0},
+{"id":"stomp","cue":"whoosh_heavy","gain":600,"room":200,"delay":260,"on":"start"},{"id":"stomp","cue":"hit_heavy","gain":900,"room":350,"delay":0},{"id":"stomp","cue":"guard_break","gain":450,"room":300,"delay":0},
+{"id":"lunge","cue":"whoosh_light","gain":600,"room":150,"delay":150,"on":"start"},{"id":"lunge","cue":"flesh_stab","gain":750,"room":150,"delay":0},{"id":"lunge","cue":"hit_heavy","gain":300,"room":250,"delay":0},
+{"id":"ironrush","cue":"whoosh_light","gain":600,"room":150,"delay":150,"on":"start"},{"id":"ironrush","cue":"hit_heavy","gain":700,"room":250,"delay":0},{"id":"ironrush","cue":"flesh_stab","gain":400,"room":150,"delay":0},
+{"id":"shove","cue":"charge","gain":300,"room":300,"delay":0,"on":"start"},{"id":"shove","cue":"hit_heavy","gain":800,"room":300,"delay":0},
+{"id":"pommel","cue":"hit_heavy","gain":500,"room":250,"delay":0},{"id":"pommel","cue":"bone_crack","gain":300,"room":150,"delay":0}
 ],"spellHeal":[
 {"id":"gula","share":250,"uses":2,"windup":120}
 ],"bandBest":[
