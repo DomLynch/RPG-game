@@ -54,5 +54,9 @@
     {"file": "src/fight/stab-rule.ts", "name": "FIRST_STAB_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Combat & Specials"},
     {"file": "src/fight/stance-era.ts", "name": "FIRST_STANCE_ROWS_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "Combat & Specials"},
     {"file": "src/fight/world-record.ts", "name": "WORLD_SIM_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
+  ],
+  "idTables": [
+    {"file": "src/fight/catalogue-defs.ts", "id": "weapon", "reason": "pure-data TS literal read by tests/lib/sim-digest.ts; RigId derives from its `as const`; moving it needs a digest-tool + RigId change under an RV bump (Combat's post-RV75 item; Lead 2026-10-17)"},
+    {"file": "src/fight/catalogue-defs.ts", "id": "hero", "reason": "pure-data TS literal read by tests/lib/sim-digest.ts; RigId derives from its `as const`; moving it needs a digest-tool + RigId change under an RV bump (Combat's post-RV75 item; Lead 2026-10-17)"}
   ]
 }

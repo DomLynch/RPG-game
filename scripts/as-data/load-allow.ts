@@ -8,12 +8,14 @@ export type Allow = { file: string; literal: string; reason: string };
 export type TunableAllow = { file: string; name: string; kind: 'exempt' | 'debt'; reason: string; owner?: string; sunset?: string };
 // A VERB is a closed list kept in code on purpose (Strategy's verb rulings): named with the function that dispatches on it and the day it goes (sunset null = it stays). Listed apart, never counted; a verb whose declaration is gone is stale.
 export type Verb = { file: string; name: string; dispatch: string; sunset: string | null };
-export type AllowData = { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[] };
+// An ID TABLE kept in TypeScript on purpose (rule (i), id-table.yml): named by its file and first row id, with the specific reason it stays (no expiry). Listed apart, never counted; one whose table is gone is stale.
+export type IdTableAllow = { file: string; id: string; reason: string };
+export type AllowData = { allow: Allow[]; verbs?: Verb[]; tunables?: TunableAllow[]; idTables?: IdTableAllow[] };
 // A directory is every *.json in it, in name order: `allow` and `verbs` concatenate in that order (they live in _lists.json, which sorts first), `tunables` merge sorted by (file, name), so the
 // report is the same whatever the split. A single file (the old shape, and the tests' fixtures) is read as it is.
 export function loadAllow(path: string): AllowData {
   if (!statSync(path).isDirectory()) return JSON.parse(readFileSync(path, 'utf8')) as AllowData;
   const parts = readdirSync(path).filter((f) => f.endsWith('.json')).sort().map((f) => JSON.parse(readFileSync(join(path, f), 'utf8')) as Partial<AllowData>);
   const by = (a: TunableAllow, b: TunableAllow) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-  return { allow: parts.flatMap((p) => p.allow ?? []), verbs: parts.flatMap((p) => p.verbs ?? []), tunables: parts.flatMap((p) => p.tunables ?? []).sort(by) };
+  return { allow: parts.flatMap((p) => p.allow ?? []), verbs: parts.flatMap((p) => p.verbs ?? []), tunables: parts.flatMap((p) => p.tunables ?? []).sort(by), idTables: parts.flatMap((p) => p.idTables ?? []) };
 }
