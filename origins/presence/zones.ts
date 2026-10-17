@@ -42,11 +42,13 @@ const corners = (width: number, depth: number, mount: Parameters<typeof toWorld>
 const row = (id: string, c: Pt[]): ZoneRow => ({ id, corners: c, speed: FIELDS.get(id)?.speed ?? 1, quiet: FIELDS.get(id)?.quiet ?? false });
 
 // Town zones first (a point on a shared edge belongs to the first), then every Frontier zone of every zone package.
-const rows: ZoneRow[] = (['pit-yard', 'exchange'] as const).map(id => {
+// A town row's `mount` names its frame in concordMounts() (town-zones.json: pit-yard sits on the Pit's, exchange on the Exchange's), so no zone name is compared here.
+const mountNamed = (id: string): Parameters<typeof toWorld>[1] => { const name = TOWN.zones.find((z) => z.id === id)?.mount; const m = name === undefined ? undefined : (mounts.value as Record<string, Parameters<typeof toWorld>[1]>)[name]; if (!m) throw new Error(`presence: town zone ${id} names no Concord mount`); return m; };
+const rows: ZoneRow[] = TOWN.zones.map(({ id }) => {
   const params = resolveZone(CONCORD, CONCORD_REGION, id);
   if (!params.ok) throw new Error(`presence: zone ${id} does not resolve`);
   const t = toMetres(params.value);
-  return row(id, corners(t.width, t.depth, id === 'pit-yard' ? mounts.value.pit : mounts.value.exchange));
+  return row(id, corners(t.width, t.depth, mountNamed(id)));
 });
 const plans = zoneIds().map(id => frontierPlan(true, id));
 const frontier = new Map<string, ZonePlan>();
@@ -91,7 +93,7 @@ export const fromLegacy = (p: Pt): Pt => ({ x: p.x + LEGACY_SHIFT_CM, z: p.z + L
 export const SPAWN: Pt = { x: CENTRE_CM, z: CENTRE_CM };
 
 // A landmark's position in presence centimetres, from the zone data (the same frame as zoneAt).
-const mountOf = (zone: 'pit-yard' | 'exchange') => (zone === 'pit-yard' ? mounts.value.pit : mounts.value.exchange);
+const mountOf = (zone: 'pit-yard' | 'exchange') => mountNamed(zone);
 export function landmarkCm(zone: 'pit-yard' | 'exchange', name: string): Pt {
   const params = resolveZone(CONCORD, CONCORD_REGION, zone);
   const l = params.ok ? toMetres(params.value).landmarks[name] : undefined;
