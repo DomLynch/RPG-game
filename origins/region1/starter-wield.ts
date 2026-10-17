@@ -5,6 +5,8 @@
 import { isLootId, legacyLootOfItemId, loadRegistry, tableFromFile, type LootId, type Manifest } from '../../src/core/server.ts';
 import DATA from './starter-wield.json' with { type: 'json' };
 import MANIFEST from './starter-wield.manifest.json' with { type: 'json' };
+import { FIRST_FRONTIER_WIELD_VERSION, FRONTIER_WIELD } from './frontier-wield.ts';
+import { RECORD_VERSION } from '../../src/fight/server.ts';
 
 /** The one loader: rows keyed by item id (a duplicate id or a missing field is refused), the item must be a starter item and the LootId one this game knows. */
 export function loadStarterWield(raw: { wield?: readonly unknown[] }): ReadonlyMap<string, LootId> {
@@ -22,4 +24,4 @@ export const STARTER_WIELD: ReadonlyMap<string, LootId> = loadStarterWield(DATA)
 export const STARTER_QTY: Readonly<Record<string, { readonly maxQty: number }>> = Object.fromEntries(DATA.wield.map((r) => [r.id, { maxQty: r.maxQty }]));
 
 /** The LootId a held item stands as: a legacy `item:loot.*` piece is its own, a starter item takes its row's, anything else has none (null). The one reading gear_open and the worn set share. */
-export const lootIdOfItem = (item: string): LootId | null => legacyLootOfItemId(item as Parameters<typeof legacyLootOfItemId>[0]) ?? STARTER_WIELD.get(item) ?? null;
+export const lootIdOfItem = (item: string, version: number = RECORD_VERSION): LootId | null => legacyLootOfItemId(item as Parameters<typeof legacyLootOfItemId>[0]) ?? STARTER_WIELD.get(item) ?? (version >= FIRST_FRONTIER_WIELD_VERSION ? FRONTIER_WIELD.get(item) : undefined) ?? null;   // `version` is the record's (a claim's v); none = this build's, so Frontier counts only once RECORD_VERSION reaches the era row
