@@ -13,7 +13,7 @@ import { OPPONENTS } from '../src/fight/moves.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
 import { chaseSpeed, leashOf } from '../src/fight/speeds.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
-import { TIERS } from '../src/core/grades.ts';
+import { TIERS } from '../src/core/server.ts';
 
 // RULE (test-only; no row changes, the rule is applied to the world after each step with the flags the world's own leash code sets): none | noblow | spawn.
 //   noblow : the creature gives up (walks home, heals) when it has landed no blow on a hero for NOBLOW_S seconds (default 10), counted from the chase start or its last landed blow (AzerothCore's cannot-reach-target evade).

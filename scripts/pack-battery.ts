@@ -5,7 +5,6 @@ import { creature, newWorld, player, stepCombat, type Fighter, type Input, type 
 import { TIERS } from '../src/core/server.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
-import { TIERS as GRADES } from '../src/core/grades.ts';
 import { SLOT_ROWS } from '../src/fight/roll.ts';
 
 const DT = 1 / 60, MAX_S = 120, env = (k: string, d: string) => (process.env[k] ?? d).split(',');
@@ -21,7 +20,7 @@ BOTS.retreat = (w, k) => { const h = w.fighters[0]!, f = nearest(w); if (!f || h
 BOTS.focus = BOTS.guard!;   // guard, and he turns to face the weakest living creature (the retarget cone picks his foe by where he faces)
 const FACE: Record<string, (w: World) => number | undefined> = { focus: (w) => { const h = w.fighters[0]!, t = w.fighters.filter((f) => f.side === 'creature' && f.phase !== 'dead' && f.hunting).sort((a, b) => a.health - b.health)[0]; return t ? Math.atan2(t.x - h.x, t.z - h.z) : undefined; } };
 function fight(kind: string, level: number, size: number, rung: number, seed: number, bot: Bot, botName = '') {
-  const starter = process.env.KIT === 'starter' ? wornGear({ head: 'goblin.Helmet', legs: 'goblin.Greaves' }, () => GRADES[0]) : undefined;   // KIT=starter: only the starter armour (goblin helmet + shin plates at Recruit), not the full plate set
+  const starter = process.env.KIT === 'starter' ? wornGear({ head: 'goblin.Helmet', legs: 'goblin.Greaves' }, () => TIERS[0]) : undefined;   // KIT=starter: only the starter armour (goblin helmet + shin plates at Recruit), not the full plate set
   const sheet = rungSheet(rung, heroLevel ?? level, 'plate', process.env.RECRUIT === '1', starter);   // the worn set's dial deltas on the default build (was a Loadout passed as player()'s `level` argument, so every rung fought naked)
   const total = size + escorts, foes = Array.from({ length: total }, (_, i) => { const a = (i / total) * Math.PI + 0.3 + seed * 0.37, r = 6 + (i % 2) * 1.2; return creature(`c${i}`, i < size ? kind : escort, Math.sin(a) * r, Math.cos(a) * r, a + Math.PI, i < size ? level : escortLevel ?? level); });
   let w = newWorld([player('hero', 0, 0, 0, heroLevel ?? level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) }), ...foes]), peak = 0, three = 0, ticks = 0;
