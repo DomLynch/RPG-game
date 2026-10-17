@@ -73,10 +73,13 @@ test('the Test Zone offers four combat cameras as data, each complete; the real 
   try {
     const { loadZone } = await import('../origins/zones/loader.ts'), { zoneCombatCams, zoneCombatPreset } = await import('../origins/world/goblin-field-rules.ts');
     const zone = loadZone('90'), cams = zoneCombatCams(zone);
-    assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3', '4'], 'four options (1 stance, 2 auto-fit, 3 player zoom, 4 auto-fit plus the zoom chip)');
+    assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3'], 'three looks (1 tight over the shoulder, 2 wide auto-fit, 3 elevated), not three numbers');
     assert.ok(Object.values(cams).every((c) => c.ease.out < c.ease.in), 'every exit is slower than its entry');
-    for (const id of ['2', '4']) for (const shape of [cams[id]!.portrait, cams[id]!.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && shape.shiftY! > 0, `${id}: the auto-fit has its speed limit, floor, cap and a lift in both orientations`);
-    assert.ok(cams['4']!.zoom && !cams['4']!.portrait.side && !cams['4']!.landscape.side, 'option 4 is option 2 with the zoom chip and no shoulder'); assert.equal(zoneCombatPreset(zone), '', 'none in use until Dom picks one');
+    for (const id of ['2', '3']) for (const shape of [cams[id]!.portrait, cams[id]!.landscape]) assert.ok(shape.fitRate! > 0 && shape.minBack! > 0 && shape.maxBack! > shape.minBack! && shape.shiftY! > 0, `${id}: the fitting cameras have their speed limit, floor, cap and a lift in both orientations`);
+    assert.ok(cams['2']!.zoom && !cams['2']!.portrait.side && cams['1']!.portrait.side, 'option 2 carries the zoom setting; option 1 is the one with a shoulder');
+    const pitch = (f: { back: number; up: number; lookY?: number }) => Math.atan2(f.up - (f.lookY ?? 1), f.back) * 180 / Math.PI;   // how steeply down the camera looks at the hero
+    assert.ok(pitch(cams['1']!.portrait) < pitch(cams['2']!.portrait) + 1 && pitch(cams['2']!.portrait) < pitch(cams['3']!.portrait) && pitch(cams['3']!.portrait) < 25, 'getting steeper from 1 to 3, but never so steep the skyline is lost (Dom)');
+    assert.ok(cams['3']!.portrait.back > cams['2']!.portrait.back && cams['2']!.portrait.back > cams['1']!.portrait.back * 2, 'each stands clearly further back than the one before (twice from 1 to 2)'); assert.equal(zoneCombatPreset(zone), '', 'none in use until Dom picks one');
     for (const [id, cam] of Object.entries(cams)) for (const shape of [cam.portrait, cam.landscape]) assert.ok(shape.back > 0 && shape.up > 0 && (shape.shiftY ?? 0) >= 0 && (shape.shiftY ?? 0) < 0.4, `${id}: a framing that is a camera`);
     assert.ok(cams['3']!.zoom && cams['3']!.zoom.steps.length === cams['3']!.zoom.labels.length && cams['3']!.zoom.start < cams['3']!.zoom.steps.length, 'option 3 is the one with a player zoom');
     for (const id of ['1', '2', '3', '4']) assert.deepEqual(zoneCombatCams(loadZone(id)), {}, `zone ${id} has no combat camera`);

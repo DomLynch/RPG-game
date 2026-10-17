@@ -351,6 +351,10 @@ function step(dt: number) {
     warriors.player.update(forward < 0 ? -gaitSpeed : gaitSpeed, dt, posed.pose, posed.progress, posed.attack, posed.contact, moved > 1e-6 ? (dx * Math.cos(heading) - dz * Math.sin(heading)) / moved : 0);
   }
   // Follow camera: the engine's (src/fight/follow-camera.ts); Zone 1's passage is the only zone parameter, and only on the Pit/Exchange page.
+  if (FIGHT_AT_START && !fightStarted && mobs) {   // wait until a goblin is drawn, stand the hero 3 m from it and strike: the fight is on
+    const g = mobs.within(state.x, state.z, 90).find((m) => m.spec.body === 'goblin');
+    if (g) { fightStarted = true; const ux = state.x - g.x, uz = state.z - g.z, L = Math.hypot(ux, uz) || 1; state.x = g.x + (ux / L) * 3.2; state.z = g.z + (uz / L) * 3.2; heading = Math.atan2(g.x - state.x, g.z - state.z); followCam.snap(); wc.press('light'); }
+  }
   const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : 1.8 } : null;   // in a fight with the locked creature
   if (foeNow && !wasInFight && combatCam) worldToast(`Combat camera ${combatId} on: ${combatCam.label.split(':')[0]}`);   // so a tester can see which camera a fight is using
   wasInFight = !!foeNow;
@@ -402,7 +406,8 @@ let combatId = /[?&;]combatcam=(\w+)/.exec(location.search)?.[1] ?? zoneCombatPr
 const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1', SHOULDER_KEY = 'origins-preview.shoulder.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0, shoulder = 1;   // shoulder: 1 = the framing's own side, -1 = mirrored; a setting on this device, never switched by the camera (a flip mid-fight moves the foe under the thumb)
 try { shoulder = localStorage.getItem(SHOULDER_KEY) === 'left' ? -1 : 1; } catch { /* storage blocked: the framing's own side */ }
 try { const saved = Number(localStorage.getItem(FIGHT_ZOOM_KEY)); if (combatCam?.zoom && Number.isInteger(saved) && saved >= 0 && saved < combatCam.zoom.steps.length && localStorage.getItem(FIGHT_ZOOM_KEY) !== null) fightZoom = saved; } catch { /* storage blocked: the framing's own start */ }
-let wasInFight = false;
+let wasInFight = false, fightStarted = false;
+const FIGHT_AT_START = /[?&;]fight=1/.test(location.search);   // ?fight=1: the page starts inside a fight with the nearest goblin, so a tester sees the combat camera at once (look tests)
 const foeSizes = new Map<string, number>();
 const sizeOfFoe = (id: string): number => {   // a creature's biggest dimension in metres (a salamander is 6 m long, a troll 3.5 m tall), measured once from its drawn body
   let s = foeSizes.get(id); if (s !== undefined) return s;
