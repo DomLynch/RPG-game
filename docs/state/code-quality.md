@@ -1,5 +1,9 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~13:4x (+04): LIVE = HU2 53aed13d5 (verified)
+
+**HU2 #3017 @53aed13d5** (trunk f7eb7abf0 + #2988 + #3010 @70481e4c2 + #3011) PASSED + candidate:pass: the tree equals the expected merge exactly and CI is 39/0 with origins-db green. It is **LIVE and verified**: the writer = 53aed13d5, NRestarts 0 since 13:38:58, clean journal; presence = 53aed13d5, restarted 13:39:02, NRestarts 0, clean log. The verifier stays on bbb513758. **Gotcha (p):** presence's install file list includes `src/core/**` (loot.ts, the loot rows). A release that touches src/core restarts presence through `--if-changed`, so check src/core too before writing "no presence change". My queue is empty after this; the entry below is the earlier state.
+
 ## 2026-10-17 ~13:0x (+04) — HANDOFF before /clear. READ FIRST. (This supersedes the ~11:4x entry below.) LIVE = HT bbb513758 (verified)
 
 **Now, in order.**
