@@ -11,7 +11,10 @@
         "heatUnitSeconds": "integer",
         "freeRepeats": "integer",
         "restedPerDayCp": "integer",
-        "restedCapCp": "integer"
+        "restedCapCp": "integer",
+        "partyGapFloor": "integer",
+        "topTier": "integer",
+        "boardMax": "integer"
       }
     },
     {
@@ -71,6 +74,12 @@
       "required": {
         "titles": "integer",
         "maxLootRung": "integer",
+        "spellsOff": "integer",
+        "specialSlots": "integer",
+        "specialsFromVersion": "integer",
+        "utilitySpells": "array",
+        "specialPick": "array",
+        "specialRoles": "object",
         "spells": "array"
       }
     },

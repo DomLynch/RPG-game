@@ -85,8 +85,9 @@ test('#1936 c(a): a pack joins - the nearest fights on his lock-on, the others j
   assert.equal(get(w1, 'd').phase, 'ready', 'the fourth is held off at the ring: no windup'); assert.ok(!w1.streams.p!.joined!.some((j) => j.foe === 'd') && w1.streams.p!.joined!.length === 2);
   // the primary falls: a joiner takes his lock-on at once
   const w2 = newWorld([player('p', 0, 0, 0, 10), creature('a', 'wolf', 0, 1.6), creature('b', 'wolf', 1.2, 1.6)]); boost(get(w2, 'p'));
+  // the hero cuts every 35 ticks (was 25, RV75/WSV52): the wolves now stop at 0.85 of their reach and trade from where they stand, so the 25-tick script no longer felled the first; the hero's health is untouched (the balance PR owns strength)
   let w = w2, aDown = -1, bFoe = false;
-  for (let t = 0; t < 60 * 60; t++) { const q = stepCombat(w, { p: t % 25 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = q.world; if (q.events.some((e) => e.type === 'Died' && e.id === 'a')) aDown = t; if (aDown >= 0 && w.streams.p?.foe === 'b') bFoe = true; if (get(w, 'b').phase === 'dead') break; }
+  for (let t = 0; t < 60 * 60; t++) { const q = stepCombat(w, { p: t % 35 === 0 ? { x: 0, z: 0, attack: 'light' } : STILL }, DT); w = q.world; if (q.events.some((e) => e.type === 'Died' && e.id === 'a')) aDown = t; if (aDown >= 0 && w.streams.p?.foe === 'b') bFoe = true; if (get(w, 'b').phase === 'dead') break; }
   assert.ok(aDown >= 0 && bFoe, 'when the first falls the second is his foe'); assert.ok(HOLD_M < ENGAGE_M);
 });
 
