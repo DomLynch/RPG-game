@@ -86,6 +86,7 @@
 {"id":"bandOff","value":400},
 {"id":"castTellOff","value":1},
 {"id":"spellBuffer","value":350},
+{"id":"spellReach","value":2500},
 {"id":"spellSkillFloor","value":100},
 {"id":"spellFx","value":1},
 {"id":"glanceGain","value":450},

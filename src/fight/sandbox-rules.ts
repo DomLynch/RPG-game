@@ -243,8 +243,11 @@ export const paysMana = (root: string | undefined): boolean => MANA_MAX > 0 && (
 type HealRow = { id: string; share: number; uses: number; windup: number };
 export const healOf = (spell: string | undefined): HealRow | undefined => (spell ? ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).find((r) => r.id === spell) : undefined);
 /** 'far' when `distance` metres is beyond the root's band (its farthest reach), undefined when the cast may go (any distance inside it, however close; or the root has no row). */
+// spellReach (Dom 2026-10-17: no short / medium / long, one maximum distance within reason): centimetres beyond which any spell is refused 'far' and costs nothing. 0 = off (trunk).
+export const SPELL_REACH = num('spellReach', 'value');
 export const spellRangeCue = (root: string, distance: number): 'far' | undefined => {
   const row = spellRangeOf(root); if (!row) return undefined;
+  if (SPELL_REACH && distance * 100 > SPELL_REACH) return 'far';
   const have = BANDS.findIndex((b) => b.id === bandOf(distance)), want = BANDS.findIndex((b) => b.id === row.band);
   return want >= 0 && have > want ? 'far' : undefined;
 };
