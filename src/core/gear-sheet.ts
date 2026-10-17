@@ -3,6 +3,7 @@
 import { captureException } from '@sentry/browser';
 import { enterGearRoom, type GearRoom } from './gear-room.ts';
 import { TIERS, type Tier } from './grades.ts';
+import { TOP_TIER } from './career-model.ts';
 import { isLegendOpponent, legendAt } from '../legends.ts';
 import { PACK, PAPERDOLL, emptyLoot, ownedName, packFull, paperdollOf, slotOf, type Loot, type LootId, type Paperdoll } from './loot.ts';
 import { applyLocal, wornIdsOf, wornTiersOf, type GearOp } from './gear-ledger.ts';
@@ -71,7 +72,7 @@ export function createGearSheet(d: GearSheetDeps) {
       if (i >= PACK.open) { li.className = 'pack-locked'; li.setAttribute('aria-label', 'Locked pack slot'); return li; }
       if (!id) { li.className = 'pack-empty'; li.setAttribute('aria-label', 'Empty pack slot'); if (i === 0 && !loot.pack?.length) li.textContent = d.emptyPack ?? 'Nothing stored. Win gear in the arena.'; return li; }
       const text = document.createElement('div'), name = document.createElement('strong'), rank = document.createElement('small'), button = document.createElement('button');
-      li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); weightBadge(name, id); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(10, Math.max(1, d.profile().loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
+      li.setAttribute('data-loot', id); name.textContent = sentence(pieceName(id)); weightBadge(name, id); rank.textContent = rankText(id); rank.dataset.rank = String(Math.min(TOP_TIER, Math.max(1, d.profile().loot?.taken?.[id]?.tier ?? 1))).padStart(2, '0');
       button.type = 'button'; button.setAttribute('data-fit', id); button.setAttribute('aria-label', `Try on ${pieceName(id)}`); button.textContent = '›';
       button.addEventListener('click', () => tryOn(id));
       text.append(name, rank); li.append(text, button); thumbFor(li, id, 'pack-thumb');

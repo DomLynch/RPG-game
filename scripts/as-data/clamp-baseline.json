@@ -37,16 +37,6 @@
  "src/arena.ts": {
   "255": 1
  },
- "src/core/career-client.ts": {
-  "50": 1
- },
- "src/core/career-model.ts": {
-  "5": 1,
-  "10": 1
- },
- "src/core/gear-sheet.ts": {
-  "10": 1
- },
  "src/fight/blood-style.ts": {
   "3": 1
  },
