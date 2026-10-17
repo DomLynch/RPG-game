@@ -1,0 +1,1 @@
+import '../origins/server/loot-receipt.test.ts';   // the loot receipt: a verified Zone 5 kill mints a wearable piece that shows on the sheet and moves a fight number (the stub rule: every origins test has a CI entry)

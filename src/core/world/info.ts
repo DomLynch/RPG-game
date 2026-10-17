@@ -3,25 +3,22 @@
 // never disagree), commonness from the row's weight against the rows of its zone, the group from the row's camp size. Nothing here is hand-authored
 // per creature. Pure: no DOM, no clock. The card is a view of this (origins/preview/creature-card.ts).
 import { falloffPermille } from '../career-model.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../registry.ts';
 import { DEFAULTS, type MobRow } from './row.ts';
+import ROWS from './info-bands.json' with { type: 'json' };
+import MANIFEST from './info-bands.manifest.json' with { type: 'json' };
 
 export type Band = { id: string; permille: number; label: string; color: string };
 // The seven bands in order, one per distinct falloffPermille value (mobs.md 1.2); index = the con ring's dash count (grey 0 ... red 6).
-export const BANDS: readonly Band[] = [
-  { id: 'grey', permille: 0, label: 'Trivial', color: '#9d9d9d' },
-  { id: 'green', permille: 200, label: 'Easy', color: '#7fdc4f' },
-  { id: 'lightblue', permille: 500, label: 'Comfortable', color: '#6fc3ff' },
-  { id: 'blue', permille: 900, label: 'Slightly easy', color: '#4a7dff' },
-  { id: 'white', permille: 1000, label: 'Even', color: '#f2f2f2' },
-  { id: 'yellow', permille: 1100, label: 'Tougher', color: '#ffe97a' },
-  { id: 'red', permille: 1250, label: 'Dangerous', color: '#ff4444' },
-];
+// The bands and the commonness steps are rows (info-bands.json + manifest; Dom's data-layer rule 2026-10-13; tests/info-bands-rows.test.ts pins them to the literals they replaced).
+loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, ROWS, 'info-bands.json'), tableFromFile(MANIFEST.tables[1] as unknown as Manifest, ROWS, 'info-bands.json')]);
+export const BANDS: readonly Band[] = ROWS.bands;
 // An unknown permille rounds down to the nearest listed band (a retuned ladder moves the colours with it, never a copied gap table).
 export const conBand = (permille: number): number => BANDS.reduce((best, b, i) => (permille >= b.permille ? i : best), 0);
 export const bandOf = (creatureLevel: number, heroLevel: number): number => conBand(falloffPermille(creatureLevel - heroLevel));
 
 // How common a kind is: its weight's share of the weights of the zone's generated kinds. [min share, label], highest first.
-export const COMMON_STEPS: readonly (readonly [number, string])[] = [[0.3, 'Common'], [0.12, 'Uncommon'], [0, 'Rare']];
+export const COMMON_STEPS: readonly (readonly [number, string])[] = ROWS.commonSteps.map((s) => [s.min, s.label] as const);
 export function commonOf(row: MobRow | undefined, rows: readonly MobRow[]): string {
   if (!row || row.named) return 'Unique';
   const pool = rows.filter((r) => !r.named && !r.later), total = pool.reduce((n, r) => n + (r.weight ?? DEFAULTS.weight), 0);

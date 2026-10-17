@@ -42,8 +42,9 @@ test('every starter gear item names a LootId of its own slot (the rusty sword st
 
 test('the loader refuses a non-starter item, an unknown LootId and a duplicate id', () => {
   const rows = DATA.wield;
-  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:frontier.watch-greaves', lootId: 'goblin.Greaves' }] }), /only an item:starter/);
-  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:starter.knife', lootId: 'goblin.Nonsense' }] }), /not a LootId/);
+  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:frontier.watch-greaves', lootId: 'goblin.Greaves', maxQty: 1 }] }), /only an item:starter/);
+  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:starter.knife', lootId: 'goblin.Nonsense', maxQty: 1 }] }), /not a LootId/);
+  assert.throws(() => loadStarterWield({ wield: [{ id: 'item:starter.knife', lootId: 'goblin.Knife', maxQty: 0 }] }), /maxQty/);
   assert.throws(() => loadStarterWield({ wield: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
 });
 
