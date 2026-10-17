@@ -1,0 +1,24 @@
+{
+  "farLods": [
+    {
+      "id": "hero",
+      "fields": {
+        "source": "src/assets/warrior.glb",
+        "out": "src/assets/hero-far.glb",
+        "body": "CreatureBody",
+        "parts": [
+          {"mesh": "Skin", "tris": 1700},
+          {"mesh": "Photo", "tris": 700},
+          {"mesh": "Face", "tris": 100},
+          {"mesh": "Wrap", "tris": 500},
+          {"mesh": "Gambeson", "tris": 600},
+          {"mesh": "Heraldry", "tris": 500},
+          {"mesh": "Leather.Boots", "tris": 300},
+          {"mesh": "Leather", "tris": 80}
+        ],
+        "weapon": {"meshes": ["WeaponDrawn_1", "WeaponDrawn_2"], "tris": 400},
+        "influences": 4
+      }
+    }
+  ]
+}
