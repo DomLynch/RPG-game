@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 4096,
+  "image": "docs/character-references/mob-families/beast-boar-s31.png",
+  "preprocess_s": 11.9,
+  "image_to_3d_s": 31.1,
+  "extract_glb_s": 52.3,
+  "glb": "src/assets/source/creatures/beast-boar.glb",
+  "bytes": 8387084,
+  "sha256": "2e43da77ec2e7e0c1ef483865669b56e61fe55ac856f3279416149536b767b65",
+  "attempts": 1
+}

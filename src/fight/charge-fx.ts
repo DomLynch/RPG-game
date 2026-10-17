@@ -17,6 +17,7 @@ import { fxNum } from './fx-rows.ts';
 // Loaded lazily by the scene only on `?special=centurion`.
 const HOOF = fxNum('charge-fx.hoof'), BURST = fxNum('charge-fx.burst'), GRAIN = fxNum('charge-fx.grain'), STREAK = fxNum('charge-fx.streak');   // STREAK: sprites in the continuous dark trail behind his feet
 const LEAD = fxNum('charge-fx.lead');   // metres the line begins behind the caster, and how far back his body is drawn at the start of the race: near enough that it is on the phone's screen (3.2 ran off the top)
+const GAP_FLOOR = fxNum('charge-fx.gap-floor');   // the shortest caster-to-target gap the line is laid along (m)
 const WORLD = new THREE.Vector3();   // scratch for the caster's slid anchor, set and consumed within the frame
 const STRIDE = fxNum('charge-fx.stride'), LIFE = fxNum('charge-fx.life'), BURST_RUN = fxNum('charge-fx.burst-run');   // metres between hoof strikes; metres of front a strike's puff lives; how far the burst rolls out
 
@@ -69,7 +70,7 @@ export function createChargeFx(scene: THREE.Scene, opponent: OpponentId, cue?: (
       root.visible = !!state;
       if (!cast || !caster || !target) return;
       from.set(caster.x, 0, caster.z); to.set(target.x, 0, target.z); dir.subVectors(to, from).setY(0);
-      const gap = Math.max(dir.length(), 0.5); dir.normalize(); side.set(-dir.z, 0, dir.x);
+      const gap = Math.max(dir.length(), GAP_FLOOR); dir.normalize(); side.set(-dir.z, 0, dir.x);
       const total = LEAD + gap, front = (state?.front ?? 0) * total;
       // The body: he is drawn at the head of the dust, not planted. Over the GATHER ticks before the race he eases back to the start of the line, then rides the
       // front forward to his own spot (the sim never moves him: the rig's anchor is a presentation offset that the rig resets every frame, so a frame without this

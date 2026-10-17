@@ -15,7 +15,7 @@ test('the exported numbers are the literals the files held before', () => {
 
 test('the private numbers are rows with their old values', () => {
   const was: Record<string, number> = {
-    'charge-fx.hoof': 18, 'charge-fx.burst': 20, 'charge-fx.grain': 20, 'charge-fx.streak': 24, 'charge-fx.lead': 2, 'charge-fx.stride': 0.36, 'charge-fx.life': 2, 'charge-fx.burst-run': 1.6,
+    'charge-fx.hoof': 18, 'charge-fx.burst': 20, 'charge-fx.grain': 20, 'charge-fx.streak': 24, 'charge-fx.lead': 2, 'charge-fx.stride': 0.36, 'charge-fx.life': 2, 'charge-fx.burst-run': 1.6, 'charge-fx.gap-floor': 0.5,
     'opening-pose.in': 0.12, 'opening-pose.out': 0.2, 'opened.chunk': 2048, 'opened.scan': 100000, 'opened.step-ms': 8,
   };
   for (const [id, v] of Object.entries(was)) assert.equal(fxNum(id), v, id);

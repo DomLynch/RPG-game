@@ -1,0 +1,5 @@
+{
+  "tintFloor": [
+    {"id": "tint", "lumaFloor": 0.0001, "metalRatioFloor": 0.2, "roughRatioCap": 1.5}
+  ]
+}

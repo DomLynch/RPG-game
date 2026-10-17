@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": ".scratch-stills/fort/ref/tower-191201.png",
+  "preprocess_s": 10.5,
+  "image_to_3d_s": 39.7,
+  "extract_glb_s": 38.0,
+  "glb": "src/assets/source/creatures/goblin-tower-v2.glb",
+  "bytes": 7426464,
+  "sha256": "bc16b06bc301552dc49249be4555541cc92730facb916c420ff62ae2d61537c8",
+  "attempts": 1
+}

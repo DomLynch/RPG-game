@@ -19,10 +19,6 @@
   "1e-3": 1,
   "0.05": 1
  },
- "origins/preview/mob-dress.ts": {
-  ".2": 1,
-  ".7": 1
- },
  "origins/preview/mobs-view.ts": {
   "8": 1,
   "1.9": 1,
@@ -55,18 +51,6 @@
  },
  "src/fight/cc-ladder.ts": {
   "10": 1
- },
- "src/fight/characters.ts": {
-  "0.1": 1,
-  ".25": 2,
-  ".5": 1,
-  ".999999": 1,
-  ".07": 1,
-  ".24": 1,
-  ".03": 1
- },
- "src/fight/charge-fx.ts": {
-  "0.5": 1
  },
  "src/fight/clash-sparks.ts": {
   "0.1": 1,
@@ -110,11 +94,6 @@
  },
  "src/fight/opened.ts": {
   "119": 1
- },
- "src/fight/rank-tint.ts": {
-  "1e-4": 2,
-  "0.2": 1,
-  "1.5": 1
  },
  "src/fight/record.ts": {
   "127": 1,

@@ -1,5 +1,12 @@
 {
   "dials": [
-    {"id": "DEFLECT_FROM","value": 0.35}
+    {"id": "DEFLECT_FROM","value": 0.35},
+    {"id": "STEP_MAX","value": 0.1},
+    {"id": "WALK_RATE_FLOOR","value": 0.25},
+    {"id": "RUN_RATE_FLOOR","value": 0.5},
+    {"id": "CLIP_END","value": 0.999999},
+    {"id": "RADIUS_MIN","value": 0.07},
+    {"id": "RADIUS_MAX","value": 0.24},
+    {"id": "ARM_REACH_MIN","value": 0.03}
   ]
 }
