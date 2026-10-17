@@ -16,6 +16,7 @@ import type { buildWarriors } from '../../src/fight/index.ts';
 import { createGovernor } from './frame-governor.ts';
 import { labelSprite } from './label-sprite.ts';
 import { labelCeilingNdc } from './mobs.ts';
+import { CHEAP_PARTS } from './remote-cheap.ts';
 import { previewRule } from './preview-rules.ts';
 import { createTrack, type Remote } from './remote-track.ts';
 
@@ -24,7 +25,7 @@ export type Who = { name: string | null; guest: boolean };
 /** The tag: "Guest" for a guest (Dom: guests are in the world), the name otherwise, and nothing at all until the name has arrived (the server sends { id, name, guest } once, on entering interest). */
 export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name?.trim() || null);
 
-type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number };   // gx/gz/gy: where the ground height was last read, and what it was
+type Slot = { group: THREE.Group; actor: Actor; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
 
 /** `who`: the page's record of an id's { name, guest } (presence's `enter`, kept by main.ts), read each frame for the ids drawn; `forget`: called when a slot expires, so a reused id never wears the last player's name before its own `enter` arrives. */
 export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Actor; groundAt: (x: number, z: number) => number; who?: (id: number) => Who | undefined; forget?: (id: number) => void }) {
@@ -34,7 +35,8 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
   const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(), up = new THREE.Vector3(0, 1, 0);   // the figure's bounding ball: centred a metre up
   const grow = (): Slot => {
     const actor = d.spawn(), group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
-    const slot: Slot = { group, actor, id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0 }; pool.push(slot);
+    const slot: Slot = { group, actor, id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
+    actor.anchor.traverse((o) => { if (o instanceof THREE.Mesh && CHEAP_PARTS.has(o.name)) slot.parts.push(o); });
     const skins = new Set<THREE.Skeleton>(); actor.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
     for (const skeleton of skins) { const real = skeleton.update.bind(skeleton); skeleton.update = () => { if (!slot.frozen || slot.thaw) real(); }; }   // the render calls this every frame for every drawn skin: a frozen figure's does nothing (no matrices, no texture upload)
     return slot;
@@ -49,6 +51,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
       if (!(o instanceof THREE.Mesh)) return;
       if (cheap) { o.userData.castWas ??= o.castShadow; o.castShadow = false; } else if (o.userData.castWas !== undefined) o.castShadow = o.userData.castWas as boolean;
     });
+    for (const p of s.parts) { if (cheap) { p.userData.partWas ??= p.visible; p.visible = false; } else if (p.userData.partWas !== undefined) p.visible = p.userData.partWas as boolean; }   // the small parts (a draw call each) are not drawn on a cheap figure; each one's own visibility is remembered
   };
   const retag = (s: Slot, text: string | null): void => {
     if ((s.tag ? s.text : null) === text) return;
@@ -82,6 +85,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         freeze(slot, slot.cheap || !seen_);
         if (pose) {
           slot.thaw = true; slot.actor.update(slot.speed, slot.owed, 'ready', 0, 'light', 0.35, 0); slot.owed = 0;
+          if (slot.cheap) for (const p of slot.parts) p.visible = false;   // the rig's own update may show a part again
           if (slot.frozen) slot.group.updateMatrixWorld(true);   // frozen groups are not in the scene's walk: bring this one's bones and root current once, for this frame's skeleton update
         }
         slot.hidden = !seen_;
