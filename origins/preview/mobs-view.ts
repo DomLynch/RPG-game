@@ -8,14 +8,13 @@ import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobLook, mobVariant } from './mob-looks.ts';
+import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
 import { calmStep, type Calm } from './mob-calm.ts';
 import { loadLoot, lootWorn } from '../../src/fight/characters.ts';
 import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
-const standback = (opponent: string): number => fxNum(fxHas(`reach.standback.${opponent}`) ? `reach.standback.${opponent}` : 'reach.standback.default');   // a row per creature, > 0 = it stands back from the hero until its mouth is clear (the salamander only)
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
@@ -223,8 +222,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
         const look = mobVariant(s.character, s.id), ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;
-        // Strategy's ruling (Dom 2026-10-17): the stand-back push applies ONLY to a body drawn at scale >= reach.standback.min-scale whose row says so (reach.standback.<creature> > 0, default 0): the 6 m salamander. Goblin, troll, wolf and boar are drawn AT the engine's position (a push put the 1.25 goblin 3.1 m out, a 2.7x lever on every sweep). Gait speed already comes from the engine's velocity (v.px / v.pz above), not from the drawn delta.
-        const off = look && look.scale >= fxNum('reach.standback.min-scale') && standback(look.opponent) > 0 ? Math.max(0, mouthReach(look.opponent) * look.scale + HERO_EDGE + HERO_GAP - dh) : 0;   // the clear air grows with how much bigger the body is drawn than its rig (reach.full-scale = the excess that gets the whole reach.gap): a 6 m salamander keeps 2.2 m, a 1.25 goblin about 0.1 m, so it stands about where the engine has it, not 3 m out (the headless clip measured the drawn goblin 3.1 m from the hero vs Zone 1's 1.1, a 2.7x lever on every sweep)   // a body drawn bigger than its rig (a zone look's scale) stands back along the line to the hero until its MOUTH (the row's metres per unit of scale, from its centre) is HERO_GAP m short of his edge, not in his face or inside him; presentation only, the sim's contact distance is untouched
+        const off = look && look.scale > bodyScale(look.opponent) ? Math.max(0, mouthReach(look.opponent) * look.scale + HERO_EDGE + HERO_GAP * Math.min(1, (look.scale - bodyScale(look.opponent)) / fxNum('reach.full-scale')) - dh) : 0;   // the clear air grows with how much bigger the body is drawn than its rig (reach.full-scale = the excess that gets the whole reach.gap): a 6 m salamander keeps 2.2 m, a 1.25 goblin about 0.1 m, so it stands about where the engine has it, not 3 m out (the headless clip measured the drawn goblin 3.1 m from the hero vs Zone 1's 1.1, a 2.7x lever on every sweep)   // a body drawn bigger than its rig (a zone look's scale) stands back along the line to the hero until its MOUTH (the row's metres per unit of scale, from its centre) is HERO_GAP m short of his edge, not in his face or inside him; presentation only, the sim's contact distance is untouched
         // The stand-back vector eases (reach.dir-tau): it is up to ~4 m long for a salamander, and as a lever on the hero-to-creature line it turned a 1 m/s sweep of the engine's body into 3-4 m/s on screen (Dom: "moving left to right very quickly"); eased, the body sweeps at the engine's own speed.
         const want = { x: (ux / dh) * off, z: (uz / dh) * off }, cur = backOff.get(i) ?? want, k = 1 - Math.exp(-dt / fxNum('reach.dir-tau')); cur.x += (want.x - cur.x) * k; cur.z += (want.z - cur.z) * k; backOff.set(i, cur);
         v.group.position.set(m.x + cur.x, gy, m.z + cur.z); v.group.rotation.y = m.facing;
