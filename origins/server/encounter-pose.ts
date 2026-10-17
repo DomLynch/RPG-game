@@ -16,7 +16,7 @@ const EDGE = POSE.edge;   // stay this far inside the wall so float32 rounding c
 // The circle and the widest start gap for this foe, as a posed (v38) record of it replays (detmath.ts underRecord -> play-radius.ts underPlayScale).
 export function poseBounds(enemy: string): { radius: number; maxGap: number } {
   const k = playScaleFor(enemy, FIRST_POSE_VERSION);
-  return { radius: k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS, maxGap: MARK_GAP * Math.max(k, 0.5) };
+  return { radius: k === 1 ? BASE_RADIUS : WALL_INNER * k - BODY_RADIUS, maxGap: MARK_GAP * Math.max(k, POSE.scaleFloor) };
 }
 
 const point = (v: unknown, name: string): { x: number; z: number } => {

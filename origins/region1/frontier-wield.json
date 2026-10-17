@@ -1,0 +1,13 @@
+{
+  "era": [
+    { "id": "frontier-wield", "fromRecordVersion": 75 }
+  ],
+  "wield": [
+    { "id": "item:frontier.ash-helm", "lootId": "goblin.Helmet" },
+    { "id": "item:frontier.watch-greaves", "lootId": "goblin.Greaves" },
+    { "id": "item:frontier.thrall-gloves", "lootId": "dwarf.Gloves" },
+    { "id": "item:frontier.ferryman-boots", "lootId": "executioner.Boots" },
+    { "id": "item:frontier.mere-arms", "lootId": "veteran.Arms" },
+    { "id": "item:frontier.mere-shield", "lootId": "shieldmaiden.Shield" }
+  ]
+}

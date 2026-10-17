@@ -3,6 +3,7 @@
     {"file": "origins/presence/wire.ts", "name": "DOWN", "kind": "exempt", "reason": "presence wire message type id / field width: the client/server protocol", "owner": "Duels & Backend"},
     {"file": "origins/presence/wire.ts", "name": "ENTITY_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
     {"file": "origins/presence/wire.ts", "name": "HEAD_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
+    {"file": "origins/presence/wire.ts", "name": "MAX_ENTITIES", "kind": "exempt", "reason": "presence wire message type id / field width: the client/server protocol", "owner": "Duels & Backend"},
     {"file": "origins/presence/wire.ts", "name": "UP", "kind": "exempt", "reason": "presence wire message type id / field width: the client/server protocol", "owner": "Duels & Backend"},
     {"file": "origins/presence/wire.ts", "name": "UP_BYTES", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"},
     {"file": "origins/presence/frame.ts", "name": "LEGACY_SPAN_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},

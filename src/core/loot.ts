@@ -48,7 +48,10 @@ export type Provenance = { opponent: OpponentId; attempt: number; healthLeft: nu
 // A union like owned: nothing removes one. Backfilled in cleanLoot from every kill already on record (taken and declined provenance that
 // carries a tier); a kill from before tiers were recorded has no rank and gives no skull. Rides the loot column: no migration. A build from
 // before this field drops it when it saves, and the next save from a newer device puts back everything that device holds (profileDiffers).
-export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId; defeats?: string[] };
+export type Loot = { owned: LootId[]; equipped: Partial<Record<Paperdoll, LootId>>; pack?: LootId[]; packInfo?: readonly PackInfo[]; taken?: Partial<Record<LootId, Provenance>>; declined?: Provenance[]; skill?: SkillId; defeats?: string[] };
+/** One pack cell of a SERVER ledger (gear-ledger.ts lootOfView), parallel to `pack`: the rung THAT instance was minted at (0 = none recorded) and its server piece id. `taken` keeps one rung per lootId (the worn instance's), so two packed copies of one id at different rungs
+ *  (what the mint's rarity shift makes common) are told apart only here. A device ledger has none and reads `taken`. */
+export type PackInfo = { tier: number; piece: string };
 // A skill (SCOPE #729 item 8, docs/briefs/skill-witch-arm.md): a kill of its opponent offers the move as a tile beside her armour, one or
 // the other, one take per win. It is TAKEN, not grafted, and stored with the loot so it saves and syncs like a piece. One move per duel:
 // `skill` is the one equipped; the fight hands it to the player's fighter at the draw (match.ts). The label is the move's name, plain.

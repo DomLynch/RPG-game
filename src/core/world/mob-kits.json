@@ -1,5 +1,10 @@
 {
  "about": "Mob kits and chains as data (World, Dom's data-layer day 2026-10-14; Combat top-10 #5): per MobStyle, a KIT is one to three rows of throw THIS existing attack when THIS holds at most once per COOLDOWN ticks (brute opens with the maul and breaks a turtle's guard; skirmisher pokes again right after a hit; caster opens with the witchfire; beast pounces to open and mauls a winded hero), and CHAINS are the authored follow-ups on the engine's 16-18 tick chain window (src/fight/mobkit.ts validateChains refuses a row that reaches past its weapon's window). kits.ts only loads them; the kit tag hashes this data.",
+ "modes": {
+  "shy": { "aggression": -0.2, "disengage": 0.2, "dash": -0.3 },
+  "bold": { "aggression": 0.1, "pressure": 0.1, "disengage": -0.2 },
+  "ambusher": { "dash": 0.4, "lapse": -0.1, "interrupt": 0.2 }
+ },
  "kits": {
   "brute": [
    {

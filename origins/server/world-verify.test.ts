@@ -116,6 +116,14 @@ test('heroOf: a ledger that forbids the claimed gear leaves the kill unverified'
   assert.deepEqual(s.kills[0]!.b.map((o) => o.op), ['event']); assert.match((s.kills[0]!.b[0]!.payload as { record: string }).record, /hero beyond ledger/);
 });
 
+test('heroOf is handed the CLAIM\'s record version (rv), so a v74 page\'s world fight posted after a v75 deploy is held to v74 rules', async () => {
+  const { rec, text } = await honest(), seen: (number | undefined)[] = [];
+  const ops = mk({ scorecardOnlyUnverified: true, heroOf: async (_a: string, _c: string, version?: number) => { seen.push(version); return { level: 0 }; } });
+  await ops.kill_report!(ctx(stub().db), { token: TOKEN, hits: 50, record: text });
+  assert.deepEqual(seen, [rec.rv], 'the version is the record\'s own, not this build\'s');
+  assert.ok(rec.rv > 0);
+});
+
 test('an overlong record is refused in a few ms without a replay, and kill_report still pays as today', async () => {
   const { rec, text } = await honest(), t0 = performance.now();
   const long = await encodeWorldRecord({ ...rec, steps: Array.from({ length: 17_000 }, () => rec.steps[0]!) });
@@ -188,7 +196,7 @@ test('the soak counters are wired in the production entry and answer GET /intern
   const entry = readFileSync(new URL('../../scripts/origins-writer.mjs', import.meta.url), 'utf8');
   assert.match(entry, /const tally = createVerdictTally\(\)/);
   assert.match(entry, /verifyRecord: [^}]*, tally[,} ]/, 'the spawn deps count every verdict');
-  assert.match(entry, /heroOf: \(account, character\) => heroLimitOf\(db, account, character\)/, 'and bound the hero claim by the held worn set');
+  assert.match(entry, /heroOf: \(account, character, version\) => heroLimitOf\(db, account, character, version\)/, 'and bound the hero claim by the held worn set, read at the claim\'s own record version');
   assert.match(entry, /worldRecords: tally/, 'the internal route reads them');
   const t = createVerdictTally(); t.add('verified'); t.add('timeout');
   const route = internalRoute({} as never, { key: 'k', worldRecords: t });

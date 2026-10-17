@@ -73,6 +73,7 @@
       "key": "id",
       "required": {
         "titles": "integer",
+        "maxLootRung": "integer",
         "spells": "array"
       }
     },

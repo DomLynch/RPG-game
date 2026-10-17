@@ -4,6 +4,7 @@
 import { Issues, fail, ok, type Obj, type Result } from '../../src/core/server.ts';
 import { defaultsOf, fieldDefaults, merge, validate, SCHEMA_VERSION, type Layer, type WorldData } from './resolve.ts';
 import { SCHEMA, type Params } from './schema.ts';
+import { stageRule } from './stage-rules.ts';
 
 export type Template = { base: Layer; vary: Record<string, readonly [number, number]>; jitter: number };
 
@@ -72,7 +73,7 @@ export function generateRegion(template: Template, seed: number, count: number, 
   for (let i = 1; i < count; i++) {
     link(i - 1, i, 'gate');
     const back = Math.floor(rand() * i);
-    if (back < i - 1 && rand() < 0.3) link(back, i, 'road');
+    if (back < i - 1 && rand() < stageRule('roadChance')) link(back, i, 'road');
   }
   return ok({ schemaVersion: SCHEMA_VERSION, regions: { [regionId]: { zones } } });
 }

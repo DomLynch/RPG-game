@@ -12,11 +12,12 @@ import { heldSql, type SpellHeld } from './spell-check.ts';
 type LootId = NonNullable<ReturnType<typeof lootIdOfItem>>;
 
 // The worn pieces and the rung each was won at, as the ledger holds them: the one reading both wornGear (sheet deltas) and loadoutFor (the world's Attack and RES) take.
-function wornOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): { equipped: Record<string, LootId>; tiers: Map<LootId, Tier | null> } {
+// `version` is the record's: a Frontier piece stands as a LootId only from its era row (frontier-wield.json), so an older claim re-checks without it; none = this build's version.
+function wornOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): { equipped: Record<string, LootId>; tiers: Map<LootId, Tier | null> } {
   const equipped: Record<string, LootId> = {}, tiers = new Map<LootId, Tier | null>();
   for (const i of items) {
     if (i.location.kind !== 'equipped' || i.location.slot === undefined) continue;
-    const id = lootIdOfItem(i.item);
+    const id = lootIdOfItem(i.item, version);
     if (!id) continue;   // a piece that is not a loot id adds nothing to the sheet
     if (i.location.slot in equipped) throw new Error(`two pieces worn in ${i.location.slot}`);
     if (tiers.has(id)) throw new Error(`${id} is worn twice`);   // wornGear's rung lookup is by LootId, so one id on two instances could not carry two rungs
@@ -27,18 +28,18 @@ function wornOf(items: readonly { item: string; tier?: string | null; location: 
 }
 
 /** The weapon the held rows fight with: the page's fightWeapon over the main hand (a weapon the hero rig cannot wield, or none, is the default). */
-export function heldWeaponOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): string {
-  return fightWeapon({ equipped: wornOf(items).equipped } as Parameters<typeof fightWeapon>[0]);
+export function heldWeaponOf(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): string {
+  return fightWeapon({ equipped: wornOf(items, version).equipped } as Parameters<typeof fightWeapon>[0]);
 }
 
 export function wornGearOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): Readonly<Record<string, number>> {
-  const { equipped, tiers } = wornOf(items);
+  const { equipped, tiers } = wornOf(items, version);
   return wornGear(equipped as Parameters<typeof wornGear>[0], (id) => tiers.get(id), version);
 }
 
 /** The world loop's hero Loadout (Attack out, RES in) from the same held rows: what the page derives from its worn set (gear-numbers.ts), so a world record's hero claim can be held to it. */
-export function loadoutOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[]): Loadout {
-  const { equipped, tiers } = wornOf(items);
+export function loadoutOfItems(items: readonly { item: string; tier?: string | null; location: { kind: string; slot?: string } }[], version?: number): Loadout {
+  const { equipped, tiers } = wornOf(items, version);
   return loadoutFor(kitFrom(equipped as Parameters<typeof kitFrom>[0], (id) => tiers.get(id) ?? undefined));
 }
 
@@ -70,9 +71,9 @@ export function wornGearOfFrozen(frozen: unknown, character: string, version?: n
 }
 
 /** The worn Loadout of a character as the ledger holds it: the ceiling of a world record's hero claim (world-verify.ts HeroLimit). */
-export async function loadoutOf(db: Db, account: string, character: string): Promise<Loadout> {
+export async function loadoutOf(db: Db, account: string, character: string, version?: number): Promise<Loadout> {
   const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
-  return loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })));
+  return loadoutOfItems(rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } })), version);
 }
 
 /** The spell ledger the record's spell claim is held to (spell-check.ts heldSql: the account's grimoire and this character's banked xp, and the placed points of the stored build). Read apart from the build: a failed read leaves `spells` out, so a record that claims a spell is refused and one that claims none is untouched. */
@@ -84,14 +85,14 @@ async function heldSpells(db: Db, account: string, character: string, placed: Re
 }
 
 /** A world record's hero limit from the books: the sheet the stored build plus worn gear give (the record's sheet must EQUAL it), or a refusal when the stored build is not a legal one. */
-export async function heroLimitOf(db: Db, account: string, character: string): Promise<HeroLimit> {
+export async function heroLimitOf(db: Db, account: string, character: string, version?: number): Promise<HeroLimit> {   // `version` is the world record's own (rv): the worn set is read under that era's rules, as the sheet path does
   try {
     const stored = await store.buildGet(db, account, character);
     const build = stored === null || stored === 'absent' ? { level: 0, placed: {} } : { level: stored.level, placed: stored.placed };
     const rows = ((await store.open(db, account)).items as Row[]).filter((r) => r.loc_kind === 'equipped' && r.loc_owner === character);
     const items = rows.map((r) => ({ item: r.item, tier: r.tier, location: { kind: 'equipped', ...(r.loc_slot ? { slot: r.loc_slot } : {}) } }));
-    const sheet = stored === 'absent' ? undefined : sheetOf(build, wornGearOfItems(items));   // 'absent' (no build column): the page learns no build either, so it sends no sheet
-    return { sheet, weapon: heldWeaponOf(items), ...(await heldSpells(db, account, character, build.placed)) };   // no sheet = a naked, unbuilt hero: the record must carry none (the sheet is the only carrier of Attack and armour); the weapon is the ledger's main hand
+    const sheet = stored === 'absent' ? undefined : sheetOf(build, wornGearOfItems(items, version));   // 'absent' (no build column): the page learns no build either, so it sends no sheet
+    return { sheet, weapon: heldWeaponOf(items, version), ...(await heldSpells(db, account, character, build.placed)) };   // no sheet = a naked, unbuilt hero: the record must carry none (the sheet is the only carrier of Attack and armour); the weapon is the ledger's main hand
   } catch (error) {
     return { refuse: `the stored build is not a legal one: ${error instanceof Error ? error.message : String(error)}` };
   }
