@@ -79,6 +79,7 @@ import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
 import { createFound, createKillDrops } from './kill-drop.ts';
+import { fxNum } from '../../src/fight/fx-rows.ts';
 import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
