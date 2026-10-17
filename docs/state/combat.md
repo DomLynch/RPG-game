@@ -1,3 +1,25 @@
+## 2026-10-17 — HANDOFF: many-on-one and the evade work shipped, the kite farm closed as footwork, disengage receipts in #2947
+
+**Now (what the next session picks up):**
+1. **Nothing in flight.** Ask Lead for the next item. Open PRs: #2947 (test-only harness + every receipt, `combat/disengage`; labelled auditor:ready; state UNSTABLE with 0 failing checks when last read), #2978 (guest-sheet test, CLEAN), #2988 (lootStarter `starter.Longsword`, CLEAN; WATCH the one line in Backend's `origins/server/gear-import.ts` and the two Region 1 hash re-pins, which are "expected, not hash-checked").
+2. The `combat/state-1017` branch of this entry has no PR yet.
+
+**Done today (2026-10-16 night to 10-17):** #2946 many-on-one (RV 73, WSV 49) LIVE; #2937 HUD hidden idle bars merged; #2981 evade whiff counter MERGED (rows `evadeWhiffs` = 4, `evadeHealToFull`; WSV 50 provisional, WORLD_DIGEST b0f455ff…, renumbers at merge-up); #3009 chase distance (WSV 51) CLOSED as a no-effect guard, its orbit test not moved anywhere.
+
+**The kite-farm question, closed (Lead + Strategy: footwork).** Harness `scripts/kite-farm.ts` (16 seeds, hero deaths / kills): hit-and-run and the 26 m circle-kite kill a goblin L2 and cave troll L3 16 of 16 for 4-22 damage, in both kits. Tried and rejected, all measured, all in #2947's body: no-blow clock (breaks stand-and-trade: troll 0 kills / 11 deaths), pauses of it, spawn leash (no effect), whiff counter K=3/4/6 (halves the troll hit-and-run only; shipped at K=4 as #2981), chase distance (identical tables at D 30/45/60), continuous time outside the creature's reach (identical), creature chase-speed parity and timed charge (the loops live inside the 6 m engage ring where the DUEL sets the creature's pace, so a world chase row cannot reach them: charge identical to baseline in 96 cells), duel speed x1.10/x1.25 (kills stay 16/16, the kiter just takes more damage). No donor stops a melee hit-and-run (AzerothCore Creature.cpp:2733 allows kiting on purpose). Disengage acceptance holds in BOTH kits: the retreat bot survives 16/16 at back-off 0.8/0.5/0.3.
+
+**Open (blocked on whom):** Lead's next item; Auditor on #2988 (touches Backend's gear-import.ts); Backend's `origins/region1/starter-wield.json` should name `starter.Longsword` for the rusty sword (it was told `zone1` for a while: the owner id is letters-only because the contracts layer's legacy loot id form is `item:loot.<a-z>.<Slot>`); Characters & Art owns the rusty sword's look (finish), Web owns the guest GearView (must write `loot.taken[id].tier` on pickup or a worn piece counts as no gear).
+
+**Gotchas (cost time):**
+- **Label your kit.** `RECRUIT=1` at rung 0 in `scripts/lib/rung-sheet.ts` wears the FULL PLATE SET at Recruit tier, not nothing: I called the hero "naked" in every receipt for hours. Now `KIT=plate|starter` and the battery label says which. Every tuning receipt names kit, body, level and the row hash (Strategy rule).
+- **The mid-edit hooks.** PostToolUse eslint/tsc fire after EACH edit, so a multi-edit change shows transient errors (unused var, missing property) until the last edit lands. Lint the final state before believing them. A hook also blocks Bash for edits and for test runs (go through Read/Edit/Write and HF/VPS).
+- **zsh word-splitting.** `set -- $var` does not split; use `${var%%:*}` / `${var##*:}` or explicit loops. It silently broke two job launches ("noblow 10: command not found").
+- **`git push --force-with-lease` after a fetch can fail with "failed to push some refs"**: re-fetch that branch, push again, and `git ls-remote` to confirm BEFORE launching HF jobs that `git fetch` the commit.
+- **HF CPU jobs (cpu-upgrade, $0.03/h, 8 vCPU) are the heavy-job route** when the VPS capture queue is gated on load; the VPS runs I queued (combat-t8 suite pid 4174653, `dis-base.log`) are redundant and untouched. `npm test` skips `[slow]` tests, so CI shard 8 found a stale RV pin my HF run could not (tests/player-weapons.test.ts); always diff the failing-test NAMES against trunk in the same environment rather than comparing counts.
+- **A Region 1 / contracts rename touches more than rows:** the legacy loot id regex has no digit; `gear-import.ts` writes `fromLegend`/`atRank` (both or neither); Region 1 BUNDLE hash pins (tests/loot-rows.test.ts, origins/region1/progression.test.ts) move when the loot catalogue gains an item.
+- **Emulate first, implement second.** `scripts/kite-farm.ts` takes `RULE=noblow|noreach|spawn|charge`, `PAUSE`, `LANDED`, `DUEL_SPEED`, `KIT`; most signals died in the harness before any world.ts change. The troll row has no `speed` (undefined = 1): scale from `speed ?? 1`.
+- Security (10-17): no new secrets/tokens, no `.github/workflows` changes outside Hooks Dev's deletion PR, until Dom confirms rotation; the repo's only 193.32.204.199 hit is the incident write-up in docs/state/strategy.md.
+
 ## 2026-10-15 — HANDOFF: spells (cast wire-up, cost cap, list brief), bows sandbox, as-data tables
 
 **UPDATE 2026-10-16 (evening; READ THIS FIRST, supersedes everything below it):**
