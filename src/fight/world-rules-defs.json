@@ -55,6 +55,7 @@
     { "id": "campSizeMax", "value": 3, "unit": "mobs" },
     { "id": "defaultWeight", "value": 10, "unit": "weight" },
     { "id": "maxAttackers", "value": 3, "unit": "creatures" },
-    { "id": "farM", "value": 1000, "unit": "m" }
+    { "id": "farM", "value": 1000, "unit": "m" },
+    { "id": "circleChance", "value": 0.1, "unit": "ratio" }
   ]
 }

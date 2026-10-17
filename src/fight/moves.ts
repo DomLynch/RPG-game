@@ -82,6 +82,7 @@ export type AiProfile = {
   guard?: number;      // 0..1 share of the guard in its game: the standing guard, the bait guard, the block plan and the guard-walk (0 = never guards: evades or steps back instead)
   disengage?: number;  // 0..1 chance to hop back out of range right after landing a blow (hit and run)
   circle?: number;     // 0..1 lateral drift while closing in (0 = walks straight in); it always circles once in range
+  circleChance?: number;   // 0..1 chance that a decision which would circle at the stand-off circles; otherwise the creature STANDS and faces (the open world sets it from the world rule `circleChance`; absent = always circles, the Pit's duel exactly as it was)
   regen?: number;      // stamina regeneration multiplier for this fighter (1 = RULES.regen)
   step?: number;       // 0..1 share of evasions taken as a backstep rather than a roll (light on his feet: 10 stamina and 12 ticks, not 30 and 36)
   interrupt?: number;  // 0..1 chance to cut INTO a slower tell when his own cut lands first (a fast fighter's counter-swing; 0 = never attacks into a threat)

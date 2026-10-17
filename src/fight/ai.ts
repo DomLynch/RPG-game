@@ -8,7 +8,7 @@ import { TACTIC_ROWS, pickWeighted } from './tactic-rows.ts';   // rows: tactic-
 
 // Local opponent controller. It reads only committed duel state (never the other side's pending intent), notices a fresh
 // action `reaction` ticks late, and emits an ordinary Intent that stepDuel judges by the same rules as the player's.
-export type AiMode = 'approach' | 'circle' | 'retreat' | 'guard';
+export type AiMode = 'approach' | 'circle' | 'retreat' | 'guard' | 'stand';
 type AiPlan = 'parry' | 'dodge' | 'block' | 'evade' | 'ignore';
 // Habits: what the opponent has done this match, counted from committed state edges only. The warden reads them (see `readOpponent`)
 // and adapts — a parry-happy player gets baited swings, a turtle gets kicked and charged through, a roller gets delayed swings and
@@ -253,6 +253,9 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
     next.decision = 36 + Math.floor(r * 45); next.side = next.seed & 1 ? 1 : -1;
     next.mode = low || shaky ? (gap < 1.7 || self.stamina < RULES.rollCost ? 'retreat' : 'circle')
       : gap > 1.4 ? 'approach' : gap < 1 ? 'retreat' : r < .33 * guardShare ? 'guard' : 'circle';
+    // Stand and face (donors: AzerothCore / Trinity / EQEmu / Quake 2 / DOOM / RuneScape: a melee mob closes to its reach, stops, faces and swings; Daggerfall Unity strafes on a 25% roll): in the open world a
+    // creature at the stand-off circles only `circleChance` of the time, else it holds its ground. The roll is drawn only when the profile carries the chance, so every other fight keeps its stream byte for byte.
+    if (next.mode === 'circle' && profile.circleChance !== undefined && !low && !shaky && roll() >= profile.circleChance) next.mode = 'stand';
   }
   if (gap > 2.5 || (!low && !shaky && gap > 1.9)) next.mode = 'approach';
   if (tick < next.retreatUntil || ((low || shaky) && gap < 1.2)) next.mode = 'retreat';
