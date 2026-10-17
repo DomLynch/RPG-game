@@ -6,6 +6,7 @@ import { captureException } from '@sentry/browser';
 import { loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
 import { warmGearRoom, type GearStage } from '../../src/core/index.ts';
 import type { Tier } from '../../src/core/index.ts';
+import { drawProxy } from './warm-proxy.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
 
 // `bodyUrl` is the hero rig's url as the page already holds it (play.ts ASSETS.hero, the build's optimized file): the stage never imports the .glb itself, which would ship a second, unoptimized copy.
@@ -25,6 +26,14 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   const paint = () => renderer.render(scene, camera);
   // The rig and loot.glb load, the worn set goes on, and the studio frame is built off the main thread: the sheet's programs link after [zone ready] on the kit warm's queue, not when the player first opens it
   // (a no-op where the rig did not load). `hold()` is called when that warm is queued, and the stage is released whatever the warm does.
+  // The mannequin's rig is parsed on its own, so its textures and geometry are not the walking hero's: uploaded here ONE per frame (T4 2026-10-17: the one frame that drew it all was a 248 ms task, 1 program of it).
+  const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+  async function uploadSlices() {
+    const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
+    scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry); for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
+    for (const t of textures) { renderer.initTexture(t); await nextFrame(); }
+    for (const g of geometries) { drawProxy(renderer, camera, g); await nextFrame(); }
+  }
   let held = false;
   const hold = () => { held = true; };
   const warm = async () => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread) and how the programs split between the compile and that frame
@@ -33,6 +42,7 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     const count = () => renderer.info.programs?.length ?? -1;
     try {
       await load();
+      if (actor) await uploadSlices();
       if (actor) await warmGearRoom({ ...stage, draw: () => { const t = performance.now(), before = count(); paint(); drawMs = performance.now() - t; trace.drawPrograms = count() - before; } }, async (s, c) => { const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before; });
     } finally { held = false; }
     return { drawMs, ...trace };
