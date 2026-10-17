@@ -1,0 +1,176 @@
+{
+ "origins/crowd/crowd.ts": {
+  "ROLE_RING": 1
+ },
+ "origins/feuds/feuds.ts": {
+  "BAND_RANK": 1
+ },
+ "origins/preview/exchange-plan.ts": {
+  "FORGE_HALF": 1
+ },
+ "origins/preview/frontier-camp.ts": {
+  "CAMP_KIT": 1
+ },
+ "origins/preview/frontier-dress.ts": {
+  "TOP": 1
+ },
+ "origins/preview/look.ts": {
+  "PRESETS": 1
+ },
+ "origins/preview/main.ts": {
+  "TOWN_RESPAWN": 1
+ },
+ "origins/preview/mobs-view.ts": {
+  "HIT": 1
+ },
+ "origins/preview/mobs.ts": {
+  "NAMED": 1
+ },
+ "origins/server/encounter-fixtures.ts": {
+  "RESOLVED": 1
+ },
+ "src/audio/bell.ts": {
+  "STRIKE": 1,
+  "VIBRATO": 1
+ },
+ "src/coach.ts": {
+  "COACH_BRAINS": 1,
+  "FOE_LAPSE": 1,
+  "FOE_LAPSE_SCALE": 1
+ },
+ "src/core/grades.ts": {
+  "GRADES": 1
+ },
+ "src/core/loot.ts": {
+  "PACK": 1
+ },
+ "src/core/world/kits.ts": {
+  "MODE": 1
+ },
+ "src/core/world/row.ts": {
+  "RARITY_WEIGHT": 1
+ },
+ "src/fight/armfeel.ts": {
+  "FLINCH_GAIN": 1
+ },
+ "src/fight/body-tables.ts": {
+  "BODYTYPES": 1,
+  "SPECIES": 1
+ },
+ "src/fight/camera.ts": {
+  "FRAMING_TALL": 1,
+  "SETTLE": 1,
+  "DEFAULT_DOLLY": 1
+ },
+ "src/fight/characters.ts": {
+  "GUARD_TILT": 1,
+  "LEAN_OUT": 1,
+  "LEAN_LOW": 1,
+  "LEAN_HIGH": 1
+ },
+ "src/fight/defence-grade.ts": {
+  "GRADE_AUDIO": 1
+ },
+ "src/fight/execution.ts": {
+  "EXECUTION_BEATS": 1
+ },
+ "src/fight/follow-camera.ts": {
+  "OPEN": 1
+ },
+ "src/fight/gear-caps.ts": {
+  "CAPS": 1
+ },
+ "src/fight/gore.ts": {
+  "WOUND_SIZE": 1,
+  "DRIP": 1,
+  "SURFACE": 1
+ },
+ "src/fight/hamstrung.ts": {
+  "HAMSTRUNG_BEATS": 1
+ },
+ "src/fight/hit-impact.ts": {
+  "ROLL_TUMBLE": 1
+ },
+ "src/fight/miasma-mark.ts": {
+  "MARK": 1
+ },
+ "src/fight/moves.ts": {
+  "NOVICE_BODY": 1,
+  "SCUTUM": 1
+ },
+ "src/fight/night-armour.ts": {
+  "NIGHT_BRONZE": 1
+ },
+ "src/fight/rank-tint.ts": {
+  "TINT": 1
+ },
+ "src/fight/record.ts": {
+  "REACH": 1
+ },
+ "src/fight/scorch.ts": {
+  "SCORCH": 1
+ },
+ "src/fight/signature-dwarf.ts": {
+  "STAMP": 1,
+  "STAMP_B": 1,
+  "STAMP_C": 1
+ },
+ "src/fight/signature-goblin.ts": {
+  "HOOK_A": 1,
+  "HOOK_C": 1
+ },
+ "src/fight/signature-nightborn.ts": {
+  "RECALL_B": 1
+ },
+ "src/fight/signature-plaguedoctor.ts": {
+  "ROT": 1,
+  "ROT_A": 1,
+  "ROT_B": 1
+ },
+ "src/fight/signature-witch.ts": {
+  "GRASP": 1,
+  "SPARK": 1
+ },
+ "src/fight/signature.ts": {
+  "SIGNATURE_CAPS": 1
+ },
+ "src/fight/sim.ts": {
+  "TARGET": 1
+ },
+ "src/fight/skill-impact.ts": {
+  "HEIGHT": 1
+ },
+ "src/fight/sound/breath.ts": {
+  "BODIES": 1
+ },
+ "src/fight/sound/creature.ts": {
+  "CREATURE_CUES": 1
+ },
+ "src/fight/special-class-timing.ts": {
+  "BACKS": 1,
+  "BACK_PACES": 1,
+  "BACK_AT": 1
+ },
+ "src/fight/special-fx-class.ts": {
+  "BIG": 1
+ },
+ "src/fight/special-modes.ts": {
+  "SPECIAL_MODES": 1
+ },
+ "src/fight/spell-school.ts": {
+  "STRENGTH": 1
+ },
+ "src/fight/stance-pose.ts": {
+  "FULL": 1
+ },
+ "src/fight/witchfire.ts": {
+  "WITCHFIRE": 1
+ },
+ "src/souls-look.ts": {
+  "SOULS": 1,
+  "SHADE": 1
+ },
+ "src/sparring.ts": {
+  "SPARRING_DUMMY": 1
+ }
+}
