@@ -30,7 +30,7 @@ test('the sample row compiles to the zone-row parts, in its band L4-6, with the 
   assert.deepEqual(sample.level, [4, 6]);
   const c = compileDungeon(sample, (THEMES.themes as DungeonTheme[])[0]!) as { place: { zones: Record<string, { layout: object }>; waypoints: string[]; spawns: { at: string }[] }; spawns: { rows: unknown[] } };
   assert.deepEqual(Object.keys(c.place.zones['crypt-sample']!.layout), ['crypt-door', 'crypt-nave', 'crypt-vault']);
-  assert.deepEqual(c.place.waypoints, ['crypt-door', 'crypt-nave', 'crypt-vault']);
+  assert.deepEqual(c.place.waypoints, ['reach-crypt', 'crypt-door', 'crypt-nave', 'crypt-vault']);
   assert.deepEqual(c.place.spawns.map((s) => s.at), ['crypt-nave', 'crypt-vault']); assert.equal(c.spawns.rows.length, 2);
 });
 

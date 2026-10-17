@@ -1,9 +1,9 @@
 {
-  "name": "The Bone Hollow",
+  "name": "The Sample Crypt",
   "defaultKind": "goblin",
-  "dungeon": "bone-hollow",
-  "names": { "bone-hollow": "The Bone Hollow" },
-  "world": ["bone-hollow"],
+  "dungeon": "crypt-sample",
+  "names": { "crypt-sample": "The Sample Crypt" },
+  "world": ["crypt-sample"],
   "kit": {
     "url": "/world/kit/zone1-kit.glb",
     "nodes": [

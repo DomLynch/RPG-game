@@ -67,7 +67,7 @@
       "level": [4, 6],
       "world": "crypt-sample",
       "size": { "width": 60, "depth": 40 },
-      "entrance": { "room": "crypt-door" },
+      "entrance": { "room": "crypt-door", "exit": "crypt-door" },
       "rooms": [
         { "id": "crypt-door", "at": { "u": 0, "v": 0.5, "facing": 90 }, "piece": "door", "links": ["crypt-nave"] },
         { "id": "crypt-nave", "at": { "u": 0.5, "v": 0.5, "facing": 0 }, "piece": "nave", "links": ["crypt-door", "crypt-vault"] },
@@ -97,7 +97,14 @@
         { "id": "crypt-guard", "room": "crypt-nave", "creature": "character:cinder-scavenger" },
         { "id": "crypt-boss", "room": "crypt-vault", "creature": "character:giant-salamander" }
       ],
-      "boss": { "encounter": "crypt-boss" }
+      "boss": { "encounter": "crypt-boss" },
+      "mount": {
+        "waypointsBefore": ["reach-crypt"],
+        "connections": { "mouth": { "to": "ash-reach", "kind": "road", "here": "crypt-door", "there": "reach-crypt" } },
+        "density": { "creatures": 0.3 },
+        "ambience": { "preset": "frontier-haze" },
+        "joins": [{ "zone": "ash-reach", "landmark": "reach-crypt", "at": { "u": 0.5, "v": 0, "facing": 180 }, "link": "crypt", "to": "crypt-sample", "here": "reach-crypt", "there": "crypt-door" }]
+      }
     }
   ]
 }
