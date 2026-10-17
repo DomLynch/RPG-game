@@ -7,7 +7,8 @@
 // The merged FAR LOD of the hero (scripts/character/hero_far_lod.py) beside the whole hero: left the shipped warrior.glb, right src/assets/hero-far.glb, at ?d= metres in the game's camera (fov 51), ?mode=stand|walk (walk: 2 m/s, 1.5 s in),
 // ?pose=sheathed|ready. Reports each figure's meshes, triangles and the draw calls of one frame drawing it alone. Driven by far-lod-still.mjs (window.ready flips true).
 import * as THREE from 'three';
-import { loadWarriors } from '/src/fight/index.ts';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildWarriors, loadWarriors } from '/src/fight/index.ts';
 
 const q = new URLSearchParams(location.search), d = Number(q.get('d') ?? 8), mode = q.get('mode') ?? 'stand', pose = q.get('pose') ?? 'sheathed';
 const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -19,7 +20,8 @@ const camera = new THREE.PerspectiveCamera(51, innerWidth / innerHeight, 0.1, 18
 const figures = [];
 const lod = q.get('lod') ?? 'far';
 for (const [x, url] of [[-0.7, '/src/assets/warrior.glb'], [0.7, `/src/assets/hero-${lod}.glb`]]) {
-  const { player } = await loadWarriors(url);
+  // the whole hero through the game's loader; a LOD has no textures (vertex colour), which loadWarriors' texture check refuses, so it is parsed and built the way a remote figure is (buildWarriors on a parsed asset)
+  const player = x < 0 ? (await loadWarriors(url)).player : buildWarriors(await new GLTFLoader().loadAsync(url)).player;
   const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot); figures.push({ player, spot, x });
 }
 const meshes = (actor) => { const out = []; actor.anchor.traverse((o) => { if (o.isMesh && o.visible) { let v = true; for (let p = o.parent; p; p = p.parent) if (!p.visible) v = false; if (v) out.push(o); } }); return out; };
