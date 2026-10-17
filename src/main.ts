@@ -1,5 +1,6 @@
 import { createInput } from './fight/index.ts';
 import { ui } from './ui-rows.ts';
+import { present } from './present-rows.ts';
 import { AFK_CAP_S } from './first-loss.ts';
 import { GEAR_IN_FIGHTS, fightSheet, gearNumbers } from './fight/gear-numbers.ts';
 import { weightClassOf } from './fight/gear-weight.ts';
@@ -1481,7 +1482,7 @@ function frame(now: number) {
   // jump (every release check under page.clock on the Linux runner: frames ran, page time advanced, the tick never moved).
   const raw = (now - last) / 1000, elapsed = raw >= 0 && raw < 60 ? raw : 0;
   last = now;
-  const dt = Math.min(elapsed, 0.1);
+  const dt = Math.min(elapsed, present('frame-dt-max'));
   const room = gearRoom(); if (room) { room.frame(dt); if (debug) element('debug').dataset.worn = JSON.stringify(view.wornDraws?.() ?? { worn: [], covered: [] }); frameId = requestAnimationFrame(frame); return; }   // the gear sheet is open: it draws the rig, the fight waits
   if (!paused()) {
     controls.promoteDodge(now);

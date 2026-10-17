@@ -5,6 +5,7 @@
 // publishable key's apikey header that the REST endpoint needs).
 
 import { rafCadence } from './fight/quality.ts';
+import { present } from './present-rows.ts';
 
 export type PerfFigures = {
   fightFrames: readonly number[];      // this fight's playable frame times, ms
@@ -40,9 +41,9 @@ export function beaconPayload(f: PerfFigures) {
   const lookSwap = swapped ? inRange(Math.round((f.lookOnAt! - f.fightStartAt!) / 100) / 10, 0, 3600) : null;
   return {
     revision: f.revision && /^[0-9a-f]{7,40}$/.test(f.revision) ? f.revision : null,
-    fps_p50: p50, fps_p5: Math.min(p50, fps(at(0.95))), frames: Math.min(sorted.length, 1_000_000),
+    fps_p50: p50, fps_p5: Math.min(p50, fps(at(0.95))), frames: Math.min(sorted.length, present('beacon-frames-cap')),
     fight_s: clamp(Math.round(sorted.reduce((sum, v) => sum + v, 0) / 100) / 10, 0, 3600),
-    dropped: Math.min(sorted.filter((v) => v > 16.7).length, sorted.length, 1_000_000),
+    dropped: Math.min(sorted.filter((v) => v > 16.7).length, sorted.length, present('beacon-frames-cap')),
     first_fight_s: firstFight,
     raf_ms: inRange(cadence.medianMs ?? undefined, 5, 1000), raf_capped: cadence.capped30,   // Low Power Mode caps rAF at 30 Hz (quality.ts rafCadence)
     render_ratio: ratio, lowered_from: lowered !== null && lowered > ratio ? lowered : null, dpr_override: inRange(f.dprOverride, 0.1, 8),

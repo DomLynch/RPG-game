@@ -14,6 +14,7 @@ import { EXITS, exitSpots } from '../zones/exits.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
 import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
+import { previewRule } from './preview-rules.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
@@ -184,7 +185,7 @@ export function frontierBuild(f: Frontier): Build {
     const c = off(a, a.facing, -d / 2);
     put('stone', ['box', w, h, d], c.x, h / 2, c.z, tint, a.facing, 0);
     put('stone', ['box', w + 0.6, 0.35, d + 0.6], c.x, h + 0.17, c.z, TIMBER, a.facing); // eaves
-    if (w > 2) put('soot', ['box', Math.min(1.6, w / 3), Math.min(2.4, h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(1.2, (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
+    if (w > 2) put('soot', ['box', Math.min(previewRule('sootWidthMax'), w / 3), Math.min(previewRule('sootHeightMax'), h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(previewRule('sootCenterMax'), (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
     if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + 0.3 });
     return c;
   };

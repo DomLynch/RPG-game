@@ -277,7 +277,7 @@ export function closeDuel() {
 
 function frame(now: number) {
   if (!running || !stage || !match) return;
-  const raw = (now - last) / 1000, dt = Math.min(raw >= 0 && raw < 60 ? raw : 0, 0.1);
+  const raw = (now - last) / 1000, dt = Math.min(raw >= 0 && raw < 60 ? raw : 0, previewRule('pitDtMax'));
   last = now;
   if (!paused()) {
     accumulator += dt;

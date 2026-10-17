@@ -5,37 +5,8 @@
  "origins/presence/wire.ts": {
   "255": 1
  },
- "origins/preview/frontier-plan.ts": {
-  "1.6": 1,
-  "2.4": 1,
-  "1.2": 1
- },
- "origins/preview/frontier-relief.ts": {
-  "0.5": 1
- },
- "origins/preview/main.ts": {
-  "-0.6": 1,
-  "-1": 1,
-  "1e-3": 1,
-  "0.05": 1
- },
- "origins/preview/mob-dress.ts": {
-  ".2": 1,
-  ".7": 1
- },
- "origins/preview/mobs-view.ts": {
-  "8": 1,
-  "1.9": 1,
-  "1e-3": 1
- },
- "origins/preview/pit-duel.ts": {
-  "0.1": 1
- },
  "origins/server/encounter-pose.ts": {
   "0.5": 1
- },
- "src/arena.ts": {
-  "255": 1
  },
  "src/core/career-client.ts": {
   "50": 1
@@ -201,22 +172,5 @@
  },
  "src/fight/world.ts": {
   "0.1": 1
- },
- "src/legends.ts": {
-  "10": 1
- },
- "src/lorarii.ts": {
-  "2.5": 1,
-  "0.4": 1,
-  "0.05": 1
- },
- "src/main.ts": {
-  "0.1": 1
- },
- "src/net/lobby.ts": {
-  "1_000_000": 1
- },
- "src/perf-beacon.ts": {
-  "1_000_000": 2
  }
 }
