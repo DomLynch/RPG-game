@@ -82,7 +82,8 @@ test('fight identity — read the feint: the goblin passes the fairness battery 
   // Floors: at 100 hp the patient answer won 8/24 at normal; the owner raised him to 120 hp (2026-09-17: rung 3 should be harder than the Pitborn, and it
   // is — the hero brain now loses 15/24 to him, 8/24 before) and against 120 hp the patient script's slow damage runs out the two-minute clock instead:
   // it still never loses to him and still beats the swinger, and that is what is pinned.
-  for (const [level, cap, floor] of [['normal', .5, 2], ['hard', .35, 1]] as const) {
+  // RV76 (balance, Lead's ruling 2026-10-17): at hard the goblin's 140 health makes the patient answer win 3/48, lose 1 and mostly STALEMATE on the two-minute clock; the loss allowance for hard is the measured 1 (normal stays 0). Per-level creature stats as rows (the next bump) give the patient answer a win, not a clock-out.
+  for (const [level, cap, floor, lossCap] of [['normal', .5, 2, 0], ['hard', .35, 1, 1]] as const) {
     let guardRun = 0, maxGuardRun = 0, blocks = 0;
     const watched = (strategy: (d: Duel) => Intent) => (d: Duel) => { const g = d.fighters[1]; if (g.phase === 'guard') { guardRun++; maxGuardRun = Math.max(maxGuardRun, guardRun); } else guardRun = 0; if (d.events.some(e => e.type === 'Blocked' && e.actor === 1)) blocks++; return strategy(d); };
     const scripts = Object.fromEntries(Object.entries({ ...STRATEGIES, 'swings at every feint': swinger, 'patient (whiff punisher)': patient }).map(([n, f]) => [n, watched(f)]));
@@ -97,7 +98,7 @@ test('fight identity — read the feint: the goblin passes the fairness battery 
     // at 48 it reads 3-vs-2 with and 4-vs-2 without the rule).
     const wide = battery(level, 48, 7200, G, { 'patient (whiff punisher)': patient, 'swings at every feint': swinger });
     const answer = wide['patient (whiff punisher)'], eager = wide['swings at every feint'];
-    assert.ok(answer.wins >= floor && answer.losses === 0, `${level} · the patient answer wins ${answer.wins}/48 and loses ${answer.losses}\n  ${table}`);
+    assert.ok(answer.wins >= floor && answer.losses <= lossCap, `${level} · the patient answer wins ${answer.wins}/48 and loses ${answer.losses}\n  ${table}`);
     assert.ok(eager.wins < answer.wins, `${level} · swinging at every feint (${eager.wins}/48) is not punished against patience (${answer.wins}/48)\n  ${table}`);
     for (const name of ['light spam', 'heavy only', 'kick only', 'turtle and punish', 'thrust from range']) assert.ok(rows[name].wins < Math.max(rows['patient (whiff punisher)'].wins, 1), `${level} · ${name} wins ${rows[name].wins} ≥ the answer's ${rows['patient (whiff punisher)'].wins}\n  ${table}`);
     // No guard in his game: the only guard phase he ever shows is a feint's parry press (RULES.parry ticks), and nothing is ever blocked by him.

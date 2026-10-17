@@ -12,5 +12,7 @@ setStab(true);   // a live fight has the Goblin's stab on (stab-rule.ts is an er
 test('level 1: a tap-attacking first-timer beats every ladder opponent in ≥ 44 / 48 fights [slow]', () => {
   const rows = LADDER.map(o => [o.id, battery(1, 48, 7200, OPPONENTS[o.id], TAP_ATTACK, 'longsword', 'pommel')['tap attack'].wins] as const);
   const table = rows.map(([id, wins]) => `${id} ${wins}`).join(', ');
-  for (const [id, wins] of rows) assert.ok(wins >= 44, `${id}: ${wins}/48 at level 1 (${table})`);
+  // RV76 (balance, Lead's ruling 2026-10-17): the goblin's floor is its measured 39/48 (81 %), the cost of Strategy's L2 starter-deaths bar (10-20 %, health 140); per-level creature stats as rows (the next bump) restore 44 here.
+  const floorOf = (id: string): number => (id === 'goblin' ? 39 : 44);
+  for (const [id, wins] of rows) assert.ok(wins >= floorOf(id), `${id}: ${wins}/48 at level 1 (${table})`);
 });
