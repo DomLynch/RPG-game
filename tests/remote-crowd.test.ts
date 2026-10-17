@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import { Bone, Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera, Skeleton, SkinnedMesh } from 'three';
 import { createRemoteHeroes, tagText } from '../origins/preview/remote-heroes.ts';
 import { previewRule } from '../origins/preview/preview-rules.ts';
+import { CROWD_LADDER } from '../origins/preview/crowd-ladder.ts';
 import { CHEAP_PARTS, loadCheapParts } from '../origins/preview/remote-cheap.ts';
 
-const FULL = previewRule('remoteFullCount'), EVERY = previewRule('remoteCheapEvery');
+const FULL = CROWD_LADDER[0]!.full, EVERY = CROWD_LADDER[0]!.every;   // rung 0 of the crowd ladder (crowd-ladder.json): the full treatment
 const material = new MeshBasicMaterial();   // one shared material, as the rig's: a cheap figure must keep it
 
 function crowd(n: number) {
@@ -107,8 +108,8 @@ test('adaptive: a frame time that stays high drops the full count from remoteFul
   const frames = (seconds: number, ms: number) => { for (const end = now + seconds * 1000; now < end; now += ms) { heroes.push(list, now); heroes.update(ms / 1000, now, { x: 0, z: 0 }); } };
   const fulls = () => heroes.debug().shown.filter((s) => !s.cheap).length;
   frames(5, 16.7); assert.equal(fulls(), FULL, 'at 60 fps: the ruled full count');
-  frames(5, 45); assert.equal(heroes.debug().adaptive.low, true); assert.equal(fulls(), previewRule('remoteAdaptFullCount'), 'slow frames: the smaller full count');
-  frames(7, 16.7); assert.equal(fulls(), FULL, 'a clean window: back to the ruled count');
+  frames(2, 45); assert.equal(heroes.debug().adaptive.low, true);   // 2 s: the first step is taken as soon as the p95 crosses, the next needs its own full window (3 s), so it is one rung assert.equal(fulls(), CROWD_LADDER[1]!.full, 'slow frames for one window: one rung down, the smaller full count');
+  frames(14, 16.7); assert.equal(fulls(), FULL, 'clean windows: back to the ruled count (the slow tail may have taken a second rung, each rung climbs back in its own window)');
 });
 
 test('the ground height is read again only after a figure has moved remoteGroundStep, and the figure stands on the last read (T4 profile: reliefAt per figure per frame)', () => {
