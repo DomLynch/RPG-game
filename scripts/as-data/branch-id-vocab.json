@@ -3,7 +3,7 @@
   "generic": ["ready", "idle", "attack", "block", "light", "heavy", "none", "left", "right", "near", "far", "open", "done", "player", "foe", "day", "night", "hero", "guest", "error", "start", "end", "move", "stand", "walk", "run", "death", "hit", "miss", "win", "loss", "draw", "true", "false", "null"],
   "engineEvents": ["Hit", "Parried", "Blocked", "GuardBroken", "Killed", "SpecialLanded", "PostureBroken"],
   "engineTypes": [
-    { "file": "src/fight/duel.ts", "types": ["Phase", "Action"] },
+    { "file": "src/fight/duel.ts", "types": ["Phase", "Action", "EventType"] },
     { "file": "src/fight/world.ts", "types": ["Phase"] },
     { "file": "src/fight/match.ts", "types": ["Mode"] },
     { "file": "src/fight/moves.ts", "types": ["MoveId"] }

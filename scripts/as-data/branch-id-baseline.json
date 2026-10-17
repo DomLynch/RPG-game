@@ -12,8 +12,7 @@
   "'leader'": 6,
   "'brute'": 1,
   "'duellist'": 2,
-  "'skirmisher'": 1,
-  "'Hit'": 1
+  "'skirmisher'": 1
  },
  "origins/feuds/feuds.ts": {
   "'settle'": 1
@@ -49,18 +48,11 @@
  "origins/preview/mobs.ts": {
   "'mob'": 2
  },
- "origins/preview/pit-duel.ts": {
-  "'Hit'": 1,
-  "'Killed'": 1
- },
  "origins/preview/play.ts": {
   "'bounty'": 2
  },
  "origins/preview/remote-cheap.ts": {
   "'cheap'": 1
- },
- "origins/preview/spawn-net.ts": {
-  "'Hit'": 1
  },
  "origins/region1/load.ts": {
   "'common'": 1,
@@ -87,22 +79,7 @@
   "'zone'": 1
  },
  "src/arena.ts": {
-  "'lean'": 1,
-  "'Killed'": 2,
-  "'Parried'": 1,
-  "'Hit'": 2,
-  "'GuardBroken'": 2,
-  "'PostureBroken'": 1
- },
- "src/audio/arena.ts": {
-  "'Killed'": 1,
-  "'Hit'": 3,
-  "'Blocked'": 1,
-  "'Parried'": 2,
-  "'GuardBroken'": 2
- },
- "src/autopsy.ts": {
-  "'Killed'": 1
+  "'lean'": 1
  },
  "src/core/career-model.ts": {
   "'story'": 1,
@@ -138,55 +115,16 @@
  "src/core/world/row.ts": {
   "'rare'": 3
  },
- "src/events.ts": {
-  "'Blocked'": 1,
-  "'Hit'": 1,
-  "'GuardBroken'": 1,
-  "'Killed'": 1,
-  "'SpecialLanded'": 1
- },
  "src/fight/ai.ts": {
-  "'Hit'": 1,
-  "'Blocked'": 1,
-  "'Parried'": 1,
   "'circle'": 3
  },
  "src/fight/archetype-rows.ts": {
   "'health'": 1
  },
- "src/fight/armfeel.ts": {
-  "'Killed'": 1,
-  "'Hit'": 1
- },
- "src/fight/blood-edge.ts": {
-  "'Hit'": 1
- },
- "src/fight/camera-kick.ts": {
-  "'GuardBroken'": 1,
-  "'Hit'": 1,
-  "'Parried'": 1,
-  "'Blocked'": 1
- },
  "src/fight/characters.ts": {
   "'Body'": 2,
   "'Shield'": 5,
   "'normal'": 1
- },
- "src/fight/clash-sparks.ts": {
-  "'Blocked'": 2,
-  "'Parried'": 2,
-  "'GuardBroken'": 1,
-  "'Hit'": 1
- },
- "src/fight/combat.ts": {
-  "'Parried'": 2,
-  "'PostureBroken'": 1,
-  "'Hit'": 5,
-  "'GuardBroken'": 2
- },
- "src/fight/defence-grade.ts": {
-  "'Parried'": 1,
-  "'Blocked'": 1
  },
  "src/fight/duel.ts": {
   "'trickster'": 1
@@ -198,10 +136,7 @@
   "'fall'": 2
  },
  "src/fight/fx.ts": {
-  "'Blocked'": 3,
-  "'Parried'": 2,
-  "'head'": 2,
-  "'Hit'": 1
+  "'head'": 2
  },
  "src/fight/gear-rows.ts": {
   "'gear'": 1
@@ -210,56 +145,17 @@
   "'torso'": 1,
   "'head'": 1
  },
- "src/fight/hit-impact.ts": {
-  "'Hit'": 2,
-  "'GuardBroken'": 1,
-  "'Parried'": 2,
-  "'Blocked'": 2
- },
- "src/fight/hud.ts": {
-  "'Hit'": 1
- },
- "src/fight/miasma-mark.ts": {
-  "'Hit'": 1
- },
  "src/fight/mobkit.ts": {
-  "'opener'": 1,
-  "'Hit'": 1,
-  "'GuardBroken'": 1
- },
- "src/fight/open-fight.ts": {
-  "'Hit'": 1,
-  "'GuardBroken'": 2,
-  "'SpecialLanded'": 1,
-  "'Blocked'": 1,
-  "'Parried'": 1,
-  "'PostureBroken'": 1,
-  "'Killed'": 1
- },
- "src/fight/pack.ts": {
-  "'Hit'": 1,
-  "'SpecialLanded'": 1
+  "'opener'": 1
  },
  "src/fight/poise-ladder.ts": {
   "'ladder'": 1
  },
  "src/fight/scene.ts": {
-  "'Shield'": 1,
-  "'Hit'": 1,
-  "'GuardBroken'": 1,
-  "'Blocked'": 1,
-  "'Parried'": 1,
-  "'Killed'": 1,
-  "'SpecialLanded'": 1
- },
- "src/fight/scorch.ts": {
-  "'Hit'": 1
+  "'Shield'": 1
  },
  "src/fight/signature-dwarf.ts": {
   "'torso'": 1
- },
- "src/fight/signature-knight.ts": {
-  "'Hit'": 1
  },
  "src/fight/signature-plaguedoctor.ts": {
   "'torso'": 1
@@ -267,39 +163,11 @@
  "src/fight/signature-shieldmaiden.ts": {
   "'Shield'": 1
  },
- "src/fight/signature-veteran.ts": {
-  "'Hit'": 1
- },
- "src/fight/signature-witch.ts": {
-  "'Hit'": 1,
-  "'GuardBroken'": 1
- },
  "src/fight/signature.ts": {
-  "'Hit'": 2,
   "'floor'": 1
  },
- "src/fight/skill-impact.ts": {
-  "'Hit'": 1
- },
- "src/fight/sound/armfeel-sound.ts": {
-  "'Killed'": 1,
-  "'Hit'": 1
- },
- "src/fight/sound/cues.ts": {
-  "'Killed'": 2,
-  "'PostureBroken'": 1,
-  "'Hit'": 1,
-  "'GuardBroken'": 1,
-  "'Parried'": 1,
-  "'Blocked'": 1
- },
  "src/fight/sound/feedback.ts": {
-  "'swing'": 4,
-  "'Killed'": 1,
-  "'Hit'": 3,
-  "'Blocked'": 3,
-  "'Parried'": 3,
-  "'GuardBroken'": 3
+  "'swing'": 4
  },
  "src/fight/special-class-timing.ts": {
   "'tempo'": 4,
@@ -340,12 +208,6 @@
   "'tempo'": 1,
   "'drag'": 1
  },
- "src/fight/special-presentation.ts": {
-  "'SpecialLanded'": 2
- },
- "src/fight/special-timing.ts": {
-  "'SpecialLanded'": 1
- },
  "src/fight/special-tithe.ts": {
   "'gather'": 2,
   "'fall'": 1
@@ -371,42 +233,11 @@
  "src/fight/tutorial-ui.ts": {
   "'slash'": 1
  },
- "src/fight/victory-headline.ts": {
-  "'Hit'": 1,
-  "'GuardBroken'": 1,
-  "'Parried'": 1,
-  "'Blocked'": 1,
-  "'PostureBroken'": 1
- },
  "src/fight/warm-gate.ts": {
   "'late'": 1
  },
- "src/fight/world-combat.ts": {
-  "'Hit'": 2,
-  "'Blocked'": 1,
-  "'Parried'": 1,
-  "'Killed'": 2
- },
  "src/fight/world.ts": {
-  "'stamina'": 1,
-  "'Hit'": 3,
-  "'Blocked'": 2,
-  "'Parried'": 2
- },
- "src/fight/zone-fx.ts": {
-  "'Hit'": 2,
-  "'GuardBroken'": 1,
-  "'Blocked'": 1,
-  "'Parried'": 1,
-  "'Killed'": 1
- },
- "src/first-loss.ts": {
-  "'Parried'": 1,
-  "'Blocked'": 1
- },
- "src/hit-stop.ts": {
-  "'Hit'": 1,
-  "'Blocked'": 1
+  "'stamina'": 1
  },
  "src/lorarii.ts": {
   "'hold'": 4
@@ -414,9 +245,6 @@
  "src/main.ts": {
   "'ladder'": 1,
   "'drag'": 1,
-  "'Killed'": 1,
-  "'Hit'": 1,
-  "'GuardBroken'": 1,
   "'full'": 1
  },
  "src/net/pvp.ts": {
@@ -428,12 +256,6 @@
  },
  "src/souls-look.ts": {
   "'Shield'": 1
- },
- "src/tutorial.ts": {
-  "'Hit'": 4,
-  "'Blocked'": 1,
-  "'Parried'": 2,
-  "'GuardBroken'": 1
  },
  "src/zone1-hop.ts": {
   "'zone1'": 1
