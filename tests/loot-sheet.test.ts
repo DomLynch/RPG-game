@@ -12,7 +12,7 @@ import { gearNumbers, pieceNumbers } from '../src/fight/gear-numbers.ts';
 const piece = (id: string, lootId: string, where: GearPiece['where'], over: Partial<GearPiece> = {}): GearPiece =>
   ({ id, item: `item:loot.${lootId}`, lootId, slot: null, where, index: where === 'equipped' ? null : 0, paperdoll: null, tier: null, version: 1, level: 0, ...over });
 const view = (pieces: GearPiece[], worn: Record<string, string> = {}): GearView => ({ pieces, stock: [], worn, packSize: 8, bankSize: 100 });
-const HELMET = 'goblin.Helmet' as LootId, LOW = TIERS[1]!, HIGH = TIERS[3]!;   // a fine-ish and a high rung; the ladder is data (grades.ts), never spelled here
+const HELMET = 'goblin.Helmet' as LootId, KNIFE = 'goblin.Knife' as LootId, LOW = TIERS[1]!, HIGH = TIERS[3]!;   // a fine-ish and a high rung; the ladder is data (grades.ts), never spelled here
 // two packed goblin helmets from different drops, the later one in cell 1
 const twin = view([piece('a', HELMET, 'pack', { index: 0, tier: LOW }), piece('b', HELMET, 'pack', { index: 1, tier: HIGH })]);
 
@@ -37,14 +37,16 @@ test('wearing a cell equips THAT copy; no cell, or a stale one, equips the first
 test('a piece shows what it gives at its rung: a higher rung gives more, Recruit is the identity and reads "No bonus"', () => {
   assert.equal(pieceLine(pieceNumbers(HELMET, 1)), 'No bonus');
   assert.deepEqual(pieceNumbers(HELMET, 99), {}, 'a rung off the ladder gives nothing');
-  const [low, high] = [pieceNumbers(HELMET, rungOf(LOW)), pieceNumbers(HELMET, rungOf(HIGH))];
-  assert.ok(high.attack! > low.attack! && high.res! >= low.res!, `${HIGH} ${JSON.stringify(high)} beats ${LOW} ${JSON.stringify(low)}`);
-  assert.match(pieceLine(high), /^(ATK \d+|RES \d+)( · RES \d+)?$/, 'the paperdoll\'s "ATK 15 · RES 20" reading, a stat that is 0 left out');
+  const [low, high] = [pieceNumbers(HELMET, rungOf(LOW)), pieceNumbers(HELMET, TIERS.length)];   // armour gives RES, a weapon gives ATK (gear-stats.ts), so an armour piece reads one stat
+  assert.ok(high.res! > low.res!, `${TIERS[TIERS.length - 1]} ${JSON.stringify(high)} beats ${LOW} ${JSON.stringify(low)}`);
+  assert.match(pieceLine(high), /^RES \d+$/);
+  assert.match(pieceLine(pieceNumbers(KNIFE, TIERS.length)), /^ATK \d+$/, 'a weapon reads ATK');
+  assert.equal(pieceLine({ attack: 12, res: 9 }), 'ATK 12 · RES 9', 'both, as the paperdoll reads them');
 });
 test('equipping the dropped piece changes the sheet numbers by exactly what its row said (the strip reads the worn rung)', () => {
-  const bare: Loot = { owned: [HELMET], equipped: {}, pack: [HELMET], taken: { [HELMET]: { tier: rungOf(HIGH) } as never } };
-  const before = gearNumbers(bare), after = gearNumbers(wear(bare, HELMET)), own = pieceNumbers(HELMET, rungOf(HIGH));
-  assert.equal(after.attack! - before.attack!, own.attack, 'the strip moves by the piece line');
-  assert.equal(after.res! - before.res!, own.res);
-  assert.ok(after.attack! > before.attack!, `a ${HIGH} helmet is a real bonus`);
+  const top = TIERS.length, bare: Loot = { owned: [HELMET, KNIFE], equipped: {}, pack: [HELMET, KNIFE], taken: { [HELMET]: { tier: top } as never, [KNIFE]: { tier: top } as never } };
+  const before = gearNumbers(bare), helmeted = gearNumbers(wear(bare, HELMET)), armed = gearNumbers(wear(bare, KNIFE));
+  assert.equal(helmeted.res! - before.res!, pieceNumbers(HELMET, top).res, 'the strip moves by the helmet\'s own line');
+  assert.equal(armed.attack! - before.attack!, pieceNumbers(KNIFE, top).attack, 'and by the knife\'s');
+  assert.ok(helmeted.res! > before.res! && armed.attack! > before.attack!, 'a top-rung drop is a real bonus once worn');
 });
