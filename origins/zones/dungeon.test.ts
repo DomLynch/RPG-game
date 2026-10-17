@@ -1,7 +1,7 @@
 // The dungeon framework (origins/zones/dungeon.ts): the Bone Hollow is row #1 and the zone it compiles to is the zone the loader serves; a second, three-room row walks end to end; a broken graph is refused at load. Pure.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon } from './dungeon.ts';
+import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon, type DungeonTheme } from './dungeon.ts';
 import { loadZone } from './loader.ts';
 import THEMES from './dungeon-themes.json' with { type: 'json' };
 
@@ -11,7 +11,7 @@ const load = (d: Dungeon) => loadDungeons({ dungeons: [d] });
 
 test('the Bone Hollow zone is its dungeon row, compiled: place, spawns and look come from the row, nothing is left in the zone row', () => {
   const z = loadZone('5'), p = dungeonParts('bone-hollow');
-  assert.deepEqual(z.place, p.place); assert.deepEqual(z.spawns, p.spawns); assert.deepEqual(z.look, p.look);
+  assert.deepEqual(z.place, p.place); assert.deepEqual(z.spawns, p.spawns); assert.deepEqual((z as unknown as { look: unknown }).look, p.look);
   assert.equal((z.place as { waypoints: string[] }).waypoints.join(), 'marsh-hollow,hollow-gate,hollow-hall,hollow-patrol,hollow-den,hollow-cache');
   assert.equal((z.place as { spawns: unknown[] }).spawns.length, bone.encounters.length);
 });
@@ -28,7 +28,7 @@ test('walk in, room to room, to the boss and out again: both rows', () => {
 
 test('the sample row compiles to the zone-row parts, in its band L4-6, with the theme slot', () => {
   assert.deepEqual(sample.level, [4, 6]);
-  const c = compileDungeon(sample, (THEMES.themes as { id: string; look: object; pieces: Record<string, string> }[])[0]!) as { place: { zones: Record<string, { layout: object }>; waypoints: string[]; spawns: { at: string }[] }; spawns: { rows: unknown[] } };
+  const c = compileDungeon(sample, (THEMES.themes as DungeonTheme[])[0]!) as { place: { zones: Record<string, { layout: object }>; waypoints: string[]; spawns: { at: string }[] }; spawns: { rows: unknown[] } };
   assert.deepEqual(Object.keys(c.place.zones['crypt-sample']!.layout), ['crypt-door', 'crypt-nave', 'crypt-vault']);
   assert.deepEqual(c.place.waypoints, ['crypt-door', 'crypt-nave', 'crypt-vault']);
   assert.deepEqual(c.place.spawns.map((s) => s.at), ['crypt-nave', 'crypt-vault']); assert.equal(c.spawns.rows.length, 2);
