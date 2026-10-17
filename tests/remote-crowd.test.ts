@@ -48,9 +48,9 @@ test('a cheap figure poses every Nth frame with the time it was owed; a full one
 test('a remote outside the camera frustum, or past remoteAnimRange, makes no pose update (mixer and bones) but still moves its root; it is owed the time, capped', () => {
   const { heroes, made } = crowd(0);
   const camera = new PerspectiveCamera(50, 0.5, 0.1, 500); camera.position.set(0, 1, 10); camera.updateMatrixWorld();   // looks down -z from z = 10
-  heroes.push([{ id: 1, x: 0, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 2, x: 0, z: 50, heading: 0, anim: 0, flags: 0 }, { id: 3, x: 0, z: -(previewRule('remoteAnimRange') + 20), heading: 0, anim: 0, flags: 0 }], 0);
+  heroes.push([{ id: 1, x: 0, z: 5, heading: 0, anim: 0, flags: 0 }, { id: 2, x: 0, z: 50, heading: 0, anim: 0, flags: 0 }, { id: 3, x: 0, z: -(previewRule('remoteAnimRange') + 20), heading: 0, anim: 0, flags: 0 }], 0);
   for (let f = 0; f < 10; f++) heroes.update(0.1, 0, { x: 0, z: 10 }, camera);
-  const [inView, behind, far] = made.slice(0, 3);   // slots are claimed in the nearest-first order: id 1 (10 m), id 2 (40 m, behind the camera), id 3 (far, ahead)
+  const [inView, behind, far] = made.slice(0, 3);   // slots are claimed in the nearest-first order: id 1 (5 m, inside the full-rate range), id 2 (40 m, behind the camera), id 3 (far, ahead)
   assert.equal(inView!.updates.length, 10, 'in view: every frame');
   assert.equal(behind!.updates.length, 0, 'behind the camera: no mixer.update at all');
   assert.equal(far!.updates.length, 0, 'beyond the range: none');
@@ -75,7 +75,7 @@ test('a frozen figure (cheap on a skip frame, or hidden) triggers no skeleton up
       return { scene, heroes, render };
     };
     const a = rig();
-    a.heroes.push(Array.from({ length: FULL + 1 }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
+    a.heroes.push(Array.from({ length: FULL + 1 }, (_, i) => ({ id: i + 1, x: 2 + i * 0.3, z: 0, heading: 0, anim: 0, flags: 0 })), 0);   // all within remoteRateMidM, so only the cheap one is slow
     const perFrame: number[] = [], walks: number[] = [];
     for (let f = 0; f < EVERY * 2; f++) { a.heroes.update(0.01, 0, { x: 0, z: 0 }); visits = 0; a.scene.updateMatrixWorld(); walks.push(visits); perFrame.push(a.render()); }
     assert.deepEqual(walks, walks.map(() => FULL), 'the scene walk visits the 16 full figures\' bones every frame and the cheap figure\'s NEVER (not merely flagged: its bone is not visited)');
@@ -183,6 +183,29 @@ test('the remote-cheap loader refuses a missing row, a blank or repeated part na
   assert.throws(() => loadCheapParts(row(['A', ' '])), /distinct part names/);
   assert.throws(() => loadCheapParts(row('A')), /distinct part names/);
   assert.throws(() => loadCheapParts({ remoteCheap: [{ id: 'other', fields: { hideParts: ['A'] } }] }), /"cheap" row is missing/);
+});
+
+test('animation-rate LOD: a figure poses every frame within remoteRateMidM, every remoteRateMidEvery-th past it and every remoteRateFarEvery-th past remoteRateFarM, owed the time it skipped', () => {
+  const MID = previewRule('remoteRateMidM'), FAR = previewRule('remoteRateFarM'), MID_N = previewRule('remoteRateMidEvery'), FAR_N = previewRule('remoteRateFarEvery'), FRAMES = MID_N * FAR_N * 2;
+  const { heroes, made } = crowd(0);
+  heroes.push([{ id: 1, x: MID - 3, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 2, x: MID + 3, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 3, x: FAR + 6, z: 0, heading: 0, anim: 0, flags: 0 }], 0);
+  for (let f = 0; f < FRAMES; f++) heroes.update(0.01, 0, { x: 0, z: 0 });
+  const [near, mid, far] = made.slice(0, 3);
+  assert.equal(near!.updates.length, FRAMES, 'within the mid range: every frame');
+  assert.ok(Math.abs(mid!.updates.length - (1 + FRAMES / MID_N)) <= 1, `past it: on arrival, then every mid-rate frame (+-1 for the slot's phase): ${mid!.updates.length}`);
+  assert.equal(far!.updates.length, 1 + FRAMES / FAR_N, 'past the far line: on arrival, then every far-rate frame');
+  assert.ok(Math.abs(far!.updates[2]! - 0.01 * FAR_N) < 1e-9, 'owed the frames it skipped');
+  assert.deepEqual(heroes.debug().shown.map((s) => s.frozen), [false, true, true], 'a slow figure is out of the scene-graph walk between its poses');
+});
+
+test('animation-rate LOD: the phases are staggered by slot, so a far crowd poses about 1/N of its figures each frame, not all of them every Nth frame', () => {
+  const FAR = previewRule('remoteRateFarM'), N = previewRule('remoteRateFarEvery'), COUNT = N * 6;
+  const { heroes, made } = crowd(0);
+  heroes.push(Array.from({ length: COUNT }, (_, i) => ({ id: i + 1, x: FAR + 5 + i * 0.1, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
+  heroes.update(0.01, 0, { x: 0, z: 0 });   // arrival: every figure is posed once
+  const total = () => made.reduce((sum, m) => sum + m.updates.length, 0);
+  let before = total();
+  for (let f = 0; f < N * 3; f++) { heroes.update(0.01, 0, { x: 0, z: 0 }); const now = total(); assert.equal(now - before, COUNT / N, `frame ${f + 2}: exactly 1/${N} of the crowd poses`); before = now; }
 });
 
 test('a figure that comes back near gets its shadow back as it was', () => {
