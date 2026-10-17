@@ -9,7 +9,7 @@ import type { MobSpec } from './mobs.ts';
 const wolf = { id: 'wolf-1', body: 'wolf', name: 'wolf-1', level: 11, named: false } as unknown as MobSpec;
 function fakeMobs() {
   const driven = new Map<string, MobDrive>();
-  const mobs = { within: (x: number, z: number, r: number): MobPick[] => (Math.hypot(0 - x, 14 - z) <= r ? [{ spec: wolf, x: 0, z: 14, dist: Math.hypot(0 - x, 14 - z) } as unknown as MobPick] : []), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: () => {}, play: () => 0.5 } as unknown as Mobs;
+  const mobs = { within: (x: number, z: number, r: number): MobPick[] => (Math.hypot(0 - x, 8 - z) <= r ? [{ spec: wolf, x: 0, z: 8, dist: Math.hypot(0 - x, 8 - z) } as unknown as MobPick] : []), drive: (id: string, p: MobDrive | null) => void (p ? driven.set(id, p) : driven.delete(id)), fell: () => {}, play: () => 0.5 } as unknown as Mobs;
   return { mobs, driven };
 }
 /** The drawn z of the wolf after every frame at `hz`, from the frame it first closes in until it is within `stop` metres of the hero. */
@@ -22,8 +22,8 @@ function approach(hz: number, stop = 3): { z: number[]; ticks: number[] } {
 }
 
 test('blendPose: halfway is halfway, the facing takes the short arc, and a jump over the snap distance is not blended', () => {
-  const a = { x: 0, z: 0, facing: 0 }, b = { x: 2, z: 4, facing: Math.PI / 2 };
-  assert.deepEqual(blendPose(a, b, 0.5, 3), { x: 1, z: 2, facing: Math.PI / 4 });
+  const a = { x: 0, z: 0, facing: 0 }, b = { x: 1, z: 2, facing: Math.PI / 2 };
+  assert.deepEqual(blendPose(a, b, 0.5, 3), { x: 0.5, z: 1, facing: Math.PI / 4 });
   assert.deepEqual(blendPose(a, b, 0, 9), a); assert.deepEqual(blendPose(a, b, 1, 9), b);
   const wrap = blendPose({ x: 0, z: 0, facing: Math.PI - 0.1 }, { x: 0, z: 0, facing: -Math.PI + 0.1 }, 0.5, 3).facing;
   assert.ok(Math.abs(Math.abs(wrap) - Math.PI) < 1e-9, `the short way round ±π, not through 0 (${wrap})`);
