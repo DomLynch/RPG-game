@@ -75,7 +75,7 @@ import { createEngageAhead } from './engage-ahead.ts';
 import { beginLegendFight, finishLegendFight, type LegendNet } from './legend-fight.ts';
 import { createZoneSound, soundWanted } from './zone-sound.ts';
 import { bookIsOffline, createServerSkills, equippedSpecial, equippedSpell, getGrimoire, inBetaSpells, onSpecialsChanged, onSpellsChanged, ownedSpells, setOwnedSpells, slotShown, useSpecialStore, useSpellStore } from '../../src/core/index.ts';
-import { SKILL_ROWS, type SkillId } from '../../src/fight/moves.ts';   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
+import { SKILL_ROWS, type SkillId } from '../../src/fight/index.ts';   // SPECIAL 1 / 2 are class skills (the specials PR): the HUD button shows the skill row's own name
 import { pickSpell, loadSpellInfo } from '../../src/fight/index.ts';
 import { CHECKING, authClient, ensureFreshSession, openedAccount, isOffline, type Opened, loadAllegiance, previewCp, saveLine, SIGN_IN_HREF, canSignIn, pageSignedIn, storeAllegiance, storedToken, writerBase, type Source } from './save.ts';
 import { picker, pickerOpen } from './allegiance.ts';
@@ -669,7 +669,7 @@ try { storage = localStorage; } catch { /* storage blocked: no session, no saved
 try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / SPECIAL 2 (the specials PR): class skills from the beta pick row, read by the hero hook above and the buttons
 try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }
 const spellSkills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void spellSkills.refresh();
-void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend).filter(inBetaSpells)); syncSpell2Button();   // spells are off in the beta (betaCut spellsOff): the book offers only the utility spells } }, () => {});
+void getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }).then((got) => { if (!bookIsOffline(got)) { setOwnedSpells(got.map((x) => x.legend).filter(inBetaSpells)); syncSpell2Button(); } }, () => {});   // spells are off in the beta (betaCut spellsOff): the book offers only the utility spells } }, () => {});
 const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(), spellSkills.values());
 // The SPELL 2 button exists only while slot b holds a spell (Strategy's ruling): toggled when a pick or the book changes, never per frame.
 // The Pit's HUD (pit-duel.ts) draws the button and runs every frame, so the page tells it whether slot b is filled instead of touching the element (which the HUD would re-hide).
