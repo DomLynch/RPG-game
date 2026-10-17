@@ -1,10 +1,4 @@
 {
- "origins/crowd/crowd.ts": {
-  "'leader'": 6,
-  "'brute'": 1,
-  "'duellist'": 2,
-  "'skirmisher'": 1
- },
  "origins/npcs/row.ts": {
   "'shop'": 1
  },
