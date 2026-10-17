@@ -7,7 +7,6 @@ import { reliefAt, type Pad } from '../world/relief.ts';
 import type { Piece } from './exchange-plan.ts';
 import { footprintOf, type Dress } from './frontier-dress.ts';
 import { FRONTIER, inZone, toZone, type Build, type Frontier, type Solid, type ZonePlan } from './frontier-plan.ts';
-import { previewRule } from './preview-rules.ts';
 
 export const EDGE_FADE = stageRule('edgeFade');      // m: the ground eases to 0 over this distance from a zone's edge
 export const PAD_MARGIN = stageRule('padMargin');   // m: flat ground beyond a prop's own footprint
@@ -21,7 +20,7 @@ export function padsOf(p: Piece): Pad[] {
   if (sh[0] === 'box') {
     const [, w, h, d] = sh;
     if (p.y + h / 2 <= 0.05) return [];
-    const long = Math.max(w, d), short = Math.min(w, d), r = Math.max(short / 2, previewRule('reliefPadMin')) + PAD_MARGIN, alongX = w >= d;
+    const long = Math.max(w, d), short = Math.min(w, d), r = Math.max(short / 2, stageRule('reliefPadMin')) + PAD_MARGIN, alongX = w >= d;
     const n = Math.max(1, Math.ceil(long / r)), ux = alongX ? Math.cos(p.rotY) : Math.sin(p.rotY), uz = alongX ? -Math.sin(p.rotY) : Math.cos(p.rotY), out: Pad[] = [];
     for (let i = 0; i < n; i++) { const t = n === 1 ? 0 : (i / (n - 1) - 0.5) * (long - short); out.push({ x: p.x + ux * t, z: p.z + uz * t, r }); }
     return out;

@@ -36,6 +36,10 @@
     { "id": "levelFar", "value": 150, "unit": "m" },
     { "id": "namedLevelLift", "value": 2, "unit": "levels" },
     { "id": "spawnNear", "value": 25, "unit": "m" },
-    { "id": "spawnFar", "value": 35, "unit": "m" }
+    { "id": "spawnFar", "value": 35, "unit": "m" },
+    { "id": "sootWidthMax", "value": 1.6, "unit": "m" },
+    { "id": "sootHeightMax", "value": 2.4, "unit": "m" },
+    { "id": "sootCenterMax", "value": 1.2, "unit": "m" },
+    { "id": "reliefPadMin", "value": 0.5, "unit": "m" }
   ]
 }
