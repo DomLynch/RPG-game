@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~20:3x: READ FIRST. LIVE = IE 05a39ccce (verified). RV75 stack + #3075 all PASSED; the cut is unblocked
+
+**Now.** 1. **The RV75 cut** (#3056/#3060/#3076 @33673c233 + #3075 @bcc0a7baf, all PASSED): when Deploy cuts it, run recut.sh against the PASSed heads, check that the writer AND presence both restart (sim and record files + server verify), and that the frontier-era/specialsFromVersion rows are 75 = RECORD_VERSION at the candidate. After publish, verify live. 2. **#3086** read OK, HELD for Strategy (it makes commons notice/engage at 9 m, AGGRO_M, instead of 7 m: a feel change). 3. **Ready for the next small cut:** #3083 @fd8f11149, #3089 (docs), #3090 @6827b1417, #3091 @97bd8f83b, all PASSED.
+**RV75 facts I verified:** RV 74 → 75, WSV 51 → 52; READABLE keeps 74; no fixture changes (Pit byte-identical); the specials cut is era-gated (`betaCut.specialsFromVersion` 75, verify-loot passes record.v, world-verify passes rec.rv); frontier-era.test ties both eras to FIRST_SKILL2_VERSION; the 3 new sim readers are in inline-number-scope (the #3077 guard caught them); world tests re-timed with health untouched. Lead routes the goblin-kite and troll-69% battery bars to the balance PR.
+**Done since ~19:3x:** IE PASSED + verified live; ID verified live. PASS: #3048, #3083, #3075, #3076 (+ #3056/#3060 as stack), #3089, #3090, #3091. NOT YET then fixed: #3083 (merge-allow IDENT), #3076 ×2 (era gate; scope guard).
+**Gotcha.** (nn) Any new allow-file list key (idTables, and #3085's branchIds) must be added to scripts/as-data/merge-allow.mjs IDENT, or tests/merge-allow.test.ts fails.
+
 ## 2026-10-17 ~19:3x: READ FIRST. LIVE = IC ad1a13adc (verified, NRestarts 0). ID #3082 @026d24ce1 PASSED + candidate:pass
 
 **Now.** 1. **ID**: when it publishes, verify release.json, writer and presence = 026d24ce1, NRestarts 0 (presence restarts: 16 files; the writer reinstalls). 2. **#3048 @b4aee7891** (read OK; stray files gone + .gitignore; rename verified line by line; 0 clamp.* left): after #3037 lands, retarget to trunk and re-fire auditor:ready, then PASS on green. 3. **#3037 @0dd27fe8d** PASSED (the gear-sheet edit dropped as moot after #3065), for the next cut.
