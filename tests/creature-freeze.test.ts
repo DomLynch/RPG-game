@@ -38,7 +38,8 @@ test('a creature walking back into view is posed correctly on its FIRST frame: p
   freeze(c.group, c.ice, true); pose(c.group, c.ice); c.render();
   assert.equal(c.runs(), 2, "the pose frame's skeleton update runs");
   assert.deepEqual([world(c.group).x, world(c.arm).x, world(c.arm).y], [35, 35, 1], 'root and bone are at the creature position on that frame');
-  assert.ok(Math.abs(c.mesh.skeleton.boneMatrices[16 + 12] - 35) < 1e-6 && Math.abs(c.mesh.skeleton.boneMatrices[16 + 13] - 1) < 1e-6, 'and the skeleton matrices carry it: the render draws the new pose, not the stale one');
+  const bm = c.mesh.skeleton.boneMatrices!;
+  assert.ok(Math.abs(bm[16 + 12]! - 35) < 1e-6 && Math.abs(bm[16 + 13]! - 1) < 1e-6, 'and the skeleton matrices carry it: the render draws the new pose, not the stale one');
   freeze(c.group, c.ice, true); c.render(); assert.equal(c.runs(), 2, 'the next frozen frame idles again');
 });
 
