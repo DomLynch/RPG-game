@@ -26,7 +26,7 @@ import { captureException } from '@sentry/browser';
 import './style.css';
 import { STEP, wrapAngle } from './fight/sim.ts';
 import { FIGHTER_KEY, cleanName, holdLoot, loadProfile, releaseHold, saveProfile, type StoragePort } from './core/index.ts';
-import { betaMarks, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, rankFor, shownMarks, RANK_STEPS, type Rank } from './core/index.ts';
+import { betaMarks, equippedSpecial, fightLevel, inBetaSpells, levelOfMarks as careerLevel, marksOf, onSpecialsChanged, rankFor, shownMarks, useSpecialStore, RANK_STEPS, type Rank } from './core/index.ts';
 import { TIERS, TIER_PIN_KEY, levelOf, mountCareer, tierAt, tierPin, withoutTier, type Tier } from './core/index.ts';
 import { idleBeat, rankLookFlag, rankLookMoves } from './fight/rank-look.ts';
 import { LEGEND_OPPONENTS, isLegendOpponent, legendAt, legendForLevel, portraitKey, portraitPath, rungOf, rungTopLevel } from './legends.ts';
@@ -424,8 +424,9 @@ if (typeof requestIdleCallback === 'function') requestIdleCallback(() => void lo
 const legendIdNow = () => legendIndex?.legendIdFor(opponent.id, rungOf(match.level));
 // The character's skill values (skills_get, the server's own base + banked-xp-up-to-placed figure), read once at load; a guest or an offline writer has none, so every cast is claimed at its school's base.
 const skills = createServerSkills({ storage, search: location.search, now: () => Date.now() }); void skills.refresh();
+try { useSpecialStore(localStorage); } catch { useSpecialStore(undefined); }   // SPECIAL 1 / 2 (the specials PR): the store opens BEFORE the Match is built, because its constructor begins the first fight and reads the picks then
 const LOOK_SPELL = spellLook(window.location?.search ?? '');   // ?spell=<id>: a look test casts that spell in SPARRING only (match.ts lookSpell); absent = no spell, as today
-const match = new Match(opponent, BUILD, { storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
+const match = new Match(opponent, BUILD, { skill2: () => (equippedSpecial(1) as SkillId | undefined), storage, trial, scorecard, profile, rank: () => careerLevel(careerMarks()), arena: () => builtArena, spell: () => pickSpell(equippedSpell(), ownedSpells(), skills.values()), ...(LOOK_SPELL ? { lookSpell: () => LOOK_SPELL } : {}), ...(GEAR_IN_FIGHTS ? { sheet: () => fightSheet(profile, ownBuild, serverGear), buildRef: () => ownBuild?.ref ?? undefined } : {}) }, botSeed === undefined ? undefined : Number(botSeed) >>> 0, ladderWeapon(), kit.skill ?? (equippedSpecial(0) as SkillId | undefined) ?? equippedSkill(profile.loot), kit.level ?? rankLevel());   // the opponent fights at the dial (career.ts), not the rank
 const stanceAsk = stanceFlag(typeof location !== 'undefined' ? location.search : '');   // ?stances= (src/stance-panel.ts): stances are ON by default (Balanced); ?stances=off is the kill switch and means no stances anywhere
 if (stanceAsk) match.stancePref = stanceAsk;
 // Any Dev-kit pick that differs from what the career would fight makes the fight practice only (match.ts `tested`; Lead 2026-09-27).
@@ -779,6 +780,7 @@ void serverGear.importLocal().finally(() => void serverGear?.refresh());   // af
 }
 { const dialog = element<HTMLDialogElement>('grimoire-dialog'), book = mountGrimoire(dialog, async () => { const got = await getGrimoire(storedToken(storage, Date.now()), { base: writerBase(location.search), timeoutMs: 8000 }); return bookIsOffline(got) ? null : got.filter((s) => inBetaSpells(s.legend)); });   // the beta cut shows the signed-off list (career-ladder.ts); the spell book (grimoire-screen.ts): the account's taken spells, read-only; a guest gets "Sign in"
   element('grimoire-open').addEventListener('click', () => { journal.close(); void book.open(); });
+  { const applySpecialOne = (): void => { const one = equippedSpecial(0) as SkillId | undefined; if (one) { match.lastSkill = one; match.skill = one; } }; applySpecialOne(); onSpecialsChanged(applySpecialOne); }
   try { useSpellStore(localStorage); } catch { useSpellStore(undefined); }   // the equipped spell is a per-viewer pick; the owned ids come from the book's read, taken once at load
   void book.refresh(); }
 element('journal-button').addEventListener('click', openJournal);
