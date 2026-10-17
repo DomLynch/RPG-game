@@ -70,7 +70,7 @@ export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input:
       const parsed = parseItemInstance({
         kind: 'item-instance', schemaVersion: 1, id: `inst:legacy-${createHash('sha256').update(`${inv.account}|${id}`).digest('hex').slice(0, 24)}`, item: `item:loot.${id}`, version: 0, quantity: 1,
         tier: TITLES[known ? rung - 1 : 0], location, boundTo: null,
-        provenance: { kind: 'legacy-unlock', mintKey: key, at, account: inv.account, lootId: id, wonBy: inv.owner, fromLegend: known && !(opponent in STARTER_OWNERS) ? `${opponent}-${rung}` : null, atRank: known ? TITLES[rung - 1] : null }, history: [],   // a starter piece (lootStarter) has no legend to name: the legend key form is <opponent>-<rung>
+        provenance: { kind: 'legacy-unlock', mintKey: key, at, account: inv.account, lootId: id, wonBy: inv.owner, fromLegend: known && !(opponent in STARTER_OWNERS) ? `${opponent}-${rung}` : null, atRank: known && !(opponent in STARTER_OWNERS) ? TITLES[rung - 1] : null }, history: [],   // a starter piece (lootStarter) has no legend to name: the legend key form is <opponent>-<rung>
       }, `pieces[${id}]`);
       if (!parsed.ok) { why = parsed.issues[0]!.message; continue; }
       const next = openInventory({ owner: inv.owner, account: inv.account, items: [...items, parsed.value], packSize: inv.packSize, bankSize: inv.bankSize }, lookup);
