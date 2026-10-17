@@ -106,7 +106,7 @@
 {"id":"mid","upTo":180},
 {"id":"outer","upTo":100000}
 ],"spellRange":[
-{"root":"theWord","band":"inner","kind":"melee","windup":60},{"root":"threeBlows","band":"inner","kind":"melee","windup":60},{"root":"theRing","band":"inner","kind":"melee","windup":60},{"root":"harvest","band":"inner","kind":"melee","windup":60},
+{"root":"theWord","band":"outer","kind":"magic"},{"root":"threeBlows","band":"outer","kind":"magic"},{"root":"theRing","band":"outer","kind":"magic"},{"root":"harvest","band":"outer","kind":"magic"},
 {"root":"crack","band":"outer","kind":"magic"},{"root":"longShadow","band":"outer","kind":"magic"},{"root":"baying","band":"outer","kind":"magic"},
 {"root":"gale","band":"outer","kind":"magic","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","kind":"magic","speed":700,"tint":"#ff8a3a"}
 ],"spellCue":[
