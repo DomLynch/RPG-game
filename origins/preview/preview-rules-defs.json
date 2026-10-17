@@ -31,6 +31,8 @@
     { "id": "kitWarmMsSoft", "value": 300000, "unit": "ms" },
     { "id": "kitProbeFrames", "value": 20, "unit": "frames" },
     { "id": "kitSlowFrameMs", "value": 100, "unit": "ms" },
+    { "id": "gearWarmSettle", "value": 30, "unit": "frames" },
+    { "id": "gearWarmBound", "value": 20000, "unit": "ms" },
     { "id": "camEaseIn", "value": 3, "unit": "per s" },
     { "id": "camEaseOut", "value": 1.8, "unit": "per s" },
     { "id": "camPBack", "value": 6.5, "unit": "m" },
