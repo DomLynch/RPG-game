@@ -45,6 +45,12 @@ test('nyx anticipation: the windup shows a gather on the caster; a landing or a 
     if (end === 'SpecialInterrupted') assert.equal(shown(scene), 0, 'a cut cast leaves nothing');
     else assert.ok(shown(scene) >= 3, 'the landing look replaces the gather');
   }
-  const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);   // another spell's windup draws no gather
-  v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'brokkr', tick: 10 }], fighters); v.update(60); assert.equal(shown(scene), 0);
+  const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);   // a look without a gather (dust shock) draws nothing in its windup
+  v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'ugallu', tick: 10 }], fighters); v.update(60); assert.equal(shown(scene), 0);
+});
+
+test('ash anticipation: Brokkr\'s windup shows an ember gather that a cut cast removes', () => {
+  const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);
+  v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'brokkr', tick: 10 }], fighters); v.update(60); assert.ok(shown(scene) >= 3, 'ember gather mid-windup'); assert.ok(light(scene).intensity > 0);
+  v.trigger([{ type: 'SpecialInterrupted', actor: 0, spell: 'brokkr', tick: 70 }], fighters); v.update(70); assert.equal(shown(scene), 0);
 });
