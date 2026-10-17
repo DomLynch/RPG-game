@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "town-zone", "file": "town-zones.json", "at": "zones", "key": "id", "required": {}, "optional": { "speed": "number", "quiet": "boolean" } }
+  ]
+}
