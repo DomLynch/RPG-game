@@ -77,6 +77,14 @@ async function run(take) {
   await page.waitForFunction(() => document.getElementById('prompt').hidden, null, { timeout: (PICKUP.lineSec + 15) * 1000 }).catch(() => {});
   const after = await measure(page); receipt.steps.push({ step: `${take}-after-line`, shown: after.shown, text: after.text });
   if (after.shown) failures.push(`${take}: a prompt ("${after.text}") is still up once the line's ${PICKUP.lineSec} s are over`);
+  if (guest) {   // the session pack: the taken piece shows in the bank's Backpack, nothing of it is stored, and a reload brings the row back with an empty pack
+    await page.evaluate(() => window.originsPreview.open('bank'));
+    await page.waitForFunction((n) => document.body.innerText.includes('Backpack') && document.body.innerText.includes(n), name, { timeout: 15000 }).catch(() => failures.push(`guest: "${name}" is not in the Backpack after the take`));
+    const stored = await page.evaluate(() => JSON.stringify([{ ...localStorage }, { ...sessionStorage }]));
+    if (/starter\.|rusty/i.test(stored)) failures.push('guest: the taken item reached browser storage');
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction((id) => window.originsPreview?.ground?.anchor(id) !== undefined, ID, { timeout: 120000 }).catch(() => failures.push('guest: the item did not come back after a reload'));
+  }
   if (errors.length) failures.push(...errors);
   await page.context().close();
 }
