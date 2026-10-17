@@ -4,7 +4,7 @@
   "defaultKind": "goblin",
   "biome": "goblin-fortress",
   "camera": {
-    "preset": "a"
+    "preset": "b"
   },
   "names": {
     "test-field": "The Test Field"

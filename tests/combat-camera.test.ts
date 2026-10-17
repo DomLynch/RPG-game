@@ -80,6 +80,9 @@ test('the Test Zone offers four combat cameras as data, each complete; the real 
   try {
     const { loadZone } = await import('../origins/zones/loader.ts'), { zoneCombatCams, zoneCombatPreset } = await import('../origins/world/goblin-field-rules.ts');
     const zone = loadZone('90'), cams = zoneCombatCams(zone);
+    const { zoneLandscapeZoom, zoneFightBack, zoneFightBackPortrait } = await import('../origins/world/goblin-field-rules.ts'), z1 = loadZone('1');   // Dom 2026-10-17: the Test Zone walks and fights with Zone 1's camera, portrait and landscape
+    assert.equal(zone.fields!['camera.preset'], z1.fields!['camera.preset'], 'the same walking preset as Zone 1 (b)'); assert.deepEqual((zone.fields!['camera.presets'] as Record<string, unknown>).b, (z1.fields!['camera.presets'] as Record<string, unknown>).b, 'the same b framing');
+    assert.deepEqual([zoneLandscapeZoom(zone), zoneFightBack(zone), zoneFightBackPortrait(zone), zoneCombatPreset(zone)], [zoneLandscapeZoom(z1), zoneFightBack(z1), zoneFightBackPortrait(z1), zoneCombatPreset(z1)], 'landscape zoom, fight-back and combat camera all equal Zone 1\'s (none)');
     assert.deepEqual(Object.keys(cams).sort(), ['1', '2', '3', '4', '5'], 'three looks (1 tight over the shoulder, 2 wide auto-fit, 3 elevated), 4 = 2 with portrait 10% back, 5 = 2 with portrait 20% back, for comparing'); assert.ok(Math.abs(cams['5']!.portrait.back / cams['2']!.portrait.back - 1.2) < 0.01 && Math.abs(cams['5']!.portrait.maxBack! / cams['2']!.portrait.maxBack! - 1.2) < 0.01, '5 is 2 plus 20% in portrait');
     assert.ok(Math.abs(cams['4']!.portrait.back / cams['2']!.portrait.back - 1.1) < 0.01 && Math.abs(cams['4']!.portrait.maxBack! / cams['2']!.portrait.maxBack! - 1.1) < 0.01 && cams['4']!.landscape.back === cams['2']!.landscape.back, '4 is 2 plus 10% in portrait only');
     assert.ok(Object.values(cams).every((c) => c.ease.out < c.ease.in), 'every exit is slower than its entry');
