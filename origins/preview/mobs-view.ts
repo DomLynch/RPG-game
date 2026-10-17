@@ -9,7 +9,9 @@ import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobVariant } from './mob-looks.ts';
+import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
+import { labelSprite } from './label-sprite.ts';
 import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVisible, stepMob, type Mob, type MobSpec, labelCeilingNdc } from './mobs.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
@@ -31,17 +33,6 @@ type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | '
 type Actor = ReturnType<typeof buildWarriors>['player'];
 type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number };
 
-function labelSprite(text: string, named: boolean): THREE.Sprite {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
-  const g = c.getContext('2d')!;
-  g.font = '600 40px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  let size = 40; while (size > 20 && g.measureText(text).width > c.width - 24) { size -= 2; g.font = `600 ${size}px Georgia, serif`; }
-  g.lineWidth = 7; g.strokeStyle = 'rgba(10,8,6,0.85)'; g.strokeText(text, c.width / 2, c.height / 2);
-  g.fillStyle = named ? '#f2c66d' : '#ece0c8'; g.fillText(text, c.width / 2, c.height / 2);
-  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false }));
-  s.scale.set(0.2, 0.0375, 1); return s;   // sizeAttenuation off: the same size on screen at any distance (a creature next to the camera no longer fills it)
-}
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const g = c.getContext('2d')!;
@@ -111,9 +102,8 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const textures = new Set<THREE.Texture>(), geometries = new Set<THREE.BufferGeometry>();
     probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry); for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
     for (const t of textures) { renderer.initTexture(t); await frame(); }
-    const proxy = new THREE.MeshBasicMaterial(), tmp = new THREE.Scene(), target = new THREE.WebGLRenderTarget(4, 4);
-    try { for (const g of geometries) { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } await frame(); } }
-    finally { target.dispose(); proxy.dispose(); }
+    linkProxy(renderer, camera);
+    for (const g of geometries) { drawProxy(renderer, camera, g); await frame(); }
   }
   const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
   let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate

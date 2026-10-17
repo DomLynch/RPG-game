@@ -1,6 +1,6 @@
-// The 2-zone smoke for the shared meters (src/fight/hud.ts createMeters): boots Zone 1's page and the Pit's page at 375x812, reports uncaught page errors, checks the meters mounted
+// The 2-zone smoke for the shared meters (src/fight/hud.ts createZoneBars: the Pit's own bars on the zone page): boots Zone 1's page and the Pit's page at 375x812, reports uncaught page errors, checks the meters mounted
 // (and the old zone bars are gone, the Pit's bars hidden on the zone page), reads the Pit's bars, and saves stills. A diagnostic, not a release row. The zone still paints the bars the way
-// createMeters would (driving a real fight needs a creature in reach). Needs the built pages: `vite build --config origins/preview/vite.config.mjs` and `vite build --outDir smoke-build/pit`.
+// createZoneBars would (driving a real fight needs a creature in reach). Needs the built pages: `vite build --config origins/preview/vite.config.mjs` and `vite build --outDir smoke-build/pit`.
 //   node scripts/meters-smoke.mjs [--build] [zone dist=artifacts/origins-preview] [pit dist=artifacts/pit-build] [out=artifacts/meters-smoke]
 // Stills are 375x812 CSS pixels (gpu-run returns only small files, ~2.5 MB in all). --build makes both pages first (what a gpu-run job needs: its build step is the Pit's, not the zone's).
 import fs from 'node:fs';
@@ -37,17 +37,17 @@ try {
     const errors = [], warnings = []; page.setDefaultTimeout(240000); page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`http://127.0.0.1:${zoneServer.address().port}/preview/origins/?region=1`, { waitUntil: 'load' });
     page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) warnings.push(m.type() + ': ' + m.text().slice(0, 160)); });
-    try { await page.waitForSelector('.fm-meters', { state: 'attached', timeout: 150000 }); } catch (e) { console.log('zone timeout; errors so far:', JSON.stringify(errors.slice(0, 8)), 'ids:', await page.evaluate(() => [...document.querySelectorAll('[id]')].map((n) => n.id).slice(0, 40).join(',')), 'url', page.url()); throw e; }
+    try { await page.waitForSelector('.combat-hud', { state: 'attached', timeout: 150000 }); } catch (e) { console.log('zone timeout; errors so far:', JSON.stringify(errors.slice(0, 8)), 'ids:', await page.evaluate(() => [...document.querySelectorAll('[id]')].map((n) => n.id).slice(0, 40).join(',')), 'url', page.url()); throw e; }
     await page.waitForTimeout(3000);
     result.zone = await page.evaluate(() => {
-      const root = document.querySelector('.fm-meters');
-      return { metersMounted: !!root, hiddenWhileWhole: root.hidden, bars: [...root.querySelectorAll('meter')].map((m) => m.className), flashMounted: !!document.querySelector('.fm-flash'), oldBarsGone: !document.getElementById('wc-bars') && !document.getElementById('wc-hp'), pitBarsHiddenInZone: getComputedStyle(document.querySelector('.combat-hud')).display === 'none', cssLoaded: getComputedStyle(root).position === 'fixed' };
+      const root = document.querySelector('.combat-hud');
+      return { barsMounted: !!root, hiddenWhileWhole: getComputedStyle(root).display === 'none', bars: [...root.querySelectorAll('meter')].map((m) => m.id), flashMounted: !!document.querySelector('.fm-flash'), oldPlateGone: !document.querySelector('.fm-meters') };
     });
-    // The look with numbers painted the way createMeters paints them (driving a real fight needs a creature in reach; this is the stylesheet's drawing of the three bars and the flash).
+    // The look with numbers painted the way createZoneBars paints them (driving a real fight needs a creature in reach; this is the Pit's stylesheet drawing the foe, health and stamina bars and the flash).
     await page.evaluate(() => {
-      const root = document.querySelector('.fm-meters'); const keep = document.createElement('style'); keep.textContent = '.fm-meters[hidden] { display: block !important; }'; document.head.append(keep); root.hidden = false;   // the page re-hides the meters every frame while the hero is whole; this keeps the painted look on screen
-      root.querySelector('.fm-name').textContent = 'Goblin';
-      for (const [cls, pct] of [['.fm-foe', 40], ['.fm-hp', 62], ['.fm-st', 80]]) root.querySelector(cls).style.setProperty('--fill', `${pct}%`);
+      document.body.classList.add('zone-bars');
+      const name = document.getElementById('opponent-name'); name.textContent = 'GOBLIN'; name.dataset.mobile = 'Goblin';
+      for (const [id, pct] of [['target-health', 40], ['player-health', 62], ['stamina', 80]]) document.getElementById(id).style.setProperty('--fill', `${pct}%`);
     });
     await page.waitForTimeout(300); await page.screenshot({ path: path.join(out, 'zone1-meters.png'), scale: 'css' });
     await page.evaluate(() => { document.querySelector('.fm-flash').dataset.on = 'true'; });

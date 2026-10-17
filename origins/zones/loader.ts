@@ -7,8 +7,9 @@ import type { MobLookRow, MobSpread } from '../preview/mob-looks.ts';
 import { ROSTER } from '../../src/fight/server.ts';
 import { duplicateKeys, describeDuplicates } from '../../scripts/lib/json-dup-keys.mjs';
 import { REGISTRY } from './registry.ts';
-import { placesInOrder, type Place } from './place.ts';
+import { placesInOrder, spawnIds, spawnProblems, type Place } from './place.ts';
 import { resolveZone } from './resolve.ts';
+import { stageRule } from '../world/stage-rules.ts';
 import type { Spec } from './biomes.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
@@ -25,11 +26,20 @@ export type Zone = {
   set?: readonly string[];
   resolved?: Spec;   // every schema field resolved (defaults < biome < this zone, schema.ts + resolve.ts), nested; set by loadZone. The views above stay as they were
   place?: Place;   // where it stands on the Region 1 map (place.ts); region1 reads it from the registry
+  unlisted?: boolean;   // a test or work-in-progress zone (schema `unlisted`): only its own page sees it; zoneIds(), zonePlaces() and the server never list it, so a merged branch cannot put it on the map
   mobLooks?: { looks: Readonly<Record<string, MobLookRow>>; spread: Readonly<Record<string, MobSpread>> };   // how this zone's own creatures are dressed, by character id; mobLook()/variantLook() read it before the central MOB_LOOKS (a zone with none dresses nothing differently)
 };
 const PACKAGES: Record<string, Zone> = REGISTRY;
 /** Where every zone stands on the Region 1 map, in zone-number order: region1 builds its zones, waypoints and spawn groups from this and names no zone itself (zone<N>/place.ts). */
-export const zonePlaces = (): Place[] => placesInOrder(PACKAGES);
+// A listed zone, or the unlisted zone this page itself opens (a page names its zone by address; the server and the tests have no page, so they never see an unlisted zone).
+/** The ids a page (`here` = the zone its address opens; null = no page: the server, the tests) may see: every listed zone, plus `here` itself when it is unlisted. Pure. */
+/** Whether a build may open an unlisted zone: ONLY when it was built or run with the explicit opt-in VITE_UNLISTED_ZONES=1. Default off. The live game is the /preview/origins/ bundle (also published at /zone1/), so a base path says nothing about live; only Deploy's sandbox previews for Dom set the flag, never the /zone1/ + /preview/origins/ publish (tests/unlisted-zones-guard.test.ts fails if a publish or deploy script or a .env.production* sets it). Pure on its argument. */
+export const unlistedOpens = (env: { VITE_UNLISTED_ZONES?: string } | undefined): boolean => env?.VITE_UNLISTED_ZONES === '1';
+const buildEnv = (): { VITE_UNLISTED_ZONES?: string } | undefined => (import.meta as unknown as { env?: { VITE_UNLISTED_ZONES?: string } }).env ?? (typeof process === 'undefined' ? undefined : process.env);
+const opensNow = (): boolean => unlistedOpens(buildEnv());   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
+export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
+const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
+export const zonePlaces = (): Place[] => { const ids = new Set(listedIds(PACKAGES, here())); return placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id)))); };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.
@@ -42,9 +52,14 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const w of z.world) if (!z.names[w]?.trim()) bad.push(`world zone ${w} has no display name`);
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
-    if (r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${z.level}-${z.level + 1}`);
+    const lift = stageRule('namedLevelLift');   // a named camp boss is the zone level + the lift (stage rules row; was the NAMED_LEVEL literal)
+    if (r.named ? r.level[0] !== z.level + lift || r.level[1] !== z.level + lift : r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${r.named ? `${z.level + lift} (a named camp boss is the zone level + ${lift})` : `${z.level}-${z.level + 1}`}`);
   }
   for (const [zoneId, rowId] of Object.entries(z.spawns.openers)) if (!ids.has(rowId)) bad.push(`opener for ${zoneId} names ${rowId}, which is not a row`);
+  for (const g of z.place?.spawns ?? []) {   // weighted entries (docs/specs/origins/weighted-spawns.md): the camp is sized by the first entry's row; that every id is a character is the registry's check (region1 load.ts)
+    const first = z.spawns.rows.find((r) => r.id === spawnIds(g)[0]);
+    bad.push(...spawnProblems(g, first?.behaviour.campSize?.[1] ?? 1));
+  }
   const nodes = new Set(z.kit.nodes), landmarks = new Set(z.kit.landmarks);
   if (!z.kit.url.startsWith('/world/kit/')) bad.push(`kit url ${z.kit.url}`);
   for (const k of z.kit.kinds) {
@@ -73,7 +88,9 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   return bad;
 }
 
-export const zoneIds = (): string[] => Object.keys(PACKAGES);
+export const zoneIds = (opens: boolean = opensNow()): string[] => listedIds(PACKAGES, here(), opens);
+/** Every zone row, listed or not: for checks that must validate an unlisted row too (scripts/data-only-check.mjs), never for what a player or the server sees. */
+export const allZoneIds = (): string[] => Object.keys(PACKAGES);
 /** The zone a page or request names none of (every old link) and the one whose instance ids stay bare: Zone 1, PINNED. The live database keys are bare for Zone 1 specifically, not for "the lowest row" (the keys were written before there were rows), so this is not derived from the registry; a registry without Zone 1 throws at load. The one place a zone id is a value, not a name; callers read this and never write `'1'`. */
 export const DEFAULT_ZONE = '1';
 if (!zoneIds().includes(DEFAULT_ZONE)) throw new Error(`the zone registry has no zone ${DEFAULT_ZONE}: its live keys are bare`);
@@ -89,9 +106,9 @@ export function zoneFromAddress(pathname: string, search: string): string {
 export const pageZoneId = (): string => typeof location === 'undefined' ? DEFAULT_ZONE : zoneFromAddress(location.pathname, location.search);
 
 const loaded = new Map<string, Zone>();
-export function loadZone(id: string = pageZoneId()): Zone {
+export function loadZone(id: string = pageZoneId(), opens: boolean = opensNow()): Zone {
+  const z = PACKAGES[id]; if (!z || (z.unlisted && !opens)) throw new Error(`no zone ${id}`);   // an unlisted zone without the VITE_UNLISTED_ZONES opt-in is the same "no such place" as an id that is no zone
   const hit = loaded.get(id); if (hit) return hit;
-  const z = PACKAGES[id]; if (!z) throw new Error(`no zone ${id}`);
   const bad = zoneProblems(z); if (bad.length) throw new Error(`zone ${id} is invalid: ${bad.join('; ')}`);
   const r = resolveZone(id, z as unknown as Spec), full = { ...z, resolved: r.tree, fields: r.values, set: r.explicit };   // z is a package straight from the registry: it has no `resolved` yet
   loaded.set(id, full); return full;

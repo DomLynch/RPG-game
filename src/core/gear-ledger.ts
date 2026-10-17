@@ -1,4 +1,4 @@
-// The engine's gear screen reads the ONE item ledger (origins/inventory, Backend's gear_open / gear_equip / gear_unequip, #1982) instead of a local copy:
+// The engine's gear screen reads the ONE item ledger (src/core/items, Backend's gear_open / gear_equip / gear_unequip, #1982) instead of a local copy:
 // this file is the pure half. It reads a gear_open reply into the Loot shape the gear sheet already draws (so the sheet changes nothing), and turns a wear /
 // stow into the server calls that make it (the server has no silent swap: a slot's occupant is unequipped first, to the pack). No network, DOM or clock.
 import { TIERS, type Tier } from './grades.ts';

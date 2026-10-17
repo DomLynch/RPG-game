@@ -2,7 +2,7 @@
 //
 // Two parts:
 //   1. BUNDLE: records in the contracts' own shapes (item, loot table, character, faction, region, encounter), loaded by
-//      origins/contracts/registry.ts loadContent with no new fields.
+//      src/core/contracts/registry.ts loadContent with no new fields.
 //   2. LOCAL: the kinds the contracts do not have yet, in the shapes the specs propose: `town-definition` (living-world §3.1),
 //      `bounty-definition` (region1 §3, Bounties), the encounter twist flags (region1 §7, open question 1a), the rift records
 //      (living-world §8.1) and the boss loot rules (region1 §4–§5: first win only). Each moves into the contracts when its kind,
@@ -17,7 +17,7 @@
 // non-legend NPCs the specs leave open, boss health, the rift table, zone landmarks).
 
 import { LOOT_ITEMS } from '../../src/core/server.ts';
-import { placedSpawns, placedWaypoints } from '../zones/place.ts';
+import { placedSpawns, placedWaypoints, spawnIds } from '../zones/place.ts';
 import { zonePlaces } from '../zones/loader.ts';
 import lootTableRows from './loot-tables.json' with { type: 'json' };
 import townRows from './towns.json' with { type: 'json' };
@@ -42,6 +42,38 @@ export const ITEMS = [
   gear('item:frontier.ferryman-boots', "Ferryman's boots", 'Boots', 'fine', 'leather'),
   gear('item:frontier.mere-arms', 'Drowned vambraces', 'Arms', 'fine', 'bronze'),
   gear('item:frontier.mere-shield', "The Mere-Mother's shield", 'Shield', 'relic', 'bone'),
+  // The starter ground item (Backend brief #2775; Lead 2026-10-15): the one weapon Region 1 may define, because a ground row names it (origins/world/ground-items.json). Longsword is
+  // DEFAULT_WEAPON, so a new player already fights with its moves: wearing it changes nothing about the fight. Bound on acquire: not tradable. The rust tint is owed by Characters & Art.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.rusty-sword', name: 'Rusty sword', category: 'gear', rarity: 'common', slot: 'Longsword',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/longsword.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  // The other four starter weapons (Strategy 2026-10-15: fixed ground placements, looks in origins/preview/ground-looks.json). Common, bound on acquire, never above Recruit gear.
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.knife', name: 'Chipped knife', category: 'gear', rarity: 'common', slot: 'Knife',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/knife.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.cleaver', name: 'Notched cleaver', category: 'gear', rarity: 'common', slot: 'Cleaver',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/cleaver.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.gladius', name: 'Pitted gladius', category: 'gear', rarity: 'common', slot: 'Gladius',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/gladius.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.estoc', name: 'Bent estoc', category: 'gear', rarity: 'common', slot: 'Estoc',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'weapons/player/estoc.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  // Armour on the ground (batch two): Recruit-tier goblin pieces from loot.glb, looks in origins/preview/ground-looks.json. No placements yet (Strategy's call).
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-scrap-cap', name: 'Goblin scrap cap', category: 'gear', rarity: 'common', slot: 'Helmet',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'loot.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
+  {
+    kind: 'item-definition', schemaVersion: 1, id: 'item:starter.goblin-shin-plates', name: 'Goblin shin plates', category: 'gear', rarity: 'common', slot: 'Greaves',
+    power: 'slot-weight', material: 'iron', appearance: { asset: 'loot.glb' }, story: 'none', binding: 'on-acquire', stack: 1,
+  },
   {
     kind: 'item-definition', schemaVersion: 1, id: 'item:grave-iron', name: 'Grave iron', category: 'material', rarity: 'fine', slot: null,
     power: 'none', material: 'iron', appearance: { asset: 'items/grave-iron.glb' }, story: 'none', binding: 'none', stack: 50,
@@ -114,7 +146,7 @@ export const REGIONS = [
       spawn('bounty-toll', 'milestone', 'encounter:bounty-toll'),
       spawn('bounty-reeds', 'reed-bank', 'encounter:bounty-peg-powler'),
       spawn('matriarch', 'mere-hollow', 'encounter:mere-mother'),
-      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, g.characters)),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
+      ...placedSpawns(zonePlaces()).map((g) => spawn(g.id, g.at, null, spawnIds(g))),   // each zone row's spawn groups (its place), Zone 1's first so every seed keeps
     ],
     triggers: [], assetManifest: 'regions/ash-frontier/manifest.json',
   },

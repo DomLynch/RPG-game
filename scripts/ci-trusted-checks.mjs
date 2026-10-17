@@ -28,7 +28,8 @@ const sha = process.argv[2];
 const gh = process.env.CI_TRUST_GH || 'gh';
 const say = message => process.stderr.write(`ci-trusted-checks: ${message}\n`);
 const exec = (command, args) => {
-  const result = spawnSync(command, args, { encoding: 'utf8' });
+  const result = spawnSync(command, args, { encoding: 'utf8', timeout: Number(process.env.CI_TRUST_CALL_S || 120) * 1000, killSignal: 'SIGKILL' });   // a hung gh was unbounded here: deploy.sh waited on it (2026-10-16)
+  if (result.error?.code === 'ETIMEDOUT') throw new Error(`${command} ${args.slice(0, 2).join(' ')} timed out after ${process.env.CI_TRUST_CALL_S || 120}s`);
   if (result.error || result.status !== 0) throw new Error(`${command} ${args.slice(0, 3).join(' ')} failed: ${(result.stderr || result.error?.message || '').trim().slice(0, 200)}`);
   return result.stdout;
 };

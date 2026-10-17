@@ -81,16 +81,16 @@ try {
       const chips = await page.locator('#grimoire-dialog .grimoire-brick').count(); check(chips >= 5, `${name}: brick chips drawn (${chips})`);
       await page.screenshot({ path: `${out}/book-${name}-spells.png` });
       // equip: one button per spell, the colour a row's, the pick kept for the fight's spell port (core/spell-equip.ts)
-      check(await page.locator('#grimoire-dialog .grimoire-equip').count() === 5, `${name}: an Equip button on each entry`);
+      check(await page.locator('#grimoire-dialog .grimoire-equip').count() === 10, `${name}: an Equip button per slot on each entry (2 slots x 5)`);
       const colours = await page.locator('#grimoire-dialog .grimoire-entry').evaluateAll((es) => es.map((e) => [e.dataset.legend, e.style.getPropertyValue('--school')]));
       check(colours.filter(([id, c]) => id !== 'zed-the-new' && /^#[0-9a-f]{6}$/i.test(c)).length === 4 && !colours.find(([id]) => id === 'zed-the-new')[1], `${name}: catalogue spells carry their school colour, the unknown one none (${JSON.stringify(colours)})`);
-      const alvis = page.locator('#grimoire-dialog .grimoire-entry[data-legend="alvis"] .grimoire-equip');
+      const alvis = page.locator('#grimoire-dialog .grimoire-entry[data-legend="alvis"] .grimoire-equip[data-slot="a"]');
       await alvis.click({ force: true });
-      check(await alvis.getAttribute('aria-pressed') === 'true' && /Equipped/.test(await alvis.textContent()), `${name}: Equip marks Alvis equipped`);
-      check(await page.evaluate(() => localStorage.getItem('frankendom.spell.equipped.v1')) === 'alvis', `${name}: the pick is kept`);
+      check(await alvis.getAttribute('aria-pressed') === 'true' && /In slot A/.test(await alvis.textContent()), `${name}: Equip A marks Alvis in slot A`);
+      check(await page.evaluate(() => localStorage.getItem('frankendom.spell.slots.v1')) === '["alvis",null]', `${name}: the pick is kept in slot a`);
       await page.screenshot({ path: `${out}/book-${name}-equipped.png` });
       await alvis.click({ force: true });
-      check(await alvis.getAttribute('aria-pressed') === 'false' && await page.evaluate(() => localStorage.getItem('frankendom.spell.equipped.v1')) === null, `${name}: a second press unequips`);
+      check(await alvis.getAttribute('aria-pressed') === 'false' && await page.evaluate(() => localStorage.getItem('frankendom.spell.slots.v1')) === null, `${name}: a second press unequips`);
       await alvis.click({ force: true });
       const m = await layout(page, name); for (const b of m.bad) check(false, `control too small or off screen: ${b}`); check(!m.clipped.length, `${name}: text clipped: ${m.clipped}`); check(!m.hscroll, `${name}: horizontal scroll`);
       await page.locator('#grimoire-dialog .grimoire-close').click({ force: true }); check(!(await page.locator('#grimoire-dialog').evaluate((d) => d.open)), `${name}: the close button closes it`);

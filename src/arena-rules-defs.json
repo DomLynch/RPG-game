@@ -17,7 +17,10 @@
     { "id": "parapetInner", "value": 22.4, "unit": "m" },
     { "id": "parapetOuter", "value": 23.2, "unit": "m" },
     { "id": "parapetTop", "value": 8.6, "unit": "m" },
+    { "id": "rungsPerArena", "value": 2, "unit": "rungs" },
     { "id": "segments", "value": 96, "unit": "segments" },
+    { "id": "rubbleTiers", "value": 3, "unit": "tiers" },
+    { "id": "moteFloor", "value": 0.15, "unit": "m" },
     { "id": "propTextureFull", "value": 512, "unit": "px" },
     { "id": "propTexturePhone", "value": 256, "unit": "px" }
   ]

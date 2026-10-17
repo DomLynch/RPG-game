@@ -9,8 +9,9 @@ export function supabaseVerify(url: string, anonKey: string, doFetch: typeof fet
     try {
       const res = await doFetch(`${url.replace(/\/$/, '')}/auth/v1/user`, { headers: { apikey: anonKey, authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
       if (!res.ok) return null;
-      const id = ((await res.json()) as { id?: unknown }).id;
-      return typeof id === 'string' && UUID.test(id) ? id.toLowerCase() : null;
+      const user = (await res.json()) as { id?: unknown; is_anonymous?: unknown };
+      if (user.is_anonymous === true) return null;   // a guest is never an account (SCOPE 2026-10-16 item 3): an anonymous Supabase user, if sign-ins ever allow one, is nobody to the writer
+      return typeof user.id === 'string' && UUID.test(user.id) ? user.id.toLowerCase() : null;
     } catch { return null; }
   };
 }

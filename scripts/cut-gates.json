@@ -1,0 +1,34 @@
+{
+  "note": "Data for the cut's two pre-launch hard stops (scripts/cut-release.mjs, Strategy 2026-10-15 after the four unreviewed commits on trunk). Gate 1: every commit in <live>..<candidate base> must belong to a PR (GitHub commits/<sha>/pulls non-empty) unless it is listed in noPrExempt. Gate 2: the cut may not change any path under watchedPaths. watchedAllow lists { path, blob, pr, note }: a changed watched file passes gate 2 only at that exact reviewed blob. It starts empty; an entry goes in only through its own PR with Lead's written OK.",
+  "watchedPaths": [
+    ".github/workflows",
+    ".vscode",
+    "public/fonts"
+  ],
+  "watchedAllow": [
+    {
+      "path": ".github/workflows/quality.yml",
+      "blob": "6e8ea0fb9eef82df1a6f0442372ec8e94268d06e",
+      "pr": 2929,
+      "note": "Lead OK 2026-10-16: GAME_RE adds scripts/lib/json-dup-keys, scripts/lib/origins-preview-harness and scripts/origins-remote-heroes-check; one optional browser matrix row remote-heroes. No new actions, secrets, permissions or triggers."
+    }
+  ],
+  "noPrExempt": [
+    {
+      "sha": "d531a0f1d",
+      "note": "2026-10-15 malicious commit 'Add repo health workflow', neutralised by revert PR #2779"
+    },
+    {
+      "sha": "7f19a0842",
+      "note": "2026-10-15 malicious commit 'Add cache cleanup', neutralised by revert PR #2779"
+    },
+    {
+      "sha": "e5410d2c4",
+      "note": "2026-10-15 malicious commit 'Add font assets', neutralised by revert PR #2779"
+    },
+    {
+      "sha": "e35b9b16d",
+      "note": "2026-10-15 malicious commit 'Add editor task', neutralised by revert PR #2779"
+    }
+  ]
+}

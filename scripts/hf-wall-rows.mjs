@@ -20,7 +20,8 @@ import { ledger } from './vps-shadow/launch.mjs';
 import { GPU_ONLY, MAC_ONLY, ON_T4, T4_JOB_TIMEOUT, T4_JOBS } from './lib/row-placement.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const hf = process.env.HF_WALL_ROWS_HF || 'hf';
+// launchd's login shell may not have Homebrew on PATH (Release HA: four finished T4 jobs were cancelled as "no hardware" after `hf jobs inspect` failed to run): use the absolute path when it exists.
+const hf = process.env.HF_WALL_ROWS_HF || (existsSync('/opt/homebrew/bin/hf') ? '/opt/homebrew/bin/hf' : 'hf');
 const state = process.env.HF_WALL_ROWS_STATE || join(root, 'artifacts', 'hf-wall-rows', 'state');
 const envFile = process.env.HF_WALL_ROWS_ENV_FILE || join(root, '.env.production.local');
 const flavor = process.env.HF_WALL_ROWS_FLAVOR || 't4-medium', width = process.env.HF_WALL_ROWS_WIDTH || '4', timeout = process.env.HF_WALL_ROWS_TIMEOUT || T4_JOB_TIMEOUT;
@@ -75,7 +76,21 @@ function launch(sha, rowsArg, skipArg) {
   process.stdout.write(`${ids}\n`);
 }
 
-const stage = id => { const r = run(['jobs', 'inspect', id]); if (r.status !== 0) return 'UNKNOWN'; return /"stage":\s*"([A-Z_]+)"/.exec(r.stdout || '')?.[1] || 'UNKNOWN'; };
+// A failed inspect is retried once and SAID (exit, signal, spawn error, stderr): it used to read as UNKNOWN, which the wait loop treats as "still scheduling", so a COMPLETED job was cancelled as "no hardware" (HA).
+const stage = id => {
+  let r;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    r = run(['jobs', 'inspect', id]);
+    if (r.status === 0) break;
+    say(`inspect ${id} failed (attempt ${attempt}): status=${r.status} signal=${r.signal ?? ''} error=${r.error?.code ?? ''} ${String(r.stderr || '').trim().slice(0, 160)}`);
+    if (attempt === 1) sleep(2);
+  }
+  if (r.status !== 0) {   // inspect is down but the job may be done: the runner's last line is "=== COST seconds=..." (job.sh), printed only after the rows finished
+    const logs = run(['jobs', 'logs', id], { maxBuffer: 1 << 26, timeout: 300_000 });
+    return logs.status === 0 && /^=== COST seconds=\d+/m.test(logs.stdout || '') ? 'COMPLETED' : 'UNKNOWN';
+  }
+  return /"stage":\s*"([A-Z_]+)"/.exec(r.stdout || '')?.[1] || 'UNKNOWN';
+};
 const cancel = (id, why) => { say(`cancelling job ${id}: ${why}`); run(['jobs', 'cancel', id]); };
 
 const LIVE = ['SCHEDULING', 'PENDING', 'RUNNING', 'UNKNOWN'];
