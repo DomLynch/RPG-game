@@ -31,7 +31,9 @@ try {
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
   const ready = async (label) => {
     await page.waitForFunction(() => window.__zoneReady && window.originsPreview, null, { timeout: 240000 }).catch(() => { throw new Error(`${label}: [zone ready] (window.__zoneReady) never fired`); });
-    return page.evaluate(() => ({ names: window.originsPreview.renderInfo().programNames, pos: { ...window.originsPreview.pos } }));
+    // Another player's gear programs are linked in idle time AFTER [zone ready] by design (main.ts warmRemoteKitsInIdle, #2938), as the crowd harness knows: wait for that warm to answer, then count.
+    const warm = await page.waitForFunction(() => window.originsPreview.remoteKitsWarm?.(), null, { timeout: 120000 }).then((h) => h.jsonValue(), () => null);
+    return page.evaluate((w) => ({ names: window.originsPreview.renderInfo().programNames, pos: { ...window.originsPreview.pos }, kitWarm: w }), warm);
   };
   const door = (id) => page.evaluate((zoneLandmark) => { const z = window.originsPreview.region().zones.find((q) => q.landmarks[zoneLandmark]); return z && z.landmarks[zoneLandmark]; }, id);
   const cross = async (label, landmark, toZone, still, inside) => {   // inside: this page's own landing point, which is the way into the zone from this door
@@ -46,7 +48,7 @@ try {
     return d;
   };
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
-  const z1 = await ready('Zone 1'); receipt.zone1Programs = z1.names.length;
+  const z1 = await ready('Zone 1'); receipt.zone1Programs = z1.names.length; receipt.zone1KitWarm = z1.kitWarm;
   const leg = async (label, landmark, toZone, landing, still, arriveStill, inside) => {
     await cross(label, landmark, toZone, still, inside);
     const a = await ready(label), l = { label, landed: a.pos, programsAtReady: a.names.length };
