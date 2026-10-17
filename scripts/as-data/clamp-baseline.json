@@ -143,53 +143,6 @@
  "src/fight/skill-impact.ts": {
   "0.1": 1
  },
- "src/fight/special-fx-boss.ts": {
-  "255": 3
- },
- "src/fight/special-fx-class.ts": {
-  "0.02": 1,
-  "0.3": 1,
-  "1.2": 1
- },
- "src/fight/special-fx-dwarf-shield.ts": {
-  "255": 1,
-  "1.55": 1,
-  "-0.5": 1
- },
- "src/fight/special-fx-executioner.ts": {
-  "255": 4,
-  "0.9": 1,
-  "0.05": 1,
-  "0.01": 3
- },
- "src/fight/special-fx-goblin.ts": {
-  "0.95": 1
- },
- "src/fight/special-fx-legion.ts": {
-  "255": 1,
-  "0.9": 1
- },
- "src/fight/special-fx-nightborn.ts": {
-  "0.001": 2
- },
- "src/fight/special-fx-pitborn.ts": {
-  "255": 6
- },
- "src/fight/special-fx-quake.ts": {
-  "255": 3,
-  "0.9": 1,
-  "0.01": 2,
-  "0.2": 1,
-  "0.02": 2
- },
- "src/fight/special-fx-wind.ts": {
-  "2": 1,
-  "255": 3
- },
- "src/fight/special-tithe.ts": {
-  "-1.6": 1,
-  "1.6": 1
- },
  "src/fight/spell-legends.ts": {
   "10": 1
  },
