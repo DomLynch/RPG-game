@@ -85,7 +85,7 @@ test('the crypt-mouth landmark comes from the zone-6 package: a normal build add
     assert.equal(has(p), true, 'opt-in build: the bare join applies on a page that is not the crypt\'s');
     assert.ok(p.flatMap((x) => x.waypoints).includes('crypt-mouth'), 'and it is a waypoint, as the region loader needs');
     assert.ok(!p.flatMap((x) => x.joins).some((j) => j.landmark === 'reach-crypt'), 'but the crypt\'s own placement join (a road to the Ash Reach) is only seen on its own page');
-    const world = applyZones({ 'cinder-fields': { layout: { a: { u: 0, v: 0, facing: 0 } }, connections: {} } }, p);
+    const world = applyZones({ 'cinder-fields': { layout: { a: { u: 0, v: 0, facing: 0 } }, connections: {} } }, p.filter((x) => !Object.keys(x.zones).length));   // the stub place alone: the zone-less place that carries only the bare joins
     assert.deepEqual(Object.keys(world['cinder-fields']!.layout as object), ['a', 'crypt-mouth']);
     assert.deepEqual(world['cinder-fields']!.connections, {}, 'a bare join adds no road');
   } finally { if (was === undefined) delete process.env.VITE_UNLISTED_ZONES; else process.env.VITE_UNLISTED_ZONES = was; }
