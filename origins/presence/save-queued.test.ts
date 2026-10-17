@@ -23,7 +23,7 @@ test('through the save queue a flusher-queued save is SENT, not failed, and no f
   q.push('0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', at);
   for (let i = 0; i < 50 && !q.idle(); i++) await new Promise((r) => setTimeout(r, 5));
   assert.deepEqual(q.stats(), { queued: 0, sent: 1, failed: 0 });
-  assert.deepEqual(lines, []);
+  assert.equal(lines.length, 0, 'no failure line is logged');
   const bad = saveQueue(writerSaveLocation('http://w', 'k', 500, reply({ queued: true }, 500)), (l) => lines.push(l));
   bad.push('0b8e2a6c-1f3d-4c5e-9a7b-2c4d6e8f0a1b', at);
   for (let i = 0; i < 50 && !bad.idle(); i++) await new Promise((r) => setTimeout(r, 5));
@@ -48,7 +48,7 @@ test('presence counts refused poses: /health carries `snapped` (refused and kept
   await new Promise<void>((r) => p.server.listen(0, '127.0.0.1', r));
   try {
     const bot = await joinBot(p.port(), null);
-    bot.pose(0, 0); bot.pose(1, 0);                                         // honest: accepted
+    bot.pose(0, 0); await new Promise((r) => setTimeout(r, 150)); bot.pose(1, 0);   // honest (a pose 150 ms later, 1 m on): accepted, no strike
     for (let i = 0; i < 3; i++) { bot.pose(200 + i, 0); await new Promise((r) => setTimeout(r, 20)); }   // 200 m jumps: each snapped and kept
     await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual([p.stats().snapped, p.stats().strikes], [3, 3], 'three refused poses: three snapped, three strikes');
