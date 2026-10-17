@@ -38,7 +38,8 @@ test('at 120 Hz the drawn creature moves EVERY frame (no frozen frame between ti
   const after = hi.z.slice(1), steps = after.slice(1).map((v, i) => after[i]! - v);   // metres closed per frame (the wolf comes toward the hero, z falls); the first drawn frame is its join pose, with no earlier tick to blend from
   const frozen = steps.filter((s) => s < 1e-9).length;
   assert.equal(frozen, 0, `${frozen} of ${steps.length} 120 Hz frames drew the creature where it already was (at frame ${steps.findIndex((s) => s < 1e-9)}; steps ${steps.slice(0, 8).map((s) => s.toFixed(4)).join(' ')})`);
-  assert.ok(Math.max(...steps) < 2.2 * Math.min(...steps.filter((s) => s > 0)), `and no frame moves it double the others (min ${Math.min(...steps).toFixed(4)}, max ${Math.max(...steps).toFixed(4)}; first ${steps.slice(0, 6).map((s) => s.toFixed(4)).join(' ')}; last ${steps.slice(-6).map((s) => s.toFixed(4)).join(' ')})`);
+  const jerks = steps.slice(1).filter((s, i) => Math.abs(s - steps[i]!) > 0.15 * steps[i]!).length;   // a frame that moves it 15% more or less than the one before: the old 0,1,0,1 pattern would make one of every two. The wolf's own change of pace (it slows as it closes in) is a few of these at most
+  assert.ok(jerks <= 3, `${jerks} of ${steps.length} frames move the creature unlike the frame before (min ${Math.min(...steps).toFixed(4)}, max ${Math.max(...steps).toFixed(4)})`);
   const perSecond = (a: { z: number[] }, hz: number) => (a.z[0]! - a.z.at(-1)!) / (a.z.length / hz);
   assert.ok(Math.abs(perSecond(hi, 120) - perSecond(lo, 60)) / perSecond(lo, 60) < 0.08, `speed at 120 Hz ${perSecond(hi, 120).toFixed(2)} m/s against ${perSecond(lo, 60).toFixed(2)} m/s at 60 Hz`);
 });
