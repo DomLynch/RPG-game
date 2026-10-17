@@ -33,7 +33,7 @@ try {
     await page.waitForFunction(() => window.__zoneReady && window.originsPreview, null, { timeout: 240000 }).catch(() => { throw new Error(`${label}: [zone ready] (window.__zoneReady) never fired`); });
     // Another player's gear programs are linked in idle time AFTER [zone ready] by design (main.ts warmRemoteKitsInIdle, #2938), as the crowd harness knows: wait for that warm to answer, then count.
     const warm = await page.waitForFunction(() => window.originsPreview.remoteKitsWarm?.(), null, { timeout: 120000 }).then((h) => h.jsonValue(), () => null);
-    return page.evaluate((w) => ({ names: window.originsPreview.renderInfo().programNames, pos: { ...window.originsPreview.pos }, kitWarm: w }), warm);
+    return page.evaluate((w) => ({ names: window.originsPreview.renderInfo().programNames, worn: window.originsPreview.selfWorn?.() ?? [],pos: { ...window.originsPreview.pos }, kitWarm: w }), warm);
   };
   const door = (id) => page.evaluate((zoneLandmark) => { const z = window.originsPreview.region().zones.find((q) => q.landmarks[zoneLandmark]); return z && z.landmarks[zoneLandmark]; }, id);
   const cross = async (label, landmark, toZone, still, inside) => {   // inside: this page's own landing point, which is the way into the zone from this door
@@ -60,7 +60,15 @@ try {
     await cross(label, landmark, toZone, still, inside);
     const a = await ready(label), l = { label, landed: a.pos, programsAtReady: a.names.length };
     assert.ok(Math.hypot(a.pos.x - landing[0], a.pos.z - landing[1]) < 0.5, `${label}: landed at ${JSON.stringify(a.pos)}, wanted ${landing}`);
-    await gapProbe(); await page.waitForTimeout(SETTLE_MS);
+    await gapProbe();
+    l.timeline = [];   // when the program count changes after ready, and what the hero wears then (who links it)
+    let lastCount = a.names.length; const t0 = Date.now();
+    while (Date.now() - t0 < SETTLE_MS) {
+      await page.waitForTimeout(500);
+      const now = await page.evaluate(() => ({ n: window.originsPreview.renderInfo().programNames.length, worn: window.originsPreview.selfWorn?.() ?? [], gear: window.originsPreview.gearWarm?.() ?? null, kits: window.originsPreview.remoteKitsWarm?.() ? 'done' : 'pending' }));
+      if (now.n !== lastCount) { l.timeline.push({ atMs: Date.now() - t0, programs: now.n, worn: now.worn, kits: now.kits, gearSkipped: now.gear?.skipped ?? null }); lastCount = now.n; }
+    }
+    l.wornAtReady = a.worn; l.wornAtEnd = await page.evaluate(() => window.originsPreview.selfWorn?.() ?? []);
     await page.screenshot({ path: path.join(shots, `${arriveStill}.png`) });
     const after = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     l.newPrograms = after.filter((n) => !a.names.includes(n)); l.zoneReady = await page.evaluate(() => window.__zoneReady);
