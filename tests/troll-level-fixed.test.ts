@@ -34,5 +34,5 @@ test('the troll spawns at its zone row\'s level 3, and an L16 sheeted hero beats
   assert.equal(troll.level, 3, 'the spawn list pins the troll at level 3 (mobs.golden.json)');
   const results = Array.from({ length: 8 }, (_, i) => fight(16, 4, i + 1));
   assert.ok(results.every((r) => r.trollLevel === 3));
-  assert.ok(results.filter((r) => r.won).length >= 5, 'an L16 hero with a rung-4 set still wins most fights against the level-3 troll (RV76 balance, Strategy targets: the troll is stronger, the L16 geared hero won 6 of 8 seeds, was 8 of 8; a starter beats him about 47 % of 64 seeds)');
+  assert.ok(results.filter((r) => r.won).length >= 6, 'an L16 hero with a rung-4 set wins at least 6 of 8 against the level-3 troll (RV76 balance, Strategy targets: the troll is stronger, the L16 geared hero wins 6 of 8 seeds, was 8 of 8; Strategy is asked whether losing 2 of 8 is intended, a retune waits on that; a starter beats him about 47 % of 64 seeds)');
 });
