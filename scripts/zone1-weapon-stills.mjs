@@ -26,7 +26,8 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 240000 });
   await page.evaluate((w) => window.originsPreview.forceWeapon(w), weapon);
-  await page.waitForFunction((w) => window.originsPreview.rigWeapon() === w, weapon, { timeout: 120000 });
+  page.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') console.log('console:', m.text().slice(0, 300)); });
+  await page.waitForFunction((w) => window.originsPreview.rigWeapon() === w, weapon, { timeout: 120000 }).catch(() => console.log('rig weapon never became', weapon));
   await page.waitForTimeout(8000);
   const shot = (name) => page.screenshot({ path: path.join(out, `${weapon}-${name}.png`), timeout: 240000 });
   await shot('idle');

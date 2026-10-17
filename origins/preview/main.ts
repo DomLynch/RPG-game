@@ -198,16 +198,16 @@ const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; faile
 // ships with this page (the ground models) are offered; any other worn weapon is the longsword. A change re-arms the rig between fights (the equip file loads on demand), and the sim's hero is rebuilt at the next clean window.
 const WEAPON_ART: Record<string, string> = Object.fromEntries(Object.entries(GROUND_MODELS).map(([path, url]) => [path.replace(/^.*\/(\w+)\.glb$/, '$1'), url]));
 const ZONE_CARRIED: readonly WeaponId[] = PLAYER_WEAPONS.filter((w) => w === DEFAULT_WEAPON || WEAPON_ART[w] !== undefined);
-let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false, forcedWeapon: WeaponId | null = null;   // forcedWeapon: the browser checks hold him in one weapon (originsPreview.forceWeapon; a local run, the server would refuse its record)
+let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false, failedWeapon: WeaponId | null = null, forcedWeapon: WeaponId | null = null;   // forcedWeapon: the browser checks hold him in one weapon (originsPreview.forceWeapon; a local run, the server would refuse its record)
 function syncRigWeapon() {
   const want = forcedWeapon && ZONE_CARRIED.includes(forcedWeapon) ? forcedWeapon : gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON;
-  if (want === rigWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
+  if (want === rigWeapon || want === failedWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
   swappingWeapon = true;
   const base = warriors.baseAsset;
   (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadEquip(WEAPON_ART[want]!)).then((part) => {
-    const next = armWarriors(base, undefined, [want, DEFAULT_WEAPON], part);
-    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; wc.heroChanged(); void warmHero(next.player.anchor);
-  }).catch((error: unknown) => { rigWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
+    const next = armWarriors(base, undefined, [want, DEFAULT_WEAPON], part, (error) => console.warn('hero weapon equip failed', error));
+    hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); void warmHero(next.player.anchor);
+  }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
 }
 loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }; hero.remove(body, cap); hero.add(w.player.anchor); void warmHero(w.player.anchor); remote = createRemoteHeroes({ scene, spawn: w.spawn, groundAt: groundY, who: (id) => otherNames.get(id), forget: (id) => { otherNames.delete(id); } }); remote.warm(); }).catch((error: unknown) => { warmedHero.failed = true; console.warn('hero did not load; the capsule stands in', error); });
 
