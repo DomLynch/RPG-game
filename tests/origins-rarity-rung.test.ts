@@ -1,0 +1,1 @@
+import '../origins/encounters/rarity-rung.test.ts';   // the mint rung: rungOf(level) + 1 + the rarity shift, the beta cap, the zone band, no default rung (the stub rule: every origins test has a CI entry)

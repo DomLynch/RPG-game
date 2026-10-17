@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ACCOUNT, PC, openInventory } from '../../src/core/server.ts';
 import type { CharacterInstanceId } from '../../src/core/server.ts';
-import { REGION1_LOOT_TIER, loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
+import { loadEncounterContent, lookupOf } from '../encounters/encounters.ts';
 import { GROUND_ITEMS, GROUND_LIMITS } from '../world/ground-items.ts';
 import type { WhereFn } from '../presence/where.ts';
 import { CENTRE_CM } from '../presence/zones.ts';
@@ -55,9 +55,9 @@ test('the take is pure and deterministic: the batch is the event then ONE mint, 
 test('one of each and pack room: a second sword is refused as have-it, a full pack as full, and nothing is minted in either case', () => {
   const first = groundTakeBatch({ ...at, inventory: pack() }) as { batch: Json[] };
   const held = (first.batch[1] as { item: Record<string, unknown> }).item;
-  const inst = { kind: 'item-instance', schemaVersion: 1, id: held.id, item: held.item, version: 1, quantity: 1, tier: REGION1_LOOT_TIER, location: { kind: 'pack', owner: PC, index: 0 }, boundTo: PC, provenance: held.provenance, history: [] } as never;
+  const inst = { kind: 'item-instance', schemaVersion: 1, id: held.id, item: held.item, version: 1, quantity: 1, tier: 'Legionary', location: { kind: 'pack', owner: PC, index: 0 }, boundTo: PC, provenance: held.provenance, history: [] } as never;
   assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([inst]) }), { refused: 'have-it' });
-  const other = { ...(inst as object), id: 'inst:other-1', item: 'item:frontier.ash-helm', tier: REGION1_LOOT_TIER, boundTo: null } as never;
+  const other = { ...(inst as object), id: 'inst:other-1', item: 'item:frontier.ash-helm', tier: 'Legionary', boundTo: null } as never;
   assert.deepEqual(groundTakeBatch({ ...at, inventory: pack([other], 1) }), { refused: 'full' });
 });
 

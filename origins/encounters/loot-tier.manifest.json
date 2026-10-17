@@ -1,12 +1,24 @@
 {
   "tables": [
     {
-      "table": "lootTierRule",
+      "table": "mintRule",
       "file": "loot-tier.json",
-      "at": "lootTierRule",
+      "at": "mintRule",
       "key": "id",
       "required": {
-        "tier": "string"
+        "baseRungOffset": "integer"
+      }
+    },
+    {
+      "table": "rarityShift",
+      "file": "loot-tier.json",
+      "at": "rarityShift",
+      "key": "id",
+      "required": {
+        "shift": "integer"
+      },
+      "optional": {
+        "fallback": "boolean"
       }
     }
   ]
