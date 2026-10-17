@@ -103,9 +103,6 @@
  "src/fight/signature.ts": {
   "'floor'": 1
  },
- "src/fight/sound/feedback.ts": {
-  "'swing'": 4
- },
  "src/fight/special-class-timing.ts": {
   "'tempo'": 4,
   "'drag'": 3
@@ -163,9 +160,6 @@
  },
  "src/fight/world.ts": {
   "'stamina'": 1
- },
- "src/lorarii.ts": {
-  "'hold'": 4
  },
  "src/main.ts": {
   "'ladder'": 1,
