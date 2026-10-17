@@ -69,6 +69,7 @@ for (const throttle of THROTTLES) for (const n of COUNTS) for (const mode of MOD
     }
     const gaps =(await page.evaluate(() => window.__gaps.slice())).slice(1, -1).sort((a, b) => a - b);
     const q = (p) => gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * p))];
+    res.meanMs = +(gaps.reduce((a, g) => a + g, 0) / gaps.length).toFixed(2); res.meanFps = +(1000 / res.meanMs).toFixed(1);   // not quantized to the 16.7 ms vsync step like the median: a small host or build difference shows here instead of flipping 60 <-> 30
     res.frames = gaps.length; res.medianMs = +q(0.5).toFixed(2); res.medianFps = +(1000 / q(0.5)).toFixed(1); res.p95Ms = +q(0.95).toFixed(2); res.worstMs = +gaps[gaps.length - 1].toFixed(1);
     const dbg = await page.evaluate(() => window.originsPreview.remote?.() ?? null);   // an empty-zone case on a build before #2929 has no remote() res.slots = dbg?.slots ?? null; res.drawn = dbg?.shown?.length ?? 0;
     res.programsAdded = (await page.evaluate(() => window.originsPreview.renderInfo().programNames)).filter((p) => !programs0.includes(p));
