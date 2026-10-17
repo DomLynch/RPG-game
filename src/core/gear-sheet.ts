@@ -94,8 +94,9 @@ export function createGearSheet(d: GearSheetDeps) {
   // swap (loot.ts wearFromPack: the piece it replaces takes its pack place); Cancel and closing the sheet dress the rig as the profile says.
   let fitId: LootId | null = null, fitAt: number | undefined, fitKey: Paperdoll | null = null, gear: GearRoom | undefined;   // fitAt: the pack cell being tried on (two copies of one id can sit at different rungs)
   // The rung of pack cell `i`: that instance's own (a server ledger's packInfo), else the id's recorded take, else Recruit.
-  const cellRung = (i: number, id: LootId): number => Math.min(10, Math.max(1, d.profile().loot?.packInfo?.[i]?.tier || d.profile().loot?.taken?.[id]?.tier || 1));
-  const fitRung = (): number => (fitId ? (fitAt !== undefined ? cellRung(fitAt, fitId) : Math.min(10, Math.max(1, d.profile().loot?.taken?.[fitId]?.tier ?? 1))) : 1);
+  const onLadder = (rung: number): number => Math.min(TIERS.length, Math.max(1, rung));
+  const cellRung = (i: number, id: LootId): number => onLadder(d.profile().loot?.packInfo?.[i]?.tier || d.profile().loot?.taken?.[id]?.tier || 1);
+  const fitRung = (): number => (fitId ? (fitAt !== undefined ? cellRung(fitAt, fitId) : onLadder(d.profile().loot?.taken?.[fitId]?.tier ?? 1)) : 1);
   const sentence = (text: string) => text[0]!.toUpperCase() + text.slice(1);
   const rankText = (id: LootId) => TIERS[(d.profile().loot?.taken?.[id]?.tier ?? 1) - 1] ?? 'Recruit';   // a piece with no tier reads Recruit
   // A piece's picture inside `host` (one img, made once); a piece with no thumbnail (a weapon, today) shows its name instead.
