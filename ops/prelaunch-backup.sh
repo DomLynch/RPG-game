@@ -16,7 +16,7 @@ fail() { echo "prelaunch-backup FAIL: $1" >&2; exit 1; }
 [[ -r $reset_sql ]] || fail "cannot read $reset_sql"
 url=$(sed -n 's/^DATABASE_URL=//p' "$env_file" | head -n 1); url=${url#[\"\']}; url=${url%[\"\']}
 [[ -n $url ]] || fail "no DATABASE_URL in $env_file"
-mapfile -t tables < <(sed -n "s/.*('\(origins_[a-z_]*\)', 'reset').*/\1/p" "$reset_sql" | sort -u)
+mapfile -t tables < <(grep -oE "'origins_[a-z_]+', 'reset'" "$reset_sql" | sed -E "s/^'(origins_[a-z_]+)'.*/\1/" | sort -u)   # the RESET rows of the plan, several per line
 [[ ${#tables[@]} -ge 20 ]] || fail "read only ${#tables[@]} RESET tables from $reset_sql"
 mkdir -p "$out_dir"; chmod 700 "$out_dir"
 svc=$(mktemp); trap 'rm -f "$svc"' EXIT
