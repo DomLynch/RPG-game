@@ -329,7 +329,7 @@ export type FightContext = {
 export type OriginsModifiers = { scope: 'origins'; template: string | null; [stat: string]: number | string | null };   // one number per stat row, read through deltaOf
 export const deltaOf = (m: OriginsModifiers, stat: string): number => m[stat] as number;
 export const NO_MODIFIERS: OriginsModifiers = { scope: 'origins', template: null, ...Object.fromEntries(STATS.map((id) => [id, 0])) };
-export const FIGHT_HALF_TICKS = 20 * 60;   // "a fight's first 20 s"
+export const FIGHT_HALF_TICKS = ALLEGIANCE.fightHalfTicks;   // "a fight's first 20 s" at 60 Hz: the allegiance-rules row (1200 ticks)
 
 export function holds(when: When, f: FightContext): boolean {
   switch (when) {

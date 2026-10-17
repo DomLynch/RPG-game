@@ -38,6 +38,16 @@
       }
     },
     {
+      "table": "fightLimit",
+      "file": "server-rules.json",
+      "at": "fightLimit",
+      "key": "id",
+      "required": {
+        "maxFightSec": "integer",
+        "note": "string"
+      }
+    },
+    {
       "table": "gearImport",
       "file": "server-rules.json",
       "at": "gearImport",
