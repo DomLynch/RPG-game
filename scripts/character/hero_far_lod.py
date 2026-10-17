@@ -140,7 +140,7 @@ w = row["weapon"]
 weapon_tris = 0
 for node in ("SwordDrawn", "SwordSheathed"):
     parent = bpy.data.objects[node]
-    kids = [o for o in objs.values() if o.parent is parent and any(o.name.startswith(m) for m in w["meshes"])]
+    kids = [o for o in bpy.data.objects if o.type == "MESH" and o.parent is parent and any(o.name.startswith(m) for m in w["meshes"])]   # live objects only: a join removes the ones it merged
     for o in kids:
         bake_colour(o)
         for layer in list(o.data.uv_layers):
