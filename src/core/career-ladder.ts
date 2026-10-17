@@ -36,7 +36,28 @@ export const BETA_MAX_LEVEL = Math.min(MAX_LEVEL, BETA.titles * RANK_STEPS), BET
 export const BETA_MAX_LOOT_RUNG: number = BETA.maxLootRung;   // the cut's loot ceiling (betaCut.maxLootRung): nothing mints above this rung; lifting the cut lifts it. The server's mint reads it through src/core/server.ts
 export const betaLevel = (level: number): number => Math.min(level, BETA_MAX_LEVEL);
 export const betaMarks = (marks: number): number => Math.min(marks, BETA_MAX_LEVEL - 1);   // level = 1 + marks (levelOfMarks)
-export const inBetaSpells = (legend: string): boolean => BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
+// SPELLS OFF, SPECIAL 1 / SPECIAL 2 (Dom 2026-10-17, Strategy signed off): the beta's two universal slots are class specials picked from the six `specialPick` skills (existing skill-defs rows, so their moves and clips exist); spells are
+// off through `spellsOff` (the code and the 20-spell `spells` list stay in the row, inert) except the `utilitySpells` (heal, the one utility pick). Lifting it is the row: `spellsOff` 0 puts the spell list back, an empty `specialPick` lifts the pick.
+export const BETA_SPECIAL_SLOTS: number = BETA.specialSlots;   // how many SPECIAL slots the pick fills (the row says 2: SPECIAL 1 on the 'skill' button, SPECIAL 2 on 'skill2'; the HUD has those two buttons)
+export const BETA_SPELLS_OFF: boolean = Boolean(BETA.spellsOff), BETA_UTILITY_SPELLS: ReadonlySet<string> = new Set(BETA.utilitySpells), BETA_SPECIAL_PICK: readonly string[] = BETA.specialPick, BETA_SPECIAL_ROLES: Readonly<Record<string, string>> = BETA.specialRoles;
+export const inBetaSpells = (legend: string): boolean => BETA_SPELLS_OFF ? BETA_UTILITY_SPELLS.has(legend) : BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
+/** Whether `skill` may sit in a SPECIAL slot under the cut (an empty pick list lifts the pick). */
+export const inBetaSpecials = (skill: string): boolean => BETA_SPECIAL_PICK.length === 0 || BETA_SPECIAL_PICK.includes(skill);
+// THE CUT ON A RECORD (the specials PR): a record that casts a spell the cut turns off, or names a skill outside the pick, is judged the way the cut judges a level below the floor (awards.ts levelRefusal): refused, no mark, with a text for the
+// player. The cut is a parameter so a test can lift it; the default is the betaCut row. SPECIAL 1 (`skill`) is held to the pick only where `skillOne` says so: a Pit claim's `skill` is the older equipped-loot skill, a world hero's is always a pick.
+// A claim is judged by the rules it was MADE under (as #3051 and levelRefusal do): the cut applies only to a record at or above `fromVersion` (the record version that introduced SPECIAL 2, tests/frontier-era.test.ts holds it to
+// FIRST_SKILL2_VERSION); an older record (a cached page, a recheck of a win made before the bump) is judged by the spell rules it was fought under.
+export type SpecialsCut = { readonly spellsOff: boolean; readonly utilitySpells: ReadonlySet<string>; readonly pick: readonly string[]; readonly fromVersion: number };
+export const BETA_SPECIALS_FROM: number = BETA.specialsFromVersion;
+export const BETA_SPECIALS_CUT: SpecialsCut = { spellsOff: BETA_SPELLS_OFF, utilitySpells: BETA_UTILITY_SPELLS, pick: BETA_SPECIAL_PICK, fromVersion: BETA_SPECIALS_FROM };
+export function specialsRefusal(rec: { spell?: { id: string }; spell2?: { id: string }; skill?: string | null; skill2?: string }, cut: SpecialsCut = BETA_SPECIALS_CUT, skillOne = true, version?: number): string | null {
+  if (version !== undefined && version < cut.fromVersion) return null;   // made under the older rules: the cut does not reach back
+  if (cut.spellsOff) for (const s of [rec.spell, rec.spell2]) if (s && !cut.utilitySpells.has(s.id)) return `Spells are off in the beta, so this win didn't count (it cast ${s.id}).`;
+  const held = (skill: string | null | undefined): boolean => !skill || cut.pick.length === 0 || cut.pick.includes(skill);
+  if (!held(rec.skill2)) return `This win was fought with a special the beta doesn't offer and didn't count (${rec.skill2}).`;
+  if (skillOne && !held(rec.skill)) return `This win was fought with a special the beta doesn't offer and didn't count (${rec.skill}).`;
+  return null;
+}
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 50 at Origin V.
 export const levelOfMarks = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));

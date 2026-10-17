@@ -20,6 +20,8 @@ export const TUNING = {
   arrive: worldRule('mobArrive'),         // m: close enough to the spot
   clear: worldRule('mobClear'),           // m: how far from a solid a creature keeps
   edge: worldRule('mobEdge'),              // m: and from its zone's edge
+  leave: worldRule('leaveWait'),           // s: the breath after an aggro creature loses the hero, before it goes back to its round
+  turnGate: worldRule('turnGate'),         // rad: a wanderer whose heading is off by more than this turns in place instead of walking
   cap: worldRule('drawCap'),              // creatures drawn at once
   range: worldRule('drawRange'),            // m: none are drawn beyond this
   seed: worldRule('mobSeed'),
@@ -64,7 +66,7 @@ export function wanderTarget(s: Roamer, rng: number, stand: (x: number, z: numbe
 
 export function stepMob(m: Mob, s: Roamer, hero: Pos | null, dt: number, stand: (x: number, z: number) => boolean): Mob {
   if (aggroTest(m, s, hero)) return { ...m, mode: 'aggro', facing: turnToward(m.facing, headingTo(m, hero!), TUNING.turn * 2 * dt) };
-  if (m.mode === 'aggro') m = { ...m, mode: 'idle', wait: 1.2 };   // the hero left: a breath, then back to its round
+  if (m.mode === 'aggro') m = { ...m, mode: 'idle', wait: TUNING.leave };   // the hero left: a breath, then back to its round
   if (m.mode === 'idle') {
     const wait = m.wait - dt;
     if (wait > 0) return { ...m, wait };
@@ -74,7 +76,7 @@ export function stepMob(m: Mob, s: Roamer, hero: Pos | null, dt: number, stand: 
   // wander: swing toward the spot, then amble; stop at the spot, or the moment the next step would leave the walkable ground
   const want = headingTo(m, { x: m.tx, z: m.tz }), facing = turnToward(m.facing, want, TUNING.turn * dt);
   if (Math.hypot(m.tx - m.x, m.tz - m.z) < TUNING.arrive) return { ...m, facing, mode: 'idle' };
-  if (Math.abs(wrap(want - facing)) > 0.6) return { ...m, facing };
+  if (Math.abs(wrap(want - facing)) > TUNING.turnGate) return { ...m, facing };
   const nx = m.x + Math.sin(facing) * TUNING.walk * dt, nz = m.z + Math.cos(facing) * TUNING.walk * dt;
   return stand(nx, nz) ? { ...m, x: nx, z: nz, facing } : { ...m, facing, mode: 'idle' };
 }
