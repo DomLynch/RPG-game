@@ -308,7 +308,7 @@ export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: Loot
     if (!def) return fail('unknown-id', `drops.items[${n}].item`, `${d.item} is not a Region 1 item`);
     let tier: Tier | null = null;
     if (powerOf(def.power).tiered) {
-      if (mint.level === undefined) return fail('no-mint-level', `drops.items[${n}]`, `${d.item} is minted with neither a creature nor a zone level: there is no default rung`);
+      if (mint.level === undefined) return fail('content-rule',`drops.items[${n}]`, `${d.item} is minted with neither a creature nor a zone level: there is no default rung`);
       const rung = mintRung(def.rarity, mint.level, rungRules);
       tier = rung.tier;
       if (rung.clamped) clamped.push(`${d.item} (${def.rarity}) at level ${mint.level} wanted rung ${rung.wanted}, minted at ${rung.tier} by the cap`);

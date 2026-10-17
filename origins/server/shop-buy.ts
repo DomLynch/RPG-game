@@ -75,7 +75,7 @@ export function shopBuyHandler(content: Content, shops: Shops, open: (shop: stri
     let shopTier: Tier | null = null;
     if (def && powerOf(def.power).tiered) {
       const mintLevel = list.zone === undefined ? null : zoneMintLevel(list.zone);
-      if (mintLevel === null) throw new Refused(500, `shop ${shop} has no zone level band to price ${item} at: there is no default rung`, 'no-mint-level');
+      if (mintLevel === null) throw new Refused(503,`shop ${shop} has no zone level band to price ${item} at: there is no default rung`, 'no-mint-level');
       shopTier = mintRung(def.rarity, mintLevel).tier;
     }
     let inv = inventory;

@@ -74,7 +74,7 @@ test('minted through intoBackpack: a creature drop carries its rung and the rece
 test('a mint with neither a creature nor a zone level is REFUSED, not defaulted; an untiered item needs no level', () => {
   const none = intoBackpack(open(), drops, mint, content);
   assert.equal(none.ok, false);
-  assert.ok(!none.ok && none.issues.some((i) => i.code === 'no-mint-level'), 'the refusal names the missing level');
+  assert.ok(!none.ok && none.issues.some((i) => i.code === 'content-rule' && /no default rung/.test(i.message)), 'the refusal names the missing level');
   assert.ok(intoBackpack(open(), { ...drops, items: [{ item: 'item:grave-iron' as never, quantity: 1 }] }, mint, content).ok, 'iron is not tiered');
 });
 
