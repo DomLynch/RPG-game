@@ -13,6 +13,7 @@ import { stageRule } from '../world/stage-rules.ts';
 import type { Spec } from './biomes.ts';
 
 export type KitKind = { nodes: readonly string[]; per: number; r: number; solid: number; scale: readonly [number, number] };
+export type KitFixed = { node: string; at: string; dx: number; dz: number; rotDeg: number; scale: number; solid: number };   // one piece stood by hand: `at` a landmark of the zone's own plan (world metres + dx, dz), turned rotDeg about Y, solid = walk-blocking radius (0 = none)
 export type Zone = {
   id: string; level: number;
   defaultKind?: string;       // the roster body a creature whose character form names none stands as (a row column, schema default 'goblin', checked as a roster body)
@@ -20,7 +21,7 @@ export type Zone = {
   names: Readonly<Record<string, string>>;   // display names of its world zones, by world-zone id (zone.world)
   world: readonly string[];   // the world-data zones (origins/region1/world.ts) this zone's page walks
   spawns: { openers: Readonly<Record<string, string>>; rows: readonly MobRow[] };
-  kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[] };
+  kit: { url: string; nodes: readonly string[]; landmarks: readonly string[]; kinds: readonly KitKind[]; fixed?: readonly KitFixed[] };
   looks: Readonly<Record<string, Look>>;
   fields?: Readonly<Record<string, unknown>>;   // the same resolved values, flat by path ('look.fog.density'); `set` is the paths a biome or this zone set (readers act on those only)
   set?: readonly string[];
@@ -65,6 +66,12 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const k of z.kit.kinds) {
     for (const n of k.nodes) if (!nodes.has(n)) bad.push(`kit kind uses ${n}, which is not a kit node`);
     if (!(k.per > 0 && k.r > 0 && k.solid >= 0 && k.scale[0] > 0 && k.scale[1] >= k.scale[0])) bad.push(`kit kind ${k.nodes[0]}: bad numbers`);
+  }
+  const places = new Set(Object.keys(z.place?.zones ? Object.values(z.place.zones).flatMap((q) => Object.keys(q.layout ?? {})) : []));
+  for (const f of z.kit.fixed ?? []) {
+    if (!nodes.has(f.node)) bad.push(`kit fixed piece uses ${f.node}, which is not a kit node`);
+    if (!places.has(f.at)) bad.push(`kit fixed ${f.node}: ${f.at} is not a landmark of this zone`);
+    if (![f.dx, f.dz, f.rotDeg].every(Number.isFinite) || !(f.scale > 0) || !(f.solid >= 0)) bad.push(`kit fixed ${f.node}: bad numbers`);
   }
   for (const n of landmarks) if (nodes.has(n)) bad.push(`${n} is both a node and a landmark`);
   for (const [id, l] of Object.entries(z.looks)) {
