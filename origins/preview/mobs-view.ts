@@ -16,6 +16,7 @@ import { TUNING, hiddenInFight, mobSpecs, previewRows, mobStand, newMob, pickVis
 import { legendSpecs } from './legend-mobs.ts';
 import { pageSignedIn } from './save.ts';
 import { previewRule } from './preview-rules.ts';
+import { freeze, newIce, pose, wrapSkeletons, type Ice } from './creature-freeze.ts';
 
 // ?region=1: the Frontier's creatures drawn (bite 1: visible and wandering, nothing fights). This module is its own chunk and main.ts imports
 // it only when the hero first reaches the west road, so the Pit/Exchange page never pays for it. The bodies are the roster's own GLBs (the
@@ -31,7 +32,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number };
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; ice: Ice; hidden: boolean };   // ice/hidden: creature-freeze.ts (a hidden or far creature is out of the scene's matrix walk; hidden = it was not drawn last frame, so it is posed on its first frame back)
 
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -132,7 +133,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
     if (look) dressMob(actor.anchor, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
-    v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
+    v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor; wrapSkeletons(actor.anchor, v.ice);
   }
 
   function viewOf(i: number): View {
@@ -146,7 +147,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04;
     const blob = new THREE.Mesh(blobGeometry, blobMaterial); blob.position.y = 0.03; blob.scale.setScalar(look?.scale ?? 1);
     group.add(stand, label, bang, blob);
-    v = { group, stand, model: null, ring, bang, label, speed: 0, px: NaN, pz: NaN, pending: 0, skip: i }; views.set(i, v);
+    v = { group, stand, model: null, ring, bang, label, speed: 0, px: NaN, pz: NaN, pending: 0, skip: i, ice: newIce(), hidden: true }; views.set(i, v);
     root.add(group, ring);
     return v;
   }
@@ -164,7 +165,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       // Fetch a body kind the first time one of its creatures is near.
       mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
       const on = new Set(shown);
-      for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
+      for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; if (v.actor) freeze(v.group, v.ice, true); v.hidden = true; }   // not drawn: out of the scene's matrix walk too (three's walk does not skip an invisible object)
       // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
       const nearestOf = new Map<string, number>();
       for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
@@ -187,8 +188,12 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
           v.speed += ((Number.isFinite(away) ? Math.min(away, 8) : 0) - v.speed) * (1 - Math.exp(-dt * 14)); if (v.speed < 0.015) v.speed = 0;
           const posed = dv?.fall ? { pose: 'death' as const, progress: dv.fall, attack: 'light' as const, contact: 0.35 } : dv?.duel ? actorPose({ duel: dv.duel } as unknown as Practice, 1) : { pose: 'ready' as const, progress: 0, attack: 'light' as const, contact: 0.35 };
           const tick = (step: number) => v.actor!.update(v.speed, step, posed.pose, posed.progress, posed.attack, posed.contact, 0);
-          if (Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; tick(dt); }   // beyond NEAR a body animates a quarter as often (same speed, coarser steps)
-          else { v.pending += dt; if (++v.skip % 4 === 0) { tick(v.pending); v.pending = 0; } }
+          if (dv || Math.hypot(m.x - hero.x, m.z - hero.z) <= NEAR) { v.pending = 0; freeze(v.group, v.ice, false); tick(dt); }   // a fighting (driven) creature always runs full rate; beyond NEAR a body animates a quarter as often (same speed, coarser steps)
+          else {
+            v.pending += dt; freeze(v.group, v.ice, true);   // out of the scene's matrix walk and its skeletons idle, except on its pose frame (every 4th, and the first frame back after it was hidden)
+            if (v.hidden || ++v.skip % 4 === 0) { tick(v.pending); v.pending = 0; pose(v.group, v.ice); }
+          }
+          v.hidden = false;
           if (dv?.fall) zoneFinisher.frame(s.id, s, v.actor as unknown as CutRig, dv.fall, dv.finisher, { x: m.x, z: m.z }, hero);
         }
       }
@@ -198,7 +203,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       for (const v of views.values()) {
         const y0 = v.label.userData.y0 as number; v.label.position.set(0, y0, 0);   // back home every frame, then clamped from there
         if (!v.label.visible || !v.group.visible) continue;
-        v.group.updateMatrixWorld(true); v.label.getWorldPosition(at).project(camera);
+        v.label.getWorldPosition(at).project(camera);   // brings the label's own parents current, not the creature's bones (a frozen group is spared that walk)
         if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;   // behind the camera, or already clear of the HUD
         at.y = ceiling; at.unproject(camera); v.group.worldToLocal(at); v.label.position.copy(at);
       }
