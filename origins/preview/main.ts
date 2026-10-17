@@ -473,7 +473,7 @@ async function warmRemoteKitsAfterReady() {
     }
     const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
     const clone = cloneRig(remote.anchor), t2b = performance.now(), steps: { step: string; ms: number }[] = [];
-    await warmActor(renderer, camera, scene, clone, nextFrame, steps); const t3 = performance.now();
+    await warmActor(renderer, camera, scene, clone, nextFrame, steps, true); const t3 = performance.now();
     await nextFrame(); await nextFrame();
     phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3), steps });
   };

@@ -9,13 +9,26 @@ export const warmList = (kinds: readonly string[]): string[] => [PLAYER, ...kind
 /** Ready when every entry is warmed or failed (a failed one is logged and skipped, never waited for forever). */
 export const warmDone = (list: readonly string[], warmed: readonly string[], failed: readonly string[]): boolean => list.every((k) => warmed.includes(k) || failed.includes(k));
 
+const compiledOnce = new WeakSet<THREE.Material>();   // materials warmActor's per-material mode has already compiled
 /** Link the programs, upload the textures of `root` (the player's actor), off-frame: a clone with EVERY part visible (a drawn sword, a tabard, the eyes: three compiles only visible objects, and a part hidden until the first cut compiled at engage). */
-export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene, probe: THREE.Object3D, frame: () => Promise<void>, trace?: { step: string; ms: number }[]): Promise<void> {
+export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene, probe: THREE.Object3D, frame: () => Promise<void>, trace?: { step: string; ms: number }[], perMaterial = false): Promise<void> {
   probe.traverse((o) => { o.visible = true; });
-  const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
-  const c0 = performance.now(), compiling = renderer.compileAsync(holder, camera, scene);
-  trace?.push({ step: 'compile-head', ms: Math.round(performance.now() - c0) });   // the synchronous part of the call: the program parameters and the first shader work
-  await compiling;
+  if (perMaterial) {
+    // One material per compile, a frame between: a program's completion (three reads its link status and locations when the driver is done) is a main-thread task of its own, so a kit that brings three programs at once costs one long task, not three short ones. A mesh clone shares the material, geometry and skeleton, so the programs are the ones the real figure uses.
+    const firsts: THREE.Mesh[] = [];
+    probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; const key = Array.isArray(m.material) ? m.material[0]! : m.material; if (!compiledOnce.has(key)) { compiledOnce.add(key); firsts.push(m); } });   // a material an earlier kit already compiled (the hero's own, shared by every kit's clone) is not asked again
+    for (const m of firsts) {
+      const holder = new THREE.Group(); holder.add(m.clone());
+      const c0 = performance.now(), compiling = renderer.compileAsync(holder, camera, scene);
+      trace?.push({ step: 'compile-head', ms: Math.round(performance.now() - c0) });
+      await compiling; await frame();
+    }
+  } else {
+    const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
+    const c0 = performance.now(), compiling = renderer.compileAsync(holder, camera, scene);
+    trace?.push({ step: 'compile-head', ms: Math.round(performance.now() - c0) });   // the synchronous part of the call: the program parameters and the first shader work
+    await compiling;
+  }
   const textures = new Set<THREE.Texture>();
   probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
   for (const t of textures) {
