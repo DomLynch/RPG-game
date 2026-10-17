@@ -788,11 +788,6 @@
             "u": 0.5,
             "v": 0.85,
             "facing": 90
-          },
-          "crypt-mouth": {
-            "u": 0.35,
-            "v": 0.15,
-            "facing": 90
           }
         },
         "connections": {
@@ -1072,7 +1067,6 @@
       "hold-road",
       "troll-cave",
       "cave-mouth",
-      "crypt-mouth",
       "landing-shore",
       "reed-bank",
       "mere-hollow",

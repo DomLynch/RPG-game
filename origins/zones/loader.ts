@@ -45,7 +45,13 @@ const buildEnv = (): { VITE_UNLISTED_ZONES?: string } | undefined => (import.met
 const opensNow = (): boolean => unlistedOpens(buildEnv());   // read per call, so a test can set the flag; the server passes opens=false explicitly and never reads it
 export const listedIds = (packages: Readonly<Record<string, { unlisted?: boolean }>>, here: string | null, opens: boolean = opensNow()): string[] => Object.keys(packages).filter((id) => !packages[id]!.unlisted || (opens && id === here));
 const here = (): string | null => (typeof location === 'undefined' ? null : zoneFromAddress(location.pathname, location.search));
-export const zonePlaces = (): Place[] => { const ids = new Set(listedIds(PACKAGES, here())); return placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id)))); };
+/** The places of the zones this page sees. An UNLISTED zone is seen only on its own page, EXCEPT its bare joins (a join without `link`: a landmark the package brings into another zone, e.g. a dungeon's door): on a build with the opt-in they apply on every page, so the Zone 1 page can draw the door, and on a normal build they apply nowhere, so Zone 1 stays byte-identical. */
+export const zonePlaces = (): Place[] => {
+  const ids = new Set(listedIds(PACKAGES, here())), own = placesInOrder(Object.fromEntries(Object.entries(PACKAGES).filter(([id]) => ids.has(id))));
+  if (!opensNow()) return own;
+  const bare = Object.keys(PACKAGES).filter((id) => PACKAGES[id]!.unlisted && !ids.has(id)).flatMap((id) => PACKAGES[id]!.place?.joins.filter((j) => j.link === undefined) ?? []);
+  return bare.length ? [...own, { zones: {}, joins: bare, waypoints: bare.map((j) => j.landmark), spawns: [] }] : own;
+};
 
 const HEX = /^#[0-9a-f]{6}$/i;
 // What a zone package must satisfy before it is used. Returns the problems (empty = valid); loadZone throws on any. The row-by-row mob rules (sources, loot, look) stay in mobs/row.ts validateRows, run by its tests.

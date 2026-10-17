@@ -99,11 +99,11 @@
       ],
       "boss": { "encounter": "crypt-boss" },
       "mount": {
-        "waypointsBefore": ["reach-crypt"],
+        "waypointsBefore": ["reach-crypt", "crypt-mouth"],
         "connections": { "mouth": { "to": "ash-reach", "kind": "road", "here": "crypt-door", "there": "reach-crypt" } },
         "density": { "creatures": 0.3 },
         "ambience": { "preset": "frontier-haze" },
-        "joins": [{ "zone": "ash-reach", "landmark": "reach-crypt", "at": { "u": 0.5, "v": 0, "facing": 180 }, "link": "crypt", "to": "crypt-sample", "here": "reach-crypt", "there": "crypt-door" }]
+        "joins": [{ "zone": "ash-reach", "landmark": "reach-crypt", "at": { "u": 0.5, "v": 0, "facing": 180 }, "link": "crypt", "to": "crypt-sample", "here": "reach-crypt", "there": "crypt-door" }, { "zone": "cinder-fields", "landmark": "crypt-mouth", "at": { "u": 0.35, "v": 0.15, "facing": 90 } }]
       }
     }
   ]

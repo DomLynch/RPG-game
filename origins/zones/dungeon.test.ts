@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon, type DungeonTheme } from './dungeon.ts';
-import { loadZone, zoneIds, zoneOpen, zoneProblems, type Zone } from './loader.ts';
+import { loadZone, zoneIds, zoneOpen, zonePlaces, zoneProblems, type Zone } from './loader.ts';
+import { applyZones } from './place.ts';
 import { EXITS, openExits } from './exits.ts';
 import THEMES from './dungeon-themes.json' with { type: 'json' };
 
@@ -31,7 +32,7 @@ test('the sample row compiles to the zone-row parts, in its band L4-6 (its own r
   assert.deepEqual(sample.level, [4, 6]);
   const c = compileDungeon(sample, (THEMES.themes as DungeonTheme[])[0]!) as { place: { zones: Record<string, { layout: object }>; waypoints: string[]; spawns: { at: string }[] }; spawns: { rows: unknown[] } };
   assert.deepEqual(Object.keys(c.place.zones['crypt-sample']!.layout), ['crypt-door', 'crypt-nave', 'crypt-vault']);
-  assert.deepEqual(c.place.waypoints, ['reach-crypt', 'crypt-door', 'crypt-nave', 'crypt-vault']);
+  assert.deepEqual(c.place.waypoints, ['reach-crypt', 'crypt-mouth', 'crypt-door', 'crypt-nave', 'crypt-vault']);
   assert.deepEqual(c.place.spawns.map((s) => s.at), ['crypt-nave', 'crypt-vault']); assert.equal(c.spawns.rows.length, 2);
 });
 
@@ -70,6 +71,24 @@ test('the sample crypt is UNLISTED: closed on a normal build (no zone, no door, 
   assert.deepEqual(crypt(openExits(EXITS, false)), [], 'and presence derives no zone6 warp (the server passes false)');
   assert.deepEqual(crypt(openExits(EXITS, true)), ['crypt-mouth', 'crypt-door'], 'a preview built with the opt-in has both doors');
   assert.ok(openExits().some((r) => r.id === 'cave-mouth') && openExits().some((r) => r.id === 'hollow-gate'), 'the Bone Hollow doors are unaffected');
+});
+
+test('the crypt-mouth landmark comes from the zone-6 package: a normal build adds nothing to Zone 1, an opted-in build adds the landmark and its waypoint', () => {
+  const has = (places: ReturnType<typeof zonePlaces>) => places.flatMap((p) => p.joins).some((j) => j.landmark === 'crypt-mouth');
+  const was = process.env.VITE_UNLISTED_ZONES;
+  try {
+    delete process.env.VITE_UNLISTED_ZONES;
+    assert.equal(has(zonePlaces()), false, 'normal build: no crypt-mouth join anywhere');
+    assert.ok(!zonePlaces().flatMap((p) => p.waypoints).includes('crypt-mouth'));
+    process.env.VITE_UNLISTED_ZONES = '1';
+    const p = zonePlaces();
+    assert.equal(has(p), true, 'opt-in build: the bare join applies on a page that is not the crypt\'s');
+    assert.ok(p.flatMap((x) => x.waypoints).includes('crypt-mouth'), 'and it is a waypoint, as the region loader needs');
+    assert.ok(!p.flatMap((x) => x.joins).some((j) => j.landmark === 'reach-crypt'), 'but the crypt\'s own placement join (a road to the Ash Reach) is only seen on its own page');
+    const world = applyZones({ 'cinder-fields': { layout: { a: { u: 0, v: 0, facing: 0 } }, connections: {} } }, p);
+    assert.deepEqual(Object.keys(world['cinder-fields']!.layout as object), ['a', 'crypt-mouth']);
+    assert.deepEqual(world['cinder-fields']!.connections, {}, 'a bare join adds no road');
+  } finally { if (was === undefined) delete process.env.VITE_UNLISTED_ZONES; else process.env.VITE_UNLISTED_ZONES = was; }
 });
 
 test('a dungeon entrance exit must stand on the entrance room', () => {
