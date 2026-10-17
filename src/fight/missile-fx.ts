@@ -42,12 +42,13 @@ export function createMissileFx(scene: THREE.Scene) {
   const GLINT = 64, glintPx = new Uint8Array(GLINT * GLINT * 4);   // a bright core with a thin four-point cross
   for (let y = 0; y < GLINT; y++) for (let x = 0; x < GLINT; x++) { const dx = (x - (GLINT - 1) / 2) / ((GLINT - 1) / 2), dy = (y - (GLINT - 1) / 2) / ((GLINT - 1) / 2), r = Math.hypot(dx, dy), v = Math.min(1, Math.exp(-r * 7) + 0.55 * (Math.exp(-Math.abs(dx) * 38 - Math.abs(dy) * 2.6) + Math.exp(-Math.abs(dy) * 38 - Math.abs(dx) * 2.6))); glintPx.set([255, 255, 255, 255 * v * Math.max(0, 1 - r)], (y * GLINT + x) * 4); }
   const glint = new THREE.DataTexture(glintPx, GLINT, GLINT); glint.magFilter = glint.minFilter = THREE.LinearFilter; glint.needsUpdate = true;
-  const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  const VERT = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
   const surface = (frag: string) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, vertexShader: VERT, fragmentShader: frag, uniforms: { uNoise: { value: noiseTex }, uK: { value: 0 }, uT: { value: 0 }, uA: { value: new THREE.Color('#78c455') }, uB: { value: new THREE.Color('#f3ffd2') } } });
-  const PILLAR = `varying vec2 vUv; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform vec3 uA; uniform vec3 uB;
+  const PILLAR = `varying vec2 vUv; varying vec3 vN; varying vec3 vV; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform vec3 uA; uniform vec3 uB;
     void main(){ float y = vUv.y; vec2 p = vec2(vUv.x * 3.0, y * 1.4 - uT * 0.9); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.3 + 0.37).r * 0.4;
       float h = min(1.0, uK * 3.2), reveal = 1.0 - smoothstep(h - 0.12, h, y), erode = smoothstep(uK * 0.95, uK * 0.95 + 0.2, n), body = pow(1.0 - y, 0.7);
-      float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * 0.75; gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`;
+      float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.4);   // edges carry the light, the middle is thin: a column of light, not a glass tube
+      float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * (0.16 + 0.7 * rim); gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`;
   const RING = `varying vec2 vUv; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform vec3 uA; uniform vec3 uB;
     void main(){ float r = length(vUv - 0.5) * 2.0; float band = smoothstep(0.68, 0.86, r) * (1.0 - smoothstep(0.93, 1.0, r)); float n = texture2D(uNoise, vUv * 2.0 + uT * 0.3).r;
       float a = band * smoothstep(uK * 0.9, uK * 0.9 + 0.2, n) * (1.0 - uK * 0.6) * 0.9; gl_FragColor = vec4(mix(uA, uB, n), a); }`;
