@@ -27,10 +27,15 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   // (a no-op where the rig did not load). `hold()` is called when that warm is queued, and the stage is released whatever the warm does.
   let held = false;
   const hold = () => { held = true; };
-  const warm = async (): Promise<number> => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread)
+  const warm = async () => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread) and how the programs split between the compile and that frame
     let drawMs = 0;
-    try { await load(); if (actor) await warmGearRoom({ ...stage, draw: () => { const t = performance.now(); paint(); drawMs = performance.now() - t; } }, (s, c) => renderer.compileAsync(s, c)); } finally { held = false; }
-    return drawMs;
+    const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0 };
+    const count = () => renderer.info.programs?.length ?? -1;
+    try {
+      await load();
+      if (actor) await warmGearRoom({ ...stage, draw: () => { const t = performance.now(), before = count(); paint(); drawMs = performance.now() - t; trace.drawPrograms = count() - before; } }, async (s, c) => { const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before; });
+    } finally { held = false; }
+    return { drawMs, ...trace };
   };
   return { stage, load, hold, warm, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
 }

@@ -444,14 +444,14 @@ async function kitSlice(until: number) {
 }
 // The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
 // (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
-let gearWarm: { ms: number; drawMs: number; failed: boolean } | null = null, kitsResult: { failed: boolean; ms: number; programs: number; warmed: number } | null = null as { failed: boolean; ms: number; programs: number; warmed: number } | null;
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number } | null = null, kitsResult: { failed: boolean; ms: number; programs: number; warmed: number } | null = null as { failed: boolean; ms: number; programs: number; warmed: number } | null;
 async function warmGearScreen() {
   const t0 = performance.now();
   try {
     if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
     while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < HERO_WAIT_MS) await new Promise<void>((r) => setTimeout(r, 250));
-    await nextFrame(); const drawMs = await gearMount.warm();
-    gearWarm = { ms: Math.round(performance.now() - t0), drawMs: Math.round(drawMs), failed: false };
+    await nextFrame(); const w = await gearMount.warm();
+    gearWarm = { ms: Math.round(performance.now() - t0), ...w, drawMs: Math.round(w.drawMs), failed: false };
   } catch (error) { console.warn('gear screen warm-up failed', error); gearWarm = { ms: Math.round(performance.now() - t0), drawMs: 0, failed: true }; }
 }
 async function warmRemoteKitsAfterReady() {
