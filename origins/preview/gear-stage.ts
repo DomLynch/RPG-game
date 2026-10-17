@@ -38,15 +38,15 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   const hold = () => { held = true; };
   const warm = async () => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread) and how the programs split between the compile and that frame
     let drawMs = 0;
-    const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0 };
+    const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0, slowest: '' };
     const count = () => renderer.info.programs?.length ?? -1;
-    const timed = () => { const t = performance.now(), before = count(); paint(); drawMs = Math.max(drawMs, performance.now() - t); trace.drawPrograms += count() - before; };
+    const timed = (label = 'all') => { const t = performance.now(), before = count(); paint(); const ms = performance.now() - t; if (ms > drawMs) { drawMs = ms; trace.slowest = label; } trace.drawPrograms += count() - before; };
     // compileAsync builds the programs off the main thread, but the GPU's first draw with each still costs (T4: 13 programs, one 226 ms frame): so the backdrop and then each mesh are drawn alone, one per frame.
     const slices = async (s: THREE.Scene, c: THREE.Camera) => {
       const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before;
       const meshes: THREE.Object3D[] = []; s.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.visible) meshes.push(o); });
       for (const m of meshes) m.visible = false;
-      try { timed(); await nextFrame(); for (const m of meshes) { m.visible = true; timed(); m.visible = false; await nextFrame(); } } finally { for (const m of meshes) m.visible = true; }
+      try { timed('backdrop'); await nextFrame(); for (const m of meshes) { m.visible = true; timed(`${m.name}|${(m as THREE.Mesh).isSkinnedMesh ? 'skinned' : 'mesh'}|${String(((m as THREE.Mesh).material as THREE.Material).name)}`); m.visible = false; await nextFrame(); } } finally { for (const m of meshes) m.visible = true; }
     };
     try {
       await load();
