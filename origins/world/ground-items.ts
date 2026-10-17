@@ -4,6 +4,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import DEFS from './ground-items.json' with { type: 'json' };
 import MANIFEST from './ground-items.manifest.json' with { type: 'json' };
+import { STARTER_QTY } from '../region1/starter-wield.ts';
 
 export type GroundItem = { readonly zone: string; readonly place: string; readonly item: string; readonly qty: number; readonly respawnSec: number; readonly scope: string; readonly hiddenWhileTaken: boolean; readonly radiusM?: number; readonly offsetX?: number; readonly offsetZ?: number };
 export type GroundItems = Readonly<Record<string, GroundItem>>;
@@ -29,4 +30,5 @@ export function loadGroundItems(raw: { starterItems?: unknown; groundLimits?: un
   for (const [id, s] of Object.entries(starters)) if (!(s.maxQty >= 1)) throw Error(`ground-items starter "${id}": maxQty is at least 1`);
   return { items, starters, limits };
 }
-export const { items: GROUND_ITEMS, starters: STARTER_ITEMS, limits: GROUND_LIMITS } = loadGroundItems(DEFS);   // validated again by origins/world/ground-items.test.ts
+// The starter set is declared once, in starter-wield.json (item -> LootId + maxQty); the `starterItem` table is built from those rows, so ground-items.json carries only limits and placements.
+export const { items: GROUND_ITEMS, starters: STARTER_ITEMS, limits: GROUND_LIMITS } = loadGroundItems({ ...DEFS, starterItems: STARTER_QTY });   // validated again by origins/world/ground-items.test.ts
