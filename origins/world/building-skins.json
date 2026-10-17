@@ -1,15 +1,20 @@
 {
   "skins": [
     { "id": "goblin", "label": "Goblin plank huts: dark planks, hide roofs, horns, skulls, stakes and banners (Dom's references, 2026-10-16)" }
+    ,{ "id": "dungeon", "label": "Bone-and-skull cave camp: rough cave walls, doorways, bone piles (Characters & Art kit, PR 3020; look waits for Dom's theme)" }
   ],
   "models": [
-    { "id": "goblin-fort", "url": "world/kit/goblin-fort-kit.glb", "nodes": ["goblin_palisade_a", "goblin_palisade_b", "goblin_palisade_c", "goblin_gate", "goblin_totem", "goblin_spikes", "goblin_banner", "goblin_lantern", "goblin_hut", "goblin_tower"] }
+    { "id": "goblin-fort", "url": "world/kit/goblin-fort-kit.glb", "nodes": ["goblin_palisade_a", "goblin_palisade_b", "goblin_palisade_c", "goblin_gate", "goblin_totem", "goblin_spikes", "goblin_banner", "goblin_lantern", "goblin_hut", "goblin_tower"] },
+    { "id": "dungeon", "url": "world/kit/dungeon-kit.glb", "nodes": ["cave_wall", "cave_doorway", "bone_pile"] }
   ],
   "fits": [
     { "id": "goblin.default", "skin": "goblin", "kind": "default", "model": "goblin-fort", "node": "goblin_hut", "w": 5.24, "d": 3.3, "min": 0.6, "max": 2.5 },
     { "id": "goblin.watchtower", "skin": "goblin", "kind": "watchtower", "model": "goblin-fort", "node": "goblin_tower", "w": 3.64, "d": 3.65, "min": 0.6, "max": 2.5 },
     { "id": "goblin.fence", "skin": "goblin", "kind": "fence", "model": "goblin-fort", "node": "goblin_spikes", "w": 1.32, "d": 1.31, "min": 0.6, "max": 2.5 },
     { "id": "goblin.gate", "skin": "goblin", "kind": "gate", "model": "goblin-fort", "node": "goblin_gate", "w": 7.4, "d": 1.02, "min": 0.6, "max": 2.5 }
+    ,{ "id": "dungeon.default", "skin": "dungeon", "kind": "default", "model": "dungeon", "node": "cave_wall", "w": 3.97, "d": 0.97, "min": 0.6, "max": 2.5 },
+    { "id": "dungeon.fence", "skin": "dungeon", "kind": "fence", "model": "dungeon", "node": "cave_wall", "w": 3.97, "d": 0.97, "min": 0.6, "max": 2.5 },
+    { "id": "dungeon.gate", "skin": "dungeon", "kind": "gate", "model": "dungeon", "node": "cave_doorway", "w": 4.0, "d": 1.21, "min": 0.6, "max": 2.5 }
   ],
   "parts": [
     { "id": "goblin.default.1", "skin": "goblin", "kind": "default", "shape": "box", "size": [1.0, 0.62, 1.0], "at": [0, 0.31, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
@@ -49,6 +54,7 @@
     { "id": "goblin.fence.2", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.3, 5], "at": [-0.21, 0.65, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
     { "id": "goblin.fence.3", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.5, 5], "at": [0, 0.75, 0], "tint": "wood", "yaw": 0, "layer": "plain" },
     { "id": "goblin.fence.4", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.3, 5], "at": [0.21, 0.65, 0], "tint": "woodDark", "yaw": 0, "layer": "plain" },
-    { "id": "goblin.fence.5", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.4, 5], "at": [0.42, 0.7, 0], "tint": "wood", "yaw": 0, "layer": "plain" }
+    { "id": "goblin.fence.5", "skin": "goblin", "kind": "fence", "shape": "cone", "size": [0.06, 1.4, 5], "at": [0.42, 0.7, 0], "tint": "wood", "yaw": 0, "layer": "plain" },
+    { "id": "dungeon.default.1", "skin": "dungeon", "kind": "default", "shape": "box", "size": [1.0, 0.8, 1.0], "at": [0, 0.4, 0], "tint": "dead", "yaw": 0, "layer": "stone" }
   ]
 }
