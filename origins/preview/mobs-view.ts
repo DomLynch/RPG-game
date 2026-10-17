@@ -73,6 +73,7 @@ export type Mobs = {
   drive(id: string, pose: MobDrive | null): void;   // null gives the creature back to its own wander   // the closest drawn creature inside `within` metres of a point (the lock-on and the attack buttons)
   engage(id: string | null): void;        // a world duel is up: this creature is the duel's foe, drawn by the duel, so it is not drawn here (null: back). Every other creature keeps wandering and animating
   fell(id: string): void;                 // a creature that lost the fight: gone for RESPAWN seconds, then back at its round
+  fellOthers(keep: string): void;         // every creature of the zone but one, drawn or not: a test link's one-on-one fight (?fight=)
   warmState(): { kinds: string[]; warmed: string[]; failed: string[] };   // the zone's body kinds, and which of them have their programs linked and textures and geometry uploaded (a kind is revealed only then); empty `kinds` with no renderer
 };
 const RESPAWN = previewRule('clientRespawn');   // s
@@ -277,6 +278,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     engage(id) { engaged = id; },
     warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKind(k) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
+    fellOthers(keep) { specs.forEach((s, i) => { if (s.id !== keep) down.set(i, RESPAWN); }); },   // `within` only sees what is drawn, so a salamander still out of draw range walked in and breathed fire on a 'goblin only' fight (the headless phone clip showed it)
     debug: () => ({
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
       mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model), at: views.get(i) ? [+views.get(i)!.group.position.x.toFixed(2), +views.get(i)!.group.position.z.toFixed(2)] : null, loadout: mobVariant(s.character, s.id)?.loadout ?? null, worn: (() => { const out: string[] = []; views.get(i)?.model?.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.userData.slot) out.push(`${o.userData.slot}`); }); return out; })(), mouth: (() => { const b = views.get(i)?.actor?.boneWorld('Head') ?? views.get(i)?.actor?.boneWorld('head'); return b ? [+b.x.toFixed(2), +b.y.toFixed(2), +b.z.toFixed(2)] : null; })() })),   // height: the model's world height in metres (size checks); at: where the body is DRAWN (after the stand-off); mouth: its head bone in the world
