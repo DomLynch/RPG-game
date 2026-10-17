@@ -10,7 +10,7 @@ import { rungSheet } from '../scripts/lib/rung-sheet.ts';
 const troll = (GOLDEN as { id: string; character: string; level: number }[]).find((m) => m.character === 'character:cave-troll')!;
 const guard = (w: ReturnType<typeof newWorld>, k: number): Input => {
   const f = w.fighters.find((x) => x.side === 'creature' && x.phase !== 'dead');
-  return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 20 === 0 ? 'light' : null };
+  return f && (f.phase === 'windup' || f.phase === 'active') ? { x: 0, z: 0, guard: true } : { x: 0, z: 0, attack: k % 25 === 0 ? 'light' : null };   // every 25 ticks (was 20, RV75/WSV52): the troll now stops at 0.85 of its reach and trades from where it stands; the 20-tick script won 6 of 8, 15 / 25 / 35 win all 8. The hero's health is untouched (the balance PR owns strength)
 };
 function fight(heroLevel: number, rung: number, seed: number): { won: boolean; trollLevel: number } {
   const sheet = rungSheet(rung, heroLevel), a = seed * 0.37 + 0.3;

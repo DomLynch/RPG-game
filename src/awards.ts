@@ -32,6 +32,7 @@ export function awardFor(claim: Claim, standing: Standing, wornFrom: WornFrom = 
 // null: the win stands. A string: the claim is refused (no mark); the text is the player's (Lead, 2026-09-27), stored as the claim's note. A record with no level (before RV16) keeps the older rules.
 // The floor reads the rank, and the rank's top moved 46 -> 50 with the 50-level ladder (RV27): it changes only for an account past 45 wins, whose ranks 47–50 did
 // not exist before. A record older than RV27 was played under the 46 top, so it is judged by the rank that ladder gave (min(rank, 46): floor 41), never refused for a floor it could not know.
+export { BETA_SPECIALS_CUT, specialsRefusal, type SpecialsCut } from './core/career-ladder.ts';   // the beta cut on specials is judged beside the level cut (career-ladder.ts)
 export function levelRefusal(level: number | undefined, marks: number, version?: number, cut: (floor: number) => number = betaLevel): string | null {   // `cut`: the beta cut on the FLOOR (career-ladder.ts): the Pit client fights no higher than the cut, so the server never asks for more; a test of the full-ladder rule passes the identity
   if (level === undefined) return null;
   const rank = version !== undefined && version < FIRST_FIFTY_VERSION ? Math.min(rankLevel(marks), OLD_MAX_LEVEL) : rankLevel(marks), floor = cut(Math.max(1, rank - DIAL_TRAIL));

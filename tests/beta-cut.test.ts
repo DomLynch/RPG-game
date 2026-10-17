@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import CAREER_RULES from '../src/core/career-rules.json' with { type: 'json' };
 import SPELL_INDEX from '../src/fight/spell-index.json' with { type: 'json' };
-import { BETA_MAX_LEVEL, BETA_SPELLS, MAX_LEVEL, RANK_STEPS, betaLevel, betaMarks, inBetaSpells, levelOfMarks, rankFor } from '../src/core/career-ladder.ts';
+import { BETA_MAX_LEVEL, BETA_SPECIAL_PICK, BETA_SPECIAL_ROLES, BETA_SPELLS, BETA_SPELLS_OFF, BETA_UTILITY_SPELLS, MAX_LEVEL, RANK_STEPS, betaLevel, betaMarks, inBetaSpecials, inBetaSpells, levelOfMarks, rankFor } from '../src/core/career-ladder.ts';
 import { ladderView } from '../src/core/career-screen.ts';
 import { levelRefusal } from '../src/awards.ts';
 import { LADDER } from '../src/ladder.ts';
@@ -37,8 +37,15 @@ test('beta cut: a win fought at the cut counts for a stored L16 account (the flo
   assert.match(levelRefusal(2, 15)!, /below your rank/); assert.equal(levelRefusal(2, 15, undefined, (n) => n)!.includes('floor 11'), true, 'without the cut the same claim has floor 11');
 });
 
-test('beta cut: the spell book shows the 20 and nothing else; an empty list would lift the cut', () => {
-  assert.equal(BETA_SPELLS.size, 20);
-  assert.ok(inBetaSpells('brokkr') && inBetaSpells('puca')); assert.ok(!inBetaSpells('python') && !inBetaSpells('beowulf'), 'a rank 3+ spell is hidden');
-  const all = Object.keys(INDEX), shown = all.filter(inBetaSpells); assert.equal(shown.length, 20); assert.ok(all.length > 20, 'the server keeps every row');
+test('beta cut: spells are OFF (spellsOff), the 20-spell list stays in the row inert, and only the utility spells show', () => {
+  assert.equal(BETA_SPELLS.size, 20, 'the allow-list is kept in the row');
+  assert.equal(BETA_SPELLS_OFF, true);
+  assert.ok(!inBetaSpells('brokkr') && !inBetaSpells('puca') && !inBetaSpells('python'), 'with spellsOff the 20 are inert: none shows');
+  const all = Object.keys(INDEX), shown = all.filter(inBetaSpells); assert.deepEqual(shown, all.filter((id) => BETA_UTILITY_SPELLS.has(id)), 'only the utility spells (heal, a later row) show'); assert.ok(all.length > 20, 'the server keeps every row');
+});
+
+test('beta cut: the two SPECIAL slots take the six signed-off class skills, and nothing else', () => {
+  assert.deepEqual([...BETA_SPECIAL_PICK], ['lunge', 'ironrush', 'pommel', 'shove', 'cleave', 'stomp']);
+  assert.ok(BETA_SPECIAL_PICK.every((id) => inBetaSpecials(id) && BETA_SPECIAL_ROLES[id]), 'each pick is in the cut and has a role line');
+  assert.ok(!inBetaSpecials('witchfire') && !inBetaSpecials('hewer'), 'hewer is the alternate, not on the list');
 });
