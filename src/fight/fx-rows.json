@@ -45,6 +45,7 @@
     { "id": "fp.eye", "fields": {"value": 1.62} },
     { "id": "fp.forward", "fields": {"value": 0.14} },
     { "id": "fp.tilt", "fields": {"value": 6} },
+    { "id": "fp.look-down", "fields": {"value": 1.2} },
     { "id": "fp.fov-landscape", "fields": {"value": 72} },
     { "id": "fp.fov-portrait", "fields": {"value": 80} },
     { "id": "reach.dir-tau", "fields": {"value": 0.6} },

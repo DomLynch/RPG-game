@@ -15,7 +15,7 @@ export type Presets = Readonly<Record<string, Framing>>;
 /** The framing a page asks for: `choice` (a ?camera= name) wins, else the zone's own `camera.preset`; unknown or empty = the generic open walk (undefined). */
 export const pickFraming = (presets: Presets | undefined, choice: string | null | undefined, zonePreset?: string): Framing | undefined => presets?.[(choice || zonePreset || '').toLowerCase()];
 /** First person (the ☰ menu's View setting, Dom 2026-10-17): the eye stands `eye` m above the ground and `fwd` m ahead of the hero's centre, looking along his heading (the stick's pitch tilts the gaze by `tilt` m per unit at 10 m); `fovAdd`: degrees added to the base lens. */
-export type FirstPerson = { eye: number; fwd: number; tilt: number; fovAdd: number };
+export type FirstPerson = { eye: number; fwd: number; tilt: number; down: number; fovAdd: number };   // down: metres the gaze drops over 10 m (a slight look-down puts a foe at arm's length mid-screen and shows the ground)
 export type FollowState = { x: number; z: number; heading: number; pitch: number; groundY: number; fp?: FirstPerson };
 /** What a fight changes on top of a Framing (a zone's `camera.combat`, Dom 2026-10-17: the thumb buttons hide the hero and the foe is too close). mid: how far the gaze moves from the hero toward the foe (0 = as walking, 0.5 = between them);
  *  perSep / perSize: extra metres back per metre between them / per metre the foe's biggest dimension is above a man's; shiftY: the share of the screen height the picture is lifted, off the thumb buttons; fov: degrees added; zoom: a multiplier on the camera's own zoom. */
@@ -50,7 +50,7 @@ export function createFollowCamera(camera: THREE.Camera, opts: { passage?: Passa
       if (s.fp) {   // first person: the camera IS the head (no easing: a lagging eye makes a phone sick), looking along the heading
         const sx = Math.sin(s.heading), cz = Math.cos(s.heading);
         eye.set(s.x + sx * s.fp.fwd, s.groundY + s.fp.eye, s.z + cz * s.fp.fwd); at.copy(eye); snap = false;
-        look.set(eye.x + sx * 10, eye.y + s.pitch * s.fp.tilt, eye.z + cz * 10);
+        look.set(eye.x + sx * 10, eye.y - s.fp.down + s.pitch * s.fp.tilt, eye.z + cz * 10);
         view.shiftY = 0; view.fov = s.fp.fovAdd; view.zoom = 1; fight = 0;
         camera.position.copy(at); camera.lookAt(look); return;
       }

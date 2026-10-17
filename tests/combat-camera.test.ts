@@ -45,7 +45,7 @@ test('pitch rows: the look-down angle is 16 degrees at a man, rises 3 per metre 
 
 test('first person: the camera is the head (eye height, a little ahead), looks along the heading with no easing, and the lens widens by fovAdd', () => {
   const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 2);   // a walking camera first, so the switch must not glide
-  const fp = { eye: 1.62, fwd: 0.14, tilt: 6, fovAdd: 25 }, st = { x: 3, z: -2, heading: Math.PI / 2, pitch: 0, groundY: 0.5, fp };
+  const fp = { eye: 1.62, fwd: 0.14, tilt: 6, down: 0, fovAdd: 25 }, st = { x: 3, z: -2, heading: Math.PI / 2, pitch: 0, groundY: 0.5, fp };
   f.update(1 / 60, st);
   assert.ok(Math.abs(c.position.x - (3 + 0.14)) < 1e-9 && Math.abs(c.position.y - 2.12) < 1e-9 && Math.abs(c.position.z + 2) < 1e-9, `the eye is at the head: ${c.position.toArray()}`);
   const dir = new THREE.Vector3(); c.getWorldDirection(dir); assert.ok(dir.x > 0.99 && Math.abs(dir.y) < 1e-6, `looks along +x (heading 90 degrees): ${dir.toArray()}`);
