@@ -71,7 +71,10 @@ def bake_colour(o):
         ix = np.clip(((uv[:, 0] % 1.0) * w).astype(int), 0, w - 1)
         iy = np.clip(((uv[:, 1] % 1.0) * h).astype(int), 0, h - 1)
         out = px[iy, ix]
-        out = out * np.array(factor, dtype=np.float32)   # Blender hands back byte images already in scene-linear (the PROBE line's mean checks it against the still)
+        if img.colorspace_settings.name == "sRGB":   # Image.pixels is the stored (sRGB-encoded) value: the layer is linear, like every glTF vertex colour
+            rgb = out[:, :3]
+            out[:, :3] = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+        out = out * np.array(factor, dtype=np.float32)
         print(f"PROBE colour {o.name} image {img.name} cs {img.colorspace_settings.name} mean {out[:, :3].mean():.3f}")
     out[:, 3] = 1.0
     attr.data.foreach_set("color", out.astype(np.float32).ravel())
@@ -158,7 +161,7 @@ for node in ("SwordDrawn", "SwordSheathed"):
     bpy.ops.object.join()
     wo = bpy.context.view_layer.objects.active
     weapon_tris += reduce_to(wo, w["tris"])
-    wo.name = "WeaponDrawn" if node == "SwordDrawn" else "WeaponSheathed"
+    wo.name = "WeaponDrawn_1" if node == "SwordDrawn" else "WeaponSheathed_1"   # never a bare "WeaponDrawn": characters.ts reads that as a two-handed weapon that is always in hand (no draw/sheathe swap)
     wo.data.materials.append(mat)
     wo.data.color_attributes.active_color = wo.data.color_attributes["Col"]
 
