@@ -31,7 +31,8 @@ const dress = (actor, withFinish) => {
 const heroes = [];
 for (const [x, withFinish] of [[-0.55, false], [0.55, true]]) {
   const { player } = await loadWarriors('/src/assets/warrior.glb');
-  player.anchor.position.set(x, 0, 0); scene.add(player.anchor); dress(player, withFinish); heroes.push(player);
+  const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot);   // update() owns the anchor's own position, so each hero stands in a group
+  dress(player, withFinish); heroes.push(player);
 }
 const frame = async (n = 4) => { for (let i = 0; i < n; i++) { for (const h of heroes) h.update(0, 0.016, set === 'sword' ? 'ready' : 'sheathed', 0); renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
 const look = (x, y, z, ty) => { camera.position.set(x, y, z); camera.lookAt(0, ty, 0); };
