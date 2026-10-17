@@ -14,7 +14,9 @@ export type Presets = Readonly<Record<string, Framing>>;
 
 /** The framing a page asks for: `choice` (a ?camera= name) wins, else the zone's own `camera.preset`; unknown or empty = the generic open walk (undefined). */
 export const pickFraming = (presets: Presets | undefined, choice: string | null | undefined, zonePreset?: string): Framing | undefined => presets?.[(choice || zonePreset || '').toLowerCase()];
-export type FollowState = { x: number; z: number; heading: number; pitch: number; groundY: number };
+/** First person (the ☰ menu's View setting, Dom 2026-10-17): the eye stands `eye` m above the ground and `fwd` m ahead of the hero's centre, looking along his heading (the stick's pitch tilts the gaze by `tilt` m per unit at 10 m); `fovAdd`: degrees added to the base lens. */
+export type FirstPerson = { eye: number; fwd: number; tilt: number; fovAdd: number };
+export type FollowState = { x: number; z: number; heading: number; pitch: number; groundY: number; fp?: FirstPerson };
 /** What a fight changes on top of a Framing (a zone's `camera.combat`, Dom 2026-10-17: the thumb buttons hide the hero and the foe is too close). mid: how far the gaze moves from the hero toward the foe (0 = as walking, 0.5 = between them);
  *  perSep / perSize: extra metres back per metre between them / per metre the foe's biggest dimension is above a man's; shiftY: the share of the screen height the picture is lifted, off the thumb buttons; fov: degrees added; zoom: a multiplier on the camera's own zoom. */
 export type CombatFraming = Framing & { mid?: number; perSep?: number; perSize?: number; sizeFrom?: number; fitRate?: number; minBack?: number; maxBack?: number; shiftY?: number; fov?: number; zoom?: number; pitch?: number; pitchPerSize?: number; maxPitch?: number };   // pitch (degrees, replaces `up` when set): the look-down angle at a man-sized foe, plus pitchPerSize degrees per metre of foe above sizeFrom, never past maxPitch, so a 6 m foe's head stays in frame without a top-down look   // sizeFrom: the foe size (m) above which perSize starts, a man's height in the rows; fitRate: the most the fit (perSep, perSize) may change per second (m/s), so a lunging foe does not pump the zoom; minBack / maxBack: the camera never stands closer / further than this behind the hero, and a capped distance raises the camera instead (pitch), never into the foe or past a wall
@@ -45,6 +47,13 @@ export function createFollowCamera(camera: THREE.Camera, opts: { passage?: Passa
     /** A zone's passage (or none) for the frames from now on. */
     setPassage(p: Passage | undefined): void { passage = p; },
     update(dt: number, s: FollowState, combat?: CombatInput): void {
+      if (s.fp) {   // first person: the camera IS the head (no easing: a lagging eye makes a phone sick), looking along the heading
+        const sx = Math.sin(s.heading), cz = Math.cos(s.heading);
+        eye.set(s.x + sx * s.fp.fwd, s.groundY + s.fp.eye, s.z + cz * s.fp.fwd); at.copy(eye); snap = false;
+        look.set(eye.x + sx * 10, eye.y + s.pitch * s.fp.tilt, eye.z + cz * 10);
+        view.shiftY = 0; view.fov = s.fp.fovAdd; view.zoom = 1; fight = 0;
+        camera.position.copy(at); camera.lookAt(look); return;
+      }
       const t = passage && inPassage(passage, s.x, s.z) ? passage : open;
       const goal = combat?.foe ? 1 : 0;
       if (combat) fight += (goal - fight) * (1 - Math.exp(-dt * (goal > fight ? combat.cam.ease.in : combat.cam.ease.out)));   // eased in and out, never a cut; the exit is slower than the entry

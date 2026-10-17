@@ -371,7 +371,8 @@ function step(dt: number) {
   const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : 1.8 } : null;   // in a fight with the locked creature
   if (foeNow && !wasInFight && combatCam) worldToast(`Combat camera ${combatId} on: ${combatCam.label.split(':')[0]}`);   // so a tester can see which camera a fight is using
   wasInFight = !!foeNow;
-  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1, flip: shoulder } : undefined);
+  warriors?.player.anchor.getObjectByName('Head')?.scale.setScalar(firstPerson ? 0.001 : 1);   // first person: the head is collapsed (the finisher's trick) so the eye is not inside it; the body, arms and weapon stay in view
+  followCam.update(dt, { x: state.x, z: state.z, heading, pitch: pitchNow, groundY: groundY(state.x, state.z), ...(firstPerson ? { fp: { eye: fxNum('fp.eye'), fwd: fxNum('fp.forward'), tilt: fxNum('fp.tilt'), fovAdd: fxNum(innerHeight > innerWidth ? 'fp.fov-portrait' : 'fp.fov-landscape') - BASE_FOV } } : {}) }, combatCam ? { cam: combatCam, portrait: innerHeight > innerWidth, foe: foeNow, zoom: combatCam.zoom ? combatCam.zoom.steps[fightZoom] : 1, flip: shoulder } : undefined);
   applyCombatView();
   const atForge = Math.hypot(state.x - FORGE.x, state.z - FORGE.z) < 6;
   const zone = frontier && frontierZoneAt(frontier, state.x, state.z);
@@ -416,6 +417,7 @@ const RIM = zoneRim(zoneRow ?? loadZone()); let rimUntil = 0;   // the soft rim:
 // `?combatcam=1|2|3` picks one of the zone's framings for this page (the three previews), else the zone's `camera.combatPreset`; none = the camera is the same walking or fighting, as before.
 const COMBAT_CAMS = zoneCombatCams(zoneRow ?? loadZone());
 let combatId = /[?&;]combatcam=(\w+)/.exec(location.search)?.[1] ?? zoneCombatPreset(zoneRow ?? loadZone()), combatCam: CombatCam | undefined = COMBAT_CAMS[combatId];
+const VIEW_KEY = 'origins-preview.view.v1'; let firstPerson = /[?&;]view=first\b/.test(location.search) || (!/[?&;]view=third\b/.test(location.search) && (() => { try { return localStorage.getItem(VIEW_KEY) === 'first'; } catch { return false; } })());   // View: first person or over the shoulder
 const BASE_FOV = camera.fov, FIGHT_ZOOM_KEY = 'origins-preview.fight-zoom.v1', SHOULDER_KEY = 'origins-preview.shoulder.v1'; let baseZoom = 1, lastView = '', fightZoom = combatCam?.zoom?.start ?? 0, shoulder = 1;   // shoulder: 1 = the framing's own side, -1 = mirrored; a setting on this device, never switched by the camera (a flip mid-fight moves the foe under the thumb)
 try { shoulder = localStorage.getItem(SHOULDER_KEY) === 'left' ? -1 : 1; } catch { /* storage blocked: the framing's own side */ }
 try { const saved = Number(localStorage.getItem(FIGHT_ZOOM_KEY)); if (combatCam?.zoom && Number.isInteger(saved) && saved >= 0 && saved < combatCam.zoom.steps.length && localStorage.getItem(FIGHT_ZOOM_KEY) !== null) fightZoom = saved; } catch { /* storage blocked: the framing's own start */ }
@@ -557,6 +559,12 @@ if (frontier) {
     const paint = () => { if (chip) { chip.textContent = camLock ? 'Camera locked' : 'Camera free'; chip.setAttribute('aria-pressed', String(camLock)); } };
     chip?.addEventListener('click', () => { camLock = !camLock; try { localStorage.setItem(CAMLOCK_KEY, camLock ? 'on' : 'off'); } catch { /* storage blocked */ } paint(); });
     paint();
+    if (chips) {   // View: over the shoulder (the main game's camera B) or first person (Dom 2026-10-17); a setting on this device, ?view=first|third overrides it for a link
+      const v = document.createElement('button'); v.id = 'menu-view';
+      const paintView = () => { v.textContent = `View: ${firstPerson ? 'First person' : 'Over the shoulder'}`; v.setAttribute('aria-pressed', String(firstPerson)); };
+      v.addEventListener('click', () => { firstPerson = !firstPerson; try { localStorage.setItem(VIEW_KEY, firstPerson ? 'first' : 'third'); } catch { /* storage blocked */ } followCam.snap(); lastView = ''; paintView(); });
+      paintView(); chips.append(v);
+    }
     if (combatCam?.zoom && chips) {   // a combat camera the player may zoom (WoW, RuneScape and Claudecraft let the player pick): one chip in the ☰ menu cycles the steps, saved on this device
       const z = document.createElement('button'); z.id = 'menu-fight-zoom';
       const paintZoom = () => { z.textContent = `Fight zoom: ${combatCam!.zoom!.labels[fightZoom]}`; };

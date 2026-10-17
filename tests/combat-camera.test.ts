@@ -43,6 +43,16 @@ test('pitch rows: the look-down angle is 16 degrees at a man, rises 3 per metre 
   assert.ok(deg(1.8, -4).z < 0, 'a foe behind the hero does not swing the camera to its side');
 });
 
+test('first person: the camera is the head (eye height, a little ahead), looks along the heading with no easing, and the lens widens by fovAdd', () => {
+  const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 2);   // a walking camera first, so the switch must not glide
+  const fp = { eye: 1.62, fwd: 0.14, tilt: 6, fovAdd: 25 }, st = { x: 3, z: -2, heading: Math.PI / 2, pitch: 0, groundY: 0.5, fp };
+  f.update(1 / 60, st);
+  assert.ok(Math.abs(c.position.x - (3 + 0.14)) < 1e-9 && Math.abs(c.position.y - 2.12) < 1e-9 && Math.abs(c.position.z + 2) < 1e-9, `the eye is at the head: ${c.position.toArray()}`);
+  const dir = new THREE.Vector3(); c.getWorldDirection(dir); assert.ok(dir.x > 0.99 && Math.abs(dir.y) < 1e-6, `looks along +x (heading 90 degrees): ${dir.toArray()}`);
+  assert.equal(f.view.fov, 25); assert.equal(f.view.zoom, 1); assert.equal(f.view.shiftY, 0);
+  f.update(1 / 60, { ...st, pitch: 1 }); c.getWorldDirection(dir); assert.ok(dir.y > 0.05, 'the stick tilts the gaze up');
+});
+
 test('the player zoom step scales the combat framing (Near < Mid < Far)', () => {
   const at = (zoom: number) => { const c = new THREE.PerspectiveCamera(), f = createFollowCamera(c); run(f, 6, { cam: CAM, portrait: false, foe: { x: 0, z: 3, size: 1.8 }, zoom }); return c.position.z; };
   assert.ok(at(1.6) < at(1) && at(1) < at(0.8), 'a bigger step stands further back (more negative z)');
