@@ -14,9 +14,6 @@
   "'duellist'": 2,
   "'skirmisher'": 1
  },
- "origins/feuds/feuds.ts": {
-  "'settle'": 1
- },
  "origins/gear/wear-repair.ts": {
   "'kill'": 1
  },
@@ -73,9 +70,6 @@
  "origins/world/goblin-field-rules.ts": {
   "'palette'": 2,
   "'kit'": 1,
-  "'zone'": 1
- },
- "origins/world/resolve.ts": {
   "'zone'": 1
  },
  "src/arena.ts": {
