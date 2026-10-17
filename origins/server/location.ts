@@ -132,11 +132,12 @@ export function writerSavedLocation(baseUrl: string, key: string, timeoutMs = 50
   };
 }
 // The leave / checkpoint post: presence's own observation of the account.
-export function writerSaveLocation(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): (account: string, at: { x: number; z: number; atMs: number }) => Promise<{ character: string | null; stored: boolean }> {
+export function writerSaveLocation(baseUrl: string, key: string, timeoutMs = 1500, fetchImpl: typeof fetch = fetch): (account: string, at: { x: number; z: number; atMs: number }) => Promise<{ character: string | null; stored: boolean; queued?: boolean }> {
   return async (account, at) => {
     const res = await fetchImpl(`${baseUrl}/internal/location`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ account, x: Math.round(at.x), z: Math.round(at.z), at: Math.round(at.atMs) }), signal: AbortSignal.timeout(timeoutMs) });
     if (res.status !== 200) throw new Error(`writer: HTTP ${res.status}`);
-    const r = (await res.json()) as { character?: unknown; stored?: unknown };
+    const r = (await res.json()) as { character?: unknown; stored?: unknown; queued?: unknown };
+    if (r.queued === true) return { character: null, stored: false, queued: true };   // the writer's flusher took it (production: written in the next batch): a good answer, not a malformed one
     if ((r.character !== null && typeof r.character !== 'string') || typeof r.stored !== 'boolean') throw new Error('writer: malformed answer');
     return { character: r.character, stored: r.stored };
   };

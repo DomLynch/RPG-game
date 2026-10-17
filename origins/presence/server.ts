@@ -52,7 +52,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   const sockets = new Map<Player, Duplex>();
   const perIp = new Map<string, { sockets: number; windowStart: number; joins: number; guests: number }>();
   let guestCount = 0;   // guest sockets open now, all addresses (the ceiling keeps guests from crowding signed-in players out of the world)
-  const counts = { packets: 0, bytes: 0, up: 0, joined: 0, warped: 0, refused: {} as Record<string, number>, maxTickMs: 0, ticks: 0 };
+  const counts = { packets: 0, bytes: 0, up: 0, snapped: 0, strikes: 0, joined: 0, warped: 0, refused: {} as Record<string, number>, maxTickMs: 0, ticks: 0 };
   const perLayerOut = new Map<number, { packets: number; bytes: number }>();
   const refused = (why: string): void => { counts.refused[why] = (counts.refused[why] ?? 0) + 1; };
   let tickNo = 0;
@@ -80,8 +80,8 @@ export function createPresence(opts: PresenceOptions): Presence {
   // seenAt on the heartbeat: a connected player standing still is still here.
   const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); } }, limits.beatMs);
   const reporter = setInterval(() => {
-    log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)}`);
-    counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
+    log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)} snapped ${counts.snapped} strikes ${counts.strikes}`);   // snapped: a pose refused and kept; strikes: every refused pose (snapped + the one that drops the player)
+    counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.snapped = 0; counts.strikes = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
   }, logEveryMs);
   // perIp must not grow with every address ever seen: an entry with no socket whose join window has passed holds nothing, so it goes.
   const sweeper = setInterval(() => { const t = now(); for (const [ip, b] of perIp) if (b.sockets <= 0 && t - b.windowStart >= 60_000) perIp.delete(ip); }, sweepEveryMs);
@@ -288,7 +288,9 @@ export function createPresence(opts: PresenceOptions): Presence {
           if (!up) return close(1003, 'malformed');
           const pose = player.legacy ? { ...up, x: up.x + LEGACY_SHIFT_CM, z: up.z + LEGACY_SHIFT_CM } : up;
           counts.up++;
-          if (world.move(player, pose, nowMs) === 'drop') return close(4009, 'teleport');
+          const moved = world.move(player, pose, nowMs);
+          if (moved !== 'ok') { counts.strikes++; if (moved === 'snapped') counts.snapped++; }
+          if (moved === 'drop') return close(4009, 'teleport');
           const into = zoneAt(player.x, player.z);
           if (into !== zone) { zone = into; savePlace(player); }   // a zone change saves at once (EverQuest's save on zoning)
         }
