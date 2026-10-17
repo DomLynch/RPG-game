@@ -48,7 +48,7 @@ function run(name: string, seed: number) {
   const hero = (id: string, x: number, z: number) => player(id, x, z, 0, level, null, { weapon: 'longsword', ...(sheet ? { sheet } : {}) });
   const heroes = name === 'tag' ? [hero('hero', 0, 0), hero('hero2', 14, 0)] : [hero('hero', 0, 0)];
   let w = newWorld([...heroes, creature('c0', kind, Math.sin(a) * 7, Math.cos(a) * 7, a + Math.PI, level)]);
-  const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, ruleEvades: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
+  const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, ruleEvades: 0, follow: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
   let idleT = 0, outT = 0, chargeT = 0, hitSeen = false, hunted = false;
   const recent: { t: number; type: string }[] = [];
   for (let k = 0; k < MAX_S / DT; k++) {
@@ -72,6 +72,7 @@ function run(name: string, seed: number) {
       const near = w.fighters.filter((f) => f.side === 'player').sort((a, b) => dist(a, c2) - dist(b, c2))[0]!, d = dist(near, c2);
       if (chargeT >= noblowS && c2.phase === 'ready' && d > HOLD_M) { const step = Math.min(chaseSpeed(c2.kind) * (chargeX - 1) * DT, d - HOLD_M); c2.x += ((near.x - c2.x) / d) * step; c2.z += ((near.z - c2.z) / d) * step; }
     }
+    if (c2 && c2.hunting && !c2.returning) r.follow = Math.max(r.follow, Math.hypot(c2.x - c2.chaseX, c2.z - c2.chaseZ));   // how far from where the chase began it followed before giving up or dying
     hunted = !!c2?.hunting;
     for (const e of res.events) {
       if (e.type === 'Hit' && e.victim === 'c0' && was) r.homeDmg += e.damage;
@@ -87,5 +88,5 @@ function run(name: string, seed: number) {
 }
 for (const name of env('CASES', 'stand,backoff,pursue,hitrun,circle,tag').split(',')) {
   const rs = Array.from({ length: seeds }, (_, s) => run(name, s + 1)), n = (f: (r: ReturnType<typeof run>) => boolean) => rs.filter(f).length;
-  console.log(`${name.padEnd(8)} ${kind} L${level}: hero died ${n((r) => r.heroDied)}/${seeds}, creature killed ${n((r) => r.killed)}, killed while walking home ${n((r) => r.killedHome)}, dmg while home ${rs.reduce((a, r) => a + r.homeDmg, 0).toFixed(0)}, resets ${rs.reduce((a, r) => a + r.resets, 0)} (lowest hp carried over a reset ${(Math.min(...rs.map((r) => r.resetHp)) * 100).toFixed(0)}%), rule evades ${rs.reduce((a, r) => a + r.ruleEvades, 0)}, hero took ${(rs.reduce((a, r) => a + r.taken, 0) / seeds).toFixed(0)} dmg/run, mean time to kill ${(rs.filter((r) => r.killed).reduce((a, r) => a + r.t, 0) / Math.max(1, n((r) => r.killed))).toFixed(0)}s, longest worn <50% ${Math.max(...rs.map((r) => r.longest)).toFixed(1)}s`);
+  console.log(`${name.padEnd(8)} ${kind} L${level}: hero died ${n((r) => r.heroDied)}/${seeds}, creature killed ${n((r) => r.killed)}, killed while walking home ${n((r) => r.killedHome)}, dmg while home ${rs.reduce((a, r) => a + r.homeDmg, 0).toFixed(0)}, resets ${rs.reduce((a, r) => a + r.resets, 0)} (lowest hp carried over a reset ${(Math.min(...rs.map((r) => r.resetHp)) * 100).toFixed(0)}%), rule evades ${rs.reduce((a, r) => a + r.ruleEvades, 0)}, max follow ${Math.max(...rs.map((r) => r.follow)).toFixed(0)} m, hero took ${(rs.reduce((a, r) => a + r.taken, 0) / seeds).toFixed(0)} dmg/run, mean time to kill ${(rs.filter((r) => r.killed).reduce((a, r) => a + r.t, 0) / Math.max(1, n((r) => r.killed))).toFixed(0)}s, longest worn <50% ${Math.max(...rs.map((r) => r.longest)).toFixed(1)}s`);
 }
