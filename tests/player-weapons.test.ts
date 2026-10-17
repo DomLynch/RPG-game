@@ -9,7 +9,7 @@ import { NO_HIP_DRAW, clipFor, drawRole } from '../src/fight/characters.ts';
 import { OPPONENTS, PLAYER_WEAPONS, PLAYER_WEAPONS_OFFERED, WEAPONS } from '../src/fight/moves.ts';
 import { setLateNotice } from '../src/fight/play-radius.ts';
 import { setStab } from '../src/fight/stab-rule.ts';
-import { NO_PATRON_VERSION, RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
+import { RECORD_VERSION, decodeRecord, encodeRecord, packRecord, unpackRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, arena, k, kt } from './strategies.ts';
@@ -64,7 +64,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   const record = rec.finish(p.finish ? (p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   assert.equal(record.weapon, 'knife');
   const bytes = packRecord(record);
-  assert.equal(bytes[2], NO_PATRON_VERSION);
+  assert.equal(bytes[2], RECORD_VERSION);   // RV76 (balance): a goblin fight is stamped at the bump that reached him (record.ts reachStamp), not the no-patron v31
   assert.deepEqual(unpackRecord(bytes), record);
   assert.deepEqual(await decodeRecord(await encodeRecord(record)), record);
   assert.equal(verifyRecord(record).ok, true, 'the replay steps the knife, not the longsword');
@@ -125,7 +125,7 @@ test('weapon flip: the record carries the weapon; an older record version is ref
   const before21 = (v: number) => { const b = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })), out = new Uint8Array([...b.subarray(0, skillAt + 1), ...b.subarray(skillAt + 3)]); out[2] = v; return out; };
   // RV29 (REACH[29] lists every opponent): every older stream is refused, whatever its layout. The layouts still parse up to the reach check.
   for (const v of [18, 19, 20]) assert.throws(() => unpackRecord(before21(v)), new RegExp(`^Error: Fight record: version ${v} is not supported for the goblin from level 1 .*bump 29 changed`), `a v${v} stream is refused by the RV29 reach`);
-  assert.equal(RECORD_VERSION, 75); setLateNotice(false); setStab(false);   // 75 (2026-10-17, the sim batch: rows with identical values, the number moves with every bump); 74 (2026-10-17, leathers set era): the version moves with every bump; the claim is that an OLDER version than the weapon flip's own is refused
+  assert.equal(RECORD_VERSION, 76); setLateNotice(false); setStab(false);   // 76 (2026-10-17, balance RV76: the number moves with every bump); 75 (2026-10-17, the sim batch: rows with identical values, the number moves with every bump); 74 (2026-10-17, leathers set era): the version moves with every bump; the claim is that an OLDER version than the weapon flip's own is refused
   const odd = new Uint8Array(packRecord({ ...record, ticks: 0, intents: [] })); odd[3 + 1 + 1 + 1 + 6 + 1] = 0x7a;   // the weapon's first byte → 'znife'
   assert.throws(() => unpackRecord(odd), /unknown weapon/);
 });
