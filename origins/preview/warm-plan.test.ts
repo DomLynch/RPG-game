@@ -37,9 +37,20 @@ test('a kit that never settles cannot hold the zone past the hard bound', async 
   assert.equal(result.failed, true); assert.ok(Date.now() - t0 < 400, 'returned at about cap + hard bound');
 });
 
+test('a kit that outlasts the hard bound is still compiling when the warm-up returns: `ended` resolves only when the loop has truly ended, and nothing compiles after it', async () => {
+  const compiled: number[] = []; let cleaned = 0;
+  const result = await warmKitsWithin([1, 2, 3], async (k) => { await sleep(150); compiled.push(k); }, 30, timeoutSettle, () => { cleaned++; }, 60);
+  assert.equal(result.failed, true); assert.equal(compiled.length, 0, 'the first kit is still compiling when the hard bound returns'); assert.equal(cleaned, 0, 'and the loop has not ended');
+  await result.ended;
+  assert.equal(compiled.length, 1, 'ended waited for that one kit'); assert.equal(cleaned, 1, 'cleanup ran once, at the end');
+  await sleep(300);
+  assert.equal(compiled.length, 1, 'nothing compiles after `ended`');
+});
+
 test('a warm-up inside its cap warms every kit and is not failed; a kit that throws fails it and stops', async () => {
   const ok: number[] = [];
-  assert.deepEqual(await warmKitsWithin([1, 2, 3], async (k) => { ok.push(k); }, 1000, timeoutSettle), { failed: false, warmed: 3 });
+  const clean = await warmKitsWithin([1, 2, 3], async (k) => { ok.push(k); }, 1000, timeoutSettle);
+  assert.deepEqual({ failed: clean.failed, warmed: clean.warmed }, { failed: false, warmed: 3 });
   const seen: number[] = [];
   const bad = await warmKitsWithin([1, 2, 3], async (k) => { seen.push(k); if (k === 2) throw new Error('compile failed'); }, 1000, timeoutSettle);
   assert.equal(bad.failed, true); assert.deepEqual(seen, [1, 2]);
