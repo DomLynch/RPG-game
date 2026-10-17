@@ -1,0 +1,70 @@
+# Hard-coded audit (2026-10-17): the shapes check:as-data does not look at. One document per shape; every rule matches a NUMBER node (or a string for the id rules),
+# so one site = one literal. 0 and 1 are skipped (identity values). Run with ast-grep 0.45.3 (the checker's pin).
+id: hc-num-compare
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^(<|>|<=|>=|===|!==|==|!=)$" } }
+---
+id: hc-num-arith
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^(\\*|/|\\+|-|%|\\*\\*)$" } }
+---
+id: hc-num-pair
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside: { kind: pair, stopBy: neighbor }
+---
+id: hc-num-default
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside: { any: [{ kind: required_parameter }, { kind: optional_parameter }, { kind: assignment_pattern }], stopBy: neighbor }
+---
+id: hc-num-call-arg
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside: { kind: arguments, stopBy: neighbor, inside: { kind: call_expression, stopBy: neighbor, not: { has: { field: function, regex: "^Math\\.(max|min)$" } } } }
+---
+id: hc-num-const-lower
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside:
+    kind: variable_declarator
+    stopBy: neighbor
+    not: { has: { field: name, kind: identifier, regex: "^[A-Z][A-Z0-9_]*$" } }
+---
+id: hc-num-const-body
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside:
+    kind: variable_declarator
+    stopBy: neighbor
+    has: { field: name, kind: identifier, regex: "^[A-Z][A-Z0-9_]*$" }
+    inside: { kind: statement_block, stopBy: end }
+---
+id: hc-num-array
+language: typescript
+rule:
+  any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
+  inside: { kind: array, stopBy: neighbor }
+---
+id: hc-str-compare
+language: typescript
+rule:
+  kind: string
+  any:
+    - inside: { kind: binary_expression, stopBy: neighbor, has: { field: operator, regex: "^(===|!==|==|!=)$" } }
+    - inside: { kind: switch_case, stopBy: neighbor }
+---
+id: hc-str-array
+language: typescript
+rule:
+  kind: string
+  inside: { kind: array, stopBy: neighbor, inside: { kind: variable_declarator, stopBy: neighbor } }
