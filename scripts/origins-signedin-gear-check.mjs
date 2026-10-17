@@ -70,6 +70,9 @@ try {
   receipt.gearWarm = await page.evaluate(() => (window.originsPreview.gearWarm ? window.originsPreview.gearWarm() : 'no warm-up on this build'));   // { ms, drawMs: the one synchronous frame (the long task it leaves; budget 50 ms on the T4), failed }
   if (typeof receipt.gearWarm === 'object') assert.ok(receipt.gearWarm && !receipt.gearWarm.failed, `the mannequin warm-up ended without failing: ${JSON.stringify(receipt.gearWarm)}`);
   if (process.env.GEAR_TASK_MS && typeof receipt.gearWarm === 'object') assert.ok(receipt.gearWarm.drawMs <= Number(process.env.GEAR_TASK_MS), `the mannequin's synchronous frame took ${receipt.gearWarm.drawMs} ms (budget ${process.env.GEAR_TASK_MS})`);
+  // the WALKING hero wears the ledger's set (Lead 2026-10-17: he walked Zone 1 bare while the sheet said Helmet + Greaves): the pieces of each worn lootId are on his own figure by now
+  receipt.selfWorn = await page.evaluate(() => (window.originsPreview.selfWorn ? window.originsPreview.selfWorn() : 'no self dressing on this build'));
+  for (const lootId of receipt.worn.filter((id) => !/\.(Knife|Cleaver|Gladius|Estoc)$/.test(id))) assert.ok(Array.isArray(receipt.selfWorn) && receipt.selfWorn.some((name) => name.startsWith(lootId)), `the walking hero wears ${lootId} (worn on his figure: ${JSON.stringify(receipt.selfWorn)})`);
   const before = await snap(); receipt.programsAfterWarm = before.names.length;
 
   await page.waitForFunction(() => window.originsPreview.career().source === 'saved', null, { timeout: 30000 }).catch(() => {});
