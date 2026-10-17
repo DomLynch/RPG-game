@@ -6,7 +6,8 @@ import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
 export { swingProgress } from './blade.ts';
 import { attackSpecs, POMMEL_BASH, type Attack, type Practice } from './combat.ts';
-import { weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, type Direction, type WeaponId } from './moves.ts';
+import { weaponOf, DEFAULT_WEAPON, WEAPON_LOOK, SKILL_ROWS, skillOfMove, type Direction, type WeaponId } from './moves.ts';
+import SPECIAL_CLIP_ROWS from '../assets/special-clips.json' with { type: 'json' };
 import { bloodDark, bloodHidden, type BloodMode } from './blood-mode.ts';
 import { movesOf, type Fighter } from './duel.ts';
 import type { OpponentId } from '../roster.ts';
@@ -44,7 +45,22 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 // Death_Hamstrung is appended to the GLBs of the creatures that fall to it; the killer's Fin_Hamstrung ships beside warrior.glb (src/assets/hamstrung-killer.json,
 // fitted to the hero) and is adopted by the player's actor only in a fight that can play the scene (adoptClip), so the hero's GLB and every other fight are untouched.
 // Execution (scripts/build-execution.mjs) ships the same way for every hero-rig body: src/assets/execution-killer.json and execution-victim-hero.json, adopted on demand.
-export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution'] as const;
+// The beta specials' own motion (Dom 2026-10-17, scripts/build-special-clips.mjs; rows in src/assets/special-clips.json): one clip per move, adopted on demand by the actor the
+// first time a special that names it (skill row `specialClip`) is cast on a weapon the row lists, and played in place of the weapon's Heavy / Attack / Thrust, which a weapon
+// the row does not list keeps (the fallback).
+export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge'] as const;
+export type SpecialRole = (typeof SPECIAL_ROLES)[number];
+export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES] as const;
+const SPECIAL_LOADERS: Record<SpecialRole, () => Promise<{ default: unknown }>> = {
+  Special_SkullCrack: () => import('../assets/special-skullcrack.json'), Special_Whirlwind: () => import('../assets/special-whirlwind.json'),
+  Special_GroundSlam: () => import('../assets/special-groundslam.json'), Special_Lunge: () => import('../assets/special-lunge.json'),
+};
+export const specialRow = (role: SpecialRole): { weapons: readonly string[]; strike: number } => SPECIAL_CLIP_ROWS.clips.find(c => c.role === role) as unknown as { weapons: readonly string[]; strike: number };
+// The special clip a fighter's move plays right now (null = none): the swing of a skill row that names one, or its cast (the pre-release raise) while the special is under way.
+export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare'>): SpecialRole | null => {
+  const row = f.phase === 'attack' ? SKILL_ROWS[skillOfMove(f.lastMove) ?? ''] : f.phase === 'ready' && f.specialShare !== undefined && f.skill ? SKILL_ROWS[f.skill] : undefined;
+  return (row?.specialClip as SpecialRole | undefined) ?? null;
+};
 // Clips only the player's rig (warrior.glb) carries: the SKILL casts (docs/briefs/skill-witch-arm.md). Opponents never cast, so
 // their rigs are the hero's clip set without these.
 export const PLAYER_ONLY_CLIPS: readonly string[] = ['Skill_WitchArm', 'Skill_Pommel'];
@@ -98,7 +114,7 @@ export const isQuadruped = (asset: { animations: readonly { name: string }[] }):
 // and raises straight to ready. Empty since the warhammer and maul took their carries (2026-09-26).
 export const NO_HIP_DRAW: readonly WeaponId[] = [];
 export const drawRole = (weapon: WeaponId): Role | null => NO_HIP_DRAW.includes(weapon) ? null : 'Draw';
-const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel', 'Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution'];
+const ONE_SHOT: readonly Role[] = ['Attack', 'Hit', 'Death', 'Draw', 'Roll', 'Guard', 'Return', 'Heavy', 'Riposte', 'Thrust', 'Kick', 'BlockImpact', 'Parry', 'Deflected', 'Death_SplitCrown', 'Death_RunThrough', 'Fin_RunThrough', 'Pommel', 'Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES];
 // Match the gait to actual travel, including analog movement and collision stops.
 export function gaitWeights(speed: number): number[] {
   speed = Number.isFinite(speed) ? Math.max(0, speed) : 0;
@@ -483,6 +499,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       const origin = bone.getWorldPosition(new Vector3()), delta = new Quaternion().setFromUnitVectors(child.getWorldPosition(new Vector3()).sub(origin).normalize(), dir);
       bone.quaternion.copy(bone.parent!.getWorldQuaternion(new Quaternion()).invert().multiply(new Quaternion().slerp(delta, amount)).multiply(bone.getWorldQuaternion(new Quaternion())));
     };
+    let specialRole: SpecialRole | null = null; const specialLoading = new Set<SpecialRole>();
     let special: { samples: number; opacity: number; color: string } | null = null, trailKey = '';   // a melee special's weapon trail (sandbox specialTrail rows; the scene sets it while the special is in its swing): longer, brighter, on without the swing pose
     let slam = 0;   // Shield Quake's weight, 0 none, 1 the shield held up, 2 driven down (the scene sets it from the cast)
     function carryShield(amount: number, lift: number, open: number) {
@@ -710,6 +727,14 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       },
       slam(weight: number) { slam = weight; },
       specialTrail(t: { samples: number; opacity: number; color: string } | null) { special = t; },
+      // The special clip to play while a special's swing runs (specialRoleOf; null clears it). Fetched on the first ask, and only for a weapon the row lists: until it lands, or on any other weapon, the swing plays the weapon's own clip.
+      specialMove(role: SpecialRole | null) {
+        specialRole = role;
+        if (role && !clips[role] && !specialLoading.has(role) && specialRow(role).weapons.includes(weapon)) {
+          specialLoading.add(role);
+          void SPECIAL_LOADERS[role]().then(m => this.adoptClip(role, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { /* the weapon's own clip keeps playing */ });
+        }
+      },
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).
       opening(o: Opening | null) { open = o; },   // opening-pose.ts: this body's open stagger (Practice.opening when its side is this body), or null
       fatigue(f: Pick<Fatigue, 'level' | 'gassed' | 'second'>, t?: FatigueTune) { tired = f; tune = t; },
@@ -737,7 +762,9 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
         actions.ArmedWalk.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.25,speed/(1.7*stride)));
         actions.ArmedRun.setEffectiveTimeScale((travelSpeed < 0 ? -1 : 1)*Math.max(.5,speed/(5.2*stride)));   // the sprint's ground speed is the gait table's 5.2 m/s knot
         for (const role of ['StrafeLeft', 'StrafeRight'] as const) actions[role].setEffectiveTimeScale(Math.max(.25,speed/(.75*stride)));
-        const combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : fin ? fin.role as Role : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        let combatRole: Role | null = pose === 'block' ? 'BlockImpact' : pose === 'parry' ? 'Parry' : pose === 'deflected' ? 'Deflected' : pose === 'kick' ? 'Kick' : pose === 'attack' ? attack === 'return' ? 'Return' : attack === 'heavy' ? 'Heavy' : attack === 'riposte' ? 'Riposte' : attack === 'thrust' ? 'Thrust' : attack === 'pommel' ? 'Pommel' : 'Attack' : pose === 'hit' ? 'Hit' : pose === 'death' ? 'Death' : fin ? fin.role as Role : pose === 'draw' ? drawRole(weapon) : pose === 'roll' ? 'Roll' : pose === 'guard' ? 'Guard' : null;
+        const specialPlay = pose === 'attack' && specialRole && clips[specialRole] && specialRow(specialRole).weapons.includes(weapon) ? specialRole : null;   // the move's own clip, once adopted, in place of the weapon's strike clip
+        if (specialPlay) combatRole = specialPlay;
         const armed = pose !== 'sheathed';
         if (armed) { weights.Armed = weights.Idle; weights.Idle = 0; }
         const dead = pose === 'death' || fell;
@@ -750,7 +777,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
           // A parried attacker is thrown off line on the impact tick itself (Strategy 2026-09-24: the parry's tell is the attacker, not a spark):
           // the weight snaps like a live blade does — the parry's hit-stop runs at dt 0, where an eased weight would hold the attack pose.
           a.setEffectiveWeight(tmpl === 'bisect' || (staged && progress >= .05) ? target : activeBlade || pose === 'deflected' ? Number(role === combatRole) : a.getEffectiveWeight() + (target - a.getEffectiveWeight()) * (1 - Math.exp(-step * 24)));
-          if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specs[attack].source) : pose === 'deflected' ? DEFLECT_FROM + progress * (1 - DEFLECT_FROM) : progress)) * clips[role].duration;
+          if (role === combatRole) a.time = Math.min(.999999, Math.max(0, pose === 'attack' ? swingProgress(progress, contact, specialPlay ? specialRow(specialPlay).strike : specs[attack].source) : pose === 'deflected' ? DEFLECT_FROM + progress * (1 - DEFLECT_FROM) : progress)) * clips[role].duration;
         }
         if (!weaponNode) { drawn!.visible = armed && (pose !== 'draw' || progress >= .29); sheathed!.visible = !drawn!.visible; }
         anchor.position.set(0, 0, 0); // only the presentation anchor steps into a Run Through

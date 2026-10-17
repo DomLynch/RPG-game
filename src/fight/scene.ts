@@ -15,7 +15,7 @@ import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
+import { specialRoleOf, sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
 import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from '../hero-preview.ts';
@@ -753,10 +753,10 @@ export function createScene(
     playing(): string {
       return warriors ? `${warriors.player.playing()} ${warriors.opponent.playing()}` : '';
     }, // debug probe: what each rig plays
-    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
+    probe(): { sparks: number; burst: [number, number, number]; witchfire: { flames: number; glow: [boolean, boolean] }; skillImpact: { alive: number; last: [number, number, number] }; shards: number; bodyWounds: [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }]; droplets: { falling: number; spots: number } } {
       // Body wounds showing per side (player, opponent): how many marks, and the strongest mark's opacity and drip length.
       const bodyWoundsVisible = bodyWounds.entries.map((marks) => ({ visible: marks.filter((m) => m.group.visible).length, used: marks.filter((m) => m.used).length, reach: marks.filter((m) => m.used).map((m) => +Math.min(9, m.reach).toFixed(3)), opacity: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => m.mark.material.opacity)).toFixed(2), drip: +Math.max(0, ...marks.filter((m) => m.group.visible).map((m) => Math.max(0, ...m.strands.filter((s) => s.mesh.visible).map((s) => s.mesh.scale.y)))).toFixed(2) })) as [{ visible: number; used: number; reach: number[]; opacity: number; drip: number }, { visible: number; used: number; reach: number[]; opacity: number; drip: number }];
-      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
+      return { sparks: clash.alive(), burst: clash.last(), witchfire: { flames: witchfire.alive(), glow: witchfire.glowing() }, skillImpact: { alive: skillImpact.alive(), last: skillImpact.last() }, shards: specialShards?.alive() ?? 0,bodyWounds: bodyWoundsVisible, droplets: { falling: bodyWounds.droplets.falling, spots: bodyWounds.droplets.spots } };
     }, // debug probe for the presentation harness: live contact effects and the body wounds
     bladeTip(): [number, number, number] | null {
       const anchor = warriors?.player.anchor,
@@ -1092,6 +1092,7 @@ export function createScene(
         const live = !!row && ((f.special ?? 0) > 0 ? (f.special ?? 0) <= row.lead : (f.specialRecover ?? 0) > RULES.special.recovery - row.tail);
         w?.specialTrail(live && row ? row : null);
       }
+      for (const side of SIDES) (side === 0 ? warriors?.player : warriors?.opponent)?.specialMove(specialRoleOf(practice.duel.fighters[side]));   // the move's own clip (src/assets/special-clips.json)
       for (const side of SIDES) {
         const foe = (side === 0 ? warriors?.opponent : warriors?.player), l = foe?.boneWorld('foot_l'), r = foe?.boneWorld('foot_r');
         castTells[side].update(practice.duel.fighters[side], l && r ? l.add(r).multiplyScalar(0.5).setY(Math.min(l.y, r.y)) : null, practice.duel.tick, bossRing && side === 1);
