@@ -1,0 +1,4 @@
+{
+  "mac_load_max": 12,
+  "note": "Dom 2026-10-17, the tonight rule: the Mac runs the GPU rows first; the T4 only when the Mac cannot (1-minute load at or above this row; 12 is the hook's existing bar). Read by scripts/lib/row-placement.mjs (HF_MAC_LOAD_MAX) and scripts/hf-wall-rows.mjs launch. An explicit --rows launch (a benchmark, a test) ignores it."
+}

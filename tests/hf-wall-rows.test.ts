@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -204,7 +204,7 @@ case "$1 $2" in
   "jobs cancel") :;;
 esac`, { mode: 0o755 });
   const total = gate.release_commands.length, keep = [5, 7, 16, 21];   // gpu-only rows (row-placement.mjs GPU_ONLY)
-  const env = { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: state, HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_WALL_ROWS_POLL_S: '0', HF_LEDGER_DIR: ledgerDir };
+  const env = { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: state, HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_WALL_ROWS_POLL_S: '0', HF_LEDGER_DIR: ledgerDir, HF_WALL_ROWS_MAC_LOAD: '99' };   // a loaded Mac: the release selection goes to the T4 (Mac first below scripts/lib/hf-routing.json)
   const run = (args: string[]) => execFileSync(process.execPath, ['scripts/hf-wall-rows.mjs', ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] });
   const skip = Array.from({ length: total }, (_, i) => i + 1).filter(i => !keep.includes(i)).join(',');
   assert.equal(run(['launch', sha, '--skip', skip]).trim(), 'job1,job2,job3,job4', 'four rows, four parallel jobs');
@@ -224,5 +224,37 @@ esac`, { mode: 0o755 });
   run(['launch', sha, '--skip', free]);
   assert.deepEqual(JSON.parse(readFileSync(state, 'utf8')).rows, [5], 'only the gpu-only row goes to the T4');
   rmSync(dir, { recursive: true, force: true });
+});
+
+// Mac first (Dom 2026-10-17, Lead's ruling): the release selection stays on the Mac below the load row, goes to the T4 at or above it, and the log says why for every row.
+test('Mac first: below the load row the release selection stays on the Mac; at or above it every T4 row gets a reason line with the load figure', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hf-wall-rows-macfirst-')), fake = join(dir, 'hf'), state = join(dir, 'state');
+  writeFileSync(fake, `#!/bin/bash\ncase "$1 $2" in\n  "jobs run") echo "Job started with ID: jobX";;\nesac`, { mode: 0o755 });
+  const sha = 'f'.repeat(40), total = gate.release_commands.length;
+  const free = Array.from({ length: total }, (_, i) => i + 1).filter(i => ![5, 9].includes(i)).join(',');
+  const run = (load: string) => spawnSync(process.execPath, ['scripts/hf-wall-rows.mjs', 'launch', sha, '--skip', free], {
+    encoding: 'utf8', env: { ...process.env, HF_WALL_ROWS_HF: fake, HF_WALL_ROWS_STATE: state, HF_WALL_ROWS_ENV_FILE: join(dir, 'none'), HF_LEDGER_DIR: join(dir, 'ledger'), HF_WALL_ROWS_MAC_LOAD: load },
+  });
+  try {
+    const low = run('3');
+    assert.notEqual(low.status, 0);
+    assert.match(low.stderr, /no wall rows to run: Mac load 3\.0 < 12, the Mac runs rows \[5\] \(Mac first\)/);
+    assert.ok(!existsSync(state), 'nothing launched');
+    const high = run('20');
+    assert.equal(high.status, 0, high.stderr);
+    assert.match(high.stderr, /row 5 on the T4: GPU-only: SwiftShader never finished against the 600 s ceiling; Mac load 20\.0 >= 12, the Mac cannot run it now/);
+    assert.equal(run('12').status, 0, 'at the row itself it goes to the T4');
+    assert.notEqual(run('11.9').status, 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the Mac load row is data (scripts/lib/hf-routing.json) and every ON_T4 row has a reason line', async () => {
+  const { HF_MAC_LOAD_MAX, ON_T4, GPU_ONLY, t4Reason } = await import('../scripts/lib/row-placement.mjs');
+  assert.equal(HF_MAC_LOAD_MAX, JSON.parse(readFileSync('scripts/lib/hf-routing.json', 'utf8')).mac_load_max);
+  assert.equal(HF_MAC_LOAD_MAX, 12);
+  for (const { row } of ON_T4) assert.match(t4Reason(row, 15), new RegExp(`^row ${row} on the T4: (GPU-only: SwiftShader|faster on the T4) .*Mac load 15\\.0 >= 12`));
+  assert.match(t4Reason(7, 15), /SwiftShader 689 s against the 600 s ceiling/);
+  assert.match(t4Reason(9, 15), /faster on the T4 \(21 s, VPS 474 s\)/);
+  assert.ok(GPU_ONLY.every((row: number) => ON_T4.some((entry: { row: number }) => entry.row === row)));
 });
 
