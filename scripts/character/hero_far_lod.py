@@ -35,6 +35,7 @@ def base_colour_image(mat):
         return None, (0.8, 0.8, 0.8, 1.0)
     sock = bsdf.inputs["Base Color"]
     seen = set()
+    factor = [1.0, 1.0, 1.0, 1.0]   # glTF's baseColorFactor arrives as a constant colour input of a mix node on the way to the image: multiply every such constant in
 
     def up(s):
         for link in s.links:
@@ -44,12 +45,20 @@ def base_colour_image(mat):
             seen.add(n)
             if n.type == "TEX_IMAGE" and n.image:
                 return n.image
+            found = None
             for i in n.inputs:
-                got = up(i)
-                if got:
-                    return got
+                if not i.is_linked and i.type == "RGBA" and n.type in ("MIX", "MIX_RGB"):
+                    for k in range(4):
+                        factor[k] *= i.default_value[k]
+                elif i.is_linked and found is None:
+                    found = up(i)
+            if found:
+                return found
         return None
-    return up(sock), tuple(sock.default_value)
+    img = up(sock)
+    if img is None:
+        return None, tuple(sock.default_value)
+    return img, tuple(factor)
 
 
 def bake_colour(o):
@@ -75,7 +84,7 @@ def bake_colour(o):
             rgb = out[:, :3]
             out[:, :3] = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
         out = out * np.array(factor, dtype=np.float32)
-        print(f"PROBE colour {o.name} image {img.name} cs {img.colorspace_settings.name} mean {out[:, :3].mean():.3f}")
+        print(f"PROBE colour {o.name} image {img.name} cs {img.colorspace_settings.name} factor {[round(f, 2) for f in factor]} mean {out[:, :3].mean():.3f}")
     out[:, 3] = 1.0
     attr.data.foreach_set("color", out.astype(np.float32).ravel())
 
