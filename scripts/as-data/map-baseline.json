@@ -1,14 +1,4 @@
 {
- "src/fight/characters.ts": {
-  "dwarf": 1,
-  "executioner": 1,
-  "goblin": 1,
-  "knight": 1,
-  "nightborn": 1,
-  "pitborn": 1,
-  "shieldmaiden": 1,
-  "veteran": 1
- },
  "src/fight/class-special-identity.ts": {
   "witch": 1,
   "plaguedoctor": 1,
