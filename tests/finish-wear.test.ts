@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Mesh, MeshStandardMaterial, SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildWarriors, lootId, lootPiecesOf } from '../src/fight/characters.ts';
+import { buildWarriors, handFinish, lootId, lootPiecesOf } from '../src/fight/characters.ts';
 import { finishedAs } from '../src/fight/rank-tint.ts';
 
 async function parse(file: string) {   // a shipped GLB in Node, as tests/grade-materials.test.ts does: geometry, rig and material names; images are the browser's
@@ -49,4 +49,12 @@ test('grade: finish absent is the rung\'s own result; a finish takes the weapon\
   assert.ok(rusted.some(([, m], i) => m !== own[i]![1]), 'at least one weapon draw took the rust finish');
   assert.ok(rusted.some(([, m], i) => m !== graded[i]![1]), 'and it is not the rung\'s tint');
   player.grade(undefined); assert.deepEqual(metalOf(player.anchor), own, 'ungraded: his own materials back');
+});
+
+test('handFinish: the finish of the first worn WEAPON piece that has one; armour finishes and an empty map give none', () => {
+  const finishes = { 'goblin.Knife': 'rust', 'goblin.Helmet': 'dull-iron' };
+  assert.equal(handFinish(['goblin.Helmet', 'goblin.Knife'], finishes), 'rust', 'the weapon\'s finish, not the helmet\'s');
+  assert.equal(handFinish(['goblin.Helmet'], finishes), undefined, 'a helmet finish is not the hand\'s');
+  assert.equal(handFinish(['goblin.Knife'], {}), undefined, 'no finishes: none');
+  assert.equal(handFinish([], finishes), undefined);
 });

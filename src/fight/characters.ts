@@ -29,6 +29,7 @@ import { EXECUTION_BEATS } from './execution.ts';
 import { prepareWeaponDrop } from './dropped-weapon.ts';
 import { finishedAs, tinted } from './rank-tint.ts';
 import type { Tier } from '../core/grades.ts';
+import { isWeaponLoot, type LootId } from '../core/loot.ts';
 import { finisherBodyPose } from './finisher-look.ts';
 // What a rig is asked to do: a combat pose (code), or a finisher body's pose word (a row of src/fight/finisher-defs.json: finisher-look.ts finisherBodyPose).
 export type CombatPose = 'sheathed' | 'draw' | 'ready' | 'attack' | 'hit' | 'death' | 'roll' | 'guard' | 'kick' | 'block' | 'parry' | 'deflected';
@@ -340,6 +341,8 @@ export function sourceMaterial(piece: Mesh, materials: ReadonlyMap<string, MeshS
 // Every id a piece answers to: one for an ordinary draw, several for a shared one.
 export const lootIds = (piece: SkinnedMesh): string[] => (piece.userData.ids as string[] | undefined) ?? [lootId(piece)];
 export const lootWorn = (piece: SkinnedMesh, worn: readonly string[]): boolean => lootIds(piece).some(id => worn.includes(id));
+// The finish row the weapon in the hand wears: that of the first worn WEAPON piece that has one (`finishes`: LootId -> finish row id, worn-finish.ts); none = his own metal.
+export const handFinish = (worn: readonly string[], finishes: Readonly<Record<string, string>>): string | undefined => { const id = worn.find(w => finishes[w] !== undefined && isWeaponLoot(w as LootId)); return id === undefined ? undefined : finishes[id]; };
 // The clip each role plays for this weapon. Two roles on one clip (the trident's sweep) get their own copies: the mixer keys actions by clip.
 function fighterClips(asset: FighterAsset, weapon: WeaponId, player: boolean): Record<Role, AnimationClip> {
   const clips = {} as Record<Role, AnimationClip>, used = new Set<AnimationClip>(), quadruped = isQuadruped(asset);

@@ -3,7 +3,7 @@
 // walk's scene is never touched. Presentation only: the rig and pieces load on the first open, and what was asked to be worn before they land goes on when they do.
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
-import { loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
+import { handFinish, loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
 import type { GearStage } from '../../src/core/index.ts';
 import type { Tier } from '../../src/core/index.ts';
 import lootUrl from '../../src/assets/loot.glb?url';
@@ -13,7 +13,13 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
   scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.1));   // the room's key and rim come from gear-room.ts; this is the fill the Pit borrows from its arena
   let actor: Awaited<ReturnType<typeof loadWarriors>>['player'] | undefined, pieces: Awaited<ReturnType<typeof loadLoot>> | undefined, worn: readonly string[] = [], tiers: Record<string, Tier> = {}, started = false;
-  const dress = () => { if (actor && pieces) actor.wear(pieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => tiers[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit'); };
+  let finishes: Readonly<Record<string, string>> = {}, handed: string | undefined;   // a starter item's finish row by the LootId it wields as (worn-finish.ts); none = every piece keeps its own metal
+  const dress = () => {
+    if (!actor || !pieces) return;
+    actor.wear(pieces.filter((piece) => lootWorn(piece, worn)), (id, error) => captureException(error, { tags: { loot: id } }), (piece) => tiers[lootIds(piece).find((id) => worn.includes(id)) ?? ''] ?? 'Recruit', (piece) => finishes[lootIds(piece).find((id) => worn.includes(id)) ?? '']);
+    const hand = handFinish(worn, finishes);
+    if (hand !== handed) { actor.grade(undefined, hand); handed = hand; }   // the weapon in the hand: touched only when its finish changes, so a hero with no finished weapon is exactly as before
+  };
   const load = () => { if (started) return; started = true; void Promise.all([loadWarriors(bodyUrl), loadLoot(lootUrl)]).then(([warriors, loot]) => { actor = warriors.player; pieces = loot; scene.add(actor.anchor); dress(); }).catch((error: unknown) => { started = false; console.warn('the gear screen rig did not load', error); captureException(error); }); };
   const stage: GearStage = {
     scene, camera,
@@ -21,5 +27,5 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     hero: { place(x, z, heading, speed, dt) { load(); if (!actor) return; actor.anchor.position.set(x, 0, z); actor.anchor.rotation.y = heading; actor.update(speed, dt, 'sheathed', 0); } },
     draw() { renderer.render(scene, camera); },
   };
-  return { stage, load, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
+  return { stage, load, wear(ids: readonly string[], next: Record<string, Tier>, finish: Readonly<Record<string, string>> = {}) { worn = ids; tiers = next; finishes = finish; dress(); } };
 }

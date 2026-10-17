@@ -1,7 +1,7 @@
 // When a signed-in character opens the engine's gear screen it shows the SERVER's ledger (src/core/items through gear_open), and every wear / stow goes to the server (gear_equip /
 // gear_unequip); a guest, a failed sign-in or a writer that does not answer keeps the local ledger exactly as before. No DOM here: the page hands in storage, the clock and two callbacks.
 import { emptyLoot, type Loot } from './loot.ts';
-import { lootOfView, type GearOp, type GearView } from './gear-ledger.ts';
+import { lootOfView, type GearOp, type GearPiece, type GearView } from './gear-ledger.ts';
 import { importBodyOf, importGear, isOffline as offlineGear, openGear, runOp } from './gear-net.ts';
 import { storedToken, writerBase } from './writer-call.ts';
 import { openCharacter } from './open.ts';
@@ -46,6 +46,8 @@ export function createServerGear(d: Deps) {
     profileFor<T extends { loot?: Loot }>(real: T): { loot?: Loot } { return shadow ?? real; },
     // The server's view has answered (a guest, or a writer that never has, is not ready): the Pit's sheet waits for it, because the sweeps check the SERVER's worn gear.
     ready: (): boolean => shadow !== null,
+    // The server's pieces as last answered (item id beside LootId): the look layer reads each worn piece's item for its finish (origins/preview/worn-finish.ts). Empty until the view answers; set before `show` runs.
+    pieces: (): readonly GearPiece[] => view?.pieces ?? [],
     // The sheet's one decision point: handled (true) once the server's view is known, so the local ledger never decides for a signed-in character.
     act(op: GearOp): boolean {
       const token = storedToken(d.storage, d.now()); if (!token) return false;   // a guest: the device's ledger

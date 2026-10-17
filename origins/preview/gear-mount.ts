@@ -6,6 +6,7 @@ import { createGearSheet } from '../../src/core/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
+import { wornFinishes } from './worn-finish.ts';
 import { fightSheet, gearNumbers, weightClassOf } from '../../src/fight/index.ts';
 
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string };
@@ -15,7 +16,7 @@ export function mountGear(d: Deps) {
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
     element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
-    view: () => ({ wear: zone.wear, gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
+    view: () => ({ wear: (ids, tiers) => zone.wear(ids, tiers, wornFinishes(server?.pieces() ?? [])), gearStage: () => zone.stage }),   // a starter piece's finish row (its ground look's) on the mannequin: the server's pieces carry the item id weapon: () => 'longsword', numbers: gearNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
   const leave = () => { sheet.leaveGear(); d.layer.classList.remove('gearing'); };
