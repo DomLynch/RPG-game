@@ -1,5 +1,9 @@
 # Combat Sandbox (Dom's lane) — state
 
+## 2026-10-18: picker names and unlock rows (next after the handoff below)
+- `specialPick` rows (sandbox/rows.json) now carry `label` and `unlockAfterBossKills`: Skull Crack (cleave) 0, Whirlwind (reaping, new in the picker) 0, Ground Slam (stomp) 1, Lunge 2. The picker (sandbox/entry.ts) shows `label` in place of the trunk skill name; trunk skill-defs names and tests are untouched. The unlock rows are DATA ONLY: nothing reads them yet (no boss-kill count in the sandbox sim); the gate is Combat's to wire.
+- Checked: tsc clean. NOT run: tests (the deploy lock blocked suites at 20:12Z). Owed: tests/sandbox-spell-pick.test.ts and the targeted set once the deploy posts FREE.
+
 ## 2026-10-18 morning: HANDOFF (READ FIRST): Skull Crack and Whirlwind approved, sounds added
 - Dom approved Skull Crack ("really good") and Whirlwind ("visual good, reaction fine"); he said Whirlwind lacked the Skull Crack's sound, so EVERY melee special now has `specialSound` rows (on:start whoosh timed into the 32-tick windup, on:land thud/crack/cut): cleave, reaping (double whoosh + hit_heavy + flesh_cut), stomp, lunge, ironrush, shove, pommel. Not heard by me (no audio here), only unit-tested (tests/sandbox-special-sound.test.ts). Dom judges loudness and which cue per move.
 - LIVE: sandbox preview from sandbox/page 8efd23945 (code 21dfa0dbf published; the last commit is a test only). HF CPU check at 8efd239: tsc clean, 174/174 targeted tests. Links: Skull Crack `?spar=1&weapon=longsword&difficulty=dummy&skill=cleave&opponent=Centurion`, Whirlwind `skill=reaping`; add `&v=<sha>` to defeat phone caching.
