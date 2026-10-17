@@ -42,6 +42,13 @@ export function frontierKit(f: Frontier, b: Build, d: Dress, density?: number, z
       }
     }
   }
+  // Pieces stood by hand (the zone row's kit.fixed): at a landmark of the plan plus an offset, no density, no free-spot search. Their solids join the walk-blocking circles.
+  const marksById = Object.assign({}, ...f.zones.map((q) => q.landmarks)) as Record<string, { x: number; z: number }>;
+  for (const p of zone.kit.fixed ?? []) {
+    const a = marksById[p.at]; if (!a) continue;
+    placements.push({ node: p.node, x: a.x + p.dx, z: a.z + p.dz, rotY: (p.rotDeg * Math.PI) / 180, scale: p.scale });
+    if (p.solid > 0) solids.push({ x: a.x + p.dx, z: a.z + p.dz, r: p.solid * p.scale });
+  }
   // The four landmarks stand along the west road just OUTSIDE the walker's first view (frontier-plan.ts inFirstView keeps tall things 10 m + their radius off the road's line), alternating sides:
   // each takes the first free spot walking out from the road's end, at least 10 m from the one before.
   const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing), side = r.width / 2 + LANDMARK_R + 11.5, landmarks: KitPlacement[] = [];

@@ -35,3 +35,19 @@ test('the four landmarks stand along the west road, outside the first view, off 
     for (const s of [...B.solids, ...D.solids]) assert.ok(Math.hypot(s.x - l.x, s.z - l.z) > s.r + 3.5, `${l.node} touches a solid`);
   }
 });
+
+test('Zone 5 (the Bone Hollow): its kit is the dungeon kit, every piece a `fixed` row stood at its plan landmark, and the end room keeps clear of the cache', () => {
+  const z5 = loadZone('5'), F5 = frontierPlan(true, '5'), B5 = frontierBuild(F5), K5 = frontierKit(F5, B5, frontierDress(F5, B5), undefined, '5');
+  const fixed = z5.kit.fixed ?? [], hollow = F5.zones.find((z) => z.zone === 'bone-hollow')!, cache = hollow.landmarks['hollow-cache']!, den = hollow.landmarks['hollow-den']!;
+  assert.equal(z5.kit.url, '/world/kit/dungeon-kit.glb');
+  assert.equal(K5.placements.length, fixed.length, 'no scattered kinds: the fixed rows are the whole kit');
+  fixed.forEach((p, i) => {
+    const a = hollow.landmarks[p.at]!, q = K5.placements[i]!;
+    assert.deepEqual([q.node, q.x, q.z], [p.node, a.x + p.dx, a.z + p.dz]);
+    assert.ok(inZone(hollow, q.x, q.z), `${p.node} stands outside the hollow`);
+    assert.ok(Math.hypot(q.x - cache.x, q.z - cache.z) > 1.5 + 0.8 * q.scale, `${p.node} crowds the cache`);   // the fixed ground piece
+    if (p.node === 'bone_pile') assert.ok(Math.hypot(q.x - den.x, q.z - den.z) < 12, 'bone piles ring the den');
+  });
+  assert.equal(fixed.filter((p) => p.node === 'cave_doorway').length, 2, 'a doorway at each end');
+  assert.equal(K5.solids.length, fixed.filter((p) => p.solid > 0).length);
+});
