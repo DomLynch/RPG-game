@@ -11,9 +11,10 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { acceptHeld, fightHash, HELD_MAX_VERSION, psqlAdapter, refusal, report, verifyClaims } from '../scripts/verify-loot.mjs';
 
-// A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 45 ticks (920 ticks); every 44 is a
-// second, different win (1,265 ticks). `build` is only a label: two builds of one fight are ONE fight to the verifier (F2).
-async function goblinKill(build = 'test', every = 45): Promise<string> {
+// A fight the player wins: the Goblin at easy on seed 1 falls to a walk-in with an attack every 43 ticks (1,108 ticks); every 44 is a
+// second, different win (1,746 ticks). `build` is only a label: two builds of one fight are ONE fight to the verifier (F2).
+// Re-pinned at RV76 (balance, Strategy targets): the goblin has 140 health and sheet attack 40, so the old cadence (45, then 920 ticks) loses; 43 and 44 are the wins of the same script.
+async function goblinKill(build = 'test', every = 43): Promise<string> {
   const rec = liveRecorder({ build, opponent: 'goblin', weapon: 'longsword', level: 6, seed: 1 });
   const acts = ['light', 'heavy', 'thrust'] as const;
   let practice = initialPractice(1, opponentAt(OPPONENTS.goblin, 6));   // the level's body, as the game builds it
