@@ -27,7 +27,7 @@ const presence = createPresence({ verify, nameOf, log: () => {}, limits: { ...LI
 await new Promise((r) => presence.server.listen(0, '127.0.0.1', r));
 const { origin, close } = await serveOriginsPreview(built);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [];
+const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [], bobTimeline = [];   // bobTimeline: out here so a red's catch can print and keep the whole of it
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.setDefaultTimeout(170000);
@@ -63,13 +63,13 @@ try {
   const drawn = (id) => page.evaluate((i) => window.originsPreview.remote().shown.find((s) => s.id === i) ?? null, id);
   assert.ok(await until(async () => (await drawn(bobId))?.tag === 'Bob'), `Bob is not drawn with his name: ${await diag()}`);
   // What the page got for Bob, so a red names its cause (a cold presence socket, the cap, the frustum, an expiry): a timeline of the page's `others` and `shown` rows for his id sampled every 200 ms, and a snapshot of both ends.
-  const timeline = [], t0 = Date.now();
-  const sample = setInterval(() => { void page.evaluate((i) => { const o = window.originsPreview, list = o.presence().others, e = list.find((q) => q.id === i), s = o.remote().shown.find((q) => q.id === i); if (window.__o !== list) { window.__o = list; window.__pk = (window.__pk ?? 0) + 1; window.__pkAt = performance.now(); } return { state: o.presence().state, n: list.length, others: e ? [+e.x.toFixed(1), +e.z.toFixed(1)] : null, shown: s ? { x: s.x, z: s.z, visible: s.visible, frozen: s.frozen, cheap: s.cheap } : null }; }, bobId).then((r) => { const last = timeline.at(-1); if (!last || JSON.stringify([last.state, last.n, last.others, last.shown?.visible, !!last.shown]) !== JSON.stringify([r.state, r.n, r.others, r.shown?.visible, !!r.shown])) timeline.push({ ms: Date.now() - t0, ...r }); if (timeline.length > 60) timeline.shift(); }).catch(() => {}); }, 200);
+  const timeline = bobTimeline, t0 = Date.now();
+  const sample = setInterval(() => { void page.evaluate((i) => { const o = window.originsPreview, list = o.presence().others, e = list.find((q) => q.id === i), s = o.remote().shown.find((q) => q.id === i); if (window.__o !== list) { window.__o = list; window.__pk = (window.__pk ?? 0) + 1; window.__pkAt = performance.now(); } return { state: o.presence().state, n: list.length, others: e ? [+e.x.toFixed(1), +e.z.toFixed(1)] : null, shown: s ? { x: s.x, z: s.z, visible: s.visible, frozen: s.frozen, cheap: s.cheap } : null, frame: o.frameCount ? o.frameCount() : null }; }, bobId).then((r) => { const ms = Date.now() - t0, prev = timeline.at(-1); timeline.push({ ms, dMs: prev ? ms - prev.ms : null, dFrames: prev && prev.frame !== null && r.frame !== null ? r.frame - prev.frame : null, ...r }); if (timeline.length > 600) timeline.shift(); }).catch(() => {}); }, 200);   // EVERY sample is kept (not only changes): dFrames is the frames the renderer drew since the last one and dMs the time between them, so a stalled page shows as a long dMs with dFrames about 0
   const bobDiag = async () => {
     const mine = presence.world.byAccount.get(acct(2));
     const page_ = await page.evaluate((i) => { const o = window.originsPreview; return { hero: { x: o.pos.x, z: o.pos.z }, state: o.presence().state, nOthers: o.presence().others.length, packetsSeen: window.__pk ?? null, lastPacketAgoMs: window.__pkAt ? Math.round(performance.now() - window.__pkAt) : null,name: o.presence().names[i] ?? null, shownCount: o.remote().shown.length, slots: o.remote().slots, adaptive: o.remote().adaptive ?? null }; }, bobId);
     const row = timeline.at(-1); const away = row?.others && Math.hypot(row.others[0] - page_.hero.x, row.others[1] - page_.hero.z);
-    return JSON.stringify({ page: page_, bob: { at: bob.at(), closeCode: bob.closeCode(), hellos: bob.hellos(), serverSees: mine?.sees?.size ?? null }, distanceFromHeroM: away === undefined || away === null ? null : +away.toFixed(1), lastRows: timeline.slice(-14) });
+    return JSON.stringify({ page: page_, bob: { at: bob.at(), closeCode: bob.closeCode(), hellos: bob.hellos(), serverSees: mine?.sees?.size ?? null }, distanceFromHeroM: away === undefined || away === null ? null : +away.toFixed(1), lastRows: timeline.slice(-30) });
   };
   const walk = async (dir) => {   // Bob walks 12 m along x in 1 m steps (the server accepts honest steps only: its measured gap is clamped to at least 100 ms, so a step must stay inside maxSpeed x slack x 0.1 s = 105 cm; 1.5 m steps got Bob dropped with 4009 'teleport' when two packets arrived close together on a loaded runner); the page must show him move about as far
     const s0 = await drawn(bobId), from = bob.at();
@@ -112,7 +112,7 @@ try {
   assert.ok(gone, `Bob left and is still drawn 8 s after close (closed at ${closedAt} ms of the timeline): ${await bobDiag()}`);
   clearInterval(sample);
   receipt.pass = true;
-} catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 1800); console.error('FAIL', receipt.failure); }
+} catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 600); receipt.bobTimeline = bobTimeline; console.error('FAIL', receipt.failure); for (const row of bobTimeline.slice(-80)) console.error('BOB-ROW', JSON.stringify(row)); }   // the message is the short cause; every row is its own line (a CI log cuts a long line) and the whole timeline is in the receipt file
 finally {
   for (const b of bots) try { b.close(); } catch { /* already closed */ }
   fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync('artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
