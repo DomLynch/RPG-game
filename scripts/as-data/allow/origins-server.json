@@ -7,5 +7,9 @@
     {"file": "origins/server/server.ts", "name": "STATUS", "kind": "exempt", "reason": "the error code -> HTTP status map: the protocol numbers of the API, not a game rule", "owner": "Duels & Backend"},
     {"file": "origins/server/story.ts", "name": "MAX_EVENT_ID", "kind": "exempt", "reason": "wire / storage limit: the origins_events.event_id check's own bound, the contract with the database, not a game rule", "owner": "Duels & Backend"},
     {"file": "origins/server/world-verify.ts", "name": "MAX_RECORD_CHARS", "kind": "exempt", "reason": "wire/storage size contract with the writer and database (body or record cap); changes only with the protocol", "owner": "Duels & Backend"}
+  ],
+  "branchIds": [
+    {"file": "origins/server/consume.ts", "literal": "quest-handin", "reason": "an API reason code of the consume endpoint (protocol vocabulary): consume burns only for a quest hand-in, the smith is apply_upgrade; a wire word, not a content id"},
+    {"file": "origins/server/gear.ts", "literal": "gear", "reason": "an item-category path (categoryOf(...).path === 'gear'): the contracts taxonomy's closed category, not a row id"}
   ]
 }
