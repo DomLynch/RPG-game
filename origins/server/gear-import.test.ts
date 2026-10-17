@@ -41,7 +41,7 @@ const ALL = [...LOOT_IDS].sort() as LootId[];
 // one worn piece per paperdoll slot, the first armour LootId that fits it
 const WORN = Object.fromEntries(Object.keys(PAPERDOLL).map((doll) => [doll, ALL.find((id) => paperdollOf(slotOf(id)) === doll)!]));
 
-test('THE AUDITOR PROOF: a full 75-piece profile (every LootId owned, one worn per slot) lands as the same set and the same worn map; pack fills first, the overflow goes to the bank, worn counts toward neither', async () => {
+test('THE AUDITOR PROOF: a full 76-piece profile (every LootId owned, the starter longsword included, one worn per slot) lands as the same set and the same worn map; pack fills first, the overflow goes to the bank, worn counts toward neither', async () => {
   const w = world(), tiers = Object.fromEntries(ALL.map((id, i) => [id, (i % 10) + 1]));
   const r = await run(w.db, { owned: ALL, equipped: WORN, tiers });
   assert.equal(r.imported.length, ALL.length);
