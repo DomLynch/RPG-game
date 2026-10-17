@@ -8,7 +8,7 @@ import { mobSpecs, previewRows, spawnAmong } from '../preview/mobs.ts';
 import DEFS from './warp-landmarks.json' with { type: 'json' };
 import { createPresence } from './server.ts';
 import { presenceRule } from './presence-rules.ts';
-import { loadWarps, warpIds, warpPlace } from './warps.ts';
+import { loadDoors, loadWarps, warpAllowed, warpIds, warpPlace } from './warps.ts';
 import { CENTRE_CM, clearOfTradeAreas, zoneAt } from './zones.ts';
 import { joinBot } from './test-client.ts';
 
@@ -65,5 +65,45 @@ test('the server: a warp moves the player to the landmark; a forged id, a plain 
     // a forged id closes the socket; coordinates in the message do not exist as a field
     const bad = await joinBot(p.port(), 'c'); bad.warp('../../etc'); await until(() => bad.closeCode() !== null); assert.equal(bad.closeCode(), 1003);
     const coords = await joinBot(p.port(), 'd'); coords.raw(JSON.stringify({ t: 'warp', x: 0, z: 0 })); await until(() => coords.closeCode() !== null); assert.equal(coords.closeCode(), 1003);
+  } finally { await p.close(); }
+});
+
+// Paired doors (Lead 2026-10-17): the dungeon is walk-in only. A warp to either end of a pair is accepted only from within the pair's reach of the other end; other landmarks stay free.
+test('the door table: pairs are data, both ends must be landmarks, the ends differ and no landmark is in two pairs', () => {
+  const lm = loadWarps(DEFS), ok = { id: 'd', a: 'zone1-cave-mouth', b: 'zone5-gate', withinM: 10 };
+  assert.equal(loadDoors({ doors: [ok] }, lm).get('zone5-gate')?.from, 'zone1-cave-mouth');
+  assert.equal(loadDoors({ doors: [ok] }, lm).get('zone1-cave-mouth')?.from, 'zone5-gate', 'a pair works both ways');
+  assert.throws(() => loadDoors({ doors: [{ ...ok, b: 'nowhere' }] }, lm), /no landmark "nowhere"/);
+  assert.throws(() => loadDoors({ doors: [{ ...ok, b: ok.a }] }, lm), /ends must differ/);
+  assert.throws(() => loadDoors({ doors: [{ ...ok, withinM: 0 }] }, lm), /above 0/);
+  assert.throws(() => loadDoors({ doors: [ok, { ...ok, id: 'e', a: 'zone1-start' }] }, lm), /already in a door pair/);
+});
+
+test('warpAllowed: a door end only from near the other end; a landmark in no pair from anywhere', () => {
+  const mouth = warpPlace('zone1-cave-mouth')!, gate = warpPlace('zone5-gate')!, reach = DEFS.doors[0]!.withinM * 100;
+  assert.equal(warpAllowed('zone5-gate', mouth.x + reach - 1, mouth.z), true, 'just inside the reach of the cave mouth');
+  assert.equal(warpAllowed('zone5-gate', mouth.x + reach + 1, mouth.z), false, 'just outside it');
+  assert.equal(warpAllowed('zone5-gate', CENTRE_CM, CENTRE_CM), false, 'from the Pit');
+  assert.equal(warpAllowed('zone1-cave-mouth', gate.x, gate.z), true, 'and back from the gate');
+  assert.equal(warpAllowed('zone1-cave-mouth', CENTRE_CM, CENTRE_CM), false, 'a far client cannot warp to the cave mouth either');
+  assert.equal(warpAllowed('zone1-start', CENTRE_CM, CENTRE_CM), true, 'a landmark in no pair keeps its free warp');
+});
+
+test('the server: a warp to the dungeon gate from afar is refused (the client keeps its place), from the cave mouth it is honoured, and the way back works from the gate', async () => {
+  const A = '00000000-0000-4000-8000-0000000000a1';
+  const p = createPresence({ verify: async (t) => (t === 'a' ? A : null), log: () => {} });
+  await new Promise<void>((r) => p.server.listen(0, '127.0.0.1', r));
+  try {
+    const a = await joinBot(p.port(), 'a'), me = p.world.byAccount.get(A)!;
+    a.warp('zone5-gate'); a.warp('zone1-cave-mouth'); await wait(300);
+    assert.equal(a.hellos(), 1, 'neither warp from the Pit was honoured'); assert.equal(zoneAt(me.x, me.z), 'pit-yard'); assert.equal(a.closeCode(), null, 'refused, not closed');
+    assert.equal((p.stats().refused as Record<string, number>)['warp-door'], 2);
+    const mouth = warpPlace('zone1-cave-mouth')!;
+    p.world.warp(me, mouth.x, mouth.z, Date.now());   // the walk to the door, done server-side (it is 140 m from the spawn)
+    a.warp('zone5-gate'); await until(() => a.hellos() === 2);
+    assert.equal(zoneAt(me.x, me.z), 'bone-hollow', 'from the cave mouth the gate is honoured');
+    a.warp('zone1-cave-mouth'); await until(() => a.hellos() === 3);
+    assert.equal(zoneAt(me.x, me.z), 'cinder-fields', 'and from the gate the way back is honoured');
+    assert.equal(me.strikes, 0);
   } finally { await p.close(); }
 });

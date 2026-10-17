@@ -1,5 +1,6 @@
 {
   "tables": [
-    { "table": "warp-landmark", "file": "warp-landmarks.json", "at": "landmarks", "key": "id", "required": { "x": "number", "z": "number", "unit": "string" } }
+    { "table": "warp-landmark", "file": "warp-landmarks.json", "at": "landmarks", "key": "id", "required": { "x": "number", "z": "number", "unit": "string" } },
+    { "table": "warp-door", "file": "warp-landmarks.json", "at": "doors", "key": "id", "required": { "a": "string", "b": "string", "withinM": "number" } }
   ]
 }

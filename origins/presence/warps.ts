@@ -23,6 +23,30 @@ export function loadWarps(raw: { landmarks?: readonly unknown[] }): ReadonlyMap<
   return out;
 }
 const WARPS = loadWarps(DEFS);
+
+// Paired doors (Lead 2026-10-17, the dungeon is walk-in only): a warp to either end of a door pair is accepted only from within `withinM` of the OTHER end, so a landmark that is a door's end is never a
+// free teleport. A landmark in no pair keeps today's behaviour (a free warp, rate-limited). Data: the `doors` rows of warp-landmarks.json.
+export type DoorRule = { readonly from: string; readonly withinCm: number };
+export function loadDoors(raw: { doors?: readonly unknown[] }, landmarks: ReadonlyMap<string, { x: number; z: number }>): ReadonlyMap<string, DoorRule> {
+  loadRegistry([tableFromFile(MANIFEST.tables[1] as unknown as Manifest, raw, 'warp-landmarks.json')]);
+  const out = new Map<string, DoorRule>();
+  for (const r of (raw.doors ?? []) as readonly { id: string; a: string; b: string; withinM: number }[]) {
+    for (const end of [r.a, r.b]) if (!landmarks.has(end)) throw Error(`warp door "${r.id}": no landmark "${end}"`);
+    if (!(r.withinM > 0) || r.a === r.b) throw Error(`warp door "${r.id}": withinM must be above 0 and the ends must differ`);
+    for (const end of [r.a, r.b]) if (out.has(end)) throw Error(`warp door "${r.id}": landmark "${end}" is already in a door pair`);
+    out.set(r.b, { from: r.a, withinCm: Math.round(r.withinM * 100) });
+    out.set(r.a, { from: r.b, withinCm: Math.round(r.withinM * 100) });
+  }
+  return out;
+}
+const DOORS = loadDoors(DEFS, WARPS);
+/** Whether a player standing at (x, z) presence centimetres may warp to `to`: always, unless `to` is a door end, then only from within the door's reach of the other end. */
+export function warpAllowed(to: string, x: number, z: number): boolean {
+  const rule = DOORS.get(to);
+  if (!rule) return true;
+  const from = WARPS.get(rule.from);
+  return from !== undefined && Math.hypot(x - from.x, z - from.z) <= rule.withinCm;
+}
 /** The landmark's place in presence centimetres (the v2 frame), or null for an id the table does not hold. */
 export const warpPlace = (id: string): { x: number; z: number } | null => WARPS.get(id) ?? null;
 export const warpIds = (): string[] => [...WARPS.keys()];

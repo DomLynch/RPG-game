@@ -12,7 +12,7 @@ import { PROTOCOL, PROTOCOL_V2 } from './frame.ts';
 import { CENTRE_CM, FRAME_CM, LEGACY_SHIFT_CM, PORTALS, ZONE_ROWS, fromLegacy, toLegacy, zoneAt } from './zones.ts';
 import { SAVE_EVERY_MS, saveQueue, type SaveFn } from './saves.ts';
 import { presenceRule } from './presence-rules.ts';
-import { warpPlace } from './warps.ts';
+import { warpAllowed, warpPlace } from './warps.ts';
 import { sameWorn, wornQueue } from './worn.ts';
 import type { Worn } from '../server/location.ts';
 
@@ -278,6 +278,7 @@ export function createPresence(opts: PresenceOptions): Presence {
             const at = typeof to === 'string' && !player.legacy ? warpPlace(to) : null;
             // A guest sends NOTHING but a warp: any other text frame (speech, when it exists) closes the socket until S4's filter lets guests speak (Lead 2026-10-16: guests receive chat and send none).
             if (!at) return close(1003, player.guest ? 'guest-frame' : 'warp-id');   // a forged id, a guest's speech, or a v1 client that cannot hold the frame
+            if (!warpAllowed(to as string, player.x, player.z)) { refused('warp-door'); continue; }   // a door's end is reached by walking to the other end, never by asking from afar
             if (nowMs - warpWindow >= 60_000) { warpWindow = nowMs; warpCount = 0; }
             if (++warpCount > presenceRule('warpPerMin')) { refused('warp-rate'); continue; }   // over the rate: ignored, the client keeps its place
             world.warp(player, at.x, at.z, nowMs); zone = zoneAt(player.x, player.z); counts.warped++;
