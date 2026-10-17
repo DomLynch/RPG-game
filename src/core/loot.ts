@@ -83,6 +83,7 @@ for (const r of LOOT_PIECES.lootStarter) {   // a starter owner is not a roster 
   if (isOpponentId(r.id)) throw new Error(`loot-pieces: starter owner ${r.id} is a roster opponent`);
   if (r.id !== 'starter') throw new Error(`loot-pieces: starter owner ${r.id} is not "starter" (letters only: the contracts layer's legacy loot id form is item:loot.<a-z>.<Slot>)`);
   for (const slot of r.slots) if (!(WEAPON_SLOTS as readonly string[]).includes(slot)) throw new Error(`loot-pieces: starter ${r.id}.${slot} is not a weapon slot`);
+  if (!(TITLES as readonly string[]).includes(r.mintTier)) throw new Error(`loot-pieces: starter ${r.id} mintTier "${r.mintTier}" is not a tier`);
 }
 export const DECLINED_KEPT =LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
 // The pack under WORN on the Profile tab (Strategy, from Dom's profile screenshot 2026-09-24: Store unwore a piece and it vanished). Two open
@@ -108,6 +109,7 @@ export const WORN_FROM: WornFrom = {};
 // keeps it. plaguedoctor.Longsword: his weapon until bump 20 gave him the estoc (roster.ts); his rung offers plaguedoctor.Estoc now.
 export const RETIRED_LOOT: readonly LootId[] = ['plaguedoctor.Longsword'];
 export const STARTER_LOOT: readonly LootId[] = LOOT_PIECES.lootStarter.flatMap((r) => r.slots.map((slot) => `${r.id}.${slot}` as LootId));   // the lootStarter rows: owned, wearable and valid, never in LOOT, so never offered or dropped
+export const STARTER_TIERS: Readonly<Record<string, Tier>> = Object.fromEntries(LOOT_PIECES.lootStarter.map((r) => [r.id, r.mintTier as Tier]));   // owner id -> the tier its pieces always mint at (the row's mintTier: a client-claimed rung never sets it)
 export const STARTER_OWNERS: Readonly<Record<string, string>> = Object.fromEntries(LOOT_PIECES.lootStarter.map((r) => [r.id, r.name]));   // owner id -> display name (the roster has none for it)
 export const LOOT_IDS: ReadonlySet<string> = new Set([...Object.values(LOOT).flat(), ...RETIRED_LOOT, ...STARTER_LOOT]);
 export const isLootId = (value: unknown): value is LootId => typeof value === 'string' && LOOT_IDS.has(value);
