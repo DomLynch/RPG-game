@@ -19,7 +19,8 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshS
 const camera = new THREE.PerspectiveCamera(51, innerWidth / innerHeight, 0.1, 180);
 const figures = [];
 const lod = q.get('lod') ?? 'far';
-for (const [x, url] of [[-0.7, '/src/assets/warrior.glb'], [0.7, `/src/assets/hero-${lod}.glb`]]) {
+const gap = d < 3 ? 0.4 : 0.7;   // at 2 m the frame is ~1.3 m wide: the pair stands closer, and is cropped at the knees like any 2 m figure on a phone
+for (const [x, url] of [[-gap, '/src/assets/warrior.glb'], [gap, `/src/assets/hero-${lod}.glb`]]) {
   // the whole hero through the game's loader; a LOD has no textures (vertex colour), which loadWarriors' texture check refuses, so it is parsed and built the way a remote figure is (buildWarriors on a parsed asset)
   const player = x < 0 ? (await loadWarriors(url)).player : buildWarriors(await new GLTFLoader().loadAsync(url)).player;
   const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot); figures.push({ player, spot, x });
