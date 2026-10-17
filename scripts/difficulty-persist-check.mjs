@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { preview } from 'vite';
+import { betaLevel } from '../src/core/server.ts';   // the beta cut (#3024): a level above BETA_MAX_LEVEL fights at the cut
 
 const server = process.env.QA_URL ? null : await preview({ preview: { host: '127.0.0.1', port: 0 } });
 const origin = process.env.QA_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -38,7 +39,7 @@ try {
     const after = await label();
     await page.locator('#journal').screenshot({ path: `${dir}/${name}-legionary.png` });
     await page.screenshot({ path: `${dir}/${name}-options-legionary.png` });
-    assert.equal(after, '16', `${name}: 15 wins fight at level 16`);
+    assert.equal(after, String(betaLevel(16)), `${name}: 15 wins are level 16, fought at the beta cut (betaLevel(16), #3024)`);
     receipt.sizes[name] = { stored, after };
     await page.context().close();
   }

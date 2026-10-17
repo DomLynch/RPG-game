@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { rankFor } from '../src/core/server.ts';
+import { betaMarks, rankFor } from '../src/core/server.ts';   // betaMarks: the beta cut (#3024) shows the journal rank at the cut, so the label a row expects is rankFor(betaMarks(marks))
 import { encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from '../tests/lib/live-recorder.ts';   // era flags on (RV29 refuses a headless recorder's older stamp)
 const outDir = 'artifacts/account/build', api = 'https://frankendom-qa.supabase.co';
@@ -115,7 +115,7 @@ try {
   assert.equal(loaded.name, 'Cloud fighter'); assert.equal(loaded.id, 'guest-qa-123'); assert.deepEqual(loaded.career, { victoryMarks: 80 }, 'a higher cloud count lifts the device count');
   assert.equal(writes.length, 0, 'a sign-in with nothing new on the device writes nothing');
   // The rank is the server's figure (marks + pending), not the save's 80: a forged or stale device count never becomes rank (SCOPE 9).
-  await page.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(standing.marks + standing.pending).label);
+  await page.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(betaMarks(standing.marks + standing.pending)).label);   // beta cut: the server's figure is shown at the cut (BETA_MAX_LEVEL), 80 marks read as the cut rank
   await page.locator('#journal-button').tap();
   await page.locator('#account-status[data-saved="Cloud fighter"]').waitFor({ state: 'attached' });   // the status line is blank when saved; the attribute is the signal
   const toolsHidden = p => p.evaluate(() => document.querySelector('#test-tools').hidden);
@@ -259,7 +259,7 @@ try {
     // one frame, so either line counts. A link that never replayed shows the faded page or 'This fight cannot be played here' instead.
     await link.waitForFunction(() => document.querySelector('#reset-button').dataset.play === '1' && /^(Replay|Recorded on an older build)/.test(document.querySelector('#replay-banner').textContent), null, { timeout: 120000 });
     // Signed in, wait for the account to answer (the journal rank turns to his 200 marks) so a late dress from his save would have landed.
-    if (signedIn) await link.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(200).label, { timeout: 60000 });
+    if (signedIn) await link.waitForFunction(label => document.querySelector('#rank').getAttribute('aria-label') === label, rankFor(betaMarks(200)).label, { timeout: 60000 });   // beta cut: 200 marks are shown at the cut
     await link.waitForTimeout(4000);   // the loot file is local and small: a worn piece that was going to draw has drawn by now
     const seen = await link.evaluate(() => ({ fightRank: document.querySelector('#fight-rank').getAttribute('aria-label'), worn: JSON.parse(document.querySelector('#debug').dataset.worn || '{}').worn ?? null }));
     await snap(link, `artifacts/account/kill-link-${who}.png`);

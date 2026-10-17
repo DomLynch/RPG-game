@@ -28,6 +28,14 @@ export function awardMark(profile: Profile): number {
   return victoryMarks;
 }
 export const RANK_STEPS = NUMERALS.length;
+// THE BETA CUT (Dom 2026-10-17; Strategy's lists): the Pit shows the first `titles` titles of the ladder and the signed-off spell list. A VIEW, not a rule: the server keeps every row, every mark and MAX_LEVEL / OLD_MAX_LEVEL
+// (a stored L16 account still loads and keeps its marks, it is shown at the cut); the client reads the cut through `betaMarks` / `betaLevel` and awards.ts judges a claim against the same cut, so a win fought at the cut counts.
+// Lifting the cut is the one row: `titles` of 10 (or more) lifts the level cap, an empty `spells` lifts the spell list.
+const BETA = CAREER_RULES.betaCut[0]!;
+export const BETA_MAX_LEVEL = Math.min(MAX_LEVEL, BETA.titles * RANK_STEPS), BETA_SPELLS: ReadonlySet<string> = new Set(BETA.spells);
+export const betaLevel = (level: number): number => Math.min(level, BETA_MAX_LEVEL);
+export const betaMarks = (marks: number): number => Math.min(marks, BETA_MAX_LEVEL - 1);   // level = 1 + marks (levelOfMarks)
+export const inBetaSpells = (legend: string): boolean => BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 50 at Origin V.
 export const levelOfMarks = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));
