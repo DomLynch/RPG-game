@@ -4,6 +4,7 @@
 // (ON_ERROR_STOP on a pipe exits), so the next op gets a fresh session and a half-run script never leaks state into the next op.
 import { randomBytes } from 'node:crypto';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { pgConn } from './pg-service.ts';
 
 export type Db = { run(sql: string, vars?: Readonly<Record<string, string>>): Promise<string> };
 
@@ -19,9 +20,9 @@ export function psqlDb(url: string, bin = 'psql', timeoutMs = 30_000, pool = 0):
   if (pool > 0) return pooledDb(url, bin, timeoutMs, pool);
   return {
     run: (sql, vars = {}) => new Promise((resolve, reject) => {
-      const args = [url, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose'];
+      const args = ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose'];   // no connection argument: the secret rides a 0600 service file (pg-service.ts), never argv
       for (const [k, v] of Object.entries(vars)) args.push('-v', `${k}=${v}`);
-      const child = spawn(bin, [...args, '-f', '-'], { env: { ...process.env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
+      const child = spawn(bin, [...args, '-f', '-'], { env: { ...process.env, ...pgConn(url).env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
       let out = '', err = '';
       const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
       child.stdout.on('data', d => { out += d; });
@@ -66,7 +67,7 @@ function pooledDb(url: string, bin: string, timeoutMs: number, size: number): Db
   };
 
   const start = (): Worker => {
-    const child = spawn(bin, [url, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-f', '-'], { env: { ...process.env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(bin, ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-f', '-'], { env: { ...process.env, ...pgConn(url).env, LC_ALL: 'C.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'] });
     const w: Worker = { child, job: null, id: 0, out: '', err: '', dead: false };
     child.stdout.on('data', d => {
       w.out += d;
