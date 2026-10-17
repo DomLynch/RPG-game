@@ -10,6 +10,7 @@ import { POSE_AGE_MS, REACH_SLACK, SLACK } from '../origins/server/world-spawns.
 test('server rules: the exports keep the numbers they had in code', () => {
   assert.deepEqual([MIN_GAP, MARK_GAP, POSE_BYTES, POSED_FIGHT_MAX, SLACK, REACH_SLACK, POSE_AGE_MS], [2, 6.5, 20, 50, 0.5, 4, 5000]);
   assert.deepEqual(rules.encounterPose.map((r) => r.edge), [0.01]);
+  assert.deepEqual(rules.encounterPose.map((r) => r.scaleFloor), [0.5]);
   assert.deepEqual(rules.encounterToken.map((r) => r.randomBytes), [24]);
 });
 

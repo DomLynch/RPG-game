@@ -5,7 +5,8 @@
       "minGap": 2,
       "markGap": 6.5,
       "edge": 0.01,
-      "note": "a posed fight start: the least gap the hero and foe may start at (m), the pit marks' own gap that caps it (m, times the foe's spawn scale), and how far inside the wall they stay so float32 rounding never pushes one onto it (m)"
+      "scaleFloor": 0.5,
+      "note": "a posed fight start: the least gap the hero and foe may start at (m), the pit marks' own gap that caps it (m, times the foe's spawn scale), how far inside the wall they stay so float32 rounding never pushes one onto it (m), and the smallest foe spawn scale the widest start gap shrinks to (a multiplier)"
     }
   ],
   "encounterToken": [

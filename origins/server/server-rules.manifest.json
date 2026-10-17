@@ -9,6 +9,7 @@
         "minGap": "number",
         "markGap": "number",
         "edge": "number",
+        "scaleFloor": "number",
         "note": "string"
       }
     },
