@@ -2,11 +2,13 @@
 
 ## 2026-10-17 ~13:5x (+04) — HANDOFF before /clear. READ FIRST. LIVE = HU2 53aed13d5 (verified)
 
-**Now, in Lead's order (13:5x):**
+**Now, in Lead's order (updated ~14:0x):**
 1. **#2947 @5eed49c0c**: kite harness + receipts, test-only. Deploy merges it in a gap, and it gives every lane the KIT label. Read it; PASS on green unit-ci + quality (check auditor:ready is set, gotcha a).
-2. **#3014 @b36113321**: gear-sheet warm. A code read now; READY waits on Web's stills.
-3. **#3019** (Combat: gear-in-world fight + worn weapon + troll hp 570, RV74/WSV51 provisional): a DRAFT. Read it when Combat flips it ready; it's the top item-1 PR. Check the RV/WSV bumps, and grep `scripts/origins-writer-check.mjs` if it touches server rules (memory `feedback_writer_check_second_copy`).
-4. Not ready yet: #3016 (dungeon), #3020 (dungeon kit).
+2. **#3018** (Web self-dress: the walking hero wears their gear; Zone 1 beta). This touches the open row gap (no binding row dresses the signed-in hero): check whether it adds that row.
+3. **#3014 @6e48746a6** (head moved from b36113321): gear-sheet warm. A code read now; READY waits on Web's stills.
+4. **#3020 @9b899e7b4** (dungeon kit; Lead's stills PASS is posted): stacked on the fort stack (#2945 ← … ← #2968). Rule whether it needs #2945 first. I already told Characters to keep it stacked (no trunk copy). Check that the glb is valid glTF with no URIs, that paths stay under public/world/kit and docs, and that the seed/stills scripts make no network calls or exec.
+5. **#3019** (Combat: gear-in-world fight + worn weapon + troll hp 570, RV74/WSV51 provisional): a DRAFT. Read it the moment Combat flips it ready; it's the top Zone 1 PR. Check the RV/WSV bumps, and grep `scripts/origins-writer-check.mjs` if it touches server rules (memory `feedback_writer_check_second_copy`).
+6. Not ready yet: #3016 (dungeon).
 5. Owed: HT's `saves.failed` over a full hour (now near 0). VPS scratch to clear once the sweep tool works: `/srv/dev-jobs/cq-ff-*` (git worktrees of cq-2919) + `cq-2919/{ff,ffc,f3002}.bundle`. Incident leftovers are owned by others (Codex-Hooks' 103 refs: Hooks Dev; Research-Agent-Bot PR #22: close it; RPG-game's 473 stale branches: Dom).
 
 **Done this session (10-17 ~11:5x → 13:5x):** HS, HT and HU2 verified live. PASSED: #2997, HT #3008, #3005 (+#2998 only inside it), #2988 + #3010 @70481e4c2 + #3011 (one cut, live as HU2), #3002, #3007. HU #3012 FAILED (writer-check pin) and was fixed forward. Both of Dom's incident checks are done (memory `security_incident_check_2026-10-17`).
