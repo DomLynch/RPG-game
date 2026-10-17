@@ -17,6 +17,8 @@ export function loadStageRules(raw: { rules?: readonly unknown[] }): readonly St
 }
 export const STAGE_RULES: readonly StageRule[] = loadStageRules(DEFS);
 export const stageRule = (id: (typeof NAMED)[number]): number => STAGE_RULES.find((r) => r.id === id)!.value;
+/** A named camp boss is the zone level + this many levels: the `namedLevelLift` default, or the zone's own row `namedLevelLift.<zoneId>` (Zone 5, the Bone Hollow end fight, is zone level + 1). */
+export const namedLift = (zoneId: string): number => STAGE_RULES.find((r) => r.id === `namedLevelLift.${zoneId}`)?.value ?? stageRule('namedLevelLift');
 
 // The grouped shapes the code reads (the same objects the literals were), built from rows.
 const r = stageRule;
