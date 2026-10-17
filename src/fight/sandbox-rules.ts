@@ -241,6 +241,7 @@ export const spellWindupOf = (root: string | undefined, base: number): number =>
 export const paysMana = (root: string | undefined): boolean => MANA_MAX > 0 && (!root || spellRangeOf(root)?.kind !== 'melee');
 // spellHeal (Dom 2026-10-17, Strategy: a utility spell everyone can take, not one of the four attack picks): one row { id, share, uses, windup } per heal spell. It restores `share` per mille of the caster's own max health when its windup (ticks; interruptible like any cast) releases, is paid in mana, needs no range, always lands (no skill roll) and can be cast `uses` times a fight so a duel cannot stall. No rows (trunk) = no heal spell.
 type HealRow = { id: string; share: number; uses: number; windup: number };
+export const healRows = (): number => ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).length;   // 0 on trunk: no heal objects or light are built
 export const healOf = (spell: string | undefined): HealRow | undefined => (spell ? ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).find((r) => r.id === spell) : undefined);
 /** 'far' when `distance` metres is beyond the root's band (its farthest reach), undefined when the cast may go (any distance inside it, however close; or the root has no row). */
 // spellReach (Dom 2026-10-17: no short / medium / long, one maximum distance within reason): centimetres beyond which any spell is refused 'far' and costs nothing. 0 = off (trunk).

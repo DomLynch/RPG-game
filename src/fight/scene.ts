@@ -213,6 +213,7 @@ export function createScene(
     impactFx = createImpactFx(scene),   // sandbox-mech impact: flash + ground ring per contact row (hit-stop-defs.json columns), nothing without them
     miasmaMark = marksFlag(globalThis.location?.search ?? '') ? createMiasmaMark(scene) : null;   // ?look=marks (miasma-mark.ts)
   if (world) scene.add(world.holder);
+  missileFx.warm(() => renderer.compile(scene, camera));   // sandbox heal: its shader programs and its light are compiled now, not at the first cast
   arena.group.scale.setScalar(PLAY_SCALE); { const ring = arena.group.getObjectByName('boundary'); if (ring) ring.visible = PLAY_SCALE === 1; }   // from the first frame; render() follows a new fight's circle
   arena.ready.then(() => { if ((arena.sky.image as { width: number }).width > 2) { arenaSky = arena.sky; rebuildEnvironment(); } }).catch(() => {});
   function capsule(x: number, z: number, material: THREE.Material) {

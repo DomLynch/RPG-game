@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Fighter } from './duel.ts';
-import { healOf, missileOf, spellLookOf, spellRangeOf, SPELL_FX } from './sandbox-rules.ts';   // SPELL_FX on: the designed special effect lands the spell (special-presentation.ts), so no plain landing burst over it
+import { healOf, healRows, missileOf, spellLookOf, spellRangeOf, SPELL_FX } from './sandbox-rules.ts';   // SPELL_FX on: the designed special effect lands the spell (special-presentation.ts), so no plain landing burst over it
 import { spellRoot } from './spell-cast.ts';
 
 // sandbox-mech: missiles, the bolt in flight. A small cold core with a soft halo and a short fading trail, drawn from the fighter's `missile` state (position by tick along its line), so it always matches the sim's arrival. Presentation only:
@@ -32,16 +32,42 @@ export function createMissileFx(scene: THREE.Scene) {
   const BURST_TICKS = 42;
   // Heal (Dom 2026-10-17: the first heal look, faint blue speckles, was weak): on a heal's release, over the healed fighter, a ground ring that swells and fades, a pale pillar that rises and thins, and a spiral of motes that climb and fade. Shape from World of Claudecraft's `heal` archetype (MIT: pillar + ring + burst) and
   // Duelyst's heal (CC0: rising green dots, about 2 s); the code is our own, tick-driven so a replay draws the same frames. Colours are muted greens, normal blending on the ring and pillar so it reads on sand (no additive blob).
-  const HEAL_TICKS = 84, MOTES = 16;
-  const heals = [0, 1].map(() => {
+  // v2 (Dom 2026-10-17: "low res, cheap, tacky"; Strategy: flipbooks / dissolve / light, no heat distortion or decals yet): the pillar and the ring are noise-eroded shader surfaces (a tiling fbm texture made once here, a scrolling grain that dissolves as the spell ends), the motes are four-point glints, and a short green-gold light washes the sand and the fighters.
+  // Every material and the one light are built at scene creation and warmed with warm(): no new shader program when a heal is cast (the engage hitch).
+  const HEAL_TICKS = 84, MOTES = 16, NOISE = 128;
+  const noisePx = new Uint8Array(NOISE * NOISE * 4), hash = (x: number, y: number, s: number) => { let h = (x * 374761393 + y * 668265263 + s * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+  const value = (x: number, y: number, cells: number, s: number) => { const fx = (x / NOISE) * cells, fy = (y / NOISE) * cells, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), w = (i: number, j: number) => hash((x0 + i) % cells, (y0 + j) % cells, s); return (w(0, 0) * (1 - sx) + w(1, 0) * sx) * (1 - sy) + (w(0, 1) * (1 - sx) + w(1, 1) * sx) * sy; };   // tiles: lattice indices wrap at `cells`
+  for (let y = 0; y < NOISE; y++) for (let x = 0; x < NOISE; x++) { const v = 0.5 * value(x, y, 4, 1) + 0.3 * value(x, y, 8, 2) + 0.2 * value(x, y, 16, 3); noisePx.set([255 * v, 255 * v, 255 * v, 255], (y * NOISE + x) * 4); }
+  const noiseTex = new THREE.DataTexture(noisePx, NOISE, NOISE); noiseTex.wrapS = noiseTex.wrapT = THREE.RepeatWrapping; noiseTex.magFilter = noiseTex.minFilter = THREE.LinearFilter; noiseTex.needsUpdate = true;
+  const GLINT = 64, glintPx = new Uint8Array(GLINT * GLINT * 4);   // a bright core with a thin four-point cross
+  for (let y = 0; y < GLINT; y++) for (let x = 0; x < GLINT; x++) { const dx = (x - (GLINT - 1) / 2) / ((GLINT - 1) / 2), dy = (y - (GLINT - 1) / 2) / ((GLINT - 1) / 2), r = Math.hypot(dx, dy), v = Math.min(1, Math.exp(-r * 7) + 0.55 * (Math.exp(-Math.abs(dx) * 38 - Math.abs(dy) * 2.6) + Math.exp(-Math.abs(dy) * 38 - Math.abs(dx) * 2.6))); glintPx.set([255, 255, 255, 255 * v * Math.max(0, 1 - r)], (y * GLINT + x) * 4); }
+  const glint = new THREE.DataTexture(glintPx, GLINT, GLINT); glint.magFilter = glint.minFilter = THREE.LinearFilter; glint.needsUpdate = true;
+  const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  const surface = (frag: string) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, vertexShader: VERT, fragmentShader: frag, uniforms: { uNoise: { value: noiseTex }, uK: { value: 0 }, uT: { value: 0 }, uA: { value: new THREE.Color('#78c455') }, uB: { value: new THREE.Color('#f3ffd2') } } });
+  const PILLAR = `varying vec2 vUv; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform vec3 uA; uniform vec3 uB;
+    void main(){ float y = vUv.y; vec2 p = vec2(vUv.x * 3.0, y * 1.4 - uT * 0.9); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.3 + 0.37).r * 0.4;
+      float h = min(1.0, uK * 3.2), reveal = 1.0 - smoothstep(h - 0.12, h, y), erode = smoothstep(uK * 0.95, uK * 0.95 + 0.2, n), body = pow(1.0 - y, 0.7);
+      float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * 0.75; gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`;
+  const RING = `varying vec2 vUv; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform vec3 uA; uniform vec3 uB;
+    void main(){ float r = length(vUv - 0.5) * 2.0; float band = smoothstep(0.68, 0.86, r) * (1.0 - smoothstep(0.93, 1.0, r)); float n = texture2D(uNoise, vUv * 2.0 + uT * 0.3).r;
+      float a = band * smoothstep(uK * 0.9, uK * 0.9 + 0.2, n) * (1.0 - uK * 0.6) * 0.9; gl_FragColor = vec4(mix(uA, uB, n), a); }`;
+  const healOn = healRows() > 0;   // no heal rows (trunk): no heal objects and no extra light
+  const healLight = healOn ? new THREE.PointLight('#c9f59a', 0, 7, 2) : null; if (healLight) scene.add(healLight);   // in the scene from the start (intensity 0 when idle): the lit materials are compiled with it
+  const heals = (healOn ? [0, 1] : []).map(() => {
     const g = new THREE.Group(); g.visible = false; scene.add(g);
-    const mat = (color: string) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2), mat('#a8e070')), pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 3, 28, 1, true), mat('#cfeea0'));
-    ring.position.y = 0.05; pillar.position.y = 1.5; g.add(ring, pillar);
-    return { g, ring, pillar, motes: Array.from({ length: MOTES }, () => sprite(0.16, '#c8f58a', 0)), at: -1, x: 0, z: 0 };
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2), surface(RING)), pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 3.2, 40, 1, true), surface(PILLAR));
+    ring.position.y = 0.05; pillar.position.y = 1.6; g.add(ring, pillar);
+    const motes = Array.from({ length: MOTES }, () => { const s = sprite(0.2, '#e4ffb0', 0); (s.material as THREE.SpriteMaterial).map = glint; return s; });
+    return { g, ring, pillar, motes, at: -1, x: 0, z: 0 };
   });
   let nextHeal = 0;
   return {
+    /** Shows the heal's parts for one `compile()` so their shader programs exist before the first cast, then hides them again. */
+    warm(compile: () => void): void {
+      for (const h of heals) { h.g.visible = true; for (const m of h.motes) m.visible = true; }
+      try { compile(); } catch { /* a lost context: the first cast pays as before */ }
+      for (const h of heals) { h.g.visible = false; for (const m of h.motes) m.visible = false; }
+    },
     burst(events: readonly { type: string; actor: number; target?: number; spell?: string; tick: number; heal?: number }[], fighters: readonly Pick<Fighter, 'body'>[]): void {
       for (const e of events) {
         if (e.type === 'SpecialLanded' && e.heal !== undefined) { const h = heals[nextHeal++ % heals.length]!, who = fighters[e.actor]; if (who) { h.at = e.tick; h.x = who.body.x; h.z = who.body.z; } continue; }
@@ -61,18 +87,22 @@ export function createMissileFx(scene: THREE.Scene) {
         b.core.scale.setScalar(b.big * (1.1 - k * 0.6)); b.halo.scale.setScalar(b.big * (0.8 + k * 2.6));
         (b.core.material as THREE.SpriteMaterial).opacity = 1 - k; (b.halo.material as THREE.SpriteMaterial).opacity = 0.85 * (1 - k * k);
       }
+      let glow = 0, gx = 0, gz = 0;
       for (const h of heals) {
         const age = tick - h.at, live = h.at >= 0 && age >= 0 && age < HEAL_TICKS, k = live ? age / HEAL_TICKS : 1;
         h.g.visible = live; for (const m of h.motes) m.visible = live; if (!live) continue;
         h.g.position.set(h.x, 0, h.z);
         const out = 1 - (1 - k) ** 3;   // ease-out
-        h.ring.scale.setScalar(0.4 + 1.1 * out); (h.ring.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - k);
-        h.pillar.scale.set(1 + 0.25 * k, Math.min(1, k * 3.5), 1 + 0.25 * k); h.pillar.position.y = 1.5 * Math.min(1, k * 3.5); (h.pillar.material as THREE.MeshBasicMaterial).opacity = 0.3 * Math.sin(Math.PI * k);
+        h.ring.scale.setScalar(0.45 + 1.15 * out);
+        for (const part of [h.ring, h.pillar]) { const u = (part.material as THREE.ShaderMaterial).uniforms; u.uK!.value = k; u.uT!.value = age / 60; }
+        h.pillar.scale.set(1 + 0.18 * k, 1, 1 + 0.18 * k);
         h.motes.forEach((m, i) => {
           const t = Math.min(1, Math.max(0, (age - (i / MOTES) * 34) / 50)), a = i * 2.4 + age * 0.12, r = 0.5 * (1 - 0.5 * t);
-          m.position.set(h.x + Math.cos(a) * r, 0.1 + t * 2.5, h.z + Math.sin(a) * r); m.scale.setScalar(0.17 * (1 - 0.4 * t)); (m.material as THREE.SpriteMaterial).opacity = 0.95 * Math.sin(Math.PI * t);
+          m.position.set(h.x + Math.cos(a) * r, 0.1 + t * 2.5, h.z + Math.sin(a) * r); m.scale.setScalar(0.34 * (1 - 0.4 * t)); (m.material as THREE.SpriteMaterial).opacity = 0.95 * Math.sin(Math.PI * t);
         });
+        const lum = Math.sin(Math.PI * Math.min(1, k * 1.25)); if (lum > glow) { glow = lum; gx = h.x; gz = h.z; }
       }
+      if (healLight) { healLight.intensity = 14 * glow; healLight.position.set(gx, 1.3, gz); }
       this.fly(tick, fighters);
     },
     fly(tick: number, fighters: readonly Pick<Fighter, 'missile' | 'weapon'>[]): void {
