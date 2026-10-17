@@ -6,6 +6,9 @@
 // To extend: a role is one ROW in origins/npcs/roles.json (loaded and checked by the registry loader); a role that sells from a shop list carries `shop: true`. The validator
 // reads that flag, never a role name. Ids are strings checked against the rows, not a TypeScript union.
 import roles from './roles.json' with { type: 'json' };
+import HOURS from './hours.json' with { type: 'json' };
+import HOURS_MANIFEST from './hours.manifest.json' with { type: 'json' };
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 
 import { outfitProblems } from './cloth.ts';
 
@@ -13,7 +16,10 @@ export type NpcRoleRow = { order: number; shop?: boolean };
 export const NPC_ROLE_ROWS = roles.roles as Readonly<Record<string, NpcRoleRow>>;
 export const NPC_ROLES: readonly string[] = Object.entries(NPC_ROLE_ROWS).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
 export type NpcRole = string;
-export const SHOP_HOURS: readonly [number, number] = [6, 22];   // Dom 2026-10-08: shops open 06:00, shut 22:00 (game clock)
+loadRegistry([tableFromFile(HOURS_MANIFEST.tables[0] as unknown as Manifest, HOURS, 'hours.json')]);
+const shopRow = HOURS.hours.find((h) => h.id === 'shop');
+if (!shopRow) throw new Error('npcs/hours.json has no "shop" row');
+export const SHOP_HOURS: readonly [number, number] = [shopRow.open, shopRow.close];   // the "shop" row of hours.json (Dom 2026-10-08: shops open 06:00, shut 22:00, game clock); an NPC row says "hours": "shop" and region1/npcs.ts resolves it here
 
 export type NpcRow = {
   npc: string;                       // a character id in the content bundle
