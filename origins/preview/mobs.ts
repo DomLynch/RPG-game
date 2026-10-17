@@ -11,6 +11,7 @@ export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, 
 import type { CharacterId, EncounterId } from '../../src/core/server.ts';
 import { campCount, type MobRow } from '../../src/core/server.ts';
 import { fieldOf } from '../../src/fight/catalogue-rows.ts';
+import { AGGRO_M } from '../../src/fight/world.ts';
 import { loadZone, zoneKeyPrefix } from '../zones/loader.ts';
 import { entryOf, isPlainGroup, rollCamp } from '../zones/place.ts';
 import { seedOf } from '../world/relief.ts';
@@ -86,7 +87,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         if (!home) continue;   // no room found (never true on the shipped data; the test pins it)
         dest.push({
           id, character: sw.id, name: def.name, encounter: sp.encounter, body: sw.form.opponent ?? defaultKind, level: named ? (sw.form.level ?? NAMED_LEVEL) : srow!.level[0],
-          zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: named ? TUNING.aggroNamed : (sbh!.aggro ?? TUNING.aggro), named: named || boss,   // a camp boss draws as a named foe (label, height, hit ring) like an encounter's
+          zone: zone.zone, spawn: sp.id, home, roam: p.roam, aggro: AGGRO_M, named: named || boss,   // the sim's notice ring (threat-defs.json awareness.notice), the ONE ring: the sim hunts inside it for every creature and ignores the row's own `aggro` (deprecated in row.ts), so the view's ring test, the debug ring and engage-ahead use it too   // a camp boss draws as a named foe (label, height, hit ring) like an encounter's
         });
       }
     }

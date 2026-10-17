@@ -13,7 +13,7 @@ export type Source = { kind: 'myth' | 'folklore' | 'history' | 'literature' | 'c
 // refuses a pending row (it would put an uncited creature in a generated zone); the hand data may carry one.
 export type SourceRef = Source | { legendId: string } | { pending: string };
 export type Behaviour = {
-  aggro?: number;                // m: the notice ring (default 7)
+  aggro?: number;                // m: DEPRECATED, not read by the sim or the view. The notice ring is ONE number for every creature: the sim's AGGRO_M (src/fight/threat-defs.json awareness.notice, 9 m), which the sim hunts inside and the mob view, its debug ring and engage-ahead now use too. Kept (range-checked) so no row value is deleted; if per-creature rings are wanted it is a Combat row change that flips this to "read by the sim"
   leash?: number;                // m: how far it chases before it goes home (default 26)
   roam?: number;                 // m: how far it wanders from home (never above leash / 3)
   spread?: number;               // m: how far the camp's members scatter round their landmark
