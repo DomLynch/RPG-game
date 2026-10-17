@@ -19,7 +19,9 @@ const run = (command, args, input) => execFileSync(pg(command), args, { input, e
 const base = ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'];
 const psql = sql => run('psql', base, sql).trim();
 const scriptAs = (user, ...vars) => run('psql', [...base, ...(user ? ['-U', user] : []), ...vars.flatMap(v => ['-v', v]), '-f', 'ops/prelaunch-reset.sql']);
-const script = (...vars) => scriptAs(null, ...vars);
+// Production's role is the owner of the tables but not a superuser (it is refused session_replication_role): the backup, the reset and the restore all run as such a role here.
+const OWNER = 'r1_owner';
+const script = (...vars) => scriptAs(OWNER, ...vars);
 const PHRASE = 'R1-WIPE-ORIGINS-TEST-PROGRESS';
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 let checks = 0;
@@ -29,7 +31,7 @@ const refused = (what, needle, fn) => { checks++; try { fn(); } catch (e) { cons
 const count = t => Number(psql(`select count(*) from public.${t};`));
 const origins = () => psql(`select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and relname like 'origins\\_%' order by 1;`).split('\n');
 const snapshot = tables => Object.fromEntries(tables.map(t => [t, count(t)]));
-const triggers = () => psql(`select tgrelid::regclass || ':' || tgname from pg_trigger where not tgisinternal and tgrelid::regclass::text like 'origins\\_%' order by 1;`);
+const triggers = () => psql(`select tgrelid::regclass || ':' || tgname || ':' || tgenabled from pg_trigger where not tgisinternal and tgrelid::regclass::text like 'origins\\_%' order by 1;`);
 
 let started = false;
 try {
@@ -68,8 +70,14 @@ try {
   const trgBefore = triggers();
 
   // ---- the backup, and the TESTED restore into a separate scratch cluster (the gate's receipt) ----------------------------------------
-  const outDir = join(root, 'out'), who = execFileSync('id', ['-un'], { encoding: 'utf8' }).trim();
-  writeFileSync(join(root, 'backup.env'), `DATABASE_URL=postgresql:///postgres?host=${root}&user=${who}\n`);
+  const outDir = join(root, 'out');
+  psql(`create role ${OWNER} login; create role r1_nobody login;
+    grant usage on schema public to ${OWNER}, r1_nobody; grant all on all tables in schema public to ${OWNER}, r1_nobody; grant all on all sequences in schema public to ${OWNER}, r1_nobody;
+    do $$ declare t text; begin for t in select relname from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r', 'p') and relname like 'origins\\_%' loop execute format('alter table public.%I owner to ${OWNER}', t); end loop; end $$;`);
+  eq(psql(`select rolsuper from pg_roles where rolname = '${OWNER}';`), 'f', 'the owner role is not a superuser (like production\'s)');
+  eq(psql(`select count(*) from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r', 'p') and relname like 'origins\\_%' and relowner <> '${OWNER}'::regrole;`), '0', 'the owner role owns every origins_ table');
+  writeFileSync(join(root, 'backup.env'), `DATABASE_URL=postgresql:///postgres?host=${root}&user=${OWNER}\n`);
+  writeFileSync(join(root, 'nobody.env'), `DATABASE_URL=postgresql:///postgres?host=${root}&user=r1_nobody\n`);
   const bk = execFileSync('bash', ['ops/prelaunch-backup.sh'], { encoding: 'utf8', env: { ...env, BACKUP_ENV: join(root, 'backup.env'), OUT_DIR: outDir, PG_DUMP: pg('pg_dump'), PG_RESTORE: pg('pg_restore'), PSQL: pg('psql') } });
   const made = readdirSync(outDir), backupDir = join(outDir, made[0]), inside = readdirSync(backupDir);
   eq([made.length, /^r1-\d{8}T\d{6}Z$/.test(made[0])], [1, true], 'the backup wrote one r1-<stamp> directory');
@@ -105,7 +113,6 @@ try {
   refused('a reset with no -v expect', 'needs -v expect', () => script('commit=1', `confirm=${PHRASE}`));
   refused('a reset whose counts are not the backup\'s', 'do not hold the rows the backup holds', () => script('commit=1', `confirm=${PHRASE}`, EXPECT.replace('origins_characters=2', 'origins_characters=3')));
   refused('a reset whose counts omit a table', 'do not hold the rows the backup holds', () => script('commit=1', `confirm=${PHRASE}`, `expect=${expect.split(',').slice(1).join(',')}`));
-  psql(`create role r1_nobody login; grant all on all tables in schema public to r1_nobody; grant usage on schema public to r1_nobody;`);
   refused('a reset by a role that does not own the tables', 'run it as the owner', () => scriptAs('r1_nobody', 'commit=1', `confirm=${PHRASE}`, EXPECT));
   eq(snapshot(RESET), seeded, 'every refused reset changed nothing');
   // ---- the drift guard: a new origins_ table nobody classified refuses, and nothing changes -----------------------------------
@@ -126,12 +133,13 @@ try {
   // ---- the recovery drill: the backup restores INTO the emptied database, row for row, through ops/prelaunch-restore.sh (the real restore path: a service file, one transaction) -----
   const restoreEnv = { ...env, BACKUP_ENV: join(root, 'backup.env'), PSQL: pg('psql'), NODE: process.execPath };
   const probe = execFileSync('bash', ['ops/prelaunch-restore.sh', 'probe'], { encoding: 'utf8', env: restoreEnv });
-  eq(probe.includes('probe ok') && !probe.includes('postgresql://'), true, 'the probe: the role may set session_replication_role = replica, in a transaction rolled back');
-  eq(psql(`show session_replication_role;`), 'origin', 'the probe changed nothing');
+  eq(probe.includes('probe ok') && !probe.includes('postgresql://'), true, 'the probe: the role owns every origins_ table (read-only catalog check)');
+  refused('the probe as a role that owns nothing', 'does not own every origins_ table', () => execFileSync('bash', ['ops/prelaunch-restore.sh', 'probe'], { encoding: 'utf8', env: { ...restoreEnv, BACKUP_ENV: join(root, 'nobody.env') }, stdio: 'pipe' }));
   const restored = execFileSync('bash', ['ops/prelaunch-restore.sh', 'restore', backupDir], { encoding: 'utf8', env: restoreEnv });
   eq(restored.includes('restored:') && !restored.includes('postgresql://'), true, 'the restore script ran and prints no connection string');
   eq(compare(manifest, measure(root, RESET)), [], 'restore into the reset database: every table equals the manifest again');
   eq(count('origins_characters'), 2, 'the characters are back');
+  eq(triggers(), trgBefore, 'the restore left every trigger enabled again (the append-only ledgers are immutable once more)');
   refused('a second restore into the now-full database', 'not empty', () => execFileSync('bash', ['ops/prelaunch-restore.sh', 'restore', backupDir], { encoding: 'utf8', env: restoreEnv, stdio: 'pipe' }));
   eq(compare(manifest, measure(root, RESET)), [], 'the refused restore left the tables as they were');
   // The identity sequences were advanced to max(id) (COPY does not touch them): every serial/identity column of every restored table has a sequence at or past its highest id ...

@@ -1,5 +1,5 @@
 // Restore proof for the R1 backup (ops/prelaunch-backup.sh): builds a SCRATCH PostgreSQL cluster (socket-only, disposable) with every repo migration applied, loads the backup's CSVs into
-// it (data only, session_replication_role = replica for the load, as the recovery path would, so the append-only and conservation triggers do not fire on restored history), and compares
+// it (data only, the owner's USER triggers switched off for the load transaction, as the recovery path would, so the append-only and conservation triggers do not fire on restored history), and compares
 // each table's row count and content hash with the manifest taken from the source.
 //   node scripts/prelaunch-restore-test.mjs <r1-... backup directory>      env: PG_BIN. Run as a non-root user (as `postgres` on the VPS).
 // Exit 0 and "restore proven" only if every table matches. It touches no hosted database; the backup is read, never modified.
@@ -27,17 +27,20 @@ export function measure(socket, tables) {
 }
 
 /**
- * The restore as one psql script (run with psql -f / stdin, because of \copy): ONE transaction, so a failure leaves nothing half-loaded; `set local session_replication_role = replica`
- * so the append-only and conservation triggers do not fire on restored history; refuses a target that is not empty (a restore never merges into live rows); data only, the column list
- * read from each CSV's header; then every identity/serial sequence of the restored tables is advanced to max(column), because COPY does not touch sequences and the next ledger write
- * would otherwise collide with a restored id. The same text runs against the scratch cluster (restoreInto) and, through ops/prelaunch-restore.sh, against the real database.
+ * The restore as one psql script (run with psql -f / stdin, because of \copy): ONE transaction, so a failure leaves nothing half-loaded. It needs NO superuser right (production's role may
+ * not set session_replication_role, probe 2026-10-17): as the OWNER of the tables it switches off their USER triggers (the append-only and conservation triggers must not fire on restored
+ * history) for this transaction only and switches them back on before COMMIT; foreign-key checks stay on, so the tables load parents first. It refuses a target that is not empty (a restore
+ * never merges into live rows); data only, the column list read from each CSV's header; then every identity/serial sequence of the restored tables is advanced to max(column), because COPY
+ * does not touch sequences and the next ledger write would otherwise collide with a restored id. The same text runs against the scratch cluster (restoreInto) and, through
+ * ops/prelaunch-restore.sh, against the real database.
  */
-export function restoreSql(backupDir) {
-  const base = resolve(backupDir), tables = parseManifest(join(base, 'manifest.tsv')).map(m => m.table);
+export function restoreSql(backupDir, edges = []) {
+  const base = resolve(backupDir), tables = loadOrder(parseManifest(join(base, 'manifest.tsv')).map(m => m.table), edges);
   const list = `array[${tables.map(t => `'${t}'`).join(', ')}]`;
   const lines = [
     'begin;',
-    "set local session_replication_role = replica;",
+    "set local lock_timeout = '15s';",
+    ...tables.map(t => `alter table public.${t} disable trigger user;`),
     `do $$ declare t text; n bigint; begin foreach t in array ${list} loop execute format('select count(*) from public.%I', t) into n; if n <> 0 then raise exception 'restore target is not empty: % has % rows', t, n; end if; end loop; end $$;`,
   ];
   for (const t of tables) {
@@ -51,13 +54,38 @@ export function restoreSql(backupDir) {
         where pg_get_serial_sequence(format('public.%I', t.t), a.attname) is not null
     loop execute format('select setval(%L, coalesce(max(%I), 1), max(%I) is not null) from public.%I', r.seq, r.col, r.col, r.tbl); end loop;
   end $$;`);
+  lines.push(...tables.map(t => `alter table public.${t} enable trigger user;`));
   lines.push('commit;');
   return `${lines.join('\n')}\n`;
 }
 
-/** Load a backup directory's CSVs into the cluster at `socket` (restoreSql above). */
-export function restoreInto(socket, backupDir) {
-  return run('psql', ['-h', socket, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'], restoreSql(backupDir));
+/** The foreign keys between public tables as "child<TAB>parent" lines: the restore loads parents first (FK checks stay on). */
+export const FK_EDGES_SQL = `select cl.relname || E'\\t' || pf.relname from pg_constraint c join pg_class cl on cl.oid = c.conrelid join pg_class pf on pf.oid = c.confrelid
+  where c.contype = 'f' and cl.relnamespace = 'public'::regnamespace and pf.relnamespace = 'public'::regnamespace order by 1;`;
+export const parseEdges = text => text.split('\n').filter(Boolean).map(l => { const [child, parent] = l.split('\t'); return { child, parent }; });
+
+/** Parents before children; throws on a cycle or a self-reference (a plain COPY cannot load either in order). Tables outside the list are ignored. */
+export function loadOrder(tables, edges) {
+  const inList = new Set(tables), deps = new Map(tables.map(t => [t, new Set()]));
+  for (const { child, parent } of edges) {
+    if (!inList.has(child) || !inList.has(parent)) continue;
+    if (child === parent) throw Error(`${child} references itself: a plain COPY cannot load it in order`);
+    deps.get(child).add(parent);
+  }
+  const order = [];
+  while (order.length < tables.length) {
+    const next = tables.find(t => !order.includes(t) && [...deps.get(t)].every(d => order.includes(d)));
+    if (!next) throw Error(`foreign keys form a cycle among ${tables.filter(t => !order.includes(t)).join(', ')}`);
+    order.push(next);
+  }
+  return order;
+}
+
+/** Load a backup directory's CSVs into the cluster at `socket` (restoreSql above), as `user` when given (a non-superuser owner in the rehearsal). */
+export function restoreInto(socket, backupDir, user) {
+  const args = ['-h', socket, ...(user ? ['-U', user] : []), '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'];
+  const edges = parseEdges(run('psql', [...args, '-A', '-t'], FK_EDGES_SQL));
+  return run('psql', args, restoreSql(backupDir, edges));
 }
 
 /** A disposable cluster with the repo's migrations applied; returns { socket, psql, stop }. */
@@ -85,8 +113,8 @@ export function compare(want, got) {
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   if (process.argv[2] === '--sql') {   // the restore script for ops/prelaunch-restore.sh: print it, touch nothing
-    if (!process.argv[3]) { console.error('usage: node scripts/prelaunch-restore-test.mjs --sql <r1-... backup directory>'); process.exit(2); }
-    process.stdout.write(restoreSql(process.argv[3])); process.exit(0);
+    if (!process.argv[3]) { console.error('usage: node scripts/prelaunch-restore-test.mjs --sql <r1-... backup directory> [foreign-key edges file: "child<TAB>parent" lines]'); process.exit(2); }
+    process.stdout.write(restoreSql(process.argv[3], process.argv[4] ? parseEdges(readFileSync(process.argv[4], 'utf8')) : [])); process.exit(0);
   }
   const backupDir = process.argv[2];
   if (!backupDir) { console.error('usage: node scripts/prelaunch-restore-test.mjs <r1-... backup directory>'); process.exit(2); }
