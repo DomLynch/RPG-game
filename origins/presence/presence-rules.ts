@@ -6,7 +6,7 @@ import DEFS from './presence-rules-defs.json' with { type: 'json' };
 import MANIFEST from './presence-rules-defs.manifest.json' with { type: 'json' };
 
 export type PresenceRule = { readonly id: string; readonly value: number; readonly unit: string };
-const NAMED = ['cellCm', 'radiusCm', 'nearCap', 'tier1Cm', 'tier1Every', 'tier2Cm', 'tier2Every', 'tier3Cm', 'tier3Every', 'tickMs', 'softCap', 'hardCap', 'maxSpeedCmS', 'speedSlack', 'strikesToDrop', 'strikeWindowMs', 'emptyLayerMs', 'memoryMs', 'memoryMax', 'maxMessage', 'perSecond', 'idleMs', 'ipSockets', 'ipJoinsPerMinute', 'beatMs', 'tickRing', 'townSideCm', 'rejoinPastGateCm', 'warpPerMin', 'guestIpSockets', 'guestCeiling', 'wornEveryMs', 'closeGraceMs', 'wornPokeGapMs'] as const;
+const NAMED = ['cellCm', 'radiusCm', 'nearCap', 'tier1Cm', 'tier1Every', 'tier2Cm', 'tier2Every', 'tier3Cm', 'tier3Every', 'tickMs', 'softCap', 'hardCap', 'maxSpeedCmS', 'speedSlack', 'strikesToDrop', 'strikeWindowMs', 'emptyLayerMs', 'memoryMs', 'memoryMax', 'maxMessage', 'perSecond', 'idleMs', 'ipSockets', 'ipJoinsPerMinute', 'beatMs', 'tickRing', 'townSideCm', 'rejoinPastGateCm', 'warpPerMin', 'guestIpSockets', 'guestCeiling', 'wornEveryMs', 'closeGraceMs', 'wornPokeGapMs', 'jitterMs'] as const;
 /** The one loader: rows keyed by id (a duplicate id or a missing or mistyped field is refused), every rule the server reads by name must exist, with a positive value. */
 export function loadPresenceRules(raw: { rules?: readonly unknown[] }): readonly PresenceRule[] {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'presence-rules-defs.json')]);
@@ -35,5 +35,6 @@ export const interestRules = () => {
     emptyLayerMs: r('emptyLayerMs'),
     memoryMs: r('memoryMs'),         // a leaver's last server-observed position is kept this long for a reconnect (X2 stage 1; the saved location of stage 2 supersedes it)
     memoryMax: r('memoryMax'),             // accounts remembered at once, oldest dropped first
+    jitterMs: r('jitterMs'),               // extra seconds of movement credit a walker may bank so packets that bunch on a jittery link are not struck (the credit cap is 1 s + this)
   };
 };
