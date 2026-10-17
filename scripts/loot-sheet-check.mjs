@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium, devices, webkit } from 'playwright';
 import { TIERS } from '../src/core/server.ts';   // the core's door for scripts (core-boundary C1), not grades.ts
 
 const [out] = process.argv.slice(2), root = process.cwd(), built = path.join(root, 'artifacts/origins-preview');
@@ -58,10 +58,11 @@ const writer = http.createServer((req, res) => {
 await new Promise((r) => writer.listen(0, '127.0.0.1', r));
 const writerUrl = `http://127.0.0.1:${writer.address().port}/origins`;
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const receipt = { low: LOW, high: HIGH, errors: [] };
+const WEBKIT = process.env.ENGINE === 'webkit';   // ENGINE=webkit: Safari's engine as an iPhone (a WebKit row stays on the Mac); default Chromium
+const browser = WEBKIT ? await webkit.launch() : await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const receipt = { engine: WEBKIT ? 'webkit' : 'chromium', low: LOW, high: HIGH, errors: [] };
 try {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  const ctx = await browser.newContext(WEBKIT ? { ...devices['iPhone 15'] } : { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript((t) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: '00000000-0000-4000-8000-000000000001', email: 'stub@example.test' } })); } catch { /* none */ } }, TOKEN);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
