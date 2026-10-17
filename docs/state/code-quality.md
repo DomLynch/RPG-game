@@ -1,5 +1,11 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~22:1x: READ FIRST. LIVE = RV75b f245a0112 (verified: writer, presence, verifier all on it, NRestarts 0). IF #3099 @bddba6ebc PASSED + candidate:pass
+
+**Now.** 1. **IF**: when it publishes, verify release.json, the writer, **presence** (db.ts and pg-service.ts are in ops/presence-files.mjs) and the **verifier** (/opt/frankendom-verifier/current; verify-loot.mjs and verify-daily.mjs change) = bddba6ebc, NRestarts 0. 2. **#3101** (World dungeon framework) is NOT YET @3cf166f88: tsc TS6133 at tests/origins-presence-frontier.test.ts:42, and its scope grew. crypt-sample became a LISTED Zone 6 with a door about 20 m from the Zone 1 start; Lead must rule (in beta → stills; otherwise drop the door or mark it unlisted). The framework checks all passed: scratchpad dumpzones.ts showed zone 5 identical raw and loaded, and probe3101.ts refused 10 of 10. 3. **#3098** (R1 wipe) is PRE PASS @fed519a12, for the script only. It rebases after #3089 lands (the launch-gates R1 row conflicts), then I re-PASS that delta. Nothing runs until Dom picks a date, plus run-day conditions a–c in runbook step 2. 4. **#3090** is held: it rebases with a named 'exchange' allow (or rows) for presence/zones.ts:107, preview/main.ts:394 and server/location.ts:39, and deletes #3088's pit-yard branchIds allow (otherwise exit 3).
+**Done today, third stretch:** RV75b #3097 PASSED + verified live. PASS: #3076 @8fffb6727, #3092, #3093 @9a22def72, #3083 @1325bf4f5, #3085 @08a3210c8, #3087 @5800e6388 (I re-ran unit-ci after a cancelled delta job), #3088 @19b2c0fa3, #3089 @191718988, IF #3099. Caught: the #3090 × rule (j) cut break; #3098's rollback (sequences, a prod-unusable loader, a false CI claim, the Pit text), then the CI guards; #3101's scope.
+**Gotchas.** (rr) A row id added anywhere (e.g. an `exchange` mount row) makes existing `=== 'exchange'` compares NEW under rule (j). Trial-merge cut pairs where one PR adds row ids and another carries rule (j) allows. (ss) tests/merge-allow.test.ts has one case that fails on this Mac (no `.git/info/` in a fresh `git init`): environmental, CI binds. (tt) The [slow] origins-install-check in the writer-closure test can fail under Mac load and pass on re-run.
+
 ## 2026-10-17 ~21:0x: HANDOFF before /clear (Dom). READ FIRST. LIVE = IE 05a39ccce (verified)
 
 **Now, in order.**
