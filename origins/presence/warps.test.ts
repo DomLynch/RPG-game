@@ -18,7 +18,7 @@ const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms)
 const until = async (ok: () => boolean, ms = 3000): Promise<void> => { for (let t = 0; t < ms && !ok(); t += 25) await wait(25); };
 
 test('the table: every landmark stands in a zone row and clear of the trade areas; a bad row refuses to load', () => {
-  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone1-road-end', 'zone1-start']);
+  assert.deepEqual(warpIds().sort(), ['town-respawn', 'zone1-cave-mouth', 'zone1-road-end', 'zone1-start', 'zone5-gate']);
   for (const id of warpIds()) assert.ok(zoneAt(warpPlace(id)!.x, warpPlace(id)!.z), `${id} is in a zone`);
   const rows = DEFS.landmarks;
   assert.throws(() => loadWarps({ landmarks: [{ ...rows[0]!, unit: 'cm' }] }), /unit is m/);

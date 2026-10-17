@@ -7,7 +7,7 @@
 // no Exchange); worn pieces count toward neither grid. The whole result is checked by inventory.openInventory (custody, one of each, slots), so no placement rule is re-implemented here.
 import { createHash } from 'node:crypto';
 import { TITLES, standingLevel, tierOf } from '../../src/core/server.ts';
-import { PAPERDOLL, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
+import { PAPERDOLL, STARTER_TIERS, isLootId, paperdollOf, slotOf, type Paperdoll } from '../../src/core/server.ts';
 import { accountIdFromAuthUid, type CharacterInstanceId } from '../../src/core/server.ts';
 import { legacyUnlockMintKey, parseItemInstance, type ItemInstance } from '../../src/core/server.ts';
 import { firstFree, openInventory, type Inventory } from '../../src/core/server.ts';
@@ -50,14 +50,14 @@ export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input:
     if (!isLootId(id)) { receipt.skipped.push({ lootId: id, reason: 'not a LootId this game knows' }); continue; }
     const key = legacyUnlockMintKey(inv.account, id);
     if (heldKeys.has(key)) { receipt.alreadyHeld.push(id); continue; }
-    const rung = Number(input.tiers[id]), known = Number.isInteger(rung) && rung >= 1 && rung <= TITLES.length;
+    const opponent = id.split('.')[0]!, fixed = STARTER_TIERS[opponent];   // a starter piece (loot-pieces.json lootStarter) has no legend and no rung: its row's mintTier is its tier, whatever the client claims
+    const rung = Number(input.tiers[id]), known = fixed === undefined && Number.isInteger(rung) && rung >= 1 && rung <= TITLES.length;
     // The rung is the client's claim and it sets the minted tier (the stat-bearing field), so it is bounded by what the account's SERVER-verified career level can reach: a piece claimed above it is
-    // skipped, not clamped. Its mint key stays unheld, so it imports later, once the account really holds that rank. An unclaimed rung still mints at Recruit.
+    // skipped, not clamped. Its mint key stays unheld, so it imports later, once the account really holds that rank. An unclaimed rung still mints at Recruit. A starter piece ignores the claim (never skipped, never above its row).
     if (known && rung > maxRung) { receipt.skipped.push({ lootId: id, reason: 'above your rank' }); continue; }
     const doll = wornBy.get(id), dollKey = doll ? `equipped:${doll}` : '';
     const wear = !!doll && !taken.has(dollKey);
     if (doll && !wear) receipt.unworn.push({ lootId: id, reason: `the ${doll} slot is already worn` });   // owned, so it goes to the pack/bank
-    const opponent = id.split('.')[0]!;
     // a free pack slot, else the bank (the ruling); worn pieces take neither
     const probe = openInventory({ owner: inv.owner, account: inv.account, items, packSize: inv.packSize, bankSize: inv.bankSize }, lookup);
     if (!probe.ok) throw new Refused(422, `the inventory does not hold together: ${probe.issues[0]!.message}`, 'rule');
@@ -69,8 +69,8 @@ export function planImport(inv: Inventory, heldKeys: ReadonlySet<string>, input:
     for (const location of places) {   // the worn place first; if it is refused for ANY reason the piece still lands in the pack/bank
       const parsed = parseItemInstance({
         kind: 'item-instance', schemaVersion: 1, id: `inst:legacy-${createHash('sha256').update(`${inv.account}|${id}`).digest('hex').slice(0, 24)}`, item: `item:loot.${id}`, version: 0, quantity: 1,
-        tier: TITLES[known ? rung - 1 : 0], location, boundTo: null,
-        provenance: { kind: 'legacy-unlock', mintKey: key, at, account: inv.account, lootId: id, wonBy: inv.owner, fromLegend: known ? `${opponent}-${rung}` : null, atRank: known ? TITLES[rung - 1] : null }, history: [],
+        tier: fixed ?? TITLES[known ? rung - 1 : 0], location, boundTo: null,
+        provenance: { kind: 'legacy-unlock', mintKey: key, at, account: inv.account, lootId: id, wonBy: inv.owner, fromLegend: known ? `${opponent}-${rung}` : null, atRank: known ? TITLES[rung - 1] : null }, history: [],   // a starter piece has no legend to name (known is false for it): both null, as the item contract wants both or neither
       }, `pieces[${id}]`);
       if (!parsed.ok) { why = parsed.issues[0]!.message; continue; }
       const next = openInventory({ owner: inv.owner, account: inv.account, items: [...items, parsed.value], packSize: inv.packSize, bankSize: inv.bankSize }, lookup);
