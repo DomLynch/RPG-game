@@ -6,7 +6,7 @@ import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
 
 const defs = DEFS as unknown as { spellHeal: object[]; spellPick: object[] };
 defs.spellHeal.push({ id: 'gula', share: 250, uses: 2, windup: 120 });
-defs.spellPick.push({ id: 'ugallu', level: 1, vfx: 'shock' }, { id: 'brokkr', level: 1, vfx: 'ash' }, { id: 'kamaitachi', level: 1, vfx: 'wind' }, { id: 'banshee', level: 1, vfx: 'nyx' });
+defs.spellPick.push({ id: 'ugallu', level: 1, vfx: 'shock' }, { id: 'brokkr', level: 1, vfx: 'ash' }, { id: 'kamaitachi', level: 1, vfx: 'wind' }, { id: 'banshee', level: 1, vfx: 'nyx' }, { id: 'gula', level: 3, vfx: 'heal' });
 const { createSpellVfx } = await import('../src/fight/spell-vfx.ts');
 const fighters = [{ body: { x: 0, z: 0 } }, { body: { x: 1.5, z: 0.5 } }] as never;
 const shown = (scene: THREE.Scene) => { let n = 0; scene.traverse((o) => { if ((o as THREE.Mesh).isMesh || (o as THREE.Sprite).isSprite) { let v: THREE.Object3D | null = o, ok = true; while (v) { if (!v.visible) ok = false; v = v.parent; } if (ok) n++; } }); return n; };
@@ -45,9 +45,17 @@ test('nyx anticipation: the windup shows a gather on the caster; a landing or a 
     if (end === 'SpecialInterrupted') assert.equal(shown(scene), 0, 'a cut cast leaves nothing');
     else assert.ok(shown(scene) >= 3, 'the landing look replaces the gather');
   }
-  const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);   // a look without a gather (dust shock) draws nothing in its windup
-  v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'ugallu', tick: 10 }], fighters); v.update(60); assert.equal(shown(scene), 0);
+  const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);   // a spell with no look of its own draws nothing in its windup
+  v.trigger([{ type: 'SpecialStarted', actor: 0, spell: 'some-other-spell', tick: 10 }], fighters); v.update(60); assert.equal(shown(scene), 0);
 });
+
+for (const [name, spell] of [['heal', 'gula'], ['shock', 'ugallu'], ['wind', 'kamaitachi']] as const) {
+  test(`${name} anticipation: a gather shows in the windup and a cut cast removes it`, () => {
+    const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined);
+    v.trigger([{ type: 'SpecialStarted', actor: 0, spell, tick: 10 }], fighters); v.update(60); assert.ok(shown(scene) >= 3, `${name} gather drawn mid-windup`);
+    v.trigger([{ type: 'SpecialInterrupted', actor: 0, spell, tick: 70 }], fighters); v.update(70); assert.equal(shown(scene), 0);
+  });
+}
 
 test('a spell landing far away is drawn bigger (3x from 10 m), up close stays 1x, a heal stays 1x', () => {
   const far = [{ body: { x: 0, z: 0 } }, { body: { x: 10, z: 0 } }] as never, scales = (ev: object, fs: never) => { const scene = new THREE.Scene(), v = createSpellVfx(scene); v.warm(() => undefined); v.trigger([ev as never], fs); v.update(110); return scene.children.filter((c) => (c as THREE.Group).isGroup && c.visible !== undefined && c.children.some((o) => o.visible)).map((g) => g.scale.x); };
