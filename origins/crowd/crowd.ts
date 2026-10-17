@@ -11,6 +11,9 @@
 // and the ring's starting angles), a stream separate from every warden's AI seed. Waiting enemies are presentation: their ring places
 // come from here, never from the sim. Every number is PROVISIONAL (spec: "until Combat measures it on the battery"); 60 Hz ticks.
 import { crowdRules, skirmisherHandover, stageRule, sweepRules } from '../world/stage-rules.ts';
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
+import ROLE_ROWS from './roles.json' with { type: 'json' };
+import ROLE_MANIFEST from './roles.manifest.json' with { type: 'json' };
 import type { AiState } from '../../src/fight/index.ts';
 import type { CombatEvent, Duel, Fighter, Phase } from '../../src/fight/index.ts';
 import type { MoveId } from '../../src/fight/index.ts';
@@ -28,12 +31,14 @@ export const BUSY_PHASES: ReadonlySet<Phase> = new Set<Phase>(['attack', 'hurt',
 
 export type Role = 'duellist' | 'brute' | 'skirmisher' | 'leader';
 // Where each role circles while waiting: radius (m) and angular pace (rad/tick). Skirmisher fast and closest, brute slower, leader back.
-export const ROLE_RING: Readonly<Record<Role, { radius: number; pace: number }>> = {
-  duellist: { radius: 5, pace: 0.006 },
-  brute: { radius: 5.5, pace: 0.003 },
-  skirmisher: { radius: CROWD.ring.min, pace: 0.012 },
-  leader: { radius: CROWD.ring.max, pace: 0.002 },
+// A role row (roles.json) is a fixed `radius`, or a `ringEdge` ('min' | 'max') that takes the ring's own bound from the crowd rules.
+loadRegistry([tableFromFile(ROLE_MANIFEST.tables[0] as unknown as Manifest, ROLE_ROWS, 'roles.json')]);
+const roleRow = (id: Role): { radius: number; pace: number } => {
+  const r = ROLE_ROWS.roles.find((x) => x.id === id) as { radius?: number; ringEdge?: 'min' | 'max'; pace: number } | undefined;
+  if (!r) throw new Error(`crowd roles.json has no row "${id}"`);
+  return { radius: r.radius ?? CROWD.ring[r.ringEdge ?? 'min'], pace: r.pace };
 };
+export const ROLE_RING: Readonly<Record<Role, { radius: number; pace: number }>> = { duellist: roleRow('duellist'), brute: roleRow('brute'), skirmisher: roleRow('skirmisher'), leader: roleRow('leader') };
 
 export type Spot = { x: number; z: number };
 export type Ring = { angle: number; radius: number; turn: 1 | -1; delay: number };   // angle from the player, sim convention (x = sin, z = cos)

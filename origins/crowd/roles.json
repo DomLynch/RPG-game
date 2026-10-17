@@ -1,0 +1,8 @@
+{
+  "roles": [
+    { "id": "duellist", "radius": 5, "pace": 0.006 },
+    { "id": "brute", "radius": 5.5, "pace": 0.003 },
+    { "id": "skirmisher", "ringEdge": "min", "pace": 0.012 },
+    { "id": "leader", "ringEdge": "max", "pace": 0.002 }
+  ]
+}
