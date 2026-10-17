@@ -465,15 +465,30 @@ async function kitSlice(until: number) {
 }
 // The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
 // (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
-let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string } | null = null, kitsResult: { failed: boolean; ms: number; programs: number; warmed: number } | null = null as { failed: boolean; ms: number; programs: number; warmed: number } | null;
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: { failed: boolean; ms: number; programs: number; warmed: number } | null = null as { failed: boolean; ms: number; programs: number; warmed: number } | null;
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once: the median frame gap of the first idle frames after [zone ready].
+let deviceSlow: boolean | undefined;
+async function slowDevice(): Promise<boolean> {
+  if (deviceSlow !== undefined) return deviceSlow;
+  const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
+  for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
+  return (deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')));
+}
+// On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).
+// On any device it is bounded (gearWarmBound; kitWarmMsSoft when forced): past it the sheet is released and the warm is reported failed, never holding remoteKitsWarm (the rows wait on it, Auditor on #3025 2026-10-17).
+const GEAR_WARM_FORCED = /[?&]gearwarm=1\b/.test(location.search);
 async function warmGearScreen() {
-  const t0 = performance.now();
+  const t0 = performance.now(), took = () => Math.round(performance.now() - t0);
   try {
     if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
-    while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < HERO_WAIT_MS) await new Promise<void>((r) => setTimeout(r, 250));
-    await nextFrame(); const w = await gearMount.warm();
-    gearWarm = { ms: Math.round(performance.now() - t0), ...w, drawMs: Math.round(w.drawMs), failed: false };
-  } catch (error) { console.warn('gear screen warm-up failed', error); gearWarm = { ms: Math.round(performance.now() - t0), drawMs: 0, failed: true }; }
+    // (?kitwarm=soft is the browser rows' flag: software GL by definition, so no second probe)
+    if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
+    while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
+    let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
+    const settled = await settleWithin('gear-screen', gearMount.warm().then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
+    if (!settled || !done) { gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; return; }
+    gearWarm = { ms: took(), ...done, drawMs: Math.round(done.drawMs), failed: false };
+  } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }
 }
 async function warmRemoteKitsAfterReady() {
   gearMount?.hold();
@@ -487,14 +502,10 @@ async function warmRemoteKits() {
   const until = t0 + cap;
   // A kit's shadow-pass link is one synchronous step (no API makes it async): on a slow device it stalls the main thread for seconds (CI's software GL: a 1.0 s and a 2.4 s gap, Bob never expired in the remote-heroes row). So the warm-up first samples the frame gaps
   // (kitProbeFrames) and skips itself when their median is above kitSlowFrameMs: failed, none warmed, remotes keep the BASE figure. ?kitwarm=soft forces the warm (the budget row), for a deliberate run on software GL.
-  if (!/[?&]kitwarm=soft\b/.test(location.search)) {
-    const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
-    for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
-    if (tooSlow(gaps, previewRule('kitSlowFrameMs'))) {
-      console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
-      kitsResult = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
-      return;
-    }
+  if (!/[?&]kitwarm=soft\b/.test(location.search) && await slowDevice()) {
+    console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
+    kitsResult = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
+    return;
   }
   const warmOne = async (kit: WarmKit) => {
     await kitSlice(until);

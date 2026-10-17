@@ -60,7 +60,7 @@ try {
   await ctx.addInitScript((t) => { try { localStorage.setItem('frankendom.auth.v1', JSON.stringify({ access_token: t, refresh_token: 'stub-refresh', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: '00000000-0000-4000-8000-000000000001' } })); } catch { /* storage blocked */ } }, TOKEN);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
-  await page.goto(`${origin}/preview/origins/?region=1&zone=1&writer=${encodeURIComponent(writerUrl)}`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview/origins/?region=1&zone=1&writer=${encodeURIComponent(writerUrl)}${process.env.GEAR_SOFT === '1' ? '&gearwarm=1' : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
   const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });
   receipt.programsAtReady = (await snap()).names.length;
