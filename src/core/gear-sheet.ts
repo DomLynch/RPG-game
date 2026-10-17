@@ -128,7 +128,7 @@ export function createGearSheet(d: GearSheetDeps) {
     const replaced = fitId ? loot.equipped[paperdollOf(slotOf(fitId))] : undefined, full = packFull(loot);
     const holder = d.element('fitting'), thumb = d.element<HTMLImageElement>('fitting-thumb');
     thumb.hidden = false; thumb.src = lootThumb(shown);
-    d.element('fitting-name').textContent = sentence(pieceName(shown)); weightBadge(d.element('fitting-name'), shown);
+    d.element('fitting-name').textContent = sentence(fitId ? ownedName(fitId, fitRung()) : pieceName(shown));   // a try-on is named at the cell's own rung weightBadge(d.element('fitting-name'), shown);
     d.element('fitting-rank').textContent = fitId ? `${TIERS[fitRung() - 1] ?? 'Recruit'} · ${replaced ? `replaces ${pieceName(replaced)}, ${rankText(replaced)}` : 'fills an empty slot'}` : `${rankText(shown)} · worn`;
     d.element('fitting-note').textContent = !fitId && full ? 'Pack full: wear a packed piece to free a slot.' : '';
     d.element('fitting-cancel').hidden = d.element('fitting-wear').hidden = !fitId;
