@@ -27,8 +27,8 @@ test('walk in, room to room, to the boss and out again: both rows', () => {
   assert.deepEqual(walkRoute(sample).in, ['crypt-door', 'crypt-nave', 'crypt-vault']);
 });
 
-test('the sample row compiles to the zone-row parts, in its band L6-8 (Zone 6: the zone rule is level N..N+1, a named boss N+2), with the theme slot', () => {
-  assert.deepEqual(sample.level, [6, 8]);
+test('the sample row compiles to the zone-row parts, in its band L4-6 (its own row, not Zone 6's number), with the theme slot', () => {
+  assert.deepEqual(sample.level, [4, 6]);
   const c = compileDungeon(sample, (THEMES.themes as DungeonTheme[])[0]!) as { place: { zones: Record<string, { layout: object }>; waypoints: string[]; spawns: { at: string }[] }; spawns: { rows: unknown[] } };
   assert.deepEqual(Object.keys(c.place.zones['crypt-sample']!.layout), ['crypt-door', 'crypt-nave', 'crypt-vault']);
   assert.deepEqual(c.place.waypoints, ['reach-crypt', 'crypt-door', 'crypt-nave', 'crypt-vault']);

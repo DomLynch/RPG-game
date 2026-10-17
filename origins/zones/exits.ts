@@ -22,7 +22,8 @@ export function loadExits(raw: { exits?: readonly unknown[] }, zones: Readonly<R
 }
 export const EXITS: readonly ExitRow[] = loadExits(DEFS);
 /** The exits whose far zone is OPEN on this build: a door to an UNLISTED zone (zone row `unlisted`; a build opens it only with the explicit VITE_UNLISTED_ZONES=1 opt-in, loader.ts) does not exist anywhere else, so a beta page draws no door and the server derives no warp for it. Pages and presence read this, never EXITS. */
-export const openExits = (rows: readonly ExitRow[] = EXITS, opens?: boolean): readonly ExitRow[] => rows.filter((r) => zoneOpen(r.to, opens));
+export const openExits = (rows: readonly ExitRow[] = EXITS, opens?: boolean): readonly ExitRow[] =>
+  rows.filter((r) => zoneOpen(r.to, opens) && Object.entries(REGISTRY).every(([id, z]) => !(z as { world: readonly string[] }).world.includes(r.zone) || zoneOpen(id, opens)));   // both ends: the zone it leads to AND the package that owns its door
 
 /** The exits a page of zone package `pkg` can show: the doors it stands on (their `landmark` in its world zones) and the landing spots it must keep (the `arrive` of an exit that leads here). */
 export const exitSpots = (pkg: string, worldZones: readonly string[], rows: readonly ExitRow[] = EXITS): ReadonlySet<string> =>
