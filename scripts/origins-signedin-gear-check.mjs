@@ -97,6 +97,7 @@ try {
   receipt.infight = await page.evaluate(() => document.body.classList.contains('infight'));
   assert.ok(receipt.infight && requests.some((r) => r.op === 'engage'), 'the tap engaged the wolf (body.infight, engage POSTed)');
 
+  if (process.env.GEAR_STILLS) { fs.mkdirSync(process.env.GEAR_STILLS, { recursive: true }); await page.screenshot({ path: path.join(process.env.GEAR_STILLS, 'signedin-dressed-engage.png') }); receipt.still = 'signedin-dressed-engage.png (375x812, mid-fight, ledger: Knife + Helmet + Greaves worn)'; }   // GEAR_STILLS=<dir>: the fight-camera still of the signed-in hero
   const after = await snap(); receipt.programsAtEngage = after.names.length;
   const added = after.names.filter((n) => !before.names.includes(n));
   receipt.programsAdded = added.map((n) => [n, String(after.keys[n] ?? '').split(',')[0], after.owners[n] ?? []]);
