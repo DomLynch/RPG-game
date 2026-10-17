@@ -1,0 +1,15 @@
+{
+  "space": "microsoft/TRELLIS.2",
+  "seed": 190926,
+  "resolution": "1024",
+  "faces": 150000,
+  "texture": 2048,
+  "image": ".scratch-stills/fort/ref/gate-191201.png",
+  "preprocess_s": 13.1,
+  "image_to_3d_s": 36.0,
+  "extract_glb_s": 35.8,
+  "glb": "src/assets/source/creatures/goblin-gate-v2.glb",
+  "bytes": 7136428,
+  "sha256": "5c4561e4f5721822b22166cecf228a9a9cbf14f83f027473efcce940ba4c435f",
+  "attempts": 1
+}

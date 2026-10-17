@@ -1,0 +1,11 @@
+{
+  "tables": [
+    {
+      "table": "tintFloor",
+      "file": "rank-tint-rules.json",
+      "at": "tintFloor",
+      "key": "id",
+      "required": { "lumaFloor": "number", "metalRatioFloor": "number", "roughRatioCap": "number" }
+    }
+  ]
+}

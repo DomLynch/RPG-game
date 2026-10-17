@@ -13,3 +13,9 @@ const dial = (id: string): number => {
   return v;
 };
 export const DEFLECT_FROM = dial('DEFLECT_FROM');
+export const STEP_MAX = dial('STEP_MAX');   // the longest mixer step a frame may take (s)
+export const WALK_RATE_FLOOR = dial('WALK_RATE_FLOOR');   // the slowest armed-walk and strafe time scale
+export const RUN_RATE_FLOOR = dial('RUN_RATE_FLOOR');   // the slowest armed-run time scale
+export const CLIP_END = dial('CLIP_END');   // a driven clip's last time, just short of its wrap
+export const RADIUS_MIN = dial('RADIUS_MIN'), RADIUS_MAX = dial('RADIUS_MAX');   // the bounds of a carried part's contact radius (m)
+export const ARM_REACH_MIN = dial('ARM_REACH_MIN');   // the shortest shoulder-to-goal gap the two-bone arm solve takes (m)
