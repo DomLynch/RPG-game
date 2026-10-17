@@ -7,7 +7,7 @@ import { PLAYER_WEAPONS, RULES, SKILL_ROWS, opponentAt, weaponOf, DEFAULT_WEAPON
 import type { Fighter } from './fight/duel.ts';
 import { formatCard, loadTrial, recordFight, saveTrial } from './trial.ts';
 import { decodeRecord, encodeRecord, type FightRecord, type RecordArena } from './fight/record.ts';
-import { arenaFor } from './arena-themes.ts';
+import { ARENA_KEYS, LADDER_PICK, arenaFor } from './arena-themes.ts';
 import { defenceFlag } from './fight/defence-grade.ts';
 import { kickCloseFlag } from './fight/kick-close.ts';
 import { fatiguePreviewFrom, previewPractice } from './fight/fatigue-preview.ts';
@@ -367,7 +367,7 @@ const storedArena = (() => { try { return sessionStorage.getItem(ARENA_PICK_KEY)
 const arenaSelect = element<HTMLSelectElement>('arena-select');
 const rawArena = sparParams.get('arena');
 const requestedArena = sparPreview.kit && rawArena !== null
-  ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd', 'ladder'].includes(rawArena) ? rawArena : 'ladder'
+  ? [...ARENA_KEYS, LADDER_PICK].includes(rawArena) ? rawArena : LADDER_PICK
   : /[?&]arena=(\w+)/.exec(window.location?.search ?? '')?.[1];   // preserve standalone legacy parsing; combined picks use exact decoded values
 const sparArena = sparPreview.kit ? requestedArena : undefined;
 // The career's own arena (Lead + Dom 2026-10-06, rotation): the first fight is Arena 1, then ladder.ts nextArena. A kill link is NOT a career fight: it replays in its
@@ -375,7 +375,7 @@ const sparArena = sparPreview.kit ? requestedArena : undefined;
 const careerArena = !replayText && !sharedId ? profile.arena ?? '1' : undefined;
 const arenaPick = requestedArena ?? (storedArena || careerArena);   // what the scene is built with (createScene); 'ladder' and unknown keys fall to the band
 const builtArena = arenaFor(opponent.id, arenaPick).id as RecordArena;   // the key the scene really builds: a live fight's record names it
-arenaSelect.value = sparArena === 'ladder' ? '' : sparArena ?? storedArena;
+arenaSelect.value = sparArena === LADDER_PICK ? '' : sparArena ?? storedArena;
 if (arenaSelect.selectedIndex < 0) arenaSelect.value = '';   // unknown stored keys still read as Ladder
 // Stage and Finisher are form picks: neither writes nor changes the current fight before Start.
 // The stored Dev kit (sparring.ts devKit): its pickers are retired with the admin ladder overrides (Dom 2026-09-29), but a kit already in the
@@ -1201,7 +1201,7 @@ if (duelAsked) {
     if (resolveSparringPreview(link.search, CARRIED_WEAPONS).invalid || !sparringParam(link.search, CARRIED_WEAPONS)) {
       banner('Choose a valid Sparring kit before Start sparring.', true); return;
     }
-    link.searchParams.set('arena', ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'a', 'b', 'c', 'd'].includes(arenaSelect.value) ? arenaSelect.value : 'ladder');   // explicit Ladder beats a stale stored override without saving a pick
+    link.searchParams.set('arena', (ARENA_KEYS as readonly string[]).includes(arenaSelect.value) ? arenaSelect.value : LADDER_PICK);   // explicit Ladder beats a stale stored override without saving a pick
     if (FINISHER_OPTIONS.some(([id]) => id === finisherSelect.value)) link.searchParams.set('finisher', finisherSelect.value);
     location.assign(link.pathname + link.search);
   });
