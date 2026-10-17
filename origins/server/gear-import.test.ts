@@ -118,12 +118,14 @@ test('a piece migrated once and later retired or traded away is alreadyHeld for 
 // The minted tier is the client's `tiers` claim; it is bounded by the tier the account's SERVER-verified career level can reach (standingLevel(total_credit), the same standing gear.ts equips on).
 const creditForTier = (t: number): number => { for (let lvl = 0; lvl <= 60; lvl++) if (tierOf(standingLevel(cumulative(lvl))) === t) return cumulative(lvl); throw new Error(`no credit reaches tier ${t}`); };
 
-test('a forged full-catalog POST at the top rung on a level-1 account mints nothing: every piece is skipped "above your rank", and no mint key is spent', async () => {
-  const w = world([], 64, 1000, [], 0), tiers = Object.fromEntries(ALL.map((id) => [id, 10]));
+test('a forged full-catalog POST at the top rung on a level-1 account mints nothing above Recruit: every roster piece is skipped "above your rank", and no mint key is spent for them (the starter longsword has no rung: it imports at its row tier)', async () => {
+  const w = world([], 64, 1000, [], 0), tiers = Object.fromEntries(ALL.map((id) => [id, 10])), roster = ALL.filter((id) => id !== 'starter.Longsword');
   const r = await run(w.db, { owned: ALL, equipped: WORN, tiers });
-  assert.deepEqual([r.imported.length, r.worn.length, r.skipped.length], [0, 0, ALL.length]);
+  assert.deepEqual(r.imported, ['starter.Longsword']);
+  assert.ok(!Object.values(WORN).includes(STARTER), 'the worn set here is all roster pieces (so nothing is worn: they are all skipped)');
+  assert.deepEqual([r.worn.length, r.skipped.length], [0, roster.length]);
   assert.ok(r.skipped.every((s) => s.reason === 'above your rank'));
-  assert.equal(w.rows.length, 0, 'nothing minted');
+  assert.deepEqual(w.rows.map((x) => x.tier), ['Recruit'], 'the only mint is the starter longsword, at its row tier');
   // ... and it is not a lock: the same pieces import at the rank the account really holds (the skip kept their mint keys free)
   const ok = await run(w.db, { owned: ALL.slice(0, 5), equipped: {}, tiers: Object.fromEntries(ALL.slice(0, 5).map((id) => [id, 1])) });
   assert.equal(ok.imported.length, 5);
@@ -139,6 +141,27 @@ test('the cap follows the verified level: tier 3 imports rungs 1..3 and skips 4.
   // an account with no career row at all is the first tier
   const none = world([], 64, 1000, [], 0), r2 = await run(none.db, { owned: [ids[0]!, ids[1]!], equipped: {}, tiers: { [ids[0]!]: 1, [ids[1]!]: 2 } });
   assert.deepEqual([r2.imported, r2.skipped.map((s) => s.lootId)], [[ids[0]], [ids[1]]]);
+});
+
+// A starter piece (loot-pieces.json lootStarter, `starter.Longsword`) has no legend and no rung: the client's claimed rung is ignored for it (the minted tier is its row's, never the claim), so it is never
+// rank-skipped and never mints above that tier. A NON-starter piece still takes its claimed rung (the cap above).
+const STARTER = 'starter.Longsword' as LootId;
+const mintedOf = (w: { rows: Row[] }, id: string) => w.rows.find((x) => x.mint_key === `legacy:${UID}:${id.toLowerCase()}`)!;
+
+test('a forged top-rung claim for the starter longsword on a level-1 account is NOT skipped for rank: it imports at its row tier with no legend', async () => {
+  const w = world([], 64, 1000, [], 0), r = await run(w.db, { owned: [STARTER], equipped: {}, tiers: { [STARTER]: 10 } });
+  assert.deepEqual([r.imported, r.skipped], [[STARTER], []]);
+  const m = mintedOf(w, STARTER);
+  assert.deepEqual([m.tier, (m.provenance as Row).fromLegend, (m.provenance as Row).atRank], ['Recruit', null, null]);
+});
+
+test('a top-rank account claiming rung 7 for the starter longsword still mints it at its row tier, while a non-starter piece in the same body takes its claimed rung', async () => {
+  const w = world([], 64, 1000, [], creditForTier(10)), other = ALL.find((id) => id !== STARTER)!;
+  const r = await run(w.db, { owned: [STARTER, other], equipped: {}, tiers: { [STARTER]: 7, [other]: 3 } });
+  assert.deepEqual(r.imported.sort(), [STARTER, other].sort());
+  assert.equal(mintedOf(w, STARTER).tier, 'Recruit', 'the claim does not set a starter piece\'s tier');
+  assert.equal(mintedOf(w, other).tier, 'Gladiator', 'a non-starter piece keeps its claimed rung (3)');
+  assert.equal((mintedOf(w, other).provenance as Row).fromLegend, `${other.split('.')[0]}-3`);
 });
 
 test('the cut-off row: before it the op runs; at and after it everything is refused (422 closed) and nothing is read or minted', async () => {

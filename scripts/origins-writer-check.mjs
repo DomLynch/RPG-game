@@ -628,13 +628,14 @@ try {
     const both = await Promise.all([call('open', 'tf'), call('open', 'tf'), call('open', 'tf')]);
     eq([both.map(r => r.status), both.map(r => r.json.result.characters.length), chars(G).split(',').length], [[200, 200, 200], [1, 1, 1], 1], 'open: three concurrent opens of a new account make exactly one character');
     // the rank cap on real Postgres: G's career is the fresh snapshot (seed 0, level 1), so a body claiming rungs above the first imports only what it claims at rank 1 (plus the unclaimed, minted at Recruit)
-    // and skips the rest 'above your rank'; nothing is spent for the skipped ones, and they import once the career reaches the rank (a forged full roster at the top rung mints nothing)
+    // and skips the rest 'above your rank'; nothing is spent for the skipped ones, and they import once the career reaches the rank (a forged full roster at the top rung mints nothing above Recruit:
+    // every roster piece is skipped, and the one mint is the starter longsword, which has no rung, so it takes its lootStarter row's mintTier (Recruit) whatever the body claims, with no legend)
     {
       const gid = psql(`select id from public.origins_characters where account = '${G}' limit 1`), few = [...LOOT_IDS].sort().slice(0, 6), top = [...LOOT_IDS].sort();
       const gg = body => call('gear_import', 'tf', { character: gid, ...body });
       const forged = await gg({ owned: top, equipped: {}, tiers: Object.fromEntries(top.map(id => [id, 10])) });
-      eq([forged.status, forged.json.result?.imported.length, forged.json.result?.skipped.length, forged.json.result?.skipped.every(s => s.reason === 'above your rank')], [200, 0, top.length, true], 'gear_import: a forged full roster at the top rung on a level-1 career mints nothing');
-      eq(psql(`select count(*) from public.origins_items where loc_owner = '${gid}' and provenance ->> 'kind' = 'legacy-unlock'`), '0', 'gear_import: nothing was written for the skipped pieces');
+      eq([forged.status, forged.json.result?.imported, forged.json.result?.skipped.length, forged.json.result?.skipped.every(s => s.reason === 'above your rank')], [200, ['starter.Longsword'], top.length - 1, true], 'gear_import: a forged full roster at the top rung on a level-1 career mints nothing above Recruit: every roster piece is skipped, the starter longsword imports');
+      eq(psql(`select count(*) || ':' || coalesce(string_agg(item || ',' || tier || ',' || coalesce(provenance ->> 'fromLegend', 'null') || ',' || coalesce(provenance ->> 'atRank', 'null'), ';'), '') from public.origins_items where loc_owner = '${gid}' and provenance ->> 'kind' = 'legacy-unlock'`), '1:item:loot.starter.Longsword,Recruit,null,null', 'gear_import: only the starter longsword was written, at Recruit with no legend; nothing for the skipped pieces');
       const low = await gg({ owned: few, equipped: {}, tiers: { [few[0]]: 1, [few[1]]: 2, [few[2]]: 10 } });
       eq([low.status, [...(low.json.result?.imported ?? [])].sort(), low.json.result?.skipped.map(s => s.reason)], [200, [few[0], few[3], few[4], few[5]].sort(), ['above your rank', 'above your rank']], 'gear_import: a level-1 career imports the rank-1 and unclaimed pieces and skips the rest above its rank');
     }
