@@ -1,18 +1,19 @@
 -- R1: the pre-launch reset of Origins progress (docs/specs/origins/launch-gates.md, Dom 2026-10-08: "before beta or launch we WIPE test progress and start from scratch").
--- CLASS 2, DESTRUCTIVE. It does nothing destructive unless ALL of: it is run as the database owner, `-v commit=1` is passed, and `-v confirm=...` carries the exact phrase below.
+-- CLASS 2, DESTRUCTIVE. It does nothing destructive unless ALL of: `-v commit=1` is passed (exactly 1), `-v confirm=...` carries the exact phrase below, `-v expect=...` carries the
+-- backup manifest's counts and every RESET table holds exactly those rows, and it is run as the owner of the RESET tables (each is checked in the script, not left to TRUNCATE's privilege).
 -- Lead 2026-10-17: prepared and rehearsed only; it is NEVER run on production without the Auditor's PRE and POST, the joint Lead + Strategy GO, and Dom's own word for the date.
 --
 --   DRY RUN (reads only: row counts per table, no lock, no DDL; safe on production at any time):
 --     psql "service=..." -X -v ON_ERROR_STOP=1 -f ops/prelaunch-reset.sql
 --   RESET (one transaction; stop the writer and presence first, see the runbook in docs/state/r1-prelaunch-reset.md):
---     psql "service=..." -X -v ON_ERROR_STOP=1 -v commit=1 -v confirm=R1-WIPE-ORIGINS-TEST-PROGRESS -f ops/prelaunch-reset.sql
+--     psql "service=..." -X -v ON_ERROR_STOP=1 -v commit=1 -v confirm=R1-WIPE-ORIGINS-TEST-PROGRESS -v expect="$(awk -F'\t' '{printf "%s%s=%s", s, $1, $2; s=","}' <backup>/manifest.tsv)" -f ops/prelaunch-reset.sql
 --
 -- Mechanism: ONE `truncate` of exactly the RESET tables, with no CASCADE and `restart identity`. TRUNCATE fires no row triggers, so the append-only triggers on
 -- origins_events, origins_item_ledger, origins_metal_ledger and origins_quest_journal (and origins_item_no_delete) neither block it nor are weakened: no trigger is disabled and
 -- no function is created, so the database is left exactly as it was apart from the rows. Because there is no CASCADE, a table that references a RESET table but is not itself on the list
 -- makes the statement fail and the transaction roll back, so a table this list forgot cannot be silently emptied or silently left stale. The script then verifies, inside the same
 -- transaction and before COMMIT: every RESET table is at 0; every KEEP table has exactly the row count it had; and no origins_ table exists that is on neither list (a new table
--- must be classified here first; scripts/prelaunch-reset-check.mjs fails CI on the same drift). Any failure raises and rolls everything back.
+-- must be classified here first; scripts/prelaunch-reset-check.mjs rehearses the same drift guard, by hand: it is not a CI job). Any failure raises and rolls everything back.
 --
 -- RESET: player progress and state. KEEP: the switches (origins_access, origins_config, origins_world_config, origins_switches, origins_live_events), the world's spawn state
 -- (origins_spawns), and everything that is not an origins_ table (the Pit's fighter_profiles, loot_claims, awards, the duel tables, auth.users): the Pit is the base game and is untouched.
@@ -20,16 +21,20 @@
 \set ON_ERROR_STOP on
 \set phrase R1-WIPE-ORIGINS-TEST-PROGRESS
 
+select false as do_reset \gset
 \if :{?commit}
   \if :{?confirm}
-    select (:'confirm' = :'phrase') as confirmed \gset
-  \else
-    select false as confirmed \gset
+    -- commit=0 (or anything but 1) is a dry run
+    select (:'confirm' = :'phrase' and :'commit' = '1') as do_reset \gset
   \endif
-\else
-  select false as confirmed \gset
 \endif
-select (:'confirmed' and :{?commit}) as do_reset \gset
+-- :expect is the backup manifest's counts as table=n,table=n (ops/prelaunch-backup.sh writes manifest.tsv):
+--   -v expect="$(awk -F'\t' '{printf "%s%s=%s", s, $1, $2; s=","}' /root/r1-backup/r1-<stamp>/manifest.tsv)"
+-- A RESET refuses unless it is given, and unless every RESET table holds exactly the rows the backup holds, so the backup is the backup of THESE rows.
+select (:'do_reset' and not :{?expect}) as missing_expect \gset
+\if :missing_expect
+  do $$ begin raise exception 'R1: refused: a reset needs -v expect=<the backup manifest counts> (see the header of ops/prelaunch-reset.sql)'; end $$;
+\endif
 \if :do_reset
   \echo R1: RESET MODE (the confirmation phrase matched): the transaction below truncates the RESET tables
 \else
@@ -68,6 +73,17 @@ end $$;
 select kind, tbl, n_before from r1_plan order by kind desc, tbl;
 
 \if :do_reset
+  -- Refuse unless run as the owner of the RESET tables, and unless they hold exactly the rows the backup holds (-v expect).
+  select set_config('r1.expect', :'expect', true) as expect_set \gset
+  do $$ declare bad text; begin
+    if exists (select 1 from r1_plan p join pg_class c on c.oid = ('public.' || p.tbl)::regclass where p.kind = 'reset' and not pg_has_role(current_user, c.relowner, 'MEMBER')) then
+      raise exception 'R1: refused: run it as the owner of the RESET tables (the database owner), not as %', current_user; end if;
+    select string_agg(coalesce(p.tbl, e.tbl) || ' now ' || coalesce(p.n_before::text, '-') || ' backup ' || coalesce(e.n::text, '-'), ', ') into bad
+      from (select tbl, n_before from r1_plan where kind = 'reset') p
+      full join (select split_part(x, '=', 1) as tbl, split_part(x, '=', 2)::bigint as n from string_to_table(current_setting('r1.expect'), ',') as x) e on e.tbl = p.tbl
+      where p.n_before is distinct from e.n;
+    if bad is not null then raise exception 'R1: refused: the RESET tables do not hold the rows the backup holds: %', bad; end if;
+  end $$;
   -- The destructive step: exactly the RESET tables, no CASCADE (a referencing table that is not on the list aborts the statement), identities restarted.
   select 'truncate table ' || string_agg('public.' || quote_ident(tbl), ', ' order by tbl) || ' restart identity' as stmt from r1_plan where kind = 'reset' \gset
   :stmt;

@@ -3,7 +3,8 @@
 // each table's row count and content hash with the manifest taken from the source.
 //   node scripts/prelaunch-restore-test.mjs <r1-... backup directory>      env: PG_BIN. Run as a non-root user (as `postgres` on the VPS).
 // Exit 0 and "restore proven" only if every table matches. It touches no hosted database; the backup is read, never modified.
-// `restoreInto` is exported for scripts/prelaunch-reset-check.mjs, which also restores into the emptied database (the recovery drill).
+// `restoreInto` is exported for scripts/prelaunch-reset-check.mjs, which also restores into the emptied database (the recovery drill, through ops/prelaunch-restore.sh, the real restore path).
+//   node scripts/prelaunch-restore-test.mjs --sql <backup directory>   prints the restore script that ops/prelaunch-restore.sh runs against the real database.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,16 +26,38 @@ export function measure(socket, tables) {
   return psql(`begin isolation level repeatable read read only; set local time zone 'UTC'; set local datestyle = 'ISO, MDY'; ${sql} commit;`).split('\n').map(l => { const [table, n, hash] = l.split('\t'); return { table, n: Number(n), hash }; });
 }
 
-/** Load a backup directory's CSVs into the cluster at `socket` (data only, triggers off for the load, the column list read from each CSV's header). */
-export function restoreInto(socket, backupDir) {
+/**
+ * The restore as one psql script (run with psql -f / stdin, because of \copy): ONE transaction, so a failure leaves nothing half-loaded; `set local session_replication_role = replica`
+ * so the append-only and conservation triggers do not fire on restored history; refuses a target that is not empty (a restore never merges into live rows); data only, the column list
+ * read from each CSV's header; then every identity/serial sequence of the restored tables is advanced to max(column), because COPY does not touch sequences and the next ledger write
+ * would otherwise collide with a restored id. The same text runs against the scratch cluster (restoreInto) and, through ops/prelaunch-restore.sh, against the real database.
+ */
+export function restoreSql(backupDir) {
   const base = resolve(backupDir), tables = parseManifest(join(base, 'manifest.tsv')).map(m => m.table);
-  const lines = ['set session_replication_role = replica;'];
+  const list = `array[${tables.map(t => `'${t}'`).join(', ')}]`;
+  const lines = [
+    'begin;',
+    "set local session_replication_role = replica;",
+    `do $$ declare t text; n bigint; begin foreach t in array ${list} loop execute format('select count(*) from public.%I', t) into n; if n <> 0 then raise exception 'restore target is not empty: % has % rows', t, n; end if; end loop; end $$;`,
+  ];
   for (const t of tables) {
     // The CSV header names the columns (the backup leaves out GENERATED ALWAYS AS (...) STORED columns: the database recomputes them, and the content hash proves them equal).
     const header = readFileSync(join(base, `${t}.csv`), 'utf8').split('\n', 1)[0];
     lines.push(`\\copy public.${t} (${header}) from '${join(base, `${t}.csv`)}' with (format csv, header true)`);
   }
-  return run('psql', ['-h', socket, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'], `${lines.join('\n')}\n`);
+  lines.push(`do $$ declare r record; begin
+    for r in select t.t as tbl, a.attname as col, pg_get_serial_sequence(format('public.%I', t.t), a.attname) as seq
+        from unnest(${list}) as t(t) join pg_attribute a on a.attrelid = format('public.%I', t.t)::regclass and a.attnum > 0 and not a.attisdropped
+        where pg_get_serial_sequence(format('public.%I', t.t), a.attname) is not null
+    loop execute format('select setval(%L, coalesce(max(%I), 1), max(%I) is not null) from public.%I', r.seq, r.col, r.col, r.tbl); end loop;
+  end $$;`);
+  lines.push('commit;');
+  return `${lines.join('\n')}\n`;
+}
+
+/** Load a backup directory's CSVs into the cluster at `socket` (restoreSql above). */
+export function restoreInto(socket, backupDir) {
+  return run('psql', ['-h', socket, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'], restoreSql(backupDir));
 }
 
 /** A disposable cluster with the repo's migrations applied; returns { socket, psql, stop }. */
@@ -61,6 +84,10 @@ export function compare(want, got) {
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+  if (process.argv[2] === '--sql') {   // the restore script for ops/prelaunch-restore.sh: print it, touch nothing
+    if (!process.argv[3]) { console.error('usage: node scripts/prelaunch-restore-test.mjs --sql <r1-... backup directory>'); process.exit(2); }
+    process.stdout.write(restoreSql(process.argv[3])); process.exit(0);
+  }
   const backupDir = process.argv[2];
   if (!backupDir) { console.error('usage: node scripts/prelaunch-restore-test.mjs <r1-... backup directory>'); process.exit(2); }
   const want = parseManifest(join(backupDir, 'manifest.tsv'));
