@@ -8,12 +8,13 @@
 // ADAPTIVE: when the frames' p95 stays above `remoteAdaptSlowMs` for `remoteAdaptWindowMs` (World's 4x-throttled T4: 40 players give 15/12 fps, about 8 full figures is the 30 fps point), the full count drops from
 // `remoteFullCount` to `remoteAdaptFullCount`; it returns once the p95 has stayed under `remoteAdaptOkMs` for a window (frame-governor.ts, pure; every number a row).
 // The T4 profile of 40 walking (4x) said the cost is the scene graph, not the mixer: the bone-hierarchy matrix walk, then the bone-texture re-upload every Skeleton.update. So a FROZEN figure (cheap, or hidden)
-// is cut out of both on its skipped frames: its group's matrixWorldAutoUpdate is off (scene.updateMatrixWorld stops at the group, the bones are not walked) and its skeletons' `update` does nothing (no
+// is cut out of both on its skipped frames: its group's own updateMatrixWorld is a no-op (creature-freeze.ts: the scene's walk stops at the group; a matrixWorldAutoUpdate flag alone does NOT, three 0.186 still walks the children) and its skeletons' `update` does nothing (no
 // bone-matrix recompute, no boneTexture.needsUpdate). A skinned mesh draws from the bone matrices of its LAST update, so a frozen figure stands where it was posed: a cheap one moves on its pose frames
 // (every remoteCheapEvery-th), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
 import { createGovernor } from './frame-governor.ts';
+import { freeze as freezeGroup, pose as poseGroup } from './creature-freeze.ts';
 import { labelSprite } from './label-sprite.ts';
 import { labelCeilingNdc } from './mobs.ts';
 import { CHEAP_PARTS } from './remote-cheap.ts';
@@ -44,7 +45,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
     return slot;
   };
   /** Freeze or thaw a figure's scene-graph cost (see the header): the group drops out of scene.updateMatrixWorld's walk, and its skeletons stop updating. */
-  const freeze = (s: Slot, on: boolean): void => { s.frozen = on; s.group.matrixWorldAutoUpdate = !on; };
+  const freeze = (s: Slot, on: boolean): void => freezeGroup(s.group, s, on);   // a Slot carries the Ice fields (frozen, thaw); creature-freeze.ts: three 0.186 walks the children of a matrixWorldAutoUpdate=false group, so the group's own updateMatrixWorld is made a no-op instead
   /** Near <-> far figure: only the chosen one is visible (the other costs the render nothing) and it is the one `update` poses. */
   const setLod = (s: Slot, lod: Lod): void => { s.lod = lod; s.actor = lod === 'far' && s.far ? s.far : s.near; s.near.anchor.visible = s.actor === s.near; if (s.far) s.far.anchor.visible = s.actor === s.far; };
   /** Full <-> cheap: the trail hidden and the shadow off (each draw's own setting remembered, so a figure that comes back near is exactly as it was). Nothing here touches a material. */
@@ -92,7 +93,7 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         if (pose) {
           slot.thaw = true; slot.actor.update(slot.speed, slot.owed, 'ready', 0, 'light', 0.35, 0); slot.owed = 0;
           if (slot.cheap) for (const p of slot.parts) p.visible = false;   // the rig's own update may show a part again
-          if (slot.frozen) slot.group.updateMatrixWorld(true);   // frozen groups are not in the scene's walk: bring this one's bones and root current once, for this frame's skeleton update
+          if (slot.frozen) poseGroup(slot.group, slot);   // frozen groups are not in the scene's walk: bring this one's bones and root current once, for this frame's skeleton update
         }
         slot.hidden = !seen_;
         retag(slot, tagText(d.who?.(s.id) ?? names.get(s.id)));
