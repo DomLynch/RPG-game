@@ -27,6 +27,10 @@
     { "id": "gateGap", "value": 0.62, "unit": "rad" },
     { "id": "heroWait", "value": 45000, "unit": "ms" },
     { "id": "kindsWait", "value": 20000, "unit": "ms" },
+    { "id": "kitWarmMs", "value": 60000, "unit": "ms" },
+    { "id": "kitWarmMsSoft", "value": 300000, "unit": "ms" },
+    { "id": "kitProbeFrames", "value": 20, "unit": "frames" },
+    { "id": "kitSlowFrameMs", "value": 100, "unit": "ms" },
     { "id": "materialBound", "value": 4000, "unit": "ms" },
     { "id": "uploadBudget", "value": 6, "unit": "ms" },
     { "id": "legendReach", "value": 6, "unit": "m" },
@@ -46,6 +50,13 @@
     { "id": "remoteCheapEvery", "value": 4, "unit": "frames" },
     { "id": "remoteAnimRange", "value": 80, "unit": "m" },
     { "id": "remoteBoundR", "value": 1.6, "unit": "m" },
-    { "id": "remoteOwedCap", "value": 0.25, "unit": "s" }
+    { "id": "remoteOwedCap", "value": 0.25, "unit": "s" },
+    { "id": "remoteAdaptFullCount", "value": 8, "unit": "figures" },
+    { "id": "remoteAdaptSlowMs", "value": 33, "unit": "ms" },
+    { "id": "remoteAdaptOkMs", "value": 25, "unit": "ms" },
+    { "id": "remoteAdaptWindowMs", "value": 3000, "unit": "ms" },
+    { "id": "remoteAdaptJudgeMs", "value": 250, "unit": "ms" },
+    { "id": "remoteAdaptPercentile", "value": 0.95, "unit": "ratio" },
+    { "id": "remoteGroundStep", "value": 0.25, "unit": "m" }
   ]
 }

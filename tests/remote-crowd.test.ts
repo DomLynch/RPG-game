@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { Bone, Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera, Skeleton, SkinnedMesh } from 'three';
 import { createRemoteHeroes, tagText } from '../origins/preview/remote-heroes.ts';
 import { previewRule } from '../origins/preview/preview-rules.ts';
+import { CHEAP_PARTS, loadCheapParts } from '../origins/preview/remote-cheap.ts';
 
 const FULL = previewRule('remoteFullCount'), EVERY = previewRule('remoteCheapEvery');
 const material = new MeshBasicMaterial();   // one shared material, as the rig's: a cheap figure must keep it
@@ -98,6 +99,62 @@ test('the page\'s enter records feed the tag (name, "Guest", or none: a null nam
   assert.deepEqual(asked.sort(), [1, 2], 'asked for each drawn id');
   heroes.update(1 / 60, 2000, { x: 0, z: 0 });   // past remoteExpire with no packet: both gone
   assert.deepEqual(forgotten.sort(), [1, 2]); assert.equal(heroes.debug().shown.length, 0);
+});
+
+test('adaptive: a frame time that stays high drops the full count from remoteFullCount to remoteAdaptFullCount, and a clean window brings it back', () => {
+  const n = FULL + 5, list = Array.from({ length: n }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), { heroes } = crowd(n);
+  let now = 0;
+  const frames = (seconds: number, ms: number) => { for (const end = now + seconds * 1000; now < end; now += ms) { heroes.push(list, now); heroes.update(ms / 1000, now, { x: 0, z: 0 }); } };
+  const fulls = () => heroes.debug().shown.filter((s) => !s.cheap).length;
+  frames(5, 16.7); assert.equal(fulls(), FULL, 'at 60 fps: the ruled full count');
+  frames(5, 45); assert.equal(heroes.debug().adaptive.low, true); assert.equal(fulls(), previewRule('remoteAdaptFullCount'), 'slow frames: the smaller full count');
+  frames(7, 16.7); assert.equal(fulls(), FULL, 'a clean window: back to the ruled count');
+});
+
+test('the ground height is read again only after a figure has moved remoteGroundStep, and the figure stands on the last read (T4 profile: reliefAt per figure per frame)', () => {
+  const step = previewRule('remoteGroundStep'); let reads = 0;
+  const spawn = () => ({ anchor: new Group(), update: () => {} }) as never;
+  const heroes = createRemoteHeroes({ scene: new Group(), spawn, groundAt: (x) => { reads++; return x; } }); heroes.warm();
+  const frames = 100, dx = step / 5;   // 5 frames per step: a walk of frames x dx metres
+  let first = NaN;
+  for (let f = 0; f < frames; f++) { heroes.push([{ id: 1, x: 10 + f * dx, z: 0, heading: 0, anim: 0, flags: 0 }], f * 16); heroes.update(1 / 60, f * 16, { x: 0, z: 0 }); if (f === 0) first = heroes.debug().shown[0]!.x; }
+  const shownWalk = heroes.debug().shown[0]!.x - first;   // how far the track actually drew it (its ease lags the packets by about a tick)
+  assert.ok(shownWalk > 3, `it walked (${shownWalk.toFixed(2)} m drawn)`);
+  assert.ok(reads <= Math.ceil(shownWalk / step) + 2, `a walk of ${shownWalk.toFixed(1)} m reads about once per ${step} m, not once per frame (${reads} reads in ${frames} frames)`);
+  assert.ok(reads >= Math.floor(shownWalk / (step * 1.5)), `(a read lands a step plus a frame's travel after the last, so at most 1.5 steps apart) and not so seldom that the figure floats (${reads} reads for ${shownWalk.toFixed(2)} m drawn)`);
+  const idle = createRemoteHeroes({ scene: new Group(), spawn, groundAt: () => { reads++; return 0; } }); idle.warm(); reads = 0;
+  for (let f = 0; f < 60; f++) { idle.push([{ id: 2, x: 5, z: 5, heading: 0, anim: 0, flags: 0 }], f * 16); idle.update(1 / 60, f * 16, { x: 0, z: 0 }); }
+  assert.equal(reads, 1, 'a standing figure reads the ground once');
+});
+
+test('a cheap figure does not draw the parts the remote-cheap row names, the rig cannot show them again, and a figure that comes back near draws them as before', () => {
+  const part = [...CHEAP_PARTS][0]!, kept = 'Skin';
+  const built: { part: Mesh; kept: Mesh }[] = [];
+  const spawn = () => {
+    const anchor = new Group(), p = new Mesh(new BufferGeometry(), material), k = new Mesh(new BufferGeometry(), material); p.name = part; k.name = kept; anchor.add(p, k); built.push({ part: p, kept: k });
+    return { anchor, update: () => { p.visible = true; } } as never;   // a rig update that shows the part again
+  };
+  const heroes = createRemoteHeroes({ scene: new Group(), spawn, groundAt: () => 0 }); heroes.warm();
+  heroes.push(Array.from({ length: FULL + 1 }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
+  for (let f = 0; f < EVERY * 2; f++) heroes.update(0.01, 0, { x: 0, z: 0 });
+  const cheapIds = heroes.debug().shown.filter((s) => s.cheap).map((s) => s.id);
+  assert.equal(cheapIds.length, 1);
+  const hidden = built.filter((b) => !b.part.visible);
+  assert.equal(hidden.length, 1, 'exactly the cheap figure hides its part, even though the rig shows it on every pose');
+  assert.ok(hidden[0]!.kept.visible, 'the body stays');
+  assert.ok(built.filter((b) => b !== hidden[0]!).every((b) => b.part.visible && b.kept.visible), 'full figures draw everything');
+  heroes.update(0.01, 0, { x: 2 + FULL, z: 0 });   // the hero walks to the far end: the once-far figure is the nearest, so it is full again
+  assert.ok(hidden[0]!.part.visible, 'back near: the figure draws its part as before');
+  assert.equal(built.filter((b) => !b.part.visible).length, 1, 'and the figure that is now the farthest is the one that hides its part');
+});
+
+test('the remote-cheap loader refuses a missing row, a blank or repeated part name and a non-list', () => {
+  const row = (hideParts: unknown) => ({ remoteCheap: [{ id: 'cheap', fields: { hideParts } }] });
+  assert.deepEqual([...loadCheapParts(row(['A', 'B']))], ['A', 'B']);
+  assert.throws(() => loadCheapParts(row(['A', 'A'])), /distinct part names/);
+  assert.throws(() => loadCheapParts(row(['A', ' '])), /distinct part names/);
+  assert.throws(() => loadCheapParts(row('A')), /distinct part names/);
+  assert.throws(() => loadCheapParts({ remoteCheap: [{ id: 'other', fields: { hideParts: ['A'] } }] }), /"cheap" row is missing/);
 });
 
 test('a figure that comes back near gets its shadow back as it was', () => {
