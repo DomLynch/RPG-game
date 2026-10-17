@@ -5,6 +5,7 @@
 //   late-fight     the first fight within 10 s of entering a zone that is not safe (so a creature within 52 m of the entry)
 // The fourth rule (turn-ins next to the action) belongs to the quest templates, and "no auto-run, ever" is a rule of the input, not of a zone.
 import type { Params } from './schema.ts';
+import { stageRule } from './stage-rules.ts';
 import { SPEEDS, worldRule } from '../../src/fight/server.ts';
 
 export const RUN_SPEED = SPEEDS.player.run;   // m/s: the gait table's Run knot (5.2; the playerRun row in src/fight/world-rules-defs.json)
@@ -36,9 +37,10 @@ export function worstHop(entry: Pt, points: readonly Pt[]): { from: Pt; to: Pt; 
 // The opener rule, one function for the generator and for hand zones: where the first fight stands. A spot `clear` (15) to `far` (40) m from the entry,
 // on the inward side (`inward` is the heading the zone runs in, 0 = +z), that `ok` accepts. `rand` is any [0, 1) source; null when nothing fits.
 export const OPENER_CLEAR = worldRule('openerClear'), OPENER_FAR = worldRule('openerFar');   // m: an opener stands at least this clear of the entry and at most this far (rows: 15 / 40)
+const OPENER_TRIES = stageRule('openerTries'), OPENER_PAD = stageRule('openerPad'), OPENER_SLACK = stageRule('openerSlack');   // stage-rules-defs.json: attempts, and the inner / outer margins of the opener's distance band
 export function openerSpot(entry: Pt, inward: number, rand: () => number, ok: (x: number, z: number) => boolean, clear = OPENER_CLEAR, far = OPENER_FAR): Pt | null {
-  for (let t = 0; t < 60; t++) {
-    const r = clear + 4 + rand() * (far - clear - 12), a = inward + rand() * Math.PI - Math.PI / 2, x = entry.x + Math.sin(a) * r, z = entry.z + Math.cos(a) * r;
+  for (let t = 0; t < OPENER_TRIES; t++) {
+    const r = clear + OPENER_PAD + rand() * (far - clear - OPENER_SLACK), a = inward + rand() * Math.PI - Math.PI / 2, x = entry.x + Math.sin(a) * r, z = entry.z + Math.cos(a) * r;
     if (ok(x, z)) return { x, z };
   }
   return null;

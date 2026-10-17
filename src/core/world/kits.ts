@@ -12,12 +12,8 @@ export const CHAINS = KIT_DATA.chains as unknown as Readonly<Record<MobStyle, re
 export const MODES = ['shy', 'bold', 'ambusher'] as const;
 export type Mode = (typeof MODES)[number];
 type Knob = 'aggression' | 'pressure' | 'disengage' | 'dash' | 'lapse' | 'interrupt';
-// Deltas on 0..1 knobs, then clamped. shy: hangs back and hops out; bold: presses; ambusher: closes fast and punishes a slow answer.
-export const MODE: Readonly<Record<Mode, Partial<Record<Knob, number>>>> = {
-  shy: { aggression: -0.2, disengage: 0.2, dash: -0.3 },
-  bold: { aggression: 0.1, pressure: 0.1, disengage: -0.2 },
-  ambusher: { dash: 0.4, lapse: -0.1, interrupt: 0.2 },
-};
+// Deltas on 0..1 knobs, then clamped (rows: mob-kits.json `modes`). shy: hangs back and hops out; bold: presses; ambusher: closes fast and punishes a slow answer.
+export const MODE = KIT_DATA.modes as unknown as Readonly<Record<Mode, Partial<Record<Knob, number>>>>;
 
 // The layer a mob of this style fights under (src/fight/combat.ts stepPractice's `layer`, src/fight/match.ts Match.layer): its state resets on tick 0, so a rematch starts clean.
 export function mobLayer(style: MobStyle): (duel: Duel, warden: Intent) => Intent {

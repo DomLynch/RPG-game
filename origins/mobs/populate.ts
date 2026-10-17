@@ -15,6 +15,7 @@ export type Member = { x: number; z: number; level: number };
 export type Camp = { row: string; at: string; members: Member[] };
 export type Populated = { camps: Camp[]; budget: number; rejected: { row: string; issues: RowIssue[] }[]; issues: ZoneIssue[] };
 
+const CAMP_TRIES = stageRule('campTries'), CAMP_FILL = stageRule('campFill');   // stage-rules-defs.json: placement attempts per member / per fill pass
 const CAMP_GAP = worldRule('campGap'); // m: two camps' centres stay at least this far apart
 const DOOR_CLEAR = OPENER_CLEAR;   // m: no camp within this of the entry landmark (the hero arrives there)
 const MOBS = stageRule('mobsSeed'); // "mobs": the stream's seed offset
@@ -34,7 +35,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   if (!budget || !eligible.length) return finish();
   // Where camps may stand: the zone's own landmarks, not its exits (`to-…`), not the entry and not the boss anchor.
   const sites = Object.entries(zone.layout).filter(([k]) => !k.startsWith('to-') && k !== 'entry' && k !== zone.spawns.boss);
-  const entry = zone.layout.entry, door = entry ? { x: entry.u * width, z: entry.v * depth } : { x: width / 2, z: 0 }, reach = Math.min(width, depth) * 0.3;
+  const entry = zone.layout.entry, door = entry ? { x: entry.u * width, z: entry.v * depth } : { x: width / 2, z: 0 }, reach = Math.min(width, depth) * stageRule('campDoorReach');
   const rand = prng((seed ^ MOBS) >>> 0), weights = rungWeights(eligible, zone.difficulty), total = weights.reduce((n, w) => n + w, 0);
   if (!(total > 0)) return finish();   // only rares (or nothing drawable): a rare never stands alone
   const inside = (x: number, z: number) => x >= 0 && x <= width && z >= 0 && z <= depth;
@@ -47,7 +48,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
     const n = size ?? campCount(row.behaviour.campSize, rand()), spread = row.behaviour.spread ?? 6;
     const lo = Math.max(row.level[0], zone.difficulty.levelMin), hi = Math.min(row.level[1], zone.difficulty.levelMax), members: Member[] = [];
     for (let i = 0; i < n; i++) {
-      for (let tries = 0; tries < 40; tries++) {
+      for (let tries = 0; tries < CAMP_TRIES; tries++) {
         const r = spread * Math.sqrt(rand()), a = rand() * Math.PI * 2, x = centre.x + Math.sin(a) * r, z = centre.z + Math.cos(a) * r;
         if (inside(x, z) && stand(x, z)) { members.push({ x, z, level: lo + (i % (hi - lo + 1)) }); break; }
       }
@@ -69,7 +70,7 @@ export function populateZone(zone: Params, rows: readonly MobRow[], seed: number
   }
   // Dead stretches: wherever the walk is left more than 15 s with nothing, a camp goes in the middle of the gap (bounded; the rule may beat the budget).
   const stops = Object.entries(zone.layout).filter(([k]) => k !== 'entry').map(([, l]) => ({ x: l.u * width, z: l.v * depth }));
-  for (let fill = 0; fill < 40; fill++) {
+  for (let fill = 0; fill < CAMP_FILL; fill++) {
     const hop = worstHop(door, [...stops, ...camps.flatMap((c) => c.members)]);
     if (!hop || hop.d <= MAX_HOP_M) break;
     const mid = { x: (hop.from.x + hop.to.x) / 2, z: (hop.from.z + hop.to.z) / 2 }, c = camp(pickRow(), 'fill', mid, 1);

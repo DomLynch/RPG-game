@@ -36,6 +36,13 @@
     { "id": "levelFar", "value": 150, "unit": "m" },
     { "id": "namedLevelLift", "value": 2, "unit": "levels" },
     { "id": "spawnNear", "value": 25, "unit": "m" },
-    { "id": "spawnFar", "value": 35, "unit": "m" }
+    { "id": "spawnFar", "value": 35, "unit": "m" },
+    { "id": "campDoorReach", "value": 0.3, "unit": "ratio" },
+    { "id": "campTries", "value": 40, "unit": "tries" },
+    { "id": "campFill", "value": 40, "unit": "tries" },
+    { "id": "roadChance", "value": 0.3, "unit": "ratio" },
+    { "id": "openerTries", "value": 60, "unit": "tries" },
+    { "id": "openerPad", "value": 4, "unit": "m" },
+    { "id": "openerSlack", "value": 12, "unit": "m" }
   ]
 }
