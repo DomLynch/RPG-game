@@ -48,15 +48,23 @@ try {
     return d;
   };
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
+  // The worst frame gap over a window (a rAF recorder): the hitch measure for an arrival. On software GL every frame is seconds, so it is only comparable run to run, not an absolute stutter figure.
+  const gapProbe = () => page.evaluate(() => { window.__maxGap = 0; let last = performance.now(); const f = (t) => { window.__maxGap = Math.max(window.__maxGap, t - last); last = t; requestAnimationFrame(f); }; requestAnimationFrame(f); });
   const z1 = await ready('Zone 1'); receipt.zone1Programs = z1.names.length; receipt.zone1KitWarm = z1.kitWarm;
+  if (process.env.EXIT_Z1_SETTLE === '1') {   // informational: does the FIRST Zone 1 load also link programs after ready (then it is not a return-trip fault)?
+    await gapProbe(); await page.waitForTimeout(SETTLE_MS);
+    const names = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
+    receipt.zone1Settle = { newPrograms: names.filter((n) => !z1.names.includes(n)), maxFrameGapMs: Math.round(await page.evaluate(() => window.__maxGap)), gearWarm: await page.evaluate(() => window.originsPreview.gearWarm?.() ?? null) };
+  }
   const leg = async (label, landmark, toZone, landing, still, arriveStill, inside) => {
     await cross(label, landmark, toZone, still, inside);
     const a = await ready(label), l = { label, landed: a.pos, programsAtReady: a.names.length };
     assert.ok(Math.hypot(a.pos.x - landing[0], a.pos.z - landing[1]) < 0.5, `${label}: landed at ${JSON.stringify(a.pos)}, wanted ${landing}`);
-    await page.waitForTimeout(SETTLE_MS);
+    await gapProbe(); await page.waitForTimeout(SETTLE_MS);
     await page.screenshot({ path: path.join(shots, `${arriveStill}.png`) });
     const after = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     l.newPrograms = after.filter((n) => !a.names.includes(n)); l.zoneReady = await page.evaluate(() => window.__zoneReady);
+    l.maxFrameGapMs = Math.round(await page.evaluate(() => window.__maxGap)); l.kitWarm = a.kitWarm; l.gearWarm = await page.evaluate(() => window.originsPreview.gearWarm?.() ?? null);
     assert.deepEqual(l.newPrograms, [], `${label}: compiled programs after [zone ready]`);
     receipt.legs.push(l);
   };
