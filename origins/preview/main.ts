@@ -442,7 +442,23 @@ async function kitSlice(until: number) {
     if (performance.now() > until) throw new Error('a creature stayed within tap range');
   }
 }
+// The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
+// (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string } | null = null, kitsResult: { failed: boolean; ms: number; programs: number; warmed: number } | null = null as { failed: boolean; ms: number; programs: number; warmed: number } | null;
+async function warmGearScreen() {
+  const t0 = performance.now();
+  try {
+    if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
+    while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < HERO_WAIT_MS) await new Promise<void>((r) => setTimeout(r, 250));
+    await nextFrame(); const w = await gearMount.warm();
+    gearWarm = { ms: Math.round(performance.now() - t0), ...w, drawMs: Math.round(w.drawMs), failed: false };
+  } catch (error) { console.warn('gear screen warm-up failed', error); gearWarm = { ms: Math.round(performance.now() - t0), drawMs: 0, failed: true }; }
+}
 async function warmRemoteKitsAfterReady() {
+  gearMount?.hold();
+  try { await warmRemoteKits(); } finally { await warmGearScreen(); if (kitsResult) remoteKitsWarm = kitsResult; }
+}
+async function warmRemoteKits() {
   const t0 = performance.now();
   let pieces: Awaited<ReturnType<typeof sharedLoot>> | undefined, remote: ReturnType<typeof secondActor> | undefined;
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
@@ -455,7 +471,7 @@ async function warmRemoteKitsAfterReady() {
     for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
     if (tooSlow(gaps, previewRule('kitSlowFrameMs'))) {
       console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
-      remoteKitsWarm = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
+      kitsResult = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
       return;
     }
   }
@@ -468,7 +484,7 @@ async function warmRemoteKitsAfterReady() {
   const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
   await r.ended;   // a kit that outlasts the hard bound (a slow runner) is still compiling here: remoteKitsWarm is set only once the loop has truly ended, so nothing reads the programs (or links one) after it is non-null
-  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
+  kitsResult = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
@@ -813,7 +829,7 @@ function programOwners(): Record<string, string[]> {
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)!.at, road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  remoteProbe, remoteKitsWarm: () => remoteKitsWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
+  remoteProbe, remoteKitsWarm: () => remoteKitsWarm, gearWarm: () => gearWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
