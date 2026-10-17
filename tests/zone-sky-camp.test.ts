@@ -52,7 +52,7 @@ test('?look=goblin is Zone 1 seen as the goblin-fortress biome: it gets the whol
   const { zoneAsBiome } = await import('../origins/zones/loader.ts'), { goblinBiome, goblinZone } = await import('../origins/world/goblin-field-rules.ts');
   const z = zoneAsBiome('1', goblinBiome(), { 'look.props.camp': goblinZone() }), base = loadZone('1');
   assert.equal(zoneSky(z)?.id, 'fortress'); assert.deepEqual(zonePropKit(z), { kit: 'goblin-camp', at: goblinZone(), rim: true }, 'the camp stands in the goblin zone only if that is a world zone of Zone 1');
-  assert.ok(zoneDress(z).trees < 1); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind'); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: false, lock: 'hard' });
+  assert.ok(zoneDress(z).trees < 1); assert.equal(zoneGround(z)?.id, 'fortress-ground'); assert.equal(zoneAmbience(z)?.id, 'fortress-wind'); assert.deepEqual(zoneMarkers(z), { alert: false, name: false, card: 'target', growl: true, ring: true, lock: 'hard' });
   assert.equal(zoneSky(base), null); assert.deepEqual(zoneMarkers(base), { alert: true, name: true, card: 'full', growl: false, ring: true, lock: 'hard' }, 'the zone row itself did not change');
 });
 test('the soft rim: boundary.* rows say margin, slowest speed and the line; the speed eases from 1 at the margin to `slow` at the edge; Zones 1-4 have none', () => {
