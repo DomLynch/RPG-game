@@ -122,6 +122,9 @@
 {"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
 ],"specialPick":[
 {"id":"lunge","role":"opener"},{"id":"ironrush","role":"opener"},{"id":"pommel","role":"control"},{"id":"shove","role":"control"},{"id":"cleave","role":"heavy"},{"id":"stomp","role":"posture break"}
+],"specialLook":[
+{"id":"pommel","flash":70,"sparks":60,"spread":50,"lift":60},{"id":"lunge","flash":80,"sparks":80,"spread":30,"lift":50},{"id":"ironrush","flash":130,"sparks":110,"spread":40,"lift":50},
+{"id":"shove","flash":110,"sparks":160,"spread":140,"lift":30},{"id":"cleave","flash":170,"sparks":260,"spread":100,"lift":160},{"id":"stomp","flash":150,"sparks":300,"spread":200,"lift":20}
 ],"spellHeal":[
 {"id":"gula","share":250,"uses":2,"windup":120}
 ],"bandBest":[

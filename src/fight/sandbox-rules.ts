@@ -242,6 +242,9 @@ export const spellWindupOf = (root: string | undefined, base: number): number =>
 /** True when the spell's cast is paid in mana (magic, or a root with no kind while mana is on); false for a melee spell, which pays stamina. */
 export const paysMana = (root: string | undefined): boolean => MANA_MAX > 0 && (!root || spellRangeOf(root)?.kind !== 'melee');
 // spellHeal (Dom 2026-10-17, Strategy: a utility spell everyone can take, not one of the four attack picks): one row { id, share, uses, windup } per heal spell. It restores `share` per mille of the caster's own max health when its windup (ticks; interruptible like any cast) releases, is paid in mana, needs no range, always lands (no skill roll) and can be cast `uses` times a fight so a duel cannot stall. No rows (trunk) = no heal spell.
+// specialLook (Dom 2026-10-17, the six beta specials must read as different moves on a phone): one row { id, flash, sparks, spread, lift } per skill id, percent of the shared skill-impact kit (100 = as it is today). A special that lands throws that kit's flash and sparks, shaped by its row: size of the flash, how many sparks, how wide the fan, how high it throws. Presentation only, no sim. No rows (trunk) = the kit unchanged.
+export type SpecialLookRow = { id: string; flash: number; sparks: number; spread: number; lift: number };
+export const specialLookOf = (skill: string): SpecialLookRow | undefined => ((DEFS as unknown as { specialLook?: SpecialLookRow[] }).specialLook ?? []).find((r) => r.id === skill);
 type HealRow = { id: string; share: number; uses: number; windup: number };
 export const healRows = (): number => ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).length;   // 0 on trunk: no heal objects or light are built
 export const healOf = (spell: string | undefined): HealRow | undefined => (spell ? ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).find((r) => r.id === spell) : undefined);
