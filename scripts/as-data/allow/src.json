@@ -4,6 +4,7 @@
     {"file": "src/share-store.ts", "name": "MAX_STORED_CHARS", "kind": "exempt", "reason": "the share table's own check constraint (a 30 s fight is ~1-3 K): the contract with the database, not a game rule", "owner": "Web & UI"}
   ],
   "branchIds": [
+    {"file": "src/main.ts", "literal": "full", "reason": "graphics-governor tier name (full | half | phone): the closed tier vocabulary of createGovernor, a state of the mechanism, not a content id"},
     {"file": "src/souls-look.ts", "literal": "Shield", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"}
   ]
 }
