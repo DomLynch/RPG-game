@@ -2,7 +2,7 @@
 // its Profile pane; only the page's hide rule keeps the pane away until `gearing`), with the hero dressed in-zone (gear-stage.ts) and the server's ledger behind it (gear-server.ts).
 // A guest keeps the device's own profile ledger, exactly as the Pit does.
 import type * as THREE from 'three';
-import { createGearSheet } from '../../src/core/index.ts';
+import { createGearSheet, wornIdsOf, wornTiersOf } from '../../src/core/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
@@ -24,6 +24,10 @@ export function mountGear(d: Deps) {
   return {
     gear: sheet.gear,
     ready: (): boolean => server?.ready() ?? false,
+    // Before [zone ready]: the mannequin dressed with the worn set the sheet would show (the server's view once it answered, else the device's), drawn once under the studio, so opening Gear links no program (signedin-gear row).
+    release: zone.release,
+    hold: zone.hold,   // from the moment the warm is queued the sheet shows its empty stage until the warm ends (gear-stage.ts)
+    warm: async () => { const loot = (server?.profileFor(profile) ?? profile).loot; zone.wear(wornIdsOf(loot), wornTiersOf(loot)); return zone.warm(); },
     refresh: (): Promise<boolean> => server?.refresh() ?? Promise.resolve(false),   // read the server's worn-gear view now (at load, not only when the Gear screen opens)   // the server's view of the character's worn set has answered (the loadout gate in main.ts reads it)
     // What the hero fights on: the stored build (none = level 0, as the server's heroLimitOf reads it) with the worn set's deltas, from the server's view of the character; the server holds a world record's sheet EQUAL to the books' own.
     sheet: (own: { level: number; placed: Record<string, number> } | undefined): ReturnType<typeof fightSheet> => fightSheet(profile, own ?? { level: 0, placed: {} }, server),   // nothing until the SERVER's view has answered (a guest or an unanswered writer fights bare)
