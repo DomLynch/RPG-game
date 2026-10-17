@@ -1,0 +1,15 @@
+# as-data check (f): a numeric tunable written as an EXPRESSION (hard-coding audit 2026-10-17, gap 1): an UPPER_SNAKE top-level `const NAME = 5 * 60_000` / `72 * HOUR_S` / `7 * 24 * 60`. Rules (c) and (d) only see a const
+# whose value IS a number, so an arithmetic value with a number in it passed. A site is the const; check.ts holds the count to a ratchet (const-expr-baseline.json, per file and const name): the sites that were there when
+# the rule landed are a known backlog, triaged into a row or an exempt; a new one is red under --gate, a baseline above the tree is stale. Names are UPPER_SNAKE only, top level only (a local is not a tunable).
+id: as-data-const-expr
+language: typescript
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
+rule:
+  kind: variable_declarator
+  all:
+    - has: { field: name, kind: identifier, regex: "^[A-Z][A-Z0-9_]*$" }
+    - has: { field: value, kind: binary_expression, has: { kind: number, stopBy: end } }
+    - inside: { kind: lexical_declaration, stopBy: neighbor, any: [{ inside: { kind: program, stopBy: neighbor } }, { inside: { kind: export_statement, stopBy: neighbor, inside: { kind: program, stopBy: neighbor } } }] }

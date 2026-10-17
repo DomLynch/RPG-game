@@ -1,0 +1,14 @@
+{
+  "note": "Rule (h) inline-number (inline-number.yml) scans only these files: the record sim (tests/record-version-guard.test.ts SIM_FILES) and the world sim (tests/world-sim-guard.test.ts WORLD_SIM_FILES), minus the generated/data files (blade-paths.ts, catalogue-data.ts), plus every origins/server, presence and world source file. Add a file when its lane joins the sim; the baseline then counts it.",
+  "files": [
+    "src/fight/bands.ts", "src/fight/archetype-rows.ts", "src/fight/ai-read-rows.ts", "src/fight/tactic-rows.ts", "src/fight/moves-tables-rows.ts", "src/fight/stance-legacy-rows.ts",
+    "src/fight/roll-rows.ts", "src/fight/gambit-rows.ts", "src/fight/duel-rows.ts", "src/fight/spell-rows.ts", "src/fight/moves-dials-rows.ts", "src/fight/play-radius-rows.ts",
+    "src/fight/level-anchor-rows.ts", "src/fight/special-set-rows.ts", "src/fight/cast-penalty-era.ts", "src/fight/move-rows.ts", "src/fight/rules.ts", "src/fight/cone-era.ts",
+    "src/fight/cone-rules.ts", "src/fight/poise-era.ts", "src/fight/poise-ladder.ts", "src/fight/duel.ts", "src/fight/spell-cast.ts", "src/fight/cc-ladder.ts", "src/fight/pools.ts",
+    "src/fight/moves.ts", "src/fight/ai.ts", "src/fight/sim.ts", "src/fight/record.ts", "src/fight/blade.ts", "src/roster.ts", "src/fight/catalogue-defs.ts", "src/fight/finishers.ts",
+    "src/fight/detmath.ts", "src/fight/play-radius.ts", "src/fight/stab-rule.ts", "src/fight/roll.ts", "src/fight/gambit.ts", "src/fight/stance.ts", "src/fight/stance-era.ts",
+    "src/fight/world.ts", "src/fight/open-fight.ts", "src/fight/world-record.ts", "src/fight/speeds.ts", "src/fight/attackers.ts", "src/fight/world-rules.ts", "src/fight/gear-caps.ts",
+    "src/fight/catalogue-fields.ts", "src/fight/threat.ts"
+  ],
+  "dirs": ["origins/server/**/*.ts", "origins/presence/**/*.ts", "origins/world/**/*.ts"]
+}
