@@ -4,14 +4,14 @@ import test from 'node:test';
 import { boardViews, ladderView, recordLine, nameKey, pencilFor, recordView, renameDevice, scoreLines } from '../src/core/career-screen.ts';
 
 test('the ladder is ten titles of five rungs, with the rank\'s rung marked and every lower rung done', () => {
-  const view = ladderView(0);
+  const view = ladderView(0, 10);   // the whole ladder (the beta cut shows two titles: tests/beta-cut.test.ts)
   assert.equal(view.length, 10); assert.ok(view.every((s) => s.rungs.length === 5));
   assert.deepEqual(view[0]!.rungs.map((r) => r.state), ['now', 'next', 'next', 'next', 'next']);
-  const mid = ladderView(7);   // level = 1 + wins: 8 = Legionary III
+  const mid = ladderView(7, 10);   // level = 1 + wins: 8 = Legionary III
   const flat = mid.flatMap((s) => s.rungs), now = flat.filter((r) => r.state === 'now');
   assert.equal(now.length, 1); assert.equal(now[0]!.label, 'Legionary III');
   assert.ok(flat.slice(0, 7).every((r) => r.state === 'done') && flat.slice(8).every((r) => r.state === 'next'));
-  const top = ladderView(1000).flatMap((s) => s.rungs); assert.equal(top.at(-1)!.state, 'now'); assert.equal(top.at(-1)!.label, 'Origin V');
+  const top = ladderView(1000, 10).flatMap((s) => s.rungs); assert.equal(top.at(-1)!.state, 'now'); assert.equal(top.at(-1)!.label, 'Origin V');
 });
 
 test('the scorecard lines are most-fought first, losses read "n (k left)" only after a walk-away, and the total closes the table', () => {
