@@ -1,5 +1,8 @@
 {
   "tunables": [
     {"file": "origins/preview/presence-client.ts", "name": "OPEN", "kind": "exempt", "reason": "browser API constant WebSocket.OPEN (1): not a number we choose", "owner": "World & Audio"}
+  ],
+  "branchIds": [
+    {"file": "origins/preview/ground-looks.ts", "literal": "loot", "reason": "the asset family name in a ground-look row (`asset: \"loot\"` = loot.glb's node, else a path): a schema category the loader validates, not a content id"}
   ]
 }

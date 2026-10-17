@@ -1,0 +1,8 @@
+{
+  "branchIds": [
+    {"file": "origins/boss/boss.ts", "literal": "wake", "reason": "an event kind of the boss state machine (BossEvent): a closed mechanism vocabulary the reducer switches on, not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "damage", "reason": "an event kind of the boss state machine (BossEvent): a closed mechanism vocabulary the reducer switches on, not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "gathering", "reason": "a Stage of the boss state machine (dormant, gathering, boss, defeated): a closed mechanism state, not a content id"},
+    {"file": "origins/boss/boss.ts", "literal": "boss", "reason": "a Stage of the boss state machine (dormant, gathering, boss, defeated): a closed mechanism state, not a content id"}
+  ]
+}
