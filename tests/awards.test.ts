@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { awardFor, kitAt, levelRefusal } from '../src/awards.ts';
+import { awardFor, kitAt, levelRefusal as judge } from '../src/awards.ts';
+const levelRefusal = (level: number | undefined, marks: number, version?: number): string | null => judge(level, marks, version, (n) => n);   // the full-ladder rule with no beta cut on it (tests/beta-cut.test.ts covers the cut)
 import { DIAL_TRAIL, MAX_LEVEL } from '../src/core/career-ladder.ts';
 import { LOOT, WORN_FROM } from '../src/core/loot.ts';
 
