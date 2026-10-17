@@ -25,7 +25,7 @@ import { killWearLines, settleWithWear } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
-import { MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND, TOKEN_TAG_CHARS } from './units.ts';
+import { LOG_TAG_CHARS, MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND } from './units.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
 // Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a sheeted hero with his equipped weapon, the creature the Pit's level row (opponentAt). A kill report carries no record, so
@@ -178,7 +178,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     let record = recText === undefined ? 'none' : 'unverified';
     if (recText === undefined) deps.tally?.add('no record');
     if (recText !== undefined) {
-      const tag = `kill_report ${token.slice(-TOKEN_TAG_CHARS)} ${open.instance}`;
+      const tag = `kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
         const rv = deps.heroOf ? (await decodeWorldRecord(recText).catch(() => null))?.rv : undefined;   // the claim's own record version: the worn set is held to the rules of the era the page recorded under, not this build's
@@ -204,7 +204,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-TOKEN_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);
+    log(`kill_report ${token.slice(-LOG_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 

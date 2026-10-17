@@ -6,7 +6,7 @@
 // without it, bronze is reported unpaid). Not paid yet, so it can never overpay: Bounty metal and weekly boss rolls (both need "wins today / rolls this week",
 // which needs an events read). Those caps are passed as reached.
 import { createHash } from 'node:crypto';
-import { KILL_ID_HEX, MS_PER_SECOND, TOKEN_TAG_CHARS } from './units.ts';
+import { KILL_ID_HEX, LOG_TAG_CHARS, MS_PER_SECOND } from './units.ts';
 import type { CharacterInstanceId, EncounterId } from '../../src/core/server.ts';
 import type { ItemInstance } from '../../src/core/server.ts';
 import { fightSetup, intoBackpack, lookupOf, resolveFight, rollLoot, type EncounterContent } from '../encounters/encounters.ts';
@@ -120,17 +120,17 @@ export function respawnMsOf(fight: string, content: EncounterContent, rows: Read
 export function mobRewards(content: EncounterContent, now: () => Date = () => new Date(), log: (line: string) => void = console.log) {
   const lookup = lookupOf(content);
   return async (kill: Kill, db: Db): Promise<Json[]> => {
-    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-TOKEN_TAG_CHARS)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }
+    if (!kill.fight) { log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: no fight id (a token from before it was carried), recorded, pays nothing`); return []; }
     const since = await store.lastPaidKill(db, kill.account, kill.fight), window = respawnMsOf(kill.fight, content);
-    if (since === 'absent') { log(`encounter rewards ${kill.token.slice(-TOKEN_TAG_CHARS)}: the respawn read (202610080006) is not applied, recorded, pays nothing`); return []; }
+    if (since === 'absent') { log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: the respawn read (202610080006) is not applied, recorded, pays nothing`); return []; }
     if (since !== null && since < window) {
-      log(`encounter rewards ${kill.token.slice(-TOKEN_TAG_CHARS)}: respawning (${Math.ceil((window - since) / MS_PER_SECOND)} s left), the fight is recorded and pays nothing`);
+      log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: respawning (${Math.ceil((window - since) / MS_PER_SECOND)} s left), the fight is recorded and pays nothing`);
       return [];
     }
     const { inventory, snap } = await openHoldingsWith(db, kill.account, kill.character, { lookup });
     const metal = await metalOf(db, kill.account);
     const paid = mobBatch(kill, { career: snap.career, inventory, metal }, content, now().toISOString());
-    log(`encounter rewards ${kill.token.slice(-TOKEN_TAG_CHARS)}: ${JSON.stringify(paid.summary)}`);
+    log(`encounter rewards ${kill.token.slice(-LOG_TAG_CHARS)}: ${JSON.stringify(paid.summary)}`);
     return paid.batch;
   };
 }
