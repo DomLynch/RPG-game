@@ -1,0 +1,17 @@
+# as-data check (i): a CONTENT TABLE kept in TypeScript (hard-coding audit 2026-10-17, gap 4): an array literal whose first three elements are object literals each carrying an `id` field (wildlife rows, npc lists, feud
+# bands, crowd roles ...). rows.yml only knows six `kind:` values, so a table that is rows in everything but name passed. Rows belong in a JSON file loaded through a `*-rows.ts` reader (the manifest/registry
+# pattern), so the readers themselves, tests, fixtures, declaration files and generated `*.data.ts` are not scanned. A site is the array; check.ts keys it on its first row id and holds the count to a ratchet
+# (id-table-baseline.json, per file): today's tables are a known backlog, a new one is red under --gate, a baseline above the tree is stale.
+id: as-data-id-table
+language: typescript
+ignores:
+  - '**/*.test.ts'
+  - '**/fixtures.ts'
+  - '**/*.d.ts'
+  - '**/*.data.ts'
+rule:
+  kind: array
+  all:
+    - has: { kind: object, nthChild: 1, has: { kind: pair, has: { field: key, regex: "^['\"]?id['\"]?$" } } }
+    - has: { kind: object, nthChild: 2, has: { kind: pair, has: { field: key, regex: "^['\"]?id['\"]?$" } } }
+    - has: { kind: object, nthChild: 3, has: { kind: pair, has: { field: key, regex: "^['\"]?id['\"]?$" } } }
