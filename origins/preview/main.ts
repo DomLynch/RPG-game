@@ -78,6 +78,7 @@ import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
 import { createGfxLift, gfxOn, patchHeightFog } from './gfx-lift.ts';
+import { createFound, createKillDrops } from './kill-drop.ts';
 import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
@@ -492,6 +493,7 @@ const walkLoop = () => {
   if (pitFar.length) { const far = Math.hypot(state.x, state.z) > goblinRule('pitHideM'); for (const o of pitFar) o.visible = !far; }
   ambience?.update(dt);
   goblinDome?.follow(camera); goblinSmoke?.update(dt);
+  killDrops.update(dt, state);
   if (gfx) gfx.render(); else renderer.render(scene, camera);
 };
 renderer.setAnimationLoop(walkLoop);
@@ -715,7 +717,22 @@ function heroDeathSequence() {
   document.body.append(veil);
   setTimeout(() => { veil.remove(); state.x = TOWN_RESPAWN.x; state.z = TOWN_RESPAWN.z; followCam.snap(); woundFx?.clear(); wc.reset({ x: state.x, z: state.z, facing: heading }); }, 2000);   // everything kept; full health in town
 }
+// Kill drops (kill-drop.ts; sandbox only, local to this device): the piece a creature wore falls where it fell and goes into the "Found" list when the hero walks onto it.
+const found = createFound((() => { try { return localStorage; } catch { return null; } })());
+const killDrops = createKillDrops({ scene, groundAt: groundY, found, reach: fxNum('drop.reach'), onPick: (d) => worldToast(`Picked up: ${d.label} (from ${d.from})`), onChange: () => drawFound() });
+const foundChip = document.createElement('button'); foundChip.id = 'found-chip'; foundChip.className = 'glass'; foundChip.type = 'button';
+foundChip.style.cssText = 'position:fixed;left:8px;top:64px;z-index:5;padding:6px 10px;font:600 13px/1 Georgia,serif;border:0;border-radius:14px;color:inherit;display:none';
+const foundPanel = document.createElement('div'); foundPanel.id = 'found-panel'; foundPanel.className = 'glass';
+foundPanel.style.cssText = 'position:fixed;left:8px;top:96px;z-index:5;max-width:70vw;padding:8px 12px;font:600 13px/1.5 Georgia,serif;display:none';
+foundChip.addEventListener('click', () => { foundPanel.style.display = foundPanel.style.display === 'none' ? 'block' : 'none'; });
+document.body.append(foundChip, foundPanel);
+function drawFound() {
+  foundChip.style.display = found.count() || killDrops.waiting() ? 'block' : 'none'; foundChip.textContent = `Found ${found.count()}`;
+  foundPanel.replaceChildren(...(found.list().length ? found.list().map((i) => { const r = document.createElement('div'); r.textContent = `${i.n}× ${i.label} (${i.from})`; return r; }) : [Object.assign(document.createElement('div'), { textContent: 'Nothing yet: kill a creature and walk onto what it drops.' })]));
+}
+drawFound();
 function creatureFell(spec: MobSpec) {
+  const fellAt = (mobs?.debug() as { mobs: { id: string; x: number; z: number }[] } | undefined)?.mobs.find((m) => m.id === spec.id);   // where it stands now, before it is released
   mobs?.fell(spec.id);
   const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
@@ -723,7 +740,7 @@ function creatureFell(spec: MobSpec) {
   void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
   // The sandbox only (an unlisted zone the server never sees): a creature that wore a loadout drops ONE of the pieces it wore (loadouts-rules.ts droppedPiece), named on screen after the kill toast. Nothing is saved; the real item is the backend's loot-table work.
   const worn = (zoneRow ?? loadZone()).unlisted ? droppedPiece(loadoutRow(mobVariant(spec.character, spec.id)?.loadout), spec.id) : undefined;
-  if (worn) setTimeout(() => worldToast(`${spec.name} drops what it wore: ${pieceLabel(worn)}`), 3600);
+  if (worn) setTimeout(() => { worldToast(`${spec.name} drops what it wore: ${pieceLabel(worn)}`); killDrops.drop(worn, pieceLabel(worn), spec.name, fellAt?.x ?? state.x, fellAt?.z ?? state.z); drawFound(); }, 3600);
 }
 // Every world creature fight is server-verified when signed in (origins/server/world-spawns.ts): one engage token per creature, joiners included; guests send nothing.
 const characterNow = characterFor({ storage, search: location.search }, () => characterId, (id) => { characterId = id; });
