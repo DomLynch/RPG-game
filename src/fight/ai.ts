@@ -255,7 +255,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
       : gap > 1.4 ? 'approach' : gap < 1 ? 'retreat' : r < .33 * guardShare ? 'guard' : 'circle';
     // Stand and face (donors: AzerothCore / Trinity / EQEmu / Quake 2 / DOOM / RuneScape: a melee mob closes to its reach, stops, faces and swings; Daggerfall Unity strafes on a 25% roll): in the open world a
     // creature at the stand-off circles only `circleChance` of the time, else it holds its ground. The roll is drawn only when the profile carries the chance, so every other fight keeps its stream byte for byte.
-    if (next.mode === 'circle' && profile.circleChance !== undefined && !low && !shaky && roll() >= profile.circleChance) next.mode = 'stand';
+    if (next.mode === 'circle' && profile.circleChance !== undefined && !low && !shaky && roll() >= profile.circleChance) next.mode = gap > fight.close ? 'approach' : 'stand';   // inside cutting range it holds; not yet there, it closes in rather than hovering out of reach
   }
   if (gap > 2.5 || (!low && !shaky && gap > 1.9)) next.mode = 'approach';
   if (tick < next.retreatUntil || ((low || shaky) && gap < 1.2)) next.mode = 'retreat';
