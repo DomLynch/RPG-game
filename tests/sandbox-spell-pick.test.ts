@@ -19,23 +19,23 @@ const find = (src: unknown): Pick[] | undefined => {   // the family anywhere in
 };
 const picks = find(ROWS) ?? [];
 
-test('trunk ships no spellPick rows (every spell is offered); the sandbox rows pick 4, one per unlock point', () => {
+test('trunk ships no spellPick rows (every spell is offered); the sandbox rows pick 4 attack spells, one per unlock point, plus the universal heal', () => {
   assert.deepEqual((DEFS as unknown as { spellPick: unknown[] }).spellPick, []);
-  assert.deepEqual(picks.map((p) => p.unlock), ['start', 'pit', 'zone1', 'zone2']);
-  assert.equal(new Set(picks.map((p) => p.id)).size, 4, 'no spell twice');
+  assert.deepEqual(picks.map((p) => p.unlock), ['start', 'pit', 'zone1', 'zone2', 'universal']);
+  assert.equal(new Set(picks.map((p) => p.id)).size, 5, 'no spell twice');
 });
 test('each pick is a real catalogue spell of the level its row says, playing its own real designed effect (4 different)', () => {
   for (const p of picks) {
     assert.ok(SPELL_INFO[p.id], `${p.id} is in the catalogue`); assert.equal(SPELL_INFO[p.id]!.level, p.level, `${p.id} level`);
     assert.ok(p.fx && SPECIAL_MODES[p.fx as SpecialTest] && SPECIAL_TESTS[p.fx as SpecialTest], `${p.id}: ${p.fx} has a mode and a look-test`);
   }
-  assert.equal(new Set(picks.map((p) => p.fx)).size, 4, '4 different effects');
+  assert.equal(new Set(picks.map((p) => p.fx)).size, 5, '5 different effects');
 });
 test('every pick lands at the sandbox skill floor (100): at least 90% of casts succeed or crit, and its root is the outer band (cast from any distance)', () => {
   const floor = Number(JSON.stringify(ROWS).match(/"id":"spellSkillFloor","value":(\d+)/)?.[1]);
   assert.equal(floor, 100);
   const bands = new Map([...JSON.stringify(ROWS).matchAll(/\{"root":"(\w+)","band":"(\w+)"/g)].map((m) => [m[1], m[2]]));
-  for (const p of picks) {
+  for (const p of picks.filter((x) => x.unlock !== 'universal')) {   // the heal always lands (spellHeal) and needs no band
     const s = resolveSpell(p.id, floor)!, n = 1000; let ok = 0;
     for (let k = 0; k < n; k++) { const o = castOutcome(s, k / n); if (o === 'success' || o === 'crit') ok++; }
     assert.ok(ok / n >= 0.9, `${p.id}: ${ok / n} of casts land at skill ${floor}`);

@@ -17,7 +17,7 @@ import { castOutcome, outcomeMult, spellRoot, type CastOutcome, type Spell } fro
 import { stanced, woundsAt, woundCeil, type StanceId } from './stance.ts';
 import { PERK_MAX } from './duel-rows.ts';   // the dials are rows (duel-defs.json)
 export { PERK_MAX };
-import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
+import { DODGE_COUNTER, PHASES, attackerPerMille, interruptLockout, CAST_PUSHBACK, CAST_PUSHBACK_MAX, castWindup, executed, bandPerMille, armourPerMille, OID_ON, commitOf, wardOf, braced, FLANK_DAMAGE, FLANK_POSTURE, poisonOf, poisonTick, bindOf, MANA_MAX, MANA_DELAY, manaCost, manaRegenPerTick, missileOf, laneOf, MISSILE_RADIUS, MISSILE_FAN, MISSILE_HOMING, missilePaysNoStamina, MISSILE_STUN, missileMinGap, missileTicks, ammoOf, missileTiming, spellRangeOf, spellRangeCue, paysMana, healOf, spellWindupOf } from './sandbox-rules.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 
 // Symmetric 1v1 melee simulation. Both fighters obey the same rules through the same Intent; the AI is just another
 // intent source. Pure and fixed at 60 Hz: no renderer, clock, randomness or browser state. Presentation observes results.
@@ -46,6 +46,7 @@ export type Fighter = {
   maxStamina: number; legWound: boolean;   // attrition: the bar's ceiling for this duel, and a slowing leg wound
   attackFrom: { x: number; z: number; gap: number } | null;   // where the current attack started and the gap then: a target that walked in since is walking onto the point
   missile?: { launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number; spell?: string; outcome?: CastOutcome; tint?: string };   // spell, outcome, tint: a long-range SPELL flying through the same model (sandbox spellRange); sandbox-mech missiles: the one bolt this fighter has in flight
+  healUses?: number;   // sandbox spellHeal: heals cast this fight, against the row's `uses` cap
   spell2?: Spell; skillCooldown2?: number; spellHome?: Spell; slot2Active?: boolean;   // sandbox-mech spell slot 2: the second spell, its own cooldown, and the slot-1 spell parked while the second is cast
   ammo?: number;   // sandbox-mech missiles: arrows or bolts left in the quiver (absent = infinite)
   mana?: number; maxMana?: number; manaRest?: number;   // sandbox-mech mana: the third pool (rows manaMax...), present only while manaMax > 0
@@ -111,7 +112,7 @@ export type Finish = { victim: Side; location: HitLocation; move: MoveId; headin
 type EventType = 'MissileLaunched' | 'SpellRefused' | 'SpecialStarted' | 'SpecialLanded' | 'SpecialFizzled' | 'SpecialInterrupted' | 'PhaseChanged' | 'ActionStarted' | 'AttackStarted' | 'Charging' | 'Charged' | 'AttackActive' | 'AttackMissed' | 'Hit' | 'Blocked' | 'Parried' | 'GuardBroken' | 'PostureBroken' | 'Dodged' | 'Staggered' | 'StaminaExhausted' | 'Killed' | 'SharedHit' | 'Whipped' | 'WhipRaised' | 'GambitArmed' | 'GambitFailed';
 // Event sides: a blow that lands (Hit, GuardBroken, Killed) names the attacker as `actor` and the one struck as `target`; a defence that
 // succeeds (Blocked, Parried, Dodged) names the defender as `actor` and the attacker as `target`.
-export type CombatEvent = { missile?: boolean; lane?: number; glance?: boolean; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome; cue?: 'far' };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
+export type CombatEvent = { heal?: number; missile?: boolean; lane?: number; glance?: boolean; pulse?: number; cone?: boolean; damageKind?: string; tick: number; type: EventType; actor: Side; target?: Side; move?: MoveId; direction?: Direction; action?: 'draw' | 'roll' | 'backstep' | 'guard' | 'parry' | 'feint'; damage?: number; roll?: number; stamina?: number; perfect?: boolean; counter?: boolean; rear?: boolean; charged?: boolean; stop?: boolean; trip?: boolean; walled?: boolean; guarded?: boolean; weapon?: WeaponId; material?: Material; location?: HitLocation; heading?: number; ticks?: number; posture?: number; x?: number; z?: number; lead?: number; guard?: number; name?: SpecialName; gambit?: boolean; beaten?: boolean; spell?: string; outcome?: CastOutcome; cue?: 'far' };   // spell, outcome: SpecialStarted / SpecialLanded / SpecialFizzled of a spell cast (spell-cast.ts); outcome is critfail, fail, partial, success or crit   // gambit: a Hit that was a landed Gambit (src/fight/gambit.ts). name: SpecialStarted / SpecialLanded of a named special (moves.ts specialOf). Whipped: actor = target = the whipped fighter; x, z = where the lash landed (before the shove)
 // WhipRaised: the lorarius lifts his whip, `lead` ticks before the lash that follows (RULES.wall.loiter.raise, or raiseAgain for a repeat) —
 // presentation scales its raise animation by `lead` rather than assuming one. Both whip events carry `guard`: which sixth of the wall the
 // lorarius stands in, floor(angle / 60°) from the fighter's position, so the world and audio lanes draw and sound the same guard the sim means.
@@ -246,6 +247,9 @@ function chooseMove(f: Fighter, action: Action): MoveId {
   return f.lastMove === 'light_right' ? 'light_left' : 'light_right';
 }
 // Whether a fighter may start `action` right now; the same test the HUD uses to show enabled controls.
+// sandbox spellHeal: a heal spell is paid in mana whatever its root's kind, and is refused once its per-fight use cap is spent.
+const paysManaFor = (spell: string): boolean => (healOf(spell) ? MANA_MAX > 0 : paysMana(spellRoot(spell)));
+const healSpent = (f: Fighter, s: Spell | undefined): boolean => { const h = healOf(s?.id); return !!h && (f.healUses ?? 0) >= h.uses; };
 export function legal(f: Fighter, action: Action): boolean {
   if (!f.health || f.exhausted || f.special) return false;   // a committed special windup takes no other input
   if (f.specialRecover && (isLight(action) || action === 'heavy' || action === 'thrust' || action === 'kick' || action === 'skill' || action === 'skill2')) return false;
@@ -259,8 +263,8 @@ export function legal(f: Fighter, action: Action): boolean {
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
-  if (action === 'skill2') return f.spell2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail) && (paysMana(spellRoot(f.spell2.id)) ? (f.mana ?? 0) >= manaCost(f.spell2.cost) : f.stamina >= f.spell2.cost);   // sandbox-mech spell slot 2: its own cooldown, its own cost
-  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || (paysMana(spellRoot(f.spell.id)) ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
+  if (action === 'skill2') return f.spell2 !== undefined && f.specialShare !== undefined && !f.skillCooldown2 && (standing || stepTail) && !healSpent(f, f.spell2) && (paysManaFor(f.spell2.id) ? (f.mana ?? 0) >= manaCost(f.spell2.cost) : f.stamina >= f.spell2.cost);   // sandbox-mech spell slot 2: its own cooldown, its own cost
+  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && !healSpent(f, f.spell) && (!f.spell || (paysManaFor(f.spell.id) ? (f.mana ?? 0) >= manaCost(f.spell.cost) : f.stamina >= f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -337,13 +341,14 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && (action === 'skill' || me.spell2)) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
       const picked = action === 'skill2' ? me.spell2 : me.spell, root = picked && spellRoot(picked.id), gap = distance(me.body, foe.body);
-      const cue = root ? spellRangeCue(root, gap) : undefined;   // sandbox spellRange: a spell with a range row is cast only in its band (it replaces the special's reach); out of band nothing is spent and a cue is shown
+      const heal = healOf(picked?.id);   // sandbox spellHeal: needs no range, windup from its row
+      const cue = root && !heal ? spellRangeCue(root, gap) : undefined;   // sandbox spellRange: a spell with a range row is cast only in its band (it replaces the special's reach); out of band nothing is spent and a cue is shown
       if (cue) events.push({ tick, type: 'SpellRefused', actor: i, cue, ...(picked ? { spell: picked.id } : {}) });
-      else if (gap <= R.special.reach || (root && spellRangeOf(root))) {
+      else if (gap <= R.special.reach || heal || (root && spellRangeOf(root))) {
         const chosen = picked;   // sandbox-mech spell slot 2: the cast reads `spell`, so the second spell is swapped in until the cast ends
         if (action === 'skill2') { next.spellHome = me.spell; next.spell = me.spell2; next.slot2Active = true; }
-        next.special = castWindup(me.sheet, spellWindupOf(root, R.special.windup)); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        if (chosen && paysMana(root)) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
+        next.special = castWindup(me.sheet, heal ? heal.windup : spellWindupOf(root, R.special.windup)); delete next.castHurt; delete next.castPush; next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
+        if (chosen && paysManaFor(chosen.id)) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(chosen.cost)); f.manaRest = MANA_DELAY; }   // sandbox-mech mana: the cast is paid in mana, stamina untouched
         else if (chosen) spend(i, chosen.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(chosen ? { spell: chosen.id } : {}) });
       }
@@ -622,6 +627,13 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const cone = CONE_ON && !A.spell ? coneOf(A.specialName) : undefined;
     if (cone) { A.breath = { k: 0, wait: 0, heading: aim(A.body, D.body) }; A.specialRecover = R.special.recovery + breathTicks(cone); breathed[i] = true; continue; }
     const move: MoveId = SKILL_MOVE[A.skill ?? DAY_ONE_SKILL]!;
+    const heal = A.spell ? healOf(A.spell.id) : undefined;   // sandbox spellHeal: restores the caster's own health, no roll, no damage
+    if (heal) {
+      const amount = Math.round(heal.share * A.maxHealth / 1000);
+      A.health = Math.min(A.maxHealth, A.health + amount); A.healUses = (A.healUses ?? 0) + 1;
+      events.push({ tick, type: 'SpecialLanded', actor: i, target: i, move, damage: 0, heal: amount, spell: A.spell!.id, outcome: 'success' });
+      continue;
+    }
     // A spell resolves its outcome from the seeded stream (one draw per cast that lands on a standing target); a fizzle spent its stamina and re-armed the full cooldown above, and deals nothing.
     const outcome = A.spell && duel.cast ? castOutcome(A.spell, rollUnit(duel.cast.seed, casts++)) : undefined, mult = A.spell && outcome ? outcomeMult(A.spell, outcome) : 1;
     if (A.spell && outcome && !mult) { events.push({ tick, type: 'SpecialFizzled', actor: i, spell: A.spell.id, outcome }); continue; }
