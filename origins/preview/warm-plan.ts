@@ -10,13 +10,19 @@ export const warmList = (kinds: readonly string[]): string[] => [PLAYER, ...kind
 export const warmDone = (list: readonly string[], warmed: readonly string[], failed: readonly string[]): boolean => list.every((k) => warmed.includes(k) || failed.includes(k));
 
 /** Link the programs, upload the textures of `root` (the player's actor), off-frame: a clone with EVERY part visible (a drawn sword, a tabard, the eyes: three compiles only visible objects, and a part hidden until the first cut compiled at engage). */
-export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene, probe: THREE.Object3D, frame: () => Promise<void>): Promise<void> {
+export async function warmActor(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene, probe: THREE.Object3D, frame: () => Promise<void>, trace?: { step: string; ms: number }[]): Promise<void> {
   probe.traverse((o) => { o.visible = true; });
   const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
-  await renderer.compileAsync(holder, camera, scene);
+  const c0 = performance.now(), compiling = renderer.compileAsync(holder, camera, scene);
+  trace?.push({ step: 'compile-head', ms: Math.round(performance.now() - c0) });   // the synchronous part of the call: the program parameters and the first shader work
+  await compiling;
   const textures = new Set<THREE.Texture>();
   probe.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; for (const mat of Array.isArray(m.material) ? m.material : [m.material]) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture); });
-  for (const t of textures) { renderer.initTexture(t); await frame(); }
+  for (const t of textures) {
+    const u0 = performance.now(); renderer.initTexture(t); const ms = Math.round(performance.now() - u0);
+    if (trace && ms >= 5) trace.push({ step: `texture ${(t.image as { width?: number } | undefined)?.width ?? '?'}px`, ms });   // only the uploads that cost a visible slice
+    await frame();
+  }
 }
 
 /** The page is too slow to spend frames on warming other players' gear: the median of the sampled frame gaps (ms) is above `limitMs`. A kit's shadow-pass link is one synchronous step that no API makes async, so on a slow device (a software-GL runner, a weak phone) it is skipped and remotes keep the base figure; an empty sample is not slow. */
