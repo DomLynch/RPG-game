@@ -84,7 +84,7 @@ export class World {
   // moved. So packets that bunch on a jittery link draw on what the walker earned while they were in flight, a refused pose spends nothing (and the clock still runs, so one hiccup cannot snowball),
   // and a speed hack still cannot average more than the limit: the cap bounds any burst.
   move(p: Player, pose: Pose, now: number): MoveResult {
-    const { strikesToDrop, strikeWindowMs, jitterMs } = this.rules;
+    const { strikesToDrop, strikeWindowMs, jitterMs, tickMs } = this.rules;
     if (now - p.strikeAt > strikeWindowMs) { p.strikes = 0; p.strikeAt = now; }
     const rate = this.creditRate(p.zone);
     p.credit = Math.min(rate * (1000 + jitterMs), p.credit + rate * Math.max(0, now - p.movedAt));
@@ -92,14 +92,14 @@ export class World {
     const x = p.legacy ? Math.min(hi, Math.max(lo, pose.x)) : pose.x, z = p.legacy ? Math.min(hi, Math.max(lo, pose.z)) : pose.z;
     p.movedAt = now; p.seenAt = now;
     const step = Math.hypot(x - p.x, z - p.z);
-    if (!(p.legacy || walkable(x, z)) || step > p.credit) {
+    if (!(p.legacy || walkable(x, z)) || step > Math.max(p.credit, rate * tickMs)) {   // a tick's worth is always allowed (a joiner's first pose, a warp's first step); the credit only ADDS to it
       if (++p.strikes > strikesToDrop) return 'drop';
       return 'snapped';
     }
-    p.credit -= step;
+    p.credit = Math.max(0, p.credit - step);
     return this.place(p, x, z, pose);
   }
-  // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there).
+  // cm of reach earned per ms in a zone: the sprint speed times the zone's speed row, with slack (a joiner or a warped player starts with none and earns from there; one tick of it is always allowed per pose).
   private creditRate(zone: ZoneRow | null): number { return (this.rules.maxSpeedCmS * (zone?.speed ?? 1) * this.rules.speedSlack) / 1000; }
   // A server-decided jump (origins/presence/warps.ts: the landmark table, never a client coordinate): the player stands at (x, z) now, the speed clamp restarts from there and no strike is counted.
   warp(p: Player, x: number, z: number, now: number): void {
