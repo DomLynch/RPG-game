@@ -32,7 +32,7 @@ import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { EXITS, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
-import { applyServerKill, killToast } from './kill-apply.ts';
+import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast } from './kill-apply.ts';
 import { itemNamer } from './item-names.ts';
 import { guestBag, guestKillLoot } from './guest-loot.ts';
 import { loadEncounterContent } from '../encounters/encounters.ts';
@@ -698,12 +698,15 @@ if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joi
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
 // "Place your point" in Zone 1 (Lead 2026-10-17): a one-line nudge beside "Sign in to keep it" while there are points to place; a tap opens the build dialog, never a modal on its own. The count and the dialog are mounted below the stored build.
 let pointsOpen = 0, pointsPolled = -1, buildOpen: (() => void) | null = null, buildPoll: (() => void) | null = null;
+let guestHolds = (): boolean => false;   // whether a guest's session bag holds anything (set where the bag is made, below: showCareer runs before that line)
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
   career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
-  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
+  if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a);
+    if (guestHolds()) { const loss = document.createElement('span'); loss.id = 'guest-loss'; loss.textContent = GUEST_SIGN_IN_LOSS; loss.style.cssText = 'display:block;pointer-events:none'; saveNote.append(loss); }   // before the tap: what signing in costs a guest who holds loot (an empty bag gets no noise)
+  }
   if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.style.cssText = 'pointer-events:auto;background:none;border:0;font:inherit;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px;cursor:pointer'; b.addEventListener('click', buildOpen); career.append(' · ', b); }   // on the career line (Level 16 · 0 / 8625 CP · 16 points to place): one line on a phone
   if (buildPoll && c.level !== pointsPolled) { pointsPolled = c.level; buildPoll(); }   // a level gained: read the build again for the count
 }
@@ -783,6 +786,7 @@ if (creaturesLook(location.search)) void import('./creature-voice.ts').then((m) 
 const REACH = previewRule('tapRange'), TAP_MS = previewRule('tapMs'), TAP_PX = previewRule('tapPx');   // m a creature may be tapped from; a tap is a press that stays put (a resting stick does nothing, so a slow one is still a tap: on a busy main thread the up event lands hundreds of ms after the down, measured 600 ms)
 const tapLog: string[] = [], taps = new Map<number, { t: number; x: number; y: number; far: number; lx: number }>(), caster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const itemName = itemNamer(), guestContent = loadEncounterContent(), guestHeld = guestBag();   // a signed-out player's session loot: in memory only
+guestHolds = () => guestHeld.items().length > 0 || guestHeld.bronze() > 0;
 let sayTimer = 0;
 function say(text: string) { hint.textContent = text; hint.hidden = false; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { hint.hidden = true; }, 5000); }
 // The wild has no fight start or end (Dom 2026-10-08): no banner, no timer, no "Back to the fields". A kill is a small non-modal toast and the creature falls; running away or a
@@ -834,7 +838,7 @@ function creatureFell(spec: MobSpec) {
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
   void answer.then((k) => {   // ONE kill path: the screen shows what the server paid; a guest sees what the same table rolled for this session (guest-loot.ts: held in memory, never saved) with a nudge to sign in to keep it
     const guest = 'offline' in k && k.offline === 'no-session' && guestContent.ok ? guestKillLoot(guestContent.value, spec.character, spec.level, (Math.random() * 2 ** 32) >>> 0) : null;
-    if (guest) guestHeld.add(guest);
+    if (guest) { guestHeld.add(guest); showCareer(); }   // the sign-in line appears as soon as the bag holds something
     worldToast(killToast(k, itemName, spec.name, bountyTaken, guest));
   });
 }
@@ -869,7 +873,7 @@ for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventList
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({
-  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }), nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
+  view: groundItems, signedIn: () => !!storedToken(storage, Date.now()), guestTake: (item, quantity) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); }, nameOf: repairName, refreshPack: () => play.load(), cue: (kind) => zoneSound.groundLoot(kind), say: groundSay,
   read: () => readGround(storedToken(storage, Date.now()), repairBase),
   take: async (instance) => { const character = await characterNow(); return character ? takeGround(storedToken(storage, Date.now()), character, instance, repairBase) : { offline: 'no-session' }; },
 });
@@ -939,6 +943,7 @@ function programOwners(): Record<string, string[]> {
   return out;
 }
 (window as unknown as { originsPreview: unknown }).originsPreview = {
+  guestTake: (item: string, quantity: number) => { guestHeld.add({ loot: [{ item, quantity }], bronze: 0 }); showCareer(); },   // browser rows: put something in a guest's session bag as a take or a kill would (guest-loss-check.mjs); the real paths are the ground pickup and the kill
   camView: () => ({ ...followCam.view, fight: followCam.fighting(), fov: camera.fov, zoom: camera.zoom }),   // browser checks and stills: what the lens has (combat-cam-stills.mjs)
   combat: () => ({ hero: wc.hero(), trace: wc.trace(), target: wc.target(), fighters: wc.debug(), fx:zoneFx.active(), fxProbe: zoneFx.probe() }), press: (kind?: 'light' | 'heavy' | 'thrust' | 'kick') => wc.press(kind),   // Zone 1's combat loop, for the browser checks
   presence: () => ({ state: presence?.state() ?? 'off', others, names: Object.fromEntries(otherNames) }),
