@@ -67,12 +67,12 @@ test('v2: a worn set is merged into the body: still ONE skinned draw and the SAM
   await source.start();
   assert.ok(source.kits().includes('goblin.Body') && source.kits().length >= 50, `${source.kits().length} pieces held`);
   const base = source.spawn('near', null)!, dressed = source.spawn('near', SET)!, other = source.spawn('near', SET)!;
+  for (let i = 0; i < 20; i++) dressed.update(2, 1 / 30);   // the draw/sheathe swap settles on the first updates
   assert.equal(shown(dressed.anchor).length, 2, 'body + weapon, no extra draw per piece');
   assert.equal(bodyOf(dressed).material, bodyOf(base).material, 'no new material, so no new program');
   assert.ok(tris(bodyOf(dressed)) > tris(bodyOf(base)) + 1000, `dressed ${tris(bodyOf(dressed))} vs base ${tris(bodyOf(base))}`);
   assert.equal(bodyOf(dressed).geometry, bodyOf(other).geometry, 'the same worn set is one merge, shared');
   assert.equal(bodyOf(dressed).skeleton.bones.length, 65);
-  for (let i = 0; i < 20; i++) dressed.update(2, 1 / 30);
   const box = bodyOf(dressed).geometry; assert.equal(box.getAttribute('color').count, box.getAttribute('position').count, 'every merged vertex has its colour');
 });
 
