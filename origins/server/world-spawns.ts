@@ -25,6 +25,7 @@ import { killWearLines, settleWithWear } from './wear-settle.ts';
 import { ticksFor, MAX_RECORD_CHARS, type HeroLimit, type Verdict, type VerdictTally, type VerifyJob } from './world-verify.ts';
 import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
+import { MS_PER_SECOND, SEED_LIMIT, TICKS_PER_SECOND, TOKEN_TAG_CHARS } from './units.ts';
 
 // ---- the second lines (pure) ------------------------------------------------------------------------------------------------------------
 // Zone 1 fights on the Pit's own duel (src/fight/open-fight.ts, #1894): the player is a sheeted hero with his equipped weapon, the creature the Pit's level row (opponentAt). A kill report carries no record, so
@@ -34,6 +35,7 @@ import SERVER_RULES from './server-rules.json' with { type: 'json' };
 // engage token and the per-account kill caps (migration 202610080014).
 const KILL = SERVER_RULES.worldKill[0]!;
 export const SLACK = KILL.slack;
+const MAX_HITS = KILL.maxHits, ENGAGE_TOKEN_BYTES = KILL.engageTokenBytes;   // rows of the worldKill table: the most hits a report may claim; the random bytes of a spawn-engage token
 const BLOWS = PLAYER_WEAPONS.flatMap((w) => Object.values(weaponOf(w).moves));   // the envelope over every weapon a hero may carry (the world hero wields his equipped one), never the longsword alone
 const STACK = RULES.charge.damage * Math.max(RULES.stopHit.damage, RULES.counter.damage) * Math.max(RULES.rear.damage, RULES.rear.downed) * Math.max(...Object.values(RULES.location)) * CAPS.attack * (1 + ROLL_BAND / 100) * GAMBIT_ODDS.multiplier;   // a Special (20 % of max health) is below this for every blow that matters
 export const maxHit = (): number => Math.ceil(Math.max(...BLOWS.map((m) => m.damage)) * STACK);
@@ -41,7 +43,7 @@ const FASTEST_WINDUP = Math.min(...BLOWS.flatMap((m) => [m.windup, ...(m.chained
 const FASTEST_CYCLE = Math.min(...BLOWS.flatMap((m) => [m.windup + m.active + m.recovery, ...(m.chained ? [m.chained.windup + m.chained.active + m.chained.recovery] : [])]));
 export const healthOf = (body: string, level: number): number | null => { const o = (OPPONENTS as Record<string, Parameters<typeof opponentAt>[0] | undefined>)[body]; return o ? opponentAt(o, level).health : null; };
 export const minHits = (hp: number): number => Math.max(1, Math.ceil(hp / maxHit()));
-export const minKillMs = (hp: number): number => Math.floor((FASTEST_WINDUP + (minHits(hp) - 1) * FASTEST_CYCLE) * 1000 / 60 * SLACK);   // the first blow after the fastest windup, every later one a full fastest cycle on
+export const minKillMs = (hp: number): number => Math.floor((FASTEST_WINDUP + (minHits(hp) - 1) * FASTEST_CYCLE) * MS_PER_SECOND / TICKS_PER_SECOND * SLACK);   // the first blow after the fastest windup, every later one a full fastest cycle on
 const LIGHT_REACH = Math.max(...PLAYER_WEAPONS.map((w) => weaponOf(w).moves.light_right?.reach ?? 0));
 // Reach: the creature roams `roam` m from home; the longest light cut of any weapon reaches LIGHT_REACH; REACH_SLACK m for presence's pose lag (a pose is at most POSE_AGE_MS old).
 export const REACH_SLACK = KILL.reachSlack, POSE_AGE_MS = KILL.poseAgeMs;
@@ -56,7 +58,7 @@ export function zoneSpawns(content: EncounterContent, zoneId: string): Map<strin
   for (const spec of mobSpecs(f, frontierBuild(f), listedZone(zoneId).spawns.rows)) {
     const fight = spec.encounter ?? spec.character, hp = healthOf(spec.body, spec.level);
     if (hp === null || !fightSetup(fight, content).ok) continue;   // a creature the server cannot price never engages (fail closed)
-    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / 1000) });
+    out.set(spec.id, { spec, fight, hp, respawnS: Math.round(respawnMsOf(fight, content) / MS_PER_SECOND) });
   }
   return out;
 }
@@ -89,7 +91,7 @@ const recordOf = (v: unknown): string | undefined => { if (v === undefined) retu
 const tokenOf = (v: unknown): string => { if (typeof v !== 'string' || !TOKEN.test(v)) throw new BadRequest('token: an engage token'); return v; };
 const hitsOf = (v: unknown, need: boolean): number | undefined => {
   if (v === undefined && !need) return undefined;
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 10_000) throw new BadRequest('hits: a whole count of landed hits');
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_HITS) throw new BadRequest('hits: a whole count of landed hits');
   return v;
 };
 const GONE = (e: unknown): never => {
@@ -114,7 +116,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
   // zoneId in a body: one of the loader's zones (Zone 1 when absent); each zone's list is built on first use and kept.
   const zoneOf = (v: unknown): string => { if (v === undefined) return DEFAULT_ZONE; if (typeof v !== 'string' || !listedZoneIds().includes(v)) throw new BadRequest('zoneId: a zone id'); return v; };
   const spawnsOf = (zoneId: string): Map<string, Spawn> => { let z = zones.get(zoneId) ?? (deps.zones?.[zoneId]); if (!z) z = zoneSpawns(content, zoneId); zones.set(zoneId, z); return z; };
-  const seed = deps.seed ?? (() => randomInt(1, 2 ** 31)), now = deps.now ?? (() => new Date()), log = deps.log ?? console.log;
+  const seed = deps.seed ?? (() => randomInt(1, SEED_LIMIT)), now = deps.now ?? (() => new Date()), log = deps.log ?? console.log;
 
   const spawnState: Handler = async ({ db }, body) => {
     const zoneId = zoneOf(body.zoneId), list = [...spawnsOf(zoneId).values()].filter((s) => body.zone === undefined || s.spec.zone === body.zone);
@@ -136,7 +138,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     if (typeof instance !== 'string' || !INSTANCE.test(instance) || zoneOfKey(instance) === null) throw new BadRequest('instance: a spawn id');
     const zoneId = zoneOf(body.zoneId), spawn = spawnsOf(zoneId).get(instance);
     if (!spawn) throw new BadRequest(`instance: not a Zone ${zoneId} spawn`);
-    const got = await store.spawnEngage(db, account, character, randomBytes(24).toString('base64url'), instance, spawn.spec.character);
+    const got = await store.spawnEngage(db, account, character, randomBytes(ENGAGE_TOKEN_BYTES).toString('base64url'), instance, spawn.spec.character);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
     return { token: got.token, instance, zoneId, generation: got.generation, kind: spawn.spec.character, level: spawn.spec.level, hp: spawn.hp, expiresAt: got.expiresAt };
@@ -176,12 +178,12 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
     let record = recText === undefined ? 'none' : 'unverified';
     if (recText === undefined) deps.tally?.add('no record');
     if (recText !== undefined) {
-      const tag = `kill_report ${token.slice(-6)} ${open.instance}`;
+      const tag = `kill_report ${token.slice(-TOKEN_TAG_CHARS)} ${open.instance}`;
       const run = async (): Promise<Verdict> => {
         if (!deps.verifyRecord) return { ok: false, reason: 'no verifier' };
         const rv = deps.heroOf ? (await decodeWorldRecord(recText).catch(() => null))?.rv : undefined;   // the claim's own record version: the worn set is held to the rules of the era the page recorded under, not this build's
         const limit = deps.heroOf ? await deps.heroOf(account, open.character, rv).catch(() => null) : null;
-        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / 1000) });
+        const v = await deps.verifyRecord({ text: recText, spawn: { spec: spawn.spec }, kind: setup.value.opponent.body, limit, token, maxTicks: ticksFor((now().getTime() - Date.parse(open.issuedAt)) / MS_PER_SECOND) });
         deps.tally?.add(v.ok ? 'verified' : v.reason);
         log(v.ok ? `${tag}: world record verified (${v.ticks} ticks)` : `${tag}: world record not verified (${v.reason})`);
         return v;
@@ -202,7 +204,7 @@ export function worldSpawnOps(deps: SpawnDeps | null): Record<string, Handler> {
       : await commit([]);
     if (got === null) return absent();
     if (typeof got.refused === 'string') return refuse(got.refused);
-    log(`kill_report ${token.slice(-6)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);
+    log(`kill_report ${token.slice(-TOKEN_TAG_CHARS)} ${open.instance}: ${JSON.stringify(paid.summary)} reach=${reach}`);
     return { result: 'killed', instance: open.instance, zoneId: zone0, respawnAt: got.respawnAt, loot: countLoot(paid.summary.drops), cp: paid.summary.cp, bronze: paid.summary.bronze, beta: true };
   };
 

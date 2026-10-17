@@ -24,7 +24,10 @@
       "slack": 0.5,
       "reachSlack": 4,
       "poseAgeMs": 5000,
-      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, and the oldest presence pose (ms) that still counts"
+      "maxHits": 10000,
+      "engageTokenBytes": 24,
+      "windowSlackTicks": 120,
+      "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, the oldest presence pose (ms) that still counts, the most landed hits a kill report may claim, the random bytes in a spawn-engage token, and the ticks (two seconds) a record may run past the engagement's age for the window that opened just before the token"
     }
   ],
   "fightLimit": [
