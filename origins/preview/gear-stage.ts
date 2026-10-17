@@ -37,6 +37,7 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
   }
   let held = false;
   const hold = () => { held = true; };
+  const release = () => { held = false; };   // the warm was skipped or ran out of its bound: the sheet draws as it did before the warm existed
   const warm = async () => {   // resolves with the ms the one synchronous frame took (the long task the warm leaves on the main thread) and how the programs split between the compile and that frame
     let drawMs = 0;
     const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0, slowest: '' };
@@ -57,5 +58,5 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     } finally { held = false; }
     return { drawMs, ...trace };
   };
-  return { stage, load, hold, warm, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
+  return { stage, load, hold, release, warm, wear(ids: readonly string[], next: Record<string, Tier>) { worn = ids; tiers = next; dress(); } };
 }

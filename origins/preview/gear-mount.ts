@@ -25,6 +25,7 @@ export function mountGear(d: Deps) {
     gear: sheet.gear,
     ready: (): boolean => server?.ready() ?? false,
     // Before [zone ready]: the mannequin dressed with the worn set the sheet would show (the server's view once it answered, else the device's), drawn once under the studio, so opening Gear links no program (signedin-gear row).
+    release: zone.release,
     hold: zone.hold,   // from the moment the warm is queued the sheet shows its empty stage until the warm ends (gear-stage.ts)
     warm: async () => { const loot = (server?.profileFor(profile) ?? profile).loot; zone.wear(wornIdsOf(loot), wornTiersOf(loot)); return zone.warm(); },
     refresh: (): Promise<boolean> => server?.refresh() ?? Promise.resolve(false),   // read the server's worn-gear view now (at load, not only when the Gear screen opens)   // the server's view of the character's worn set has answered (the loadout gate in main.ts reads it)
