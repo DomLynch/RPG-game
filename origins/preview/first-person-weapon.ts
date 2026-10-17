@@ -22,7 +22,7 @@ export function createViewmodel(scene: THREE.Scene) {
     /** For a check from the page (originsPreview.fpWeapon()): is a clone up, is it shown, where is it (world) and where the rest pose was taken. */
     debug: () => ({ up: !!vm, shown: !!vm?.visible, at: vm ? new THREE.Vector3().setFromMatrixPosition(vm.matrix).toArray().map((n) => +n.toFixed(2)) : null, rest: restAt ? restAt.toArray().map((n) => +n.toFixed(2)) : null }),
     update(rig: THREE.Object3D | undefined, on: boolean, eye: THREE.Matrix4, rest: Rest, ready: boolean): void {
-      const weapon = on && rig ? rig.getObjectByName('WeaponDrawn') ?? null : null;
+      const weapon = on && rig ? rig.getObjectByName('SwordDrawn') ?? null : null;
       if (!weapon) { drop(); restAt = null; return; }
       if (weapon !== source) {   // first time, or the hero changed weapon: build the clone (its own materials: drawn on top without touching what the creatures share)
         drop(); source = weapon; vm = weapon.clone(true);

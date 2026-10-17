@@ -17,7 +17,7 @@ test('the viewmodel is the weapon relative to the eye, plus the lift in the eye 
 });
 
 test('the clone is added once, drawn on top with its own material, the original is hidden, and it all goes away when first person is off', () => {
-  const scene = new THREE.Scene(), rig = new THREE.Group(), weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshStandardMaterial()); weapon.name = 'WeaponDrawn'; rig.add(weapon); scene.add(rig);
+  const scene = new THREE.Scene(), rig = new THREE.Group(), weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshStandardMaterial()); weapon.name = 'SwordDrawn'; rig.add(weapon); scene.add(rig);
   const vm = createViewmodel(scene), eye = frame(0, 1.6, 0, 0), lift = { right: 0.3, up: -0.3, forward: 0.55 };
   vm.update(rig, true, eye, lift, true); vm.update(rig, true, eye, lift, true);
   assert.equal(scene.children.length, 2, 'the rig and ONE clone'); assert.equal(weapon.visible, false);
@@ -27,7 +27,7 @@ test('the clone is added once, drawn on top with its own material, the original 
 });
 
 test('at rest the weapon sits exactly at the rest spot in view (right, below, ahead of the eye) wherever the hand is, and a swing moves it by what the hand moves', () => {
-  const scene = new THREE.Scene(), rig = new THREE.Group(), weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshStandardMaterial()); weapon.name = 'WeaponDrawn'; rig.add(weapon); scene.add(rig);
+  const scene = new THREE.Scene(), rig = new THREE.Group(), weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshStandardMaterial()); weapon.name = 'SwordDrawn'; rig.add(weapon); scene.add(rig);
   const vm = createViewmodel(scene), rest = { right: 0.3, up: -0.3, forward: 0.55 };
   for (const yaw of [0, 1.1]) {
     const eye = frame(2, 1.6, 4, yaw), toWorld = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyMatrix4(eye);
