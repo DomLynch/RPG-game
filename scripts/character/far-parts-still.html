@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>far parts still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// Which parts of the hero can go on a far figure (Lead 2026-10-17, Web's crowd profile): two heroes side by side at ?d= metres, the left whole, the right with every mesh whose name matches ?hide= switched off. The game's camera
+// (fov 51), eye height, ready pose. Driven by far-parts-still.mjs (window.ready flips true; window.parts lists the meshes and their triangles).
+import * as THREE from 'three';
+import { loadWarriors } from '/src/fight/index.ts';
+
+const q = new URLSearchParams(location.search), d = Number(q.get('d') ?? 8), hide = q.get('hide') ? new RegExp(q.get('hide')) : null;
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(2, 4, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(51, innerWidth / innerHeight, 0.1, 180);
+const heroes = [];
+for (const x of [-0.7, 0.7]) {
+  const { player } = await loadWarriors('/src/assets/warrior.glb');
+  const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot); heroes.push(player);
+}
+const meshes = (actor) => { const out = []; actor.anchor.traverse((o) => { if (o.isMesh) out.push(o); }); return out; };
+const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+window.parts = meshes(heroes[0]).map((m) => ({ name: m.name, material: m.material?.name ?? '', tris: Math.round(tris(m)), skinned: !!m.isSkinnedMesh, visible: m.visible }));
+let hidden = [];
+if (hide) for (const m of meshes(heroes[1])) if (hide.test(m.name) || hide.test(m.material?.name ?? '')) { m.visible = false; hidden.push(m.name); }
+camera.position.set(0, 1.55, d); camera.lookAt(0, 1.0, 0);
+for (let i = 0; i < 4; i++) { for (const h of heroes) h.update(0, 0.016, 'ready', 0); renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); }
+window.result = { d, hidden, whole: meshes(heroes[0]).filter((m) => m.visible).length, reduced: meshes(heroes[1]).filter((m) => m.visible).length, trisWhole: Math.round(meshes(heroes[0]).filter((m) => m.visible).reduce((a, m) => a + tris(m), 0)), trisReduced: Math.round(meshes(heroes[1]).filter((m) => m.visible).reduce((a, m) => a + tris(m), 0)) };
+window.ready = true;
+</script>
