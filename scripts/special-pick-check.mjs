@@ -50,6 +50,7 @@ try {
   assert.ok(one && !one.hidden, `SPECIAL 1 button shows: ${JSON.stringify(one)}`);
   assert.ok(two && !two.hidden, `SPECIAL 2 button shows: ${JSON.stringify(two)}`);
   assert.match(String(two.label), /stomp/i, `SPECIAL 2 wears the skill row's own name: ${two.label}`);
+  assert.match(String(one.label), /lunge/i, `SPECIAL 1 wears the skill row's own name: ${one.label}`);
   ok('both SPECIAL buttons show and SPECIAL 2 wears its skill name', { one: one.label, two: two.label });
   await page.screenshot({ path: path.join(out, 'hud-both-lit.png') });
   const state = () => page.evaluate(() => { const c = window.originsPreview.combat(); return { stamina: c.hero.stamina, hp: c.fighters.filter((f) => f.id !== 'me').map((f) => f.health) }; });
