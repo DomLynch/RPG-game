@@ -29,13 +29,17 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': mime[path.extname(hit)] ?? 'application/octet-stream' }); fs.createReadStream(hit).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const glArgs = process.env.PIT_GL === '1' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];   // PIT_GL=1: software GL (a loaded box); unset: the Mac's own GL
+const glArgs = process.env.PIT_GL === '0' ? [] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];   // software GL by default (a headless Chromium on the Mac paints no 3D scene without it, like the stills scripts); PIT_GL=0: the Mac's own GL
 const browser = await chromium.launch({ args: glArgs });
 const receipt = { dist, kind: KIND, zone: ZONE, seconds: SECONDS, frames: 0, errors: [] };
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })).newPage();
   page.on('pageerror', (e) => receipt.errors.push(String(e).slice(0, 200)));
   await page.goto(`http://127.0.0.1:${server.address().port}/preview/origins/?region=1&worldfight&zone=${ZONE}`, { waitUntil: 'load' });
+  // the creature is placed in the zone but only DRAWN near the hero (Zone 5's spawn is ~80 m from the den): find it, walk the hero to 14 m from it, then wait for it to be drawn with its model
+  await page.waitForFunction((kind) => window.originsPreview?.mobs()?.mobs?.some((m) => m.body === kind), KIND, { timeout: 180000 });
+  const den = await page.evaluate((kind) => { const m = window.originsPreview.mobs().mobs.find((q) => q.body === kind); return { x: m.x, z: m.z }; }, KIND);
+  await page.evaluate(([x, z]) => window.originsPreview.place(x, z - 14, 0), [den.x, den.z]);
   await page.waitForFunction((kind) => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model && m.body === kind), KIND, { timeout: 300000 });
   await page.waitForTimeout(3000);
   const target = await page.evaluate((kind) => { const m = window.originsPreview.mobs().mobs.find((q) => q.drawn && q.model && q.body === kind); return { id: m.id, x: m.x, z: m.z, name: m.name }; }, KIND);
@@ -43,6 +47,7 @@ try {
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   await page.evaluate(([x, z, d]) => window.originsPreview.place(x, z - d, 0), [target.x, target.z, PLACE]);   // 7 m south of it, facing it
   const { run } = await harnessClock(page);
+  await page.evaluate((id) => window.originsPreview.tapMob(id), target.id);   // engage through the real tap path so the creature closes, stops at its reach and fights in frame
   const total = Math.round(SECONDS * 60), log = [];
   for (let n = 0; n < total; n++) {
     await run(n % 3 === 2 ? 16 : 17);
