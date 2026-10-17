@@ -205,7 +205,7 @@ function syncRigWeapon() {
   swappingWeapon = true;
   const base = warriors.baseAsset;
   (want === DEFAULT_WEAPON ? Promise.resolve(undefined) : loadEquip(WEAPON_ART[want]!)).then((part) => {
-    const next = armWarriors(base, undefined, [want, DEFAULT_WEAPON], part, (error) => console.warn('hero weapon equip failed', error));
+    const next = armWarriors(base, undefined, [want, want], part, (error) => console.warn('hero weapon equip failed', error));
     hero.remove(warriors!.player.anchor); hero.add(next.player.anchor); warriors = { ...next, baseAsset: base }; rigWeapon = next.playerWeapon; if (rigWeapon !== want) failedWeapon = want; wc.heroChanged(); void warmHero(next.player.anchor);
   }).catch((error: unknown) => { failedWeapon = want; console.warn('hero weapon did not load; he keeps the longsword', error); }).finally(() => { swappingWeapon = false; });
 }
