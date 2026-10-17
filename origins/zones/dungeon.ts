@@ -26,7 +26,7 @@ type ExitLite = { readonly id: string; readonly landmark: string };
 
 /** The dungeons of a rows file, checked: a table problem (a missing field, an unknown theme, loot or exit id) and every graph rule below throws with the dungeon's id. */
 export function loadDungeons(raw: { dungeons?: readonly unknown[] }, themes: { themes?: readonly unknown[] } = THEMES, exits: readonly ExitLite[] = EXITS_DEFS.exits, lootIds: Iterable<string> = (LOOT as readonly { id: string }[]).map((t) => t.id)): readonly Dungeon[] {
-  loadRegistry([tableFromFile(THEMES_MANIFEST.tables[0] as unknown as Manifest, themes, 'dungeon-themes.json'), tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'dungeon-rows.json')], { 'loot-table': lootIds, 'zone-exit': exits.map((e) => e.id) });
+  loadRegistry([tableFromFile(THEMES_MANIFEST.tables[0] as unknown as Manifest, themes, 'dungeon-themes.json'), tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'dungeon-rows.json')], { loottable: lootIds, 'zone-exit': exits.map((e) => e.id) });   // the same table names the repo-wide gate (scripts/registry-check.mjs) registers: loottable (region1/loot-tables.manifest.json) and zone-exit (exit-rows.manifest.json); standing alone at runtime, this call supplies their ids itself
   const byTheme = new Map((themes.themes as readonly DungeonTheme[]).map((t) => [t.id, t]));
   const rows = (raw.dungeons ?? []) as readonly Dungeon[];
   for (const d of rows) checkDungeon(d, byTheme.get(d.theme)!, exits);
