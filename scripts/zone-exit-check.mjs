@@ -62,6 +62,8 @@ try {
   };
   await leg('Zone 1 -> Bone Hollow', 'cave-mouth', '5', [1, -320], 'cave-mouth', 'hollow-arrival', [-141, 30]);
   await leg('Bone Hollow -> Zone 1', 'hollow-gate', '1', [-141, 30], 'hollow-gate', 'mouth-arrival', [1, -320]);
+  await leg('Zone 1 -> Sample Crypt', 'crypt-mouth', '6', [1, -120], 'crypt-mouth', 'crypt-arrival', [-62.76, 46.82]);
+  await leg('Sample Crypt -> Zone 1', 'crypt-door', '1', [-62.76, 46.82], 'crypt-door', 'crypt-mouth-arrival', [1, -120]);
   assert.deepEqual(receipt.errors, []);
   console.log('zone-exit: PASS', JSON.stringify(receipt));
 } catch (error) { console.error('zone-exit: FAIL', String(error.message ?? error), JSON.stringify(receipt)); process.exitCode = 1; }
