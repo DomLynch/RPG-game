@@ -1,4 +1,4 @@
-import { RANK_STEPS, TITLES, rankFor, shownMarks } from './career-ladder.ts';
+import { BETA_MAX_LEVEL, RANK_STEPS, TITLES, rankFor, shownMarks } from './career-ladder.ts';
 import { readLeaderboards, readPublicNo, readScorecard, type BoardRow, type ScoreRow } from './career-client.ts';
 import { cleanName, loadProfile, saveProfile, type StoragePort } from './profile.ts';
 import { session } from './session.ts';
@@ -12,7 +12,7 @@ export type ShelfView = { title: string; rungs: Rung[] };
 // One row per title (ten), five rungs each; `now` is the rank the marks give, everything under it is done. Pure.
 export function ladderView(marks: number): ShelfView[] {
   const level = rankFor(marks).level, numerals = ['I', 'II', 'III', 'IV', 'V'];
-  return TITLES.map((title, t) => ({ title, rungs: numerals.slice(0, RANK_STEPS).map((n, i) => { const at = t * RANK_STEPS + i + 1; return { label: `${title} ${n}`, state: at < level ? 'done' : at === level ? 'now' : 'next' } as Rung; }) }));
+  return TITLES.slice(0, Math.ceil(BETA_MAX_LEVEL / RANK_STEPS)).map((title, t) => ({ title, rungs: numerals.slice(0, RANK_STEPS).map((n, i) => { const at = t * RANK_STEPS + i + 1; return { label: `${title} ${n}`, state: at < level ? 'done' : at === level ? 'now' : 'next' } as Rung; }) }));
 }
 export type ScoreLine = { name: string; fights: number; wins: number; losses: string };
 // Most-fought first (the Pit's own order, scorecard.ts), "3 (1 left)" only when a walk-away happened, then the total.

@@ -64,6 +64,16 @@
       }
     },
     {
+      "table": "betaCut",
+      "file": "career-rules.json",
+      "at": "betaCut",
+      "key": "id",
+      "required": {
+        "titles": "integer",
+        "spells": "array"
+      }
+    },
+    {
       "table": "respecRule",
       "file": "career-rules.json",
       "at": "respecRule",

@@ -114,11 +114,11 @@ test('the level a win was fought at must clear the dial floor under the SERVER r
   const record = await goblinKill('level');   // fought at level 6
   assert.equal(await refusal({ opponent: 'goblin', record }, { marks: 10, owned: [] }), null, 'rank 11, floor 6: level 6 is exactly the floor');
   assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 11, owned: [] })), /didn't count \(level 6; your rank is level 12, floor 7\)/);
-  assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 19, owned: [] })), /your rank is level 20, floor 15/);
+  assert.match(String(await refusal({ opponent: 'goblin', record }, { marks: 19, owned: [] })), /your rank is level 20, floor 10/);
   const db = fakeDb([{ id: 1, user_id: U, opponent: 'goblin', piece: 'goblin.Knife', record }], { marks: 19, owned: [] });
   const receipt = await verifyClaims(db);
   assert.deepEqual([receipt.verified, receipt.refused.length], [0, 1], 'a low-level win is refused: no mark, no award');
-  assert.match(db.settled.get(1)!.note!, /floor 15/);
+  assert.match(db.settled.get(1)!.note!, /floor 10/);   // the beta cut caps the floor at the cut (career-ladder.ts BETA_MAX_LEVEL): the Pit client fights no higher
 });
 
 // HELD (Strategy/Lead 2026-09-29): an engine-bound record (v ≤ 19) whose replay diverges is held for a hand check in real browsers;

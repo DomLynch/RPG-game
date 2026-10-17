@@ -78,6 +78,9 @@
   "ladderRule": [
     { "id": "ladder", "maxLevel": 50, "oldMaxLevel": 46, "dialTrail": 5 }
   ],
+  "betaCut": [
+    { "id": "beta", "titles": 2, "spells": ["brokkr", "scylla-pup", "baobhan-sith", "rubezahl", "eitri", "goibniu", "andvari", "kobold", "calydonian-boar", "nemean-cub", "tatzelwurm", "barghest", "cu-sith", "banshee", "black-annis", "dullahan", "puck", "puca", "kelpie", "melusine"] }
+  ],
   "respecRule": [
     { "id": "respec", "freeRespreadLevel": 10 }
   ]
