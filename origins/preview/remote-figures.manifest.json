@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "remoteFigure",
+      "file": "remote-figures.json",
+      "at": "remoteFigures",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

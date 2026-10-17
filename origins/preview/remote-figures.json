@@ -1,0 +1,6 @@
+{
+  "remoteFigures": [
+    { "id": "hero:near", "fields": { "asset": "hero-near.glb", "castShadow": true } },
+    { "id": "hero:far", "fields": { "asset": "hero-far.glb", "castShadow": false } }
+  ]
+}
