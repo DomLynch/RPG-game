@@ -1,4 +1,5 @@
 import { cameraRule } from './camera-rules.ts';
+import { impactTier } from './hit-impact.ts';
 import { ROSTER, supportsFinishers, resolveFinisher } from '../roster.ts';
 import * as THREE from 'three';
 import { SPECIAL_STRUCK, specialStage } from './special-look.ts';
@@ -785,7 +786,7 @@ export function createScene(
         if (event.type === 'SpecialStarted' && event.actor === 1) previewBlocked = false;
         if ((event.type === 'SpecialFizzled' || event.type === 'SpecialInterrupted') && event.actor === 1) { previewGeneration++; previewBlocked = true; specialFxLoading = false; if (previewGroup) disposeSpecialGroup(previewGroup); }
       }
-      const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken'),
+      const blow = events.find((e) => e.type === 'Hit' || e.type === 'GuardBroken' || impactTier(e) === 'special'),   // a landed melee special is a blow when its hit-stop row has frames (hit-impact.ts; the trunk row is 0)
         contact = blow || events.some((e) => e.type === 'Blocked' || e.type === 'Parried');
       const killed = events.find((e) => e.type === 'Killed');
       bloodEdge.render(events, practice.duel);

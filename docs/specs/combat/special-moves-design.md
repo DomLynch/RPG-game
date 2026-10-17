@@ -33,6 +33,12 @@ Avoid: glow sprites where a weapon should be, constant shake, a freeze on every 
 
 Strategy's ruling (2026-10-17): before promotion the special cast reads its move-defs row (reach, windup, stagger, knockback, stamina damage, posture) instead of the flat special share, data only, with 16-seed receipts that the specials differ. Starts and unlocks need a record field for "specials owned".
 
+## What I actually watched (me, in the browser pane, frames of the playing clip; 2026-10-17)
+
+- Elden Ring "Spinning Weapon" (a short): a thin pale see-through shell of air around the player while he turns, a faint weapon streak, red blood spray on the enemy, the enemy reels. No glow, no big particles.
+- Elden Ring "Lion's Claw" (a short): the hit lands as a big red blood burst on the enemy, the colossal sword ends planted in the dirt, dust at the ground; no glow.
+- Frames were small (about 120x212 and 235x235 px, 0.4 s apart), so this gives ingredients, not timings. A first attempt to hand this to Codex failed (the Codex CLI is not installed here) and nothing was watched by it.
+
 ## Honest limits of this research
 
 I cannot watch videos. Fighting-game numbers come from text and frame-data pages (Guilty Gear paper, Elden Ring wiki, Game Developer, Sakurai); Dark Souls, Sekiro, Mortal Kombat and Mordhau had no frame data I could read. WoC is MIT and can be ported with credit; Veloren, ModernUO, OpenDAoC, openmw are GPL, so design and numbers only.
