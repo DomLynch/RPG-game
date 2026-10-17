@@ -29,14 +29,14 @@ const dress = (actor, withFinish) => {
   actor.grade(undefined, handFinish(worn, fin));
 };
 const heroes = [];
-for (const [x, withFinish] of [[-1.0, false], [1.0, true]]) {
+for (const [x, withFinish] of [[-0.6, false], [0.6, true]]) {
   const { player } = await loadWarriors('/src/assets/warrior.glb');
   const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot);   // update() owns the anchor's own position, so each hero stands in a group
   dress(player, withFinish); heroes.push(player);
 }
 const frame = async (n = 4) => { for (let i = 0; i < n; i++) { for (const h of heroes) h.update(0, 0.016, set === 'sword' ? 'ready' : 'sheathed', 0); renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
 const look = (x, y, z, tx, ty) => { camera.position.set(x, y, z); camera.lookAt(tx, ty, 0); };
-window.view = async (v) => { if (v === 'close') look(1.1, 1.3, 3.0, 1.1, 1.15); else if (v === 'side') look(4.0, 1.2, 2.2, 0.2, 1.0); else look(0, 1.25, 5.6, 0, 1.0); await frame(); };
+window.view = async (v) => { if (v === 'close') look(0.9, 1.3, 3.4, 0.6, 1.15); else if (v === 'side') look(4.0, 1.2, 2.2, 0.2, 1.0); else look(0, 1.2, 6.4, 0, 0.95); await frame(); };
 await window.view('front');
 window.result = { set, finishes, hand: handFinish(worn, finishes) ?? null, programs: renderer.info.programs.length, ids: finishes && Object.keys(finishes) };
 window.ready = true;
