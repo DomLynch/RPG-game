@@ -118,12 +118,14 @@ test('a piece migrated once and later retired or traded away is alreadyHeld for 
 // The minted tier is the client's `tiers` claim; it is bounded by the tier the account's SERVER-verified career level can reach (standingLevel(total_credit), the same standing gear.ts equips on).
 const creditForTier = (t: number): number => { for (let lvl = 0; lvl <= 60; lvl++) if (tierOf(standingLevel(cumulative(lvl))) === t) return cumulative(lvl); throw new Error(`no credit reaches tier ${t}`); };
 
-test('a forged full-catalog POST at the top rung on a level-1 account mints nothing: every piece is skipped "above your rank", and no mint key is spent', async () => {
-  const w = world([], 64, 1000, [], 0), tiers = Object.fromEntries(ALL.map((id) => [id, 10]));
+test('a forged full-catalog POST at the top rung on a level-1 account mints nothing above Recruit: every roster piece is skipped "above your rank", and no mint key is spent for them (the starter longsword has no rung: it imports at its row tier)', async () => {
+  const w = world([], 64, 1000, [], 0), tiers = Object.fromEntries(ALL.map((id) => [id, 10])), roster = ALL.filter((id) => id !== 'starter.Longsword');
   const r = await run(w.db, { owned: ALL, equipped: WORN, tiers });
-  assert.deepEqual([r.imported.length, r.worn.length, r.skipped.length], [0, 0, ALL.length]);
+  assert.deepEqual(r.imported, ['starter.Longsword']);
+  assert.ok(!Object.values(WORN).includes(STARTER), 'the worn set here is all roster pieces (so nothing is worn: they are all skipped)');
+  assert.deepEqual([r.worn.length, r.skipped.length], [0, roster.length]);
   assert.ok(r.skipped.every((s) => s.reason === 'above your rank'));
-  assert.equal(w.rows.length, 0, 'nothing minted');
+  assert.deepEqual(w.rows.map((x) => x.tier), ['Recruit'], 'the only mint is the starter longsword, at its row tier');
   // ... and it is not a lock: the same pieces import at the rank the account really holds (the skip kept their mint keys free)
   const ok = await run(w.db, { owned: ALL.slice(0, 5), equipped: {}, tiers: Object.fromEntries(ALL.slice(0, 5).map((id) => [id, 1])) });
   assert.equal(ok.imported.length, 5);
