@@ -198,9 +198,9 @@ const HERO_WAIT_MS = previewRule('heroWait'), warmedHero: { done: boolean; faile
 // ships with this page (the ground models) are offered; any other worn weapon is the longsword. A change re-arms the rig between fights (the equip file loads on demand), and the sim's hero is rebuilt at the next clean window.
 const WEAPON_ART: Record<string, string> = Object.fromEntries(Object.entries(GROUND_MODELS).map(([path, url]) => [path.replace(/^.*\/(\w+)\.glb$/, '$1'), url]));
 const ZONE_CARRIED: readonly WeaponId[] = PLAYER_WEAPONS.filter((w) => w === DEFAULT_WEAPON || WEAPON_ART[w] !== undefined);
-let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false;
+let rigWeapon: WeaponId = DEFAULT_WEAPON, swappingWeapon = false, forcedWeapon: WeaponId | null = null;   // forcedWeapon: the browser checks hold him in one weapon (originsPreview.forceWeapon; a local run, the server would refuse its record)
 function syncRigWeapon() {
-  const want = gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON;
+  const want = forcedWeapon && ZONE_CARRIED.includes(forcedWeapon) ? forcedWeapon : gearMount?.weapon(ZONE_CARRIED) ?? DEFAULT_WEAPON;
   if (want === rigWeapon || swappingWeapon || !warriors || wc.inCombat()) return;
   swappingWeapon = true;
   const base = warriors.baseAsset;
@@ -832,7 +832,7 @@ function programOwners(): Record<string, string[]> {
   remoteProbe, remoteKitsWarm: () => remoteKitsWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
-  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)
+  wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; }, forceWeapon: (w: WeaponId | null) => { forcedWeapon = w; }, rigWeapon: () => rigWeapon,   // browser checks: hold the hero in one engine pose (null releases it)
   tapLog: () => [...tapLog],
   // tap a creature by id as the page would (same reach rule).
   ground: { show: (id: string, item: string, x: number, z: number) => groundItems.show(id, item, { x, z }), hide: groundItems.hide, clear: groundItems.clear, anchor: groundItems.anchor, pointOf: groundPointOf, say: groundSay },   // for a capture and slice 3's page
