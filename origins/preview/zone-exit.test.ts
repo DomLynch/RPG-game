@@ -68,5 +68,5 @@ test('the address: the other zone, the exit taken, every other flag kept', () =>
 
 test('the landing landmarks a page keeps are named by the rows', () => {
   assert.deepEqual([...exitSpots('5', ['bone-hollow'], EXITS)], ['hollow-gate']);
-  assert.deepEqual([...exitSpots('1', ['cinder-fields'], EXITS)], ['cave-mouth']);
+  assert.deepEqual([...exitSpots('1', ['cinder-fields'], EXITS)], ['cave-mouth', 'crypt-mouth']);
 });
