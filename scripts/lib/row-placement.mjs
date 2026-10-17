@@ -98,6 +98,12 @@ if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'post
   const { readFileSync } = await import('node:fs');
   console.log(postPublishRowsFor(process.argv.includes('--unknown') ? null : readFileSync(0, 'utf8').split('\n').map(f => f.trim()).filter(Boolean)).join(','));
 }
+/** `a` without the rows in `b` (comma lists, ascending): what post_publish_ci_rows leaves for the Mac. */
+export function subtractRows(a, b) {
+  const drop = new Set(String(b || '').split(',').map(Number));
+  return [...new Set(String(a || '').split(',').map(Number).filter(n => Number.isInteger(n) && n > 0 && !drop.has(n)))].sort((x, y) => x - y).join(',');
+}
+if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'subtract') console.log(subtractRows(process.argv[3], process.argv[4]));
 if (import.meta.url === `file://${process.argv[1]}` && process.argv[2] === 'line') {
   const { readFileSync } = await import('node:fs');
   console.log(planLine(JSON.parse(readFileSync('.quality-gate.json', 'utf8')).release_commands.length, process.argv.slice(3)));
