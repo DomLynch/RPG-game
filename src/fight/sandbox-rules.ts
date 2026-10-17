@@ -101,6 +101,8 @@ export const CAST_TELL_OFF = num('castTellOff', 'value');
 export const SPECIAL_MELEE_WINDUP = num('specialMeleeWindup', 'value');
 //   specialReact (Strategy 2026-10-17: the victim's stagger is a sim reaction from the move's row, not a canned animation): 1 = a landed melee special applies its move row's stagger, knockback and posture to the victim like a landed blow; 0 = trunk, damage only.
 export const SPECIAL_REACT = num('specialReact', 'value');
+//   specialReactStagger / specialReactKnock / specialReactPosture (percent of the move row's own stagger, knockback and posture; 100 = as the row says): how hard a landed melee special hits the victim. Dom 2026-10-17: "there's no reaction".
+export const SPECIAL_REACT_STAGGER = num('specialReactStagger', 'value'), SPECIAL_REACT_KNOCK = num('specialReactKnock', 'value'), SPECIAL_REACT_POSTURE = num('specialReactPosture', 'value');
 export const bandOf = (distance: number): string | undefined => BANDS.find((b) => distance * 100 < b.upTo)?.id ?? BANDS[BANDS.length - 1]?.id;
 export const bandPerMille = (weapon: string, distance: number): number => {
   if (!BAND_OFF || !BANDS.length) return 1000;
