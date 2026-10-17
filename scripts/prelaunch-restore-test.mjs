@@ -30,6 +30,7 @@ export function restoreInto(socket, backupDir) {
   const base = resolve(backupDir), tables = parseManifest(join(base, 'manifest.tsv')).map(m => m.table);
   const lines = ['set session_replication_role = replica;'];
   for (const t of tables) {
+    // The CSV header names the columns (the backup leaves out GENERATED ALWAYS AS (...) STORED columns: the database recomputes them, and the content hash proves them equal).
     const header = readFileSync(join(base, `${t}.csv`), 'utf8').split('\n', 1)[0];
     lines.push(`\\copy public.${t} (${header}) from '${join(base, `${t}.csv`)}' with (format csv, header true)`);
   }

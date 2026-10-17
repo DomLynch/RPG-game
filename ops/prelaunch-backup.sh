@@ -32,7 +32,10 @@ dest=$out_dir/r1-$stamp; part=$dest.partial
 rm -rf "$part"; mkdir "$part"; chmod 700 "$part"
 cleanup_fail() { rm -rf "$part"; fail "$1"; }
 for t in "${tables[@]}"; do
-  "$psql_bin" -X -q -v ON_ERROR_STOP=1 -c "\\copy (select * from public.$t) to '$part/$t.csv' with (format csv, header true)" >/dev/null 2>"$part/err" || { sed -E 's#postgres(ql)?://[^ ]*#<url>#g' "$part/err" >&2; cleanup_fail "copying $t failed"; }
+  # Every column except GENERATED ALWAYS AS (...) STORED ones (COPY cannot write those; the database recomputes them on restore and the manifest hash, taken over whole rows, proves them equal).
+  cols=$("$psql_bin" -X -q -A -t -v ON_ERROR_STOP=1 -c "select string_agg(quote_ident(column_name), ', ' order by ordinal_position) from information_schema.columns where table_schema = 'public' and table_name = '$t' and is_generated = 'NEVER'") || cleanup_fail "reading the columns of $t failed"
+  [[ -n $cols ]] || cleanup_fail "no columns found for $t"
+  "$psql_bin" -X -q -v ON_ERROR_STOP=1 -c "\\copy (select $cols from public.$t) to '$part/$t.csv' with (format csv, header true)" >/dev/null 2>"$part/err" || { sed -E 's#postgres(ql)?://[^ ]*#<url>#g' "$part/err" >&2; cleanup_fail "copying $t failed"; }
   rm -f "$part/err"
 done
 sql="begin isolation level repeatable read read only; set local time zone 'UTC'; set local datestyle = 'ISO, MDY';"   # timestamptz text depends on the session zone: pin it, the restore test pins the same
