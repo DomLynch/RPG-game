@@ -40,10 +40,18 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     let drawMs = 0;
     const trace = { compileMs: 0, compilePrograms: 0, drawPrograms: 0 };
     const count = () => renderer.info.programs?.length ?? -1;
+    const timed = () => { const t = performance.now(), before = count(); paint(); drawMs = Math.max(drawMs, performance.now() - t); trace.drawPrograms += count() - before; };
+    // compileAsync builds the programs off the main thread, but the GPU's first draw with each still costs (T4: 13 programs, one 226 ms frame): so the backdrop and then each mesh are drawn alone, one per frame.
+    const slices = async (s: THREE.Scene, c: THREE.Camera) => {
+      const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before;
+      const meshes: THREE.Object3D[] = []; s.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.visible) meshes.push(o); });
+      for (const m of meshes) m.visible = false;
+      try { timed(); await nextFrame(); for (const m of meshes) { m.visible = true; timed(); m.visible = false; await nextFrame(); } } finally { for (const m of meshes) m.visible = true; }
+    };
     try {
       await load();
       if (actor) await uploadSlices();
-      if (actor) await warmGearRoom({ ...stage, draw: () => { const t = performance.now(), before = count(); paint(); drawMs = performance.now() - t; trace.drawPrograms = count() - before; } }, async (s, c) => { const t = performance.now(), before = count(); await renderer.compileAsync(s, c); trace.compileMs = Math.round(performance.now() - t); trace.compilePrograms = count() - before; });
+      if (actor) await warmGearRoom({ ...stage, draw: timed }, slices);
     } finally { held = false; }
     return { drawMs, ...trace };
   };
