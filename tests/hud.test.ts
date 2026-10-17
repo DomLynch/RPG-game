@@ -264,3 +264,16 @@ test('?look=kick52: the KICK button is 52 px about the same centre, flag off it 
     assert.ok(look.r <= o.l || o.r <= look.l || look.b <= o.t || o.b <= look.t, `the 52 px KICK box overlaps ${sel}`);
   }
 });
+
+// The specials PR: SPECIAL 1 and SPECIAL 2 are class skills and each button wears its skill row's own name (SKILL_ROWS); no pick keeps the markup's generic words.
+test('update: SPECIAL 1 and SPECIAL 2 wear their skill rows\' names, and no pick keeps "Skill" / "Spell 2"', () => {
+  const pit = initialPractice(731, OPPONENTS.veteran), { element, get } = dom();
+  element<FakeElement>('skill-button').dataset.mobile = 'Skill'; element<FakeElement>('skill2-button').dataset.mobile = 'Spell 2';   // the page's markup
+  const hud = createHud(element as never), me = pit.duel.fighters[0];
+  const picked = { ...pit.duel, fighters: [{ ...me, skill: 'lunge', skill2: 'stomp' }, pit.duel.fighters[1]] as typeof pit.duel.fighters };
+  hud.update(project(picked, pit.ai), view());
+  assert.deepEqual([get('skill-button').dataset.mobile, get('skill-button').attributes.get('aria-label'), get('skill-button').textContent], ['Estoc Lunge', 'Estoc Lunge', 'Estoc Lunge'], 'SPECIAL 1: the skill row\'s name in the label, the accessible name and the text');
+  assert.deepEqual([get('skill2-button').dataset.mobile, get('skill2-button').textContent], ['Anvil Stomp', 'Anvil Stomp'], 'SPECIAL 2 likewise');
+  hud.update(project(pit.duel, pit.ai), view());
+  assert.equal(get('skill-button').attributes.get('aria-label'), 'Skill', 'the pick cleared: the generic word comes back');
+});

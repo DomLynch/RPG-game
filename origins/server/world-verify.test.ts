@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
 import { SPELL_IDS } from '../../src/fight/spell-cast.ts';
+import type { SpecialsCut } from '../../src/core/server.ts';
+// The spell tests below exercise the spell path that the beta's `spellsOff` keeps inert (the code and rows stay): they run with the cut lifted. The cut itself is tested in tests/specials-cut.test.ts and the last test here.
+const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';
@@ -216,10 +219,10 @@ test('verifyWorldRecord: a two-slot cast record verifies only when the ledger vo
   const { rec, text } = await honestCast(a, b);
   assert.deepEqual(rec.hero.spell2, b); assert.ok(rec.steps.some((st) => st.cast2), 'the record carries slot-b presses');
   const held = { grimoire: { [a.id]: {}, [b.id]: {} }, xp: {}, placed: {} };
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { spells: held }), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length });
   const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
-  await no({ spells: { ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
-  await no({ spells: { ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: { [a.id]: {} } } }, 'spell');   // slot b's spell is not in the grimoire
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: { [b.id]: {} } } }, 'spell');   // slot a's spell is not
 });
 
 test('verifyWorldRecord: a cast record verifies only when the ledger vouches for its spell (grimoire and skill)', async () => {
@@ -227,11 +230,11 @@ test('verifyWorldRecord: a cast record verifies only when the ledger vouches for
   const { rec, text } = await honestCast(claim);
   assert.deepEqual(rec.hero.spell, claim); assert.ok(rec.steps.some((st) => st.cast), 'the record carries cast presses');
   const held = { grimoire: { [claim.id]: {} }, xp: {}, placed: {} };
-  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { spells: held }), { ok: true, ticks: rec.steps.length });
+  assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf', { cut: LIFTED, spells:held }), { ok: true, ticks: rec.steps.length });
   assert.deepEqual(await verifyWorldRecord(text, wolf, 'wolf'), { ok: true, ticks: rec.steps.length });   // no ledger at all (dev): nothing to hold the claim to
   const no = async (limit: object, why: string) => { const v = await verifyWorldRecord(text, wolf, 'wolf', limit); assert.ok(!v.ok && v.reason === why, `${why}: ${JSON.stringify(v)}`); };
-  await no({}, 'spell');                                                          // a ledger that gave no spell read cannot vouch for the claim
-  await no({ spells: { ...held, grimoire: {} } }, 'spell');                       // the spell is not in the account's grimoire
+  await no({ cut: LIFTED }, 'spell');                                             // a ledger that gave no spell read cannot vouch for the claim
+  await no({ cut: LIFTED, spells:{ ...held, grimoire: {} } }, 'spell');                       // the spell is not in the account's grimoire
   const high = await honestCast({ ...claim, skill: 100 });
-  const v = await verifyWorldRecord(high.text, wolf, 'wolf', { spells: held }); assert.ok(!v.ok && v.reason === 'spell', 'a skill past the stored one is refused');
+  const v = await verifyWorldRecord(high.text, wolf, 'wolf', { cut: LIFTED, spells:held }); assert.ok(!v.ok && v.reason === 'spell', 'a skill past the stored one is refused');
 });
