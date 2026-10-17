@@ -25,9 +25,6 @@
   "witch": 1,
   "plaguedoctor": 1
  },
- "src/fight/special-fx-pitborn.ts": {
-  "ashfall": 1
- },
  "src/fight/weapon-shapes.ts": {
   "maul": 1,
   "longsword": 1,
