@@ -1,11 +1,11 @@
 {
   "npcs": [
     { "npc": "character:banker-exchange", "roles": ["banker"], "zone": "exchange", "at": "bank", "hours": "always", "outfit": { "pieces": ["robe", "sleeves", "belt", "cap"], "tint": 7044958 } },
-    { "npc": "character:provisioner-exchange", "roles": ["vendor"], "zone": "exchange", "at": "forge", "hours": [6, 22], "shop": "service:exchange-provisioner", "outfit": { "pieces": ["tunic", "apron", "belt", "hat"], "tint": 9072458 } },
+    { "npc": "character:provisioner-exchange", "roles": ["vendor"], "zone": "exchange", "at": "forge", "hours": "shop", "shop": "service:exchange-provisioner", "outfit": { "pieces": ["tunic", "apron", "belt", "hat"], "tint": 9072458 } },
     { "npc": "character:innkeeper-exchange", "roles": ["innkeeper"], "zone": "exchange", "at": "inn", "hours": "always", "outfit": { "pieces": ["tunic", "sleeves", "apron", "belt"], "tint": 8019050 } },
-    { "npc": "character:recorder-marrow", "roles": ["recorder"], "zone": "exchange", "at": "contract-board", "hours": [6, 22] },
-    { "npc": "character:smith-quarter", "roles": ["smith"], "zone": "exchange-quarter", "at": "quarter-forge", "hours": [6, 22] },
-    { "npc": "character:healer-quarter", "roles": ["healer"], "zone": "exchange-quarter", "at": "quarter-healer", "hours": [6, 22] },
+    { "npc": "character:recorder-marrow", "roles": ["recorder"], "zone": "exchange", "at": "contract-board", "hours": "shop" },
+    { "npc": "character:smith-quarter", "roles": ["smith"], "zone": "exchange-quarter", "at": "quarter-forge", "hours": "shop" },
+    { "npc": "character:healer-quarter", "roles": ["healer"], "zone": "exchange-quarter", "at": "quarter-healer", "hours": "shop" },
     { "npc": "character:fence-quarter", "roles": ["fence"], "zone": "exchange-quarter", "at": "quarter-fence", "hours": [20, 4] }
   ]
 }

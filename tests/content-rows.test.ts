@@ -8,7 +8,15 @@ import type { MobRow } from '../src/core/world/row.ts';
 
 // The content tables that were TypeScript literals are now json rows (Dom's data-layer rule 2026-10-13). Each test pins the loaded rows, byte for byte (JSON text, so key order counts), to the literal it replaced.
 
+test('the shop hours row equals the literal it replaced, and every shop NPC reads it', () => {
+  assert.equal(JSON.stringify(SHOP_HOURS), JSON.stringify([6, 22]));
+  const shops = REGION1_NPCS.filter((r) => r.roles.some((x) => x !== 'banker' && x !== 'innkeeper' && x !== 'fence'));
+  assert.equal(shops.length, 4);
+  for (const r of shops) assert.equal(r.hours, SHOP_HOURS);   // the same array: the retune of one row reaches all four
+});
+
 test('region1 NPC rows equal the literals they replaced', () => {
+  const SHOP_HOURS: readonly [number, number] = [6, 22];
   const was: readonly NpcRow[] = [
     { npc: 'character:banker-exchange', roles: ['banker'], zone: 'exchange', at: 'bank', hours: 'always', outfit: { pieces: ['robe', 'sleeves', 'belt', 'cap'], tint: 0x6b7f5e } },
     { npc: 'character:provisioner-exchange', roles: ['vendor'], zone: 'exchange', at: 'forge', hours: SHOP_HOURS, shop: 'service:exchange-provisioner', outfit: { pieces: ['tunic', 'apron', 'belt', 'hat'], tint: 0x8a6f4a } },
