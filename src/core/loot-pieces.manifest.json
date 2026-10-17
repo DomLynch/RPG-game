@@ -26,6 +26,20 @@
       "optional": {
         "tier": "string"
       }
+    },
+    {
+      "table": "lootStarter",
+      "file": "loot-pieces.json",
+      "at": "lootStarter",
+      "key": "id",
+      "required": {
+        "name": "string",
+        "slots": "array",
+        "slots[]": "string"
+      },
+      "optional": {
+        "note": "string"
+      }
     }
   ]
 }
