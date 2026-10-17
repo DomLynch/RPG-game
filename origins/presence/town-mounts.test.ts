@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CONCORD, CONCORD_REGION, concordMounts } from '../world/concord.ts';
-import { resolveZone, toMetres, toWorld } from '../world/resolve.ts';
+import { resolveZone } from '../world/resolve.ts';
+import { toMetres, toWorld } from '../world/derive.ts';
 import { ZONE_ROWS, landmarkCm, CENTRE_CM } from './zones.ts';
 import TOWN from './town-zones.json' with { type: 'json' };
 
