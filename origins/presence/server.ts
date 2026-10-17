@@ -24,6 +24,7 @@ export type Limits = typeof LIMITS;
 // GET /origins/presence/zones: the zone table the v2 client walks by (hello carries its hash). Corners in world metres.
 const ZONE_TABLE = JSON.stringify({ frame: { centreCm: CENTRE_CM, sizeCm: FRAME_CM }, zones: ZONE_ROWS.map(z => ({ id: z.id, corners: z.corners, speed: z.speed, quiet: z.quiet })), portals: PORTALS });
 export const ZONE_TABLE_HASH = createHash('sha1').update(ZONE_TABLE).digest('hex').slice(0, 8);
+const closeGraceMs = presenceRule('closeGraceMs');   // after our close frame, how long a peer that has not finished the TCP close is waited for before the socket is destroyed
 const TICK_RING = presenceRule('tickRing');   // the last 40,000 tick durations (about 66 minutes) are kept for GET /origins/presence/health?ticks=N, the load test's p99
 
 function frame(opcode: number, payload: Uint8Array): Buffer {
@@ -51,7 +52,7 @@ export function createPresence(opts: PresenceOptions): Presence {
   const sockets = new Map<Player, Duplex>();
   const perIp = new Map<string, { sockets: number; windowStart: number; joins: number; guests: number }>();
   let guestCount = 0;   // guest sockets open now, all addresses (the ceiling keeps guests from crowding signed-in players out of the world)
-  const counts = { packets: 0, bytes: 0, up: 0, joined: 0, warped: 0, refused: {} as Record<string, number>, maxTickMs: 0, ticks: 0 };
+  const counts = { packets: 0, bytes: 0, up: 0, snapped: 0, strikes: 0, joined: 0, warped: 0, refused: {} as Record<string, number>, maxTickMs: 0, ticks: 0 };
   const perLayerOut = new Map<number, { packets: number; bytes: number }>();
   const refused = (why: string): void => { counts.refused[why] = (counts.refused[why] ?? 0) + 1; };
   let tickNo = 0;
@@ -79,8 +80,8 @@ export function createPresence(opts: PresenceOptions): Presence {
   // seenAt on the heartbeat: a connected player standing still is still here.
   const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); } }, limits.beatMs);
   const reporter = setInterval(() => {
-    log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)}`);
-    counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
+    log(`presence: ${JSON.stringify(world.stats())} packets ${counts.packets} bytes ${counts.bytes} up ${counts.up} joined ${counts.joined} maxTickMs ${counts.maxTickMs.toFixed(1)} refused ${JSON.stringify(counts.refused)} snapped ${counts.snapped} strikes ${counts.strikes}`);   // snapped: a pose refused and kept; strikes: every refused pose (snapped + the one that drops the player)
+    counts.packets = 0; counts.bytes = 0; counts.up = 0; counts.snapped = 0; counts.strikes = 0; counts.joined = 0; counts.refused = {}; counts.maxTickMs = 0; counts.ticks = 0; perLayerOut.clear();
   }, logEveryMs);
   // perIp must not grow with every address ever seen: an entry with no socket whose join window has passed holds nothing, so it goes.
   const sweeper = setInterval(() => { const t = now(); for (const [ip, b] of perIp) if (b.sockets <= 0 && t - b.windowStart >= 60_000) perIp.delete(ip); }, sweepEveryMs);
@@ -118,6 +119,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     if (req.method === 'GET' && req.url?.split('?')[0] === '/origins/presence/zones') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' }); return void res.end(ZONE_TABLE); }
     if (req.method === 'GET' && req.url?.startsWith('/internal/where?')) return void where(req, res);
     if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/rejoin') return void rejoin(req, res);
+    if (req.method === 'POST' && req.url?.split('?')[0] === '/internal/worn') return void wornRoute(req, res);
     res.writeHead(404); res.end();
   });
   // GET /internal/where?account=<uuid> (Authorization: Bearer <internalKey>): where the service holds this account, for the Origins writer, which must derive a player's place
@@ -153,6 +155,35 @@ export function createPresence(opts: PresenceOptions): Presence {
       const again = rejoiners.get(account);
       if (!again) return reply(200, { rejoined: false });
       again().then(ok => reply(200, { rejoined: ok }), () => reply(200, { rejoined: false }));
+    });
+  };
+
+  // POST /internal/worn {account} (Bearer <internalKey>, loopback): the writer says a gear op just succeeded for this account, so its worn set may have changed. Presence reads it again NOW
+  // (the same one-in-flight queue as the refresh, so the writer sees no burst) and the viewers get the new enter within a tick. Reads for one account are spaced by wornPokeGapMs (a row): a
+  // poke inside the gap schedules ONE trailing read at the gap's end, so the last change always shows. The refresh every wornEveryMs stays as the fallback (a lost poke costs up to that).
+  const pokeGap = presenceRule('wornPokeGapMs'), lastPoke = new Map<string, number>(), pokeTimers = new Map<string, NodeJS.Timeout>();
+  const pokeWorn = (account: string): 'queued' | 'scheduled' | 'ignored' => {
+    const p = world.byAccount.get(account);
+    if (!worns || !p || p.guest) return 'ignored';
+    if (pokeTimers.has(account)) return 'scheduled';   // a trailing read is already waiting: it will see this change too
+    const wait = Math.max(0, (lastPoke.get(account) ?? -Infinity) + pokeGap - now());
+    const go = (): void => { lastPoke.set(account, now()); pokeTimers.delete(account); worns.push(account); };
+    if (wait === 0) { go(); return 'queued'; }
+    pokeTimers.set(account, setTimeout(go, wait).unref());
+    return 'scheduled';
+  };
+  const wornRoute = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): void => {
+    const key = opts.internalKey, sent = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const reply = (code: number, body: unknown): void => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
+    if (!key) { req.resume(); res.writeHead(404); return void res.end(); }
+    const a = Buffer.from(sent ?? ''), b = Buffer.from(key);
+    if (!loopback(req.socket.remoteAddress) || a.length !== b.length || !timingSafeEqual(a, b)) { req.resume(); return reply(401, { error: 'unauthorised' }); }
+    let size = 0; const parts: Buffer[] = [];
+    req.on('data', (c: Buffer) => { size += c.length; if (size <= 1024) parts.push(c); });
+    req.on('end', () => {
+      let account = ''; try { account = String((JSON.parse(size <= 1024 ? Buffer.concat(parts).toString('utf8') : '{}') as { account?: unknown }).account ?? '').toLowerCase(); } catch { /* 400 below */ }
+      if (!UUID.test(account)) return reply(400, { error: 'account: a uuid' });
+      reply(200, { poke: pokeWorn(account) });
     });
   };
 
@@ -198,7 +229,14 @@ export function createPresence(opts: PresenceOptions): Presence {
       socket.write(hello(player));
       let warpWindow = 0, warpCount = 0;   // a minute's count of warps on this socket (warpPerMin)
       let buffered = Buffer.alloc(0), windowStart = now(), count = 0, idle: NodeJS.Timeout, zone = zoneAt(player.x, player.z);
-      const close = (code: number, why?: string): void => { if (why) refused(why); if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); } };
+      // Every way this socket is closed (the peer's close frame, our idle/rate/teleport/malformed closes) removes the player NOW: `gone` used to run only on the TCP 'close' event, which needs the peer's
+      // FIN too, so a peer that sent a close frame and then dawdled stayed in the world, and in every watcher's packets, until it finished (the HL "Bob left and is still drawn" ghost). The socket is
+      // destroyed after closeGraceMs if the peer still has not finished. `gone` is idempotent (the sockets.get check), so the later 'close' event is a no-op.
+      const close = (code: number, why?: string): void => {
+        if (why) refused(why);
+        if (!socket.destroyed) { const p = Buffer.alloc(2); p.writeUInt16BE(code); socket.end(frame(8, p)); setTimeout(() => socket.destroy(), closeGraceMs).unref(); }
+        gone();
+      };
       const touch = (): void => { clearTimeout(idle); idle = setTimeout(() => close(4000, 'idle'), limits.idleMs); };
       touch();
       if (!isGuest) rejoiners.set(me, async () => {   // a guest has no active character to switch
@@ -250,7 +288,9 @@ export function createPresence(opts: PresenceOptions): Presence {
           if (!up) return close(1003, 'malformed');
           const pose = player.legacy ? { ...up, x: up.x + LEGACY_SHIFT_CM, z: up.z + LEGACY_SHIFT_CM } : up;
           counts.up++;
-          if (world.move(player, pose, nowMs) === 'drop') return close(4009, 'teleport');
+          const moved = world.move(player, pose, nowMs);
+          if (moved !== 'ok') { counts.strikes++; if (moved === 'snapped') counts.snapped++; }
+          if (moved === 'drop') return close(4009, 'teleport');
           const into = zoneAt(player.x, player.z);
           if (into !== zone) { zone = into; savePlace(player); }   // a zone change saves at once (EverQuest's save on zoning)
         }
@@ -262,6 +302,6 @@ export function createPresence(opts: PresenceOptions): Presence {
 
   return {
     server, world, stats, port: () => (server.address() as { port: number }).port,
-    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper, checkpoint, wornTimer]) clearInterval(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
+    close: () => new Promise(done => { for (const t of [ticker, beats, reporter, sweeper, checkpoint, wornTimer]) clearInterval(t); for (const t of pokeTimers.values()) clearTimeout(t); for (const s of sockets.values()) s.destroy(); server.close(() => done()); }),
   };
 }

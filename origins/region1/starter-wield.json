@@ -1,0 +1,10 @@
+{
+  "wield": [
+    { "id": "item:starter.knife", "lootId": "goblin.Knife" },
+    { "id": "item:starter.cleaver", "lootId": "pitborn.Cleaver" },
+    { "id": "item:starter.gladius", "lootId": "shieldmaiden.Gladius" },
+    { "id": "item:starter.estoc", "lootId": "nightborn.Estoc" },
+    { "id": "item:starter.goblin-scrap-cap", "lootId": "goblin.Helmet" },
+    { "id": "item:starter.goblin-shin-plates", "lootId": "goblin.Greaves" }
+  ]
+}

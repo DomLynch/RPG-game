@@ -17,12 +17,16 @@ test('every preview rule equals the literal it replaced', () => {
   assert.deepEqual(['gateGap', 'heroWait', 'kindsWait', 'materialBound', 'uploadBudget', 'legendReach', 'lockRange', 'turnRate', 'tapRange', 'tapMs', 'tapPx'].map((id) => previewRule(id as never)), [0.62, 45000, 20000, 4000, 6, 6, 9, 1.9, 14, 4000, 12]);   // main.ts's own numbers
   assert.deepEqual(['askBudget', 'engageTtl', 'releaseFactor', 'engageRetry'].map((id) => previewRule(id as never)), [4, 120_000, 1.5, 5000]);   // engage-ahead.ts's literals
   assert.deepEqual(['loadoutWait', 'gearRetry'].map((id) => previewRule(id as never)), [15_000, 10_000]);   // main.ts's loadout gate (sheet-in-world, #2900)
-  assert.equal(PREVIEW_RULES.length, 37);
+  assert.equal(previewRule('kitWarmMs'), 60_000);   // the other-players' gear warm-up's own cap (Lead on #2938), from [zone ready]: no kit starts after it, and the one in flight is the last
+  assert.deepEqual(['remoteWarm', 'remoteSnap', 'remoteIdle', 'remoteTagY', 'remoteExpire', 'remoteFullCount', 'remoteCheapEvery', 'remoteAnimRange', 'remoteBoundR', 'remoteOwedCap', 'remoteAdaptFullCount', 'remoteAdaptSlowMs', 'remoteAdaptOkMs', 'remoteAdaptWindowMs', 'remoteAdaptJudgeMs', 'remoteAdaptPercentile', 'remoteGroundStep'].map((id) => previewRule(id as never)), [8, 6, 0.05, 2.25, 1500, 16, 4, 80, 1.6, 0.25, 8, 33, 25, 3000, 250, 0.95, 0.25]);   // remote-heroes.ts: warmed slots, teleport snap, idle gait floor, tag height, ms with no update before a remote is gone, full figures before the cheap ones, frames between a cheap figure's pose updates, pose range, bounding radius for the frustum test, most skipped time paid back at once
+  assert.ok(previewRule('kitWarmMsSoft') > previewRule('kitWarmMs'));   // the browser rows' budget (?kitwarm=soft, software GL), longer than the live one
+  assert.deepEqual(['kitProbeFrames', 'kitSlowFrameMs'].map((id) => previewRule(id as never)), [20, 100]);   // the kit warm-up's slow-device probe (main.ts): frames sampled before it starts, the median frame gap above which it is skipped
+  assert.equal(PREVIEW_RULES.length, 58);
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadPreviewRules({ rules: rows.filter((r) => r.id !== 'lookGain') }), /"lookGain" rule by name/);
   assert.throws(() => loadPreviewRules({ rules: rows.map((r) => (r.id === 'nearTick' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPreviewRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPreviewRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 38);
+  assert.equal(loadPreviewRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 59);
 });
