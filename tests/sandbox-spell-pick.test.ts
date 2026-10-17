@@ -27,9 +27,10 @@ test('trunk ships no spellPick rows (every spell is offered); the sandbox rows p
 test('each pick is a real catalogue spell of the level its row says, playing its own real designed effect (4 different)', () => {
   for (const p of picks) {
     assert.ok(SPELL_INFO[p.id], `${p.id} is in the catalogue`); assert.equal(SPELL_INFO[p.id]!.level, p.level, `${p.id} level`);
+    if (p.unlock === 'universal') { assert.equal(p.fx, undefined, 'the heal has its own look (missile-fx.ts), no designed special effect'); continue; }
     assert.ok(p.fx && SPECIAL_MODES[p.fx as SpecialTest] && SPECIAL_TESTS[p.fx as SpecialTest], `${p.id}: ${p.fx} has a mode and a look-test`);
   }
-  assert.equal(new Set(picks.map((p) => p.fx)).size, 5, '5 different effects');
+  assert.equal(new Set(picks.filter((p) => p.fx).map((p) => p.fx)).size, 4, '4 different effects on the 4 attack spells');
 });
 test('every pick lands at the sandbox skill floor (100): at least 90% of casts succeed or crit, and its root is the outer band (cast from any distance)', () => {
   const floor = Number(JSON.stringify(ROWS).match(/"id":"spellSkillFloor","value":(\d+)/)?.[1]);

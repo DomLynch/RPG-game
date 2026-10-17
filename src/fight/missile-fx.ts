@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Fighter } from './duel.ts';
-import { missileOf, spellLookOf, spellRangeOf, SPELL_FX } from './sandbox-rules.ts';   // SPELL_FX on: the designed special effect lands the spell (special-presentation.ts), so no plain landing burst over it
+import { healOf, missileOf, spellLookOf, spellRangeOf, SPELL_FX } from './sandbox-rules.ts';   // SPELL_FX on: the designed special effect lands the spell (special-presentation.ts), so no plain landing burst over it
 import { spellRoot } from './spell-cast.ts';
 
 // sandbox-mech: missiles, the bolt in flight. A small cold core with a soft halo and a short fading trail, drawn from the fighter's `missile` state (position by tick along its line), so it always matches the sim's arrival. Presentation only:
@@ -30,10 +30,23 @@ export function createMissileFx(scene: THREE.Scene) {
   // Spell bursts (Dom 2026-10-16: a cast must be clearly visible): a flash + swelling halo on the foe where a spell lands (colour from its range row, else violet) and a small flash on the caster when the cast starts. Fed from the tick's events.
   const bursts = Array.from({ length: 6 }, () => ({ core: sprite(1, '#ffffff', 1), halo: sprite(1, '#b070ff', 0.8), at: -1, x: 0, z: 0, big: 1, life: 42 })); let next = 0;   // life: ticks the burst lasts (a spellLook row's pulse; 42 without one)
   const BURST_TICKS = 42;
+  // Heal (Dom 2026-10-17: the first heal look, faint blue speckles, was weak): on a heal's release, over the healed fighter, a ground ring that swells and fades, a pale pillar that rises and thins, and a spiral of motes that climb and fade. Shape from World of Claudecraft's `heal` archetype (MIT: pillar + ring + burst) and
+  // Duelyst's heal (CC0: rising green dots, about 2 s); the code is our own, tick-driven so a replay draws the same frames. Colours are muted greens, normal blending on the ring and pillar so it reads on sand (no additive blob).
+  const HEAL_TICKS = 84, MOTES = 16;
+  const heals = [0, 1].map(() => {
+    const g = new THREE.Group(); g.visible = false; scene.add(g);
+    const mat = (color: string) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2), mat('#a8e070')), pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 3, 28, 1, true), mat('#cfeea0'));
+    ring.position.y = 0.05; pillar.position.y = 1.5; g.add(ring, pillar);
+    return { g, ring, pillar, motes: Array.from({ length: MOTES }, () => sprite(0.16, '#c8f58a', 0)), at: -1, x: 0, z: 0 };
+  });
+  let nextHeal = 0;
   return {
-    burst(events: readonly { type: string; actor: number; target?: number; spell?: string; tick: number }[], fighters: readonly Pick<Fighter, 'body'>[]): void {
+    burst(events: readonly { type: string; actor: number; target?: number; spell?: string; tick: number; heal?: number }[], fighters: readonly Pick<Fighter, 'body'>[]): void {
       for (const e of events) {
-        const land = !SPELL_FX && e.type === 'SpecialLanded' && e.spell && e.target !== undefined, start = e.type === 'SpecialStarted' && e.spell;
+        if (e.type === 'SpecialLanded' && e.heal !== undefined) { const h = heals[nextHeal++ % heals.length]!, who = fighters[e.actor]; if (who) { h.at = e.tick; h.x = who.body.x; h.z = who.body.z; } continue; }
+        const isHeal = e.spell !== undefined && healOf(e.spell) !== undefined;   // a heal has its own look: no violet flash at the cast or the landing
+        const land = !SPELL_FX && !isHeal && e.type === 'SpecialLanded' && e.spell && e.target !== undefined, start = !isHeal && e.type === 'SpecialStarted' && e.spell;
         if (!land && !start) continue;
         const who = fighters[land ? e.target! : e.actor]; if (!who) continue;
         const b = bursts[next++ % bursts.length]!, root = e.spell ? spellRoot(e.spell) : undefined, look = e.spell ? spellLookOf(e.spell) : undefined, tint = look?.tint || (root && spellRangeOf(root)?.tint) || '#b070ff';   // the spell's own look row first, then its root's range tint
@@ -47,6 +60,18 @@ export function createMissileFx(scene: THREE.Scene) {
         b.core.position.set(b.x, HEIGHT, b.z); b.halo.position.copy(b.core.position);
         b.core.scale.setScalar(b.big * (1.1 - k * 0.6)); b.halo.scale.setScalar(b.big * (0.8 + k * 2.6));
         (b.core.material as THREE.SpriteMaterial).opacity = 1 - k; (b.halo.material as THREE.SpriteMaterial).opacity = 0.85 * (1 - k * k);
+      }
+      for (const h of heals) {
+        const age = tick - h.at, live = h.at >= 0 && age >= 0 && age < HEAL_TICKS, k = live ? age / HEAL_TICKS : 1;
+        h.g.visible = live; for (const m of h.motes) m.visible = live; if (!live) continue;
+        h.g.position.set(h.x, 0, h.z);
+        const out = 1 - (1 - k) ** 3;   // ease-out
+        h.ring.scale.setScalar(0.4 + 1.1 * out); (h.ring.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - k);
+        h.pillar.scale.set(1 + 0.25 * k, Math.min(1, k * 3.5), 1 + 0.25 * k); h.pillar.position.y = 1.5 * Math.min(1, k * 3.5); (h.pillar.material as THREE.MeshBasicMaterial).opacity = 0.3 * Math.sin(Math.PI * k);
+        h.motes.forEach((m, i) => {
+          const t = Math.min(1, Math.max(0, (age - (i / MOTES) * 34) / 50)), a = i * 2.4 + age * 0.12, r = 0.5 * (1 - 0.5 * t);
+          m.position.set(h.x + Math.cos(a) * r, 0.1 + t * 2.5, h.z + Math.sin(a) * r); m.scale.setScalar(0.17 * (1 - 0.4 * t)); (m.material as THREE.SpriteMaterial).opacity = 0.95 * Math.sin(Math.PI * t);
+        });
       }
       this.fly(tick, fighters);
     },
