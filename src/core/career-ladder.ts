@@ -42,6 +42,17 @@ export const BETA_SPELLS_OFF: boolean = BETA.spellsOff === 1, BETA_UTILITY_SPELL
 export const inBetaSpells = (legend: string): boolean => BETA_SPELLS_OFF ? BETA_UTILITY_SPELLS.has(legend) : BETA_SPELLS.size === 0 || BETA_SPELLS.has(legend);
 /** Whether `skill` may sit in a SPECIAL slot under the cut (an empty pick list lifts the pick). */
 export const inBetaSpecials = (skill: string): boolean => BETA_SPECIAL_PICK.length === 0 || BETA_SPECIAL_PICK.includes(skill);
+// THE CUT ON A RECORD (the specials PR): a record that casts a spell the cut turns off, or names a skill outside the pick, is judged the way the cut judges a level below the floor (awards.ts levelRefusal): refused, no mark, with a text for the
+// player. The cut is a parameter so a test can lift it; the default is the betaCut row. SPECIAL 1 (`skill`) is held to the pick only where `skillOne` says so: a Pit claim's `skill` is the older equipped-loot skill, a world hero's is always a pick.
+export type SpecialsCut = { readonly spellsOff: boolean; readonly utilitySpells: ReadonlySet<string>; readonly pick: readonly string[] };
+export const BETA_SPECIALS_CUT: SpecialsCut = { spellsOff: BETA_SPELLS_OFF, utilitySpells: BETA_UTILITY_SPELLS, pick: BETA_SPECIAL_PICK };
+export function specialsRefusal(rec: { spell?: { id: string }; spell2?: { id: string }; skill?: string | null; skill2?: string }, cut: SpecialsCut = BETA_SPECIALS_CUT, skillOne = true): string | null {
+  if (cut.spellsOff) for (const s of [rec.spell, rec.spell2]) if (s && !cut.utilitySpells.has(s.id)) return `Spells are off in the beta, so this win didn't count (it cast ${s.id}).`;
+  const held = (skill: string | null | undefined): boolean => !skill || cut.pick.length === 0 || cut.pick.includes(skill);
+  if (!held(rec.skill2)) return `This win was fought with a special the beta doesn't offer and didn't count (${rec.skill2}).`;
+  if (skillOne && !held(rec.skill)) return `This win was fought with a special the beta doesn't offer and didn't count (${rec.skill}).`;
+  return null;
+}
 const wins = (marks: number): number => (Number.isFinite(marks) ? Math.max(0, Math.floor(marks)) : 0);
 // The career level the ladder's difficulty reads (moves.ts profileAt, Combat): 1 for a fresh fighter, 50 at Origin V.
 export const levelOfMarks = (marks: number): number => Math.min(MAX_LEVEL, 1 + wins(marks));

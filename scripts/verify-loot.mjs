@@ -36,7 +36,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { awardFor, levelRefusal } from '../src/awards.ts';
+import { awardFor, levelRefusal, specialsRefusal } from '../src/awards.ts';
 import { verifyRecord } from '../src/fight/replay.ts';
 import { expectedSheet } from '../src/fight/build-check.ts';
 import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
@@ -149,13 +149,15 @@ async function settleOne(db, row, receipt, dry, heldMax) {
  * @param {any} standing
  * @param {{ replay?: boolean, heldMax?: number, build?: (character: string, version: number) => Promise<{ level: number, placed: Record<string, number> } | null> }} [options] build: the stored build a record names, or null (the sheet check, src/fight/build-check.ts)
  */
-export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS } = {}) {
+export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX_VERSION, build, spellLoad = NO_SPELLS, cut = null } = {}) {   // cut: a SpecialsCut (src/awards.ts) a test may lift; null = the betaCut row
   try {
     const record = await decodeRecord(row.record);
     if (record.opponent !== row.opponent) return `record is against ${record.opponent}, claim says ${row.opponent}`;
     if (record.outcome !== 'killed') return `record outcome is ${record.outcome}, not a win`;
     const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
+    const off = specialsRefusal(record, cut ?? undefined, false);   // the beta cut on specials: spells off (but the utility ones), SPECIAL 2 inside the pick; SPECIAL 1 here is the older equipped-loot skill, not held to the pick
+    if (off) return off;
     if (!replay) return null;
     let worn = {};   // the gear frozen on the claim when it was posted, never the ledger as it is when the sweep runs
     if (record.sheet && record.characterId !== undefined) { try { worn = wornGearOfFrozen(row.worn_gear, `pc:${record.characterId}`, record.v); } catch (error) { if (error instanceof Error && /worn/.test(error.message)) return `worn gear unreadable: ${error.message}`; throw error; } }
