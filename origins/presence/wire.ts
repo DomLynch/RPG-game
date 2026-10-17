@@ -5,6 +5,7 @@ export const DOWN = 1;     // server -> client: [type u8, tick u16, count u8] th
 export const UP_BYTES = 8;
 export const ENTITY_BYTES = 11;   // id u16, x u16, z u16, heading u8, anim u8, flags u8, entity tick u16
 export const HEAD_BYTES = 4;
+export const MAX_ENTITIES = 255;   // the packet's count is one byte
 
 export type Pose = { x: number; z: number; heading: number; anim: number; flags: number };
 export type Entity = Pose & { id: number; tick: number };
@@ -21,7 +22,7 @@ export function decodeUp(b: Uint8Array): Pose | null {
 }
 
 export function encodeDown(tick: number, entities: readonly Entity[]): Uint8Array {
-  const n = Math.min(entities.length, 255), b = new Uint8Array(HEAD_BYTES + n * ENTITY_BYTES), v = new DataView(b.buffer);
+  const n = Math.min(entities.length, MAX_ENTITIES), b = new Uint8Array(HEAD_BYTES + n * ENTITY_BYTES), v = new DataView(b.buffer);
   b[0] = DOWN; v.setUint16(1, tick & 0xffff, true); b[3] = n;
   for (let i = 0; i < n; i++) {
     const e = entities[i], at = HEAD_BYTES + i * ENTITY_BYTES;

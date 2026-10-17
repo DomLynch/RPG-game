@@ -76,7 +76,7 @@ export function createPresence(opts: PresenceOptions): Presence {
     const took = performance.now() - started;
     counts.ticks++; if (took > counts.maxTickMs) counts.maxTickMs = took;
     tickRing[tickRingN++ % TICK_RING] = took;
-  }, Math.max(5, Math.floor(rules.tickMs / 4)));
+  }, Math.max(presenceRule('tickFloorMs'), Math.floor(rules.tickMs / 4)));
   // seenAt on the heartbeat: a connected player standing still is still here.
   const beats = setInterval(() => { world.sweep(now()); for (const [p, s] of sockets) if (!s.destroyed) { p.seenAt = now(); s.write(frame(1, Buffer.from('{"t":"beat"}'))); } }, limits.beatMs);
   const reporter = setInterval(() => {
