@@ -13,7 +13,7 @@
 import { initialPractice, stepPractice, PROFILES, type CombatEvent, type Intent, type Opponent, type Practice } from './combat.ts';
 import { createRecorder, quantizeIntent, type FightRecord } from './record.ts';
 import { isSpellId, resolveSpell } from './spell-cast.ts';
-import { foeSpellPick, skill2Pick } from './spell-slot2.ts';
+import { foeSpellPick, skill2Pick, slot2Pick } from './spell-slot2.ts';   // sandbox picks (absent elsewhere): a second-slot pick switches specials on in a sparring fight, as the spell look hook does
 import { recordSpecials } from './replay.ts';
 import type { PickedStance } from './stance.ts';
 // Phase two: class B from Veteran and all boss tiers are enabled in valid PvE fights. A record carries its own flag
@@ -150,7 +150,7 @@ export class Match {
     if (mode !== 'replay') { this.gambit = false; this.stances = mode === 'career' || mode === 'practice' ? this.stancePref : undefined; this.sheet = mode === 'career' || mode === 'practice' ? (this.ports.sheet?.() ?? this.sheetPref) : undefined;   // read at each begin(): what is worn NOW, not what was worn when the page booted
     }   // only a replay carries the Gambit until a live flag exists
     const look = mode === 'sparring' ? this.ports.lookSpell?.() : undefined;   // the ?spell look test (boss-telegraph.ts spellLook): read in sparring ONLY, which sends no record and pays nothing; career, practice, pvp and the ladder never see it
-    if (mode !== 'replay') this.specials = mode !== 'pvp' && (look && isSpellId(look.id) ? true : test ? test.enabled !== false : live);   // previews/off explicit; replay retains its recorded phase
+    if (mode !== 'replay') this.specials = mode !== 'pvp' && (look && isSpellId(look.id) ? true : mode === 'sparring' && (skill2Pick() || slot2Pick()) ? true : test ? test.enabled !== false : live);   // previews/off explicit; replay retains its recorded phase
     if (mode !== 'replay') { const asked = mode === 'career' || mode === 'practice' ? this.ports.spell?.() : look; this.spell = asked && this.specials && isSpellId(asked.id) ? asked : undefined; }
     { const a2 = mode === 'career' || mode === 'practice' || mode === 'sparring' ? this.ports.spell2?.() : undefined; this.spell2 = a2 && this.specials && isSpellId(a2.id) ? a2 : undefined; }   // sandbox-mech spell slot 2   // a spell is cast through the special: no Special Moves, no spell; an unknown id is no spell
     { const s2 = mode === 'career' || mode === 'practice' || mode === 'sparring' ? skill2Pick() : undefined; this.skill2 = s2 && this.specials && !this.spell2 && Object.hasOwn(SKILL_ROWS, s2) ? (s2 as SkillId) : undefined; }   // sandbox-mech: slot 2 is a spell or a melee special, not both
