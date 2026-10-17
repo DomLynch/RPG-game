@@ -73,8 +73,8 @@ try {
     const after = await page.evaluate(() => window.originsPreview.renderInfo().programNames);
     l.newPrograms = after.filter((n) => !a.names.includes(n)); l.zoneReady = await page.evaluate(() => window.__zoneReady);
     l.maxFrameGapMs = Math.round(await page.evaluate(() => window.__maxGap)); l.kitWarm = a.kitWarm; l.gearWarm = await page.evaluate(() => window.originsPreview.gearWarm?.() ?? null);
+    receipt.legs.push(l);   // before the assertion, so a failing leg's timeline is in the receipt
     assert.deepEqual(l.newPrograms, [], `${label}: compiled programs after [zone ready]`);
-    receipt.legs.push(l);
   };
   await leg('Zone 1 -> Bone Hollow', 'cave-mouth', '5', [1, -320], 'cave-mouth', 'hollow-arrival', [-141, 30]);
   await leg('Bone Hollow -> Zone 1', 'hollow-gate', '1', [-141, 30], 'hollow-gate', 'mouth-arrival', [1, -320]);
