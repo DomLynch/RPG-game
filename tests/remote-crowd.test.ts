@@ -1,8 +1,8 @@
 // A crowd of other players: the nearest `remoteFullCount` are full figures, the rest CHEAP (no trail, no shadow cast, a pose update every `remoteCheapEvery` frames), all still drawn, and none adds a program.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Bone, Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera, Skeleton, SkinnedMesh } from 'three';
-import { createRemoteHeroes, tagText } from '../origins/preview/remote-heroes.ts';
+import { Bone, Group, Mesh, BufferGeometry, MeshBasicMaterial, PerspectiveCamera, Skeleton, SkinnedMesh, Sprite, SpriteMaterial, Vector3 } from 'three';
+import { clampTag, createRemoteHeroes, tagText } from '../origins/preview/remote-heroes.ts';
 import { previewRule } from '../origins/preview/preview-rules.ts';
 import { CHEAP_PARTS, loadCheapParts } from '../origins/preview/remote-cheap.ts';
 
@@ -62,10 +62,11 @@ test('a remote outside the camera frustum, or past remoteAnimRange, makes no pos
 });
 
 test('a frozen figure (cheap on a skip frame, or hidden) triggers no skeleton update (the bone-texture upload) and is cut from the scene walk; a hidden one is not traversed', () => {
-  const real = Skeleton.prototype.update; let uploads = 0; Skeleton.prototype.update = function () { uploads++; };   // what the render calls for every drawn skin, and what ends in boneTexture.needsUpdate
+  const real = Skeleton.prototype.update; let uploads = 0, visits = 0; Skeleton.prototype.update = function () { uploads++; };   // what the render calls for every drawn skin, and what ends in boneTexture.needsUpdate; visits: bones the scene's matrix walk reaches
   try {
     const spawn = () => {
       const anchor = new Group(), bone = new Bone(), mesh = new SkinnedMesh(new BufferGeometry(), material); anchor.add(bone, mesh); mesh.bind(new Skeleton([bone]));
+      const walked = bone.updateMatrixWorld.bind(bone); bone.updateMatrixWorld = (force?: boolean) => { visits++; walked(force); };   // three 0.186 walks the children of a matrixWorldAutoUpdate=false group: count the visits, not the flag
       return { anchor, update: () => {} } as never;
     };
     const rig = () => {
@@ -75,19 +76,34 @@ test('a frozen figure (cheap on a skip frame, or hidden) triggers no skeleton up
     };
     const a = rig();
     a.heroes.push(Array.from({ length: FULL + 1 }, (_, i) => ({ id: i + 1, x: 2 + i, z: 0, heading: 0, anim: 0, flags: 0 })), 0);
-    const perFrame: number[] = [];
-    for (let f = 0; f < EVERY * 2; f++) { a.heroes.update(0.01, 0, { x: 0, z: 0 }); perFrame.push(a.render()); }
+    const perFrame: number[] = [], walks: number[] = [];
+    for (let f = 0; f < EVERY * 2; f++) { a.heroes.update(0.01, 0, { x: 0, z: 0 }); visits = 0; a.scene.updateMatrixWorld(); walks.push(visits); perFrame.push(a.render()); }
+    assert.deepEqual(walks, walks.map(() => FULL), 'the scene walk visits the 16 full figures\' bones every frame and the cheap figure\'s NEVER (not merely flagged: its bone is not visited)');
     assert.deepEqual(perFrame.map((n) => n - FULL), perFrame.map((_, f) => (f === 0 || (f + 1) % EVERY === 0 ? 1 : 0)), 'the 16 full figures upload every frame; the cheap one only on its pose frames (the first, then every Nth): a skip frame uploads nothing for it');
     assert.equal(a.heroes.debug().shown.filter((s) => s.frozen).length, 1);
-    assert.equal(a.scene.children.filter((g) => !g.matrixWorldAutoUpdate).length, 1, 'its group is out of the scene.updateMatrixWorld walk');
     // hidden: outside the frustum, so the render never reaches its skin
     const b = rig(), camera = new PerspectiveCamera(50, 0.5, 0.1, 500); camera.position.set(0, 1, 10); camera.updateMatrixWorld();
     b.heroes.push([{ id: 1, x: 0, z: 0, heading: 0, anim: 0, flags: 0 }, { id: 2, x: 0, z: 50, heading: 0, anim: 0, flags: 0 }], 0);
     b.heroes.update(0.01, 0, { x: 0, z: 10 }, camera);
     assert.equal(b.render(), 1, 'one drawn skin: the one in view; the one behind the camera is not traversed');
     assert.equal(b.heroes.debug().shown.filter((s) => s.visible).length, 1);
-    assert.equal(b.scene.children.filter((g) => !g.matrixWorldAutoUpdate).length, 1, 'the hidden one is out of the matrix walk too');
+    visits = 0; b.scene.updateMatrixWorld(); assert.equal(visits, 1, 'the hidden one\'s bones are not visited by the matrix walk either: only the one in view');
   } finally { Skeleton.prototype.update = real; }
+});
+
+test('a frozen figure\'s tag keeps its HUD clamp: the scene does not walk a frozen group, so clampTag carries the clamped position into the tag\'s world matrix itself', () => {
+  const scene = new Group(), group = new Group(), tag = new Sprite(new SpriteMaterial()), camera = new PerspectiveCamera(50, 0.5, 0.1, 500), at = new Vector3();
+  group.position.set(0, 0, 0); tag.userData.y0 = 2.2; group.add(tag); scene.add(group);
+  camera.position.set(0, 1.6, 6); camera.lookAt(0, 1.6, 0); camera.updateMatrixWorld(true);
+  group.updateMatrixWorld = () => {};   // frozen: creature-freeze.ts gives the group its own no-op (the scene's walk does not reach the children)
+  group.updateWorldMatrix(false, false);   // the body's last posed matrix
+  const ceiling = -0.2;   // the tag at 2.2 m projects to NDC y about 0.21, above this ceiling (the HUD's top edge), so the clamp pulls it down to it
+  clampTag(tag, group, camera, ceiling, at);
+  scene.updateMatrixWorld();   // the frame's walk: it skips the frozen group, so the tag's world matrix must already be current
+  const ndc = new Vector3().setFromMatrixPosition(tag.matrixWorld).project(camera);
+  assert.ok(Math.abs(ndc.y - ceiling) < 1e-4, `the tag is drawn at the clamp (${ndc.y.toFixed(4)}), not at its stale spot`);
+  clampTag(tag, group, camera, 0.9, at); scene.updateMatrixWorld();   // a ceiling above it: no clamp, the tag is back at its own height and drawn there
+  assert.ok(Math.abs(tag.matrixWorld.elements[13]! - 2.2) < 1e-6, 'a tag under no clamp is back at its own height');
 });
 
 test('the page\'s enter records feed the tag (name, "Guest", or none: a null name is no tag), and an expired id is forgotten so a reused id never wears the old name', () => {

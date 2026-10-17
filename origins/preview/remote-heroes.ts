@@ -8,12 +8,13 @@
 // ADAPTIVE: when the frames' p95 stays above `remoteAdaptSlowMs` for `remoteAdaptWindowMs` (World's 4x-throttled T4: 40 players give 15/12 fps, about 8 full figures is the 30 fps point), the full count drops from
 // `remoteFullCount` to `remoteAdaptFullCount`; it returns once the p95 has stayed under `remoteAdaptOkMs` for a window (frame-governor.ts, pure; every number a row).
 // The T4 profile of 40 walking (4x) said the cost is the scene graph, not the mixer: the bone-hierarchy matrix walk, then the bone-texture re-upload every Skeleton.update. So a FROZEN figure (cheap, or hidden)
-// is cut out of both on its skipped frames: its group's matrixWorldAutoUpdate is off (scene.updateMatrixWorld stops at the group, the bones are not walked) and its skeletons' `update` does nothing (no
+// is cut out of both on its skipped frames: its group's own updateMatrixWorld is a no-op (creature-freeze.ts: the scene's walk stops at the group; a matrixWorldAutoUpdate flag alone does NOT, three 0.186 still walks the children) and its skeletons' `update` does nothing (no
 // bone-matrix recompute, no boneTexture.needsUpdate). A skinned mesh draws from the bone matrices of its LAST update, so a frozen figure stands where it was posed: a cheap one moves on its pose frames
 // (every remoteCheapEvery-th), a hidden one has its root moved every frame and is posed afresh on the frame it comes back.
 import * as THREE from 'three';
 import type { buildWarriors } from '../../src/fight/index.ts';
 import { createGovernor } from './frame-governor.ts';
+import { freeze as freezeGroup, pose as poseGroup } from './creature-freeze.ts';
 import { labelSprite } from './label-sprite.ts';
 import { labelCeilingNdc } from './mobs.ts';
 import { CHEAP_PARTS } from './remote-cheap.ts';
@@ -24,6 +25,15 @@ type Actor = ReturnType<typeof buildWarriors>['player'];
 export type Who = { name: string | null; guest: boolean };
 /** The tag: "Guest" for a guest (Dom: guests are in the world), the name otherwise, and nothing at all until the name has arrived (the server sends { id, name, guest } once, on entering interest). */
 export const tagText = (who: Who | undefined): string | null => (!who ? null : who.guest ? 'Guest' : who.name?.trim() || null);
+
+/** One tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). A FROZEN group is not walked by the scene (creature-freeze.ts), so nothing would carry the tag's new local
+ *  position into its world matrix before the draw: this does it (the group's own matrix is the BODY's last posed one, which getWorldPosition just brought current), whether the tag was clamped or put back. `at` is scratch. */
+export function clampTag(tag: THREE.Sprite, group: THREE.Object3D, camera: THREE.Camera, ceiling: number, at: THREE.Vector3): void {
+  tag.position.set(0, tag.userData.y0 as number, 0);
+  tag.getWorldPosition(at).project(camera);   // brings the group's own matrix current (not its bones: that walk is what a frozen figure is spared); a frozen group holds where it was posed
+  if (!(at.z > 1 || at.z < -1 || at.y <= ceiling)) { at.y = ceiling; at.unproject(camera); group.worldToLocal(at); tag.position.copy(at); }
+  tag.updateWorldMatrix(false, false);   // own matrix and world matrix from the parent's current one: the walk a frozen group skips
+}
 
 type Lod = 'near' | 'far';
 type Slot = { group: THREE.Group; actor: Actor; near: Actor; far: Actor | null; lod: Lod; id: number | null; speed: number; tag: THREE.Sprite | null; text: string; cheap: boolean; owed: number; frames: number; hidden: boolean; frozen: boolean; thaw: boolean; gx: number; gz: number; gy: number; parts: THREE.Object3D[] };   // gx/gz/gy: where the ground height was last read, and what it was; parts: the meshes a CHEAP figure does not draw (remote-cheap.json)
@@ -37,14 +47,14 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
   const grow = (): Slot => {
     const actor = d.spawn(), far = d.spawnFar?.() ?? null, group = new THREE.Group(); group.visible = false; group.add(actor.anchor); d.scene.add(group);
     if (far) { far.anchor.visible = false; group.add(far.anchor); }   // the far LOD (the merged far figure) is built with the near one; only one is visible at a time
-    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot);
+    const slot: Slot = { group, actor, near: actor, far, lod: 'near', id: null, speed: 0, tag: null, text: '', cheap: false, owed: 0, frames: 0, hidden: true, frozen: false, thaw: false, gx: NaN, gz: NaN, gy: 0, parts: [] }; pool.push(slot); freezeGroup(group, slot, true);   // an unused slot is hidden: out of the matrix walk until a player takes it (update() sets the real state each frame)
     actor.anchor.traverse((o) => { if (o instanceof THREE.Mesh && CHEAP_PARTS.has(o.name)) slot.parts.push(o); });
     const skins = new Set<THREE.Skeleton>(); for (const a of far ? [actor, far] : [actor]) a.anchor.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.skeleton) skins.add(o.skeleton); });
     for (const skeleton of skins) { const real = skeleton.update.bind(skeleton); skeleton.update = () => { if (!slot.frozen || slot.thaw) real(); }; }   // the render calls this every frame for every drawn skin: a frozen figure's does nothing (no matrices, no texture upload)
     return slot;
   };
   /** Freeze or thaw a figure's scene-graph cost (see the header): the group drops out of scene.updateMatrixWorld's walk, and its skeletons stop updating. */
-  const freeze = (s: Slot, on: boolean): void => { s.frozen = on; s.group.matrixWorldAutoUpdate = !on; };
+  const freeze = (s: Slot, on: boolean): void => freezeGroup(s.group, s, on);   // a Slot carries the Ice fields (frozen, thaw); creature-freeze.ts: three 0.186 walks the children of a matrixWorldAutoUpdate=false group, so the group's own updateMatrixWorld is made a no-op instead
   /** Near <-> far figure: only the chosen one is visible (the other costs the render nothing) and it is the one `update` poses. */
   const setLod = (s: Slot, lod: Lod): void => { s.lod = lod; s.actor = lod === 'far' && s.far ? s.far : s.near; s.near.anchor.visible = s.actor === s.near; if (s.far) s.far.anchor.visible = s.actor === s.far; };
   /** Full <-> cheap: the trail hidden and the shadow off (each draw's own setting remembered, so a figure that comes back near is exactly as it was). Nothing here touches a material. */
@@ -92,23 +102,17 @@ export function createRemoteHeroes(d: { scene: THREE.Object3D; spawn: () => Acto
         if (pose) {
           slot.thaw = true; slot.actor.update(slot.speed, slot.owed, 'ready', 0, 'light', 0.35, 0); slot.owed = 0;
           if (slot.cheap) for (const p of slot.parts) p.visible = false;   // the rig's own update may show a part again
-          if (slot.frozen) slot.group.updateMatrixWorld(true);   // frozen groups are not in the scene's walk: bring this one's bones and root current once, for this frame's skeleton update
+          if (slot.frozen) poseGroup(slot.group, slot);   // frozen groups are not in the scene's walk: bring this one's bones and root current once, for this frame's skeleton update
         }
         slot.hidden = !seen_;
         retag(slot, tagText(d.who?.(s.id) ?? names.get(s.id)));
       });
-      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); setLod(slot, 'near'); freeze(slot, false); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
+      for (const [id, slot] of live) if (!seen.has(id)) { if (slot.cheap) setCheap(slot, false); setLod(slot, 'near'); freeze(slot, true); slot.hidden = true; slot.id = null; slot.group.visible = false; slot.speed = 0; retag(slot, null); names.delete(id); d.forget?.(id); live.delete(id); }   // expired (or past the cap): the slot is reset whole
     },
     /** Before the draw: a tag under the HUD slides down to just below it (the creatures' tags do the same, mobs-view clampLabels). */
     clampLabels(camera: THREE.Camera, floorPx: number, heightPx: number): void {
       const ceiling = labelCeilingNdc(floorPx, heightPx);
-      for (const slot of live.values()) {
-        const tag = slot.tag; if (!tag || !slot.group.visible) continue;
-        tag.position.set(0, tag.userData.y0 as number, 0);
-        tag.getWorldPosition(at).project(camera);   // brings the group's own matrix current (not its bones: that walk is what a frozen figure is spared); a frozen group holds where it was posed
-        if (at.z > 1 || at.z < -1 || at.y <= ceiling) continue;
-        at.y = ceiling; at.unproject(camera); slot.group.worldToLocal(at); tag.position.copy(at);
-      }
+      for (const slot of live.values()) if (slot.tag && slot.group.visible) clampTag(slot.tag, slot.group, camera, ceiling, at);
     },
     /** For the browser checks and the release row: who is drawn, where, with what tag and gait speed. */
     debug: () => ({ slots: pool.length, adaptive: { low: governor.low(), p95Ms: +governor.p95().toFixed(1) }, shown: [...live.entries()].map(([id, s]) => ({ id, x: +s.group.position.x.toFixed(2), z: +s.group.position.z.toFixed(2), heading: +s.group.rotation.y.toFixed(2), speed: +s.speed.toFixed(2), tag: s.text, visible: s.group.visible, cheap: s.cheap, frozen: s.frozen, lod: s.lod })) }),
