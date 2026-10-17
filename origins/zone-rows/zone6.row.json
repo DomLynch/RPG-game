@@ -2,6 +2,7 @@
   "name": "The Sample Crypt",
   "defaultKind": "goblin",
   "dungeon": "crypt-sample",
+  "unlisted": true,
   "names": { "crypt-sample": "The Sample Crypt" },
   "world": ["crypt-sample"],
   "kit": {

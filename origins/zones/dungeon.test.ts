@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DUNGEONS, compileDungeon, dungeonParts, loadDungeons, reachable, walkRoute, type Dungeon, type DungeonTheme } from './dungeon.ts';
-import { loadZone } from './loader.ts';
+import { loadZone, zoneIds, zoneProblems, type Zone } from './loader.ts';
+import { EXITS, openExits } from './exits.ts';
 import THEMES from './dungeon-themes.json' with { type: 'json' };
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -49,6 +50,25 @@ test('a broken row is refused at load, naming the dungeon and the fault', () => 
   bad((d) => { d.boss.encounter = 'nobody'; }, /does not exist/);
   bad((d) => { d.theme = 'no-theme'; }, /no-theme/);
   bad((d) => { d.level = [6, 4]; }, /not lo <= hi/);
+});
+
+test('the dungeon row\'s level band WINS over the zone-number rule, which is only the fallback for a zone without a band', () => {
+  const z = loadZone('6', true), rows = z.spawns.rows.map((r) => [r.id, ...r.level]);
+  assert.deepEqual(z.band, sample.level); assert.deepEqual(z.band, [4, 6]);
+  assert.deepEqual(rows, [['character:cinder-scavenger', 4, 5], ['character:giant-salamander', 6, 6]], 'the game shows the row\'s own levels, not Zone 6\'s 6-7 / 8');
+  assert.deepEqual(zoneProblems(z), [], 'inside the band: no problem');
+  assert.ok(zoneProblems({ ...z, band: undefined } as Zone).some((p) => /not the zone rule/.test(p)), 'without a band the zone-number rule applies and refuses these levels');
+  assert.ok(zoneProblems({ ...z, band: [5, 6] } as Zone).some((p) => /outside the zone's band 5-6/.test(p)), 'a creature below the band is refused');
+  assert.deepEqual(loadZone('5').band, [5, 7], 'the Bone Hollow carries its band too');
+});
+
+test('the sample crypt is UNLISTED: closed on a normal build (no zone, no door, no warp), open only with the explicit opt-in', () => {
+  assert.ok(!zoneIds(false).includes('6') && zoneIds(true).includes('6') && zoneIds(false).includes('5'));
+  assert.throws(() => loadZone('6', false), /no zone 6/);
+  const crypt = (rows: readonly { id: string }[]) => rows.map((r) => r.id).filter((id) => id.startsWith('crypt-'));
+  assert.deepEqual(crypt(openExits()), [], 'a beta page draws no crypt door and presence derives no zone6 warp');
+  assert.deepEqual(crypt(openExits(EXITS, zoneIds(true))), ['crypt-mouth', 'crypt-door'], 'a preview built with the opt-in has both doors');
+  assert.ok(openExits().some((r) => r.id === 'cave-mouth') && openExits().some((r) => r.id === 'hollow-gate'), 'the Bone Hollow doors are unaffected');
 });
 
 test('a dungeon entrance exit must stand on the entrance room', () => {

@@ -76,11 +76,11 @@ export function walkRoute(d: Dungeon): { readonly in: readonly string[]; readonl
 }
 
 /** The zone-row parts a dungeon compiles to: what a zone row would otherwise carry as `place`, `spawns` and `look`. */
-export function compileDungeon(d: Dungeon, theme: DungeonTheme): { place: unknown; spawns: unknown; look: unknown } {
+export function compileDungeon(d: Dungeon, theme: DungeonTheme): { place: unknown; spawns: unknown; look: unknown; band: readonly [number, number] } {
   const layout = Object.fromEntries(d.rooms.map((r) => [r.id, r.at])), m = d.mount ?? {};
   const world = { zoneSize: d.size, layout, ...(m.connections !== undefined ? { connections: m.connections } : {}), ...(m.density !== undefined ? { density: m.density } : {}), ...(m.ambience !== undefined ? { ambience: m.ambience } : {}) };
   const place = { zones: { [d.world]: world }, ...(m.joins !== undefined ? { joins: m.joins } : {}), waypoints: [...(m.waypointsBefore ?? []), ...d.rooms.map((r) => r.id)], spawns: d.encounters.map((e) => ({ id: e.id, at: e.room, characters: [e.creature] })) };
-  return { place, spawns: { openers: d.openers ?? {}, rows: d.creatures }, look: theme.look };
+  return { place, spawns: { openers: d.openers ?? {}, rows: d.creatures }, look: theme.look, band: d.level };
 }
 
 export const DUNGEONS: readonly Dungeon[] = loadDungeons(DEFS);

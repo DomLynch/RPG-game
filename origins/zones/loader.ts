@@ -18,6 +18,7 @@ export type KitKind = { nodes: readonly string[]; per: number; r: number; solid:
 export type ZonePresence = { speed?: number; quiet?: boolean; caps?: { floor?: number; soft?: number; hard?: number } };
 export type Zone = {
   id: string; level: number;
+  band?: readonly [number, number];   // the zone's level band when its row names a dungeon (dungeon-rows.json `level`): creature levels are checked against it INSTEAD of the zone-number rule
   defaultKind?: string;       // the roster body a creature whose character form names none stands as (a row column, schema default 'goblin', checked as a roster body)
   name: string;               // the zone's display name: the tab title and the HUD read it (Zone 1 = the Cinder Fields it opens in)
   names: Readonly<Record<string, string>>;   // display names of its world zones, by world-zone id (zone.world)
@@ -58,7 +59,8 @@ export function zoneProblems(z: Zone, known?: ReadonlySet<string>, rowText?: str
   for (const r of z.spawns.rows) {
     if (ids.has(r.id)) bad.push(`duplicate row ${r.id}`); ids.add(r.id);
     const lift = stageRule('namedLevelLift');   // a named camp boss is the zone level + the lift (stage rules row; was the NAMED_LEVEL literal)
-    if (r.named ? r.level[0] !== z.level + lift || r.level[1] !== z.level + lift : r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${r.named ? `${z.level + lift} (a named camp boss is the zone level + ${lift})` : `${z.level}-${z.level + 1}`}`);
+    if (z.band) { if (!(r.level[0] >= z.band[0] && r.level[1] <= z.band[1] && r.level[0] <= r.level[1])) bad.push(`${r.id}: level ${r.level.join('-')} is outside the zone's band ${z.band.join('-')}`); }   // a dungeon row's own level band wins; the zone-number rule below is the fallback for a zone without one
+    else if (r.named ? r.level[0] !== z.level + lift || r.level[1] !== z.level + lift : r.level[0] !== z.level || r.level[1] < z.level || r.level[1] > z.level + 1) bad.push(`${r.id}: level ${r.level.join('-')} is not the zone rule ${r.named ? `${z.level + lift} (a named camp boss is the zone level + ${lift})` : `${z.level}-${z.level + 1}`}`);
   }
   for (const [zoneId, rowId] of Object.entries(z.spawns.openers)) if (!ids.has(rowId)) bad.push(`opener for ${zoneId} names ${rowId}, which is not a row`);
   for (const g of z.place?.spawns ?? []) {   // weighted entries (docs/specs/origins/weighted-spawns.md): the camp is sized by the first entry's row; that every id is a character is the registry's check (region1 load.ts)
