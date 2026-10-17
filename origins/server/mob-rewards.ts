@@ -64,7 +64,7 @@ export function mobBatch(kill: Kill, state: { career: CareerRow | null; inventor
     if (!rolled.ok) lootRefused = rolled.issues[0]!.message;
     else {
       const encounter = setup.value.scope === 'open-world' ? null : (kill.fight as EncounterId);
-      const got = intoBackpack(state.inventory, rolled.value, { wonBy: kill.character as CharacterInstanceId, killId: killIdOf(kill.token), encounter, at }, content);
+      const got = intoBackpack(state.inventory, rolled.value, { wonBy: kill.character as CharacterInstanceId, killId: killIdOf(kill.token), encounter, at, foeLevel: setup.value.opponent.level }, content);
       if (!got.ok) lootRefused = got.issues[0]!.message;   // the pack could not take it (full, or one-of-each): nothing minted, as the page says
       else {
         const lookup = lookupOf(content);

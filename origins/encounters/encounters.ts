@@ -11,6 +11,8 @@ import type { CharacterId, CharacterInstanceId, EncounterId, ItemId, ItemInstanc
 import { parseItemInstance, type LootTable } from '../../src/core/server.ts';
 import { powerOf, loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import LOOT_TIER_ROWS from './loot-tier.json' with { type: 'json' };
+import CAREER_RULES from '../../src/core/career-rules.json' with { type: 'json' };
+import { rungOf as legendRung } from '../../src/legends.ts';
 import LOOT_TIER_MANIFEST from './loot-tier.manifest.json' with { type: 'json' };
 import { sha256, shortHash } from '../boss/hash.ts';
 import { receive, type Inventory, type Lookup } from '../../src/core/server.ts';
@@ -40,10 +42,16 @@ export const lookupOf = (content: EncounterContent): Lookup => (id: ItemId) => c
 // the third rank title, Gladiator. The test pins it to the Frontier zones' lootTier.
 loadRegistry(LOOT_TIER_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, LOOT_TIER_ROWS, 'origins/encounters/loot-tier.json')));
 export const REGION1_LOOT_TIER = LOOT_TIER_ROWS.lootTierRule[0]!.tier as Tier;   // a row (loot-tier.json), read by name
-// The rung a drop is minted at, by the item's RARITY (the rarityTier rows of loot-tier.json: common / fine / rare / relic). An item with no rarity row takes the region's rung above, so a drop
-// is never tierless by omission. Launch rows are all the region's rung (no behaviour change); Combat sets the ladder by editing the rows.
-export const RARITY_RUNG: ReadonlyMap<string, Tier> = new Map(LOOT_TIER_ROWS.rarityTier.map((r) => [r.id, r.tier as Tier]));
-export const rungOf = (rarity: string | undefined, rows: ReadonlyMap<string, Tier> = RARITY_RUNG): Tier => (rarity === undefined ? undefined : rows.get(rarity)) ?? REGION1_LOOT_TIER;
+// The rung a creature's drop is minted at (Strategy's spec, 2026-10-17): the rung of the CREATURE'S level (src/legends.ts rungOf, the one level-to-rung mapping) plus the item's rarity shift
+// (the rarityShift rows of loot-tier.json; the row marked `fallback` serves an item with no rarity or an unknown one), kept within the first rung and the beta cap (betaCut.maxLootRung in
+// career-rules.json, which lifts with the cut). A drop with no creature level (a ground pickup, the shop) keeps the region's rung above.
+export type RungRules = { readonly shifts: ReadonlyMap<string, number>; readonly fallback: number; readonly cap: number };
+const SHIFT_ROWS = LOOT_TIER_ROWS.rarityShift as readonly { id: string; shift: number; fallback?: boolean }[];
+export const RUNG_RULES: RungRules = { shifts: new Map(SHIFT_ROWS.map((r) => [r.id, r.shift])), fallback: SHIFT_ROWS.find((r) => r.fallback)!.shift, cap: CAREER_RULES.betaCut[0]!.maxLootRung };
+export const mintRung = (rarity: string | undefined, foeLevel: number, rules: RungRules = RUNG_RULES): Tier => {
+  const shifted = legendRung(foeLevel) + ((rarity === undefined ? undefined : rules.shifts.get(rarity)) ?? rules.fallback);
+  return TIERS[Math.min(rules.cap, TIERS.length, Math.max(1, shifted)) - 1]!;
+};
 export const tierOfLootTier =(lootTier: number): Tier | undefined => TIERS[lootTier - 1];
 
 // ---- 1. fight setup -------------------------------------------------------------------------------------------------------------
@@ -286,12 +294,12 @@ function rollTable(table: LootTable, draw: () => number, level: number | undefin
 
 // Who won the drops and for which kill. `killId` is the kill's own unique key (the boss module's LootRequest.mintKey, or the server's
 // kill id), so each drop's mint key `loot:<killId>:<n>` is unique and a retried settlement cannot mint twice. `at` is the server time.
-export type LootMint = { wonBy: CharacterInstanceId; killId: string; encounter: EncounterId | null; at: string };
+export type LootMint = { wonBy: CharacterInstanceId; killId: string; encounter: EncounterId | null; at: string; foeLevel?: number };   // foeLevel: the creature's level (its drops mint at mintRung of it); absent: the region's rung
 export type Delivered = { inventory: Inventory; metal: number; received: ItemInstanceId[] };
 
 // Mint each drop as a `loot` item instance (contracts' shape, parsed) and hand it to the inventory's own `receive`, which owns capacity,
 // stacking and one-of-each. All or nothing: any refusal returns that refusal and the inventory unchanged. Metal is a balance, not an item.
-export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: LootMint, content: EncounterContent, rungRows: ReadonlyMap<string, Tier> = RARITY_RUNG): Result<Delivered> {
+export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: LootMint, content: EncounterContent, rungRules: RungRules = RUNG_RULES): Result<Delivered> {
   const lookup = lookupOf(content);
   let inv = inventory;
   const received: ItemInstanceId[] = [], hash = shortHash(`${mint.killId}|${drops.table}`);
@@ -300,7 +308,7 @@ export function intoBackpack(inventory: Inventory, drops: RolledLoot, mint: Loot
     if (!def) return fail('unknown-id', `drops.items[${n}].item`, `${d.item} is not a Region 1 item`);
     const parsed = parseItemInstance({
       kind: 'item-instance', schemaVersion: 1, id: `inst:loot-${hash}-${n}`, item: d.item, version: 0, quantity: d.quantity,
-      tier: powerOf(def.power).tiered ? rungOf(def.rarity, rungRows) : null,
+      tier: powerOf(def.power).tiered ? (mint.foeLevel === undefined ? REGION1_LOOT_TIER : mintRung(def.rarity, mint.foeLevel, rungRules)) : null,
       location: { kind: 'trade-escrow', container: 'container:loot-mint', from: mint.wonBy },   // where a fresh drop sits until `receive` places it
       boundTo: null,
       provenance: { kind: 'loot', mintKey: `loot:${mint.killId}:${n}`, at: mint.at, wonBy: mint.wonBy, table: drops.table, encounter: mint.encounter },

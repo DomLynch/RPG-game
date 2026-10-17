@@ -10,12 +10,15 @@
       }
     },
     {
-      "table": "rarityTier",
+      "table": "rarityShift",
       "file": "loot-tier.json",
-      "at": "rarityTier",
+      "at": "rarityShift",
       "key": "id",
       "required": {
-        "tier": "string"
+        "shift": "integer"
+      },
+      "optional": {
+        "fallback": "boolean"
       }
     }
   ]

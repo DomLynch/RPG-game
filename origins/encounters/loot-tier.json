@@ -2,10 +2,9 @@
   "lootTierRule": [
     { "id": "region1", "tier": "Gladiator" }
   ],
-  "rarityTier": [
-    { "id": "common", "tier": "Gladiator" },
-    { "id": "fine", "tier": "Gladiator" },
-    { "id": "rare", "tier": "Gladiator" },
-    { "id": "relic", "tier": "Gladiator" }
+  "rarityShift": [
+    { "id": "common", "shift": 0, "fallback": true },
+    { "id": "fine", "shift": 1 },
+    { "id": "relic", "shift": 2 }
   ]
 }
