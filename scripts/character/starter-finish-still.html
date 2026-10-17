@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>starter finish still</title>
+<style>html,body{margin:0;background:#2b2118}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+// The starter items' finish rows on the hero (the calls #2987 added and the gear stage makes): two heroes side by side, the left plain, the right wearing the finish. ?set=sword is the rusty sword in the hand
+// (grade(undefined, 'rust'), the ready pose), ?set=kit the scrap cap (dull-iron) and shin plates (rust) on goblin.Helmet / goblin.Greaves. Driven by starter-finish-still.mjs (window.ready flips true).
+import * as THREE from 'three';
+import { handFinish, loadLoot, loadWarriors, lootId, lootIds, lootWorn } from '/src/fight/index.ts';
+import { wornFinishes } from '/origins/preview/worn-finish.ts';
+
+const set = new URLSearchParams(location.search).get('set') ?? 'sword';
+const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(2, 4, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+const loot = await loadLoot('/src/assets/loot.glb');
+// the same data path the page uses: the server's pieces (item id beside LootId) -> LootId -> finish row, then wear() / grade()
+const pieces = set === 'kit'
+  ? [{ item: 'item:starter.goblin-scrap-cap', lootId: 'goblin.Helmet', where: 'equipped' }, { item: 'item:starter.goblin-shin-plates', lootId: 'goblin.Greaves', where: 'equipped' }]
+  : [{ item: 'item:starter.rusty-sword', lootId: 'zone1.Longsword', where: 'equipped' }];
+const finishes = wornFinishes(pieces), worn = set === 'kit' ? ['goblin.Helmet', 'goblin.Greaves'] : ['zone1.Longsword'];
+const dress = (actor, withFinish) => {
+  const fin = withFinish ? finishes : {};
+  actor.wear(loot.filter((p) => lootWorn(p, worn)), () => {}, () => 'Recruit', (p) => fin[lootIds(p).find((id) => worn.includes(id)) ?? '']);
+  actor.grade(undefined, handFinish(worn, fin));
+};
+const heroes = [];
+for (const [x, withFinish] of [[-0.6, false], [0.6, true]]) {
+  const { player } = await loadWarriors('/src/assets/warrior.glb');
+  const spot = new THREE.Group(); spot.position.set(x, 0, 0); spot.add(player.anchor); scene.add(spot);   // update() owns the anchor's own position, so each hero stands in a group
+  dress(player, withFinish); heroes.push(player);
+}
+const frame = async (n = 4) => { for (let i = 0; i < n; i++) { for (const h of heroes) h.update(0, 0.016, set === 'sword' ? 'ready' : 'sheathed', 0); renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
+const look = (x, y, z, tx, ty) => { camera.position.set(x, y, z); camera.lookAt(tx, ty, 0); };
+window.view = async (v) => { if (v === 'close') look(0.9, 1.3, 3.4, 0.6, 1.15); else if (v === 'side') look(4.0, 1.2, 2.2, 0.2, 1.0); else look(0, 1.2, 6.4, 0, 0.95); await frame(); };
+await window.view('front');
+window.result = { set, finishes, hand: handFinish(worn, finishes) ?? null, programs: renderer.info.programs.length, ids: finishes && Object.keys(finishes) };
+window.ready = true;
+</script>
