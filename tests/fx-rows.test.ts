@@ -30,3 +30,10 @@ test('the seven files keep none of the old literals', () => {
   assert.doesNotMatch(src('beast-scale.ts'), /RENDER_SCALE = [0-9]/);
   assert.doesNotMatch(src('quality.ts'), /FIGHTER_TEXTURE_CAP = 1024/);
 });
+
+// The view files' inline Math.min / Math.max bounds that became rows (as-data rule (e), 2026-10-17): a `clamp.<file>.<value>` row holds the value its id names, so it can be retuned but never silently drifts from the literal it replaced.
+test('every view-file clamp row holds the value its id names', () => {
+  const rows = (JSON.parse(readFileSync(new URL('../src/fight/fx-rows.json', import.meta.url), 'utf8')) as { fxRows: { id: string }[] }).fxRows.filter((r) => r.id.startsWith('clamp.'));
+  assert.ok(rows.length >= 40, 'the view-file group moved 40 rows');
+  for (const { id } of rows) assert.equal(fxNum(id), Number(id.slice(id.indexOf('.', 6) + 1)), id);
+});
