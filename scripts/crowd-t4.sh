@@ -8,11 +8,12 @@
 set -euo pipefail
 REF="${1:?usage: scripts/crowd-t4.sh <PR number | branch | sha> [dressed] [--dry-run]}"; shift || true
 DRESSED=""; DRY=0
-for a in "$@"; do case "$a" in dressed|quick) DRESSED=$a;;   # DRESSED carries the wrapper's one mode word: dressed, or quick (0 players at 4x only, about a minute, for bisecting)
+for a in "$@"; do case "$a" in dressed|quick|ab) DRESSED=$a;;   # DRESSED carries the wrapper's one mode word: dressed; quick (0 players at 4x only, about a minute, for bisecting); ab (this ref against trunk, alternating in ONE job, 0/16/40 walking at 4x: the within-job cost per figure)
  --dry-run) DRY=1;; *) echo "unknown arg $a" >&2; exit 2;; esac; done
 git fetch -q origin
 if [[ "$REF" =~ ^[0-9]+$ ]]; then SHA=$(gh pr view "$REF" --json headRefOid --jq .headRefOid); else SHA=$(git rev-parse --verify -q "origin/$REF" || git rev-parse --verify "$REF"); fi
 SHORT=${SHA:0:9}; BR="world/crowd-fps-on-$SHORT"; OUT="${OUT:-/tmp/crowd-t4-$SHORT.md}"
+MODEARGS="$DRESSED"; if [[ "$DRESSED" == "ab" ]]; then BASE=$(git rev-parse origin/codex/01a09a76/task-1); MODEARGS="ab $BASE"; fi   # ab: the base is trunk's head now
 HARNESS=(scripts/origins-crowd-fps.mjs scripts/gpu-run/crowd-fps.sh)
 HREF="${HARNESS_REF:-origin/world/crowd-fps}"   # where the harness files come from (#2931's branch; after it merges, set HARNESS_REF=origin/codex/01a09a76/task-1)
 echo "ref $REF -> $SHA; test branch $BR; harness from $HREF; mode ${DRESSED:-undressed}"
@@ -20,10 +21,12 @@ WT=$(mktemp -d); trap 'git worktree remove --force "$WT" >/dev/null 2>&1 || true
 git worktree add -q --detach "$WT" "$SHA"
 ( cd "$WT" && git checkout -q "$HREF" -- "${HARNESS[@]}" && git commit -qm "TEST ONLY, do not merge: crowd harness on $SHORT" && git rev-parse HEAD > "$WT/.test-sha" )
 TEST=$(cat "$WT/.test-sha")
-if [[ $DRY -eq 1 ]]; then echo "DRY RUN: would push $BR at $TEST and run: node scripts/gpu-run.mjs $TEST --timeout 30m -- bash scripts/gpu-run/crowd-fps.sh $DRESSED"; exit 0; fi
+if [[ $DRY -eq 1 ]]; then echo "DRY RUN: would push $BR at $TEST and run: node scripts/gpu-run.mjs $TEST --timeout 30m -- bash scripts/gpu-run/crowd-fps.sh $MODEARGS"; exit 0; fi
 ( cd "$WT" && git push -q -f origin "HEAD:refs/heads/$BR" )
-LOG=$(mktemp); node scripts/gpu-run.mjs "$TEST" --timeout 30m -- bash scripts/gpu-run/crowd-fps.sh $DRESSED 2>&1 | tee "$LOG" | grep -E "^gpu-run: (job|hf-cost)|crowd-fps:" || true
-JOB=$(grep -oE "job [0-9a-f]{24}" "$LOG" | head -1 | cut -d' ' -f2); R=$(ls -d artifacts/gpu-run/"$JOB"/artifacts/crowd-fps/receipt.json 2>/dev/null || true)
+LOG=$(mktemp); node scripts/gpu-run.mjs "$TEST" --timeout 30m -- bash scripts/gpu-run/crowd-fps.sh $MODEARGS 2>&1 | tee "$LOG" | grep -E "^gpu-run: (job|hf-cost)|crowd-fps:" || true
+JOB=$(grep -oE "job [0-9a-f]{24}" "$LOG" | head -1 | cut -d' ' -f2)
+if [[ "$DRESSED" == "ab" ]]; then node scripts/crowd-ab-table.mjs "artifacts/gpu-run/$JOB/artifacts/crowd-fps" "$SHORT" "${BASE:0:9}" "$JOB" "$OUT"; echo "comment body: $OUT   (post with: gh pr comment <PR> --body-file $OUT)"; exit 0; fi
+R=$(ls -d artifacts/gpu-run/"$JOB"/artifacts/crowd-fps/receipt.json 2>/dev/null || true)
 [[ -n "$R" ]] || { echo "no receipt (job ${JOB:-none}); see $LOG" >&2; exit 1; }
 node -e '
 const [r, sha, job, out] = process.argv.slice(1), d = require(require("path").resolve(r)), fs = require("fs");

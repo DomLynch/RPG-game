@@ -7,6 +7,17 @@ set -euo pipefail
 if [[ "${1:-}" == "profile" ]]; then
   npx vite build --config origins/preview/vite.config.mjs --minify false > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
   SERVE=1 PROFILE=1 COUNTS=0,16,40 MODES=walk THROTTLE=1,4 OUT=artifacts/crowd-fps node scripts/origins-crowd-fps.mjs
+elif [[ "${1:-}" == "ab" ]]; then
+  # `ab <base sha>`: head and a base tree measured in THE SAME JOB (same host), alternating a1 b1 a2 b2, 0 / 16 / 40 players walking at 4x CPU; receipts in artifacts/crowd-fps/{a1,b1,a2,b2}/receipt.json
+  # (a = this sha, b = the base). A host difference moves both trees; a build difference moves only one: scripts/crowd-ab-table.mjs reads them.
+  BASE="${2:?ab needs the base sha}"; HERE="$PWD"
+  git fetch -q --depth 1 origin "$BASE" && git worktree add -q --detach /tmp/base "$BASE" && ln -s "$HERE/node_modules" /tmp/base/node_modules
+  npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build-a.log 2>&1 || { tail -20 /tmp/origins-build-a.log; exit 1; }
+  (cd /tmp/base && npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build-b.log 2>&1) || { tail -20 /tmp/origins-build-b.log; exit 1; }
+  for pass in 1 2; do
+    SERVE=1 COUNTS=0,16,40 MODES=walk THROTTLE=4 OUT="$HERE/artifacts/crowd-fps/a$pass" node scripts/origins-crowd-fps.mjs || true
+    (cd /tmp/base && SERVE=1 COUNTS=0,16,40 MODES=walk THROTTLE=4 OUT="$HERE/artifacts/crowd-fps/b$pass" node "$HERE/scripts/origins-crowd-fps.mjs") || true
+  done
 elif [[ "${1:-}" == "quick" ]]; then
   # `quick`: the empty zone at 4x CPU only (0 players, idle): one case, about a minute, for bisecting a frame-rate regression that needs no crowd.
   npx vite build --config origins/preview/vite.config.mjs > /tmp/origins-build.log 2>&1 || { tail -20 /tmp/origins-build.log; exit 1; }
