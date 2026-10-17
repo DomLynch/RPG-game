@@ -30,7 +30,10 @@ if [[ $mode == probe ]]; then
   echo "role / origins_ tables / not owned by this role / superuser / server: $out"
   IFS=$'\t' read -r _ total unowned _ <<<"$out"
   [[ ${total:-0} -ge 20 && ${unowned:-1} -eq 0 ]] || fail "this role does not own every origins_ table ($unowned of $total are not its own), so it cannot switch their triggers off for the restore"
-  echo "probe ok: this role owns all $total origins_ tables (nothing was changed)"
+  # A user trigger that is ALREADY disabled would be switched on by the restore's last step: list it and stop, so a person decides.
+  off=$("$psql_bin" -X -q -A -t -v ON_ERROR_STOP=1 -c "select c.relname || '.' || t.tgname || ' (tgenabled ' || t.tgenabled::text || ')' from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and c.relname like 'origins\\_%' and t.tgenabled <> 'O' order by 1" 2>&1 | scrub) || fail "the trigger-state query failed: $off"
+  [[ -z $off ]] || fail "user triggers already disabled on origins_ tables (the restore would re-enable them): $(tr '\n' ' ' <<<"$off")"
+  echo "probe ok: this role owns all $total origins_ tables and every user trigger on them is enabled (nothing was changed)"
   exit 0
 fi
 dir=${2:-}

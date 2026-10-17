@@ -36,7 +36,9 @@ Needs, in writing in the PR thread before step 1: Auditor PRE, Lead + Strategy G
 
 1. Announce the window. Stop the writer and presence so every read sees the same rows:
    `systemctl stop frankendom-origins-writer frankendom-presence`
-2. Probe, as the owner: `RESTORE_ENV=<owner env file> bash ops/prelaunch-restore.sh probe` must print "probe ok".
+2. Probe, as the owner (the Auditor's run-day conditions a to c):
+   - `RESTORE_ENV=<owner env file> bash ops/prelaunch-restore.sh probe` must print "probe ok". It also lists, and refuses on, any user trigger on an `origins_` table that is already disabled (`tgenabled <> 'O'`), because the restore would switch it on.
+   - As the owner, on production: `begin; alter table public.origins_events disable trigger user; rollback;` must succeed (proves the owner may switch user triggers off; the lock is brief and the transaction is rolled back at once, so run it with the writer stopped).
 3. Backup, immediately before the reset: `bash ops/prelaunch-backup.sh` (writes `/root/r1-backup/r1-<UTC stamp>/`, files 600, directories 700).
 4. Prove the backup restores into a scratch cluster, as a non-root user (as `postgres` on the VPS): `node scripts/prelaunch-restore-test.mjs /root/r1-backup/r1-<stamp>` must print "restore proven".
 5. Dry run against production, read-only, with the counts from step 3 (save the output to the PR):
