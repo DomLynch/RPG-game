@@ -9,7 +9,7 @@ import { castOutcome, resolveSpell, spellRoot } from '../src/fight/spell-cast.ts
 import { SPECIAL_MODES } from '../src/fight/special-modes.ts';
 import { SPECIAL_TESTS, type SpecialTest } from '../src/fight/special-look.ts';
 
-type Pick = { id: string; level: number; fx?: string; unlock?: string };
+type Pick = { id: string; level: number; fx?: string; vfx?: string; unlock?: string };
 const find = (src: unknown): Pick[] | undefined => {   // the family anywhere in the rows file (file -> family -> rows)
   if (!src || typeof src !== 'object') return undefined;
   const own = (src as Record<string, unknown>).spellPick;
@@ -24,13 +24,14 @@ test('trunk ships no spellPick rows (every spell is offered); the sandbox rows p
   assert.deepEqual(picks.map((p) => p.unlock), ['start', 'pit', 'zone1', 'zone2', 'universal']);
   assert.equal(new Set(picks.map((p) => p.id)).size, 5, 'no spell twice');
 });
-test('each pick is a real catalogue spell of the level its row says, playing its own real designed effect (4 different)', () => {
+test('each pick is a real catalogue spell of the level its row says, with its own look (spell-vfx.ts), 5 different, and no designed special effect over it', () => {
+  const KNOWN = ['shock', 'ash', 'wind', 'nyx', 'heal'];
   for (const p of picks) {
     assert.ok(SPELL_INFO[p.id], `${p.id} is in the catalogue`); assert.equal(SPELL_INFO[p.id]!.level, p.level, `${p.id} level`);
-    if (p.unlock === 'universal') { assert.equal(p.fx, undefined, 'the heal has its own look (missile-fx.ts), no designed special effect'); continue; }
-    assert.ok(p.fx && SPECIAL_MODES[p.fx as SpecialTest] && SPECIAL_TESTS[p.fx as SpecialTest], `${p.id}: ${p.fx} has a mode and a look-test`);
+    assert.ok(p.vfx && KNOWN.includes(p.vfx), `${p.id}: vfx ${p.vfx} is one of ${KNOWN.join(', ')}`); assert.equal(p.fx, undefined, `${p.id}: a pick with its own look carries no designed special effect`);
   }
-  assert.equal(new Set(picks.filter((p) => p.fx).map((p) => p.fx)).size, 4, '4 different effects on the 4 attack spells');
+  assert.deepEqual(picks.map((p) => p.vfx), KNOWN, 'one look per unlock point, in order');
+  for (const id of Object.keys(SPECIAL_MODES)) assert.ok(SPECIAL_TESTS[id as SpecialTest], `${id} still has a look-test (the designed effects are untouched)`);
 });
 test('every pick lands at the sandbox skill floor (100): at least 90% of casts succeed or crit, and its root is the outer band (cast from any distance)', () => {
   const floor = Number(JSON.stringify(ROWS).match(/"id":"spellSkillFloor","value":(\d+)/)?.[1]);

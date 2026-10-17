@@ -232,8 +232,10 @@ export const SPELL_BUFFER_MS = num('spellBuffer', 'value');
 // spellSkillFloor (Dom 2026-10-17: spells fizzled): a cast's outcome is skill against 2 x cost (spell-cast.ts), so below skill ~70 even a level 1 spell never lands and a level 8-10 one never lands at any skill. The alpha treats every caster as at least this skill. 0 = off (trunk).
 export const SPELL_SKILL_FLOOR = num('spellSkillFloor', 'value');
 // spellPick (Dom 2026-10-17: the alpha / pre-beta has 4 spells, the four whose designed effect looked best in a real browser, whatever their level; start, Gladiator Pit first win, Zone 1, Zone 2). One row { id, level, fx, unlock } per offered spell; `unlock` is documentation until the progression lane builds the unlock flow. The spell pickers list only these; every other spell stays in the rows, hidden. No rows (trunk) = every spell.
-type SpellPickRow = { id: string; level: number; fx?: string };
+type SpellPickRow = { id: string; level: number; fx?: string; vfx?: string };
 export const spellPick = (): readonly string[] => ((DEFS as unknown as { spellPick?: SpellPickRow[] }).spellPick ?? []).map((r) => r.id);
+/** A pick's own look (`vfx`: shock, ash, wind, nyx, heal; spell-vfx.ts): it replaces the designed special effect, which then does not draw for that spell. */
+export const vfxOf = (spell: string | undefined): string | undefined => (spell ? ((DEFS as unknown as { spellPick?: SpellPickRow[] }).spellPick ?? []).find((r) => r.id === spell)?.vfx : undefined);
 // windup (Dom 2026-10-16: a melee cast must be quicker than a magic one, or the caster is a sitting duck next to a plain slash): ticks of cast for this root, at 60 a second. No row field = the global special windup (120, two seconds).
 /** Ticks this root's cast takes before it lands, or `base` (the global special windup) when its row names none. */
 export const spellWindupOf = (root: string | undefined, base: number): number => (root && spellRangeOf(root)?.windup) || base;

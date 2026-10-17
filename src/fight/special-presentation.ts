@@ -12,9 +12,9 @@ import { SKILL_MOVE, type SkillId } from './moves.ts';
 import { SKILLS } from '../core/loot.ts';
 import { BOSSES } from './boss-rows.ts';
 import { spellRoot } from './spell-cast.ts';
-import { SPELL_FX, healOf, spellEffectOf } from './sandbox-rules.ts';
+import { SPELL_FX, healOf, spellEffectOf, vfxOf } from './sandbox-rules.ts';
 // sandbox spellFx: a catalogue spell's root IS a special template (spell-rows.ts), so a cast plays that special's designed effect (crack = Antaeus' earth, longShadow = Thanatos' fog ...). Off (trunk) = no effect id: a spell cast draws nothing here.
-const spellFxId = (spell: string | undefined): string | null => { if (!SPELL_FX || !spell || healOf(spell)) return null; const root = spellRoot(spell); return spellEffectOf(spell) || (root && SPECIALS.find((s) => s.template === root)?.id) || null; };   // the spell's own effect row, else its root template's special; a heal spell (healOf) has its own look in missile-fx.ts, no special effect
+const spellFxId = (spell: string | undefined): string | null => { if (!SPELL_FX || !spell || healOf(spell) || vfxOf(spell)) return null; const root = spellRoot(spell); return spellEffectOf(spell) || (root && SPECIALS.find((s) => s.template === root)?.id) || null; };   // the spell's own effect row, else its root template's special; a heal spell (healOf) has its own look in missile-fx.ts, no special effect
 
 // A spell's SpecialStarted carries the CASTER's own move, but each designed effect answers only to its own opponent's skill move (skillCast, isBossCast): so a spell cast offers
 // every move that opponent's effects answer to (the first the effect accepts starts it; the rest are ignored). Found by tests/sandbox-spell-effects-draw.test.ts: 29 of 50 effects never drew.

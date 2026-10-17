@@ -113,9 +113,9 @@
 ],"spellCue":[
 {"id":"far","text":"too far"}
 ],"spellPick":[
-{"id":"ugallu","level":1,"fx":"dwarf8","unlock":"start"},{"id":"brokkr","level":1,"fx":"surtr","unlock":"pit"},
-{"id":"kamaitachi","level":1,"fx":"typhon","unlock":"zone1"},{"id":"banshee","level":1,"fx":"nyx","unlock":"zone2"},
-{"id":"gula","level":3,"unlock":"universal"}
+{"id":"ugallu","level":1,"vfx":"shock","unlock":"start"},{"id":"brokkr","level":1,"vfx":"ash","unlock":"pit"},
+{"id":"kamaitachi","level":1,"vfx":"wind","unlock":"zone1"},{"id":"banshee","level":1,"vfx":"nyx","unlock":"zone2"},
+{"id":"gula","level":3,"vfx":"heal","unlock":"universal"}
 ],"spellHeal":[
 {"id":"gula","share":250,"uses":2,"windup":120}
 ],"bandBest":[

@@ -1,0 +1,37 @@
+// sandbox-mech: the spells' own looks (src/fight/spell-vfx.ts). Built without a GPU: five looks, warmed, triggered by the real landing events, posed tick by tick; each shows something while it plays, hides when done, and the one light rises and falls.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import DEFS from '../src/fight/sandbox-rules-defs.json' with { type: 'json' };
+
+const defs = DEFS as unknown as { spellHeal: object[]; spellPick: object[] };
+defs.spellHeal.push({ id: 'gula', share: 250, uses: 2, windup: 120 });
+defs.spellPick.push({ id: 'ugallu', level: 1, vfx: 'shock' }, { id: 'brokkr', level: 1, vfx: 'ash' }, { id: 'kamaitachi', level: 1, vfx: 'wind' }, { id: 'banshee', level: 1, vfx: 'nyx' });
+const { createSpellVfx } = await import('../src/fight/spell-vfx.ts');
+const fighters = [{ body: { x: 0, z: 0 } }, { body: { x: 1.5, z: 0.5 } }] as never;
+const shown = (scene: THREE.Scene) => { let n = 0; scene.traverse((o) => { if ((o as THREE.Mesh).isMesh || (o as THREE.Sprite).isSprite) { let v: THREE.Object3D | null = o, ok = true; while (v) { if (!v.visible) ok = false; v = v.parent; } if (ok) n++; } }); return n; };
+const light = (scene: THREE.Scene) => scene.children.find((c) => (c as THREE.PointLight).isPointLight) as THREE.PointLight;
+
+test('without heal rows nothing is built (trunk): no objects, no light', () => {
+  const saved = defs.spellHeal.splice(0); const scene = new THREE.Scene(); const v = createSpellVfx(scene);
+  v.warm(() => undefined); v.trigger([{ type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 1 }], fighters); v.update(5);
+  assert.equal(scene.children.length, 0); defs.spellHeal.push(...saved);
+});
+
+for (const [name, ev] of [
+  ['heal', { type: 'SpecialLanded', actor: 0, target: 0, spell: 'gula', tick: 100, heal: 38 }],
+  ['shock', { type: 'SpecialLanded', actor: 0, target: 1, spell: 'ugallu', tick: 100 }],
+  ['ash', { type: 'SpecialLanded', actor: 0, target: 1, spell: 'brokkr', tick: 100 }],
+  ['wind', { type: 'SpecialLanded', actor: 0, target: 1, spell: 'kamaitachi', tick: 100 }],
+  ['nyx', { type: 'SpecialLanded', actor: 0, target: 1, spell: 'banshee', tick: 100 }],
+] as const) {
+  test(`${name}: hidden before, drawn while it plays, light rises, hidden and dark after`, () => {
+    const scene = new THREE.Scene(), v = createSpellVfx(scene); let compiled = 0; v.warm(() => { compiled = shown(scene); });
+    assert.ok(compiled > 20, 'warm() shows every part for one compile'); assert.equal(shown(scene), 0, 'and hides them again');
+    v.update(99); assert.equal(shown(scene), 0, 'nothing before the landing'); assert.equal(light(scene).intensity, 0);
+    v.trigger([ev], fighters); let peak = 0, lit = 0;
+    for (let t = 100; t < 100 + 160; t++) { v.update(t); peak = Math.max(peak, shown(scene)); lit = Math.max(lit, light(scene).intensity); }
+    assert.ok(peak >= 3, `${name} shows ${peak} parts at its peak`); assert.ok(lit > 0.5, `${name} lights the scene (${lit})`);
+    v.update(100 + 200); assert.equal(shown(scene), 0, 'hidden once done'); assert.equal(light(scene).intensity, 0, 'dark once done');
+  });
+}

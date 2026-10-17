@@ -1,0 +1,137 @@
+import * as THREE from 'three';
+import type { Fighter } from './duel.ts';
+import { healRows, vfxOf } from './sandbox-rules.ts';
+
+// sandbox-mech: the spells' own looks (Dom 2026-10-17: "low res, cheap, tacky": 2026, AAA). Five looks (heal, start dust shock, Ash Fall, Wind Wall, Nyx Nightfall), each built from the same few parts: noise-eroded shader surfaces (a tiling fbm texture made once here),
+// view-facing smoke puffs that erode as they age, four-point glints, and one short coloured light that washes the sand and the fighters. Presentation only: tick-driven (a replay draws the same frames), it reads events and positions and never writes the duel.
+// Budget (Strategy): every material and the one light are built at scene creation and compiled by warm() (no new shader program at a cast: the engage hitch); nothing is built without `spellHeal` rows (trunk); a hidden object costs nothing to draw.
+// Donor shapes (study docs/specs/combat/spell-effects-donors.md): World of Claudecraft's pillar + ring + burst (MIT), Duelyst's rising dots and ash values (CC0); the code is ours.
+type Ev = { type: string; actor: number; target?: number; spell?: string; tick: number; heal?: number };
+type At = Pick<Fighter, 'body'>;
+type Inst = { objs: THREE.Object3D[]; start(x: number, z: number): void; update(age: number): { light: number; color: string } | undefined; ticks: number };
+
+const NOISE = 128, GLINT = 64;
+const hash = (x: number, y: number, s: number) => { let h = (x * 374761393 + y * 668265263 + s * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+const value = (x: number, y: number, cells: number, s: number) => { const fx = (x / NOISE) * cells, fy = (y / NOISE) * cells, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), w = (i: number, j: number) => hash((x0 + i) % cells, (y0 + j) % cells, s); return (w(0, 0) * (1 - sx) + w(1, 0) * sx) * (1 - sy) + (w(0, 1) * (1 - sx) + w(1, 1) * sx) * sy; };   // tiles: lattice indices wrap at `cells`
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const rnd = (i: number, s: number) => hash(i, 17, s);   // a stable 0..1 per (part, seed)
+
+type Vfx = { warm(compile: () => void): void; trigger(events: readonly Ev[], fighters: readonly At[]): void; update(tick: number): void };
+export function createSpellVfx(scene: THREE.Scene): Vfx {
+  const insts: Record<string, Inst[]> = {};
+  let light: THREE.PointLight | null = null;
+  if (healRows() === 0) return { warm: () => undefined, trigger: () => undefined, update: () => undefined };   // the sandbox switch: no heal rows (trunk) builds nothing
+
+  const px = new Uint8Array(NOISE * NOISE * 4);
+  for (let y = 0; y < NOISE; y++) for (let x = 0; x < NOISE; x++) { const v = 0.5 * value(x, y, 4, 1) + 0.3 * value(x, y, 8, 2) + 0.2 * value(x, y, 16, 3); px.set([255 * v, 255 * v, 255 * v, 255], (y * NOISE + x) * 4); }
+  const noise = new THREE.DataTexture(px, NOISE, NOISE); noise.wrapS = noise.wrapT = THREE.RepeatWrapping; noise.magFilter = noise.minFilter = THREE.LinearFilter; noise.needsUpdate = true;
+  const gp = new Uint8Array(GLINT * GLINT * 4);   // a bright core with a thin four-point cross
+  for (let y = 0; y < GLINT; y++) for (let x = 0; x < GLINT; x++) { const dx = (x - (GLINT - 1) / 2) / ((GLINT - 1) / 2), dy = (y - (GLINT - 1) / 2) / ((GLINT - 1) / 2), r = Math.hypot(dx, dy), v = Math.min(1, Math.exp(-r * 7) + 0.55 * (Math.exp(-Math.abs(dx) * 38 - Math.abs(dy) * 2.6) + Math.exp(-Math.abs(dy) * 38 - Math.abs(dx) * 2.6))); gp.set([255, 255, 255, 255 * v * Math.max(0, 1 - r)], (y * GLINT + x) * 4); }
+  const glintTex = new THREE.DataTexture(gp, GLINT, GLINT); glintTex.magFilter = glintTex.minFilter = THREE.LinearFilter; glintTex.needsUpdate = true;
+
+  const VERT = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
+  const BILL = 'varying vec2 vUv; uniform float uSize; void main(){ vUv = uv; vec4 c = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); gl_Position = projectionMatrix * (c + vec4(position.xy * uSize, 0.0, 0.0)); }';
+  const HEAD = 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; uniform sampler2D uNoise; uniform float uK; uniform float uT; uniform float uSeed; uniform float uHot; uniform float uAlpha; uniform vec3 uA; uniform vec3 uB;';
+  const mat = (vertex: string, frag: string, side: THREE.Side = THREE.DoubleSide) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side, vertexShader: vertex, fragmentShader: frag,
+    uniforms: { uNoise: { value: noise }, uK: { value: 0 }, uT: { value: 0 }, uSeed: { value: 0 }, uHot: { value: 0 }, uAlpha: { value: 1 }, uSize: { value: 1 }, uA: { value: new THREE.Color('#fff') }, uB: { value: new THREE.Color('#fff') } } });
+  const set = (m: THREE.Mesh, p: Record<string, number | string>) => { const u = (m.material as THREE.ShaderMaterial).uniforms; for (const [k, v] of Object.entries(p)) { if (typeof v === 'string') (u[k]!.value as THREE.Color).set(v); else u[k]!.value = v; } };
+  const FRAG = {
+    // a column of light: rim-lit, thin in the middle, revealed from the foot, eroded by the grain as it ends
+    pillar: `${HEAD} void main(){ float y = vUv.y; vec2 p = vec2(vUv.x * 3.0, y * 1.4 - uT * 0.9); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.3 + 0.37).r * 0.4;
+      float h = min(1.0, uK * 3.2), reveal = 1.0 - smoothstep(h - 0.12, h, y), erode = smoothstep(uK * 0.95, uK * 0.95 + 0.2, n), body = pow(1.0 - y, 0.7); float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.4);
+      float a = reveal * erode * body * smoothstep(0.0, 0.06, uK) * (0.16 + 0.7 * rim) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n * n + (1.0 - y) * 0.25), a); }`,
+    // a flat ring on the ground, eroded
+    ring: `${HEAD} void main(){ float r = length(vUv - 0.5) * 2.0; float band = smoothstep(0.68, 0.86, r) * (1.0 - smoothstep(0.93, 1.0, r)); float n = texture2D(uNoise, vUv * 2.0 + uT * 0.3).r;
+      float a = band * smoothstep(uK * 0.9, uK * 0.9 + 0.2, n) * (1.0 - uK * 0.6) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n), a); }`,
+    // a view-facing puff of smoke or dust: soft body, grain-eroded edge, lit from above, hot at the core while young
+    puff: `${HEAD} void main(){ vec2 c = vUv - 0.5; float r = length(c) * 2.0; float mask = 1.0 - smoothstep(0.35, 1.0, r); vec2 p = vUv * 1.6 + vec2(uSeed * 7.31, uSeed * 3.17) + vec2(0.0, -uK * 0.35);
+      float n = texture2D(uNoise, p).r * 0.65 + texture2D(uNoise, p * 2.7 + 0.5).r * 0.35; float erode = smoothstep(uK * 0.85, uK * 0.85 + 0.25, n);
+      float a = mask * erode * uAlpha * (1.0 - uK * 0.5) * smoothstep(0.0, 0.08, uK); float lit = clamp(n * 1.3 - c.y * 0.9 + 0.2, 0.0, 1.0);
+      vec3 col = mix(uA * (0.55 + 0.6 * lit), uB, uHot * (1.0 - r) * n); gl_FragColor = vec4(col, a); }`,
+    // a funnel: swirling grain that climbs and turns, wider at the top
+    funnel: `${HEAD} void main(){ float y = vUv.y; float ang = vUv.x * 6.2832; vec2 p = vec2(vUv.x * 5.0 + y * 1.6 - uT * 1.4, y * 2.2 - uT * 0.6); float n = texture2D(uNoise, p).r * 0.6 + texture2D(uNoise, p * 2.1 + 0.2).r * 0.4;
+      float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.1); float h = min(1.0, uK * 4.0), reveal = 1.0 - smoothstep(h - 0.15, h, y); float erode = smoothstep(uK * 0.9, uK * 0.9 + 0.25, n);
+      float a = reveal * erode * (0.2 + 0.65 * rim) * (0.35 + 0.65 * y) * smoothstep(0.0, 0.05, uK) * uAlpha; gl_FragColor = vec4(mix(uA, uB, n), a); }`,
+    // an inside-out dome: deep colour, grain stars, fades in and out
+    dome: `${HEAD} void main(){ float n = texture2D(uNoise, vUv * vec2(3.0, 1.5) + uT * 0.02).r; float star = smoothstep(0.80, 0.83, texture2D(uNoise, vUv * vec2(14.0, 7.0)).r); float fade = smoothstep(0.0, 0.18, uK) * (1.0 - smoothstep(0.72, 1.0, uK));
+      float a = fade * (0.50 + 0.2 * n) * uAlpha; vec3 col = mix(uA, uB, n * 0.6) + vec3(star * 0.9); gl_FragColor = vec4(col, a + fade * star * 0.6); }`,
+  } as const;
+  const surface = (frag: string, geo: THREE.BufferGeometry, side?: THREE.Side) => { const m = new THREE.Mesh(geo, mat(VERT, frag, side)); m.visible = false; m.frustumCulled = false; scene.add(m); return m; };
+  const puff = () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(BILL, FRAG.puff)); m.visible = false; m.frustumCulled = false; scene.add(m); return m; };
+  const glints = (n: number, color: string, size: number) => Array.from({ length: n }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTex, color, transparent: true, depthWrite: false, opacity: 0, blending: THREE.AdditiveBlending })); s.scale.setScalar(size); s.visible = false; s.frustumCulled = false; scene.add(s); return s; });
+  const sop = (s: THREE.Sprite, v: number) => { (s.material as THREE.SpriteMaterial).opacity = v; };
+
+  // ---- the five looks. start(x, z) places an instance; update(age) poses it and returns its light, or undefined once done.
+  const heal = (): Inst => {
+    const ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)), pillar = surface(FRAG.pillar, new THREE.CylinderGeometry(0.6, 0.6, 3.2, 40, 1, true)), motes = glints(16, '#e4ffb0', 0.34);
+    set(ring, { uA: '#78c455', uB: '#f3ffd2' }); set(pillar, { uA: '#78c455', uB: '#f3ffd2' }); let x = 0, z = 0; const ticks = 84;
+    return { ticks, objs: [ring, pillar, ...motes], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / ticks; ring.position.set(x, 0.05, z); pillar.position.set(x, 1.6, z); ring.scale.setScalar(0.45 + 1.15 * (1 - (1 - k) ** 3)); pillar.scale.set(1 + 0.18 * k, 1, 1 + 0.18 * k);
+        for (const p of [ring, pillar]) set(p, { uK: k, uT: age / 60 });
+        motes.forEach((m, i) => { const t = clamp01((age - (i / 16) * 34) / 50), a = i * 2.4 + age * 0.12, r = 0.5 * (1 - 0.5 * t); m.position.set(x + Math.cos(a) * r, 0.1 + t * 2.5, z + Math.sin(a) * r); m.scale.setScalar(0.34 * (1 - 0.4 * t)); sop(m, 0.95 * Math.sin(Math.PI * t)); });
+        return { light: Math.sin(Math.PI * Math.min(1, k * 1.25)), color: '#c9f59a' }; } };
+  };
+  const smoke = (n: number, a: string, b: string, hot: number) => { const ps = Array.from({ length: n }, puff); for (const p of ps) set(p, { uA: a, uB: b, uHot: hot }); return ps; };
+  const shock = (): Inst => {   // the start spell: a dust shock rolls out from the target
+    const ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)), dust = smoke(7, '#7d6d58', '#e0c89a', 0.5); set(ring, { uA: '#8a7a62', uB: '#e6d3a8' }); let x = 0, z = 0; const ticks = 70;
+    return { ticks, objs: [ring, ...dust], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / ticks, out = 1 - (1 - k) ** 3; ring.position.set(x, 0.05, z); ring.scale.setScalar(0.3 + 2.4 * out); set(ring, { uK: k, uT: age / 60, uAlpha: 0.9 });
+        dust.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 8) / (ticks - 8)), a = (i / 7) * 6.283 + rnd(i, 2), r = 0.4 + t * (1.4 + rnd(i, 3) * 1.2); p.position.set(x + Math.cos(a) * r, 0.25 + t * 0.9, z + Math.sin(a) * r); set(p, { uSize: 0.9 + 1.6 * t, uK: t, uSeed: rnd(i, 4), uAlpha: 0.85 }); });
+        return { light: Math.exp(-age / 6), color: '#ffd9a0' }; } };
+  };
+  const ash = (): Inst => {   // Ash Fall: a roiling column of ash with a hot core, embers thrown up, a flash
+    const ps = smoke(8, '#4a3f38', '#ff8a2e', 1), em = glints(22, '#ff9a3c', 0.26), ring = surface(FRAG.ring, new THREE.RingGeometry(0.82, 1, 64).rotateX(-Math.PI / 2)); set(ring, { uA: '#5a4a3e', uB: '#ff9440' }); let x = 0, z = 0; const ticks = 110;
+    return { ticks, objs: [ring, ...ps, ...em], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / ticks; ring.position.set(x, 0.05, z); ring.scale.setScalar(0.3 + 2.0 * (1 - (1 - k) ** 3)); set(ring, { uK: Math.min(1, k * 1.6), uT: age / 60, uAlpha: 0.8 });
+        ps.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 14) / (ticks - 14)), a = i * 2.4, r = 0.25 + 0.5 * t * rnd(i, 2); p.position.set(x + Math.cos(a) * r, 0.3 + t * (2.0 + rnd(i, 3)), z + Math.sin(a) * r); set(p, { uSize: 0.9 + 1.7 * t, uK: t, uSeed: rnd(i, 4), uHot: 1 - t, uAlpha: 0.95 }); });
+        em.forEach((s, i) => { const t = (age - rnd(i, 5) * 10) / 60, life = clamp01(t / 1.1); if (t < 0 || t > 1.1) { s.visible = false; return; } s.visible = true; const a = rnd(i, 6) * 6.283, v = 1.0 + 1.6 * rnd(i, 7), up = 3.2 + 2.4 * rnd(i, 8); s.position.set(x + Math.cos(a) * v * t, 0.3 + up * t - 4.2 * t * t, z + Math.sin(a) * v * t); sop(s, 0.95 * (1 - life) * (0.7 + 0.3 * Math.sin(age * 1.3 + i))); s.scale.setScalar(0.26 * (1 - 0.5 * life)); });
+        return { light: Math.exp(-age / 9), color: '#ff8a3a' }; } };
+  };
+  const wind = (): Inst => {   // Wind Wall: a funnel of grain turning over the target, dust at its foot, leaves in the air
+    const f = surface(FRAG.funnel, new THREE.CylinderGeometry(1.15, 0.28, 3.6, 48, 1, true)), dust = smoke(5, '#8a8f78', '#cfd3b8', 0.1), lv = glints(12, '#d8e8b0', 0.22); set(f, { uA: '#7f8870', uB: '#d4dcbc' }); let x = 0, z = 0; const ticks = 100;
+    return { ticks, objs: [f, ...dust, ...lv], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / ticks; f.position.set(x, 1.8, z); f.scale.set(1 + 0.25 * k, 1, 1 + 0.25 * k); set(f, { uK: k, uT: age / 60, uAlpha: 0.9 });
+        dust.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 10) / (ticks - 10)), a = i * 1.26 + age * 0.05, r = 0.8 + 0.5 * t; p.position.set(x + Math.cos(a) * r, 0.3 + t * 0.5, z + Math.sin(a) * r); set(p, { uSize: 1.0 + 1.0 * t, uK: t, uSeed: rnd(i, 4), uAlpha: 0.7 }); });
+        lv.forEach((s, i) => { const t = clamp01((age - rnd(i, 2) * 20) / 70), a = i * 0.52 + age * (0.09 + 0.05 * rnd(i, 3)), r = 0.4 + 0.9 * t; s.position.set(x + Math.cos(a) * r, 0.2 + t * 3.0, z + Math.sin(a) * r); sop(s, 0.8 * Math.sin(Math.PI * t)); });
+        return { light: 0.35 * Math.sin(Math.PI * Math.min(1, k * 1.4)), color: '#dfe8c8' }; } };
+  };
+  const nyx = (): Inst => {   // Nyx Nightfall: the arena goes dark under a grain-starred dome, shadow wisps gather on the target
+    const d = surface(FRAG.dome, new THREE.SphereGeometry(13, 40, 20), THREE.BackSide), ws = smoke(7, '#150c24', '#7a4cc2', 0.5); set(d, { uA: '#0b0618', uB: '#2a1850' }); let x = 0, z = 0; const ticks = 130;
+    return { ticks, objs: [d, ...ws], start(px_, pz) { x = px_; z = pz; },
+      update(age) { const k = age / ticks; d.position.set(x, 1.5, z); set(d, { uK: k, uT: age / 60, uAlpha: 1 });
+        ws.forEach((p, i) => { const t = clamp01((age - rnd(i, 1) * 20) / (ticks - 20)), a = i * 0.9 + age * 0.03, r = 1.4 * (1 - 0.55 * Math.sin(Math.PI * t)); p.position.set(x + Math.cos(a) * r, 0.5 + t * 1.8, z + Math.sin(a) * r); set(p, { uSize: 1.1 + 1.2 * t, uK: t, uSeed: rnd(i, 4), uHot: 0.8 * Math.sin(Math.PI * t), uAlpha: 0.9 }); });
+        return { light: 0.5 * Math.sin(Math.PI * Math.min(1, k * 1.2)), color: '#8a5cf0' }; } };
+  };
+  const builders: Record<string, () => Inst> = { heal, shock, ash, wind, nyx };
+  for (const [kind, build] of Object.entries(builders)) insts[kind] = [build(), build()];
+  light = new THREE.PointLight('#ffffff', 0, 7, 2); scene.add(light);   // in the scene from the start (intensity 0 when idle): the lit materials are compiled with it
+  const live: { inst: Inst; at: number }[] = []; for (const list of Object.values(insts)) for (const inst of list) live.push({ inst, at: -1 });
+  const next: Record<string, number> = {};
+  const show = (inst: Inst, v: boolean) => { for (const o of inst.objs) o.visible = v; };
+  const find = (inst: Inst) => live.find((l) => l.inst === inst)!;
+  return {
+    /** Shows every part for one `compile()` so their shader programs and the light exist before the first cast, then hides them. */
+    warm(compile: () => void): void {
+      for (const l of live) show(l.inst, true);
+      try { compile(); } catch { /* a lost context: the first cast pays as before */ }
+      for (const l of live) show(l.inst, false);
+    },
+    trigger(events: readonly Ev[], fighters: readonly At[]): void {
+      for (const e of events) {
+        if (e.type !== 'SpecialLanded') continue;
+        const kind = e.heal !== undefined ? 'heal' : e.spell ? vfxOf(e.spell) : undefined, who = fighters[e.heal !== undefined ? e.actor : (e.target ?? -1)];
+        if (!kind || !who || !insts[kind]) continue;
+        const list = insts[kind]!, inst = list[(next[kind] = ((next[kind] ?? -1) + 1) % list.length)]!;
+        inst.start(who.body.x, who.body.z); find(inst).at = e.tick;
+      }
+    },
+    update(tick: number): void {
+      let best = 0, color = '#fff', bx = 0, bz = 0; const py = 1.3;
+      for (const l of live) {
+        const age = tick - l.at, alive = l.at >= 0 && age >= 0 && age < l.inst.ticks; show(l.inst, alive); if (!alive) continue;
+        const r = l.inst.update(age); if (r && r.light > best) { best = r.light; color = r.color; const o = l.inst.objs[0]!; bx = o.position.x; bz = o.position.z; }
+      }
+      if (light) { light.intensity = 14 * best; light.color.set(color); light.position.set(bx, py, bz); }
+    },
+  };
+}
