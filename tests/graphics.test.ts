@@ -581,8 +581,9 @@ test('difficulty: the ladder follows the career level (fresh = 1, 15 wins = 16),
   const pick = app.element('difficulty-select');
   assert.equal(pick.value, '1', 'a fresh fighter fights at level 1, whatever the old key says');
   assert.equal(app.element('sparring-tab').hidden, true, 'a player has no Sparring tab: the rank decides (Dom, 2026-09-27)');
-  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '15', '14 wins: level 15');
-  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, '16', '15 wins: level 16');
+  assert.equal(boot({ career: { victoryMarks: 8 } }).element('difficulty-select').value, '9', '8 wins: level 9');
+  assert.equal(boot({ career: { victoryMarks: 14 } }).element('difficulty-select').value, '10', '14 wins: the beta cut (two titles, level 10) caps the level');
+  assert.equal(boot({ career: { victoryMarks: 15 } }).element('difficulty-select').value, '10', 'a stored level 16 account is shown and fights at the cut, and keeps its marks');
   const dev = boot({}, undefined, {}, '?debug');
   const devPick = dev.element('difficulty-select');
   assert.equal(dev.element('sparring-tab').hidden, false, '?debug shows the Sparring tab');
@@ -623,9 +624,10 @@ test('Sparring Difficulty: the Opponent\'s ten legends ("6 – Hannibal") then t
 });
 // The difficulty dial (Dom via Strategy 2026-09-27): the opponent fights at the stored dial, not the rank; the control names the dial.
 test('difficulty dial: a stored dial below the rank sets the fight\'s level, clamped to the rank and to five below it', () => {
-  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 10, losses: 1, wins: 0 } }).element('difficulty-select').value, '10', 'rank 13, dial 10: level 10');
-  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 }, dial: { level: 3, losses: 0, wins: 0 } }).element('difficulty-select').value, '8', 'never more than five below the rank');
-  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 } }).element('difficulty-select').value, '13', 'no dial: the rank');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 8 }, dial: { level: 7, losses: 1, wins: 0 } }).element('difficulty-select').value, '7', 'rank 9, dial 7: level 7');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 8 }, dial: { level: 2, losses: 0, wins: 0 } }).element('difficulty-select').value, '4', 'never more than five below the rank');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 8 } }).element('difficulty-select').value, '9', 'no dial: the rank');
+  assert.equal(boot({ id: 'tester-1234', career: { victoryMarks: 12 } }).element('difficulty-select').value, '10', 'past the beta cut: the cut (the server keeps the marks)');
 });
 test('hit-stop presentation: the frozen frames show the contact tick itself (bodies and a frozen flag for the renderer), the frame that outlives the pause carries its remainder into the next tick, and the journal toggle turns the pause off and remembers it', () => {
   const app = boot(); app.tick(); app.key('KeyF'); for (let i = 0; i < 45; i++) app.tick();
@@ -764,10 +766,10 @@ test('an old ?daily=1 link boots the ladder fight: no daily, no banner, no error
   assert.deepEqual(app.errors, []);
 });
 test('the ladder: saved progress picks the opponent and labels him; a loss offers a rematch, not the next rung, and never reloads', () => {
-  const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
+  const app = boot({ id: 'tester-0001', ladder: 'pitborn', career: { victoryMarks: 17 } }); app.tick();   // a stored level 18 account: the beta cut shows and fights it at level 10   // a valid id: the harness default 'test' fails the profile's 8-char rule and boots a fresh guest; 17 wins = level 18, his full body (moves.ts opponentAt)
   assert.equal(app.rendered.enemyMaxHealth, 190, 'the Pitborn stands opposite (his health, not a man\'s)');
   // A legend is named as the versus card names him (Dom via Strategy 2026-09-28): his name, then "the Pitborn" small beside it.
-  const pitLegend = legends.legendForLevel('pitborn', 18).name;
+  const pitLegend = legends.legendForLevel('pitborn', 10).name;
   assert.equal(app.element('opponent-name').children[0], `${pitLegend.toUpperCase()} `);
   assert.equal(app.element('opponent-name').children[1]!.textContent, 'the Pitborn');
   assert.equal(app.element('opponent-name').dataset.mobile, pitLegend);
@@ -850,9 +852,10 @@ test('graphics startup preserves the original failure and stack for monitoring',
 type Node = { attributes: Map<string, string>; children: Node[]; textContent: string; className?: string; style: { getPropertyValue(k: string): string } };
 const rankRow = (el: unknown) => { const n = el as Node; return { label: n.attributes.get('aria-label'), now: n.children[0]?.textContent, fills: n.children[1]?.children.map((s) => s.style.getPropertyValue('--fill')), next: n.children[2]?.textContent }; };
 test('the identity aside shows the career rank from the saved mark count at boot', () => {
-  const app = boot({ id: 'tester-1234', career: { victoryMarks: 12 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
+  const app = boot({ id: 'tester-1234', career: { victoryMarks: 7 } });   // the harness default id 'test' is shorter than a real guest id, so the saved profile is discarded on load
   // The rank row (Dom 2026-09-23; 2026-09-27: one whole segment per win): class + numeral, one bar segment per numeral of the class, the next class.
-  assert.deepEqual(rankRow(app.element('rank')), { label: 'Gladiator III', now: 'Gladiator III', fills: ['100%', '100%', '0%', '0%', '0%'], next: 'Veteran' });
+  assert.deepEqual(rankRow(app.element('rank')), { label: 'Legionary III', now: 'Legionary III', fills: ['100%', '100%', '0%', '0%', '0%'], next: 'Gladiator' });
+  assert.equal(rankRow(boot({ id: 'tester-1234', career: { victoryMarks: 12 } }).element('rank')).label, 'Legionary V', 'the beta cut: a stored account past it is shown at the last rung of the cut, and keeps its marks');
   assert.deepEqual(rankRow(app.element('journal-rank')), rankRow(app.element('rank')), 'the journal card renders the same component');
   assert.equal(app.element('rank-sigil').textContent, 'III');
   assert.deepEqual(rankRow(boot().element('rank')), { label: 'Recruit I', now: 'Recruit I', fills: ['0%', '0%', '0%', '0%', '0%'], next: 'Legionary' });
@@ -1282,8 +1285,8 @@ test('a signed-in boot fights at the level the HUD shows: a cached standing of 1
   try {
     const cached = boot(undefined, undefined, { 'frankendom.standing.v1': JSON.stringify({ userId: 'user-7', standing: { marks: 10, owned: [], pending: 0, pendingOwned: [] } }) });
     const guest = boot();
-    assert.deepEqual(levels, [11, 1], 'levelOf(10) on the cached standing; a device with no cache fights on its own count');
-    assert.equal(cached.element('rank').attributes.get('aria-label'), career.rankFor(10).label, 'the HUD shows the same figure');
+    assert.deepEqual(levels, [10, 1], 'levelOf(10) on the cached standing (level 11), shown at the beta cut (level 10); a device with no cache fights on its own count');
+    assert.equal(cached.element('rank').attributes.get('aria-label'), career.rankFor(career.betaMarks(10)).label, 'the HUD shows the same figure');
     assert.equal(guest.element('rank').attributes.get('aria-label'), career.rankFor(0).label);
   } finally { matchModule.Match = Match; }
 });
@@ -1294,13 +1297,13 @@ test('a standing that arrives mid-page reaches the next fight: the rematch is fo
     // Every ladder opponent has rank looks now (the Executioner last, 2026-09-29), and a rank-up that changes his look file reloads to stream
     // it. So the standing lands inside the device's own rung (10 and 14 marks: both Gladiator, one look file) and the rematch reuses the Match.
     const a = boot({ id: 'tester-0001', ladder: 'executioner', career: { victoryMarks: 10 } });
-    assert.equal(built[0]!.level, 11, 'no cache for this account: the first fight is on the device count');
+    assert.equal(built[0]!.level, 10, 'no cache for this account: the first fight is on the device count (level 11, at the beta cut 10)');
     session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };   // account.ts: the standing arrives
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
     assert.equal(built.length, 1, 'a rematch reuses the Match');
-    assert.equal(built[0]!.level, 15, 'the rematch is fought at the level the HUD now shows');
-    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(14).label);
+    assert.equal(built[0]!.level, 10, 'the rematch is fought at the level the HUD now shows (level 15, at the beta cut 10)');
+    assert.equal(a.element('rank').attributes.get('aria-label'), career.rankFor(career.betaMarks(14)).label);
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 test('two losses, then the standing arrives mid-page: the rematch fights at the dial over the server rank, floored at DIAL_TRAIL (Lead 2026-09-27)', () => {
@@ -1314,8 +1317,8 @@ test('two losses, then the standing arrives mid-page: the rematch fights at the 
     session.userId = 'user-7'; session.standing = { marks: 14, owned: [], pending: 0, pendingOwned: [] };
     a.window.dispatchEvent(new Event('frankendom:standing'));
     a.element('reset-button').click(); a.tick();
-    assert.equal(built[0]!.level, career.fightLevel(dial, 14), 'the dial, not the bare rank');
-    assert.equal(built[0]!.level, 15 - career.DIAL_TRAIL, 'dial 9 is below the trail: the floor, rank 15 − 5');
+    assert.equal(built[0]!.level, career.fightLevel(dial, career.betaMarks(14)), 'the dial, not the bare rank');
+    assert.equal(built[0]!.level, 9, 'dial 9: under the beta cut rank (10) and over its floor (5), so it stands (without the cut the rank 15 floor was 10)');
   } finally { matchModule.Match = Match; session.userId = null; session.standing = null; }
 });
 // The path the two tests above moved off (Lead, #1115): a standing that lands on a rung with ANOTHER look file takes a fresh page, which
@@ -1759,7 +1762,7 @@ test('a Dev-kit level dresses the opponent (look, kit, weapon grade) at that lev
   const origin = { career: { victoryMarks: 45 } }, kit6 = { 'session:frankendom.dev-kit': JSON.stringify({ level: 6 }) };
   for (const opp of ['knight', 'nightborn'] as const) {
     const player = boot(origin, undefined, {}, `?opponent=${opp}`);
-    assert.equal(player.tier, 'Origin', `${opp}, no Dev level: his career rung, unchanged`);
+    assert.equal(player.tier, grades.tierAt(career.betaMarks(45)), `${opp}, no Dev level: his career rung (at the beta cut: Legionary, not Origin), unchanged`);
     const dev = boot(origin, undefined, kit6, `?opponent=${opp}&debug`);
     assert.equal(dev.element('difficulty-select').value, '6', `${opp}: the kept Dev level boots the fight at 6`);
     assert.equal(dev.tier, grades.tierAt(5), `${opp} at level 6: dressed at the rung the versus card prints (${grades.tierAt(5)}), not Origin`);
