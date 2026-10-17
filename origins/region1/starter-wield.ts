@@ -5,6 +5,7 @@
 import { isLootId, legacyLootOfItemId, loadRegistry, tableFromFile, type LootId, type Manifest } from '../../src/core/server.ts';
 import DATA from './starter-wield.json' with { type: 'json' };
 import MANIFEST from './starter-wield.manifest.json' with { type: 'json' };
+import { FRONTIER_WIELD } from './frontier-wield.ts';
 
 /** The one loader: rows keyed by item id (a duplicate id or a missing field is refused), the item must be a starter item and the LootId one this game knows. */
 export function loadStarterWield(raw: { wield?: readonly unknown[] }): ReadonlyMap<string, LootId> {
@@ -19,4 +20,4 @@ export function loadStarterWield(raw: { wield?: readonly unknown[] }): ReadonlyM
 export const STARTER_WIELD: ReadonlyMap<string, LootId> = loadStarterWield(DATA);
 
 /** The LootId a held item stands as: a legacy `item:loot.*` piece is its own, a starter item takes its row's, anything else has none (null). The one reading gear_open and the worn set share. */
-export const lootIdOfItem = (item: string): LootId | null => legacyLootOfItemId(item as Parameters<typeof legacyLootOfItemId>[0]) ?? STARTER_WIELD.get(item) ?? null;
+export const lootIdOfItem = (item: string): LootId | null => legacyLootOfItemId(item as Parameters<typeof legacyLootOfItemId>[0]) ?? STARTER_WIELD.get(item) ?? FRONTIER_WIELD.get(item) ?? null;

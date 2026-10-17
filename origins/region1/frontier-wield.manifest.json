@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "frontier-wield", "file": "frontier-wield.json", "at": "wield", "key": "id", "required": { "lootId": "string" } }
+  ]
+}
