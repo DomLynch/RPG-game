@@ -18,7 +18,7 @@ test('a breath draws separate tongues out of the mouth, never past its reach, th
   const group = scene.children[0] as THREE.Group, tongues = group.children.find((c) => (c as THREE.InstancedMesh).isInstancedMesh) as THREE.InstancedMesh;
   assert.equal(tongues.count, fxNum('breath.tongues'));
   const lives = (tongues.geometry.getAttribute('aLife') as THREE.BufferAttribute).array as Float32Array, m = new THREE.Matrix4(), p = new THREE.Vector3(), s = new THREE.Vector3(), q = new THREE.Quaternion();
-  const showing = [...Array(tongues.count).keys()].filter((k) => { tongues.getMatrixAt(k, m); m.decompose(p, q, s); return s.x > 0; });
+  const showing = [...Array(tongues.count).keys()].filter((k) => { tongues.getMatrixAt(k, m); return s.setFromMatrixColumn(m, 0).length() > 0; });   // not decompose: it answers a scale of 1 for a zero-scale (unborn) tongue
   assert.ok(showing.length >= 2 && showing.length < tongues.count, `separate tongues are showing, not one beam or all at once: ${showing.length}`);
   assert.ok(showing.every((k) => { tongues.getMatrixAt(k, m); m.decompose(p, q, s); return p.z >= -0.5 && p.z <= fxNum('breath.range') + 1e-6 && lives[k]! >= 0 && lives[k]! <= 1; }), 'every tongue is on the stream within its reach and has a life in 0..1');
   breath.start('s1', mouth, chest, 7);
