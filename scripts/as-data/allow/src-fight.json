@@ -56,6 +56,7 @@
     {"file": "src/fight/world-record.ts", "name": "WORLD_SIM_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
   ],
   "branchIds": [
+    {"file": "src/fight/open-fight.ts", "literal": "circle", "reason": "category branch: ai.mode is the AI movement-mode union (approach | circle | ...), a state of the open-world motion mechanism, not a content id"},
     {"file": "src/fight/finisher-look.ts", "literal": "fall", "reason": "a finisher TEMPLATE verb ('fall' is the plain-death template, with no pose): dispatch on a template name is behaviour in code (the verb rulings), the row carries which template it uses"},
     {"file": "src/fight/mobkit.ts", "literal": "opener", "reason": "a KitTrigger verb (opener, afterHit, heroGuarding, heroExhausted, selfBelow): the closed trigger vocabulary the mob kit switches on, not a content id"},
     {"file": "src/fight/characters.ts", "literal": "Body", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"},
