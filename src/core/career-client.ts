@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import CAREER_RULES from './career-rules.json' with { type: 'json' };
 
 // The career service's READS for the screens (Backend's slice 2b, migration 202610110019, live since BA2): the player's scorecard (scorecard_rows(), an invoker
 // function: the caller's own rows only) and the boards (leaderboards(p_limit), authenticated only). The ladder itself
@@ -41,7 +42,7 @@ export async function readScorecard(db: Pick<SupabaseClient, 'rpc'>): Promise<Sc
 
 export async function readLeaderboards(db: Pick<SupabaseClient, 'rpc'>, limit = 20): Promise<BoardRow[] | null> {
   try {
-    const { data, error } = await db.rpc('leaderboards', { p_limit: Math.max(1, Math.min(50, Math.trunc(limit))) });
+    const { data, error } = await db.rpc('leaderboards', { p_limit: Math.max(1, Math.min(CAREER_RULES.careerRule[0]!.boardMax, Math.trunc(limit))) });
     if (error || !Array.isArray(data)) return null;
     const rows: BoardRow[] = [];
     for (const r of data as Record<string, unknown>[]) {
