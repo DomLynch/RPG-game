@@ -43,7 +43,7 @@ for (const special of SPECIALS) {
     } else await run(16);
   }
   await fs.copyFile(best.file, `${OUT}/still-${special}.jpg`);
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '30', '-i', `${dir}/f%05d.jpg`, '-vf', 'scale=376:812,setsar=1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', `${OUT}/clip-${special}.mp4`]);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '30', '-i', `${dir}/f%05d.jpg`, '-vf', 'scale=376:812,setsar=1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '22', `${OUT}/clip-${special}.mp4`], { timeout: 120000 });
   console.log(`${special}: ${k} frames of ${shots}, most particles ${best.alive}, ${OUT}/clip-${special}.mp4`);
   await context.close();
 }
