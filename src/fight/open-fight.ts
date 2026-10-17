@@ -90,7 +90,8 @@ export function stepBout(s: Bout, a: Fighter, b: Fighter | undefined, inputA: In
     const press = (i: Input): Input => (k === 0 ? i : { x: i.x, z: i.z, run: i.run, guard: i.guard });   // open-world: a press (cut, roll, special) is one tick; the rest of a frame's ticks hold only the walk and the guard
     const intentA = intentOf(press(inputA), guardA, !!b); guardA = !!inputA.guard;
     let intentB: Intent = idleIntent();
-    if (b && ai && s.profile) { const brain = decide(before, 1, ai, { ...s.profile, circleChance: worldRule('circleChance') });   // open world: stand and face, circle only now and then (world rule circleChance) ai = brain.ai; intentB = brain.intent; }
+    // open world: stand and face at the stand-off, circle only now and then (world rule circleChance; ai.ts mode 'stand')
+    if (b && ai && s.profile) { const brain = decide(before, 1, ai, { ...s.profile, circleChance: worldRule('circleChance') }); ai = brain.ai; intentB = brain.intent; }
     else if (b) { intentB = intentOf(press(inputB), guardB, true); guardB = !!inputB.guard; }
     const next = stepDuel(before, [intentA, intentB]);
     out.push(...eventsOf(next.events, [a.id, b?.id ?? ''], next));
