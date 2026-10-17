@@ -101,11 +101,13 @@ fi
 [ -n "$dry" ] && { log "DRY RUN: would publish #$pr @${sha:0:9} (repo $repo at $(git rev-parse --short HEAD); slots $RELEASE_SLOTS); nothing written"; exit 0; }
 log "publishing #$pr @${sha:0:9}"
 
+ffwd=""   # set once trunk has been fast-forwarded to $sha: from then on the PR reads "merged" but live is NOT $sha (HL2, 2026-10-16: the next tick saw no open candidate)
 stop() {   # $1 = reason: the train stays stopped until a person removes both files
   local why="release-train STOPPED at #$pr @${sha:0:9}: $1"
-  printf '%s\n%s\n' "$why" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$stopped"
-  log "$why"
-  net_gh 30 pr comment "$pr" --body "$why. deploy_hold is kept and the train is stopped: fix it, then remove \`$stopped\` and \`$hold\` on the Mac." >/dev/null 2>&1 || true
+  local resume=""; [ -n "$ffwd" ] && resume=" Trunk is ALREADY $sha (#$pr reads merged) but live is not: after the fix, remove both files and run: bash scripts/release-train-resume.sh $pr $sha (the tick will not pick it again)."
+  printf '%s\n%s\n' "$why$resume" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$stopped"
+  log "$why$resume"
+  net_gh 30 pr comment "$pr" --body "$why. deploy_hold is kept and the train is stopped: fix it, then remove \`$stopped\` and \`$hold\` on the Mac.$resume" >/dev/null 2>&1 || true
   if [ -n "${RELEASE_TRAIN_NOTIFY:-}" ]; then $RELEASE_TRAIN_NOTIFY "$why" || true
   elif command -v osascript >/dev/null 2>&1; then osascript -e "display notification \"${why//\"/}\" with title \"Frankendom release train\"" || true; fi
   exit 1
@@ -124,6 +126,7 @@ net_git "${NET_PUSH_S:-180}" push -q origin "$sha:refs/heads/$trunk" || {
   [ "$rc" = 124 ] && stop "$NET_WHY: trunk state UNKNOWN (a push killed late may already have moved it); run git ls-remote origin $trunk before any retry; deploy.sh did not run"
   stop "the fast-forward of $trunk to $sha was refused (trunk moved?); nothing deployed"
 }
+ffwd=1
 net_git 120 fetch -q origin || stop "${NET_WHY:-git fetch after the fast-forward failed}"
 rev=$(git rev-parse "origin/$trunk") || stop "no origin/$trunk"
 [ "$rev" = "$sha" ] || stop "trunk is $rev after the fast-forward, not the audited $sha: not deploying an unchecked commit"

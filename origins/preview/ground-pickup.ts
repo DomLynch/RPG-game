@@ -2,7 +2,8 @@
 // (ground-item-view.ts), prompts "Take the <item>" inside a row's pickup radius and posts ground_take on the tap. The server decides reach and the race; this keeps no number and no label of its own:
 // the poll period, the labels and each refusal's line and cue are the ground-pickup.json row, read ONCE here; the radius is the row ground_state sends (the ground-items.json row's).
 // The poll (main.ts's timer) asks `poll(x, z, hidden)`: a hidden page or a hero farther than pollRangeM from every known item reads nothing, so an idle phone does not hammer the writer.
-// Signed out: ground_state needs a session, so the static rows draw as the brief says ("signed out = shown, cannot take") with "Sign in to take".
+// Signed out: ground_state needs a session, so the static rows draw. A guest TAKES them for the session (Dom 2026-10-16, guest loot): the item goes to the page's in-memory session bag (never saved, no writer call)
+// with the "sign in to keep it" nudge; the row stays gone until the page reloads.
 import { loadRegistry, tableFromFile, type Manifest, type Offline } from '../../src/core/index.ts';
 import { GROUND_ITEMS, GROUND_LIMITS } from '../world/ground-items.ts';
 import { groundPointOf } from '../world/ground-point.ts';
@@ -11,7 +12,7 @@ import RULES from './ground-pickup.json' with { type: 'json' };
 import type { GroundRow, GroundState, GroundTaken } from './ground-net.ts';
 
 export type Outcome = { line: string; cue: 'refuse' | null };
-export type PickupRules = { readonly pollSec: number; readonly emptyPollSec: number; readonly pollRangeM: number; readonly lineSec: number; readonly labels: { readonly take: string; readonly signedOut: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
+export type PickupRules = { readonly pollSec: number; readonly emptyPollSec: number; readonly pollRangeM: number; readonly lineSec: number; readonly labels: { readonly take: string; readonly guestTaken: string; readonly taken: string }; readonly outcomes: Readonly<Record<string, Outcome>> };
 
 const text = (what: string, v: unknown): string => { if (typeof v !== 'string' || !v.trim()) throw new Error(`ground-pickup: ${what} is a line of text`); return v; };
 /** The one loader: the registry's duplicate / missing / mistyped checks, then the rules the manifest cannot say (a poll period above 0, labels that name the {item}, every outcome a line and a cue of refuse or null, and the two the page falls back on: offline and taken). */
@@ -26,7 +27,7 @@ export function loadPickupRules(raw: unknown): PickupRules {
   if (typeof f.lineSec !== 'number' || !(f.lineSec > 0)) throw new Error('ground-pickup: lineSec is above 0');
   const l = f.labels as Record<string, unknown> | undefined;
   if (!l) throw new Error('ground-pickup: labels is missing');
-  const labels = { take: text('labels.take', l.take), signedOut: text('labels.signedOut', l.signedOut), taken: text('labels.taken', l.taken) };
+  const labels = { take: text('labels.take', l.take), guestTaken: text('labels.guestTaken', l.guestTaken), taken: text('labels.taken', l.taken) };
   for (const [k, v] of Object.entries(labels)) if (!v.includes('{item}')) throw new Error(`ground-pickup: labels.${k} names the {item}`);
   const outcomes: Record<string, Outcome> = {};
   for (const [k, v] of Object.entries((f.outcomes ?? {}) as Record<string, { line?: unknown; cue?: unknown }>)) {
@@ -49,6 +50,8 @@ export type GroundDeps = {
   /** ground_take for this session, or the Offline answer. */
   take: (instance: string) => Promise<GroundTaken | Offline>;
   signedIn: () => boolean;
+  /** A signed-out take: the item and its quantity go to the session bag. */
+  guestTake: (item: string, qty: number) => void;
   nameOf: (item: string) => string;
   /** The pack, read again after a take. */
   refreshPack: () => Promise<void>;
@@ -61,6 +64,7 @@ type Placed = GroundRow & { at: { x: number; z: number } };
 
 export function createGroundPickup(deps: GroundDeps) {
   const rules = deps.rules ?? PICKUP;
+  const guestGone = new Set<string>();   // a guest's takes this session (the static rows come back on every refresh, so these are filtered out)
   let rows: Placed[] = [], busy = false, reading = false, lastRead = -Infinity;
   const placed = (list: GroundRow[]): Placed[] => list.flatMap((r) => { const at = groundPointOf(r); return at ? [{ ...r, at }] : []; });   // a row this build cannot place is not drawn
   const apply = (list: GroundRow[]): void => {
@@ -73,12 +77,12 @@ export function createGroundPickup(deps: GroundDeps) {
   const nearest = (x: number, z: number): { instance: string; label: string } | null => {
     let best: Placed | null = null, bestD = Infinity;
     for (const r of rows) { const d = Math.hypot(x - r.at.x, z - r.at.z); if (r.visible && r.available && d <= r.radiusM && d < bestD) { best = r; bestD = d; } }
-    return best && { instance: best.instance, label: (deps.signedIn() ? rules.labels.take : rules.labels.signedOut).replace('{item}', deps.nameOf(best.item)) };
+    return best && { instance: best.instance, label: rules.labels.take.replace('{item}', deps.nameOf(best.item)) };
   };
   /** Read the state (signed in) or take the static rows (signed out), then show and hide to match. A failed read leaves what is drawn. */
   const refresh = async (nowMs = Date.now()): Promise<void> => {
     lastRead = nowMs;
-    if (!deps.signedIn()) { apply(staticRows()); return; }
+    if (!deps.signedIn()) { apply(staticRows().filter((r) => !guestGone.has(r.instance))); return; }
     const got = await deps.read();
     if ('items' in got) apply(got.items);
   };
@@ -97,11 +101,16 @@ export function createGroundPickup(deps: GroundDeps) {
     },
     /** The row to prompt for at this point, within its radius: the nearest one that is visible and available. */
     nearest,
-    /** The tap. Signed out: the line only. One take at a time. Success: hide it, refresh the pack, play the cue. A refusal: its row's line and cue; a lost race drops the item at once (the next state read confirms it). */
-    async tap(instance: string): Promise<'taken' | 'refused' | 'signed-out' | 'busy'> {
+    /** The tap. Signed out: the item goes to the session bag, with the sign-in nudge line. One take at a time. Success: hide it, refresh the pack, play the cue. A refusal: its row's line and cue; a lost race drops the item at once (the next state read confirms it). */
+    async tap(instance: string): Promise<'taken' | 'refused' | 'busy'> {
       const row = rows.find((r) => r.instance === instance);
       if (!row) return 'refused';
-      if (!deps.signedIn()) { deps.say(rules.labels.signedOut.replace('{item}', deps.nameOf(row.item))); return 'signed-out'; }
+      if (!deps.signedIn()) {
+        if (!row.available) return 'refused';
+        guestGone.add(instance); deps.view.hide(instance); rows = rows.filter((r) => r.instance !== instance);
+        deps.guestTake(row.item, GROUND_ITEMS[instance]?.qty ?? 1); deps.cue('pickup'); deps.say(rules.labels.guestTaken.replace('{item}', deps.nameOf(row.item)));
+        return 'taken';
+      }
       if (busy) return 'busy';
       busy = true;
       try {
