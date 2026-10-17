@@ -9,10 +9,6 @@
   "shieldmaiden": 1,
   "veteran": 1
  },
- "src/fight/power-words.ts": {
-  "witch": 1,
-  "plaguedoctor": 1
- },
  "src/fight/special-fx-pitborn.ts": {
   "ashfall": 1
  }
