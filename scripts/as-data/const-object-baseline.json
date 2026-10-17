@@ -44,10 +44,6 @@
  "src/fight/armfeel.ts": {
   "FLINCH_GAIN": 1
  },
- "src/fight/body-tables.ts": {
-  "BODYTYPES": 1,
-  "SPECIES": 1
- },
  "src/fight/camera.ts": {
   "FRAMING_TALL": 1,
   "SETTLE": 1,
@@ -65,9 +61,6 @@
  "src/fight/follow-camera.ts": {
   "OPEN": 1
  },
- "src/fight/gear-caps.ts": {
-  "CAPS": 1
- },
  "src/fight/gore.ts": {
   "WOUND_SIZE": 1,
   "DRIP": 1,
@@ -81,10 +74,6 @@
  },
  "src/fight/miasma-mark.ts": {
   "MARK": 1
- },
- "src/fight/moves.ts": {
-  "NOVICE_BODY": 1,
-  "SCUTUM": 1
  },
  "src/fight/night-armour.ts": {
   "NIGHT_BRONZE": 1
@@ -121,9 +110,6 @@
  },
  "src/fight/signature.ts": {
   "SIGNATURE_CAPS": 1
- },
- "src/fight/sim.ts": {
-  "TARGET": 1
  },
  "src/fight/skill-impact.ts": {
   "HEIGHT": 1

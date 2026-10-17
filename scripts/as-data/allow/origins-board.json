@@ -1,5 +1,8 @@
 {
   "tunables": [
     {"file": "origins/board/board-view.ts", "name": "BOARD_SEED", "kind": "exempt", "reason": "BOARD_SEED = 0 by Lead ruling 2026-10-13: the daily rotation comes from the date; this is an offset, not tuning", "owner": "Web & UI"}
+  ],
+  "branchIds": [
+    {"file": "origins/board/board-view.ts", "literal": "item", "reason": "a contract id scheme (`item:`): the id-scheme vocabulary of the contracts layer (item, character, loottable, ...), a category, not a row id"}
   ]
 }
