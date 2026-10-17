@@ -31,7 +31,7 @@ const refused = (what, needle, fn) => { checks++; try { fn(); } catch (e) { cons
 const count = t => Number(psql(`select count(*) from public.${t};`));
 const origins = () => psql(`select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and relname like 'origins\\_%' order by 1;`).split('\n');
 const snapshot = tables => Object.fromEntries(tables.map(t => [t, count(t)]));
-const triggers = () => psql(`select tgrelid::regclass || ':' || tgname || ':' || tgenabled from pg_trigger where not tgisinternal and tgrelid::regclass::text like 'origins\\_%' order by 1;`);
+const triggers = () => psql(`select tgrelid::regclass || ':' || tgname || ':' || tgenabled::text from pg_trigger where not tgisinternal and tgrelid::regclass::text like 'origins\\_%' order by 1;`);
 
 let started = false;
 try {
