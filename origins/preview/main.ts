@@ -362,7 +362,7 @@ function step(dt: number) {
       fightStarted = true;
       const others = mobs.within(g.x, g.z, 60).filter((m) => m.spec.id !== g.spec.id);   // stand on the side of it that is farthest from every other creature, so a test fight is one on one (Dom: dropped next to a salamander and got two on him)
       let best = { x: g.x + 3.2, z: g.z, far: -1 };
-      for (let k = 0; k < 24; k++) { const a = (k / 24) * Math.PI * 2, x = g.x + Math.sin(a) * 3.2, z = g.z + Math.cos(a) * 3.2, far = Math.min(99, ...others.map((m) => Math.hypot(m.x - x, m.z - z))); if (far > best.far) best = { x, z, far }; }
+      for (let k = 0; k < 24; k++) { const a = (k / 24) * Math.PI * 2, x = g.x + Math.sin(a) * 3.2, z = g.z + Math.cos(a) * 3.2, far = Math.min(Infinity, ...others.map((m) => Math.hypot(m.x - x, m.z - z))); if (far > best.far) best = { x, z, far }; }
       state.x = best.x; state.z = best.z; heading = Math.atan2(g.x - state.x, g.z - state.z); followCam.snap(); wc.press('light'); }
   }
   const foeNow = combatCam && lockOn && wc.target() ? { x: lockOn.x, z: lockOn.z, size: lockOn.spec ? sizeOfFoe(lockOn.spec.id) : 1.8 } : null;   // in a fight with the locked creature
