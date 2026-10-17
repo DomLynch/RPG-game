@@ -67,16 +67,17 @@ try {
   const outDir = join(root, 'out'), who = execFileSync('id', ['-un'], { encoding: 'utf8' }).trim();
   writeFileSync(join(root, 'backup.env'), `DATABASE_URL=postgresql:///postgres?host=${root}&user=${who}\n`);
   const bk = execFileSync('bash', ['ops/prelaunch-backup.sh'], { encoding: 'utf8', env: { ...env, BACKUP_ENV: join(root, 'backup.env'), OUT_DIR: outDir, PG_DUMP: pg('pg_dump'), PG_RESTORE: pg('pg_restore'), PSQL: pg('psql') } });
-  const files = readdirSync(outDir), dump = join(outDir, files.find(f => f.endsWith('.dump'))), manifestFile = join(outDir, files.find(f => f.endsWith('.manifest.tsv')));
-  eq(files.length, 2, 'the backup wrote a dump and a manifest');
-  eq([statSync(dump).mode & 0o777, statSync(manifestFile).mode & 0o777, statSync(outDir).mode & 0o777], [0o600, 0o600, 0o700], 'the backup files are 0600 in a 0700 directory');
-  const manifest = parseManifest(manifestFile);
+  const made = readdirSync(outDir), backupDir = join(outDir, made[0]), inside = readdirSync(backupDir);
+  eq([made.length, /^r1-\d{8}T\d{6}Z$/.test(made[0])], [1, true], 'the backup wrote one r1-<stamp> directory');
+  eq(inside.length, 26, 'the backup holds a CSV per RESET table and the manifest');
+  eq([inside.every(f => (statSync(join(backupDir, f)).mode & 0o777) === 0o600), statSync(backupDir).mode & 0o777, statSync(outDir).mode & 0o777], [true, 0o700, 0o700], 'the backup files are 0600 in 0700 directories');
+  const manifest = parseManifest(join(backupDir, 'manifest.tsv'));
   eq(manifest.map(m => m.table).sort(), [...RESET].sort(), 'the manifest lists exactly the RESET tables');
   eq(bk.includes('postgresql://'), false, 'the backup prints no connection string');
   eq(manifest.find(m => m.table === 'origins_characters').n, 2, 'the manifest counts the seeded rows');
   const scratch = scratchCluster();
   try {
-    restoreInto(scratch.socket, dump);
+    restoreInto(scratch.socket, backupDir);
     eq(compare(manifest, measure(scratch.socket, RESET)), [], 'restore into a scratch cluster: every table equals the manifest (counts and content hashes)');
   } finally { scratch.stop(); }
 
@@ -107,7 +108,7 @@ try {
   refused('the append-only ledger still refuses a delete', 'append', () => psql(`insert into public.origins_events(event_id, kind, account, payload) values ('r1:probe','career-snapshot','${A}','{}'); delete from public.origins_events where event_id = 'r1:probe';`));
   psql(`truncate public.origins_events;`);
   // ---- the recovery drill: the backup restores INTO the emptied database, row for row ---------------------------------------------
-  restoreInto(root, dump);
+  restoreInto(root, backupDir);
   eq(compare(manifest, measure(root, RESET)), [], 'restore into the reset database: every table equals the manifest again');
   eq(count('origins_characters'), 2, 'the characters are back');
   // ---- a second reset is a clean no-op, and the game works again from scratch ---------------------------------------------------

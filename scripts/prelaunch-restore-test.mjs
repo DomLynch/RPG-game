@@ -1,12 +1,13 @@
-// Restore proof for the R1 backup (ops/prelaunch-backup.sh): builds a SCRATCH PostgreSQL cluster (socket-only, disposable) with every repo migration applied, restores the dump into
-// it (data only, triggers disabled for the load, as the recovery path would), and compares each table's row count and content hash with the manifest taken from the source.
-//   node scripts/prelaunch-restore-test.mjs <r1-...dump> <r1-...manifest.tsv>      env: PG_BIN. Run as a non-root user (as `postgres` on the VPS).
-// Exit 0 and "restore proven" only if every table matches. It touches no hosted database; the dump is read, never modified.
+// Restore proof for the R1 backup (ops/prelaunch-backup.sh): builds a SCRATCH PostgreSQL cluster (socket-only, disposable) with every repo migration applied, loads the backup's CSVs into
+// it (data only, session_replication_role = replica for the load, as the recovery path would, so the append-only and conservation triggers do not fire on restored history), and compares
+// each table's row count and content hash with the manifest taken from the source.
+//   node scripts/prelaunch-restore-test.mjs <r1-... backup directory>      env: PG_BIN. Run as a non-root user (as `postgres` on the VPS).
+// Exit 0 and "restore proven" only if every table matches. It touches no hosted database; the backup is read, never modified.
 // `restoreInto` is exported for scripts/prelaunch-reset-check.mjs, which also restores into the emptied database (the recovery drill).
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 
@@ -24,10 +25,18 @@ export function measure(socket, tables) {
   return psql(`begin isolation level repeatable read read only; set local time zone 'UTC'; set local datestyle = 'ISO, MDY'; ${sql} commit;`).split('\n').map(l => { const [table, n, hash] = l.split('\t'); return { table, n: Number(n), hash }; });
 }
 
-/** pg_restore of a data-only dump into the cluster at `socket`, triggers disabled for the load (the append-only and conservation triggers must not fire on restored history). */
-export const restoreInto = (socket, dump) => run('pg_restore', ['-h', socket, '-d', 'postgres', '-a', '--disable-triggers', '--no-owner', '--exit-on-error', dump]);
+/** Load a backup directory's CSVs into the cluster at `socket` (data only, triggers off for the load, the column list read from each CSV's header). */
+export function restoreInto(socket, backupDir) {
+  const base = resolve(backupDir), tables = parseManifest(join(base, 'manifest.tsv')).map(m => m.table);
+  const lines = ['set session_replication_role = replica;'];
+  for (const t of tables) {
+    const header = readFileSync(join(base, `${t}.csv`), 'utf8').split('\n', 1)[0];
+    lines.push(`\\copy public.${t} (${header}) from '${join(base, `${t}.csv`)}' with (format csv, header true)`);
+  }
+  return run('psql', ['-h', socket, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q'], `${lines.join('\n')}\n`);
+}
 
-/** A disposable cluster with the repo's migrations applied; returns { socket, stop }. */
+/** A disposable cluster with the repo's migrations applied; returns { socket, psql, stop }. */
 export function scratchCluster(prefix = 'frankendom-r1-restore-') {
   const root = mkdtempSync(join(tmpdir(), prefix));
   run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
@@ -51,12 +60,12 @@ export function compare(want, got) {
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  const [dump, manifest] = process.argv.slice(2);
-  if (!dump || !manifest) { console.error('usage: node scripts/prelaunch-restore-test.mjs <dump> <manifest.tsv>'); process.exit(2); }
-  const want = parseManifest(manifest);
+  const backupDir = process.argv[2];
+  if (!backupDir) { console.error('usage: node scripts/prelaunch-restore-test.mjs <r1-... backup directory>'); process.exit(2); }
+  const want = parseManifest(join(backupDir, 'manifest.tsv'));
   const scratch = scratchCluster();
   try {
-    restoreInto(scratch.socket, dump);
+    restoreInto(scratch.socket, backupDir);
     const bad = compare(want, measure(scratch.socket, want.map(w => w.table)));
     for (const w of want) console.log(`  ${w.table.padEnd(28)} ${String(w.n).padStart(6)} rows  ${bad.some(b => b.startsWith(`${w.table}:`)) ? 'MISMATCH' : 'ok'}`);
     if (bad.length) { console.error(`restore NOT proven:\n${bad.join('\n')}`); process.exitCode = 1; } else console.log(`restore proven: ${want.length} tables, ${want.reduce((s, w) => s + w.n, 0)} rows, counts and content hashes equal the manifest`);
