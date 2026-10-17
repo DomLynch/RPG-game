@@ -8,15 +8,16 @@
 // Per case (SEEDS runs): hero deaths, creature kills, kills WHILE it was walking home (a free kill), damage dealt to it while it walked home, health it carried across a reset (the Evaded event: must be full), longest time it was worn below half.
 // Donor: AzerothCore CreatureAI::_EnterEvadeMode (combat stop, loot recipient and damage requirement cleared) and EQEmu mob_ai.cpp leash (hate list wiped past the leash, measured from the spawn point).
 //   node scripts/kite-farm.ts   env: KIND (goblin), LEVEL (2), LEAVE (0.6: backoff, pursue and tag leave once the creature is worn below this share of its health, or he is under BACKOFF), CASES (stand,backoff,pursue,hitrun,circle,tag), SEEDS (16), BACKOFF (0.5), CIRCLE_M (26), RECRUIT (1)
-import { creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
+import { HOLD_M, creature, newWorld, player, stepCombat, type Fighter, type Input, type World } from '../src/fight/world.ts';
 import { rungSheet } from './lib/rung-sheet.ts';
-import { leashOf } from '../src/fight/speeds.ts';
+import { chaseSpeed, leashOf } from '../src/fight/speeds.ts';
 import { wornGear } from '../src/fight/gear-stats.ts';
 import { TIERS } from '../src/core/grades.ts';
 
 // RULE (test-only; no row changes, the rule is applied to the world after each step with the flags the world's own leash code sets): none | noblow | spawn.
 //   noblow : the creature gives up (walks home, heals) when it has landed no blow on a hero for NOBLOW_S seconds (default 10), counted from the chase start or its last landed blow (AzerothCore's cannot-reach-target evade).
 //   spawn  : the creature gives up when it is further than its leash from its SPAWN point (EQEmu leash), not from where the chase began.
+const chargeX = +(process.env.CHARGE_X ?? '1.3'), chargeAfterHit = process.env.CHARGE_AFTER_HIT === '1';
 const rule = process.env.RULE ?? 'none', noblowS = +(process.env.NOBLOW_S ?? '10'), landed = process.env.LANDED ?? 'hit', pause = process.env.PAUSE ?? 'none';   // LANDED=hit: only a Hit resets the timer; LANDED=swing: a blocked, parried or dodged swing of the creature does too
 
 const DT = 1 / 60, MAX_S = 180, env = (k: string, d: string) => process.env[k] ?? d;
@@ -48,7 +49,7 @@ function run(name: string, seed: number) {
   const heroes = name === 'tag' ? [hero('hero', 0, 0), hero('hero2', 14, 0)] : [hero('hero', 0, 0)];
   let w = newWorld([...heroes, creature('c0', kind, Math.sin(a) * 7, Math.cos(a) * 7, a + Math.PI, level)]);
   const st = { gone: false }, r = { heroDied: false, killed: false, killedHome: false, homeDmg: 0, taken: 0, t: 0, ruleEvades: 0, resetHp: 1, worn: 0, longest: 0, resets: 0, by: '' };
-  let idleT = 0, outT = 0, hunted = false;
+  let idleT = 0, outT = 0, chargeT = 0, hitSeen = false, hunted = false;
   const recent: { t: number; type: string }[] = [];
   for (let k = 0; k < MAX_S / DT; k++) {
     const c = w.fighters.find((f) => f.id === 'c0')!, h = w.fighters[0]!, h2 = w.fighters.find((f) => f.id === 'hero2');
@@ -63,6 +64,13 @@ function run(name: string, seed: number) {
       else if (clockRuns(w, c2)) idleT += DT;
       outT = Math.min(...w.fighters.filter((f) => f.side === 'player').map((f) => dist(f, c2))) > reachM ? outT + DT : 0;   // noreach: seconds the creature has CONTINUOUSLY not had the target inside its weapon reach (REACH_M); being hit does not reset it, coming back inside reach does   // PAUSE: when the clock runs. act: only while the creature is free to act (not winding up, swinging, recovering or staggered); contact: only while it is out of its prey's engage ring (it is chasing, not fighting)
       if ((rule === 'noblow' && idleT > noblowS) || (rule === 'noreach' && outT > noblowS) || (rule === 'spawn' && Math.hypot(c2.x - c2.homeX, c2.z - c2.homeZ) > leashOf(c2.kind))) { c2.hunting = false; c2.returning = true; c2.phase = 'ready'; r.ruleEvades++; if (process.env.DEBUG_EVADE && r.ruleEvades <= 2) console.log(`evade t=${(k * DT).toFixed(1)} hp=${Math.round(c2.health)}/${Math.round(c2.maxHealth)} dist=${dist(c2, w.fighters[0]!).toFixed(1)} hero=${Math.round(w.fighters[0]!.health)} last c0 events: ${recent.slice(-8).map((q) => `${q.t.toFixed(1)}:${q.type}`).join(' ')}`); }
+    }
+    if (rule === 'charge' && c2 && c2.health > 0 && c2.hunting && !c2.returning) {   // charge (creature-side, emulated): after NOBLOW_S seconds of chasing without landing a blow it closes at CHARGE_X x its chase speed (only in the world-layer chase, free to act); its own landed blow resets it; CHARGE_AFTER_HIT=1: the seconds count only once the hero has hit it in this engagement
+      for (const e of res.events) { if (e.type === 'Hit' && e.victim === 'c0') hitSeen = true; if (e.attacker === 'c0' && (e.type === 'Hit' || e.type === 'Blocked' || e.type === 'Parried' || e.type === 'Dodged')) chargeT = 0; }
+      if (!hunted) { chargeT = 0; hitSeen = false; }
+      if (!chargeAfterHit || hitSeen) chargeT += DT;
+      const near = w.fighters.filter((f) => f.side === 'player').sort((a, b) => dist(a, c2) - dist(b, c2))[0]!, d = dist(near, c2);
+      if (chargeT >= noblowS && c2.phase === 'ready' && d > HOLD_M) { const step = Math.min(chaseSpeed(c2.kind) * (chargeX - 1) * DT, d - HOLD_M); c2.x += ((near.x - c2.x) / d) * step; c2.z += ((near.z - c2.z) / d) * step; }
     }
     hunted = !!c2?.hunting;
     for (const e of res.events) {
