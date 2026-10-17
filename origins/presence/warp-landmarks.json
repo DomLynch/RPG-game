@@ -2,6 +2,8 @@
   "landmarks": [
     { "id": "town-respawn", "x": 0, "z": 3, "unit": "m" },
     { "id": "zone1-start", "x": -72.637333676, "z": 62.912291291, "unit": "m" },
-    { "id": "zone1-road-end", "x": 0, "z": -24.5, "unit": "m" }
+    { "id": "zone1-road-end", "x": 0, "z": -24.5, "unit": "m" },
+    { "id": "zone1-cave-mouth", "x": -141, "z": 30, "unit": "m" },
+    { "id": "zone5-gate", "x": 1, "z": -320, "unit": "m" }
   ]
 }

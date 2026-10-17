@@ -131,12 +131,12 @@ const sandbox = () => {
   return { base, real, target };
 };
 
-test('sweep_safe_path: a real canonical directory passes', () => {
+test('sweep_safe_path: a real canonical directory passes', { skip: process.platform !== 'linux' }, () => {
   const { base, real } = sandbox();
   try { const r = safe(real); assert.equal(r.status, 0, r.stdout + r.stderr); } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
-test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), a dangling link, a link in the middle, .., //, a relative path and a file are all refused', () => {
+test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), a dangling link, a link in the middle, .., //, a relative path and a file are all refused', { skip: process.platform !== 'linux' }, () => {
   const { base, real } = sandbox();
   try {
     const refused: Record<string, RegExp> = {
@@ -152,7 +152,7 @@ test('sweep_safe_path: a trailing slash, a planted symlink (also with a slash), 
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
-test('sweep_safe_path: the resolved path must stay inside an allowed root, and sweep_kind itself refuses a trailing slash', () => {
+test('sweep_safe_path: the resolved path must stay inside an allowed root, and sweep_kind itself refuses a trailing slash', { skip: process.platform !== 'linux' }, () => {
   const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_safe_path "$1"', 'x', '/etc'], { encoding: 'utf8' });
   assert.equal(r.status, 1); assert.match(r.stdout, /outside the allowed roots/);
   for (const p of ['/tmp/cq-x/', '/var/tmp/be-abc/', '/tmp/hooks-x/', '/srv/dev-jobs/x/', '/opt/frankendom-shadow/work/x/', '/home/lanes/frankendom-char-cd/', '/tmp//cq-x', '/tmp/cq-x/.'])
@@ -167,7 +167,7 @@ const inUse = (dir: string, lsofExit: number, lsofSleep = 0) => {
   finally { rmSync(bin, { recursive: true, force: true }); }
 };
 
-test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means not in use; a hit, a timeout and an unexpected exit all mean in use', () => {
+test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means not in use; a hit, a timeout and an unexpected exit all mean in use', { skip: process.platform !== 'linux' }, () => {
   const { base, real } = sandbox();
   try {
     assert.equal(inUse(real, 1), 1, 'lsof exit 1 = nothing open = safe to remove');
@@ -179,7 +179,7 @@ test('sweep_in_use fails closed: only a clean "nothing open" (lsof exit 1) means
 
 // Auditor on #2832 (probed on the VPS): `lsof +D <regular file>` exits 1 (clean) even while the file is open, so the new file kind would pass the in-use check under a reader.
 // A file is probed with plain `lsof -- file` (0 = open, 1 = clean, anything else = could not tell = in use); a directory keeps +D.
-test('sweep_in_use: a regular file is probed with `lsof -- file`, a directory with `lsof +D dir`, and both fail closed', () => {
+test('sweep_in_use: a regular file is probed with `lsof -- file`, a directory with `lsof +D dir`, and both fail closed', { skip: process.platform !== 'linux' }, () => {
   const base = mkdtempSync(join(tmpdir(), 'inuse-args-')), file = join(base, 'a.tgz'), dir = join(base, 'd'), argsFile = join(base, 'args.txt'), bin = join(base, 'bin');
   mkdirSync(dir); mkdirSync(bin); writeFileSync(file, 'x'); writeFileSync(join(bin, 'lsof'), `#!/bin/sh\necho "$@" > "${argsFile}"\nexit \${FAKE_EXIT:-1}\n`); chmodSync(join(bin, 'lsof'), 0o755);
   const probe = (p: string, exit: number) => spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; sweep_in_use "$1"', 'x', p], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_EXIT: String(exit), LSOF_TIMEOUT: '5' } }).status;
@@ -275,5 +275,60 @@ test('ops/vps-scratch-sweep.service: runs exactly the scheduled form the script 
   assert.deepEqual(get('Type'), ['oneshot']);
   assert.match(script, /"\$\{SWEEP_SCHEDULED:-\}" != 1/, 'the script reads the very variable the unit sets');
   assert.ok(!/--path/.test(get('ExecStart').join(' ')) && !/--force/.test(get('ExecStart').join(' ')), 'no --path/--force in the scheduled form');
+});
+
+// Lead 2026-10-17: the VPS has no GitHub token (by design). open_pr_list reads the open PRs from the PUBLIC API when gh cannot, paginated and unauthenticated, and stays FAIL-CLOSED:
+// the check protects open PRs' dirs, so a failed read, a non-list answer, an empty list or an incomplete one (10 full pages) must stop the sweep, never skip the check.
+function openPrs(opts: { gh?: string; pages?: Record<number, string> }) {
+  const dir = mkdtempSync(join(tmpdir(), 'sweep-prs-')), bin = join(dir, 'bin'), log = join(dir, 'curl.log');
+  mkdirSync(bin);
+  const sh = (name: string, body: string) => { writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`); chmodSync(join(bin, name), 0o755); };
+  sh('gh', opts.gh ?? 'exit 1');   // no token: gh refuses
+  sh('curl', `echo "$*" >> "${log}"; page=$(printf '%s' "$*" | sed -n 's/.*[?&]page=\\([0-9]*\\).*/\\1/p'); f="${dir}/page-$page.json"; [ -f "$f" ] && cat "$f" || exit 22`);
+  for (const [n, body] of Object.entries(opts.pages ?? {})) writeFileSync(join(dir, `page-${n}.json`), body);
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: dir };
+  delete (env as Record<string, string | undefined>).GH_TOKEN; delete (env as Record<string, string | undefined>).GITHUB_TOKEN;
+  const r = spawnSync('bash', ['-c', 'SWEEP_SOURCE_ONLY=1 source ops/vps-scratch-sweep; open_pr_list'], { encoding: 'utf8', env });
+  const calls = () => { try { return readFileSync(log, 'utf8'); } catch { return ''; } };
+  return { r, calls, done: () => rmSync(dir, { recursive: true, force: true }) };
+}
+const prs = (n: number, from = 1) => JSON.stringify(Array.from({ length: n }, (_, i) => ({ head: { ref: `b${from + i}`, sha: `s${from + i}` } })));
+
+test('open_pr_list: with no token gh fails and the unauthenticated public API is read (state=open, per_page=100, no Authorization header)', () => {
+  const t = openPrs({ pages: { 1: prs(2) } });
+  try {
+    assert.equal(t.r.status, 0, t.r.stderr);
+    assert.equal(t.r.stdout, 'b1\ns1\nb2\ns2\n');
+    assert.match(t.calls(), /api\.github\.com\/repos\/DomLynch\/RPG-game\/pulls\?state=open&per_page=100&page=1/);
+    assert.doesNotMatch(t.calls(), /authorization|token|bearer/i, 'unauthenticated');
+  } finally { t.done(); }
+});
+
+test('open_pr_list: paginates (a full page of 100 asks for the next); a working gh is still used first and curl is never called', () => {
+  let t = openPrs({ pages: { 1: prs(100), 2: prs(3, 101) } });
+  try { assert.equal(t.r.status, 0, t.r.stderr); assert.equal(t.r.stdout.trim().split('\n').length, 206, '103 PRs, ref + sha each'); assert.match(t.calls(), /page=2/); } finally { t.done(); }
+  t = openPrs({ gh: 'printf "mainb\\nmains\\n"' });
+  try { assert.equal(t.r.stdout, 'mainb\nmains\n'); assert.equal(t.calls(), '', 'gh answered: no public API call'); } finally { t.done(); }
+});
+
+test('open_pr_list: FAIL CLOSED: a failed read, an HTML or rate-limit answer, an empty list and an incomplete list (10 full pages) all return 1 with nothing on stdout', () => {
+  const cases: [string, Record<number, string>][] = [
+    ['curl fails (no page file)', {}],
+    ['not JSON', { 1: '<html>502</html>' }],
+    ['a rate-limit object, not a list', { 1: '{"message":"API rate limit exceeded"}' }],
+    ['an empty list: no PR at all is not trusted', { 1: '[]' }],
+    ['10 full pages: 1000+ PRs, not a complete list', Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, prs(100, i * 100 + 1)]))],
+    ['page 2 fails after a full page 1', { 1: prs(100) }],
+  ];
+  for (const [why, pages] of cases) {
+    const t = openPrs({ pages });
+    try { assert.equal(t.r.status, 1, `${why}: ${t.r.stdout.slice(0, 80)}`); assert.equal(t.r.stdout, '', `${why}: nothing printed`); } finally { t.done(); }
+  }
+});
+
+test('the sweep aborts "cannot read open PR list" through open_pr_list, never around it', () => {
+  const src = readFileSync('ops/vps-scratch-sweep', 'utf8');
+  assert.match(src, /PRS=\$\(open_pr_list\) && \[ -n "\$PRS" \] \|\| \{ say "ABORT: cannot read open PR list"; exit 3; \}/);
+  assert.doesNotMatch(src, /^PRS=\$\(gh pr list/m, 'no direct gh call that would bypass the fallback');
 });
 
