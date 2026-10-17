@@ -20,13 +20,13 @@ No code, no gate row edited, nothing written to production. If a receipt is a te
 
 | Section | MET | OPEN | OBSOLETE |
 |---|---|---|---|
-| Player trade (G1–G6) | G1, G2, G5, G6 | G4 (caps confirmed; the scope question stays) | G3 |
+| Player trade (G1–G6) | G1, G2, G5, G6 | G4 (trade is OUT of beta, Strategy 2026-10-17: the row stays and lifts with the cut) | G3 |
 | Writer route (W1–W4) | W1, W2, W3, W4 | — | — |
 | Exchange-only (X1, X2) | X1, X2 | — | — |
 | Flag GO (F1, F2) | — | — | F1, F2 |
-| One-shard / chat (S1–S4) | S1 (on merge), S3 | S2 | S4 (pending Lead's confirmation that chat is out of beta) |
-| Patrons (P1–P5) | P1 | P4, P5 (see the note: only if patron perks act in the arena at beta) | P2, P3 |
-| Pre-launch wipe (R1) | — | **R1** | — |
+| One-shard / chat (S1–S4) | S1 (on merge), S3 | S2 | S4 (chat is not in beta, Strategy 2026-10-17) |
+| Patrons (P1–P5) | P1 | P4, P5 (patron perks do not act in any beta fight, Strategy 2026-10-17: not needed for beta) | P2, P3 |
+| Pre-launch wipe (R1) | — | **R1** (built and rehearsed in #3098; the run is Dom's call) | — |
 | Guest acceptance (1–4) | 1, 2, 3 | 4 | — |
 
 **Beta-critical OPEN: R1 (the pre-launch wipe) and guest item 4. Everything else OPEN is either not needed for the beta scope (S4, P4, P5, trade) or a measurement (S1, S2).**
@@ -38,7 +38,7 @@ No code, no gate row edited, nothing written to production. If a receipt is a te
 | G1 | **MET** | Migration `origins_trade_limits` is applied (version `20261007043358`); `origins_trade_limits()` and `origins_trade_counts()` exist; `origins-trade-limits-check` **75 checks pass** at the live sha. |
 | G2 | **MET** | Trigger `origins_trade_cooldown_guard` is live on `origins_items`; `origins-trade-lock-check` **15 pass**, `origins-trade-check` **94 pass** (disposable real Postgres, live sha). Config row `trade_cooldown` = first 259200 s, steps 604800 / 1209600 / 2592000 (the same numbers as the `cadence-rules.json` rows). |
 | G3 | **OBSOLETE** | Already closed in the file: there is no tradeable scope (Strategy, 2026-10-07). |
-| G4 | **OPEN** (caps confirmed, scope open) | **Update:** Dom's answer on the caps is recorded after all: "Yes to all (RV29, RV30, standoff ON after RV29, fatigue pose, power words names, 0008, caps)", `docs/state/lead.md`, Lead's handoff of 2026-10-07 ~09:00, and `strategy-ledger-2026-10-08.md` lists "0008, caps" as these launch gates. What stays open is the scope question below. Live config: `trade_caps` open 1, pieces 20, settled 10 per 86400 s. **Scope tension to rule on first:** live `trade_gates` require `min_career_level` 11, account age 7 days and Origins age 2 days, while the beta ladder is levels 1–2 (SCOPE, 2026-10-16 ~23:00), so player trade is unreachable at beta as configured. Lead or Strategy should say whether trade is in beta; if not, G4 and the trade section close as post-beta. Owner: Dom (via Strategy). |
+| G4 | **OPEN, trade is OUT of beta** (Strategy ruling 2026-10-17: the gate stays a row that lifts with the cut; bank and smith stay in beta). Caps confirmed. | **Update:** Dom's answer on the caps is recorded after all: "Yes to all (RV29, RV30, standoff ON after RV29, fatigue pose, power words names, 0008, caps)", `docs/state/lead.md`, Lead's handoff of 2026-10-07 ~09:00, and `strategy-ledger-2026-10-08.md` lists "0008, caps" as these launch gates. What stays open is the scope question below. Live config: `trade_caps` open 1, pieces 20, settled 10 per 86400 s. **Scope, ruled by Strategy 2026-10-17: trade is OUT of beta.** Live `trade_gates` require `min_career_level` 11, account age 7 days and Origins age 2 days, while the beta ladder is levels 1–2 (SCOPE, 2026-10-16 ~23:00), so player trade is unreachable at beta as configured, which now matches the ruling. The whole trade section is post-beta; G4 stays a row that lifts with the cut. Bank and smith stay in beta. |
 | G5 | **MET** | `origins_trade_reversal` is applied (`20261007044401`, Auditor PRE and POST per `backend.md` 2026-10-08); the `origins_events` kind check contains `trade-reversal`, `trade-hold` and `metal`; `origins_reverse_trade()` exists. **Dom's yes (found on a second search, after Lead asked):** "Yes to all (… 0008, caps)", 2026-10-07, in Lead's handoff of ~09:00 (`docs/state/lead.md`). It names the item, not the sha. |
 | G6 | **MET** | `origins_config` holds no `trade_cooldown_scope` key (keys read: `trade_cooldown`, `trade_caps`, `trade_gates`, `trade_hard_expiry_s`, `trade_idle_expiry_s`, `origins_enabled`, `origins_open_to_all`). Live trades so far: `origins_trades` has **0 rows**, so no player trade has run in production. |
 
@@ -72,7 +72,7 @@ No code, no gate row edited, nothing written to production. If a receipt is a te
 | S1 | **MET on merge of this PR** | **Update: done.** I ran `scripts/presence-loadtest.mjs` with 100 real WebSocket bots against the real presence process on the VPS at live `05a39ccce` (load 1.6 on 16 cores, one job, `nice`). Worst case (all 100 in one 60 m square): **14% of one core, 151 MB, 984 packets/s, 280 KB/s down (2.2 Mbit/s), 2.8 KB/s per client, tick p99 10.3 ms, max 17.9 ms**; spread over 300 m 8.8%; the 40% Exchange cluster 9.2%. The report with the sha is now in `one-shard.md` §4, replacing the *est.* figures, in this PR. The earlier note in `expansion.md:178` (8.6% of a core at #1510) was in the same range. |
 | S2 | **OPEN** | The gate asks for a physical iPhone 12 and Pixel 6 (desktop emulation does not count) and no phone number exists. World's crowd harness (`docs/state/world.md`, handoff #55, 2026-10-16 late; #2931, `scripts/crowd-t4.sh`) has a proxy: on a T4 GPU, undressed figures hold 60 fps at 0 / 8 / 16 / 40 at 1x CPU on #2929; at 4x CPU throttle 8 players = 30 fps, 16 = 20, 40 = 15 idle / 12 walking, and World's own verdict is "S2 (40 at 30) is NOT met on a throttled CPU; about 8 full figures is the 30-fps point there". The on-phone page (#2935, `?crowd=16`, `&crowd=30`) was a draft waiting on #2929 when I read it (I did not re-check its state today). Owner: Web & UI and World for the page; the phone number is Dom's. The practical close is to ship the adaptive near-full-count cap (rows) and read it on Dom's phones. |
 | S3 | **MET** | #1558 merged 2026-10-07; `tests/origins-presence-borders.test.ts` **4 pass** at the live sha. |
-| S4 | **OBSOLETE for beta, if Lead confirms chat is out** | There is no chat in the game: the presence server closes any socket that sends a text frame ("speech, when it exists", `origins/presence/server.ts:282`), and SCOPE's beta list does not include chat. The gate stays closed until chat ships, and it still must close before chat does. Lead: please confirm chat is not in beta. |
+| S4 | **OBSOLETE for beta** (Strategy ruling 2026-10-17: chat is not in beta) | There is no chat in the game: the presence server closes any socket that sends a text frame ("speech, when it exists", `origins/presence/server.ts:282`), and SCOPE's beta list does not include chat. The gate stays closed until chat ships, and it still must close before chat does. |
 
 ## Patrons in the arena
 
@@ -81,14 +81,14 @@ No code, no gate row edited, nothing written to production. If a receipt is a te
 | P1 | **MET** | Already closed in the file with release receipts. |
 | P2 | **OBSOLETE** | The hook shipped at a record version far below today's 74 (`PATRON_VERSION` 32 in `src/fight/record.ts`, not 28), and every record bump since is guarded by `tests/record-version-guard.test.ts`, which pins the sim digest. The "bump to 28" wording is stale. |
 | P3 | **OBSOLETE** | The verifier decodes the live record version: `frankendom_verifier` holds a database session and the daily and loot verifier timers are active. The "v28 decoder" release order is moot at RV74. |
-| P4 | **OPEN, conditional** | I found no patron battery report. This only matters if patron perks act in arena fights at beta; `living-world.md` says a clan is identity only in the arena until P2–P5 close. Owner: Combat. **Combat should say whether patron perks are on in beta.** If they are not, P4 and P5 stay closed by design. |
-| P5 | **OPEN, conditional** | Same as P4 (the win-rate-by-patron check before and after release). Owner: Combat. |
+| P4 | **NOT NEEDED FOR BETA** (Strategy ruling 2026-10-17) | Patron perks do not act in any beta fight: they are cosmetic only, the effect sits behind a row at 0, and there are no patron batteries. `living-world.md` says a clan is identity only in the arena until P2–P5 close. The gate stays a row that lifts if the perk row is ever raised above 0. Owner: Combat. |
+| P5 | **NOT NEEDED FOR BETA** (Strategy ruling 2026-10-17) | Same as P4 (the win-rate-by-patron check before and after release). Owner: Combat. |
 
 ## Pre-launch wipe
 
 | ID | Verdict | Receipt, or what is missing |
 |---|---|---|
-| R1 | **OPEN, beta-critical** | **Correction to my first draft, which said "the tooling exists":** it does not. The applied `origins_beta_wipe()` (migration `202610080015`) is a narrower, different tool: it reverses only what the detached Zone 1 reward ledger `origins_beta_ledger` recorded (burns those items, spends back that bronze and CP). It is not this gate's full reset, and the RESET list in the gate row is stale (it predates `origins_beta_ledger`, `origins_ground_takes`, `origins_spawn_engages`, `origins_character_build`, `origins_character_renown`, `origins_grimoire`, `origins_skill_practice` and `origins_skill_xp`). The wipe has **not run**: production still holds 2 characters, 3 career rows, 33 items, 12 events, 1 metal row and 1 saved location (counts read today, all tables in the gate row). Still needed: the reset script itself (to be built, Lead's ruling 2026-10-17: prepare everything, run nothing on production), the `pg_dump` of exactly the reset tables and one tested restore into a scratch database, the Auditor's PRE on the script and POST on the run, the joint Lead + Strategy GO, Dom's own word for the run date, and Dom's answer to "does R1 also wipe the duel ladder". Owner: Backend builds and rehearses; Dom names the date. |
+| R1 | **OPEN, beta-critical** | **Correction to my first draft, which said "the tooling exists":** it does not. The applied `origins_beta_wipe()` (migration `202610080015`) is a narrower, different tool: it reverses only what the detached Zone 1 reward ledger `origins_beta_ledger` recorded (burns those items, spends back that bronze and CP). It is not this gate's full reset, and the RESET list in the gate row is stale (it predates `origins_beta_ledger`, `origins_ground_takes`, `origins_spawn_engages`, `origins_character_build`, `origins_character_renown`, `origins_grimoire`, `origins_skill_practice` and `origins_skill_xp`). The wipe has **not run**: production still holds 2 characters, 3 career rows, 33 items, 12 events, 1 metal row and 1 saved location (counts read today, all tables in the gate row). **Update (same day):** the reset script, the backup (a CSV copy with a hash manifest, because production is Postgres 17 and the box's `pg_dump` is 16), the restore script and a runbook are built and rehearsed in #3098 (`docs/state/r1-prelaunch-reset.md`), nothing run on production (Lead's ruling 2026-10-17: prepare everything, run nothing). Still needed: the Auditor's PRE on the script and POST on the run, the joint Lead + Strategy GO, Dom's own word for the run date, and Dom's answer on whether the Pit (marks, claims, duel ladder) is wiped too (default KEEP). **Strategy 2026-10-17: the wipe is Dom's call.** Owner: Backend builds and rehearses; Dom names the date. |
 
 ## Guest acceptance (SCOPE.md, 2026-10-16 17:55)
 
@@ -101,12 +101,12 @@ No code, no gate row edited, nothing written to production. If a receipt is a te
 
 ## The OPEN list, in the order Lead needs it
 
-1. **R1 pre-launch wipe** (beta-critical): dry-run, backup plus tested restore, Auditor PRE/POST, joint GO, Dom's date, duel-ladder answer. Backend prepares the receipts.
+1. **R1 pre-launch wipe** (beta-critical; the wipe is Dom's call): built and rehearsed in #3098; needs the Auditor's PRE/POST, joint GO, Dom's date and his answer on the Pit (default KEEP).
 2. **Guest item 4** (beta-critical): sign-in keeps the bag, or the sign-in screen says what is lost. Web & UI.
-3. **Trade scope** (G4): trade needs career level 11 and the beta ladder is 1–2. Rule trade in or out of beta; if out, the whole trade section is post-beta. Lead, Strategy and Dom.
+3. **Trade scope** (G4): RULED, trade is OUT of beta (Strategy 2026-10-17); the whole trade section is post-beta and G4 lifts with the cut. Bank and smith stay.
 4. **S1 100-bot load run**: DONE (measured, in `one-shard.md` §4); closes on merge of this PR.
 5. **S2 40-character phone render test**: World's T4 proxy says 40 figures do not hold 30 fps on a throttled CPU (about 8 full figures do). Needs the adaptive cap shipped and Dom's iPhone 12 and Pixel 6. Web & UI, World, Dom.
-6. **S4 chat**: confirm chat is not in beta, then the gate is moot until chat is planned. Lead.
-7. **P4/P5 patron batteries**: only if patron perks act in beta arena fights. Combat to say.
+6. **S4 chat**: RULED, chat is not in beta (Strategy 2026-10-17); the gate is moot until chat is planned.
+7. **P4/P5 patron batteries**: RULED, patron perks do not act in any beta fight (cosmetic only, effect behind a row at 0, no patron batteries; Strategy 2026-10-17). Not needed for beta.
 8. **G5**: DONE, Dom's yes found and recorded in the gate row.
 9. **Housekeeping**: DONE in this PR. The statuses in `launch-gates.md` now carry these verdicts and receipts.
