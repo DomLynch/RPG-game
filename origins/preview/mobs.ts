@@ -6,6 +6,7 @@
 // landmark). The data says WHERE (the landmark) and WHO (the character, its body and level); it does not say how many, so the counts and the
 // roam radii below are this preview's (MOB_PLAN). Nothing fights, drops or saves here: a mob that sees you stops and faces you.
 import { stageRule } from '../world/stage-rules.ts';
+import { fxNum } from '../../src/fight/fx-rows.ts';
 import { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode, type Mob } from '../../src/core/server.ts';
 export { TUNING, nextRandom, mixSeed, newMob, aggroTest, turnToward, headingTo, wanderTarget, stepMob, pickVisible, type Pos, type MobMode as Mode, type Mob };   // the pure behaviour lives in src/core/world-sim.ts (core slice 3)
 import type { CharacterId, EncounterId } from '../../src/core/server.ts';
@@ -29,7 +30,7 @@ export type MobSpec = {
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
-const ZONE1_FEEL_SPREAD = typeof location !== 'undefined' && /[?&;]zone1feel=1\b/.test(location.search) ? 8 : 0;   // ?zone1feel=1 (A/B look test): creatures stand at least 8 m round their spot, as Zone 1's camps do (the Test Zone's rows say 2); 0 = the zone's own row
+const ZONE1_FEEL_SPREAD = typeof location !== 'undefined' && /[?&;]zone1feel=1\b/.test(location.search) ? fxNum('zone1feel.spread') : 0;   // ?zone1feel=1 (A/B look test): creatures stand at least this many m round their spot, as Zone 1's camps do (the Test Zone's rows say 2); 0 = the zone's own row
 
 // ---- placement ------------------------------------------------------------------------------------------------------------------
 

@@ -9,6 +9,7 @@ import { catalogueRow, type WeaponId } from '../../src/fight/index.ts';
 import { loadZone, type Zone } from '../zones/loader.ts';
 import MOB_LOOK_RULES from './mob-looks-rules.json' with { type: 'json' };
 import { loadoutRow } from '../world/loadouts-rules.ts';
+import { fxHas } from '../../src/fight/fx-rows.ts';
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
 export const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
@@ -27,7 +28,7 @@ const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object pe
 function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined && !row.loadout) return row as MobLook; let r = resolved.get(row); if (!r) { const gear = row.gear ?? loadoutRow(row.loadout)?.weapon; r = { ...row, scale: row.scale ?? bodyScale(row.opponent), ...(gear ? { gear } : {}) }; resolved.set(row, r); } return r; }   // a look with a loadout carries its weapon too (gear), so variant 0 and the others read the same way
 // ?zone1feel=1 (A/B look test, Dom 2026-10-17: "the goblin moves too fast and too far left to right; Zone 1 is fine"): creatures are drawn at their rig's own size like Zone 1's (the salamander keeps its size), so the oversized-body push-back and the wide swing of a big body drop out.
 const ZONE1_FEEL = typeof location !== 'undefined' && /[?&;]zone1feel=1\b/.test(location.search), feel = new WeakMap<MobLook, MobLook>();
-const natural = (look: MobLook): MobLook => { if (!ZONE1_FEEL || look.opponent === 'giant-salamander') return look; let f = feel.get(look); if (!f) { f = { ...look, scale: bodyScale(look.opponent) }; feel.set(look, f); } return f; };
+const natural = (look: MobLook): MobLook => { if (!ZONE1_FEEL || fxHas(`zone1feel.keep.${look.opponent}`)) return look;   // a row names the bodies that keep their zone look (the 6 m salamander) let f = feel.get(look); if (!f) { f = { ...look, scale: bodyScale(look.opponent) }; feel.set(look, f); } return f; };
 export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? natural(resolve(row)) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
