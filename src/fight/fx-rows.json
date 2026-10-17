@@ -41,6 +41,7 @@
     { "id": "opened.scan", "fields": {"value": 100000} },
     { "id": "opened.step-ms", "fields": {"value": 8} },
     { "id": "drop.reach", "fields": {"value": 1.4} },
+    { "id": "reach.dir-tau", "fields": {"value": 0.6} },
     { "id": "mob-view.lateral-tau", "fields": {"value": 0.7} },
     { "id": "mob-view.radial-tau", "fields": {"value": 0.07} },
     { "id": "mob-view.turn-dps", "fields": {"value": 90} },

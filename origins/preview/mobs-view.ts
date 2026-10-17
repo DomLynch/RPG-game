@@ -192,6 +192,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let engaged: string | null = null;
   const driven = new Map<number, MobDrive>();
   // Calmer drawn movement in a fight (mob-calm.ts; Dom 2026-10-17: "a twitch FPS"). `?mobsmooth=0` turns it off to compare.
+  const backOff = new Map<number, { x: number; z: number }>();   // each creature's eased stand-back vector (see the reach shift in update)
   const calm = new Map<number, Calm>(), SMOOTH = typeof location !== 'undefined' && /[?&;]mobsmooth=1\b/.test(location.search);   // OFF by default now (Dom 2026-10-17: the drawn body trailing the engine's position felt floaty; Combat's #3056 is the real fix); ?mobsmooth=1 turns it on to compare
   const calmed = (i: number, d: MobDrive, hero: { x: number; z: number }, dt: number): Calm => {
     const prev = calm.get(i), want: Calm = { x: d.x, z: d.z, facing: d.facing };
@@ -221,7 +222,9 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
         const dv = driven.get(i);
         const look = mobVariant(s.character, s.id), ux = m.x - hero.x, uz = m.z - hero.z, dh = Math.hypot(ux, uz) || 1;
         const off = look && look.scale > bodyScale(look.opponent) ? Math.max(0, mouthReach(look.opponent) * look.scale + HERO_EDGE + HERO_GAP - dh) : 0;   // a body drawn bigger than its rig (a zone look's scale) stands back along the line to the hero until its MOUTH (the row's metres per unit of scale, from its centre) is HERO_GAP m short of his edge, not in his face or inside him; presentation only, the sim's contact distance is untouched
-        v.group.position.set(m.x + (ux / dh) * off, gy, m.z + (uz / dh) * off); v.group.rotation.y = m.facing;
+        // The stand-back vector eases (reach.dir-tau): it is up to ~4 m long for a salamander, and as a lever on the hero-to-creature line it turned a 1 m/s sweep of the engine's body into 3-4 m/s on screen (Dom: "moving left to right very quickly"); eased, the body sweeps at the engine's own speed.
+        const want = { x: (ux / dh) * off, z: (uz / dh) * off }, cur = backOff.get(i) ?? want, k = 1 - Math.exp(-dt / fxNum('reach.dir-tau')); cur.x += (want.x - cur.x) * k; cur.z += (want.z - cur.z) * k; backOff.set(i, cur);
+        v.group.position.set(m.x + cur.x, gy, m.z + cur.z); v.group.rotation.y = m.facing;
         v.ring.position.set(m.x, gy + 0.04, m.z);
         const aggro = m.mode === 'aggro', mat = v.ring.material as THREE.MeshBasicMaterial;
         if (aggro && !alerted.has(i)) { alerted.add(i); dispatchEvent(new CustomEvent('origins:creature', { detail: { body: s.body, cue: 'growl' } })); } else if (!aggro) alerted.delete(i);   // the "!" fires: ?look=creatures growls (creature-voice.ts)
