@@ -89,6 +89,8 @@ import { previewRule } from './preview-rules.ts';
 const theme = ARENA_THEMES[zoneArena(loadZone(), ARENA_THEMES) as keyof typeof ARENA_THEMES], PHONE = phoneTier();   // the zone's own Pit theme (look.arena in its row); Zone 1 and any zone that sets none keep the Ash Pit's
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// three checks every program's link at its first use (getProgramInfoLog), which on the T4 blocked the main thread 50-170 ms per program in the kit warm's frames (CPU profile, kit-warm-trace.mjs). A production build skips the check (a preview-rules row, so a retune is one entry); a dev build keeps it, where a shader error must show.
+renderer.debug.checkShaderErrors = import.meta.env.DEV || previewRule('skipShaderErrorCheck') !== 1;
 renderer.setPixelRatio(Math.min(devicePixelRatio, pixelCap(PHONE)));
 // iOS drops a WebGL context under GPU memory pressure and the screen goes black (Dom's iPhone 15, 2026-10-07). Log it, stop the page's default
 // (so a restore is possible) and reload once the context comes back: the creatures' bodies are re-fetched and re-dressed from scratch.

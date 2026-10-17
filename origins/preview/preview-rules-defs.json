@@ -31,6 +31,7 @@
     { "id": "kitWarmMsSoft", "value": 300000, "unit": "ms" },
     { "id": "kitProbeFrames", "value": 20, "unit": "frames" },
     { "id": "kitSlowFrameMs", "value": 100, "unit": "ms" },
+    { "id": "skipShaderErrorCheck", "value": 1, "unit": "flag" },
     { "id": "materialBound", "value": 4000, "unit": "ms" },
     { "id": "uploadBudget", "value": 6, "unit": "ms" },
     { "id": "legendReach", "value": 6, "unit": "m" },
