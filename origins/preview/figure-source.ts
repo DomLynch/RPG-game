@@ -81,7 +81,7 @@ export function createFigureSource(d: Deps): FigureSource & { start(): Promise<b
     if (!d.pieceUrl) return;
     try {
       const asset = await load(d.pieceUrl);
-      asset.scene.traverse((o) => { if ((o as SkinnedMesh).isSkinnedMesh) pieces.set(o.name, (o as SkinnedMesh).geometry); });
+      asset.scene.traverse((o) => { if ((o as SkinnedMesh).isSkinnedMesh) pieces.set(`${o.userData.opponent}.${o.userData.slot}`, (o as SkinnedMesh).geometry); });   // a loot id, as src/core/loot.ts has it (the loader strips the dots from node names)
     } catch (error) { console.warn('remote dress pieces did not load; dressed remotes show the base figure', error); }
   };
   /** The body's geometry joined with the worn pieces' (one draw, one skeleton, the shared material). Cached per level and worn set; the oldest set past `cacheMax` is disposed. */

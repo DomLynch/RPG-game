@@ -29,10 +29,10 @@ test('the rows: a near and a far figure, near casts a shadow and far does not; a
   assert.throws(() => loadRemoteFigures({ remoteFigures: [{ id: 'hero:near', fields: { castShadow: true } }, { id: 'hero:far', fields: { asset: 'b.glb', castShadow: false } }] }), /asset is the glb file name/);
 });
 
-test('not ready until started; then each level spawns a figure of one body and one weapon draw, and a kit this source does not hold is null', async () => {
+test('not ready until started; then each level spawns a figure of one body and one weapon draw, and the source holds the baked pieces', async () => {
   const { source } = await make();
   assert.equal(source.ready(), false); assert.equal(source.spawn('near', null), null, 'null until ready');
-  assert.equal(await source.start(), true); assert.equal(source.ready(), true); assert.deepEqual(source.kits(), []);
+  assert.equal(await source.start(), true); assert.equal(source.ready(), true); assert.equal(source.kits().length, 54, 'the baked pieces');
   for (const lod of ['near', 'far'] as const) {
     const figure = source.spawn(lod, null)!;
     assert.ok(figure, `${lod} spawns`);
