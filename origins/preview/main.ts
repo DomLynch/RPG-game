@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
-import { characterFor, fetchOwnBuild, type OwnBuild } from '../../src/core/index.ts';
+import { characterFor, fetchOwnBuild, type OwnBuild, type Tier } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
@@ -455,6 +455,7 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials)
   try { await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(anchor), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  await applySelf();   // the ledger's set, if it has already answered: its programs are built, then the pieces go on, before the zone is ready
   warmedHero.done = true;
 }
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -464,6 +465,26 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 let remoteKitsWarm: { failed: boolean; ms: number; programs: number; warmed: number } | null = null;
 const sharedLoot = () => sceneOf(lootUrl).then((root) => lootPiecesOf(root));
 const secondActor = () => { if (!warriors) throw new Error('the hero rig has not loaded'); return buildWarriors(warriors.asset, undefined, undefined, true).player; };
+// The player's OWN figure wears the ledger's set (Lead 2026-10-17; the walking hero was the bare base figure while the gear sheet showed his gear). The sheet's wear is the one place every change passes (gear-mount.ts onWorn).
+// The set's programs are built on a second actor out of sight BEFORE the walker puts the pieces on (the kit warm's step: warmActor, then two frames in the scene for the shadow-pass programs), so dressing him links nothing
+// at the next frame. ONE dressing path (dress-remote.ts); self keeps the full rig (hero.glb), the near/far LODs are for remotes only. A newer set supersedes an older one still being built.
+let selfWorn: { ids: readonly string[]; tiers: Record<string, Tier> } | null = null, selfSeq = 0, selfBusy = 0;
+const wornSet = (ids: readonly string[]) => Object.fromEntries(ids.map((id) => [id, id]));
+async function applySelf() {
+  if (!warriors || !selfWorn) return;
+  const mine = selfWorn, seq = ++selfSeq, worn = wornSet(mine.ids), failed = (id: string, error: unknown) => console.warn(`your ${id} did not go on`, error);
+  selfBusy++;
+  try {
+    const pieces = await sharedLoot();
+    if (mine.ids.length) {
+      const probe = secondActor(); probe.anchor.position.set(hero.position.x, -60, hero.position.z); scene.add(probe.anchor);
+      try { dressRemote(probe, pieces, worn, mine.tiers, failed); await warmActor(renderer, camera, scene, cloneRig(probe.anchor), nextFrame); await nextFrame(); await nextFrame(); } finally { scene.remove(probe.anchor); }
+    }
+    if (seq === selfSeq && warriors) dressRemote(warriors.player, pieces, worn, mine.tiers, failed);
+  } catch (error) { console.warn('your gear did not go on', error); } finally { selfBusy--; }
+}
+// The zone is not ready while his gear is being built, nor (signed in) before the ledger has answered (bounded by loadoutWait: an unreachable writer must not hold the zone).
+const selfSettled = () => selfBusy === 0 && (!storedToken(storage, Date.now()) || !!gearMount?.ready() || performance.now() > previewRule('loadoutWait'));
 // One idle slice, then wait while a creature is within tap range; gives up (the loop reports failed) once `until` passes with one still there.
 async function kitSlice(until: number) {
   for (;;) {
@@ -472,7 +493,38 @@ async function kitSlice(until: number) {
     if (performance.now() > until) throw new Error('a creature stayed within tap range');
   }
 }
+// The gear sheet's mannequin joins the kit warm's queue AFTER the kits (Lead 2026-10-17): its rig and loot.glb load, its programs build off the main thread (compileAsync) and one backdrop frame is drawn, dressed with the ledger's worn set
+// (a signed-in player's waits for the writer's answer, bounded). Until it ends the sheet shows its empty stage (hold/release in gear-stage.ts). `originsPreview.gearWarm()` is null until done, then { ms, failed }; remoteKitsWarm waits for it.
+let gearWarm: { ms: number; drawMs: number; failed: boolean; compileMs?: number; compilePrograms?: number; drawPrograms?: number; slowest?: string; skipped?: boolean } | null = null, kitsResult: { failed: boolean; ms: number; programs: number; warmed: number } | null = null as { failed: boolean; ms: number; programs: number; warmed: number } | null;
+// The same slow-device probe as the kits' (kitProbeFrames, kitSlowFrameMs), taken once: the median frame gap of the first idle frames after [zone ready].
+let deviceSlow: boolean | undefined;
+async function slowDevice(): Promise<boolean> {
+  if (deviceSlow !== undefined) return deviceSlow;
+  const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
+  for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
+  return (deviceSlow = tooSlow(gaps, previewRule('kitSlowFrameMs')));
+}
+// On a slow device (CI's software GL: a frame is seconds, so ~100 warm frames are minutes) the mannequin warm is skipped and the sheet links on its first open, as before; `?gearwarm=1` forces it (the gear row on software GL).
+// On any device it is bounded (gearWarmBound; kitWarmMsSoft when forced): past it the sheet is released and the warm is reported failed, never holding remoteKitsWarm (the rows wait on it, Auditor on #3025 2026-10-17).
+const GEAR_WARM_FORCED = /[?&]gearwarm=1\b/.test(location.search);
+async function warmGearScreen() {
+  const t0 = performance.now(), took = () => Math.round(performance.now() - t0);
+  try {
+    if (!gearMount) { gearWarm = { ms: 0, drawMs: 0, failed: false }; return; }
+    // (?kitwarm=soft is the browser rows' flag: software GL by definition, so no second probe)
+    if (!GEAR_WARM_FORCED && (/[?&]kitwarm=soft\b/.test(location.search) || await slowDevice())) { console.warn(`gear screen warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), the sheet links on its first open`); gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: false, skipped: true }; return; }
+    while (storedToken(storage, Date.now()) && !gearMount.ready() && performance.now() - t0 < previewRule('loadoutWait')) await new Promise<void>((r) => setTimeout(r, 250));
+    let done: Awaited<ReturnType<typeof gearMount.warm>> | undefined;
+    const settled = await settleWithin('gear-screen', gearMount.warm().then((w) => { done = w; }), previewRule(GEAR_WARM_FORCED ? 'kitWarmMsSoft' : 'gearWarmBound'));
+    if (!settled || !done) { gearMount.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; return; }
+    gearWarm = { ms: took(), ...done, drawMs: Math.round(done.drawMs), failed: false };
+  } catch (error) { console.warn('gear screen warm-up failed', error); gearMount?.release(); gearWarm = { ms: took(), drawMs: 0, failed: true }; }
+}
 async function warmRemoteKitsAfterReady() {
+  gearMount?.hold();
+  try { await warmRemoteKits(); } finally { await warmGearScreen(); if (kitsResult) remoteKitsWarm = kitsResult; }
+}
+async function warmRemoteKits() {
   const t0 = performance.now();
   let pieces: Awaited<ReturnType<typeof sharedLoot>> | undefined, remote: ReturnType<typeof secondActor> | undefined;
   // warmActor links the colour programs off-scene; a piece's SHADOW depth program only links in a real frame's shadow pass (the T4 count: goblin.Body's), so each kit also stands two frames in the scene, 60 m under the ground (a worn draw is never frustum-culled, so the shadow pass still takes it).
@@ -480,14 +532,10 @@ async function warmRemoteKitsAfterReady() {
   const until = t0 + cap;
   // A kit's shadow-pass link is one synchronous step (no API makes it async): on a slow device it stalls the main thread for seconds (CI's software GL: a 1.0 s and a 2.4 s gap, Bob never expired in the remote-heroes row). So the warm-up first samples the frame gaps
   // (kitProbeFrames) and skips itself when their median is above kitSlowFrameMs: failed, none warmed, remotes keep the BASE figure. ?kitwarm=soft forces the warm (the budget row), for a deliberate run on software GL.
-  if (!/[?&]kitwarm=soft\b/.test(location.search)) {
-    const gaps: number[] = []; let last = await new Promise<number>((r) => requestAnimationFrame(r));
-    for (let i = 0; i < previewRule('kitProbeFrames'); i++) { const now = await new Promise<number>((r) => requestAnimationFrame(r)); gaps.push(now - last); last = now; }
-    if (tooSlow(gaps, previewRule('kitSlowFrameMs'))) {
-      console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
-      remoteKitsWarm = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
-      return;
-    }
+  if (!/[?&]kitwarm=soft\b/.test(location.search) && await slowDevice()) {
+    console.warn(`remote-kit warm-up skipped: the median frame gap is above ${previewRule('kitSlowFrameMs')} ms (a slow device), remotes keep the base figure`);
+    kitsResult = { failed: true, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: 0 };
+    return;
   }
   const warmOne = async (kit: WarmKit) => {
     await kitSlice(until);
@@ -498,7 +546,7 @@ async function warmRemoteKitsAfterReady() {
   const r = await warmKitsWithin(warmKits(), warmOne, cap, settleWithin, () => { if (remote) scene.remove(remote.anchor); }, KINDS_WAIT_MS);
   if (r.failed) console.warn(`remote-kit warm-up failed after ${r.warmed} of ${warmKits().length} kits`);
   await r.ended;   // a kit that outlasts the hard bound (a slow runner) is still compiling here: remoteKitsWarm is set only once the loop has truly ended, so nothing reads the programs (or links one) after it is non-null
-  remoteKitsWarm = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
+  kitsResult = { failed: r.failed, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length ?? -1, warmed: r.warmed };
 }
 function allWarmed() {   // every body kind and the hero are warmed (or failed): the plan taken now can be the zone's last look
   const w = mobs?.warmState();
@@ -508,6 +556,7 @@ function zoneReadyCheck() {
   if (zoneReadyAt >= 0 || !mobs) return;
   const w = mobs.warmState();
   if (!warmedHero.done && !warmedHero.failed && performance.now() > HERO_WAIT_MS) { warmedHero.failed = true; console.warn('hero actor never arrived; the zone goes ready without him'); }   // bounded: a hero file that never settles must not hold the zone
+  if (!selfSettled()) return;
   if (!allWarmed() || !cleanPlan || uploadQueue.length || programsInFlight || uploadTotal === 0) return;
   zoneReadyAt = Math.round(performance.now());
   const detail = { atMs: zoneReadyAt, programs: renderer.info.programs?.length ?? -1, kinds: w.warmed, failed: w.failed, player: warmedHero.done };
@@ -567,7 +616,7 @@ if (frontier) {
       boardEntry.addEventListener('click', () => { menu.close(); board.open(); });
       chips.append(boardEntry);
       // The engine's gear screen, in the zone: the Pit's own sheet over this page's cut of the ☰ menu, the hero dressed in-zone (gear-mount.ts). Guest or signed in, the Pit's rules.
-      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero! }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
+      try { gearMount = mountGear({ renderer, menu, layer: duelLayer, storage: localStorage, search: location.search, bodyUrl: ASSETS.hero!, onWorn: (ids, tiers) => { selfWorn = { ids, tiers }; void applySelf(); } }); } catch (error) { console.warn('the gear screen did not mount; the rest of the ☰ stays', error); }
       if (gearMount) { const gearEntry = document.createElement('button'); gearEntry.id = 'menu-gear'; gearEntry.textContent = 'Gear'; gearEntry.addEventListener('click', () => gearMount?.open()); chips.append(gearEntry); }
       const pick = document.createElement('button'); pick.id = 'menu-allegiance'; pick.textContent = 'Allegiance';   // same rule: the corner button's job moves into the ☰, shown when the picker is open
       const sync = () => { pick.hidden = allegianceButton.hidden; }; sync(); new MutationObserver(sync).observe(allegianceButton, { attributes: true, attributeFilter: ['hidden'] });
@@ -616,7 +665,7 @@ addEventListener('pagehide', () => presence?.stop());   // the socket's close is
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
-  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight is a bare body until Combat applies the sheet there)
+  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
 }
@@ -844,7 +893,7 @@ function programOwners(): Record<string, string[]> {
   // ?region=1: the zone you stand in (with its ambience preset), the Frontier layout's spots, and the Bounty giver's talk.
   region: () => frontier && { camps: camps.map((c) => ({ at: c.at, spots: c.spots })), zone: zoneNow, giver: frontier.giver.at, back: frontier.signs.find((s) => s.back)?.at ?? null,   // a zone page that does not own the first zone has no way back to the Exchange (the Bone Hollow's page: region() must still answer) road: frontier.road, near,
     zones: frontier.zones.map((z) => ({ zone: z.zone, preset: z.preset, landmarks: z.landmarks })) },
-  remoteProbe, remoteKitsWarm: () => remoteKitsWarm,   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
+  remoteProbe, remoteKitsWarm: () => remoteKitsWarm, gearWarm: () => gearWarm, selfWorn: () => warriors?.player.worn().map((piece) => piece.name) ?? [],   // null until the idle warm-up of another player's gear programs is done, then { failed, ms, programs }: draw a remote in the base figure until it answers
   renderInfo: () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length ?? 0, programNames: (renderer.info.programs ?? []).map((q) => `${q.name}#${q.id}`), programKeys: Object.fromEntries((renderer.info.programs ?? []).map((q) => [`${q.name}#${q.id}`, String((q as unknown as { cacheKey?: string }).cacheKey ?? '').slice(0, 140)])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programOwners: programOwners() }),   // the last frame's cost (perf checks)
   remote: () => remote?.debug() ?? null, setOthers: (list: Other[]) => { others = list; }, knowRemote: (id: number, who: { name: string | null; guest: boolean }) => remote?.know(id, who),   // browser checks: a stub presence feed, and what is drawn of it
   wounds: () => woundFx?.debug() ?? null, mobs: () => mobs?.debug() ?? null, pose: () => ({ worldPhase, actor: !!warriors }), forcePose: (p: ReturnType<typeof actorPose> | null) => { forcedPose = p; },   // browser checks: hold the hero in one engine pose (null releases it)

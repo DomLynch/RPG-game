@@ -20,14 +20,14 @@ test('every preview rule equals the literal it replaced', () => {
   assert.equal(previewRule('kitWarmMs'), 60_000);   // the other-players' gear warm-up's own cap (Lead on #2938), from [zone ready]: no kit starts after it, and the one in flight is the last
   assert.deepEqual(['remoteWarm', 'remoteSnap', 'remoteIdle', 'remoteTagY', 'remoteExpire', 'remoteFullCount', 'remoteCheapEvery', 'remoteAnimRange', 'remoteBoundR', 'remoteOwedCap', 'remoteAdaptFullCount', 'remoteAdaptSlowMs', 'remoteAdaptOkMs', 'remoteAdaptWindowMs', 'remoteAdaptJudgeMs', 'remoteAdaptPercentile', 'remoteGroundStep'].map((id) => previewRule(id as never)), [8, 6, 0.05, 2.25, 1500, 16, 4, 80, 1.6, 0.25, 8, 33, 25, 3000, 250, 0.95, 0.25]);   // remote-heroes.ts: warmed slots, teleport snap, idle gait floor, tag height, ms with no update before a remote is gone, full figures before the cheap ones, frames between a cheap figure's pose updates, pose range, bounding radius for the frustum test, most skipped time paid back at once
   assert.ok(previewRule('kitWarmMsSoft') > previewRule('kitWarmMs'));   // the browser rows' budget (?kitwarm=soft, software GL), longer than the live one
-  assert.deepEqual(['kitProbeFrames', 'kitSlowFrameMs'].map((id) => previewRule(id as never)), [20, 100]);   // the kit warm-up's slow-device probe (main.ts): frames sampled before it starts, the median frame gap above which it is skipped
+  assert.deepEqual(['kitProbeFrames', 'kitSlowFrameMs', 'gearWarmSettle', 'gearWarmBound'].map((id) => previewRule(id as never)), [20, 100, 30, 20000]);   // the kit warm-up's slow-device probe (main.ts): frames sampled before it starts, the median frame gap above which it is skipped
   assert.deepEqual(['walkBackMax', 'stickRange', 'dtFloor', 'frameDtMax', 'dressSootWhole', 'dressSootMax', 'mobHeightMin', 'mobSpeedMax', 'pitDtMax'].map((id) => previewRule(id as never)), [0.6, 1, 0.001, 0.05, 0.2, 0.7, 1.9, 8, 0.1]);   // the inline clamps the as-data ratchet retired (Web 2026-10-17): every value is the literal it replaced
-  assert.equal(PREVIEW_RULES.length, 94);   // +9: those clamp rows, deliberate. Before that +27: the wide combat camera's rows (camEase*, camP* portrait, camL* landscape; combat-cam.ts, Web 2026-10-17), deliberate
+  assert.equal(PREVIEW_RULES.length, 96);   // +9: the as-data clamp rows, deliberate. Before that +27: the wide combat camera's rows (camEase*, camP* portrait, camL* landscape; combat-cam.ts, Web 2026-10-17), deliberate; +2: gearWarmSettle, gearWarmBound (the gear sheet's mannequin warm and its hard bound)
 });
 test('the loader refuses a missing named rule, a non-positive value and a duplicate id; a new row is one entry', () => {
   const rows = DEFS.rules;
   assert.throws(() => loadPreviewRules({ rules: rows.filter((r) => r.id !== 'lookGain') }), /"lookGain" rule by name/);
   assert.throws(() => loadPreviewRules({ rules: rows.map((r) => (r.id === 'nearTick' ? { ...r, value: 0 } : r)) }), /value is a number > 0/);
   assert.throws(() => loadPreviewRules({ rules: [...rows, rows[0]!] }), /duplicate|twice|unique/i);
-  assert.equal(loadPreviewRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 95);
+  assert.equal(loadPreviewRules({ rules: [...rows, { id: 'extra', value: 2, unit: 'm' }] }).length, 97);
 });
