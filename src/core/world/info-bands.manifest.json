@@ -1,0 +1,6 @@
+{
+  "tables": [
+    { "table": "con-band", "file": "info-bands.json", "at": "bands", "key": "id", "required": { "permille": "integer", "label": "string", "color": "string" } },
+    { "table": "common-step", "file": "info-bands.json", "at": "commonSteps", "key": "id", "required": { "min": "number", "label": "string" } }
+  ]
+}

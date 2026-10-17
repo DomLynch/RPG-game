@@ -1,0 +1,5 @@
+{
+  "tables": [
+    { "table": "guard-ring", "file": "rings.json", "at": "rings", "key": "id", "required": { "fromMetres": "number", "band": "string", "damagePermille": "integer" }, "optional": { "guardLevelFloor": "integer", "guardLevelOver": "integer", "levelFrom": "string" } }
+  ]
+}

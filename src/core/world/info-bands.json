@@ -1,0 +1,16 @@
+{
+  "bands": [
+    { "id": "grey", "permille": 0, "label": "Trivial", "color": "#9d9d9d" },
+    { "id": "green", "permille": 200, "label": "Easy", "color": "#7fdc4f" },
+    { "id": "lightblue", "permille": 500, "label": "Comfortable", "color": "#6fc3ff" },
+    { "id": "blue", "permille": 900, "label": "Slightly easy", "color": "#4a7dff" },
+    { "id": "white", "permille": 1000, "label": "Even", "color": "#f2f2f2" },
+    { "id": "yellow", "permille": 1100, "label": "Tougher", "color": "#ffe97a" },
+    { "id": "red", "permille": 1250, "label": "Dangerous", "color": "#ff4444" }
+  ],
+  "commonSteps": [
+    { "id": "common", "min": 0.3, "label": "Common" },
+    { "id": "uncommon", "min": 0.12, "label": "Uncommon" },
+    { "id": "rare", "min": 0, "label": "Rare" }
+  ]
+}
