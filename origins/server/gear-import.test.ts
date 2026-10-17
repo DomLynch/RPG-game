@@ -141,6 +141,27 @@ test('the cap follows the verified level: tier 3 imports rungs 1..3 and skips 4.
   assert.deepEqual([r2.imported, r2.skipped.map((s) => s.lootId)], [[ids[0]], [ids[1]]]);
 });
 
+// A starter piece (loot-pieces.json lootStarter, `starter.Longsword`) has no legend and no rung: the client's claimed rung is ignored for it (the minted tier is its row's, never the claim), so it is never
+// rank-skipped and never mints above that tier. A NON-starter piece still takes its claimed rung (the cap above).
+const STARTER = 'starter.Longsword' as LootId;
+const mintedOf = (w: { rows: Row[] }, id: string) => w.rows.find((x) => x.mint_key === `legacy:${UID}:${id.toLowerCase()}`)!;
+
+test('a forged top-rung claim for the starter longsword on a level-1 account is NOT skipped for rank: it imports at its row tier with no legend', async () => {
+  const w = world([], 64, 1000, [], 0), r = await run(w.db, { owned: [STARTER], equipped: {}, tiers: { [STARTER]: 10 } });
+  assert.deepEqual([r.imported, r.skipped], [[STARTER], []]);
+  const m = mintedOf(w, STARTER);
+  assert.deepEqual([m.tier, (m.provenance as Row).fromLegend, (m.provenance as Row).atRank], ['Recruit', null, null]);
+});
+
+test('a top-rank account claiming rung 7 for the starter longsword still mints it at its row tier, while a non-starter piece in the same body takes its claimed rung', async () => {
+  const w = world([], 64, 1000, [], creditForTier(10)), other = ALL.find((id) => id !== STARTER)!;
+  const r = await run(w.db, { owned: [STARTER, other], equipped: {}, tiers: { [STARTER]: 7, [other]: 3 } });
+  assert.deepEqual(r.imported.sort(), [STARTER, other].sort());
+  assert.equal(mintedOf(w, STARTER).tier, 'Recruit', 'the claim does not set a starter piece\'s tier');
+  assert.equal(mintedOf(w, other).tier, 'Gladiator', 'a non-starter piece keeps its claimed rung (3)');
+  assert.equal((mintedOf(w, other).provenance as Row).fromLegend, `${other.split('.')[0]}-3`);
+});
+
 test('the cut-off row: before it the op runs; at and after it everything is refused (422 closed) and nothing is read or minted', async () => {
   const w = world(), open = gearImportHandler({ lookup: lookupOf(loaded.value) }, () => CLOSES_AT_MS - 1), shut = gearImportHandler({ lookup: lookupOf(loaded.value) }, () => CLOSES_AT_MS);
   const body = { character: PC, owned: ALL.slice(0, 2), equipped: {} };
