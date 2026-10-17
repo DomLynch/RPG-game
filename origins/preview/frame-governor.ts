@@ -20,7 +20,8 @@ export function createGovernor(o: { windowMs: number; slowMs: number; okMs: numb
       if (since === undefined) since = nowMs;   // the first window is judged once a full window has been seen
       if (nowMs - last >= o.judgeMs && nowMs - since >= o.windowMs) {
         last = nowMs; const p = p95();
-        if (level < top && p > o.slowMs) { level++; since = nowMs; } else if (level > 0 && p < o.okMs) { level--; since = nowMs; }
+        // A step clears the window: the next rung is judged on the frames it has actually run (the slow frames that earned this step must not earn the next one too).
+        if (level < top && p > o.slowMs) { level++; since = nowMs; frames.length = 0; } else if (level > 0 && p < o.okMs) { level--; since = nowMs; frames.length = 0; }
       }
       return level > 0;
     },
