@@ -624,7 +624,7 @@ addEventListener('pagehide', () => presence?.stop());   // the socket's close is
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
-  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight is a bare body until Combat applies the sheet there)
+  career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the HUD level is the local career counter; the world fight runs on the sheet from the STORED build and worn gear, fightSheet in gear-mount.ts, so a hero with no placed points, and every guest, fights on the base sheet whatever this label says)
   saveNote.textContent = saveLine(source);
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
 }
