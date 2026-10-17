@@ -42,6 +42,7 @@ import { expectedSheet } from '../src/fight/build-check.ts';
 import { wornGearOfFrozen } from '../origins/server/worn-gear.ts';
 import { heldSql, spellRefusal } from '../origins/server/spell-gate.ts';
 import { gunzipSync } from 'node:zlib';
+import { pgConn } from '../origins/server/pg-service.ts';
 import { decodeRecord, fromBase64Url, packRecord, RECORD_VERSION } from '../src/fight/record.ts';
 import { peekRecordHeader } from '../src/record-header.ts';
 
@@ -237,7 +238,7 @@ export async function report(receipt, stale, { dsn, stateFile, release, send = f
 // awards, execute standing_of; 202610010001: fight_hash on loot_claims and fight_records, and a shared fight's owner and age). Values are validated or reduced to digits before they are quoted into SQL.
 export function psqlAdapter(databaseUrl, run = spawnSync) {
   const sql = statement => {
-    const res = run('psql', [databaseUrl, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C.UTF-8' }, timeout: 60_000 });
+    const res = run('psql', ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8', env: { ...process.env, ...pgConn(databaseUrl).env, LC_ALL: 'C.UTF-8' }, timeout: 60_000 });   // the URL (it holds the password) goes in a 0600 service file, never argv
     if (res.status !== 0) throw Error(`psql: ${(res.stderr || res.error?.message || '').trim() || `exit ${res.status}`}`);
     return res.stdout.trim();
   };
