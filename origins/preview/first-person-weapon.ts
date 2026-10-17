@@ -19,6 +19,8 @@ export function createViewmodel(scene: THREE.Scene) {
   const drop = () => { if (vm) { scene.remove(vm); vm.traverse((o) => { const m = (o as THREE.Mesh).material; if (m && !Array.isArray(m)) m.dispose(); }); } if (source) source.visible = true; vm = null; source = null; };
   return {
     /** Call each frame. `rig`: the hero's anchor; `on`: first person is selected; `eye`: the eye frame (position at the head, rotation = heading about Y); `rest`: where the weapon should rest in view; `ready`: the hero is between swings (his hand is at rest NOW, so that pose is remembered). The lift is rest minus the remembered hand position, so the weapon sits exactly at `rest` when idle and every swing moves it by what the animation moves the hand. */
+    /** For a check from the page (originsPreview.fpWeapon()): is a clone up, is it shown, where is it (world) and where the rest pose was taken. */
+    debug: () => ({ up: !!vm, shown: !!vm?.visible, at: vm ? new THREE.Vector3().setFromMatrixPosition(vm.matrix).toArray().map((n) => +n.toFixed(2)) : null, rest: restAt ? restAt.toArray().map((n) => +n.toFixed(2)) : null }),
     update(rig: THREE.Object3D | undefined, on: boolean, eye: THREE.Matrix4, rest: Rest, ready: boolean): void {
       const weapon = on && rig ? rig.getObjectByName('WeaponDrawn') ?? null : null;
       if (!weapon) { drop(); restAt = null; return; }
