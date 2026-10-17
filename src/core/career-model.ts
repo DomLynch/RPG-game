@@ -98,8 +98,9 @@ export function partySharePermille(n: number): number {
   return Math.floor((1000 + g / 2) / n); // n=2 800, n=3 566, n=4 450
 }
 // A member is eligible for party credit only if within the level gap of the party's highest member: gap ≤ max(5, floor(L/2)).
+export const PARTY_GAP_FLOOR = RULE.partyGapFloor;   // the least level gap a party always allows (careerRule row)
 export const partyEligible = (memberLevel: number, highestLevel: number): boolean =>
-  highestLevel - memberLevel <= Math.max(5, Math.floor(memberLevel / 2));
+  highestLevel - memberLevel <= Math.max(PARTY_GAP_FLOOR, Math.floor(memberLevel / 2));
 // An 'each' row (a boss) pays a member only for a real share of the fight.
 export const MIN_CONTRIBUTION_PERMILLE = RULE.minContributionPermille; // ≥ 10% of the boss's health dealt (or the server's equivalent share)
 
@@ -163,7 +164,8 @@ export function fillPermille(credit: number, cap: number = CAREER_MAX_LEVEL): nu
   return Math.floor(((Math.floor(credit) - cumulative(level)) * 1000) / requirement(level));
 }
 // The title tier (1..10) of a level: five sub-ranks a title, Origin (tier 10) from level 46 on.
-export const tierOf = (level: number): number => Math.min(10, Math.floor((wholeLevel(level) - 1) / RANK_STEPS) + 1);
+export const TOP_TIER = RULE.topTier;   // Origin (careerRule row)
+export const tierOf = (level: number): number => Math.min(TOP_TIER, Math.floor((wholeLevel(level) - 1) / RANK_STEPS) + 1);
 // The top level reopens every boss (Dom, 2026-10-06): reaching the cap clears the beaten flags, and while at the cap none is kept.
 export const allBossesOpen = (level: number, cap: number = CAREER_MAX_LEVEL): boolean => wholeLevel(level) >= cap;
 
