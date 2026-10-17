@@ -1076,7 +1076,7 @@ test('kill links: a link for another opponent than the page booted, or a broken 
   rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const text = await record.encodeRecord(rec.finish('abandoned'));
   pr.setPlayScale(was); pr.setLateNotice(false); setStab(false);
-  const wrong = boot({}, undefined, {}, `?opponent=skeleton&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
+  const wrong = boot({}, undefined, {}, `?opponent=goblin&replay=${text}`); await settle(() => wrong.element('replay-banner').textContent !== 'Loading the fight…');
   assert.equal(wrong.element('replay-banner').textContent, 'This fight cannot be played here');   // one small line, never a raw error over the HUD (owner 2026-09-22)
   assert.equal(wrong.element('reset-button').hidden, false, 'a refused link still offers PLAY NOW'); assert.equal(wrong.element('reset-button').textContent, 'PLAY NOW');
   assert.equal(wrong.element('replay-banner').dataset.stale, '1', 'the stale-link line leaves the header band for the slot above PLAY NOW');

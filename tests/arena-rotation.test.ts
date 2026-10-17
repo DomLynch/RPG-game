@@ -54,15 +54,15 @@ test('profile: arena and arenaPass are read back sanitised; no stored arena mean
 
 test('record v26: the arena byte round-trips, and an unnamed arena stays unnamed', async () => {
   setLateNotice(true); setStab(true);
-  const named = createRecorder({ build: 'b', opponent: 'veteran', weapon: 'longsword', level: 18, seed: 9, arena: '10' });   // the veteran, not the goblin: RV76 (balance) reaches the goblin, so his v31 record is refused by the reach
-  const plain = createRecorder({ build: 'b', opponent: 'veteran', weapon: 'longsword', level: 18, seed: 9 });
+  const named = createRecorder({ build: 'b', opponent: 'skeleton', weapon: 'longsword', level: 18, seed: 9, arena: '10' });   // the skeleton, not the goblin: RV76 (balance) reaches the goblin, so a goblin fight is stamped v76, not the lowest version that expresses it
+  const plain = createRecorder({ build: 'b', opponent: 'skeleton', weapon: 'longsword', level: 18, seed: 9 });
   setLateNotice(false); setStab(false);
   const r = named.finish('abandoned'), p = plain.finish('abandoned');
   assert.ok(RECORD_VERSION >= 26); assert.equal(r.v, NO_PATRON_VERSION);   // a patron-less fight writes the lowest version that can express it
   assert.equal(unpackRecord(packRecord(r)).arena, '10'); assert.equal((await decodeRecord(await encodeRecord(r))).arena, '10');
   assert.equal('arena' in unpackRecord(packRecord(p)), false);
   assert.equal((await peekRecordHeader(await encodeRecord(r)))?.outcome, 'abandoned', 'the header peek skips the arena byte');
-  const raw = packRecord(r); raw[3 + (1 + 'b'.length) + (1 + 'veteran'.length) + (1 + 'longsword'.length) + 1 + 1] = 99;   // the arena byte: after skill and specials, past the table
+  const raw = packRecord(r); raw[3 + (1 + 'b'.length) + (1 + 'skeleton'.length) + (1 + 'longsword'.length) + 1 + 1] = 99;   // the arena byte: after skill and specials, past the table
   assert.throws(() => unpackRecord(raw), /unknown arena/);
   assert.ok(ARENAS.length === 16 && ARENAS[0] === undefined);
 });
