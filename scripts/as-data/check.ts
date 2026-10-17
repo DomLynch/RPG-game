@@ -144,29 +144,41 @@ try {
   const { fresh: newConstExprs, lowered: loweredConstExprs } = ratchet('const-expr', constExprs, constName);
   const constObjects = run('const-object.yml').map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite);
   const { fresh: newConstObjects, lowered: loweredConstObjects } = ratchet('const-object', constObjects, constName);
-  const scope = JSON.parse(readFileSync(arg('--inline-scope') ?? join(HERE, 'inline-number-scope.json'), 'utf8')) as { files: string[]; dirs: string[]; presentation?: { prefixes: string[]; fightViewIsPresentation?: boolean } };
-  // Strategy 2026-10-17: a category may be left out of the count only if it is NOT gameplay, and every run names each category with its count. These are the only ones: MATH (2 or 0.5 beside * / %),
-  // TIME UNITS (1000, 3600, 86400, 60_000, 1_000_000 beside * / %: ms, hours, days), BITS (a literal beside & | ^ << >>), HEX/BINARY literals (salts, masks) and the -1 'none' sentinel. A compare, a + / -,
-  // a percent (100) or a frame count (60) is never excluded: that is where a tuning hides.
-  const arith = /^(?:[*/%])(?![*/=])/, arithBefore = /(?<![*/%])[*/%]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
-  const MATH_LITERALS = new Set(['2', '0.5']), TIME_LITERALS = new Set(['1000', '3600', '86400', '86_400', '60_000', '1_000_000', '1000000']);
+  const scope = JSON.parse(readFileSync(arg('--inline-scope') ?? join(HERE, 'inline-number-scope.json'), 'utf8')) as { files: string[]; dirs: string[]; presentation?: { files: string[] } };
+  // Strategy 2026-10-17 (rulings via Lead): a category may be left out of the count only if it is NOT gameplay, and every run names each category with its count. These are the only ones, each in its real context:
+  // MATH (2 as a midpoint (a+b)/2, in Math.PI * 2, or as the * 2 - 1 remap; x * 2 and 0.5 COUNT), TIME UNITS (1000, 3600, 86400, 60_000, 1_000_000 beside * or /; % COUNTS: a cadence is tuning), BITS (a literal beside
+  // & | ^ << >>), HEX (a bit mask / hash salt beside a bit op or Math.imul, or a 6-digit colour in a view file) and -1 (compared with ===/!==/<... or beside indexOf/findIndex). A percent (100), a frame count (60),
+  // a compare, a + / - or a % is never excluded: that is where a tuning hides.
+  const arith = /^[*/](?![*/=])/, arithBefore = /(?<![*/])[*/]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
+  const TIME_LITERALS = new Set(['1000', '3600', '86400', '86_400', '60_000', '1_000_000', '1000000']);
+  const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
     const text = m.text.replace(/\s+/g, '');
-    if (/^0[xXbBoO]/.test(text)) return 'hex/binary literal';
-    if (text === '-1') return '-1 sentinel';
     const path = resolve(REPO, m.file), line = (sourceLines.get(path) ?? sourceLines.set(path, readFileSync(path, 'utf8').split('\n')).get(path)!)[m.range.start.line] ?? '';
     const before = line.slice(0, m.range.start.column).trimEnd(), after = line.slice(m.range.end.column).trimStart();
-    if (bitsBefore.test(before) || bitsAfter.test(after)) return 'bits (beside & | ^ << >>)';
+    const bitOp = bitsBefore.test(before) || bitsAfter.test(after);
+    if (/^0[xXbBoO]/.test(text)) {
+      if (bitOp || /Math\.imul|>>>/.test(line)) return 'hex/binary: bit mask or hash salt';
+      if (/^0[xX][0-9a-fA-F]{6}$/.test(text) && presentationFiles.has(relative(REPO, path))) return 'hex: colour in a view file';
+      return null;
+    }
+    if (text === '-1') return /(?:===|!==|==|!=|<=|>=|<|>)$/.test(before) || /\b(?:indexOf|lastIndexOf|findIndex|findLastIndex)\b/.test(line) ? '-1 sentinel (compared, or beside indexOf/findIndex)' : null;
+    if (bitOp) return 'bits (beside & | ^ << >>)';
     const beside = arithBefore.test(before) || arith.test(after);
-    if (beside && MATH_LITERALS.has(text)) return 'math (2, 0.5 beside * / %)';
-    if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * / %)';
+    if (text === '2') {
+      if (/\([^()]*\+[^()]*\)\s*\/$/.test(before)) return 'math: 2 as a midpoint (a+b)/2';
+      if (/Math\.PI\s*\*$/.test(before) || (/^\*\s*Math\.PI/.test(after))) return 'math: Math.PI * 2';
+      if (/\*$/.test(before) && /^-\s*1\b/.test(after)) return 'math: the * 2 - 1 remap';
+      return null;
+    }
+    if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';
     return null;
   };
   const excludedInline: Record<string, number> = {};
   const inlines = run('inline-number.yml', [...scope.files, ...scope.dirs]).flatMap((m) => { const cat = excludedCategory(m); if (cat) { excludedInline[cat] = (excludedInline[cat] ?? 0) + 1; return []; } return [siteOf(m, m.text.replace(/\s+/g, ''))]; }).sort(bySite);
-  // GAMEPLAY (the gate, target 0 new) and NON-GAMEPLAY (tracked, not blocking): the scope file names the presentation prefixes, plus every src/fight file outside the sim list.
-  const simFiles = new Set(scope.files), isPresentation = (f: string) => (scope.presentation?.prefixes ?? []).some((p) => f === p || f.startsWith(p)) || (!!scope.presentation?.fightViewIsPresentation && f.startsWith('src/fight/') && !simFiles.has(f));
+  // GAMEPLAY (the gate, target 0 new) and NON-GAMEPLAY (tracked, not blocking): gameplay is the DEFAULT; presentation is the explicit file list in the scope file.
+  const isPresentation = (f: string) => presentationFiles.has(f);
   const { fresh: newInlines, lowered: loweredInlines } = ratchet('inline-number', inlines, (s) => s.text);
   const gameplayInlines = inlines.filter((s) => !isPresentation(s.file)), presentationInlines = inlines.filter((s) => isPresentation(s.file));
   const newGameplayInlines = newInlines.filter((s) => !isPresentation(s.file)), newPresentationInlines = newInlines.filter((s) => isPresentation(s.file));

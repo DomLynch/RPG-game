@@ -26,8 +26,8 @@ const GAME = [
   'export const g = (x: number) => Math.max(x, 0.5);',           // not (h): a Math.max argument is rule (e)'s
   'export const h = (n = 4) => n;',                              // (h) counted: a parameter default
   'export const k = () => foo({ gap: 7 }, 9);',                  // (h) counted: an object pair and a call argument
-  'export const m = (x: number, s: number) => (x * 1000) / 2 + ((s & 255) ^ 0x9e3779b1) + s % 2 + x * -1;',   // not (h), each named as EXCLUDED in the report: math (/ 2, % 2), a time unit (* 1000), bits (& 255, ^), a hex literal, the -1 sentinel; a percent (* 100) or a frame count (* 60) is NOT excluded
-  'export const pct = (x: number) => x * 100 + 60;',            // (h) counted: 100 and 60 are where a tuning hides
+  'export const m = (x: number, s: number) => (x * 1000) + ((s + x) / 2) + ((s & 255) ^ 0x9e3779b1) + (x === -1 ? Math.PI * 2 : 0);',   // not (h), each named as EXCLUDED in the report: a time unit (* 1000), a midpoint (a+b)/2, bits (& 255, ^), a hash-salt hex, the -1 compare sentinel, Math.PI * 2
+  'export const pct = (x: number) => x * 100 + 60 + x * 2 + (x % 7) * 0.5;',   // (h) counted: a percent (100), a frame count (60), x * 2 and 0.5 are where a tuning hides; so is % 7 (a cadence)
   'export const LIMIT = 40;',                                    // not (h): a top-level UPPER const is the const rules'
   'export const z = (x: number) => x + 1;',                      // not (h): 1 is identity
   'declare function foo(...a: unknown[]): void;',
@@ -44,7 +44,7 @@ function tree() {
     '--allow', f('allow.json', { allow: [] }), '--inline-scope', f('scope.json', { files: [], dirs: ['**/inl-fixture/*.ts'] }),
     '--clamp-baseline', f('clamp.json', { [gk]: { '0.5': 1 } }), '--map-baseline', f('map.json', {}),
     '--const-expr-baseline', f('expr.json', { [ck]: { SAVE_EVERY_MS: 1 } }), '--const-object-baseline', f('obj.json', { [ck]: { CAPS: 1, SIZES: 1 } }),
-    '--inline-number-baseline', f('inl.json', { [gk]: { '0.85': 1, '100': 1, '2.5': 1, '4': 1, '60': 1, '7': 1, '9': 1 } }),
+    '--inline-number-baseline', f('inl.json', { [gk]: { '0.5': 1, '0.85': 1, '100': 1, '2': 1, '2.5': 1, '4': 1, '60': 1, '7': 2, '9': 1 } }),
   ];
   const run = (...extra: string[]) => spawnSync(process.execPath, ['scripts/as-data/check.ts', '--json', '--root', join(dir, 'src'), ...args, ...extra], { encoding: 'utf8', maxBuffer: 64 << 20 });
   const report = (r: ReturnType<typeof run>) => JSON.parse(r.stdout.split('\n').filter((l) => l.startsWith('{')).pop()!) as Report;
@@ -60,8 +60,8 @@ test('(f) lists an UPPER const whose value is arithmetic with a number, (g) an U
     const rep = t.report(r);
     assert.deepEqual(t.texts(rep.constExprSites), ['SAVE_EVERY_MS']);
     assert.deepEqual(t.texts(rep.constObjectSites), ['CAPS', 'SIZES']);
-    assert.deepEqual(rep.inlineNumberSites.map((s) => s.text).sort(), ['0.85', '100', '2.5', '4', '60', '7', '9']);
-    assert.deepEqual(Object.keys(rep.inlineExcluded).sort(), ['-1 sentinel', 'bits (beside & | ^ << >>)', 'hex/binary literal', 'math (2, 0.5 beside * / %)', 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * / %)']);   // every excluded class is named in the report
+    assert.deepEqual(rep.inlineNumberSites.map((s) => s.text).sort(), ['0.5', '0.85', '100', '2', '2.5', '4', '60', '7', '7', '9']);
+    assert.deepEqual(Object.keys(rep.inlineExcluded).sort(), ['-1 sentinel (compared, or beside indexOf/findIndex)', 'bits (beside & | ^ << >>)', 'hex/binary: bit mask or hash salt', 'math: 2 as a midpoint (a+b)/2', 'math: Math.PI * 2', 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)']);   // every excluded class is named in the report
     assert.deepEqual([rep.newConstExprSites, rep.newConstObjectSites, rep.newInlineNumberSites].map((l) => l.length), [0, 0, 0]);
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
 });
