@@ -1,0 +1,105 @@
+// Rehearsal of ops/prelaunch-reset.sql (launch gate R1) on a disposable PostgreSQL cluster with every repo migration applied: progress is seeded through the real functions
+// (characters, career snapshot, an item, bronze, events) next to the KEEP data (the Pit's profiles and claims, the switches, the access list); then the DRY run changes nothing, a RESET
+// without the phrase or with a wrong one changes nothing, the real RESET leaves every RESET table at 0 and every KEEP table exactly as it was, a second reset is a clean no-op, the
+// immutable-ledger triggers are still installed afterwards, and a new origins_ table nobody classified makes the script refuse (the drift guard). Socket-only: no DATABASE_URL, no
+// hosted project is reachable. Needs PG_BIN and a non-root user (as `postgres` on the VPS).
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import process from 'node:process';
+import console from 'node:console';
+
+const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
+const root = mkdtempSync(join(tmpdir(), 'frankendom-r1-'));
+const pg = process.env.PG_BIN ? name => join(process.env.PG_BIN, name) : name => name;
+const env = { ...process.env, LC_ALL: process.env.LC_ALL || process.env.LANG || 'C' };
+const run = (command, args, input) => execFileSync(pg(command), args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env, timeout: 300_000 });
+const base = ['-h', root, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-A', '-t'];
+const psql = sql => run('psql', base, sql).trim();
+const script = (...vars) => run('psql', [...base, ...vars.flatMap(v => ['-v', v]), '-f', 'ops/prelaunch-reset.sql']);
+const PHRASE = 'R1-WIPE-ORIGINS-TEST-PROGRESS';
+const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+let checks = 0;
+const fail = message => { throw Error(message); };
+const eq = (got, want, what) => { checks++; if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`); };
+const refused = (what, needle, fn) => { checks++; try { fn(); } catch (e) { const text = `${e.stderr ?? ''}${e.message}`; if (text.includes(needle)) return; fail(`${what}: refused for the wrong reason (${text.slice(0, 300)})`); } fail(`${what}: was not refused`); };
+const count = t => Number(psql(`select count(*) from public.${t};`));
+const origins = () => psql(`select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and relname like 'origins\\_%' order by 1;`).split('\n');
+const snapshot = tables => Object.fromEntries(tables.map(t => [t, count(t)]));
+const triggers = () => psql(`select tgrelid::regclass || ':' || tgname from pg_trigger where not tgisinternal and tgrelid::regclass::text like 'origins\\_%' order by 1;`);
+
+let started = false;
+try {
+  run('initdb', ['-D', join(root, 'data'), '-A', 'trust', '--no-locale']);
+  run('pg_ctl', ['-D', join(root, 'data'), '-l', join(root, 'server.log'), '-o', `-k ${root} -c listen_addresses=''`, '-w', 'start']); started = true;
+  psql(`create extension if not exists pgcrypto;
+    create role anon; create role authenticated;
+    alter default privileges in schema public grant all on tables to anon, authenticated;
+    alter default privileges in schema public grant all on functions to anon, authenticated;
+    alter default privileges in schema public grant all on sequences to anon, authenticated;
+    create schema auth; create table auth.users(id uuid primary key);
+    create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+    grant usage on schema public,auth to anon,authenticated;
+    insert into auth.users values ('${A}'),('${B}');`);
+  for (const n of readdirSync(dir).filter(f => f.endsWith('.sql')).sort()) psql(readFileSync(join(dir, n), 'utf8'));
+
+  // ---- seed progress through the real functions, and KEEP data beside it ----------------------------------------------------------
+  psql(`insert into public.fighter_profiles(user_id, display_name, victory_marks, loot) values ('${A}','Aldren',4,'{"owned":[],"equipped":{}}'),('${B}','Bran',2,'{"owned":[],"equipped":{}}');
+    update public.origins_config set value = 'true'::jsonb where key in ('origins_enabled','origins_open_to_all');
+    insert into public.origins_access(account) values ('${A}'),('${B}') on conflict do nothing;`);
+  const pcA = psql(`select public.origins_create_character('${A}', 'Aldren');`), pcB = psql(`select public.origins_create_character('${B}', 'Bran');`);
+  psql(`select public.origins_snapshot('${A}', 4, 5000); select public.origins_snapshot('${B}', 2, 800);`);
+  const mint = (account, id, pc, key) => psql(`select public.origins_commit('${account}', $j$[{"op":"mint","item":{"id":"${id}","item":"iron-ore","quantity":10,"mint_key":"${key}","loc":{"kind":"pack","owner":"${pc}","index":0},"provenance":{"kind":"loot","mintKey":"${key}","at":"2026-10-06T00:00:00Z"}}}]$j$::jsonb)::text;`);
+  mint(A, 'it:a1', pcA, 'mk:a1'); mint(B, 'it:b1', pcB, 'mk:b1');
+  psql(`insert into public.origins_character_location(character, x, z) values ('${pcA}', 100, 200) on conflict do nothing;`);
+  const all = origins();
+  const RESET = ['origins_characters','origins_active_character','origins_career','origins_character_build','origins_character_location','origins_character_renown','origins_items','origins_item_ledger','origins_metal','origins_metal_ledger','origins_events','origins_encounters','origins_encounter_runs','origins_creature_claims','origins_quest_state','origins_quest_journal','origins_talk','origins_trades','origins_trade_audit','origins_grimoire','origins_skill_practice','origins_skill_xp','origins_beta_ledger','origins_ground_takes','origins_spawn_engages'];
+  const KEEP = ['origins_access','origins_config','origins_world_config','origins_switches','origins_live_events','origins_spawns'];
+  eq([...RESET, ...KEEP].sort(), all, 'the rehearsal knows every origins_ table (and the script lists the same)');
+  const seeded = snapshot(RESET);
+  eq([seeded.origins_characters, seeded.origins_career, seeded.origins_items > 0, seeded.origins_events > 0, seeded.origins_item_ledger > 0], [2, 2, true, true, true], 'progress is seeded in the tables the reset must empty');
+  const other = ['fighter_profiles', 'loot_claims', 'awards'], keepBefore = { ...snapshot(KEEP), ...snapshot(other) };
+  const trgBefore = triggers();
+
+  // ---- DRY RUN: counts only, nothing changes, the report names every table -------------------------------------------------------
+  const dry = script();
+  eq(dry.includes('R1: DRY RUN') && dry.includes('dry run finished, nothing changed'), true, 'the dry run says so');
+  eq(RESET.every(t => dry.includes(t)) && KEEP.every(t => dry.includes(t)), true, 'the dry run reports every table');
+  eq(snapshot(RESET), seeded, 'the dry run changed no RESET table');
+  // ---- a reset without the phrase, with a wrong one, or with the phrase but no commit: still a dry run --------------------------
+  for (const [what, vars] of [['commit without a phrase', ['commit=1']], ['a wrong phrase', ['commit=1', 'confirm=yes']], ['the phrase without commit', [`confirm=${PHRASE}`]]]) {
+    const out = script(...vars);
+    eq(out.includes('R1: DRY RUN') && !out.includes('COMMITTED'), true, `${what}: stays a dry run`);
+    eq(snapshot(RESET), seeded, `${what}: changed nothing`);
+  }
+  // ---- the drift guard: a new origins_ table nobody classified refuses, and nothing changes -----------------------------------
+  psql(`create table public.origins_zz_new (id int);`);
+  refused('an unclassified origins_ table', 'neither list', () => script('commit=1', `confirm=${PHRASE}`));
+  refused('an unclassified origins_ table, dry run too', 'neither list', () => script());
+  eq(snapshot(RESET), seeded, 'the refused run changed nothing');
+  psql(`drop table public.origins_zz_new;`);
+  // ---- the real reset ----------------------------------------------------------------------------------------------------------------
+  const out = script('commit=1', `confirm=${PHRASE}`);
+  eq(out.includes('R1: RESET MODE') && out.includes('R1: COMMITTED'), true, 'the reset ran and committed');
+  eq(Object.values(snapshot(RESET)).every(n => n === 0), true, 'every RESET table is at 0');
+  eq({ ...snapshot(KEEP), ...snapshot(other) }, keepBefore, 'every KEEP table (and the Pit: profiles, claims, awards) has exactly its rows');
+  eq(psql(`select victory_marks from public.fighter_profiles where user_id = '${A}';`), '4', 'the Pit profile is untouched');
+  eq(triggers(), trgBefore, 'no trigger was disabled, dropped or added (the append-only ledgers stay immutable)');
+  refused('the append-only ledger still refuses a delete', 'append', () => psql(`insert into public.origins_events(event_id, kind, account, payload) values ('r1:probe','career-snapshot','${A}','{}'); delete from public.origins_events where event_id = 'r1:probe';`));
+  psql(`truncate public.origins_events;`);
+  // ---- a second reset is a clean no-op, and the game works again from scratch ---------------------------------------------------
+  const again = script('commit=1', `confirm=${PHRASE}`);
+  eq(again.includes('R1: COMMITTED'), true, 'a second reset commits cleanly');
+  const pcA2 = psql(`select public.origins_create_character('${A}', 'Aldren');`);
+  eq(/^pc:[0-9a-f]{32}$/.test(pcA2), true, 'an account can create its character again after the reset');
+  psql(`select public.origins_snapshot('${A}', 4, 5000);`);
+  eq(psql(`select seed_credit from public.origins_career where account = '${A}';`), '5000', 'the first open re-seeds the career from the Pit marks (by design)');
+  console.log(`prelaunch-reset-check: ${checks} checks passed`);
+} catch (e) {
+  console.error(`prelaunch-reset-check FAIL: ${e.message}`);
+  process.exitCode = 1;
+} finally {
+  if (started) try { run('pg_ctl', ['-D', join(root, 'data'), '-m', 'immediate', 'stop']); } catch { /* the cluster is disposable */ }
+  rmSync(root, { recursive: true, force: true });
+}
