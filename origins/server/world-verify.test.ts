@@ -4,7 +4,7 @@ import { encodeWorldRecord, type WorldRecord } from "../../src/fight/server.ts";
 import { SPELL_IDS } from '../../src/fight/spell-cast.ts';
 import type { SpecialsCut } from '../../src/core/server.ts';
 // The spell tests below exercise the spell path that the beta's `spellsOff` keeps inert (the code and rows stay): they run with the cut lifted. The cut itself is tested in tests/specials-cut.test.ts and the last test here.
-const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [] };
+const LIFTED: SpecialsCut = { spellsOff: false, utilitySpells: new Set(), pick: [], fromVersion: 0 };
 import { createWorldCombat as live } from '../../src/fight/world-combat.ts';
 import { createVerifyPool } from './world-verify-pool.ts';
 import { verifyWorldRecord, createVerdictTally, ticksFor, type Verdict, type VerifyJob } from './world-verify.ts';

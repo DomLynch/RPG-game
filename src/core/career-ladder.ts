@@ -45,9 +45,13 @@ export const inBetaSpells = (legend: string): boolean => BETA_SPELLS_OFF ? BETA_
 export const inBetaSpecials = (skill: string): boolean => BETA_SPECIAL_PICK.length === 0 || BETA_SPECIAL_PICK.includes(skill);
 // THE CUT ON A RECORD (the specials PR): a record that casts a spell the cut turns off, or names a skill outside the pick, is judged the way the cut judges a level below the floor (awards.ts levelRefusal): refused, no mark, with a text for the
 // player. The cut is a parameter so a test can lift it; the default is the betaCut row. SPECIAL 1 (`skill`) is held to the pick only where `skillOne` says so: a Pit claim's `skill` is the older equipped-loot skill, a world hero's is always a pick.
-export type SpecialsCut = { readonly spellsOff: boolean; readonly utilitySpells: ReadonlySet<string>; readonly pick: readonly string[] };
-export const BETA_SPECIALS_CUT: SpecialsCut = { spellsOff: BETA_SPELLS_OFF, utilitySpells: BETA_UTILITY_SPELLS, pick: BETA_SPECIAL_PICK };
-export function specialsRefusal(rec: { spell?: { id: string }; spell2?: { id: string }; skill?: string | null; skill2?: string }, cut: SpecialsCut = BETA_SPECIALS_CUT, skillOne = true): string | null {
+// A claim is judged by the rules it was MADE under (as #3051 and levelRefusal do): the cut applies only to a record at or above `fromVersion` (the record version that introduced SPECIAL 2, tests/frontier-era.test.ts holds it to
+// FIRST_SKILL2_VERSION); an older record (a cached page, a recheck of a win made before the bump) is judged by the spell rules it was fought under.
+export type SpecialsCut = { readonly spellsOff: boolean; readonly utilitySpells: ReadonlySet<string>; readonly pick: readonly string[]; readonly fromVersion: number };
+export const BETA_SPECIALS_FROM: number = BETA.specialsFromVersion;
+export const BETA_SPECIALS_CUT: SpecialsCut = { spellsOff: BETA_SPELLS_OFF, utilitySpells: BETA_UTILITY_SPELLS, pick: BETA_SPECIAL_PICK, fromVersion: BETA_SPECIALS_FROM };
+export function specialsRefusal(rec: { spell?: { id: string }; spell2?: { id: string }; skill?: string | null; skill2?: string }, cut: SpecialsCut = BETA_SPECIALS_CUT, skillOne = true, version?: number): string | null {
+  if (version !== undefined && version < cut.fromVersion) return null;   // made under the older rules: the cut does not reach back
   if (cut.spellsOff) for (const s of [rec.spell, rec.spell2]) if (s && !cut.utilitySpells.has(s.id)) return `Spells are off in the beta, so this win didn't count (it cast ${s.id}).`;
   const held = (skill: string | null | undefined): boolean => !skill || cut.pick.length === 0 || cut.pick.includes(skill);
   if (!held(rec.skill2)) return `This win was fought with a special the beta doesn't offer and didn't count (${rec.skill2}).`;

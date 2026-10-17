@@ -156,7 +156,7 @@ export async function refusal(row, standing, { replay = true, heldMax = HELD_MAX
     if (record.outcome !== 'killed') return `record outcome is ${record.outcome}, not a win`;
     const low = levelRefusal(record.level, standing.marks, record.v);
     if (low) return low;
-    const off = specialsRefusal(record, cut ?? undefined, false);   // the beta cut on specials: spells off (but the utility ones), SPECIAL 2 inside the pick; SPECIAL 1 here is the older equipped-loot skill, not held to the pick
+    const off = specialsRefusal(record, cut ?? undefined, false, record.v);   // the beta cut on specials: spells off (but the utility ones), SPECIAL 2 inside the pick; SPECIAL 1 here is the older equipped-loot skill, not held to the pick
     if (off) return off;
     if (!replay) return null;
     let worn = {};   // the gear frozen on the claim when it was posted, never the ledger as it is when the sweep runs

@@ -76,6 +76,7 @@
         "maxLootRung": "integer",
         "spellsOff": "integer",
         "specialSlots": "integer",
+        "specialsFromVersion": "integer",
         "utilitySpells": "array",
         "specialPick": "array",
         "specialRoles": "object",
