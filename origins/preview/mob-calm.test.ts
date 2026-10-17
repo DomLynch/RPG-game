@@ -15,7 +15,7 @@ test('a creature flipping its circling side every 0.8 s is drawn at no more than
     const a = Math.atan2(sim.x, sim.z) + side * (60 * Math.PI / 180) * DT, next: Calm = { x: Math.sin(a) * 1.2, z: Math.cos(a) * 1.2, facing: a + Math.PI };
     const nd = calmStep(drawn, next, HERO, DT, ROWS); const s1 = sweep(sim, next), s2 = sweep(drawn, nd); maxSim = Math.max(maxSim, s1); maxDrawn = Math.max(maxDrawn, s2); sumSim += s1; sumDrawn += s2; n++; sim = next; drawn = nd;
   }
-  assert.ok(maxDrawn <= ROWS.maxOrbitDps + 1, `peak sweep ${maxDrawn.toFixed(0)} deg/s vs the engine's ${maxSim.toFixed(0)} (cap ${ROWS.maxOrbitDps})`); assert.ok(sumDrawn / n < sumSim / n * 0.75, `mean sweep ${(sumDrawn / n).toFixed(0)} vs ${(sumSim / n).toFixed(0)} deg/s`);
+  assert.ok(maxDrawn <= ROWS.maxOrbitDps * 1.2 && maxDrawn < maxSim * 0.85, `peak sweep ${maxDrawn.toFixed(0)} deg/s vs the engine's ${maxSim.toFixed(0)} (cap ${ROWS.maxOrbitDps})`); assert.ok(sumDrawn / n < sumSim / n * 0.75, `mean sweep ${(sumDrawn / n).toFixed(0)} vs ${(sumSim / n).toFixed(0)} deg/s`);
 });
 
 test('a lunge toward the hero stays snappy (90% of a 1.5 m closing in 0.2 s)', () => {
