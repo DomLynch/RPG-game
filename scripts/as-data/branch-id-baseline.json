@@ -2,12 +2,6 @@
  "origins/board/board-view.ts": {
   "'item'": 1
  },
- "origins/boss/boss.ts": {
-  "'wake'": 1,
-  "'gathering'": 2,
-  "'boss'": 2,
-  "'damage'": 1
- },
  "origins/crowd/crowd.ts": {
   "'leader'": 6,
   "'brute'": 1,
@@ -25,9 +19,6 @@
  },
  "origins/presence/zones.ts": {
   "'pit-yard'": 2
- },
- "origins/preview/ground-looks.ts": {
-  "'loot'": 1
  },
  "origins/preview/ground-pickup.ts": {
   "'ground'": 1,
@@ -114,9 +105,6 @@
  "src/fight/finisher-blood.ts": {
   "'head'": 1
  },
- "src/fight/finisher-look.ts": {
-  "'fall'": 2
- },
  "src/fight/fx.ts": {
   "'head'": 2
  },
@@ -126,9 +114,6 @@
  "src/fight/gore.ts": {
   "'torso'": 1,
   "'head'": 1
- },
- "src/fight/mobkit.ts": {
-  "'opener'": 1
  },
  "src/fight/poise-ladder.ts": {
   "'ladder'": 1
