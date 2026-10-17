@@ -248,6 +248,11 @@ export const specialLookOf = (skill: string): SpecialLookRow | undefined => ((DE
 // specialTrail (Dom 2026-10-17, "weapon trails": the game's pale 7-sample ribbon only shows on a normal swing): one row { id (skill id), samples, opacity, color, lead, tail } per melee special. While that special is in its swing the weapon draws a longer, firmer trail: from `lead` ticks before the release until `tail` ticks after. Normal blending, never additive (no glow). No rows (trunk) = the game's trail as it was.
 export type SpecialTrailRow = { id: string; samples: number; opacity: number; color: string; lead: number; tail: number };
 export const specialTrailOf = (skill: string): SpecialTrailRow | undefined => ((DEFS as unknown as { specialTrail?: SpecialTrailRow[] }).specialTrail ?? []).find((r) => r.id === skill);
+// specialShards (Dom 2026-10-17, from World of Claudecraft's solid impact fragments): rows { id (skill id), kind stone|metal, count (<= 8 a burst on a phone), tint, and per-mille numbers: power, forward, lift, size, life, gravity, bounce, slide, shrink }.
+// A landed melee special throws these lit 3D chips off the contact (special-shards.ts). No rows (trunk) = nothing is built or drawn.
+export type ShardRow = { id: string; kind: 'stone' | 'metal'; count: number; tint: string; power: number; forward: number; lift: number; size: number; life: number; gravity: number; bounce: number; slide: number; shrink: number };
+export const specialShardsOf = (skill: string): ShardRow[] => ((DEFS as unknown as { specialShards?: ShardRow[] }).specialShards ?? []).filter((r) => r.id === skill);
+export const shardRows = (): number => ((DEFS as unknown as { specialShards?: ShardRow[] }).specialShards ?? []).length;
 type HealRow = { id: string; share: number; uses: number; windup: number };
 export const healRows = (): number => ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).length;   // 0 on trunk: no heal objects or light are built
 export const healOf = (spell: string | undefined): HealRow | undefined => (spell ? ((DEFS as unknown as { spellHeal?: HealRow[] }).spellHeal ?? []).find((r) => r.id === spell) : undefined);

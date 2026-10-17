@@ -204,3 +204,10 @@ PR body line (our rule): `Donor: World of Claudecraft (MIT), took: <piece>; rewr
 3. **Weapon-face sampling** needs our shield and weapon meshes to expose a face and a long axis. The contact segments in `characters.ts` already carry the long axis for weapons; shields may need a node name. Check before committing to #9.
 4. **Whirlwind spin** is presentation only; it must not rotate the sim body or change hit geometry. A wrapper group above the rig root, restored to sim facing on the last frame.
 5. **What I did not verify:** I did not run WoC's renderer, so the "looks like glow" calls above come from the blend modes, HDR gains and shaders in the source, not from watching it. I did not read the truncated tail of the `solid_impact_fragments.ts` fragment shader line (the lighting term); read it whole before porting. Effort numbers are my estimates and exclude Dom's tuning rounds.
+
+## Appendix: triage of the repos added 2026-10-17 (one line each; fuller studies in the other donor-*.md files)
+
+- Project Monster Hunter World (UE5 clone, xpsa0421): NO LICENSE, a fan project; design and numbers only (part damage multipliers, weapon-specific specials), no code or assets.
+- OpenJK (JACoders, Jedi Academy / Outcast): GPL-2.0; design and numbers only (move transition table, swept-blade hits, parry bounce), never paste code.
+- REFramework (praydog): MIT, but a hooking and scripting tool for modding Capcom's proprietary RE Engine; no combat content of its own, and using it means reading a running commercial game's data, so nothing here is for us.
+- OpenFight (nonameentername): LGPL-3.0, design only. Schwarzerblitz (AndreaJens): own licence, read in its study; the shape to copy is the text-file move table (startup / active / recovery, stun, knockback) as rows.
