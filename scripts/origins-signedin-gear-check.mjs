@@ -64,6 +64,11 @@ try {
   await page.waitForFunction(() => window.__zoneReady, null, { timeout: 180000 }).catch(() => { throw new Error('zone never ready: [zone ready] (window.__zoneReady) did not fire'); });
   const snap = () => page.evaluate(() => { const i = window.originsPreview.renderInfo(); return { names: i.programNames, owners: i.programOwners, keys: i.programKeys }; });
   receipt.programsAtReady = (await snap()).names.length;
+  const still = async (name) => { if (process.env.GEAR_STILLS) { fs.mkdirSync(process.env.GEAR_STILLS, { recursive: true }); await page.screenshot({ path: path.join(process.env.GEAR_STILLS, name) }); (receipt.stills ??= []).push(name); } };
+  if (process.env.GEAR_STILLS) {   // the sheet opened at the very start of the post-ready warm (on this build the stage is held empty until the warm ends; on trunk the mannequin draws at once and links its programs)
+    await page.locator('#journal-button').tap(); await page.locator('#menu-gear').tap(); await page.waitForSelector('#journal[open][data-gear="live"]', { timeout: 30000 }).catch(() => {}); await page.waitForTimeout(400);
+    await still('sheet-1-opened-at-ready.png'); await page.evaluate(() => document.getElementById('journal')?.close()); await page.waitForTimeout(300);
+  }
   // the kit warm and then the gear sheet's mannequin build their programs after [zone ready] (#2938, Lead 2026-10-17): the baseline is taken once both have ended (originsPreview.remoteKitsWarm() waits for the mannequin)
   const kitWarmMs = JSON.parse(fs.readFileSync('origins/preview/preview-rules-defs.json', 'utf8')).rules.find((r) => r.id === 'kitWarmMs').value;
   assert.ok(await page.waitForFunction(() => window.originsPreview.remoteKitsWarm() !== null, null, { timeout: kitWarmMs + 90000 }).then(() => true).catch(() => false), 'the post-ready warm-up never finished (originsPreview.remoteKitsWarm() stayed null)');
@@ -83,6 +88,7 @@ try {
   await page.waitForSelector('#journal[open][data-gear="live"]', { timeout: 30000 });
   await page.waitForSelector('#slot-head[data-loot="goblin.Helmet"]', { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(Number(process.env.RIG_WAIT_MS ?? 8000));   // the rig and loot.glb load on the first open
+  await still('sheet-2-after-warm.png');
   const afterSheet = await snap(); receipt.programsAfterSheet = afterSheet.names.length;
   receipt.programsAddedBySheet = afterSheet.names.filter((n) => !before.names.includes(n)).map((n) => [n, String(afterSheet.keys[n] ?? '').split(',')[0], afterSheet.owners[n] ?? []]);
   assert.equal(receipt.programsAddedBySheet.length, 0, `opening the gear sheet linked render programs after zone ready (${receipt.programsAddedBySheet.length}): ${JSON.stringify(receipt.programsAddedBySheet)}`);

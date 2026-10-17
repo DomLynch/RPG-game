@@ -39,6 +39,11 @@ function studio(scene: THREE.Scene): { off(): void } {
   key.position.set(-1.6, 2.6, 3.2); rim.position.set(2.2, 2.2, -2.4); scene.add(key, rim);
   return { off() { scene.remove(key, rim); key.dispose?.(); rim.dispose?.(); scene.background = was.background; scene.fog = was.fog; glow?.dispose(); } };
 }
+/** The sheet's empty stage: the room's flat backdrop colour and nothing drawn (while the warm-up holds the mannequin back), the renderer's own clear colour put back. */
+export function clearToBackdrop(renderer: THREE.WebGLRenderer): void {
+  const was = renderer.getClearColor(new THREE.Color()), alpha = renderer.getClearAlpha();
+  renderer.setClearColor(new THREE.Color(BACKDROP), 1); renderer.clear(); renderer.setClearColor(was, alpha);
+}
 /** The dressed mannequin under the studio, built before the player opens the sheet: `compile` (the renderer's compileAsync, off the main thread) builds the figure's programs, then ONE frame is drawn for the backdrop's (the next game frame overdraws it). Hands the scene back as found. */
 export async function warmGearRoom(stage: GearStage, compile: (scene: THREE.Scene, camera: THREE.Camera) => Promise<unknown>): Promise<void> {
   const look = studio(stage.scene);
