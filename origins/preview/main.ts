@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
 import { actorPose, loadWarriors, type Practice } from '../../src/fight/index.ts';
-import { characterFor, fetchOwnBuild, type OwnBuild } from '../../src/core/index.ts';
+import { characterFor, createGuestBuild, createServerBuild, fetchOwnBuild, mountBuild, type OwnBuild } from '../../src/core/index.ts';
 import { phoneTier, pixelCap } from '../../src/fight/index.ts';
 import { LEGEND_OPPONENTS, encodeWorldRecord } from '../../src/fight/index.ts';
 import { careerHud } from './career-text.ts';
@@ -583,12 +583,16 @@ if (presenceWanted(location.search)) void AUTH_READY.then(() => { presence = joi
   onEnter: (who) => { otherNames.set(who.id, { name: who.name, guest: who.guest, worn: who.worn }); },
 }); });
 addEventListener('pagehide', () => presence?.stop());   // the socket's close is the 'on leave' the server saves on
+// "Place your point" in Zone 1 (Lead 2026-10-17): a one-line nudge beside "Sign in to keep it" while there are points to place; a tap opens the build dialog, never a modal on its own. The count and the dialog are mounted below the stored build.
+let pointsOpen = 0, pointsPolled = -1, buildOpen: (() => void) | null = null, buildPoll: (() => void) | null = null;
 function showCareer() {
   allegianceButton.hidden = fighting || !pickerOpen('saved' in source, careerLine(session.career).level);
   const c = careerLine(session.career), extra = 'saved' in source ? previewCp(source, session.career) : last?.award?.cp ?? 0;
   career.textContent = careerHud(c, extra, !!frontier);   // Zone 1 labels the level as the career's (the world fight is a bare body until Combat applies the sheet there)
   saveNote.textContent = saveLine(source);
   if (canSignIn(source)) { const a = document.createElement('a'); a.href = SIGN_IN_HREF; a.textContent = 'Sign in'; a.style.cssText = 'pointer-events:auto;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px'; saveNote.append(' · ', a); }
+  if (pointsOpen > 0 && buildOpen) { const b = document.createElement('button'); b.type = 'button'; b.id = 'build-nudge'; b.textContent = `${pointsOpen} ${pointsOpen === 1 ? 'point' : 'points'} to place`; b.style.cssText = 'pointer-events:auto;background:none;border:0;font:inherit;color:inherit;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 0 0 8px;cursor:pointer'; b.addEventListener('click', buildOpen); saveNote.append(' · ', b); }
+  if (buildPoll && c.level !== pointsPolled) { pointsPolled = c.level; buildPoll(); }   // a level gained: read the build again for the count
 }
 showCareer();
 // The saved career, once, in the background: the walk and the Pit never wait on it. A fight is never re-based under the player, so a career that arrives while one is on is held and adopted
@@ -765,6 +769,21 @@ let ownBuild: OwnBuild | undefined;   // the character's stored build (build_get
 let buildInflight = false;   // a build_get is on its way (each call times out on its own: the offline fallback below never fires while one is still pending)
 const loadOwnBuild = (tries: number): void => { buildInflight = true; void fetchOwnBuild({ storage, search: location.search }).then((b) => { if (b) { ownBuild = b; wc.heroChanged(); } else if (tries > 0) setTimeout(() => loadOwnBuild(tries - 1), 30_000); }).finally(() => { buildInflight = false; }); };   // an offline or slow writer is asked again, so one failed fetch does not leave a geared player unpaid for the session
 loadOwnBuild(10);
+// The build dialog (build-screen.ts, the Pit's own) over EITHER copy: a signed-in character's is the server's (build-server.ts), a guest's lives in memory only (build-guest.ts: nothing stored or sent, a reload resets it, his world
+// kills stay unverified and unpaid). Saving a signed-in build re-reads it for the fight's sheet; a guest's own build is the sheet's `own` at once (hero() below). Opening is always the player's tap: a nudge line, the journal's "Your build".
+const guestBuild = createGuestBuild(() => careerLine(session.career).level), serverBuild = createServerBuild({ storage, search: location.search, now: () => Date.now() });
+const buildCopy = {
+  view: () => (pageSignedIn() ? serverBuild.view() : guestBuild.view()),
+  refresh: () => (pageSignedIn() ? serverBuild.refresh() : guestBuild.refresh()),
+  save: async (next: Parameters<typeof guestBuild.save>[0]) => { const out = pageSignedIn() ? await serverBuild.save(next) : await guestBuild.save(next); if (out === 'saved') { if (pageSignedIn()) loadOwnBuild(2); else wc.heroChanged(); } return out; },
+};
+{ const dialog = document.getElementById('build-dialog') as HTMLDialogElement | null;
+  if (dialog) {
+    const build = mountBuild(dialog, buildCopy, (open) => { pointsOpen = open; const dot = document.getElementById('build-dot'), note = document.getElementById('build-open-note'); if (dot) dot.hidden = open === 0; if (note) note.textContent = open ? `${open} to place` : ''; showCareer(); });
+    buildOpen = () => { void build.open(); }; buildPoll = () => { void build.poll(); };
+    document.getElementById('build-open')?.addEventListener('click', () => { (document.getElementById('journal') as HTMLDialogElement | null)?.close(); buildOpen?.(); });
+    buildPoll();
+  } }
 // No fight starts on the bare body because the sheet was late: a signed-in character's creatures wait for the build (build_get) and the worn-gear view to answer. A guest has no server view to wait for; an unanswered writer is waited
 // on for LOADOUT_WAIT_MS only (then he fights bare, and rebody() gives him the sheet at the next clean window open). A 0-dial build answers with the default build, so it is ready at once and fights at 150 hp.
 // The worn-gear view is READ HERE, at load (the Pit does it at main.ts:770; Zone 1 only did it when the Gear screen opened, so a signed-in character fought bare until he opened it) and re-asked every GEAR_RETRY_MS until it answers.
@@ -778,7 +797,7 @@ const wc = createWorldCombat({
   onCreatureTick: (spec, t) => { const w = woundSpec(spec.character, spec.body); if (w) wounds().tick(spec.id, w, t.hpFrac, t.dt, t.x, t.z, t.seed); },
   onCreatureGone: (id) => woundFx?.forget(id),
   engageToken: (id) => spawnNet.tokenOf(id),
-  mobs: () => mobs, hero: () => { const sheet = gearMount?.sheet(ownBuild), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; return { level: careerLine(session.career).level, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
+  mobs: () => mobs, hero: () => { const sheet = pageSignedIn() ? gearMount?.sheet(ownBuild) : gearMount?.sheet(guestBuild.own(), true), spell = equippedCast(), spell2 = spell ? equippedCast(1) : undefined; return { level: careerLine(session.career).level, ...(sheet ? { sheet } : {}), ...(spell ? { spell } : {}), ...(spell2 ? { spell2 } : {}) }; }, onKill: (spec) => void creatureFell(spec), onHeroDied: heroDeathSequence, onEvent: (ev) => { spawnEvent(ev); zoneSound.event(ev); },
   onHeroHit: () => meters.flash(),
 });
 document.getElementById('leave')!.addEventListener('click', leaveFight);

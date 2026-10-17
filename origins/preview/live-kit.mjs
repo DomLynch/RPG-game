@@ -12,6 +12,7 @@ export const LIVE_KIT = [
   '<div id="art-status"',        // the loading line
   '<pre id="debug"',             // src/hud.ts toggles it
   '<dialog id="journal"',        // the ☰ menu itself
+  '<dialog id="build-dialog"',   // "Place your point" (build-screen.ts): the nudge line and the ☰'s "Your build" open it
 ];
 // One piece: from its opening tag to the matching close of the same tag name (nesting counted), so a <section> inside a <section> is kept.
 export function cutPiece(html, opening) {

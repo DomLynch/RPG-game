@@ -6,7 +6,7 @@ import { createGearSheet } from '../../src/core/index.ts';
 import { loadProfile, saveProfile } from '../../src/core/index.ts';
 import { createServerGear } from '../../src/core/index.ts';
 import { createGearStage } from './gear-stage.ts';
-import { fightSheet, gearNumbers, weightClassOf } from '../../src/fight/index.ts';
+import { fightSheet, gearNumbers, sheetFor, weightClassOf } from '../../src/fight/index.ts';
 
 type Deps = { renderer: THREE.WebGLRenderer; menu: HTMLDialogElement; layer: HTMLElement; storage: Storage; search: string; bodyUrl: string };
 export function mountGear(d: Deps) {
@@ -26,7 +26,8 @@ export function mountGear(d: Deps) {
     ready: (): boolean => server?.ready() ?? false,
     refresh: (): Promise<boolean> => server?.refresh() ?? Promise.resolve(false),   // read the server's worn-gear view now (at load, not only when the Gear screen opens)   // the server's view of the character's worn set has answered (the loadout gate in main.ts reads it)
     // What the hero fights on: the stored build (none = level 0, as the server's heroLimitOf reads it) with the worn set's deltas, from the server's view of the character; the server holds a world record's sheet EQUAL to the books' own.
-    sheet: (own: { level: number; placed: Record<string, number> } | undefined): ReturnType<typeof fightSheet> => fightSheet(profile, own ?? { level: 0, placed: {} }, server),   // nothing until the SERVER's view has answered (a guest or an unanswered writer fights bare)
+    // A signed-in character: nothing until the SERVER's view has answered (an unanswered writer fights bare). A GUEST has no server view: he fights on his session build (build-guest.ts) and the device's own worn set, as the Pit does (sheetFor).
+    sheet: (own: { level: number; placed: Record<string, number> } | undefined, guest = false): ReturnType<typeof fightSheet> => guest ? sheetFor(profile.loot, own) : fightSheet(profile, own ?? { level: 0, placed: {} }, server),
     // The ☰'s Gear chip: the menu opens on the Profile pane with the mannequin up; the server's ledger replaces the device's the moment it answers.
     open() {
       d.layer.classList.add('gearing'); element<HTMLInputElement>('journal-tab-profile').checked = true;
