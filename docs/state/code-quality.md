@@ -1,5 +1,26 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~21:0x: HANDOFF before /clear (Dom). READ FIRST. LIVE = IE 05a39ccce (verified)
+
+**Now, in order.**
+1. **RV75b** (Deploy re-cuts #3056 ab2a93e12, #3060 672a9119a, #3076 33673c233 and #3075 bcc0a7baf, plus Combat's fix to scripts/spell-slots-zone-check.mjs). RV75 #3094 @09ee3a956 was NOT passed: row 56 "SPELL 2 stays hidden". That is correct behaviour (spellsOff 1 + utilitySpells [] → `inBetaSpells` false for every spell → owned [] → SPELL 2 hidden); the check's expectation was stale. At RV75b:
+   - confirm the fix touches ONLY that check (its expectation, or running it with the cut lifted);
+   - confirm src/core/career-rules.json betaCut, src/core/career-ladder.ts `inBetaSpells`, origins/preview/main.ts:672 and src/main.ts:781 (the two `setOwnedSpells` paths) are byte-unchanged;
+   - run `recut.sh` (all 6 baselines) and compare trees; check RV 75 / WSV 52, the frontier-era and specialsFromVersion rows = 75, closure 14;
+   - **the verifier** (verify-loot.mjs changes) must run the new code, as well as the writer + presence restart. I told Deploy.
+2. **#3092 @9fe2963ba** (World crowd ladder): the fix is the one import (src/core/index.ts). It was read OK, and watcher bq1in24vl was running. PASS when ALL workflows are green, including the `quality` workflow's `static` job.
+3. **#3093 @d2e5a60ed** (Backend: no psql secret in argv) is NOT YET: the quality workflow's `static` job fails `check:as-data --gate` on 3 inline numbers in origins/server/pg-service.ts (0o700 :41, 0o600 :43/:44). Backend must name them plus a `tunables` exempt (a permission-bits reason). The security read is OK; origins-db is green, so the pooled psql works.
+4. **#3086** (World, one notice ring) is read OK and HELD for Strategy: commons now notice/engage at 9 m (AGGRO_M) instead of 7 m, a feel change.
+5. **#3083 @fd8f11149** PASSED but was skipped at RV75: its src-fight.json allow conflict needs a rebase (the merge driver on trunk has no idTables key until #3083 lands).
+6. **Ready for the next small cut (PASSED):** #3089 (docs), #3090 @6827b1417, #3091 @97bd8f83b.
+
+**Done today, second half:** IA, IB, IC, ID, IE PASSED and verified live. PASSED: #3037, #3045, #3048, #3052, #3053, #3057, #3058, #3062, #3069, #3071, #3072, #3074, #3075, #3076 (+ #3056/#3060), #3077, #3079, #3080, #3081, #3083, #3089, #3090, #3091. Caught: the #3076 specials cut not era-gated (fixed, `betaCut.specialsFromVersion`); the #3076 scope guard (3 sim readers); #3083 merge-allow IDENT; #3052 boundary imports; #3048 evil-merge files (my earlier miss); the #3093 gate.
+
+**Gotchas.**
+- (oo) A red `quality` aggregator is NOT always a superseded run: open the `quality` WORKFLOW run's jobs (`gh api …/actions/runs/<id>/jobs`). Its `static` job runs `check:as-data --gate`. Only call it green if there is an actual success. I waved off #3093's twice before finding the static failure.
+- (pp) Any new inline number in origins/server, presence or world now trips rule (h); permission bits and protocol codes need a named exempt.
+- (qq) A sim release changing scripts/verify-loot.mjs needs the VERIFIER service updated too, not just the writer and presence.
+
 ## 2026-10-17 ~20:3x: READ FIRST. LIVE = IE 05a39ccce (verified). RV75 stack + #3075 all PASSED; the cut is unblocked
 
 **Now.** 1. **The RV75 cut** (#3056/#3060/#3076 @33673c233 + #3075 @bcc0a7baf, all PASSED): when Deploy cuts it, run recut.sh against the PASSed heads, check that the writer AND presence both restart (sim and record files + server verify), and that the frontier-era/specialsFromVersion rows are 75 = RECORD_VERSION at the candidate. After publish, verify live. 2. **#3086** read OK, HELD for Strategy (it makes commons notice/engage at 9 m, AGGRO_M, instead of 7 m: a feel change). 3. **Ready for the next small cut:** #3083 @fd8f11149, #3089 (docs), #3090 @6827b1417, #3091 @97bd8f83b, all PASSED.
