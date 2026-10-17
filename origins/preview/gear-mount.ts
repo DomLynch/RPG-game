@@ -16,7 +16,8 @@ export function mountGear(d: Deps) {
   let server: ReturnType<typeof createServerGear> | undefined;
   const sheet = createGearSheet({
     element, journal: d.menu, canvas: d.renderer.domElement, profile: () => server?.profileFor(profile) ?? profile, persist: () => { saveProfile(d.storage, profile); },
-    view: () => ({ wear: (ids, tiers) => zone.wear(ids, tiers, wornFinishes(server?.pieces() ?? [])), gearStage: () => zone.stage }),   // a starter piece's finish row (its ground look's) on the mannequin: the server's pieces carry the item id weapon: () => 'longsword', numbers: gearNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
+    // a starter piece's finish row (its ground look's) on the mannequin: the server's pieces carry the item id
+    view: () => ({ wear: (ids, tiers) => zone.wear(ids, tiers, wornFinishes(server?.pieces() ?? [])), gearStage: () => zone.stage }), weapon: () => 'longsword', numbers: gearNumbers, weightOf: weightClassOf, emptyPack: 'Nothing stored. Creatures drop gear.', act: (op) => server?.act(op) ?? false,
   });
   server = createServerGear({ storage: d.storage, search: d.search, now: () => Date.now(), getLoot: () => profile.loot, show: sheet.showLoot });
   const leave = () => { sheet.leaveGear(); d.layer.classList.remove('gearing'); };
