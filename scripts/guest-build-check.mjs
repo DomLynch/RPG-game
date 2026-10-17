@@ -41,6 +41,15 @@ try {
   await nudge().tap(); await page.waitForSelector('#build-dialog[open]', { timeout: 10000 });
   await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, '2-dialog.png') });
   const tapAt = async (loc) => { await loc.scrollIntoViewIfNeeded(); const b = await loc.boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };   // a touch at the button's centre (the dialog's hit test under Playwright's own tap check reports the page)
+  {
+    const plus = page.locator('#build-dialog .build-plus:not([disabled])').first(); await plus.scrollIntoViewIfNeeded(); const b = await plus.boundingBox();
+    receipt.diag = await page.evaluate(({ x, y }) => { const hit = document.elementFromPoint(x, y); const log = []; const dlg = document.getElementById('build-dialog'); dlg.addEventListener('click', (e) => log.push('click:' + e.target.className), true); dlg.addEventListener('pointerdown', (e) => log.push('pd:' + e.target.className), true); window.__diagLog = log; return { hit: hit && (hit.tagName + '.' + hit.className), x, y, dlgRect: JSON.stringify(dlg.getBoundingClientRect()), inertDlg: dlg.inert }; }, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await page.waitForTimeout(300);
+    receipt.diag.log = await page.evaluate(() => window.__diagLog); receipt.diag.val = await page.evaluate(() => document.querySelector('#build-dialog .build-val')?.textContent);
+    await plus.evaluate((e) => e.click()); await page.waitForTimeout(200);
+    receipt.diag.valAfterJsClick = await page.evaluate(() => [...document.querySelectorAll('#build-dialog .build-val')].map((v) => v.textContent).join(','));
+    console.log('DIAG', JSON.stringify(receipt.diag));
+  }
   let placed = 0;
   for (let guard = 0; guard < 400; guard++) { const plus = page.locator('#build-dialog .build-plus:not([disabled])').first(); if (!(await plus.count())) break; await tapAt(plus); placed++; }
   receipt.placed = placed; assert.ok(placed > 0, 'the guest placed points');
