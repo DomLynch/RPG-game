@@ -218,7 +218,7 @@ if (new URLSearchParams(location.search).get('bands') === '0') for (const r of R
 // Loadout (the sandbox panel's menu): ?foeWeapon= swaps every warden's weapon (the sim, the AI and the rig's grafted equip follow the fighter's weapon), ?foeArmour= / ?myArmour= force the armour class the blow-type table reads.
 {
   const q = new URLSearchParams(location.search), { OPPONENTS } = await import('../src/fight/moves.ts');
-  if (spellsOff()) for (const k of ['spell', 'spell2', 'foespell']) { const v = q.get(k); if (v && !healIds().includes(v)) q.delete(k); }   // beta: only the heal survives from the spell picks
+  if (spellsOff()) { const u = new URL(location.href); for (const k of ['spell', 'spell2', 'foespell']) { const v = q.get(k); if (v && !healIds().includes(v)) { q.delete(k); u.searchParams.delete(k); } } history.replaceState(null, '', u.href); }   // beta: only the heal survives from the spell picks (the game reads ?spell= from the address too, so it goes from there as well)
   { const s2 = q.get('special2'); if (s2 && !q.get('spell2')) (globalThis as { __SANDBOX_SKILL2__?: string }).__SANDBOX_SKILL2__ = s2; }   // a melee special in slot 2 (an existing skill row); Match checks the id
   const fw = q.get('foeWeapon'); if (fw && WEAPON_IDS.includes(fw)) for (const o of Object.values(OPPONENTS)) (o as { weapon: string }).weapon = fw;
   // ?staff=<weapon> makes that existing weapon fire bolts instead of striking (the missile rows, kind staff; a stand-in until the weapons lane bakes a staff): the sim, the AI and the sandbox bands follow the weapon id.
