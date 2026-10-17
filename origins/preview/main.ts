@@ -474,7 +474,11 @@ async function warmRemoteKitsAfterReady() {
     const t1 = performance.now(); dressRemote(remote, pieces, kit.worn); const t2 = performance.now();
     const clone = cloneRig(remote.anchor), t2b = performance.now(), steps: { step: string; ms: number }[] = [];
     await warmActor(renderer, camera, scene, clone, nextFrame, steps); const t3 = performance.now();
-    await nextFrame(); await nextFrame();
+    // A program's first use in a real frame (three's onFirstUse: getUniforms, getProgramInfoLog) and a texture's first draw are main-thread work that compileAsync does not cover: a kit's pieces drawn in one frame cost 50-170 ms of it on the T4 (the CPU profile,
+    // scripts/character/kit-warm-trace.mjs). So the worn pieces stand in the scene one per frame pair, each paying its own first use, instead of all at once.
+    const worn = remote.worn() as THREE.Object3D[];
+    for (const piece of worn) piece.visible = false;
+    for (const piece of worn) { piece.visible = true; await nextFrame(); await nextFrame(); }
     phases.push({ kit: kit.id, at: Math.round(t1 - t0), prepMs, actorMs, dressMs: Math.round(t2 - t1), cloneMs: Math.round(t2b - t2), compileMs: Math.round(t3 - t2b), framesMs: Math.round(performance.now() - t3), steps });
   };
   // Its own cap (kitWarmMs, from [zone ready]): at the cap the loop stops before its next kit, waits for the ONE kit in flight (never longer than KINDS_WAIT_MS), and reports failed (Web keeps base figures until every kit is done).
