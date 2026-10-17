@@ -27,7 +27,7 @@ const presence = createPresence({ verify, nameOf, log: () => {}, limits: { ...LI
 await new Promise((r) => presence.server.listen(0, '127.0.0.1', r));
 const { origin, close } = await serveOriginsPreview(built);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [];
+const receipt = { origin, physicalPhone: false, errors: [], bots: 0 }, bots = [], bobTimeline = [];   // bobTimeline: out here so a red's catch can print and keep the whole of it
 try {
   const page = await (await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true })).newPage();
   page.setDefaultTimeout(170000);
@@ -63,17 +63,17 @@ try {
   const drawn = (id) => page.evaluate((i) => window.originsPreview.remote().shown.find((s) => s.id === i) ?? null, id);
   assert.ok(await until(async () => (await drawn(bobId))?.tag === 'Bob'), `Bob is not drawn with his name: ${await diag()}`);
   // What the page got for Bob, so a red names its cause (a cold presence socket, the cap, the frustum, an expiry): a timeline of the page's `others` and `shown` rows for his id sampled every 200 ms, and a snapshot of both ends.
-  const timeline = [], t0 = Date.now();
-  const sample = setInterval(() => { void page.evaluate((i) => { const o = window.originsPreview, list = o.presence().others, e = list.find((q) => q.id === i), s = o.remote().shown.find((q) => q.id === i); if (window.__o !== list) { window.__o = list; window.__pk = (window.__pk ?? 0) + 1; window.__pkAt = performance.now(); } return { state: o.presence().state, n: list.length, others: e ? [+e.x.toFixed(1), +e.z.toFixed(1)] : null, shown: s ? { x: s.x, z: s.z, visible: s.visible, frozen: s.frozen, cheap: s.cheap } : null }; }, bobId).then((r) => { const last = timeline.at(-1); if (!last || JSON.stringify([last.state, last.n, last.others, last.shown?.visible, !!last.shown]) !== JSON.stringify([r.state, r.n, r.others, r.shown?.visible, !!r.shown])) timeline.push({ ms: Date.now() - t0, ...r }); if (timeline.length > 60) timeline.shift(); }).catch(() => {}); }, 200);
+  const timeline = bobTimeline, t0 = Date.now();
+  const sample = setInterval(() => { void page.evaluate((i) => { const o = window.originsPreview, list = o.presence().others, e = list.find((q) => q.id === i), s = o.remote().shown.find((q) => q.id === i); if (window.__o !== list) { window.__o = list; window.__pk = (window.__pk ?? 0) + 1; window.__pkAt = performance.now(); } return { state: o.presence().state, n: list.length, others: e ? [+e.x.toFixed(1), +e.z.toFixed(1)] : null, shown: s ? { x: s.x, z: s.z, visible: s.visible, frozen: s.frozen, cheap: s.cheap } : null, frame: o.frameCount ? o.frameCount() : null }; }, bobId).then((r) => { const ms = Date.now() - t0, prev = timeline.at(-1); timeline.push({ ms, dMs: prev ? ms - prev.ms : null, dFrames: prev && prev.frame !== null && r.frame !== null ? r.frame - prev.frame : null, ...r }); if (timeline.length > 600) timeline.shift(); }).catch(() => {}); }, 200);   // EVERY sample is kept (not only changes): dFrames is the frames the renderer drew since the last one and dMs the time between them, so a stalled page shows as a long dMs with dFrames about 0
   const bobDiag = async () => {
     const mine = presence.world.byAccount.get(acct(2));
     const page_ = await page.evaluate((i) => { const o = window.originsPreview; return { hero: { x: o.pos.x, z: o.pos.z }, state: o.presence().state, nOthers: o.presence().others.length, packetsSeen: window.__pk ?? null, lastPacketAgoMs: window.__pkAt ? Math.round(performance.now() - window.__pkAt) : null,name: o.presence().names[i] ?? null, shownCount: o.remote().shown.length, slots: o.remote().slots, adaptive: o.remote().adaptive ?? null }; }, bobId);
     const row = timeline.at(-1); const away = row?.others && Math.hypot(row.others[0] - page_.hero.x, row.others[1] - page_.hero.z);
-    return JSON.stringify({ page: page_, bob: { at: bob.at(), closeCode: bob.closeCode(), hellos: bob.hellos(), serverSees: mine?.sees?.size ?? null }, distanceFromHeroM: away === undefined || away === null ? null : +away.toFixed(1), lastRows: timeline.slice(-14) });
+    return JSON.stringify({ page: page_, bob: { at: bob.at(), closeCode: bob.closeCode(), hellos: bob.hellos(), serverSees: mine?.sees?.size ?? null }, distanceFromHeroM: away === undefined || away === null ? null : +away.toFixed(1), lastRows: timeline.slice(-30) });
   };
-  const walk = async (dir) => {   // Bob walks 12 m along x in 1.5 m steps (the server accepts honest steps only); the page must show him move about as far
+  const walk = async (dir) => {   // Bob walks 12 m along x in 1 m steps (the server accepts honest steps only: its measured gap is clamped to at least 100 ms, so a step must stay inside maxSpeed x slack x 0.1 s = 105 cm; 1.5 m steps got Bob dropped with 4009 'teleport' when two packets arrived close together on a loaded runner); the page must show him move about as far
     const s0 = await drawn(bobId), from = bob.at();
-    for (let i = 1; i <= 8; i++) { bob.pose(from.x + dir * i * 1.5, from.z); await wait(150); }
+    for (let i = 1; i <= 12; i++) { bob.pose(from.x + dir * i * 1, from.z); await wait(150); }
     const ok = await until(async () => { const s = await drawn(bobId); return s && s0 && Math.hypot(s.x - s0.x, s.z - s0.z) >= 8; });
     return { ok, start: s0, end: await drawn(bobId) };
   };
@@ -97,14 +97,13 @@ try {
   assert.ok(await until(async () => (await page.evaluate(() => window.originsPreview.remote().shown.length)) >= 9, 30000), `the crowd is not drawn: ${JSON.stringify(await page.evaluate(() => window.originsPreview.remote()))}`);
   await wait(3000);
   const after = await snap(); receipt.programsAfterBots = after.names.length; receipt.shown = await page.evaluate(() => window.originsPreview.remote().shown.length);
-  // A program a figure in the scene compiles has an owner (programOwners names the scene objects using it): that is what a remote could add, and it is the gate. On software GL one UNOWNED MeshBasic program ("basic", no scene object uses it) also links in some runs with the crowd
-  // (8 remotes: 1 of 4 runs, 11: about half; the same page with 3 bots and no crowd: 0 of 9 added one; World's T4 run adds none). It is not explained yet, so exactly that observed case is allowed (UNOWNED_ALLOWED programs, of kind UNOWNED_KIND) and reported
-  // in the receipt (programsAddedUnowned); any owned new program, any second unowned one, or an unowned one of another kind fails the row (the Auditor's narrowing: no other unexplained compile may go green).
-  const UNOWNED_ALLOWED = 1, UNOWNED_KIND = 'basic';
+  // Strict again: NO program may link after zone ready, owned or not. A program a figure in the scene compiles has an owner (programOwners names the scene objects using it). Before the shared warm proxy linked at zone ready
+  // (warm-proxy.ts, in trunk since HL2) one UNOWNED MeshBasic program ("basic") linked in about half the crowd runs on software GL; with it, 0 of 24 runs added one (4 hunt runs and two batches of 10 on the strict row), so the allowance is gone.
+  // The receipt still lists programsAddedUnowned.
   const added = after.names.filter((n) => !before.names.includes(n)), owned = added.filter((n) => (after.owners[n] ?? []).length > 0), unowned = added.filter((n) => !owned.includes(n));
   receipt.programsAddedOwned = owned.map((n) => [n, after.owners[n]]); receipt.programsAddedUnowned = unowned.map((n) => [n, String(after.keys[n] ?? '').split(',')[0]]);
   assert.equal(owned.length, 0, `a remote's material linked a render program after zone ready: ${JSON.stringify(receipt.programsAddedOwned)}`);
-  assert.ok(unowned.length <= UNOWNED_ALLOWED && unowned.every((n) => String(after.keys[n] ?? '').split(',')[0] === UNOWNED_KIND), `unowned programs beyond the one observed ${UNOWNED_KIND} program linked after zone ready: ${JSON.stringify(receipt.programsAddedUnowned)}`);
+  assert.equal(unowned.length, 0, `a render program linked after zone ready that no scene object owns: ${JSON.stringify(receipt.programsAddedUnowned)}`);
 
   // tags: a bot that leaves is gone within the expiry, and its slot is reused with no stale name
   const closedAt = Date.now() - t0; bob.close();
@@ -113,7 +112,7 @@ try {
   assert.ok(gone, `Bob left and is still drawn 8 s after close (closed at ${closedAt} ms of the timeline): ${await bobDiag()}`);
   clearInterval(sample);
   receipt.pass = true;
-} catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 1800); console.error('FAIL', receipt.failure); }
+} catch (e) { receipt.pass = false; receipt.failure = String(e.message ?? e).slice(0, 600); receipt.bobTimeline = bobTimeline; console.error('FAIL', receipt.failure); for (const row of bobTimeline.slice(-80)) console.error('BOB-ROW', JSON.stringify(row)); }   // the message is the short cause; every row is its own line (a CI log cuts a long line) and the whole timeline is in the receipt file
 finally {
   for (const b of bots) try { b.close(); } catch { /* already closed */ }
   fs.mkdirSync('artifacts', { recursive: true }); fs.writeFileSync('artifacts/origins-remote-heroes.json', JSON.stringify(receipt, null, 2));
