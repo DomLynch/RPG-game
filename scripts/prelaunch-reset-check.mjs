@@ -4,11 +4,12 @@
 // immutable-ledger triggers are still installed afterwards, and a new origins_ table nobody classified makes the script refuse (the drift guard). Socket-only: no DATABASE_URL, no
 // hosted project is reachable. Needs PG_BIN and a non-root user (as `postgres` on the VPS).
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
+import { compare, measure, parseManifest, restoreInto, scratchCluster } from './prelaunch-restore-test.mjs';
 
 const dir = process.env.ORIGINS_MIGRATIONS ?? 'supabase/migrations';
 const root = mkdtempSync(join(tmpdir(), 'frankendom-r1-'));
@@ -62,6 +63,23 @@ try {
   const other = ['fighter_profiles', 'loot_claims', 'awards'], keepBefore = { ...snapshot(KEEP), ...snapshot(other) };
   const trgBefore = triggers();
 
+  // ---- the backup, and the TESTED restore into a separate scratch cluster (the gate's receipt) ----------------------------------------
+  const outDir = join(root, 'out'), who = execFileSync('id', ['-un'], { encoding: 'utf8' }).trim();
+  writeFileSync(join(root, 'backup.env'), `DATABASE_URL=postgresql:///postgres?host=${root}&user=${who}\n`);
+  const bk = execFileSync('bash', ['ops/prelaunch-backup.sh'], { encoding: 'utf8', env: { ...env, BACKUP_ENV: join(root, 'backup.env'), OUT_DIR: outDir, PG_DUMP: pg('pg_dump'), PG_RESTORE: pg('pg_restore'), PSQL: pg('psql') } });
+  const files = readdirSync(outDir), dump = join(outDir, files.find(f => f.endsWith('.dump'))), manifestFile = join(outDir, files.find(f => f.endsWith('.manifest.tsv')));
+  eq(files.length, 2, 'the backup wrote a dump and a manifest');
+  eq([statSync(dump).mode & 0o777, statSync(manifestFile).mode & 0o777, statSync(outDir).mode & 0o777], [0o600, 0o600, 0o700], 'the backup files are 0600 in a 0700 directory');
+  const manifest = parseManifest(manifestFile);
+  eq(manifest.map(m => m.table).sort(), [...RESET].sort(), 'the manifest lists exactly the RESET tables');
+  eq(bk.includes('postgresql://'), false, 'the backup prints no connection string');
+  eq(manifest.find(m => m.table === 'origins_characters').n, 2, 'the manifest counts the seeded rows');
+  const scratch = scratchCluster();
+  try {
+    restoreInto(scratch.socket, dump);
+    eq(compare(manifest, measure(scratch.socket, RESET)), [], 'restore into a scratch cluster: every table equals the manifest (counts and content hashes)');
+  } finally { scratch.stop(); }
+
   // ---- DRY RUN: counts only, nothing changes, the report names every table -------------------------------------------------------
   const dry = script();
   eq(dry.includes('R1: DRY RUN') && dry.includes('dry run finished, nothing changed'), true, 'the dry run says so');
@@ -88,6 +106,10 @@ try {
   eq(triggers(), trgBefore, 'no trigger was disabled, dropped or added (the append-only ledgers stay immutable)');
   refused('the append-only ledger still refuses a delete', 'append', () => psql(`insert into public.origins_events(event_id, kind, account, payload) values ('r1:probe','career-snapshot','${A}','{}'); delete from public.origins_events where event_id = 'r1:probe';`));
   psql(`truncate public.origins_events;`);
+  // ---- the recovery drill: the backup restores INTO the emptied database, row for row ---------------------------------------------
+  restoreInto(root, dump);
+  eq(compare(manifest, measure(root, RESET)), [], 'restore into the reset database: every table equals the manifest again');
+  eq(count('origins_characters'), 2, 'the characters are back');
   // ---- a second reset is a clean no-op, and the game works again from scratch ---------------------------------------------------
   const again = script('commit=1', `confirm=${PHRASE}`);
   eq(again.includes('R1: COMMITTED'), true, 'a second reset commits cleanly');
