@@ -1,5 +1,6 @@
 {
   "tables": [
-    { "table": "frontier-wield", "file": "frontier-wield.json", "at": "wield", "key": "id", "required": { "lootId": "string" } }
+    { "table": "frontier-wield", "file": "frontier-wield.json", "at": "wield", "key": "id", "required": { "lootId": "string" } },
+    { "table": "frontier-era", "file": "frontier-wield.json", "at": "era", "key": "id", "required": { "fromRecordVersion": "integer" } }
   ]
 }

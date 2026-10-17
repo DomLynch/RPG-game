@@ -17,3 +17,8 @@ export function loadFrontierWield(raw: { wield?: readonly unknown[] }): Readonly
   return new Map(rows.map((r) => [r.id, r.lootId as LootId]));
 }
 export const FRONTIER_WIELD: ReadonlyMap<string, LootId> = loadFrontierWield(DATA);
+
+// The Frontier ERA (Lead 2026-10-17, the cast-penalty-era pattern): a Frontier piece stands as its LootId only for a record at or above this version, so a claim posted before the version that
+// carries it re-checks under the old rules (no Frontier deltas) exactly as before. The version is the row's number; Combat's bump to it is what switches Frontier on (createRecorder stamps the current one).
+loadRegistry([tableFromFile(MANIFEST.tables[1] as unknown as Manifest, DATA, 'frontier-wield.json')]);
+export const FIRST_FRONTIER_WIELD_VERSION: number = DATA.era[0]!.fromRecordVersion;

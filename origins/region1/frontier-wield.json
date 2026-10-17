@@ -1,4 +1,7 @@
 {
+  "era": [
+    { "id": "frontier-wield", "fromRecordVersion": 75 }
+  ],
   "wield": [
     { "id": "item:frontier.ash-helm", "lootId": "goblin.Helmet" },
     { "id": "item:frontier.watch-greaves", "lootId": "goblin.Greaves" },
