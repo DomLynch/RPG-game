@@ -197,7 +197,7 @@ test('Sentry: no DSN sends nothing; a HELD claim is one event; a stale claim is 
 // A claim a later bump can no longer read (record.ts REACH, e.g. bump 20's Plague Doctor): a v18 Veteran record from level 6 is this
 // build's instance of it (V18_REACH). HELD `reach` up to v19, cleared by --accept after the hand check on the last build that reads it.
 const gzip = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
-async function withVersion(opponent: 'veteran' | 'goblin', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
+async function withVersion(opponent: 'veteran' | 'goblin' | 'nightborn', level: number, version: number, outcome: 'killed' | 'died' = 'killed'): Promise<string> {
   const rec = liveRecorder({ build: 'reach', opponent, weapon: 'longsword', level, seed: 1 });
   for (let t = 0; t < 10; t++) rec.push({ move: { x: 0, z: 0, yaw: 0, run: false }, action: null, guard: false, lock: true });
   const packed = packRecord(rec.finish(outcome));
@@ -328,7 +328,7 @@ test('RV29: a pending v28 claim is HELD by the reach (kept, no award), --accept 
   const outcome = await acceptHeld(db, 7, 'chromium+webkit @10 on 0d2d9996', { now: new Date('2026-10-08T09:00:00Z') });
   assert.equal(outcome.verified, true);
   assert.match(outcome.note!, /^HELD v28: reach: .* \| ACCEPTED 2026-10-08T09:00:00.000Z by runbook: chromium\+webkit @10 on 0d2d9996$/);
-  assert.doesNotMatch(String(await refusal({ opponent: 'veteran', record: await withVersion('veteran', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');   // the veteran, not the goblin: RV76 (balance) reaches the goblin, so a v29 goblin record is HELD by bump 76
+  assert.doesNotMatch(String(await refusal({ opponent: 'nightborn', record: await withVersion('nightborn', 6, 29) }, FRESH, { replay: false })), /HELD|unreadable/, 'a v29 record decodes as ever');   // the nightborn, not the goblin: RV76 (balance) reaches the goblin, so a v29 goblin record is HELD by bump 76 (the veteran is reached by 31)
 });
 
 test('--accept still refuses a non-reach hold on a v20+ record (its replay is engine-independent); only a reach hold is accepted past heldMax', async () => {
