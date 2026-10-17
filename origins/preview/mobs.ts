@@ -29,6 +29,7 @@ export type MobSpec = {
 // (Dom, 2026-10-08: "it can be 2 vs 1, that is fine"; one always-on world, nothing freezes or hides at engage).
 export const hiddenInFight = (id: string, foe: string | null): boolean => id === foe;
 export const NAMED = { spread: 0, pull: 5, roam: 2.5 };
+const ZONE1_FEEL_SPREAD = typeof location !== 'undefined' && /[?&;]zone1feel=1\b/.test(location.search) ? 8 : 0;   // ?zone1feel=1 (A/B look test): creatures stand at least 8 m round their spot, as Zone 1's camps do (the Test Zone's rows say 2); 0 = the zone's own row
 
 // ---- placement ------------------------------------------------------------------------------------------------------------------
 
@@ -73,7 +74,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         : Array.from({ length: count }, () => w);
       for (let i = 0; i < slots.length; i++) {
         const sw = slots[i]!, srow = named ? undefined : rows.find((r) => r.id === sw.id), sbh = srow?.behaviour;
-        const p = named ? NAMED : { spread: sbh!.spread ?? 6, pull: sbh!.pull ?? 0, roam: sbh!.roam ?? 6 }, def = f.data.registry.characters.get(sw.id)!;
+        const p = named ? NAMED : { spread: Math.max(sbh!.spread ?? 6, ZONE1_FEEL_SPREAD), pull: sbh!.pull ?? 0, roam: sbh!.roam ?? 6 }, def = f.data.registry.characters.get(sw.id)!;
         const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
         const id = `${ID_PREFIX}${sp.id}-${i + 1}`;
         let rng = mixSeed(TUNING.seed, boss ? out.length + late.length : out.length), home: Pos | null = null;

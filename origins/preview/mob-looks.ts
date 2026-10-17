@@ -25,7 +25,10 @@ export const MOB_LOOKS: Readonly<Record<string, MobLookRow>> = {};
 /** The look for a character id, or null for a figure with no entry (a friendly NPC): the caller draws the roster body as it is. */
 const resolved = new WeakMap<MobLookRow, MobLook>();   // one resolved object per row, so the cloth-clone cache and the variant memo see the same look every call
 function resolve(row: MobLookRow): MobLook { if (row.scale !== undefined && !row.loadout) return row as MobLook; let r = resolved.get(row); if (!r) { const gear = row.gear ?? loadoutRow(row.loadout)?.weapon; r = { ...row, scale: row.scale ?? bodyScale(row.opponent), ...(gear ? { gear } : {}) }; resolved.set(row, r); } return r; }   // a look with a loadout carries its weapon too (gear), so variant 0 and the others read the same way
-export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? resolve(row) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
+// ?zone1feel=1 (A/B look test, Dom 2026-10-17: "the goblin moves too fast and too far left to right; Zone 1 is fine"): creatures are drawn at their rig's own size like Zone 1's (the salamander keeps its size), so the oversized-body push-back and the wide swing of a big body drop out.
+const ZONE1_FEEL = typeof location !== 'undefined' && /[?&;]zone1feel=1\b/.test(location.search), feel = new WeakMap<MobLook, MobLook>();
+const natural = (look: MobLook): MobLook => { if (!ZONE1_FEEL || look.opponent === 'giant-salamander') return look; let f = feel.get(look); if (!f) { f = { ...look, scale: bodyScale(look.opponent) }; feel.set(look, f); } return f; };
+export const mobLook = (id: string, zone: Zone = loadZone()): MobLook | null => { const row = zone.mobLooks?.looks[id] ?? MOB_LOOKS[id]; return row ? natural(resolve(row)) : null; };   // the zone's own table first (origins/zones/<id>/mob-looks.ts), else the central one
 
 // Free visual spread: the common kinds come in a few variants so a camp of four is four different creatures, not four copies. Presentation only, no sim
 // state: a variant is a MobLook, so it goes through the same dressMob. Variant 0 is the table's own look (nothing changes for a single figure); the others
