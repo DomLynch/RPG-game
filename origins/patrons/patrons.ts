@@ -27,6 +27,8 @@ import VENUE_MANIFEST from './venue-defs.manifest.json' with { type: 'json' };
 import { PATRON_ROWS } from './patrons.data.ts';
 import STAT_DEFS from './stat-defs.json' with { type: 'json' };
 import STAT_MANIFEST from './stat-defs.manifest.json' with { type: 'json' };
+import PERK_TEMPLATE_ROWS from './perk-templates.json' with { type: 'json' };
+import PERK_TEMPLATE_MANIFEST from './perk-templates.manifest.json' with { type: 'json' };
 import ALLEGIANCE_ROWS from './allegiance-rules.json' with { type: 'json' };
 import ALLEGIANCE_MANIFEST from './allegiance-rules.manifest.json' with { type: 'json' };
 
@@ -102,21 +104,14 @@ export function parsePerkTemplate(raw: unknown, path = ''): Result<PerkTemplate>
 }
 
 const side = (when: When, stat: Stat, value: number): Side => ({ when, stat, value });
-const D = 'damageDealtPermille', T = 'damageTakenPermille', S = 'staminaCostPermille', B = PERK_BUDGET_PERMILLE;
-// living-world §10.2, as §10.7 content. Every row goes through parsePerkTemplate at load (below): a bad row is a load-time throw.
-export const PERK_TEMPLATE_DATA: readonly unknown[] = [
-  { id: 'day-half', gain: side('clock-half:day', D, B), cost: side('clock-half:night', D, -B) },
-  { id: 'night-half', gain: side('clock-half:night', D, B), cost: side('clock-half:day', D, -B) },
-  { id: 'waxing', gain: side('moon:waxing', D, B), cost: side('moon:waning', D, -B) },
-  { id: 'opener', gain: side('fight-time:before-20s', D, B), cost: side('fight-time:after-20s', D, -B) },
-  { id: 'closer', gain: side('fight-time:after-20s', D, B), cost: side('fight-time:before-20s', D, -B) },
-  { id: 'underdog', gain: side('foe-level:higher', D, B), cost: side('foe-level:lower', D, -B) },
-  { id: 'finisher', gain: side('foe-health:below-half', D, B), cost: side('foe-health:above-half', D, -B) },
-  { id: 'last-stand', gain: side('self-health:below-half', D, B), cost: side('self-health:above-half', D, -B) },
-  { id: 'iron-hide', gain: side('always', T, -B), cost: side('always', D, -B) },
-  { id: 'glass', gain: side('always', D, B), cost: side('always', T, B) },
-  { id: 'tireless', gain: side('always', S, -B), cost: side('always', D, -B) },
-].map((t) => ({ kind: 'perk-template', schemaVersion: 1, ...t }));
+const B = PERK_BUDGET_PERMILLE;
+// living-world §10.2, as §10.7 content: the rows of perk-templates.json (a side's value is its sign times the perk budget). Every row goes through parsePerkTemplate at load (below): a bad row is a load-time throw.
+type TemplateRow = { id: string; gainWhen: string; gainStat: string; gainSign: number; costWhen: string; costStat: string; costSign: number };
+loadRegistry(PERK_TEMPLATE_MANIFEST.tables.map((m) => tableFromFile(m as unknown as Manifest, PERK_TEMPLATE_ROWS, 'origins/patrons/perk-templates.json')));
+export const PERK_TEMPLATE_DATA: readonly unknown[] = (PERK_TEMPLATE_ROWS.templates as readonly TemplateRow[]).map((r) => ({
+  kind: 'perk-template', schemaVersion: 1, id: r.id,
+  gain: side(r.gainWhen as When, r.gainStat, r.gainSign * B), cost: side(r.costWhen as When, r.costStat, r.costSign * B),
+}));
 
 const must = <V>(r: Result<V>, what: string): V => { if (!r.ok) throw new Error(`${what}: ${JSON.stringify(r.issues)}`); return r.value; };
 export const PERK_TEMPLATES: ReadonlyMap<string, PerkTemplate> = new Map(PERK_TEMPLATE_DATA.map((raw, i) => {

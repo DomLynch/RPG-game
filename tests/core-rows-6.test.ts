@@ -9,6 +9,12 @@ import { SAVE_EVERY_MS } from '../origins/presence/saves.ts';
 import { MAX_FIGHT_TICKS } from '../origins/server/encounter-verify.ts';
 import { FIGHT_HALF_TICKS } from '../origins/patrons/patrons.ts';
 import { STEP } from '../src/fight/server.ts';
+import { PERK_BUDGET_PERMILLE, PERK_TEMPLATE_DATA } from '../origins/patrons/patrons.ts';
+import { GEAR_STATS } from '../src/core/gear-strip.ts';
+import perkRaw from '../origins/patrons/perk-templates.json' with { type: 'json' };
+import perkMan from '../origins/patrons/perk-templates.manifest.json' with { type: 'json' };
+import stripRaw from '../src/core/gear-strip-rows.json' with { type: 'json' };
+import stripMan from '../src/core/gear-strip-rows.manifest.json' with { type: 'json' };
 import raw from '../src/core/cadence-rules.json' with { type: 'json' };
 import man from '../src/core/cadence-rules.manifest.json' with { type: 'json' };
 
@@ -33,6 +39,31 @@ test('the sign-in hop mark expires at the row\'s 10 minutes', () => {
     assert.equal(rememberZone1('?account=signin&next=zone1', s, at), true);
     assert.equal(takeZone1(s, at + after) !== null, want, `${after} ms after the mark`);
   }
+});
+
+test('the patron perk templates and the gear strip rows are byte-equal to the tables they replaced', () => {
+  const B = PERK_BUDGET_PERMILLE, D = 'damageDealtPermille', T = 'damageTakenPermille', S = 'staminaCostPermille';
+  const side = (when: string, stat: string, value: number) => ({ when, stat, value });
+  const old = [
+    { id: 'day-half', gain: side('clock-half:day', D, B), cost: side('clock-half:night', D, -B) },
+    { id: 'night-half', gain: side('clock-half:night', D, B), cost: side('clock-half:day', D, -B) },
+    { id: 'waxing', gain: side('moon:waxing', D, B), cost: side('moon:waning', D, -B) },
+    { id: 'opener', gain: side('fight-time:before-20s', D, B), cost: side('fight-time:after-20s', D, -B) },
+    { id: 'closer', gain: side('fight-time:after-20s', D, B), cost: side('fight-time:before-20s', D, -B) },
+    { id: 'underdog', gain: side('foe-level:higher', D, B), cost: side('foe-level:lower', D, -B) },
+    { id: 'finisher', gain: side('foe-health:below-half', D, B), cost: side('foe-health:above-half', D, -B) },
+    { id: 'last-stand', gain: side('self-health:below-half', D, B), cost: side('self-health:above-half', D, -B) },
+    { id: 'iron-hide', gain: side('always', T, -B), cost: side('always', D, -B) },
+    { id: 'glass', gain: side('always', D, B), cost: side('always', T, B) },
+    { id: 'tireless', gain: side('always', S, -B), cost: side('always', D, -B) },
+  ].map((t) => ({ kind: 'perk-template', schemaVersion: 1, ...t }));
+  assert.equal(JSON.stringify(PERK_TEMPLATE_DATA), JSON.stringify(old), 'the same objects in the same key order');
+  assert.deepEqual(GEAR_STATS.map((s) => [s.id, s.label]), [['health', 'Health'], ['stamina', 'Stamina'], ['attack', 'Attack'], ['res', 'Resistance']]);
+  const base = { health: 150, stamina: 90, attack: 15, res: 20 };
+  assert.deepEqual(GEAR_STATS.map((s) => s.read({ base, worn: [] })), [150, 90, 15, 20]);
+  assert.deepEqual(GEAR_STATS.map((s) => s.read({ base: {}, worn: [] })), [null, null, null, null], 'a stat the host does not hand in is not invented');
+  for (const [r, m, name] of [[perkRaw, perkMan, 'perk-templates.json'], [stripRaw, stripMan, 'gear-strip-rows.json']] as const)
+    assert.ok(loadRegistry(m.tables.map((t) => tableFromFile(t as unknown as Manifest, r, name))));
 });
 
 test('the cooldown steps are rows for hops 1..n with no gap, and the file loads through the registry', () => {
