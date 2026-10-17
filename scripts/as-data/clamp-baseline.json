@@ -1,8 +1,4 @@
 {
- "origins/presence/interest.ts": {
-  "100": 1,
-  "1000": 1
- },
  "origins/presence/server.ts": {
   "5": 1
  },

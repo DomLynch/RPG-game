@@ -7,7 +7,7 @@
         "emptyPollSec": 20,
         "pollRangeM": 60,
         "lineSec": 3.5,
-        "labels": { "take": "Take the {item}", "signedOut": "Sign in to take the {item}", "taken": "You take the {item}" },
+        "labels": { "take": "Take the {item}", "guestTaken": "You take the {item}. Sign in to keep it.", "taken": "You take the {item}" },
         "outcomes": {
           "taken": { "line": "Someone got there first.", "cue": "refuse" },
           "off": { "line": "Not now.", "cue": null },

@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { centreOf, serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness.mjs';
+import { serveOriginsPreview, stubSignedIn } from './lib/origins-preview-harness.mjs';
 
 const ZONE = process.env.ZONE_DIST, out = process.env.OUT || 'artifacts/ground-pickup-stills', LABEL = process.env.LABEL || 'after', BEFORE = process.env.BEFORE === '1';
 const WIDTHS = (process.env.WIDTHS || '375,320').split(',').map(Number);
@@ -29,7 +29,7 @@ async function frame(width, scenario) {
   if (scenario !== 'signedout') await stubSignedIn(page, { offsets: OFFSETS[scenario], take: scenario === 'race' ? 'race' : 'taken' });
   await page.goto(`${origin}/preview/origins/?region=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.originsPreview?.mobs()?.mobs?.some((m) => m.drawn && m.model), null, { timeout: 150000 });
-  if (scenario === 'signedout') { await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, SIGNED_OUT, { timeout: 90000 }); { const centre = await centreOf(page); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [centre.x, centre.z - 1.3]); } await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 }); }
+  if (scenario === 'signedout') { await page.waitForFunction((id) => window.originsPreview.ground.anchor(id) !== undefined, SIGNED_OUT, { timeout: 90000 }); { const at = await page.evaluate((id) => window.originsPreview.ground.anchor(id), SIGNED_OUT); await page.evaluate(([x, z]) => window.originsPreview.place(x, z, 0), [at.x, at.z - 1.3]); } await page.waitForFunction(() => !document.getElementById('prompt').hidden, null, { timeout: 30000 }); }
   else if (!BEFORE) await page.waitForFunction(() => window.originsPreview.ground.anchor('ground:still-0') !== undefined, null, { timeout: 90000 });
   await page.waitForTimeout(3000);
   const prompt = await page.evaluate(() => { const p = document.getElementById('prompt'); return { hidden: p.hidden, text: p.textContent }; });
