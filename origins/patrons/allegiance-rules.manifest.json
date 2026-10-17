@@ -9,7 +9,8 @@
         "perkBudgetPermille": "integer",
         "switchBronze": "integer",
         "switchCooldownSeconds": "integer",
-        "leaveCooldownSeconds": "integer"
+        "leaveCooldownSeconds": "integer",
+        "fightHalfTicks": "integer"
       }
     }
   ]

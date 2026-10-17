@@ -1,0 +1,16 @@
+{
+  "about": "The patron perk templates (living-world §10.2) as rows: each pairs a gain with a cost. A side is a condition (`when`), a stat id from stat-defs.json, and a sign; its value is sign times the perk budget (allegiance-rules.json perkBudgetPermille), so retuning the budget moves every template at once. patrons.ts builds the same objects it used to hold in code and parses each through parsePerkTemplate.",
+  "templates": [
+    { "id": "day-half", "gainWhen": "clock-half:day", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "clock-half:night", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "night-half", "gainWhen": "clock-half:night", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "clock-half:day", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "waxing", "gainWhen": "moon:waxing", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "moon:waning", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "opener", "gainWhen": "fight-time:before-20s", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "fight-time:after-20s", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "closer", "gainWhen": "fight-time:after-20s", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "fight-time:before-20s", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "underdog", "gainWhen": "foe-level:higher", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "foe-level:lower", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "finisher", "gainWhen": "foe-health:below-half", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "foe-health:above-half", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "last-stand", "gainWhen": "self-health:below-half", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "self-health:above-half", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "iron-hide", "gainWhen": "always", "gainStat": "damageTakenPermille", "gainSign": -1, "costWhen": "always", "costStat": "damageDealtPermille", "costSign": -1 },
+    { "id": "glass", "gainWhen": "always", "gainStat": "damageDealtPermille", "gainSign": 1, "costWhen": "always", "costStat": "damageTakenPermille", "costSign": 1 },
+    { "id": "tireless", "gainWhen": "always", "gainStat": "staminaCostPermille", "gainSign": -1, "costWhen": "always", "costStat": "damageDealtPermille", "costSign": -1 }
+  ]
+}

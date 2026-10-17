@@ -27,6 +27,13 @@
       "note": "the world kill check: the share of the fastest possible kill time a report may undercut, the metres of slack on a creature's reach for presence's pose lag, and the oldest presence pose (ms) that still counts"
     }
   ],
+  "fightLimit": [
+    {
+      "id": "fight",
+      "maxFightSec": 900,
+      "note": "the longest fight the encounter verifier accepts, in seconds (15 minutes); a longer record is not a fight (ticks = this / STEP)"
+    }
+  ],
   "gearImport": [
     {
       "id": "cutoff",
