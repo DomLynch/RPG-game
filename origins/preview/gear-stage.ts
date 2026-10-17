@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { captureException } from '@sentry/browser';
 import { loadLoot, loadWarriors, lootIds, lootWorn } from '../../src/fight/index.ts';
-import { warmGearRoom, type GearStage } from '../../src/core/index.ts';
+import { clearToBackdrop, warmGearRoom, type GearStage } from '../../src/core/index.ts';
 import type { Tier } from '../../src/core/index.ts';
 import { drawProxy } from './warm-proxy.ts';
 import { previewRule } from './preview-rules.ts';
@@ -22,7 +22,7 @@ export function createGearStage(renderer: THREE.WebGLRenderer, bodyUrl: string) 
     scene, camera,
     setArenaVisible() { /* a scene of its own: there is no arena in it to hide */ },
     hero: { place(x, z, heading, speed, dt) { load(); if (!actor) return; actor.anchor.position.set(x, 0, z); actor.anchor.rotation.y = heading; actor.update(speed, dt, 'sheathed', 0); } },
-    draw() { if (held) renderer.clear(); else renderer.render(scene, camera); },   // while the warm-up runs the sheet shows its empty stage (the backdrop clear), not a synchronous program link under the player's thumb
+    draw() { if (held) clearToBackdrop(renderer); else renderer.render(scene, camera); },   // while the warm-up runs the sheet shows its empty stage (the studio's backdrop colour), not a synchronous program link under the player's thumb
   };
   const paint = () => renderer.render(scene, camera);
   // The rig and loot.glb load, the worn set goes on, and the studio frame is built off the main thread: the sheet's programs link after [zone ready] on the kit warm's queue, not when the player first opens it
