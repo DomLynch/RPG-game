@@ -30,7 +30,7 @@ export const isWeaponSlot = (slot: LootSlot): slot is WeaponSlot => (WEAPON_SLOT
 export const PAPERDOLL = { head: ['Helmet'], crest: ['Crest'], chest: ['Body'], arms: ['Arms'], hands: ['Gloves'], legs: ['Greaves'], feet: ['Boots'], main: WEAPON_SLOTS, off: ['Shield'] } as const satisfies Record<string, readonly LootSlot[]>;
 export type Paperdoll = keyof typeof PAPERDOLL;
 // A starter piece (loot-pieces.json lootStarter): a weapon the world lays on the ground for a new player, owned by no roster opponent. Never offered or dropped (LOOT does not list it); valid under isLootId like a retired piece.
-export type StarterLootId = `zone1.${WeaponSlot}`;
+export type StarterLootId = `starter.${WeaponSlot}`;
 export type LootId = `${OpponentId}.${LootSlot}` | StarterLootId;
 // Provenance (Strategy 2026-09-21): where a piece came from, written once at the drop and never edited; the record's short id fills once
 // from null when that fight is published (a Share happens after the drop). Cosmetic and historical: the paperdoll reads it, nothing else.
@@ -81,7 +81,7 @@ for (const r of [...LOOT_PIECES.lootPiece, ...LOOT_PIECES.lootNotWorn.map((n) =>
 }
 for (const r of LOOT_PIECES.lootStarter) {   // a starter owner is not a roster opponent (it would shadow its pieces), and its slots are weapons (the slot IS the weapon)
   if (isOpponentId(r.id)) throw new Error(`loot-pieces: starter owner ${r.id} is a roster opponent`);
-  if (r.id !== 'zone1') throw new Error(`loot-pieces: starter owner ${r.id} is not zone1`);
+  if (r.id !== 'starter') throw new Error(`loot-pieces: starter owner ${r.id} is not "starter" (letters only: the contracts layer's legacy loot id form is item:loot.<a-z>.<Slot>)`);
   for (const slot of r.slots) if (!(WEAPON_SLOTS as readonly string[]).includes(slot)) throw new Error(`loot-pieces: starter ${r.id}.${slot} is not a weapon slot`);
 }
 export const DECLINED_KEPT =LOOT_RULES.lootRule[0]!.declinedKept;   // the lootRule row (src/core/loot-rules.json)
