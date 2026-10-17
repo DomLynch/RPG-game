@@ -33,9 +33,13 @@ test('a verified pit-goblin kill drops a goblin piece that shows on the sheet an
   assert.ok(lootId, `${drop.item} has a LootId, so it can be worn`);
   assert.ok(drop.tier, 'the drop is minted at a rung (loot-tier.json), not tierless');
   const worn = [{ item: drop.item, tier: drop.tier, location: { kind: 'equipped', slot: slotOf(lootId) } }];
-  const sheet = wornGearOfItems(worn);
-  assert.ok(Object.values(sheet).some((n) => n > 0), 'the worn piece adds a number to the sheet');
   const naked = loadoutOfItems([]), dressed = loadoutOfItems(worn);
   assert.deepEqual(naked, { attack: 1, res: 1 }, 'naked is the identity');
-  assert.ok(dressed.res < naked.res || dressed.attack > naked.attack, `the worn ${lootId} moves a fight number (${JSON.stringify(dressed)})`);
+  // Recruit is the identity rung (gear-stats.ts): a piece minted at it shows on the sheet but moves nothing. Whether a kill's drop clears it depends on the creature's level and the item's rarity (the mint rung).
+  const moves = (l: { attack: number; res: number }) => l.res < naked.res || l.attack > naked.attack;
+  assert.equal(moves(dressed), drop.tier !== 'Recruit', `the worn ${lootId} at ${drop.tier} moves a fight number exactly when its rung is above Recruit (${JSON.stringify(dressed)})`);
+  // The stat path itself, independent of what rung the mint chose: the same piece one rung up always shows on the sheet and moves a number.
+  const up = [{ ...worn[0]!, tier: 'Legionary' }];
+  assert.ok(Object.values(wornGearOfItems(up)).some((n) => n > 0), 'the worn piece adds a number to the sheet');
+  assert.ok(moves(loadoutOfItems(up)), `the worn ${lootId} at Legionary moves a fight number`);
 });
