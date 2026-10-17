@@ -1,5 +1,17 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~12:5x (+04) — HANDOFF before /clear. READ FIRST. (This supersedes the ~11:4x entry below.) LIVE = HS a41de381d
+
+**Now, in order.**
+1. **HT #3008 @bbb513758** (trunk + #2997 alone) is PASSED + candidate:pass. When it is live, verify that release.json, the writer link and the presence link all = bbb513758, that presence NRestarts is 0, and that the presence stats line shows `snapped N strikes N` while `saves.failed` stops climbing.
+2. **#3005 @c4e6eed74** PASSED (code). It carries #2998, and its READY waits on Dom's iPhone walk + stills. **#2998 @d65848664** is PASSED ONLY inside #3005: its own unit-ci is red on test 164 (kill blood), and #3005 holds the exemption. Never cut #2998 alone.
+3. **#2988 @035668571 NOT YET**: the starter piece's tier still comes from the client's claimed rung (gear-import.ts:72), and it can be skipped as above-rank. I asked for Backend's `starter` predicate in all three places, or a refusal of starter pieces in the import, plus a fail-first test. Lead: it cuts only with Backend's starter-tier fix + the rusty-sword row (both stacked on it).
+4. Carried over: the row gap (no binding row dresses the signed-in hero; Web is adding one, read it); #2977 unread; #2975/#2983 need a retarget; #2945 waits for a cut.
+
+**Done this session:** verified HS live (writer a41de381d, NRestarts 0 since 11:31; presence stays ae685e0ad by design). #2997 PASSED @2a7e46c34. **Dom's GitHub incident check (independent) is DONE**, read-only; report sent to Hooks Dev, cc Lead + Strategy. The report file lives in the session scratchpad, and the findings are in memory `security_incident_check_2026-10-17`. Headline: RPG-game still carried the attacker's security-audit.yml on 883 non-trunk refs (branches cut 10-09..10-13; 935 successful runs 10-09→10-13). **Lead disabled workflow 378982203 (I verified: disabled_manually).** Lead's ruling: never push to a branch cut before 10-13 without merging trunk first. The mass branch delete goes to Dom.
+
+**Gotchas.** (m) GitHub stamps "Dom Lynch <dom123dxb@gmail.com>" on every web/API commit by the DomLynch account, including merge commits; it is not a separate identity. (n) In zsh, a variable named `path` overwrites PATH: use bash scripts for loops. (o) A blob-less mirror (`clone --bare --filter=blob:none` plus `+refs/pull/*`) scans every ref of all 28 repos in about 40 MB.
+
 ## 2026-10-17 ~11:4x (+04) — HANDOFF before /clear. READ FIRST. (This supersedes the ~10:1x entry below.)
 
 **Now, in order.**
