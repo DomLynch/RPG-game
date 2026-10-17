@@ -53,6 +53,9 @@
     {"file": "src/fight/world-record.ts", "name": "WORLD_SIM_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
   ],
   "branchIds": [
+    {"file": "src/fight/characters.ts", "literal": "Body", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"},
+    {"file": "src/fight/characters.ts", "literal": "Shield", "reason": "loot slot name: ARMOUR_SLOTS is the paperdoll's closed slot vocabulary (loot.glb userData.slot), a category, not a row id"},
+    {"file": "src/fight/characters.ts", "literal": "normal", "reason": "a glTF vertex attribute name (position, normal, ...) in the skinned-mesh bake: a file-format word, not content"},
     {"file": "origins/world/resolve.ts", "literal": "zone", "reason": "category branch (Lead ruling 10-17): the schema level a field applies at (zone vs biome vs default) is the resolver's own switch, not a content id"},
     {"file": "origins/feuds/feuds.ts", "literal": "settle", "reason": "category branch (Lead ruling 10-17): 'back' | 'settle' is the feud's closed outcome union, a state of the mechanism, not a content id"}
   ],
