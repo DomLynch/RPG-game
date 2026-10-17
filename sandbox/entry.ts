@@ -135,12 +135,20 @@ function panel(opponents: string[]) {
     }
     location.assign(u.href);
   };
+  // The Sparring Dummy (trunk's sparring.ts: never attacks, guards on a low share): one tap reloads this page as a dummy fight with the same loadout and flags, so a spell can be tried without being hit.
+  const dummyBtn = el('button', { textContent: 'Test on the Dummy (never attacks)', style: 'background:#555;color:#fff;font-weight:600;margin-left:6px' });
+  dummyBtn.onclick = () => {
+    const from = new URL(location.href), u = new URL(location.origin + location.pathname);
+    for (const [k, v] of from.searchParams) if (!['spar', 'weapon', 'difficulty', 'skill', 'opponent'].includes(k)) u.searchParams.set(k, v);
+    for (const [k, v] of Object.entries({ spar: '1', weapon: from.searchParams.get('weapon') ?? 'longsword', difficulty: 'dummy', skill: 'none', opponent: from.searchParams.get('opponent') ?? 'Centurion' })) u.searchParams.set(k, v);
+    location.assign(u.href);
+  };
   const loadout = el('div', { style: 'margin:8px 0;padding:8px;border:1px solid #444' },
     el('div', { textContent: 'Loadout (pick everything, then Apply once)', style: 'color:#c9a227;font-weight:600' }),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell (SPELL 1) ' }), spellSel, cast),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Your spell 2 (SPELL 2) ' }), spell2Sel, cast2),
     el('div', { style: 'margin:4px 0' }, el('span', { textContent: 'Opponent spell ' }), foeSel, foeCast),
-    weaponPick('Your weapon', true), weaponPick('Opponent weapon', false), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)), applyLoadout,
+    weaponPick('Your weapon', true), weaponPick('Opponent weapon', false), pick('Opponent armour', 'foeArmour', ARMOUR_CLASSES.slice(1)), pick('Your armour', 'myArmour', ARMOUR_CLASSES.slice(1)), applyLoadout, dummyBtn,
     el('div', { textContent: 'Armour picks the class the blow-type table reads (cut / stab / crush). Your weapon, move, the opponent and level 1-50, and the opponent\'s class special: Field journal, Sparring tab. Your spell runs in normal fights (career / practice), not Sparring.', style: 'color:#999;font-size:11px;margin-top:4px' }));
   const note = el('input', { placeholder: 'note: what you changed and why', style: 'width:100%;box-sizing:border-box' } as Partial<HTMLInputElement>);
   const status = el('div');

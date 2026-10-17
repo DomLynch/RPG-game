@@ -106,12 +106,12 @@
 {"id":"outer","upTo":100000}
 ],"spellRange":[
 {"root":"theWord","band":"inner","kind":"melee","windup":60},{"root":"threeBlows","band":"inner","kind":"melee","windup":60},{"root":"theRing","band":"inner","kind":"melee","windup":60},{"root":"harvest","band":"inner","kind":"melee","windup":60},
-{"root":"crack","band":"mid","kind":"magic"},{"root":"longShadow","band":"mid","kind":"magic"},{"root":"baying","band":"mid","kind":"magic"},
+{"root":"crack","band":"outer","kind":"magic"},{"root":"longShadow","band":"outer","kind":"magic"},{"root":"baying","band":"outer","kind":"magic"},
 {"root":"gale","band":"outer","kind":"magic","speed":900,"tint":"#9fd0ff"},{"root":"ashfall","band":"outer","kind":"magic","speed":700,"tint":"#ff8a3a"}
 ],"spellCue":[
 {"id":"far","text":"too far"}
 ],"spellPick":[
-{"id":"namazu","level":8,"fx":"antaeus","unlock":"start"},{"id":"surtr","level":9,"fx":"surtr","unlock":"pit"},
+{"id":"enlil","level":8,"fx":"dwarf8","unlock":"start"},{"id":"surtr","level":9,"fx":"surtr","unlock":"pit"},
 {"id":"tuuletar","level":10,"fx":"typhon","unlock":"zone1"},{"id":"kek","level":10,"fx":"nyx","unlock":"zone2"}
 ],"bandBest":[
 {"weapon":"knife","band":"inner"},{"weapon":"bite","band":"inner"},{"weapon":"gladius","band":"inner"},
