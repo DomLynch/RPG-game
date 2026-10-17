@@ -1,5 +1,12 @@
 # Code quality lane (Auditor)
 
+## 2026-10-17 ~19:3x: READ FIRST. LIVE = IC ad1a13adc (verified, NRestarts 0). ID #3082 @026d24ce1 PASSED + candidate:pass
+
+**Now.** 1. **ID**: when it publishes, verify release.json, writer and presence = 026d24ce1, NRestarts 0 (presence restarts: 16 files; the writer reinstalls). 2. **#3048 @b4aee7891** (read OK; stray files gone + .gitignore; rename verified line by line; 0 clamp.* left): after #3037 lands, retarget to trunk and re-fire auditor:ready, then PASS on green. 3. **#3037 @0dd27fe8d** PASSED (the gear-sheet edit dropped as moot after #3065), for the next cut.
+**Candidate method (IA → ID, all byte-exact):** check the merge second-parents = PASSed heads, then `bash scratchpad/recut.sh <wt> <trunk> <h1> <h2> …` (heads as SEPARATE args; in zsh use the list literally, not a quoted $var). It merges, takes only baseline-only conflicts, regenerates all 6 baselines (clamp, map, const-expr, const-object, inline-number, id-table), and the tree must equal the candidate's. Then the closure test (14), the gate, the presence-files intersection, and `dump3045.ts` presence equality against trunk.
+**Done since ~18:5x:** IC PASSED + verified live; ID PASSED. PASS: #3045, #3069, #3077, #3079, #3080, #3081, #3037. Lead rulings stand (RV75: the frontier-era row rides the bump; #3071 is now live).
+**Gotchas.** (ll) zsh: `$T:src/...` is a history modifier, so write `"${T}:path"`. (mm) zsh does not word-split `$heads`: pass the shas literally or use `${=heads}`.
+
 ## 2026-10-17 ~18:5x: READ FIRST. LIVE = IB 6996fa995 (verified, NRestarts 0). IC #3078 @ad1a13adc PASSED + candidate:pass
 
 **Now.** 1. **IC**: when it publishes, verify release.json, writer and presence = ad1a13adc, NRestarts 0 (presence restarts: 18 files). 2. **ID** (next): #3045 @db2b1df22 and #3069 @4e2515b6d (both read OK; #3069's stub was added and its CI watcher b31ra76kr was running; both retarget after IC), plus #3037 (source conflict in gear-sheet.ts at IC; re-read its new head) and #3048 (NOT YET: 8 stray scripts/.pr-body*.md from an evil merge e146e0f94; PASS when they're removed and the rename re-checks line by line). At the ID candidate run `bash scratchpad/recut.sh <wt> <trunk> <heads…>` (merges, takes baseline-only conflicts, regenerates all 5 baselines) and compare the tree; re-run dump3045.ts against trunk.
