@@ -19,4 +19,6 @@ const mean = (xs) => (xs.length ? +(xs.reduce((a, b) => a + b, 0) / xs.length).t
 md += `\nMean cost per figure (all passes, 16 and 40): ${head} ${mean(per.a) ?? '-'} ms, ${base} ${mean(per.b) ?? '-'} ms; delta ${mean(per.a) !== null && mean(per.b) !== null ? +(mean(per.a) - mean(per.b)).toFixed(2) : '-'} ms per figure (negative = ${head} is cheaper).\n`;
 const fmt = (xs) => (xs.length ? mean(xs) : '-');
 md += `\n**Added ms at 40 players over the empty zone (mean over both passes; the target is <= 10 ms): ${head} ${fmt(add40.a)} ms (p95 at 40: ${fmt(p95at40.a)}), ${base} ${fmt(add40.b)} ms (p95 at 40: ${fmt(p95at40.b)}); delta ${add40.a.length && add40.b.length ? +(mean(add40.a) - mean(add40.b)).toFixed(2) : '-'} ms (negative = ${head} is cheaper).**\n`;
+const progs = (t) => [1, 2].flatMap((p) => (read(`${t}${p}`) ?? []).map((c) => c.programsAdded ?? [])), names = (t) => [...new Set(progs(t).flat())];
+md += `\nPrograms added after [zone ready] (all cases, both passes): ${head} ${progs('a').reduce((s, l) => s + l.length, 0)}${names('a').length ? ` (${names('a').join(', ')})` : ''}, ${base} ${progs('b').reduce((s, l) => s + l.length, 0)}${names('b').length ? ` (${names('b').join(', ')})` : ''}.\n`;
 fs.writeFileSync(out, md); console.log(md);
