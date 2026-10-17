@@ -260,11 +260,13 @@ export function worldStep(dt: number, heading: number, i: ControlIntent): WorldM
   }
   return { dx, dz, phase: wsim.phase, stamina: wsim.duel.fighters[0].stamina, facing: wsim.duel.fighters[0].body.heading };
 }
-let worldSlotB = false, worldSlotBName: string | undefined;
+let worldSlotA = false, worldSlotB = false, worldSlotBName: string | undefined;
+/** The page tells the HUD whether SPECIAL 1 is picked: the world HUD draws an idle stand-in fighter that carries no pick, so the button would read dim (the specials PR). */
+export const setWorldSlotA = (picked: boolean): void => { worldSlotA = picked; };
 /** The page's slot-b pick (the open world's idle practice carries no spells, so the HUD is told): SPELL 2 shows while it is true. Set on a pick or a book read, never per frame. */
 export const setWorldSlotB = (shown: boolean, name?: string): void => { worldSlotB = shown; worldSlotBName = name; };
 export function worldIntent(): ControlIntent {
-  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotB: worldSlotB, slotBName: worldSlotBName });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
+  hud!.update(wsim, { controlsReady: true, debug: false, opponentId: 'veteran', slotA: worldSlotA, slotB: worldSlotB, slotBName: worldSlotBName });   // the game's own button states and labels (STAB, SLASH, KICK, HEAVY...) for an idle fighter
   const i = controls!.intent(); controls!.consumed([]); return i;
 }
 

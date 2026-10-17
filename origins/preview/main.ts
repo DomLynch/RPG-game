@@ -676,6 +676,7 @@ const equippedCast = (slot = 0) => pickSpell(equippedSpell(slot), ownedSpells(),
 const spellNames = new Map<string, string>();   // legend id -> the catalogue's spell name, read once through the lazy catalogue (the entry bundle carries no spell data)
 function syncSpell2Button() {
   const id = equippedCast(1)?.id, melee2 = equippedSpecial(1) as SkillId | undefined;
+  duel?.setWorldSlotA(!!equippedSpecial(0));   // SPECIAL 1 picked: the world HUD (an idle stand-in fighter) lights the SKILL button
   duel?.setWorldSlotB(!!melee2 || slotShown([equippedCast(), equippedCast(1)], 1), melee2 ? SKILL_ROWS[melee2]?.name : id ? spellNames.get(id) : undefined);   // a SPECIAL 2 shows its skill row's own name
   if (id && !spellNames.has(id)) { spellNames.set(id, ''); void loadSpellInfo().then((SPELL_INFO) => { spellNames.set(id, SPELL_INFO[id]?.spell ?? ''); syncSpell2Button(); }).catch(() => { /* the generic label stays */ }); }
 }   // the HUD owns the button (src/fight/hud.ts); the page only says whether slot b is filled   // the record needs a slot-a spell beside slot b
