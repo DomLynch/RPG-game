@@ -427,7 +427,11 @@ function warmUpload(time: number) {   // each walk frame: a slice of the plan un
 // After it, nothing in the zone should compile or upload at a creature's first sight or at engage (the Metal trace's acceptance). Logged with the program count.
 let zoneReadyAt = -1;
 async function warmHero(anchor: THREE.Object3D, figures: readonly THREE.Object3D[] = []) {   // the player's own programs and textures, off-frame, before the zone is ready (not only the creature kinds': Zone 2's goblin + wolf share none of his materials); `figures`: the merged near and far remote figures (far-figure.ts), warmed the same way, so a remote that first walks far links nothing after ready
-  try { for (const a of [anchor, ...figures]) await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(a), nextFrame), KINDS_WAIT_MS); } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
+  try {
+    for (const a of [anchor, ...figures]) await settleWithin(PLAYER, warmActor(renderer, camera, scene, cloneRig(a), nextFrame), KINDS_WAIT_MS);
+    // The shadow-pass (depth) programs link only when a caster is drawn in a shadow pass, which compileAsync does not do: a remote that first walked into view linked two of them (row 2026-10-17, a 2.9 to 4.9 s frame gap on a slow runner). So the merged figures stand beside the hero for two frames, before [zone ready], and the shadow pass draws them once.
+    if (figures.length) { for (const f of figures) { f.position.set(hero.position.x + 0.8, hero.position.y, hero.position.z); f.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; }); scene.add(f); } await nextFrame(); await nextFrame(); for (const f of figures) scene.remove(f); }
+  } catch (error) { warmedHero.failed = true; console.warn('hero warm-up failed', error); }
   warmedHero.done = true;
 }
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
