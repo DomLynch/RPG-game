@@ -34,10 +34,11 @@ for (const special of SPECIALS) {
   await skipDraws(page, true);
   const state = () => page.evaluate(() => { const f = globalThis.__sandboxMatch?.practice?.duel?.fighters?.[0]; return { special: f?.special ?? 0, recover: f?.specialRecover ?? 0, clip: (globalThis.__view?.playing?.() ?? '').split(' ')[0] }; });
   const shot = async (tag) => { await skipDraws(page, false); await run(17); const file = `${OUT}/${special}-${WEAPON}${TAG}-${tag}.jpg`; await page.screenshot({ path: file, type: 'jpeg', quality: 90 }); await skipDraws(page, true); return file; };
-  const files = [], clips = []; let mid = false, hit = false, after = false;
+  const files = [], clips = []; let mid = false, hit = false, after = false, w0 = 0;
   for (let n = 0; n < 400 && !after; n++) {
     const s = await state();
-    if (!mid && s.special > 0 && s.special <= 16) { files.push(await shot('1windup')); clips.push(s.clip); mid = true; }
+    if (s.special > 0 && w0 === 0) w0 = s.special;   // the windup length of this cast (32 melee, 14 for Quick Shot): the middle is half of it
+    if (!mid && s.special > 0 && s.special <= Math.min(16, Math.ceil(w0 / 2))) { files.push(await shot('1windup')); clips.push(s.clip); mid = true; }
     else if (!hit && s.special === 0 && s.recover > 0) { files.push(await shot('2strike')); clips.push(s.clip); hit = true; }
     else if (hit && s.recover > 0 && s.recover <= 33) { files.push(await shot('3after')); clips.push(s.clip); after = true; }
     else await run(n % 3 === 2 ? 16 : 17);
