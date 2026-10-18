@@ -11,6 +11,8 @@ export type GroundItemViewOptions = {
   scene: THREE.Scene;
   /** The model behind an asset url (a glTF scene root); called once per url. */
   loadModel: (assetUrl: string) => Promise<THREE.Object3D>;
+  /** How the item lies (default: the ground-looks table, the server's starter items); a creature's dropped loot piece passes the drop-looks table. */
+  lookOf?: (itemId: string) => GroundLook;
   /** The item's asset url (its `appearance.asset` row); undefined = nothing to draw. */
   assetOf: (itemId: string) => string | undefined;
   /** The ground's height at a point (the preview's groundY); 0 on flat ground. */
@@ -126,7 +128,7 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
   const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); disposeOwned(g); drawn.delete(id); } };   // free functions: the page hands them around unbound
   return {
     show(id, itemId, at, tier) {
-      const look = groundLook(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
+      const look = (opts.lookOf ?? groundLook)(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
       if (now) { place(now, at); return; }
       if (!url) return;
       const ticket = ++serial; asked.set(id, ticket);
