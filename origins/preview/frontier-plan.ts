@@ -17,7 +17,8 @@ import type { Figure, Piece } from './exchange-plan.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
 import { frontierBlock, frontierRule } from './frontier-plan-rules.ts';
 import { off } from './frontier-geom.ts';
-import { drawBank, drawBlock, drawCairn, drawCentre, drawDock, drawGatePost, drawGround, drawLintel, drawMilestone, drawRoad, drawRuinPost, drawScorch, drawShrine, drawSignpost, drawTownPost, townBoards, townPeople, type Put } from './frontier-greybox.ts';
+import type { BuildingSkin, ModelPlacement } from './frontier-skin.ts';
+import { drawBank, drawBlock, drawCentre, drawDock, drawGround, drawMarker, drawMilestone, drawRoad, drawRuinGate, drawScorch, drawShrine, drawSignpost, drawTownPost, drawWayOn, townBoards, townPeople, type Put } from './frontier-greybox.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
@@ -143,6 +144,10 @@ export const inZone = (z: ZonePlan, x: number, wz: number, margin = 0) => {
   const p = toZone(z, x, wz);
   return Math.abs(p.x) <= z.width / 2 - margin && p.d >= margin && p.d <= z.depth - margin;
 };
+/** Metres from a world point to the nearest edge of the zone (negative = outside it). */
+export const edgeDistance = (z: ZonePlan, x: number, wz: number): number => { const p = toZone(z, x, wz); return Math.min(z.width / 2 - Math.abs(p.x), p.d, z.depth - p.d); };
+/** The speed scale of the soft rim: 1 beyond `margin` m of the edge, easing linearly down to `slow` at the edge itself. */
+export const rimScale = (distance: number, margin: number, slow: number): number => (margin > 0 && distance < margin ? slow + (1 - slow) * Math.max(0, distance) / margin : 1);
 // The Frontier zone you stand in (the Exchange's own two are the greybox's, so they are not looked up here).
 export const frontierZoneAt = (f: Frontier, x: number, z: number) => f.zones.find((q) => q.region === FRONTIER && inZone(q, x, z)) ?? null;
 // A point in the west road's frame: `along` the road from its start (metres, + = on out the way it faces) and `across` its centreline (absolute).
@@ -166,18 +171,20 @@ export function inFirstView(f: Frontier, x: number, z: number, r: number): boole
 
 export type Solid = { x: number; z: number; r: number }; // the walker keeps out of these circles (buildings, towers)
 export type Board = { x: number; y: number; z: number; facing: number; lines: string[] }; // a sign's face, readable from `facing`
-export type Build = { pieces: Piece[]; solids: Solid[]; people: Figure[]; boards: Board[] };
+export type Build = { pieces: Piece[]; solids: Solid[]; people: Figure[]; boards: Board[]; models: ModelPlacement[] };   // models: the skin's model nodes stood on the ground (none without a skin)
+export type { BuildingSkin, ModelPlacement } from './frontier-skin.ts';
 
 // The plan decides every position and size that sets a solid (rows: frontier-plan-defs.json); the drawing of each piece is frontier-greybox.ts, which is handed those and owns no collision.
 // A building stands behind its landmark, its front on it; its footprint (a `blocks` row) sets the solid's radius.
 const kindOf = (name: string) => name.split('-').at(-1)!;
 
-export function frontierBuild(f: Frontier): Build {
-  const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [];
+// `skin`: a building skin (frontier-skin.ts; World's buildingSkin(id)): the town's blocks, the ways on, the ruin's gate and the plain landmarks are drawn through it; null = the brick blocks as they were. Collision never depends on it.
+export function frontierBuild(f: Frontier, skin: BuildingSkin | null = null): Build {
+  const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [], models: ModelPlacement[] = [];
   const put: Put = (layer, shape, x, y, z, tint, rotY = 0, foot = y - 10) => { pieces.push({ layer, shape, x, y, z, tint, rotY, foot }); };
   const block = (a: At, kind: string, solid = true) => {
     const { w, d } = frontierBlock(kind)!, c = off(a, a.facing, -d / 2);
-    drawBlock(put, a, kind, c, w, d);
+    drawBlock(put, a, kind, c, w, d, skin, models);
     if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + frontierRule('blockPad') });
     return c;
   };
@@ -192,7 +199,9 @@ export function frontierBuild(f: Frontier): Build {
     const links = new Set(z.links.map((l) => l.here));
     for (const [name, a] of Object.entries(z.landmarks)) {
       if (links.has(name)) { // a way on: two gate posts either side of it
-        for (const side of [-1, 1]) { const p = off(a, a.facing, -frontierRule('gatePostBack'), side * frontierRule('gatePostSide')); drawGatePost(put, p, a.facing); solids.push({ ...p, r: frontierRule('gatePostR') }); }
+        const posts = [-1, 1].map((side) => off(a, a.facing, -frontierRule('gatePostBack'), side * frontierRule('gatePostSide')));
+        drawWayOn(put, a, posts, skin, models);
+        for (const p of posts) solids.push({ ...p, r: frontierRule('gatePostR') });
         continue;
       }
       const k = kindOf(name), c = z.town && z.landmarks[z.town.centre];
@@ -206,10 +215,11 @@ export function frontierBuild(f: Frontier): Build {
       else if (k === 'pits' || k === 'hollow') drawScorch(put, a, k === 'pits');
       else if (k === 'dock' || k === 'jetty') drawDock(put, a);
       else if (k === 'bank') drawBank(put, a);
-      else if (k === 'gate') { // the ruin's gate: posts (solid) and a lintel across the way
-        for (const side of [-1, 1]) { const p = off(a, a.facing, 0, side * frontierRule('ruinPostSide')); drawRuinPost(put, p, a.facing); solids.push({ ...p, r: frontierRule('ruinPostR') }); }
-        drawLintel(put, a);
-      } else { drawCairn(put, a); solids.push({ x: a.x, z: a.z, r: frontierRule('cairnR') }); } // a cairn
+      else if (k === 'gate') { // the ruin's gate: its posts are solid whatever draws them (stone posts and a lintel, or a skin's gate)
+        const posts = [-1, 1].map((side) => off(a, a.facing, 0, side * frontierRule('ruinPostSide')));
+        drawRuinGate(put, a, posts, skin, models);
+        for (const p of posts) solids.push({ ...p, r: frontierRule('ruinPostR') });
+      } else if (drawMarker(put, a, skin)) solids.push({ x: a.x, z: a.z, r: frontierRule('cairnR') }); // a cairn, or a skin's marker; a skin that leaves the landmark bare leaves nothing to bump into
     }
     if (!z.town) return;
     // A town: its named buildings (above), a ring of houses round its centre, its name on a board at the centre, people about.
@@ -225,7 +235,7 @@ export function frontierBuild(f: Frontier): Build {
     people.push(...townPeople(c, i));
   });
   for (const s of f.signs) boards.push(drawSignpost(put, s));
-  return { pieces, solids, people, boards };
+  return { pieces, solids, people, boards, models };
 }
 
 // Where the walker may stand beyond the Exchange: on the west road or on a Frontier zone's ground, clear of every solid.
