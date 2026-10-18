@@ -44,7 +44,7 @@
     {"file": "origins/presence/frame.ts", "name": "LEGACY_SPAN_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},
     {"file": "origins/presence/frame.ts", "name": "CENTRE_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},
     {"file": "origins/presence/zones.ts", "name": "EPS", "kind": "exempt", "reason": "float-comparison epsilon: numeric tolerance, not game tuning", "owner": "Duels & Backend"},
-    {"file": "origins/presence/zones.ts", "name": "CM_PER_M", "kind": "exempt", "reason": "a unit fact (100 centimetres in a metre: the presence frame is u16 centimetres, the world is metres), not a tuning: nobody tunes how long a metre is", "owner": "Duels & Backend"},
+    {"file": "origins/presence/frame.ts", "name": "CM_PER_M", "kind": "exempt", "reason": "a unit fact (100 centimetres in a metre: the presence frame is u16 centimetres, the world is metres), not a tuning: nobody tunes how long a metre is; zones.ts and warps.ts import it", "owner": "Duels & Backend"},
     {"file": "origins/presence/frame.ts", "name": "FRAME_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"},
     {"file": "origins/presence/frame.ts", "name": "LEGACY_CENTRE_CM", "kind": "exempt", "reason": "presence u16 centimetre frame (origin/extent): a wire convention both sides share; changing it moves every stored position", "owner": "Duels & Backend"}
   ],
