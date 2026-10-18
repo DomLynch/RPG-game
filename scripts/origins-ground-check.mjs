@@ -123,12 +123,12 @@ try {
   eq(await code(O, TAKE(B, I4, 1, 3600, JSON.stringify([...JSON.parse(eventOnly(B, pcB, I4, 1)), JSON.parse(batch(B, pcB, I4, 1))[1], JSON.parse(batch(B, pcB, I4, 1))[1]]))), 'O0002', 'qa: two mints are still refused');
   eq(await code(O, TAKE(B, I4, 1, 3600, batch(B, pcB, I4, 1, 0, 'loot:ground.wrongkey000:0'))), 'O0002', 'qa: a mint under another key is still refused');
   eq(await code(O, TAKE(B, I4, 1, 3600, JSON.stringify([{ op: 'metal', account: B, delta_bronze: 5, reason: 'award', event_id: 'x' }]))), 'O0002', 'qa: only event and mint ops, even for the marked account');
-  const q2 = await val(O, TAKE(B, I5, 1, 3600, batch(B, pcB, I5, 1)));
+  const q2 = await val(O, TAKE(B, I5, 1, 3600, batch(B, pcB, I5, 1, 3)));
   eq([q2.result, minted(pcB)], ['taken', String(Number(before) + 1)], 'qa: a marked account sent a normal one-mint batch (the writer\'s lookup was blind) is paid as normal: accepted');
   psql(readFileSync(join(dir, '..', 'down', QA_DOWN), 'utf8'));
   eq(psql(`select (to_regprocedure('public.origins_account_is_test(uuid)') is null)::text`), 'true', 'qa down: the mark function is gone');
   eq(await code(O, TAKE(B, 'ground:zone1.qa-4', 1, 3600, eventOnly(B, pcB, 'ground:zone1.qa-4', 1))), 'O0002', 'qa down: the previous body is back: exactly one mint for everyone');
-  eq((await val(O, TAKE(B, 'ground:zone1.qa-4', 1, 3600, batch(B, pcB, 'ground:zone1.qa-4', 1)))).result, 'taken', 'qa down: a normal one-mint take still works');
+  eq((await val(O, TAKE(B, 'ground:zone1.qa-4', 1, 3600, batch(B, pcB, 'ground:zone1.qa-4', 1, 4)))).result, 'taken', 'qa down: a normal one-mint take still works');
   psql(readFileSync(join(dir, QA_UP), 'utf8'));
   eq(await qaIs(O, B), true, 'qa up again after down');
 
