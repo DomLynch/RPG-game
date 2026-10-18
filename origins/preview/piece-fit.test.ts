@@ -34,7 +34,10 @@ test('fitPieces scales the piece\'s inverse binds by the bone ratio and leaves t
   const [fitted] = fitPieces([piece], rig);
   assert.notEqual(fitted, piece); assert.equal(fitted!.geometry, geometry); assert.equal(fitted!.material, material);
   hero.boneInverses.forEach((m, i) => assert.ok(m.equals(before[i]!), 'the source skeleton is untouched'));
-  const spine = fitted!.skeleton.boneInverses[1]!, expected = new THREE.Matrix4().makeScale(2, 2, 2).multiply(hero.boneInverses[1]!);
-  assert.ok(spine.equals(expected) || spine.elements.every((e, k) => Math.abs(e - expected.elements[k]!) < 1e-6));
+  // at the body's bind pose a vertex weighted wholly to a bone lands at bodyJoint + ratio * (p - heroJoint)
+  const p = new THREE.Vector3(0.3, 1.2, 0.1), heroJoint = new THREE.Vector3().setFromMatrixPosition(hero.boneInverses[1]!.clone().invert()), bodyJoint = new THREE.Vector3().setFromMatrixPosition(rig.boneInverses[1]!.clone().invert());
+  const bodyBind = rig.boneInverses[1]!.clone().invert(), placed = p.clone().applyMatrix4(fitted!.skeleton.boneInverses[1]!).applyMatrix4(bodyBind);
+  const want = bodyJoint.clone().add(p.clone().sub(heroJoint).multiplyScalar(2));
+  assert.ok(placed.distanceTo(want) < 1e-5, `placed ${placed.toArray()} want ${want.toArray()}`);
   const [a, b] = fitPieces([piece, piece], rig); assert.equal(a!.skeleton, b!.skeleton, 'pieces on one source skeleton share one fitted skeleton');
 });
