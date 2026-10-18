@@ -5,7 +5,7 @@
     "src/fight/ai-dial-rows.ts", "src/fight/sim-bounds-rows.ts", "src/fight/creature-motion-rows.ts",
     "src/fight/bands.ts", "src/fight/archetype-rows.ts", "src/fight/ai-read-rows.ts", "src/fight/tactic-rows.ts", "src/fight/moves-tables-rows.ts", "src/fight/stance-legacy-rows.ts",
     "src/fight/roll-rows.ts", "src/fight/gambit-rows.ts", "src/fight/duel-rows.ts", "src/fight/spell-rows.ts", "src/fight/moves-dials-rows.ts", "src/fight/play-radius-rows.ts",
-    "src/fight/level-anchor-rows.ts", "src/fight/special-set-rows.ts", "src/fight/cast-penalty-era.ts", "src/fight/move-rows.ts", "src/fight/rules.ts", "src/fight/cone-era.ts",
+    "src/fight/level-anchor-rows.ts", "src/fight/special-set-rows.ts", "src/fight/cast-penalty-era.ts", "src/fight/move-rows.ts", "src/fight/rules.ts", "src/fight/cone-era.ts", "src/fight/sandbox-era.ts",
     "src/fight/cone-rules.ts", "src/fight/poise-era.ts", "src/fight/poise-ladder.ts", "src/fight/duel.ts", "src/fight/spell-cast.ts", "src/fight/cc-ladder.ts", "src/fight/pools.ts",
     "src/fight/moves.ts", "src/fight/ai.ts", "src/fight/sim.ts", "src/fight/record.ts", "src/fight/blade.ts", "src/roster.ts", "src/fight/catalogue-defs.ts", "src/fight/finishers.ts",
     "src/fight/detmath.ts", "src/fight/play-radius.ts", "src/fight/stab-rule.ts", "src/fight/roll.ts", "src/fight/gambit.ts", "src/fight/stance.ts", "src/fight/stance-era.ts",
