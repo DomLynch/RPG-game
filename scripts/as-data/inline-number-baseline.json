@@ -782,11 +782,6 @@
  "origins/server/consume.ts": {
   "120": 1
  },
- "origins/server/db.ts": {
-  "12": 1,
-  "200": 2,
-  "-4000": 1
- },
  "origins/server/encounter-fixtures.ts": {
   "2": 1,
   "6": 3,
@@ -802,14 +797,6 @@
  },
  "origins/server/encounter-pose.ts": {
   "2": 6
- },
- "origins/server/encounter.ts": {
-  "2": 1,
-  "8": 1,
-  "31": 1,
-  "200": 2,
-  "1e9": 1,
-  "60_000": 1
  },
  "origins/server/gear-import.ts": {
   "16": 1,
