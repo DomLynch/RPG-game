@@ -1,0 +1,131 @@
+{
+  "note": "APPEND-ONLY. Never edit or regenerate an entry; add new eras with: node scripts/record-era-fixtures.mjs --append (scripts/record-era-fixtures.mjs)",
+  "records": [
+    {
+      "name": "plain",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YSwpAUBiG4R-5L8JuTKxCOUx0FGJDdmUzzBWlzmXwPhODv87bN1U3VaTmNt3Uen90Pk56WPZp7kQkOUORIxYJBADgrd4Y18sAAAAAa97_ffy8lsZe9vPKXjtdV1f22um6unq8FwDgmcyG4okuXbp06X53L7R1qOb-IQAA",
+      "expect": {
+        "v": 31,
+        "ticks": 1444,
+        "outcome": "died",
+        "hits": [
+          3,
+          9
+        ]
+      }
+    },
+    {
+      "name": "patron",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YuwmAMBRG4avB9xJOY-MUgo9GElDRhdzKZbQXFASTFOdrLC7k8LdWdam6qUnWbrk-OhuNHubNTK2IqPgIRfZIJBAAgLf637heBgAAAFjz_O_j47X47WU_r-y103V1Za-drqurx3sBAJ5Jbcjv6NKlS5fue_cEs87EVf8hAAA",
+      "expect": {
+        "v": 32,
+        "ticks": 1444,
+        "outcome": "died",
+        "hits": [
+          3,
+          9
+        ]
+      }
+    },
+    {
+      "name": "gambit",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YuwmAMBSF4aviewqXsXEKwWgjEVR0IbdyGe0FBSGP4v-KpDiQw2lTN1Wk5jbd1HpfOh8nPSz7NHcSiiTnfRyxSCAAAG_1xrheBgAAAFjz_vfxMy2Nvexnyl47va5S9trpdZV6vBcA4JnMhuKJXnrppZfe794L7vlggf8hAAA",
+      "expect": {
+        "v": 33,
+        "ticks": 1444,
+        "outcome": "died",
+        "hits": [
+          3,
+          9
+        ]
+      }
+    },
+    {
+      "name": "stances",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YTQpAQBiH8Rf5dhxnsHEKZdiIGuJCbuUy7BWlzMzi-W0s3pqn_1ZVl4HSTbyq5fqM6TCN_bxNupVCJDp8kT0U8QQA4KzuN7aXAQAAAMY8__v4eM1_e9nNK3vNdG1d2Wuma-vq8F4AgGMSE7I7unTp0qX73j0BGeyIs_8hAAA",
+      "expect": {
+        "v": 52,
+        "ticks": 1444,
+        "outcome": "died",
+        "hits": [
+          3,
+          9
+        ]
+      }
+    },
+    {
+      "name": "pose",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YTwpBURwF4B_K82cTRtZhZGIVymMirx6xDjuyD5tBUUoZ0LuX-r7BvYNT93Smdzobd8p6XuzL3fXa9NfVZrU9VPUiRvFwut-T29E9tyOORUQrAID8lo3JvQwAAAC-8P4L-8N02NjLv5nam6Y3V2pvmt5cqb1penOlf7sXAEikl8LglV69evXq1av3yQUYeTXdoS0AAA",
+      "expect": {
+        "v": 38,
+        "ticks": 1937,
+        "outcome": "died",
+        "hits": [
+          7,
+          9
+        ]
+      }
+    },
+    {
+      "name": "sheet",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3aPWoCYRSG0RuH-JciO8hyLMwqBEebMAOToK27yOLcjKYWggbm3hTnNFNc-B7eflbv66YdNrND-3X9dIuPvtt_HvthG6eImDRvz6v4MT1PIr5fI54CAAAAqLIbTfUyAAAAAAAAALjT7z-1__H6MtrL__Nqb0636mpvTrfqam9Ot-pqb0636mpvTrfqam9Ot-pqb0636mrvgy8DAAAAieYZlrd0dXV1dXV1dXV1dXV1dXXnFwepQKC8XQAA",
+      "expect": {
+        "v": 74,
+        "ticks": 3991,
+        "outcome": "died",
+        "hits": [
+          10,
+          19
+        ]
+      }
+    },
+    {
+      "name": "spell",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YQQqDMBSE4WclttXz9ApuvEC3QlMRgkJS4mG9TNt1wYU0iYT_2wQykGG2abtbqW1_9vr1OaarmafBLbN9SCFSqN740alqPYnclXzvAAD_9Awm9TIAAABkaPtfYGfaBHv5mCl74_SmStkbpzdVGngvAGCHSwz1L3rppZfeXHvfUaFomz8gAAA",
+      "expect": {
+        "v": 53,
+        "ticks": 1368,
+        "outcome": "died",
+        "hits": [
+          4,
+          7
+        ]
+      }
+    },
+    {
+      "name": "skill2",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3YTQpAQBiH8Rf5vpfNnEIZNqKGuJBbuQx7Ran5WDy_jcVb8_TfapRKtGnzTa_3ZyrHeRqWfTad3OIiO2ORIxWJBAAQrN4a38sAAAAAZ97_ffy81tZeDvPKXjddX1f2uun6uga8FwAQmMKF6okuXbp06X53L6zFlxcBIgAA",
+      "expect": {
+        "v": 75,
+        "ticks": 1444,
+        "outcome": "died",
+        "hits": [
+          3,
+          9
+        ]
+      }
+    },
+    {
+      "name": "cave-troll",
+      "added": "2026-10-18",
+      "encoded": "H4sIAAAAAAAAE-3bMQ4BURSG0ccoGI2N2IaGTQhDMzHJEBZrM6KWKIh7hXPaP3lf7gLeYrmqmn5db9bnZn7qu7adtN1hf7x0_bbcVddhKaNZKYMCAAAA_IXdx2RfBgAAAAAAAAB_7_nfgBfX6cde_s7VvTHdrNW9Md2s1b0x3azVvTHdrNW9Md2s1b0x3azVvTHdrNW9Md23VwAAAOCnjCPUj3R1dXV1dXV1dXV1dXV1dWO7N-9gLMpDYAAA",
+      "expect": {
+        "v": 76,
+        "ticks": 4100,
+        "outcome": "died",
+        "hits": [
+          21,
+          8
+        ]
+      }
+    }
+  ]
+}
