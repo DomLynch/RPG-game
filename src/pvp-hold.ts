@@ -2,9 +2,10 @@
 // only the picture held on screen is delayed. Ticks that arrive during a hold queue as snapshots and play out CATCHUP a frame. Presentation only:
 // nothing here is read by the sim, the driver or a record. Pure, so tests/pvp-hold.test.ts can drive it frame by frame.
 import { present } from './present-rows.ts';
+import { STEP } from './fight/sim.ts';
 export const CATCHUP = present('pvp-catchup');
 export const MAX_LAG_TICKS = present('pvp-max-lag-ticks');   // the picture is never more than 6 ticks (100 ms) behind the sim: in a duel the picture is the player's input information (Lead, Backend's CI row saw 15)
-const TICK_MS = 1000 / 60;
+const TICK_MS = STEP * 1000;   // the sim's one step in ms (STEP, src/fight/sim.ts: the one definition of the 60 Hz step)
 export type Hold<S> = { shown: S | null; holdMs: number; cut: number; queue: S[] };   // shown: the snapshot on screen while behind the sim; cut: events of the contact frame to deliver
 export const newHold = <S>(): Hold<S> => ({ shown: null, holdMs: 0, cut: -1, queue: [] });
 // A hold of `ms`, shortened so the queue it builds stays within MAX_LAG_TICKS beside what is already queued; under half a tick of room means no hold at all.

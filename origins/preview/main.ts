@@ -29,7 +29,7 @@ import { createCreatureCard } from './creature-card.ts';
 import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
-import { EXITS, type ExitRow } from '../zones/exits.ts';
+import { openExits, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
 import { GUEST_SIGN_IN_LOSS, applyServerKill, killToast } from './kill-apply.ts';
@@ -220,9 +220,9 @@ const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
-const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), EXITS) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
+const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
-const doorWatch = frontier ? createZoneExit(doorsOf(frontier, EXITS), (row) => crossZone(row)) : null;
+const doorWatch = frontier ? createZoneExit(doorsOf(frontier, openExits()), (row) => crossZone(row)) : null;
 function crossZone(row: ExitRow) {   // fade to black, close presence (its close is the save), load the other zone page
   const veil = document.createElement('div'); veil.id = 'zone-cross'; veil.textContent = row.label;
   veil.style.cssText = 'position:fixed;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#000;color:#e8dcc8;font:600 22px/1 Georgia,serif;opacity:0;transition:opacity .45s;pointer-events:all';

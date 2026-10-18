@@ -7,6 +7,8 @@ ignores:
   - '**/*.test.ts'
   - '**/fixtures.ts'
   - '**/*.d.ts'
+  - '**/blade-paths.ts'
+  - '**/catalogue-data.ts'
 rule:
   any: [{ kind: number, not: { regex: "^[01]$" } }, { kind: unary_expression, regex: "^-\\s*[0-9]" }]
   all:

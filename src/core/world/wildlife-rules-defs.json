@@ -1,8 +1,5 @@
 {
   "rules": [
-    { "id": "rarityCommon", "value": 1, "unit": "x" },
-    { "id": "rarityUncommon", "value": 0.3, "unit": "x" },
-    { "id": "rarityRare", "value": 0, "unit": "x" },
     { "id": "rareChanceMin", "value": 0.01, "unit": "ratio" },
     { "id": "rareChanceMax", "value": 0.25, "unit": "ratio" },
     { "id": "respawnMin", "value": 30, "unit": "s" },
@@ -17,5 +14,10 @@
     { "id": "spreadMax", "value": 40, "unit": "m" },
     { "id": "pullMin", "value": 0, "unit": "m" },
     { "id": "pullMax", "value": 30, "unit": "m" }
+  ],
+  "rarities": [
+    { "id": "common", "weight": 1, "default": true },
+    { "id": "uncommon", "weight": 0.3 },
+    { "id": "rare", "weight": 0, "replaces": true }
   ]
 }

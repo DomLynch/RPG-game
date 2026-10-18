@@ -8,11 +8,11 @@ import DEFS from './exit-rows.json' with { type: 'json' };
 // A zone row may carry its own `exits` (zone package gap 2, docs/specs/zone-package.md): the same rows as exit-rows.json, merged into EXITS, so a package brings its doors with it.
 const cave = DEFS.exits[0] as ExitRow;
 const own: ExitRow = { ...cave, id: 'test-door', zone: 'test-field', landmark: 'test-gate', to: '1', arrive: 'cave-mouth', warp: 'zone90-test-door' };
-const zones = { '1': {}, '5': {}, '90': { exits: [own] } };
+const zones = { '1': {}, '5': {}, '6': {}, '90': { exits: [own] } };
 
 test('with no zone-row exits the merged list is exactly exit-rows.json', () => {
   assert.equal(JSON.stringify(EXITS), JSON.stringify(DEFS.exits));
-  assert.equal(JSON.stringify(loadExits(DEFS, { '1': {}, '5': {} })), JSON.stringify(DEFS.exits));
+  assert.equal(JSON.stringify(loadExits(DEFS, { '1': {}, '5': {}, '6': {} })), JSON.stringify(DEFS.exits));
 });
 
 test('a zone row\'s exits are merged after the file rows', () => {
