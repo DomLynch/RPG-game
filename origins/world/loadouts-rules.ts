@@ -9,7 +9,7 @@ import MANIFEST from './loadouts.manifest.json' with { type: 'json' };
 
 export const TIERS = ['light', 'medium', 'heavy'] as const;
 export type LoadoutTier = (typeof TIERS)[number];
-export type Loadout = { readonly id: string; readonly label: string; readonly tier: LoadoutTier; readonly weapon: string; readonly pieces: readonly string[]; readonly rung?: string };   // rung: the rank finish the worn pieces take (a title from the career ladder: Veteran = level 4 ... Master = level 7), and the rung a drop records; absent = Recruit
+export type Loadout = { readonly id: string; readonly label: string; readonly tier: LoadoutTier; readonly weapon: string; readonly pieces: readonly string[]; readonly rung?: string; readonly look?: string };   // look: the main game's whole fitted rank look the creature is drawn in (a site-root file such as /looks/goblin-L5.glb: the same armour as the Pit); its worn pieces are then baked in, so none is hung on   // rung: the rank finish the worn pieces take (a title from the career ladder: Veteran = level 4 ... Master = level 7), and the rung a drop records; absent = Recruit
 export type LoadoutPiece = { readonly id: string; readonly label: string };
 type Raw = { pieces?: readonly unknown[]; loadouts?: readonly unknown[] };
 
@@ -20,6 +20,7 @@ export function loadLoadouts(raw: Raw) {
   for (const l of loadouts) {
     if (!(TIERS as readonly string[]).includes(l.tier)) throw Error(`loadout "${l.id}": tier is light, medium or heavy`);
     if (!l.weapon) throw Error(`loadout "${l.id}": a weapon row id`);
+    if (l.look !== undefined && !/^\/looks\/[\w-]+\.glb$/.test(l.look)) throw Error(`loadout "${l.id}": look is a /looks/<name>.glb file`);
     if (l.rung !== undefined && !(RUNGS as readonly string[]).includes(l.rung)) throw Error(`loadout "${l.id}": rung is a career-ladder title (${RUNGS.join(', ')})`);
     if (!l.pieces.length || new Set(l.pieces).size !== l.pieces.length) throw Error(`loadout "${l.id}": at least one piece, each once`);
     for (const p of l.pieces) if (!pieces.some((q) => q.id === p)) throw Error(`loadout "${l.id}": piece "${p}" is not a loadout-piece row`);

@@ -95,7 +95,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let shown: number[] = [];
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
-  const urlOfKind = (kind: string): string | undefined => {   // a zone look's own bare body (`look.body`, a file in the preview's world/kit/) wins over the baked world body and the roster body
+  // A creature whose loadout row names a main-game rank look (`look`, e.g. /looks/goblin-L5.glb) is drawn in that whole fitted figure (the Pit's own armour): its body key is `<kind>@<file>`, so each rank look is fetched, warmed and shared once.
+  const keyOf = (s: MobSpec): string => { const f = loadoutRow(mobVariant(s.character, s.id)?.loadout)?.look; return f ? `${s.body}@${f}` : s.body; };
+  const urlOfKind = (kind: string): string | undefined => {   // a zone look's own bare body
+    if (kind.includes('@')) return kind.slice(kind.indexOf('@') + 1);   // a rank look: a site-root file the main game serves (`look.body`, a file in the preview's world/kit/) wins over the baked world body and the roster body
     const own = specs.map((x) => (x.body === kind ? mobLook(x.character)?.body : undefined)).find(Boolean);
     return own ? `${import.meta.env?.BASE_URL ?? '/'}${own}` : worldBodyUrl(kind) ?? URLS[kind];
   };
@@ -129,12 +132,12 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   // Warm-up (Combat #1915, Claudecraft idioms; the Metal trace, 2026-10-08: the engage frame is 18 ms, the cost is the FIRST DRAW of a body: its programs link and its textures and geometry upload inside that frame, up to 179 ms).
   // So a body kind is revealed only after, per kind and off-frame: compileAsync of one probe clone (never the whole scene, which stalls), then its textures through initTexture and its geometries through a 4x4 proxy draw, one unit per frame.
   // Until the gate opens the creature stays the capsule it already is. On a phone only the kinds near the walker are fetched (memory), so only they are warmed; elsewhere the whole zone's kinds are fetched at entry.
-  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map((x) => x.body))];
+  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map(keyOf))];
   const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
   const pending = new Map<string, { scene: THREE.Object3D }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
   async function warmKind(kind: string, body: { scene: THREE.Object3D }) {
-    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => x.body === kind)!, look = mobVariant(first.character, first.id);
+    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => keyOf(x) === kind)!, look = mobVariant(first.character, first.id);
     const probe = clone(body.scene); if (look) dressMob(probe, look);
     const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
     await renderer.compileAsync(holder, camera, scene);
@@ -145,7 +148,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     try { for (const g of geometries) { const mesh = new THREE.Mesh(g, proxy), prev = renderer.getRenderTarget(); mesh.frustumCulled = false; tmp.add(mesh); renderer.setRenderTarget(target); try { renderer.render(tmp, camera); } finally { renderer.setRenderTarget(prev); tmp.remove(mesh); } await frame(); } }
     finally { target.dispose(); proxy.dispose(); }
   }
-  const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
+  const kindDist = (kind: string) => mobs.reduce((d, m, i) => (keyOf(specs[i]!) === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
   let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate
   async function pump() {   // one compileAsync in flight at a time (kept serial to bound the compile load; three 0.186's own compileAsync wait already drops disposed materials, WebGLRenderer.js, so no race to work around); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
     if (pumping) return; pumping = true;
@@ -168,13 +171,13 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     const look = mobVariant(s.character, s.id), weapon = look?.gear ?? (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[s.body]?.weapon ?? 'longsword';   // a variant's loadout weapon (the zone row's spread.gear), else the body's own
     let actor: Actor;
     try { actor = buildWarriors({ scene: body.scene, animations: body.clips }, undefined, [weapon, weapon], true).player; }
-    catch (error) { console.warn(`${s.body} actor did not build; the capsule stays`, error); bodies.set(s.body, 'failed'); failedKinds.add(s.body); return; }
+    catch (error) { console.warn(`${s.body} actor did not build; the capsule stays`, error); bodies.set(keyOf(s), 'failed'); failedKinds.add(keyOf(s)); return; }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
-    if (look) dressMob(actor.anchor, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
+    const row = loadoutRow(look?.loadout);
+    if (look) dressMob(actor.anchor, row?.look ? { ...look, tint: 0xffffff, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no tint, no ash); a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
-    const row = loadoutRow(look?.loadout);
-    if (row && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
+    if (row && look?.body && !row.look) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; }); v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(s.body); putOn(v); }   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)   // a loadout on a bare body: put its pieces on (now if the carriers are in, else when they land)
   }
 
   function viewOf(i: number): View {
@@ -212,15 +215,15 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
-      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
+      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(keyOf(specs[i]!)); });
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
       // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
       const nearestOf = new Map<string, number>();
       for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
       for (const i of shown) {
-        const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
-        if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(s.body)) dress(v, s, body);
+        const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(keyOf(s));
+        if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(keyOf(s))) dress(v, s, body);
         v.group.visible = !hiddenInFight(s.id, engaged); v.ring.visible = v.group.visible && (opts.markers?.ring ?? true);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
