@@ -1,0 +1,30 @@
+# Test Zone sandbox: handoff (2026-10-18, written when Dom cleared the session)
+
+You are the **Test Zone sandbox** author. The Test Zone (zone 90, branch `zone/goblin-field-dome`, FROZEN: push nothing more to it, last commit 5da7b0388) is being ported into the main game, line by line, by trunk PRs. Dom: "everything in the sandboxes is approved; get it migrated into the main game so I can archive the sandbox devs". The sandbox is archived only when NOT STARTED and IN PR are both zero in `docs/sandbox/promotion-list.md` (this branch, `zone/promotion-list`, is the LIVE copy; send Strategy the sha each time it changes).
+
+## Rules (Lead + Strategy, they override anything older)
+Fresh trunk worktree per PR, off trunk head (or stacked on the open PR it depends on, base = that PR's branch). One feature per PR, rows first. as-data `--gate` must read "new 0" at head. A `Donor:` line naming the sandbox commit (07fddad44). BEFORE opening a PR send the owning lane its file list and get "no overlap" back. Lane reviews, Lead PASSes, the Auditor reads, the TRAIN merges: you never merge, cut or publish trunk. `auditor:ready` goes on only when the `static` check is green (via `gh api repos/DomLynch/RPG-game/issues/N/labels -f 'labels[]=auditor:ready'`; `gh pr edit` hangs). No tests on the Mac: run them on the VPS (`ssh -i ~/.ssh/binance_futures_tool root@49.12.7.18`, job dir `/srv/dev-jobs/zone-sandbox-preview/repo`: `git fetch --depth 1 origin <branch> && git checkout -f FETCH_HEAD && node --test ...`). Edit files with Read/Edit/Write only (a hook blocks Bash edits). Reuse trunk (pickLoadout, piece-fit, loadLoot/wear, trunk's tables); no silent fallbacks (MissingClip stays loud). Send heads to Lead [Frankendom - Lead Dev] and the reviewer lane. Dom's direct word beats a relayed plan; ask Strategy [Project Strategy - Fable 5.1] for rulings.
+
+## State of my PRs (heads at handoff)
+| PR | What | Head | Branch / worktree | Status |
+|---|---|---|---|---|
+| #3226 | R06 rows (start.clear-m, drop.reach, zoneloot.*, mob-view.wear-max-scale) | b081e9d93 | zone/port-rows / frankendom-zone-port | `auditor:ready` on; checks passed |
+| #3230 | C12 first person (stacked on Web's #3225, base web/fp-lock-rows) | d7844f63d | zone/port-fp / frankendom-zone-fp | Auditor PASS @8ca2d7235; I then pushed the Head-scale note fix (d7844f63d); do NOT label until #3225 merges and it retargets to trunk |
+| #3232 | C15/R11 fire breath (Combat reviews) | 55878ee1c | zone/port-breath / frankendom-zone-breath | Auditor said NOT YET (literals, LCG): fixed (all tuning is breath.* rows, makeRng); put auditor:ready on when `static` is green (check `gh pr checks 3232`) |
+| #3235 | C14/R08 war band (stacked on #3216, base char/loadouts; Combat + Characters) | cc6a230ad | zone/port-warband / frankendom-zone-warband | opened; not labelled; wait for #3216 to merge, retarget, label when static green |
+
+## Still to do (mine, Lead allocated)
+1. **Loot page-half (C10/R04)** — staged and tested (94/94) on branch `zone/port-loot` @b55a0fbcc (worktree frankendom-zone-port was switched to it; off #3216 head a62a86a1e): outfit.ts, kill-drop.ts, drop-looks.json + `dropLook` + `lookOf` on the ground item view. It opens only AFTER #3216 merges. Lead's ruling: in an UNLISTED zone only, a picked-up piece REPLACES dressRemote's piece in that slot (per slot; other slots keep the account gear); PAGE MEMORY ONLY (no localStorage, nothing to account/DB; reload or leaving the zone restores dressRemote). My staged outfit.ts still persists to localStorage: REMOVE that. Pin with a test: listed zone = no change, unlisted = per-slot override, exit = restore. Wire main.ts (`dressHero` over warriors.player.wear, killDrops, creatureFell drops the loadout via pickLoadout(id, creature, look.loadout, spread.loadouts) or MobLook.loadout after #3228). drop-looks.json is its own table (trunk pins ground-looks.json to server starter items). Put "local only, no account or DB writes" in the PR body. Characters reviews. Send Characters the file list first (they said no overlap for outfit.ts, kill-drop.ts, ground-item-view.ts, ground-looks.json, main.ts).
+2. **C16 + R09 gfx lift** (`?gfx=1`): NOT STARTED. Files: origins/preview/gfx-lift.ts (59 lines, copy from sandbox 07fddad44) + ~4 main.ts lines + 11 `gfx.*` rows + a small test (gfxOn parsing, rows finite). Owner World: send the file list first.
+3. **R15 variant**: pitch rises with foe size (`pitch/pitchPerSize/maxPitch` in follow-camera.ts CombatFraming + the combat-cam rows) + the `camera.fightBack` reader (`setFightBack` in camera.ts + fightBackDefault rule + main.ts call on resize; trunk's schema already declares camera.fightBack/fightBackPortrait unwired). Combat reviews. Lead: rows default neutral.
+4. Keep `docs/sandbox/promotion-list.md` (branch zone/promotion-list) current: statuses PORTED / IN PR #n / NOT STARTED (owner) / SUPERSEDED (PR); R03 and C21 are non-port lines awaiting Strategy's confirmation.
+
+## Facts worth knowing
+- Trunk already has: the Wide combat camera as Zone 1's default (16b851ef2), piece-fit (#3196), zone package for zone 90 (#3213 merged, current 13.8 KB row), horizon dome (#3202), kill_report silent in unlisted zones (#3204).
+- Characters has #3216 (loadouts), the troll hand-weights GLB #3224 (the real cure for C06), S1-S3. C06/C09 remap are SUPERSEDED, not ported.
+- Trunk's `tests/breath.test.ts` is the AUDIO breathing; my fire-breath files are named fire-breath.
+- My old sandbox `mobs.debug()` got heavy (handMesh/grips): never call it per frame.
+- Test-only hooks and the check scripts live on the frozen branch under scripts/zone-sandbox/.
+- Open question I asked Strategy: R03 executioner rows and C21 sandbox tooling are non-port lines with no PR (marked SUPERSEDED with a note).
+
+## Worktrees on this Mac (all under ~/Developer): frankendom-zone-sandbox (frozen branch + node_modules), frankendom-zone-port (zone/port-loot, formerly port-rows), frankendom-zone-fp, frankendom-zone-breath, frankendom-zone-warband, frankendom-zone-list (this branch). node_modules is a symlink to the sandbox's.

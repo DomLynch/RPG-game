@@ -21,7 +21,7 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 | **R05** `origins/preview/sandbox-lines.json` + manifest (the unlisted-zone kill line) | row | Web | no | PORTED (#3204 merged) |
 | **R06** `src/fight/fx-rows.json` ids `regen.*`, `zoneloot.*`, `start.clear-m`, `drop.reach`, `fit.*`, `grip.claw-fraction`, `mob-view.wear-max-scale` | row | Combat (regen, reach, fit/grip with Characters) | none exist on trunk | IN PR #3226 (start.clear-m, drop.reach, zoneloot.*, mob-view.wear-max-scale); regen.* IN PR #3210 (Combat); fit.* PORTED #3196; grip.claw-fraction SUPERSEDED (#3224) |
 | **R07** `src/fight/fx-rows.json` ids `fp.*` | row | Web | none exist on trunk | IN PR #3225 (Web) |
-| **R08** `src/fight/fx-rows.json` ids `warband.*` | row | Combat | no | NOT STARTED (sandbox author: war band PR, Combat reviews) |
+| **R08** `src/fight/fx-rows.json` ids `warband.*` | row | Combat | no | IN PR #3235 (sandbox author; stacked on #3216; Combat reviews) |
 | **R09** `src/fight/fx-rows.json` ids `gfx.*` | row | World | no | NOT STARTED (sandbox author: gfx lift PR) |
 | **R10** `src/fight/fx-rows.json` ids `reach.*`, `reach.dir-tau`, `mob-view.lateral-tau/radial-tau/turn-dps/snap-m/max-orbit-dps/max-lag-m`, `pose-blend.snap-m`, `zone1feel.*` | row | Combat | the stand-back is reused by Combat (#3185) | SUPERSEDED (#3185 stand-back and goblin 1.25; #3215 troll 1.52; #3221 height ladder) |
 | **R11** `src/fight/fx-rows.json` ids `breath.*` | row | Combat | partly (trunk's zone-fx) | IN PR #3232 (sandbox author; Combat reviews) |
@@ -47,7 +47,7 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 | **C11** `origins/preview/kill-apply.ts` (`sandbox` toast) + `main.ts` (no `kill_report` from an unlisted zone) | sandbox kill line | Backend | no | PORTED (#3204 merged) |
 | **C12** `origins/preview/first-person-arm.ts` (+test), first-person branch in `src/fight/follow-camera.ts` | first-person view with the hero's own arm (IK) | Combat | no | IN PR #3230 (sandbox author; stacked on #3225; Web reviews) |
 | **C13** `src/fight/follow-camera.ts` combat framing, `src/fight/camera.ts`, `camera-rules.ts` | combat camera (Wide auto-fit) | Combat | no | SUPERSEDED (trunk 16b851ef2); the pitch-with-foe-size + fightBack reader variant NOT STARTED (sandbox author) |
-| **C14** `origins/preview/war-band.ts` (+test), war-band hooks in `main.ts` | horn-blower, rally | Combat | no | NOT STARTED (sandbox author: war band PR, Combat reviews the fight hooks) |
+| **C14** `origins/preview/war-band.ts` (+test), war-band hooks in `main.ts` | horn-blower, rally | Combat | no | IN PR #3235 (sandbox author; stacked on #3216; Combat reviews the fight hooks) |
 | **C15** `src/fight/breath.ts`, `src/fight/zone-fx.ts` | salamander fire breath, contact effects | Combat | partly (trunk's zone-fx) | IN PR #3232 (sandbox author; Combat reviews) |
 | **C16** `origins/preview/gfx-lift.ts` | `?gfx=1` fog, bloom, grade | World | no | NOT STARTED (sandbox author: gfx lift PR) |
 | **C17** `origins/preview/frontier-plan.ts`, `frontier-dress.ts`, `frontier-cinder.ts` (building-skin seam, `edgeDistance`/`rimScale`, `Thin`/`Dress.strips`) | goblin-field hooks in the frontier plan, dress and cinder | Web | ported by Web & UI as a types-only skin seam (`frontier-skin.ts`), skin drawing in `frontier-greybox.ts`, collision rows in `frontier-plan-defs.json`; take trunk's version of these three files, the dome's `frontierBuild` BLOCKS/`block()`/`stand()` shape no longer exists | IN PR #3212 (Web) |
