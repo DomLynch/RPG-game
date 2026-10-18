@@ -22,6 +22,7 @@
     { "id": "ringTries", "value": 6, "unit": "count" },
     { "id": "ringSpread", "value": 2, "unit": "m" },
     { "id": "ringJitter", "value": 0.25, "unit": "rad" },
-    { "id": "townRadiusPad", "value": 12, "unit": "m" }
+    { "id": "townRadiusPad", "value": 12, "unit": "m" },
+    { "id": "reliefGrid", "value": 32, "unit": "samples" }
   ]
 }

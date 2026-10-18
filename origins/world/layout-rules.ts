@@ -7,7 +7,7 @@ import MANIFEST from './layout-rules-defs.manifest.json' with { type: 'json' };
 
 export type LayoutRule = { readonly id: string; readonly value: number; readonly unit: string };
 const NAMED = ['terrainOctaves', 'terrainGain', 'terrainLacunarity', 'terrainWarp', 'padBlend', 'roadHalf', 'buildingModule',
-  'windowChance', 'signOffset', 'counterInset', 'counterDivisor', 'chimneyDivisor', 'roofDivisor', 'pieceVariants', 'plazaBase', 'plazaSpan', 'civicCentres', 'turnBase', 'turnSpan', 'ringTries', 'ringSpread', 'ringJitter', 'townRadiusPad'] as const;
+  'windowChance', 'signOffset', 'counterInset', 'counterDivisor', 'chimneyDivisor', 'roofDivisor', 'pieceVariants', 'plazaBase', 'plazaSpan', 'civicCentres', 'turnBase', 'turnSpan', 'ringTries', 'ringSpread', 'ringJitter', 'townRadiusPad', 'reliefGrid'] as const;
 /** The one loader: rows keyed by id (a duplicate id or a missing or mistyped field is refused), every rule the world reads by name must exist, with a positive value. */
 export function loadLayoutRules(raw: { rules?: readonly unknown[] }): readonly LayoutRule[] {
   loadRegistry([tableFromFile(MANIFEST.tables[0] as unknown as Manifest, raw, 'layout-rules-defs.json')]);
