@@ -49,6 +49,7 @@ export type Fighter = {
   stall: number;   // ticks the current attack's clock stands still (a thrust that met nothing hangs at full extension)
   maxHealth: number;   // the bar's ceiling (moves.ts `Opponent.health`; RULES.health for a man)
   scale: number;   // body scale: the hit capsule and its head/torso/legs regions the opponent's blade sweeps (moves.ts `Opponent`)
+  reachScale?: number;   // RV77: how much bigger than its rig's baked size the body is drawn (moves.ts `Opponent.reachScale`): its blade sweep and its tables' reach grow by it. Absent = 1
   regen: number;   // stamina regeneration multiplier (moves.ts `Opponent.regen`; 1 = a man)
   speed: number;   // pace multiplier: walking, sprinting, the wind-up lunge and the backstep (moves.ts `Opponent.speed`; 1 = a man)
   poise: number;   // a plain clean hit dealing less than this never staggers this fighter (moves.ts `Opponent`); 0 = human
@@ -129,10 +130,20 @@ export const withGambit = (duel: Duel, seed: number): Duel => ({ ...duel, gambit
 export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.atan2(body.z, body.x) + Math.PI * FULL_TURN) % (Math.PI * FULL_TURN)) / (Math.PI / LORARIUS_SECTORS));
 
 // Every move / path lookup for a fighter goes through its weapon.
-export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
+// RV77: a body drawn bigger than its rig's baked size (the Goblin at 1.25, archetype-defs.json `reachScale`) reaches that much further: its tables' reach and minReach scale, so the stop band, the brain's range reads and the in-reach gates all follow the body.
+// Absent (every other fighter) hands back the weapon's own table untouched, so nothing else moves.
+const REACHED = new Map<string, ReturnType<typeof weaponOf>['moves']>();
+export const movesOf = (f: Pick<Fighter, 'weapon' | 'reachScale'>) => {
+  const moves = weaponOf(f.weapon).moves, k = f.reachScale;
+  if (k === undefined || k === 1) return moves;
+  const key = `${f.weapon}:${k}`;
+  let scaled = REACHED.get(key);
+  if (!scaled) { scaled = Object.fromEntries(Object.entries(moves).map(([id, m]) => [id, { ...m, reach: m.reach * k, ...(m.minReach === undefined ? {} : { minReach: m.minReach * k }) }])) as typeof moves; REACHED.set(key, scaled); }
+  return scaled;
+};
 export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
-export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => ({ ...createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools), ...(o.sheet ? { sheet: o.sheet } : {}) });   // a row's `sheet` (the Cave Troll's attack dial 20 = +20% damage): the creature's own dials, read like a hero's
+export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => ({ ...createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools), ...(o.reachScale !== undefined ? { reachScale: o.reachScale } : {}), ...(o.sheet ? { sheet: o.sheet } : {}) });   // a row's `sheet` (the Cave Troll's attack dial 20 = +20% damage): the creature's own dials, read like a hero's
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
 // 2026-09-25): the opponent waits for the draw (ai.ts), so a taken weapon no longer opens the fight to an attack on tick 0. `skill`: the player's equipped skill.
 // `pose` (seamless step 3, World's signature): start the fight where the hero and the foe ALREADY stand instead of at the pit marks. Metres in the arena's own axes (the caller subtracts the fight circle's
@@ -478,7 +489,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       if (a.age < t.windup || a.age >= t.windup + t.active) continue;
       // A thrust started inside a pole's minimum reach drives the point past the target: it meets nothing (the sweep and the kick have no such hole).
       // Judged from where it started: the lunge closes any gap to touching, so the gap at contact says nothing about where the point went.
-      location = a.attackFrom !== null && a.attackFrom.gap < (def.minReach ?? 0) ? null : bladeImpact(a.rig, a.weapon, pathId, a.age - 1, a.age, before[i].body, a.body, before[j].body, d.body, d.scale);
+      location = a.attackFrom !== null && a.attackFrom.gap < (def.minReach ?? 0) ? null : bladeImpact(a.rig, a.weapon, pathId, a.age - 1, a.age, before[i].body, a.body, before[j].body, d.body, d.scale, a.reachScale);
       // A miss is reported once, as the window closes. A thrust that meets nothing overextends: its clock hangs at full extension for `whiff` ticks
       // (the window-closing tick repeats while stalled, so the report is keyed on the stall not having started).
       if (!location && a.age === t.windup + t.active - 1 && before[i].stall === 0) { events.push({ tick, type: 'AttackMissed', actor: i, move: a.move }); if (a.move === 'thrust') A.stall = R.stopHit.whiff; }

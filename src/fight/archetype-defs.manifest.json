@@ -22,6 +22,7 @@
       },
       "optional": {
         "guard": "object",
+        "builtScale": "number",
         "regen": "number",
         "sheet": "object",
         "speed": "number"

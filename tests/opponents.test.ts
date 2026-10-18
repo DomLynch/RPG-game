@@ -72,13 +72,18 @@ const patient = (d: Duel): Intent => { const w = d.fighters[1], p = d.fighters[0
   if (w.phase === 'attack' && w.move && !w.landed && w.age >= movesOf(w)[w.move].windup + movesOf(w)[w.move].active && gap(d) <= 1.7) return act('light');
   if (w.exhausted && gap(d) <= 1.7) return act('heavy'); return offTheWall(d) ?? idle(); };
 
-// RV77 (Dom 2026-10-18: goblins are 1.25 scale everywhere): ONE number, the catalogue row's render.scale, drives how big he is drawn; the sim capsule follows it through the archetype's `scale` row, which this test holds to it,
-// so a retune of the draw scale cannot leave the capsule behind (render.scale moves, the archetype scale moves with it and RECORD_VERSION with them). His BLADE REACH is deliberately not scaled yet (the derived-reach PR follows).
-test('the goblin\'s capsule follows his draw scale: the archetype scale is the built rig ratio (0.78) times render.scale', async () => {
+// RV77 (Dom 2026-10-18: goblins are 1.25 scale everywhere): ONE number, the catalogue row's render.scale, drives how big he is drawn; the sim follows it through two archetype rows that this test holds to it: `scale` (the capsule) is the
+// rig's built ratio (`builtScale`, 0.78) times it, and his REACH is derived once, in moves.ts, as scale / builtScale. So a retune of the draw scale cannot leave the capsule or the reach behind (render.scale moves, the rows move with it and RECORD_VERSION with them).
+test('the goblin\'s body follows his draw scale: the capsule is builtScale x render.scale, and his reach is derived from it once', async () => {
   const rows = (await import('../src/fight/catalogue-data.ts')).default as readonly { id: string; render: { scale: number } }[];
-  const drawn = rows.find((r) => r.id === 'goblin')!.render.scale;
-  assert.equal(drawn, 1.25);
-  assert.ok(Math.abs(OPPONENTS.goblin.scale - .78 * drawn) < 1e-9, 'the capsule is the built rig ratio (0.78) times the draw scale');
+  const drawn = rows.find((r) => r.id === 'goblin')!.render.scale, G = OPPONENTS.goblin;
+  assert.equal(drawn, 1.25); assert.equal(G.builtScale, .78);
+  assert.ok(Math.abs(G.scale - G.builtScale! * drawn) < 1e-9, 'the capsule is the built rig ratio times the draw scale');
+  assert.equal(G.reachScale, drawn, 'the derived reach follows the draw scale');
+  for (const id of Object.keys(OPPONENTS)) if (id !== 'goblin') assert.equal(OPPONENTS[id as keyof typeof OPPONENTS].reachScale, undefined, `${id} carries no derived reach: only the goblin is drawn bigger than his rig was built`);
+  const k = G.reachScale!, base = WEAPONS.knife.moves, mine = movesOf({ weapon: 'knife', reachScale: k });
+  assert.equal(mine.light_right.reach, base.light_right.reach * k, 'a move reaches that much further');
+  assert.equal(movesOf({ weapon: 'knife' }), base, 'no derived reach hands back the weapon\'s own table untouched');
 });
 
 test('the goblin is set up as the brief asks: knobs on every level (feints, guard 0, disengage, circle, step, interrupt, kick, dash), regen 1.5 and pace 1.2, the knife live', () => {

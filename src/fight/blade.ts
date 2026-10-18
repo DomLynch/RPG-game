@@ -45,9 +45,9 @@ export function bladePose(rig: string, weapon: string, kind: string, age: number
 }
 export type HitLocation = 'head' | 'torso' | 'legs';
 // `targetScale` is the target's body scale (moves.ts `Opponent`): the upright capsule and its regions grow with the man.
-export function bladeImpact(rig: string, weapon: string, kind: string, fromAge: number, toAge: number, before: State, after: State, targetBefore: State, targetAfter: State, targetScale = 1): HitLocation | null {
+export function bladeImpact(rig: string, weapon: string, kind: string, fromAge: number, toAge: number, before: State, after: State, targetBefore: State, targetAfter: State, targetScale = 1, actorScale = 1): HitLocation | null {   // actorScale (RV77): the swinger drawn bigger than its rig's baked size sweeps that much further out from itself (1 = the table as baked)
   const world = (pose: number[], actor: State, target: State) => [0,3].map(offset => {
-    const [x,y,z] = pose.slice(offset,offset+3), c = M.cos(actor.heading), s = M.sin(actor.heading);
+    const [x,y,z] = pose.slice(offset,offset+3).map(v => v * actorScale), c = M.cos(actor.heading), s = M.sin(actor.heading);
     return [actor.x-target.x+x*c+z*s,y,actor.z-target.z+z*c-x*s];
   });
   const a = world(bladePose(rig,weapon,kind,fromAge),before,targetBefore), b = world(bladePose(rig,weapon,kind,toAge),after,targetAfter);

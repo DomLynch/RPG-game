@@ -157,7 +157,7 @@ export type Level = keyof typeof PROFILES;
 // counter-hits, stop-hits, rear hits and charged blows always do. 0 = staggered by everything, the human default.
 // guard: how this man's guard behaves on top of his weapon's (`Fighter.guardProfile`): the Nightborn's parry window is longer than a man's
 // and a parry of his that meets nothing leaves him open longer — the one mechanism behind "bait him" (see OPPONENTS.nightborn).
-export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number; pools?: PoolValues; sheet?: Sheet };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
+export type Opponent = { id: OpponentId; weapon: WeaponId; rig: RigId; scale: number; builtScale?: number; reachScale?: number; health: number; poise: number; profiles: Record<Level, AiProfile>; guard?: Partial<GuardProfile>; regen?: number; speed?: number; pools?: PoolValues; sheet?: Sheet };   // regen: stamina regeneration multiplier; speed: pace multiplier for walking, lunging and stepping (a small fighter is quick on his feet)
 export const ARCHETYPES: Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>> = buildArchetypes(PROFILES, RULES.health) as unknown as Record<(typeof ROSTER)[OpponentId]['archetype'], Omit<Opponent, 'id' | 'weapon' | 'rig'>>;
 
 // Knobs one opponent carries on top of an archetype he shares (the Skeleton is the Centurion's archetype and stays as he was).
@@ -169,7 +169,8 @@ const OWN_KNOBS: Partial<Record<OpponentId, Partial<AiProfile>>> = OWN_KNOBS_ROW
 export const OPPONENTS = Object.fromEntries(Object.entries(ROSTER).map(([id, recipe]) => {
   const base = ARCHETYPES[recipe.archetype], own = OWN_KNOBS[id as OpponentId];
   const profiles = own ? { easy: { ...base.profiles.easy, ...own }, normal: { ...base.profiles.normal, ...own }, hard: { ...base.profiles.hard, ...own } } : base.profiles;
-  return [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...base, ...('pools' in recipe ? { pools: recipe.pools } : {}), profiles }];
+  const grown = base.builtScale === undefined ? undefined : Math.round(base.scale / base.builtScale * 1e6) / 1e6;   // RV77: the ONE place a body's reach is derived: its scale row over the ratio its rig was built at (the Goblin: 0.975 / 0.78 = 1.25); absent = drawn as built, 1
+  return [id, { id, weapon: recipe.weapon, rig: recipe.rig, ...base, ...(grown === undefined || grown === 1 ? {} : { reachScale: grown }), ...('pools' in recipe ? { pools: recipe.pools } : {}), profiles }];
 })) as Record<OpponentId, Opponent>;
 
 // ── The 46-level ladder (Dom via Strategy, 2026-09-27; anchors signed off 09:4x). Difficulty is a LEVEL, 1–46, whatever the opponent: each
