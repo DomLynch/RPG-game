@@ -4,6 +4,9 @@
 
 **Now.** 1. #3130 PASSED @ef4a6d625 (career falloff rows), and #3112 @777931635 PASSED, both for the next batch. 2. **#3122 and #3123 need rebases** (both conflict with II: #3101 changed zone-exit-check.mjs; #3117 the preview-rules count pin). #3123's visibility fix is read OK @b884cc660 (keepVerdict). On the rebased heads: check that only conflict resolution changed, and re-run the VPS soft/off pair for #3122 if the leg logic changed. VPS wait loops: don't `pgrep -f` the command (it matches itself).
 3. **#3131** (World, dungeon enclosure + gates) NOT YET @2be49dcc1: typecheck:tests TS2352 at dungeon.test.ts:107; the cave-mouth gate shows in Zone 1 on a NORMAL build (Lead to rule); the kit.fixed offset fix moves #3033's Bone Hollow walls about 8 m, so stills are owed. On the next head: `node --experimental-strip-types scratchpad/z1kit.ts <wt> [flat]` on trunk vs head and diff (trunk = 1669 lines); `scratchpad/glbnodes.mjs` prints the GLB node offsets.
+4. **IK #3133 @521d54a1c PASSED + candidate:pass** (#3112, #3104, #3119, #3113, #3118, #3130; tree ab09981ab = my recut). After publish: release.json, the writer, presence AND the verifier (world-verify changes) = 521d54a1c.
+5. **#3137** (Web, branch-id allows) NOT YET @2647730b3: 11/13 OK; mobs.ts `x.id === 'mob'` (×2) is a free encounterForms row id, not a closed vocabulary, so it must become a form-row field or the spawn must name its form.
+6. cq-2919 on the VPS works again (Deploy repaired its node_modules link after sweeping cq-gt-3708027c5).
 **PicoClaw:** a report on a Pico nudge starts with "per PICO-<id>" (memory feedback_pico_report_tag).
 
 ## 2026-10-18 ~08:4x (superseded): LIVE = II 4ee9aff6f (verified: release.json, writer, presence, verifier, NRestarts 0). RV76 candidate #3129 @21e257102 PASSED + candidate:pass
