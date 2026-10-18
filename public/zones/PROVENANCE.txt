@@ -1,0 +1,2 @@
+goblin-fortress-landscape.webp, goblin-fortress-portrait.webp, goblin-fortress-panorama.jpg
+Dom's own generation, cleared by Dom 10-18 (his word to Lead, ~17:00: "yes whatever is in the test game"). Used by the goblin-fortress palette's backdrop rows (origins/world/goblin-field-defs.json) and drawn by origins/preview/horizon-dome.ts. Copied byte for byte from origin/zone/goblin-field-dome.

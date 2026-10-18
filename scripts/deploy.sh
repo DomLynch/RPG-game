@@ -378,6 +378,7 @@ POST_PUBLISH_LIVE_CMD="curl --fail --silent -m 8 https://frankendom.com/release.
 # The deferred non-Mac group goes to the GitHub runners (post_publish_ci_start: CI-trusted by tree, else one release-checks dispatch, returns at once); the Mac group below, which can roll the
 # release back, never waits on CI; post_publish_ci_collect then waits for the run and leaves only what CI could not prove for the Mac.
 pp_all="$post_publish"
+if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && "${TAIL_MIN_INTERVAL_S:-0}" =~ ^[1-9][0-9]*$ ]]; then export POST_PUBLISH_DISPATCH=true; fi   # coalesced window (release-train.env): the window's tail dispatches ONE CI run for the newest member, not one per release
 pp_open=$(post_publish_ci_start "$revision" "$post_publish")
 # The Mac rows go first and may undo the release; the outgoing writer is not restored here, so the rollback runs only when this publish left the writer as it was.
 mac_rc=0

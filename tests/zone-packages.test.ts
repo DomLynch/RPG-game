@@ -146,9 +146,10 @@ export function packageProblems(root: string): string[] {
 test('every zone row loads through the loader and passes its rules', () => {
   const rows = zoneRows();
   assert.ok(rows.length >= 2, 'origins/zone-rows has at least Zones 1 and 2');
-  for (const { id, n } of rows) {
+  for (const { id, n, file } of rows as { id: string; n: number; file: string }[]) {
     const z = loadZone(id, true);   // throws for an unregistered or invalid zone (true: unlisted rows are checked too)
-    assert.deepEqual([z.id, z.level], [id, n], `zone${n}.row.json loads under its own number`);
+    const own = (JSON.parse(fs.readFileSync(path.join(repo, 'origins/zone-rows', file), 'utf8')) as { level?: number }).level;   // only an unlisted sandbox zone row may set its own level (A0): the Test Zone's creatures are level 1
+    assert.deepEqual([z.id, z.level], [id, own ?? n], `zone${n}.row.json loads under its own number (or its own level, unlisted only)`);
     assert.deepEqual(zoneProblems(z), [], id);
   }
   assert.deepEqual(allZoneIds(), rows.map((r) => r.id), 'the registry holds every row and nothing else');
