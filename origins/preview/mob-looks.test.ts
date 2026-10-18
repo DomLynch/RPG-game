@@ -6,7 +6,8 @@ import { FOES } from '../region1/content.ts';
 import { ROSTER } from '../../src/roster.ts';
 import { catalogueLook } from '../../src/fight/catalogue-look.ts';
 import { MOB_LOOKS, VARIANTS, mobLook, mobVariant, variantLook } from './mob-looks.ts';
-import { loadZone, zoneIds, type Zone } from '../zones/loader.ts';
+import { loadZone, zoneIds, zoneProblems, type Zone } from '../zones/loader.ts';
+import { loadoutRow, pickLoadout } from '../world/loadouts-rules.ts';
 
 const Z1 = loadZone('1').mobLooks!;   // Zone 1's looks and spreads: the data now lives in its row (the central tables are empty)
 
@@ -87,6 +88,35 @@ test('a zone\'s own mob look wins over the central table, and a zone without one
   assert.equal(variantLook(id, 3, zone), own, 'no spread for the wolf: the look as it is');
   assert.ok(new Set([1, 2, 3, 4, 5, 6, 7].map((v) => variantLook('character:ember-wolf', v, zone)!.tint)).size > 1, 'the zone spread gives a pack its variety');
   assert.equal(variantLook('character:ember-wolf', 3, zone), variantLook('character:ember-wolf', 3, zone), 'the same object every call (the cloth-clone cache)');
+});
+
+test('a look names a loadout: its weapon is the look\'s gear, a camp\'s spread.loadouts dresses variant v in [the look\'s own, ...loadouts][v % length], and the loadout pick and the look agree', () => {
+  const z1 = loadZone('1'), id = 'character:pit-goblin', spreadList = ['goblin.t5.scythe', 'goblin.t6.warhammer', 'goblin.t7.longsword'];
+  const own = { opponent: 'goblin', tint: 0xffffff, scale: 1.25, loadout: 'goblin.t4.gladius', body: 'world/kit/goblin-bare.glb', dressing: { soot: 0, burnt: 0 } };
+  const zone = { ...z1, id: 'test', mobLooks: { looks: { [id]: own }, spread: { [id]: { tints: [0xcccccc, 0xaaaaaa], scale: .08, soot: .1, burnt: .1, loadouts: spreadList } } } } as unknown as Zone;
+  const base = mobLook(id, zone)!;
+  assert.equal(base.loadout, 'goblin.t4.gladius'); assert.equal(base.gear, 'gladius', 'the loadout\'s weapon is the look\'s gear'); assert.equal(base.body, 'world/kit/goblin-bare.glb');
+  assert.equal(variantLook(id, 0, zone), base, 'variant 0 IS the look\'s own loadout');
+  const list = ['goblin.t4.gladius', ...spreadList], seen = new Set<string | undefined>();
+  for (let v = 0; v < VARIANTS; v++) {
+    const l = variantLook(id, v, zone)!;
+    assert.equal(l.loadout, list[v % list.length], `variant ${v}`);
+    assert.equal(l.gear, loadoutRow(l.loadout)!.weapon, `variant ${v}: gear follows the loadout`);
+    assert.equal(l.body, 'world/kit/goblin-bare.glb', 'the body path rides every variant');
+    seen.add(l.loadout);
+  }
+  assert.ok(seen.size > 1, 'a camp wears more than one loadout');
+  for (const creature of ['pit-goblin-1', 'pit-goblin-2', 'camp-a:7', 'x']) assert.equal(mobVariant(id, creature, zone)!.loadout, pickLoadout(id, creature, own.loadout, spreadList), `${creature}: the look's loadout is the one pickLoadout (and so the server) picks`);
+  assert.equal(variantLook(id, 3, { ...zone, id: 'test-no-list', mobLooks: { looks: { [id]: own }, spread: { [id]: { tints: [0xcccccc], scale: .08, soot: .1, burnt: .1 } } } } as unknown as Zone)!.loadout, 'goblin.t4.gladius', 'no spread.loadouts: every variant wears the look\'s own');
+});
+
+test('the zone checks a look\'s loadout, a spread\'s loadout list and a look\'s body path', () => {
+  const z = loadZone('1'), id = Object.keys(z.mobLooks!.looks)[0]!, problems = (looks: object, spread: object = {}) => zoneProblems({ ...z, mobLooks: { looks: { ...z.mobLooks!.looks, [id]: { ...z.mobLooks!.looks[id], ...looks } }, spread: { ...z.mobLooks!.spread, ...spread } } } as unknown as Zone).join('|');
+  assert.equal(problems({}), '', 'the shipped zone is clean');
+  assert.match(problems({ loadout: 'goblin.nope' }), /not a loadout row/);
+  assert.match(problems({ body: '../evil.glb' }), /body is a world\/kit/);
+  assert.equal(problems({ body: 'world/kit/goblin-bare.glb', loadout: 'goblin.t4.gladius' }), '');
+  assert.match(problems({}, { [id]: { tints: [0xffffff], scale: 0, soot: 0, burnt: 0, loadouts: ['goblin.nope'] } }), /list of loadout row ids/);
 });
 
 test('an omitted scale is the body\'s own (its catalogue render.scale), a literal scale wins, and the answer is one object per row', () => {
