@@ -87,6 +87,7 @@ import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
+import { sconcePool, type KitLights, type SconceLights } from './kit-light.ts';
 
 // The walk out (Origins look prototype): the Ash Pit exactly as the game builds it, its light recipe from scene.ts, then the passage, the
 // Concord Exchange and the bank's front in greybox. You walk it: drag (up walks, sideways turns) or WASD / arrows. No tour (Dom 2026-10-06).
@@ -147,10 +148,10 @@ const groundItems = createGroundItemView({ scene, groundAt: groundY, assetOf: (i
 if (frontierParts) for (const c of camps) frontierParts.solids.push(...c.solids);
 const exchangePieces = frontier ? openWest(exchangePlan(), exchangeAnchors(), frontier.road.from.z, frontier.road.width / 2 + 0.3) : undefined;
 const arena = buildArena(scene, theme), exchange = buildExchange(scene, arena.materials, exchangePieces);
-let frontierGroup: THREE.Group | null = null;
+let frontierGroup: THREE.Group | null = null, torches: SconceLights | null = null;   // torches: the kit's sconce lights (kit-light.ts), set when the kit file has loaded
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
-  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {});   // a failed kit file only leaves the ground bare
+  if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => { frontierGroup?.add(g); if (g.userData.lights) torches = sconcePool(g.userData.lights as KitLights); }).catch((e) => { console.warn('kit failed', e); });   // a failed kit file only leaves the ground bare
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
 // ?region=1: the Frontier's creatures (mobs.ts, drawn by mobs-view.ts). Their chunk and their body files are fetched only once the walker first
@@ -602,7 +603,8 @@ const walkLoop = () => {
   step(dt); doorWatch?.update(state.x, state.z); warmUpload(time); zoneReadyCheck(); arena.update(dt, [], camera); exchange.update(time);
   fires?.update(time, state, warm);   // the camps' flames, and the Exchange's brazier lights lent to the nearest camps while the walker is among them (camp-fire.ts)
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
-  warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
+  torches?.update(time, state, warm);   // the kit's sconces borrow the braziers' lights while the walker is among them (kit-light.ts); a borrowed light is not flickered as a brazier
+  warm.forEach((l, i) => { if (torches?.lends(l)) return; l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
   camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
   renderer.render(scene, camera);
