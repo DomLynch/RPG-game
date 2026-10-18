@@ -6,6 +6,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 const out = path.resolve(process.argv[2] ?? 'artifacts/dungeon-kit'), nodes = process.argv.length > 3 ? process.argv.slice(3) : ['cave_wall', 'cave_doorway', 'bone_pile'];
+// an argument `asm:run` (also turn, room, vault) shoots that assembly of halls pieces instead of one node; the halls set is: hall_floor hall_ceiling hall_vault hall_wall hall_corner wall_sconce asm:run asm:turn asm:vault asm:room
 fs.mkdirSync(out, { recursive: true });
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
@@ -15,9 +16,9 @@ try {
   for (const node of nodes) {
     const page = await (await browser.newContext({ viewport: { width: 375, height: 560 }, isMobile: true, hasTouch: true })).newPage();
     const errors = []; page.on('pageerror', (e) => errors.push(String(e).slice(0, 200))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
-    await page.goto(`${base}?node=${node}`, { waitUntil: 'load' });
+    await page.goto(node.startsWith('asm:') ? `${base}?asm=${node.slice(4)}` : `${base}?node=${node}`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.ready === true, null, { timeout: 240000 }).catch(() => { throw new Error(`not ready: ${errors.join(' | ')}`); });
-    for (const v of ['front', 'quarter', 'side']) { await page.evaluate((view) => window.view(view), v); await page.screenshot({ path: path.join(out, `${node}-${v}.png`) }); }
+    for (const v of ['front', 'quarter', 'side']) { await page.evaluate((view) => window.view(view), v); await page.screenshot({ path: path.join(out, `${node.replace(':', '-')}-${v}.png`) }); }
     console.log('result:', JSON.stringify(await page.evaluate(() => window.result)), 'errors:', errors.length, errors.slice(0, 3));
     await page.close();
   }

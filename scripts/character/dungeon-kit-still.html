@@ -6,30 +6,61 @@
 <script type="module">
 // One node of the dungeon kit (public/world/kit/dungeon-kit.glb, meshopt-packed by scripts/pack-world-body.mjs) close up (?node=cave_wall), next to a 1.8 m stand-in for a person, three views. Driven by
 // scripts/character/dungeon-kit-still.mjs (window.ready flips true). Same framing as the fort kit's stills.
+// The halls pieces (hall_floor, hall_ceiling, hall_vault, hall_wall, hall_corner, wall_sconce) stand on the 4 m cell grid, so the roof pieces and the sconce are shown IN PLACE on a wall run (?node=hall_vault),
+// and ?asm= shows an assembly that proves the joins: run (three wall runs and floor tiles end to end), turn (a corner and its two arms), room (a closed cell: three walls, floor, ceiling, a lit sconce).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
+const params = new URLSearchParams(location.search), asm = params.get('asm'), name = params.get('node') ?? 'cave_wall';
 const canvas = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight, false);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b5a46);
-scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, 2.2); sun.position.set(3, 5, 4); scene.add(sun);
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const dim = asm === 'room' || name === 'wall_sconce';   // the sconce stills are shot in the dark: the torch has to carry the light
+scene.add(new THREE.HemisphereLight(0xfff0dd, 0x302820, dim ? 0.5 : 1.4)); const sun = new THREE.DirectionalLight(0xffe6c0, dim ? 0.3 : 2.2); sun.position.set(3, 5, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x55603a })); ground.rotation.x = -Math.PI / 2; ground.position.y = -0.3; scene.add(ground);
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 400);
-const name = new URLSearchParams(location.search).get('node') ?? 'cave_wall';
 const kit = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/public/world/kit/dungeon-kit.glb');
-let node; kit.scene.traverse((o) => { if (o.name === name && !node) node = o; });
-if (!node) throw new Error(`no node ${name}`);
-const piece = node.clone(); piece.position.set(0, 0, 0); scene.add(piece);
-const box = new THREE.Box3().setFromObject(piece), size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
-piece.position.x -= centre.x; piece.position.z -= centre.z; piece.position.y -= box.min.y;
-const person = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.8, 12), new THREE.MeshStandardMaterial({ color: 0x884433 })); person.position.set(size.x / 2 + 0.9, 0.9, 0.4); scene.add(person);
-const mid = new THREE.Vector3(0, size.y / 2, 0), radius = Math.hypot(size.x + 2, size.y) / 2;
+const find = (n) => { let f; kit.scene.traverse((o) => { if (o.name === n && !f) f = o; }); if (!f) throw new Error(`no node ${n}`); return f; };
+const world = new THREE.Group(); scene.add(world);
+// place one kit node on the cell grid: its ground-centre origin at (cx, cz) metres, turned `deg` about y (the kit's own row offset is dropped)
+const put = (n, cx, cz, deg = 0) => { const p = find(n).clone(); p.position.set(cx, 0, cz); p.rotation.y = THREE.MathUtils.degToRad(deg); world.add(p); return p; };
+let person = new THREE.Vector3(), sconceLight = null;
+const lightOf = (obj) => { obj.updateWorldMatrix(true, true); obj.traverse((o) => { if (o.name === 'sconce_light' && o.userData.light && !sconceLight) sconceLight = o; }); };
+if (asm === 'run') {
+  for (const x of [-4, 0, 4]) { put('hall_wall', x, 0); put('hall_floor', x, 0); }
+  person.set(0, 0.9, 0.2);
+} else if (asm === 'turn') {
+  put('hall_corner', 0, 0); put('hall_wall', 4, 0); put('hall_wall', 0, 4, 90);
+  for (const [x, z] of [[0, 0], [4, 0], [0, 4]]) put('hall_floor', x, z);
+  person.set(2, 0.9, 2);
+} else if (asm === 'room') {
+  put('hall_corner', 0, 0); put('hall_wall', 0, 0, -90); put('hall_floor', 0, 0); put('hall_ceiling', 0, 0);
+  lightOf(put('wall_sconce', 0.0, -1.2));
+  person.set(0.6, 0.9, 0.4);
+} else if (asm === 'vault') {
+  put('hall_wall', 0, 0, 90); put('hall_wall', 0, 0, -90); put('hall_floor', 0, 0); put('hall_vault', 0, 0);
+  person.set(0, 0.9, 0);
+} else {
+  const piece = put(name, 0, 0);
+  if (name === 'hall_ceiling' || name === 'hall_vault') { world.remove(piece); put('hall_wall', 0, 0, 90); put('hall_wall', 0, 0, -90); put('hall_floor', 0, 0); world.add(piece); }
+  if (name === 'wall_sconce') { world.remove(piece); put('hall_wall', 0, 0); put('hall_floor', 0, 0); lightOf(put('wall_sconce', 0, -1.2)); }
+  if (['cave_wall', 'cave_doorway', 'bone_pile', 'lantern', 'hall_wall', 'hall_corner', 'hall_floor'].includes(name)) {   // a lone piece stands on the ground, centred; a 1.8 m person beside it
+    piece.position.set(0, 0, 0); const b = new THREE.Box3().setFromObject(piece), c = b.getCenter(new THREE.Vector3());
+    piece.position.set(-c.x, name === 'hall_floor' ? 0.25 : -b.min.y, -c.z);
+    const s = b.getSize(new THREE.Vector3()); person.set(s.x / 2 + 0.9, 0.9, 0.4);
+  } else person.set(2.9, 0.9, 1.4);
+}
+const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.8, 12), new THREE.MeshStandardMaterial({ color: 0x884433 })); stand.position.copy(person); scene.add(stand);
+world.updateMatrixWorld(true);
+if (sconceLight) { const p = new THREE.Vector3(); sconceLight.getWorldPosition(p); const l = JSON.parse(sconceLight.userData.light); const torch = new THREE.PointLight(new THREE.Color(l.color), 14 * l.intensity, l.reach, 2); torch.position.copy(p); scene.add(torch); }
+const box = new THREE.Box3().setFromObject(world).union(new THREE.Box3().setFromObject(stand)), size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
+const mid = centre.clone(), radius = Math.hypot(size.x, size.y, size.z * 0.6) / 2 + 0.6;
 const fit = radius / Math.sin(Math.min(THREE.MathUtils.degToRad(camera.fov / 2), Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect)));
-const look = (yaw, pitch) => { camera.position.set(Math.sin(yaw) * Math.cos(pitch) * fit, mid.y + Math.sin(pitch) * fit, Math.cos(yaw) * Math.cos(pitch) * fit); camera.lookAt(mid); };
+const look = (yaw, pitch) => { camera.position.set(mid.x + Math.sin(yaw) * Math.cos(pitch) * fit, mid.y + Math.sin(pitch) * fit, mid.z + Math.cos(yaw) * Math.cos(pitch) * fit); camera.lookAt(mid); };
 const frame = async (n = 3) => { for (let i = 0; i < n; i++) { renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); } };
 look(0, 0.12); await frame();
-window.result = { name, size: [size.x, size.y, size.z].map((v) => +v.toFixed(2)), programs: renderer.info.programs.length };
+window.result = { name: asm ?? name, size: [size.x, size.y, size.z].map((v) => +v.toFixed(2)), programs: renderer.info.programs.length, lit: !!sconceLight };
 window.view = async (v) => { if (v === 'quarter') look(0.8, 0.2); else if (v === 'side') look(1.57, 0.12); else look(0, 0.12); await frame(); };
 window.ready = true;
 </script>
