@@ -12,9 +12,7 @@ import LOOT from '../region1/loot-tables.json' with { type: 'json' };
 
 /** A room's roof (Dom 2026-10-18): `open` is the stone approach under the sky, `closed` an underground hall with ceiling, floor, joined walls and torchlight. The entrance room is always open; a room with no `roof` is open. */
 export type Roof = 'open' | 'closed';
-export const ROOFS: readonly Roof[] = ['open', 'closed'];
-const MIN_CELLS = 3;   // a closed room's fewest cells a side: a wall is left standing each side of a doorway (the wall's structure, not a tuning value)
-type At = { readonly u: number; readonly v: number; readonly facing: number };
+export const ROOFS: readonly Roof[] = ['open', 'closed'];type At = { readonly u: number; readonly v: number; readonly facing: number };
 export type DungeonRoom = { readonly id: string; readonly at: At; readonly piece: string; readonly links: readonly string[]; readonly size?: { readonly w: number; readonly d: number }; readonly roof?: Roof };   // size (m): the room's walled footprint across (w) and deep (d), centred on its landmark; absent = the theme's default room
 export type DungeonCreature = { readonly id: string; readonly level: readonly [number, number]; readonly loot: string; readonly named?: boolean; readonly [k: string]: unknown };
 export type DungeonEncounter = { readonly id: string; readonly room: string; readonly creature: string };
@@ -35,7 +33,7 @@ export type Enclosure = {
 /** How a theme builds a CLOSED room (`enclosure.hall`, Characters' halls kit): a grid of `cell` m cells, each with a floor and a ceiling piece, a wall piece on every perimeter edge (`corner` where two meet), `doorCells` cells left open
  *  where a link leaves, a `sconce` on every `sconceEvery`th wall cell at `wallFace` m from the cell centre (the wall's inner face), and two invisible walk-blocking circles (`block.r` m, `block.along` m either side of the cell's middle) on each wall's outer edge. */
 export type Hall = {
-  readonly cell: number; readonly floor: string; readonly ceiling: string; readonly wall: string; readonly corner: string; readonly sconce: string; readonly sconceEvery: number; readonly wallFace: number; readonly doorCells: number;
+  readonly cell: number; readonly minCells: number; readonly floor: string; readonly ceiling: string; readonly wall: string; readonly corner: string; readonly sconce: string; readonly sconceEvery: number; readonly wallFace: number; readonly doorCells: number;
   readonly block: { readonly r: number; readonly along: number };
 };
 export type DungeonTheme = { readonly id: string; readonly look: Readonly<Record<string, unknown>>; readonly pieces: Readonly<Record<string, string>>; readonly enclosure?: Enclosure & { readonly hall?: Hall } };
@@ -66,7 +64,7 @@ function checkDungeon(d: Dungeon, theme: DungeonTheme, exits: readonly ExitLite[
     if (r.roof === 'closed') {
       const enc = theme.enclosure;
       if (!enc?.hall) fail(d, `room "${r.id}" is closed but theme "${theme.id}" has no enclosure.hall`);
-      else { const { nx, nd } = hallCells(r, enc); if (!Number.isInteger(nx) || !Number.isInteger(nd) || nx < MIN_CELLS || nd < MIN_CELLS) fail(d, `room "${r.id}": a closed room is a whole number of ${enc.hall.cell} m cells, at least ${MIN_CELLS} a side (it is ${nx} x ${nd})`); }
+      else { const { nx, nd } = hallCells(r, enc); if (!Number.isInteger(nx) || !Number.isInteger(nd) || nx < enc.hall.minCells || nd < enc.hall.minCells) fail(d, `room "${r.id}": a closed room is a whole number of ${enc.hall.cell} m cells, at least ${enc.hall.minCells} a side (it is ${nx} x ${nd})`); }
     }
     for (const l of r.links) { const o = rooms.get(l); if (!o) fail(d, `room "${r.id}" links to "${l}", which is not a room`); else if (!o.links.includes(r.id)) fail(d, `room "${r.id}" links to "${l}" but "${l}" does not link back`); }
   }
