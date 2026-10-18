@@ -1,5 +1,17 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~11:xx: READ FIRST. The Oct 18 external audit (Dom asked me to review it and fix it; Strategy aligned). LIVE = IK 521d54a1c (verified: release.json, writer, presence, verifier, NRestarts 0)
+
+**Verified live (VPS, read-only):** `ORIGINS_WORLD_RECORD_SCORECARD_ONLY` and `ORIGINS_SPAWN_REFUSE_UNCHECKED` are both UNSET. Writer log (/var/log/frankendom-origins-writer.log): 5 world kills, all `reach=unchecked`, 4 with no record, 1 `not verified (sheet)`, all paid; 2 ground_takes also unchecked. The writer→presence link is healthy (same key sha, /internal/where 200), and presence has real joins.
+**Root causes (code-traced):** no record = world-combat.ts opens a window only on an EMPTY loop with a rested hero, and passive creatures within aggro+3 m keep the loop full (P0-b, Combat). 'sheet' = the sheet frozen at window open or the loadout gate timing out. Unchecked = unknown until #3145's log (offline / guest socket / other-zone).
+**My PRs (each with Lead's named reviewer; I can't PASS my own):**
+- **#3145** P0-a @931839edd (Backend reads): reachOf why-logging, strictFlip row (50 kills ≥95%), /internal/world-records {reach, flip}, guest + wrong-creature acceptance tests, launch-gates "World rewards" V1/V2/V3 with the readout note (restart zeroes the counters; read before the flip restart).
+- **#3146** F3 @4b6db65c3 (Web reads; merge it FIRST, then Web re-pins its preview-rules count): durable per-account outbox (outbox-store.ts), engage-time account, backoff rows outboxRetry/Max/Growth (count 98→101), restored nextAt clamped, cross-tab re-read.
+- **#3148** F5 @f88c7b8d7: append-only tests/fixtures/era-records.json (9 eras, v31..v76); every future RV bump must run `node scripts/record-era-fixtures.mjs --append`.
+**Rulings (Strategy 2026-10-18):** the strict flip is a BETA-OPENING gate (V1/V2); no interim withholding of drops before the wipe (re-ruled if Dom says no wipe); P0-b ranks with the specials slices (Lead slots it); F4/F6/F7/F8 not done (F6: Lead agrees no action).
+**Next:** after #3145 is live, read the writer log's unchecked whys and fix the presence cause; audit Combat's P0-b WSV bump (battery: the wolf pack in sequence, every kill records and verifies); phase 2 receipt-on-409 is Backend's.
+**Gotchas.** (eee) The verifier DB role can't read origins_spawn_engages; don't escalate for it. (fff) `pgrep -f` in a VPS wait loop matches itself. (ggg) zsh: `$T:path` is a modifier, use `"${T}:path"`. (hhh) A regex pin on a long main.ts call (`[^}]*`) breaks when you add an object spread before the pinned key: append new options at the END of the call.
+
 ## 2026-10-18 ~09:1x: READ FIRST. LIVE = RV76 21e257102 (verified: release.json, writer, presence, verifier; NRestarts 0)
 
 **Now.** 1. #3130 PASSED @ef4a6d625 (career falloff rows), and #3112 @777931635 PASSED, both for the next batch. 2. **#3122 and #3123 need rebases** (both conflict with II: #3101 changed zone-exit-check.mjs; #3117 the preview-rules count pin). #3123's visibility fix is read OK @b884cc660 (keepVerdict). On the rebased heads: check that only conflict resolution changed, and re-run the VPS soft/off pair for #3122 if the leg logic changed. VPS wait loops: don't `pgrep -f` the command (it matches itself).
