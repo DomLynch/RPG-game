@@ -2,27 +2,8 @@
  "origins/npcs/row.ts": {
   "'shop'": 1
  },
- "origins/preview/ground-pickup.ts": {
-  "'ground'": 1,
-  "'refuse'": 1
- },
- "origins/preview/main.ts": {
-  "'loot'": 1,
-  "'fight'": 1,
-  "'ground'": 2,
-  "'bounty'": 1
- },
- "origins/preview/mobs-view.ts": {
-  "'late'": 1
- },
  "origins/preview/mobs.ts": {
   "'mob'": 2
- },
- "origins/preview/play.ts": {
-  "'bounty'": 2
- },
- "origins/preview/remote-cheap.ts": {
-  "'cheap'": 1
  },
  "origins/region1/load.ts": {
   "'common'": 1,
