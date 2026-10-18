@@ -2,13 +2,16 @@
 // the caller decides what unverified pays. Limits: a busy legal fight replays in ~1 s, so one worker verifies about 1 kill/s. Size the pool from real kill rates before the flag ever goes on.
 import { Worker } from 'node:worker_threads';
 import type { Verdict, VerifyJob } from './world-verify.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+
+const CALLS = SERVER_RULES.callTimeouts[0]!;   // verifyQueueMax and verifyJobMs: rows of the callTimeouts table
 
 export type WorkerLike = { postMessage(m: unknown): void; terminate(): unknown; on(ev: 'message' | 'error' | 'exit', fn: (a: never) => void): unknown };
 export type VerifyPool = { verify(job: VerifyJob): Promise<Verdict>; close(): void; stats(): { queued: number; running: boolean; respawns: number } };
 
 export function createVerifyPool(o: { make?: () => WorkerLike; queue?: number; timeoutMs?: number } = {}): VerifyPool {
   const make = o.make ?? ((): WorkerLike => new Worker(new URL('./world-verify-worker.ts', import.meta.url)) as unknown as WorkerLike);
-  const max = o.queue ?? 16, timeoutMs = o.timeoutMs ?? 3000;
+  const max = o.queue ?? CALLS.verifyQueueMax, timeoutMs = o.timeoutMs ?? CALLS.verifyJobMs;
   type Item = { job: VerifyJob; resolve: (v: Verdict) => void };
   const queue: Item[] = [];
   let w: WorkerLike | null = null, cur: { id: number; item: Item; timer: ReturnType<typeof setTimeout> } | null = null, seq = 0, closed = false, respawns = 0;

@@ -10,11 +10,14 @@ import { openAccount, type Handler } from './handlers.ts';
 import * as store from './store.ts';
 import { career, eventId, factsOf, field, journalOf, must, ownCharacter, questBatch, talkOf, type Clock, type StoryContent } from './story.ts';
 import type { Json } from './store.ts';
+import SERVER_RULES from './server-rules.json' with { type: 'json' };
+
+const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
 
 export function talkPick(content: StoryContent | null, now: Clock = () => new Date()): Handler {
   return async (ctx, body) => {
     if (!content) throw new Refused(503, 'talk is not loaded: the writer is not ready');
-    const npc = field(body.npc, 'npc', 120) as CharacterId, lineId = field(body.line, 'line', 64);
+    const npc = field(body.npc, 'npc', INPUT.npcIdChars) as CharacterId, lineId = field(body.line, 'line', INPUT.lineIdChars);
     const talk = content.talks.get(npc);
     if (!talk) throw new BadRequest(`npc: ${npc} has nothing to say`);
     const snap = await openAccount(ctx);

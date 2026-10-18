@@ -20,6 +20,7 @@ import * as store from './store.ts';
 import SERVER_RULES from './server-rules.json' with { type: 'json' };
 
 const LIMITS = SERVER_RULES.serverLimits[0]!;
+const INPUT = SERVER_RULES.inputLimits[0]!;   // the longest each request id may be (rows of the inputLimits table)
 // The cut-off (the gearImport row): the migration closes at this instant and refuses everything after it. A row that is not a date is a load error, never an open-forever import.
 export const CLOSES_AT_MS = Date.parse(SERVER_RULES.gearImport[0]!.closesAt);
 if (!Number.isFinite(CLOSES_AT_MS)) throw new Error('server-rules gearImport.closesAt is not a date');
@@ -27,7 +28,7 @@ export const MAX_OWNED = LIMITS.maxOwned;   // src/loot.ts knows ~75 pieces; the
 export type ImportReceipt = { imported: string[]; alreadyHeld: string[]; skipped: { lootId: string; reason: string }[]; worn: string[]; bank: string[]; unworn: { lootId: string; reason: string }[]; replayed: boolean };
 const DOLLS = new Set(Object.keys(PAPERDOLL));
 
-const listOf = (v: unknown): string[] => { if (!Array.isArray(v) || v.length > MAX_OWNED || v.some((x) => typeof x !== 'string' || x.length > 40)) throw new BadRequest(`owned: up to ${MAX_OWNED} LootIds`); return v as string[]; };
+const listOf = (v: unknown): string[] => { if (!Array.isArray(v) || v.length > MAX_OWNED || v.some((x) => typeof x !== 'string' || x.length > INPUT.lootIdChars)) throw new BadRequest(`owned: up to ${MAX_OWNED} LootIds`); return v as string[]; };
 const mapOf = (v: unknown, name: string): Record<string, unknown> => { if (v === undefined || v === null) return {}; if (typeof v !== 'object' || Array.isArray(v)) throw new BadRequest(`${name}: an object`); return v as Record<string, unknown>; };
 
 // The plan: the instances to mint (with their places) and the receipt, from what the character holds now. Pure; the caller commits.
@@ -98,7 +99,7 @@ export function gearImportHandler(content: Content, now: () => number = Date.now
   return async ({ db, account }, body) => {
     if (now() >= CLOSES_AT_MS) throw new Refused(422, 'gear import is closed: the migration window ended at beta open', 'closed');   // the gearImport row; nothing after it is read, minted or replayed
     const character = body.character;
-    if (typeof character !== 'string' || character.length > 80) throw new BadRequest('character: a character id');
+    if (typeof character !== 'string' || character.length > INPUT.characterIdChars) throw new BadRequest('character: a character id');
     const input = { owned: listOf(body.owned), equipped: mapOf(body.equipped, 'equipped'), tiers: mapOf(body.tiers, 'tiers') };
     const { inventory, snap } = await openHoldingsWith(db, account, character, content);
     // every legacy mint key this ACCOUNT ever minted (any of its characters; live, retired or traded away): mint_key is unique across ALL rows and items are never deleted, so a migrated piece
