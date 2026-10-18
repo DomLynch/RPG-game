@@ -12,7 +12,7 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export const canon = (v) => `${JSON.stringify(v, null, 2)}\n`;
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 export const SCHEMA = 1;
-export const FILES = ['zone.row.json', 'dungeon.row.json', 'theme.row.json', 'exits.json', 'warps.json'];   // the only names a package folder may hold, besides package.json
+export const FILES = ['zone.row.json', 'dungeon.row.json', 'theme.row.json', 'biome.row.json', 'exits.json', 'warps.json'];   // the only names a package folder may hold, besides package.json
 export const NAMED_RULES = ['maxFiles', 'maxFileBytes', 'maxExits', 'maxWarps', 'maxCreatures', 'maxRooms'];
 const EXIT_FIELDS = { id: 'string', zone: 'string', landmark: 'string', to: 'string', arrive: 'string', warp: 'string', radiusM: 'number', arriveM: 'number', label: 'string' };
 const WARP_FIELDS = { id: 'string', x: 'number', z: 'number', unit: 'string' };
@@ -68,6 +68,10 @@ export function validatePackage(files, ctx) {
   if (!same(m.inbound?.exits ?? [], (ex.inbound ?? []).map((e) => e.id))) bad.push('manifest inbound.exits does not match exits.json');
   if ((m.owns?.dungeon ?? null) !== (dungeon?.id ?? null)) bad.push('manifest owns.dungeon does not match dungeon.row.json');
   if ((m.owns?.theme ?? null) !== (theme?.id ?? null)) bad.push('manifest owns.theme does not match theme.row.json');
+  const biome = rows['biome.row.json'];   // a biome the package brings: { id, spec } (the spec in the shape of a biomes.json row); merged into the biome table through biomes.packages.json
+  if ((m.owns?.biome ?? null) !== (biome?.id ?? null)) bad.push('manifest owns.biome does not match biome.row.json');
+  if (biome && (typeof biome.id !== 'string' || !biome.spec || typeof biome.spec !== 'object' || Array.isArray(biome.spec))) bad.push('biome.row.json must be { id: string, spec: object }');
+  if (biome && JSON.stringify(Object.keys(biome).sort()) !== '["id","spec"]') bad.push('biome.row.json holds only id and spec');
   if (!same(m.owns?.warps ?? [], warps.map((w) => w.id))) bad.push('manifest owns.warps does not match warps.json');
   // 4. assets: a local path under public/ (/world/ or /arena/) that exists; never a remote url, a scheme, a .. or a protocol-relative url
   for (const u of [...new Set([...urlsIn(zone), ...urlsIn(theme), ...(m.uses?.kit ?? [])])]) {
@@ -79,6 +83,7 @@ export function validatePackage(files, ctx) {
   clash('zone', String(m.zone), ctx.existing.zones);
   if (dungeon) clash('dungeon', dungeon.id, ctx.existing.dungeons);
   if (theme) clash('theme', theme.id, ctx.existing.themes);
+  if (biome && typeof biome.id === 'string') clash('biome', biome.id, ctx.existing.biomes);
   for (const e of ex.owned ?? []) clash('exit', e.id, ctx.existing.exits);
   for (const e of ex.inbound ?? []) clash('exit', e.id, ctx.existing.exits);
   for (const w of warps) clash('warp', w.id, ctx.existing.warps);
@@ -96,7 +101,8 @@ export function readPackages(root = ROOT) {
 /** Everything the packages generate: { relative path: text }. Throws on any package problem or a clash between two packages. */
 export function generate(root = ROOT) {
   const pkgs = readPackages(root), rules = loadRules(JSON.parse(readFileSync(join(root, 'origins/zones/package-rules.json'), 'utf8')));
-  const out = {}, tables = { exits: [], dungeons: [], themes: [] }, zones = [], seen = { zones: new Set(), exits: new Set(), dungeons: new Set(), themes: new Set(), warps: new Set() };
+  const baseBiomes = Object.keys(JSON.parse(readFileSync(join(root, 'origins/zones/biomes.json'), 'utf8')).biomes);   // the presets that are not packages (biomes.json, hand-edited)
+  const out = {}, tables = { exits: [], dungeons: [], themes: [] }, biomes = {}, zoneBiomes = [], zones = [], seen = { zones: new Set(), exits: new Set(), dungeons: new Set(), themes: new Set(), warps: new Set(), biomes: new Set(baseBiomes) };
   for (const p of pkgs) {
     const bad = validatePackage(p.files, { rules, mode: 'generate', existing: seen, replace: new Set(), publicHas: (u) => existsSync(join(root, 'public', u)) });
     if (bad.length) throw new Error(`package "${p.id}": ${bad.join('; ')}`);
@@ -106,12 +112,16 @@ export function generate(root = ROOT) {
     for (const e of [...ex.inbound, ...ex.owned]) { tables.exits.push(e); seen.exits.add(e.id); }   // the door in from the far zone first, then the door out: the order the shared table has always had (the unlisted-crypt test pins it)
     if (p.files['dungeon.row.json']) { const d = JSON.parse(p.files['dungeon.row.json']); tables.dungeons.push(d); seen.dungeons.add(d.id); }
     if (p.files['theme.row.json']) { const t = JSON.parse(p.files['theme.row.json']); tables.themes.push(t); seen.themes.add(t.id); }
+    if (p.files['biome.row.json']) { const b = JSON.parse(p.files['biome.row.json']); biomes[b.id] = b.spec; seen.biomes.add(b.id); }
+    const zb = JSON.parse(p.files['zone.row.json']).biome; if (typeof zb === 'string') zoneBiomes.push([p.id, zb]);
     zones.push(m.zone);
   }
+  for (const [id, b] of zoneBiomes) if (!seen.biomes.has(b)) throw new Error(`package "${id}" names biome "${b}", which neither biomes.json nor a package carries`);
   for (const d of tables.dungeons) if (!seen.themes.has(d.theme)) throw new Error(`dungeon "${d.id}" uses theme "${d.theme}", which no package carries`);
   out['origins/zones/exit-rows.json'] = canon({ generated: GENERATED, exits: tables.exits });
   out['origins/zones/dungeon-rows.json'] = canon({ generated: GENERATED, dungeons: tables.dungeons });
   out['origins/zones/dungeon-themes.json'] = canon({ generated: GENERATED, themes: tables.themes });
+  out['origins/zones/biomes.packages.json'] = canon({ generated: GENERATED, biomes });   // read by biomes.ts beside biomes.json; an id in both is refused there
   return out;
 }
 export const writeGenerated = (root = ROOT) => { const out = generate(root); for (const [f, t] of Object.entries(out)) { mkdirSync(join(root, f, '..'), { recursive: true }); writeFileSync(join(root, f), t); } return Object.keys(out); };
@@ -120,8 +130,9 @@ export const writeGenerated = (root = ROOT) => { const out = generate(root); for
 export function existingIds(root = ROOT) {
   const table = (file, at) => (existsSync(join(root, file)) ? (JSON.parse(readFileSync(join(root, file), 'utf8'))[at] ?? []) : []);
   const ids = (list, key = 'id') => new Set(list.map((r) => r[key]));
+  const obj = (file, at) => (existsSync(join(root, file)) ? (JSON.parse(readFileSync(join(root, file), 'utf8'))[at] ?? {}) : {});
   const zoneDir = join(root, 'origins/zone-rows');
-  return { zones: new Set(readdirSync(zoneDir).map((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1]).filter(Boolean)), exits: ids(table('origins/zones/exit-rows.json', 'exits')), dungeons: ids(table('origins/zones/dungeon-rows.json', 'dungeons')), themes: ids(table('origins/zones/dungeon-themes.json', 'themes')), warps: ids(table('origins/presence/warp-landmarks.json', 'landmarks')) };
+  return { zones: new Set(readdirSync(zoneDir).map((f) => /^zone([1-9][0-9]*)\.row\.json$/.exec(f)?.[1]).filter(Boolean)), exits: ids(table('origins/zones/exit-rows.json', 'exits')), dungeons: ids(table('origins/zones/dungeon-rows.json', 'dungeons')), themes: ids(table('origins/zones/dungeon-themes.json', 'themes')), warps: ids(table('origins/presence/warp-landmarks.json', 'landmarks')), biomes: new Set([...Object.keys(obj('origins/zones/biomes.json', 'biomes')), ...Object.keys(obj('origins/zones/biomes.packages.json', 'biomes'))]) };
 }
 /** The import tool: validate the folder `src` against the repo at `root` (import mode: a new package unlisted, a clash only when named in `replace`), copy it to origins/packages/<id>/ and regenerate. Returns the problems, or [] when done. */
 export function importFolder(src, root = ROOT, replace = new Set()) {

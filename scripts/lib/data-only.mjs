@@ -12,6 +12,8 @@ import ts from 'typescript';
 export const DATA_PATHS = [
   /^origins\/zone-rows\/zone[1-9][0-9]*\.row\.json$/,   // a zone IS its row (2026-10-11): spawns, kit, looks, mob looks and place in one JSON file; loadZone + zoneProblems check it (data-only-check.mjs)
   /^origins\/zones\/zone\d+\/(zone|spawns|kit|look|mob-looks|place)\.ts$/,   // the old per-zone modules (a base older than the rows); mob-looks and place are the optional zone files   // mob-looks and place are the optional zone files (gen-zones OPTIONAL); zoneProblems checks mobLooks, tests/zone-place.test.ts checks place
+  /^origins\/packages\/[a-z0-9][a-z0-9-]*\/(package|zone\.row|dungeon\.row|theme\.row|biome\.row|exits|warps)\.json$/,   // a zone package folder (docs/specs/zone-package.md): rows and a manifest; tests/package-registry.test.ts and the import validator check it
+  /^origins\/zones\/(exit-rows|dungeon-rows|dungeon-themes|biomes\.packages)\.json$/,   // generated from the package folders by scripts/gen-packages.mjs: tests/package-registry.test.ts fails when one differs from a fresh generation
   /^origins\/zones\/biomes(\.manifest)?\.json$/,   // the biome presets as rows (was biomes-data.ts): a new biome is one entry (biomes.ts, the reader, stays code)
   /^src\/assets\/source\/loot\/loot\.json$/,
   /^origins\/region1\/loot-tables\.json$/,   // the loot tables as rows (Lead 2026-10-12): a new table is one row; tests/loot-rows.test.ts runs every row through the contract and loadRegion1
