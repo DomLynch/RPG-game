@@ -14,7 +14,7 @@ import { crowdPercent, percentOf, rolledDamage, rollUnit, swarmBand, type CrowdK
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { bandFactor } from './bands.ts';
-import { ammoOf, bowSpecialOf, laneOf, MISSILE_GUARD_POSTURE, MISSILE_HOMING, MISSILE_STUN, missileChip, missileHalfway, missileLaneAngle, missileMinGap, missileRadiusM, missileOf, missileTicks, missileTiming, perMille, SPECIAL_MELEE_REACH, meleeSpecialReach, meleeSpecialRelease, percentScaled, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, SPECIAL_REACT_STAGGER, specialReactFloorOf } from './sandbox-rules.ts';
+import { MANA_DELAY, MANA_MAX, manaCost, manaRegenPerTick, missilePaysNoStamina, ammoOf, bowSpecialOf, laneOf, MISSILE_GUARD_POSTURE, MISSILE_HOMING, MISSILE_STUN, missileChip, missileHalfway, missileLaneAngle, missileMinGap, missileRadiusM, missileOf, missileTicks, missileTiming, perMille, SPECIAL_MELEE_REACH, meleeSpecialReach, meleeSpecialRelease, percentScaled, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, SPECIAL_REACT_STAGGER, specialReactFloorOf } from './sandbox-rules.ts';
 import { SHARED_COOLDOWN } from './spell-rows.ts';
 import { castOutcome, outcomeMult, splitDamage, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
@@ -67,6 +67,7 @@ export type Fighter = {
   bowSpecial?: string;   // sandbox bowSpecial (RV79): the picker skill of the bow special being cast (its arrows leave at the release); stays set through the recovery so the renderer plays the loose clip
   missile?: { lanes?: number[]; react?: boolean; pin?: number; posture?: number; launched: number; arrives: number; x: number; z: number; dx: number; dz: number; range: number; damage: number; move: MoveId; lane: number };   // sandbox missiles: the one arrow (or volley) this fighter has in flight
   ammo?: number;   // sandbox missiles: arrows left in the quiver (absent = infinite)
+  mana?: number; maxMana?: number; manaRest?: number;   // sandbox mana (RV81): the third pool, its ceiling, and the ticks before regen resumes; present only while manaMax > 0
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
   skill2?: SkillId;   // slot b as a MELEE special (the specials PR, RV75): an existing class skill, fought through its own move-defs row (reach, windup, stagger, knockback, stamina, posture) on skillCooldown2, never the flat special share; absent = slot b is a spell (or empty)
@@ -134,7 +135,7 @@ export const lorariusGuard = (body: Pick<State, 'x' | 'z'>) => Math.floor(((M.at
 
 // Every move / path lookup for a fighter goes through its weapon.
 export const movesOf = (f: Pick<Fighter, 'weapon'>) => weaponOf(f.weapon).moves;
-export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, ...(ammoOf(weapon) ? { ammo: ammoOf(weapon) } : {}), wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
+export const createFighter = (body: State, phase: Phase, weapon: WeaponId = DEFAULT_WEAPON, scale = 1, poise = 0, health: number = RULES.health, guard?: Partial<GuardProfile>, regen = 1, speed = 1, rig: RigId = 'hero', pools?: PoolValues): Fighter => { const p = poolsOf({ health }, pools); return { weapon, rig, ...(weaponOf(weapon).guardProfile || guard ? { guardProfile: { ...weaponOf(weapon).guardProfile, ...guard } } : {}), scale, poise, regen, speed, body, health: p.health!, maxHealth: p.health!, stamina: p.stamina!, rest: 0, exhausted: false, ...(MANA_MAX ? { mana: MANA_MAX, maxMana: MANA_MAX } : {}), ...(ammoOf(weapon) ? { ammo: ammoOf(weapon) } : {}), wound: 0, woundSite: 'torso', phase, age: 0, move: null, chained: false, landed: false, chain: 0, lastMove: null, parryCooldown: 0, punish: 0, stun: 0, posture: 0, critical: 0, guardDirection: null, parrying: false, exposed: 0, evaded: 0, counterWindow: 0, charge: 0, charged: false, buffer: null, postureRest: 0, maxStamina: p.stamina!, legWound: false, attackFrom: null, stall: 0, loiter: 0, lashed: false, skill: null, skillCooldown: 0 }; };
 // An opponent's fighter from his data (moves.ts `Opponent`): the one place his weapon, scale, poise, health, guard, regen and pace are read.
 export const opponentFighter = (o: Opponent, body: State, phase: Phase = 'ready'): Fighter => ({ ...createFighter(body, phase, o.weapon, o.scale, o.poise, o.health, o.guard, o.regen ?? 1, o.speed ?? 1, o.rig, o.pools), ...(o.sheet ? { sheet: o.sheet } : {}) });   // a row's `sheet` (the Cave Troll's attack dial 20 = +20% damage): the creature's own dials, read like a hero's
 // The player's weapon (moves.ts PLAYER_WEAPONS). Every weapon starts the fight SHEATHED and keeps the draw beat (Dom via Strategy,
@@ -202,6 +203,7 @@ export const walled = (body: State, dx: number, dz: number, radius: number = RAD
 export const elapsed = (f: Fighter): number => f.age + f.charge;
 const baseTiming = (f: Fighter): Timing => f.chained && f.move ? movesOf(f)[f.move].chained! : movesOf(f)[f.move!];
 export const timing = (f: Fighter): Timing => { const t = baseTiming(f), mt = missileTiming(f.weapon); return mt ? { ...t, windup: t.windup + Math.round(percentScaled(t.windup, mt.windup)), recovery: t.recovery + Math.round(percentScaled(t.recovery, mt.recovery)) } : t; };   // sandbox missiles (RV79): a bow draws, so its row lengthens every move's windup and recovery by a percent; no row = the move's own timing
+const castAffordable = (f: Fighter, cost: number): boolean => (MANA_MAX ? (f.mana ?? 0) >= manaCost(cost) : f.stamina >= cost);   // sandbox mana (RV81): with the pool on a spell is paid in mana, else in stamina as on trunk
 const isLight = (action: Action | null): boolean => action === 'light' || action === 'light_left' || action === 'light_right';
 const baseGuard = (f: Fighter, R: typeof RULES): GuardProfile => ({ costScale: 1, arc: R.guardArc, window: R.parry, recovery: R.parryRecovery, commits: false, stopsHeavy: false, heavyBreaks: false, wide: false, postureDecay: 1, ...f.guardProfile });
 // A stance never moves the parry window (v52, stance-era.ts: timing is sacred). Only while a record BELOW v52 replays does the old Defensive window (a quarter longer, stance.ts LEGACY) apply.
@@ -260,13 +262,13 @@ export function legal(f: Fighter, action: Action): boolean {
   const g = guardOf(f), committed = g.commits && ((f.phase === 'guard' && f.parrying && !f.punish && f.age < g.window) || (f.phase === 'ready' && f.exposed > 0));
   const standing = (f.phase === 'ready' || f.phase === 'guard') && !committed;   // a guard yields to any action; it never eats an input
   const stepping = f.phase === 'backstep', stepTail = stepping && f.age >= RULES.backstep.cancelFrom;   // a backstep's tail cancels into a swing
-  if ((isLight(action) || action === 'heavy' || action === 'thrust') && f.ammo !== undefined && f.ammo <= 0 && missileOf(f.weapon)) return false;   // sandbox missiles (RV79): an empty quiver has nothing to loose
+  { const mr = missileOf(f.weapon); if (mr && (isLight(action) || action === 'heavy' || action === 'thrust') && ((MANA_MAX && (f.mana ?? 0) < (mr.mana ?? 0)) || (f.ammo !== undefined && f.ammo <= 0))) return false; }   // sandbox missiles (RV79): an empty quiver has nothing to loose; (RV81) a staff bolt is refused short of its mana
   if (isLight(action)) return f.phase === 'sheathed' || ((standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina);
   if (action === 'heavy' || action === 'thrust') return (standing || stepTail) && f.stamina >= movesOf(f)[chooseMove(f, action)].stamina;
   if (action === 'kick') return standing && f.stamina >= movesOf(f).kick.stamina;
-  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || f.stamina >= f.spell.cost);   // a special: no stamina, any class; a SPELL costs its stamina and is refused short of it
+  if (action === 'skill' && f.specialShare !== undefined) return !f.skillCooldown && (standing || stepTail) && (!f.spell || castAffordable(f, f.spell.cost));   // a special: no stamina, any class; a SPELL costs its stamina (its mana with the mana pool on) and is refused short of it
   if (action === 'skill2' && f.skill2 !== undefined) return !f.skillCooldown2 && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill2]!].stamina;   // slot b as a melee special: its own cooldown, the move row's stamina (the shared bar), no Special Moves needed
-  if (action === 'skill2') return f.specialShare !== undefined && !!f.spell2 && !f.skillCooldown2 && (standing || stepTail) && f.stamina >= f.spell2.cost;   // slot b: its own cooldown, the shared stamina bar; an empty slot is inert
+  if (action === 'skill2') return f.specialShare !== undefined && !!f.spell2 && !f.skillCooldown2 && (standing || stepTail) && castAffordable(f, f.spell2.cost);   // slot b: its own cooldown, the shared stamina bar; an empty slot is inert
   if (action === 'skill') return f.skill !== null && !f.skillCooldown && (standing || stepTail) && f.stamina >= movesOf(f)[SKILL_MOVE[f.skill]!].stamina;   // as a heavy, plus an equipped skill that has cooled
   if (action === 'dodge') return (standing && f.stamina >= RULES.rollCost) || (stepping && f.stamina >= RULES.rollCost - RULES.backstep.cost);   // holding the control turns the step into a roll
   if (action === 'backstep') return standing && f.stamina >= RULES.backstep.cost;
@@ -343,7 +345,8 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         if (bowRow) { next.bowSpecial = bowRow.skill; if (next.ammo !== undefined) next.ammo -= bowRow.arrows; } else delete next.bowSpecial;   // the arrows are spent at the commit, like a spell's cost
         next.special = bowRow ? bowRow.windup : !cast && SPECIAL_MELEE_WINDUP ? SPECIAL_MELEE_WINDUP : R.special.windup; delete next.castHurt;   // sandbox specialMeleeWindup (Dom 2026-10-17: "same speed as the stab, slash or heavy"): a melee special (no spell) is committed for that many ticks, not the spell's delay
         next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
-        if (cast) spend(i, cast.cost);   // the stamina is gone at the commit, whatever the outcome
+        if (cast && MANA_MAX) { const f = fighters[i]!; f.mana = Math.max(0, (f.mana ?? 0) - manaCost(cast.cost)); f.manaRest = MANA_DELAY; }   // sandbox mana (RV81): the cast is paid in mana, stamina untouched
+        else if (cast) spend(i, cast.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(cast ? { spell: cast.id } : {}) });
       }
     } else if (action === 'kick') {
@@ -356,7 +359,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
         const id = chooseMove(me, action!), def = movesOf(me)[id];
         // Chained timing: a listed follow-up inside the chain window, or a light out of an evade (dodge-attack).
         const follows = me.chain > 0 && me.lastMove !== null && !!movesOf(me)[me.lastMove].chain?.follow.includes(id);
-        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, perked(me, 'thrift', def.stamina));
+        beginAttack(next, id, !!def.chained && (follows || (isLight(action) && (me.evaded > 0 || me.phase === 'backstep'))), foe.body); spend(i, missilePaysNoStamina(me.weapon) ? 0 : perked(me, 'thrift', def.stamina));   // a staff shot is paid in mana alone (RV81)
         if (action === 'skill2') next.skillCooldown2 = R.skillCooldown;   // slot b as a melee special: its own cooldown, spent at commitment like slot a
         if (action === 'skill') next.skillCooldown = R.skillCooldown;   // spent at commitment, with the stamina: a whiff, a block or a parry all spend it
         events.push({ tick, type: 'AttackStarted', actor: i, move: id, direction: def.direction });   // the side the blow comes from: what a guard must mirror (directional guard; the browser gate reads it)
@@ -426,6 +429,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     }
     // Regeneration: full while standing ready; a raised guard regenerates at half rate (it used to stop it, which made blocking a stamina trap).
     if (!next.rest && (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard')) next.stamina = Math.min(next.maxStamina, next.stamina + R.regen * next.regen * (next.wound ? R.woundRegen : 1) * (next.phase === 'guard' ? R.guardRegen : 1));
+    if (MANA_MAX && next.maxMana) { if (next.manaRest) next.manaRest--; else if (next.phase === 'ready' || next.phase === 'sheathed' || next.phase === 'guard') next.mana = Math.min(next.maxMana, (next.mana ?? 0) + manaRegenPerTick(next.sheet)); }   // sandbox mana (RV81): regen when idle, slowed by the armour casting penalty
     if (next.exhausted && next.stamina >= R.exhaustRecover) next.exhausted = false;
   }
   // Symmetric separation: both may have stepped into the other's old position; push them apart by equal halves.
@@ -488,8 +492,9 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       const lane = laneOf(a.move);
       if (a.age === t.windup && lane) {
         const gap = a.attackFrom?.gap ?? distance(a.body, d.body);
-        if (A.ammo !== undefined && A.ammo <= 0) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
+        if ((MANA_MAX && (A.mana ?? 0) < (mrow.mana ?? 0)) || (A.ammo !== undefined && A.ammo <= 0)) events.push({ tick, type: 'AttackMissed', actor: i, move: a.move });
         else {
+          if (MANA_MAX) { A.mana = (A.mana ?? 0) - (mrow.mana ?? 0); A.manaRest = MANA_DELAY; }   // sandbox mana (RV81): a staff bolt is paid in mana
           if (A.ammo !== undefined) A.ammo--;
           if (gap >= missileMinGap() && !A.missile) {
             const ang = MISSILE_HOMING ? aim(a.body, d.body) : a.body.heading + missileLaneAngle(lane.lane), range = distance(a.body, d.body);

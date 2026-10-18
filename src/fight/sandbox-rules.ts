@@ -54,7 +54,7 @@ const SANDBOX_PER_MILLE = sandboxRule('perMille'), TICKS_PER_SECOND = sandboxRul
 export const missileMinGap = (): number => sandboxRule('missileMinGap') / CENTIMETRES_PER_METRE;
 //   missile rows { weapon, archer (1: its special is arrows), speed (cm/s), share (per-mille of the move's damage), windup / recovery (percent added to every move's timing: a bow draws), ammo (the quiver, 0 = infinite), pierce (per-mille of a guarded arrow that goes through), chipKills (1: chip through a guard can finish a man) }
 //   name a weapon whose moves throw an arrow instead of striking; `missileLanes` rows { move, lane (-1 left, 0 forward, 1 right), mult } say which move throws which lane. No rows = nothing flies.
-type MissileRow = { archer?: number; weapon: string; speed: number; share: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; chipKills?: number };
+type MissileRow = { archer?: number; mana?: number; weapon: string; speed: number; share: number; windup?: number; recovery?: number; ammo?: number; pierce?: number; chipKills?: number };
 type LaneRow = { move: string; lane: number; mult: number };
 export const missileRows = (): number => sandboxRows('missile').length;
 //   missileLook (presentation): one row { id, height (cm above the sand), length, radius (mm), spread (cm a volley's outer arrows bow out), shaft, head, fin (colours) } for the arrow in flight (missile-fx.ts). No row = the arrow is not drawn (and nothing is built).
@@ -97,3 +97,17 @@ export const bowSpecialOf = (weapon: string, skill: string | null | undefined, g
   return r && gap >= missileMinGap() && (ammo === undefined || ammo >= r.arrows) ? r : undefined;
 };
 export const perMille = (value: number, mille: number): number => (value * mille) / SANDBOX_PER_MILLE;
+
+// RV81, mana (Donor: the combat sandbox @93b1138c7; Dom 2026-10-15: spells usable any time like melee, with a bar like stamina; Strategy: a separate third pool, SPENT PER CAST, regenerating when idle, never a drain over time; stamina stays the melee cost; the armour
+// casting penalty slows the regen, not the cost; donors Diablo 2 mana pool + regen, EverQuest mana as the caster's clock): `manaMax` (0 = off: a spell costs stamina as on trunk), `manaRegen` (tenths of a point per second), `manaDelay` (ticks after a cast before regen
+// resumes), `manaCostMult` (per-mille of the spell's stamina cost, so the spell rows' own costs still order the spells; 1000 = the same number). Fighter state (mana, maxMana, manaRest) exists only while `manaMax` > 0, so a trunk fight carries nothing new.
+export const MANA_MAX = sandboxRule('manaMax'), MANA_REGEN = sandboxRule('manaRegen'), MANA_DELAY = sandboxRule('manaDelay'), MANA_COST_MULT = sandboxRule('manaCostMult');
+export const manaCost = (staminaCost: number): number => Math.round(perMille(staminaCost, MANA_COST_MULT));
+//   manaPenalty rows { dial (a sheet dial), atLeast, percent }: the armour casting penalty, the highest percent whose dial the sheet reaches slows the regen by that percent (a +20 % penalty is a 17 % slower regen). `manaRegenTenths` (10) and ticksPerSecond (60) are unit rows.
+export type ManaPenaltyRow = { id: string; dial: string; atLeast: number; percent: number };
+export const manaRegenPerTick = (sheet: Readonly<Record<string, number>> | undefined): number => {
+  let pct = 0; for (const r of sandboxRows('manaPenalty') as unknown as ManaPenaltyRow[]) if ((sheet?.[r.dial] ?? 0) >= r.atLeast && r.percent > pct) pct = r.percent;
+  return (MANA_REGEN / sandboxRule('manaRegenTenths') / TICKS_PER_SECOND) * (PERCENT / (PERCENT + pct));
+};
+/** A staff-style missile weapon (no `archer` flag) is paid in mana alone while the pool is on; the stand-in weapon's melee stamina is waived. Bow shots cost stamina like any attack. */
+export const missilePaysNoStamina = (weapon: string): boolean => MANA_MAX > 0 && !!missileOf(weapon) && !missileOf(weapon)!.archer;
