@@ -137,8 +137,8 @@ try {
   eq(await code(V, KILL(B, tok(22), 0, 75, EV(tok(22), B, pcB))), 'O0009', 'kill: an expired token is refused');
   eq(await code(V, `select public.origins_spawn_touch('${B}', '${tok(22)}');`), 'O0009', 'touch: an expired token is refused');
 
-  // ---- 20261018090000 the V5 kill receipt: what became of a token that is no longer open, from the stored rows, this account only ---------------------------------
-  const RECEIPT = '20261018090000_origins_spawn_receipt.sql', receipt = (acct, t) => val(O, `select coalesce(public.origins_spawn_receipt('${acct}', '${t}'), 'null'::jsonb)::text;`);
+  // ---- 20261018081137 the V5 kill receipt (the stamp apply assigned in production; the file was first named 20261018090000): what became of a token that is no longer open, from the stored rows, this account only ---------------------------------
+  const RECEIPT = '20261018081137_origins_spawn_receipt.sql', receipt = (acct, t) => val(O, `select coalesce(public.origins_spawn_receipt('${acct}', '${t}'), 'null'::jsonb)::text;`);
   const RFN = 'origins_spawn_receipt(uuid,text)';
   eq(psql(`select has_function_privilege('${O}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('${V}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${RFN}'::regprocedure, 'execute')::int::text`), '1100', 'receipt: both writer roles (frankendom_origins and frankendom_verifier, the writer\'s real login) and no one else (not anon, not authenticated)');
   const r12 = await receipt(A, tok(12));

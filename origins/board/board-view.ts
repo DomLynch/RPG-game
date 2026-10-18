@@ -8,7 +8,7 @@ import { boardDay, boardRule, dailyBoardFor, discoveryById, rewardById, type Boa
 export const BOARD_SEED = 0;
 export type Namer = { character(id: string): string; item(id: string): string; family(id: string): string; zone(id: string): string };
 export type TaskView = { id: string; text: string; reward: string };
-export type BoardView = { day: number; slots: number; cap: number; tasks: TaskView[]; resetsAtMs: number; resetsInMs: number; resetHourUtc: number };
+export type BoardView = { day: number; slots: number; cap: number; tasks: TaskView[]; resetsAtMs: number; resetsInMs: number; resetHourUtc: number; redrawMs: number };
 
 const { chrome: CHROME, kinds: KINDS, rewardKinds: REWARD_KINDS, landmarks: LANDMARKS } = TEXT;
 const fill = (template: string, values: Record<string, string | number>): string => template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ''));
@@ -38,6 +38,6 @@ export function timeUntil(ms: number): string {
 export function boardView(nowMs: number, namer: Namer, seed = BOARD_SEED, rule: BoardRule | null = boardRule()): BoardView | null {
   if (!rule) return null;
   const day = boardDay(nowMs, rule), at = resetAtMs(day, rule);
-  return { day, slots: rule.slots, cap: rule.completionCap, resetHourUtc: rule.resetHourUtc, resetsAtMs: at, resetsInMs: at - nowMs,
+  return { day, slots: rule.slots, cap: rule.completionCap, resetHourUtc: rule.resetHourUtc, redrawMs: rule.redrawMs, resetsAtMs: at, resetsInMs: at - nowMs,
     tasks: dailyBoardFor(seed, day, rule).map((t) => ({ id: t.id, text: taskText(t, namer), reward: rewardText(t.reward, namer) })) };
 }

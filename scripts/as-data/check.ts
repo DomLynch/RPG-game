@@ -140,7 +140,12 @@ try {
   // name; (h) scans only inline-number-scope.json (the sim, the world sim, origins/server, presence and world) and keys on the literal.
   const siteOf = (m: { text: string; file: string; range: { start: { line: number } } }, text: string): Site => ({ file: relative(REPO, resolve(REPO, m.file)), line: m.range.start.line + 1, text });
   const constName = (s: Site) => /^[A-Z][A-Z0-9_]*/.exec(s.text)![0];
-  const constExprs = run('const-expr.yml').map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite);
+  // The one named exemption (Lead ruling 2026-10-18; Strategy's rule: every excluded class prints by name and count every run): a math constant with integer multipliers only (`Math.PI * 2`, `Math.PI / 2`,
+  // `2 * Math.PI`) is geometry, not a tunable. A value with any other operand (`Math.PI * 2 * WIDTH_PX`) is still counted.
+  const MATH_CONST_CLASS = 'math constant × integer (const)', MATH_CONST_VALUE = /^(\d+\s*[*/]\s*)?Math\.[A-Z0-9_]+(\s*[*/]\s*\d+)*$/;
+  const constExprAll = run('const-expr.yml'), isMathConst = (m: { text: string }): boolean => MATH_CONST_VALUE.test(m.text.slice(m.text.indexOf('=') + 1).trim());
+  const constExprExcluded = [{ class: MATH_CONST_CLASS, sites: constExprAll.filter(isMathConst).map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite) }].map((c) => ({ ...c, count: c.sites.length }));
+  const constExprs = constExprAll.filter((m) => !isMathConst(m)).map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite);
   const { fresh: newConstExprs, lowered: loweredConstExprs } = ratchet('const-expr', constExprs, constName);
   const constObjects = run('const-object.yml').map((m) => siteOf(m, m.text.replace(/\s+/g, ' ').slice(0, 80))).sort(bySite);
   const { fresh: newConstObjects, lowered: loweredConstObjects } = ratchet('const-object', constObjects, constName);
@@ -151,6 +156,16 @@ try {
   // a compare, a + / - or a % is never excluded: that is where a tuning hides.
   const arith = /^[*/](?![*/=])/, arithBefore = /(?<![*/])[*/]$/, bitsBefore = /(?<![&|])(?:[&|^]|<<|>>>?)$/, bitsAfter = /^(?:<<|>>>?|[&^]|\|)(?![&|=])/;
   const TIME_LITERALS = new Set(['1000', '3600', '86400', '86_400', '60_000', '1_000_000', '1000000']);
+  // The percent/permille scale class (Strategy 2026-10-18, tightened by Lead): the scale is an operand of * or / IN CODE (not inside a string or template literal, not inside a console/log call) and the OTHER operand is a
+  // roll expression: an identifier, member chain or call named like roll / draw / chance / rng / random (`draw() * 100`, `e.chancePct / 100`), or a parenthesised group holding one (`(100 - e.chance) / 100`). A roll word merely on the same line is not enough.
+  const PERCENT_SCALE = new Set(['100', '10_000', '10000']);
+  const ROLL_NAME = '\\w*(?:roll|draw|chance|rng|random)\\w*', ROLL_OPERAND = `(?:[\\w$]+\\.)*${ROLL_NAME}(?:\\([^()]*\\))?`, ROLL_GROUP = `\\([^()]*${ROLL_NAME}[^()]*\\)`;
+  const rollBefore = new RegExp(`(?:${ROLL_OPERAND}|${ROLL_GROUP})\\s*[*/]$`, 'i'), rollAfter = new RegExp(`^[*/]\\s*(?:${ROLL_OPERAND}|${ROLL_GROUP})`, 'i');
+  const insideStringOrLog = (before: string): boolean => {   // a quote left open before the literal (' " or `, with escapes) puts it in a string or template; a console/log call puts it in a message
+    let open: string | null = null;
+    for (let i = 0; i < before.length; i++) { const c = before[i]!; if (open) { if (c === '\\') i++; else if (c === open) open = null; } else if (c === '\'' || c === '"' || c === '`') open = c; }
+    return open !== null || /\b(?:console\.\w+|logger?\.\w+|log\w*)\s*\(/.test(before);
+  };
   const presentationFiles = new Set(scope.presentation?.files ?? []);
   const sourceLines = new Map<string, string[]>();
   const excludedCategory = (m: { text: string; file: string; range: { start: { line: number; column: number }; end: { line: number; column: number } } }): string | null => {
@@ -173,6 +188,9 @@ try {
       return null;
     }
     if (beside && TIME_LITERALS.has(text)) return 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)';
+    // The one named scale class (Strategy 2026-10-18): 100 or 10_000 as the UNIT of a roll (`draw() * 100 < chance`, a percent chance read against a draw): see PERCENT_SCALE above. A compare (`< 100`), a + / - (`100 - tax`),
+    // any other number (a 250 beside a roll), a percent in a log string or a template, and plain price, tax or share maths (no roll operand) stay counted: that is where a tuning hides.
+    if (beside && PERCENT_SCALE.has(text) && !insideStringOrLog(before) && (rollBefore.test(before) || rollAfter.test(after))) return 'percent/permille scale on a roll (100, 10_000 as an operand of * or / beside a roll/draw/chance expression)';
     return null;
   };
   const excludedInline: Record<string, number> = {};
@@ -200,7 +218,7 @@ try {
   const { fresh: newBranchIds, lowered: loweredBranchIds } = ratchet('branch-id', branchIdSites, (s) => s.text);
   const count = (kind: string, cat?: string) => sites.filter((s) => s.kind === kind && (cat === undefined || s.category === cat)).length;
   const summary = { compares: count('compare'), byCategory: Object.fromEntries(CATEGORIES.map((c) => [c, count('compare', c)])), unions: count('union'), rows: count('row'), tunables: count('tunable'), maps: count('map'), newMaps: newMaps.length, clamps: clamps.length, newClamps: newClamps.length, constExprs: constExprs.length, newConstExprs: newConstExprs.length, constObjects: constObjects.length, newConstObjects: newConstObjects.length, inlineNumbers: inlines.length, newInlineNumbers: newInlines.length, idTables: idTables.length, newIdTables: newIdTables.length, branchIds: branchIdSites.length, newBranchIds: newBranchIds.length };
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered, newMapSites: newMaps, loweredMaps, constExprSites: constExprs, newConstExprSites: newConstExprs, loweredConstExprs, constObjectSites: constObjects, newConstObjectSites: newConstObjects, loweredConstObjects, inlineNumberSites: inlines, newInlineNumberSites: newInlines, inlineGameplay: gameplayInlines.length, inlineNonGameplay: presentationInlines.length, inlineExcluded: excludedInline, loweredInlineNumbers: loweredInlines, idTableSites: idTables, newIdTableSites: newIdTables, loweredIdTables, allowedIdTables, staleIdAllow, branchIdSites, newBranchIdSites: newBranchIds, loweredBranchIds, allowedBranchIds, staleBranchAllow }));
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...summary, sites, allowed, stale, verbs: verbSites.filter((v) => v.line), staleVerbs, allowedTunables, staleTunables, overdue, soon, clampSites: clamps, newClampSites: newClamps, loweredClamps: lowered, newMapSites: newMaps, loweredMaps, constExprSites: constExprs, constExprExcluded,newConstExprSites: newConstExprs, loweredConstExprs, constObjectSites: constObjects, newConstObjectSites: newConstObjects, loweredConstObjects, inlineNumberSites: inlines, newInlineNumberSites: newInlines, inlineGameplay: gameplayInlines.length, inlineNonGameplay: presentationInlines.length, inlineExcluded: excludedInline, loweredInlineNumbers: loweredInlines, idTableSites: idTables, newIdTableSites: newIdTables, loweredIdTables, allowedIdTables, staleIdAllow, branchIdSites, newBranchIdSites: newBranchIds, loweredBranchIds, allowedBranchIds, staleBranchAllow }));
   else {
     for (const s of sites) console.log(`${s.file}:${s.line} [${s.kind}/${s.category}] ${s.text}${s.kind === 'map' && newMaps.includes(s) ? '  NEW: this text belongs in the id\'s data row' : ''}`);
     for (const s of allowedTunables) console.log(`allowed-tunable ${s.file}:${s.line} ${s.text}  (${s.reason})`);
@@ -218,6 +236,7 @@ try {
     for (const c of newGameplayInlines) console.log(`NEW inline number ${c.file}:${c.line} ${c.text}: a number in game logic is a tuning in code; make it a row (or a named exempt) instead`);
     for (const c of newPresentationInlines) console.log(`new (tracked, not blocking) presentation inline number ${c.file}:${c.line} ${c.text}`);
     console.log(`as-data inline numbers: GAMEPLAY ${gameplayInlines.length} (new ${newGameplayInlines.length}, the gate, target 0) | NON-GAMEPLAY ${presentationInlines.length} (new ${newPresentationInlines.length}, tracked, not blocking)`);
+    for (const c of constExprExcluded) console.log(`as-data const expressions EXCLUDED (not counted, geometry not a tunable): ${c.class}: ${c.count}`);
     for (const [cat, n] of Object.entries(excludedInline).sort((a, b) => b[1] - a[1])) console.log(`as-data inline numbers EXCLUDED (not counted, not gameplay): ${cat}: ${n}`);
     for (const s of allowedBranchIds) console.log(`allowed-branch-id ${s.file}:${s.line} ${s.text}  (${s.reason})`);
     for (const a of staleBranchAllow) console.log(`STALE branchIds entry ${a.file} ${a.literal}: no such branch any more, delete it (${a.reason})`);
