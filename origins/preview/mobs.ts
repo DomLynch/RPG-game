@@ -68,7 +68,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
       const named = !!sp.encounter, row = named ? undefined : rows.find((r) => r.id === w.id);
       if (!named && !row) continue;   // a kind with no row stands nowhere
       const boss = !!row?.named, dest = boss ? late : out;   // a camp boss: a row flagged `named` (zone level + namedLevelLift), placed by its own group
-      const bh = row?.behaviour, count = named ? 1 : campCount(bh!.campSize, nextRandom(mixSeed(TUNING.seed, 9000 + out.length))[0]);
+      const bh = row?.behaviour, count = named ? 1 : campCount(bh!.campSize, nextRandom(mixSeed(TUNING.seed, previewRule('mobCampSalt') + out.length))[0]);
       const slots: (typeof w)[] = weighted
         ? rollCamp(group!.characters.map(entryOf).filter((e) => kinds.has(e.id) && rows.some((r) => r.id === e.id)), count, (slot) => nextRandom(mixSeed(mixSeed(TUNING.seed, seedOf(`${f.zone}:${sp.id}`)), slot))[0]).map((c) => kinds.get(c)!)
         : Array.from({ length: count }, () => w);
@@ -78,7 +78,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
         const dx = mid.x - at.x, dz = mid.z - at.z, l = Math.hypot(dx, dz) || 1, base = { x: at.x + (dx / l) * p.pull, z: at.z + (dz / l) * p.pull };
         const id = `${ID_PREFIX}${sp.id}-${i + 1}`;
         let rng = mixSeed(TUNING.seed, boss ? out.length + late.length : out.length), home: Pos | null = null;
-        for (let tries = 0; tries < 60 && !home; tries++) {
+        for (let tries = 0; tries < previewRule('mobHomeTries') && !home; tries++) {
           let u: number, v: number;
           [u, rng] = nextRandom(rng); [v, rng] = nextRandom(rng);
           const r = p.spread * Math.sqrt(u), a = v * Math.PI * 2, x = base.x + Math.sin(a) * r, z = base.z + Math.cos(a) * r;
@@ -99,7 +99,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     if (!zone || !row || !def || !form) continue;
     const near = out.some((m) => m.zone === zoneId && Math.hypot(m.home.x - zone.mount.x, m.home.z - zone.mount.z) <= MAX_FIRST_FIGHT_M);
     if (near) continue;
-    let rng = mixSeed(TUNING.seed, 5000 + out.length);
+    let rng = mixSeed(TUNING.seed, previewRule('mobOpenerSalt') + out.length);
     const stand = mobStand(b, zone), spot = openerSpot({ x: zone.mount.x, z: zone.mount.z }, zone.mount.heading, () => { let u: number; [u, rng] = nextRandom(rng); return u; }, stand);
     if (!spot) continue;
     out.push({ id: `${ID_PREFIX}opener-${zoneId}-1`, character: rowId, name: def.name, encounter: null, body: form.opponent ?? defaultKind, level: row.level[0], zone: zoneId, spawn: 'opener', home: spot, roam: row.behaviour.roam ?? 6, aggro: row.behaviour.aggro ?? TUNING.aggro, named: false });
@@ -147,8 +147,9 @@ export function spawnAmong(f: Frontier, b: Build, specs: readonly MobSpec[]): { 
   const centre = (g: readonly MobSpec[]) => ({ x: g.reduce((n, s) => n + s.home.x, 0) / g.length, z: g.reduce((n, s) => n + s.home.z, 0) / g.length });
   const first = (s: MobSpec) => !!fieldOf(s.body, 'firstSight'), wolves = specs.filter((s) => first(s) && s.zone === zone.zone), c = centre(crowd), look = wolves.length ? centre(wolves) : c;
   const others = wolves.length ? specs.filter((s) => !first(s)) : specs, stand = mobStand(b, zone), clear = TUNING.aggro + 1, near = (x: number, z: number, of: readonly MobSpec[]) => Math.min(...of.map((s) => Math.hypot(s.home.x - x, s.home.z - z)));
-  for (const strict of [true, false]) for (let r = 0; r <= 44; r += 2) for (let k = 0; k < 24; k++) {
-    const a = (k / 24) * Math.PI * 2, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;
+  const reach = previewRule('mobFindRadius'), ring = previewRule('mobFindStep'), around = previewRule('mobFindSamples');   // m out from the crowd's middle, m between rings, spots on each ring
+  for (const strict of [true, false]) for (let r = 0; r <= reach; r += ring) for (let k = 0; k < around; k++) {
+    const a = (k / around) * Math.PI * 2, x = c.x + Math.sin(a) * r, z = c.z + Math.cos(a) * r;
     if (!stand(x, z) || near(x, z, specs) < clear) continue;
     const d = near(x, z, others), w = wolves.length ? near(x, z, wolves) : null;
     if (strict && (d < SPAWN_NEAR || d > SPAWN_FAR || (w !== null && (w < SPAWN_WOLF[0] || w > SPAWN_WOLF[1])))) continue;
