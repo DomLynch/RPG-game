@@ -12,7 +12,7 @@ import { createBossTelegraph, telegraphFlag } from './boss-telegraph.ts';
 import { createSpecialPresentation, disposeSpecialGroup, type SpecialFightIdentity } from './special-presentation.ts';
 import { captureException } from '@sentry/browser';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS } from './characters.ts';
+import { sizeBeast, CHARGE_LEAN, defenceReaction, holdingCharge, loadLoot, MissingTextures, loadRankLook, loadShape, loadShield, loadPeerWarriors, loadWarriors, lootIds, lootWorn, SHIELD_CARRIERS, specialRoleOf } from './characters.ts';
 import { shieldFor, SHIPPING_SHIELDS } from './shields.ts';
 import { shapesFlag, shapesFor, shapesOn, SHIPPING_SHAPES } from './weapon-shapes.ts';
 import { heroPreview } from '../hero-preview.ts';
@@ -953,6 +953,7 @@ export function createScene(
       if (!slouch) { warriors?.player.setUpright(readyOffset('hero')); warriors?.opponent.setUpright(readyOffset(opponentId)); }
       warriors?.player.setStance(stance);   // ?look=stances (stance-pose.ts): the hero's stance, look test only
       warriors?.player.fatigue(practice.fatigue[0], fatigueRead ? { read: true } : undefined);   // fatigue.ts, slice 1: the hero winded and tired (breathing, hunch, sagging blade arm); gassed, the second wind and the foes follow
+      for (const side of [0, 1] as const) (side === 0 ? warriors?.player : warriors?.opponent)?.specialMove(specialRoleOf(practice.duel.fighters[side]));   // the move's own clip (src/assets/special-clips.json)
       warriors?.player.slam(runtimeSpecial ? slams[0] : 0);
       warriors?.opponent.slam(runtimeSpecial ? slams[1] : slam);
       warriors?.opponent.fatigue(practice.fatigue[1], fatigueRead ? { ...FOE_TUNE[opponentId], read: true } : FOE_TUNE[opponentId]);   // fatigue-tune.ts: this body's own breathing
