@@ -173,7 +173,7 @@ test('kill_report for the QA account (fighter_profiles.is_test): every check and
   assert.ok(no.opsOf.length > 1, 'an ordinary kill pays (more than the event)');
   assert.deepEqual(yes.opsOf, ['event'], 'QA: the event only: no CP, no minted item, no bronze, no wear');
   assert.deepEqual([yes.payload.qa, yes.payload.paid, yes.payload.cpReason, yes.payload.cp], [true, false, 'qa', 0]);
-  assert.deepEqual([yes.out.result, yes.out.cp, yes.out.bronze, yes.out.loot], ['killed', 0, 0, 0], 'the answer says killed and pays nothing');
+  assert.deepEqual([yes.out.result, yes.out.cp, yes.out.bronze, yes.out.loot], ['killed', 0, 0, []], 'the answer says killed and pays nothing (no loot)');
   assert.equal('qa' in no.payload, false, 'only a QA event is marked');
   for (const normal of [blind, absent]) assert.deepEqual(normal.opsOf, no.opsOf, 'a blind or absent lookup pays exactly as an ordinary kill');
   assert.deepEqual(tally.snapshot().outcomes, { 'no record': 4 }, 'the soak counters count the QA kill like the others');
