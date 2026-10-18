@@ -1,4 +1,5 @@
 import './zone-guard.ts';
+import { fxNum } from '../../src/fight/fx-rows.ts';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildArena, ARENA_THEMES } from './pit-adapter.ts';
@@ -240,7 +241,7 @@ loadWarriors(ASSETS.hero!).then((w) => { warriors = { ...w, baseAsset: w.asset }
 let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
-const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList, zoneRow?.unlisted ? fxNum('start.clear-m') : undefined) : null;   // an unlisted zone (the Test Zone) drops the hero clear of every creature (start.clear-m); the listed zones are unchanged
 const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in

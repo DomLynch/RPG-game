@@ -177,6 +177,12 @@ test('the hero spawns in sight of the creatures but outside their reach: 25-35 m
   assert.deepEqual(spawnAmong(F, B, SPECS), at, 'deterministic');
 });
 
+test('an unlisted zone drops the hero clear of every creature (clearM): no creature closer than the clearance, no "among them" ring required, deterministic; unset is today\'s rule', () => {
+  const CLEAR = 30, at = spawnAmong(F, B, SPECS, CLEAR)!, home = (s: MobSpec) => Math.hypot(s.home.x - at.x, s.home.z - at.z);   // 30 m: a probe value, the real one is the start.clear-m row
+  assert.ok(at, 'a spawn exists'); assert.ok(SPECS.every((s) => home(s) >= CLEAR), `the nearest creature is ${Math.min(...SPECS.map(home)).toFixed(1)} m off, at least ${CLEAR}`);
+  assert.deepEqual(spawnAmong(F, B, SPECS, CLEAR), at, 'deterministic'); assert.deepEqual(spawnAmong(F, B, SPECS), spawnAmong(F, B, SPECS, undefined), 'unset = the ruled 25-35 m start');
+});
+
 test('the placed list is exactly what it was before the rows (origins/preview/mobs.golden.json: the trunk list before the mob rows, plus the two openers the zone rules added: cinder-fields and ferry-landing)', () => {
   const golden = JSON.parse(readFileSync(new URL('./mobs.golden.json', import.meta.url), 'utf8')) as MobSpec[];
   assert.deepEqual(JSON.parse(JSON.stringify(SPECS)), golden, 'Re-pinned 10-10 (Lead: camp size drawn in range): 23 creatures, the Ash Wolf camp is two. 24 creatures: goblin camp added (Dom 10-09), the two Pit goblins at the east-road watchtower; the two lone openers moved with it (their seed is the placed count). Earlier: levels re-pinned on purpose (Dom 2026-10-08, zone parity + risk = reward by depth): a common creature is level 1 at the spawn and 2 by 150 m, the named rares 3. 22 creatures: the Ash Wolf camp of three and the Cinder Bear are live now (the 17 before, with some placements and seeds moved: the wolves spawn sits mid-list, the bears before the boars; re-pinned on purpose, Dom: animals live)');
