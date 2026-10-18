@@ -4,7 +4,7 @@
 // and scales the piece's offset from that bone by the ratio: the inverse bind becomes `scale(ratio) * inverseBind`, so a vertex weighted to the bone is placed `ratio` times as far from the joint. Per bone,
 // not one number: the shoulders can widen more than the shins. No resolution is lost (geometry moves, textures stay), and no art is made. Pure maths on skeleton data; the ratio limits are rows.
 import * as THREE from 'three';
-import { fxNum } from '../../src/fight/fx-rows.ts';
+import { fxNum } from '../../src/fight/index.ts';
 
 const worldAt = (skeleton: THREE.Skeleton, i: number): THREE.Vector3 => new THREE.Vector3().setFromMatrixPosition(skeleton.boneInverses[i]!.clone().invert());
 const parentOf = (skeleton: THREE.Skeleton, i: number): number => { const parent = skeleton.bones[i]!.parent; return parent ? skeleton.bones.findIndex((b) => b.name === parent.name) : -1; };

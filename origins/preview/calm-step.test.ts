@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fxNum } from '../../src/fight/fx-rows.ts';
-import { calmStep, type Calm } from './mob-calm.ts';
+import { calmStep, type Calm } from './calm-step.ts';
 
 const ROWS = { lateralTau: fxNum('mob-view.lateral-tau'), radialTau: fxNum('mob-view.radial-tau'), turnDps: fxNum('mob-view.turn-dps'), snapM: fxNum('mob-view.snap-m'), maxOrbitDps: fxNum('mob-view.max-orbit-dps'), maxLagM: fxNum('mob-view.max-lag-m') }, HERO = { x: 0, z: 0 }, DT = 1 / 60;
 const deg = (a: number) => a * 180 / Math.PI;

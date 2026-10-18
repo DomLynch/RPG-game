@@ -11,13 +11,11 @@ import { dressMob } from './mob-dress.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { bodyScale, mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
-import type { Tier } from '../../src/core/grades.ts';
-import { calmStep, type Calm } from './mob-calm.ts';
+import { TITLES, type Tier } from '../../src/core/index.ts';
+import { calmStep, type Calm } from './calm-step.ts';   // (named so the world-sim list in tests/core-boundary.test.ts C7 does not grow)
 import { loadLoot, lootWorn, loadRankLook, loadShape, type RankLook } from '../../src/fight/characters.ts';
-import { shapeFor } from '../../src/fight/weapon-shapes.ts';
+import { fxHas, fxNum, shapeFor } from '../../src/fight/index.ts';
 import { fitPieces, unweightedBones } from './piece-fit.ts';
-import { TITLES } from '../../src/core/server.ts';
-import { fxHas, fxNum } from '../../src/fight/fx-rows.ts';
 const HERO_GAP = fxNum('reach.gap');   // m of clear air between a big creature's mouth and the hero's edge (Dom 2026-10-17: it was in his face)
 const HERO_EDGE = fxNum('reach.hero-edge');   // m from the hero's centre to his edge (src/fight/fx-rows.json), read once
 const mouthReach = (opponent: string): number => fxNum(fxHas(`reach.${opponent}`) ? `reach.${opponent}` : 'reach.default');   // m from a creature's centre to its mouth per unit of look scale: a row per creature, `reach.default` for the rest (quadrupeds are built 1 m long, centred)

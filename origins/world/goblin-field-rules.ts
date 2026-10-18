@@ -7,7 +7,7 @@ import DEFS from './goblin-field-defs.json' with { type: 'json' };
 import MANIFEST from './goblin-field-defs.manifest.json' with { type: 'json' };
 import { ambienceRow, dressSet, kitIds } from './props-rules.ts';
 import { skinIds } from './building-skins-rules.ts';
-import type { CombatCam, CombatFraming } from '../../src/fight/follow-camera.ts';
+import type { CombatCam, CombatFraming } from '../../src/fight/index.ts';
 
 export type GoblinRule = { readonly id: string; readonly value: number; readonly unit: string };
 type Raw = { rules?: readonly unknown[]; palettes?: readonly unknown[]; backdrops?: readonly unknown[]; grounds?: readonly unknown[]; looks?: readonly unknown[]; harmonics?: readonly unknown[]; names?: readonly unknown[] };
