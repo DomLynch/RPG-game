@@ -46,7 +46,7 @@ export function createWarBandRun(d: BandDeps) {
       if (!rolesSet) {   // the roles are picked once, from where the band stands
         const here: Goblin[] = []; let cx = 0, cz = 0;
         for (const g of d.band) { const m = mobs.find(g.id); if (m) { here.push({ id: g.id, loadout: g.loadout, x: m.x, z: m.z }); cx += m.x; cz += m.z; } }
-        if (here.length < 2) return;
+        if (here.length < fxNum('warband.min-band')) return;
         band.assign(pickRoles(here, d.piecesOf), { x: cx / here.length + fxNum('warband.horn-dx'), z: cz / here.length + fxNum('warband.horn-dz') }); rolesSet = true;
       }
       const near = (x: number, z: number, n: number): string[] => d.band.map((g) => ({ g, m: mobs.find(g.id) })).filter((e) => e.m).sort((a, b) => Math.hypot(a.m!.x - x, a.m!.z - z) - Math.hypot(b.m!.x - x, b.m!.z - z)).slice(0, n).map((e) => e.g.id);   // only when the rally is called
