@@ -9,7 +9,7 @@ const make = (enabled = true) => {
   const weight: Record<string, number> = { heavy: 6, medium: 4, light: 2 };
   const mobs: BandMobs = {
     find: (id) => at.get(id) ?? null,
-    drive: (id, pose) => { if (pose) driven.set(id, { ...pose }); else driven.set(id, null); },
+    drive: (id, pose) => { if (pose) { driven.set(id, { ...pose }); at.set(id, { x: pose.x, z: pose.z }); } else driven.set(id, null); },   // a driven creature stands where it was driven to, as in the page
     setAggro: (id, v) => { const was = aggro.get(id); if (was === undefined) return null; aggro.set(id, v); return was; },
   };
   const hero = { x: 0, z: 40 };
