@@ -29,6 +29,11 @@ test('the toast names the creature and shows the server\'s answer (cp, bronze, i
   assert.equal(killToast({ ...withLoot, bronze: 0 }, name, 'Wolf', true), 'Wolf is down. +20 CP · Wolf pelt ×2. Bounty done.', 'no bronze: still Bounty done');
   assert.equal(killToast({ ...killed(0), bronze: 0 }, name, 'Wolf'), 'Wolf is down. Nothing paid.');
 });
+test('a zone the server never sees (sandbox) just says the creature is down: no sign-in, no not-saved line, whatever the server answered', () => {
+  assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf', false, true), 'Wolf is down.');
+  assert.equal(killToast({ offline: 'http-500' }, name, 'Wolf', false, true), 'Wolf is down.');
+  assert.equal(killToast(withLoot, name, 'Wolf', true, true), 'Wolf is down. Bounty done.');
+});
 test('a guest keeps no loot and is told to sign in; a signed-in page the server did not answer says nothing was saved; neither shows a number', () => {
   assert.equal(killToast({ offline: 'no-session' }, name, 'Wolf'), `Wolf is down. ${SIGN_IN_TO_KEEP}`);
   assert.equal(killToast({ offline: 'timeout' }, name, 'Wolf'), `Wolf is down. ${NOT_SAVED}`);

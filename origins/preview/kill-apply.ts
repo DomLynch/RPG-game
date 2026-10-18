@@ -14,8 +14,9 @@ export function applyServerKill<S extends Source>(session: PitSession, source: S
 }
 export const SIGN_IN_TO_KEEP = 'Sign in to keep loot.', NOT_SAVED = 'Not saved: the server did not answer.';
 /** The kill toast: ONE path. What the server paid ("Wolf is down. +20 CP · +3 bronze · Wolf pelt ×2. Bounty done."); a guest (no session) gets no loot and is told to sign in to keep it, a signed-in page the server did not answer is told nothing was saved. "Bounty done." is the journal step's own answer (the server pays no bounty bronze yet). */
-export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false): string {
+export function killToast(killed: Killed | Offline, name: (id: string) => string, creature: string, bountyTaken = false, sandbox = false): string {
   const done = bountyTaken ? ' Bounty done.' : '';
+  if (sandbox) return `${creature} is down.${done}`;   // a zone the server never sees (unlisted): nothing is paid or saved there, so no 'sign in' or 'not saved' line
   if ('offline' in killed) return `${creature} is down. ${killed.offline === 'no-session' ? SIGN_IN_TO_KEEP : NOT_SAVED}${done}`;
   const loot = killed.loot.map((l) => (l.quantity > 1 ? `${name(l.item)} ×${l.quantity}` : name(l.item)));
   const paid = [...(killed.cp ? [`+${killed.cp} CP`] : []), ...(killed.bronze ? [`+${killed.bronze} bronze`] : []), ...loot];

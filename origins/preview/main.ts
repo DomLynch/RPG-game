@@ -777,7 +777,7 @@ foundChip.addEventListener('click', () => { foundPanel.style.display = foundPane
 document.body.append(foundChip, foundPanel);
 function drawFound() {
   foundChip.style.display = found.count() || killDrops.waiting() ? 'block' : 'none'; foundChip.textContent = `Found ${found.count()}`;
-  foundPanel.replaceChildren(...(found.list().length ? found.list().map((i) => { const r = document.createElement('div'); r.textContent = `${i.n}× ${i.label} (${i.from})`; return r; }) : [Object.assign(document.createElement('div'), { textContent: 'Nothing yet: kill a creature and walk onto what it drops.' })]));
+  foundPanel.replaceChildren(...(found.list().length ? found.list().map((i) => { const r = document.createElement('div'); r.textContent = `${outfit.ids().includes(i.piece) || outfit.weapon()?.id === i.piece ? '✓ ' : ''}${i.n}× ${i.label} (${i.from})`; return r; }) : [Object.assign(document.createElement('div'), { textContent: 'Nothing yet: kill a creature and walk onto what it drops.' })]));
 }
 drawFound();
 // The goblin war band (war-band.ts, Strategy's #1 for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox only.
@@ -819,7 +819,7 @@ function creatureFell(spec: MobSpec) {
   const answer = spawnNet.killed(spec.id, wc.record()).then((k) => { const shown = applyServerKill(session, source, k); if (shown) { session = shown.session; source = shown.source; showCareer(); } return k; });   // the server's verified kill (beta ledger): its paid CP moves the saved career at once (kill-apply.ts); a guest or an offline page changes nothing
   const quest = bountyQuestId(frontier!.giver);
   const bountyTaken = !!spec.encounter && play.bountyOpen(quest) && play.bountyPaid(quest, spec.encounter);   // the journal step only: no value is held on the page, the server's kill_report pays
-  void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
+  void answer.then((k) => worldToast(killToast(k, itemName, spec.name, bountyTaken, !!(zoneRow ?? loadZone()).unlisted)));   // ONE kill path: the screen shows only what the server paid; a guest is told to sign in to keep loot
   // The sandbox only (an unlisted zone the server never sees): a creature that wore a loadout drops ONE of the pieces it wore (loadouts-rules.ts droppedPiece), named on screen after the kill toast. Nothing is saved; the real item is the backend's loot-table work.
   // Dom 2026-10-18 (alpha): take EVERYTHING the body wore and carried, mix and match (row `zoneloot.take-limit`: the Pit takes 1, this zone 0 = all; outfit.ts dropSet). Laid in a ring where it fell.
   const loadout = loadoutRow(mobVariant(spec.character, spec.id)?.loadout), isCaptain = spec.id === warBand.captain();
