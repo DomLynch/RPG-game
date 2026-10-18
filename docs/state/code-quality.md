@@ -5,7 +5,7 @@
 **Now, in order.**
 1. **IQ #3175 @ae51499ac: candidate PASS + label posted.** When it publishes, check release.json and the writer, presence and verifier = ae51499ac, NRestarts 0 (presence and the writer restart; no migration), and post the verification on #3175.
 2. **Post the plain `Auditor: PASS @<head9>` line once green** (the train picker needs that exact line start; bold misses it):
-   - #3171 @5c0bf8f07 (QA no-loot; read OK; 1 pending at 13:0x)
+   - #3171 (QA no-loot): read OK @5c0bf8f07, but the head MOVED to 53e8bc240 (CI green there). Re-read only the delta from 5c0bf8f07 (probably the optional `if mints = 0` hardening), then post the PASS line.
    - #3177 @bc1d48a4e (publish overlap; trap fix read OK; 2 pending). Deploy wants it before IQ's gap, and Dom wants the faster cycle.
    - #3173 @0cad76c8e and #3176 @e9cdf5c8f are both read OK, but CI never ran: they're stacked on #3157's and #3174's branches. PASS after they're retargeted and green.
 3. **My #3168** (strictRevert row + organic/QA cohorts, stacked on the old IO head): Backend read it OK. It needs Lead's PASS, then a rebase onto trunk once IP is in trunk. Backend wires the `'qa'` cohort into kill_report after it lands.
