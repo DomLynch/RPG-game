@@ -311,6 +311,14 @@ test('publisher (window): the first release of a window owns the one tail (marke
     assert.match(readFileSync(join(expired.p.state, `post-publish-pending-${expired.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the old window closed: this release opens a new one');
     assert.ok(expired.tailRan());
   } finally { rmSync(expired.p.dir, { recursive: true, force: true }); }
+  const closed = setup(null);
+  try {
+    writeFileSync(join(closed.p.state, 'post-publish-pending-aaaaaaaa.closed'), `rev=${'a'.repeat(40)}\nrows=3,9\nat=${now - 60}\nwindow=720\npid=${process.pid}\n`);
+    closed.run();
+    assert.doesNotMatch(readFileSync(join(closed.p.state, 'post-publish-pending-aaaaaaaa.closed'), 'utf8'), /member=/, 'a CLOSED window takes no joiner');
+    assert.match(readFileSync(join(closed.p.state, `post-publish-pending-${closed.p.cand.slice(0, 8)}`), 'utf8'), /\nwindow=720\n/, 'the late publish opens a new window with its own tail');
+    assert.ok(closed.tailRan());
+  } finally { rmSync(closed.p.dir, { recursive: true, force: true }); }
 });
 
 test('publisher (#3177): a deploy log with the tail line writes the marker BEFORE the hold goes, starts the tail with rev/rows/PR, and logs publish-to-publish minutes', () => {

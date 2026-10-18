@@ -17,7 +17,22 @@ marker="$state/post-publish-pending-${rev:0:8}"   # the publisher wrote rev/rows
 if [ -e "$marker" ]; then { grep -v '^pid=' "$marker"; printf 'pid=%s\n' "$$"; } > "$marker.new" && mv "$marker.new" "$marker"; fi   # keeps rev/rows/at/window/member lines, adds the pid
 members="$rev"
 say() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) release-train-postcheck: $*"; }
-decided() { rm -f "$marker" "$marker.told"; }   # ONLY a decided outcome clears the marker: all green, or deploy_hold written for a red row
+late=""; marker_open="$marker"
+# ONLY a decided outcome clears the marker: all green, or deploy_hold written for a red row. Two layers against a release joining the window after its tail read the members (Auditor + Lead on #3214:
+# it would be live, never proved, no hold): (1) the window is CLOSED ATOMICALLY first (the marker is renamed to <marker>.closed before the members are read, so a later publish finds no open window
+# and opens its own with its own tail); (2) belt: at the end every member line still in the closed file, and any stray marker a racing joiner recreated at the open name, that is not in $members
+# fails closed (the hold names it). A stray without a pid is also caught by the publisher's stale-marker guard.
+scan_late() { # file: member revs (and the opener's rev=) not in $members
+  [ -e "$1" ] || return 0
+  { sed -n 's/^member=\([0-9a-f]*\) .*/\1/p' "$1"; sed -n 's/^rev=//p' "$1"; } | while read -r r; do case " $members " in *" $r "*) ;; *) echo "$r";; esac; done | tr '\n' ' '
+}
+close_marker() {
+  late=""
+  if [ -e "$marker" ]; then mv "$marker" "$marker.final" 2>/dev/null && { late="$(scan_late "$marker.final")"; rm -f "$marker.final"; }; fi
+  if [ "$marker" != "$marker_open" ] && [ -e "$marker_open" ]; then late="$late$(scan_late "$marker_open")"; rm -f "$marker_open"; fi
+  rm -f "$marker.told" "$marker_open.told"
+}
+decided() { close_marker; }
 # A dying tail (Mac shutdown or reboot sends SIGTERM first; INT, HUP) decides nothing: it holds the next publish and keeps the marker, never clears itself (Auditor on #3177).
 trap 'say "RED: interrupted"; [ -e "$hold" ] || printf "post-publish tail interrupted; remove this file after looking\nrows %s revision %s at %s\n" "$rows" "$rev" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$hold"; exit 143' TERM INT HUP
 note() {   # one PR comment, best effort (POSTCHECK_COMMENT replaces gh in tests)
@@ -30,6 +45,10 @@ raise() {   # $1 = why: hold the NEXT publish and tell a person
   note "release-train post-publish: rows $rows for live $rev NOT proved on CI ($1); window members: $members. deploy_hold written; the release stays live. Owner fixes forward against live and names it on this cut's thread."
   [ -n "${RELEASE_TRAIN_NOTIFY:-}" ] && $RELEASE_TRAIN_NOTIFY "release-train: post-publish CI rows failed for $rev ($1)" || true
   decided   # the hold is written above: the red outcome is decided
+  if [ -n "${late% }" ]; then
+    printf 'late joiners, live and never proved: %s\n' "$late" >> "$hold"
+    note "release-train post-publish: release(s) $late joined the window AFTER its tail read the members and were never proved on CI; deploy_hold names them."
+  fi
   exit 1
 }
 trust="${POST_PUBLISH_TRUSTED_CMD:-node $dir/ci-trusted-checks.mjs}"
@@ -40,6 +59,7 @@ window=$(sed -n 's/^window=//p' "$marker" 2>/dev/null | head -n 1)
 if [ -n "$window" ] && [ "$window" -gt 0 ] 2>/dev/null; then
   start=$(sed -n 's/^at=//p' "$marker" | head -n 1)
   while [ "$(date +%s)" -lt $(( ${start:-0} + window )) ]; do sleep "${POSTCHECK_WINDOW_TICK_S:-10}"; done
+  if mv "$marker_open" "$marker_open.closed" 2>/dev/null; then marker="$marker_open.closed"; fi   # CLOSE the window atomically BEFORE reading the members (joiners skip *.closed and open a new window)
   members="$rev $(sed -n 's/^member=\([0-9a-f]*\) .*/\1/p' "$marker" | tr '\n' ' ')"; members=${members% }   # the opener first, then the joiners in publish order
   rows=$( { echo "$rows"; sed -n 's/^member=[0-9a-f]* //p' "$marker"; } | tr ',' '\n' | grep -E '^[0-9]+$' | sort -un | paste -sd, - )
   rev=${members##* }   # the newest member
@@ -51,6 +71,7 @@ trusted=$(cd "$dir/.." && CI_ROWS_WAIT_S="${POST_PUBLISH_CI_WAIT_S:-1500}" $trus
 left=$(node "$dir/lib/row-placement.mjs" subtract "$rows" "$trusted" 2>/dev/null) || left="$rows"   # fail closed: a failed subtract leaves every row open
 [ -z "$left" ] || raise "rows $left not green on CI for the tree"
 say "post-publish rows $rows for $rev: all CI-trusted (window members: $members)"
+close_marker
+[ -z "${late% }" ] || raise "release(s) $late joined the window after its members were read: never proved on CI"
 note "release-train post-publish: rows $rows for live $rev all green on CI (window members: $members)."
-decided
 exit 0

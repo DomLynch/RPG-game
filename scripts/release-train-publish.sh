@@ -173,7 +173,7 @@ joined=""
 if [ -n "$tail_rows" ] && [ "$win" -gt 0 ]; then
   for m in "$state"/post-publish-pending-*; do
     [ -e "$m" ] || continue
-    case "$m" in *.told|*.new) continue;; esac
+    case "$m" in *.told|*.new|*.closed|*.final) continue;; esac   # a closed window takes no joiners: the publish below opens a new window of its own
     mw=$(sed -n 's/^window=//p' "$m" | head -n 1); mat=$(sed -n 's/^at=//p' "$m" | head -n 1); mp=$(sed -n 's/^pid=//p' "$m" | head -n 1)
     [ "${mw:-0}" -gt 0 ] 2>/dev/null && [ $(( $(date +%s) - ${mat:-0} )) -lt "$mw" ] || continue
     if [ -n "$mp" ] && ! kill -0 "$mp" 2>/dev/null; then continue; fi

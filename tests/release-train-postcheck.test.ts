@@ -125,6 +125,27 @@ test('postcheck (window): at the window close it dispatches ONE CI run for the N
   }
 });
 
+test('postcheck (window race, Auditor + Lead on #3214): the window is closed atomically BEFORE the members are read; a joiner that slips in after the read fails closed and is named in the hold', () => {
+  const state = mkdtempSync(join(tmpdir(), 'postcheck-race-'));
+  const A = 'a'.repeat(40), D = 'd'.repeat(40);
+  const marker = join(state, `post-publish-pending-${A.slice(0, 8)}`);
+  const now = Math.floor(Date.now() / 1000);
+  writeFileSync(marker, `rev=${A}\nrows=3,9\nat=${now - 5}\nwindow=1\n`);
+  // during the CI wait (after the members were read) a late publish appends to the CLOSED file's old path AND recreates a stray at the open name, as a racing joiner can
+  const trust = join(state, 'trust.sh');
+  writeFileSync(trust, `#!/bin/sh\nif [ -e "${marker}.closed" ]; then echo "closed-at-wait-time" > "${state}/saw-closed"; echo "member=${D} 3" >> "${marker}.closed"; fi\nprintf 'rev=${D}\\nrows=3\\nat=1\\nmember=${D} 3\\n' > "${marker}"\necho 3,9\n`, { mode: 0o755 });
+  const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, '#!/bin/sh\ntrue\n', { mode: 0o755 });
+  const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', A, '3,9', ''], { encoding: 'utf8', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POST_PUBLISH_CI_SETTLE_S: '0', POSTCHECK_WINDOW_TICK_S: '0.1', RELEASE_TRAIN_NOTIFY: '' } });
+  try {
+    assert.ok(existsSync(join(state, 'saw-closed')), 'at the CI wait the marker was already the .closed name: a joiner finds no open window');
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, new RegExp(`${D} joined the window after its members were read: never proved on CI`));
+    assert.match(readFileSync(join(state, 'deploy_hold'), 'utf8'), new RegExp(D), 'the hold names the late joiner');
+    assert.equal(existsSync(marker), false, 'the stray at the open name is removed once named');
+    assert.equal(existsSync(`${marker}.closed`), false);
+  } finally { rmSync(state, { recursive: true, force: true }); }
+});
+
 test('deploy.sh (window): with detach AND a TAIL_MIN_INTERVAL_S window the release dispatches no CI run of its own (the window tail does)', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
   assert.match(deploy, /POST_PUBLISH_DETACH:-0\}" == 1 && "\$\{TAIL_MIN_INTERVAL_S:-0\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\]; then export POST_PUBLISH_DISPATCH=true; fi/);
