@@ -10,10 +10,9 @@ import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
 import { mobLook, mobVariant } from './mob-looks.ts';
 import { loadoutRow } from '../world/loadouts-rules.ts';
-import type { Tier } from '../../src/core/index.ts';
+import { TIERS, type Tier } from '../../src/core/index.ts';
 import { loadLoot, lootWorn, loadRankLook, loadShape, fitPieces, NotHeroRig, type RankLook } from '../../src/fight/index.ts';
 import { shapeFor } from '../../src/fight/weapon-shapes.ts';
-import { TITLES } from '../../src/core/server.ts';
 import { fxNum } from '../../src/fight/fx-rows.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
@@ -95,7 +94,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const fitted = new Map<string, THREE.SkinnedMesh[] | null>(); let fitMs = 0, fitRuns = 0;   // the pieces fitted to each body key (piece-fit.ts) and what that cost in all; null = refused, never retried
   const kitOf = (ids: readonly string[] | undefined): string | undefined => ids?.[0]?.split('.')[0];   // the carrier set a loadout's pieces come from: the kit its loot ids start with (pitborn.Boots -> carriers-pitborn)
   const reshapeWeapon = (v: View, weapon: WeaponId, rung: string | undefined) => {   // the Pit's per-rank weapon shape (weapon-shapes.ts shapeFor: plain 1-3, crafted 4-7, ornate 8-10) at the loadout's rung
-    const level = rung ? TITLES.indexOf(rung as (typeof TITLES)[number]) + 1 : 0, url = level > 0 ? shapeFor(weapon, level) : undefined;
+    const level = rung ? TIERS.indexOf(rung as Tier) + 1 : 0, url = level > 0 ? shapeFor(weapon, level) : undefined;
     if (!url) return;
     const p = weaponShapes.get(url) ?? loadShape(url).catch((error: unknown) => { console.warn(`weapon shape ${url} did not load; the plain part stays`, error); return undefined; }); weaponShapes.set(url, p);
     void p.then((mesh) => { if (mesh && v.actor) v.actor.reshape(mesh.clone()); });
