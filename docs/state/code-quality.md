@@ -1,6 +1,11 @@
 # Code quality lane (Auditor)
 
-## 2026-10-18 ~08:4x: READ FIRST. LIVE = II 4ee9aff6f (verified: release.json, writer, presence, verifier, NRestarts 0). RV76 candidate #3129 @21e257102 PASSED + candidate:pass
+## 2026-10-18 ~09:1x: READ FIRST. LIVE = RV76 21e257102 (verified: release.json, writer, presence, verifier; NRestarts 0)
+
+**Now.** 1. #3130 PASSED @ef4a6d625 (career falloff rows), and #3112 @777931635 PASSED, both for the next batch. 2. **#3122 and #3123 need rebases** (both conflict with II: #3101 changed zone-exit-check.mjs; #3117 the preview-rules count pin). #3123's visibility fix is read OK @b884cc660 (keepVerdict). On the rebased heads: check that only conflict resolution changed, and re-run the VPS soft/off pair for #3122 if the leg logic changed. VPS wait loops: don't `pgrep -f` the command (it matches itself).
+**PicoClaw:** a report on a Pico nudge starts with "per PICO-<id>" (memory feedback_pico_report_tag).
+
+## 2026-10-18 ~08:4x (superseded): LIVE = II 4ee9aff6f (verified: release.json, writer, presence, verifier, NRestarts 0). RV76 candidate #3129 @21e257102 PASSED + candidate:pass
 
 **Now.** 1. **RV76**: when it publishes, verify release.json, the writer, presence AND the verifier = 21e257102, NRestarts 0 (Deploy runs verify-loot --dry first). 2. #3112 was re-PASSed @777931635 for the batch after RV76. 3. #3123 is still NOT YET (see below). 4. Lead takes #3119's re-PASS.
 How to verify live services on the VPS: `systemctl show frankendom-origins-writer|frankendom-presence -p NRestarts`, the MainPID's cwd, and `readlink -f /opt/frankendom-{origins,presence,verifier}/current`.
