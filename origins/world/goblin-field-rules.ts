@@ -4,6 +4,7 @@
 // Pure, and page- and server-safe. Every number the look module reads is a row; a missing or non-positive named rule is refused.
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
 import { ambienceRow } from './props-rules.ts';
+import { skinIds } from './building-skins-rules.ts';
 import DEFS from './goblin-field-defs.json' with { type: 'json' };
 import MANIFEST from './goblin-field-defs.manifest.json' with { type: 'json' };
 
@@ -67,6 +68,8 @@ export function zoneCamp(z: ZoneLookFields): string | null {
   const at = zoneSet(z, 'look.props.camp');
   return typeof at === 'string' && at && z.world.includes(at) ? at : (z.world[0] ?? null);
 }
+/** The building skin a zone asks for (`look.buildings`, an id in building-skins.json); '' = the brick blocks as they were. */
+export const zoneBuildings = (z: ZoneLookFields): string => { const v = zoneSet(z, 'look.buildings'); return typeof v === 'string' && skinIds().includes(v) ? v : ''; };
 /** The ground a zone asks for (`look.ground.material` naming a ground row; an id with no row, like the biomes' old "ash", leaves the Frontier's own dirt). */
 export const zoneGround = (z: ZoneLookFields): GoblinGround | null => LOADED.grounds.find((g) => g.id === zoneSet(z, 'look.ground.material')) ?? null;
 /** The ambience row a zone asks for (`sound.ambience`); an id with no row stays silent. */

@@ -30,7 +30,9 @@ import { createRemoteHeroes } from './remote-heroes.ts';
 import { legendSpecs } from './legend-mobs.ts';
 import { loadZone, pageZoneId } from '../zones/loader.ts';
 import { createHorizonDome } from './horizon-dome.ts';
-import { zoneSky } from '../world/goblin-field-rules.ts';
+import { zoneBuildings, zoneSky } from '../world/goblin-field-rules.ts';
+import { buildingSkin } from './building-skin.ts';
+import { loadSkinModels } from './skin-models.ts';
 import { openExits, type ExitRow } from '../zones/exits.ts';
 import { arrival, createZoneExit, doorsOf, exitHref } from './zone-exit.ts';
 import { createLateOpen } from './late-open.ts';
@@ -126,7 +128,7 @@ scene.add(sun, sun.target);
 // Without the flag none of it is built and the page is the walk out as before.
 const QA = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const REGION = new URLSearchParams(location.search).get('region') !== '0';
-const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier);
+const frontier: Frontier | null = REGION ? frontierPlan(/[?&]relief=0\b/.test(location.search), pageZoneId()) : null, frontierParts = frontier && frontierBuild(frontier, buildingSkin(zoneBuildings(loadZone())));   // a zone row's look.buildings names a skin (building-skins.json); none = the brick blocks
 if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;   // the tab names the page's zone from its data (index.html's is only the pre-script default)
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
@@ -160,6 +162,7 @@ const cover = createCover({ fade: (ms) => { if (coverEl) { coverEl.style.transit
 if (frontier && frontierParts) {
   frontierGroup = buildFrontier(scene, arena.materials, frontierParts, dress, camps, relief);
   if (zoneKit) void loadKit(zoneKit, undefined, groundY).then((g) => frontierGroup?.add(g)).catch(() => {}).finally(() => { settled.kit = true; });   // a failed kit file only leaves the ground bare
+  if (frontierParts.models.length) void loadSkinModels(frontierParts.models, groundY).then((g) => frontierGroup?.add(g));   // the skin's buildings: each model file is fetched only now, on entering this zone
   { const sky = zoneSky(loadZone()); if (sky) { zoneDome = createHorizonDome(scene, sky, import.meta.env.BASE_URL); const pitSky = arena.group.getObjectByName(zoneDome.covers); if (pitSky) pitSky.renderOrder = zoneDome.mesh.renderOrder - 1; } }   // a zone row's look.sky (a palette in goblin-field-defs.json) paints the horizon dome (horizon-dome.ts); a zone that names none (Zone 1) builds nothing. The Pit's own sky draws just before it, so the dome paints over it and every real object still draws in front
   play.enableBounty(bountyQuest(frontier.giver), giverTalk(frontier.giver), frontier.giver.name);
 }
