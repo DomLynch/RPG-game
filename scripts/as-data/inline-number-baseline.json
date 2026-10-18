@@ -805,10 +805,7 @@
   "0.1": 1
  },
  "origins/server/encounter-pose.ts": {
-  "2": 6,
-  "4": 2,
-  "1e3": 2,
-  "1e-6": 1
+  "2": 6
  },
  "origins/server/encounter.ts": {
   "2": 1,
@@ -847,10 +844,6 @@
   "500": 1,
   "1500": 2
  },
- "origins/server/mob-rewards.ts": {
-  "32": 1,
-  "-6": 4
- },
  "origins/server/quest-advance.ts": {
   "64": 2,
   "120": 1
@@ -873,27 +866,9 @@
  "origins/server/upgrade.ts": {
   "120": 1
  },
- "origins/server/wear-settle.ts": {
-  "2": 2,
-  "4": 1,
-  "32": 2
- },
- "origins/server/world-spawns.ts": {
-  "2": 1,
-  "24": 1,
-  "31": 1,
-  "60": 1,
-  "10_000": 1,
-  "-6": 2
- },
  "origins/server/world-verify-pool.ts": {
   "16": 1,
   "3000": 1
- },
- "origins/server/world-verify.ts": {
-  "60": 1,
-  "100": 2,
-  "120": 1
  },
  "origins/shops/shop-view.ts": {
   "60": 6,
@@ -1301,11 +1276,7 @@
  },
  "src/core/career-model.ts": {
   "2": 2,
-  "3": 1,
-  "200": 1,
   "1000": 2,
-  "-2": 1,
-  "-4": 1,
   "1e6": 1
  },
  "src/core/career-screen.ts": {
