@@ -51,7 +51,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
     // Who: the spawn's creatures (their `mob` form), or the boss of its encounter (the form that names that encounter).
     const who: { id: CharacterId; form: { id: string; opponent: string | null; level: number | null } }[] = [];
     for (const c of sp.characters) {
-      const def = f.data.registry.characters.get(c), form = def?.encounterForms.find((x) => x.id === 'mob');
+      const def = f.data.registry.characters.get(c), formId = rows.find((r) => r.id === c)?.form, form = def?.encounterForms.find((x) => x.id === formId);   // the row names the form it stands as (MobRow.form)
       if (def && form) who.push({ id: c, form });
     }
     if (sp.encounter) {
@@ -95,7 +95,7 @@ export function mobSpecs(f: Frontier, b: Build, rows: readonly MobRow[] = FRONTI
   // The openers: a zone the data leaves without a creature inside the first-fight window gets one lone opener (zone-rules.ts openerSpot), appended last.
   for (const [zoneId, rowId] of Object.entries(FRONTIER_OPENERS)) {
     const zone = f.zones.find((z) => z.zone === zoneId), row = rows.find((r) => r.id === rowId), def = f.data.registry.characters.get(rowId as CharacterId);
-    const form = def?.encounterForms.find((x) => x.id === 'mob');
+    const form = def?.encounterForms.find((x) => x.id === row?.form);
     if (!zone || !row || !def || !form) continue;
     const near = out.some((m) => m.zone === zoneId && Math.hypot(m.home.x - zone.mount.x, m.home.z - zone.mount.z) <= MAX_FIRST_FIGHT_M);
     if (near) continue;

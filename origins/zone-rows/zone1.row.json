@@ -46,6 +46,7 @@
         },
         "role": "beast",
         "loot": "loottable:cinder-scavenger",
+        "form": "mob",
         "level": [
           1,
           2
@@ -71,6 +72,7 @@
         },
         "role": "beast",
         "loot": "loottable:mere-brood",
+        "form": "mob",
         "level": [
           1,
           2
@@ -97,6 +99,7 @@
         },
         "role": "brute",
         "loot": "loottable:ruin-ghoul",
+        "form": "mob",
         "level": [
           1,
           2
@@ -123,6 +126,7 @@
         },
         "role": "brute",
         "loot": "loottable:cinder-bear",
+        "form": "mob",
         "level": [
           1,
           2
@@ -152,6 +156,7 @@
         },
         "role": "beast",
         "loot": "loottable:ash-boar",
+        "form": "mob",
         "level": [
           1,
           2
@@ -181,6 +186,7 @@
         },
         "role": "beast",
         "loot": "loottable:giant-salamander",
+        "form": "mob",
         "level": [
           1,
           2
@@ -210,6 +216,7 @@
         },
         "role": "beast",
         "loot": "loottable:cave-troll",
+        "form": "mob",
         "level": [
           3,
           3
@@ -239,6 +246,7 @@
         },
         "role": "beast",
         "loot": "loottable:ash-wolf",
+        "form": "mob",
         "level": [
           1,
           2
@@ -267,6 +275,7 @@
         },
         "role": "beast",
         "loot": "loottable:pit-goblin",
+        "form": "mob",
         "level": [
           1,
           1
