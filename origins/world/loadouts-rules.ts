@@ -3,8 +3,7 @@
 // asks for loadouts by id (`look.loadout`, `spread.loadouts`), so any number of zones reuse the same rows. Donor: Ultima Online / ModernUO's equipment "templates" (a creature is a template of worn items, the corpse holds what it wore)
 // and EQEmu's npc_types loadout, rewritten as rows. Presentation data: nothing here is read by the sim. Pure (no three, no DOM, no clock, no storage): the page and the server import this file as it is, so the loadout a creature
 // WEARS on the page and the one the server rolls loot for are one function (pickLoadout), by construction.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';
-import { TITLES as RUNGS } from '../../src/core/career-ladder.ts';
+import { loadRegistry, tableFromFile, TITLES as RUNGS, type Manifest } from '../../src/core/server.ts';
 import DEFS from './loadouts.json' with { type: 'json' };
 import MANIFEST from './loadouts.manifest.json' with { type: 'json' };
 import { creatureHash, variantIndex } from './creature-hash.ts';
