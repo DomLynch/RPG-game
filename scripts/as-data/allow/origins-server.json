@@ -1,5 +1,13 @@
 {
   "tunables": [
+    {"file": "origins/server/units.ts", "name": "MS_PER_SECOND", "kind": "exempt", "reason": "milliseconds in a second: a unit, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "TICKS_PER_SECOND", "kind": "exempt", "reason": "the sim's fixed step rate, a mirror of src/fight/sim.ts STEP = 1 / 60 (tests/units.test.ts pins the two together): an engine constant, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "CM_PER_M", "kind": "exempt", "reason": "centimetres in a metre: a unit, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "LOG_TAG_CHARS", "kind": "exempt", "reason": "how many trailing characters of an id a log line shows as its short tag: log formatting, not a game rule", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "SEED_LIMIT", "kind": "exempt", "reason": "a fight seed is a positive 31-bit integer: the record format's seed width, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "UINT32_BYTES", "kind": "exempt", "reason": "bytes in a 32-bit word: a unit, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "UINT32_RANGE", "kind": "exempt", "reason": "2^32, to turn four bytes of a hash into a fraction in [0, 1): arithmetic, not tuning", "owner": "Duels & Backend"},
+    {"file": "origins/server/units.ts", "name": "KILL_ID_HEX", "kind": "exempt", "reason": "storage format: the hex characters of the sha256 kept in a kill's id (enc.<hex>), the width of that id in the events and ledgers; changing it would orphan every stored id", "owner": "Duels & Backend"},
     {"file": "origins/server/http-status.ts", "name": "HTTP_OK", "kind": "exempt", "reason": "HTTP status code (RFC 9110): the protocol's own number, not tuning", "owner": "Duels & Backend"},
     {"file": "origins/server/http-status.ts", "name": "HTTP_BAD_REQUEST", "kind": "exempt", "reason": "HTTP status code (RFC 9110): the protocol's own number, not tuning", "owner": "Duels & Backend"},
     {"file": "origins/server/http-status.ts", "name": "HTTP_UNAUTHORISED", "kind": "exempt", "reason": "HTTP status code (RFC 9110): the protocol's own number, not tuning", "owner": "Duels & Backend"},
