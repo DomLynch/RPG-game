@@ -23,6 +23,6 @@ test('the zone creature view logs a missing clip, marks the kind failed and retu
   const start = src.indexOf('catch (error) {', src.indexOf('buildWarriors({ scene: body.scene'));
   const handler = src.slice(start, src.indexOf('\n    }\n', start));
   assert.match(handler, /error instanceof MissingClip\) console\.error/);
-  assert.match(handler, /bodies\.set\(s\.body, 'failed'\); failedKinds\.add\(s\.body\); return;/);
+  assert.match(handler, /bodies\.set\(key, 'failed'\); failedKinds\.add\(key\); return;/);
   assert.doesNotMatch(handler, /\bthrow\b/);
 });

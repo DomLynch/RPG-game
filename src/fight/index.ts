@@ -1,6 +1,8 @@
 // The shared fight core's public API (grows with K2: createFight). Clients (the Pit's page, Zone 1, later zones) import the fight from here.
 export * from './characters.ts';
 export { HERO_BONES, NotHeroRig, assertHeroRig, boneRatios, fitPieces } from './piece-fit.ts';   // the per-bone refit of hero-rig loot pieces to a re-proportioned body (presentation only)
+export { shapeFor } from './weapon-shapes.ts';   // the per-rank weapon shape url (the zone's creature view reshapes a loadout's weapon at its rung)
+export { fxNum } from './fx-rows.ts';   // the presentation tuning rows (fx-rows.json)
 export { createFight, type Fight, type FightOptions, type FightSlot } from './fight.ts';
 
 export * as world from './world.ts';   // the open-world loop (Zone 1 and later zones): aggro, chase, leash, pairs, step
