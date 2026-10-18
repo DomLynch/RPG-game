@@ -137,6 +137,25 @@ try {
   eq(await code(V, KILL(B, tok(22), 0, 75, EV(tok(22), B, pcB))), 'O0009', 'kill: an expired token is refused');
   eq(await code(V, `select public.origins_spawn_touch('${B}', '${tok(22)}');`), 'O0009', 'touch: an expired token is refused');
 
+  // ---- 20261018090000 the V5 kill receipt: what became of a token that is no longer open, from the stored rows, this account only ---------------------------------
+  const RECEIPT = '20261018090000_origins_spawn_receipt.sql', receipt = (acct, t) => val(O, `select coalesce(public.origins_spawn_receipt('${acct}', '${t}'), 'null'::jsonb)::text;`);
+  const RFN = 'origins_spawn_receipt(uuid,text)';
+  eq(psql(`select has_function_privilege('${O}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('${V}', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('anon', '${RFN}'::regprocedure, 'execute')::int::text || has_function_privilege('authenticated', '${RFN}'::regprocedure, 'execute')::int::text`), '1100', 'receipt: both writer roles (frankendom_origins and frankendom_verifier, the writer\'s real login) and no one else (not anon, not authenticated)');
+  const r12 = await receipt(A, tok(12));
+  eq([r12.kind, r12.instance, typeof r12.killedAt, r12.cp, r12.bronze, r12.loot], ['paid', psql(`select instance from public.origins_spawn_engages where token = '${tok(12)}'`), 'string', 30, 7, 1], 'receipt: a paid kill reads back from the stored ledger row (cp 30, bronze 7, one item), not recomputed');
+  const r1 = await receipt(A, tok(1));
+  eq([r1.kind, r1.cp, r1.bronze, r1.loot], ['paid', 0, 0, 0], 'receipt: a paid kill whose batch booked nothing reads back as paid with zeros');
+  eq(await receipt(B, tok(1)), null, 'receipt: another account\'s token is unknown, nothing leaks');
+  eq(await receipt(A, tok(404)), null, 'receipt: a token that never existed is unknown');
+  eq(await receipt(B, tok(20)), { kind: 'expired' }, 'receipt: a token closed dead (lost the kill) is expired');
+  eq(await receipt(B, tok(22)), { kind: 'expired' }, 'receipt: an open token past its expiry is expired');
+  eq(await receipt(A, tok(1)).then(r => JSON.stringify(Object.keys(r).sort())), JSON.stringify(['bronze', 'cp', 'instance', 'killedAt', 'kind', 'loot']), 'receipt: only the receipt fields');
+  eq(await val(V, `select coalesce(public.origins_spawn_receipt('${A}', '${tok(1)}'), 'null'::jsonb)::text;`).then(r => r.kind), 'paid', 'receipt: the writer\'s real login role (frankendom_verifier) can call it and reads the same receipt');
+  eq(await code('anon', `select public.origins_spawn_receipt('${A}', '${tok(1)}');`), '42501', 'receipt: anon cannot call it');
+  eq([used(tok(1)), events(tok(1)), ledger(tok(1))], ['killed', '1', 'unchecked/0/0/0'], 'receipt: reading it twice changes and pays nothing');
+  psql(readFileSync(join(dir, '..', 'down', RECEIPT.replace('.sql', '_down.sql')), 'utf8'));
+  eq(psql(`select count(*) from pg_proc where proname = 'origins_spawn_receipt'`), '0', 'receipt down: the function is gone');
+
   // ---- 0015 the beta wipe: exactly the ledger's rewards, everything else byte-identical ---------------------------------------------------------------
   const keep = `{"op":"mint","item":{"id":"it-keep-1","item":"item:ash-pelt","quantity":2,"tier":0,"upgrade_level":0,"loc":{"kind":"pack","owner":"${pcA}","index":1},"bound_to":null,"mint_key":"loot:keep0001:0","provenance":{"mintKey":"loot:keep0001:0"},"history":[],"single_copy":false}}`;
   psql(`select public.origins_apply('[${keep}]'::jsonb, array['${A}'::uuid]);`);   // a NON-beta item of the same account: must survive
