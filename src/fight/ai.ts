@@ -1,7 +1,7 @@
 import { STAB_ON } from './stab-rule.ts';
 import { RULES, SKILL_ROWS, type AiProfile, type Direction, type MoveId, weaponOf } from './moves.ts';
 import { LATE_NOTICE } from './play-radius.ts';
-import { meleeSpecialReach, MISSILE_ANSWER, missileMinGap, missileOf, percentOf } from './sandbox-rules.ts';
+import { meleeSpecialReach, MISSILE_ANSWER, missileMinGap, missileOf, percentOfUnit } from './sandbox-rules.ts';
 import { aim, distance, elapsed, idleIntent, legal, mirror, movesOf, timing, walled, type Action, type Duel, type Intent, type Side, guardOf } from './duel.ts';
 import { M } from './detmath.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
 import { READ_ROWS } from './ai-read-rows.ts';   // rows: ai-read-defs.json
@@ -86,7 +86,7 @@ export function decide(duel: Duel, me: Side, ai: AiState, profile: AiProfile): {
   if (MISSILE_ANSWER) {   // sandbox missileAnswer (RV79): an arrow in flight at me is rolled, guarded or taken (decided once per arrow, seeded); an archer standing beyond the missile gap is run down. No row = no answer, and no roll is drawn
     const bolt = opponent.missile;
     if (bolt) {
-      if (next.missileSeen !== bolt.launched) { const r = percentOf(roll()); next.missileSeen = bolt.launched; next.missilePlan = r < MISSILE_ANSWER.dodge ? 'dodge' : r < MISSILE_ANSWER.dodge + MISSILE_ANSWER.guard ? 'guard' : 'take'; }
+      if (next.missileSeen !== bolt.launched) { const r = percentOfUnit(roll()); next.missileSeen = bolt.launched; next.missilePlan = r < MISSILE_ANSWER.dodge ? 'dodge' : r < MISSILE_ANSWER.dodge + MISSILE_ANSWER.guard ? 'guard' : 'take'; }
       const left = bolt.arrives - tick;
       if (next.missilePlan === 'dodge' && canAct && self.stamina >= RULES.rollCost && left <= RULES.safeEnd - MISSILE_ANSWER.dodgeEarly && left >= RULES.safeStart) return { intent: { ...intent, action: 'dodge', move: { x: M.sin(facing), z: M.cos(facing), yaw: 0, run: false } }, ai: next };
       if (next.missilePlan === 'guard' && canAct && left <= MISSILE_ANSWER.guardLead) return { intent: { ...intent, guard: true }, ai: next };
