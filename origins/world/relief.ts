@@ -8,7 +8,7 @@ import { layoutRule } from './layout-rules.ts';
 export type ReliefParams = { relief: number; hillScale: number; seed: number };
 export type Pad = { x: number; z: number; r: number };   // a flat disc of radius r metres round (x, z); the ground blends back to the hills over the next 0.6 r
 
-const OCTAVES = layoutRule('terrainOctaves'), GAIN = layoutRule('terrainGain'), LACUNARITY = layoutRule('terrainLacunarity'), WARP = layoutRule('terrainWarp'), PAD_BLEND = layoutRule('padBlend');
+const OCTAVES = layoutRule('terrainOctaves'), GAIN = layoutRule('terrainGain'), LACUNARITY = layoutRule('terrainLacunarity'), WARP = layoutRule('terrainWarp'), WARP_SCALE = layoutRule('terrainWarpScale'), PAD_BLEND = layoutRule('padBlend');
 const NORM = (1 - GAIN ** OCTAVES) / (1 - GAIN);   // the fbm's summed amplitude, so it stays in [0, 1)
 
 // The noise's own numbers: the lattice hash's primes and shifts, the fade polynomial, the smoothstep, the warp's decorrelation offsets and seed salts, the FNV-1a parameters. They define the noise (change one and every landscape
@@ -18,7 +18,6 @@ const FADE_A = 6, FADE_B = 15, FADE_C = 10, SMOOTH_A = 3, SMOOTH_B = 2, OCTAVE_S
 const FNV_OFFSET = 0x811c9dc5, FNV_PRIME = 0x01000193;
 const HALF = 0.5, SIGNED_SPAN = 2;   // one half; the width of [-1, 1), the range a [0, 1) noise value is stretched to
 const GRID = layoutRule('reliefGrid');   // the renderer's heightfield samples a side
-const half = (n: number) => n / 2;
 
 // A lattice hash to [0, 1): integer mixing only (Math.imul and shifts), so it is exact everywhere.
 function hash(ix: number, iz: number, seed: number): number {
@@ -51,8 +50,8 @@ export function seedOf(zoneId: string): number {
 export function reliefAt(x: number, z: number, p: ReliefParams, pads: readonly Pad[] = []): number {
   if (p.relief === 0) return 0;
   const k = 1 / p.hillScale, seed = p.seed | 0;
-  const wx = x + (noise(x * k * HALF + WARP_OFFSET_X, z * k * HALF, seed + WARP_SALT_X) - HALF) * p.hillScale * WARP;   // the warp: contours meander instead of lying on a grid
-  const wz = z + (noise(x * k * HALF, z * k * HALF + WARP_OFFSET_Z, seed + WARP_SALT_Z) - HALF) * p.hillScale * WARP;
+  const wx = x + (noise(x * k * WARP_SCALE + WARP_OFFSET_X, z * k * WARP_SCALE, seed + WARP_SALT_X) - HALF) * p.hillScale * WARP;   // the warp: contours meander instead of lying on a grid
+  const wz = z + (noise(x * k * WARP_SCALE, z * k * WARP_SCALE + WARP_OFFSET_Z, seed + WARP_SALT_Z) - HALF) * p.hillScale * WARP;
   let h = (fbm(wx * k, wz * k, seed) - HALF) * SIGNED_SPAN * p.relief;
   for (const pad of pads) {
     const dx = x - pad.x, dz = z - pad.z;
@@ -64,6 +63,6 @@ export function reliefAt(x: number, z: number, p: ReliefParams, pads: readonly P
 // The 32 x 32 heightfield the renderer meshes: `n` samples a side over a `size` m square centred on (cx, cz), row-major (z rows, x columns).
 export function heightfield(p: ReliefParams, size: number, pads: readonly Pad[] = [], n = GRID, cx = 0, cz = 0): Float32Array {
   const out = new Float32Array(n * n), step = size / (n - 1);
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j * n + i] = reliefAt(cx - half(size) + i * step, cz - half(size) + j * step, p, pads);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j * n + i] = reliefAt(cx - size / 2 + i * step, cz - size / 2 + j * step, p, pads);
   return out;
 }
