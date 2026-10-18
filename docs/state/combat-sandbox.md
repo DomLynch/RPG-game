@@ -1,5 +1,10 @@
 # Combat Sandbox (Dom's lane) — state
 
+## 2026-10-18 midday: GROUND SLAM APPROVED (read first)
+- Dom tested Ground Slam on his phone: "works, good". No code change for it: it plays Special_GroundSlam (Mixamo run-jump slam, strike 0.46) on the shared specialMeleeWindup 32 / specialReact rows, with its three `specialSound` rows (whoosh, hit_heavy, guard_break). Before approval Dom saw a green magic background on his phone that I could not reproduce (VPS clip, wiped loadout, no effect); likely a remembered spell/heal pick in his saved loadout, never confirmed. If it returns: ask which button, check the Special 2 picker for the heal, and make a link's special2 beat any remembered spell2.
+- LIVE: sandbox preview from sandbox/page, picker labels Skull Crack / Whirlwind / Ground Slam / Lunge, `unlockAfterBossKills` 0/0/1/2 as data only (nothing reads it). Mixamo retarget session is done; its branch sandbox/special-clips is contained in sandbox/page (worktree ~/Developer/frankendom-sandbox-clips can go).
+- NEXT: Lunge (timing, reaction, sound), then two-hand weapons need a two-handed source clip, then wire the unlock gate (Combat's). Tests for the picker labels are still owed (deploy lock blocked them).
+
 ## 2026-10-18: picker names and unlock rows (next after the handoff below)
 - `specialPick` rows (sandbox/rows.json) now carry `label` and `unlockAfterBossKills`: Skull Crack (cleave) 0, Whirlwind (reaping, new in the picker) 0, Ground Slam (stomp) 1, Lunge 2. The picker (sandbox/entry.ts) shows `label` in place of the trunk skill name; trunk skill-defs names and tests are untouched. The unlock rows are DATA ONLY: nothing reads them yet (no boss-kill count in the sandbox sim); the gate is Combat's to wire.
 - Checked: tsc clean. NOT run: tests (the deploy lock blocked suites at 20:12Z). Owed: tests/sandbox-spell-pick.test.ts and the targeted set once the deploy posts FREE.
