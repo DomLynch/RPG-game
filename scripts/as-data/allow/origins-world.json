@@ -1,5 +1,17 @@
 {
   "tunables": [
-    {"file": "origins/world/resolve.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
+    {"file": "origins/world/resolve.ts", "name": "SCHEMA_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "HASH_SEED", "kind": "exempt", "reason": "mulberry32 seed-hash constant: part of the hash format, changing it re-rolls every seeded town (pinned by the town digests), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "HASH_MUL", "kind": "exempt", "reason": "mulberry32 seed-hash multiplier: part of the hash format, changing it re-rolls every seeded town (pinned by the town digests), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "HASH_ROT_LEFT", "kind": "exempt", "reason": "mulberry32 seed-hash rotate amount: part of the hash format, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "HASH_ROT_RIGHT", "kind": "exempt", "reason": "mulberry32 seed-hash rotate amount (32 minus the left rotate): part of the hash format, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "STEP", "kind": "exempt", "reason": "mulberry32 state increment: part of the PRNG's definition, changing it re-rolls every seeded town, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "MIX_A", "kind": "exempt", "reason": "mulberry32 output-mix shift: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "MIX_B", "kind": "exempt", "reason": "mulberry32 output-mix shift: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "MIX_OR", "kind": "exempt", "reason": "mulberry32 output-mix OR mask: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "MIX_C", "kind": "exempt", "reason": "mulberry32 output-mix shift: part of the PRNG's definition, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "UINT32", "kind": "exempt", "reason": "2^32: scales the PRNG's unsigned 32-bit output to [0,1), a number of the integer width, not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "SEED_WEALTH_STEPS", "kind": "exempt", "reason": "the wealth is keyed into the town's seed string to a hundredth: part of the seed format (changing it re-rolls every town), not tuning", "owner": "World & Audio"},
+    {"file": "origins/world/town.ts", "name": "HALF", "kind": "exempt", "reason": "one half: the centre of a unit interval, a mathematical constant, not tuning", "owner": "World & Audio"}
   ]
 }
