@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 
 type Site = { file: string; line: number; text: string };
-type Report = Record<'constExprSites' | 'newConstExprSites' | 'constObjectSites' | 'newConstObjectSites' | 'inlineNumberSites' | 'newInlineNumberSites', Site[]> & { inlineExcluded: Record<string, number> }
+type Report = { constExprExcluded: { class: string; count: number; sites: Site[] }[] } & Record<'constExprSites' | 'newConstExprSites' | 'constObjectSites' | 'newConstObjectSites' | 'inlineNumberSites' | 'newInlineNumberSites', Site[]> & { inlineExcluded: Record<string, number> }
   & Record<'loweredConstExprs' | 'loweredConstObjects' | 'loweredInlineNumbers', { file: string; literal: string; baseline: number; now: number }[]>;
 
 const CONSTS = [
@@ -64,8 +64,8 @@ test('(f) lists an UPPER const whose value is arithmetic with a number, (g) an U
     const r = t.run('--gate');
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const rep = t.report(r);
-    assert.deepEqual(t.texts(rep.constExprSites), ['SAVE_EVERY_MS', 'SPAN']);   // TAU, QUARTER and TURN (math constant x integer) are exempt
-    assert.deepEqual(t.texts(rep.constObjectSites), ['CAPS', 'SIZES']);
+    assert.deepEqual(t.texts(rep.constExprSites), ['SAVE_EVERY_MS', 'SPAN']);   // TAU, QUARTER and TURN (math constant x integer) are exempt, and the report names them:
+    assert.deepEqual(rep.constExprExcluded.map((c) => [c.class, c.count, t.texts(c.sites)]), [['math constant × integer (const)', 3, ['QUARTER', 'TAU', 'TURN']]]);    assert.deepEqual(t.texts(rep.constObjectSites), ['CAPS', 'SIZES']);
     assert.deepEqual(rep.inlineNumberSites.map((s) => s.text).sort(), ['0.5', '0.85', '100', '2', '2', '2.5', '4', '60', '7', '7', '9']);
     assert.deepEqual(Object.keys(rep.inlineExcluded).sort(), ['-1 sentinel (compared, or beside indexOf/findIndex)', 'bits (beside & | ^ << >>)', 'hex/binary: bit mask or hash salt', 'math: 2 as a midpoint (a+b)/2', 'math: Math.PI * 2', 'math: the * 2 - 1 remap of a unit draw', 'time-unit conversion (1000, 3600, 86400, 60_000, 1_000_000 beside * or /)']);   // every excluded class is named in the report
     assert.deepEqual([rep.newConstExprSites, rep.newConstObjectSites, rep.newInlineNumberSites].map((l) => l.length), [0, 0, 0]);
