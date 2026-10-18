@@ -1,3 +1,4 @@
+import './zone-package-env.ts';   // FIRST: unlisted packages are visible to this process
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import DEFS from '../presence/warp-landmarks.json' with { type: 'json' };
@@ -9,20 +10,19 @@ import { keyProblemsOf } from './world-spawns.ts';
 
 // The server-side package check (zone package gap 2). It runs over EVERY zone package in the registry, listed or not, so a package imported into origins/zone-rows/ is checked in CI before it can stop the writer or presence at module load.
 const loaded = loadEncounterContent(); if (!loaded.ok) throw new Error('content');
-const withUnlisted = <T>(run: () => T): T => { const was = process.env.VITE_UNLISTED_ZONES; process.env.VITE_UNLISTED_ZONES = '1'; try { return run(); } finally { if (was === undefined) delete process.env.VITE_UNLISTED_ZONES; else process.env.VITE_UNLISTED_ZONES = was; } };
-const zones = (): Record<string, Zone> => withUnlisted(() => Object.fromEntries(allZoneIds().map((id) => [id, loadZone(id, true)])));
+const zones = (): Record<string, Zone> => Object.fromEntries(allZoneIds().map((id) => [id, loadZone(id, true)]));
 const ctx = (z: Record<string, Zone>, exits: readonly ExitRow[] = EXITS): PackageCtx => ({ content: loaded.value, zones: z, exits, tableWarps: new Set(DEFS.landmarks.map((r) => r.id)) });
 
 test('every zone package in the registry passes the server check (listed or not)', () => {
   const z = zones();
   assert.ok(Object.keys(z).length >= 4, 'the registry has its packages');
-  for (const id of Object.keys(z)) assert.deepEqual(withUnlisted(() => packageProblems(z[id]!, ctx(z))), [], `zone ${id}`);
+  for (const id of Object.keys(z)) assert.deepEqual(packageProblems(z[id]!, ctx(z)), [], `zone ${id}`);
 });
 
-test('a spawn row whose loot table does not exist, or whose creature the server cannot price, is a problem', () => {
+test('a spawn row whose loot table does not exist is a problem', () => {
   const z = zones(), z1 = z['1']!, row = z1.spawns.rows[0]!;
   const noLoot = { ...z1, spawns: { ...z1.spawns, rows: [{ ...row, loot: 'loottable:no-such-table' }, ...z1.spawns.rows.slice(1)] } } as Zone;
-  assert.ok(withUnlisted(() => packageProblems(noLoot, ctx(z))).some((p) => p.includes(`spawn row ${row.id}: loot loottable:no-such-table is not a loot table`)));
+  assert.ok(packageProblems(noLoot, ctx(z)).some((p) => p.includes(`spawn row ${row.id}: loot loottable:no-such-table is not a loot table`)));
 });
 
 test('the key rule is per zone: a key that reads as another zone, does not fit the table or repeats is named', () => {
@@ -37,7 +37,7 @@ test('the key rule is per zone: a key that reads as another zone, does not fit t
 
 test('a door to a zone that is not a package, a door with no landing, and a warp id that is already taken are problems', () => {
   const z = zones(), z1 = z['1']!, door = EXITS.find((e) => z1.world.includes(e.zone))!;
-  const run = (exits: readonly ExitRow[], zone: Zone = z1): string[] => withUnlisted(() => packageProblems(zone, ctx(z, exits)));
+  const run = (exits: readonly ExitRow[], zone: Zone = z1): string[] => packageProblems(zone, ctx(z, exits));
   assert.ok(run([{ ...door, to: '77' }]).some((p) => /"77" is not a zone package/.test(p)));
   assert.ok(run([{ ...door, arrive: 'no-such-landmark' }]).some((p) => /has no landing \(arrive landmark "no-such-landmark"\)/.test(p)));
   assert.ok(run([{ ...door, warp: DEFS.landmarks[0]!.id }]).some((p) => /also a warp-landmarks\.json row/.test(p)));
@@ -51,7 +51,7 @@ test('a door to a zone that is not a package, a door with no landing, and a warp
 test('a LISTED package\'s warp must stand inside a presence zone row; an UNLISTED one is not placed yet', () => {
   const z = zones(), z1 = z['1']!;
   const far = { ...z1, warps: [{ id: 'far-away', x: 9e5, z: 9e5, unit: 'm' }] } as Zone;
-  assert.ok(withUnlisted(() => packageProblems(far, ctx(z))).some((p) => /warp far-away: not inside any zone row/.test(p)));
+  assert.ok(packageProblems(far, ctx(z)).some((p) => /warp far-away: not inside any zone row/.test(p)));
   const quiet = { ...far, unlisted: true } as Zone;
-  assert.deepEqual(withUnlisted(() => packageProblems(quiet, ctx(z))).filter((p) => p.startsWith('warp far-away')), []);
+  assert.deepEqual(packageProblems(quiet, ctx(z)).filter((p) => p.startsWith('warp far-away')), []);
 });

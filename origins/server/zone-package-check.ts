@@ -39,7 +39,7 @@ export function packageProblems(zone: Zone, ctx: PackageCtx): string[] {
     if (!to) { bad.push(`exit ${e.id}: "${e.to}" is not a zone package`); continue; }
     if (!owner(e)) bad.push(`exit ${e.id}: "${e.zone}" is not a world zone of any package`);
     const bothListed = owner(e)?.unlisted !== true && to.unlisted !== true;
-    if (owner(e)?.unlisted !== true && to.unlisted === true && zone.world.includes(e.zone)) bad.push(`exit ${e.id}: a listed package's door leads to the unlisted zone ${e.to}`);
+    // (a listed zone's door to an UNLISTED zone, the sample crypt's today, is allowed: openExits keeps it closed until the far zone is listed, so the server derives no warp for it)
     const landing = arrival(frontierPlan(true, e.to), e.to, e.id, ctx.exits);
     if (!landing) { bad.push(`exit ${e.id}: zone ${e.to} has no landing (arrive landmark "${e.arrive}")`); continue; }
     if (bothListed) { const p = placeProblem(landing.x, landing.z); if (p) bad.push(`exit ${e.id}: its landing warp "${e.warp}" is ${p}`); }
