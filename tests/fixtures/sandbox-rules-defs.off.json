@@ -25,26 +25,6 @@
    "value": 0
   },
   {
-   "id": "oneButton",
-   "value": 0
-  },
-  {
-   "id": "plainPosture",
-   "value": 0
-  },
-  {
-   "id": "heavyHold",
-   "value": 220
-  },
-  {
-   "id": "stabHalfAngle",
-   "value": 50
-  },
-  {
-   "id": "stabSlide",
-   "value": 18
-  },
-  {
    "id": "bandOff",
    "value": 0
   },
@@ -219,8 +199,6 @@
  "missileAnswer": [],
  "bowSpecial": [],
  "castPenalty": [],
- "hurtStyles": [],
- "readyStyles": [],
  "specialCue": [
   {
    "id": "far",
