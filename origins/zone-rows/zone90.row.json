@@ -29,7 +29,6 @@
         "tint": 16777215,
         "scale": 1.52,
         "loadout": "troll.exec.t5.maul",
-        "body": "world/cave-troll.glb",
         "dressing": {
           "soot": 0.15,
           "burnt": 0
