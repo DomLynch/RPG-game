@@ -1,12 +1,13 @@
 // The goblin field's ground (?look=goblin / a zone row that sets look.sky, Zone sandbox): a richer dirt than the Frontier's grey speckle, painted from one ground row (goblin-field-defs.json grounds):
 // painting-matched browns, soft blotches, wet dark patches, pebbles, cracks and grain on a texN tile, and the same tile as a bump map so the low sun picks it out. Browser-only (a canvas); every
-// number and colour is the row's. The Frontier's own dirt (frontier.ts dirtMaterial) is untouched when no ground row is asked for.
+// count, size and colour of the recipe is the row's; the paint opacities, the grain mix and the wet-patch softness are this module's look. The seeded generator is the world's own (generate.ts prng). The Frontier's own dirt (frontier.ts dirtMaterial) is untouched when no ground row is asked for.
 import * as THREE from 'three';
+import { prng } from '../world/generate.ts';
 import type { GoblinGround } from '../world/goblin-field-rules.ts';
 
 export function goblinDirtMaterial(r: GoblinGround): THREE.MeshStandardMaterial {
-  const N = r.texN, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d')!; let seed = r.seed;
-  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }, between = (lo: number, hi: number) => lo + (hi - lo) * rnd();
+  const N = r.texN, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d')!;
+  const rnd = prng(r.seed), between = (lo: number, hi: number) => lo + (hi - lo) * rnd();
   const rgba = (hex: string, a: number) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
   const wrapped = (draw: (ox: number, oy: number) => void) => { for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) draw(ox, oy); };   // drawn nine times: the tile has no seam
   const soft = (hex: string, a: number, min: number, max: number, count: number) => { for (let i = 0; i < count; i++) { const x = rnd() * N, y = rnd() * N, rad = between(min, max); wrapped((ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, rgba(hex, a)); gr.addColorStop(1, rgba(hex, 0)); g.fillStyle = gr; g.fillRect(x + ox - rad, y + oy - rad, rad * 2, rad * 2); }); } };
