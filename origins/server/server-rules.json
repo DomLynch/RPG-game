@@ -92,6 +92,20 @@
       "note": "how long the sign-in check waits for Supabase before the token counts as bad (ms); how long one database script may run before it is killed (ms); how many world-record replays may wait for the verifier thread before 'busy', and how long one replay may take (ms)"
     }
   ],
+  "recordLimits": [
+    {
+      "id": "record",
+      "maxTicks": 1000000000,
+      "minRecordChars": 8,
+      "maxRecordChars": 60000,
+      "seedBound": 2147483648,
+      "reasonChars": 200,
+      "psqlErrorChars": 200,
+      "psqlStderrKeepChars": 4000,
+      "nonceBytes": 12,
+      "note": "encounter request bounds and error text widths: the largest whole tick count a request may carry; the shortest and longest packed duel record (characters) the writer will replay; the exclusive upper bound of a duel seed; how much of a verifier's refusal reason is sent back; how much of a failed database script's error text is kept in the error message, and how much of its stderr is kept; how many random bytes make the per-process end-of-result marker. They only bound a hostile body or a log line"
+    }
+  ],
   "strictFlip": [
     {
       "id": "flip",

@@ -23,6 +23,12 @@ export const REGION1 = [EXCHANGE_REGION, FRONTIER_REGION] as const;
 // Spec numbers the data must sit inside (region1 §3 Bounties table; living-world §3.3, §12; feuds §3.1).
 export const BOUNTY_METAL: { readonly min: number; readonly max: number } = RULES.bountyMetal; // bronze per paid win
 export const BOUNTY_DAILY_CAP: { readonly min: number; readonly max: number } = RULES.bountyDailyCap; // paid wins per character per UTC day
+// The bound of one content field ("<kind>.<field>"), from the `bounds` block of region1-rules.json: the one place a limit lives, read here and by encounters.ts's overlay check (never a second copy).
+// `span` is a whole-number field's [min, max]; `maxOf` a text's length or a list's count limit.
+const BOUNDS = RULES.bounds as Readonly<Record<string, { readonly min?: number; readonly max?: number }>>;
+const boundOf = (key: string): { readonly min?: number; readonly max?: number } => { const b = Object.hasOwn(BOUNDS, key) ? BOUNDS[key]! : undefined; if (!b) throw new Error(`region1 bound "${key}" is not a row of region1-rules.json bounds`); return b; };
+export const span = (key: string): readonly [number, number] => { const b = boundOf(key); if (b.min === undefined || b.max === undefined) throw new Error(`region1 bound "${key}" needs min and max`); return [b.min, b.max]; };
+export const maxOf = (key: string): number => { const b = boundOf(key); if (b.max === undefined) throw new Error(`region1 bound "${key}" needs max`); return b.max; };
 export const MIN_TOWNS_FOR_WAR: number = RULES.minTownsForWar; // living-world §4.3 / §12
 export const TOWN_SAFE_CLEARANCE_M: number = RULES.townSafeClearanceM; // living-world §12: a quarter's ring centre sits ≥ 30 m from the square's gate
 // living-world §3.3 tiers: prosperity floor, services open, ruler title (§4.1).
@@ -269,8 +275,8 @@ function readTwist(issues: Issues, raw: unknown, path: string): Twist | undefine
   const obj = readObject(issues, raw, path, ['kind', ...fields]);
   if (!obj) return undefined;
   const before = issues.list.length;
-  if (kind === 'flee-at') { readInt(issues, obj, 'percent', path, 1, 99); readInt(issues, obj, 'catchSeconds', path, 1, 120); }
-  if (kind === 'hazard') { readEnum(issues, obj, 'hazard', path, HAZARDS); readInt(issues, obj, 'stillSeconds', path, 1, 30); }
+  if (kind === 'flee-at') { readInt(issues, obj, 'percent', path, ...span('flee-at.percent')); readInt(issues, obj, 'catchSeconds', path, ...span('flee-at.catchSeconds')); }
+  if (kind === 'hazard') { readEnum(issues, obj, 'hazard', path, HAZARDS); readInt(issues, obj, 'stillSeconds', path, ...span('hazard.stillSeconds')); }
   return issues.list.length === before ? (obj as Twist) : undefined;
 }
 const sameTwist = (a: Twist, b: Twist): boolean => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
@@ -290,10 +296,10 @@ function readTown(issues: Issues, raw: unknown, path: string, defs: TownDefs): T
   const ext: Record<string, unknown> = {};
   for (const k of Object.keys(obj)) if (!TOWN_KEYS.includes(k)) ext[k] = obj[k];
   kindOf(issues, obj, path, 'town-definition');
-  const id = localId(issues, obj.id, join(path, 'id'), 'town'), name = readText(issues, obj, 'name', path, { max: 60 });
+  const id = localId(issues, obj.id, join(path, 'id'), 'town'), name = readText(issues, obj, 'name', path, { max: maxOf('town.name') });
   const region = ref(issues, obj.region, join(path, 'region'), 'region'), zone = readString(issues, obj, 'zone', path, { pattern: LOCAL_KEY });
   if (readBoolean(issues, obj, 'safe', path) !== false) issues.add('rule-violation', join(path, 'safe'), 'a town is never safe: the Exchange square is not a town');
-  const startProsperity = readInt(issues, obj, 'startProsperity', path, 50, 1000), patron = localId(issues, obj.patron, join(path, 'patron'), 'patron');
+  const startProsperity = readInt(issues, obj, 'startProsperity', path, ...span('town.startProsperity')), patron = localId(issues, obj.patron, join(path, 'patron'), 'patron');
   const r = readObject(issues, obj.ruler, join(path, 'ruler'), ['title', 'character', 'temperament', 'standIn', 'successors']);
   const rp = join(path, 'ruler');
   const ruler = r && {
@@ -301,16 +307,16 @@ function readTown(issues: Issues, raw: unknown, path: string, defs: TownDefs): T
     character: ref(issues, r.character, join(rp, 'character'), 'character')!,
     temperament: defId(issues, r, 'temperament', rp, 'temperaments', defs)!,
     standIn: ref(issues, r.standIn, join(rp, 'standIn'), 'character')!,
-    successors: readArray(issues, r, 'successors', rp, (v, p) => ref(issues, v, p, 'character'), { max: 8 })!,
+    successors: readArray(issues, r, 'successors', rp, (v, p) => ref(issues, v, p, 'character'), { max: maxOf('town.ruler.successors') })!,
   };
   const centre = readString(issues, obj, 'centre', path, { pattern: LOCAL_KEY }), jail = readString(issues, obj, 'jail', path, { pattern: LOCAL_KEY });
   const services = readArray(issues, obj, 'services', path, (v, p) => {
     const s = readObject(issues, v, p, ['trade', 'npc', 'at']);
     const trade = s && defId(issues, s, 'trade', p, 'trades', defs), npc = s && ref(issues, s.npc, join(p, 'npc'), 'character'), at = s && readString(issues, s, 'at', p, { pattern: LOCAL_KEY });
     return trade && npc && at ? { trade, npc, at } : undefined;
-  }, { max: 4 });
+  }, { max: maxOf('town.services') });
   if (services && new Set(services.map((s) => s.trade)).size !== services.length) issues.add('duplicate-id', join(path, 'services'), 'one trade twice in a town');
-  const resources = readArray(issues, obj, 'resources', path, (v, p) => checkString(issues, v, p, { pattern: LOCAL_KEY }), { max: 8 });
+  const resources = readArray(issues, obj, 'resources', path, (v, p) => checkString(issues, v, p, { pattern: LOCAL_KEY }), { max: maxOf('town.resources') });
   const riverside = readBoolean(issues, obj, 'riverside', path);
   if (issues.list.length !== before) return undefined;
   return { id: id!, name: name!, region: region!, zone: zone!, startProsperity: startProsperity!, patron: patron!, ruler: ruler!, centre: centre!, jail: jail!, services: services!, resources: resources!, riverside: riverside!, ext };
@@ -321,7 +327,7 @@ function readBounty(issues: Issues, raw: unknown, path: string): Bounty | undefi
   const before = issues.list.length, obj = readObject(issues, raw, path, BOUNTY_KEYS);
   if (!obj) return undefined;
   kindOf(issues, obj, path, 'bounty-definition');
-  const id = localId(issues, obj.id, join(path, 'id'), 'bounty'), name = readText(issues, obj, 'name', path, { max: 60 });
+  const id = localId(issues, obj.id, join(path, 'id'), 'bounty'), name = readText(issues, obj, 'name', path, { max: maxOf('bounty.name') });
   const region = ref(issues, obj.region, join(path, 'region'), 'region'), encounter = ref(issues, obj.encounter, join(path, 'encounter'), 'encounter');
   if (obj.gate !== 'outer') issues.add('rule-violation', join(path, 'gate'), 'Region 1 is behind the outer gate');
   const twist = readTwist(issues, obj.twist, join(path, 'twist'));
@@ -342,7 +348,7 @@ function readRifts(issues: Issues, records: readonly Obj[], registry: ContractRe
       kindOf(issues, obj, p, 'rift-site');
       const id = localId(issues, obj.id, join(p, 'id'), 'rift'), region = ref(issues, obj.region, join(p, 'region'), 'region');
       const zone = readString(issues, obj, 'zone', p, { pattern: LOCAL_KEY }), at = readString(issues, obj, 'at', p, { pattern: LOCAL_KEY });
-      const weight = readInt(issues, obj, 'weight', p, 1, 100), zp = region && zone ? zones.get(region)?.get(zone) : undefined;
+      const weight = readInt(issues, obj, 'weight', p, ...span('rift-site.weight')), zp = region && zone ? zones.get(region)?.get(zone) : undefined;
       if (region && zone && !zp) issues.add('unknown-id', join(p, 'zone'), `no zone "${zone}" in ${region}`);
       if (zp && at && !Object.hasOwn(zp.layout, at)) issues.add('unknown-id', join(p, 'at'), `no landmark "${at}" in ${zone}`);
       if (zp?.rules.safe || townZones.has(`${region}/${zone}`)) issues.add('rule-violation', join(p, 'zone'), 'a rift opens only in a non-safe, non-town zone');
@@ -354,8 +360,8 @@ function readRifts(issues: Issues, records: readonly Obj[], registry: ContractRe
       localId(issues, obj.id, join(p, 'id'), 'riftboss');
       const character = ref(issues, obj.character, join(p, 'character'), 'character'), guardian = ref(issues, obj.guardian, join(p, 'guardian'), 'character');
       const loot = ref(issues, obj.lootTable, join(p, 'lootTable'), 'loottable'), encounter = ref(issues, obj.encounter, join(p, 'encounter'), 'encounter');
-      const levelOver = readInt(issues, obj, 'levelOver', p, 0, 10);
-      readInt(issues, obj, 'weight', p, 1, 100);
+      const levelOver = readInt(issues, obj, 'levelOver', p, ...span('rift-boss.levelOver'));
+      readInt(issues, obj, 'weight', p, ...span('rift-boss.weight'));
       const e = encounter ? registry.encounters.get(encounter) : undefined;
       if (!e) { issues.add('unknown-id', join(p, 'encounter'), `${String(obj.encounter)} is not an encounter in Region 1`); return; }
       if (e.boss.character !== character) issues.add('rule-violation', join(p, 'character'), `${e.id}'s boss is ${e.boss.character}`);
@@ -373,12 +379,12 @@ function readRifts(issues: Issues, records: readonly Obj[], registry: ContractRe
       localId(issues, obj.id, join(p, 'id'), 'riftsched');
       const region = ref(issues, obj.region, join(p, 'region'), 'region');
       if (region && !zones.has(region)) issues.add('unknown-id', join(p, 'region'), `${region} is not a Region 1 region`);
-      const lo = readInt(issues, obj, 'perDayMin', p, 0, 24), hi = readInt(issues, obj, 'perDayMax', p, 1, 24), gap = readInt(issues, obj, 'minGapSeconds', p, 0, 86_400);
+      const lo = readInt(issues, obj, 'perDayMin', p, ...span('rift-scheduler.perDayMin')), hi = readInt(issues, obj, 'perDayMax', p, ...span('rift-scheduler.perDayMax')), gap = readInt(issues, obj, 'minGapSeconds', p, ...span('rift-scheduler.minGapSeconds'));
       if (lo !== undefined && hi !== undefined && lo > hi) issues.add('rule-violation', join(p, 'perDayMin'), 'perDayMin is above perDayMax');
       if (hi !== undefined && gap !== undefined && hi * gap > 86_400) issues.add('rule-violation', join(p, 'minGapSeconds'), `${hi} rifts a day cannot sit ${gap} s apart`);
-      for (const k of ['warnSeconds', 'openSeconds', 'siteCooldownSeconds']) readInt(issues, obj, k, p, 60, 604_800);
-      readInt(issues, obj, 'townClearanceMetres', p, 0, 1000);
-      readInt(issues, obj, 'lootRollsPerWeek', p, 1, 50);
+      for (const k of ['warnSeconds', 'openSeconds', 'siteCooldownSeconds']) readInt(issues, obj, k, p, ...span(`rift-scheduler.${k}`));
+      readInt(issues, obj, 'townClearanceMetres', p, ...span('rift-scheduler.townClearanceMetres'));
+      readInt(issues, obj, 'lootRollsPerWeek', p, ...span('rift-scheduler.lootRollsPerWeek'));
       if (scheduler) issues.add('duplicate-id', p, 'Region 1 has one rift scheduler');
       scheduler = obj;
     } else issues.add('unknown-kind', join(p, 'kind'), `unknown rift kind ${JSON.stringify(raw.kind)}`);

@@ -77,7 +77,7 @@ export function createWriter({ db, verify, where, handlers = defaults, internal,
     } catch (e) {
       if (e instanceof BadRequest) return send(HTTP_BAD_REQUEST,{ ok: false, error: e.message });
       if (e instanceof Conflict) return send(HTTP_CONFLICT,{ ok: false, error: e.message, code: 'op-conflict' });
-      if (e instanceof Refused) return send(e.status, e.code === undefined ? { ok: false, error: e.message } : { ok: false, error: e.message, code: e.code });
+      if (e instanceof Refused) return send(e.status, e.code === undefined ? { ok: false, error: e.message } : { ...e.detail, ok: false, error: e.message, code: e.code });
       if (e instanceof DbError && STATUS[e.code]) return send(STATUS[e.code], { ok: false, error: e.code === '23505' ? 'already exists' : e.message, code: e.code });
       console.error('origins-writer:', e instanceof Error ? e.message : e);
       send(HTTP_SERVER_ERROR,{ ok: false, error: 'server error' });

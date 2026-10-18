@@ -5,6 +5,7 @@
 import { idleIntent } from '../fight/duel.ts';
 import { present } from '../present-rows.ts';
 import { PvpDuel, SILENCE, type DuelResult } from './pvp.ts';
+import { TIMING_ROW } from './net-rules.ts';
 import type { Kit, NetMetrics } from './rollback.ts';
 import { connectDuel, mintRoom, sideOf, type Transport } from './transport.ts';
 
@@ -80,7 +81,7 @@ export type LobbyPage = {
 // A finished duel leaves no reason to hold the relay socket: left open, it is closed by the relay's 60 s idle timeout and then retried with
 // backoff. The close waits past the peer's whole silence window (SILENCE.abandonMs, which is over rejoinMs) plus 5 s, so a peer whose link
 // comes back late still hears this side's last acks and settles the same finish instead of ending as left/forfeit. Still inside the relay's 60 s idle close.
-export const RETIRE_MS = SILENCE.abandonMs + 5000;
+export const RETIRE_MS = SILENCE.abandonMs + TIMING_ROW.retireGraceMs;
 export function closeLater(transport: { close(): void }, ms: number = RETIRE_MS, later: (fn: () => void, ms: number) => unknown = setTimeout): void { later(() => transport.close(), ms); }
 
 export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promise<void> {
@@ -145,7 +146,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
     } : null;
     // The loading card pauses the page's fight loop, and the kits are exchanged by that loop's frames: until the duel starts, the handshake
     // is stepped from here, so the rigs can load. Once the session exists the page's own loop takes over.
-    const pump = setInterval(() => { if (driver.session || driver.over) clearInterval(pump); else driver.frame(idleIntent()); }, 16);
+    const pump = setInterval(() => { if (driver.session || driver.over) clearInterval(pump); else driver.frame(idleIntent()); }, TIMING_ROW.idlePumpMs);
     let gave = false;   // the peer's kit goes to the page once: the rigs wait for it (main.ts peerKit)
     const watch = setInterval(() => {
       probe?.();
@@ -161,7 +162,7 @@ export async function openDuel(param: string, kit: Kit, page: LobbyPage): Promis
       if (over) report();
       if (driver.refused || over) { clearInterval(watch); retire(); }
       if (driver.settled && driver.practice.finish) { report(); clearInterval(watch); retire(); }
-    }, 250);
+    }, TIMING_ROW.lobbyPollMs);
   } catch (error) {
     page.say(error instanceof Error ? error.message : 'The duel could not start', true);
   }
