@@ -96,7 +96,7 @@
           "locator": "the first collection, 1841-44 (the troll in the mountain and the lad who outwits him)"
         },
         "role": "beast",
-        "loot": "loottable:cave-troll",
+        "loot": "loottable:tz-cave-troll",
         "level": [
           3,
           3
