@@ -7,11 +7,12 @@
 import { supabaseVerify } from '../server/auth.ts';
 import { createPresence, LIMITS } from './server.ts';
 import { RULES } from './interest.ts';
+import { presenceRule } from './presence-rules.ts';
 import { writerSavedLocation, writerSaveLocation, writerWorn, type Worn } from '../server/location.ts';
 
 if (process.env.ORIGINS_PRESENCE !== '1') { console.log('presence: OFF (set ORIGINS_PRESENCE=1 to start); nothing is listening'); process.exit(0); }
 const { SUPABASE_URL: url, SUPABASE_ANON_KEY: anon, ORIGINS_PRESENCE_TEST_AUTH: testAuth } = process.env;
-const host = process.env.PRESENCE_HOST ?? '127.0.0.1', port = Number(process.env.PRESENCE_PORT ?? 8793);
+const host = process.env.PRESENCE_HOST ?? '127.0.0.1', port = Number(process.env.PRESENCE_PORT ?? presenceRule('presencePort'));
 let verify: (token: string) => Promise<string | null>;
 if (testAuth === '1') {
   if (url || host !== '127.0.0.1') throw new Error('ORIGINS_PRESENCE_TEST_AUTH is for the loopback load test only (unset SUPABASE_URL, bind 127.0.0.1)');
@@ -22,7 +23,7 @@ if (testAuth === '1') {
 }
 const num = (name: string, fallback: number): number => Number(process.env[name] ?? fallback);
 const rules = { ...RULES, softCap: num('PRESENCE_SOFT', RULES.softCap), hardCap: num('PRESENCE_HARD', RULES.hardCap) };
-const limits = testAuth === '1' ? { ...LIMITS, ipSockets: 1000, ipJoinsPerMinute: 100000 } : LIMITS;
+const limits = testAuth === '1' ? { ...LIMITS, ipSockets: presenceRule('testIpSockets'), ipJoinsPerMinute: presenceRule('testIpJoinsPerMinute') } : LIMITS;
 const writerUrl = process.env.WRITER_URL, writerKey = process.env.ORIGINS_WRITER_INTERNAL_KEY || undefined;
 if (!writerUrl !== !writerKey) throw new Error('set WRITER_URL and ORIGINS_WRITER_INTERNAL_KEY together (or neither: no position save)');
 const served = writerUrl && writerKey ? writerSavedLocation(writerUrl, writerKey) : null, save = writerUrl && writerKey ? writerSaveLocation(writerUrl, writerKey) : undefined;
@@ -31,6 +32,6 @@ const worns = new Map<string, Worn>();   // the visible gear from the same answe
 const locate = served ? async (account: string) => { const s = await served(account); names.set(account, s.name ?? null); worns.set(account, s.worn ?? {}); return s.saved ? { x: s.x, z: s.z } : null; } : undefined;
 const nameOf = (account: string): string | null => { const n = names.get(account) ?? null; names.delete(account); return n; };
 const wornOf = (account: string): Worn => { const w = worns.get(account) ?? {}; worns.delete(account); return w; };
-console.log(save ? `presence: position save ON (writer ${writerUrl}, every ${num('PRESENCE_SAVE_MS', 300_000) / 1000} s, on leave and zone change)` : 'presence: position save OFF (no WRITER_URL)');
-const presence = createPresence({ locate, nameOf: served ? nameOf : undefined, wornOf: served ? wornOf : undefined, readWorn: writerUrl && writerKey ? writerWorn(writerUrl, writerKey) : undefined, guests: process.env.ORIGINS_PRESENCE_GUESTS !== '0', save, saveEveryMs: num('PRESENCE_SAVE_MS', 300_000), verify, rules, limits, internalKey: process.env.PRESENCE_INTERNAL_KEY || undefined, logEveryMs: num('PRESENCE_LOG_MS', 60_000), maxLayers: num('PRESENCE_MAX_LAYERS', 8), ipHeader: host === '127.0.0.1' && testAuth !== '1' });
+console.log(save ? `presence: position save ON (writer ${writerUrl}, every ${num('PRESENCE_SAVE_MS', presenceRule('saveEveryMs')) / 1000} s, on leave and zone change)` : 'presence: position save OFF (no WRITER_URL)');
+const presence = createPresence({ locate, nameOf: served ? nameOf : undefined, wornOf: served ? wornOf : undefined, readWorn: writerUrl && writerKey ? writerWorn(writerUrl, writerKey) : undefined, guests: process.env.ORIGINS_PRESENCE_GUESTS !== '0', save, saveEveryMs: num('PRESENCE_SAVE_MS', presenceRule('saveEveryMs')), verify, rules, limits, internalKey: process.env.PRESENCE_INTERNAL_KEY || undefined, logEveryMs: num('PRESENCE_LOG_MS', presenceRule('logEveryMs')), maxLayers: num('PRESENCE_MAX_LAYERS', presenceRule('maxLayers')), ipHeader: host === '127.0.0.1' && testAuth !== '1' });
 presence.server.listen(port, host, () => console.log(`presence listening on ${host}:${presence.port()} (layers: soft ${rules.softCap}, hard ${rules.hardCap})`));
