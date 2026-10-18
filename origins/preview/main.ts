@@ -762,7 +762,7 @@ function drawFound() {
 drawFound();
 // The goblin war band (war-band.ts, Strategy's #1 for Zone 1): a hit on any goblin sends the horn-blower to the horn; if he arrives the nearest goblins rally on the hero; kill him first and they fight as singles. Sandbox only.
 const warBand = createWarBand({ hornRunSpeed: fxNum('warband.horn-run-speed'), hornReach: fxNum('warband.horn-reach'), rallyCount: fxNum('warband.rally-count'), rallySeconds: fxNum('warband.rally-seconds') });
-let warBandRoles = false; const rallyAggro = new Map<string, number>();
+let warBandRoles = false; const rallyAggro = new Map<string, number>(), rallyHanded = new Set<string>();
 function warBandTick(dt: number) {
   if (!mobs || !(zoneRow ?? loadZone()).unlisted) return;
   const list = (mobs.debug() as { mobs: { id: string; body: string; x: number; z: number; loadout?: string; drawn: boolean }[] }).mobs.filter((m) => m.body === 'goblin');
@@ -779,7 +779,15 @@ function warBandTick(dt: number) {
     for (const id of new Set([...step.rally, ...(warBand.captain() ? [warBand.captain()!] : [])])) { const was = mobs.setAggro(id, fxNum('warband.rally-aggro')); if (was !== null && !rallyAggro.has(id)) rallyAggro.set(id, was); }
     worldToast('A horn sounds! The war band rallies!');
   }
-  if (warBand.phase() === 'rallied' && warBand.rallyLeft() <= 0 && rallyAggro.size) { for (const [id, was] of rallyAggro) mobs.setAggro(id, was); rallyAggro.clear(); }
+  if (warBand.phase() === 'rallied' && rallyAggro.size) {   // the rallied goblins run in at the hero until they are in reach, then the combat loop (world-combat) takes them over
+    if (warBand.rallyLeft() > 0) for (const id of rallyAggro.keys()) {
+      if (rallyHanded.has(id) || id === blower) continue; const p = at(id); if (!p) continue;
+      const dx = state.x - p.x, dz = state.z - p.z, d = Math.hypot(dx, dz);
+      if (d <= fxNum('warband.rally-engage')) { rallyHanded.add(id); mobs.drive(id, null); continue; }
+      const s = Math.min(fxNum('warband.rally-run-speed') * dt, d - fxNum('warband.rally-engage')); mobs.drive(id, { x: p.x + (dx / d) * s, z: p.z + (dz / d) * s, facing: Math.atan2(dx, dz), moving: true });
+    }
+    else { for (const [id, was] of rallyAggro) mobs.setAggro(id, was); rallyAggro.clear(); rallyHanded.clear(); }
+  }
 }
 let warBandAlarmed = false;
 function warBandHit(spec: MobSpec) { if (spec.body !== 'goblin') return; warBand.hit(spec.id); if (!warBandAlarmed && warBand.phase() === 'alarm') { warBandAlarmed = true; worldToast('A goblin runs for the horn!'); } }
