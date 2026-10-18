@@ -1,6 +1,6 @@
 // THE ACTOR DRIVER, in the shared fight core (src/fight/, Dom via Strategy 2026-10-09: the Pit and every zone play one fight, one animation system). Moved from src/characters.ts, which now re-exports it
 // so the Pit's importers are untouched; Zone 1 imports it from src/fight/index.ts. Nothing in this file changed but the relative paths.
-import { HURT_STYLES, READY_STYLES, PLAIN_POSTURE, bowSpecialRows } from './sandbox-rules.ts';
+import { HURT_STYLES, READY_STYLES, PLAIN_POSTURE, bowSpecialRows, missileOf } from './sandbox-rules.ts';
 import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
@@ -60,8 +60,9 @@ const SPECIAL_LOADERS: Record<SpecialRole, () => Promise<{ default: unknown }>> 
 const isBowRole = (r: SpecialRole): boolean => r.startsWith('Special_Bow');
 export const specialRow = (role: SpecialRole): { weapons: readonly string[]; strike: number } => SPECIAL_CLIP_ROWS.clips.find(c => c.role === role) as unknown as { weapons: readonly string[]; strike: number };
 // The special clip a fighter's move plays right now (null = none): the swing of a skill row that names one, or its cast (the pre-release raise) while the special is under way.
-export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare' | 'bowSpecial' | 'special' | 'specialRecover'>): SpecialRole | null => {
+export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare' | 'bowSpecial' | 'special' | 'specialRecover' | 'weapon'>): SpecialRole | null => {
   if (f.bowSpecial && ((f.special ?? 0) > 0 || (f.specialRecover ?? 0) > 0)) return (bowSpecialRows().find((r) => r.skill === f.bowSpecial)?.clip as SpecialRole | undefined) ?? null;   // a bow special's draw and loose, through the windup and the recovery
+  if (f.phase === 'ready' && f.specialShare !== undefined && f.skill && missileOf(f.weapon)?.kind === 'bow') return (bowSpecialRows().find((r) => r.skill === f.skill)?.clip as SpecialRole | undefined) ?? null;   // an armed archer asks for its bow clips while it stands ready, so they are fetched before the first press (a 14-tick Quick Shot windup finishes before a fetch on the press would land; the swing played the stand-in's Heavy)
   const row = f.phase === 'attack' ? SKILL_ROWS[skillOfMove(f.lastMove) ?? ''] : f.phase === 'ready' && f.specialShare !== undefined && f.skill ? SKILL_ROWS[f.skill] : undefined;
   return (row?.specialClip as SpecialRole | undefined) ?? null;
 };
