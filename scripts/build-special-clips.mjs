@@ -122,11 +122,37 @@ function mixamoClip(spec, dump) {
   return { clip: new T.AnimationClip(spec.role, times.at(-1), tracks), travel: hipTravel, scale, yaw: 2 * Math.acos(Math.abs(yaw.w)) * 180 / Math.PI, peak: times[peak] / times.at(-1) };
 }
 
+// ---- Mixamo sequence: several parts of dumped clips played one after another as one clip (the bow specials: the draw, then the loose). Each part is built as a single clip (from/to/speed/rootMotion as above);
+// the next part starts one source step after the last, and its pelvis position is shifted so the hips carry on from where the last part ended (no pop). A bow draw uses `blend` extra steps of the next part's first pose.
+function seqClip(spec, parts) {
+  const built = parts.map((part) => mixamoClip({ ...part, role: spec.role }, JSON.parse(spec.dumps[part.file]))), tracks = new Map();
+  let t0 = 0, carry = null;
+  for (const [i, b] of built.entries()) {
+    const end = b.clip.duration;
+    for (const track of b.clip.tracks) {
+      const size = track.getValueSize(), values = Array.from(track.values), times = Array.from(track.times, (t) => t + t0);
+      if (track.name === 'pelvis.position') {
+        const last = tracks.get(track.name), shift = last ? [0, 1, 2].map((c) => last.values[last.values.length - 3 + c] - values[c]) : [0, 0, 0];
+        for (let k = 0; k < values.length; k += 3) for (let c = 0; c < 3; c++) values[k + c] += shift[c];
+      }
+      const acc = tracks.get(track.name) ?? { times: [], values: [], size };
+      acc.times.push(...times); acc.values.push(...values); tracks.set(track.name, acc);
+    }
+    t0 += end + (built[i + 1] ? 1 / 30 : 0);
+  }
+  const out = [...tracks].map(([name, a]) => name.endsWith('.position') ? new T.VectorKeyframeTrack(name, a.times, a.values) : new T.QuaternionKeyframeTrack(name, a.times, a.values));
+  return { clip: new T.AnimationClip(spec.role, t0, out), split: built.map((b) => b.clip.duration) };
+}
+
 const report = [];
 for (const spec of SPECIAL_CLIPS) {
   let clip, extra = '';
   if (spec.source.kind === 'ual2') clip = await ualClip(spec.role, spec.source.clip, spec.source);
-  else {
+  else if (spec.source.kind === 'mixamo-seq') {
+    const dumps = {}; for (const part of spec.source.parts) dumps[part.file] ??= await fs.readFile(`${DUMP}/${part.file}.json`, 'utf8');
+    const built = seqClip({ role: spec.role, dumps }, spec.source.parts); clip = built.clip;
+    extra = ` parts ${built.split.map((d) => d.toFixed(2)).join('+')}s release@${(built.split[0] / (built.split.reduce((a, b) => a + b, 0))).toFixed(2)}`;
+  } else {
     const dump = JSON.parse(await fs.readFile(`${DUMP}/${spec.source.file}.json`, 'utf8')), built = mixamoClip({ ...spec.source, role: spec.role }, dump);
     clip = built.clip; extra = ` hipTravel(${built.travel.x.toFixed(2)},${built.travel.y.toFixed(2)},${built.travel.z.toFixed(2)}) scale ${built.scale.toFixed(3)} yawFix ${built.yaw.toFixed(0)}deg strike@${built.peak.toFixed(2)}`;
   }

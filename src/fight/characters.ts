@@ -1,6 +1,6 @@
 // THE ACTOR DRIVER, in the shared fight core (src/fight/, Dom via Strategy 2026-10-09: the Pit and every zone play one fight, one animation system). Moved from src/characters.ts, which now re-exports it
 // so the Pit's importers are untouched; Zone 1 imports it from src/fight/index.ts. Nothing in this file changed but the relative paths.
-import { HURT_STYLES, READY_STYLES, PLAIN_POSTURE } from './sandbox-rules.ts';
+import { HURT_STYLES, READY_STYLES, PLAIN_POSTURE, bowSpecialRows } from './sandbox-rules.ts';
 import { beastRenderScale } from './beast-scale.ts';
 import { spectralAppearance } from './spectral.ts';
 import { swingProgress } from './blade.ts';
@@ -48,16 +48,20 @@ export const FINISHER_CLIPS = ['Death_SplitCrown', 'Death_RunThrough', 'Fin_RunT
 // The beta specials' own motion (Dom 2026-10-17, scripts/build-special-clips.mjs; rows in src/assets/special-clips.json): one clip per move, adopted on demand by the actor the
 // first time a special that names it (skill row `specialClip`) is cast on a weapon the row lists, and played in place of the weapon's Heavy / Attack / Thrust, which a weapon
 // the row does not list keeps (the fallback).
-export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge'] as const;
+export const SPECIAL_ROLES = ['Special_SkullCrack', 'Special_Whirlwind', 'Special_GroundSlam', 'Special_Lunge', 'Special_BowPower', 'Special_BowFan', 'Special_BowPin', 'Special_BowQuick'] as const;   // the Bow* roles are a bow carrier's draw-and-loose (sandbox bowSpecial rows name them), played in place of the melee special's clip
 export type SpecialRole = (typeof SPECIAL_ROLES)[number];
 export const ADDITIVE_ROLES = ['Death_Hamstrung', 'Fin_Hamstrung', 'Death_Execution', 'Fin_Execution', ...SPECIAL_ROLES] as const;
 const SPECIAL_LOADERS: Record<SpecialRole, () => Promise<{ default: unknown }>> = {
   Special_SkullCrack: () => import('../assets/special-skullcrack.json'), Special_Whirlwind: () => import('../assets/special-whirlwind.json'),
   Special_GroundSlam: () => import('../assets/special-groundslam.json'), Special_Lunge: () => import('../assets/special-lunge.json'),
+  Special_BowPower: () => import('../assets/special-bowpower.json'), Special_BowFan: () => import('../assets/special-bowfan.json'),
+  Special_BowPin: () => import('../assets/special-bowpin.json'), Special_BowQuick: () => import('../assets/special-bowquick.json'),
 };
+const isBowRole = (r: SpecialRole): boolean => r.startsWith('Special_Bow');
 export const specialRow = (role: SpecialRole): { weapons: readonly string[]; strike: number } => SPECIAL_CLIP_ROWS.clips.find(c => c.role === role) as unknown as { weapons: readonly string[]; strike: number };
 // The special clip a fighter's move plays right now (null = none): the swing of a skill row that names one, or its cast (the pre-release raise) while the special is under way.
-export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare'>): SpecialRole | null => {
+export const specialRoleOf = (f: Pick<Fighter, 'phase' | 'lastMove' | 'skill' | 'specialShare' | 'bowSpecial' | 'special' | 'specialRecover'>): SpecialRole | null => {
+  if (f.bowSpecial && ((f.special ?? 0) > 0 || (f.specialRecover ?? 0) > 0)) return (bowSpecialRows().find((r) => r.skill === f.bowSpecial)?.clip as SpecialRole | undefined) ?? null;   // a bow special's draw and loose, through the windup and the recovery
   const row = f.phase === 'attack' ? SKILL_ROWS[skillOfMove(f.lastMove) ?? ''] : f.phase === 'ready' && f.specialShare !== undefined && f.skill ? SKILL_ROWS[f.skill] : undefined;
   return (row?.specialClip as SpecialRole | undefined) ?? null;
 };
@@ -754,7 +758,7 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       specialMove(role: SpecialRole | null) {
         specialRole = role;
         // Once any special is asked for, fetch every special clip this weapon plays (a second slot's clip is otherwise first asked for on its first press, and that cast shows the weapon's own swing until it lands).
-        if (role) for (const r of SPECIAL_ROLES) if (!clips[r] && !specialLoading.has(r) && specialRow(r).weapons.includes(weapon)) {
+        if (role) for (const r of SPECIAL_ROLES) if (!clips[r] && !specialLoading.has(r) && specialRow(r).weapons.includes(weapon) && isBowRole(r) === isBowRole(role)) {   // a bow carrier fetches the bow clips, a melee caster the melee ones
           specialLoading.add(r);
           void SPECIAL_LOADERS[r]().then(m => this.adoptClip(r, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { specialLoading.delete(r); /* the weapon's own clip keeps playing */ });
         }

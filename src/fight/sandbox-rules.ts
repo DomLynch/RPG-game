@@ -269,7 +269,7 @@ export const specialSoundOf = (skill: string): SpecialSoundRow[] => ((DEFS as un
 // arrows through the one missile model instead of the melee special (inside the gap, or out of arrows, the melee special stays). One row per picker skill { skill, label, unlockAfterBossKills, arrows (the quiver cost), lanes (one
 // arrow each: -1 left, 0 forward, 1 right), mult (per-mille of the special's damage per arrow), windup (ticks, replaces specialMeleeWindup), speed (cm/s), react (1 = a landed arrow shoves and staggers like a melee special),
 // pin (ticks of a `pinShot` crowd-control stun through the cc ladder; 0 = none), tint }. No rows (trunk) = a bow has no specials.
-export type BowSpecialRow = { skill: string; label: string; unlockAfterBossKills: number; arrows: number; lanes: number[]; mult: number; windup: number; speed: number; react?: number; pin?: number; tint?: string };
+export type BowSpecialRow = { skill: string; label: string; unlockAfterBossKills: number; arrows: number; lanes: number[]; mult: number; windup: number; speed: number; react?: number; pin?: number; tint?: string; clip?: string };   // clip: the special-clips.json role the archer plays (draw, then loose)
 const BOW_SPECIALS = ((DEFS as unknown as { bowSpecial?: BowSpecialRow[] }).bowSpecial ?? []);
 for (const r of BOW_SPECIALS) if (!r.skill || !(r.arrows >= 1) || !r.lanes?.length || !(r.mult >= 1) || !(r.windup >= 1) || !(r.speed >= 1)) throw Error(`bowSpecial "${String(r.skill)}": skill, arrows (>= 1), lanes, mult, windup and speed are required`);
 export const bowSpecialRows = (): readonly BowSpecialRow[] => BOW_SPECIALS;

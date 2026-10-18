@@ -632,7 +632,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const j = (1 - i) as Side, A = fighters[i], D = fighters[j];
     if (!releasing[i]) continue;
     A.special = 0; delete A.castHurt; delete A.castPush; if (A.slot2Active) A.skillCooldown2 = R.special.cooldown; else A.skillCooldown = R.special.cooldown; A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
-    const bowRow = A.bowSpecial && !A.spell ? bowSpecialOf(A.weapon, A.bowSpecial, 1e9, undefined) : undefined; delete A.bowSpecial;
+    const bowRow = A.bowSpecial && !A.spell ? bowSpecialOf(A.weapon, A.bowSpecial, 1e9, undefined) : undefined;   // A.bowSpecial stays set through the recovery (the renderer plays the bow's loose clip off it); the next cast sets or clears it
     if (!standing[j]) continue;
     if (bowRow && A.missile) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // one volley in flight at a time
     if (bowRow) {   // sandbox bowSpecial: the special's arrows fly through the one missile model (a roll dodges them all, a guard blocks the lanes it covers)
