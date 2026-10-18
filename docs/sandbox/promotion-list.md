@@ -11,7 +11,7 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 | Path | Kind | Owner | Trunk already has |
 |---|---|---|---|
 | `origins/zone-rows/zone90.row.json` (the zone, camp, mob looks, spread, loadouts, start) | row | World | zone package import (#3174/#3176) |
-| `origins/world/loadouts.json` + manifest (goblin rank loadouts t4-t7 with `look`, troll kits `troll.exec.*` / `troll.pit.*`, pieces) | row | Characters | no (new table) |
+| `origins/world/loadouts.json` + manifest (goblin rank loadouts t4-t7 with `look`, troll kit `troll.pit.*` = the pitborn kit, Dom's choice 2026-10-18 because the executioner's hood covers the face, pieces) | row | Characters | no (new table) |
 | `origins/preview/ground-looks.json` (`loot:*` rows: a dropped piece lies as itself) | row | Characters | extends the existing ground-looks table |
 | `origins/preview/sandbox-lines.json` + manifest (the unlisted-zone kill line) | row | Web | no |
 | `src/fight/fx-rows.json` rows: `regen.*`, `zoneloot.*`, `start.clear-m`, `fp.*`, `warband.*`, `drop.reach`, `gfx.*`, `mob-view.*`, `reach.dir-tau`, `reach.full-scale`, `zone1feel.*` | row | Combat (regen, reach, mob-view), World (gfx), Web (fp) | none of these ids exist on trunk |
