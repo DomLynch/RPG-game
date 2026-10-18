@@ -8,7 +8,7 @@ Kind: **row** = data, **code** = promoted by the owner as a trunk PR, **asset** 
 
 **Live status, 2026-10-18 evening** (Dom: every line is PORT, including the seven "Dom decides" lines; archive when NOT STARTED and IN PR are both zero):
 - MERGED: melee-special row families + readers #3198 (slice c, empty defaults); melee-digest tool #3206.
-- IN PR: slice a assets/pipeline #3220 (Combat); slice b melee clips #3222 (Combat); windup/react/REACH #3205 (Combat, RV77); special-shards #3229 and specialSound #3233 (combat-sandbox, auditor:ready); war band #3235 (inherited, stacked on #3216); this docs PR #3239.
+- IN PR: slice a assets/pipeline #3220 (Combat); slice b melee clips #3222 (Combat); windup/react/REACH #3205 (Combat, RV77); special-shards #3229 and specialSound #3233 (combat-sandbox, auditor:ready); this docs PR #3239. (The war band #3235 is the Test Zone lane's, not on this list.)
 - NOT STARTED, owner Combat: SPECIAL 1/2 slots, picker and flip + hit-impact `special` tier (RV78); missile model, missileAnswer, bow specials, staff bolts, cc `pin` kind (RV79).
 - NOT STARTED, owner combat-sandbox: bow-v1.glb (needs Characters' OK); sandbox/ preview dir and its five tools (last: they drive the sandbox page); view/UI items (plainPosture, ready/hurt styles, one-button/touch layout A, impact sparks, crowd; Web reviews); sim experiments as rows-OFF readers in the RV chain: reach bands (RV80), mana (RV81), dodge counter/pushback/lockout/execution/enrage/wounds/many-on-one (RV82), bind/disarm + poison/flank/ward/bait/armour (RV83).
 - DROPPED-BY-DOM: crossbow.
