@@ -67,7 +67,7 @@ try {
   // The drawn goblin: the engine's own stand-back, eased at each step's dt, started at its first want (what scene.ts / mobs-view.ts do).
   const drawn = beastRenderScale('goblin'), built = builtScale('goblin', drawn), off = { x: 0, z: 0 };
   const total = Math.round(SECONDS * 60), sweep = [], held = { key: null }, key = async (k, down) => { await page.keyboard[down ? 'down' : 'up'](k); };
-  let prevAngle = null, seeded = false, roll = 0;
+  let prevAngle = null, prevSim = null, seeded = false, roll = 0; const simSweep = [], gaps = []; let offMax = 0;
   for (let n = 0; n < total; n++) {
     const phase = Math.floor(n / 60) % 2 === 0 ? 'KeyA' : 'KeyD';   // strafe one way for a second, then the other
     if (held.key !== phase) { if (held.key) await key(held.key, false); await key(phase, true); held.key = phase; }
@@ -80,13 +80,16 @@ try {
     easeStandBack(off, want, dt);
     const angle = Math.atan2(foe.x + off.x - hero.x, foe.z + off.z - hero.z);
     if (prevAngle !== null && n >= 30) sweep.push(Math.abs(wrap(angle - prevAngle)) * 180 / Math.PI / dt);   // the first half-second is the settle
-    prevAngle = angle;
+    const simAngle = Math.atan2(foe.x - hero.x, foe.z - hero.z);   // the same sweep with no stand-back: what the sim alone does, so the stand-back's share is the difference
+    if (prevSim !== null && n >= 30) simSweep.push(Math.abs(wrap(simAngle - prevSim)) * 180 / Math.PI / dt);
+    prevSim = simAngle; prevAngle = angle; offMax = Math.max(offMax, Math.hypot(off.x, off.z)); if (n >= 30) gaps.push(Math.hypot(foe.x - hero.x, foe.z - hero.z));
     if (SHOTS) { await skipDraws(page, false); await page.screenshot({ path: path.join(OUT, `f${String(n).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 88 }); }
   }
   if (held.key) await key(held.key, false);
-  const s = [...sweep].sort((a, b) => a - b), pick = (q) => s[Math.floor(q * (s.length - 1))] ?? 0, avg = s.reduce((t, x) => t + x, 0) / Math.max(1, s.length);
-  Object.assign(receipt, { steps: total, rolls: roll, drawnScale: drawn, builtScale: built, sweepDegPerS: { max: +s[s.length - 1]?.toFixed(1), p95: +pick(0.95).toFixed(1), avg: +avg.toFixed(1) } });
+  const stat = (a) => { const s = [...a].sort((x, y) => x - y), pick = (q) => s[Math.floor(q * (s.length - 1))] ?? 0; return { max: +(s[s.length - 1] ?? 0).toFixed(1), p95: +pick(0.95).toFixed(1), avg: +(s.reduce((t, x) => t + x, 0) / Math.max(1, s.length)).toFixed(1) }; };
+  const s = sweep;
+  Object.assign(receipt, { steps: total, rolls: roll, drawnScale: drawn, builtScale: built, sweepDegPerS: stat(sweep), simOnlySweepDegPerS: stat(simSweep), standBackMaxM: +offMax.toFixed(3), simGapM: { min: +Math.min(...gaps).toFixed(2), max: +Math.max(...gaps).toFixed(2) } });
   fs.writeFileSync(path.join(OUT, 'receipt.json'), JSON.stringify(receipt, null, 1));
   if (SHOTS) execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '60', '-i', path.join(OUT, 'f%05d.jpg'), '-vf', 'scale=376:812,setsar=1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', path.join(OUT, 'clip.mp4')], { timeout: 600_000 });
-  console.log(`${VIEW}: drawn-body sweep max/p95/avg ${receipt.sweepDegPerS.max}/${receipt.sweepDegPerS.p95}/${receipt.sweepDegPerS.avg} deg/s over ${s.length} steps, ${roll} rolls, errors ${receipt.errors.length}`);
+  console.log(`${VIEW}: drawn-body sweep max/p95/avg ${receipt.sweepDegPerS.max}/${receipt.sweepDegPerS.p95}/${receipt.sweepDegPerS.avg} deg/s (sim alone ${receipt.simOnlySweepDegPerS.max}/${receipt.simOnlySweepDegPerS.p95}/${receipt.simOnlySweepDegPerS.avg}), stand-back up to ${receipt.standBackMaxM} m at sim gap ${receipt.simGapM.min}-${receipt.simGapM.max} m, over ${s.length} steps, ${roll} rolls, errors ${receipt.errors.length}`);
 } finally { await browser.close(); server.close(); }

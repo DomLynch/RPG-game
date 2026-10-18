@@ -7,12 +7,13 @@
 //   sweep deg/s = |angular change of the creature around the hero| per second (avg, max, % of frames over 90), flips/s = direction reversals of that sweep per second,
 //   gap = hero-to-creature distance (avg, min), speed = the creature's own m/s (avg, p95, max), turn deg/s = the facing change per second (avg, max), hits = hero hits taken.
 // BASELINE (2026-10-17, sandbox branch engine, level 1, seed n=1, 20 s): see the PR/message that carried this file. Thresholds belong in the PR that adds the new rows (circle re-decide interval, turn cap, strafe cap).
-import { createWorldCombat } from '../src/fight/index.ts';
+import { builtScale, createWorldCombat, easeStandBack, standBackWant } from '../src/fight/index.ts';
+import { beastRenderScale } from '../src/fight/beast-scale.ts';
 import type { MobDrive, MobPick } from '../origins/preview/mobs-view.ts';
 import type { MobSpec } from '../origins/preview/mobs.ts';
 
 const args = process.argv.slice(2), flag = (k: string, d: number) => { const a = args.find((x) => x.startsWith(`--${k}=`)); return a ? Number(a.split('=')[1]) : d; };
-const kinds = args.filter((a) => !a.startsWith('--')), LEVEL = flag('level', 1), SEEDS = flag('seeds', 8), SECONDS = flag('seconds', 20), GAP = flag('gap', 6), VERBOSE = args.includes('--verbose');
+const kinds = args.filter((a) => !a.startsWith('--')), LEVEL = flag('level', 1), SEEDS = flag('seeds', 8), SECONDS = flag('seconds', 20), GAP = flag('gap', 6), VERBOSE = args.includes('--verbose'), DRAWN = args.includes('--drawn');
 const KINDS = kinds.length ? kinds : ['giant-salamander', 'wolf', 'cave-troll', 'goblin', 'boar'], DT = 1 / 30;
 const wrap = (a: number) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 
@@ -23,11 +24,18 @@ function one(body: string, n: number): Run {
   const list = [{ spec, x: 0, z: GAP }], driven = new Map<string, MobDrive>(), fell: string[] = [];
   const mobs = { within: (x: number, z: number, r: number): MobPick[] => list.filter((m) => !fell.includes(m.spec.id) && Math.hypot(m.x - x, m.z - z) <= r).map((m) => ({ ...m, dist: Math.hypot(m.x - x, m.z - z) })), drive: (id: string, p: MobDrive | null) => { if (p) driven.set(id, p); else driven.delete(id); }, fell: (id: string) => void fell.push(id), play: () => 0.5 } as never;
   let hits = 0; const wc = createWorldCombat({ mobs: () => mobs, onKill: () => {}, onHeroDied: () => {}, onHeroHit: () => void hits++, onSwing: () => {} } as never);
+  const standOff = { x: 0, z: 0 }; let standSeen = false;
   const hero = { x: 0, z: 0, facing: 0 }; let prev: MobDrive | null = null, prevDa = 0; const sweep: number[] = [], gap: number[] = [], speed: number[] = [], turn: number[] = []; let flips = 0;
   for (let t = 0; t < SECONDS; t += DT) {
     const d = driven.get(spec.id); if (d) hero.facing = Math.atan2(d.x - hero.x, d.z - hero.z);   // the hero faces his foe, as the page does
     wc.update(DT, hero);
-    const p = driven.get(spec.id);
+    const p0 = driven.get(spec.id);
+    let p = p0;
+    if (p0 && DRAWN) {   // --drawn: the body as DRAWN, the sim's position plus the eased stand-back of src/fight/stand-back.ts (the hero stands at 0,0)
+      const scale = beastRenderScale(body), want = standBackWant(p0.x, p0.z, 0, 0, body, scale, builtScale(body, scale));
+      if (!standSeen) { standOff.x = want.x; standOff.z = want.z; standSeen = true; }
+      easeStandBack(standOff, want, DT); p = { ...p0, x: p0.x + standOff.x, z: p0.z + standOff.z };
+    }
     if (p && prev) {
       const da = wrap(Math.atan2(p.x, p.z) - Math.atan2(prev.x, prev.z)); sweep.push(Math.abs(da) * 180 / Math.PI / DT); gap.push(Math.hypot(p.x, p.z));
       speed.push(Math.hypot(p.x - prev.x, p.z - prev.z) / DT); turn.push(Math.abs(wrap(p.facing - prev.facing)) * 180 / Math.PI / DT);
