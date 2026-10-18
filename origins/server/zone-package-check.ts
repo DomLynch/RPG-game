@@ -38,13 +38,14 @@ export function packageProblems(zone: Zone, ctx: PackageCtx): string[] {
     const to = ctx.zones[e.to];
     if (!to) { bad.push(`exit ${e.id}: "${e.to}" is not a zone package`); continue; }
     if (!owner(e)) bad.push(`exit ${e.id}: "${e.zone}" is not a world zone of any package`);
-    const bothListed = owner(e)?.unlisted !== true && to.unlisted !== true;
-    // (a listed zone's door to an UNLISTED zone, the sample crypt's today, is allowed: openExits keeps it closed until the far zone is listed, so the server derives no warp for it)
-    const landing = arrival(frontierPlan(true, e.to), e.to, e.id, ctx.exits);
-    if (!landing) { bad.push(`exit ${e.id}: zone ${e.to} has no landing (arrive landmark "${e.arrive}")`); continue; }
-    if (bothListed) { const p = placeProblem(landing.x, landing.z); if (p) bad.push(`exit ${e.id}: its landing warp "${e.warp}" is ${p}`); }
     if (seenWarps.has(e.warp)) bad.push(`exit ${e.id}: warp "${e.warp}" is also exit ${seenWarps.get(e.warp)}'s`); seenWarps.set(e.warp, e.id);
     if (ctx.tableWarps.has(e.warp)) bad.push(`exit ${e.id}: warp "${e.warp}" is also a warp-landmarks.json row`);
+    // (a listed zone's door to an UNLISTED zone, the sample crypt's today, is allowed: openExits keeps it closed until the far zone is listed, so the server derives no warp for it.) An UNLISTED far zone's
+    // own places load only on its own page (zonePlaces), so no plan of it can be built here: that landing is checked when the far zone is listed.
+    if (to.unlisted === true) continue;
+    const landing = arrival(frontierPlan(true, e.to), e.to, e.id, ctx.exits);
+    if (!landing) { bad.push(`exit ${e.id}: zone ${e.to} has no landing (arrive landmark "${e.arrive}")`); continue; }
+    if (owner(e)?.unlisted !== true) { const p = placeProblem(landing.x, landing.z); if (p) bad.push(`exit ${e.id}: its landing warp "${e.warp}" is ${p}`); }
   }
   // 4. The package's own warps: new ids (not in the table, not an exit's), and for a listed package a place inside a presence zone row and clear of the trade areas.
   for (const w of zone.warps ?? []) {

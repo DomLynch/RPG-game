@@ -24,14 +24,15 @@ export function loadWarps(raw: { landmarks?: readonly unknown[] }): ReadonlyMap<
   return out;
 }
 // A place in Concord metres as presence centimetres, held to the one rule every warp keeps: inside a zone row and clear of the trade areas.
+const cmOf = (mx: number, mz: number): { x: number; z: number } => ({ x: Math.round(CENTRE_CM + mx * 100), z: Math.round(CENTRE_CM + mz * 100) });
 function placeOf(who: string, mx: number, mz: number): { x: number; z: number } {
   const bad = placeProblem(mx, mz);
   if (bad) throw Error(`${who}: ${bad}`);
-  return { x: Math.round(CENTRE_CM + mx * 100), z: Math.round(CENTRE_CM + mz * 100) };
+  return cmOf(mx, mz);
 }
 /** Why a place in Concord metres may not be a warp (null = it may): the one rule every warp keeps, also read by the zone package check (origins/server/zone-package-check.ts). */
 export function placeProblem(mx: number, mz: number): string | null {
-  const x = Math.round(CENTRE_CM + mx * 100), z = Math.round(CENTRE_CM + mz * 100);
+  const { x, z } = cmOf(mx, mz);
   if (!zoneAt(x, z)) return 'not inside any zone row';
   const c = clearOfTradeAreas(x, z);
   return c.x !== x || c.z !== z ? 'inside a trade area' : null;
