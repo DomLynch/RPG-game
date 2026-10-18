@@ -14,11 +14,11 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 
 | Path | Kind | Owner | Trunk already has | Status |
 |---|---|---|---|---|
-| **R01** `origins/zone-rows/zone90.row.json` (the zone, camp, mob looks, spread, loadouts, start) | row | World | zone package import (#3174/#3176); trunk still holds my OLD 5.5 KB row (1feaaca5a), not the current 13.8 KB one | PORTED (#3213 merged; the zone row on trunk is the current 13.8 KB one; live revision: named by Deploy at the next release) |
+| **R01** `origins/zone-rows/zone90.row.json` (the zone, camp, mob looks, spread, loadouts, start) | row | World | zone package import (#3174/#3176); trunk still holds my OLD 5.5 KB row (1feaaca5a), not the current 13.8 KB one | MERGED, publishing (#3213 merged at ff74de687; live is still JC 556a6bbf3 until JD publishes; Strategy flips to PORTED) |
 | **R02** `origins/world/loadouts.json` + manifest (goblin rank loadouts t4-t7 with `look`, troll kit `troll.pit.*` = the pitborn kit, Dom's choice 2026-10-18 because the executioner's hood covers the face, pieces; the troll rows carry shin wraps and boots only until Characters' bake) | row | Characters | no (new table) | IN PR #3216 (Characters) |
-| **R03** executioner piece rows and `loot:executioner.*` ground rows | row | Characters | no | SUPERSEDED (Dom chose the pitborn kit; no executioner rows are needed, #3216 carries the pitborn loadouts) [needs Strategy to confirm this is not a drop] |
+| **R03** executioner piece rows and `loot:executioner.*` ground rows | row | Characters | no | DROPPED-BY-DOM (2026-10-18: Dom removed the executioner rows himself, per Strategy; reopens as NOT STARTED only if Dom says port) |
 | **R04** `origins/preview/ground-looks.json` (`loot:*` rows: a dropped piece lies as itself) | row | Characters | extends the existing ground-looks table | NOT STARTED (sandbox author; staged on zone/port-loot, opens after #3216 merges; the drop looks are their own table, drop-looks.json) |
-| **R05** `origins/preview/sandbox-lines.json` + manifest (the unlisted-zone kill line) | row | Web | no | PORTED (#3204 merged) |
+| **R05** `origins/preview/sandbox-lines.json` + manifest (the unlisted-zone kill line) | row | Web | no | MERGED, publishing (#3204 merged; Strategy flips to PORTED at JD) |
 | **R06** `src/fight/fx-rows.json` ids `regen.*`, `zoneloot.*`, `start.clear-m`, `drop.reach`, `fit.*`, `grip.claw-fraction`, `mob-view.wear-max-scale` | row | Combat (regen, reach, fit/grip with Characters) | none exist on trunk | IN PR #3226 (start.clear-m, drop.reach, zoneloot.*, mob-view.wear-max-scale); regen.* IN PR #3210 (Combat); fit.* PORTED #3196; grip.claw-fraction SUPERSEDED (#3224) |
 | **R07** `src/fight/fx-rows.json` ids `fp.*` | row | Web | none exist on trunk | IN PR #3225 (Web) |
 | **R08** `src/fight/fx-rows.json` ids `warband.*` | row | Combat | no | IN PR #3235 (sandbox author; stacked on #3216; Combat reviews) |
@@ -44,7 +44,7 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 | **C08** `origins/world/loadouts-rules.ts` | loadout loader and checks | Characters | no | IN PR #3216 (pickLoadout) |
 | **C09** `origins/preview/piece-fit.ts` (+test), `fit.*` rows | per-bone refit of hero-rig loot pieces to a re-proportioned body (the troll); live for the troll's shin wraps and boots; helmet, torso, arms and gloves of the pitborn kit need Characters' bake (or the cave-troll.glb rig fix) | Characters (belongs next to `loadLoot`/`wear`; Lead: Characters is porting it) | the engine's own #606 retarget (piece inverse binds) is the base this adds to | PORTED (#3196 piece-fit); unweightedBones/remap SUPERSEDED (#3224) |
 | **C10** `origins/preview/outfit.ts` (+test), `kill-drop.ts` (+test), `ground-item-view.ts` (loot-piece prefix, rank finish) | take-everything loot, the hero's outfit, drops lying as real items | Characters + Backend (any promotion to account loot is Backend's, never from the zone) | uses trunk's `loadLoot`/`wear`; the take-limit stays code in the Pit | NOT STARTED (sandbox author; staged on zone/port-loot, opens after #3216; per-slot override, page memory only) |
-| **C11** `origins/preview/kill-apply.ts` (`sandbox` toast) + `main.ts` (no `kill_report` from an unlisted zone) | sandbox kill line | Backend | no | PORTED (#3204 merged) |
+| **C11** `origins/preview/kill-apply.ts` (`sandbox` toast) + `main.ts` (no `kill_report` from an unlisted zone) | sandbox kill line | Backend | no | MERGED, publishing (#3204 merged; Strategy flips to PORTED at JD) |
 | **C12** `origins/preview/first-person-arm.ts` (+test), first-person branch in `src/fight/follow-camera.ts` | first-person view with the hero's own arm (IK) | Combat | no | IN PR #3230 (sandbox author; stacked on #3225; Web reviews) |
 | **C13** `src/fight/follow-camera.ts` combat framing, `src/fight/camera.ts`, `camera-rules.ts` | combat camera (Wide auto-fit) | Combat | no | SUPERSEDED (trunk 16b851ef2); the pitch-with-foe-size + fightBack reader variant NOT STARTED (sandbox author) |
 | **C14** `origins/preview/war-band.ts` (+test), war-band hooks in `main.ts` | horn-blower, rally | Combat | no | IN PR #3235 (sandbox author; stacked on #3216; Combat reviews the fight hooks) |
@@ -54,14 +54,14 @@ Kind: **row** = data, comes in with the zone package. **code** = promoted by the
 | **C18** `origins/preview/prop-kit.ts`, `ambience.ts`, `goblin-ground.ts`, `goblin-smoke.ts`, `horizon-dome.ts`, `building-skin.ts` (the skin TABLE and renderer: World's slice B fills the seam), `frontier.ts` and the other `frontier*.ts`, `exchange*.ts`, `creature-card.ts`, `index.html` | goblin-field look, props, dome, ground | World | World's biomes work (#3067) overlaps; reconcile with them | horizon-dome.ts PORTED (#3202 merged); the rest NOT STARTED (World) |
 | **C19** `origins/zones/schema.ts`, `loader.ts`, `from-row.ts`, `biomes-data.ts` | zone row keys (`look.sky`, `look.props.*`, unlisted) | World | **World's zone package supersedes** | SUPERSEDED (#3176 zone package; look fields #3199 merged) |
 | **C20** `origins/preview/mobs.ts` (`spawnAmong` `clearM`, spawn rules), `mob-looks.ts` | start clear of every creature, looks | World | no | NOT STARTED (World) |
-| **C21** `origins/preview/vite.config.mjs`, `scripts/zone-look-stills.mjs`, `scripts/origins-tsc.mjs`, `scripts/data-only-check.mjs`, `.claude/launch.json` | the sandbox's own dev/preview tooling | Web | keep sandbox-only | SUPERSEDED (the sandbox's own dev/preview tooling: trunk has its own; the check scripts are kept for porters in scripts/zone-sandbox on the donor branch) [needs Strategy to confirm this is not a drop] |
+| **C21** `origins/preview/vite.config.mjs`, `scripts/zone-look-stills.mjs`, `scripts/origins-tsc.mjs`, `scripts/data-only-check.mjs`, `.claude/launch.json` | the sandbox's own dev/preview tooling | Web | keep sandbox-only | DROPPED-BY-DOM (2026-10-18: Dom removed the sandbox dev tooling himself, per Strategy; check scripts stay in scripts/zone-sandbox on the donor branch; reopens only if Dom says port) |
 
 ## Assets committed on the branch (not on trunk)
 
 | Path | Owner | Status |
 |---|---|---|
 | **A01** `public/world/kit/goblin-bare.glb`, `goblin-fort-kit.glb`, `dungeon-kit.glb` | World / Characters & Art | NOT STARTED (World / Characters & Art; goblin-bare.glb is in Characters' S2) |
-| **A02** `public/zones/goblin-fortress-landscape.webp`, `-portrait.webp`, `-panorama.jpg` (the painted dome; Dom's own generation route, licence per Dom) | World | PORTED (#3213 merged: public/zones/goblin-fortress-*.webp and panorama.jpg are on trunk) |
+| **A02** `public/zones/goblin-fortress-landscape.webp`, `-portrait.webp`, `-panorama.jpg` (the painted dome; Dom's own generation route, licence per Dom) | World | MERGED, publishing (#3213 merged: public/zones/goblin-fortress-*.webp and panorama.jpg are on trunk) |
 
 ## Row id manifest (exact ids, generated 2026-10-18 at the freeze start; World imports and diffs by id)
 
