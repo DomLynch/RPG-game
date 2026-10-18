@@ -13,6 +13,9 @@ set -uo pipefail
 rev="${1:?revision}"; rows="${2:?rows csv}"; pr="${3:-}"
 state="${RELEASE_TRAIN_STATE:-$HOME/.claude/state}"; hold="$state/deploy_hold"
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+marker="$state/post-publish-pending-${rev:0:8}"   # the publisher wrote rev/rows/at before it released the hold; this tail adds its pid and removes the file when it finishes (any exit)
+if [ -e "$marker" ]; then printf 'rev=%s\nrows=%s\nat=%s\npid=%s\n' "$rev" "$rows" "$(sed -n 's/^at=//p' "$marker" | head -n 1)" "$$" > "$marker"; fi
+trap 'rm -f "$marker" "$marker.told"' EXIT
 say() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) release-train-postcheck: $*"; }
 note() {   # one PR comment, best effort (POSTCHECK_COMMENT replaces gh in tests)
   [ -n "$pr" ] || return 0

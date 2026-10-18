@@ -58,6 +58,21 @@ test('postcheck: an existing deploy_hold is never overwritten', () => {
   assert.equal(r.hold, 'someone else\n');
 });
 
+test('postcheck: records its pid in the pending marker while it runs and removes the marker on every exit (green and red)', () => {
+  for (const trusted of ['3,9,46', '9']) {
+    const state = mkdtempSync(join(tmpdir(), 'postcheck-marker-'));
+    const marker = join(state, `post-publish-pending-${REV.slice(0, 8)}`);
+    writeFileSync(marker, `rev=${REV}\nrows=9,46,3\nat=1700000000\n`);
+    const trust = join(state, 'trust.sh');
+    // the trust command reads the marker the tail wrote to itself: pid recorded, at kept
+    writeFileSync(trust, `#!/bin/sh\ncp "${marker}" "${state}/seen"\necho "${trusted}"\n`, { mode: 0o755 });
+    spawnSync('bash', ['scripts/release-train-postcheck.sh', REV, '9,46,3', ''], { encoding: 'utf8', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_CI_SETTLE_S: '0', RELEASE_TRAIN_NOTIFY: '' } });
+    assert.match(readFileSync(join(state, 'seen'), 'utf8'), new RegExp(`^rev=${REV}\\nrows=9,46,3\\nat=1700000000\\npid=\\d+\\n`));
+    assert.equal(existsSync(marker), false, `marker removed when the tail ends (trusted ${trusted})`);
+    rmSync(state, { recursive: true, force: true });
+  }
+});
+
 test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the CI wait and the stamp promote only on that path, and prints the line the publisher reads', () => {
   const deploy = readFileSync('scripts/deploy.sh', 'utf8');
   assert.match(deploy, /if \[\[ "\$\{POST_PUBLISH_DETACH:-0\}" == 1 && -n "\$pp_open" \]\]; then/);
