@@ -49,7 +49,7 @@ export function createViewmodel(scene: THREE.Scene) {
           const mesh = o as THREE.Mesh; if (!mesh.isMesh) return;
           const mat = (Array.isArray(mesh.material) ? mesh.material[0]! : mesh.material).clone() as THREE.MeshStandardMaterial;
           if (mat.metalness > look.metal) mat.metalness = look.metal; if (mat.roughness > look.rough) mat.roughness = look.rough;   // not a black mirror
-          mat.depthTest = false; mat.transparent = true; mesh.material = mat; mesh.renderOrder = 5000;   // transparent: it is sorted with the painted horizon (transparent too) by render order, so the sky never paints over the blade mesh.frustumCulled = false; mesh.castShadow = false;
+          mat.depthTest = false; mat.transparent = true; mesh.material = mat; mesh.renderOrder = 5000; mesh.frustumCulled = false; mesh.castShadow = false;   // transparent: it is sorted with the painted horizon (transparent too) by render order, so the sky never paints over the blade
         });
         vm.matrixAutoUpdate = false; vm.visible = false; scene.add(vm);
         // The limb is its own object in the scene, in a frame where +Y runs from the fist back along the forearm; each frame it is put at the grip and stretched to the shoulder below.
@@ -57,7 +57,7 @@ export function createViewmodel(scene: THREE.Scene) {
         limb = new THREE.Group();
         forearm = new THREE.Mesh(new THREE.CapsuleGeometry(look.forearm, 1, 6, 14), skin); sleeve = new THREE.Mesh(new THREE.CylinderGeometry(look.forearm * 1.18, look.forearm * 1.28, 1, 16), leather);
         const knuckles = new THREE.Mesh(new THREE.SphereGeometry(look.fist, 16, 12), skin); limb.add(forearm, sleeve, knuckles);
-        limb.traverse((o) => { o.renderOrder = 4999; o.frustumCulled = false; });   // after everything, the painted horizon dome included (it cut the blade in two) limb.matrixAutoUpdate = true; limb.visible = false; scene.add(limb);
+        limb.traverse((o) => { o.renderOrder = 4999; o.frustumCulled = false; }); sleeve.renderOrder = 5001; knuckles.renderOrder = 5002; limb.matrixAutoUpdate = true; limb.visible = false; scene.add(limb);   // no depth test, so the draw order is the layering: arm, then cuff, then fist; all after the painted horizon dome
       }
       weapon.updateWorldMatrix(true, false); source!.visible = false;
       const eyeInv = new THREE.Matrix4().copy(eye).invert(), here = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(eyeInv).multiply(weapon.matrixWorld));   // the hand in the eye frame now
