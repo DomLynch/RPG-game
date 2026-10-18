@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { Group } from 'three';
 import { OPPONENTS, catalogueRow, fighterClips, worldBodyUrl } from '../src/fight/index.ts';
 import type { WeaponId } from '../src/fight/index.ts';
@@ -15,7 +16,7 @@ async function clipsOf(file: URL) {
   json.images = []; json.textures = []; json.materials = (json.materials ?? []).map((m: { name: string }) => ({ name: m.name }));
   json.buffers[0].uri = 'data:application/octet-stream;base64,' + bytes.subarray(28 + size).toString('base64');
   globalThis.ProgressEvent ??= class { constructor(_type: string, fields: object) { Object.assign(this, fields); } } as unknown as typeof ProgressEvent;
-  return (await new GLTFLoader().parseAsync(JSON.stringify(json), '')).animations;
+  return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(JSON.stringify(json), '')).animations;
 }
 
 // The body file a zone fetches for a kind: the world body when the row has one (public/world), else the engine body.
