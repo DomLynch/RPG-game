@@ -2,7 +2,7 @@
 // walkable, the first view's reach, the keeper's stand-off, every solid's radius and offset, the town's ring of houses, and each building kind's footprint (width x depth). `rules` rows (id, value,
 // unit) and `blocks` rows (kind, w, d) through the shared loader (src/core/registry.ts); every default equals the literal it replaced (tests/frontier-plan-rules.test.ts pins each). A building's solid radius
 // stays a formula of its footprint (frontier-plan.ts: max(w, d) / 2 + blockPad), never a second row. Heights, thicknesses and tints are drawing, not collision, and stay with the drawing. Pure.
-import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/server.ts';   // the server-safe door, as preview-rules.ts
+import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/neutral.ts';   // the neutral door (the page and the box's node services both load this file), as preview-rules.ts
 import DEFS from './frontier-plan-defs.json' with { type: 'json' };
 import MANIFEST from './frontier-plan-defs.manifest.json' with { type: 'json' };
 
