@@ -6,7 +6,9 @@ export type WarBandRows = { readonly hornRunSpeed: number; readonly hornReach: n
 export type WarBandPhase = 'idle' | 'alarm' | 'rallied' | 'silenced';
 export type WarBandStep = { walk: { x: number; z: number; facing: number } | null; rally: readonly string[] | null };
 
-export type Goblin = { readonly id: string; readonly loadout: string | undefined; readonly x: number; readonly z: number };
+const NONE: WarBandStep = Object.freeze({ walk: null, rally: null });   // the answer on every quiet frame: one shared object, nothing allocated per frame
+
+export type Goblin ={ readonly id: string; readonly loadout: string | undefined; readonly x: number; readonly z: number };
 
 /** Pick the captain (the heaviest loadout: the one wearing the most pieces; ties by id) and the horn-blower (the lightest, a different one; ties by id) from the zone's goblins. */
 export function pickRoles(goblins: readonly Goblin[], pieces: (loadout: string | undefined) => number): { captain: string | null; blower: string | null } {
@@ -26,9 +28,9 @@ export function createWarBand(rows: WarBandRows) {
     fell(id: string): void { down.add(id); if (id === blower && (phase === 'alarm' || phase === 'idle')) phase = 'silenced'; },
     /** Each frame: where the horn-blower walks (null = nowhere) and, once, the rally. `at`: a goblin's position by id. `near(x, z, n)`: the n living goblins nearest that point, captain first. */
     update(dt: number, at: (id: string) => { x: number; z: number } | null, near: (x: number, z: number, n: number) => readonly string[]): WarBandStep {
-      if (phase === 'rallied') { rallyLeft = Math.max(0, rallyLeft - dt); return { walk: null, rally: null }; }
-      if (phase !== 'alarm' || !blower) return { walk: null, rally: null };
-      const p = at(blower); if (!p) return { walk: null, rally: null };
+      if (phase === 'rallied') { rallyLeft = Math.max(0, rallyLeft - dt); return NONE; }
+      if (phase !== 'alarm' || !blower) return NONE;
+      const p = at(blower); if (!p) return NONE;
       const dx = horn.x - p.x, dz = horn.z - p.z, d = Math.hypot(dx, dz);
       if (d <= rows.hornReach) { phase = 'rallied'; rallyLeft = rows.rallySeconds; return { walk: null, rally: near(captain ? (at(captain)?.x ?? horn.x) : horn.x, captain ? (at(captain)?.z ?? horn.z) : horn.z, rows.rallyCount) }; }
       const step = Math.min(rows.hornRunSpeed * dt, d);

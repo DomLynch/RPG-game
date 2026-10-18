@@ -12,7 +12,7 @@ import { variantIndex } from '../world/creature-hash.ts';
 import { loadoutAt, loadoutRow } from '../world/loadouts-rules.ts';
 
 /** A body's draw scale, from its catalogue row (render.scale): the duel and the walking figure share it. A rig with no row is drawn as built. */
-const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
+export const bodyScale = (opponent: string): number => catalogueRow(opponent)?.render.scale ?? 1;
 
 //   loadout  the loadout row (origins/world/loadouts.json) the figure wears: its armour pieces and its weapon (which sets `gear` in a variant); absent = the body as it is
 //   body     a bare body file (`world/kit/<name>.glb`, the same rig) drawn instead of the baked world body, so the loadout's pieces are what it wears

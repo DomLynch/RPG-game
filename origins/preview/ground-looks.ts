@@ -1,6 +1,8 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../../src/core/index.ts';
 import MANIFEST from './ground-looks.manifest.json' with { type: 'json' };
 import LOOKS from './ground-looks.json' with { type: 'json' };
+import DROP_MANIFEST from './drop-looks.manifest.json' with { type: 'json' };
+import DROP_LOOKS from './drop-looks.json' with { type: 'json' };
 
 // How a ground item lies (ground loot slice 3; donors 2004Scape ObjType, where each object type is one row carrying its model's recolour pairs, angles and offsets, and Ultima Online's item Hue over the same art):
 // one row per item id, nothing literal in the view. `asset` is the model's equip-file stem (src/assets/weapons/player/<asset>.glb: this item has no appearance.asset of its own yet), or `loot` (src/assets/loot.glb) with `piece` naming the armour piece's node in it (a skinned mesh: the view bakes its bind pose into a plain mesh to lay it down), `yawDeg` turns it about the vertical, `rollDeg` rolls it about its long axis (0 = as the model's own face-up side lies), `tiltDeg` lifts the long axis off the ground (so it reads from the walk camera and clears the grass), `scale` multiplies the model,
@@ -16,8 +18,8 @@ const hex = (id: string, what: string, v: unknown) => { if (typeof v !== 'string
 const opacity = (id: string, what: string, v: unknown) => num(id, what, v, (n) => n > 0 && n <= 1, 'in (0, 1]');
 
 /** The one loader: the registry's duplicate / missing / mistyped checks, then the row rules the manifest cannot say (a bad colour, a radius or height at or below 0, an opacity outside (0, 1], a missing tilt are refused, not drawn). */
-export function loadGroundLooks(raw: unknown): ReadonlyMap<string, GroundLook> {
-  const table = tableFromFile(MANIFEST.tables[0] as Manifest, raw, 'ground-looks.json');
+export function loadGroundLooks(raw: unknown, manifest: Manifest = MANIFEST.tables[0] as Manifest, file = 'ground-looks.json'): ReadonlyMap<string, GroundLook> {
+  const table = tableFromFile(manifest, raw, file);
   loadRegistry([table]);
   const out = new Map<string, GroundLook>();
   for (const r of table.rows as unknown as { id: string; fields: GroundLook }[]) {
@@ -43,6 +45,13 @@ export function loadGroundLooks(raw: unknown): ReadonlyMap<string, GroundLook> {
   return out;
 }
 const BY_ITEM = loadGroundLooks(LOOKS);
+// The drop looks (drop-looks.json): how a creature's dropped loot piece lies (the same row shape as a ground item's look, its own table: the ground-looks table is the server's starter items only, pinned by a test). Ids are `loot:<piece>`.
+const BY_DROP = loadGroundLooks(DROP_LOOKS, DROP_MANIFEST.tables[0] as Manifest, 'drop-looks.json');
+export function dropLook(itemId: string): GroundLook {
+  const look = BY_DROP.get(itemId);
+  if (!look) throw new Error(`drop-looks.json has no row for "${itemId}"`);
+  return look;
+}
 
 /** The look of an item; an item with no row throws rather than drawing at a guessed pose. */
 export function groundLook(itemId: string): GroundLook {

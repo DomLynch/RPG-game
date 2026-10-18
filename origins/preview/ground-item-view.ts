@@ -2,8 +2,7 @@
 // Presentation only: the page's ground_state read decides WHICH rows are there (it calls show for those the server says are available, hide on a take or when the respawn window closes); this
 // draws and answers where. Same seam as mobs-view: the scene, a ground height function, and a model loader the page hands in.
 import * as THREE from 'three';
-import { finishedAs } from '../../src/fight/index.ts';
-import { tinted } from '../../src/fight/rank-tint.ts';
+import { finishedAs, tinted } from '../../src/fight/index.ts';
 import type { Tier } from '../../src/core/index.ts';
 import { groundLook, type GroundBeam, type GroundLook, type GroundRing } from './ground-looks.ts';
 
@@ -11,6 +10,8 @@ export type GroundItemViewOptions = {
   scene: THREE.Scene;
   /** The model behind an asset url (a glTF scene root); called once per url. */
   loadModel: (assetUrl: string) => Promise<THREE.Object3D>;
+  /** How the item lies (default: the ground-looks table, the server's starter items); a creature's dropped loot piece passes the drop-looks table. */
+  lookOf?: (itemId: string) => GroundLook;
   /** The item's asset url (its `appearance.asset` row); undefined = nothing to draw. */
   assetOf: (itemId: string) => string | undefined;
   /** The ground's height at a point (the preview's groundY); 0 on flat ground. */
@@ -126,7 +127,7 @@ export function createGroundItemView(opts: GroundItemViewOptions): GroundItemVie
   const hide = (id: string) => { asked.delete(id); const g = drawn.get(id); if (g) { g.removeFromParent(); disposeOwned(g); drawn.delete(id); } };   // free functions: the page hands them around unbound
   return {
     show(id, itemId, at, tier) {
-      const look = groundLook(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
+      const look = (opts.lookOf ?? groundLook)(itemId), url = opts.assetOf(itemId), now = drawn.get(id);
       if (now) { place(now, at); return; }
       if (!url) return;
       const ticket = ++serial; asked.set(id, ticket);

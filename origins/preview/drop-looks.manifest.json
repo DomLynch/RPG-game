@@ -1,0 +1,13 @@
+{
+  "tables": [
+    {
+      "table": "dropLook",
+      "file": "drop-looks.json",
+      "at": "dropLooks",
+      "key": "id",
+      "required": {
+        "fields": "object"
+      }
+    }
+  ]
+}

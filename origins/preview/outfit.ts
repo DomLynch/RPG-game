@@ -3,7 +3,7 @@
 // no set tier (gear-stats.ts kit). Donor: UO/ModernUO corpse (everything it wore is on the body, take what you want).
 import { droppedPiece } from '../world/loadouts-rules.ts';
 import type { Loadout } from '../world/loadouts-rules.ts';
-import { isWeaponLoot, paperdollOf, slotOf, type LootId } from '../../src/core/loot.ts';
+import { isWeaponLoot, paperdollOf, slotOf, type LootId } from '../../src/core/index.ts';
 
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -27,18 +27,29 @@ export const groundItemOf = (piece: string): string => (isWeaponLoot(piece as Lo
 
 export type Worn = { id: string; tier: string };
 
-/** The hero's outfit: one piece per paperdoll slot, a new take of the same slot replaces the old one (each piece keeps the rung it was won at). Persisted in `storage` (this device only). */
-export function createOutfit(storage: Pick<Storage, 'getItem' | 'setItem'> | null, key = 'origins-preview.outfit.v1') {
-  const read = (): Record<string, Worn> => { try { const v = JSON.parse(storage?.getItem(key) ?? '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; } };
+/** The hero's outfit: one piece per paperdoll slot, a new take of the same slot replaces the old one (each piece keeps the rung it was won at). PAGE MEMORY ONLY (Lead's ruling): nothing is stored on this device or sent to an account, a reload or leaving the zone restores the account gear. */
+export function createOutfit() {
   const slotKey = (id: string): string => paperdollOf(slotOf(id as LootId));
-  let worn = Object.fromEntries(Object.entries(read()).filter(([, w]) => w && typeof w.id === 'string' && typeof w.tier === 'string'));
-  const save = () => { try { storage?.setItem(key, JSON.stringify(worn)); } catch { /* private mode: the outfit lives for this page only */ } };
+  let worn: Record<string, Worn> = {};
   return {
-    take(id: string, tier: string): { replaced?: string } { const slot = slotKey(id), replaced = worn[slot]?.id; worn = { ...worn, [slot]: { id, tier } }; save(); return replaced && replaced !== id ? { replaced } : {}; },
+    take(id: string, tier: string): { replaced?: string } { const slot = slotKey(id), replaced = worn[slot]?.id; worn = { ...worn, [slot]: { id, tier } }; return replaced && replaced !== id ? { replaced } : {}; },
     ids: (): string[] => Object.values(worn).map((w) => w.id).filter((id) => !isWeaponLoot(id as LootId)),
     tierOf: (id: string): string => Object.values(worn).find((w) => w.id === id)?.tier ?? 'Recruit',
     weapon: (): Worn | undefined => worn.main,
     all: (): readonly Worn[] => Object.values(worn),
-    clear(): void { worn = {}; save(); },
+    clear(): void { worn = {}; },
   };
+}
+
+/**
+ * The set the hero's figure wears. A LISTED zone is the account gear exactly as it comes (`account`, no change). In an UNLISTED zone (the sandbox) a piece taken from a body REPLACES the account's piece in that
+ * paperdoll slot, per slot: the slots nothing was taken for keep the account gear. Weapons are not dressed (the figure's weapon is the sheet's). Pure; `outfit` empty gives back `account`.
+ */
+export function dressedSet(account: { ids: readonly string[]; tiers: Readonly<Record<string, string>> }, outfit: Pick<ReturnType<typeof createOutfit>, 'ids' | 'tierOf'>, unlisted: boolean): { ids: string[]; tiers: Record<string, string> } {
+  if (!unlisted) return { ids: [...account.ids], tiers: { ...account.tiers } };
+  const taken = outfit.ids(), slots = new Set(taken.map((id) => paperdollOf(slotOf(id as LootId))));
+  const ids = [...account.ids.filter((id) => !slots.has(paperdollOf(slotOf(id as LootId)))), ...taken];
+  const tiers: Record<string, string> = Object.fromEntries(Object.entries(account.tiers).filter(([id]) => ids.includes(id)));
+  for (const id of taken) tiers[id] = outfit.tierOf(id);
+  return { ids, tiers };
 }
