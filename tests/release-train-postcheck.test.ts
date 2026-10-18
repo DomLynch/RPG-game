@@ -99,7 +99,7 @@ test('deploy.sh: the detached tail is opt-in (POST_PUBLISH_DETACH=1), skips the 
   assert.match(deploy, /echo "post-publish CI tail: rows \$detach_rows for \$revision \(detached/);
   assert.equal((deploy.match(/post_publish=\$\(post_publish_ci_collect "\$revision" "\$pp_all" "\$pp_open"\)/g) ?? []).length, 2, 'the default path (flag off) and the nothing-to-detach path still wait for CI');
   // The Mac group (which can roll back) runs BEFORE the branch, inside the hold.
-  assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('POST_PUBLISH_DETACH'));
+  assert.ok(deploy.indexOf('post_publish_rows "$revision" "$mac_deferred" "$mac_rollback"') < deploy.indexOf('if [[ "${POST_PUBLISH_DETACH:-0}" == 1 && -n "$pp_open" ]]'));
 });
 
 test('postcheck (window): at the window close it dispatches ONE CI run for the NEWEST member, with the union of the rows, and names every member on green and on red', () => {
@@ -110,7 +110,7 @@ test('postcheck (window): at the window close it dispatches ONE CI run for the N
     const now = Math.floor(Date.now() / 1000);
     writeFileSync(marker, `rev=${A}\nrows=3,9\nat=${now - 5}\nwindow=1\nmember=${B} 9,10\nmember=${C} 3,46\n`);
     const trust = join(state, 'trust.sh'); writeFileSync(trust, `#!/bin/sh\necho "$1" > "${state}/trusted-for"\necho "${trusted}"\n`, { mode: 0o755 });
-    const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, `#!/bin/sh\necho "$@" >> "${state}/dispatched"\n`, { mode: 0o755 });
+    const dispatch = join(state, 'dispatch.sh'); writeFileSync(dispatch, `#!/bin/sh\necho "$POST_PUBLISH_REV" >> "${state}/dispatched"\n`, { mode: 0o755 });
     const comments = join(state, 'comments.txt'); const commenter = join(state, 'comment.sh'); writeFileSync(commenter, `#!/bin/sh\necho "$1" >> "${comments}"\n`, { mode: 0o755 });
     const r = spawnSync('bash', ['scripts/release-train-postcheck.sh', A, '3,9', '3175'], { encoding: 'utf8', env: { ...process.env, RELEASE_TRAIN_STATE: state, POST_PUBLISH_TRUSTED_CMD: trust, POST_PUBLISH_DISPATCH: dispatch, POSTCHECK_COMMENT: commenter, POST_PUBLISH_CI_SETTLE_S: '0', POSTCHECK_WINDOW_TICK_S: '0.1', RELEASE_TRAIN_NOTIFY: '' } });
     assert.equal(readFileSync(join(state, 'dispatched'), 'utf8').trim().split('\n').length, 1, 'exactly ONE dispatch');
@@ -169,6 +169,6 @@ test('release-train-publish.sh: releases the hold, THEN starts the tail from its
   assert.ok(marker > 0 && marker < release, 'the pending marker is written BEFORE the hold is released');
   assert.ok(release > 0 && spawn > release, 'the tail starts after the hold is released');
   assert.match(pub, /\^post-publish CI tail: rows/);
-  assert.match(pub, /if \[ -n "\$tail_rows" \]; then/);
+  assert.match(pub, /if \[ -z "\$joined" \] && \[ -n "\$tail_rows" \]; then/);
   assert.match(pub, /"\$\(dirname "\$0"\)\/release-train-postcheck\.sh"/, 'run from the train checkout, not a release slot');
 });

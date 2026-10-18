@@ -44,7 +44,7 @@ if [ -n "$window" ] && [ "$window" -gt 0 ] 2>/dev/null; then
   rows=$( { echo "$rows"; sed -n 's/^member=[0-9a-f]* //p' "$marker"; } | tr ',' '\n' | grep -E '^[0-9]+$' | sort -un | paste -sd, - )
   rev=${members##* }   # the newest member
   say "window of ${window}s closed: members ${members// /, }; ONE CI run for the newest, $rev (rows $rows)"
-  if ! ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref ${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1} -f ref=$rev} >/dev/null 2>&1; then raise "the release-checks dispatch for the window's newest $rev failed (members ${members// /, })"; fi
+  if ! POST_PUBLISH_REV=$rev ${POST_PUBLISH_DISPATCH:-gh workflow run release-checks.yml --ref ${POST_PUBLISH_CI_REF:-codex/01a09a76/task-1} -f ref=$rev} >/dev/null 2>&1; then raise "the release-checks dispatch for the window's newest $rev failed (members ${members// /, })"; fi
 fi
 sleep "${POST_PUBLISH_CI_SETTLE_S:-30}"   # the dispatched run must exist before ci-trusted-checks can wait on it
 trusted=$(cd "$dir/.." && CI_ROWS_WAIT_S="${POST_PUBLISH_CI_WAIT_S:-1500}" $trust "$rev" 2>/dev/null) || raise "the trust lookup failed"
