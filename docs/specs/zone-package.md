@@ -1,5 +1,45 @@
 # Zone package contract (step 1: the row shapes; no code)
 
+## DESIGN v1 (2026-10-18, alpha item 1; Lead's order): the package, its manifest, what the loader validates, and Bone Hollow round-tripping
+
+**What a package is.** One folder, the whole zone as rows and asset references, so Dom's Test Zone (and his later dungeon) lands in the main game by import with no `.ts` change. For Bone Hollow (zone 5) it is five files, produced today by `node scripts/zone-package.mjs export 5 <dir>`:
+
+| File | What | Where it goes on import |
+|---|---|---|
+| `zone.row.json` | the zone row, verbatim | `origins/zone-rows/zone<N>.row.json` (the generator picks it up) |
+| `dungeon.row.json` | the dungeon row (rooms, creatures, encounters, boss, mount, joins), when the zone names a dungeon | a row of `dungeon-rows.json`, replace-by-id else append |
+| `theme.row.json` | the dungeon theme row (look, pieces, enclosure) | a row of `dungeon-themes.json`, same rule |
+| `exits.json` | `{ owned, inbound }`: the exit rows standing in the package's world zones, and the rows in OTHER zones that arrive in it | rows of `exit-rows.json`, same rule |
+| `package.json` | the manifest | read, never merged |
+
+**The manifest** (`package.json`, schema 1; canonical JSON, 2 spaces, final newline):
+`schema` (1), `id` (the dungeon id, else `zone<N>`), `zone` (the number), `unlisted` (a new package imports unlisted until Dom says so), `world` (its world-zone names), `owns` (`exits`, `dungeon`, `theme` ids), `inbound.exits` (rows elsewhere that arrive here: Bone Hollow's `cave-mouth` stands in the Cinder Fields), `uses` (`kit` urls, `characters`, `loot` ids: the references it needs to exist) and `files` (bytes and sha256 of every other file, so a changed package is a changed hash).
+
+**What the loader validates on import** (the step-2 build; today's `zoneProblems`, the dungeon load checks and the registry already do most of it, the package check wires them together):
+1. the manifest is schema 1, every listed file is present and its bytes and sha256 match, and there is no unlisted file;
+2. the zone row passes `zoneProblems` (unknown keys, required keys, kit nodes, look colours, `mobLooks`, spawn rows) and, if it names a dungeon, the dungeon passes `loadDungeons` (graph, links, encounters, boss, a closed room needs a hall theme);
+3. exit ownership: every `owned` exit stands in the package's `world`, every `inbound` exit has `to` equal to the zone number and stands outside it, and the arrive landmark of each exists on the far side;
+4. every `uses` reference resolves in the shared tables (kit file in `public/`, within the per-zone budget; character ids in the roster; loot ids in the loot tables), because a package brings rows and assets, never code (the Beta rule below);
+5. no collision: the zone number is free, and an id (dungeon, theme, exit) already present is refused unless the import says `replace`, so two packages cannot silently overwrite each other;
+6. a package that is new imports `unlisted: true`.
+
+**Import and export.** `exportPackage(N)` gathers the files from the shared tables; `importPackage` writes them back, a row replacing the row with its id, else appended. No loader change in step 1: the prototype reads and writes today's row files.
+
+**Round trip, Bone Hollow (zone 5), `node scripts/zone-package.mjs check 5`:** export, import into copies of the shared tables with the package's rows removed, and compare. Result: **ok**. The zone row is byte-identical (same text, sha256 `e8e30f29b7fb`); the three shared tables hold the same rows (compared as canonical JSON by id, the rows' order in a shared file may differ because the import appends); and a second export gives byte-identical files (a fixed point), so `export(import(export(x))) == export(x)`. `tests/zone-package.test.ts` runs it for zone 5 (Bone Hollow) and zone 6 (the unlisted sample crypt) and checks that a tampered file is caught by its hash.
+Exact byte identity of the SHARED files (`dungeon-rows.json` is hand-formatted, rooms one to a line) is not claimed: an importer cannot reproduce hand formatting. The step-2 answer is to make the package folder the source of truth and generate the shared tables from the packages the way `gen-zones` already generates the registry from `zone<N>.row.json`, which makes identity exact by construction. That is a migration of three tables and is Lead's call.
+
+**Donors (what we take).**
+- **OpenMW** (`components/esm3/loadtes3.hpp`, `loadcell.hpp`): a content file's header lists its **masters** (`std::vector<MasterData> mMaster`, name and size) and later records replace earlier ones by id; a CELL record is name, region, ambient / sunlight / fog, water level, then its references. We take the dependency list (`uses`), replace-by-id import, and a cell as one self-contained unit.
+- **ModernUO** (`Distribution/Data/regions.json`, `map-definitions.json`, `Locations/*.json`): zone data is plain JSON keyed by map and name (`$type`, `Map`, `Name`, `Priority`, `Area` rectangles; maps with id, size, rules), spawns in per-map files, no code. We take regions as rows keyed by world zone with a priority, and one folder of JSON per map.
+- **AzerothCore** (`areatrigger_teleport`: `ID`, `Name`, `target_map`, `target_position_x/y/z`, `target_orientation`; `dungeon_access_template`): a dungeon is a map plus its spawn rows plus teleport rows that name the far side's position, and an access row per dungeon. We take exits as rows the package OWNS with an explicit arrive target (our `exits.json`, `arrive` landmark), and the access row as a later field (level or key gate) beside `unlisted`.
+- EQEmu `zone` / `zone_points` / `spawn2`, 2004Scape map files: already taken in the draft below.
+
+**Split of work.** World (client and compiler side): the package folder, the export / import tool, the manifest and its checks, the dungeon and theme rows, the kit and look references. Backend (server and spawn side): `presence` and warps, the spawn rows' server reading, and agreeing the `exits` list on the zone row (gap 2) so the server loads an exit list from the package. Open for Backend: do the package's `inbound` exits need a server-side table, or do warps derive from the rows as they do for exit-rows today (#3044)?
+
+**Not in this PR:** the loader check (step 2), the migration of the shared tables to generated-from-packages, any change to a `.ts` file under `origins/`.
+
+---
+
 Owner: World. Status: DRAFT for Backend (owner of the presence block, #3043 / #3044 / #3045) and the Test Zone Sandbox (the consumer). 2026-10-17, Lead's order (YES to the zone package contract).
 
 **Rule (Lead):** a package is **rows + assets only**. Anything that needs code is listed under *Gaps* below, not hooked in. The bar is Dom's: the Test Zone becomes a main-game zone by importing rows, with no change to a `.ts` file.
