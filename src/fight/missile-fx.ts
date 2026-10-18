@@ -14,7 +14,7 @@ export function createMissileFx(scene: THREE.Scene) {
   const sprite = (size: number, color: string, opacity: number) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color, opacity, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); s.scale.setScalar(size); s.visible = false; s.frustumCulled = false; scene.add(s); return s; };
   const bolts = [0, 1].map(() => ({ core: sprite(0.2, '#e8f3ff', 1), halo: sprite(0.65, '#6aa8ff', 0.55), trail: Array.from({ length: TRAIL }, (_, k) => sprite(0.4 - k * 0.08, '#6aa8ff', 0.4 - k * 0.1)) }));
   // Bow arrow / crossbow bolt: a simple shaft + head + fins mesh (staff keeps the white orb). One per fighter, pointing along the flight line; shapes are rows-free presentation only.
-  const SHAPE = { bow: { len: 0.95, r: 0.011, shaft: '#8a6a43', head: '#8d9399', fin: '#c9c0a8' }, crossbow: { len: 0.42, r: 0.014, shaft: '#4a3a2c', head: '#8d9399', fin: '#3a2e24' } } as const;
+  const SHAPE = { bow: { len: 0.95, r: 0.014, shaft: '#8a6a43', head: '#8d9399', fin: '#7a6a4c' }, crossbow: { len: 0.42, r: 0.014, shaft: '#4a3a2c', head: '#8d9399', fin: '#3a2e24' } } as const;
   const makeShaft = () => {
     const g = new THREE.Group(), mat = (c: string) => new THREE.MeshBasicMaterial({ color: c });
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6), mat('#fff')), head = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 6), mat('#fff')), fins = [0, 1].map(() => new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#fff', side: THREE.DoubleSide })));
@@ -26,7 +26,7 @@ export function createMissileFx(scene: THREE.Scene) {
     const k = SHAPE[kind], headLen = k.r * 6;
     s.shaft.scale.set(k.r, k.len, k.r); s.shaft.rotation.z = Math.PI / 2; (s.shaft.material as THREE.MeshBasicMaterial).color.set(k.shaft);   // lies along +x
     s.head.scale.set(k.r * 2, headLen, k.r * 2); s.head.rotation.z = -Math.PI / 2; s.head.position.x = k.len / 2 + headLen / 2; (s.head.material as THREE.MeshBasicMaterial).color.set(k.head);
-    s.fins.forEach((f) => { f.scale.set(k.r * 9, k.r * 9, 1); f.position.x = -k.len / 2 + k.r * 5; (f.material as THREE.MeshBasicMaterial).color.set(k.fin); });
+    s.fins.forEach((f) => { f.scale.set(k.r * 4, k.r * 4, 1);   // small dark fletching: at 9 radii the pale planes read as white squares at the fight camera (bow frames 2026-10-18) f.position.x = -k.len / 2 + k.r * 5; (f.material as THREE.MeshBasicMaterial).color.set(k.fin); });
   };
   const dressed = [undefined, undefined] as (string | undefined)[], VOLLEY_SPREAD = 0.7;   // metres the outer arrows of a volley bow out from the line at mid-flight
   // Spell bursts (Dom 2026-10-16: a cast must be clearly visible): a flash + swelling halo on the foe where a spell lands (colour from its range row, else violet) and a small flash on the caster when the cast starts. Fed from the tick's events.
