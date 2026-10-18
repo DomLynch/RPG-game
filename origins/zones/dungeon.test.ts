@@ -92,7 +92,7 @@ test('the crypt-mouth landmark comes from the zone-6 package: a normal build add
 });
 
 test('a theme with an enclosure walls every room: pieces stay inside the zone, a doorway faces each link (and the way out), a theme without one adds no kit', () => {
-  const parts = dungeonParts('crypt-sample') as { kit?: { url: string; nodes: string[]; fixed: { node: string; at: string; dx: number; dz: number; solid: number; inZoneFrame: boolean }[] } };
+  const parts = dungeonParts('crypt-sample') as { kit?: { url: string; nodes: string[]; fixed: { node: string; at: string; dx: number; dz: number; solid: number; inZoneFrame: boolean; blockOnly?: boolean }[] } };
   const fixed = parts.kit!.fixed;
   assert.equal(parts.kit!.url, '/world/kit/dungeon-kit.glb');
   assert.ok(fixed.every((p) => p.inZoneFrame && parts.kit!.nodes.includes(p.node)));
