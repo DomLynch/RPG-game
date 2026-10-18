@@ -8,7 +8,13 @@ import type { Duel } from '../../src/fight/index.ts';
 import { budgetTextures, FIGHTER_TEXTURE_CAP } from '../../src/fight/index.ts';
 import type { Build, Frontier } from './frontier-plan.ts';
 import { dressMob } from './mob-dress.ts';
-import { mobVariant } from './mob-looks.ts';
+import { mobLook, mobVariant } from './mob-looks.ts';
+import { loadoutRow } from '../world/loadouts-rules.ts';
+import type { Tier } from '../../src/core/grades.ts';
+import { loadLoot, lootWorn, loadRankLook, loadShape, fitPieces, NotHeroRig, type RankLook } from '../../src/fight/index.ts';
+import { shapeFor } from '../../src/fight/weapon-shapes.ts';
+import { TITLES } from '../../src/core/server.ts';
+import { fxNum } from '../../src/fight/fx-rows.ts';
 import { drawProxy, linkProxy } from './warm-proxy.ts';
 import { gateWithBound, settleWithin } from '../../src/fight/index.ts';
 import { labelSprite } from './label-sprite.ts';
@@ -31,7 +37,7 @@ const NEAR = previewRule('nearTick');   // m: inside it a creature's mixer ticks
 
 type Body = { scene: THREE.Group; clips: THREE.AnimationClip[] } | 'loading' | 'failed';
 type Actor = ReturnType<typeof buildWarriors>['player'];
-type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number };
+type View = { group: THREE.Group; stand: THREE.Mesh; model: THREE.Object3D | null; actor?: Actor; ring: THREE.Mesh; bang: THREE.Sprite; label: THREE.Sprite; speed: number; px: number; pz: number; pending: number; skip: number; wearIds?: readonly string[]; wearRung?: string };   // wearIds / wearRung: the loadout's loose armour pieces and the rank finish they wear (putOn)
 
 function bangSprite(): THREE.Sprite {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -77,8 +83,50 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   let shown: number[] = [];
   const down = new Map<number, number>();   // creature index -> seconds until it is back
 
+  // A creature whose look names a bare body (`look.body`, e.g. world/kit/goblin-bare.glb) is a different body from its kind's plain one: the rank look is the Pit's armour SET fitted onto it (wearLook), not a replacement body.
+  // Its body key is `<kind>@<file>`, so each is fetched, warmed and shared once; a creature with no such look keeps the kind as its key (Test Zone port C07).
+  const keyOf = (s: MobSpec): string => { const own = mobLook(s.character)?.body; return own ? `${s.body}@${own}` : s.body; };
+  const urlOfKey = (key: string): string | undefined => { const at = key.indexOf('@'); return at < 0 ? worldBodyUrl(key) ?? URLS[key] : `${import.meta.env?.BASE_URL ?? '/'}${key.slice(at + 1)}`; };
+  // Dressing from a loadout row (origins/world/loadouts.json): the Pit's own machinery on a creature body, all presentation, nothing the sim reads. Every failure is logged and leaves the creature as it is; none is thrown in the frame.
+  const rankLooks = new Map<string, Promise<RankLook>>();   // each look file fetched once (the Pit's loadRankLook), fitted to every creature that wears it
+  const weaponShapes = new Map<string, Promise<THREE.Mesh | undefined>>();   // each graded weapon file fetched once (the Pit's loadShape)
+  const carrierFiles = import.meta.glob<string>('../../src/assets/loot/carriers-*.glb', { eager: true, query: '?url', import: 'default' });
+  const carriers = new Map<string, THREE.SkinnedMesh[] | 'loading'>();   // a kit's loose armour pieces (loot ids `<kit>.<slot>`), once per kit
+  const fitted = new Map<string, THREE.SkinnedMesh[] | null>(); let fitMs = 0, fitRuns = 0;   // the pieces fitted to each body key (piece-fit.ts) and what that cost in all; null = refused, never retried
+  const kitOf = (ids: readonly string[] | undefined): string | undefined => ids?.[0]?.split('.')[0];   // the carrier set a loadout's pieces come from: the kit its loot ids start with (pitborn.Boots -> carriers-pitborn)
+  const reshapeWeapon = (v: View, weapon: WeaponId, rung: string | undefined) => {   // the Pit's per-rank weapon shape (weapon-shapes.ts shapeFor: plain 1-3, crafted 4-7, ornate 8-10) at the loadout's rung
+    const level = rung ? TITLES.indexOf(rung as (typeof TITLES)[number]) + 1 : 0, url = level > 0 ? shapeFor(weapon, level) : undefined;
+    if (!url) return;
+    const p = weaponShapes.get(url) ?? loadShape(url).catch((error: unknown) => { console.warn(`weapon shape ${url} did not load; the plain part stays`, error); return undefined; }); weaponShapes.set(url, p);
+    void p.then((mesh) => { if (mesh && v.actor) v.actor.reshape(mesh.clone()); });
+  };
+  const wearRankLook = (v: View, file: string) => {
+    const p = rankLooks.get(file) ?? loadRankLook(file); rankLooks.set(file, p);
+    void p.then((look) => { if (v.actor) v.actor.wearLook(look); }).catch((error: unknown) => { rankLooks.delete(file); console.warn(`rank look ${file} did not fit; the creature stays as it is`, error); });
+  };
+  const fitFor = (key: string, pieces: THREE.SkinnedMesh[], rig: THREE.Skeleton): THREE.SkinnedMesh[] | null => {   // fitted ONCE per body key (every creature of a body shares its bind pose), never per frame
+    const known = fitted.get(key); if (known !== undefined) return known;
+    const t0 = performance.now();
+    try { const out = fitPieces(pieces, rig); fitMs += performance.now() - t0; fitRuns++; fitted.set(key, out); return out; }
+    catch (error) { fitted.set(key, null); if (error instanceof NotHeroRig) console.error(`${key}: ${error.message}; no armour is worn on this body`); else console.warn(`${key}: piece fit failed; no armour is worn on this body`, error); return null; }
+  };
+  const putOn = (v: View, key: string) => {
+    const pieces = v.actor && v.wearIds ? carriers.get(kitOf(v.wearIds) ?? '') : undefined;
+    if (!v.actor || !v.wearIds || !pieces || pieces === 'loading') return;
+    let rig: THREE.Skeleton | undefined; v.actor.anchor.traverse((o) => { if (!rig && (o as THREE.SkinnedMesh).isSkinnedMesh && o.name === 'CreatureBody') rig = (o as THREE.SkinnedMesh).skeleton; });   // the body's own skeleton: the pieces are fitted to ITS proportions
+    const own = rig ? fitFor(key, pieces, rig) : null;
+    if (!own) { v.wearIds = undefined; return; }   // refused (or no body draw to hang them on): wear nothing extra
+    try { v.actor.wear(own.filter((p) => lootWorn(p, v.wearIds!)), (id, error) => console.warn(`loadout piece ${id} did not fit`, error), () => (v.wearRung ?? 'Recruit') as Tier); }   // the rank finish the loadout row names (Veteran = level 4 ... Master = level 7)
+    catch (error) { v.wearIds = undefined; console.warn('loadout armour could not be worn; the creature stays as it is', error); }
+  };
+  const loadCarriers = (kit: string) => {
+    const url = carrierFiles[`../../src/assets/loot/carriers-${kit}.glb`];
+    if (!url || carriers.has(kit)) return;
+    carriers.set(kit, 'loading');
+    loadLoot(url).then((pieces) => { carriers.set(kit, pieces); for (const [i, view] of views) putOn(view, keyOf(specs[i]!)); }).catch((error: unknown) => { carriers.delete(kit); console.warn(`${kit} carriers did not load; no armour is worn`, error); });
+  };
   const fetchBody = (kind: string) => {
-    const url = worldBodyUrl(kind) ?? URLS[kind];
+    const url = urlOfKey(kind);
     if (bodies.has(kind) || !url) return;
     bodies.set(kind, 'loading');
     loader.loadAsync(url).then((gltf) => {
@@ -92,12 +140,12 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   // Warm-up (Combat #1915, Claudecraft idioms; the Metal trace, 2026-10-08: the engage frame is 18 ms, the cost is the FIRST DRAW of a body: its programs link and its textures and geometry upload inside that frame, up to 179 ms).
   // So a body kind is revealed only after, per kind and off-frame: compileAsync of one probe clone (never the whole scene, which stalls), then its textures through initTexture and its geometries through a 4x4 proxy draw, one unit per frame.
   // Until the gate opens the creature stays the capsule it already is. On a phone only the kinds near the walker are fetched (memory), so only they are warmed; elsewhere the whole zone's kinds are fetched at entry.
-  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map((x) => x.body))];
+  const gate = !!opts.renderer && !!opts.camera, warmed = new Set<string>(), failedKinds = new Set<string>(), kindsOfZone = [...new Set(specs.map(keyOf))];
   const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   let eagerDone = false, pumping = false, lastHero = { x: 0, z: 0 };
   const pending = new Map<string, { scene: THREE.Object3D }>();   // kinds fetched and waiting for their warm-up: nearest to the walker first (Claudecraft orders its gates by camera distance)
   async function warmKind(kind: string, body: { scene: THREE.Object3D }) {
-    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => x.body === kind)!, look = mobVariant(first.character, first.id);
+    const renderer = opts.renderer!, camera = opts.camera!, first = specs.find((x) => keyOf(x) === kind)!, look = mobVariant(first.character, first.id);
     const probe = clone(body.scene); if (look) dressMob(probe, look);
     const holder = new THREE.Group(); holder.add(probe);   // not in the scene: the scene is only the lights and fog the programs are keyed on
     await renderer.compileAsync(holder, camera, scene);
@@ -107,7 +155,7 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     linkProxy(renderer, camera);
     for (const g of geometries) { drawProxy(renderer, camera, g); await frame(); }
   }
-  const kindDist = (kind: string) => mobs.reduce((d, m, i) => (specs[i]!.body === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
+  const kindDist = (kind: string) => mobs.reduce((d, m, i) => (keyOf(specs[i]!) === kind ? Math.min(d, Math.hypot(m.x - lastHero.x, m.z - lastHero.z) - (m.mode === 'aggro' ? 1000 : 0)) : d), Infinity);   // a kind with a creature that has noticed him first (the one coming for him), then by distance
   let ungated = false;   // a warm-up compile never settled: every kind from here on is revealed without its gate
   async function pump() {   // one compileAsync in flight at a time (kept serial to bound the compile load; three 0.186's own compileAsync wait already drops disposed materials, WebGLRenderer.js, so no race to work around); each kind is revealed after WARM_BOUND_MS even if its warm-up is still running, and that is logged
     if (pumping) return; pumping = true;
@@ -127,18 +175,25 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
   const modelHeight = (m?: THREE.Object3D | null) => { if (!m) return null; const b = new THREE.Box3().setFromObject(m); return +(b.max.y - b.min.y).toFixed(2); };
   function dress(v: View, s: MobSpec, body: Exclude<Body, 'loading' | 'failed'>) {
     // The shared fight engine's actor (src/fight/characters.ts, the one the Pit plays) on the creature's own body: its clips (idle, walk, bite, hurt, death) are posed by the engine's actorPose, solo = one actor, no opponent built.
-    const weapon = (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[s.body]?.weapon ?? 'longsword', look = mobVariant(s.character, s.id);
+    const look = mobVariant(s.character, s.id), key = keyOf(s), weapon = look?.gear ?? (OPPONENTS as Record<string, { weapon: WeaponId } | undefined>)[s.body]?.weapon ?? 'longsword';   // a loadout's weapon (the look's gear) is what the creature is DRAWN holding; the sim's weapon is the roster's, untouched
     let actor: Actor;
     try { actor = buildWarriors({ scene: body.scene, animations: body.clips }, undefined, [weapon, weapon], true).player; }
     catch (error) {
       // A body missing its weapon's clip pack is a content bug that tests/creature-clips.test.ts fails in CI; in the player's frame it is logged once and the kind stays a stand-in for the session (marked failed, so it is not retried every frame).
       if (error instanceof MissingClip) console.error(`${s.body} cannot wield ${weapon}: ${error.message}`); else console.warn(`${s.body} actor did not build; the capsule stays`, error);
-      bodies.set(s.body, 'failed'); failedKinds.add(s.body); return;
+      bodies.set(key, 'failed'); failedKinds.add(key); return;
     }
     actor.anchor.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = false; });   // phone perf (Dom's iPhone 15, Lead 2026-10-07): a creature casts no shadow map pass (a blob decal stands in) and is frustum culled again
-    if (look) dressMob(actor.anchor, look);   // scale + the cloth's tint and ash; a figure with no look keeps the roster body as it is
+    const row = loadoutRow(look?.loadout);
+    if (look) dressMob(actor.anchor, row?.look ? { ...look, dressing: { soot: 0, burnt: 0 } } : look);   // scale + the cloth's tint and ash; a main-game rank look keeps its own colours (no ash); a figure with no look keeps the roster body as it is
     actor.update(0, Math.random() * 3, 'ready', 0, 'light', 0.35, 0);   // not in step with its neighbours
     v.group.add(actor.anchor); v.group.remove(v.stand); v.model = actor.anchor; v.actor = actor;
+    if (row?.look && look?.body) { actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.name = 'Skin'; }); wearRankLook(v, row.look); reshapeWeapon(v, weapon, row.rung); }   // the bare body's one draw IS his skin and face: named as the look's keep list names it, so it stays under the armour (characters.ts wearLook)
+    else if (row) {   // a loadout with no rank look wears its loose pieces (the carriers of its kit), fitted to the body's own proportions, then its weapon shape
+      actor.anchor.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh && !o.userData.slot) o.name = 'CreatureBody'; });   // `wear` hangs pieces on the creature-pipeline body draw, named CreatureBody (characters.ts)
+      if ((look?.scale ?? 1) <= fxNum('mob-view.wear-max-scale')) { v.wearIds = row.pieces; v.wearRung = row.rung; loadCarriers(kitOf(row.pieces) ?? s.body); putOn(v, key); }   // hero-sized pieces are worn only by bodies up to the row's scale
+      reshapeWeapon(v, weapon, row.rung);
+    }
   }
 
   function viewOf(i: number): View {
@@ -168,15 +223,15 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
       shown = pickVisible(mobs, hero, cap).filter((i) => !down.has(i));
       if (gate && !opts.phone && !eagerDone) { eagerDone = true; for (const k of kindsOfZone) fetchBody(k); }   // the whole zone's kinds at entry (not on a phone), so they are warmed before anyone walks near
       // Fetch a body kind the first time one of its creatures is near.
-      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(specs[i]!.body); });
+      mobs.forEach((m, i) => { if (Math.hypot(m.x - hero.x, m.z - hero.z) <= fetchRange) fetchBody(keyOf(specs[i]!)); });
       const on = new Set(shown);
       for (const [i, v] of views) if (!on.has(i)) { v.group.visible = false; v.ring.visible = false; }
       // One label per kind of creature: the nearest of that name. A field of scavengers read "Cinder scavenger · Cinder scavenger · Lv 11" side by side.
       const nearestOf = new Map<string, number>();
       for (const i of shown) { const n = specs[i]!.name, d = Math.hypot(mobs[i]!.x - hero.x, mobs[i]!.z - hero.z); if (d < (nearestOf.get(n + '#d') ?? Infinity)) { nearestOf.set(n + '#d', d); nearestOf.set(n, i); } }
       for (const i of shown) {
-        const m = mobs[i]!, s = specs[i]!, v = viewOf(i), body = bodies.get(s.body);
-        if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(s.body)) dress(v, s, body);
+        const m = mobs[i]!, s = specs[i]!, v = viewOf(i), key = keyOf(s), body = bodies.get(key);
+        if (!v.model && body && body !== 'loading' && body !== 'failed' && revealed(key)) dress(v, s, body);
         v.group.visible = v.ring.visible = !hiddenInFight(s.id, engaged);
         const gy = opts.groundAt?.(m.x, m.z) ?? 0;   // the hills: a creature stands on the ground under it
         const dv = driven.get(i);
@@ -231,9 +286,10 @@ export function createMobs(scene: THREE.Scene, frontier: Frontier, build: Build,
     rig(id) { const i = specs.findIndex((s) => s.id === id), a = i < 0 ? undefined : views.get(i)?.actor; return a ? { anchor: a.anchor, boneWorld: (n) => a.boneWorld(n) } : null; },
     find(id) { const i = specs.findIndex((s) => s.id === id); return i < 0 || down.has(i) ? null : { spec: specs[i]!, x: mobs[i]!.x, z: mobs[i]!.z, dist: 0 }; },
     engage(id) { engaged = id; },
-    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => (worldBodyUrl(k) ?? URLS[k]) && (!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
+    warmState: () => ({ kinds: gate ? kindsOfZone.filter((k) => urlOfKey(k) &&(!opts.phone || bodies.has(k))) : [], warmed: [...new Set([...warmed, ...failedKinds])], failed: [...failedKinds] }),   // the kinds that can be fetched (a phone: only those fetched so far), and those settled: a failed GLB stays a capsule and counts as settled, so zone ready does not wait for it forever
     fell(id) { const i = specs.findIndex((s) => s.id === id); if (i >= 0) down.set(i, RESPAWN); zoneFinisher.release(id); },
     debug: () => ({
+      fit: { ms: +fitMs.toFixed(2), runs: fitRuns },   // piece-fit.ts: the pieces fitted once per body key, and what that cost in all (browser checks read it)
       total: specs.length, drawn: shown.length, cap, down: [...down.keys()].map((i) => specs[i]!.id), bodies: Object.fromEntries([...bodies].map(([k, b]) => [k, typeof b === 'string' ? b : 'ready'])),
       mobs: specs.map((s, i) => ({ id: s.id, name: s.name, zone: s.zone, body: s.body, level: s.level, x: +mobs[i]!.x.toFixed(2), z: +mobs[i]!.z.toFixed(2), mode: mobs[i]!.mode, drawn: shown.includes(i), model: !!views.get(i)?.model, height: modelHeight(views.get(i)?.model) })),   // height: the model's world height in metres (size checks)
     }),
