@@ -193,7 +193,7 @@ export const spawnEngageGet = async (db: Db, account: string, token: string): Pr
   const out = await spawnCall(db, `coalesce(public.origins_spawn_engage_get(:'a'::uuid, :'t'), 'null'::jsonb)`, { a: acct(account), t: token });
   return out === null ? null : out === 'null' ? 'none' : JSON.parse(out);
 };
-// The QA mark (migration 20261018100000; fighter_profiles.is_test, 202610110021): true for the one service-role-created QA account. `null` = the migration is not applied.
+// The QA mark (migration 20261018084514; fighter_profiles.is_test, 202610110021): true for the one service-role-created QA account. `null` = the migration is not applied.
 const HAS_QA = `select to_regprocedure('public.origins_account_is_test(uuid)') is not null as qa \\gset\n`;
 export const accountIsTest = async (db: Db, account: string): Promise<boolean | null> => {
   const out = await gated(db, 'qa mark', HAS_QA, 'qa', `select public.origins_account_is_test(:'a'::uuid)::text;`, { a: acct(account) });

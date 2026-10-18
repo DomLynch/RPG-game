@@ -103,8 +103,8 @@ try {
   eq([r1, r2].map(r => r.code === 0 ? 'won' : /O0002/.test(r.err) ? 'stale' : r.err.trim().slice(0, 120)).sort(), ['stale', 'won'], 'race: exactly one of two concurrent takes wins, the other is stale');
   eq(psql(`select count(*) from public.origins_items where mint_key = '${keyOf(I2, A, 1)}'`), '1', 'race: the key was minted once');
 
-  // ---- 20261018100000 the QA mark: fighter_profiles.is_test makes a ground take claim-and-event with NO mint ---------------------------------------------------------------
-  const QA_UP = '20261018100000_origins_qa_no_loot.sql', QA_DOWN = '20261018100000_origins_qa_no_loot_down.sql', I3 = 'ground:zone1.qa-1', I4 = 'ground:zone1.qa-2', I5 = 'ground:zone1.qa-3';
+  // ---- 20261018084514 the QA mark: fighter_profiles.is_test makes a ground take claim-and-event with NO mint ---------------------------------------------------------------
+  const QA_UP = '20261018084514_origins_qa_no_loot.sql', QA_DOWN = '20261018084514_origins_qa_no_loot_down.sql', I3 = 'ground:zone1.qa-1', I4 = 'ground:zone1.qa-2', I5 = 'ground:zone1.qa-3';
   if (!files.includes(QA_UP)) fail(`${QA_UP} is missing from ${dir}`);
   psql(`insert into public.fighter_profiles (user_id, display_name, is_test) values ('${B}', 'QA Smoke', true);`);
   const IS = acct => `select public.origins_account_is_test('${acct}')::text;`;
