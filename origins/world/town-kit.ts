@@ -17,9 +17,10 @@ export const KIT = {
 } as const;
 export const KIT_NAMES: readonly string[] = [...Object.values(KIT.wall).flat(), ...KIT.corner, ...KIT.arch, ...KIT.roof, ...KIT.stall, ...KIT.counter, ...KIT.sign, ...KIT.chimney].map((p) => p.name);
 
+const VARIANT_STRIDE = 5, VARIANT_OFFSET = 2, GENERIC_SIGNS = 2;   // the pick's mixing (so consecutive variants do not walk the list in order; the town digests pin it) and how many of the sign pieces are the generic ones (exempt: scripts/as-data/allow/origins-world.json)
 // The weighted pick: `variant` (0, 1, 2, ... from the generator) walks the cumulative weights, so a heavier piece is chosen more often and the same variant always gives the same piece.
 const weighted = (list: readonly KitPiece[], variant: number): string => {
-  const total = list.reduce((n, p) => n + p.weight, 0); let at = ((variant * 5 + 2) % total + total) % total;
+  const total = list.reduce((n, p) => n + p.weight, 0); let at = ((variant * VARIANT_STRIDE + VARIANT_OFFSET) % total + total) % total;
   for (const p of list) { if (at < p.weight) return p.name; at -= p.weight; }
   return list[0]!.name;
 };
@@ -36,6 +37,6 @@ export function kitPiece(p: TownPiece, lot: Pick<Lot, 'kind' | 'trade'>, defs: T
     case 'chimney': return weighted(KIT.chimney, p.variant);
     case 'arch': return kind?.arch ?? weighted(KIT.arch, p.variant);
     case 'counter': return kind?.counter ?? weighted(pick('counter_bar_a'), p.variant);
-    case 'sign': return kind?.sign ?? trade?.sign ?? weighted(KIT.sign.slice(0, 2), p.variant);
+    case 'sign': return kind?.sign ?? trade?.sign ?? weighted(KIT.sign.slice(0, GENERIC_SIGNS), p.variant);
   }
 }

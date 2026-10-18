@@ -13,9 +13,11 @@ import { toMetres, toWorld, type Mount, type Point } from '../world/derive.ts';
 import { openExits, exitSpots } from '../zones/exits.ts';
 import type { Params } from '../world/schema.ts';
 import { seedOf, type ReliefParams } from '../world/relief.ts';
-import type { Figure, Layer, Piece, Shape, Tint } from './exchange-plan.ts';
-import { stageRule } from '../world/stage-rules.ts';
+import type { Figure, Piece } from './exchange-plan.ts';
 import { DEFAULT_ZONE, loadZone, zoneNames } from '../zones/loader.ts';
+import { frontierBlock, frontierRule } from './frontier-plan-rules.ts';
+import { off } from './frontier-geom.ts';
+import { drawBank, drawBlock, drawCairn, drawCentre, drawDock, drawGatePost, drawGround, drawLintel, drawMilestone, drawRoad, drawRuinPost, drawScorch, drawShrine, drawSignpost, drawTownPost, townBoards, townPeople, type Put } from './frontier-greybox.ts';
 
 export type At = { x: number; z: number; facing: number }; // world metres; facing is a world heading (direction sin, cos)
 export type ZonePlan = {
@@ -121,7 +123,7 @@ export function frontierPlan(flat = false, zoneId: string = DEFAULT_ZONE): Front
   const foe = data.registry.encounters.get(bounty.encounter as EncounterId)!.boss.character;
   const giver: Giver = {
     character: town.ruler.character, name: data.registry.characters.get(town.ruler.character)!.name,
-    at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, 4.5), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
+    at: standBefore(tz.landmarks[hall]!, tz.landmarks[town.centre]!, frontierRule('giverStand')), bounty, foe: data.registry.characters.get(foe)!.name, where: `the ${spawn.at} in ${ground.name.replace(/^The /, "the ")}`,
   };
   if (flat) for (const z of zones) z.relief = { ...z.relief, relief: 0 };
   return { zone: zoneId, zones, road: { from: { ...start, d: 0 }, to: end, width: road.width, facing: gate.facing, inward: gate.facing + Math.PI }, signs, giver, data };
@@ -148,16 +150,16 @@ export function roadFrame(f: Frontier, x: number, z: number): { along: number; a
   const r = f.road, ux = Math.sin(r.facing), uz = Math.cos(r.facing);
   return { along: (x - r.from.x) * ux + (z - r.from.z) * uz, across: Math.abs(-(x - r.from.x) * uz + (z - r.from.z) * ux) };
 }
-// On the west road: from 2.5 m inside the Exchange's west wall to the road's end, the road's width less a body.
+// On the west road: from roadInset inside the Exchange's west wall to roadEnd past the road's end, the road's width less a body (roadBody each side). The numbers are rows (frontier-plan-defs.json).
 export function onRoad(f: Frontier, x: number, z: number): boolean {
   const len = Math.hypot(f.road.to.x - f.road.from.x, f.road.to.z - f.road.from.z), { along, across } = roadFrame(f, x, z);
-  return along >= -2.5 && along <= len + 0.5 && across < f.road.width / 2 - 0.35;
+  return along >= -frontierRule('roadInset') && along <= len + frontierRule('roadEnd') && across < f.road.width / 2 - frontierRule('roadBody');
 }
 
-// The walker's first view: the west road's line carried 60 m on (road width + `r` + 10 m either side) and a ring round where it ends. Tall dressing keeps out of it (frontier-dress.ts, frontier-camp.ts).
+// The walker's first view: the west road's line carried viewAhead on (road width + `r` + viewSide either side, viewBehind back) and a ring of r + viewRing round where it ends. Tall dressing keeps out of it (frontier-dress.ts, frontier-camp.ts).
 export function inFirstView(f: Frontier, x: number, z: number, r: number): boolean {
   const { along, across } = roadFrame(f, x, z);
-  return (along > -10 && along < 60 && across < f.road.width / 2 + r + 10) || Math.hypot(f.road.to.x - x, f.road.to.z - z) < r + 14;
+  return (along > -frontierRule('viewBehind') && along < frontierRule('viewAhead') && across < f.road.width / 2 + r + frontierRule('viewSide')) || Math.hypot(f.road.to.x - x, f.road.to.z - z) < r + frontierRule('viewRing');
 }
 
 // ---- the greybox: blocks, signposts, solids ------------------------------------------------------------------------------------
@@ -166,88 +168,63 @@ export type Solid = { x: number; z: number; r: number }; // the walker keeps out
 export type Board = { x: number; y: number; z: number; facing: number; lines: string[] }; // a sign's face, readable from `facing`
 export type Build = { pieces: Piece[]; solids: Solid[]; people: Figure[]; boards: Board[] };
 
-const ASH: Tint = [0.5, 0.47, 0.44], DARK: Tint = [0.62, 0.6, 0.57], SAND: Tint = [1.05, 1, 0.92], TIMBER: Tint = [0.42, 0.3, 0.2], SOOT: Tint = [0.1, 0.09, 0.08];
-const GROUND: Record<string, Tint> = { ash: ASH, paving: [0.86, 0.83, 0.78], sand: [0.95, 0.82, 0.62] };
-const CLOTH = ['#5a4a3a', '#3a3a44', '#6e5a40', '#4a2a24', '#2e3640'];
-// A building per landmark kind (by the name's last word): width, height, depth, tint. The block stands behind its landmark, its front on it.
-const BLOCKS: Record<string, [number, number, number, Tint]> = {
-  hall: [10, 6, 8, DARK], forge: [6, 4, 6, DARK], jail: [5, 3.5, 5, [0.4, 0.38, 0.36]], healer: [6, 4.2, 5, SAND], fence: [3, 1.1, 1.4, TIMBER],
-  house: [8, 4.5, 6, SAND], boathouse: [9, 4, 7, TIMBER], watchtower: [3.5, 12, 3.5, DARK], crypt: [8, 3, 8, [0.35, 0.33, 0.32]],
-};
+// The plan decides every position and size that sets a solid (rows: frontier-plan-defs.json); the drawing of each piece is frontier-greybox.ts, which is handed those and owns no collision.
+// A building stands behind its landmark, its front on it; its footprint (a `blocks` row) sets the solid's radius.
 const kindOf = (name: string) => name.split('-').at(-1)!;
 
 export function frontierBuild(f: Frontier): Build {
   const pieces: Piece[] = [], solids: Solid[] = [], people: Figure[] = [], boards: Board[] = [];
-  const put = (layer: Layer, shape: Shape, x: number, y: number, z: number, tint: Tint, rotY = 0, foot = y - 10) => { pieces.push({ layer, shape, x, y, z, tint, rotY, foot }); };
-  // A point `ahead` metres along a facing and `right` metres across it (right of a walker looking along it).
-  const off = (a: { x: number; z: number }, facing: number, ahead: number, right = 0) => ({ x: a.x + Math.sin(facing) * ahead - Math.cos(facing) * right, z: a.z + Math.cos(facing) * ahead + Math.sin(facing) * right });
-  const block = (a: At, [w, h, d, tint]: [number, number, number, Tint], solid = true) => {
-    const c = off(a, a.facing, -d / 2);
-    put('stone', ['box', w, h, d], c.x, h / 2, c.z, tint, a.facing, 0);
-    put('stone', ['box', w + 0.6, 0.35, d + 0.6], c.x, h + 0.17, c.z, TIMBER, a.facing); // eaves
-    if (w > 2) put('soot', ['box', Math.min(stageRule('sootWidthMax'), w / 3), Math.min(stageRule('sootHeightMax'), h - 0.5), 0.12], off(a, a.facing, 0.02).x, Math.min(stageRule('sootCenterMax'), (h - 0.5) / 2), off(a, a.facing, 0.02).z, SOOT, a.facing);
-    if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + 0.3 });
+  const put: Put = (layer, shape, x, y, z, tint, rotY = 0, foot = y - 10) => { pieces.push({ layer, shape, x, y, z, tint, rotY, foot }); };
+  const block = (a: At, kind: string, solid = true) => {
+    const { w, d } = frontierBlock(kind)!, c = off(a, a.facing, -d / 2);
+    drawBlock(put, a, kind, c, w, d);
+    if (solid) solids.push({ ...c, r: Math.max(w, d) / 2 + frontierRule('blockPad') });
     return c;
-  };
-  const sign = (s: Sign) => {
-    // The post stands 2 m in from the link and 2.6 m to its right as you walk out, its face toward whoever walks up to it.
-    const face = s.at.facing + Math.PI, p = off(s.at, s.at.facing, -2, -2.6);
-    put('soot', ['box', 0.14, 2.6, 0.14], p.x, 1.3, p.z, SOOT, face, 0);
-    put('stone', ['box', 1.9, 0.18 + 0.32 * s.lines.length, 0.08], p.x, 2.25, p.z, TIMBER, face);
-    const front = off(p, face, 0.05);
-    boards.push({ x: front.x, y: 2.25, z: front.z, facing: face, lines: s.lines });
   };
 
   // The west road: a paved causeway from the Exchange's west gate, kerbed, on a skirt of rock.
   const r = f.road, len = Math.hypot(r.to.x - r.from.x, r.to.z - r.from.z), mid = { x: (r.from.x + r.to.x) / 2, z: (r.from.z + r.to.z) / 2 };
-  put('stone', ['box', r.width + 1, 0.4, len + 1], mid.x, -0.2, mid.z, GROUND.paving!, r.facing);
-  put('stone', ['box', r.width + 2, 14, len], mid.x, -7.4, mid.z, DARK, r.facing, -14);
-  for (const side of [-1, 1]) { const k = off(mid, r.facing, 0, side * (r.width / 2 + 0.4)); put('stone', ['box', 0.4, 0.8, len], k.x, 0.4, k.z, SAND, r.facing, 0); }
+  drawRoad(put, r, len, mid);
 
   f.zones.forEach((z, i) => {
     if (z.region !== FRONTIER) return;
-    // The ground: the zone's footprint, a hair lower per zone so overlapping footprints do not fight, on a skirt of rock.
-    const centre = toWorld({ x: 0, d: z.depth / 2 }, z.mount), top = -0.004 * i;
-    const drop = z.relief.relief;   // hills dip below the old flat plane: the plane and its skirt of rock sit that much lower, and frontier-relief.ts draws the ground itself
-    put('stone', ['box', z.width, 0.4, z.depth], centre.x, top - 0.2 - drop, centre.z, GROUND[z.ground] ?? ASH, z.mount.heading);
-    put('stone', ['box', z.width + 1, 12, z.depth + 1], centre.x, top - 6.4 - drop, centre.z, DARK, z.mount.heading, top - 12 - drop);
+    drawGround(put, z, i);   // the zone's footprint on a skirt of rock
     const links = new Set(z.links.map((l) => l.here));
     for (const [name, a] of Object.entries(z.landmarks)) {
       if (links.has(name)) { // a way on: two gate posts either side of it
-        for (const side of [-1, 1]) { const p = off(a, a.facing, -0.4, side * 2.4); put('stone', ['box', 0.6, 3, 0.6], p.x, 1.5, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.5 }); }
+        for (const side of [-1, 1]) { const p = off(a, a.facing, -frontierRule('gatePostBack'), side * frontierRule('gatePostSide')); drawGatePost(put, p, a.facing); solids.push({ ...p, r: frontierRule('gatePostR') }); }
         continue;
       }
       const k = kindOf(name), c = z.town && z.landmarks[z.town.centre];
       // In a town every building opens onto the town's centre (greybox reading of the plan; the data's facings are not about doors).
       const door = c && name !== z.town!.centre ? { ...a, facing: Math.atan2(c.x - a.x, c.z - a.z) } : a;
-      if (BLOCKS[k]) block(door, BLOCKS[k]!);
-      else if (name === 'ferry-house') block(door, BLOCKS.house!);
-      else if (k === 'centre') { put('stone', ['cylinder', 1.2, 1.3, 0.8, 16], a.x, 0.4, a.z, DARK, 0, 0); solids.push({ x: a.x, z: a.z, r: 1.5 }); }
-      else if (k === 'milestone') { put('stone', ['box', 0.5, 1.4, 0.35], a.x, 0.7, a.z, SAND, a.facing, 0); solids.push({ x: a.x, z: a.z, r: 0.5 }); }
-      else if (k === 'shrine') {
-        put('stone', ['cylinder', 3, 3.2, 0.5, 20], a.x, 0.25, a.z, DARK, 0, 0);
-        put('stone', ['box', 1.6, 2.8, 1.2], a.x, 1.9, a.z, [0.42, 0.4, 0.4], a.facing, 0.5); solids.push({ x: a.x, z: a.z, r: 1.3 });
-      } else if (k === 'pits' || k === 'hollow') put('soot', ['cylinder', k === 'pits' ? 6 : 10, k === 'pits' ? 6 : 10, 0.06, 24], a.x, 0.03, a.z, SOOT);
-      else if (k === 'dock' || k === 'jetty') { const c = off(a, a.facing, 3); put('stone', ['box', 3.5, 0.3, 7], c.x, 0.15, c.z, TIMBER, a.facing, 0); }
-      else if (k === 'bank') for (let j = 0; j < 14; j++) { const p = off(a, a.facing, (j % 4) * 1.3 - 2, Math.floor(j / 4) * 1.4 - 2); put('stone', ['box', 0.08, 1.6 + (j % 3) * 0.3, 0.08], p.x, 0.9, p.z, [0.5, 0.48, 0.3], 0, 0); }
-      else if (k === 'gate') { // the ruin's gate: posts and a lintel across the way
-        for (const side of [-1, 1]) { const p = off(a, a.facing, 0, side * 2.6); put('stone', ['box', 1, 4.5, 1], p.x, 2.25, p.z, DARK, a.facing, 0); solids.push({ ...p, r: 0.8 }); }
-        put('stone', ['box', 6.4, 0.9, 1.2], a.x, 4.9, a.z, DARK, a.facing);
-      } else { put('stone', ['box', 0.8, 1, 0.8], a.x, 0.5, a.z, DARK, a.facing, 0); solids.push({ x: a.x, z: a.z, r: 0.6 }); } // a cairn
+      if (frontierBlock(k)) block(door, k);
+      else if (name === 'ferry-house') block(door, 'house');
+      else if (k === 'centre') { drawCentre(put, a); solids.push({ x: a.x, z: a.z, r: frontierRule('centreR') }); }
+      else if (k === 'milestone') { drawMilestone(put, a); solids.push({ x: a.x, z: a.z, r: frontierRule('milestoneR') }); }
+      else if (k === 'shrine') { drawShrine(put, a); solids.push({ x: a.x, z: a.z, r: frontierRule('shrineR') }); }
+      else if (k === 'pits' || k === 'hollow') drawScorch(put, a, k === 'pits');
+      else if (k === 'dock' || k === 'jetty') drawDock(put, a);
+      else if (k === 'bank') drawBank(put, a);
+      else if (k === 'gate') { // the ruin's gate: posts (solid) and a lintel across the way
+        for (const side of [-1, 1]) { const p = off(a, a.facing, 0, side * frontierRule('ruinPostSide')); drawRuinPost(put, p, a.facing); solids.push({ ...p, r: frontierRule('ruinPostR') }); }
+        drawLintel(put, a);
+      } else { drawCairn(put, a); solids.push({ x: a.x, z: a.z, r: frontierRule('cairnR') }); } // a cairn
     }
     if (!z.town) return;
     // A town: its named buildings (above), a ring of houses round its centre, its name on a board at the centre, people about.
     const c = z.landmarks[z.town.centre]!, keep = [...Object.values(z.landmarks), f.giver.at];
-    for (let j = 0; j < 8; j++) {
-      const ang = (j / 8) * Math.PI * 2 + 0.3, p = { x: c.x + Math.sin(ang) * 15, z: c.z + Math.cos(ang) * 15, facing: ang + Math.PI };
-      if (!inZone(z, p.x, p.z, 6) || keep.some((k) => Math.hypot(k.x - p.x, k.z - p.z) < 9)) continue;
-      block(p, BLOCKS.house!);
+    const houses = frontierRule('ringHouses'), radius = frontierRule('ringRadius');
+    for (let j = 0; j < houses; j++) {
+      const ang = (j / houses) * Math.PI * 2 + frontierRule('ringPhase'), p = { x: c.x + Math.sin(ang) * radius, z: c.z + Math.cos(ang) * radius, facing: ang + Math.PI };
+      if (!inZone(z, p.x, p.z, frontierRule('ringMargin')) || keep.some((k) => Math.hypot(k.x - p.x, k.z - p.z) < frontierRule('ringKeepClear'))) continue;
+      block(p, 'house');
     }
-    boards.push({ x: c.x, y: 2.6, z: c.z + 0.01, facing: 0, lines: [z.town.name] }, { x: c.x, y: 2.6, z: c.z - 0.01, facing: Math.PI, lines: [z.town.name] });
-    put('soot', ['box', 0.14, 2.2, 0.14], c.x, 1.9, c.z, SOOT, 0, 0.8);
-    for (let j = 0; j < 4; j++) { const p = off(c, j * 1.7, 4 + j); people.push({ x: p.x, z: p.z, color: CLOTH[(i + j) % CLOTH.length]! }); }
+    boards.push(...townBoards(c, z.town.name));
+    drawTownPost(put, c);
+    people.push(...townPeople(c, i));
   });
-  for (const s of f.signs) sign(s);
+  for (const s of f.signs) boards.push(drawSignpost(put, s));
   return { pieces, solids, people, boards };
 }
 
