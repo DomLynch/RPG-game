@@ -1,7 +1,8 @@
-// Graphics lift (zone sandbox, Dom 2026-10-17: "AAA graphics for 2026 on mobile without a loading bottleneck"). A look flag: `?gfx=1` turns on (1) height fog (denser near the ground, thinner up high; the fog
+// Graphics lift (Test Zone sandbox, Dom 2026-10-17: "AAA graphics for 2026 on mobile without a loading bottleneck"). A look flag: `?gfx=1` turns on (1) height fog (denser near the ground, thinner up high; the fog
 // chunk is patched BEFORE any material compiles, so no shader is built later), (2) half-res bloom on the bright cores only, (3) one grade pass: contrast, saturation, teal shadows, warm highlights, vignette and
 // a dither that removes banding. Donors: Veloren postprocess-frag.glsl (grade, dither), World of Claudecraft gfx.ts (a cheap composer tier), 117HD tone/fog formulas. Every number is an fx row (gfx.*). Off = the
-// page is exactly as before. Budget (Strategy + Dom, +-20%): post stack about 2 ms on a 2021 phone, zero shader compiles after zone ready.
+// page is exactly as before, and this file is only fetched when the flag is on (main.ts imports it dynamically; the flag itself is gfx-flag.ts). Budget (Strategy + Dom, +-20%): post stack about 2 ms on a 2021 phone,
+// zero shader compiles after zone ready. Donor: the Test Zone sandbox, zone/goblin-field-dome @5da7b0388 (copied and adapted, not merged).
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -10,11 +11,12 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { fxNum } from '../../src/fight/index.ts';
 
-export const gfxOn = (search: string): boolean => /[?&;]gfx=1\b/.test(search);
+// The GLSL literals are written from the rows once (a fixed-point string for each), so the shader text carries no tuning of its own.
+const fixed = (id: string, digits: number): string => fxNum(id).toFixed(digits);
 
 /** Height fog: the fog chunks gain the world height of each vertex and the density follows it. Call once, before the first render. */
 export function patchHeightFog(): void {
-  const boost = fxNum('gfx.fog.ground-boost').toFixed(3), fall = fxNum('gfx.fog.height-falloff').toFixed(4), keep = fxNum('gfx.fog.sky-keep').toFixed(3);
+  const boost = fixed('gfx.fog.ground-boost', fxNum('gfx.fog.digits')), fall = fixed('gfx.fog.height-falloff', fxNum('gfx.fog.digits-fine')), keep = fixed('gfx.fog.sky-keep', fxNum('gfx.fog.digits'));
   const C = THREE.ShaderChunk as Record<string, string>;
   C.fog_pars_vertex = C.fog_pars_vertex!.replace('varying float vFogDepth;', 'varying float vFogDepth;\n\tvarying float vFogY;');
   C.fog_vertex = C.fog_vertex!.replace('vFogDepth = - mvPosition.z;', 'vFogDepth = - mvPosition.z;\n\tvFogY = dot(vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]), mvPosition.xyz) + cameraPosition.y;');
@@ -43,7 +45,7 @@ const gradeShader = {
 /** The composer for the walk's frame. `render()` replaces renderer.render(scene, camera); `setSize` follows the page's resize. */
 export function createGfxLift(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  const target = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
+  const target = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: fxNum('gfx.msaa-samples') });
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(size.x, size.y), fxNum('gfx.bloom.strength'), fxNum('gfx.bloom.radius'), fxNum('gfx.bloom.threshold')));

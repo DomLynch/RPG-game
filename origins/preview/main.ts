@@ -96,9 +96,11 @@ import { picker, pickerOpen } from './allegiance.ts';
 import { loadFailure } from './fight-load.ts';
 import { STICK_R, intent, type Pad } from './sticks.ts';
 import { wrapAngle } from '../../src/fight/index.ts';
-import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneHour } from './look.ts';
+import { applyLook, blendLook, lookAlong, lookOf, withZoneLook, zoneArena, zoneDayNight, zoneFightBack, zoneHour } from './look.ts';
+import { setFightBack } from '../../src/fight/index.ts';
 import { gameHour, nightness } from './daynight.ts';
 import { creaturesLook } from '../../src/fight/index.ts';
+import { gfxOn } from './gfx-flag.ts';
 import { lockPageZoom } from '../../src/zoom-guard.ts';
 import { previewRule } from './preview-rules.ts';
 import { createCover } from './load-cover.ts';
@@ -127,6 +129,9 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(theme.fog);
 scene.fog = new THREE.FogExp2(theme.fog, theme.fogDensity);
 const camera = new THREE.PerspectiveCamera(51, 1, 0.1, 180);
+// ?gfx=1 (gfx-lift.ts, Test Zone C16): height fog, half-res bloom, grade. Off = none of it is fetched. The chunk loads while the zone loads, so the fog patch lands before the first material compiles; until it is in, the frame is drawn plainly.
+let gfx: { render(): void; setSize(w: number, h: number): void } | null = null;
+if (gfxOn(location.search)) void import('./gfx-lift.ts').then((m) => { m.patchHeightFog(); gfx = m.createGfxLift(renderer, scene, camera); gfx.setSize(innerWidth, innerHeight); });
 const hemi = new THREE.HemisphereLight(...theme.hemisphere); scene.add(hemi);
 const sun = new THREE.DirectionalLight(...theme.sun), sunHome = new THREE.Vector3(...(theme.light?.sun ?? [-15, 26, -18]));
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.normalBias = 0.04;
@@ -142,7 +147,7 @@ if (frontier) document.title = `Frankendom — ${loadZone(frontier.zone).name}`;
 const CINDER = /[?&]look=(?:[^&]*,)?cinder\b/.test(location.search);   // ?look=cinder: the Frontier's ground carried past its edges, ground breakup, skyline silhouettes and a deeper haze (frontier-cinder.ts, look.ts 'cinder-haze'); a look test, absent = today's Frontier
 const DUEL = /[?&]look=(?:[^&]*,)?duel\b/.test(location.search);   // ?look=duel (with ?region=1): look.ts 'frontier-duel', the ground and light for a fight at the duel camera; default off, combines with ?look=cinder,duel
 const zoneRow = frontier ? loadZone() : null;   // the page's zone row: its look, props, ground, clutter, ambience and creature-marker fields (Test Zone port). Zones 1-4 set none of them, so they are unchanged
-const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
+const ZONE_SKY = zoneRow ? zoneSky(zoneRow) : null, PROPS = zoneRow ? zonePropKit(zoneRow) : null, THIN = zoneRow && zoneRow.set?.includes('look.dress') ? zoneDress(zoneRow) : undefined;   // the dome, the kit and where it stands, and how much of the base clutter stays (look.sky, look.props.kit + look.props.camp, look.dress)
 const cinderDressed = frontier && frontierParts ? (CINDER || ZONE_SKY ? withCinder(frontier, frontierParts, frontierDress(frontier, frontierParts, THIN), THIN) : frontierDress(frontier, frontierParts)) : undefined;   // the Frontier's ground, rocks and ruins (frontier-dress.ts); its solids join the build's
 const goblinKit = PROPS && frontier && frontierParts && cinderDressed ? propKit(frontier, frontierParts, cinderDressed, PROPS.at, PROPS.kit, undefined, PROPS.rim) : null, dress = goblinKit && cinderDressed ? withPropKit(goblinKit, cinderDressed) : cinderDressed;   // a zone row's look.props.kit stands its camp props (prop-kit.ts) on the dressed ground
 if (dress && frontierParts) frontierParts.solids.push(...dress.solids);
@@ -251,6 +256,7 @@ let heading = Math.PI, pitchNow = 0, gaitSpeed = 0;
 const state = { x: 0, z: 3 }, keys = new Set<string>();
 // ?region=1 starts him among the wandering creatures (Dom 2026-10-07: no bridge walk, no far start); linking the zones comes later.
 const mobSpecList = frontier && frontierParts ? mobSpecs(frontier, frontierParts, previewRows(location.search, pageSignedIn())) : [], start = frontier && frontierParts ? spawnAmong(frontier, frontierParts, mobSpecList) : null;
+const ambienceRowNow = zoneRow ? zoneAmbience(zoneRow) : null, ambience = ambienceRowNow && frontier ? createAmbience(ambienceRowNow, goblinKit?.fires ?? [], () => state, soundWanted(location.search)) : null;   // the zone's wind and fire bed (ambience.ts; sound.ambience names a row; none = silent as before)
 if (start) { state.x = start.x; state.z = start.z; heading = start.facing; }
 const landed = frontier ? arrival(frontier, pageZoneId(), new URLSearchParams(location.search).get('via'), openExits()) : null;   // through a zone exit (zones/exits.ts, zone-exit.ts): he lands just inside the far door, facing in
 if (landed) { state.x = landed.x; state.z = landed.z; heading = landed.heading; }
@@ -471,7 +477,7 @@ function applyCombatView() {
   camera.updateProjectionMatrix();
 }
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); gfx?.setSize(w, h); setFightBack(zoneFightBack(loadZone(), h > w)); lastView = ''; camera.aspect = w / h; camera.zoom = followCam.view.zoom; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
@@ -667,8 +673,9 @@ const walkLoop = () => {
   forgeGlow.intensity = 14 * (0.8 + 0.2 * Math.sin(time * 7.1) * Math.sin(time * 3.7));
   warm.forEach((l, i) => { l.intensity = 9 * (0.85 + 0.15 * Math.sin(time * 9 + i * 2.1) * Math.sin(time * 5.3 + i)); });
   if (remote) { if (others !== shownOthers) { shownOthers = others; remote.push(others, performance.now()); } remote.update(dt, performance.now(), state, camera); }   // the other players, eased between packets
+  ambience?.update(dt); goblinSmoke?.update(dt);   // the zone's wind and fire bed, and the camp fires' smoke and flicker
   zoneDome?.follow(camera); camera.updateMatrixWorld(); mobs?.clampLabels(camera, labelFloor, innerHeight); remote?.clampLabels(camera, labelFloor, innerHeight);
-  renderer.render(scene, camera);
+  if (gfx) gfx.render(); else renderer.render(scene, camera);
   if (!cover.lifted()) cover.frame();   // the first frame drawn with everything settled lifts the cover (the max hold is its own wall-clock timer, load-cover.ts)
 };
 renderer.setAnimationLoop(walkLoop);
@@ -956,7 +963,7 @@ let woundFx: ReturnType<typeof createWoundFx> | null = null;   // the blood a cr
 const wounds = () => woundFx ??= createWoundFx(scene, (id) => mobs?.anchorOf(id) ?? null, { feel: PHONE ? 'low' : 'high', groundAt: groundY, camera: () => camera, hero: () => state });
 const zoneFx = createZoneFx({ scene, camera, rigs: { hero: () => warriors?.player ?? null, foe: (id) => mobs?.rig(id) ?? null } });   // every zone page: the engine's contact effects, one instance per active pair (src/fight/zone-fx.ts)
 const zoneSound = createZoneSound(() => loadFeedback(), soundWanted(location.search));   // K8: the Pit's own combat cues, fed by wc's events (zone-sound.ts)
-for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => zoneSound.unlock(), { passive: true });
+for (const type of ['pointerdown', 'touchend', 'keydown'] as const) addEventListener(type, () => { zoneSound.unlock(); ambience?.unlock(); }, { passive: true });
 // Ground loot (ground-pickup.ts): the page reads ground_state once the session is fresh and then every row.pollSec; a take is one ground_take for the character, then the pack is read again and the cue plays.
 const groundSay = (line: string): void => { groundLine = line; groundLineUntil = Date.now() + groundPickup.lineSec * 1000; };   // a result line takes the prompt's slot for lineSec
 const groundPickup = createGroundPickup({

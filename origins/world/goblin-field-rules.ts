@@ -69,6 +69,14 @@ export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: 
   const at = zoneSet(z, 'look.props.camp'), zone = typeof at === 'string' && at && z.world.includes(at) ? at : z.world[0];
   return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true } : null;   // rim: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too
 }
+/** The kit a zone row asks for (`look.props.kit`, an id in props-defs.json) and the world zone it stands in (`look.props.camp`, a world zone of this zone, else its first); null = none. `rim`: the kit's `rim` recipe (a thin stake ring just inside the zone's edge) is laid too. */
+export function zonePropKit(z: ZoneLookFields): { kit: string; at: string; rim: boolean } | null {
+  const kit = zoneSet(z, 'look.props.kit'); if (typeof kit !== 'string' || !kitIds().includes(kit)) return null;
+  const at = zoneSet(z, 'look.props.camp'), zone = typeof at === 'string' && at && z.world.includes(at) ? at : z.world[0];
+  return zone ? { kit, at: zone, rim: zoneSet(z, 'look.props.rim') === true } : null;
+}
+/** The clutter multipliers a zone asks for (`look.dress`, a dress set id); unset = the base clutter as it was. */
+export const zoneDress = (z: ZoneLookFields) => dressSet(zoneSet(z, 'look.dress') as string | undefined);
 /** The building skin a zone asks for (`look.buildings`, an id in building-skins.json); '' = the brick blocks as they were. */
 export const zoneBuildings = (z: ZoneLookFields): string => { const v = zoneSet(z, 'look.buildings'); return typeof v === 'string' && skinIds().includes(v) ? v : ''; };
 /** The soft rim a zone asks for (`boundary.*`): within `margin` m of the zone's edge the walker slows toward `slow` (x speed) and `line` shows; margin 0 = no rim. */

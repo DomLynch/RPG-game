@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneLook } from './look.ts';
+import { blendLook, DEFAULT_FOG_FAR, lookAlong, lookOf, PRESETS, zoneFightBack, zoneLook } from './look.ts';
 
 test('ash-pit is Arena 1 exactly (today\'s Pit does not change)', () => {
   const t = { fog: '#c9a47a', fogDensity: 0.02, exposure: 1.3, hemisphere: ['#9fb2d4', '#4a3426', 1.25], sun: ['#ffb46a', 5.2] }, l = PRESETS['ash-pit']!;   // Arena 1's golden hour as pinned literals (src/arena-themes.ts ARENA_1 at the cut; the zone no longer imports it)
@@ -58,4 +58,12 @@ test('frontier-duel lifts the cinder ground and bounce and softens the key, and 
   d.ground.forEach((v, i) => assert.ok(Math.abs(v - c.ground[i]! * 1.15) < 1e-9));
   assert.equal(d.hemiGround, '#6a5238'); assert.ok(Math.abs(d.sunIntensity - c.sunIntensity * 0.9) < 1e-9);
   assert.equal(d.fog, c.fog); assert.equal(d.fogDensity, c.fogDensity); assert.equal(d.exposure, c.exposure);
+});
+
+test('camera.fightBack (R15): a zone that sets none is 1 on any screen; portrait multiplies the portrait extra on top, landscape never', () => {
+  const set = (fields: Record<string, number>) => ({ fields, set: Object.keys(fields) });
+  assert.equal(zoneFightBack({}, true), 1); assert.equal(zoneFightBack(set({}), false), 1);
+  const z = set({ 'camera.fightBack': 1.2, 'camera.fightBackPortrait': 1.1 });
+  assert.equal(zoneFightBack(z, false), 1.2); assert.ok(Math.abs(zoneFightBack(z, true) - 1.32) < 1e-9);
+  assert.equal(zoneFightBack({ fields: { 'camera.fightBack': 1.5 }, set: [] }, false), 1, 'a value the row did not SET (a default) is not read');
 });
