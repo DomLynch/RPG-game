@@ -71,12 +71,12 @@ test("PROBE: --replace of ANOTHER package's id is refused and NOTHING is written
   const root = scratchRepo();
   try {
     const src = join(root, 'incoming'); cpSync(join(root, 'origins/packages/crypt-sample'), src, { recursive: true });
-    const m = JSON.parse(readFileSync(join(src, 'package.json'), 'utf8')); m.id = 'crypt-twin'; m.zone = 93; m.unlisted = true;   // a second package that claims crypt-sample's zone-6 rows and names them in --replace
+    const m = JSON.parse(readFileSync(join(src, 'package.json'), 'utf8')); m.id = 'crypt-twin'; m.unlisted = true;   // a second package that claims crypt-sample's zone 6 and rows, and names every one of them in --replace: the validator alone is satisfied, the dry-run generate is not
     writeFileSync(join(src, 'package.json'), canon(m));
     const z = JSON.parse(readFileSync(join(src, 'zone.row.json'), 'utf8')); z.unlisted = true; writeFileSync(join(src, 'zone.row.json'), canon(z));
     const mm = JSON.parse(readFileSync(join(src, 'package.json'), 'utf8')); mm.files['zone.row.json'] = { bytes: Buffer.byteLength(canon(z)), sha256: createHash('sha256').update(canon(z)).digest('hex') }; writeFileSync(join(src, 'package.json'), canon(mm));
     const before = snapshot(join(root, 'origins')), packagesBefore = readdirSync(join(root, 'origins/packages')).sort();
-    const refused = importFolder(src, root, new Set(['crypt-sample', 'crypt-mouth', 'crypt-door'])) as string[];
+    const refused = importFolder(src, root, new Set(['6', 'crypt-sample', 'crypt-mouth', 'crypt-door'])) as string[];
     assert.ok(refused.some((p) => /would leave the packages inconsistent/.test(p)), refused.join(';'));
     assert.deepEqual(readdirSync(join(root, 'origins/packages')).sort(), packagesBefore, 'no origins/packages/crypt-twin folder');
     assert.deepEqual(snapshot(join(root, 'origins')), before, 'no file under origins/ changed');
