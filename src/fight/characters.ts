@@ -753,9 +753,10 @@ export function buildWarriors(asset: FighterAsset, opponentAsset?: FighterAsset,
       // The special clip to play while a special's swing runs (specialRoleOf; null clears it). Fetched on the first ask, and only for a weapon the row lists: until it lands, or on any other weapon, the swing plays the weapon's own clip.
       specialMove(role: SpecialRole | null) {
         specialRole = role;
-        if (role && !clips[role] && !specialLoading.has(role) && specialRow(role).weapons.includes(weapon)) {
-          specialLoading.add(role);
-          void SPECIAL_LOADERS[role]().then(m => this.adoptClip(role, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { specialLoading.delete(role); /* the weapon's own clip keeps playing */ });
+        // Once any special is asked for, fetch every special clip this weapon plays (a second slot's clip is otherwise first asked for on its first press, and that cast shows the weapon's own swing until it lands).
+        if (role) for (const r of SPECIAL_ROLES) if (!clips[r] && !specialLoading.has(r) && specialRow(r).weapons.includes(weapon)) {
+          specialLoading.add(r);
+          void SPECIAL_LOADERS[r]().then(m => this.adoptClip(r, AnimationClip.parse(m.default as Parameters<typeof AnimationClip.parse>[0]))).catch(() => { specialLoading.delete(r); /* the weapon's own clip keeps playing */ });
         }
       },
       // Fatigue (fatigue.ts, Lead's brief B): the driver's value for this body this frame, and the body's own tuning (Goblin quick and shallow, Executioner slow and deep).

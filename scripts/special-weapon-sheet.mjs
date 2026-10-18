@@ -9,6 +9,7 @@ import { harnessClock, skipDraws } from './lib/harness-clock.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const BASE = arg('base', 'https://frankendom.com/preview/sandbox/'), OUT = arg('out', 'out/sheets'), WEAPON = arg('weapon', 'maul'), WAIT = Number(arg('wait', '260'));
+const ORBIT = Number(arg('orbit', '0')), CROP = ORBIT ? 'crop=330:400:22:200' : 'crop=250:330:62:250', TAG = ORBIT ? '-side' : '';
 const SPECIALS = ['cleave', 'reaping', 'stomp', 'lunge'].filter((s) => !arg('only', '') || arg('only', '').split(',').includes(s));
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 await fs.mkdir(OUT, { recursive: true });
@@ -26,10 +27,11 @@ for (const special of SPECIALS) {
   for (let n = 0; n < WAIT; n++) await run(n % 3 === 2 ? 16 : 17);   // the first-cast cooldown
   await skipDraws(page, false); await run(17);
   await page.waitForTimeout(2500); await run(17); await page.waitForTimeout(500);   // the special's clip is fetched on the first draw, in real time: let it land first
+  if (ORBIT) { await page.evaluate((dx) => globalThis.__view?.orbit?.(dx, 0), ORBIT); for (let n = 0; n < 60; n++) await run(n % 3 === 2 ? 16 : 17); }   // --orbit <dx>: turn the camera (yaw -= dx * 0.005 rad; -314 is a quarter turn, the character seen from the side), then let it settle
   await page.locator(special === 'lunge' ? '#skill-button' : '#sbx-spell2').tap();
   await skipDraws(page, true);
   const state = () => page.evaluate(() => { const f = globalThis.__sandboxMatch?.practice?.duel?.fighters?.[0]; return { special: f?.special ?? 0, recover: f?.specialRecover ?? 0, clip: (globalThis.__view?.playing?.() ?? '').split(' ')[0] }; });
-  const shot = async (tag) => { await skipDraws(page, false); await run(17); const file = `${OUT}/${special}-${WEAPON}-${tag}.jpg`; await page.screenshot({ path: file, type: 'jpeg', quality: 90 }); await skipDraws(page, true); return file; };
+  const shot = async (tag) => { await skipDraws(page, false); await run(17); const file = `${OUT}/${special}-${WEAPON}${TAG}-${tag}.jpg`; await page.screenshot({ path: file, type: 'jpeg', quality: 90 }); await skipDraws(page, true); return file; };
   const files = [], clips = []; let mid = false, hit = false, after = false;
   for (let n = 0; n < 400 && !after; n++) {
     const s = await state();
@@ -40,11 +42,11 @@ for (const special of SPECIALS) {
   }
   console.log(`${special} on the ${WEAPON}: ${files.length} stills; clip at each: ${clips.join(' | ')}`);
   if (files.length === 3) {
-    const row = `${OUT}/row-${special}-${WEAPON}.jpg`;
-    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...files.flatMap((f) => ['-i', f]), '-filter_complex', '[0]crop=250:330:62:250[a];[1]crop=250:330:62:250[b];[2]crop=250:330:62:250[c];[a][b][c]hstack=inputs=3', '-frames:v', '1', '-update', '1', row]);
+    const row = `${OUT}/row-${special}-${WEAPON}${TAG}.jpg`;
+    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...files.flatMap((f) => ['-i', f]), '-filter_complex', `[0]${CROP}[a];[1]${CROP}[b];[2]${CROP}[c];[a][b][c]hstack=inputs=3`, '-frames:v', '1', '-update', '1', row]);
     rows.push(row);
   }
   await context.close();
 }
 await browser.close();
-if (rows.length) { execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `vstack=inputs=${rows.length}`, '-frames:v', '1', '-update', '1', `${OUT}/sheet-${WEAPON}.jpg`]); console.log(`sheet: ${OUT}/sheet-${WEAPON}.jpg (rows: ${SPECIALS.join(', ')}; columns: windup middle, strike, 12 ticks after)`); }
+if (rows.length) { execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `vstack=inputs=${rows.length}`, '-frames:v', '1', '-update', '1', `${OUT}/sheet-${WEAPON}${TAG}.jpg`]); console.log(`sheet: ${OUT}/sheet-${WEAPON}${TAG}.jpg (rows: ${SPECIALS.join(', ')}; columns: windup middle, strike, 12 ticks after)`); }
