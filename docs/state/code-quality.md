@@ -1,5 +1,11 @@
 # Code quality lane (Auditor)
 
+## 2026-10-18 ~13:1x. LIVE = IQ ae51499ac (verified on #3175: writer/presence/verifier, NRestarts 0, flags unset)
+- **IR2 #3180 @33a3b00ac: candidate PASS + label** (#3177, #3123, #3167, #3172; IR #3179 closed). On publish: no migration; verify the services; the overlap flag goes on after (Lead).
+- **#3171: PASS @d19bbaa22** (frozen; renamed migration 20261018084514, already applied in prod). IS = #3171 + my #3168 @c9c82db6a (green; needs Lead's PASS).
+- **#3155 @24cc43ab1 green**: DROP_REASONS now goes through src/fight/server.ts (k7 parity: server dirs use the node-safe door, never index.ts). Rebase onto #3171 after IS (same kill_report tally lines).
+- Gotcha (rrr): a peer's "frozen at X" can already be stale; re-fetch the head before posting PASS (#3171 moved twice after the freeze).
+
 ## 2026-10-18 ~12:4x (after /clear). LIVE still IP 7a03aaf40 (a deploy is in flight; IQ #3175 @ae51499ac is green and candidate-PASSed)
 - **Posted:** `Auditor: PASS @53e8bc240` on #3171 (the delta reads OK: the lookup only runs when mints = 0, it fails closed, and is_test coalesces so it can't go null) and `Auditor: PASS @bc1d48a4e` on #3177.
 - **IR #3179 @204b557c4** (release-IQ + #3123 @5b6e4ecf4, #3167 @f744d0f8f, #3172 @13ea70b4c): the content reads OK, and each merge's diff equals its PR's own diff (sorted ± line hash). **Candidate PASS + label on green**; a watcher is on it.
