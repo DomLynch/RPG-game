@@ -10,7 +10,7 @@ const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.
 const { specialCueText } = await import('../src/fight/sandbox-rules.ts');
 const idle = () => ({ ...idleIntent(), lock: false });
 type D = { fighters: { special?: number; skillCooldown?: number; health: number; body: { z: number } }[]; events: { type: string; cue?: string; actor?: number }[] };
-const duelAt = (gap: number) => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: gap, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: 'cleave' as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')] });
+const duelAt = (gap: number) => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: gap, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: 'cleave' as never, picked: true as const }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')] });
 
 test('a press beyond the reach is refused with the far cue and spends nothing', () => {
   const d = stepDuel(duelAt(2.3) as never, [{ ...idle(), action: 'skill' }, idle()]) as never as D;

@@ -4,6 +4,7 @@ import { kindOf } from './damage-kinds.ts';
 import { STANCE_ROWS_ON } from './stance-era.ts';
 import { POISE_LADDER_ON } from './poise-era.ts';
 import { CONE_ON } from './cone-era.ts';
+import { MELEE_SPECIAL_ON } from './melee-special-era.ts';
 import { breathTicks, coneOf, inCone, pulseDamage } from './cone-rules.ts';
 import { LADDER, flinchTicks, poiseTier } from './poise-ladder.ts';
 import { OPPONENTS, RULES, SKILL_MOVE, total, weaponOf, DEFAULT_WEAPON, isInterruptible, DAY_ONE_SKILL, type Direction, type GuardProfile, type Material, type MoveId, type Opponent, type RigId, type SkillId, type SpecialName, type Timing, type WeaponId } from './moves.ts';
@@ -14,7 +15,7 @@ import { crowdPercent, percentOf, rolledDamage, rollUnit, swarmBand, type CrowdK
 import { GAMBIT_ODDS, gambitUnit, resolveGambit } from './gambit.ts';
 import { CC_LADDER, ccApply, type CcGuard, type CcLadder, type CcSource } from './cc-ladder.ts';
 import { bandFactor } from './bands.ts';
-import { SPECIAL_MELEE_REACH, meleeSpecialReach, meleeSpecialRelease, percentScaled, SPECIAL_MELEE_WINDUP, SPECIAL_REACT, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, SPECIAL_REACT_STAGGER, specialReactFloorOf } from './sandbox-rules.ts';
+import { meleeReachOn, specialReactOn, meleeSpecialReach, meleeSpecialRelease, percentScaled, specialWindupOf, SPECIAL_REACT_KNOCK, SPECIAL_REACT_POSTURE, SPECIAL_REACT_STAGGER, specialReactFloorOf } from './sandbox-rules.ts';
 import { SHARED_COOLDOWN } from './spell-rows.ts';
 import { castOutcome, outcomeMult, splitDamage, type CastOutcome, type Spell } from './spell-cast.ts';
 import { stanced, type StanceId } from './stance.ts';   // never Math.<transcendental> in the sim: engines round them differently (tests/detmath.test.ts)
@@ -66,7 +67,8 @@ export type Fighter = {
   specialName?: SpecialName;   // which named special this fighter casts (moves.ts specialOf); absent = named by `skill`
   special?: number;   // ticks of a committed special windup left; it releases on the tick it would reach 0
   castHurt?: number;   // damage taken since SpecialStarted while the windup counts down (RULES.special.interruptAt cuts the cast); absent when 0, so a cast nobody hits hashes as before
-  skill2?: SkillId;   // slot b as a MELEE special (the specials PR, RV75): an existing class skill, fought through its own move-defs row (reach, windup, stagger, knockback, stamina, posture) on skillCooldown2, never the flat special share; absent = slot b is a spell (or empty)
+  picked?: true;   // the player's own equipped SPECIAL (the picker's skill, RV78 era): only a picked melee special takes the specialMelee rows (windup, reach, react); a class preset or an opponent's class cast never carries it, so those stay byte for byte (melee-special-era.ts)
+  skill2?: SkillId;   // slot b as aMELEE special (the specials PR, RV75): an existing class skill, fought through its own move-defs row (reach, windup, stagger, knockback, stamina, posture) on skillCooldown2, never the flat special share; absent = slot b is a spell (or empty)
   spell2?: Spell; skillCooldown2?: number; castSlot?: 1;   // slot b (spell-slot-defs.json): its spell and its OWN cooldown (absent = 0); castSlot = the slot of the cast in its windup (absent = slot a). All absent = a one-spell fight byte for byte
   spell?: Spell;   // the spell this fighter's special casts (spell-cast.ts, RV53): a stamina cost at the commit and an outcome by skill at the release; the windup, interrupt, cooldown and reach are the special's own. Absent = the plain special, byte for byte
   specialRecover?: number;   // ticks left after a release in which the caster starts no attack (RULES.special.recovery); guard, roll and steps stay legal
@@ -161,7 +163,7 @@ const poseBodies = (given: DuelPose): [State, State] => {
 };
 export const initialDuel = (opponent: Opponent = OPPONENTS.veteran, weapon: WeaponId = DEFAULT_WEAPON, skill: SkillId | null = null, pose?: DuelPose): Duel => {
   const [hero, foe] = pose ? poseBodies(pose) : [initialState(), { ...initialTarget(), heading: 0, distance: 0 }];
-  return { tick: 0, fighters: [{ ...createFighter(hero, 'sheathed', weapon), skill }, opponentFighter(opponent, foe)], finish: null, events: [] };
+  return { tick: 0, fighters: [{ ...createFighter(hero, 'sheathed', weapon), skill, ...(skill && MELEE_SPECIAL_ON ? { picked: true as const } : {}) }, opponentFighter(opponent, foe)], finish: null, events: [] };
 };
 
 // The one door a patron fight is built through, after initialDuel (and withSpecials): the player's perk in slot 0, the foe's (PvP only; ladder foes carry none) in slot 1.
@@ -330,11 +332,11 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
       next.phase = 'backstep'; next.age = 0; next.parrying = false; next.guardDirection = null; spend(i, R.backstep.cost); events.push({ tick, type: 'ActionStarted', actor: i, action: 'backstep' });
     } else if ((action === 'skill' || action === 'skill2') && me.specialShare !== undefined && !(action === 'skill2' && me.skill2 !== undefined)) {
       // Special: committed from this tick; the cooldown is spent at commitment. Out of reach the press is refused and nothing is spent.
-      const gap = distance(me.body, foe.body), cast = action === 'skill2' ? me.spell2 : me.spell, reach = cast ? R.special.reach : meleeSpecialReach(R.special.reach);   // sandbox specialMeleeReach: a melee special (no spell) is pressed only inside its own, shorter reach
-      if (SPECIAL_MELEE_REACH && !cast && gap > reach) events.push({ tick, type: 'SpecialRefused', actor: i, cue: 'far' });   // nothing is spent: the HUD floats the specialCue row's text over the caster
+      const gap = distance(me.body, foe.body), cast = action === 'skill2' ? me.spell2 : me.spell, reach = cast || !me.picked ? R.special.reach : meleeSpecialReach(R.special.reach);   // sandbox specialMeleeReach: a melee special (no spell) is pressed only inside its own, shorter reach
+      if (meleeReachOn() && me.picked && !cast && gap > reach) events.push({ tick, type: 'SpecialRefused', actor: i, cue: 'far' });   // nothing is spent: the HUD floats the specialCue row's text over the caster
       else if (gap <= reach) {
         if (action === 'skill2') next.castSlot = 1; else delete next.castSlot;
-        next.special = !cast && SPECIAL_MELEE_WINDUP ? SPECIAL_MELEE_WINDUP : R.special.windup; delete next.castHurt;   // sandbox specialMeleeWindup (Dom 2026-10-17: "same speed as the stab, slash or heavy"): a melee special (no spell) is committed for that many ticks, not the spell's delay
+        next.special = specialWindupOf(R.special.windup, !!cast || !me.picked); delete next.castHurt;   // sandbox specialMeleeWindup (Dom 2026-10-17: "same speed as the stab, slash or heavy"): a melee special (no spell) is committed for that many ticks, not the spell's delay
         next.phase = 'ready'; next.age = 0; next.parrying = false; next.guardDirection = null;
         if (cast) spend(i, cast.cost);   // the stamina is gone at the commit, whatever the outcome
         events.push({ tick, type: 'SpecialStarted', actor: i, ...(me.skill ? { move: SKILL_MOVE[me.skill] } : {}), ...(me.specialName ? { name: me.specialName } : {}), ...(cast ? { spell: cast.id } : {}) });
@@ -586,7 +588,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     const spell = castOf(A);   // slot a or b: the cooldown below is that slot's own (spell-slot-defs sharedCooldown 1 = both)
     A.special = 0; delete A.castHurt; coolSlot(A, R.special.cooldown); A.specialRecover = R.special.recovery;   // re-armed and held back from attacking, counted from the release
     if (!standing[j]) continue;
-    if (SPECIAL_MELEE_REACH && !spell && distance(A.body, D.body) > meleeSpecialRelease()) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // sandbox specialMeleeReach: the foe stepped out of reach during the windup, the swing finds nothing
+    if (meleeReachOn() && A.picked && !spell && distance(A.body, D.body) > meleeSpecialRelease()) { events.push({ tick, type: 'SpecialFizzled', actor: i }); continue; }   // sandbox specialMeleeReach: the foe stepped out of reach during the windup, the swing finds nothing
     // v55 (cone-rules.ts): a special with a cone row breathes instead of striking once: the heading is fixed on the target now, the pulses follow, and the caster is held back until the last of them is done.
     const cone = CONE_ON && !spell ? coneOf(A.specialName) : undefined;
     if (cone) { A.breath = { k: 0, wait: 0, heading: aim(A.body, D.body) }; A.specialRecover = R.special.recovery + breathTicks(cone); breathed[i] = true; continue; }
@@ -598,7 +600,7 @@ export function stepDuel(duel: Duel, intents: [Intent, Intent], R: typeof RULES 
     D.health = Math.max(0, D.health - damage);
     if (pulsed) { A.volley = { k: 0, wait: 0, total, hits: spell.hits, every: spell.hitEvery }; volleyed[i] = true; if (spell.hitHolds) A.specialRecover = R.special.recovery + spell.hitEvery * (spell.hits.length - 1); }
     events.push({ tick, type: 'SpecialLanded', actor: i, target: j, move, damage, ...(A.specialName ? { name: A.specialName } : {}), ...(spell && outcome ? { spell: spell.id, outcome } : {}), ...(pulsed ? { pulse: 0 } : {}) });
-    if (SPECIAL_REACT && !spell && D.health) {   // sandbox specialReact: a landed melee special staggers, shoves and shakes the victim by its move row, like a landed blow (no canned animation: the sim decides)
+    if (specialReactOn() && A.picked && !spell && D.health) {   // sandbox specialReact: a landed melee special staggers, shoves and shakes the victim by its move row, like a landed blow (no canned animation: the sim decides)
       const def = movesOf(A)[move], away = aim(D.body, A.body) + Math.PI;
       for (let k = 0; k < Math.round(percentScaled(def.knockback, SPECIAL_REACT_KNOCK)); k++) D.body = { ...advance(D.body, { x: M.sin(away), z: M.cos(away), yaw: 0, run: false }, A.body, 1, wall), heading: D.body.heading };
       D.phase = 'hurt'; D.age = 0; D.stun = Math.max(D.stun, Math.round(percentScaled(def.stagger, SPECIAL_REACT_STAGGER)), specialReactFloorOf(String(move).replace(/^skill_/, ''))); D.buffer = null; D.counterWindow = 0; D.charge = 0; D.charged = false;

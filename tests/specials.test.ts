@@ -8,6 +8,7 @@ import { OPPONENTS, RULES, opponentAt, profileAt, specialOf } from '../src/fight
 import { initialPractice, stepPractice } from '../src/fight/combat.ts';
 import { NO_PATRON_VERSION, decodeRecord, encodeRecord } from '../src/fight/record.ts';
 import { liveRecorder } from './lib/live-recorder.ts';
+import { FIRST_MELEE_SPECIAL_VERSION } from '../src/fight/melee-special-era.ts';
 import { recordSpecials, verifyRecord } from '../src/fight/replay.ts';
 import { STRATEGIES, act, arena, idle } from './strategies.ts';
 
@@ -78,7 +79,7 @@ test('specials: a fight with them records the flag (the current version: a live 
   assert.ok(landed > 0, 'a special landed in the fight');
   const record = rec.finish(p.finish ? (p.finish.draw ? 'draw' : p.finish.victim === 1 ? 'killed' : 'died') : 'abandoned');
   const back = await decodeRecord(await encodeRecord(record));
-  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [NO_PATRON_VERSION, true, { level: 12, aiSkill: 'shove' }]);
+  assert.deepEqual([back.v, back.specials, recordSpecials(back)], [FIRST_MELEE_SPECIAL_VERSION, true, { level: 12, aiSkill: 'shove' }]);
   const v = verifyRecord(back); assert.equal(v.ok, true, `the replay reaches the same finish: ${v.ok ? '' : v.reason}`);
   assert.equal(verifyRecord({ ...back, specials: undefined }).ok, false, 'the same intents without specials are another fight');
 });

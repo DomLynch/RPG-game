@@ -9,11 +9,17 @@ rule('specialMeleeWindup').value = 32; rule('specialReact').value = 1;
 const { createFighter, stepDuel, idleIntent } = await import('../src/fight/duel.ts');
 const idle = () => ({ ...idleIntent(), lock: false });
 type D = { fighters: { special?: number; phase: string; stun: number; health: number; posture: number; body: { z: number } }[]; events: { type: string }[] };
-const duelOf = (skill: string) => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: 1.2, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: skill as never }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] }) as never as D;
+const duelOf = (skill: string) => ({ tick: 0, fighters: [{ ...createFighter({ x: 0, z: 1.2, heading: Math.PI, distance: 0 }, 'ready'), specialShare: 0.1, skillCooldown: 0, skill: skill as never, picked: true as const }, createFighter({ x: 0, z: 0, heading: 0, distance: 0 }, 'ready')], finish: null, events: [] }) as never as D;
 
 test('a melee special is committed for the row\'s windup, not the spell windup', () => {
   const d = stepDuel(duelOf('cleave') as never, [{ ...idle(), action: 'skill' }, idle()]) as never as D;
   assert.ok((d.fighters[0]!.special ?? 0) > 0 && (d.fighters[0]!.special ?? 0) <= 33, `committed for ${d.fighters[0]!.special} ticks`);
+});
+
+test('a class special (not picked) keeps the trunk windup and no react, whatever the rows say: the four picker ids are class-skill ids too', () => {
+  const d = duelOf('cleave') as never as D; delete (d.fighters[0] as { picked?: true }).picked;
+  const cast = stepDuel(d as never, [{ ...idle(), action: 'skill' }, idle()]) as never as D;
+  assert.ok((cast.fighters[0]!.special ?? 0) > 100, `a class cast is committed for the spell delay, got ${cast.fighters[0]!.special}`);
 });
 
 const landed = (skill: string) => {

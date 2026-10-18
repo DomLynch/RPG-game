@@ -1,6 +1,7 @@
 import { loadRegistry, tableFromFile, type Manifest } from '../core/registry.ts';
 import DEFS from './sandbox-rules-defs.json' with { type: 'json' };
 import MANIFEST from './sandbox-rules-defs.manifest.json' with { type: 'json' };
+import { MELEE_SPECIAL_ON } from './melee-special-era.ts';
 
 // The combat sandbox's rule rows, ported to trunk in slices (Lead's plan, 2026-10-18; Donor: the combat sandbox, sandbox/page @678a31f0d, read-only). Slice (c) declared the melee-special families; slice (e) (RV77) turns the
 // windup / react rules on in duel.ts, so this is a sim file: no clock, no Math.random. Each family is a table through the registry (sandbox-rules-defs.manifest.json), one number per row.
@@ -17,7 +18,10 @@ export const SPECIAL_MELEE_REACH = sandboxRule('specialMeleeReach'), SPECIAL_MEL
 //   percentScale / centimetresPerMetre: the unit rows (100 and 100) the percent rows and the cm rows divide by, so no unit literal sits in the sim.
 const PERCENT = sandboxRule('percentScale'), CENTIMETRES_PER_METRE = sandboxRule('centimetresPerMetre');
 export const percentScaled = (value: number, percent: number): number => value * percent / PERCENT;
-export const meleeSpecialReach = (trunk: number): number => (SPECIAL_MELEE_REACH ? SPECIAL_MELEE_REACH / CENTIMETRES_PER_METRE : trunk);   // metres
+export const meleeReachOn = (): boolean => MELEE_SPECIAL_ON && SPECIAL_MELEE_REACH > 0;   // the three melee-special rules are era-keyed (melee-special-era.ts): a record below v78 replays without them
+export const specialReactOn = (): boolean => MELEE_SPECIAL_ON && SPECIAL_REACT > 0;
+export const meleeSpecialReach = (trunk: number): number => (meleeReachOn() ? SPECIAL_MELEE_REACH / CENTIMETRES_PER_METRE : trunk);   // metres
+export const specialWindupOf = (trunk: number, spell: boolean): number => (!spell && MELEE_SPECIAL_ON && SPECIAL_MELEE_WINDUP ? SPECIAL_MELEE_WINDUP : trunk);   // ticks a special is committed: a melee special (no spell) takes the row, a spell keeps the trunk delay; the one source for duel.ts, the tests and the view
 export const meleeSpecialRelease = (): number => (SPECIAL_MELEE_REACH + SPECIAL_MELEE_SLACK) / CENTIMETRES_PER_METRE;   // metres: the farthest a released melee special still lands
 //   specialCue: rows { id, text }, the short text the HUD floats over the caster when the sim refused a special press (the "far" cue).
 export const specialCueText = (id: string): string => (sandboxRows('specialCue').find((r) => r.id === id)?.text as string | undefined) ?? id;

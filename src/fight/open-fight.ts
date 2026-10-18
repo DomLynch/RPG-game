@@ -13,6 +13,7 @@ import type { Event, Fighter, Input, Phase } from './world.ts';
 import { M } from './detmath.ts';
 import { motionOf, type CreatureMotion } from './creature-motion-rows.ts';
 import { worldRule } from './world-rules.ts';
+import { MELEE_SPECIAL_ON } from './melee-special-era.ts';
 
 /** One fight: slot 0 is a player (the "hero" of the Pit's duel); slot 1 is a creature, another player, or nobody (`foe: null`, a dummy far away: the hero alone, swinging, guarding, rolling, regaining stamina). */
 export type Motion = { hold: boolean; circling: boolean; left: number; seed: number };   // a world creature's stand / circle state (creature-motion-defs.json): hold = inside its stop band, circling = this re-decide drew a circle, left = ticks to the next draw
@@ -105,10 +106,10 @@ export function stepBout(s: Bout, a: Fighter, b: Fighter | undefined, inputA: In
   for (let k = 0; k < ticks; k++) {
     const [pa, pb] = duel.fighters;
     // open-world: the places, facings, stances and effective health come from the world each tick (the page walks the players).
-    const ha: PitFighter = { ...pa, body: { ...pa.body, x: a.x, z: a.z, heading: pa.phase === 'roll' ? pa.body.heading : a.facing }, health: a.health, maxHealth: a.maxHealth, stamina: a.stamina, posture: a.posture, skill: a.skill, ...(a.skill2 ? { skill2: a.skill2 } : {}), cc: a.cc ?? emptyLadder, ...(a.stance ? { stance: a.stance } : {}) };
+    const ha: PitFighter = { ...pa, body: { ...pa.body, x: a.x, z: a.z, heading: pa.phase === 'roll' ? pa.body.heading : a.facing }, health: a.health, maxHealth: a.maxHealth, stamina: a.stamina, posture: a.posture, skill: a.skill, ...(a.skill && MELEE_SPECIAL_ON ? { picked: true as const } : {}), ...(a.skill2 ? { skill2: a.skill2 } : {}), cc: a.cc ?? emptyLadder, ...(a.stance ? { stance: a.stance } : {}) };
     if (a.special && ha.specialShare === undefined) { ha.specialShare = a.level >= RULES.special.bossFrom ? RULES.special.bossDamage : RULES.special.damage; ha.specialName = a.special; ha.skillCooldown = Math.round(a.specialIn / TICK); }
     const hb: PitFighter = b
-      ? { ...pb, cc: b.cc ?? emptyLadder, ...(b.ccGuard ? { ccGuard: b.ccGuard } : {}), body: b.side === 'player' ? { ...pb.body, x: b.x, z: b.z, heading: pb.phase === 'roll' ? pb.body.heading : b.facing } : pb.body, health: b.health, maxHealth: b.maxHealth, ...(b.side === 'player' ? { stamina: b.stamina, posture: b.posture, skill: b.skill } : {}), ...(b.stance ? { stance: b.stance } : {}) }
+      ? { ...pb, cc: b.cc ?? emptyLadder, ...(b.ccGuard ? { ccGuard: b.ccGuard } : {}), body: b.side === 'player' ? { ...pb.body, x: b.x, z: b.z, heading: pb.phase === 'roll' ? pb.body.heading : b.facing } : pb.body, health: b.health, maxHealth: b.maxHealth, ...(b.side === 'player' ? { stamina: b.stamina, posture: b.posture, skill: b.skill, ...(b.skill && MELEE_SPECIAL_ON ? { picked: true as const } : {}) } : {}), ...(b.stance ? { stance: b.stance } : {}) }
       : { ...pb, body: { ...pb.body, x: a.x + FAR_M, z: a.z } };
     const before: Duel = { ...duel, fighters: [ha, hb], ccBase: clock + k - duel.tick };   // the ladder's window is the world's clock, not this bout's own tick
     const press = (i: Input): Input => (k === 0 ? i : { x: i.x, z: i.z, run: i.run, guard: i.guard });   // open-world: a press (cut, roll, special) is one tick; the rest of a frame's ticks hold only the walk and the guard

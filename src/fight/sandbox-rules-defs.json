@@ -2,10 +2,10 @@
   "rules": [
     { "id": "percentScale", "value": 100 },
     { "id": "centimetresPerMetre", "value": 100 },
-    { "id": "specialMeleeWindup", "value": 0 },
-    { "id": "specialMeleeReach", "value": 0 },
-    { "id": "specialMeleeSlack", "value": 0 },
-    { "id": "specialReact", "value": 0 },
+    { "id": "specialMeleeWindup", "value": 32 },
+    { "id": "specialMeleeReach", "value": 220 },
+    { "id": "specialMeleeSlack", "value": 40 },
+    { "id": "specialReact", "value": 1 },
     { "id": "specialReactStagger", "value": 160 },
     { "id": "specialReactKnock", "value": 450 },
     { "id": "specialReactPosture", "value": 150 }
