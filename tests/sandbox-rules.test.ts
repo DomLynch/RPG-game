@@ -15,4 +15,5 @@ test('the shipped melee-special rules are ON (BULK-CS, Dom 2026-10-18): windup 3
   assert.deepEqual(specialShardsOf('cleave'), []);
   assert.equal(shardRows(), 0);
   assert.ok(specialSoundOf('cleave').length > 0, 'the sandbox\'s sounds for Skull Crack');
+  assert.deepEqual(specialSoundOf('skullcrack'), []);
 });

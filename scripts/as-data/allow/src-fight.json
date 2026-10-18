@@ -57,6 +57,7 @@
     {"file": "src/fight/world-record.ts", "name": "WORLD_SIM_VERSION", "kind": "exempt", "reason": "format/era version stamp: the version a stored record, wire message or table was written at; changing it is a format change guarded by its own version test, not tuning", "owner": "World & Audio"}
   ],
   "branchIds": [
+    {"file": "src/fight/impact-fx.ts", "literal": "full", "reason": "the impact tier name from hit-impact.ts (full | half | parry | block): its closed tier vocabulary, mapped to the contact row it plays; a tier of the mechanism, not a content id"},
     {"file": "src/fight/special-fx.ts", "literal": "gather", "reason": "timeline phase name (gather | fall | recover | dissolve): the closed phase vocabulary of the special timeline, a state of the mechanism, not a content id (Lead ruling 10-17)"},
     {"file": "src/fight/special-fx.ts", "literal": "fall", "reason": "timeline phase name (gather | fall | recover | dissolve): the closed phase vocabulary of the special timeline, a state of the mechanism, not a content id (Lead ruling 10-17)"},
     {"file": "src/fight/special-tithe.ts", "literal": "gather", "reason": "timeline phase name (gather | fall | recover | dissolve): the closed phase vocabulary of the special timeline, a state of the mechanism, not a content id (Lead ruling 10-17)"},

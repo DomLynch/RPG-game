@@ -4,7 +4,14 @@ Branch state: `sandbox/page`, code frozen at `678a31f0d` (2026-10-18), one rows-
 
 Kind: **row** = data, **code** = promoted by the owner as a trunk PR, **asset** = baked clip or model, **tool** = script or test. Feature state (column "State"): DONE (Dom approved or battery-checked), v1 (live, untuned), **experiment** (older sandbox-mech, not re-verified by this lane; Dom decides).
 
-**Port status** (same values as the Test Zone list): TODO / PORTED (with the trunk PR #) / DROPPED-BY-DOM / SUPERSEDED (with what wins). Owner lanes update PORTED as they land.
+**Port status** vocabulary (Strategy 2026-10-18; the live table is THIS file on trunk, the sandbox branch is frozen at 93b1138c7): PORTED (merged and live) / MERGED / IN PR (#n) / NOT STARTED (owner) / SUPERSEDED (by a merged PR) / DROPPED-BY-DOM. Older cells below that say TODO mean NOT STARTED.
+
+**Live status, 2026-10-18 evening** (Dom: every line is PORT, including the seven "Dom decides" lines; archive when NOT STARTED and IN PR are both zero):
+- MERGED: melee-special row families + readers #3198 (slice c, empty defaults); melee-digest tool #3206.
+- IN PR: slice a assets/pipeline #3220 (Combat); slice b melee clips #3222 (Combat); windup/react/REACH #3205 (Combat, RV77); special-shards #3229 and specialSound #3233 (combat-sandbox, auditor:ready); this docs PR #3239. (The war band #3235 is the Test Zone lane's, not on this list.)
+- NOT STARTED, owner Combat: SPECIAL 1/2 slots, picker and flip + hit-impact `special` tier (RV78); missile model, missileAnswer, bow specials, staff bolts, cc `pin` kind (RV79).
+- NOT STARTED, owner combat-sandbox: bow-v1.glb (needs Characters' OK); sandbox/ preview dir and its five tools (last: they drive the sandbox page); (view/UI items plainPosture, ready/hurt styles, one-button/touch layout A, impact sparks, crowd: owner Web as author, combat-sandbox reviews, Lead 2026-10-18); sim experiments as rows-OFF readers in the RV chain: reach bands (RV80), mana (RV81), dodge counter/pushback/lockout/execution/enrage/wounds/many-on-one (RV82), bind/disarm + poison/flank/ward/bait/armour (RV83).
+- DROPPED-BY-DOM: crossbow.
 
 Proofs held for the sim slices: melee strategy-battery digest `07b44daab172637c` identical at `1d09dd04f` and at the freeze with NO sandbox rows loaded (`scripts/melee-digest.mjs --seeds 8`); sandbox/cc/catalogue targeted tests 246/246; `tsc --noEmit` clean (HF CPU). NOT run: trunk's full suite, `RECORD_VERSION` guard (a porter runs both).
 
