@@ -4,6 +4,7 @@
     { "id": "terrainGain", "value": 0.5, "unit": "ratio" },
     { "id": "terrainLacunarity", "value": 2, "unit": "ratio" },
     { "id": "terrainWarp", "value": 0.6, "unit": "ratio" },
+    { "id": "terrainWarpScale", "value": 0.5, "unit": "ratio" },
     { "id": "padBlend", "value": 1.6, "unit": "ratio" },
     { "id": "roadHalf", "value": 6, "unit": "m" },
     { "id": "buildingModule", "value": 3, "unit": "m" },
@@ -22,6 +23,9 @@
     { "id": "ringTries", "value": 6, "unit": "count" },
     { "id": "ringSpread", "value": 2, "unit": "m" },
     { "id": "ringJitter", "value": 0.25, "unit": "rad" },
-    { "id": "townRadiusPad", "value": 12, "unit": "m" }
+    { "id": "townRadiusPad", "value": 12, "unit": "m" },
+    { "id": "reliefGrid", "value": 32, "unit": "samples" },
+    { "id": "nightSpawnMax", "value": 8, "unit": "count" },
+    { "id": "variantMultiplierMax", "value": 4, "unit": "ratio" }
   ]
 }

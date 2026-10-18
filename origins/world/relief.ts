@@ -8,17 +8,25 @@ import { layoutRule } from './layout-rules.ts';
 export type ReliefParams = { relief: number; hillScale: number; seed: number };
 export type Pad = { x: number; z: number; r: number };   // a flat disc of radius r metres round (x, z); the ground blends back to the hills over the next 0.6 r
 
-const OCTAVES = layoutRule('terrainOctaves'), GAIN = layoutRule('terrainGain'), LACUNARITY = layoutRule('terrainLacunarity'), WARP = layoutRule('terrainWarp'), PAD_BLEND = layoutRule('padBlend');
+const OCTAVES = layoutRule('terrainOctaves'), GAIN = layoutRule('terrainGain'), LACUNARITY = layoutRule('terrainLacunarity'), WARP = layoutRule('terrainWarp'), WARP_SCALE = layoutRule('terrainWarpScale'), PAD_BLEND = layoutRule('padBlend');
 const NORM = (1 - GAIN ** OCTAVES) / (1 - GAIN);   // the fbm's summed amplitude, so it stays in [0, 1)
+
+// The noise's own numbers: the lattice hash's primes and shifts, the fade polynomial, the smoothstep, the warp's decorrelation offsets and seed salts, the FNV-1a parameters. They define the noise (change one and every landscape
+// changes, pinned by the relief and region digests), they are not tuning: exempt in scripts/as-data/allow/origins-world.json. The tuning (octaves, gain, lacunarity, warp, pad blend, grid) is in layout-rules-defs.json.
+const HASH_X = 0x27d4eb2d, HASH_Z = 0x165667b1, HASH_SEED = 0x9e3779b1, HASH_MIX_A = 0x85ebca6b, HASH_MIX_B = 0xc2b2ae35, HASH_SHIFT_A = 15, HASH_SHIFT_B = 13, HASH_SHIFT_C = 16, UINT32 = 4294967296;
+const FADE_A = 6, FADE_B = 15, FADE_C = 10, SMOOTH_A = 3, SMOOTH_B = 2, OCTAVE_SEED_STRIDE = 101, WARP_OFFSET_X = 17.3, WARP_OFFSET_Z = 31.7, WARP_SALT_X = 7, WARP_SALT_Z = 13;
+const FNV_OFFSET = 0x811c9dc5, FNV_PRIME = 0x01000193;
+const HALF = 0.5, SIGNED_SPAN = 2;   // one half; the width of [-1, 1), the range a [0, 1) noise value is stretched to
+const GRID = layoutRule('reliefGrid');   // the renderer's heightfield samples a side
 
 // A lattice hash to [0, 1): integer mixing only (Math.imul and shifts), so it is exact everywhere.
 function hash(ix: number, iz: number, seed: number): number {
-  let h = Math.imul(ix | 0, 0x27d4eb2d) ^ Math.imul(iz | 0, 0x165667b1) ^ Math.imul(seed | 0, 0x9e3779b1);
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  let h = Math.imul(ix | 0, HASH_X) ^ Math.imul(iz | 0, HASH_Z) ^ Math.imul(seed | 0, HASH_SEED);
+  h = Math.imul(h ^ (h >>> HASH_SHIFT_A), HASH_MIX_A);
+  h = Math.imul(h ^ (h >>> HASH_SHIFT_B), HASH_MIX_B);
+  return ((h ^ (h >>> HASH_SHIFT_C)) >>> 0) / UINT32;
 }
-const fade = (t: number): number => t * t * t * (t * (t * 6 - 15) + 10);
+const fade = (t: number): number => t * t * t * (t * (t * FADE_A - FADE_B) + FADE_C);
 function noise(x: number, z: number, seed: number): number {
   const xi = Math.floor(x), zi = Math.floor(z), u = fade(x - xi), v = fade(z - zi);
   const a = hash(xi, zi, seed), b = hash(xi + 1, zi, seed), c = hash(xi, zi + 1, seed), d = hash(xi + 1, zi + 1, seed);
@@ -26,15 +34,15 @@ function noise(x: number, z: number, seed: number): number {
 }
 function fbm(x: number, z: number, seed: number): number {
   let sum = 0, amp = 1, f = 1;
-  for (let i = 0; i < OCTAVES; i++) { sum += amp * noise(x * f, z * f, seed + i * 101); amp *= GAIN; f *= LACUNARITY; }
+  for (let i = 0; i < OCTAVES; i++) { sum += amp * noise(x * f, z * f, seed + i * OCTAVE_SEED_STRIDE); amp *= GAIN; f *= LACUNARITY; }
   return sum / NORM;
 }
-const smooth = (t: number): number => { const c = t < 0 ? 0 : t > 1 ? 1 : t; return c * c * (3 - 2 * c); };
+const smooth = (t: number): number => { const c = t < 0 ? 0 : t > 1 ? 1 : t; return c * c * (SMOOTH_A - SMOOTH_B * c); };
 
 // The zone id as a seed when the data leaves `terrain.seed` at 0: FNV-1a over the id's UTF-16 units.
 export function seedOf(zoneId: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < zoneId.length; i++) h = Math.imul(h ^ zoneId.charCodeAt(i), 0x01000193);
+  let h = FNV_OFFSET;
+  for (let i = 0; i < zoneId.length; i++) h = Math.imul(h ^ zoneId.charCodeAt(i), FNV_PRIME);
   return h >>> 0;
 }
 
@@ -42,9 +50,9 @@ export function seedOf(zoneId: string): number {
 export function reliefAt(x: number, z: number, p: ReliefParams, pads: readonly Pad[] = []): number {
   if (p.relief === 0) return 0;
   const k = 1 / p.hillScale, seed = p.seed | 0;
-  const wx = x + (noise(x * k * 0.5 + 17.3, z * k * 0.5, seed + 7) - 0.5) * p.hillScale * WARP;   // the warp: contours meander instead of lying on a grid
-  const wz = z + (noise(x * k * 0.5, z * k * 0.5 + 31.7, seed + 13) - 0.5) * p.hillScale * WARP;
-  let h = (fbm(wx * k, wz * k, seed) - 0.5) * 2 * p.relief;
+  const wx = x + (noise(x * k * WARP_SCALE + WARP_OFFSET_X, z * k * WARP_SCALE, seed + WARP_SALT_X) - HALF) * p.hillScale * WARP;   // the warp: contours meander instead of lying on a grid
+  const wz = z + (noise(x * k * WARP_SCALE, z * k * WARP_SCALE + WARP_OFFSET_Z, seed + WARP_SALT_Z) - HALF) * p.hillScale * WARP;
+  let h = (fbm(wx * k, wz * k, seed) - HALF) * SIGNED_SPAN * p.relief;
   for (const pad of pads) {
     const dx = x - pad.x, dz = z - pad.z;
     h *= smooth((Math.sqrt(dx * dx + dz * dz) - pad.r) / (pad.r * (PAD_BLEND - 1)));
@@ -53,7 +61,7 @@ export function reliefAt(x: number, z: number, p: ReliefParams, pads: readonly P
 }
 
 // The 32 x 32 heightfield the renderer meshes: `n` samples a side over a `size` m square centred on (cx, cz), row-major (z rows, x columns).
-export function heightfield(p: ReliefParams, size: number, pads: readonly Pad[] = [], n = 32, cx = 0, cz = 0): Float32Array {
+export function heightfield(p: ReliefParams, size: number, pads: readonly Pad[] = [], n = GRID, cx = 0, cz = 0): Float32Array {
   const out = new Float32Array(n * n), step = size / (n - 1);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j * n + i] = reliefAt(cx - size / 2 + i * step, cz - size / 2 + j * step, p, pads);
   return out;
